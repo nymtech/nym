@@ -1,3 +1,8 @@
+mod directory;
+mod mix;
+
 fn main() {
-    println!("Hello, world!");
+    let _ = "Hello, Sphinx!".as_bytes().to_vec();
 }
+
+

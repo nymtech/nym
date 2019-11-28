@@ -1,17 +1,23 @@
-use crate::directory::DirectoryClient;
+use crate::clients::directory::DirectoryClient;
 use sphinx::SphinxPacket;
-use sphinx::route::Node;
+use sphinx::route::Node as MixNode;
+use tokio::net::TcpStream;
+use tokio::prelude::*;
 
-struct MixClient {}
+pub struct MixClient {}
 
 impl MixClient {
-    fn new() -> MixClient {
+    pub fn new() -> MixClient {
         MixClient {}
     }
 
-    fn send(&self, packet: SphinxPacket, mix: &Node) {
+    pub async fn send(&self, packet: SphinxPacket, mix: &MixNode) -> Result<(), Box<dyn std::error::Error>>{
         let bytes = packet.to_bytes();
+
         // now we shoot it into space!
+        let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
+        stream.write_all(&bytes[..]).await?;
+        Ok(())
     }
 }
 

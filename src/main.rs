@@ -1,7 +1,7 @@
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 use crate::mix_peer::MixPeer;
-use sphinx::SphinxPacket;
+use sphinx::{SphinxPacket, ProcessedPacket};
 
 mod mix_peer;
 
@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let (mut inbound, _) = listener.accept().await?;
 
         tokio::spawn(async move {
-            let mut buf = [0; 1024];
+            let mut buf = [0; 1024 + 333];
 
             loop {
                 let _ = match inbound.read(&mut buf).await {
@@ -28,7 +28,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     Ok(length) => {
                         let packet = SphinxPacket::from_bytes(buf.to_vec()).unwrap();
-                        let (next_packet, _) = packet.process(Default::default());
+                        let next_packet = match packet.process(Default::default()){
+                            ProcessedPacket::ProcessedPacketForwardHop(packet,_,_) => Some(packet) ,
+                            _ => None,
+                        }.unwrap();
 
                         let next_mix = MixPeer::new();
 

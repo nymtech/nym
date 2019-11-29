@@ -16,9 +16,9 @@ impl MixPeer {
         node
     }
 
-    pub async fn send(&self, buf: [u8; 1024]) -> Result<(), Box<dyn Error>>{
+    pub async fn send(&self, bytes: Vec<u8>) -> Result<(), Box<dyn Error>>{
         let mut stream = TcpStream::connect(self.connection).await?;
-        stream.write_all(&buf).await?;
+        stream.write_all(&bytes).await?;
         Ok(())
     }
 }

@@ -1,6 +1,7 @@
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 use crate::mix_peer::MixPeer;
+use sphinx::SphinxPacket;
 
 mod mix_peer;
 
@@ -9,7 +10,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let my_address = "127.0.0.1:8080";
     let mut listener = TcpListener::bind(my_address).await?;
 
-    println!("Starting echo server on address {:?}", my_address);
+    println!("Starting Nym mixnode on address {:?}", my_address);
     println!("Waiting for input...");
 
     loop {
@@ -26,12 +27,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             return
                         }
                     Ok(length) => {
-//                        println!("Received: {:?}", String::from_utf8(buf[0..length].to_vec()).unwrap());
+                        let packet = SphinxPacket::from_bytes(buf.to_vec()).unwrap();
+                        let (next_packet, _) = packet.process(Default::default());
+
                         let next_mix = MixPeer::new();
-                        match next_mix.send(buf).await {
+
+                        match next_mix.send(next_packet.to_bytes()).await {
                             Ok(()) => length,
                             Err(e) => {
-                                println!("failed to write bytes to next mix peer. err = {:?}", e);
+                                println!("failed to write bytes to next mix peer. err = {:?}", e.to_string());
                                 return;
                             }
                         }

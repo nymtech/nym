@@ -34,7 +34,8 @@ mod sending_a_sphinx_packet {
         let message = "Hello, Sphinx!".as_bytes().to_vec();
         let mixes = directory.get_mixes();
         let destination = directory.get_destination();
-        let packet = SphinxPacket::new(message, &mixes, &destination);
+        let delays = sphinx::header::delays::generate(2);
+        let packet = SphinxPacket::new(message, &mixes, &destination, &delays).unwrap();
         let mix_client = MixClient::new();
         let first_hop = mixes.first().unwrap();
 

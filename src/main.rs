@@ -1,6 +1,6 @@
 use tokio::net::TcpListener;
 use tokio::prelude::*;
-use sphinx::SphinxPacket;
+use sphinx::{SphinxPacket, ProcessedPacket};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -14,7 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let (mut inbound, _) = listener.accept().await?;
 
         tokio::spawn(async move {
-            let mut buf = [0; 1024];
+            let mut buf = [0; 1024 + 333];
 
             loop {
                 let _ = match inbound.read(&mut buf).await {
@@ -26,8 +26,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Ok(_) => {
                         println!("Received a packet!");
                         let packet = SphinxPacket::from_bytes(buf.to_vec()).unwrap();
-                        let (unwrapped_packet, _) = packet.process(Default::default());
-                        let message = unwrapped_packet.payload.content;
+                        let payload = match packet.process(Default::default()){
+                            ProcessedPacket::ProcessedPacketFinalHop(_,payload) => Some(payload) ,
+                            _ => None,
+                        }.unwrap();
+                        let message = payload.get_content();
                         println!("Got message: {:?}", String::from_utf8(message).unwrap());
                     }
                     Err(e) => {

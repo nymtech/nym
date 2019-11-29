@@ -11,10 +11,10 @@ impl MixClient {
         MixClient {}
     }
 
+    // Sends a Sphinx packet to a mixnode.
     pub async fn send(&self, packet: SphinxPacket, mix: &MixNode) -> Result<(), Box<dyn std::error::Error>>{
         let bytes = packet.to_bytes();
 
-        // now we shoot it into space!
         let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
         stream.write_all(&bytes[..]).await?;
         Ok(())

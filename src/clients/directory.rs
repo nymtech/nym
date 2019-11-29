@@ -27,6 +27,7 @@ fn fake_directory_mixes() -> Vec<SphinxNode> {
         address: [0u8; 32], //"127.0.0.1:8080".as_bytes(), // start here tomorrow :)
         pub_key: Default::default()
     };
+//    vec![node1]
     let node2 = sphinx::route::Node{
         address: [1u8;32],
         pub_key: Default::default()

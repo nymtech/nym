@@ -24,14 +24,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             return
                         }
                     Ok(_) => {
-                        println!("Received a packet!");
                         let packet = SphinxPacket::from_bytes(buf.to_vec()).unwrap();
                         let payload = match packet.process(Default::default()){
                             ProcessedPacket::ProcessedPacketFinalHop(_,payload) => Some(payload) ,
                             _ => None,
                         }.unwrap();
                         let message = payload.get_content();
-                        println!("Got message: {:?}", String::from_utf8(message).unwrap());
                     }
                     Err(e) => {
                         println!("failed to read from socket; err = {:?}", e);

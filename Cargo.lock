@@ -396,6 +396,7 @@ dependencies = [
 name = "nym-mixnode"
 version = "0.1.0"
 dependencies = [
+ "curve25519-dalek 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "sphinx 0.1.0",
  "tokio 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

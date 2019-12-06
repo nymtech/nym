@@ -7,32 +7,6 @@ use std::process;
 mod mix_peer;
 mod node;
 
-//
-//fn run(matches: ArgMatches) -> Result<(), String> {
-//    // ...
-//    match matches.subcommand() {
-//        ("analyse", Some(m)) => run_analyse(m, &logger),
-//        ("verify", Some(m)) => run_verify(m, &logger),
-//        _ => Ok(()),
-//    }
-//}
-//
-//fn run_analyse(matches: &ArgMatches, parent_logger: &slog::Logger) -> Result<(), String> {
-//    let logger = parent_logger.new(o!("command" => "analyse"));
-//    let input = matches.value_of("input-file").unwrap();
-//    debug!(logger, "analysis_started"; "input_file" => input);
-//    // ...
-//    Ok(())
-//}
-//
-//fn run_verify(matches: &ArgMatches, parent_logger: &slog::Logger) -> Result<(), String> {
-//    let logger = parent_logger.new(o!("command" => "verify"));
-//    let algorithm = value_t!(matches.value_of("algorithm"), Algorithm).unwrap();
-//    debug!(logger, "verification_started"; "algorithm" => format!("{:?}", algorithm));
-//    // ...
-//    Ok(())
-//}
-
 fn execute(matches: ArgMatches) -> Result<(), String> {
     match matches.subcommand() {
         ("run", Some(m)) => Ok(run(m)),

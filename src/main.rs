@@ -58,14 +58,9 @@ impl<'a, T> PacketProcessor<'a, T> {
 
     async fn wait_and_forward(&self, fwd_data: ForwardingData<'a>) {
         let delay_duration = Duration::from_nanos(fwd_data.delay.get_value());
-        // for now just hardcode some value
-        let delay_duration = Duration::from_secs(2);
-        println!("gonna wait 2 seconds!");
+        println!("client says to wait for {:?}", delay_duration);
         tokio::time::delay_for(delay_duration).await;
-        println!("waited 2 seconds!");
-
-
-//        let task = TokioDelay::new
+        println!("waited {:?} - time to forward the packet!", delay_duration);
 
         match fwd_data.recipient.send(fwd_data.packet.to_bytes()).await {
             Ok(()) => (),
@@ -82,22 +77,10 @@ impl<'a, T> PacketProcessor<'a, T> {
             _ => return Err(MixProcessingError::ReceivedFinalHopError),
         };
 
-        let next_mix = MixPeer::new();
-
-//        let next_mix = MixPeer::new(next_hop_address.to_vec());
+        let next_mix = MixPeer::new(next_hop_address);
 
         let fwd_data = ForwardingData::new(next_packet, delay, next_mix);
         Ok(fwd_data)
-
-//        match next_mix.send(next_packet.to_bytes()).await {
-//            Ok(()) => (),
-//            Err(e) => {
-//                println!("failed to write bytes to next mix peer. err = {:?}", e.to_string());
-//                return;
-//            }
-//        }
-
-
     }
 }
 
@@ -118,16 +101,16 @@ impl MixNode{
 
 
 
-    pub fn start_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn start_listening(network_address: &str, secret_key: Scalar) -> Result<(), Box<dyn std::error::Error>> {
         // Create the runtime
         let mut rt = Runtime::new()?;
 
         // AGAIN TEMPORARY BECAUSE LIFETIMES (and async move)
-        let secret_key_copy = self.secret_key;
+//        let secret_key_copy = self.secret_key;
 
         // Spawn the root task
         rt.block_on(async {
-            let mut listener = tokio::net::TcpListener::bind(self.network_address).await?;
+            let mut listener = tokio::net::TcpListener::bind(network_address).await?;
 
             loop {
                 let (mut socket, _) = listener.accept().await?;
@@ -152,7 +135,7 @@ impl MixNode{
 //                                };
 
                                 let processor = PacketProcessor::<'_,DUMMY_TEMP_TYPE>::new();
-                                let fwd_data = processor.process_sphinx_data_packet(buf.as_ref(), &secret_key_copy).unwrap();
+                                let fwd_data = processor.process_sphinx_data_packet(buf.as_ref(), &secret_key).unwrap();
                                 processor.wait_and_forward(fwd_data).await;
 //
 //                                let dummy_address = b"foomp".to_vec();
@@ -186,7 +169,7 @@ impl MixNode{
 
 fn main() {
     let mix = MixNode::new("127.0.0.1:8080", Default::default());
-    mix.start_listening().unwrap();
+    MixNode::start_listening(mix.network_address, mix.secret_key).unwrap();
 }
 //
 //#[tokio::main]

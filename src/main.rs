@@ -6,7 +6,6 @@ use std::time::{Duration};
 use crate::mix_peer::MixPeer;
 use crate::MixProcessingError::SphinxRecoveryError;
 use sphinx::header::delays::{Delay as SphinxDelay};
-use std::borrow::Borrow;
 
 mod mix_peer;
 
@@ -103,7 +102,7 @@ impl MixNode{
             secret_key
         }
     }
-    
+
     pub fn start_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
         // Create the runtime, probably later move it to MixNode itself?
         let mut rt = Runtime::new()?;
@@ -113,11 +112,11 @@ impl MixNode{
             let mut listener = tokio::net::TcpListener::bind(self.network_address).await?;
 
             let processing_data = ProcessingData::new(self.secret_key);
-
             loop {
                 let (mut socket, _) = listener.accept().await?;
 
                 tokio::spawn(async move {
+                    // NOTE: processing_data is copied here!!
                     let mut buf = [0u8; sphinx::PACKET_SIZE];
 
                     // In a loop, read data from the socket and write the data back.
@@ -155,52 +154,3 @@ fn main() {
     mix.start_listening().unwrap();
 }
 
-
-//
-//#[tokio::main]
-//async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//    let my_address = "127.0.0.1:8080";
-//    let mut listener = TcpListener::bind(my_address).await?;
-//
-//    println!("Starting Nym mixnode on address {:?}", my_address);
-//    println!("Waiting for input...");
-//
-//    loop {
-//        let (mut inbound, _) = listener.accept().await?;
-//
-//        tokio::spawn(async move {
-//            let mut buf = [0; 1024 + 333];
-//
-//            loop {
-//                let _ = match inbound.read(&mut buf).await {
-//                    Ok(length) if length == 0 =>
-//                        {
-//                            println!("Remote connection closed.");
-//                            return;
-//                        }
-//                    Ok(length) => {
-//                        let packet = SphinxPacket::from_bytes(buf.to_vec()).unwrap();
-//                        let next_packet = match packet.process(Default::default()) {
-//                            ProcessedPacket::ProcessedPacketForwardHop(packet, _, _) => Some(packet),
-//                            _ => None,
-//                        }.unwrap();
-//
-//                        let next_mix = MixPeer::new();
-//
-//                        match next_mix.send(next_packet.to_bytes()).await {
-//                            Ok(()) => length,
-//                            Err(e) => {
-//                                println!("failed to write bytes to next mix peer. err = {:?}", e.to_string());
-//                                return;
-//                            }
-//                        }
-//                    }
-//                    Err(e) => {
-//                        println!("failed to read from socket; err = {:?}", e);
-//                        return;
-//                    }
-//                };
-//            }
-//        });
-//    }
-//}

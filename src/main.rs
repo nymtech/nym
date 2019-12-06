@@ -6,6 +6,7 @@ use std::time::{Duration};
 use crate::mix_peer::MixPeer;
 use crate::MixProcessingError::SphinxRecoveryError;
 use sphinx::header::delays::{Delay as SphinxDelay};
+use std::borrow::Borrow;
 
 mod mix_peer;
 
@@ -40,13 +41,29 @@ impl<'a> ForwardingData<'a> {
     }
 }
 
+// ProcessingData defines all data required to correctly unwrap sphinx packets
+// Do note that we're copying this struct around and hence the secret_key.
+// It might, or might not be, what we want
+#[derive(Clone, Copy)]
+struct ProcessingData {
+    secret_key: Scalar
+}
+
+impl ProcessingData {
+    fn new(secret_key: Scalar) -> Self {
+        ProcessingData{
+            secret_key: secret_key.clone()
+        }
+    }
+}
+
 struct PacketProcessor {
 }
 
 impl PacketProcessor {
-    pub fn process_sphinx_data_packet<'a>(packet_data: &[u8], secret_key: &Scalar) -> Result<ForwardingData<'a>, MixProcessingError> {
+    pub fn process_sphinx_data_packet<'a>(packet_data: &[u8], secret_key: Scalar) -> Result<ForwardingData<'a>, MixProcessingError> {
         let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
-        let (next_packet, next_hop_address, delay) = match packet.process(*secret_key) {
+        let (next_packet, next_hop_address, delay) = match packet.process(secret_key) {
             ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay) => (packet, address, delay),
             _ => return Err(MixProcessingError::ReceivedFinalHopError),
         };
@@ -86,16 +103,16 @@ impl MixNode{
             secret_key
         }
     }
-
-
-
-    pub fn start_listening(network_address: &str, secret_key: Scalar) -> Result<(), Box<dyn std::error::Error>> {
+    
+    pub fn start_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
         // Create the runtime, probably later move it to MixNode itself?
         let mut rt = Runtime::new()?;
 
         // Spawn the root task
         rt.block_on(async {
-            let mut listener = tokio::net::TcpListener::bind(network_address).await?;
+            let mut listener = tokio::net::TcpListener::bind(self.network_address).await?;
+
+            let processing_data = ProcessingData::new(self.secret_key);
 
             loop {
                 let (mut socket, _) = listener.accept().await?;
@@ -112,7 +129,7 @@ impl MixNode{
                                 return;
                             }
                             Ok(_) => {
-                                let fwd_data = PacketProcessor::process_sphinx_data_packet(buf.as_ref(), &secret_key).unwrap();
+                                let fwd_data = PacketProcessor::process_sphinx_data_packet(buf.as_ref(), processing_data.secret_key).unwrap();
                                 PacketProcessor::wait_and_forward(fwd_data).await;
                             }
                             Err(e) => {
@@ -135,7 +152,7 @@ impl MixNode{
 
 fn main() {
     let mix = MixNode::new("127.0.0.1:8080", Default::default());
-    MixNode::start_listening(mix.network_address, mix.secret_key).unwrap();
+    mix.start_listening().unwrap();
 }
 
 

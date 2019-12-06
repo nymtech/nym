@@ -1,6 +1,7 @@
 use crate::node::MixNode;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use std::net::{SocketAddr, ToSocketAddrs};
+use curve25519_dalek::scalar::Scalar;
+use std::net::ToSocketAddrs;
 use std::process;
 
 mod mix_peer;
@@ -34,12 +35,12 @@ mod node;
 
 fn execute(matches: ArgMatches) -> Result<(), String> {
     match matches.subcommand() {
-        ("run", Some(m)) => run(m),
+        ("run", Some(m)) => Ok(run(m)),
         _ => Err(String::from("Unknown command")),
     }
 }
 
-fn run(matches: &ArgMatches) -> Result<(), String> {
+fn run(matches: &ArgMatches) {
     println!("Running the mixnode!");
 
     let host = matches.value_of("host").unwrap_or("0.0.0.0");
@@ -54,21 +55,21 @@ fn run(matches: &ArgMatches) -> Result<(), String> {
         Err(err) => panic!("Invalid layer value provided - {:?}", err),
     };
 
-    let key = match matches.value_of("keyfile") {
+    let secret_key: Scalar = match matches.value_of("keyfile") {
         Some(keyfile) => {
             println!("Todo: load keyfile from <{:?}>", keyfile);
-            "dummy key1"
+            Default::default()
         }
         None => {
             println!("Todo: generate fresh sphinx keypair");
-            "dummy key2"
+            Default::default()
         }
     };
 
-    println!("The value of host is: {}", host);
-    println!("The value of port is: {}", port);
-    println!("The value of layer is: {}", layer);
-    println!("The value of key is: {}", key);
+    println!("The value of host is: {:?}", host);
+    println!("The value of port is: {:?}", port);
+    println!("The value of layer is: {:?}", layer);
+    println!("The value of key is: {:?}", secret_key);
 
     let socket_address = (host, port)
         .to_socket_addrs()
@@ -77,7 +78,12 @@ fn run(matches: &ArgMatches) -> Result<(), String> {
         .expect("Failed to extract the socket address from the iterator");
 
     println!("The full combined socket address is {}", socket_address);
-    Ok(())
+
+    // make sure our socket_address is equal to our predefined-hardcoded value
+    assert_eq!("127.0.0.1:8080", socket_address.to_string());
+
+    let mix = MixNode::new(socket_address, secret_key);
+    mix.start_listening().unwrap();
 }
 
 fn main() {
@@ -125,7 +131,4 @@ fn main() {
         println!("Application error: {}", e);
         process::exit(1);
     }
-
-    //    let mix = MixNode::new("127.0.0.1:8080", Default::default());
-    //    mix.start_listening().unwrap();
 }

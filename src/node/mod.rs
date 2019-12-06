@@ -5,6 +5,7 @@ use curve25519_dalek::scalar::Scalar;
 use std::time::{Duration};
 use crate::mix_peer::MixPeer;
 use sphinx::header::delays::{Delay as SphinxDelay};
+use std::net::SocketAddr;
 
 
 // TODO: this will probably need to be moved elsewhere I imagine
@@ -91,12 +92,12 @@ impl PacketProcessor {
 
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
-    network_address: &'static str,
+    network_address: SocketAddr,
     secret_key: Scalar
 }
 
 impl MixNode{
-    pub fn new(network_address: &'static str, secret_key: Scalar) -> Self {
+    pub fn new(network_address: SocketAddr, secret_key: Scalar) -> Self {
         MixNode {
             network_address,
             secret_key

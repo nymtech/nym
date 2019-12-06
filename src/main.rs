@@ -2,12 +2,10 @@ use sphinx::{ProcessedPacket, SphinxPacket};
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
 use curve25519_dalek::scalar::Scalar;
-use std::time::{Duration, Instant};
+use std::time::{Duration};
 use crate::mix_peer::MixPeer;
 use crate::MixProcessingError::SphinxRecoveryError;
 use sphinx::header::delays::{Delay as SphinxDelay};
-use tokio::time::Delay as TokioDelay;
-use std::marker::PhantomData;
 
 mod mix_peer;
 
@@ -42,35 +40,11 @@ impl<'a> ForwardingData<'a> {
     }
 }
 
-// just because lifetimes are annoying
-type DUMMY_TEMP_TYPE = u8;
-
-struct PacketProcessor<'a, T> {
-    phantom: PhantomData<&'a T>,
+struct PacketProcessor {
 }
 
-impl<'a, T> PacketProcessor<'a, T> {
-    fn new() -> Self {
-        PacketProcessor{
-            phantom: PhantomData
-        }
-    }
-
-    async fn wait_and_forward(&self, fwd_data: ForwardingData<'a>) {
-        let delay_duration = Duration::from_nanos(fwd_data.delay.get_value());
-        println!("client says to wait for {:?}", delay_duration);
-        tokio::time::delay_for(delay_duration).await;
-        println!("waited {:?} - time to forward the packet!", delay_duration);
-
-        match fwd_data.recipient.send(fwd_data.packet.to_bytes()).await {
-            Ok(()) => (),
-            Err(e) => {
-                println!("failed to write bytes to next mix peer. err = {:?}", e.to_string());
-            }
-        }
-    }
-
-    pub fn process_sphinx_data_packet(&self, packet_data: &[u8], secret_key: &Scalar) -> Result<ForwardingData, MixProcessingError> {
+impl PacketProcessor {
+    pub fn process_sphinx_data_packet<'a>(packet_data: &[u8], secret_key: &Scalar) -> Result<ForwardingData<'a>, MixProcessingError> {
         let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
         let (next_packet, next_hop_address, delay) = match packet.process(*secret_key) {
             ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay) => (packet, address, delay),
@@ -81,6 +55,20 @@ impl<'a, T> PacketProcessor<'a, T> {
 
         let fwd_data = ForwardingData::new(next_packet, delay, next_mix);
         Ok(fwd_data)
+    }
+
+    async fn wait_and_forward(forwarding_data: ForwardingData<'_>) {
+        let delay_duration = Duration::from_nanos(forwarding_data.delay.get_value());
+        println!("client says to wait for {:?}", delay_duration);
+        tokio::time::delay_for(delay_duration).await;
+        println!("waited {:?} - time to forward the packet!", delay_duration);
+
+        match forwarding_data.recipient.send(forwarding_data.packet.to_bytes()).await {
+            Ok(()) => (),
+            Err(e) => {
+                println!("failed to write bytes to next mix peer. err = {:?}", e.to_string());
+            }
+        }
     }
 }
 
@@ -102,11 +90,8 @@ impl MixNode{
 
 
     pub fn start_listening(network_address: &str, secret_key: Scalar) -> Result<(), Box<dyn std::error::Error>> {
-        // Create the runtime
+        // Create the runtime, probably later move it to MixNode itself?
         let mut rt = Runtime::new()?;
-
-        // AGAIN TEMPORARY BECAUSE LIFETIMES (and async move)
-//        let secret_key_copy = self.secret_key;
 
         // Spawn the root task
         rt.block_on(async {
@@ -127,27 +112,8 @@ impl MixNode{
                                 return;
                             }
                             Ok(_) => {
-//                                let fwd_data = self.process_sphinx_data_packet(buf.as_ref()).unwrap();
-//                                let packet = SphinxPacket::from_bytes(buf.to_vec()).unwrap();
-//                                let (next_packet, next_hop_address, delay) = match packet.process(self.secret_key) {
-//                                    ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay) => (packet, address, delay),
-//                                    _ => panic!("tmp foomp"),
-//                                };
-
-                                let processor = PacketProcessor::<'_,DUMMY_TEMP_TYPE>::new();
-                                let fwd_data = processor.process_sphinx_data_packet(buf.as_ref(), &secret_key).unwrap();
-                                processor.wait_and_forward(fwd_data).await;
-//
-//                                let dummy_address = b"foomp".to_vec();
-//                                let next_mix = MixPeer::new(dummy_address);
-//
-//                                match next_mix.send(next_packet.to_bytes()).await {
-//                                    Ok(()) => (),
-//                                    Err(e) => {
-//                                        println!("failed to write bytes to next mix peer. err = {:?}", e.to_string());
-//                                        return;
-//                                    }
-//                                }
+                                let fwd_data = PacketProcessor::process_sphinx_data_packet(buf.as_ref(), &secret_key).unwrap();
+                                PacketProcessor::wait_and_forward(fwd_data).await;
                             }
                             Err(e) => {
                                 println!("failed to read from socket; err = {:?}", e);
@@ -157,7 +123,7 @@ impl MixNode{
 
                         // Write the some data back
                         if let Err(e) = socket.write_all(b"foomp").await {
-                            println!("failed to write to socket; err = {:?}", e);
+                            println!("failed to write reply to socket; err = {:?}", e);
                             return;
                         }
                     }
@@ -171,6 +137,8 @@ fn main() {
     let mix = MixNode::new("127.0.0.1:8080", Default::default());
     MixNode::start_listening(mix.network_address, mix.secret_key).unwrap();
 }
+
+
 //
 //#[tokio::main]
 //async fn main() -> Result<(), Box<dyn std::error::Error>> {

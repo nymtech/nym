@@ -93,14 +93,16 @@ impl PacketProcessor {
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
     network_address: SocketAddr,
-    secret_key: Scalar
+    secret_key: Scalar,
+    layer: usize
 }
 
 impl MixNode{
-    pub fn new(network_address: SocketAddr, secret_key: Scalar) -> Self {
+    pub fn new(network_address: SocketAddr, secret_key: Scalar, layer: usize) -> Self {
         MixNode {
             network_address,
-            secret_key
+            secret_key,
+            layer
         }
     }
 

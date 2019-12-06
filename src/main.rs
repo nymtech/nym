@@ -56,7 +56,7 @@ fn run(matches: &ArgMatches) {
     // make sure our socket_address is equal to our predefined-hardcoded value
     assert_eq!("127.0.0.1:8080", socket_address.to_string());
 
-    let mix = MixNode::new(socket_address, secret_key);
+    let mix = MixNode::new(socket_address, secret_key, layer);
     mix.start_listening().unwrap();
 }
 

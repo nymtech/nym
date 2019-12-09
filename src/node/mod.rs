@@ -106,6 +106,36 @@ impl MixNode{
         }
     }
 
+    async fn process_socket_connection(mut socket: tokio::net::TcpStream, processing_data: ProcessingData) {
+        // NOTE: processing_data is copied here!!
+        let mut buf = [0u8; sphinx::PACKET_SIZE];
+
+        // In a loop, read data from the socket and write the data back.
+        loop {
+            match socket.read(&mut buf).await {
+                // socket closed
+                Ok(n) if n == 0 => {
+                    println!("Remote connection closed.");
+                    return;
+                }
+                Ok(_) => {
+                    let fwd_data = PacketProcessor::process_sphinx_data_packet(buf.as_ref(), processing_data).unwrap();
+                    PacketProcessor::wait_and_forward(fwd_data).await;
+                }
+                Err(e) => {
+                    println!("failed to read from socket; err = {:?}", e);
+                    return;
+                }
+            };
+
+            // Write the some data back
+            if let Err(e) = socket.write_all(b"foomp").await {
+                println!("failed to write reply to socket; err = {:?}", e);
+                return;
+            }
+        }
+    }
+
     pub fn start_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
         // Create the runtime, probably later move it to MixNode itself?
         let mut rt = Runtime::new()?;
@@ -119,33 +149,7 @@ impl MixNode{
                 let (mut socket, _) = listener.accept().await?;
 
                 tokio::spawn(async move {
-                    // NOTE: processing_data is copied here!!
-                    let mut buf = [0u8; sphinx::PACKET_SIZE];
-
-                    // In a loop, read data from the socket and write the data back.
-                    loop {
-                        match socket.read(&mut buf).await {
-                            // socket closed
-                            Ok(n) if n == 0 => {
-                                println!("Remote connection closed.");
-                                return;
-                            }
-                            Ok(_) => {
-                                let fwd_data = PacketProcessor::process_sphinx_data_packet(buf.as_ref(), processing_data).unwrap();
-                                PacketProcessor::wait_and_forward(fwd_data).await;
-                            }
-                            Err(e) => {
-                                println!("failed to read from socket; err = {:?}", e);
-                                return;
-                            }
-                        };
-
-                        // Write the some data back
-                        if let Err(e) = socket.write_all(b"foomp").await {
-                            println!("failed to write reply to socket; err = {:?}", e);
-                            return;
-                        }
-                    }
+                    MixNode::process_socket_connection(socket, processing_data).await;
                 });
             }
         })

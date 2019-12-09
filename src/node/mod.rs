@@ -61,9 +61,9 @@ struct PacketProcessor {
 }
 
 impl PacketProcessor {
-    pub fn process_sphinx_data_packet<'a>(packet_data: &[u8], secret_key: Scalar) -> Result<ForwardingData<'a>, MixProcessingError> {
+    pub fn process_sphinx_data_packet<'a>(packet_data: &[u8], processing_data: ProcessingData) -> Result<ForwardingData<'a>, MixProcessingError> {
         let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
-        let (next_packet, next_hop_address, delay) = match packet.process(secret_key) {
+        let (next_packet, next_hop_address, delay) = match packet.process(processing_data.secret_key) {
             ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay) => (packet, address, delay),
             _ => return Err(MixProcessingError::ReceivedFinalHopError),
         };
@@ -131,7 +131,7 @@ impl MixNode{
                                 return;
                             }
                             Ok(_) => {
-                                let fwd_data = PacketProcessor::process_sphinx_data_packet(buf.as_ref(), processing_data.secret_key).unwrap();
+                                let fwd_data = PacketProcessor::process_sphinx_data_packet(buf.as_ref(), processing_data).unwrap();
                                 PacketProcessor::wait_and_forward(fwd_data).await;
                             }
                             Err(e) => {

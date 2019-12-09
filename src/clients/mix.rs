@@ -1,4 +1,4 @@
-use crate::clients::directory::DirectoryClient;
+use crate::clients::directory::Client;
 use sphinx::SphinxPacket;
 use sphinx::route::Node as MixNode;
 use tokio::net::TcpStream;
@@ -30,7 +30,7 @@ mod sending_a_sphinx_packet {
     #[test]
     fn works() {
         // arrange
-        let directory = DirectoryClient::new();
+        let directory = Client::new();
         let message = "Hello, Sphinx!".as_bytes().to_vec();
         let mixes = directory.get_mixes();
         let destination = directory.get_destination();

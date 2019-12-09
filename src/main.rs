@@ -3,7 +3,7 @@ mod clients;
 use tokio::prelude::*;
 
 use crate::clients::mix::MixClient;
-use crate::clients::directory::DirectoryClient;
+use crate::clients::directory;
 use std::time::{ Duration};
 use tokio::time::{interval_at, Instant};
 
@@ -17,7 +17,7 @@ async fn main() {
         let message = format!("Hello, Sphinx {}", i).as_bytes().to_vec();
 
         // set up the route
-        let directory = DirectoryClient::new();
+        let directory = directory::Client::new();
         let route = directory.get_mixes();
         let destination = directory.get_destination();
         let delays = sphinx::header::delays::generate(2);
@@ -32,5 +32,3 @@ async fn main() {
         i += 1;
     }
 }
-
-

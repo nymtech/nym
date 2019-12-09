@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 sphinx = { path = "../sphinx" }
 tokio = { version = "0.2", features = ["full"] }
+clap = "2.33.0"

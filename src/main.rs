@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Ok(_) => {
                         let packet = SphinxPacket::from_bytes(buf.to_vec()).unwrap();
                         let payload = match packet.process(Default::default()){
-                            ProcessedPacket::ProcessedPacketFinalHop(_,payload) => Some(payload) ,
+                            ProcessedPacket::ProcessedPacketFinalHop(_,_,payload) => Some(payload) ,
                             _ => None,
                         }.unwrap();
                         let message = payload.get_content();

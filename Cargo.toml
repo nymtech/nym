@@ -10,3 +10,4 @@ edition = "2018"
 sphinx = { path = "../sphinx" }
 tokio = { version = "0.2", features = ["full"] }
 curve25519-dalek = "1.2.3"
+clap = "2.33.0"

@@ -1,156 +1,108 @@
-use sphinx::{ProcessedPacket, SphinxPacket};
-use tokio::prelude::*;
-use tokio::runtime::Runtime;
+use crate::node::MixNode;
+use clap::{App, Arg, ArgMatches, SubCommand};
 use curve25519_dalek::scalar::Scalar;
-use std::time::{Duration};
-use crate::mix_peer::MixPeer;
-use crate::MixProcessingError::SphinxRecoveryError;
-use sphinx::header::delays::{Delay as SphinxDelay};
+use std::net::ToSocketAddrs;
+use std::process;
 
 mod mix_peer;
+mod node;
 
-// TODO: this will probably need to be moved elsewhere I imagine
-#[derive(Debug)]
-pub enum MixProcessingError {
-    SphinxRecoveryError,
-    ReceivedFinalHopError,
-}
-
-impl From<sphinx::ProcessingError> for MixProcessingError {
-    // for time being just have a single error instance for all possible results of sphinx::ProcessingError
-    fn from(_: sphinx::ProcessingError) -> Self {
-        SphinxRecoveryError
+fn execute(matches: ArgMatches) -> Result<(), String> {
+    match matches.subcommand() {
+        ("run", Some(m)) => Ok(run(m)),
+        _ => Err(String::from("Unknown command")),
     }
 }
 
-struct ForwardingData<'a> {
-    packet: SphinxPacket,
-    delay: SphinxDelay,
-    recipient: MixPeer<'a>
-}
+fn run(matches: &ArgMatches) {
+    println!("Running the mixnode!");
 
-// TODO: this will need to be changed if MixPeer will live longer than our Forwarding Data
-impl<'a> ForwardingData<'a> {
-    fn new(packet: SphinxPacket, delay: SphinxDelay, recipient: MixPeer<'a>) -> Self {
-        ForwardingData {
-            packet,
-            delay,
-            recipient
+    let host = matches.value_of("host").unwrap_or("0.0.0.0");
+
+    let port = match matches.value_of("port").unwrap().parse::<u16>() {
+        Ok(n) => n,
+        Err(err) => panic!("Invalid port value provided - {:?}", err),
+    };
+
+    let layer = match matches.value_of("layer").unwrap().parse::<usize>() {
+        Ok(n) => n,
+        Err(err) => panic!("Invalid layer value provided - {:?}", err),
+    };
+
+    let secret_key: Scalar = match matches.value_of("keyfile") {
+        Some(keyfile) => {
+            println!("Todo: load keyfile from <{:?}>", keyfile);
+            Default::default()
         }
-    }
-}
-
-// ProcessingData defines all data required to correctly unwrap sphinx packets
-// Do note that we're copying this struct around and hence the secret_key.
-// It might, or might not be, what we want
-#[derive(Clone, Copy)]
-struct ProcessingData {
-    secret_key: Scalar
-}
-
-impl ProcessingData {
-    fn new(secret_key: Scalar) -> Self {
-        ProcessingData{
-            secret_key: secret_key.clone()
+        None => {
+            println!("Todo: generate fresh sphinx keypair");
+            Default::default()
         }
-    }
-}
+    };
 
-struct PacketProcessor {
-}
+    println!("The value of host is: {:?}", host);
+    println!("The value of port is: {:?}", port);
+    println!("The value of layer is: {:?}", layer);
+    println!("The value of key is: {:?}", secret_key);
 
-impl PacketProcessor {
-    pub fn process_sphinx_data_packet<'a>(packet_data: &[u8], secret_key: Scalar) -> Result<ForwardingData<'a>, MixProcessingError> {
-        let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
-        let (next_packet, next_hop_address, delay) = match packet.process(secret_key) {
-            ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay) => (packet, address, delay),
-            _ => return Err(MixProcessingError::ReceivedFinalHopError),
-        };
+    let socket_address = (host, port)
+        .to_socket_addrs()
+        .expect("Failed to combine host and port")
+        .next()
+        .expect("Failed to extract the socket address from the iterator");
 
-        let next_mix = MixPeer::new(next_hop_address);
+    println!("The full combined socket address is {}", socket_address);
 
-        let fwd_data = ForwardingData::new(next_packet, delay, next_mix);
-        Ok(fwd_data)
-    }
+    // make sure our socket_address is equal to our predefined-hardcoded value
+    assert_eq!("127.0.0.1:8080", socket_address.to_string());
 
-    async fn wait_and_forward(forwarding_data: ForwardingData<'_>) {
-        let delay_duration = Duration::from_nanos(forwarding_data.delay.get_value());
-        println!("client says to wait for {:?}", delay_duration);
-        tokio::time::delay_for(delay_duration).await;
-        println!("waited {:?} - time to forward the packet!", delay_duration);
-
-        match forwarding_data.recipient.send(forwarding_data.packet.to_bytes()).await {
-            Ok(()) => (),
-            Err(e) => {
-                println!("failed to write bytes to next mix peer. err = {:?}", e.to_string());
-            }
-        }
-    }
-}
-
-
-// the MixNode will live for whole duration of this program
-struct MixNode {
-    network_address: &'static str,
-    secret_key: Scalar
-}
-
-impl MixNode{
-    pub fn new(network_address: &'static str, secret_key: Scalar) -> Self {
-        MixNode {
-            network_address,
-            secret_key
-        }
-    }
-
-    pub fn start_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
-        // Create the runtime, probably later move it to MixNode itself?
-        let mut rt = Runtime::new()?;
-
-        // Spawn the root task
-        rt.block_on(async {
-            let mut listener = tokio::net::TcpListener::bind(self.network_address).await?;
-
-            let processing_data = ProcessingData::new(self.secret_key);
-            loop {
-                let (mut socket, _) = listener.accept().await?;
-
-                tokio::spawn(async move {
-                    // NOTE: processing_data is copied here!!
-                    let mut buf = [0u8; sphinx::PACKET_SIZE];
-
-                    // In a loop, read data from the socket and write the data back.
-                    loop {
-                        match socket.read(&mut buf).await {
-                            // socket closed
-                            Ok(n) if n == 0 => {
-                                println!("Remote connection closed.");
-                                return;
-                            }
-                            Ok(_) => {
-                                let fwd_data = PacketProcessor::process_sphinx_data_packet(buf.as_ref(), processing_data.secret_key).unwrap();
-                                PacketProcessor::wait_and_forward(fwd_data).await;
-                            }
-                            Err(e) => {
-                                println!("failed to read from socket; err = {:?}", e);
-                                return;
-                            }
-                        };
-
-                        // Write the some data back
-                        if let Err(e) = socket.write_all(b"foomp").await {
-                            println!("failed to write reply to socket; err = {:?}", e);
-                            return;
-                        }
-                    }
-                });
-            }
-        })
-    }
-}
-
-fn main() {
-    let mix = MixNode::new("127.0.0.1:8080", Default::default());
+    let mix = MixNode::new(socket_address, secret_key, layer);
     mix.start_listening().unwrap();
 }
 
+fn main() {
+    let arg_matches = App::new("Nym Mixnode")
+        .version("0.1.0")
+        .author("Nymtech")
+        .about("Implementation of the Loopix-based Mixnode")
+        .subcommand(
+            SubCommand::with_name("run")
+                .about("Starts the mixnode")
+                .arg(
+                    Arg::with_name("host")
+                        .short("h")
+                        .long("host")
+                        .help("The custom host on which the mixnode will be running")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("port")
+                        .short("p")
+                        .long("port")
+                        .help("The port on which the mixnode will be listening")
+                        .takes_value(true)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("layer")
+                        .short("l")
+                        .long("layer")
+                        .help("The mixnet layer of this particular node")
+                        .takes_value(true)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("keyfile")
+                        .short("k")
+                        .long("keyfile")
+                        .help("Optional path to the persistent keyfile of the node")
+                        .takes_value(true),
+                ),
+        )
+        .get_matches();
+
+    if let Err(e) = execute(arg_matches) {
+        println!("Application error: {}", e);
+        process::exit(1);
+    }
+}

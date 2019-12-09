@@ -10,8 +10,8 @@ use tokio::time::{interval_at, Instant};
 #[tokio::main]
 async fn main() {
     let start = Instant::now() + Duration::from_nanos(1000);
-    let mut interval = interval_at(start, Duration::from_nanos(1000));
-    let mut i = 0;
+    let mut interval = interval_at(start, Duration::from_millis(5000));
+    let mut i: usize = 0;
     loop {
         interval.tick().await;
         let message = format!("Hello, Sphinx {}", i).as_bytes().to_vec();
@@ -22,6 +22,7 @@ async fn main() {
         let destination = directory.get_destination();
         let delays = sphinx::header::delays::generate(2);
 
+        println!("delays: {:?}",delays);
         // build the packet
         let packet = sphinx::SphinxPacket::new(message, &route[..], &destination, &delays).unwrap();
 

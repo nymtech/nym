@@ -1,3 +1,4 @@
+use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use curve25519_dalek::scalar::Scalar;
 use std::net::ToSocketAddrs;
@@ -48,7 +49,8 @@ fn run(matches: &ArgMatches) {
     // make sure our socket_address is equal to our predefined-hardcoded value
     assert_eq!("127.0.0.1:8081", socket_address.to_string());
 
-    provider::listening_loop().unwrap();
+    let provider = ServiceProvider::new(socket_address, secret_key);
+    provider.start_listening().unwrap()
 }
 
 fn main() {
@@ -58,7 +60,7 @@ fn main() {
         .about("Implementation of the Loopix-based Service Provider")
         .subcommand(
             SubCommand::with_name("run")
-                .about("Starts the mixnode")
+                .about("Starts the service provider")
                 .arg(
                     Arg::with_name("host")
                         .short("h")

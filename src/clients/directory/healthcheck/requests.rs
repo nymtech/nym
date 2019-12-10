@@ -6,7 +6,7 @@ pub struct Requester {
 
 pub trait HealthCheckRequester {
     fn new(base_url: String) -> Self;
-    fn get(&self) -> Result<Response, reqwest::Error>;
+    fn make_request(&self) -> Result<Response, reqwest::Error>;
 }
 
 impl HealthCheckRequester for Requester {
@@ -16,7 +16,7 @@ impl HealthCheckRequester for Requester {
         }
     }
 
-    fn get(&self) -> Result<Response, reqwest::Error> {
+    fn make_request(&self) -> Result<Response, reqwest::Error> {
         let url =  format!("{}/healthcheck", self.base_url);
         reqwest::get(&url)
     }
@@ -39,7 +39,7 @@ mod healthcheck_requests {
                 .with_status(400)
                 .create();
             let req = Requester::new(mockito::server_url());
-            assert_eq!(true, req.get().is_err());
+            assert_eq!(true, req.make_request().is_err());
         }
     }
 
@@ -54,7 +54,7 @@ mod healthcheck_requests {
                 .create();
             let req = Requester::new(mockito::server_url());
 
-            assert_eq!(true, req.get().is_ok());
+            assert_eq!(true, req.make_request().is_ok());
         }
     }
 }

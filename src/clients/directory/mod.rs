@@ -1,6 +1,6 @@
 use sphinx::route::{Node as SphinxNode, Destination};
 use crate::clients::directory::presence::models::Topology;
-use reqwest::Error;
+use reqwest::{Error};
 use crate::clients::directory::healthcheck::requests::{Requester, HealthCheckRequester};
 
 //use serde::Deserialize;
@@ -15,7 +15,7 @@ pub struct Config {
 
 pub trait DirectoryClient {
     fn new(config : Config) -> Self;
-    fn health_check(&self) -> Result<bool, Error>;
+    fn health_check(&self) -> Result<reqwest::Response, reqwest::Error>;
     fn get_topology(&self) -> Result<Topology, reqwest::Error>;
 //    fn send_provider_presence(&self) -> Result<ProviderPresenceResponse, reqwest::Error>;
 }
@@ -33,12 +33,8 @@ impl DirectoryClient for Client {
         }
     }
 
-    fn health_check(&self) -> Result<bool, Error> {
-        unimplemented!()
-//        match self.health_check.get()  {
-//            true => Ok(true),
-//            false => Err("foo"),
-//        }
+    fn health_check(&self) -> Result<reqwest::Response, reqwest::Error> {
+        self.health_check.make_request()
     }
 
     fn get_topology(&self) -> Result<Topology, Error> {

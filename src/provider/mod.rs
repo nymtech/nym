@@ -86,7 +86,9 @@ impl PacketProcessor {
     }
 
     fn store_processed_data(store_data: StoreData, store_dir: &Path) -> Result<(), MixProcessingError> {
-        println!("going to store: {:?} in base dir: {:?}", store_data.message, store_dir);
+        let client_dir_name = hex::encode(store_data.client_address);
+        let full_store_path = store_dir.join(client_dir_name);
+        println!("going to store: {:?} in dir: {:?}", store_data.message, full_store_path);
         Ok(())
     }
 }

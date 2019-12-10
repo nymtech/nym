@@ -2,6 +2,7 @@ use crate::clients::directory::presence::Topology;
 
 pub struct Request {
     base_url: String,
+    path: String,
 }
 
 pub trait PresenceTopologyGetRequester {
@@ -11,11 +12,11 @@ pub trait PresenceTopologyGetRequester {
 
 impl PresenceTopologyGetRequester for Request {
     fn new(base_url: String) -> Self {
-        Request { base_url }
+        Request { base_url, path: "/topology".to_string()}
     }
 
     fn get(&self) -> Result<Topology, reqwest::Error> {
-        let url = format!("{}/topology", self.base_url);
+        let url = format!("{}{}", self.base_url, self.path);
         let topology: Topology = reqwest::get(&url)?.json()?;
         Ok(topology)
     }

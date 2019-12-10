@@ -65,7 +65,6 @@ fn run(matches: &ArgMatches) {
             // make sure the Directory server is in fact running, panic if not
             directory.health_check().expect("Directory health check failed, is the Directory server running?");
 
-
 //            let route = directory.get_mixes();
 //            let destination = directory.get_destination();
             let delays = sphinx::header::delays::generate(2);

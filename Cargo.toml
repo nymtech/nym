@@ -10,9 +10,9 @@ edition = "2018"
 clap = "2.33.0"
 reqwest = "0.9.22"
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.44"
 sphinx = { path = "../sphinx" }
 tokio = { version = "0.2", features = ["full"] }
-
 
 [dev-dependencies]
 mockito = "0.22.0"

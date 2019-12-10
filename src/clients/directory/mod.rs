@@ -1,12 +1,11 @@
 use sphinx::route::{Node as SphinxNode, Destination};
-use crate::clients::directory::presence::models::Topology;
 use reqwest::{Error};
 use crate::clients::directory::requests::health_check_get::{Request, HealthCheckRequester};
+use crate::clients::directory::presence::Topology;
 
 //use serde::Deserialize;
 
 pub mod requests;
-mod metrics;
 mod presence;
 
 pub struct Config {

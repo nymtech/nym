@@ -1,13 +1,41 @@
+use serde::Deserialize;
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CocoPresence {
+    host: String,
+    pub_key: String,
+    last_seen: i64,
+}
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MixNodePresence{
+    host: String,
+    pub_key: String,
+    layer: u64,
+    last_seen: i64,
+}
 
-#[cfg(test)]
-mod presence_tests {
-//    use super::*;
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MixProviderPresence{
+    host: String,
+    pub_key: String,
+}
 
-    mod fixtures {
-        fn topology_response_json() -> String {
-            r#"{
+// Topology shows us the current state of the overall Nym network
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Topology {
+    coco_nodes:        Vec<CocoPresence>,
+    mix_nodes:         Vec<MixNodePresence>,
+    mix_provider_nodes: Vec<MixProviderPresence>
+}
+
+mod fixtures {
+    fn topology_response_json() -> String {
+        r#"{
               "cocoNodes": [
                 {
                   "host": "3.8.244.109:4000",
@@ -239,6 +267,5 @@ mod presence_tests {
                 }
               ]
             }"#.to_string()
-        }
     }
 }

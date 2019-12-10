@@ -1,44 +1,27 @@
 use serde::Deserialize;
 
 #[derive(Deserialize)]
-pub struct 	CocoHostInfo{
-    host_info: HostInfo,
-}
-
-#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CocoPresence {
-    coco_host_info: CocoHostInfo,
-    last_seen: i64,
-}
-
-#[derive(Deserialize)]
-pub struct HostInfo {
     host: String,
     pub_key: String,
+    last_seen: i64,
 }
 
 #[derive(Deserialize)]
-pub struct MixHostInfo {
-    host_info: HostInfo,
-    layer: u64,
-}
-
-#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MixNodePresence{
-    mix_host_info: MixHostInfo,
+    host: String,
+    pub_key: String,
+    layer: u64,
     last_seen: i64,
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MixProviderPresence{
-    mix_provider_host_info: MixProviderHostInfo,
-
-}
-
-#[derive(Deserialize)]
-pub struct MixProviderHostInfo{
-    host_info: HostInfo,
-    last_seen: i64,
+    host: String,
+    pub_key: String,
 }
 
 // Topology shows us the current state of the overall Nym network

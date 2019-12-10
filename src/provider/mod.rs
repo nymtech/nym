@@ -12,6 +12,13 @@ use sphinx::{ProcessedPacket, SphinxPacket};
 use sphinx::route::{DestinationAddressBytes, SURBIdentifier};
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
+use rand::Rng;
+use std::fs::File;
+use std::io::Write;
+
+// TODO: if we ever create config file, this should go there
+const STORED_MESSAGE_FILENAME_LENGTH: usize = 16;
+
 
 // TODO: this will probably need to be moved elsewhere I imagine
 // DUPLICATE WITH MIXNODE CODE!!!
@@ -21,7 +28,7 @@ pub enum MixProcessingError {
     ReceivedForwardHopError,
     InvalidPayload,
     NonMatchingRecipient,
-    StoreFailure,
+    FileIOFailure,
 }
 
 impl From<sphinx::ProcessingError> for MixProcessingError {
@@ -32,6 +39,15 @@ impl From<sphinx::ProcessingError> for MixProcessingError {
         SphinxRecoveryError
     }
 }
+
+impl From<std::io::Error> for MixProcessingError {
+    fn from(_: std::io::Error) -> Self {
+        use MixProcessingError::*;
+
+        FileIOFailure
+    }
+}
+
 
 // ProcessingData defines all data required to correctly unwrap sphinx packets
 // Do note that we're copying this struct around and hence the secret_key.
@@ -85,10 +101,24 @@ impl PacketProcessor {
         })
     }
 
+    fn generate_random_file_name() -> String {
+        rand::thread_rng().sample_iter(&rand::distributions::Alphanumeric).take(STORED_MESSAGE_FILENAME_LENGTH).collect::<String>()
+    }
+
     fn store_processed_data(store_data: StoreData, store_dir: &Path) -> Result<(), MixProcessingError> {
         let client_dir_name = hex::encode(store_data.client_address);
-        let full_store_path = store_dir.join(client_dir_name);
-        println!("going to store: {:?} in dir: {:?}", store_data.message, full_store_path);
+        let full_store_dir = store_dir.join(client_dir_name);
+        let full_store_path = full_store_dir.join(PacketProcessor::generate_random_file_name());
+        println!("going to store: {:?} in file: {:?}", store_data.message, full_store_path);
+
+        // TODO: what to do with surbIDs??
+
+        // we can use normal io here, no need for tokio as it's all happening in one thread per connection
+        std::fs::create_dir_all(full_store_dir)?;
+        let mut file = File::create(full_store_path)?;
+        file.write_all(store_data.message.as_ref())?;
+
+
         Ok(())
     }
 }
@@ -111,6 +141,10 @@ impl ServiceProvider {
 
 
     async fn process_socket_connection(mut socket: tokio::net::TcpStream, processing_data: Arc<RwLock<ProcessingData>>) {
+        // TODO: we will actually need to distinguish multiple types of requests here;
+        // either from mixnodes to store final hop information
+        // or from clients to pull messages
+
         let mut buf = [0u8; sphinx::PACKET_SIZE];
 
         // In a loop, read data from the socket and write the data back.

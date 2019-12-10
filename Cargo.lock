@@ -513,6 +513,7 @@ dependencies = [
  "curve25519-dalek 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hex 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "sphinx 0.1.0",
  "tokio 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

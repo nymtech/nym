@@ -11,5 +11,6 @@ clap = "2.33.0"
 curve25519-dalek = "1.2.3"
 hex = "0.4.0"
 futures = "0.3.1"
+rand = "0.7.2"
 sphinx = { path = "../sphinx" }
 tokio = { version = "0.2.4", features = ["full"] }

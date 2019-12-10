@@ -1,20 +1,16 @@
-use std::borrow::Borrow;
-use std::cell::RefCell;
+use std::fs::File;
+use std::io::Write;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::RwLock;
 
 use curve25519_dalek::scalar::Scalar;
-use futures::StreamExt;
+use rand::Rng;
 use sphinx::{ProcessedPacket, SphinxPacket};
 use sphinx::route::{DestinationAddressBytes, SURBIdentifier};
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
-use rand::Rng;
-use std::fs::File;
-use std::io::Write;
 
 // TODO: if we ever create config file, this should go there
 const STORED_MESSAGE_FILENAME_LENGTH: usize = 16;

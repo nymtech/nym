@@ -1,6 +1,8 @@
+use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use curve25519_dalek::scalar::Scalar;
 use std::net::ToSocketAddrs;
+use std::path::PathBuf;
 use std::process;
 
 mod provider;
@@ -33,9 +35,12 @@ fn run(matches: &ArgMatches) {
         }
     };
 
+    let store_dir = PathBuf::from(matches.value_of("storeDir").unwrap());
+
     println!("The value of host is: {:?}", host);
     println!("The value of port is: {:?}", port);
     println!("The value of key is: {:?}", secret_key);
+    println!("The value of storeDir is: {:?}", store_dir);
 
     let socket_address = (host, port)
         .to_socket_addrs()
@@ -48,7 +53,8 @@ fn run(matches: &ArgMatches) {
     // make sure our socket_address is equal to our predefined-hardcoded value
     assert_eq!("127.0.0.1:8081", socket_address.to_string());
 
-    provider::listening_loop().unwrap();
+    let provider = ServiceProvider::new(socket_address, secret_key, store_dir);
+    provider.start_listening().unwrap()
 }
 
 fn main() {
@@ -58,7 +64,7 @@ fn main() {
         .about("Implementation of the Loopix-based Service Provider")
         .subcommand(
             SubCommand::with_name("run")
-                .about("Starts the mixnode")
+                .about("Starts the service provider")
                 .arg(
                     Arg::with_name("host")
                         .short("h")
@@ -80,6 +86,14 @@ fn main() {
                         .long("keyfile")
                         .help("Optional path to the persistent keyfile of the node")
                         .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("storeDir")
+                        .short("sdir")
+                        .long("storeDir")
+                        .help("Directory storing all packets for the clients")
+                        .takes_value(true)
+                        .required(true),
                 ),
         )
         .get_matches();

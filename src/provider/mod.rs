@@ -200,45 +200,6 @@ impl ServiceProvider {
                     ServiceProvider::process_socket_connection(socket, thread_processing_data).await
                 });
             }
-
-//            async move {
-//                let mut incoming = listener.incoming();
-//
-//                while let Some(conn) = incoming.next().await {
-//                    match conn {
-//                        Err(e) => eprintln!("accept failed with error: {:?}", e),
-//                        Ok(socket) => {
-//                            let foomp2 = processing_data_foomp.clone();
-//                            tokio::spawn(async move {
-//                                ServiceProvider::process_socket_connection(socket, foomp2).await
-//
-////                                ServiceProvider::process_socket_fixture(socket).await
-//                            });
-//                        }
-//                    }
-//                }
-//
-//            }.await;
-//
-//            println!("Server went kaput");
-//            Ok(())
-
-
-////            let processing_data = Arc::new(RwLock::new(ProcessingData::new(self.secret_key, self.store_dir.clone())));
-//            let processing_data = Arc::new(RwLock::new((ProcessingData::new(self.secret_key))));
-//
-//            loop {
-//                let (socket, _) = listener.accept().await?;
-//
-////                tokio::
-//                tokio::spawn(async move {
-////                    processing_data.read();
-////                    let foo = processing_data.clone();
-////                    let foo = ProcessingData::new(self.secret_key.clone());
-//                    // Process each socket concurrently.
-////                    ServiceProvider::process_socket_connection(socket, processing_data).await
-//                });
-//            }
         })
     }
 }

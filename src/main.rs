@@ -54,11 +54,18 @@ fn run(matches: &ArgMatches) {
             interval.tick().await;
             let message = format!("Hello, Sphinx {}", i).as_bytes().to_vec();
 
+
+
             // set up the route
             let directory_config = directory::Config {
                 base_url: "https://directory.nymtech.net".to_string()
             };
             let directory= directory::Client::new(directory_config);
+
+            // make sure the Directory server is in fact running, panic if not
+            directory.health_check().expect("Directory health check failed, is the Directory server running?");
+
+
 //            let route = directory.get_mixes();
 //            let destination = directory.get_destination();
             let delays = sphinx::header::delays::generate(2);

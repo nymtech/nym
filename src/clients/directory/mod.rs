@@ -15,7 +15,6 @@ pub struct Config {
 
 pub trait DirectoryClient {
     fn new(config : Config) -> Self;
-    fn health_check(&self) -> Result<reqwest::Response, reqwest::Error>;
     fn get_topology(&self) -> Result<Topology, reqwest::Error>;
 //    fn send_provider_presence(&self) -> Result<ProviderPresenceResponse, reqwest::Error>;
 }
@@ -31,10 +30,6 @@ impl DirectoryClient for Client {
         Client {
             health_check: hcr,
         }
-    }
-
-    fn health_check(&self) -> Result<reqwest::Response, reqwest::Error> {
-        self.health_check.make_request()
     }
 
     fn get_topology(&self) -> Result<Topology, Error> {

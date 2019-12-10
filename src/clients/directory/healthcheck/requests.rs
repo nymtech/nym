@@ -1,14 +1,14 @@
-struct Requester {
+pub struct Requester {
     base_url: String
 }
 
-trait HealthCheckRequester {
+pub trait HealthCheckRequester {
     fn new(base_url: String) -> Self;
     fn get(&self) -> bool;
 }
 
 impl HealthCheckRequester for Requester {
-    fn new(base_url: String) -> Requester {
+    fn new(base_url: String) -> Self {
         Requester {
             base_url,
         }

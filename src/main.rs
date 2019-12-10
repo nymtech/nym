@@ -6,8 +6,8 @@ use tokio::runtime::Runtime;
 use tokio::time::{interval_at, Instant};
 
 use crate::clients::directory;
-use crate::clients::directory::DirectoryClient;
 use crate::clients::directory::requests::health_check_get::HealthCheckRequester;
+use crate::clients::directory::DirectoryClient;
 
 mod clients;
 

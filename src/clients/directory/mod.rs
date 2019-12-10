@@ -8,8 +8,12 @@ mod healthcheck;
 mod metrics;
 mod presence;
 
+pub struct Config {
+    pub base_url: String,
+}
+
 pub trait DirectoryClient {
-    fn new(base_url: String) -> Self;
+    fn new(config : Config) -> Self;
     fn get_topology(&self) -> Result<Topology, reqwest::Error>;
 //    fn send_provider_presence(&self) -> Result<ProviderPresenceResponse, reqwest::Error>;
 }
@@ -17,7 +21,7 @@ pub trait DirectoryClient {
 pub struct Client {}
 
 impl DirectoryClient for Client {
-    fn new(base_url: String) -> Client {
+    fn new(config: Config) -> Client {
         let topology = retrieve_topology().unwrap();
         Client {}
     }

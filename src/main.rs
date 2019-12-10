@@ -55,7 +55,10 @@ fn run(matches: &ArgMatches) {
             let message = format!("Hello, Sphinx {}", i).as_bytes().to_vec();
 
             // set up the route
-            let directory= directory::Client::new("https://directory.nymtech.net".to_string());
+            let directory_config = directory::Config {
+                base_url: "https://directory.nymtech.net".to_string()
+            };
+            let directory= directory::Client::new(directory_config);
 //            let route = directory.get_mixes();
 //            let destination = directory.get_destination();
             let delays = sphinx::header::delays::generate(2);

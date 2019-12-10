@@ -46,7 +46,7 @@ mod topology_requests {
     mod on_a_200 {
         use super::*;
         #[test]
-        fn it_returns_a_response_with_200_status() {
+        fn it_returns_a_response_with_200_status_and_a_correct_topology() {
             let json = serde_json::to_string(&Topology {
                 coco_nodes: vec![CocoPresence {
                     host: "foo.org".to_string(),
@@ -62,7 +62,9 @@ mod topology_requests {
                 .with_body(json)
                 .create();
             let req = Request::new(mockito::server_url());
-            assert_eq!(true, req.get().is_ok());
+            let resp = req.get();
+            assert_eq!(true, resp.is_ok());
+            assert_eq!(12345, resp.unwrap().coco_nodes.first().unwrap().last_seen)
         }
     }
 

@@ -1,12 +1,14 @@
+use std::net::SocketAddr;
+use std::sync::{Arc, RwLock};
+use std::time::Duration;
+
+use curve25519_dalek::scalar::Scalar;
 use sphinx::{ProcessedPacket, SphinxPacket};
+use sphinx::header::delays::Delay as SphinxDelay;
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
-use curve25519_dalek::scalar::Scalar;
-use std::time::{Duration};
-use crate::mix_peer::MixPeer;
-use sphinx::header::delays::{Delay as SphinxDelay};
-use std::net::SocketAddr;
 
+use crate::mix_peer::MixPeer;
 
 // TODO: this will probably need to be moved elsewhere I imagine
 #[derive(Debug)]
@@ -27,7 +29,7 @@ impl From<sphinx::ProcessingError> for MixProcessingError {
 struct ForwardingData<'a> {
     packet: SphinxPacket,
     delay: SphinxDelay,
-    recipient: MixPeer<'a>
+    recipient: MixPeer<'a>,
 }
 
 // TODO: this will need to be changed if MixPeer will live longer than our Forwarding Data
@@ -36,34 +38,34 @@ impl<'a> ForwardingData<'a> {
         ForwardingData {
             packet,
             delay,
-            recipient
+            recipient,
         }
     }
 }
 
 // ProcessingData defines all data required to correctly unwrap sphinx packets
-// Do note that we're copying this struct around and hence the secret_key.
-// It might, or might not be, what we want
-#[derive(Clone, Copy)]
 struct ProcessingData {
     secret_key: Scalar
 }
 
 impl ProcessingData {
     fn new(secret_key: Scalar) -> Self {
-        ProcessingData{
-            secret_key: secret_key.clone()
+        ProcessingData {
+            secret_key
         }
+    }
+
+    fn add_arc_rwlock(self) -> Arc<RwLock<Self>> {
+        Arc::new(RwLock::new(self))
     }
 }
 
-struct PacketProcessor {
-}
+struct PacketProcessor {}
 
 impl PacketProcessor {
-    pub fn process_sphinx_data_packet<'a>(packet_data: &[u8], processing_data: ProcessingData) -> Result<ForwardingData<'a>, MixProcessingError> {
+    pub fn process_sphinx_data_packet<'a>(packet_data: &[u8], processing_data: Arc<RwLock<ProcessingData>>) -> Result<ForwardingData<'a>, MixProcessingError> {
         let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
-        let (next_packet, next_hop_address, delay) = match packet.process(processing_data.secret_key) {
+        let (next_packet, next_hop_address, delay) = match packet.process(processing_data.read().unwrap().secret_key) {
             ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay) => (packet, address, delay),
             _ => return Err(MixProcessingError::ReceivedFinalHopError),
         };
@@ -94,19 +96,19 @@ impl PacketProcessor {
 pub struct MixNode {
     network_address: SocketAddr,
     secret_key: Scalar,
-    layer: usize
+    layer: usize,
 }
 
-impl MixNode{
+impl MixNode {
     pub fn new(network_address: SocketAddr, secret_key: Scalar, layer: usize) -> Self {
         MixNode {
             network_address,
             secret_key,
-            layer
+            layer,
         }
     }
 
-    async fn process_socket_connection(mut socket: tokio::net::TcpStream, processing_data: ProcessingData) {
+    async fn process_socket_connection(mut socket: tokio::net::TcpStream, processing_data: Arc<RwLock<ProcessingData>>) {
         // NOTE: processing_data is copied here!!
         let mut buf = [0u8; sphinx::PACKET_SIZE];
 
@@ -119,7 +121,7 @@ impl MixNode{
                     return;
                 }
                 Ok(_) => {
-                    let fwd_data = PacketProcessor::process_sphinx_data_packet(buf.as_ref(), processing_data).unwrap();
+                    let fwd_data = PacketProcessor::process_sphinx_data_packet(buf.as_ref(), processing_data.clone()).unwrap();
                     PacketProcessor::wait_and_forward(fwd_data).await;
                 }
                 Err(e) => {
@@ -143,13 +145,14 @@ impl MixNode{
         // Spawn the root task
         rt.block_on(async {
             let mut listener = tokio::net::TcpListener::bind(self.network_address).await?;
+            let processing_data = ProcessingData::new(self.secret_key).add_arc_rwlock();
 
-            let processing_data = ProcessingData::new(self.secret_key);
             loop {
                 let (mut socket, _) = listener.accept().await?;
 
+                let thread_processing_data = processing_data.clone();
                 tokio::spawn(async move {
-                    MixNode::process_socket_connection(socket, processing_data).await;
+                    MixNode::process_socket_connection(socket, thread_processing_data).await;
                 });
             }
         })

@@ -20,6 +20,7 @@ impl HealthCheckRequester for Request {
     }
 }
 
+#[cfg(test)]
 mod healthcheck_requests {
     use super::*;
 

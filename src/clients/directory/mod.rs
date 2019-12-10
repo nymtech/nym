@@ -8,7 +8,7 @@ mod healthcheck;
 mod metrics;
 mod presence;
 
-trait DirectoryClient {
+pub trait DirectoryClient {
     fn new(base_url: String) -> Self;
     fn get_topology(&self) -> Result<Topology, reqwest::Error>;
 //    fn send_provider_presence(&self) -> Result<ProviderPresenceResponse, reqwest::Error>;

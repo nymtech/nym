@@ -1,6 +1,3 @@
-#[cfg(not(test))]
-use mockito;
-
 struct Requester {
     base_url: String
 }
@@ -32,12 +29,10 @@ impl HealthCheckRequester for Requester {
     }
 }
 
-struct HealthCheckResponse {
-    ok: bool,
-}
-
 mod healthcheck_requests {
     use super::*;
+
+    #[cfg(test)]
     use mockito::mock;
 
     #[cfg(test)]
@@ -71,10 +66,4 @@ mod healthcheck_requests {
             assert_eq!(expected, req.get());
         }
     }
-}
-
-
-#[cfg(test)]
-mod fixtures {
-
 }

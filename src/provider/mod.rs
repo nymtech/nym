@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::net::SocketAddr;
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -39,14 +39,14 @@ impl From<sphinx::ProcessingError> for MixProcessingError {
 #[derive(Debug, Clone)]
 struct ProcessingData {
     secret_key: Scalar,
-store_dir: PathBuf,
+    store_dir: PathBuf,
 }
 
 impl ProcessingData {
-        fn new(secret_key: Scalar, store_dir: PathBuf) -> Self {
+    fn new(secret_key: Scalar, store_dir: PathBuf) -> Self {
         ProcessingData {
             secret_key,
-store_dir,
+            store_dir,
         }
     }
 
@@ -65,9 +65,10 @@ struct StoreData {
 struct PacketProcessor(());
 
 impl PacketProcessor {
-    fn process_sphinx_data_packet(packet_data: &[u8], processing_data: &ProcessingData) -> Result<StoreData, MixProcessingError> {
+    fn process_sphinx_data_packet(packet_data: &[u8], processing_data: &RwLock<ProcessingData>) -> Result<StoreData, MixProcessingError> {
         let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
-        let (client_address, client_surb_id, payload) = match packet.process(processing_data.secret_key) {
+        let read_processing_data = processing_data.read().unwrap();
+        let (client_address, client_surb_id, payload) = match packet.process(read_processing_data.secret_key) {
             ProcessedPacket::ProcessedPacketFinalHop(client_address, surb_id, payload) => (client_address, surb_id, payload),
             _ => return Err(MixProcessingError::ReceivedForwardHopError),
         };
@@ -84,7 +85,8 @@ impl PacketProcessor {
         })
     }
 
-    fn store_processed_data(store_data: StoreData, store_dir: &PathBuf) -> Result<(), MixProcessingError> {
+    fn store_processed_data(store_data: StoreData, store_dir: &Path) -> Result<(), MixProcessingError> {
+        println!("going to store: {:?} in base dir: {:?}", store_data.message, store_dir);
         Ok(())
     }
 }
@@ -107,34 +109,40 @@ impl ServiceProvider {
 
 
     async fn process_socket_connection(mut socket: tokio::net::TcpStream, processing_data: Arc<RwLock<ProcessingData>>) {
-        println!("look, we can read shared data here! {:?}", processing_data.read().unwrap());
-        // NOTE: processing_data is copied here!!
-//        let mut buf = [0u8; sphinx::PACKET_SIZE];
-//
-//        // In a loop, read data from the socket and write the data back.
-//        loop {
-//            match socket.read(&mut buf).await {
-//                // socket closed
-//                Ok(n) if n == 0 => {
-//                    println!("Remote connection closed.");
-//                    return;
-//                }
-//                Ok(_) => {
-////                    let store_data = PacketProcessor::process_sphinx_data_packet(buf.as_ref(),
-////                                                                                 processing_data.read().unwrap().borrow()).unwrap();
-//                }
-//                Err(e) => {
-//                    println!("failed to read from socket; err = {:?}", e);
-//                    return;
-//                }
-//            };
-//
-//            // Write the some data back
-//            if let Err(e) = socket.write_all(b"foomp").await {
-//                println!("failed to write reply to socket; err = {:?}", e);
-//                return;
-//            }
-//        }
+        let mut buf = [0u8; sphinx::PACKET_SIZE];
+
+        // In a loop, read data from the socket and write the data back.
+        loop {
+            match socket.read(&mut buf).await {
+                // socket closed
+                Ok(n) if n == 0 => {
+                    println!("Remote connection closed.");
+                    return;
+                }
+                Ok(_) => {
+                    let store_data = match PacketProcessor::process_sphinx_data_packet(buf.as_ref(), processing_data.as_ref()) {
+                        Ok(sd) => sd,
+                        Err(e) => {
+                            eprintln!("failed to process sphinx packet; err = {:?}", e);
+                            return;
+                        }
+                    };
+                    PacketProcessor::store_processed_data(store_data, processing_data.read().unwrap().store_dir.as_path()).unwrap_or_else(|e| {
+                        eprintln!("failed to store processed sphinx message; err = {:?}", e)
+                    });
+                }
+                Err(e) => {
+                    eprintln!("failed to read from socket; err = {:?}", e);
+                    return;
+                }
+            };
+
+            // Write the some data back
+            if let Err(e) = socket.write_all(b"foomp").await {
+                eprintln!("failed to write reply to socket; err = {:?}", e);
+                return;
+            }
+        }
     }
 
 

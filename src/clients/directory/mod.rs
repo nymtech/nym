@@ -5,7 +5,7 @@ use crate::clients::directory::healthcheck::requests::{Requester, HealthCheckReq
 
 //use serde::Deserialize;
 
-mod healthcheck;
+pub mod healthcheck;
 mod metrics;
 mod presence;
 

@@ -3,17 +3,16 @@ use std::time::Duration;
 
 use clap::{App, Arg, ArgMatches, SubCommand};
 use tokio::runtime::Runtime;
-use tokio::time::{Instant, interval_at};
+use tokio::time::{interval_at, Instant};
 
 use crate::clients::directory;
-use crate::clients::mix::MixClient;
-use crate::clients::directory::{Client, DirectoryClient};
+use crate::clients::directory::healthcheck::requests::{Requester, HealthCheckRequester};
+use crate::clients::directory::DirectoryClient;
 
 mod clients;
 
 const TCP_SOCKET_TYPE: &str = "tcp";
 const WEBSOCKET_SOCKET_TYPE: &str = "websocket";
-
 
 fn execute(matches: ArgMatches) -> Result<(), String> {
     match matches.subcommand() {
@@ -40,7 +39,10 @@ fn init(matches: &ArgMatches) {
 
 fn run(matches: &ArgMatches) {
     let custom_cfg = matches.value_of("customCfg");
-    println!("Going to start client with custom config of: {:?}", custom_cfg);
+    println!(
+        "Going to start client with custom config of: {:?}",
+        custom_cfg
+    );
 
     // Create the runtime, probably later move it to Client struct itself?
     let mut rt = Runtime::new().unwrap();
@@ -54,30 +56,31 @@ fn run(matches: &ArgMatches) {
             interval.tick().await;
             let message = format!("Hello, Sphinx {}", i).as_bytes().to_vec();
 
-
-
             // set up the route
             let directory_config = directory::Config {
-                base_url: "https://directory.nymtech.net".to_string()
+                base_url: "https://directory.nymtech.net".to_string(),
             };
-            let directory= directory::Client::new(directory_config);
+            let directory = clients::directory::Client::new(directory_config);
 
             // make sure the Directory server is in fact running, panic if not
-            directory.health_check().expect("Directory health check failed, is the Directory server running?");
+            directory
+                .health_check
+                .make_request()
+                .expect("Directory health check failed, is the Directory server running?");
 
-//            let route = directory.get_mixes();
-//            let destination = directory.get_destination();
+            //            let route = directory.get_mixes();
+            //            let destination = directory.get_destination();
             let delays = sphinx::header::delays::generate(2);
 
-//            println!("delays: {:?}", delays);
+            //            println!("delays: {:?}", delays);
             // build the packet
-//            let packet = sphinx::SphinxPacket::new(message, &route[..], &destination, &delays).unwrap();
-//
-//            // send to mixnet
-//            let mix_client = MixClient::new();
-//            let result = mix_client.send(packet, route.first().unwrap()).await;
-//            println!("packet sent:  {:?}", i);
-//            i += 1;
+            //            let packet = sphinx::SphinxPacket::new(message, &route[..], &destination, &delays).unwrap();
+            //
+            //            // send to mixnet
+            //            let mix_client = MixClient::new();
+            //            let result = mix_client.send(packet, route.first().unwrap()).await;
+            //            println!("packet sent:  {:?}", i);
+            //            i += 1;
         }
     })
 }
@@ -87,17 +90,19 @@ fn socket(matches: &ArgMatches) {
     let socket_type = match matches.value_of("socketType").unwrap() {
         TCP_SOCKET_TYPE => TCP_SOCKET_TYPE,
         WEBSOCKET_SOCKET_TYPE => WEBSOCKET_SOCKET_TYPE,
-        other => panic!("Invalid socket type provided - {}", other)
+        other => panic!("Invalid socket type provided - {}", other),
     };
     let port = match matches.value_of("port").unwrap().parse::<u16>() {
         Ok(n) => n,
         Err(err) => panic!("Invalid port value provided - {:?}", err),
     };
 
-    println!("Going to start socket client with custom config of: {:?}", custom_cfg);
+    println!(
+        "Going to start socket client with custom config of: {:?}",
+        custom_cfg
+    );
     println!("Using the following socket type: {:?}", socket_type);
     println!("On the following port: {:?}", port);
-
 }
 
 // TODO: perhaps more subcommands and/or args to distinguish between coco client and mix client

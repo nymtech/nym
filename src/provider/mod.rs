@@ -51,14 +51,14 @@ impl From<std::io::Error> for MixProcessingError {
 // Do note that we're copying this struct around and hence the secret_key.
 // It might, or might not be, what we want
 #[derive(Debug, Clone)]
-struct ProcessingData {
+struct MixProcessingData {
     secret_key: Scalar,
     store_dir: PathBuf,
 }
 
-impl ProcessingData {
+impl MixProcessingData {
     fn new(secret_key: Scalar, store_dir: PathBuf) -> Self {
-        ProcessingData {
+        MixProcessingData {
             secret_key,
             store_dir,
         }
@@ -76,10 +76,10 @@ struct StoreData {
 }
 
 
-struct PacketProcessor(());
+struct MixPacketProcessor(());
 
-impl PacketProcessor {
-    fn process_sphinx_data_packet(packet_data: &[u8], processing_data: &RwLock<ProcessingData>) -> Result<StoreData, MixProcessingError> {
+impl MixPacketProcessor {
+    fn process_sphinx_data_packet(packet_data: &[u8], processing_data: &RwLock<MixProcessingData>) -> Result<StoreData, MixProcessingError> {
         let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
         let read_processing_data = processing_data.read().unwrap();
         let (client_address, client_surb_id, payload) = match packet.process(read_processing_data.secret_key) {
@@ -106,7 +106,7 @@ impl PacketProcessor {
     fn store_processed_data(store_data: StoreData, store_dir: &Path) -> Result<(), MixProcessingError> {
         let client_dir_name = hex::encode(store_data.client_address);
         let full_store_dir = store_dir.join(client_dir_name);
-        let full_store_path = full_store_dir.join(PacketProcessor::generate_random_file_name());
+        let full_store_path = full_store_dir.join(MixPacketProcessor::generate_random_file_name());
         println!("going to store: {:?} in file: {:?}", store_data.message, full_store_path);
 
         // TODO: what to do with surbIDs??
@@ -140,11 +140,7 @@ impl ServiceProvider {
     }
 
 
-    async fn process_socket_connection(mut socket: tokio::net::TcpStream, processing_data: Arc<RwLock<ProcessingData>>) {
-        // TODO: we will actually need to distinguish multiple types of requests here;
-        // either from mixnodes to store final hop information
-        // or from clients to pull messages
-
+    async fn process_mixnet_socket_connection(mut socket: tokio::net::TcpStream, processing_data: Arc<RwLock<MixProcessingData>>) {
         let mut buf = [0u8; sphinx::PACKET_SIZE];
 
         // In a loop, read data from the socket and write the data back.
@@ -156,15 +152,16 @@ impl ServiceProvider {
                     return;
                 }
                 Ok(_) => {
-                    let store_data = match PacketProcessor::process_sphinx_data_packet(buf.as_ref(), processing_data.as_ref()) {
+                    let store_data = match MixPacketProcessor::process_sphinx_data_packet(buf.as_ref(), processing_data.as_ref()) {
                         Ok(sd) => sd,
                         Err(e) => {
                             eprintln!("failed to process sphinx packet; err = {:?}", e);
                             return;
                         }
                     };
-                    PacketProcessor::store_processed_data(store_data, processing_data.read().unwrap().store_dir.as_path()).unwrap_or_else(|e| {
-                        eprintln!("failed to store processed sphinx message; err = {:?}", e)
+                    MixPacketProcessor::store_processed_data(store_data, processing_data.read().unwrap().store_dir.as_path()).unwrap_or_else(|e| {
+                        eprintln!("failed to store processed sphinx message; err = {:?}", e);
+                        return;
                     });
                 }
                 Err(e) => {
@@ -181,24 +178,58 @@ impl ServiceProvider {
         }
     }
 
+    async fn process_client_socket_connection(mut socket: tokio::net::TcpStream) {
+        let mut buf = Vec::new();
+
+        // In a loop, read data from the socket and write the data back.
+        loop {
+            match socket.read_to_end(&mut buf).await {
+                // socket closed
+                Ok(n) if n == 0 => {
+                    println!("Remote connection closed.");
+                    return;
+                }
+                Ok(_) => {
+                    println!("received the following data: {:?}", buf)
+
+                }
+                Err(e) => {
+                    eprintln!("failed to read from socket; err = {:?}", e);
+                    return;
+                }
+            };
+
+            // Write the some data back (TODO: actual packets)
+            if let Err(e) = socket.write_all(b"foomp").await {
+                eprintln!("failed to write reply to socket; err = {:?}", e);
+                return;
+            }
+        }
+    }
+
     async fn start_mixnet_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut listener = tokio::net::TcpListener::bind(self.mix_network_address).await?;
-        let processing_data = ProcessingData::new(self.secret_key, self.store_dir.clone()).add_arc_rwlock();
+        let processing_data = MixProcessingData::new(self.secret_key, self.store_dir.clone()).add_arc_rwlock();
 
         loop {
             let (socket, _) = listener.accept().await?;
             let thread_processing_data = processing_data.clone();
             tokio::spawn(async move {
-                ServiceProvider::process_socket_connection(socket, thread_processing_data).await
+                ServiceProvider::process_mixnet_socket_connection(socket, thread_processing_data).await
             });
         }
     }
 
     async fn start_client_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let mut listener = tokio::net::TcpListener::bind(self.mix_network_address).await?;
+
         loop {
-            let delay_duration = Duration::from_millis(500);
-            println!("waiting for {:?}...", delay_duration);
-            tokio::time::delay_for(delay_duration).await;
+            let (socket, _) = listener.accept().await?;
+
+//
+//            let delay_duration = Duration::from_millis(500);
+//            println!("waiting for {:?}...", delay_duration);
+//            tokio::time::delay_for(delay_duration).await;
         }
 
     }

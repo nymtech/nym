@@ -225,11 +225,9 @@ impl ServiceProvider {
 
         loop {
             let (socket, _) = listener.accept().await?;
-
-//
-//            let delay_duration = Duration::from_millis(500);
-//            println!("waiting for {:?}...", delay_duration);
-//            tokio::time::delay_for(delay_duration).await;
+            tokio::spawn(async move {
+                ServiceProvider::process_client_socket_connection(socket).await
+            });
         }
 
     }

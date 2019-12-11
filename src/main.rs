@@ -3,6 +3,7 @@ use std::process;
 
 mod clients;
 mod commands;
+mod utils;
 
 fn main() {
     let arg_matches = App::new("Nym Client")

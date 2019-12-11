@@ -3,6 +3,7 @@ use crate::clients::directory::presence::{MixNodePresence, Topology};
 use crate::clients::directory::requests::presence_topology_get::PresenceTopologyGetRequester;
 use crate::clients::directory::DirectoryClient;
 use crate::clients::mix::MixClient;
+use crate::utils::bytes;
 use base64;
 use clap::ArgMatches;
 use curve25519_dalek::montgomery::MontgomeryPoint;
@@ -71,9 +72,9 @@ fn route_from(topology: &Topology, route_len: usize) -> Vec<SphinxNode> {
     let mut route = vec![];
     let nodes = topology.mix_nodes.iter();
     for mix in nodes.take(route_len) {
-        let address_bytes = zero_pad_to_32_bytes(mix.host.as_bytes().to_vec());
+        let address_bytes = bytes::zero_pad_to_32(mix.host.as_bytes().to_vec());
         let decoded_key_bytes = base64::decode_config(&mix.pub_key, base64::URL_SAFE).unwrap();
-        let key_bytes = zero_pad_to_32_bytes(decoded_key_bytes);
+        let key_bytes = bytes::zero_pad_to_32(decoded_key_bytes);
         let key = MontgomeryPoint(key_bytes);
         let sphinx_node = SphinxNode {
             address: address_bytes,
@@ -82,17 +83,6 @@ fn route_from(topology: &Topology, route_len: usize) -> Vec<SphinxNode> {
         route.push(sphinx_node);
     }
     route
-}
-
-fn zero_pad_to_32_bytes(mut bytes: Vec<u8>) -> [u8; 32] {
-    assert!(bytes.len() <= 32);
-    if bytes.len() != 32 {
-        bytes.resize(32, 0);
-    }
-    let mut padded_bytes = [0; 32];
-    padded_bytes.copy_from_slice(&bytes[..]);
-    assert!(padded_bytes.len() == 32);
-    padded_bytes
 }
 
 // TODO: where do we retrieve this guy from?

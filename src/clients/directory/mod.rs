@@ -1,6 +1,12 @@
 use crate::clients::directory::presence::Topology;
-use crate::clients::directory::requests::health_check_get::{HealthCheckRequester, Request};
+use crate::clients::directory::requests::health_check_get::{
+    HealthCheckRequester, Request as HealthCheckRequest,
+};
+use crate::clients::directory::requests::presence_topology_get::{
+    PresenceTopologyGetRequester, Request as PresenceTopologyRequest,
+};
 use reqwest::Error;
+use sphinx::route::Destination;
 
 mod presence;
 pub mod requests;
@@ -14,16 +20,18 @@ pub trait DirectoryClient {
 }
 
 pub struct Client {
-    pub health_check: Request,
+    pub health_check: HealthCheckRequest,
+    pub presence_topology: PresenceTopologyRequest,
 }
 
 impl DirectoryClient for Client {
     fn new(config: Config) -> Client {
-        let hcr: Request = Request::new(config.base_url);
-        Client { health_check: hcr }
-    }
-
-    fn get_topology(&self) -> Result<Topology, Error> {
-        unimplemented!()
+        let health_check: HealthCheckRequest = HealthCheckRequest::new(config.base_url.clone());
+        let presence_topology: PresenceTopologyRequest =
+            PresenceTopologyRequest::new(config.base_url.clone());
+        Client {
+            health_check,
+            presence_topology,
+        }
     }
 }

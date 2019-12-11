@@ -1,2 +1,0 @@
-cargo:rustc-env=TYPENUM_BUILD_OP=/home/jedrzej/workspace/nym-rust/nym-sfw-provider/sfw-provider-requests/target/debug/build/typenum-3a2638a4914dc1ea/out/consts.rs
-cargo:rustc-env=TYPENUM_BUILD_CONSTS=/home/jedrzej/workspace/nym-rust/nym-sfw-provider/sfw-provider-requests/target/debug/build/typenum-3a2638a4914dc1ea/out/op.rs

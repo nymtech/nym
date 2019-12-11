@@ -1,2 +1,0 @@
-cargo:rustc-cfg=feature="stage2_build"
-

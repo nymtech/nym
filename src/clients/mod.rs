@@ -1,3 +1,4 @@
 pub mod directory;
 pub mod mix;
-mod validator;
+pub mod provider;
+pub mod validator;

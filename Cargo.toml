@@ -7,6 +7,14 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+base64 = "0.11.0"
+clap = "2.33.0"
+curve25519-dalek = "1.2.3"
+reqwest = "0.9.22"
+serde = { version = "1.0", features = ["derive"] }
 sphinx = { path = "../sphinx" }
 tokio = { version = "0.2", features = ["full"] }
-clap = "2.33.0"
+
+[dev-dependencies]
+mockito = "0.22.0"
+serde_json = "1.0.44"

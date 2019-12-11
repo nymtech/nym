@@ -8,6 +8,7 @@ use crate::clients::directory::requests::presence_topology_get::{
 use reqwest::Error;
 use sphinx::route::Destination;
 
+mod metrics;
 mod presence;
 pub mod requests;
 

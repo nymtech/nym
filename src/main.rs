@@ -7,7 +7,10 @@ use tokio::time::{interval_at, Instant};
 
 use crate::clients::directory;
 use crate::clients::directory::requests::health_check_get::HealthCheckRequester;
+use crate::clients::directory::requests::presence_topology_get::PresenceTopologyGetRequester;
 use crate::clients::directory::DirectoryClient;
+use sphinx::route::Destination;
+use crate::clients::mix::MixClient;
 
 mod clients;
 
@@ -68,19 +71,22 @@ fn run(matches: &ArgMatches) {
                 .get()
                 .expect("Directory health check failed, is the Directory server running?");
 
-            //            let route = directory.get_mixes();
-            //            let destination = directory.get_destination();
+            let topology = directory
+                .presence_topology
+                .get()
+                .expect("Failed to retrieve network topology.");
+            let route = topology.mix_nodes;
+            let destination = get_destination();
             let delays = sphinx::header::delays::generate(2);
 
-            //            println!("delays: {:?}", delays);
             // build the packet
-            //            let packet = sphinx::SphinxPacket::new(message, &route[..], &destination, &delays).unwrap();
-            //
-            //            // send to mixnet
-            //            let mix_client = MixClient::new();
-            //            let result = mix_client.send(packet, route.first().unwrap()).await;
-            //            println!("packet sent:  {:?}", i);
-            //            i += 1;
+//            let packet = sphinx::SphinxPacket::new(message, &route[..], &destination, &delays).unwrap();
+//
+//            // send to mixnet
+//            let mix_client = MixClient::new();
+//            let result = mix_client.send(packet, route.first().unwrap()).await;
+//            println!("packet sent:  {:?}", i);
+//            i += 1;
         }
     })
 }
@@ -169,5 +175,13 @@ fn main() {
     if let Err(e) = execute(arg_matches) {
         println!("Application error: {}", e);
         process::exit(1);
+    }
+}
+
+// TODO: where do we retrieve this guy from?
+fn get_destination() -> Destination {
+    Destination {
+        address: [0u8;32],
+        identifier: [0u8; 16],
     }
 }

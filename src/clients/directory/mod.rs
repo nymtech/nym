@@ -1,6 +1,21 @@
 use crate::clients::directory::requests::health_check_get::{
     HealthCheckRequester, Request as HealthCheckRequest,
 };
+use crate::clients::directory::requests::metrics_mixes_get::{
+    MetricsMixRequester, Request as MetricsMixRequest,
+};
+use crate::clients::directory::requests::metrics_mixes_post::{
+    MetricsMixPoster, Request as MetricsMixPost,
+};
+use crate::clients::directory::requests::presence_coconodes_post::{
+    PresenceCocoNodesPoster, Request as PresenceCocoNodesPost,
+};
+use crate::clients::directory::requests::presence_mixnodes_post::{
+    PresenceMixNodesPoster, Request as PresenceMixNodesPost,
+};
+use crate::clients::directory::requests::presence_providers_post::{
+    PresenceMixProviderPoster, Request as PresenceProvidersPost,
+};
 use crate::clients::directory::requests::presence_topology_get::{
     PresenceTopologyGetRequester, Request as PresenceTopologyRequest,
 };
@@ -19,16 +34,34 @@ pub trait DirectoryClient {
 
 pub struct Client {
     pub health_check: HealthCheckRequest,
+    pub metrics_mixes: MetricsMixRequest,
+    pub metrics_post: MetricsMixPost,
+    pub presence_coconodes_post: PresenceCocoNodesPost,
+    pub presence_mix_nodes_post: PresenceMixNodesPost,
+    pub presence_providers_post: PresenceProvidersPost,
     pub presence_topology: PresenceTopologyRequest,
 }
 
 impl DirectoryClient for Client {
     fn new(config: Config) -> Client {
         let health_check: HealthCheckRequest = HealthCheckRequest::new(config.base_url.clone());
+        let metrics_mixes: MetricsMixRequest = MetricsMixRequest::new(config.base_url.clone());
+        let metrics_post: MetricsMixPost = MetricsMixPost::new(config.base_url.clone());
         let presence_topology: PresenceTopologyRequest =
             PresenceTopologyRequest::new(config.base_url.clone());
+        let presence_coconodes_post: PresenceCocoNodesPost =
+            PresenceCocoNodesPost::new(config.base_url.clone());
+        let presence_mix_nodes_post: PresenceMixNodesPost =
+            PresenceMixNodesPost::new(config.base_url.clone());
+        let presence_providers_post: PresenceProvidersPost =
+            PresenceProvidersPost::new(config.base_url.clone());
         Client {
             health_check,
+            metrics_mixes,
+            metrics_post,
+            presence_coconodes_post,
+            presence_mix_nodes_post,
+            presence_providers_post,
             presence_topology,
         }
     }

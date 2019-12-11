@@ -106,13 +106,13 @@ fn main() {
                 .arg(
                     Arg::with_name("clientHost")
                         .long("clientHost")
-                        .help("The custom host on which the service provider will be running for receiving client requests")
+                        .help("The custom host on which the service provider will be running for receiving client sfw-provider-requests")
                         .takes_value(true),
                 )
                 .arg(
                     Arg::with_name("clientPort")
                         .long("clientPort")
-                        .help("The port on which the service provider will be listening for client requests")
+                        .help("The port on which the service provider will be listening for client sfw-provider-requests")
                         .takes_value(true)
                         .required(true),
                 )

@@ -11,6 +11,8 @@ use sphinx::{ProcessedPacket, SphinxPacket};
 use sphinx::route::{DestinationAddressBytes, SURBIdentifier};
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
+use std::time::Duration;
+use futures::{Future, TryFutureExt};
 
 // TODO: if we ever create config file, this should go there
 const STORED_MESSAGE_FILENAME_LENGTH: usize = 16;
@@ -179,6 +181,32 @@ impl ServiceProvider {
         }
     }
 
+    async fn start_mixnet_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let mut listener = tokio::net::TcpListener::bind(self.mix_network_address).await?;
+        let processing_data = ProcessingData::new(self.secret_key, self.store_dir.clone()).add_arc_rwlock();
+
+        loop {
+            let (socket, _) = listener.accept().await?;
+            let thread_processing_data = processing_data.clone();
+            tokio::spawn(async move {
+                ServiceProvider::process_socket_connection(socket, thread_processing_data).await
+            });
+        }
+    }
+
+    async fn start_client_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
+        loop {
+            let delay_duration = Duration::from_millis(500);
+            println!("waiting for {:?}...", delay_duration);
+            tokio::time::delay_for(delay_duration).await;
+        }
+
+    }
+
+    async fn start_listeners(&self) -> (Result<(), Box<dyn std::error::Error>>, Result<(), Box<dyn std::error::Error>>) {
+        futures::future::join(self.start_mixnet_listening(), self.start_client_listening()).await
+    }
+
 
     pub fn start_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
         // Create the runtime, probably later move it to Provider struct itself?
@@ -186,19 +214,16 @@ impl ServiceProvider {
         let mut rt = Runtime::new()?;
 //        let mut h = rt.handle();
 
+
+//        rt.spawn()
         // Spawn the root task
         rt.block_on(async {
-            let mut listener = tokio::net::TcpListener::bind(self.mix_network_address).await?;
-            let processing_data = ProcessingData::new(self.secret_key, self.store_dir.clone()).add_arc_rwlock();
-
-            loop {
-                let (socket, _) = listener.accept().await?;
-                let thread_processing_data = processing_data.clone();
-                tokio::spawn(async move {
-                    ServiceProvider::process_socket_connection(socket, thread_processing_data).await
-                });
-            }
-        })
+            self.start_listeners().await
+        });
+        
+        // this line in theory should never be reached as the runtime should be permanently blocked on listeners
+        eprintln!("The server went kaput...");
+        Ok(())
     }
 }
 

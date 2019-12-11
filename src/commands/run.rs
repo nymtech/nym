@@ -8,6 +8,7 @@ use sphinx::route::Destination;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::time::{interval_at, Instant};
+use crate::clients::provider::ProviderClient;
 
 pub fn execute(matches: &ArgMatches) {
     let custom_cfg = matches.value_of("customCfg");
@@ -26,30 +27,33 @@ pub fn execute(matches: &ArgMatches) {
         let mut i: usize = 0;
         loop {
             interval.tick().await;
-            let message = format!("Hello, Sphinx {}", i).as_bytes().to_vec();
-
-            // set up the route
-            let directory_config = directory::Config {
-                base_url: "https://directory.nymtech.net".to_string(),
-            };
-            let directory = directory::Client::new(directory_config);
-
-            let topology = directory
-                .presence_topology
-                .get()
-                .expect("Failed to retrieve network topology.");
-            let route = topology.mix_nodes;
-            let destination = get_destination();
-            let delays = sphinx::header::delays::generate(2);
-
-            // build the packet
-            //            let packet = sphinx::SphinxPacket::new(message, &route[..], &destination, &delays).unwrap();
-            //
-            // send to mixnet
-            let mix_client = MixClient::new();
-            //            let result = mix_client.send(packet, route.first().unwrap()).await;
+//            let message = format!("Hello, Sphinx {}", i).as_bytes().to_vec();
+//
+//            // set up the route
+//            let directory_config = directory::Config {
+//                base_url: "https://directory.nymtech.net".to_string(),
+//            };
+//            let directory = directory::Client::new(directory_config);
+//
+//            let topology = directory
+//                .presence_topology
+//                .get()
+//                .expect("Failed to retrieve network topology.");
+//            let route = topology.mix_nodes;
+//            let destination = get_destination();
+//            let delays = sphinx::header::delays::generate(2);
+//
+//            // build the packet
+//            //            let packet = sphinx::SphinxPacket::new(message, &route[..], &destination, &delays).unwrap();
+//            //
+//            // send to mixnet
+//            let mix_client = MixClient::new();
+//            //            let result = mix_client.send(packet, route.first().unwrap()).await;
             println!("packet sent:  {:?}", i);
             i += 1;
+
+            let provider_client = ProviderClient::new();
+            provider_client.send().await.unwrap();
         }
     })
 }

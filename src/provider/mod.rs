@@ -1,10 +1,10 @@
 use std::fs::File;
 use std::io::Write;
-use std::net::SocketAddr;
+use std::net::{SocketAddr, Shutdown};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::RwLock;
-
+use sfw_provider_requests::*;
 use curve25519_dalek::scalar::Scalar;
 use rand::Rng;
 use sphinx::{ProcessedPacket, SphinxPacket};
@@ -121,6 +121,24 @@ impl MixPacketProcessor {
     }
 }
 
+#[derive(Debug)]
+enum ClientProcessingError {
+    ClientDoesntExistError
+}
+
+struct ClientRequestProcessor(());
+
+impl ClientRequestProcessor {
+    fn process_client_request(data: &[u8]) -> Result<Vec<u8>, ClientProcessingError> {
+        println!("received the following data: {:?}", data);
+        let semi_parsed = ProviderRequests::from_bytes(&data);
+        println!("received the following data: {:?}", semi_parsed);
+
+
+        Ok(vec![42])
+    }
+}
+
 
 pub struct ServiceProvider {
     mix_network_address: SocketAddr,
@@ -178,32 +196,53 @@ impl ServiceProvider {
         }
     }
 
+    async fn send_response(mut socket: tokio::net::TcpStream, data: &[u8]) {
+        if let Err(e) = socket.write_all(data).await {
+            eprintln!("failed to write reply to socket; err = {:?}", e)
+        }
+        if let Err(e) = socket.shutdown(Shutdown::Write) {
+            eprintln!("failed to close write part of the socket; err = {:?}", e)
+        }
+    }
+
     async fn process_client_socket_connection(mut socket: tokio::net::TcpStream) {
         let mut buf = Vec::new();
 
-        // In a loop, read data from the socket and write the data back.
-        loop {
-            match socket.read_to_end(&mut buf).await {
-                // socket closed
-                Ok(n) if n == 0 => {
-                    println!("Remote connection closed.");
-                    return;
-                }
-                Ok(_) => {
-                    println!("received the following data: {:?}", buf)
-
-                }
-                Err(e) => {
-                    eprintln!("failed to read from socket; err = {:?}", e);
-                    return;
-                }
-            };
-
-            // Write the some data back (TODO: actual packets)
-            if let Err(e) = socket.write_all(b"foomp").await {
-                eprintln!("failed to write reply to socket; err = {:?}", e);
-                return;
+        // TODO: restore the for loop once we go back to persistent tcp socket connection
+        let response = match socket.read_to_end(&mut buf).await {
+            // socket closed
+            Ok(n) if n == 0 => {
+                println!("Remote connection closed.");
+                Err(())
             }
+            Ok(_) => {
+                match ClientRequestProcessor::process_client_request(buf.as_ref()) {
+                    Err(e) => {
+                        eprintln!("failed to process client request; err = {:?}", e);
+                        Err(())
+                    }
+                    Ok(res) => Ok(res),
+                }
+            }
+            Err(e) => {
+                eprintln!("failed to read from socket; err = {:?}", e);
+                Err(())
+            }
+        };
+
+        if let Err(e) = socket.shutdown(Shutdown::Read) {
+            eprintln!("failed to close read part of the socket; err = {:?}", e)
+        }
+
+        match response {
+            Ok(res) => {
+                println!("should send this response! {:?}", res);
+                ServiceProvider::send_response(socket, b"good foomp").await;
+            },
+            _ => {
+                println!("we failed...");
+                ServiceProvider::send_response(socket, b"bad foomp").await;
+            },
         }
     }
 
@@ -225,6 +264,7 @@ impl ServiceProvider {
 
         loop {
             let (socket, _) = listener.accept().await?;
+            println!("new connection!");
             tokio::spawn(async move {
                 ServiceProvider::process_client_socket_connection(socket).await
             });

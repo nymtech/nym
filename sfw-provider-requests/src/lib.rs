@@ -2,13 +2,14 @@ const PULL_REQUEST_MESSAGE_PREFIX: [u8; 2] = [1, 0];
 const REGISTER_MESSAGE_PREFIX: [u8; 2] = [0, 1];
 
 // TODO: how to do it more nicely, considering all sfw-provider-requests implement same trait that is exercised here?
+#[derive(Debug)]
 pub enum ProviderRequests {
     PullMessages(PullRequest),
     Register(RegisterRequest),
 }
 
 impl ProviderRequests {
-    fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         use ProviderRequests::*;
         match self {
             PullMessages(pr) => pr.to_bytes(),
@@ -16,7 +17,7 @@ impl ProviderRequests {
         }
     }
 
-    fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderRequestError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderRequestError> {
         use ProviderRequests::*;
         if bytes.len() < 2 {
             return Err(ProviderRequestError::UnmarshalError);
@@ -47,6 +48,7 @@ where
     fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderRequestError>;
 }
 
+#[derive(Debug)]
 pub struct PullRequest {
     // TODO: public keys, signatures, tokens, etc. basically some kind of authentication bs
     destination_address: sphinx::route::DestinationAddressBytes,
@@ -93,6 +95,7 @@ impl ProviderRequest for PullRequest {
     }
 }
 
+#[derive(Debug)]
 pub struct RegisterRequest {}
 
 impl ProviderRequest for RegisterRequest {

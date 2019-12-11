@@ -20,8 +20,8 @@ pub struct MixNodePresence {
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MixProviderPresence {
-    host: String,
-    pub_key: String,
+    pub host: String,
+    pub pub_key: String,
 }
 
 // Topology shows us the current state of the overall Nym network

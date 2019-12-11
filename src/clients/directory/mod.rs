@@ -11,8 +11,6 @@ pub struct Config {
 
 pub trait DirectoryClient {
     fn new(config: Config) -> Self;
-    fn get_topology(&self) -> Result<Topology, reqwest::Error>;
-    //    fn send_provider_presence(&self) -> Result<ProviderPresenceResponse, reqwest::Error>;
 }
 
 pub struct Client {

@@ -17,9 +17,14 @@ fn execute(matches: ArgMatches) -> Result<(), String> {
 fn run(matches: &ArgMatches) {
     println!("Running the service provider!");
 
-    let host = matches.value_of("host").unwrap_or("0.0.0.0");
+    let mix_host = matches.value_of("mixHost").unwrap_or("0.0.0.0");
+    let mix_port = match matches.value_of("mixPort").unwrap().parse::<u16>() {
+        Ok(n) => n,
+        Err(err) => panic!("Invalid port value provided - {:?}", err),
+    };
 
-    let port = match matches.value_of("port").unwrap().parse::<u16>() {
+    let client_host = matches.value_of("clientHost").unwrap_or("0.0.0.0");
+    let client_port = match matches.value_of("clientPort").unwrap().parse::<u16>() {
         Ok(n) => n,
         Err(err) => panic!("Invalid port value provided - {:?}", err),
     };
@@ -37,23 +42,43 @@ fn run(matches: &ArgMatches) {
 
     let store_dir = PathBuf::from(matches.value_of("storeDir").unwrap());
 
-    println!("The value of host is: {:?}", host);
-    println!("The value of port is: {:?}", port);
+    println!("The value of mix_host is: {:?}", mix_host);
+    println!("The value of mix_port is: {:?}", mix_port);
+    println!("The value of client_host is: {:?}", client_host);
+    println!("The value of client_port is: {:?}", client_port);
     println!("The value of key is: {:?}", secret_key);
-    println!("The value of storeDir is: {:?}", store_dir);
+    println!("The value of store_dir is: {:?}", store_dir);
 
-    let socket_address = (host, port)
+    let mix_socket_address = (mix_host, mix_port)
         .to_socket_addrs()
         .expect("Failed to combine host and port")
         .next()
         .expect("Failed to extract the socket address from the iterator");
 
-    println!("The full combined socket address is {}", socket_address);
+    let client_socket_address = (client_host, client_port)
+        .to_socket_addrs()
+        .expect("Failed to combine host and port")
+        .next()
+        .expect("Failed to extract the socket address from the iterator");
+
+    println!(
+        "The full combined mix socket address is {}",
+        mix_socket_address
+    );
+    println!(
+        "The full combined client socket address is {}",
+        client_socket_address
+    );
 
     // make sure our socket_address is equal to our predefined-hardcoded value
-    assert_eq!("127.0.0.1:8081", socket_address.to_string());
+    assert_eq!("127.0.0.1:8081", mix_socket_address.to_string());
 
-    let provider = ServiceProvider::new(socket_address, secret_key, store_dir);
+    let provider = ServiceProvider::new(
+        mix_socket_address,
+        client_socket_address,
+        secret_key,
+        store_dir,
+    );
     provider.start_listening().unwrap()
 }
 
@@ -66,17 +91,28 @@ fn main() {
             SubCommand::with_name("run")
                 .about("Starts the service provider")
                 .arg(
-                    Arg::with_name("host")
-                        .short("h")
-                        .long("host")
-                        .help("The custom host on which the service provider will be running")
+                    Arg::with_name("mixHost")
+                        .long("mixHost")
+                        .help("The custom host on which the service provider will be running for receiving sphinx packets")
                         .takes_value(true),
                 )
                 .arg(
-                    Arg::with_name("port")
-                        .short("p")
-                        .long("port")
-                        .help("The port on which the service provider will be listening")
+                    Arg::with_name("mixPort")
+                        .long("mixPort")
+                        .help("The port on which the service provider will be listening for sphinx packets")
+                        .takes_value(true)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("clientHost")
+                        .long("clientHost")
+                        .help("The custom host on which the service provider will be running for receiving client requests")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("clientPort")
+                        .long("clientPort")
+                        .help("The port on which the service provider will be listening for client requests")
                         .takes_value(true)
                         .required(true),
                 )
@@ -89,7 +125,7 @@ fn main() {
                 )
                 .arg(
                     Arg::with_name("storeDir")
-                        .short("sdir")
+                        .short("s")
                         .long("storeDir")
                         .help("Directory storing all packets for the clients")
                         .takes_value(true)

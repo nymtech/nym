@@ -121,15 +121,17 @@ impl PacketProcessor {
 
 
 pub struct ServiceProvider {
-    network_address: SocketAddr,
+    mix_network_address: SocketAddr,
+    client_network_address: SocketAddr,
     secret_key: Scalar,
     store_dir: PathBuf,
 }
 
 impl ServiceProvider {
-    pub fn new(network_address: SocketAddr, secret_key: Scalar, store_dir: PathBuf) -> Self {
+    pub fn new(mix_network_address: SocketAddr, client_network_address: SocketAddr, secret_key: Scalar, store_dir: PathBuf) -> Self {
         ServiceProvider {
-            network_address,
+            mix_network_address,
+            client_network_address,
             secret_key,
             store_dir,
         }
@@ -186,7 +188,7 @@ impl ServiceProvider {
 
         // Spawn the root task
         rt.block_on(async {
-            let mut listener = tokio::net::TcpListener::bind(self.network_address).await?;
+            let mut listener = tokio::net::TcpListener::bind(self.mix_network_address).await?;
             let processing_data = ProcessingData::new(self.secret_key, self.store_dir.clone()).add_arc_rwlock();
 
             loop {

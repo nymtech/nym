@@ -221,7 +221,7 @@ impl ServiceProvider {
     }
 
     async fn start_client_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let mut listener = tokio::net::TcpListener::bind(self.mix_network_address).await?;
+        let mut listener = tokio::net::TcpListener::bind(self.client_network_address).await?;
 
         loop {
             let (socket, _) = listener.accept().await?;

@@ -2,6 +2,7 @@ use crate::clients::directory;
 use crate::clients::directory::requests::health_check_get::HealthCheckRequester;
 use crate::clients::directory::requests::presence_topology_get::PresenceTopologyGetRequester;
 use crate::clients::directory::DirectoryClient;
+use crate::clients::mix::MixClient;
 use clap::ArgMatches;
 use sphinx::route::Destination;
 use std::time::Duration;
@@ -50,11 +51,11 @@ pub fn run(matches: &ArgMatches) {
             // build the packet
             //            let packet = sphinx::SphinxPacket::new(message, &route[..], &destination, &delays).unwrap();
             //
-            //            // send to mixnet
-            //            let mix_client = MixClient::new();
+            // send to mixnet
+            let mix_client = MixClient::new();
             //            let result = mix_client.send(packet, route.first().unwrap()).await;
-            //            println!("packet sent:  {:?}", i);
-            //            i += 1;
+            println!("packet sent:  {:?}", i);
+            i += 1;
         }
     })
 }

@@ -2,52 +2,21 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 use std::process;
 
 mod clients;
+mod init;
 mod run;
+mod socket;
 
 const TCP_SOCKET_TYPE: &str = "tcp";
 const WEBSOCKET_SOCKET_TYPE: &str = "websocket";
 
 fn execute(matches: ArgMatches) -> Result<(), String> {
     match matches.subcommand() {
-        ("init", Some(m)) => Ok(init(m)),
+        ("init", Some(m)) => Ok(init::init(m)),
         ("run", Some(m)) => Ok(run::run(m)),
-        ("socket", Some(m)) => Ok(socket(m)),
+        ("socket", Some(m)) => Ok(socket::socket(m)),
 
         _ => Err(String::from("Unknown command")),
     }
-}
-
-fn init(matches: &ArgMatches) {
-    println!("Running client init!");
-
-    // don't unwrap it, pass it as it is, if it's None, choose a random
-    let provider_id = matches.value_of("providerID");
-    let init_local = matches.is_present("local");
-
-    println!(
-        "client init goes here with providerID: {:?} and running locally: {:?}",
-        provider_id, init_local
-    );
-}
-
-fn socket(matches: &ArgMatches) {
-    let custom_cfg = matches.value_of("customCfg");
-    let socket_type = match matches.value_of("socketType").unwrap() {
-        TCP_SOCKET_TYPE => TCP_SOCKET_TYPE,
-        WEBSOCKET_SOCKET_TYPE => WEBSOCKET_SOCKET_TYPE,
-        other => panic!("Invalid socket type provided - {}", other),
-    };
-    let port = match matches.value_of("port").unwrap().parse::<u16>() {
-        Ok(n) => n,
-        Err(err) => panic!("Invalid port value provided - {:?}", err),
-    };
-
-    println!(
-        "Going to start socket client with custom config of: {:?}",
-        custom_cfg
-    );
-    println!("Using the following socket type: {:?}", socket_type);
-    println!("On the following port: {:?}", port);
 }
 
 // TODO: perhaps more subcommands and/or args to distinguish between coco client and mix client

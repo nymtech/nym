@@ -1,4 +1,4 @@
-use crate::clients::directory::metrics::MixMetric;
+use crate::clients::directory::metrics::PersistedMixMetric;
 
 pub struct Request {
     base_url: String,
@@ -7,7 +7,7 @@ pub struct Request {
 
 pub trait MetricsMixRequester {
     fn new(base_url: String) -> Self;
-    fn get(&self) -> Result<Vec<MixMetric>, reqwest::Error>;
+    fn get(&self) -> Result<Vec<PersistedMixMetric>, reqwest::Error>;
 }
 
 impl MetricsMixRequester for Request {
@@ -18,7 +18,7 @@ impl MetricsMixRequester for Request {
         }
     }
 
-    fn get(&self) -> Result<Vec<MixMetric>, reqwest::Error> {
+    fn get(&self) -> Result<Vec<PersistedMixMetric>, reqwest::Error> {
         let url = format!("{}{}", self.base_url, self.path);
         let mix_metric_vec = reqwest::get(&url)?.json()?;
         Ok(mix_metric_vec)
@@ -60,8 +60,8 @@ mod metrics_get_request {
             let result = req.get();
             assert_eq!(true, result.is_ok());
             assert_eq!(
-                "OwOqwWjh_IlnaWS2PxO6odnhNahOYpRCkju50beQCTA=",
-                result.unwrap().first().unwrap().pub_key
+                1576061080635800000,
+                result.unwrap().first().unwrap().timestamp
             );
             _m.assert();
         }

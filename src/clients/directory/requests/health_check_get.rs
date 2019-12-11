@@ -41,6 +41,8 @@ mod healthcheck_requests {
             let _m = mock("GET", "/api/healthcheck").with_status(400).create();
             let req = Request::new(mockito::server_url());
             assert!(req.get().is_err());
+            _m.assert();
+
         }
     }
 
@@ -52,8 +54,8 @@ mod healthcheck_requests {
         fn it_returns_a_response_with_200_status() {
             let _m = mock("GET", "/api/healthcheck").with_status(200).create();
             let req = Request::new(mockito::server_url());
-
             assert!(req.get().is_ok());
+            _m.assert();
         }
     }
 }

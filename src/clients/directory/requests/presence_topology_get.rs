@@ -42,6 +42,7 @@ mod topology_requests {
                 .create();
             let req = Request::new(mockito::server_url());
             req.get().unwrap();
+            _m.assert();
         }
     }
     #[cfg(test)]
@@ -60,7 +61,8 @@ mod topology_requests {
             assert_eq!(
                 1575915097085539300,
                 result.unwrap().coco_nodes.first().unwrap().last_seen
-            )
+            );
+            _m.assert();
         }
     }
     #[cfg(test)]

@@ -1,5 +1,5 @@
 use crate::clients::directory;
-use crate::clients::directory::presence::Topology;
+use crate::clients::directory::presence::{MixNodePresence, Topology};
 use crate::clients::directory::requests::presence_topology_get::PresenceTopologyGetRequester;
 use crate::clients::directory::DirectoryClient;
 use crate::clients::mix::MixClient;
@@ -19,13 +19,16 @@ pub fn execute(matches: &ArgMatches) {
         custom_cfg
     );
 
+    // Grab the network topology from the remote directory server
+    let topology = get_topology();
+
     // Create the runtime, probably later move it to Client struct itself?
     let mut rt = Runtime::new().unwrap();
 
     // Spawn the root task
     rt.block_on(async {
         let start = Instant::now() + Duration::from_nanos(1000);
-        let mut interval = interval_at(start, Duration::from_millis(5000));
+        let mut interval = interval_at(start, Duration::from_millis(1000));
         let mut i: usize = 0;
         loop {
             interval.tick().await;
@@ -34,14 +37,14 @@ pub fn execute(matches: &ArgMatches) {
             let route_len = 3;
 
             // data needed to generate a new Sphinx packet
-            let route = get_route(route_len);
+            let route = route_from(&topology, route_len);
             let destination = get_destination();
             let delays = sphinx::header::delays::generate(route_len);
 
             // build the packet
             let packet =
                 sphinx::SphinxPacket::new(message, &route[..], &destination, &delays).unwrap();
-            //
+
             // send to mixnet
             let mix_client = MixClient::new();
             let result = mix_client.send(packet, route.first().unwrap()).await;
@@ -51,7 +54,7 @@ pub fn execute(matches: &ArgMatches) {
     })
 }
 
-fn get_route(route_len: usize) -> Vec<SphinxNode> {
+fn get_topology() -> Topology {
     let directory_config = directory::Config {
         base_url: "https://directory.nymtech.net".to_string(),
     };
@@ -61,11 +64,10 @@ fn get_route(route_len: usize) -> Vec<SphinxNode> {
         .presence_topology
         .get()
         .expect("Failed to retrieve network topology.");
-    let route = route_from(topology, route_len);
-    route
+    topology
 }
 
-fn route_from(topology: Topology, route_len: usize) -> Vec<SphinxNode> {
+fn route_from(topology: &Topology, route_len: usize) -> Vec<SphinxNode> {
     let mut route = vec![];
     let nodes = topology.mix_nodes.iter();
     for mix in nodes.take(route_len) {

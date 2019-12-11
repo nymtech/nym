@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::fs::{File, ReadDir};
 use std::io::Write;
 use std::net::{SocketAddr, Shutdown};
 use std::path::{Path, PathBuf};
@@ -44,7 +44,6 @@ impl From<std::io::Error> for MixProcessingError {
     }
 }
 
-
 // ProcessingData defines all data required to correctly unwrap sphinx packets
 // Do note that we're copying this struct around and hence the secret_key.
 // It might, or might not be, what we want
@@ -64,6 +63,54 @@ impl MixProcessingData {
 
     fn add_arc_rwlock(self) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new(self))
+    }
+}
+
+struct ClientStorage(());
+
+impl ClientStorage {
+    fn generate_random_file_name() -> String {
+        rand::thread_rng().sample_iter(&rand::distributions::Alphanumeric).take(STORED_MESSAGE_FILENAME_LENGTH).collect::<String>()
+    }
+
+    fn store_processed_data(store_data: StoreData, store_dir: &Path) -> io::Result<()> {
+        let client_dir_name = hex::encode(store_data.client_address);
+        let full_store_dir = store_dir.join(client_dir_name);
+        let full_store_path = full_store_dir.join(ClientStorage::generate_random_file_name());
+        println!("going to store: {:?} in file: {:?}", store_data.message, full_store_path);
+
+        // TODO: what to do with surbIDs??
+
+        // TODO: this should be called when client sends 'register' request!
+        std::fs::create_dir_all(full_store_dir)?;
+
+        // we can use normal io here, no need for tokio as it's all happening in one thread per connection
+        let mut file = File::create(full_store_path)?;
+        file.write_all(store_data.message.as_ref())?;
+
+
+        Ok(())
+    }
+
+    fn retrieve_client_files(client_address: DestinationAddressBytes, store_dir: &Path) -> Result<(), ClientProcessingError> {
+        let client_dir_name = hex::encode(client_address);
+        let full_store_dir = store_dir.join(client_dir_name);
+        let full_store_path = full_store_dir.join(ClientStorage::generate_random_file_name());
+
+        if !full_store_path.exists() {
+            return Err(ClientProcessingError::ClientDoesntExistError)
+        }
+
+        for entry in std::fs::read_dir(full_store_path)? {
+            println!("file: {:?}", entry);
+        }
+
+        Ok(())
+    }
+
+    // TODO: THIS NEEDS A LOCKING MECHANISM!!! (or a db layer on top - basically 'ClientStorage' on steroids)
+    fn delete_file() {
+
     }
 }
 
@@ -96,33 +143,22 @@ impl MixPacketProcessor {
             message,
         })
     }
-
-    fn generate_random_file_name() -> String {
-        rand::thread_rng().sample_iter(&rand::distributions::Alphanumeric).take(STORED_MESSAGE_FILENAME_LENGTH).collect::<String>()
-    }
-
-    fn store_processed_data(store_data: StoreData, store_dir: &Path) -> Result<(), MixProcessingError> {
-        let client_dir_name = hex::encode(store_data.client_address);
-        let full_store_dir = store_dir.join(client_dir_name);
-        let full_store_path = full_store_dir.join(MixPacketProcessor::generate_random_file_name());
-        println!("going to store: {:?} in file: {:?}", store_data.message, full_store_path);
-
-        // TODO: what to do with surbIDs??
-
-        // we can use normal io here, no need for tokio as it's all happening in one thread per connection
-        std::fs::create_dir_all(full_store_dir)?;
-        let mut file = File::create(full_store_path)?;
-        file.write_all(store_data.message.as_ref())?;
-
-
-        Ok(())
-    }
 }
 
 #[derive(Debug)]
 enum ClientProcessingError {
-    ClientDoesntExistError
+    ClientDoesntExistError,
+    FileIOFailure,
 }
+
+impl From<std::io::Error> for ClientProcessingError {
+    fn from(_: std::io::Error) -> Self {
+        use ClientProcessingError::*;
+
+        FileIOFailure
+    }
+}
+
 
 struct ClientRequestProcessor(());
 
@@ -133,7 +169,15 @@ impl ClientRequestProcessor {
         println!("received the following data: {:?}", semi_parsed);
 
 
+        // even though the compiler wouldn't have complained about this code being unsafe
+        // I want to be explicit because it is not 100% thread safe as other socket connection
+        // from the same client might be interacting with the same set of files
+        unsafe {
+
+        }
+
         Ok(vec![42])
+
     }
 }
 
@@ -175,7 +219,7 @@ impl ServiceProvider {
                             return;
                         }
                     };
-                    MixPacketProcessor::store_processed_data(store_data, processing_data.read().unwrap().store_dir.as_path()).unwrap_or_else(|e| {
+                    ClientStorage::store_processed_data(store_data, processing_data.read().unwrap().store_dir.as_path()).unwrap_or_else(|e| {
                         eprintln!("failed to store processed sphinx message; err = {:?}", e);
                         return;
                     });
@@ -236,7 +280,7 @@ impl ServiceProvider {
         match response {
             Ok(res) => {
                 println!("should send this response! {:?}", res);
-                ServiceProvider::send_response(socket, b"good foomp").await;
+                ServiceProvider::send_response(socket, &res).await;
             },
             _ => {
                 println!("we failed...");

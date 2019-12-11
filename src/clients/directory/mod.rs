@@ -1,12 +1,9 @@
-use crate::clients::directory::presence::Topology;
 use crate::clients::directory::requests::health_check_get::{
     HealthCheckRequester, Request as HealthCheckRequest,
 };
 use crate::clients::directory::requests::presence_topology_get::{
     PresenceTopologyGetRequester, Request as PresenceTopologyRequest,
 };
-use reqwest::Error;
-use sphinx::route::Destination;
 
 mod metrics;
 mod presence;

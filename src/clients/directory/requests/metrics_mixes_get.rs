@@ -1,5 +1,4 @@
 use crate::clients::directory::metrics::MixMetric;
-use reqwest::Response;
 
 pub struct Request {
     base_url: String,

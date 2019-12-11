@@ -11,8 +11,6 @@ use sphinx::{ProcessedPacket, SphinxPacket};
 use sphinx::route::{DestinationAddressBytes, SURBIdentifier};
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
-use std::time::Duration;
-use futures::{Future, TryFutureExt};
 
 // TODO: if we ever create config file, this should go there
 const STORED_MESSAGE_FILENAME_LENGTH: usize = 16;
@@ -205,18 +203,19 @@ impl ServiceProvider {
         }
     }
 
+    // TODO: FIGURE OUT HOW TO SET READ_DEADLINES IN TOKIO
     async fn process_client_socket_connection(mut socket: tokio::net::TcpStream) {
-        let mut buf = Vec::new();
+        let mut buf = [0; 1024];
 
         // TODO: restore the for loop once we go back to persistent tcp socket connection
-        let response = match socket.read_to_end(&mut buf).await {
+        let response = match socket.read(&mut buf).await {
             // socket closed
             Ok(n) if n == 0 => {
                 println!("Remote connection closed.");
                 Err(())
             }
-            Ok(_) => {
-                match ClientRequestProcessor::process_client_request(buf.as_ref()) {
+            Ok(n) => {
+                match ClientRequestProcessor::process_client_request(buf[..n].as_ref()) {
                     Err(e) => {
                         eprintln!("failed to process client request; err = {:?}", e);
                         Err(())

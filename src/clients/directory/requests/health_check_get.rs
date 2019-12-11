@@ -2,6 +2,7 @@ use reqwest::Response;
 
 pub struct Request {
     base_url: String,
+    path: String,
 }
 
 pub trait HealthCheckRequester {
@@ -11,11 +12,14 @@ pub trait HealthCheckRequester {
 
 impl HealthCheckRequester for Request {
     fn new(base_url: String) -> Self {
-        Request { base_url }
+        Request {
+            base_url,
+            path: "/api/healthcheck".to_string(),
+        }
     }
 
     fn get(&self) -> Result<Response, reqwest::Error> {
-        let url = format!("{}/healthcheck", self.base_url);
+        let url = format!("{}{}", self.base_url, self.path);
         reqwest::get(&url)
     }
 }
@@ -34,9 +38,9 @@ mod healthcheck_requests {
         #[test]
         #[should_panic]
         fn it_returns_an_error() {
-            let _m = mock("GET", "/healthcheck").with_status(400).create();
+            let _m = mock("GET", "/api/healthcheck").with_status(400).create();
             let req = Request::new(mockito::server_url());
-            assert_eq!(true, req.get().is_err());
+            assert!(req.get().is_err());
         }
     }
 
@@ -46,10 +50,10 @@ mod healthcheck_requests {
 
         #[test]
         fn it_returns_a_response_with_200_status() {
-            let _m = mock("GET", "/healthcheck").with_status(200).create();
+            let _m = mock("GET", "/api/healthcheck").with_status(200).create();
             let req = Request::new(mockito::server_url());
 
-            assert_eq!(true, req.get().is_ok());
+            assert!(req.get().is_ok());
         }
     }
 }

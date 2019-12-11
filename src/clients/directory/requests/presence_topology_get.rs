@@ -12,7 +12,10 @@ pub trait PresenceTopologyGetRequester {
 
 impl PresenceTopologyGetRequester for Request {
     fn new(base_url: String) -> Self {
-        Request { base_url, path: "/topology".to_string()}
+        Request {
+            base_url,
+            path: "/api/presence/topology".to_string(),
+        }
     }
 
     fn get(&self) -> Result<Topology, reqwest::Error> {
@@ -25,7 +28,6 @@ impl PresenceTopologyGetRequester for Request {
 #[cfg(test)]
 mod topology_requests {
     use super::*;
-    use crate::clients::directory::presence::CocoPresence;
     #[cfg(test)]
     use mockito::mock;
     #[cfg(test)]
@@ -34,7 +36,7 @@ mod topology_requests {
         #[test]
         #[should_panic]
         fn it_panics() {
-            let _m = mock("GET", "/topology")
+            let _m = mock("GET", "/api/presence/topology")
                 .with_status(400)
                 .with_body("badbody")
                 .create();
@@ -48,21 +50,24 @@ mod topology_requests {
         #[test]
         fn it_returns_a_response_with_200_status_and_a_correct_topology() {
             let json = fixtures::topology_response_json();
-            let _m = mock("GET", "/topology")
+            let _m = mock("GET", "/api/presence/topology")
                 .with_status(200)
                 .with_body(json)
                 .create();
             let req = Request::new(mockito::server_url());
-            let resp = req.get();
-            assert_eq!(true, resp.is_ok());
-            assert_eq!(1575915097085539300, resp.unwrap().coco_nodes.first().unwrap().last_seen)
+            let result = req.get();
+            assert_eq!(true, result.is_ok());
+            assert_eq!(
+                1575915097085539300,
+                result.unwrap().coco_nodes.first().unwrap().last_seen
+            )
         }
     }
     #[cfg(test)]
-     pub mod fixtures {
+    pub mod fixtures {
         #[cfg(test)]
-         pub fn topology_response_json() -> String {
-             r#"{
+        pub fn topology_response_json() -> String {
+            r#"{
                    "cocoNodes": [
                      {
                        "host": "3.8.244.109:4000",
@@ -294,6 +299,6 @@ mod topology_requests {
                      }
                    ]
                  }"#.to_string()
-         }
-     }
+        }
+    }
 }

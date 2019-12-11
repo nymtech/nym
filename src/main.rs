@@ -4,9 +4,6 @@ use std::process;
 mod clients;
 mod commands;
 
-const TCP_SOCKET_TYPE: &str = "tcp";
-const WEBSOCKET_SOCKET_TYPE: &str = "websocket";
-
 fn main() {
     let arg_matches = App::new("Nym Client")
         .version("0.1.0")

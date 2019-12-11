@@ -1,5 +1,5 @@
 use crate::clients::directory;
-use crate::clients::directory::requests::health_check_get::HealthCheckRequester;
+use crate::clients::directory::presence::Topology;
 use crate::clients::directory::requests::presence_topology_get::PresenceTopologyGetRequester;
 use crate::clients::directory::DirectoryClient;
 use crate::clients::mix::MixClient;
@@ -31,38 +31,10 @@ pub fn execute(matches: &ArgMatches) {
             interval.tick().await;
             let message = format!("Hello, Sphinx {}", i).as_bytes().to_vec();
 
-            let directory_config = directory::Config {
-                base_url: "https://directory.nymtech.net".to_string(),
-            };
-            let directory = directory::Client::new(directory_config);
-
-            let topology = directory
-                .presence_topology
-                .get()
-                .expect("Failed to retrieve network topology.");
-            let mut route = vec![];
             let route_len = 3;
-            let nodes = topology.mix_nodes.iter();
-            for mix in nodes.take(route_len) {
-                let mut address_vector = mix.host.as_bytes().to_vec();
-                if address_vector.len() != 32 {
-                    address_vector.resize(32, 0)
-                }
-                assert!(address_vector.len() <= 32);
-                let mut address_bytes = [0; 32];
-                address_bytes.copy_from_slice(&address_vector[..]);
 
-                let key_bytes = base64::decode_config(&mix.pub_key, base64::URL_SAFE).unwrap();
-                assert!(key_bytes.len() == 32);
-                let mut arr = [0; 32];
-                arr.copy_from_slice(&key_bytes);
-                let mp = MontgomeryPoint(arr);
-                let sphinx_node = SphinxNode {
-                    address: address_bytes,
-                    pub_key: mp,
-                };
-                route.push(sphinx_node);
-            }
+            // data needed to generate a new Sphinx packet
+            let route = get_route(route_len);
             let destination = get_destination();
             let delays = sphinx::header::delays::generate(route_len);
 
@@ -79,8 +51,46 @@ pub fn execute(matches: &ArgMatches) {
     })
 }
 
-fn zero_pad_to(bytes: Vec<u8>, length: usize) -> Vec<u8> {
-    vec![0u8; length]
+fn get_route(route_len: usize) -> Vec<SphinxNode> {
+    let directory_config = directory::Config {
+        base_url: "https://directory.nymtech.net".to_string(),
+    };
+    let directory = directory::Client::new(directory_config);
+
+    let topology = directory
+        .presence_topology
+        .get()
+        .expect("Failed to retrieve network topology.");
+    let route = route_from(topology, route_len);
+    route
+}
+
+fn route_from(topology: Topology, route_len: usize) -> Vec<SphinxNode> {
+    let mut route = vec![];
+    let nodes = topology.mix_nodes.iter();
+    for mix in nodes.take(route_len) {
+        let address_bytes = zero_pad_to_32_bytes(mix.host.as_bytes().to_vec());
+        let decoded_key_bytes = base64::decode_config(&mix.pub_key, base64::URL_SAFE).unwrap();
+        let key_bytes = zero_pad_to_32_bytes(decoded_key_bytes);
+        let key = MontgomeryPoint(key_bytes);
+        let sphinx_node = SphinxNode {
+            address: address_bytes,
+            pub_key: key,
+        };
+        route.push(sphinx_node);
+    }
+    route
+}
+
+fn zero_pad_to_32_bytes(mut bytes: Vec<u8>) -> [u8; 32] {
+    assert!(bytes.len() <= 32);
+    if bytes.len() != 32 {
+        bytes.resize(32, 0);
+    }
+    let mut padded_bytes = [0; 32];
+    padded_bytes.copy_from_slice(&bytes[..]);
+    assert!(padded_bytes.len() == 32);
+    padded_bytes
 }
 
 // TODO: where do we retrieve this guy from?

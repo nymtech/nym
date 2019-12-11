@@ -38,7 +38,7 @@ mod topology_requests {
         fn it_panics() {
             let _m = mock("GET", "/api/presence/topology")
                 .with_status(400)
-                .with_body("badbody")
+                .with_body("bad body")
                 .create();
             let req = Request::new(mockito::server_url());
             req.get().unwrap();

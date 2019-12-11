@@ -2,24 +2,11 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 use std::process;
 
 mod clients;
-mod init;
-mod run;
-mod socket;
+mod commands;
 
 const TCP_SOCKET_TYPE: &str = "tcp";
 const WEBSOCKET_SOCKET_TYPE: &str = "websocket";
 
-fn execute(matches: ArgMatches) -> Result<(), String> {
-    match matches.subcommand() {
-        ("init", Some(m)) => Ok(init::init(m)),
-        ("run", Some(m)) => Ok(run::run(m)),
-        ("socket", Some(m)) => Ok(socket::socket(m)),
-
-        _ => Err(String::from("Unknown command")),
-    }
-}
-
-// TODO: perhaps more subcommands and/or args to distinguish between coco client and mix client
 fn main() {
     let arg_matches = App::new("Nym Client")
         .version("0.1.0")
@@ -83,5 +70,15 @@ fn main() {
     if let Err(e) = execute(arg_matches) {
         println!("Application error: {}", e);
         process::exit(1);
+    }
+}
+
+fn execute(matches: ArgMatches) -> Result<(), String> {
+    match matches.subcommand() {
+        ("init", Some(m)) => Ok(commands::init::execute(m)),
+        ("run", Some(m)) => Ok(commands::run::execute(m)),
+        ("socket", Some(m)) => Ok(commands::socket::execute(m)),
+
+        _ => Err(String::from("Unknown command")),
     }
 }

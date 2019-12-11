@@ -1,6 +1,6 @@
 use clap::ArgMatches;
 
-pub fn socket(matches: &ArgMatches) {
+pub fn execute(matches: &ArgMatches) {
     let custom_cfg = matches.value_of("customCfg");
     let socket_type = match matches.value_of("socketType").unwrap() {
         TCP_SOCKET_TYPE => TCP_SOCKET_TYPE,

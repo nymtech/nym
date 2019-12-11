@@ -9,7 +9,7 @@ use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::time::{interval_at, Instant};
 
-pub fn run(matches: &ArgMatches) {
+pub fn execute(matches: &ArgMatches) {
     let custom_cfg = matches.value_of("customCfg");
     println!(
         "Going to start client with custom config of: {:?}",

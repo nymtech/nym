@@ -1,6 +1,6 @@
 use clap::ArgMatches;
 
-pub fn init(matches: &ArgMatches) {
+pub fn execute(matches: &ArgMatches) {
     println!("Running client init!");
 
     // don't unwrap it, pass it as it is, if it's None, choose a random

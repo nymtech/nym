@@ -214,13 +214,12 @@ impl ServiceProvider {
         let mut rt = Runtime::new()?;
 //        let mut h = rt.handle();
 
-
-//        rt.spawn()
         // Spawn the root task
         rt.block_on(async {
-            self.start_listeners().await
+            let future_results = self.start_listeners().await;
+            assert!(future_results.0.is_ok() && future_results.1.is_ok())
         });
-        
+
         // this line in theory should never be reached as the runtime should be permanently blocked on listeners
         eprintln!("The server went kaput...");
         Ok(())

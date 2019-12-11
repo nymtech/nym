@@ -34,12 +34,6 @@ pub fn execute(matches: &ArgMatches) {
             };
             let directory = directory::Client::new(directory_config);
 
-            // make sure the Directory server is in fact running, panic if not
-            directory
-                .health_check
-                .get()
-                .expect("Directory health check failed, is the Directory server running?");
-
             let topology = directory
                 .presence_topology
                 .get()

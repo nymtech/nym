@@ -27,7 +27,7 @@ impl PemStore {
         KeyPair::from_bytes(private, public)
     }
 
-    pub fn read_file(&self, filepath: PathBuf) -> Vec<u8> {
+    fn read_file(&self, filepath: PathBuf) -> Vec<u8> {
         let mut pem_bytes = File::open(filepath).unwrap();
         let mut buf = Vec::new();
         pem_bytes.read_to_end(&mut buf).unwrap();

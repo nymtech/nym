@@ -42,7 +42,7 @@ fn main() {
         .get_matches();
 
     if let Err(e) = execute(arg_matches) {
-        println!("Application error: {}", e);
+        println!("{}", e);
         process::exit(1);
     }
 }
@@ -50,6 +50,25 @@ fn main() {
 fn execute(matches: ArgMatches) -> Result<(), String> {
     match matches.subcommand() {
         ("run", Some(m)) => Ok(node::runner::start(m)),
-        _ => Err(String::from("Unknown command")),
+        _ => Err(usage()),
     }
+}
+
+fn usage() -> String {
+    banner() + "usage: --help to see available options.\n\n"
+}
+
+fn banner() -> String {
+    return r#"
+
+      _ __  _   _ _ __ ___
+     | '_ \| | | | '_ \ _ \
+     | | | | |_| | | | | | |
+     |_| |_|\__, |_| |_| |_|
+            |___/
+
+             (mixnode)
+
+    "#
+    .to_string();
 }

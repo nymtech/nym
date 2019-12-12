@@ -5,7 +5,7 @@ pub struct MixPeer {
     connection: String,
 }
 
-impl<'a> MixPeer {
+impl MixPeer {
     // note that very soon `next_hop_address` will be changed to `next_hop_metadata`
     pub fn new(next_hop_address: [u8; 32]) -> MixPeer {
         let address = String::from_utf8_lossy(&next_hop_address)

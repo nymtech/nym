@@ -35,7 +35,7 @@ struct ForwardingData {
 }
 
 // TODO: this will need to be changed if MixPeer will live longer than our Forwarding Data
-impl<'a> ForwardingData {
+impl ForwardingData {
     fn new(packet: SphinxPacket, delay: SphinxDelay, recipient: MixPeer) -> Self {
         ForwardingData {
             packet,
@@ -63,7 +63,7 @@ impl ProcessingData {
 struct PacketProcessor {}
 
 impl PacketProcessor {
-    pub fn process_sphinx_data_packet<'a>(
+    pub fn process_sphinx_data_packet(
         packet_data: &[u8],
         processing_data: Arc<RwLock<ProcessingData>>,
     ) -> Result<ForwardingData, MixProcessingError> {

@@ -12,17 +12,22 @@ fn main() {
         .about("Implementation of the Nym Client")
         .subcommand(
             SubCommand::with_name("init")
-                .about("Initialise a Nym client")
-                .arg(Arg::with_name("providerID")
-                    .short("pid")
-                    .long("providerID")
-                    .help("Id of the provider we have preference to connect to. If left empty, a random provider will be chosen")
+                .about("Initialise a Nym client. Do this first!")
+                .arg(Arg::with_name("id")
+                    .long("id")
+                    .help("Id of the nym-mixnet-client we want to create config for.")
+                    .takes_value(true)
+                    .required(true)
+                )
+                .arg(Arg::with_name("provider")
+                    .long("provider")
+                    .help("Id of the provider we have preference to connect to. If left empty, a random provider will be chosen.")
                     .takes_value(true)
                 )
                 .arg(Arg::with_name("local")
-                    .short("loc")
                     .long("local")
-                    .help("Flag to indicate whether the client is expected to run on the local deployment")
+                    .help("Flag to indicate whether the client is expected to run on the local deployment.")
+                    .takes_value(true)
                 )
         )
         .subcommand(
@@ -66,7 +71,7 @@ fn main() {
         .get_matches();
 
     if let Err(e) = execute(arg_matches) {
-        println!("Application error: {}", e);
+        println!("{}", e);
         process::exit(1);
     }
 }
@@ -77,6 +82,25 @@ fn execute(matches: ArgMatches) -> Result<(), String> {
         ("run", Some(m)) => Ok(commands::run::execute(m)),
         ("socket", Some(m)) => Ok(commands::socket::execute(m)),
 
-        _ => Err(String::from("Unknown command")),
+        _ => Err(usage()),
     }
+}
+
+fn usage() -> String {
+    banner() + "usage: --help to see available options."
+}
+
+fn banner() -> String {
+    return r#"
+
+      _ __  _   _ _ __ ___
+     | '_ \| | | | '_ \ _ \
+     | | | | |_| | | | | | |
+     |_| |_|\__, |_| |_| |_|
+            |___/
+
+             (client)
+
+    "#
+    .to_string();
 }

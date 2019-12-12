@@ -5,7 +5,7 @@ use sphinx::route::{DestinationAddressBytes, SURBIdentifier};
 use std::fs::File;
 use std::io;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub enum StoreError {
     ClientDoesntExistError,
@@ -43,6 +43,7 @@ impl StoreData {
 // TODO: replace with database
 pub struct ClientStorage(());
 
+// TODO: change it to some generic implementation to inject fs
 impl ClientStorage {
     fn generate_random_file_name() -> String {
         rand::thread_rng()
@@ -101,7 +102,11 @@ impl ClientStorage {
                 }
                 is_file
             })
-            .map(|entry| std::fs::read(entry.path()).unwrap()) // TODO: also delete; THIS MAP IS UNSAFE!!
+            .map(|entry| {
+                let content = std::fs::read(entry.path()).unwrap();
+                ClientStorage::delete_file(entry.path());
+                content
+            }) // TODO: THIS MAP IS UNSAFE (BOTH READING AND DELETING)!!
             .chain(std::iter::repeat(ClientStorage::dummy_message()))
             .take(MESSAGE_RETRIEVAL_LIMIT)
             .collect();
@@ -112,5 +117,8 @@ impl ClientStorage {
     }
 
     // TODO: THIS NEEDS A LOCKING MECHANISM!!! (or a db layer on top - basically 'ClientStorage' on steroids)
-    fn delete_file() {}
+    fn delete_file(path: PathBuf) {
+        println!("Here {:?} will be deleted!", path);
+        std::fs::remove_file(path); // another argument for db layer -> remove_file is NOT guaranteed to immediately get rid of the file
+    }
 }

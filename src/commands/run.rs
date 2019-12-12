@@ -36,7 +36,7 @@ pub fn execute(matches: &ArgMatches) {
             interval.tick().await;
             let message = format!("Hello, Sphinx {}", i).as_bytes().to_vec();
 
-            let route_len = 3;
+            let route_len = 2;
 
             // data needed to generate a new Sphinx packet
             let route = route_from(&topology, route_len);
@@ -53,8 +53,13 @@ pub fn execute(matches: &ArgMatches) {
             println!("packet sent:  {:?}", i);
             i += 1;
 
-            let provider_client = ProviderClient::new();
-            provider_client.send().await.unwrap();
+            // retrieve messages every now and then
+            if i % 3 == 0 {
+                interval.tick().await;
+                println!("going to retrieve messages!");
+                let provider_client = ProviderClient::new();
+                provider_client.retrieve_messages().await.unwrap();
+            }
         }
     })
 }
@@ -80,10 +85,13 @@ fn route_from(topology: &Topology, route_len: usize) -> Vec<SphinxNode> {
         let decoded_key_bytes = base64::decode_config(&mix.pub_key, base64::URL_SAFE).unwrap();
         let key_bytes = bytes::zero_pad_to_32(decoded_key_bytes);
         let key = MontgomeryPoint(key_bytes);
-        let sphinx_node = SphinxNode {
+        let mut sphinx_node = SphinxNode {
             address: address_bytes,
             pub_key: key,
         };
+
+        // temporary to make it work locally:
+        sphinx_node.pub_key = Default::default();
         route.push(sphinx_node);
     }
     route

@@ -11,17 +11,17 @@ pub struct CocoPresence {
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MixNodePresence {
-    host: String,
-    pub_key: String,
-    layer: u64,
-    last_seen: i64,
+    pub host: String,
+    pub pub_key: String,
+    pub layer: u64,
+    pub last_seen: i64,
 }
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MixProviderPresence {
-    host: String,
-    pub_key: String,
+    pub host: String,
+    pub pub_key: String,
 }
 
 // Topology shows us the current state of the overall Nym network

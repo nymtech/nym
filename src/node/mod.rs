@@ -3,12 +3,14 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use curve25519_dalek::scalar::Scalar;
-use sphinx::{ProcessedPacket, SphinxPacket};
 use sphinx::header::delays::Delay as SphinxDelay;
+use sphinx::{ProcessedPacket, SphinxPacket};
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
 
 use crate::mix_peer::MixPeer;
+
+pub mod runner;
 
 // TODO: this will probably need to be moved elsewhere I imagine
 #[derive(Debug)]
@@ -45,14 +47,12 @@ impl<'a> ForwardingData<'a> {
 
 // ProcessingData defines all data required to correctly unwrap sphinx packets
 struct ProcessingData {
-    secret_key: Scalar
+    secret_key: Scalar,
 }
 
 impl ProcessingData {
     fn new(secret_key: Scalar) -> Self {
-        ProcessingData {
-            secret_key
-        }
+        ProcessingData { secret_key }
     }
 
     fn add_arc_rwlock(self) -> Arc<RwLock<Self>> {
@@ -63,12 +63,18 @@ impl ProcessingData {
 struct PacketProcessor {}
 
 impl PacketProcessor {
-    pub fn process_sphinx_data_packet<'a>(packet_data: &[u8], processing_data: Arc<RwLock<ProcessingData>>) -> Result<ForwardingData<'a>, MixProcessingError> {
+    pub fn process_sphinx_data_packet<'a>(
+        packet_data: &[u8],
+        processing_data: Arc<RwLock<ProcessingData>>,
+    ) -> Result<ForwardingData<'a>, MixProcessingError> {
         let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
-        let (next_packet, next_hop_address, delay) = match packet.process(processing_data.read().unwrap().secret_key) {
-            ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay) => (packet, address, delay),
-            _ => return Err(MixProcessingError::ReceivedFinalHopError),
-        };
+        let (next_packet, next_hop_address, delay) =
+            match packet.process(processing_data.read().unwrap().secret_key) {
+                ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay) => {
+                    (packet, address, delay)
+                }
+                _ => return Err(MixProcessingError::ReceivedFinalHopError),
+            };
 
         let next_mix = MixPeer::new(next_hop_address);
 
@@ -82,15 +88,21 @@ impl PacketProcessor {
         tokio::time::delay_for(delay_duration).await;
         println!("waited {:?} - time to forward the packet!", delay_duration);
 
-        match forwarding_data.recipient.send(forwarding_data.packet.to_bytes()).await {
+        match forwarding_data
+            .recipient
+            .send(forwarding_data.packet.to_bytes())
+            .await
+        {
             Ok(()) => (),
             Err(e) => {
-                println!("failed to write bytes to next mix peer. err = {:?}", e.to_string());
+                println!(
+                    "failed to write bytes to next mix peer. err = {:?}",
+                    e.to_string()
+                );
             }
         }
     }
 }
-
 
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
@@ -108,7 +120,10 @@ impl MixNode {
         }
     }
 
-    async fn process_socket_connection(mut socket: tokio::net::TcpStream, processing_data: Arc<RwLock<ProcessingData>>) {
+    async fn process_socket_connection(
+        mut socket: tokio::net::TcpStream,
+        processing_data: Arc<RwLock<ProcessingData>>,
+    ) {
         // NOTE: processing_data is copied here!!
         let mut buf = [0u8; sphinx::PACKET_SIZE];
 
@@ -121,7 +136,11 @@ impl MixNode {
                     return;
                 }
                 Ok(_) => {
-                    let fwd_data = PacketProcessor::process_sphinx_data_packet(buf.as_ref(), processing_data.clone()).unwrap();
+                    let fwd_data = PacketProcessor::process_sphinx_data_packet(
+                        buf.as_ref(),
+                        processing_data.clone(),
+                    )
+                    .unwrap();
                     PacketProcessor::wait_and_forward(fwd_data).await;
                 }
                 Err(e) => {

@@ -87,7 +87,7 @@ fn execute(matches: ArgMatches) -> Result<(), String> {
 }
 
 fn usage() -> String {
-    banner() + "usage: --help to see available options."
+    banner() + "usage: --help to see available options.\n\n"
 }
 
 fn banner() -> String {

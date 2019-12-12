@@ -28,15 +28,15 @@ impl From<sphinx::ProcessingError> for MixProcessingError {
     }
 }
 
-struct ForwardingData<'a> {
+struct ForwardingData {
     packet: SphinxPacket,
     delay: SphinxDelay,
-    recipient: MixPeer<'a>,
+    recipient: MixPeer,
 }
 
 // TODO: this will need to be changed if MixPeer will live longer than our Forwarding Data
-impl<'a> ForwardingData<'a> {
-    fn new(packet: SphinxPacket, delay: SphinxDelay, recipient: MixPeer<'a>) -> Self {
+impl<'a> ForwardingData {
+    fn new(packet: SphinxPacket, delay: SphinxDelay, recipient: MixPeer) -> Self {
         ForwardingData {
             packet,
             delay,
@@ -66,7 +66,7 @@ impl PacketProcessor {
     pub fn process_sphinx_data_packet<'a>(
         packet_data: &[u8],
         processing_data: Arc<RwLock<ProcessingData>>,
-    ) -> Result<ForwardingData<'a>, MixProcessingError> {
+    ) -> Result<ForwardingData, MixProcessingError> {
         let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
         let (next_packet, next_hop_address, delay) =
             match packet.process(processing_data.read().unwrap().secret_key) {
@@ -82,7 +82,7 @@ impl PacketProcessor {
         Ok(fwd_data)
     }
 
-    async fn wait_and_forward(forwarding_data: ForwardingData<'_>) {
+    async fn wait_and_forward(forwarding_data: ForwardingData) {
         let delay_duration = Duration::from_nanos(forwarding_data.delay.get_value());
         println!("client says to wait for {:?}", delay_duration);
         tokio::time::delay_for(delay_duration).await;

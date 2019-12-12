@@ -1,22 +1,24 @@
 use std::error::Error;
 use tokio::prelude::*;
 
-pub struct MixPeer<'a> {
-    connection: &'a str,
+pub struct MixPeer {
+    connection: String,
 }
 
-impl<'a> MixPeer<'a> {
-    // for now completely ignore data we're sending.
-    // also note that very soon next_hop_address will be changed to next_hop_metadata
-    pub fn new(_next_hop_address: [u8; 32]) -> MixPeer<'a> {
-        let next_hop_address_fixture: &'a str = "127.0.0.1:8081";
+impl<'a> MixPeer {
+    // note that very soon `next_hop_address` will be changed to `next_hop_metadata`
+    pub fn new(next_hop_address: [u8; 32]) -> MixPeer {
+        let address = String::from_utf8_lossy(&next_hop_address)
+            .trim_end_matches(char::from(0))
+            .to_string();
         MixPeer {
-            connection: next_hop_address_fixture,
+            connection: address,
         }
     }
 
     pub async fn send(&self, bytes: Vec<u8>) -> Result<(), Box<dyn Error>> {
-        let mut stream = tokio::net::TcpStream::connect(self.connection).await?;
+        let next_hop_address = self.connection.clone();
+        let mut stream = tokio::net::TcpStream::connect(next_hop_address).await?;
         stream.write_all(&bytes).await?;
         Ok(())
     }

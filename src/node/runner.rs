@@ -43,7 +43,7 @@ pub fn start(matches: &ArgMatches) {
     println!("The full combined socket address is {}", socket_address);
 
     // make sure our socket_address is equal to our predefined-hardcoded value
-    assert_eq!("127.0.0.1:8080", socket_address.to_string());
+    // assert_eq!("127.0.0.1:8080", socket_address.to_string());
 
     let mix = MixNode::new(socket_address, secret_key, layer);
     mix.start_listening().unwrap();

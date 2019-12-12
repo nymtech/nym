@@ -1,5 +1,5 @@
 use crate::clients::directory;
-use crate::clients::directory::presence::{MixNodePresence, Topology};
+use crate::clients::directory::presence::Topology;
 use crate::clients::directory::requests::presence_topology_get::PresenceTopologyGetRequester;
 use crate::clients::directory::DirectoryClient;
 use crate::clients::mix::MixClient;
@@ -15,10 +15,7 @@ use tokio::time::{interval_at, Instant};
 
 pub fn execute(matches: &ArgMatches) {
     let custom_cfg = matches.value_of("customCfg");
-    println!(
-        "Going to start client with custom config of: {:?}",
-        custom_cfg
-    );
+    println!("Starting client with config: {:?}", custom_cfg);
 
     // Grab the network topology from the remote directory server
     let topology = get_topology();

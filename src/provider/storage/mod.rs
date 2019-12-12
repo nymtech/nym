@@ -117,6 +117,8 @@ impl ClientStorage {
     }
 
     // TODO: THIS NEEDS A LOCKING MECHANISM!!! (or a db layer on top - basically 'ClientStorage' on steroids)
+    // TODO 2: This should only be called AFTER we sent the reply. Because if client's connection failed after sending request
+    // the messages would be deleted but he wouldn't have received them
     fn delete_file(path: PathBuf) {
         println!("Here {:?} will be deleted!", path);
         std::fs::remove_file(path); // another argument for db layer -> remove_file is NOT guaranteed to immediately get rid of the file

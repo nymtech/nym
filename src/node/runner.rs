@@ -1,10 +1,13 @@
+use crate::banner;
 use crate::node::MixNode;
 use clap::ArgMatches;
+
 use curve25519_dalek::scalar::Scalar;
 use std::net::ToSocketAddrs;
 
 pub fn start(matches: &ArgMatches) {
-    println!("Running the mixnode!");
+    println!("{}", banner());
+    println!("Starting mixnode...");
 
     let host = matches.value_of("host").unwrap_or("0.0.0.0");
 
@@ -20,19 +23,14 @@ pub fn start(matches: &ArgMatches) {
 
     let secret_key: Scalar = match matches.value_of("keyfile") {
         Some(keyfile) => {
-            println!("Todo: load keyfile from <{:?}>", keyfile);
+            println!("TODO: load keyfile from <{:?}>", keyfile);
             Default::default()
         }
         None => {
-            println!("Todo: generate fresh sphinx keypair");
+            println!("TODO: generate fresh sphinx keypair");
             Default::default()
         }
     };
-
-    println!("The value of host is: {:?}", host);
-    println!("The value of port is: {:?}", port);
-    println!("The value of layer is: {:?}", layer);
-    println!("The value of key is: {:?}", secret_key);
 
     let socket_address = (host, port)
         .to_socket_addrs()
@@ -40,7 +38,8 @@ pub fn start(matches: &ArgMatches) {
         .next()
         .expect("Failed to extract the socket address from the iterator");
 
-    println!("The full combined socket address is {}", socket_address);
+    println!("Startup complete on: {}", socket_address);
+    println!("Listening for incoming packets...");
 
     // make sure our socket_address is equal to our predefined-hardcoded value
     // assert_eq!("127.0.0.1:8080", socket_address.to_string());

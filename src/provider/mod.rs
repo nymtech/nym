@@ -45,8 +45,6 @@ impl From<std::io::Error> for MixProcessingError {
 }
 
 // ProcessingData defines all data required to correctly unwrap sphinx packets
-// Do note that we're copying this struct around and hence the secret_key.
-// It might, or might not be, what we want
 #[derive(Debug, Clone)]
 struct MixProcessingData {
     secret_key: Scalar,
@@ -63,54 +61,6 @@ impl MixProcessingData {
 
     fn add_arc_rwlock(self) -> Arc<RwLock<Self>> {
         Arc::new(RwLock::new(self))
-    }
-}
-
-struct ClientStorage(());
-
-impl ClientStorage {
-    fn generate_random_file_name() -> String {
-        rand::thread_rng().sample_iter(&rand::distributions::Alphanumeric).take(STORED_MESSAGE_FILENAME_LENGTH).collect::<String>()
-    }
-
-    fn store_processed_data(store_data: StoreData, store_dir: &Path) -> io::Result<()> {
-        let client_dir_name = hex::encode(store_data.client_address);
-        let full_store_dir = store_dir.join(client_dir_name);
-        let full_store_path = full_store_dir.join(ClientStorage::generate_random_file_name());
-        println!("going to store: {:?} in file: {:?}", store_data.message, full_store_path);
-
-        // TODO: what to do with surbIDs??
-
-        // TODO: this should be called when client sends 'register' request!
-        std::fs::create_dir_all(full_store_dir)?;
-
-        // we can use normal io here, no need for tokio as it's all happening in one thread per connection
-        let mut file = File::create(full_store_path)?;
-        file.write_all(store_data.message.as_ref())?;
-
-
-        Ok(())
-    }
-
-    fn retrieve_client_files(client_address: DestinationAddressBytes, store_dir: &Path) -> Result<(), ClientProcessingError> {
-        let client_dir_name = hex::encode(client_address);
-        let full_store_dir = store_dir.join(client_dir_name);
-        let full_store_path = full_store_dir.join(ClientStorage::generate_random_file_name());
-
-        if !full_store_path.exists() {
-            return Err(ClientProcessingError::ClientDoesntExistError)
-        }
-
-        for entry in std::fs::read_dir(full_store_path)? {
-            println!("file: {:?}", entry);
-        }
-
-        Ok(())
-    }
-
-    // TODO: THIS NEEDS A LOCKING MECHANISM!!! (or a db layer on top - basically 'ClientStorage' on steroids)
-    fn delete_file() {
-
     }
 }
 
@@ -145,10 +95,61 @@ impl MixPacketProcessor {
     }
 }
 
+
+struct ClientStorage(());
+
+impl ClientStorage {
+    fn generate_random_file_name() -> String {
+        rand::thread_rng().sample_iter(&rand::distributions::Alphanumeric).take(STORED_MESSAGE_FILENAME_LENGTH).collect::<String>()
+    }
+
+    fn store_processed_data(store_data: StoreData, store_dir: &Path) -> io::Result<()> {
+        let client_dir_name = hex::encode(store_data.client_address);
+        let full_store_dir = store_dir.join(client_dir_name);
+        let full_store_path = full_store_dir.join(ClientStorage::generate_random_file_name());
+        println!("going to store: {:?} in file: {:?}", store_data.message, full_store_path);
+
+        // TODO: what to do with surbIDs??
+
+        // TODO: this should be called when client sends 'register' request!
+        std::fs::create_dir_all(full_store_dir)?;
+
+        // we can use normal io here, no need for tokio as it's all happening in one thread per connection
+        let mut file = File::create(full_store_path)?;
+        file.write_all(store_data.message.as_ref())?;
+
+
+        Ok(())
+    }
+
+    fn retrieve_client_files(client_address: DestinationAddressBytes, store_dir: &Path) -> Result<(), ClientProcessingError> {
+        let client_dir_name = hex::encode(client_address);
+        let full_store_dir = store_dir.join(client_dir_name);
+
+        println!("going to lookup: {:?}!", full_store_dir);
+        if !full_store_dir.exists() {
+            return Err(ClientProcessingError::ClientDoesntExistError)
+        }
+
+        for entry in std::fs::read_dir(full_store_dir)? {
+            println!("file: {:?}", entry);
+        }
+
+        Ok(())
+    }
+
+    // TODO: THIS NEEDS A LOCKING MECHANISM!!! (or a db layer on top - basically 'ClientStorage' on steroids)
+    fn delete_file() {
+
+    }
+}
+
+
 #[derive(Debug)]
 enum ClientProcessingError {
     ClientDoesntExistError,
     FileIOFailure,
+    InvalidRequest
 }
 
 impl From<std::io::Error> for ClientProcessingError {
@@ -159,25 +160,62 @@ impl From<std::io::Error> for ClientProcessingError {
     }
 }
 
+impl From<ProviderRequestError> for ClientProcessingError {
+    fn from(_: ProviderRequestError) -> Self {
+        use ClientProcessingError::*;
+
+        InvalidRequest
+    }
+}
+
+
+#[derive(Debug, Clone)]
+struct ClientProcessingData {
+    store_dir: PathBuf,
+}
+
+impl ClientProcessingData {
+    fn new(store_dir: PathBuf) -> Self {
+        ClientProcessingData {
+            store_dir,
+        }
+    }
+
+    fn add_arc_rwlock(self) -> Arc<RwLock<Self>> {
+        Arc::new(RwLock::new(self))
+    }
+}
+
+
 
 struct ClientRequestProcessor(());
 
 impl ClientRequestProcessor {
-    fn process_client_request(data: &[u8]) -> Result<Vec<u8>, ClientProcessingError> {
-        println!("received the following data: {:?}", data);
-        let semi_parsed = ProviderRequests::from_bytes(&data);
-        println!("received the following data: {:?}", semi_parsed);
+    fn process_client_request(data: &[u8], processing_data: &RwLock<ClientProcessingData>) -> Result<Vec<u8>, ClientProcessingError> {
+        let client_request = ProviderRequests::from_bytes(&data)?;
+        println!("received the following request: {:?}", client_request);
+        match client_request {
+            ProviderRequests::Register(req) => unimplemented!(),
+            ProviderRequests::PullMessages(req) => {
+                ClientRequestProcessor::process_pull_messages_request(req, processing_data.read().unwrap().store_dir.as_path())
+            }
+        }
 
 
         // even though the compiler wouldn't have complained about this code being unsafe
         // I want to be explicit because it is not 100% thread safe as other socket connection
         // from the same client might be interacting with the same set of files
-        unsafe {
-
-        }
+//        unsafe {
+//            ClientStorage::retrieve_client_files();
+//        }
 
         Ok(vec![42])
 
+    }
+
+    fn process_pull_messages_request(req: PullRequest, store_dir: &Path) {
+        println!("processing pull!");
+        ClientStorage::retrieve_client_files(req.destination_address, store_dir);
     }
 }
 
@@ -248,7 +286,7 @@ impl ServiceProvider {
     }
 
     // TODO: FIGURE OUT HOW TO SET READ_DEADLINES IN TOKIO
-    async fn process_client_socket_connection(mut socket: tokio::net::TcpStream) {
+    async fn process_client_socket_connection(mut socket: tokio::net::TcpStream,  processing_data: Arc<RwLock<ClientProcessingData>>) {
         let mut buf = [0; 1024];
 
         // TODO: restore the for loop once we go back to persistent tcp socket connection
@@ -259,7 +297,7 @@ impl ServiceProvider {
                 Err(())
             }
             Ok(n) => {
-                match ClientRequestProcessor::process_client_request(buf[..n].as_ref()) {
+                match ClientRequestProcessor::process_client_request(buf[..n].as_ref(), processing_data.as_ref()) {
                     Err(e) => {
                         eprintln!("failed to process client request; err = {:?}", e);
                         Err(())
@@ -295,6 +333,8 @@ impl ServiceProvider {
 
         loop {
             let (socket, _) = listener.accept().await?;
+            // do note that the underlying data is NOT copied here; arc is incremented and lock is shared
+            // (if I understand it all correctly)
             let thread_processing_data = processing_data.clone();
             tokio::spawn(async move {
                 ServiceProvider::process_mixnet_socket_connection(socket, thread_processing_data).await
@@ -304,12 +344,15 @@ impl ServiceProvider {
 
     async fn start_client_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut listener = tokio::net::TcpListener::bind(self.client_network_address).await?;
+        let processing_data = ClientProcessingData::new(self.store_dir.clone()).add_arc_rwlock();
 
         loop {
             let (socket, _) = listener.accept().await?;
-            println!("new connection!");
+            // do note that the underlying data is NOT copied here; arc is incremented and lock is shared
+            // (if I understand it all correctly)
+            let thread_processing_data = processing_data.clone();
             tokio::spawn(async move {
-                ServiceProvider::process_client_socket_connection(socket).await
+                ServiceProvider::process_client_socket_connection(socket, thread_processing_data).await
             });
         }
 

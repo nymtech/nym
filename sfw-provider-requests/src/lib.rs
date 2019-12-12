@@ -51,7 +51,7 @@ where
 #[derive(Debug)]
 pub struct PullRequest {
     // TODO: public keys, signatures, tokens, etc. basically some kind of authentication bs
-    destination_address: sphinx::route::DestinationAddressBytes,
+    pub destination_address: sphinx::route::DestinationAddressBytes,
 }
 
 impl PullRequest {

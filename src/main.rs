@@ -3,6 +3,8 @@ use std::process;
 
 mod clients;
 mod commands;
+mod identity;
+mod persistence;
 mod utils;
 
 fn main() {

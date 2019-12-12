@@ -1,8 +1,9 @@
 use crate::clients::directory;
-use crate::clients::directory::presence::{MixNodePresence, Topology};
+use crate::clients::directory::presence::Topology;
 use crate::clients::directory::requests::presence_topology_get::PresenceTopologyGetRequester;
 use crate::clients::directory::DirectoryClient;
 use crate::clients::mix::MixClient;
+use crate::clients::provider::ProviderClient;
 use crate::utils::bytes;
 use base64;
 use clap::ArgMatches;
@@ -15,10 +16,7 @@ use tokio::time::{interval_at, Instant};
 
 pub fn execute(matches: &ArgMatches) {
     let custom_cfg = matches.value_of("customCfg");
-    println!(
-        "Going to start client with custom config of: {:?}",
-        custom_cfg
-    );
+    println!("Starting client with config: {:?}", custom_cfg);
 
     // Grab the network topology from the remote directory server
     let topology = get_topology();
@@ -35,7 +33,7 @@ pub fn execute(matches: &ArgMatches) {
             interval.tick().await;
             let message = format!("Hello, Sphinx {}", i).as_bytes().to_vec();
 
-            let route_len = 3;
+            let route_len = 2;
 
             // data needed to generate a new Sphinx packet
             let route = route_from(&topology, route_len);
@@ -51,6 +49,14 @@ pub fn execute(matches: &ArgMatches) {
             let result = mix_client.send(packet, route.first().unwrap()).await;
             println!("packet sent:  {:?}", i);
             i += 1;
+
+            // retrieve messages every now and then
+            if i % 3 == 0 {
+                interval.tick().await;
+                println!("going to retrieve messages!");
+                let provider_client = ProviderClient::new();
+                provider_client.retrieve_messages().await.unwrap();
+            }
         }
     })
 }
@@ -76,10 +82,13 @@ fn route_from(topology: &Topology, route_len: usize) -> Vec<SphinxNode> {
         let decoded_key_bytes = base64::decode_config(&mix.pub_key, base64::URL_SAFE).unwrap();
         let key_bytes = bytes::zero_pad_to_32(decoded_key_bytes);
         let key = MontgomeryPoint(key_bytes);
-        let sphinx_node = SphinxNode {
+        let mut sphinx_node = SphinxNode {
             address: address_bytes,
             pub_key: key,
         };
+
+        // temporary to make it work locally:
+        sphinx_node.pub_key = Default::default();
         route.push(sphinx_node);
     }
     route
@@ -88,7 +97,7 @@ fn route_from(topology: &Topology, route_len: usize) -> Vec<SphinxNode> {
 // TODO: where do we retrieve this guy from?
 fn get_destination() -> Destination {
     Destination {
-        address: [0u8; 32],
-        identifier: [0u8; 16],
+        address: [42u8; 32],
+        identifier: [1u8; 16],
     }
 }

@@ -514,6 +514,7 @@ dependencies = [
  "futures 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hex 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sfw-provider-requests 0.1.0",
  "sphinx 0.1.0",
  "tokio 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -652,6 +653,13 @@ dependencies = [
 name = "redox_syscall"
 version = "0.1.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "sfw-provider-requests"
+version = "0.1.0"
+dependencies = [
+ "sphinx 0.1.0",
+]
 
 [[package]]
 name = "sha2"

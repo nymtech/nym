@@ -92,7 +92,7 @@ fn route_from(topology: &Topology, route_len: usize) -> Vec<SphinxNode> {
 // TODO: where do we retrieve this guy from?
 fn get_destination() -> Destination {
     Destination {
-        address: [0u8; 32],
-        identifier: [0u8; 16],
+        address: [42u8; 32],
+        identifier: [1u8; 16],
     }
 }

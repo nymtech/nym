@@ -34,23 +34,23 @@ pub fn execute(matches: &ArgMatches) {
         let mut i: usize = 0;
         loop {
             interval.tick().await;
-            let message = format!("Hello, Sphinx {}", i).as_bytes().to_vec();
-
-            let route_len = 2;
-
-            // data needed to generate a new Sphinx packet
-            let route = route_from(&topology, route_len);
-            let destination = get_destination();
-            let delays = sphinx::header::delays::generate(route_len);
-
-            // build the packet
-            let packet =
-                sphinx::SphinxPacket::new(message, &route[..], &destination, &delays).unwrap();
-
-            // send to mixnet
-            let mix_client = MixClient::new();
-            let result = mix_client.send(packet, route.first().unwrap()).await;
-            println!("packet sent:  {:?}", i);
+//            let message = format!("Hello, Sphinx {}", i).as_bytes().to_vec();
+//
+//            let route_len = 2;
+//
+//            // data needed to generate a new Sphinx packet
+//            let route = route_from(&topology, route_len);
+//            let destination = get_destination();
+//            let delays = sphinx::header::delays::generate(route_len);
+//
+//            // build the packet
+//            let packet =
+//                sphinx::SphinxPacket::new(message, &route[..], &destination, &delays).unwrap();
+//
+//            // send to mixnet
+//            let mix_client = MixClient::new();
+//            let result = mix_client.send(packet, route.first().unwrap()).await;
+//            println!("packet sent:  {:?}", i);
             i += 1;
 
             // retrieve messages every now and then

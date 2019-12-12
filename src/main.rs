@@ -16,6 +16,7 @@ fn main() {
                     .long("id")
                     .help("Id of the nym-mixnet-client we want to create config for.")
                     .takes_value(true)
+                    .required(true)
                 )
                 .arg(Arg::with_name("provider")
                     .long("provider")
@@ -80,8 +81,12 @@ fn execute(matches: ArgMatches) -> Result<(), String> {
         ("run", Some(m)) => Ok(commands::run::execute(m)),
         ("socket", Some(m)) => Ok(commands::socket::execute(m)),
 
-        _ => Err(banner()),
+        _ => Err(usage()),
     }
+}
+
+fn usage() -> String {
+    banner() + "usage: --help to see available options."
 }
 
 fn banner() -> String {
@@ -94,8 +99,6 @@ fn banner() -> String {
             |___/
 
              (client)
-
-    usage: --help to see available options.
 
     "#
     .to_string();

@@ -5,7 +5,6 @@ pub fn zero_pad_to_32(mut bytes: Vec<u8>) -> [u8; 32] {
     }
     let mut padded_bytes = [0; 32];
     padded_bytes.copy_from_slice(&bytes[..]);
-    assert!(padded_bytes.len() == 32);
     padded_bytes
 }
 

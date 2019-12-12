@@ -14,7 +14,9 @@ use tokio::runtime::Runtime;
 
 // TODO: if we ever create config file, this should go there
 const STORED_MESSAGE_FILENAME_LENGTH: usize = 16;
+const MESSAGE_RETRIEVAL_LIMIT:usize = 2;
 
+const DUMMY_MESSAGE_CONTENT: &[u8] = b"Wanting something does not give you the right to have it.";
 
 // TODO: this will probably need to be moved elsewhere I imagine
 // DUPLICATE WITH MIXNODE CODE!!!
@@ -82,6 +84,8 @@ impl MixPacketProcessor {
             _ => return Err(MixProcessingError::ReceivedForwardHopError),
         };
 
+        // TODO: should provider try to be recovering plaintext? this would potentially make client retrieve messages of non-constant length,
+        // perhaps provider should be re-padding them on retrieval or storing full data?
         let (payload_destination, message) = payload.try_recover_destination_and_plaintext().ok_or_else(|| MixProcessingError::InvalidPayload)?;
         if client_address != payload_destination {
             return Err(MixProcessingError::NonMatchingRecipient);
@@ -101,6 +105,11 @@ struct ClientStorage(());
 impl ClientStorage {
     fn generate_random_file_name() -> String {
         rand::thread_rng().sample_iter(&rand::distributions::Alphanumeric).take(STORED_MESSAGE_FILENAME_LENGTH).collect::<String>()
+    }
+
+    fn dummy_message() -> Vec<u8> {
+        // TODO: should it be padded to constant length?
+        DUMMY_MESSAGE_CONTENT.to_vec()
     }
 
     fn store_processed_data(store_data: StoreData, store_dir: &Path) -> io::Result<()> {
@@ -131,9 +140,26 @@ impl ClientStorage {
             return Err(ClientProcessingError::ClientDoesntExistError)
         }
 
-        for entry in std::fs::read_dir(full_store_dir)? {
-            println!("file: {:?}", entry);
-        }
+        let msgs: Vec<_> = std::fs::read_dir(full_store_dir)?
+            .into_iter()
+            .map(|entry| entry.unwrap())
+            .filter(|entry| {
+                let is_file = entry.metadata().unwrap().is_file();
+                if !is_file {
+                    eprintln!("potentially corrupted client inbox! - found a non-file - {:?}", entry.path());
+                }
+                is_file
+            })
+            .map(|entry| std::fs::read(entry.path()).unwrap())
+            .chain(std::iter::repeat(ClientStorage::dummy_message()))
+            .take(MESSAGE_RETRIEVAL_LIMIT)
+            .collect();
+
+        println!("retrieved the following data: {:?}", msgs);
+
+//        for entry in std::fs::read_dir(full_store_dir)? {
+//            println!("file: {:?}", entry);
+//        }
 
         Ok(())
     }

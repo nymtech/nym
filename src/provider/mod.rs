@@ -4,13 +4,15 @@ use std::net::{SocketAddr, Shutdown};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::RwLock;
-use sfw_provider_requests::*;
+use sfw_provider_requests::requests::*;
+use sfw_provider_requests::responses::*;
 use curve25519_dalek::scalar::Scalar;
 use rand::Rng;
 use sphinx::{ProcessedPacket, SphinxPacket};
 use sphinx::route::{DestinationAddressBytes, SURBIdentifier};
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
+use sfw_provider_requests::DUMMY_MESSAGE_CONTENT;
 
 // TODO: if we ever create config file, this should go there
 const STORED_MESSAGE_FILENAME_LENGTH: usize = 16;
@@ -129,7 +131,7 @@ impl ClientStorage {
         Ok(())
     }
 
-    fn retrieve_client_files(client_address: DestinationAddressBytes, store_dir: &Path) -> Result<(), ClientProcessingError> {
+    fn retrieve_client_files(client_address: DestinationAddressBytes, store_dir: &Path) -> Result<Vec<Vec<u8>>, ClientProcessingError> {
         let client_dir_name = hex::encode(client_address);
         let full_store_dir = store_dir.join(client_dir_name);
 
@@ -139,7 +141,6 @@ impl ClientStorage {
         }
 
         let msgs: Vec<_> = std::fs::read_dir(full_store_dir)?
-            .into_iter()
             .map(|entry| entry.unwrap())
             .filter(|entry| {
                 let is_file = entry.metadata().unwrap().is_file();
@@ -148,18 +149,14 @@ impl ClientStorage {
                 }
                 is_file
             })
-            .map(|entry| std::fs::read(entry.path()).unwrap())
+            .map(|entry| std::fs::read(entry.path()).unwrap()) // TODO: also delete; THIS MAP IS UNSAFE!!
             .chain(std::iter::repeat(ClientStorage::dummy_message()))
             .take(MESSAGE_RETRIEVAL_LIMIT)
             .collect();
 
         println!("retrieved the following data: {:?}", msgs);
 
-//        for entry in std::fs::read_dir(full_store_dir)? {
-//            println!("file: {:?}", entry);
-//        }
-
-        Ok(())
+        Ok(msgs)
     }
 
     // TODO: THIS NEEDS A LOCKING MECHANISM!!! (or a db layer on top - basically 'ClientStorage' on steroids)
@@ -221,25 +218,15 @@ impl ClientRequestProcessor {
         match client_request {
             ProviderRequests::Register(req) => unimplemented!(),
             ProviderRequests::PullMessages(req) => {
-                ClientRequestProcessor::process_pull_messages_request(req, processing_data.read().unwrap().store_dir.as_path())
+                Ok(ClientRequestProcessor::process_pull_messages_request(req, processing_data.read().unwrap().store_dir.as_path())?.to_bytes())
             }
         }
-
-
-        // even though the compiler wouldn't have complained about this code being unsafe
-        // I want to be explicit because it is not 100% thread safe as other socket connection
-        // from the same client might be interacting with the same set of files
-//        unsafe {
-//            ClientStorage::retrieve_client_files();
-//        }
-
-        Ok(vec![42])
-
     }
 
-    fn process_pull_messages_request(req: PullRequest, store_dir: &Path) {
+    fn process_pull_messages_request(req: PullRequest, store_dir: &Path) -> Result<PullResponse, ClientProcessingError>{
         println!("processing pull!");
-        ClientStorage::retrieve_client_files(req.destination_address, store_dir);
+        let retrieved_messages = ClientStorage::retrieve_client_files(req.destination_address, store_dir)?;
+        Ok(PullResponse::new(retrieved_messages))
     }
 }
 

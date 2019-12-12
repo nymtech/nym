@@ -26,7 +26,7 @@ impl PullResponse {
     }
 }
 
-// This should go into some kind of utils module/crate
+// TODO: This should go into some kind of utils module/crate
 fn read_be_u16(input: &mut &[u8]) -> u16 {
     let (int_bytes, rest) = input.split_at(std::mem::size_of::<u16>());
     *input = rest;

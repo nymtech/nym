@@ -7,10 +7,61 @@ use std::process;
 
 mod provider;
 
-fn execute(matches: ArgMatches) -> Result<(), String> {
-    match matches.subcommand() {
-        ("run", Some(m)) => Ok(run(m)),
-        _ => Err(String::from("Unknown command")),
+fn main() {
+    let arg_matches = App::new("Nym Service Provider")
+        .version("0.1.0")
+        .author("Nymtech")
+        .about("Implementation of the Loopix-based Service Provider")
+        .subcommand(
+            SubCommand::with_name("run")
+                .about("Starts the service provider")
+                .arg(
+                    Arg::with_name("mixHost")
+                        .long("mixHost")
+                        .help("The custom host on which the service provider will be running for receiving sphinx packets")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("mixPort")
+                        .long("mixPort")
+                        .help("The port on which the service provider will be listening for sphinx packets")
+                        .takes_value(true)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("clientHost")
+                        .long("clientHost")
+                        .help("The custom host on which the service provider will be running for receiving client sfw-provider-requests")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("clientPort")
+                        .long("clientPort")
+                        .help("The port on which the service provider will be listening for client sfw-provider-requests")
+                        .takes_value(true)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("keyfile")
+                        .short("k")
+                        .long("keyfile")
+                        .help("Optional path to the persistent keyfile of the node")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("storeDir")
+                        .short("s")
+                        .long("storeDir")
+                        .help("Directory storing all packets for the clients")
+                        .takes_value(true)
+                        .required(true),
+                ),
+        )
+        .get_matches();
+
+    if let Err(e) = execute(arg_matches) {
+        println!("{}", e);
+        process::exit(1);
     }
 }
 
@@ -82,60 +133,28 @@ fn run(matches: &ArgMatches) {
     provider.start_listening().unwrap()
 }
 
-fn main() {
-    let arg_matches = App::new("Nym Service Provider")
-        .version("0.1.0")
-        .author("Nymtech")
-        .about("Implementation of the Loopix-based Service Provider")
-        .subcommand(
-            SubCommand::with_name("run")
-                .about("Starts the service provider")
-                .arg(
-                    Arg::with_name("mixHost")
-                        .long("mixHost")
-                        .help("The custom host on which the service provider will be running for receiving sphinx packets")
-                        .takes_value(true),
-                )
-                .arg(
-                    Arg::with_name("mixPort")
-                        .long("mixPort")
-                        .help("The port on which the service provider will be listening for sphinx packets")
-                        .takes_value(true)
-                        .required(true),
-                )
-                .arg(
-                    Arg::with_name("clientHost")
-                        .long("clientHost")
-                        .help("The custom host on which the service provider will be running for receiving client sfw-provider-requests")
-                        .takes_value(true),
-                )
-                .arg(
-                    Arg::with_name("clientPort")
-                        .long("clientPort")
-                        .help("The port on which the service provider will be listening for client sfw-provider-requests")
-                        .takes_value(true)
-                        .required(true),
-                )
-                .arg(
-                    Arg::with_name("keyfile")
-                        .short("k")
-                        .long("keyfile")
-                        .help("Optional path to the persistent keyfile of the node")
-                        .takes_value(true),
-                )
-                .arg(
-                    Arg::with_name("storeDir")
-                        .short("s")
-                        .long("storeDir")
-                        .help("Directory storing all packets for the clients")
-                        .takes_value(true)
-                        .required(true),
-                ),
-        )
-        .get_matches();
-
-    if let Err(e) = execute(arg_matches) {
-        println!("Application error: {}", e);
-        process::exit(1);
+fn execute(matches: ArgMatches) -> Result<(), String> {
+    match matches.subcommand() {
+        ("run", Some(m)) => Ok(run(m)),
+        _ => Err(usage()),
     }
+}
+
+fn usage() -> String {
+    banner() + "usage: --help to see available options.\n\n"
+}
+
+fn banner() -> String {
+    return r#"
+
+      _ __  _   _ _ __ ___
+     | '_ \| | | | '_ \ _ \
+     | | | | |_| | | | | | |
+     |_| |_|\__, |_| |_| |_|
+            |___/
+
+             (store-and-forward provider)
+
+    "#
+    .to_string();
 }

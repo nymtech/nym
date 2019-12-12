@@ -1,23 +1,15 @@
-use std::fs::{File, ReadDir};
-use std::io::Write;
 use std::net::{Shutdown, SocketAddr};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::RwLock;
 
 use curve25519_dalek::scalar::Scalar;
-use rand::Rng;
-use sfw_provider_requests::DUMMY_MESSAGE_CONTENT;
-use sfw_provider_requests::requests::*;
-use sfw_provider_requests::responses::*;
-use sphinx::{ProcessedPacket, SphinxPacket};
-use sphinx::route::{DestinationAddressBytes, SURBIdentifier};
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
 
-use crate::provider::storage::{ClientStorage, StoreData, StoreError};
 use crate::provider::client_handling::{ClientProcessingData, ClientRequestProcessor};
-use crate::provider::mix_handling::{MixProcessingData, MixPacketProcessor};
+use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
+use crate::provider::storage::ClientStorage;
 
 mod client_handling;
 mod mix_handling;

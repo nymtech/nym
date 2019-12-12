@@ -20,10 +20,11 @@ impl From<ProviderRequestError> for ClientProcessingError {
 }
 
 impl From<StoreError> for ClientProcessingError {
-    fn from(_: StoreError) -> Self {
-        use ClientProcessingError::*;
-
-        StoreError
+    fn from(e: StoreError) -> Self {
+        match e {
+            StoreError::ClientDoesntExistError => ClientProcessingError::ClientDoesntExistError,
+            _ => ClientProcessingError::StoreError,
+        }
     }
 }
 

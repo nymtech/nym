@@ -24,80 +24,6 @@ mod storage;
 const STORED_MESSAGE_FILENAME_LENGTH: usize = 16;
 const MESSAGE_RETRIEVAL_LIMIT:usize = 2;
 
-// TODO: this will probably need to be moved elsewhere I imagine
-// DUPLICATE WITH MIXNODE CODE!!!
-#[derive(Debug)]
-pub enum MixProcessingError {
-    SphinxRecoveryError,
-    ReceivedForwardHopError,
-    InvalidPayload,
-    NonMatchingRecipient,
-    FileIOFailure,
-}
-
-impl From<sphinx::ProcessingError> for MixProcessingError {
-    // for time being just have a single error instance for all possible results of sphinx::ProcessingError
-    fn from(_: sphinx::ProcessingError) -> Self {
-        use MixProcessingError::*;
-
-        SphinxRecoveryError
-    }
-}
-
-impl From<std::io::Error> for MixProcessingError {
-    fn from(_: std::io::Error) -> Self {
-        use MixProcessingError::*;
-
-        FileIOFailure
-    }
-}
-
-// ProcessingData defines all data required to correctly unwrap sphinx packets
-#[derive(Debug, Clone)]
-struct MixProcessingData {
-    secret_key: Scalar,
-    store_dir: PathBuf,
-}
-
-impl MixProcessingData {
-    fn new(secret_key: Scalar, store_dir: PathBuf) -> Self {
-        MixProcessingData {
-            secret_key,
-            store_dir,
-        }
-    }
-
-    fn add_arc_rwlock(self) -> Arc<RwLock<Self>> {
-        Arc::new(RwLock::new(self))
-    }
-}
-
-struct MixPacketProcessor(());
-
-impl MixPacketProcessor {
-    fn process_sphinx_data_packet(packet_data: &[u8], processing_data: &RwLock<MixProcessingData>) -> Result<StoreData, MixProcessingError> {
-        let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
-        let read_processing_data = processing_data.read().unwrap();
-        let (client_address, client_surb_id, payload) = match packet.process(read_processing_data.secret_key) {
-            ProcessedPacket::ProcessedPacketFinalHop(client_address, surb_id, payload) => (client_address, surb_id, payload),
-            _ => return Err(MixProcessingError::ReceivedForwardHopError),
-        };
-
-        // TODO: should provider try to be recovering plaintext? this would potentially make client retrieve messages of non-constant length,
-        // perhaps provider should be re-padding them on retrieval or storing full data?
-        let (payload_destination, message) = payload.try_recover_destination_and_plaintext().ok_or_else(|| MixProcessingError::InvalidPayload)?;
-        if client_address != payload_destination {
-            return Err(MixProcessingError::NonMatchingRecipient);
-        }
-
-        Ok(StoreData::new(
-            client_address,
-            client_surb_id,
-            message,
-        ))
-    }
-}
-
 
 
 #[derive(Debug)]
@@ -182,7 +108,7 @@ impl ServiceProvider {
     }
 
 
-    async fn process_mixnet_socket_connection(mut socket: tokio::net::TcpStream, processing_data: Arc<RwLock<MixProcessingData>>) {
+    async fn process_mixnet_socket_connection(mut socket: tokio::net::TcpStream, processing_data: Arc<RwLock<mix_handling::MixProcessingData>>) {
         let mut buf = [0u8; sphinx::PACKET_SIZE];
 
         // In a loop, read data from the socket and write the data back.
@@ -194,7 +120,7 @@ impl ServiceProvider {
                     return;
                 }
                 Ok(_) => {
-                    let store_data = match MixPacketProcessor::process_sphinx_data_packet(buf.as_ref(), processing_data.as_ref()) {
+                    let store_data = match mix_handling::MixPacketProcessor::process_sphinx_data_packet(buf.as_ref(), processing_data.as_ref()) {
                         Ok(sd) => sd,
                         Err(e) => {
                             eprintln!("failed to process sphinx packet; err = {:?}", e);
@@ -273,7 +199,7 @@ impl ServiceProvider {
 
     async fn start_mixnet_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut listener = tokio::net::TcpListener::bind(self.mix_network_address).await?;
-        let processing_data = MixProcessingData::new(self.secret_key, self.store_dir.clone()).add_arc_rwlock();
+        let processing_data = mix_handling::MixProcessingData::new(self.secret_key, self.store_dir.clone()).add_arc_rwlock();
 
         loop {
             let (socket, _) = listener.accept().await?;

@@ -16,8 +16,6 @@ use tokio::runtime::Runtime;
 const STORED_MESSAGE_FILENAME_LENGTH: usize = 16;
 const MESSAGE_RETRIEVAL_LIMIT:usize = 2;
 
-const DUMMY_MESSAGE_CONTENT: &[u8] = b"Wanting something does not give you the right to have it.";
-
 // TODO: this will probably need to be moved elsewhere I imagine
 // DUPLICATE WITH MIXNODE CODE!!!
 #[derive(Debug)]

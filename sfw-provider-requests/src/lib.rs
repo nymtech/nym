@@ -1,6 +1,9 @@
 const PULL_REQUEST_MESSAGE_PREFIX: [u8; 2] = [1, 0];
 const REGISTER_MESSAGE_PREFIX: [u8; 2] = [0, 1];
 
+pub const DUMMY_MESSAGE_CONTENT: &[u8] =
+    b"[DUMMY MESSAGE] Wanting something does not give you the right to have it.";
+
 // TODO: how to do it more nicely, considering all sfw-provider-requests implement same trait that is exercised here?
 #[derive(Debug)]
 pub enum ProviderRequests {

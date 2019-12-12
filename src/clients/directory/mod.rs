@@ -21,7 +21,7 @@ use crate::clients::directory::requests::presence_topology_get::{
 };
 
 mod metrics;
-mod presence;
+pub mod presence;
 pub mod requests;
 
 pub struct Config {

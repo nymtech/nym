@@ -167,7 +167,7 @@ impl MixNode {
             let processing_data = ProcessingData::new(self.secret_key).add_arc_rwlock();
 
             loop {
-                let (mut socket, _) = listener.accept().await?;
+                let (socket, _) = listener.accept().await?;
 
                 let thread_processing_data = processing_data.clone();
                 tokio::spawn(async move {

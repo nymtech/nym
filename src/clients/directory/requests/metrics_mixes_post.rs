@@ -8,7 +8,7 @@ pub struct Request {
 
 pub trait MetricsMixPoster {
     fn new(base_url: String) -> Self;
-    fn post(&self, metric: MixMetric) -> Result<Response, reqwest::Error>;
+    fn post(&self, metric: &MixMetric) -> Result<Response, reqwest::Error>;
 }
 
 impl MetricsMixPoster for Request {
@@ -19,7 +19,7 @@ impl MetricsMixPoster for Request {
         }
     }
 
-    fn post(&self, metric: MixMetric) -> Result<Response, reqwest::Error> {
+    fn post(&self, metric: &MixMetric) -> Result<Response, reqwest::Error> {
         let url = format!("{}{}", self.base_url, self.path);
         let client = reqwest::Client::new();
         let mix_metric_vec = client.post(&url).json(&metric).send()?;
@@ -43,7 +43,7 @@ mod metrics_get_request {
             let _m = mock("POST", "/api/metrics/mixes").with_status(400).create();
             let req = Request::new(mockito::server_url());
             let metric = fixtures::new_metric();
-            let result = req.post(metric);
+            let result = req.post(&metric);
             assert_eq!(400, result.unwrap().status());
             _m.assert();
         }
@@ -61,7 +61,7 @@ mod metrics_get_request {
                 .create();
             let req = Request::new(mockito::server_url());
             let metric = fixtures::new_metric();
-            let result = req.post(metric);
+            let result = req.post(&metric);
             assert_eq!(true, result.is_ok());
             _m.assert();
         }

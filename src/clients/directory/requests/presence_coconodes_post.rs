@@ -8,7 +8,7 @@ pub struct Request {
 
 pub trait PresenceCocoNodesPoster {
     fn new(base_url: String) -> Self;
-    fn post(&self, presence: CocoPresence) -> Result<Response, reqwest::Error>;
+    fn post(&self, presence: &CocoPresence) -> Result<Response, reqwest::Error>;
 }
 
 impl PresenceCocoNodesPoster for Request {
@@ -19,7 +19,7 @@ impl PresenceCocoNodesPoster for Request {
         }
     }
 
-    fn post(&self, presence: CocoPresence) -> Result<Response, reqwest::Error> {
+    fn post(&self, presence: &CocoPresence) -> Result<Response, reqwest::Error> {
         let url = format!("{}{}", self.base_url, self.path);
         let client = reqwest::Client::new();
         let p = client.post(&url).json(&presence).send()?;
@@ -45,7 +45,7 @@ mod metrics_get_request {
                 .create();
             let req = Request::new(mockito::server_url());
             let presence = fixtures::new_presence();
-            let result = req.post(presence);
+            let result = req.post(&presence);
             assert_eq!(400, result.unwrap().status());
             _m.assert();
         }
@@ -65,7 +65,7 @@ mod metrics_get_request {
                 .create();
             let req = Request::new(mockito::server_url());
             let presence = fixtures::new_presence();
-            let result = req.post(presence);
+            let result = req.post(&presence);
             assert_eq!(true, result.is_ok());
             _m.assert();
         }

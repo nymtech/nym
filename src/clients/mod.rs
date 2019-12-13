@@ -3,6 +3,7 @@ use tokio::runtime::Runtime;
 use futures::channel::mpsc;
 use std::time::Duration;
 use crate::utils;
+use futures::{future, Future, Stream, Sink, StreamExt, SinkExt};
 
 pub mod directory;
 pub mod mix;
@@ -23,6 +24,18 @@ const FETCH_MESSAGES_DELAY: f64 = 10.0; // assume seconds;
 // ... ??Client?? sends (TX) to outQueueController (RX)
 // Loop cover traffic stream just sends messages to mixnet without any channel communication
 
+struct MixTrafficController;
+
+impl MixTrafficController {
+    async fn run(rx: mpsc::Receiver<Vec<u8>>) {
+        rx.for_each(move |message| {
+            println!("here i will be sending {:?} to a mixnode!", message);
+
+            future::ready(())
+        }).await
+    }
+}
+
 pub struct NymClient {
     // to be replaced by something else I guess
     address: DestinationAddressBytes
@@ -37,13 +50,15 @@ impl NymClient {
         }
     }
 
-    async fn start_loop_cover_traffic_stream(&self) -> Result<(), Box<dyn std::error::Error>> {
+    async fn start_loop_cover_traffic_stream(&self, mut tx: mpsc::Sender<Vec<u8>>) -> Result<(), Box<dyn std::error::Error>> {
         loop {
             let delay = utils::poisson::sample(LOOP_COVER_AVERAGE_DELAY);
             let delay_duration = Duration::from_secs_f64(delay);
             println!("waiting for {:?}", delay_duration);
             tokio::time::delay_for(delay_duration).await;
             println!("waited {:?} - time to send cover message!", delay_duration);
+            let dummy_message = vec![1,2,3];
+            tx.send(dummy_message).await;
         }
 
     }
@@ -67,15 +82,16 @@ impl NymClient {
 
 
     async fn start_traffic(&self) -> TripleFutureResult {
-        futures::future::join3(self.start_loop_cover_traffic_stream(), self.control_out_queue(), self.start_provider_polling()).await
+        let mix_chan_buf_size = 64;
+        let (mix_tx, mix_rx) = mpsc::channel(mix_chan_buf_size);
+
+        tokio::spawn(MixTrafficController::run(mix_rx));
+        futures::future::join3(self.start_loop_cover_traffic_stream(mix_tx), self.control_out_queue(), self.start_provider_polling()).await
     }
 
     pub fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
         println!("starting nym client");
         let mut rt = Runtime::new()?;
-
-//        let (out_queue_tx, out_queue_rx) = mpsc::unbounded();
-
 
         rt.block_on(async {
             let future_results = self.start_traffic().await;

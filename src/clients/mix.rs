@@ -2,6 +2,7 @@ use crate::clients::directory::Client;
 use sphinx::route::Node as MixNode;
 use sphinx::SphinxPacket;
 use tokio::prelude::*;
+use std::net::SocketAddr;
 
 pub struct MixClient {}
 
@@ -14,11 +15,11 @@ impl MixClient {
     pub async fn send(
         &self,
         packet: SphinxPacket,
-        mix: &MixNode,
+        mix_addr: SocketAddr,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let bytes = packet.to_bytes();
 
-        let mut stream = tokio::net::TcpStream::connect("127.0.0.1:8080").await?;
+        let mut stream = tokio::net::TcpStream::connect(mix_addr).await?;
         stream.write_all(&bytes[..]).await?;
         Ok(())
     }

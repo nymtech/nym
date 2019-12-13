@@ -1,17 +1,16 @@
 use crate::utils::bytes;
-use sphinx::route::{Destination, DestinationAddressBytes, Node, SURBIdentifier};
+use sphinx::route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier};
+use sphinx::SphinxPacket;
 
 const LOOP_COVER_MESSAGE_PAYLOAD: &[u8] = b"The cake is a lie!";
 
 pub fn loop_cover_message(
     our_address: DestinationAddressBytes,
     surb_id: SURBIdentifier,
-) -> Vec<u8> {
+) -> (NodeAddressBytes, SphinxPacket) {
+    let first_node_address = bytes::zero_pad_to_32("127.0.0.1:8080".as_bytes().to_vec());
     let dummy_route = vec![
-        Node::new(
-            bytes::zero_pad_to_32("127.0.0.1:8080".as_bytes().to_vec()),
-            Default::default(),
-        ),
+        Node::new(first_node_address, Default::default()),
         Node::new(
             bytes::zero_pad_to_32("127.0.0.1:8081".as_bytes().to_vec()),
             Default::default(),
@@ -29,5 +28,6 @@ pub fn loop_cover_message(
         &delays,
     )
     .unwrap();
-    packet.to_bytes()
+
+    (first_node_address, packet)
 }

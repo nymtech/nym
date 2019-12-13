@@ -2,6 +2,13 @@ use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
+use nym_client::clients::directory;
+use nym_client::clients::directory::presence::MixNodePresence;
+use nym_client::clients::directory::requests::presence_mixnodes_post::PresenceMixNodesPoster;
+use nym_client::clients::directory::DirectoryClient;
+
+use tokio::time::{interval_at, Instant, Interval};
+
 use curve25519_dalek::scalar::Scalar;
 use sphinx::header::delays::Delay as SphinxDelay;
 use sphinx::{ProcessedPacket, SphinxPacket};
@@ -165,8 +172,12 @@ impl MixNode {
         rt.block_on(async {
             let mut listener = tokio::net::TcpListener::bind(self.network_address).await?;
             let processing_data = ProcessingData::new(self.secret_key).add_arc_rwlock();
+            let (directory, presence, mut presence_timer) = self.setup_presence_timer();
 
             loop {
+                presence_timer.tick().await;
+                let response = directory.presence_mix_nodes_post.post(&presence);
+                println!("response: {:?}", response.unwrap().text());
                 let (socket, _) = listener.accept().await?;
 
                 let thread_processing_data = processing_data.clone();
@@ -175,5 +186,22 @@ impl MixNode {
                 });
             }
         })
+    }
+
+    fn setup_presence_timer(&self) -> (directory::Client, MixNodePresence, Interval) {
+        let presence_notifications_start = Instant::now() + Duration::from_nanos(5000);
+        let presence_notifications_interval =
+            interval_at(presence_notifications_start, Duration::from_millis(5000));
+        let config = directory::Config {
+            base_url: "https://directory.nymtech.net/".to_string(),
+        };
+        let directory = directory::Client::new(config);
+        let presence = MixNodePresence {
+            host: "halpin.org:6666".to_string(),
+            pub_key: "superkey".to_string(),
+            layer: 666,
+            last_seen: 666,
+        };
+        (directory, presence, presence_notifications_interval)
     }
 }

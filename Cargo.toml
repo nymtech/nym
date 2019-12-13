@@ -11,12 +11,14 @@ base64 = "0.11.0"
 clap = "2.33.0"
 curve25519-dalek = "1.2.3"
 dirs = "2.0.2"
+futures = "0.3.1"
 pem = "0.7.0"
+rand = "0.7.2"
+rand_distr = "0.2.2"
 reqwest = "0.9.22"
 serde = { version = "1.0", features = ["derive"] }
 sphinx = { path = "../sphinx" }
 sfw-provider-requests = { path = "../nym-sfw-provider/sfw-provider-requests" }
-futures = "0.3.1"
 tokio = { version = "0.2", features = ["full"] }
 
 [dev-dependencies]

@@ -122,7 +122,7 @@ fn run(matches: &ArgMatches) {
     );
 
     // make sure our socket_address is equal to our predefined-hardcoded value
-    assert_eq!("127.0.0.1:8081", mix_socket_address.to_string());
+    // assert_eq!("127.0.0.1:8081", mix_socket_address.to_string());
 
     let provider = ServiceProvider::new(
         mix_socket_address,

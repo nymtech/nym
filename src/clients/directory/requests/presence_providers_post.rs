@@ -15,7 +15,7 @@ impl PresenceMixProviderPoster for Request {
     fn new(base_url: String) -> Self {
         Request {
             base_url,
-            path: "/api/presence/providers".to_string(),
+            path: "/api/presence/mixproviders".to_string(),
         }
     }
 
@@ -78,6 +78,7 @@ mod metrics_get_request {
             MixProviderPresence {
                 host: "foo.com".to_string(),
                 pub_key: "abc".to_string(),
+                registered_clients: vec![],
             }
         }
     }

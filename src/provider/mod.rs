@@ -2,8 +2,6 @@ use std::net::{Shutdown, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::RwLock;
-use std::time::Duration;
-
 
 use curve25519_dalek::scalar::Scalar;
 use tokio::prelude::*;
@@ -12,16 +10,10 @@ use tokio::runtime::Runtime;
 use crate::provider::client_handling::{ClientProcessingData, ClientRequestProcessor};
 use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
 use crate::provider::storage::ClientStorage;
-use nym_client::clients::directory;
-use nym_client::clients::directory::presence::MixProviderPresence;
-use nym_client::clients::directory::requests::presence_mixnodes_post::PresenceMixNodesPoster;
-use nym_client::clients::directory::DirectoryClient;
-
-use tokio::time::{interval_at, Instant, Interval};
-use nym_client::clients::directory::requests::presence_providers_post::PresenceMixProviderPoster;
 
 mod client_handling;
 mod mix_handling;
+pub mod presence;
 mod storage;
 
 // TODO: if we ever create config file, this should go there
@@ -169,42 +161,20 @@ impl ServiceProvider {
         futures::future::join(self.start_mixnet_listening(), self.start_client_listening()).await
     }
 
-
     pub fn start_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
         // Create the runtime, probably later move it to Provider struct itself?
         // TODO: figure out the difference between Runtime and Handle
         let mut rt = Runtime::new()?;
-//        let mut h = rt.handle();
+        //        let mut h = rt.handle();
 
         // Spawn the root task
         rt.block_on(async {
             let future_results = self.start_listeners().await;
             assert!(future_results.0.is_ok() && future_results.1.is_ok());
-
-            // DH: This blows at runtime, we need to stick it in its own task
-            presence_timer.tick().await;
-            let response = directory.presence_providers_post.post(&presence);
-            println!("response: {:?}", response.unwrap().text());
-            // DH: end blow
         });
 
         // this line in theory should never be reached as the runtime should be permanently blocked on listeners
         eprintln!("The server went kaput...");
         Ok(())
-    }
-
-    fn setup_presence_timer(&self) -> (directory::Client, MixProviderPresence, Interval) {
-        let presence_notifications_start = Instant::now() + Duration::from_nanos(5000);
-        let presence_notifications_interval =
-            interval_at(presence_notifications_start, Duration::from_millis(5000));
-        let config = directory::Config {
-            base_url: "https://directory.nymtech.net/".to_string(),
-        };
-        let directory = directory::Client::new(config);
-        let presence = MixProviderPresence {
-            host: "halpin.org:6666".to_string(),
-            pub_key: "superkey".to_string(),
-        };
-        (directory, presence, presence_notifications_interval)
     }
 }

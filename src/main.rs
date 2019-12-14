@@ -1,9 +1,11 @@
+use crate::provider::presence;
 use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use curve25519_dalek::scalar::Scalar;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process;
+use std::thread;
 
 mod provider;
 
@@ -120,6 +122,12 @@ fn run(matches: &ArgMatches) {
         "The full combined client socket address is {}",
         client_socket_address
     );
+
+    // Start sending presence notifications in a separate thread
+    thread::spawn(|| {
+        let notifier = presence::Notifier::new();
+        notifier.run();
+    });
 
     // make sure our socket_address is equal to our predefined-hardcoded value
     // assert_eq!("127.0.0.1:8081", mix_socket_address.to_string());

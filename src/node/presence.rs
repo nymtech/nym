@@ -5,13 +5,13 @@ use nym_client::clients::directory::DirectoryClient;
 use std::thread;
 use std::time::Duration;
 
-pub struct PresenceNotifier {
+pub struct Notifier {
     pub net_client: directory::Client,
     presence: MixNodePresence,
 }
 
-impl PresenceNotifier {
-    pub fn new() -> PresenceNotifier {
+impl Notifier {
+    pub fn new() -> Notifier {
         let config = directory::Config {
             base_url: "https://directory.nymtech.net/".to_string(),
         };
@@ -22,7 +22,7 @@ impl PresenceNotifier {
             layer: 666,
             last_seen: 666,
         };
-        PresenceNotifier {
+        Notifier {
             net_client,
             presence,
         }

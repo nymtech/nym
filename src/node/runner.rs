@@ -1,5 +1,5 @@
 use crate::banner;
-use crate::node::presence_notifier::PresenceNotifier;
+use crate::node::presence;
 use crate::node::MixNode;
 use clap::ArgMatches;
 
@@ -41,8 +41,8 @@ pub fn start(matches: &ArgMatches) {
         .expect("Failed to extract the socket address from the iterator");
 
     thread::spawn(|| {
-        let presence_notifier = PresenceNotifier::new();
-        presence_notifier.run();
+        let notifier = presence::Notifier::new();
+        notifier.run();
     });
 
     println!("Startup complete on: {}", socket_address);

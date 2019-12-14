@@ -40,7 +40,7 @@ mod metrics_get_request {
 
         #[test]
         fn it_returns_an_error() {
-            let _m = mock("POST", "/api/presence/providers")
+            let _m = mock("POST", "/api/presence/mixproviders")
                 .with_status(400)
                 .create();
             let req = Request::new(mockito::server_url());
@@ -59,7 +59,7 @@ mod metrics_get_request {
             let json = r#"{
                           "ok": true
                       }"#;
-            let _m = mock("POST", "/api/presence/providers")
+            let _m = mock("POST", "/api/presence/mixproviders")
                 .with_status(201)
                 .with_body(json)
                 .create();

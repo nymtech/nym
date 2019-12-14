@@ -78,6 +78,7 @@ mod metrics_get_request {
             MixProviderPresence {
                 host: "foo.com".to_string(),
                 pub_key: "abc".to_string(),
+                registered_clients: vec![],
             }
         }
     }

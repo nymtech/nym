@@ -20,8 +20,8 @@ reqwest = "0.9.22"
 serde = { version = "1.0", features = ["derive"] }
 sphinx = { path = "../sphinx" }
 sfw-provider-requests = { path = "../nym-sfw-provider/sfw-provider-requests" }
-
 tokio = { version = "0.2", features = ["full"] }
+ws = "0.9.1"
 
 [dev-dependencies]
 mockito = "0.22.0"

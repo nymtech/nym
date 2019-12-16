@@ -117,9 +117,7 @@ impl PacketProcessor {
 
     async fn wait_and_forward(mut forwarding_data: ForwardingData) {
         let delay_duration = Duration::from_nanos(forwarding_data.delay.get_value());
-        println!("client says to wait for {:?}", delay_duration);
         tokio::time::delay_for(delay_duration).await;
-        println!("waited {:?} - time to forward the packet! (and update metrics!)", delay_duration);
         forwarding_data.sent_metrics_tx.send(forwarding_data.recipient.to_string()).await;
 
         match forwarding_data

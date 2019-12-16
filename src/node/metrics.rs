@@ -33,12 +33,10 @@ impl MetricsReporter {
     async fn increment_received_metrics(mut metrics: Arc<Mutex<MetricsReporter>>) {
         let mut unlocked = metrics.lock().await;
         unlocked.received += 1;
-        println!("new metrics: {:?}", unlocked);
     }
 
     pub(crate) async fn run_received_metrics_control(metrics: Arc<Mutex<MetricsReporter>>, mut rx: mpsc::Receiver<()>) {
         while let Some(received_metric) = rx.next().await {
-            println!("[METRIC] - received new packet!");
             MetricsReporter::increment_received_metrics(metrics.clone()).await;
         }
     }
@@ -47,14 +45,10 @@ impl MetricsReporter {
         let mut unlocked = metrics.lock().await;
         let receiver_count = unlocked.sent.entry(sent_to).or_insert(0);
         *receiver_count += 1;
-
-//        unlocked.sent += 1;
-        println!("new metrics: {:?}", unlocked);
     }
 
     pub(crate) async fn run_sent_metrics_control(metrics: Arc<Mutex<MetricsReporter>>, mut rx: mpsc::Receiver<String>) {
         while let Some(sent_metric) = rx.next().await {
-            println!("[METRIC] - sent new packet!");
             MetricsReporter::increment_sent_metrics(metrics.clone(), sent_metric).await;
         }
     }
@@ -63,7 +57,6 @@ impl MetricsReporter {
         let mut unlocked = metrics.lock().await;
         let received = unlocked.received;
 
-        println!("RESETTING METRICS!");
         let sent = std::mem::replace(&mut unlocked.sent, HashMap::new());
         unlocked.received = 0;
 

@@ -57,7 +57,11 @@ fn main() {
                         .help("Directory storing all packets for the clients")
                         .takes_value(true)
                         .required(true),
-                ),
+                ).arg(Arg::with_name("local")
+                    .long("local")
+                    .help("Flag to indicate whether the provider should run on a local deployment.")
+                    .takes_value(false)
+                )
         )
         .get_matches();
 
@@ -69,6 +73,7 @@ fn main() {
 
 fn run(matches: &ArgMatches) {
     println!("Running the service provider!");
+    let is_local = matches.is_present("local");
 
     let mix_host = matches.value_of("mixHost").unwrap_or("0.0.0.0");
     let mix_port = match matches.value_of("mixPort").unwrap().parse::<u16>() {
@@ -124,8 +129,8 @@ fn run(matches: &ArgMatches) {
     );
 
     // Start sending presence notifications in a separate thread
-    thread::spawn(|| {
-        let notifier = presence::Notifier::new();
+    thread::spawn(move || {
+        let notifier = presence::Notifier::new(is_local.clone());
         notifier.run();
     });
 

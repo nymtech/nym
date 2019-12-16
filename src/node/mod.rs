@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
+use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
 use sphinx::header::delays::Delay as SphinxDelay;
 use sphinx::{ProcessedPacket, SphinxPacket};
@@ -14,9 +15,19 @@ mod presence;
 pub mod runner;
 
 pub struct Config {
-    socket_address: SocketAddr,
-    secret_key: Scalar,
+    directory_server: String,
     layer: usize,
+    public_key: MontgomeryPoint,
+    secret_key: Scalar,
+    socket_address: SocketAddr,
+}
+
+impl Config {
+    pub fn public_key_string(&self) -> String {
+        let key_bytes = self.public_key.to_bytes().to_vec();
+        let b64 = base64::encode(&key_bytes);
+        b64.to_string()
+    }
 }
 
 // TODO: this will probably need to be moved elsewhere I imagine
@@ -119,11 +130,11 @@ pub struct MixNode {
 }
 
 impl MixNode {
-    pub fn new(network_address: SocketAddr, secret_key: Scalar, layer: usize) -> Self {
+    pub fn new(config: &Config) -> Self {
         MixNode {
-            network_address,
-            secret_key,
-            layer,
+            network_address: config.socket_address,
+            secret_key: config.secret_key,
+            layer: config.layer,
         }
     }
 

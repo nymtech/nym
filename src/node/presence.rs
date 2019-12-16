@@ -1,3 +1,4 @@
+use crate::node;
 use nym_client::clients::directory;
 use nym_client::clients::directory::presence::MixNodePresence;
 use nym_client::clients::directory::requests::presence_mixnodes_post::PresenceMixNodesPoster;
@@ -11,17 +12,14 @@ pub struct Notifier {
 }
 
 impl Notifier {
-    pub fn new(is_local: bool) -> Notifier {
-        let url = if is_local {
-            "http://localhost:8080".to_string()
-        } else {
-            "https://directory.nymtech.net".to_string()
+    pub fn new(node_config: &node::Config) -> Notifier {
+        let config = directory::Config {
+            base_url: node_config.directory_server.clone(),
         };
-        let config = directory::Config { base_url: url };
         let net_client = directory::Client::new(config);
         let presence = MixNodePresence {
-            host: "halpin.org:6666".to_string(),
-            pub_key: "superkey".to_string(),
+            host: "localhost:6666".to_string(), // send dummy address as the directory server formats the real incoming IP.
+            pub_key: node_config.public_key_string(),
             layer: 666,
             last_seen: 666,
         };

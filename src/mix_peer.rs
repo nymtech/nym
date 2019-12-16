@@ -1,18 +1,20 @@
 use std::error::Error;
+use std::net::{Ipv4Addr, SocketAddrV4};
 use tokio::prelude::*;
 
 pub struct MixPeer {
-    connection: String,
+    connection: SocketAddrV4,
 }
 
 impl MixPeer {
     // note that very soon `next_hop_address` will be changed to `next_hop_metadata`
     pub fn new(next_hop_address: [u8; 32]) -> MixPeer {
-        let address = String::from_utf8_lossy(&next_hop_address)
-            .trim_end_matches(char::from(0))
-            .to_string();
+        let b = next_hop_address;
+        let host = Ipv4Addr::new(b[0], b[1], b[2], b[3]);
+        let port: u16 = u16::from_be_bytes([b[4], b[5]]);
+        let socket_address = SocketAddrV4::new(host, port);
         MixPeer {
-            connection: address,
+            connection: socket_address,
         }
     }
 
@@ -21,5 +23,9 @@ impl MixPeer {
         let mut stream = tokio::net::TcpStream::connect(next_hop_address).await?;
         stream.write_all(&bytes).await?;
         Ok(())
+    }
+
+    pub fn to_string(&self) -> String {
+        self.connection.to_string()
     }
 }

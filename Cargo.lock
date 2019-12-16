@@ -924,6 +924,7 @@ dependencies = [
 name = "nym-mixnode"
 version = "0.1.0"
 dependencies = [
+ "base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "curve25519-dalek 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "nym-client 0.1.0",

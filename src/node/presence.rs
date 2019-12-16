@@ -18,7 +18,7 @@ impl Notifier {
         };
         let net_client = directory::Client::new(config);
         let presence = MixNodePresence {
-            host: "localhost:6666".to_string(), // send dummy address as the directory server formats the real incoming IP.
+            host: node_config.socket_address.to_string(), // note: the directory server formats the real incoming IP itself
             pub_key: node_config.public_key_string(),
             layer: 666,
             last_seen: 666,

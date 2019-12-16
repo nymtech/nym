@@ -10,6 +10,7 @@ use tokio::runtime::Runtime;
 use crate::provider::client_handling::{ClientProcessingData, ClientRequestProcessor};
 use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
 use crate::provider::storage::ClientStorage;
+use std::collections::HashMap;
 
 mod client_handling;
 mod mix_handling;
@@ -20,21 +21,24 @@ mod storage;
 const STORED_MESSAGE_FILENAME_LENGTH: usize = 16;
 const MESSAGE_RETRIEVAL_LIMIT: usize = 2;
 
-
 pub struct ServiceProvider {
     mix_network_address: SocketAddr,
     client_network_address: SocketAddr,
     secret_key: Scalar,
     store_dir: PathBuf,
+    registered_client_ledger_dir: HashMap<Vec<u8>, Vec<u8>>,
 }
 
 impl ServiceProvider {
     pub fn new(mix_network_address: SocketAddr, client_network_address: SocketAddr, secret_key: Scalar, store_dir: PathBuf) -> Self {
+
+        let registered_client_ledger_dir = HashMap::new();
         ServiceProvider {
             mix_network_address,
             client_network_address,
             secret_key,
             store_dir,
+            registered_client_ledger_dir,
         }
     }
 

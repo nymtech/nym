@@ -97,7 +97,7 @@ impl ProviderRequest for PullRequest {
 
 #[derive(Debug)]
 pub struct RegisterRequest {
-    pub client_id : Vec<u8>
+    pub destination_address: sphinx::route::DestinationAddressBytes,
 }
 
 impl ProviderRequest for RegisterRequest {
@@ -106,7 +106,11 @@ impl ProviderRequest for RegisterRequest {
     }
 
     fn to_bytes(&self) -> Vec<u8> {
-        unimplemented!()
+        Self::get_prefix()
+            .to_vec()
+            .into_iter()
+            .chain(self.destination_address.iter().cloned())
+            .collect()
     }
 
     fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderRequestError> {

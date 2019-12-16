@@ -45,7 +45,7 @@ pub struct ClientStorage(());
 
 // TODO: change it to some generic implementation to inject fs
 impl ClientStorage {
-    fn generate_random_file_name() -> String {
+    pub(crate) fn generate_random_file_name() -> String {
         rand::thread_rng()
             .sample_iter(&rand::distributions::Alphanumeric)
             .take(STORED_MESSAGE_FILENAME_LENGTH)

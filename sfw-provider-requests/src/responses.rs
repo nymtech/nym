@@ -8,8 +8,8 @@ pub enum ProviderResponseError {
 }
 
 pub trait ProviderResponse
-where
-    Self: Sized,
+    where
+        Self: Sized,
 {
     fn to_bytes(&self) -> Vec<u8>;
     fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderResponseError>;
@@ -20,9 +20,20 @@ pub struct PullResponse {
     pub messages: Vec<Vec<u8>>,
 }
 
+#[derive(Debug)]
+pub struct RegisterResponse {
+    pub response: Vec<u8>,
+}
+
 impl PullResponse {
     pub fn new(messages: Vec<Vec<u8>>) -> Self {
         PullResponse { messages }
+    }
+}
+
+impl RegisterResponse {
+    pub fn new(response: Vec<u8>) -> Self {
+        RegisterResponse { response }
     }
 }
 

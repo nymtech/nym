@@ -55,7 +55,16 @@ fn main() {
                         .help("Directory storing all packets for the clients")
                         .takes_value(true)
                         .required(true),
+                )
+                .arg(
+                    Arg::with_name("registeredLedger")
+                        .short("r")
+                        .long("registeredLedger")
+                        .help("Directory of the ledger of registered clients")
+                        .takes_value(true)
+                        .required(true),
                 ),
+
         )
         .get_matches();
 
@@ -92,6 +101,7 @@ fn run(matches: &ArgMatches) {
     };
 
     let store_dir = PathBuf::from(matches.value_of("storeDir").unwrap());
+    let registered_client_ledger_dir = PathBuf::from(matches.value_of("registeredLedger").unwrap());
 
     println!("The value of mix_host is: {:?}", mix_host);
     println!("The value of mix_port is: {:?}", mix_port);
@@ -99,6 +109,7 @@ fn run(matches: &ArgMatches) {
     println!("The value of client_port is: {:?}", client_port);
     println!("The value of key is: {:?}", secret_key);
     println!("The value of store_dir is: {:?}", store_dir);
+    println!("The value of registered_client_ledger_dir is: {:?}", registered_client_ledger_dir);
 
     let mix_socket_address = (mix_host, mix_port)
         .to_socket_addrs()

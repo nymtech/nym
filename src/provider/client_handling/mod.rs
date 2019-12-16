@@ -1,10 +1,12 @@
 use crate::provider::storage::{ClientStorage, StoreError};
 use sfw_provider_requests::requests::{ProviderRequestError, ProviderRequests, PullRequest, RegisterRequest, ProviderRequest};
-use sfw_provider_requests::responses::{ProviderResponse, PullResponse};
+use sfw_provider_requests::responses::{ProviderResponse, PullResponse, RegisterResponse};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use curve25519_dalek::digest::Digest;
 use sha2::Sha256;
+use std::io;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub enum ClientProcessingError {
@@ -80,11 +82,11 @@ impl ClientRequestProcessor {
         Ok(PullResponse::new(retrieved_messages))
     }
 
-    fn register_new_client(req:RegisterRequest){
-        //ClientRequestProcessor::generate_new_auth_token(req);
-        // register a fresh authentication token
-        // save this token together with the client's id in the list of registered clients
-        // send the token back to the client that he can authenticate it
+    fn register_new_client(req:RegisterRequest, mut registered_client_ledger_dir: HashMap<Vec<u8>, Vec<u8>>) -> Result<RegisterResponse, ClientProcessingError>{
+        let auth_token = ClientRequestProcessor::generate_new_auth_token(req.destination_address.to_vec());
+        //somehow register token
+        Ok(RegisterResponse::new(auth_token.value))
+
     }
 
     fn generate_new_auth_token(data: Vec<u8>) -> AuthToken{
@@ -93,9 +95,9 @@ impl ClientRequestProcessor {
         sha256Hasher.input(data);
         AuthToken{value: sha256Hasher.result().to_vec() }
 
-
     }
 }
+
 
 #[cfg(test)]
 mod generating_new_auth_token {

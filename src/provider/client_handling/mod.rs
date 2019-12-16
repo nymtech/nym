@@ -61,7 +61,9 @@ impl ClientRequestProcessor {
         let client_request = ProviderRequests::from_bytes(&data)?;
         println!("received the following request: {:?}", client_request);
         match client_request {
-            ProviderRequests::Register(req) => unimplemented!(),
+            ProviderRequests::Register(req) => {
+                Ok(ClientRequestProcessor::register_new_client(req)?.to_bytes())
+            },
             ProviderRequests::PullMessages(req) => {
                 Ok(ClientRequestProcessor::process_pull_messages_request(
                     req,
@@ -82,7 +84,7 @@ impl ClientRequestProcessor {
         Ok(PullResponse::new(retrieved_messages))
     }
 
-    fn register_new_client(req:RegisterRequest, mut registered_client_ledger_dir: HashMap<Vec<u8>, Vec<u8>>) -> Result<RegisterResponse, ClientProcessingError>{
+    fn register_new_client(req:RegisterRequest) -> Result<RegisterResponse, ClientProcessingError>{
         let auth_token = ClientRequestProcessor::generate_new_auth_token(req.destination_address.to_vec());
         //somehow register token
         Ok(RegisterResponse::new(auth_token.value))

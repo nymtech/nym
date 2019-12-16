@@ -1,4 +1,5 @@
 use std::convert::TryInto;
+use crate::requests::RegisterRequest;
 
 #[derive(Debug)]
 pub enum ProviderResponseError {
@@ -103,6 +104,16 @@ impl ProviderResponse for PullResponse {
             .collect();
 
         Ok(PullResponse { messages: msgs })
+    }
+}
+
+impl ProviderResponse for RegisterResponse {
+    fn to_bytes(&self) -> Vec<u8>{
+        unimplemented!()
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderResponseError>{
+        unimplemented!()
     }
 }
 

@@ -13,6 +13,12 @@ use crate::mix_peer::MixPeer;
 mod presence;
 pub mod runner;
 
+pub struct Config {
+    socket_address: SocketAddr,
+    secret_key: Scalar,
+    layer: usize,
+}
+
 // TODO: this will probably need to be moved elsewhere I imagine
 #[derive(Debug)]
 pub enum MixProcessingError {

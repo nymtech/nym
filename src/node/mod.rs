@@ -25,7 +25,7 @@ pub struct Config {
 impl Config {
     pub fn public_key_string(&self) -> String {
         let key_bytes = self.public_key.to_bytes().to_vec();
-        let b64 = base64::encode(&key_bytes);
+        let b64 = base64::encode_config(&key_bytes, base64::URL_SAFE);
         b64.to_string()
     }
 }

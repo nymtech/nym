@@ -25,7 +25,7 @@ impl ProviderClient {
 
         let mut socket = tokio::net::TcpStream::connect("127.0.0.1:9000").await?;
         println!("keep alive: {:?}", socket.keepalive());
-        socket.set_keepalive(Some(tokio::time::Duration::from_secs(2)));
+        socket.set_keepalive(Some(Duration::from_secs(2))).unwrap();
         socket.write_all(&bytes[..]).await?;
         if let Err(e) = socket.shutdown(Shutdown::Write) {
             eprintln!("failed to close write part of the socket; err = {:?}", e)

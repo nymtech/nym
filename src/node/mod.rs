@@ -10,6 +10,7 @@ use tokio::runtime::Runtime;
 
 use crate::mix_peer::MixPeer;
 
+mod presence;
 pub mod runner;
 
 // TODO: this will probably need to be moved elsewhere I imagine

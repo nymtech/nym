@@ -37,6 +37,12 @@ fn main() {
                         .long("keyfile")
                         .help("Optional path to the persistent keyfile of the node")
                         .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("local")
+                        .long("local")
+                        .help("Flag to indicate whether the client is expected to run on a local deployment.")
+                        .takes_value(false),
                 ),
         )
         .get_matches();

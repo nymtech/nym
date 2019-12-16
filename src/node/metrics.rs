@@ -1,13 +1,12 @@
-use std::sync::{RwLock, Arc};
+use std::sync::Arc;
 use futures::lock::Mutex;
 use futures::channel::mpsc;
-use futures::{StreamExt, SinkExt};
+use futures::StreamExt;
 use std::time::Duration;
 use nym_client::clients::directory;
 use nym_client::clients::directory::DirectoryClient;
 use nym_client::clients::directory::requests::metrics_mixes_post::MetricsMixPoster;
 use nym_client::clients::directory::metrics::MixMetric;
-use curve25519_dalek::montgomery::MontgomeryPoint;
 use std::collections::HashMap;
 
 const METRICS_INTERVAL: u64 = 3;
@@ -30,18 +29,18 @@ impl MetricsReporter {
         Arc::new(Mutex::new(self))
     }
 
-    async fn increment_received_metrics(mut metrics: Arc<Mutex<MetricsReporter>>) {
+    async fn increment_received_metrics(metrics: Arc<Mutex<MetricsReporter>>) {
         let mut unlocked = metrics.lock().await;
         unlocked.received += 1;
     }
 
     pub(crate) async fn run_received_metrics_control(metrics: Arc<Mutex<MetricsReporter>>, mut rx: mpsc::Receiver<()>) {
-        while let Some(received_metric) = rx.next().await {
+        while let Some(_) = rx.next().await {
             MetricsReporter::increment_received_metrics(metrics.clone()).await;
         }
     }
 
-    async fn increment_sent_metrics(mut metrics: Arc<Mutex<MetricsReporter>>, sent_to: String) {
+    async fn increment_sent_metrics(metrics: Arc<Mutex<MetricsReporter>>, sent_to: String) {
         let mut unlocked = metrics.lock().await;
         let receiver_count = unlocked.sent.entry(sent_to).or_insert(0);
         *receiver_count += 1;
@@ -53,7 +52,7 @@ impl MetricsReporter {
         }
     }
 
-    async fn acquire_and_reset_metrics(mut metrics: Arc<Mutex<MetricsReporter>>) -> (u64, HashMap<String, u64>) {
+    async fn acquire_and_reset_metrics(metrics: Arc<Mutex<MetricsReporter>>) -> (u64, HashMap<String, u64>) {
         let mut unlocked = metrics.lock().await;
         let received = unlocked.received;
 
@@ -73,7 +72,7 @@ impl MetricsReporter {
                 pub_key: pub_key_str.clone(),
                 received,
                 sent,
-            });
+            }).unwrap();
         }
     }
 }

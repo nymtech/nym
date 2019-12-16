@@ -1,5 +1,5 @@
 use std::net::SocketAddr;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::Duration;
 use futures::channel::mpsc;
 use curve25519_dalek::montgomery::MontgomeryPoint;
@@ -98,7 +98,7 @@ impl PacketProcessor {
         let processing_data = processing_data.lock().await;
         let mut received_sender = processing_data.received_metrics_tx.clone();
 
-        received_sender.send(()).await;
+        received_sender.send(()).await.unwrap();
 
         let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
         let (next_packet, next_hop_address, delay) =
@@ -118,7 +118,7 @@ impl PacketProcessor {
     async fn wait_and_forward(mut forwarding_data: ForwardingData) {
         let delay_duration = Duration::from_nanos(forwarding_data.delay.get_value());
         tokio::time::delay_for(delay_duration).await;
-        forwarding_data.sent_metrics_tx.send(forwarding_data.recipient.to_string()).await;
+        forwarding_data.sent_metrics_tx.send(forwarding_data.recipient.to_string()).await.unwrap();
 
         match forwarding_data
             .recipient
@@ -142,7 +142,9 @@ pub struct MixNode {
     network_address: SocketAddr,
     public_key: MontgomeryPoint,
     secret_key: Scalar,
-    layer: usize,
+
+// TODO: use it later to enforce forward travel
+//    layer: usize,
 }
 
 impl MixNode {
@@ -152,7 +154,7 @@ impl MixNode {
             network_address: config.socket_address,
             secret_key: config.secret_key,
             public_key: config.public_key,
-            layer: config.layer,
+//            layer: config.layer,
         }
     }
 
@@ -207,18 +209,7 @@ impl MixNode {
         rt.spawn(MetricsReporter::run_received_metrics_control(metrics.clone(), received_rx));
         rt.spawn(MetricsReporter::run_sent_metrics_control(metrics.clone(), sent_rx));
         rt.spawn(MetricsReporter::run_metrics_sender(metrics, directory_cfg, pub_key_str));
-//        let mut foo = received_tx.clone();
-//        let mut bar = sent_tx.clone();
-        // let's increase some metrics!
-//        rt.spawn(async move {
-//            loop {
-//                tokio::time::delay_for(Duration::from_secs(2)).await;
-//                foo.send(()).await;
-//                bar.send("bar".to_string()).await;
-//                foo.send(()).await;
-//            }
-//        });
-//        let (sent_tx, sent_rx) = mpsc::channel(1024);
+
 
         // Spawn the root task
         rt.block_on(async {

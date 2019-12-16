@@ -17,11 +17,9 @@ impl KeyPair {
         let mut bytes = [0; 32];
         bytes.copy_from_slice(&private_bytes[..]);
         let private = Scalar::from_canonical_bytes(bytes).unwrap();
-
         let mut bytes = [0; 32];
         bytes.copy_from_slice(&public_bytes[..]);
         let public = MontgomeryPoint(bytes);
-
         KeyPair { private, public }
     }
 

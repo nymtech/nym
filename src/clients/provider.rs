@@ -1,14 +1,11 @@
+use sfw_provider_requests::requests::{ProviderRequest, PullRequest};
+use sfw_provider_requests::responses::{ProviderResponse, PullResponse};
 use sphinx::route::Node as MixNode;
-use sphinx::SphinxPacket;
-use tokio::prelude::*;
-use sfw_provider_requests::*;
 use std::net::Shutdown;
-use std::time::Duration;
-use sfw_provider_requests::requests::{PullRequest, ProviderRequest};
-use sfw_provider_requests::responses::{PullResponse, ProviderResponse};
+use tokio::prelude::*;
+use tokio::time::Duration;
 
 pub struct ProviderClient {}
-
 
 impl ProviderClient {
     pub fn new() -> Self {
@@ -17,7 +14,7 @@ impl ProviderClient {
 
     pub async fn retrieve_messages(
         &self,
-//        provider: &MixNode,
+        // provider: &MixNode,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let address = [42; 32];
         let pull_request = PullRequest::new(address);
@@ -25,7 +22,7 @@ impl ProviderClient {
 
         let mut socket = tokio::net::TcpStream::connect("127.0.0.1:9000").await?;
         println!("keep alive: {:?}", socket.keepalive());
-        socket.set_keepalive(Some(tokio::time::Duration::from_secs(2)));
+        socket.set_keepalive(Some(Duration::from_secs(2))).unwrap();
         socket.write_all(&bytes[..]).await?;
         if let Err(e) = socket.shutdown(Shutdown::Write) {
             eprintln!("failed to close write part of the socket; err = {:?}", e)

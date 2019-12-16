@@ -82,20 +82,28 @@ fn route_from(topology: &Topology, route_len: usize) -> Vec<SphinxNode> {
     let mut route = vec![];
     let nodes = topology.mix_nodes.iter();
     for mix in nodes.take(route_len) {
-        let address_bytes = bytes::zero_pad_to_32(mix.host.as_bytes().to_vec());
+        let address_bytes = socket_bytes_from_string(mix.host.clone());
         let decoded_key_bytes = base64::decode_config(&mix.pub_key, base64::URL_SAFE).unwrap();
         let key_bytes = bytes::zero_pad_to_32(decoded_key_bytes);
         let key = MontgomeryPoint(key_bytes);
-        let mut sphinx_node = SphinxNode {
+        let sphinx_node = SphinxNode {
             address: address_bytes,
             pub_key: key,
         };
-
-        // temporary to make it work locally:
-        sphinx_node.pub_key = Default::default();
         route.push(sphinx_node);
     }
     route
+}
+
+fn socket_bytes_from_string(address: String) -> [u8; 32] {
+    let socket: SocketAddrV4 = address.parse().unwrap();
+    let host_bytes = socket.ip().octets();
+    let port_bytes = socket.port().to_be_bytes();
+    let mut address_bytes = [0u8; 32];
+    address_bytes.copy_from_slice(&host_bytes);
+    address_bytes[4] = port_bytes[0];
+    address_bytes[5] = port_bytes[1];
+    address_bytes
 }
 
 // TODO: where do we retrieve this guy from?

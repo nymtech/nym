@@ -13,13 +13,12 @@ use crate::provider::storage::ClientStorage;
 
 mod client_handling;
 mod mix_handling;
+pub mod presence;
 mod storage;
-
 
 // TODO: if we ever create config file, this should go there
 const STORED_MESSAGE_FILENAME_LENGTH: usize = 16;
 const MESSAGE_RETRIEVAL_LIMIT: usize = 2;
-
 
 pub struct ServiceProvider {
     mix_network_address: SocketAddr,
@@ -162,17 +161,16 @@ impl ServiceProvider {
         futures::future::join(self.start_mixnet_listening(), self.start_client_listening()).await
     }
 
-
     pub fn start_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
         // Create the runtime, probably later move it to Provider struct itself?
         // TODO: figure out the difference between Runtime and Handle
         let mut rt = Runtime::new()?;
-//        let mut h = rt.handle();
+        //        let mut h = rt.handle();
 
         // Spawn the root task
         rt.block_on(async {
             let future_results = self.start_listeners().await;
-            assert!(future_results.0.is_ok() && future_results.1.is_ok())
+            assert!(future_results.0.is_ok() && future_results.1.is_ok());
         });
 
         // this line in theory should never be reached as the runtime should be permanently blocked on listeners
@@ -180,7 +178,3 @@ impl ServiceProvider {
         Ok(())
     }
 }
-
-
-
-

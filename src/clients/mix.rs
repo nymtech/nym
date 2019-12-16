@@ -1,6 +1,6 @@
-use crate::clients::directory::Client;
 use sphinx::route::Node as MixNode;
 use sphinx::SphinxPacket;
+use std::net::{Ipv4Addr, SocketAddrV4};
 use tokio::prelude::*;
 
 pub struct MixClient {}
@@ -18,7 +18,12 @@ impl MixClient {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let bytes = packet.to_bytes();
 
-        let mut stream = tokio::net::TcpStream::connect("127.0.0.1:8080").await?;
+        let b = mix.address;
+        let host = Ipv4Addr::new(b[0], b[1], b[2], b[3]);
+        let port: u16 = u16::from_be_bytes([b[4], b[5]]);
+        let socket_address = SocketAddrV4::new(host, port);
+
+        let mut stream = tokio::net::TcpStream::connect(socket_address).await?;
         stream.write_all(&bytes[..]).await?;
         Ok(())
     }

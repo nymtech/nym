@@ -17,7 +17,7 @@ impl ProviderClient {
 
     pub async fn retrieve_messages(
         &self,
-//        provider: &MixNode,
+        // provider: &MixNode,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let address = [42; 32];
         let pull_request = PullRequest::new(address);

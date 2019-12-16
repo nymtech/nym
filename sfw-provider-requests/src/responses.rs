@@ -109,7 +109,7 @@ impl ProviderResponse for PullResponse {
 
 impl ProviderResponse for RegisterResponse {
     fn to_bytes(&self) -> Vec<u8>{
-        unimplemented!()
+        self.response.clone()
     }
 
     fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderResponseError>{

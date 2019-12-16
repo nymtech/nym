@@ -59,7 +59,7 @@ impl ClientRequestProcessor {
         processing_data: &RwLock<ClientProcessingData>,
     ) -> Result<Vec<u8>, ClientProcessingError> {
         let client_request = ProviderRequests::from_bytes(&data)?;
-        println!("received the following request: {:?}", client_request);
+        println!("Received the following request: {:?}", client_request);
         match client_request {
             ProviderRequests::Register(req) => {
                 Ok(ClientRequestProcessor::register_new_client(req)?.to_bytes())
@@ -78,13 +78,14 @@ impl ClientRequestProcessor {
         req: PullRequest,
         store_dir: &Path,
     ) -> Result<PullResponse, ClientProcessingError> {
-        println!("processing pull!");
+        println!("Processing pull!");
         let retrieved_messages =
             ClientStorage::retrieve_client_files(req.destination_address, store_dir)?;
         Ok(PullResponse::new(retrieved_messages))
     }
 
     fn register_new_client(req:RegisterRequest) -> Result<RegisterResponse, ClientProcessingError>{
+        println!("Processing register new client request!");
         let auth_token = ClientRequestProcessor::generate_new_auth_token(req.destination_address.to_vec());
         //somehow register token
         Ok(RegisterResponse::new(auth_token.value))

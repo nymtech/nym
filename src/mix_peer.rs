@@ -9,6 +9,7 @@ pub struct MixPeer {
 impl MixPeer {
     // note that very soon `next_hop_address` will be changed to `next_hop_metadata`
     pub fn new(next_hop_address: [u8; 32]) -> MixPeer {
+        println!("constructing next hop from: {:?}", next_hop_address);
         let b = next_hop_address;
         let host = Ipv4Addr::new(b[0], b[1], b[2], b[3]);
         let port: u16 = u16::from_be_bytes([b[4], b[5]]);
@@ -26,6 +27,7 @@ impl MixPeer {
     }
 
     pub fn to_string(&self) -> String {
+        println!("going to report metrics for: {:?}. original: {:?}", self.connection.to_string(), self.connection);
         self.connection.to_string()
     }
 }

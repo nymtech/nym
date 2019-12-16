@@ -8,18 +8,18 @@ pub struct Request {
 
 pub trait PresenceMixProviderPoster {
     fn new(base_url: String) -> Self;
-    fn post(&self, presence: MixProviderPresence) -> Result<Response, reqwest::Error>;
+    fn post(&self, presence: &MixProviderPresence) -> Result<Response, reqwest::Error>;
 }
 
 impl PresenceMixProviderPoster for Request {
     fn new(base_url: String) -> Self {
         Request {
             base_url,
-            path: "/api/presence/providers".to_string(),
+            path: "/api/presence/mixproviders".to_string(),
         }
     }
 
-    fn post(&self, presence: MixProviderPresence) -> Result<Response, reqwest::Error> {
+    fn post(&self, presence: &MixProviderPresence) -> Result<Response, reqwest::Error> {
         let url = format!("{}{}", self.base_url, self.path);
         let client = reqwest::Client::new();
         let p = client.post(&url).json(&presence).send()?;
@@ -40,12 +40,12 @@ mod metrics_get_request {
 
         #[test]
         fn it_returns_an_error() {
-            let _m = mock("POST", "/api/presence/providers")
+            let _m = mock("POST", "/api/presence/mixproviders")
                 .with_status(400)
                 .create();
             let req = Request::new(mockito::server_url());
             let presence = fixtures::new_presence();
-            let result = req.post(presence);
+            let result = req.post(&presence);
             assert_eq!(400, result.unwrap().status());
             _m.assert();
         }
@@ -59,13 +59,13 @@ mod metrics_get_request {
             let json = r#"{
                           "ok": true
                       }"#;
-            let _m = mock("POST", "/api/presence/providers")
+            let _m = mock("POST", "/api/presence/mixproviders")
                 .with_status(201)
                 .with_body(json)
                 .create();
             let req = Request::new(mockito::server_url());
             let presence = fixtures::new_presence();
-            let result = req.post(presence);
+            let result = req.post(&presence);
             assert_eq!(true, result.is_ok());
             _m.assert();
         }
@@ -78,6 +78,7 @@ mod metrics_get_request {
             MixProviderPresence {
                 host: "foo.com".to_string(),
                 pub_key: "abc".to_string(),
+                registered_clients: vec![],
             }
         }
     }

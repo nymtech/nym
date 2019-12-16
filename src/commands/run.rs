@@ -1,5 +1,5 @@
 use crate::clients::directory;
-use crate::clients::directory::presence::{MixNodePresence, Topology};
+use crate::clients::directory::presence::Topology;
 use crate::clients::directory::requests::presence_topology_get::PresenceTopologyGetRequester;
 use crate::clients::directory::DirectoryClient;
 use crate::clients::mix::MixClient;
@@ -16,16 +16,15 @@ use tokio::runtime::Runtime;
 use tokio::time::{interval_at, Instant};
 
 pub fn execute(matches: &ArgMatches) {
-    let custom_cfg = matches.value_of("customCfg");
-    println!(
-        "Going to start client with custom config of: {:?}",
-        custom_cfg
-    );
+    let is_local = matches.is_present("local");
+    println!("Starting client, local: {:?}", is_local);
 
     // todo: to be taken from config or something
     let my_address = [42u8; 32];
     let client = NymClient::new(my_address);
     client.start().unwrap();
+    // Grab the network topology from the remote directory server
+    let topology = get_topology(is_local);
 
     //    // Grab the network topology from the remote directory server
     //    let topology = get_topology();
@@ -70,10 +69,14 @@ pub fn execute(matches: &ArgMatches) {
     //    })
 }
 
-fn get_topology() -> Topology {
-    let directory_config = directory::Config {
-        base_url: "https://directory.nymtech.net".to_string(),
+fn get_topology(is_local: bool) -> Topology {
+    let url = if is_local {
+        "http://localhost:8080".to_string()
+    } else {
+        "https://directory.nymtech.net".to_string()
     };
+    println!("Using directory server: {:?}", url);
+    let directory_config = directory::Config { base_url: url };
     let directory = directory::Client::new(directory_config);
 
     let topology = directory

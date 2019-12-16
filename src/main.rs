@@ -3,6 +3,9 @@ use std::process;
 
 mod clients;
 mod commands;
+mod identity;
+mod persistence;
+mod sockets;
 mod utils;
 
 fn main() {
@@ -24,41 +27,31 @@ fn main() {
                     .help("Id of the provider we have preference to connect to. If left empty, a random provider will be chosen.")
                     .takes_value(true)
                 )
-                .arg(Arg::with_name("local")
-                    .long("local")
-                    .help("Flag to indicate whether the client is expected to run on the local deployment.")
-                    .takes_value(true)
-                )
         )
         .subcommand(
             SubCommand::with_name("run")
                 .about("Run a persistent Nym client process")
-                .arg(
-                    Arg::with_name("customCfg")
-                        .short("cfg")
-                        .long("customCfg")
-                        .help("Path to custom configuration file of the client")
-                        .takes_value(true)
+                .arg(Arg::with_name("local")
+                    .long("local")
+                    .help("Flag to indicate whether the client is expected to run on the local deployment.")
+                    .takes_value(false)
                 )
         )
         .subcommand(
-            SubCommand::with_name("socket")
-                .about("Run a background Nym client listening on a specified socket")
+            SubCommand::with_name("tcpsocket")
+                .about("Run Nym client that listens for bytes on a TCP socket")
                 .arg(
-                    Arg::with_name("customCfg")
-                        .short("cfg")
-                        .long("customCfg")
-                        .help("Path to custom configuration file of the client")
+                    Arg::with_name("port")
+                        .short("p")
+                        .long("port")
+                        .help("Port to listen on")
                         .takes_value(true)
+                        .required(true),
                 )
-                .arg(
-                    Arg::with_name("socketType")
-                        .short("s")
-                        .long("socketType")
-                        .help("Type of the socket we want to run on (tcp / websocket)")
-                        .takes_value(true)
-                        .required(true)
-                )
+        )
+        .subcommand(
+            SubCommand::with_name("websocket")
+                .about("Run Nym client that listens on a websocket")
                 .arg(
                     Arg::with_name("port")
                         .short("p")
@@ -80,14 +73,14 @@ fn execute(matches: ArgMatches) -> Result<(), String> {
     match matches.subcommand() {
         ("init", Some(m)) => Ok(commands::init::execute(m)),
         ("run", Some(m)) => Ok(commands::run::execute(m)),
-        ("socket", Some(m)) => Ok(commands::socket::execute(m)),
-
+        ("tcpsocket", Some(m)) => Ok(commands::tcpsocket::execute(m)),
+        ("websocket", Some(m)) => Ok(commands::websocket::execute(m)),
         _ => Err(usage()),
     }
 }
 
 fn usage() -> String {
-    banner() + "usage: --help to see available options."
+    banner() + "usage: --help to see available options.\n\n"
 }
 
 fn banner() -> String {

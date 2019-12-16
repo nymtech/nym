@@ -5,6 +5,7 @@ mod clients;
 mod commands;
 mod identity;
 mod persistence;
+mod sockets;
 mod utils;
 
 fn main() {
@@ -44,23 +45,20 @@ fn main() {
                 )
         )
         .subcommand(
-            SubCommand::with_name("socket")
-                .about("Run a background Nym client listening on a specified socket")
+            SubCommand::with_name("tcpsocket")
+                .about("Run Nym client that listens for bytes on a TCP socket")
                 .arg(
-                    Arg::with_name("customCfg")
-                        .short("cfg")
-                        .long("customCfg")
-                        .help("Path to custom configuration file of the client")
+                    Arg::with_name("port")
+                        .short("p")
+                        .long("port")
+                        .help("Port to listen on")
                         .takes_value(true)
+                        .required(true),
                 )
-                .arg(
-                    Arg::with_name("socketType")
-                        .short("s")
-                        .long("socketType")
-                        .help("Type of the socket we want to run on (tcp / websocket)")
-                        .takes_value(true)
-                        .required(true)
-                )
+        )
+        .subcommand(
+            SubCommand::with_name("websocket")
+                .about("Run Nym client that listens on a websocket")
                 .arg(
                     Arg::with_name("port")
                         .short("p")
@@ -82,8 +80,8 @@ fn execute(matches: ArgMatches) -> Result<(), String> {
     match matches.subcommand() {
         ("init", Some(m)) => Ok(commands::init::execute(m)),
         ("run", Some(m)) => Ok(commands::run::execute(m)),
-        ("socket", Some(m)) => Ok(commands::socket::execute(m)),
-
+        ("tcpsocket", Some(m)) => Ok(commands::tcpsocket::execute(m)),
+        ("websocket", Some(m)) => Ok(commands::websocket::execute(m)),
         _ => Err(usage()),
     }
 }

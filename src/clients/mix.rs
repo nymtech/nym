@@ -26,8 +26,8 @@ impl MixClient {
 
 #[cfg(test)]
 mod sending_a_sphinx_packet {
-    use super::*;
-    use sphinx::SphinxPacket;
+    // use super::*;
+    // use sphinx::SphinxPacket;
 
     #[test]
     fn works() {

@@ -122,10 +122,6 @@ fn run(matches: &ArgMatches) {
 
     // Start sending presence notifications in a separate thread
     thread::spawn(move || {
-        // TODO
-        // let key_bytes = self.public_key.to_bytes().to_vec();
-        // let b64 = base64::encode_config(&key_bytes, base64::URL_SAFE);
-        // b64.to_string()
         let notifier = presence::Notifier::new(is_local.clone(), mix_socket_address, &key_pair);
         notifier.run();
     });

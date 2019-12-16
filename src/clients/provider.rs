@@ -1,11 +1,9 @@
+use sfw_provider_requests::requests::{ProviderRequest, PullRequest};
+use sfw_provider_requests::responses::{ProviderResponse, PullResponse};
 use sphinx::route::Node as MixNode;
-use sphinx::SphinxPacket;
-use tokio::prelude::*;
-use sfw_provider_requests::*;
 use std::net::Shutdown;
-use std::time::Duration;
-use sfw_provider_requests::requests::{PullRequest, ProviderRequest};
-use sfw_provider_requests::responses::{PullResponse, ProviderResponse};
+use tokio::prelude::*;
+use tokio::time::Duration;
 
 pub struct ProviderClient {}
 

@@ -2,6 +2,7 @@ use crate::provider::presence;
 use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use curve25519_dalek::scalar::Scalar;
+use nym_client::identity::mixnet::KeyPair;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process;
@@ -44,13 +45,6 @@ fn main() {
                         .required(true),
                 )
                 .arg(
-                    Arg::with_name("keyfile")
-                        .short("k")
-                        .long("keyfile")
-                        .help("Optional path to the persistent keyfile of the node")
-                        .takes_value(true),
-                )
-                .arg(
                     Arg::with_name("storeDir")
                         .short("s")
                         .long("storeDir")
@@ -72,31 +66,22 @@ fn main() {
 }
 
 fn run(matches: &ArgMatches) {
-    println!("Running the service provider!");
+    println!("Running the service provider");
     let is_local = matches.is_present("local");
 
     let mix_host = matches.value_of("mixHost").unwrap_or("0.0.0.0");
     let mix_port = match matches.value_of("mixPort").unwrap().parse::<u16>() {
         Ok(n) => n,
-        Err(err) => panic!("Invalid port value provided - {:?}", err),
+        Err(err) => panic!("Invalid mix host port value provided - {:?}", err),
     };
 
     let client_host = matches.value_of("clientHost").unwrap_or("0.0.0.0");
     let client_port = match matches.value_of("clientPort").unwrap().parse::<u16>() {
         Ok(n) => n,
-        Err(err) => panic!("Invalid port value provided - {:?}", err),
+        Err(err) => panic!("Invalid client port value provided - {:?}", err),
     };
 
-    let secret_key: Scalar = match matches.value_of("keyfile") {
-        Some(keyfile) => {
-            println!("Todo: load keyfile from <{:?}>", keyfile);
-            Default::default()
-        }
-        None => {
-            println!("Todo: generate fresh sphinx keypair");
-            Default::default()
-        }
-    };
+    let key_pair = KeyPair::new(); // TODO: persist this so keypairs don't change every restart
 
     let store_dir = PathBuf::from(matches.value_of("storeDir").unwrap());
 
@@ -104,7 +89,7 @@ fn run(matches: &ArgMatches) {
     println!("The value of mix_port is: {:?}", mix_port);
     println!("The value of client_host is: {:?}", client_host);
     println!("The value of client_port is: {:?}", client_port);
-    println!("The value of key is: {:?}", secret_key);
+    println!("The value of key is: {:?}", key_pair.private.clone());
     println!("The value of store_dir is: {:?}", store_dir);
 
     let mix_socket_address = (mix_host, mix_port)
@@ -128,21 +113,22 @@ fn run(matches: &ArgMatches) {
         client_socket_address
     );
 
-    // Start sending presence notifications in a separate thread
-    thread::spawn(move || {
-        let notifier = presence::Notifier::new(is_local.clone());
-        notifier.run();
-    });
-
-    // make sure our socket_address is equal to our predefined-hardcoded value
-    // assert_eq!("127.0.0.1:8081", mix_socket_address.to_string());
-
     let provider = ServiceProvider::new(
         mix_socket_address,
         client_socket_address,
-        secret_key,
+        key_pair.private,
         store_dir,
     );
+
+    // Start sending presence notifications in a separate thread
+    thread::spawn(move || {
+        // TODO
+        // let key_bytes = self.public_key.to_bytes().to_vec();
+        // let b64 = base64::encode_config(&key_bytes, base64::URL_SAFE);
+        // b64.to_string()
+        let notifier = presence::Notifier::new(is_local.clone(), mix_socket_address, &key_pair);
+        notifier.run();
+    });
     provider.start_listening().unwrap()
 }
 

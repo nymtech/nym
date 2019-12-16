@@ -7,7 +7,6 @@ use tokio::time::Duration;
 
 pub struct ProviderClient {}
 
-
 impl ProviderClient {
     pub fn new() -> Self {
         ProviderClient {}

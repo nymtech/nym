@@ -96,11 +96,13 @@ impl ProviderRequest for PullRequest {
 }
 
 #[derive(Debug)]
-pub struct RegisterRequest {}
+pub struct RegisterRequest {
+    pub client_id : Vec<u8>
+}
 
 impl ProviderRequest for RegisterRequest {
     fn get_prefix() -> [u8; 2] {
-        unimplemented!()
+        REGISTER_MESSAGE_PREFIX
     }
 
     fn to_bytes(&self) -> Vec<u8> {

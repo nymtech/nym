@@ -46,7 +46,10 @@ pub fn execute(matches: &ArgMatches) {
 
             // send to mixnet
             let mix_client = MixClient::new();
-            let result = mix_client.send(packet, route.first().unwrap()).await;
+            mix_client
+                .send(packet, route.first().unwrap())
+                .await
+                .unwrap();
             println!("packet sent:  {:?}", i);
             i += 1;
 

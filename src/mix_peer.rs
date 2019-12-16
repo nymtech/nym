@@ -24,4 +24,8 @@ impl MixPeer {
         stream.write_all(&bytes).await?;
         Ok(())
     }
+
+    pub fn to_string(&self) -> String {
+        self.connection.to_string()
+    }
 }

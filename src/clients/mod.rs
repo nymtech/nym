@@ -15,7 +15,7 @@ pub mod validator;
 
 
 // TODO: put that in config once it exists
-const LOOP_COVER_AVERAGE_DELAY: f64 = 10.0;
+const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
 // assume seconds
 const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 10.0;
 // assume seconds;
@@ -41,9 +41,7 @@ impl MixTrafficController {
         let mix_client = MixClient::new();
         while let Some(mix_message) = rx.next().await {
             println!("[MIX TRAFFIC CONTROL] - got a mix_message for {:?}", mix_message.0);
-            // here NodeAddressBytes would be transformed into a SocketAddr with SOME library call...
-            let node_net_address = "127.0.0.1:8080";
-            let send_res = mix_client.send(mix_message.1, node_net_address.parse().unwrap()).await;
+            let send_res = mix_client.send(mix_message.1, mix_message.0).await;
             match send_res {
                 Ok(_) => println!("We successfully sent the message!"),
                 Err(e) => eprintln!("We failed to send the message :( - {:?}", e),

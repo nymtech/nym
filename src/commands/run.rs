@@ -25,7 +25,7 @@ pub fn execute(matches: &ArgMatches) {
     let client = NymClient::new(my_address);
     client.start().unwrap();
     // Grab the network topology from the remote directory server
-    let topology = get_topology(is_local);
+    //    let topology = get_topology(is_local);
 
     //    // Grab the network topology from the remote directory server
     //    let topology = get_topology();
@@ -109,51 +109,6 @@ pub fn execute(matches: &ArgMatches) {
     //            }
     //        }
     //    })
-}
-
-fn get_topology(is_local: bool) -> Topology {
-    let url = if is_local {
-        "http://localhost:8080".to_string()
-    } else {
-        "https://directory.nymtech.net".to_string()
-    };
-    println!("Using directory server: {:?}", url);
-    let directory_config = directory::Config { base_url: url };
-    let directory = directory::Client::new(directory_config);
-
-    let topology = directory
-        .presence_topology
-        .get()
-        .expect("Failed to retrieve network topology.");
-    topology
-}
-
-fn route_from(topology: &Topology, route_len: usize) -> Vec<SphinxNode> {
-    let mut route = vec![];
-    let nodes = topology.mix_nodes.iter();
-    for mix in nodes.take(route_len) {
-        let address_bytes = socket_bytes_from_string(mix.host.clone());
-        let decoded_key_bytes = base64::decode_config(&mix.pub_key, base64::URL_SAFE).unwrap();
-        let key_bytes = bytes::zero_pad_to_32(decoded_key_bytes);
-        let key = MontgomeryPoint(key_bytes);
-        let sphinx_node = SphinxNode {
-            address: address_bytes,
-            pub_key: key,
-        };
-        route.push(sphinx_node);
-    }
-    route
-}
-
-fn socket_bytes_from_string(address: String) -> [u8; 32] {
-    let socket: SocketAddrV4 = address.parse().unwrap();
-    let host_bytes = socket.ip().octets();
-    let port_bytes = socket.port().to_be_bytes();
-    let mut address_bytes = [0u8; 32];
-    address_bytes.copy_from_slice(&host_bytes);
-    address_bytes[4] = port_bytes[0];
-    address_bytes[5] = port_bytes[1];
-    address_bytes
 }
 
 // TODO: where do we retrieve this guy from?

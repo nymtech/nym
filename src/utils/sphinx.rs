@@ -1,4 +1,4 @@
-use crate::utils::bytes;
+use crate::utils::{bytes, topology};
 use sphinx::route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier};
 use sphinx::SphinxPacket;
 
@@ -18,19 +18,24 @@ pub fn encapsulate_message(
     message: Vec<u8>,
 ) -> (NodeAddressBytes, SphinxPacket) {
     // here we would be getting topology, etc
-    let first_node_address = bytes::zero_pad_to_32("127.0.0.1:8080".as_bytes().to_vec());
-    let dummy_route = vec![
-        Node::new(first_node_address, Default::default()),
-        Node::new(
-            bytes::zero_pad_to_32("127.0.0.1:8081".as_bytes().to_vec()),
-            Default::default(),
-        ),
-    ];
 
-    let delays = sphinx::header::delays::generate(dummy_route.len());
+    let topology = topology::get_topology(true);
+    let mixes_route = topology::route_from(&topology, 1);
+
+    let provider = Node::new(
+        topology::socket_bytes_from_string("127.0.0.1:8081".to_string()),
+        //        bytes::zero_pad_to_32("127.0.0.1:8081".as_bytes().to_vec()),
+        Default::default(),
+    );
+
+    let route = [mixes_route, vec![provider]].concat();
+
+    let delays = sphinx::header::delays::generate(route.len());
 
     // build the packet
-    let packet = sphinx::SphinxPacket::new(message, &dummy_route[..], &recipient, &delays).unwrap();
+    let packet = sphinx::SphinxPacket::new(message, &route[..], &recipient, &delays).unwrap();
+
+    let first_node_address = route.first().unwrap().address;
 
     (first_node_address, packet)
 }

@@ -26,19 +26,19 @@ pub struct ServiceProvider {
     client_network_address: SocketAddr,
     secret_key: Scalar,
     store_dir: PathBuf,
-    registered_client_ledger_dir: HashMap<Vec<u8>, Vec<u8>>,
+    registered_clients_ledger: HashMap<Vec<u8>, Vec<u8>>,
 }
 
 impl ServiceProvider {
     pub fn new(mix_network_address: SocketAddr, client_network_address: SocketAddr, secret_key: Scalar, store_dir: PathBuf) -> Self {
 
-        let registered_client_ledger_dir = HashMap::new();
+        let mut registered_clients_ledger = HashMap::new();
         ServiceProvider {
             mix_network_address,
             client_network_address,
             secret_key,
             store_dir,
-            registered_client_ledger_dir,
+            registered_clients_ledger,
         }
     }
 
@@ -149,7 +149,7 @@ impl ServiceProvider {
 
     async fn start_client_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut listener = tokio::net::TcpListener::bind(self.client_network_address).await?;
-        let processing_data = ClientProcessingData::new(self.store_dir.clone()).add_arc_rwlock();
+        let processing_data = ClientProcessingData::new(self.store_dir.clone(), self.registered_clients_ledger.clone()).add_arc_rwlock();
 
         loop {
             let (socket, _) = listener.accept().await?;

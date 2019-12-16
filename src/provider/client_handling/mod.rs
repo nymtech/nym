@@ -7,6 +7,9 @@ use curve25519_dalek::digest::Digest;
 use sha2::Sha256;
 use std::io;
 use std::collections::HashMap;
+use serde_json::json;
+use serde::{Deserialize, Serialize};
+use std::hash::Hash;
 
 #[derive(Debug)]
 pub enum ClientProcessingError {
@@ -39,11 +42,12 @@ impl From<StoreError> for ClientProcessingError {
 #[derive(Debug, Clone)]
 pub(crate) struct ClientProcessingData {
     store_dir: PathBuf,
+    registered_clients_ledger: HashMap<Vec<u8>, Vec<u8>>,
 }
 
 impl ClientProcessingData {
-    pub(crate) fn new(store_dir: PathBuf) -> Self {
-        ClientProcessingData { store_dir }
+    pub(crate) fn new(store_dir: PathBuf, registered_clients_ledger: HashMap<Vec<u8>, Vec<u8>>) -> Self {
+        ClientProcessingData { store_dir,  registered_clients_ledger}
     }
 
     pub(crate) fn add_arc_rwlock(self) -> Arc<RwLock<Self>> {
@@ -62,7 +66,7 @@ impl ClientRequestProcessor {
         println!("Received the following request: {:?}", client_request);
         match client_request {
             ProviderRequests::Register(req) => {
-                Ok(ClientRequestProcessor::register_new_client(req)?.to_bytes())
+                Ok(ClientRequestProcessor::register_new_client(req, &mut processing_data.read().unwrap().registered_clients_ledger.clone())?.to_bytes())
             },
             ProviderRequests::PullMessages(req) => {
                 Ok(ClientRequestProcessor::process_pull_messages_request(
@@ -84,10 +88,10 @@ impl ClientRequestProcessor {
         Ok(PullResponse::new(retrieved_messages))
     }
 
-    fn register_new_client(req:RegisterRequest) -> Result<RegisterResponse, ClientProcessingError>{
+    fn register_new_client(req:RegisterRequest, registered_client_ledger: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<RegisterResponse, ClientProcessingError>{
         println!("Processing register new client request!");
         let auth_token = ClientRequestProcessor::generate_new_auth_token(req.destination_address.to_vec());
-        //somehow register token
+        registered_client_ledger.insert(auth_token.value.clone(), req.destination_address.to_vec());
         Ok(RegisterResponse::new(auth_token.value))
 
     }
@@ -99,8 +103,36 @@ impl ClientRequestProcessor {
         AuthToken{value: sha256Hasher.result().to_vec() }
 
     }
+
 }
 
+#[cfg(test)]
+mod register_new_client {
+    use super::*;
+
+    #[test]
+    fn registers_new_auth_token_for_each_new_client(){
+        let req1 = RegisterRequest{destination_address: [1u8; 32]};
+        let mut registered_client_ledger: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
+        assert_eq!(0, registered_client_ledger.len());
+        ClientRequestProcessor::register_new_client(req1, &mut registered_client_ledger);
+        assert_eq!(1, registered_client_ledger.len());
+
+        let req2 = RegisterRequest{destination_address: [2u8; 32]};
+        ClientRequestProcessor::register_new_client(req2, &mut registered_client_ledger);
+        assert_eq!(2, registered_client_ledger.len());
+    }
+
+    #[test]
+    fn registers_given_token_only_once() {
+        let req1 = RegisterRequest{destination_address: [1u8; 32]};
+        let mut registered_client_ledger: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
+        ClientRequestProcessor::register_new_client(req1, &mut registered_client_ledger);
+        let req2 = RegisterRequest{destination_address: [1u8; 32]};
+        ClientRequestProcessor::register_new_client(req2, &mut registered_client_ledger);
+        assert_eq!(1, registered_client_ledger.len())
+    }
+}
 
 #[cfg(test)]
 mod generating_new_auth_token {

@@ -16,4 +16,5 @@ sfw-provider-requests = { path = "./sfw-provider-requests" }
 sphinx = { path = "../sphinx" }
 tokio = { version = "0.2.4", features = ["full"] }
 sha2 = "0.8.0"
+serde = "1.0"
 serde_json = "1.0"

@@ -34,14 +34,16 @@ pub fn start(matches: &ArgMatches) {
         }
     };
 
+    let is_local = matches.is_present("local");
+
     let socket_address = (host, port)
         .to_socket_addrs()
         .expect("Failed to combine host and port")
         .next()
         .expect("Failed to extract the socket address from the iterator");
 
-    thread::spawn(|| {
-        let notifier = presence::Notifier::new();
+    thread::spawn(move || {
+        let notifier = presence::Notifier::new(is_local.clone());
         notifier.run();
     });
 

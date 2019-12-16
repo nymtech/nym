@@ -11,10 +11,13 @@ pub struct Notifier {
 }
 
 impl Notifier {
-    pub fn new() -> Notifier {
-        let config = directory::Config {
-            base_url: "https://directory.nymtech.net/".to_string(),
+    pub fn new(is_local: bool) -> Notifier {
+        let url = if is_local {
+            "http://localhost:8080".to_string()
+        } else {
+            "https://directory.nymtech.net".to_string()
         };
+        let config = directory::Config { base_url: url };
         let net_client = directory::Client::new(config);
         let presence = MixNodePresence {
             host: "halpin.org:6666".to_string(),

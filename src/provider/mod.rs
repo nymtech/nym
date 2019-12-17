@@ -91,7 +91,7 @@ impl ServiceProvider {
     }
 
     // TODO: FIGURE OUT HOW TO SET READ_DEADLINES IN TOKIO
-    async fn process_client_socket_connection(mut socket: tokio::net::TcpStream, processing_data: Arc<RwLock<ClientProcessingData>>) {
+    async fn process_client_socket_connection(mut socket: tokio::net::TcpStream, processing_data: Arc<RwLock<ClientProcessingData>>, secret_key: Scalar) {
         let mut buf = [0; 1024];
 
         // TODO: restore the for loop once we go back to persistent tcp socket connection
@@ -102,7 +102,7 @@ impl ServiceProvider {
                 Err(())
             }
             Ok(n) => {
-                match ClientRequestProcessor::process_client_request(buf[..n].as_ref(), processing_data.as_ref()) {
+                match ClientRequestProcessor::process_client_request(buf[..n].as_ref(), processing_data.as_ref(), secret_key) {
                     Err(e) => {
                         eprintln!("failed to process client request; err = {:?}", e);
                         Err(())
@@ -150,14 +150,14 @@ impl ServiceProvider {
     async fn start_client_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut listener = tokio::net::TcpListener::bind(self.client_network_address).await?;
         let processing_data = ClientProcessingData::new(self.store_dir.clone(), self.registered_clients_ledger.clone()).add_arc_rwlock();
-
+        let key = self.secret_key.clone();
         loop {
             let (socket, _) = listener.accept().await?;
             // do note that the underlying data is NOT copied here; arc is incremented and lock is shared
             // (if I understand it all correctly)
             let thread_processing_data = processing_data.clone();
             tokio::spawn(async move {
-                ServiceProvider::process_client_socket_connection(socket, thread_processing_data).await
+                ServiceProvider::process_client_socket_connection(socket, thread_processing_data, key).await
             });
         }
     }

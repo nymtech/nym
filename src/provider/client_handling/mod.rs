@@ -10,6 +10,10 @@ use std::collections::HashMap;
 use serde_json::json;
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
+use curve25519_dalek::scalar::Scalar;
+use hmac::{Hmac, Mac};
+
+type HmacSha256 = Hmac<Sha256>;
 
 #[derive(Debug)]
 pub enum ClientProcessingError {
@@ -57,12 +61,13 @@ impl ClientRequestProcessor {
     pub(crate) fn process_client_request(
         data: &[u8],
         processing_data: &RwLock<ClientProcessingData>,
+        provider_secret_key: Scalar
     ) -> Result<Vec<u8>, ClientProcessingError> {
         let client_request = ProviderRequests::from_bytes(&data)?;
         println!("Received the following request: {:?}", client_request);
         match client_request {
             ProviderRequests::Register(req) => {
-                Ok(ClientRequestProcessor::register_new_client(req, processing_data.read().unwrap().store_dir.as_path(),&mut processing_data.read().unwrap().registered_clients_ledger.clone())?.to_bytes())
+                Ok(ClientRequestProcessor::register_new_client(req, processing_data.read().unwrap().store_dir.as_path(),&mut processing_data.read().unwrap().registered_clients_ledger.clone(), provider_secret_key)?.to_bytes())
             },
             ProviderRequests::PullMessages(req) => {
                 Ok(ClientRequestProcessor::process_pull_messages_request(
@@ -84,9 +89,9 @@ impl ClientRequestProcessor {
         Ok(PullResponse::new(retrieved_messages))
     }
 
-    fn register_new_client(req:RegisterRequest, store_dir: &Path, registered_client_ledger: &mut HashMap<[u8; 32], Vec<u8>>) -> Result<RegisterResponse, ClientProcessingError>{
+    fn register_new_client(req:RegisterRequest, store_dir: &Path, registered_client_ledger: &mut HashMap<[u8; 32], Vec<u8>>, provider_secret_key: Scalar) -> Result<RegisterResponse, ClientProcessingError>{
         println!("Processing register new client request!");
-        let auth_token = ClientRequestProcessor::generate_new_auth_token(req.destination_address.to_vec());
+        let auth_token = ClientRequestProcessor::generate_new_auth_token(req.destination_address.to_vec(), provider_secret_key);
         if !registered_client_ledger.contains_key(&auth_token.value) {
             registered_client_ledger.insert(auth_token.value.clone(), req.destination_address.to_vec());
             ClientRequestProcessor::create_storage_dir(req.destination_address, store_dir);
@@ -102,13 +107,16 @@ impl ClientRequestProcessor {
         Ok(())
     }
 
-    fn generate_new_auth_token(data: Vec<u8>) -> AuthToken{
-        // TODO: We can use hmac with providers secret key to have HMAC instead of SHA
-        let hash= sha2::Sha256::digest(&data).to_vec();
-        // TODO: this probably can be coverted in some better way
+    fn generate_new_auth_token(data: Vec<u8>, key: Scalar) -> AuthToken{
+        let mut auth_token = HmacSha256::new_varkey(&key.to_bytes()).expect("HMAC can take key of any size");
+        auth_token.input(&data);
         let mut result = [0u8; 32];
-        result.copy_from_slice(&hash);
+        result.copy_from_slice(&auth_token.result().code().to_vec());
         AuthToken{value: result}
+//        let hash= sha2::Sha256::digest(&data).to_vec();
+//        let mut result = [0u8; 32];
+//        result.copy_from_slice(&hash);
+//        AuthToken{value: result}
     }
 
 }
@@ -122,12 +130,13 @@ mod register_new_client {
         let req1 = RegisterRequest{destination_address: [1u8; 32]};
         let mut registered_client_ledger: HashMap<[u8; 32], Vec<u8>> = HashMap::new();
         let store_dir = Path::new("./foo/");
+        let key = Scalar::from_bytes_mod_order([1u8; 32]);
         assert_eq!(0, registered_client_ledger.len());
-        ClientRequestProcessor::register_new_client(req1, &store_dir, &mut registered_client_ledger);
+        ClientRequestProcessor::register_new_client(req1, &store_dir, &mut registered_client_ledger, key);
         assert_eq!(1, registered_client_ledger.len());
 
         let req2 = RegisterRequest{destination_address: [2u8; 32]};
-        ClientRequestProcessor::register_new_client(req2, &store_dir, &mut registered_client_ledger);
+        ClientRequestProcessor::register_new_client(req2, &store_dir, &mut registered_client_ledger, key);
         assert_eq!(2, registered_client_ledger.len());
     }
 
@@ -136,9 +145,10 @@ mod register_new_client {
         let req1 = RegisterRequest{destination_address: [1u8; 32]};
         let mut registered_client_ledger: HashMap<[u8; 32], Vec<u8>> = HashMap::new();
         let store_dir = Path::new("./foo/");
-        ClientRequestProcessor::register_new_client(req1, &store_dir, &mut registered_client_ledger);
+        let key = Scalar::from_bytes_mod_order([1u8; 32]);
+        ClientRequestProcessor::register_new_client(req1, &store_dir, &mut registered_client_ledger, key);
         let req2 = RegisterRequest{destination_address: [1u8; 32]};
-        ClientRequestProcessor::register_new_client(req2, &store_dir, &mut registered_client_ledger);
+        ClientRequestProcessor::register_new_client(req2, &store_dir, &mut registered_client_ledger, key);
         assert_eq!(1, registered_client_ledger.len())
     }
 }
@@ -164,8 +174,9 @@ mod generating_new_auth_token {
     fn for_the_same_input_generates_the_same_auth_token(){
         let data1 = vec![1u8; 55];
         let data2 = vec![1u8; 55];
-        let token1 = ClientRequestProcessor::generate_new_auth_token(data1);
-        let token2 = ClientRequestProcessor::generate_new_auth_token(data2);
+        let key = Scalar::from_bytes_mod_order([1u8; 32]);
+        let token1 = ClientRequestProcessor::generate_new_auth_token(data1, key);
+        let token2 = ClientRequestProcessor::generate_new_auth_token(data2, key);
         assert_eq!(token1.value, token2.value);
     }
 
@@ -173,14 +184,16 @@ mod generating_new_auth_token {
     fn for_different_inputs_generates_different_auth_tokens(){
         let data1 = vec![1u8; 55];
         let data2 = vec![2u8; 55];
-        let token1 = ClientRequestProcessor::generate_new_auth_token(data1);
-        let token2 = ClientRequestProcessor::generate_new_auth_token(data2);
+        let key = Scalar::from_bytes_mod_order([1u8; 32]);
+        let token1 = ClientRequestProcessor::generate_new_auth_token(data1, key);
+        let token2 = ClientRequestProcessor::generate_new_auth_token(data2, key);
         assert_ne!(token1.value, token2.value);
 
         let data1 = vec![1u8; 50];
         let data2 = vec![2u8; 55];
-        let token1 = ClientRequestProcessor::generate_new_auth_token(data1);
-        let token2 = ClientRequestProcessor::generate_new_auth_token(data2);
+        let key = Scalar::from_bytes_mod_order([1u8; 32]);
+        let token1 = ClientRequestProcessor::generate_new_auth_token(data1, key);
+        let token2 = ClientRequestProcessor::generate_new_auth_token(data2, key);
         assert_ne!(token1.value, token2.value);
     }
 

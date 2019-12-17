@@ -2,6 +2,7 @@ use std::error::Error;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use tokio::prelude::*;
 
+#[derive(Debug)]
 pub struct MixPeer {
     connection: SocketAddrV4,
 }

@@ -21,6 +21,13 @@ pub fn execute(matches: &ArgMatches) {
 
     // Grab the network topology from the remote directory server
     let topology = get_topology(is_local);
+    let provider_address: SocketAddrV4 = topology
+        .mix_provider_nodes
+        .first()
+        .unwrap()
+        .host
+        .parse()
+        .unwrap();
 
     // Create the runtime, probably later move it to Client struct itself?
     let mut rt = Runtime::new().unwrap();
@@ -59,7 +66,10 @@ pub fn execute(matches: &ArgMatches) {
                 interval.tick().await;
                 println!("going to retrieve messages!");
                 let provider_client = ProviderClient::new();
-                provider_client.retrieve_messages().await.unwrap();
+                provider_client
+                    .retrieve_messages(&provider_address)
+                    .await
+                    .unwrap();
             }
         }
     })
@@ -106,7 +116,10 @@ fn socket_bytes_from_string(address: String) -> [u8; 32] {
     let host_bytes = socket.ip().octets();
     let port_bytes = socket.port().to_be_bytes();
     let mut address_bytes = [0u8; 32];
-    address_bytes.copy_from_slice(&host_bytes);
+    address_bytes[0] = host_bytes[0];
+    address_bytes[1] = host_bytes[1];
+    address_bytes[2] = host_bytes[2];
+    address_bytes[3] = host_bytes[3];
     address_bytes[4] = port_bytes[0];
     address_bytes[5] = port_bytes[1];
     address_bytes

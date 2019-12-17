@@ -20,13 +20,10 @@ pub fn encapsulate_message(
     message: Vec<u8>,
     topology: &Topology,
 ) -> (NodeAddressBytes, SphinxPacket) {
-    // here we would be getting topology, etc
-
     let mixes_route = topology::route_from(&topology, 1);
 
     let provider = Node::new(
         topology::socket_bytes_from_string("127.0.0.1:8081".to_string()),
-        //        bytes::zero_pad_to_32("127.0.0.1:8081".as_bytes().to_vec()),
         Default::default(),
     );
 

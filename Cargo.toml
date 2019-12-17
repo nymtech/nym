@@ -29,7 +29,7 @@ tokio = { version = "0.2", features = ["full"] }
 tungstenite = "0.9.2"
 
 # putting this explicitly below everything and most likely, the next time we look into it, it will already have a proper release
-tokio-tungstenite = { git = "https://github.com/dbcfd/tokio-tungstenite", branch = "tokio2" }
+tokio-tungstenite = { git = "https://github.com/dbcfd/tokio-tungstenite", rev="6dc2018cbfe8fe7ddd75ff977343086503135b38" }
 
 [dev-dependencies]
 mockito = "0.22.0"

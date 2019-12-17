@@ -1,28 +1,28 @@
-use sphinx::route::{DestinationAddressBytes, NodeAddressBytes, Destination};
-use tokio::runtime::Runtime;
-use futures::channel::mpsc;
-use std::time::Duration;
-use crate::utils;
-use futures::{StreamExt, SinkExt};
-use crate::clients::mix::MixClient;
-use sphinx::SphinxPacket;
-use futures::select;
-use crate::utils::topology::get_topology;
 use crate::clients::directory::presence::Topology;
+use crate::clients::mix::MixClient;
+use crate::clients::provider::ProviderClient;
+use crate::utils;
+use crate::utils::topology::get_topology;
+use futures::channel::mpsc;
+use futures::select;
+use futures::{SinkExt, StreamExt};
+use sphinx::route::{Destination, DestinationAddressBytes, NodeAddressBytes};
+use sphinx::SphinxPacket;
+use std::net::SocketAddrV4;
+use std::time::Duration;
+use tokio::runtime::Runtime;
 
 pub mod directory;
 pub mod mix;
 pub mod provider;
 pub mod validator;
 
-
 // TODO: put that in config once it exists
-const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
+const LOOP_COVER_AVERAGE_DELAY: f64 = 1.0;
 // assume seconds
 const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 10.0;
 // assume seconds;
 const FETCH_MESSAGES_DELAY: f64 = 10.0; // assume seconds;
-
 
 // provider-poller sends polls service provider; receives messages
 // provider-poller sends (TX) to ReceivedBufferController (RX)
@@ -36,13 +36,15 @@ struct MixMessage(NodeAddressBytes, SphinxPacket);
 
 struct MixTrafficController;
 
-
 impl MixTrafficController {
     // this was way more difficult to implement than what this code may suggest...
     async fn run(mut rx: mpsc::UnboundedReceiver<MixMessage>) {
         let mix_client = MixClient::new();
         while let Some(mix_message) = rx.next().await {
-            println!("[MIX TRAFFIC CONTROL] - got a mix_message for {:?}", mix_message.0);
+            println!(
+                "[MIX TRAFFIC CONTROL] - got a mix_message for {:?}",
+                mix_message.0
+            );
             let send_res = mix_client.send(mix_message.1, mix_message.0).await;
             match send_res {
                 Ok(_) => println!("We successfully sent the message!"),
@@ -62,7 +64,6 @@ pub struct NymClient {
     is_local: bool,
 }
 
-
 #[derive(Debug)]
 pub struct InputMessage(pub Destination, pub Vec<u8>);
 
@@ -78,18 +79,29 @@ impl NymClient {
         }
     }
 
-    async fn start_loop_cover_traffic_stream(mut tx: mpsc::UnboundedSender<MixMessage>, our_info: Destination, topology: &Topology) -> Result<(), Box<dyn std::error::Error>> {
+    async fn start_loop_cover_traffic_stream(
+        mut tx: mpsc::UnboundedSender<MixMessage>,
+        our_info: Destination,
+        topology: &Topology,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         loop {
             println!("[LOOP COVER TRAFFIC STREAM] - next cover message!");
             let delay = utils::poisson::sample(LOOP_COVER_AVERAGE_DELAY);
             let delay_duration = Duration::from_secs_f64(delay);
             tokio::time::delay_for(delay_duration).await;
-            let cover_message = utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, topology);
-            tx.send(MixMessage(cover_message.0, cover_message.1)).await?;
+            let cover_message =
+                utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, topology);
+            tx.send(MixMessage(cover_message.0, cover_message.1))
+                .await?;
         }
     }
 
-    async fn control_out_queue(mut mix_tx: mpsc::UnboundedSender<MixMessage>, mut input_rx: mpsc::UnboundedReceiver<InputMessage>, our_info: Destination, topology: &Topology) -> Result<(), Box<dyn std::error::Error>> {
+    async fn control_out_queue(
+        mut mix_tx: mpsc::UnboundedSender<MixMessage>,
+        mut input_rx: mpsc::UnboundedReceiver<InputMessage>,
+        our_info: Destination,
+        topology: &Topology,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         loop {
             println!("[OUT QUEUE] here I will be sending real traffic (or loop cover if nothing is available)");
             select! {
@@ -106,23 +118,28 @@ impl NymClient {
                     let cover_message = utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, topology);
                     mix_tx.send(MixMessage(cover_message.0, cover_message.1)).await?;
                 }
-            }
-            ;
+            };
 
             let delay_duration = Duration::from_secs_f64(MESSAGE_SENDING_AVERAGE_DELAY);
             tokio::time::delay_for(delay_duration).await;
         }
     }
 
+    async fn start_provider_polling(
+        provider_address: SocketAddrV4,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let provider_client = ProviderClient::new();
 
-    async fn start_provider_polling() -> Result<(), Box<dyn std::error::Error>> {
         loop {
             println!("[FETCH MSG] - Polling provider...");
             let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
             tokio::time::delay_for(delay_duration).await;
+            provider_client
+                .retrieve_messages(provider_address)
+                .await
+                .unwrap();
         }
     }
-
 
     pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
         println!("starting nym client");
@@ -131,28 +148,36 @@ impl NymClient {
 
         let mut rt = Runtime::new()?;
         rt.spawn(MixTrafficController::run(mix_rx));
-
-//        let foomp = Destination::new(self.address, Default::default());
-//
-//        let mut input_channel = self.input_tx.clone();
-//        rt.spawn(async move {
-//            let test_message = b"foomp".to_vec();
-//            let recipient = foomp;
-//            let input_message = InputMessage(recipient, test_message);
-//            input_channel.send(input_message).await.unwrap();
-//        });
-
         let topology = get_topology(self.is_local);
+        let provider_address: SocketAddrV4 = topology
+            .mix_provider_nodes
+            .first()
+            .unwrap()
+            .host
+            .parse()
+            .unwrap();
 
         rt.block_on(async {
             let future_results = futures::future::join3(
-                NymClient::start_loop_cover_traffic_stream(mix_tx.clone(), Destination::new(self.address, Default::default()), &topology.clone()),
-                NymClient::control_out_queue(mix_tx, self.input_rx, Destination::new(self.address, Default::default()), &topology.clone()),
-                NymClient::start_provider_polling()).await;
+                NymClient::start_loop_cover_traffic_stream(
+                    mix_tx.clone(),
+                    Destination::new(self.address, Default::default()),
+                    &topology.clone(),
+                ),
+                NymClient::control_out_queue(
+                    mix_tx,
+                    self.input_rx,
+                    Destination::new(self.address, Default::default()),
+                    &topology.clone(),
+                ),
+                NymClient::start_provider_polling(provider_address),
+            )
+            .await;
 
             // start websocket handler here
-
-            assert!(future_results.0.is_ok() && future_results.1.is_ok() && future_results.2.is_ok());
+            assert!(
+                future_results.0.is_ok() && future_results.1.is_ok() && future_results.2.is_ok()
+            );
         });
 
         // this line in theory should never be reached as the runtime should be permanently blocked on traffic senders

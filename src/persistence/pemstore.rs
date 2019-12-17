@@ -5,6 +5,13 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
 
+pub fn read_keypair_from_disk(id: String) -> KeyPair {
+    let pathfinder = Pathfinder::new(id);
+    let pem_store = PemStore::new(pathfinder);
+    let keypair = pem_store.read();
+    keypair
+}
+
 pub struct PemStore {
     config_dir: PathBuf,
     private_mix_key: PathBuf,

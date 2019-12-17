@@ -19,5 +19,5 @@ pub fn execute(matches: &ArgMatches) {
         .next()
         .expect("Failed to extract the socket address from the iterator");
 
-    ws::start(socket_address);
+    //    ws::start(socket_address);
 }

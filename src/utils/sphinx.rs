@@ -1,3 +1,4 @@
+use crate::clients::directory::presence::Topology;
 use crate::utils::{bytes, topology};
 use sphinx::route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier};
 use sphinx::SphinxPacket;
@@ -7,19 +8,20 @@ const LOOP_COVER_MESSAGE_PAYLOAD: &[u8] = b"The cake is a lie!";
 pub fn loop_cover_message(
     our_address: DestinationAddressBytes,
     surb_id: SURBIdentifier,
+    topology: &Topology,
 ) -> (NodeAddressBytes, SphinxPacket) {
     let destination = Destination::new(our_address, surb_id);
 
-    encapsulate_message(destination, LOOP_COVER_MESSAGE_PAYLOAD.to_vec())
+    encapsulate_message(destination, LOOP_COVER_MESSAGE_PAYLOAD.to_vec(), topology)
 }
 
 pub fn encapsulate_message(
     recipient: Destination,
     message: Vec<u8>,
+    topology: &Topology,
 ) -> (NodeAddressBytes, SphinxPacket) {
     // here we would be getting topology, etc
 
-    let topology = topology::get_topology(true);
     let mixes_route = topology::route_from(&topology, 1);
 
     let provider = Node::new(

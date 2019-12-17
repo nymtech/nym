@@ -22,7 +22,8 @@ pub fn execute(matches: &ArgMatches) {
 
     // todo: to be taken from config or something
     let my_address = [42u8; 32];
-    let client = NymClient::new(my_address);
+    let is_local = true;
+    let client = NymClient::new(my_address, is_local);
     client.start().unwrap();
     // Grab the network topology from the remote directory server
     //    let topology = get_topology(is_local);

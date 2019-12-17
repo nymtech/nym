@@ -1,7 +1,7 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
 use std::process;
 
-mod clients;
+pub mod clients;
 mod commands;
 mod identity;
 mod persistence;
@@ -53,7 +53,8 @@ fn main() {
                         .help("Port for TCP socket to listen on")
                         .takes_value(true)
                         .required(true),
-                ).arg(Arg::with_name("local")
+                )
+                .arg(Arg::with_name("local")
                     .long("local")
                     .help("Flag to indicate whether the client is expected to run on the local deployment.")
                     .takes_value(false)

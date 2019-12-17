@@ -26,8 +26,7 @@ pub fn execute(matches: &ArgMatches) {
         .expect("Failed to extract the socket address from the iterator");
 
     let keypair = pemstore::read_keypair_from_disk(id);
-    let _client = NymClient::new(keypair.public_bytes(), is_local);
-    // Question: should we be passing the client into the websocket somehow next?
+    let client = NymClient::new(keypair.public_bytes(), is_local);
 
-    ws::start(socket_address);
+    client.start(socket_address).unwrap();
 }

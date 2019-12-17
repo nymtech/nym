@@ -21,8 +21,6 @@ pub fn encapsulate_message(
     message: Vec<u8>,
     topology: &Topology,
 ) -> (NodeAddressBytes, SphinxPacket) {
-    // here we would be getting topology, etc
-
     let mixes_route = topology::route_from(&topology, 1);
     let first_provider = topology.mix_provider_nodes.first().unwrap();
     let decoded_key_bytes =

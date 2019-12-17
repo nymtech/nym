@@ -1,13 +1,16 @@
 use crate::clients::directory::presence::Topology;
 use crate::clients::mix::MixClient;
 use crate::clients::provider::ProviderClient;
+use crate::sockets::ws;
 use crate::utils;
 use crate::utils::topology::get_topology;
 use futures::channel::mpsc;
+use futures::future::join5;
 use futures::select;
 use futures::{SinkExt, StreamExt};
 use sphinx::route::{Destination, DestinationAddressBytes, NodeAddressBytes};
 use sphinx::SphinxPacket;
+use std::net::SocketAddr;
 use std::net::SocketAddrV4;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -18,7 +21,7 @@ pub mod provider;
 pub mod validator;
 
 // TODO: put that in config once it exists
-const LOOP_COVER_AVERAGE_DELAY: f64 = 1.0;
+const LOOP_COVER_AVERAGE_DELAY: f64 = 10.0;
 // assume seconds
 const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 10.0;
 // assume seconds;
@@ -82,17 +85,18 @@ impl NymClient {
     async fn start_loop_cover_traffic_stream(
         mut tx: mpsc::UnboundedSender<MixMessage>,
         our_info: Destination,
-        topology: &Topology,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+        topology: Topology,
+    ) {
         loop {
             println!("[LOOP COVER TRAFFIC STREAM] - next cover message!");
             let delay = utils::poisson::sample(LOOP_COVER_AVERAGE_DELAY);
             let delay_duration = Duration::from_secs_f64(delay);
             tokio::time::delay_for(delay_duration).await;
             let cover_message =
-                utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, topology);
+                utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, &topology);
             tx.send(MixMessage(cover_message.0, cover_message.1))
-                .await?;
+                .await
+                .unwrap();
         }
     }
 
@@ -100,8 +104,8 @@ impl NymClient {
         mut mix_tx: mpsc::UnboundedSender<MixMessage>,
         mut input_rx: mpsc::UnboundedReceiver<InputMessage>,
         our_info: Destination,
-        topology: &Topology,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+        topology: Topology,
+    ) {
         loop {
             println!("[OUT QUEUE] here I will be sending real traffic (or loop cover if nothing is available)");
             select! {
@@ -109,14 +113,14 @@ impl NymClient {
                     println!("[OUT QUEUE] - we got a real message!");
                     let real_message = real_message.expect("The channel must have closed! - if the client hasn't crashed, it should have!");
                     println!("real: {:?}", real_message);
-                    let encapsulated_message = utils::sphinx::encapsulate_message(real_message.0, real_message.1, topology);
-                    mix_tx.send(MixMessage(encapsulated_message.0, encapsulated_message.1)).await?;
+                    let encapsulated_message = utils::sphinx::encapsulate_message(real_message.0, real_message.1, &topology);
+                    mix_tx.send(MixMessage(encapsulated_message.0, encapsulated_message.1)).await.unwrap();
                 },
 
                 default => {
                     println!("[OUT QUEUE] - no real message - going to send extra loop cover");
-                    let cover_message = utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, topology);
-                    mix_tx.send(MixMessage(cover_message.0, cover_message.1)).await?;
+                    let cover_message = utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, &topology);
+                    mix_tx.send(MixMessage(cover_message.0, cover_message.1)).await.unwrap();
                 }
             };
 
@@ -125,9 +129,7 @@ impl NymClient {
         }
     }
 
-    async fn start_provider_polling(
-        provider_address: SocketAddrV4,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    async fn start_provider_polling(provider_address: SocketAddrV4) {
         let provider_client = ProviderClient::new();
 
         loop {
@@ -141,13 +143,11 @@ impl NymClient {
         }
     }
 
-    pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn start(self, socket_address: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
         println!("starting nym client");
 
         let (mix_tx, mix_rx) = mpsc::unbounded();
-
         let mut rt = Runtime::new()?;
-        rt.spawn(MixTrafficController::run(mix_rx));
         let topology = get_topology(self.is_local);
         let provider_address: SocketAddrV4 = topology
             .mix_provider_nodes
@@ -157,26 +157,38 @@ impl NymClient {
             .parse()
             .unwrap();
 
+        let mix_traffic_future = rt.spawn(MixTrafficController::run(mix_rx));
+        let loop_cover_traffic_future = rt.spawn(NymClient::start_loop_cover_traffic_stream(
+            mix_tx.clone(),
+            Destination::new(self.address, Default::default()),
+            topology.clone(),
+        ));
+
+        let out_queue_control_future = rt.spawn(NymClient::control_out_queue(
+            mix_tx,
+            self.input_rx,
+            Destination::new(self.address, Default::default()),
+            topology.clone(),
+        ));
+
+        let provider_polling_future = rt.spawn(NymClient::start_provider_polling(provider_address));
+        let websocket_future = rt.spawn(ws::start_websocket(socket_address, self.input_tx));
+
         rt.block_on(async {
-            let future_results = futures::future::join3(
-                NymClient::start_loop_cover_traffic_stream(
-                    mix_tx.clone(),
-                    Destination::new(self.address, Default::default()),
-                    &topology.clone(),
-                ),
-                NymClient::control_out_queue(
-                    mix_tx,
-                    self.input_rx,
-                    Destination::new(self.address, Default::default()),
-                    &topology.clone(),
-                ),
-                NymClient::start_provider_polling(provider_address),
+            let future_results = join5(
+                mix_traffic_future,
+                loop_cover_traffic_future,
+                out_queue_control_future,
+                provider_polling_future,
+                websocket_future,
             )
             .await;
-
-            // start websocket handler here
             assert!(
-                future_results.0.is_ok() && future_results.1.is_ok() && future_results.2.is_ok()
+                future_results.0.is_ok()
+                    && future_results.1.is_ok()
+                    && future_results.2.is_ok()
+                    && future_results.3.is_ok()
+                    && future_results.4.is_ok()
             );
         });
 

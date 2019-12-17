@@ -53,7 +53,8 @@ fn main() {
                         .help("Port for TCP socket to listen on")
                         .takes_value(true)
                         .required(true),
-                ).arg(Arg::with_name("local")
+                )
+                .arg(Arg::with_name("local")
                     .long("local")
                     .help("Flag to indicate whether the client is expected to run on the local deployment.")
                     .takes_value(false)
@@ -63,11 +64,6 @@ fn main() {
                     .help("Id of the nym-mixnet-client we want to run.")
                     .takes_value(true)
                     .required(true)
-                )
-                .arg(Arg::with_name("local")
-                    .long("local")
-                    .help("Flag to indicate whether the client is expected to run on the local deployment.")
-                    .takes_value(false)
                 )
         )
         .subcommand(

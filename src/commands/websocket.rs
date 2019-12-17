@@ -25,12 +25,8 @@ pub fn execute(matches: &ArgMatches) {
         .next()
         .expect("Failed to extract the socket address from the iterator");
 
-
-    let is_local = matches.is_present("local");
-    println!("Starting client, local: {:?}", is_local);
-
     let keypair = pemstore::read_keypair_from_disk(id);
     let client = NymClient::new(keypair.public_bytes(), is_local);
 
     client.start(socket_address).unwrap();
-
+}

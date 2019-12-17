@@ -26,8 +26,10 @@ serde_json = "1.0.44"
 sphinx = { path = "../sphinx" }
 sfw-provider-requests = { path = "../nym-sfw-provider/sfw-provider-requests" }
 tokio = { version = "0.2", features = ["full"] }
-ws = "0.9.1"
+tungstenite = "0.9.2"
+
+# putting this explicitly below everything and most likely, the next time we look into it, it will already have a proper release
+tokio-tungstenite = { git = "https://github.com/dbcfd/tokio-tungstenite", branch = "tokio2" }
 
 [dev-dependencies]
 mockito = "0.22.0"
-serde_json = "1.0.44"

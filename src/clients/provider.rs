@@ -1,6 +1,5 @@
 use sfw_provider_requests::requests::{ProviderRequest, PullRequest};
 use sfw_provider_requests::responses::{ProviderResponse, PullResponse};
-use sphinx::route::Node as MixNode;
 use std::net::Shutdown;
 use tokio::prelude::*;
 use tokio::time::Duration;

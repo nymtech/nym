@@ -23,11 +23,11 @@ impl KeyPair {
         KeyPair { private, public }
     }
 
-    pub fn private_bytes(&self) -> Vec<u8> {
-        self.private.to_bytes().to_vec()
+    pub fn private_bytes(&self) -> [u8; 32] {
+        self.private.to_bytes()
     }
 
-    pub fn public_bytes(&self) -> Vec<u8> {
-        self.public.to_bytes().to_vec()
+    pub fn public_bytes(&self) -> [u8; 32] {
+        self.public.to_bytes()
     }
 }

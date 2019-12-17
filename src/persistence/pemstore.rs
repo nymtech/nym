@@ -52,10 +52,10 @@ impl PemStore {
         );
     }
 
-    fn write_pem_file(&self, filepath: PathBuf, data: Vec<u8>, tag: String) {
+    fn write_pem_file(&self, filepath: PathBuf, data: [u8; 32], tag: String) {
         let pem = Pem {
             tag,
-            contents: data,
+            contents: data.to_vec(),
         };
         let key = encode(&pem);
 

@@ -20,8 +20,7 @@ impl Notifier {
         let presence = MixNodePresence {
             host: node_config.socket_address.to_string(), // note: the directory server formats the real incoming IP itself
             pub_key: node_config.public_key_string(),
-            layer: 666,
-            last_seen: 666,
+            layer: node_config.layer as u64,
         };
         Notifier {
             net_client,

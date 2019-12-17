@@ -14,7 +14,6 @@ pub struct MixNodePresence {
     pub host: String,
     pub pub_key: String,
     pub layer: u64,
-    pub last_seen: i64,
 }
 
 #[derive(Deserialize, Serialize)]

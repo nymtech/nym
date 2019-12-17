@@ -2,8 +2,6 @@ use crate::clients::directory;
 use crate::clients::directory::presence::Topology;
 use crate::clients::directory::requests::presence_topology_get::PresenceTopologyGetRequester;
 use crate::clients::directory::DirectoryClient;
-use crate::clients::mix::MixClient;
-use crate::clients::provider::ProviderClient;
 use crate::utils::bytes;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use sphinx::route::Node as SphinxNode;

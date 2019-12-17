@@ -69,8 +69,34 @@ fn main() {
 }
 
 fn run(matches: &ArgMatches) {
+    let config = new_config(matches);
+    let provider = ServiceProvider::new(&config);
+
+    // Start sending presence notifications in a separate thread
+    thread::spawn(move || {
+        let notifier = presence::Notifier::new(&config);
+        notifier.run();
+    });
+
+    provider.start_listening().unwrap()
+}
+
+fn execute(matches: ArgMatches) -> Result<(), String> {
+    match matches.subcommand() {
+        ("run", Some(m)) => Ok(run(m)),
+        _ => Err(usage()),
+    }
+}
+
+fn new_config(matches: &ArgMatches) -> provider::Config {
     println!("Running the service provider!");
     let is_local = matches.is_present("local");
+
+    let directory_server = if is_local {
+        "http://localhost:8080".to_string()
+    } else {
+        "https://directory.nymtech.net".to_string()
+    };
 
     let mix_host = matches.value_of("mixHost").unwrap_or("0.0.0.0");
     let mix_port = match matches.value_of("mixPort").unwrap_or("8085").parse::<u16>() {
@@ -83,19 +109,9 @@ fn run(matches: &ArgMatches) {
         .value_of("clientPort")
         .unwrap_or("9000")
         .parse::<u16>()
+    {
         Ok(n) => n,
         Err(err) => panic!("Invalid port value provided - {:?}", err),
-    };
-
-    let secret_key: Scalar = match matches.value_of("keyfile") {
-        Some(keyfile) => {
-            println!("Todo: load keyfile from <{:?}>", keyfile);
-            Default::default()
-        }
-        None => {
-            println!("Todo: generate fresh sphinx keypair");
-            Default::default()
-        }
     };
 
     let store_dir = PathBuf::from(matches.value_of("storeDir").unwrap_or("/tmp/nym-provider"));
@@ -129,28 +145,13 @@ fn run(matches: &ArgMatches) {
         client_socket_address
     );
 
-    // Start sending presence notifications in a separate thread
-    thread::spawn(move || {
-        let notifier = presence::Notifier::new(is_local.clone());
-        notifier.run();
-    });
-
-    // make sure our socket_address is equal to our predefined-hardcoded value
-    // assert_eq!("127.0.0.1:8081", mix_socket_address.to_string());
-
-    let provider = ServiceProvider::new(
-        mix_socket_address,
+    provider::Config {
+        directory_server,
+        public_key,
         client_socket_address,
+        mix_socket_address,
         secret_key,
-        store_dir,
-    );
-    provider.start_listening().unwrap()
-}
-
-fn execute(matches: ArgMatches) -> Result<(), String> {
-    match matches.subcommand() {
-        ("run", Some(m)) => Ok(run(m)),
-        _ => Err(usage()),
+        store_dir: PathBuf::from(store_dir),
     }
 }
 

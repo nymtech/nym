@@ -1,3 +1,4 @@
+use crate::provider;
 use nym_client::clients::directory;
 use nym_client::clients::directory::DirectoryClient;
 use std::thread;
@@ -13,18 +14,14 @@ pub struct Notifier {
 }
 
 impl Notifier {
-    pub fn new(is_local: bool) -> Notifier {
-        let url = if is_local {
-            "http://localhost:8080".to_string()
-        } else {
-            "https://directory.nymtech.net".to_string()
+    pub fn new(config: &provider::Config) -> Notifier {
+        let directory_config = directory::Config {
+            base_url: config.directory_server.clone(),
         };
-
-        let config = directory::Config { base_url: url };
-        let net_client = directory::Client::new(config);
+        let net_client = directory::Client::new(directory_config);
         let presence = MixProviderPresence {
-            host: "halpin.org:6666".to_string(),
-            pub_key: "superkey".to_string(),
+            host: config.mix_socket_address.to_string(),
+            pub_key: config.public_key_string(),
             registered_clients: vec![],
         };
         Notifier {

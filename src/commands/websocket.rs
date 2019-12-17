@@ -4,6 +4,8 @@ use clap::ArgMatches;
 use std::net::ToSocketAddrs;
 
 pub fn execute(matches: &ArgMatches) {
+    println!("{}", banner());
+
     let port = match matches.value_of("port").unwrap().parse::<u16>() {
         Ok(n) => n,
         Err(err) => panic!("Invalid port value provided - {:?}", err),

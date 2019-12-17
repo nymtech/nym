@@ -1,3 +1,4 @@
+use crate::banner;
 use crate::clients::NymClient;
 use crate::identity::mixnet;
 use crate::persistence::pathfinder::Pathfinder;
@@ -5,6 +6,8 @@ use crate::persistence::pemstore::PemStore;
 use clap::ArgMatches;
 
 pub fn execute(matches: &ArgMatches) {
+    println!("{}", banner());
+
     let is_local = matches.is_present("local");
 
     let id = matches.value_of("id").unwrap().to_string();

@@ -113,10 +113,6 @@ impl ClientRequestProcessor {
         let mut result = [0u8; 32];
         result.copy_from_slice(&auth_token.result().code().to_vec());
         AuthToken{value: result}
-//        let hash= sha2::Sha256::digest(&data).to_vec();
-//        let mut result = [0u8; 32];
-//        result.copy_from_slice(&hash);
-//        AuthToken{value: result}
     }
 
 }

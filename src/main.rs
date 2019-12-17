@@ -1,7 +1,7 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
 use std::process;
 
-mod clients;
+pub mod clients;
 mod commands;
 mod identity;
 mod persistence;
@@ -48,6 +48,11 @@ fn main() {
                         .takes_value(true)
                         .required(true),
                 )
+                .arg(Arg::with_name("local")
+                    .long("local")
+                    .help("Flag to indicate whether the client is expected to run on the local deployment.")
+                    .takes_value(false)
+                )
         )
         .subcommand(
             SubCommand::with_name("websocket")
@@ -59,6 +64,11 @@ fn main() {
                         .help("Port to listen on")
                         .takes_value(true)
                         .required(true),
+                )
+                .arg(Arg::with_name("local")
+                    .long("local")
+                    .help("Flag to indicate whether the client is expected to run on the local deployment.")
+                    .takes_value(false)
                 )
         )
         .get_matches();

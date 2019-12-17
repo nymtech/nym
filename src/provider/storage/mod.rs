@@ -68,9 +68,6 @@ impl ClientStorage {
 
         // TODO: what to do with surbIDs??
 
-        // TODO: this should be called when client sends 'register' request!
-        std::fs::create_dir_all(full_store_dir)?;
-
         // we can use normal io here, no need for tokio as it's all happening in one thread per connection
         let mut file = File::create(full_store_path)?;
         file.write_all(store_data.message.as_ref())?;

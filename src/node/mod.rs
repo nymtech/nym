@@ -1,23 +1,23 @@
+use curve25519_dalek::montgomery::MontgomeryPoint;
+use curve25519_dalek::scalar::Scalar;
+use futures::channel::mpsc;
+use futures::lock::Mutex;
+use sphinx::header::delays::Delay as SphinxDelay;
+use sphinx::{ProcessedPacket, SphinxPacket};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use futures::channel::mpsc;
-use curve25519_dalek::montgomery::MontgomeryPoint;
-use curve25519_dalek::scalar::Scalar;
-use sphinx::header::delays::Delay as SphinxDelay;
-use sphinx::{ProcessedPacket, SphinxPacket};
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
-use futures::lock::Mutex;
 
 use crate::mix_peer::MixPeer;
 use crate::node::metrics::MetricsReporter;
 use futures::SinkExt;
 use nym_client::clients::directory;
 
+mod metrics;
 mod presence;
 pub mod runner;
-mod metrics;
 
 pub struct Config {
     directory_server: String,
@@ -34,7 +34,6 @@ impl Config {
     }
 }
 
-// TODO: this will probably need to be moved elsewhere I imagine
 #[derive(Debug)]
 pub enum MixProcessingError {
     SphinxRecoveryError,
@@ -59,7 +58,11 @@ struct ForwardingData {
 
 // TODO: this will need to be changed if MixPeer will live longer than our Forwarding Data
 impl ForwardingData {
-    fn new(packet: SphinxPacket, delay: SphinxDelay, recipient: MixPeer, sent_metrics_tx: mpsc::Sender<String>,
+    fn new(
+        packet: SphinxPacket,
+        delay: SphinxDelay,
+        recipient: MixPeer,
+        sent_metrics_tx: mpsc::Sender<String>,
     ) -> Self {
         ForwardingData {
             packet,
@@ -78,8 +81,16 @@ struct ProcessingData {
 }
 
 impl ProcessingData {
-    fn new(secret_key: Scalar, received_metrics_tx: mpsc::Sender<()>, sent_metrics_tx: mpsc::Sender<String>) -> Self {
-        ProcessingData { secret_key, received_metrics_tx, sent_metrics_tx }
+    fn new(
+        secret_key: Scalar,
+        received_metrics_tx: mpsc::Sender<()>,
+        sent_metrics_tx: mpsc::Sender<String>,
+    ) -> Self {
+        ProcessingData {
+            secret_key,
+            received_metrics_tx,
+            sent_metrics_tx,
+        }
     }
 
     fn add_arc_mutex(self) -> Arc<Mutex<Self>> {
@@ -111,28 +122,38 @@ impl PacketProcessor {
 
         let next_mix = MixPeer::new(next_hop_address);
 
-        let fwd_data = ForwardingData::new(next_packet, delay, next_mix, processing_data.sent_metrics_tx.clone());
+        let fwd_data = ForwardingData::new(
+            next_packet,
+            delay,
+            next_mix,
+            processing_data.sent_metrics_tx.clone(),
+        );
         Ok(fwd_data)
     }
 
     async fn wait_and_forward(mut forwarding_data: ForwardingData) {
         let delay_duration = Duration::from_nanos(forwarding_data.delay.get_value());
         tokio::time::delay_for(delay_duration).await;
-        forwarding_data.sent_metrics_tx.send(forwarding_data.recipient.to_string()).await.unwrap();
+        forwarding_data
+            .sent_metrics_tx
+            .send(forwarding_data.recipient.to_string())
+            .await
+            .unwrap();
 
+        println!("RECIPIENT: {:?}", forwarding_data.recipient);
         match forwarding_data
             .recipient
             .send(forwarding_data.packet.to_bytes())
             .await
-            {
-                Ok(()) => (),
-                Err(e) => {
-                    println!(
-                        "failed to write bytes to next mix peer. err = {:?}",
-                        e.to_string()
-                    );
-                }
+        {
+            Ok(()) => (),
+            Err(e) => {
+                println!(
+                    "failed to write bytes to next mix peer. err = {:?}",
+                    e.to_string()
+                );
             }
+        }
     }
 }
 
@@ -142,9 +163,8 @@ pub struct MixNode {
     network_address: SocketAddr,
     public_key: MontgomeryPoint,
     secret_key: Scalar,
-
-// TODO: use it later to enforce forward travel
-//    layer: usize,
+    // TODO: use it later to enforce forward travel
+    //    layer: usize,
 }
 
 impl MixNode {
@@ -154,7 +174,7 @@ impl MixNode {
             network_address: config.socket_address,
             secret_key: config.secret_key,
             public_key: config.public_key,
-//            layer: config.layer,
+            //            layer: config.layer,
         }
     }
 
@@ -177,8 +197,9 @@ impl MixNode {
                     let fwd_data = PacketProcessor::process_sphinx_data_packet(
                         buf.as_ref(),
                         processing_data.clone(),
-                    ).await
-                        .unwrap();
+                    )
+                    .await
+                    .unwrap();
                     PacketProcessor::wait_and_forward(fwd_data).await;
                 }
                 Err(e) => {
@@ -202,19 +223,32 @@ impl MixNode {
         let (received_tx, received_rx) = mpsc::channel(1024);
         let (sent_tx, sent_rx) = mpsc::channel(1024);
 
-        let directory_cfg = directory::Config { base_url: self.directory_server.clone() };
-        let pub_key_str = base64::encode_config(&self.public_key.to_bytes().to_vec(), base64::URL_SAFE);
+        let directory_cfg = directory::Config {
+            base_url: self.directory_server.clone(),
+        };
+        let pub_key_str =
+            base64::encode_config(&self.public_key.to_bytes().to_vec(), base64::URL_SAFE);
 
         let metrics = MetricsReporter::new().add_arc_mutex();
-        rt.spawn(MetricsReporter::run_received_metrics_control(metrics.clone(), received_rx));
-        rt.spawn(MetricsReporter::run_sent_metrics_control(metrics.clone(), sent_rx));
-        rt.spawn(MetricsReporter::run_metrics_sender(metrics, directory_cfg, pub_key_str));
-
+        rt.spawn(MetricsReporter::run_received_metrics_control(
+            metrics.clone(),
+            received_rx,
+        ));
+        rt.spawn(MetricsReporter::run_sent_metrics_control(
+            metrics.clone(),
+            sent_rx,
+        ));
+        rt.spawn(MetricsReporter::run_metrics_sender(
+            metrics,
+            directory_cfg,
+            pub_key_str,
+        ));
 
         // Spawn the root task
         rt.block_on(async {
             let mut listener = tokio::net::TcpListener::bind(self.network_address).await?;
-            let processing_data = ProcessingData::new(self.secret_key, received_tx, sent_tx).add_arc_mutex();
+            let processing_data =
+                ProcessingData::new(self.secret_key, received_tx, sent_tx).add_arc_mutex();
 
             loop {
                 let (socket, _) = listener.accept().await?;

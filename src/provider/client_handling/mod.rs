@@ -1,5 +1,5 @@
 use crate::provider::storage::{ClientStorage, StoreError};
-use sfw_provider_requests::requests::{ProviderRequestError, ProviderRequests, PullRequest, RegisterRequest, ProviderRequest};
+use sfw_provider_requests::requests::{ProviderRequestError, ProviderRequests, PullRequest, RegisterRequest, ProviderRequest, AuthToken};
 use sfw_provider_requests::responses::{ProviderResponse, PullResponse, RegisterResponse};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
@@ -16,10 +16,6 @@ pub enum ClientProcessingError {
     ClientDoesntExistError,
     StoreError,
     InvalidRequest,
-}
-
-struct AuthToken {
-    value : Vec<u8>
 }
 
 impl From<ProviderRequestError> for ClientProcessingError {
@@ -92,10 +88,8 @@ impl ClientRequestProcessor {
         println!("Processing register new client request!");
         let auth_token = ClientRequestProcessor::generate_new_auth_token(req.destination_address.to_vec());
         registered_client_ledger.insert(auth_token.value.clone(), req.destination_address.to_vec());
-
         ClientRequestProcessor::create_storage_dir(req.destination_address, store_dir);
         Ok(RegisterResponse::new(auth_token.value))
-
     }
 
     fn create_storage_dir(client_address : sphinx::route::DestinationAddressBytes, store_dir: &Path) -> io::Result<()>{

@@ -49,14 +49,21 @@ where
 }
 
 #[derive(Debug)]
+pub struct AuthToken {
+    pub value : Vec<u8>
+}
+
+#[derive(Debug)]
 pub struct PullRequest {
     // TODO: public keys, signatures, tokens, etc. basically some kind of authentication bs
+    pub auth_token: AuthToken,
     pub destination_address: sphinx::route::DestinationAddressBytes,
 }
 
 impl PullRequest {
-    pub fn new(destination_address: sphinx::route::DestinationAddressBytes) -> Self {
+    pub fn new(destination_address: sphinx::route::DestinationAddressBytes, auth_token: AuthToken) -> Self {
         PullRequest {
+            auth_token,
             destination_address,
         }
     }
@@ -89,7 +96,10 @@ impl ProviderRequest for PullRequest {
         let mut destination_address = [0u8; 32];
         destination_address.copy_from_slice(&bytes[2..]);
 
+        let auth_token = bytes[32..].to_vec();
+
         Ok(PullRequest {
+            auth_token: AuthToken{value: auth_token},
             destination_address,
         })
     }
@@ -128,7 +138,8 @@ mod creating_pull_request {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
             0, 1, 2,
         ];
-        let pull_request = PullRequest::new(address);
+        let auth_token = AuthToken {value: vec![1u8; 10]};
+        let pull_request = PullRequest::new(address, auth_token);
         let bytes = pull_request.to_bytes();
 
         let recovered = PullRequest::from_bytes(&bytes).unwrap();
@@ -141,7 +152,8 @@ mod creating_pull_request {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
             0, 1, 2,
         ];
-        let pull_request = PullRequest::new(address);
+        let auth_token = AuthToken {value: vec![1u8; 10]};
+        let pull_request = PullRequest::new(address, auth_token);
         let bytes = pull_request.to_bytes();
 
         let recovered = ProviderRequests::from_bytes(&bytes).unwrap();

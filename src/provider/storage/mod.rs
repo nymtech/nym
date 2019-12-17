@@ -66,6 +66,11 @@ impl ClientStorage {
             store_data.message, full_store_path
         );
 
+        println!(
+            "string message: {:?}",
+            std::str::from_utf8(&store_data.message)
+        );
+
         // TODO: what to do with surbIDs??
 
         // TODO: this should be called when client sends 'register' request!

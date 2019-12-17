@@ -10,6 +10,7 @@ use tokio::runtime::Runtime;
 use crate::provider::client_handling::{ClientProcessingData, ClientRequestProcessor};
 use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
 use crate::provider::storage::ClientStorage;
+use futures::io::Error;
 
 mod client_handling;
 mod mix_handling;
@@ -19,6 +20,32 @@ mod storage;
 // TODO: if we ever create config file, this should go there
 const STORED_MESSAGE_FILENAME_LENGTH: usize = 16;
 const MESSAGE_RETRIEVAL_LIMIT: usize = 2;
+
+#[derive(Debug)]
+pub enum ProviderError {
+    TcpListenerBindingError,
+    TcpListenerConnectionError,
+    TcpListenerUnexpectedEof,
+
+    TcpListenerUnknownError,
+}
+
+impl From<io::Error> for ProviderError {
+    fn from(err: Error) -> Self {
+        use ProviderError::*;
+        match err.kind() {
+            io::ErrorKind::ConnectionRefused => TcpListenerConnectionError,
+            io::ErrorKind::ConnectionReset => TcpListenerConnectionError,
+            io::ErrorKind::ConnectionAborted => TcpListenerConnectionError,
+            io::ErrorKind::NotConnected => TcpListenerConnectionError,
+
+            io::ErrorKind::AddrInUse => TcpListenerBindingError,
+            io::ErrorKind::AddrNotAvailable => TcpListenerBindingError,
+            io::ErrorKind::UnexpectedEof => TcpListenerUnexpectedEof,
+            _ => TcpListenerUnknownError,
+        }
+    }
+}
 
 pub struct ServiceProvider {
     mix_network_address: SocketAddr,
@@ -127,9 +154,9 @@ impl ServiceProvider {
         }
     }
 
-    async fn start_mixnet_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let mut listener = tokio::net::TcpListener::bind(self.mix_network_address).await?;
-        let processing_data = MixProcessingData::new(self.secret_key, self.store_dir.clone()).add_arc_rwlock();
+    async fn start_mixnet_listening(address: SocketAddr, secret_key: Scalar, store_dir: PathBuf) -> Result<(), ProviderError> {
+        let mut listener = tokio::net::TcpListener::bind(address).await?;
+        let processing_data = MixProcessingData::new(secret_key, store_dir).add_arc_rwlock();
 
         loop {
             let (socket, _) = listener.accept().await?;
@@ -142,9 +169,9 @@ impl ServiceProvider {
         }
     }
 
-    async fn start_client_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let mut listener = tokio::net::TcpListener::bind(self.client_network_address).await?;
-        let processing_data = ClientProcessingData::new(self.store_dir.clone()).add_arc_rwlock();
+    async fn start_client_listening(address: SocketAddr, store_dir: PathBuf) -> Result<(), ProviderError> {
+        let mut listener = tokio::net::TcpListener::bind(address).await?;
+        let processing_data = ClientProcessingData::new(store_dir).add_arc_rwlock();
 
         loop {
             let (socket, _) = listener.accept().await?;
@@ -157,19 +184,17 @@ impl ServiceProvider {
         }
     }
 
-    async fn start_listeners(&self) -> (Result<(), Box<dyn std::error::Error>>, Result<(), Box<dyn std::error::Error>>) {
-        futures::future::join(self.start_mixnet_listening(), self.start_client_listening()).await
-    }
-
     pub fn start_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
         // Create the runtime, probably later move it to Provider struct itself?
         // TODO: figure out the difference between Runtime and Handle
         let mut rt = Runtime::new()?;
         //        let mut h = rt.handle();
 
+        let mix_future = rt.spawn(ServiceProvider::start_mixnet_listening(self.mix_network_address, self.secret_key, self.store_dir.clone()));
+        let client_future = rt.spawn(ServiceProvider::start_client_listening(self.client_network_address, self.store_dir.clone()));
         // Spawn the root task
         rt.block_on(async {
-            let future_results = self.start_listeners().await;
+            let future_results = futures::future::join(mix_future, client_future).await;
             assert!(future_results.0.is_ok() && future_results.1.is_ok());
         });
 

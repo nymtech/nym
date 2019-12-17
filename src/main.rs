@@ -31,6 +31,12 @@ fn main() {
         .subcommand(
             SubCommand::with_name("run")
                 .about("Run a persistent Nym client process")
+                .arg(Arg::with_name("id")
+                    .long("id")
+                    .help("Id of the nym-mixnet-client we want to run.")
+                    .takes_value(true)
+                    .required(true)
+                )
                 .arg(Arg::with_name("local")
                     .long("local")
                     .help("Flag to indicate whether the client is expected to run on the local deployment.")

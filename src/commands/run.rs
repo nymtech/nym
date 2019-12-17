@@ -10,7 +10,7 @@ use clap::ArgMatches;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use sphinx::route::Destination;
 use sphinx::route::Node as SphinxNode;
-use std::net::{Ipv4Addr, SocketAddrV4};
+use std::net::SocketAddrV4;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::time::{interval_at, Instant};
@@ -34,7 +34,7 @@ pub fn execute(matches: &ArgMatches) {
             interval.tick().await;
             let message = format!("Hello, Sphinx {}", i).as_bytes().to_vec();
 
-            let route_len = 2;
+            let route_len = 1; // TODO: kill magic number
 
             // data needed to generate a new Sphinx packet
             let route = route_from(&topology, route_len);
@@ -99,6 +99,8 @@ fn route_from(topology: &Topology, route_len: usize) -> Vec<SphinxNode> {
     route
 }
 
+// Parses a String socket address, then returns it as a
+// 4+2 byte array, zero-padded to a constant size of 32 bytes.
 fn socket_bytes_from_string(address: String) -> [u8; 32] {
     let socket: SocketAddrV4 = address.parse().unwrap();
     let host_bytes = socket.ip().octets();

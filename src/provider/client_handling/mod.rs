@@ -20,6 +20,7 @@ pub enum ClientProcessingError {
     ClientDoesntExistError,
     StoreError,
     InvalidRequest,
+    WrongToken,
 }
 
 impl From<ProviderRequestError> for ClientProcessingError {
@@ -73,6 +74,7 @@ impl ClientRequestProcessor {
                 Ok(ClientRequestProcessor::process_pull_messages_request(
                     req,
                     processing_data.read().unwrap().store_dir.as_path(),
+                    &mut processing_data.read().unwrap().registered_clients_ledger.clone(),
                 )?
                 .to_bytes())
             }
@@ -82,11 +84,17 @@ impl ClientRequestProcessor {
     fn process_pull_messages_request(
         req: PullRequest,
         store_dir: &Path,
+        registered_client_ledger: &mut HashMap<[u8; 32], Vec<u8>>,
     ) -> Result<PullResponse, ClientProcessingError> {
         println!("Processing pull!");
-        let retrieved_messages =
-            ClientStorage::retrieve_client_files(req.destination_address, store_dir)?;
-        Ok(PullResponse::new(retrieved_messages))
+        if registered_client_ledger.contains_key(&req.auth_token.value){
+            let retrieved_messages =
+                ClientStorage::retrieve_client_files(req.destination_address, store_dir)?;
+            Ok(PullResponse::new(retrieved_messages))
+        } else {
+            Err(ClientProcessingError::WrongToken)
+        }
+
     }
 
     fn register_new_client(req:RegisterRequest, store_dir: &Path, registered_client_ledger: &mut HashMap<[u8; 32], Vec<u8>>, provider_secret_key: Scalar) -> Result<RegisterResponse, ClientProcessingError>{

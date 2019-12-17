@@ -28,7 +28,6 @@ fn main() {
                         .long("mixPort")
                         .help("The port on which the service provider will be listening for sphinx packets")
                         .takes_value(true)
-                        .required(true),
                 )
                 .arg(
                     Arg::with_name("clientHost")
@@ -41,7 +40,6 @@ fn main() {
                         .long("clientPort")
                         .help("The port on which the service provider will be listening for client sfw-provider-requests")
                         .takes_value(true)
-                        .required(true),
                 )
                 .arg(
                     Arg::with_name("keyfile")
@@ -56,7 +54,6 @@ fn main() {
                         .long("storeDir")
                         .help("Directory storing all packets for the clients")
                         .takes_value(true)
-                        .required(true),
                 ).arg(Arg::with_name("local")
                     .long("local")
                     .help("Flag to indicate whether the provider should run on a local deployment.")
@@ -76,13 +73,16 @@ fn run(matches: &ArgMatches) {
     let is_local = matches.is_present("local");
 
     let mix_host = matches.value_of("mixHost").unwrap_or("0.0.0.0");
-    let mix_port = match matches.value_of("mixPort").unwrap().parse::<u16>() {
+    let mix_port = match matches.value_of("mixPort").unwrap_or("8085").parse::<u16>() {
         Ok(n) => n,
         Err(err) => panic!("Invalid port value provided - {:?}", err),
     };
 
     let client_host = matches.value_of("clientHost").unwrap_or("0.0.0.0");
-    let client_port = match matches.value_of("clientPort").unwrap().parse::<u16>() {
+    let client_port = match matches
+        .value_of("clientPort")
+        .unwrap_or("9000")
+        .parse::<u16>()
         Ok(n) => n,
         Err(err) => panic!("Invalid port value provided - {:?}", err),
     };
@@ -98,7 +98,8 @@ fn run(matches: &ArgMatches) {
         }
     };
 
-    let store_dir = PathBuf::from(matches.value_of("storeDir").unwrap());
+    let store_dir = PathBuf::from(matches.value_of("storeDir").unwrap_or("/tmp/nym-provider"));
+    let (secret_key, public_key) = sphinx::crypto::keygen();
 
     println!("The value of mix_host is: {:?}", mix_host);
     println!("The value of mix_port is: {:?}", mix_port);

@@ -1,17 +1,19 @@
 use crate::clients::directory::presence::Topology;
 use crate::clients::mix::MixClient;
+use crate::clients::provider::ProviderClient;
+use crate::sockets::ws;
 use crate::utils;
 use crate::utils::topology::get_topology;
 use futures::channel::mpsc;
+use futures::future::join5;
 use futures::select;
 use futures::{SinkExt, StreamExt};
 use sphinx::route::{Destination, DestinationAddressBytes, NodeAddressBytes};
 use sphinx::SphinxPacket;
+use std::net::SocketAddr;
+use std::net::SocketAddrV4;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use futures::future::join5;
-use crate::sockets::ws;
-use std::net::SocketAddr;
 
 pub mod directory;
 pub mod mix;
@@ -93,7 +95,8 @@ impl NymClient {
             let cover_message =
                 utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, &topology);
             tx.send(MixMessage(cover_message.0, cover_message.1))
-                .await.unwrap();
+                .await
+                .unwrap();
         }
     }
 
@@ -119,20 +122,24 @@ impl NymClient {
                     let cover_message = utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, &topology);
                     mix_tx.send(MixMessage(cover_message.0, cover_message.1)).await.unwrap();
                 }
-            }
-            ;
+            };
 
             let delay_duration = Duration::from_secs_f64(MESSAGE_SENDING_AVERAGE_DELAY);
             tokio::time::delay_for(delay_duration).await;
         }
     }
 
-    // TODO: proper return type
-    async fn start_provider_polling() {
+    async fn start_provider_polling(provider_address: SocketAddrV4) {
+        let provider_client = ProviderClient::new();
+
         loop {
             println!("[FETCH MSG] - Polling provider...");
             let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
             tokio::time::delay_for(delay_duration).await;
+            provider_client
+                .retrieve_messages(provider_address)
+                .await
+                .unwrap();
         }
     }
 
@@ -141,8 +148,14 @@ impl NymClient {
 
         let (mix_tx, mix_rx) = mpsc::unbounded();
         let mut rt = Runtime::new()?;
-
         let topology = get_topology(self.is_local);
+        let provider_address: SocketAddrV4 = topology
+            .mix_provider_nodes
+            .first()
+            .unwrap()
+            .host
+            .parse()
+            .unwrap();
 
         let mix_traffic_future = rt.spawn(MixTrafficController::run(mix_rx));
         let loop_cover_traffic_future = rt.spawn(NymClient::start_loop_cover_traffic_stream(
@@ -158,13 +171,24 @@ impl NymClient {
             topology.clone(),
         ));
 
-        let provider_polling_future = rt.spawn(NymClient::start_provider_polling());
+        let provider_polling_future = rt.spawn(NymClient::start_provider_polling(provider_address));
         let websocket_future = rt.spawn(ws::start_websocket(socket_address, self.input_tx));
 
         rt.block_on(async {
-            let future_results = join5(mix_traffic_future, loop_cover_traffic_future, out_queue_control_future, provider_polling_future, websocket_future).await;
+            let future_results = join5(
+                mix_traffic_future,
+                loop_cover_traffic_future,
+                out_queue_control_future,
+                provider_polling_future,
+                websocket_future,
+            )
+            .await;
             assert!(
-                future_results.0.is_ok() && future_results.1.is_ok() && future_results.2.is_ok() && future_results.3.is_ok() && future_results.4.is_ok()
+                future_results.0.is_ok()
+                    && future_results.1.is_ok()
+                    && future_results.2.is_ok()
+                    && future_results.3.is_ok()
+                    && future_results.4.is_ok()
             );
         });
 

@@ -1,6 +1,7 @@
 use sfw_provider_requests::requests::{ProviderRequest, PullRequest};
 use sfw_provider_requests::responses::{ProviderResponse, PullResponse};
 use std::net::Shutdown;
+use std::net::SocketAddrV4;
 use tokio::prelude::*;
 use tokio::time::Duration;
 
@@ -13,13 +14,19 @@ impl ProviderClient {
 
     pub async fn retrieve_messages(
         &self,
-        // provider: &MixNode,
+        provider: SocketAddrV4,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let address = [42; 32];
         let pull_request = PullRequest::new(address);
         let bytes = pull_request.to_bytes();
 
-        let mut socket = tokio::net::TcpStream::connect("127.0.0.1:9000").await?;
+        // DH temporary: the provider's client port is not in the topology, but we can't change that
+        // right now without messing up the existing Go mixnet. So I'm going to hardcode this
+        // for the moment until the Go mixnet goes away.
+        let provider_socket = SocketAddrV4::new(*provider.ip(), 9000);
+        println!("Provider: {:?}", provider_socket);
+
+        let mut socket = tokio::net::TcpStream::connect(provider_socket).await?;
         println!("keep alive: {:?}", socket.keepalive());
         socket.set_keepalive(Some(Duration::from_secs(2))).unwrap();
         socket.write_all(&bytes[..]).await?;

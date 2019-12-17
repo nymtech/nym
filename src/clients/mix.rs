@@ -1,6 +1,5 @@
-use sphinx::route::{Node as MixNode, NodeAddressBytes};
+use sphinx::route::NodeAddressBytes;
 use sphinx::SphinxPacket;
-use std::net::SocketAddr;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use tokio::prelude::*;
 

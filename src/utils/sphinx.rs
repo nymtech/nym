@@ -1,5 +1,6 @@
 use crate::clients::directory::presence::Topology;
 use crate::utils::{bytes, topology};
+use curve25519_dalek::montgomery::MontgomeryPoint;
 use sphinx::route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier};
 use sphinx::SphinxPacket;
 
@@ -21,10 +22,15 @@ pub fn encapsulate_message(
     topology: &Topology,
 ) -> (NodeAddressBytes, SphinxPacket) {
     let mixes_route = topology::route_from(&topology, 1);
+    let first_provider = topology.mix_provider_nodes.first().unwrap();
+    let decoded_key_bytes =
+        base64::decode_config(&first_provider.pub_key, base64::URL_SAFE).unwrap();
+    let key_bytes = bytes::zero_pad_to_32(decoded_key_bytes);
+    let key = MontgomeryPoint(key_bytes);
 
     let provider = Node::new(
-        topology::socket_bytes_from_string("127.0.0.1:8081".to_string()),
-        Default::default(),
+        topology::socket_bytes_from_string(first_provider.host.clone()),
+        key,
     );
 
     let route = [mixes_route, vec![provider]].concat();

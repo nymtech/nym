@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::process;
 use std::thread;
 
-mod provider;
+pub mod provider;
 
 fn main() {
     let arg_matches = App::new("Nym Service Provider")

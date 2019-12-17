@@ -9,7 +9,7 @@ use sphinx::route::{Destination, DestinationAddressBytes, NodeAddressBytes};
 use sphinx::SphinxPacket;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use futures::future::{join3, join4};
+use futures::future::join4;
 
 pub mod directory;
 pub mod mix;
@@ -117,7 +117,8 @@ impl NymClient {
                     let cover_message = utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, &topology);
                     mix_tx.send(MixMessage(cover_message.0, cover_message.1)).await.unwrap();
                 }
-            };
+            }
+            ;
 
             let delay_duration = Duration::from_secs_f64(MESSAGE_SENDING_AVERAGE_DELAY);
             tokio::time::delay_for(delay_duration).await;

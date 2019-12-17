@@ -20,7 +20,7 @@ use crate::clients::directory::requests::presence_topology_get::{
     PresenceTopologyGetRequester, Request as PresenceTopologyRequest,
 };
 
-mod metrics;
+pub mod metrics;
 pub mod presence;
 pub mod requests;
 

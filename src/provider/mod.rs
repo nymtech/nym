@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::RwLock;
 
+use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
@@ -20,6 +21,22 @@ mod storage;
 // TODO: if we ever create config file, this should go there
 const STORED_MESSAGE_FILENAME_LENGTH: usize = 16;
 const MESSAGE_RETRIEVAL_LIMIT: usize = 2;
+
+pub struct Config {
+    pub client_socket_address: SocketAddr,
+    pub directory_server: String,
+    pub mix_socket_address: SocketAddr,
+    pub public_key: MontgomeryPoint,
+    pub secret_key: Scalar,
+    pub store_dir: PathBuf,
+}
+
+impl Config {
+    pub fn public_key_string(&self) -> String {
+        let key_bytes = self.public_key.to_bytes().to_vec();
+        base64::encode_config(&key_bytes, base64::URL_SAFE)
+    }
+}
 
 #[derive(Debug)]
 pub enum ProviderError {
@@ -55,17 +72,19 @@ pub struct ServiceProvider {
 }
 
 impl ServiceProvider {
-    pub fn new(mix_network_address: SocketAddr, client_network_address: SocketAddr, secret_key: Scalar, store_dir: PathBuf) -> Self {
+    pub fn new(config: &Config) -> Self {
         ServiceProvider {
-            mix_network_address,
-            client_network_address,
-            secret_key,
-            store_dir,
+            mix_network_address: config.mix_socket_address,
+            client_network_address: config.client_socket_address,
+            secret_key: config.secret_key,
+            store_dir: PathBuf::from(config.store_dir.clone()),
         }
     }
 
-
-    async fn process_mixnet_socket_connection(mut socket: tokio::net::TcpStream, processing_data: Arc<RwLock<MixProcessingData>>) {
+    async fn process_mixnet_socket_connection(
+        mut socket: tokio::net::TcpStream,
+        processing_data: Arc<RwLock<MixProcessingData>>,
+    ) {
         let mut buf = [0u8; sphinx::PACKET_SIZE];
 
         // In a loop, read data from the socket and write the data back.
@@ -77,14 +96,21 @@ impl ServiceProvider {
                     return;
                 }
                 Ok(_) => {
-                    let store_data = match MixPacketProcessor::process_sphinx_data_packet(buf.as_ref(), processing_data.as_ref()) {
+                    let store_data = match MixPacketProcessor::process_sphinx_data_packet(
+                        buf.as_ref(),
+                        processing_data.as_ref(),
+                    ) {
                         Ok(sd) => sd,
                         Err(e) => {
                             eprintln!("failed to process sphinx packet; err = {:?}", e);
                             return;
                         }
                     };
-                    ClientStorage::store_processed_data(store_data, processing_data.read().unwrap().store_dir.as_path()).unwrap_or_else(|e| {
+                    ClientStorage::store_processed_data(
+                        store_data,
+                        processing_data.read().unwrap().store_dir.as_path(),
+                    )
+                    .unwrap_or_else(|e| {
                         eprintln!("failed to store processed sphinx message; err = {:?}", e);
                         return;
                     });
@@ -113,7 +139,10 @@ impl ServiceProvider {
     }
 
     // TODO: FIGURE OUT HOW TO SET READ_DEADLINES IN TOKIO
-    async fn process_client_socket_connection(mut socket: tokio::net::TcpStream, processing_data: Arc<RwLock<ClientProcessingData>>) {
+    async fn process_client_socket_connection(
+        mut socket: tokio::net::TcpStream,
+        processing_data: Arc<RwLock<ClientProcessingData>>,
+    ) {
         let mut buf = [0; 1024];
 
         // TODO: restore the for loop once we go back to persistent tcp socket connection
@@ -124,7 +153,10 @@ impl ServiceProvider {
                 Err(())
             }
             Ok(n) => {
-                match ClientRequestProcessor::process_client_request(buf[..n].as_ref(), processing_data.as_ref()) {
+                match ClientRequestProcessor::process_client_request(
+                    buf[..n].as_ref(),
+                    processing_data.as_ref(),
+                ) {
                     Err(e) => {
                         eprintln!("failed to process client request; err = {:?}", e);
                         Err(())
@@ -154,7 +186,11 @@ impl ServiceProvider {
         }
     }
 
-    async fn start_mixnet_listening(address: SocketAddr, secret_key: Scalar, store_dir: PathBuf) -> Result<(), ProviderError> {
+    async fn start_mixnet_listening(
+        address: SocketAddr,
+        secret_key: Scalar,
+        store_dir: PathBuf,
+    ) -> Result<(), ProviderError> {
         let mut listener = tokio::net::TcpListener::bind(address).await?;
         let processing_data = MixProcessingData::new(secret_key, store_dir).add_arc_rwlock();
 
@@ -164,12 +200,16 @@ impl ServiceProvider {
             // (if I understand it all correctly)
             let thread_processing_data = processing_data.clone();
             tokio::spawn(async move {
-                ServiceProvider::process_mixnet_socket_connection(socket, thread_processing_data).await
+                ServiceProvider::process_mixnet_socket_connection(socket, thread_processing_data)
+                    .await
             });
         }
     }
 
-    async fn start_client_listening(address: SocketAddr, store_dir: PathBuf) -> Result<(), ProviderError> {
+    async fn start_client_listening(
+        address: SocketAddr,
+        store_dir: PathBuf,
+    ) -> Result<(), ProviderError> {
         let mut listener = tokio::net::TcpListener::bind(address).await?;
         let processing_data = ClientProcessingData::new(store_dir).add_arc_rwlock();
 
@@ -179,7 +219,8 @@ impl ServiceProvider {
             // (if I understand it all correctly)
             let thread_processing_data = processing_data.clone();
             tokio::spawn(async move {
-                ServiceProvider::process_client_socket_connection(socket, thread_processing_data).await
+                ServiceProvider::process_client_socket_connection(socket, thread_processing_data)
+                    .await
             });
         }
     }
@@ -190,8 +231,15 @@ impl ServiceProvider {
         let mut rt = Runtime::new()?;
         //        let mut h = rt.handle();
 
-        let mix_future = rt.spawn(ServiceProvider::start_mixnet_listening(self.mix_network_address, self.secret_key, self.store_dir.clone()));
-        let client_future = rt.spawn(ServiceProvider::start_client_listening(self.client_network_address, self.store_dir.clone()));
+        let mix_future = rt.spawn(ServiceProvider::start_mixnet_listening(
+            self.mix_network_address,
+            self.secret_key,
+            self.store_dir.clone(),
+        ));
+        let client_future = rt.spawn(ServiceProvider::start_client_listening(
+            self.client_network_address,
+            self.store_dir.clone(),
+        ));
         // Spawn the root task
         rt.block_on(async {
             let future_results = futures::future::join(mix_future, client_future).await;

@@ -87,8 +87,10 @@ impl ClientRequestProcessor {
     fn register_new_client(req:RegisterRequest, store_dir: &Path, registered_client_ledger: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<RegisterResponse, ClientProcessingError>{
         println!("Processing register new client request!");
         let auth_token = ClientRequestProcessor::generate_new_auth_token(req.destination_address.to_vec());
-        registered_client_ledger.insert(auth_token.value.clone(), req.destination_address.to_vec());
-        ClientRequestProcessor::create_storage_dir(req.destination_address, store_dir);
+        if !registered_client_ledger.contains_key(&auth_token.value) {
+            registered_client_ledger.insert(auth_token.value.clone(), req.destination_address.to_vec());
+            ClientRequestProcessor::create_storage_dir(req.destination_address, store_dir);
+        }
         Ok(RegisterResponse::new(auth_token.value))
     }
 
@@ -99,8 +101,6 @@ impl ClientRequestProcessor {
         std::fs::create_dir_all(full_store_dir)?;
         Ok(())
     }
-
-
 
     fn generate_new_auth_token(data: Vec<u8>) -> AuthToken{
         // TODO: We can use hmac with providers secret key to have HMAC instead of SHA
@@ -120,7 +120,7 @@ mod register_new_client {
     fn registers_new_auth_token_for_each_new_client(){
         let req1 = RegisterRequest{destination_address: [1u8; 32]};
         let mut registered_client_ledger: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
-        let store_dir = Path::new("./foo/bar.txt");
+        let store_dir = Path::new("./foo/");
         assert_eq!(0, registered_client_ledger.len());
         ClientRequestProcessor::register_new_client(req1, &store_dir, &mut registered_client_ledger);
         assert_eq!(1, registered_client_ledger.len());
@@ -134,7 +134,7 @@ mod register_new_client {
     fn registers_given_token_only_once() {
         let req1 = RegisterRequest{destination_address: [1u8; 32]};
         let mut registered_client_ledger: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
-        let store_dir = Path::new("./foo/bar.txt");
+        let store_dir = Path::new("./foo/");
         ClientRequestProcessor::register_new_client(req1, &store_dir, &mut registered_client_ledger);
         let req2 = RegisterRequest{destination_address: [1u8; 32]};
         ClientRequestProcessor::register_new_client(req2, &store_dir, &mut registered_client_ledger);
@@ -142,6 +142,19 @@ mod register_new_client {
     }
 }
 
+#[cfg(test)]
+mod create_storage_dir {
+    use super::*;
+    use sphinx::route::DestinationAddressBytes;
+
+    #[test]
+    fn it_creates_a_correct_storage_directory(){
+        let client_address: DestinationAddressBytes = [1u8; 32];
+        let store_dir = Path::new("./foo/");
+        ClientRequestProcessor::create_storage_dir(client_address, store_dir);
+    }
+
+}
 #[cfg(test)]
 mod generating_new_auth_token {
     use super::*;

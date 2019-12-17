@@ -1,98 +1,148 @@
 use crate::clients::InputMessage;
 use futures::channel::mpsc;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
-use futures::stream::Stream;
-use futures::Future;
 use futures::{SinkExt, StreamExt};
-use hex::FromHexError;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use sphinx::route::Destination;
 use std::net::SocketAddr;
-use tokio::runtime::Runtime;
-use tokio_tungstenite::accept_async;
 use tungstenite::protocol::Message;
-use std::time::Duration;
+use std::io;
+use futures::io::Error;
 
 struct Connection {
     address: SocketAddr,
     rx: UnboundedReceiver<Message>,
     tx: UnboundedSender<Message>,
+
+    msg_input: mpsc::UnboundedSender<InputMessage>,
 }
 
 #[derive(Debug)]
-enum WebSocketError {
-    InvalidDestinationEncoding,
-    InvalidDestinationLength,
+pub enum WebSocketError {
+    FailedToStartSocketError,
+    UnknownSocketError,
 }
 
-impl From<hex::FromHexError> for WebSocketError {
-    fn from(_: FromHexError) -> Self {
+impl From<io::Error> for WebSocketError {
+    fn from(err: Error) -> Self {
         use WebSocketError::*;
+        match err.kind() {
+            io::ErrorKind::ConnectionRefused => FailedToStartSocketError,
+            io::ErrorKind::ConnectionReset => FailedToStartSocketError,
+            io::ErrorKind::ConnectionAborted => FailedToStartSocketError,
+            io::ErrorKind::NotConnected => FailedToStartSocketError,
 
-        InvalidDestinationEncoding
+            io::ErrorKind::AddrInUse => FailedToStartSocketError,
+            io::ErrorKind::AddrNotAvailable => FailedToStartSocketError,
+            _ => UnknownSocketError,
+        }
     }
 }
 
 
+
 #[derive(Serialize, Deserialize, Debug)]
-struct ClientMessageJSON {
-    message: String,
-    recipient_address: String,
+#[serde(tag = "type", rename_all = "camelCase")]
+enum ClientRequest {
+    Send { message: String, recipient_address: String },
+    Fetch,
+    GetClients,
+    OwnDetails,
+}
+
+impl From<Message> for ClientRequest {
+    fn from(msg: Message) -> Self {
+        let text_msg = match msg {
+            Message::Text(msg) => msg,
+            Message::Binary(_) => panic!("binary messages are not supported!"),
+            Message::Close(_) => panic!("todo: handle close!"),
+            _ => panic!("Other types of messages are also unsupported!"),
+        };
+        serde_json::from_str(&text_msg).unwrap()
+    }
+}
+
+impl ClientRequest {
+    async fn handle_send(msg: String, recipient_address: String, mut input_tx: mpsc::UnboundedSender<InputMessage>) -> ServerResponse {
+        let address_vec = match hex::decode(recipient_address) {
+            Err(e) => return ServerResponse::Error { message: e.to_string() },
+            Ok(hex) => hex,
+        };
+
+        if address_vec.len() != 32 {
+            return ServerResponse::Error { message: "InvalidDestinationLength".to_string() };
+        }
+
+        let mut address = [0; 32];
+        address.copy_from_slice(&address_vec);
+
+        let dummy_surb = [0; 16];
+
+        let input_msg = InputMessage(
+            Destination::new(address, dummy_surb),
+            msg.into_bytes(),
+        );
+
+        input_tx.send(input_msg).await.unwrap();
+
+        ServerResponse::Send
+    }
+
+    async fn handle_fetch() -> ServerResponse {
+        ServerResponse::Error { message: "NOT IMPLEMENTED".to_string() }
+    }
+
+    async fn handle_get_clients() -> ServerResponse {
+        ServerResponse::Error { message: "NOT IMPLEMENTED".to_string() }
+    }
+
+    async fn handle_own_details() -> ServerResponse {
+        ServerResponse::Error { message: "NOT IMPLEMENTED".to_string() }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "type", rename_all = "camelCase")]
+enum ServerResponse {
+    Send,
+    Fetch { messages: Vec<Vec<u8>> },
+    GetClients { clients: Vec<String> },
+    OwnDetails { address: String },
+    Error { message: String },
 }
 
 fn dummy_response() -> Message {
     Message::Text("foomp".to_string())
 }
 
+impl Into<Message> for ServerResponse {
+    fn into(self) -> Message {
+        dummy_response()
+    }
+}
+
+
 async fn handle_connection(conn: Connection) {
     let mut conn = conn;
     while let Some(msg) = conn.rx.next().await {
         println!("Received a message from {}: {}", conn.address, msg);
-        // TODO: currently only hardcoded sends are supported
-        let parsed_message = parse_message(msg);
-        println!("parsed: {:?}", parsed_message);
-        println!("test async pre wait");
+        let request: ClientRequest = msg.into();
 
-        tokio::time::delay_for(Duration::from_secs(2)).await;
+        let response = match request {
+            ClientRequest::Send { message, recipient_address } => ClientRequest::handle_send(message, recipient_address, conn.msg_input.clone()).await,
+            ClientRequest::Fetch => ClientRequest::handle_fetch().await,
+            ClientRequest::GetClients => ClientRequest::handle_get_clients().await,
+            ClientRequest::OwnDetails => ClientRequest::handle_own_details().await,
+        };
 
-        println!("test async post wait");
         conn
             .tx
-            .unbounded_send(dummy_response())
+            .unbounded_send(response.into())
             .expect("Failed to forward message");
     }
 }
 
-// Proves we can call Rust methods from the websocket listener. Re-route it to wherever JS puts
-// the `send_message` functionality.
-fn parse_message(msg: Message) -> Result<InputMessage, WebSocketError> {
-    let text_msg = match msg {
-        Message::Text(msg) => msg,
-        Message::Binary(_) => panic!("binary messages are not supported!"),
-        Message::Close(_) => panic!("todo: handle close!"),
-        _ => panic!("Other types of messages are also unsupported!"),
-    };
-
-    let raw_msg: ClientMessageJSON = serde_json::from_str(&text_msg).unwrap();
-    let address_vec = hex::decode(raw_msg.recipient_address)?;
-
-    if address_vec.len() != 32 {
-        return Err(WebSocketError::InvalidDestinationLength);
-    }
-
-    let mut address = [0; 32];
-    address.copy_from_slice(&address_vec);
-
-    let dummy_surb = [0; 16];
-
-    Ok(InputMessage(
-        Destination::new(address, dummy_surb),
-        raw_msg.message.into_bytes(),
-    ))
-}
-
-async fn accept_connection(stream: tokio::net::TcpStream) {
+async fn accept_connection(stream: tokio::net::TcpStream, msg_input: mpsc::UnboundedSender<InputMessage>) {
     let address = stream
         .peer_addr()
         .expect("connected streams should have a peer address");
@@ -113,6 +163,8 @@ async fn accept_connection(stream: tokio::net::TcpStream) {
         address,
         rx: msg_rx,
         tx: response_tx,
+
+        msg_input,
     };
     tokio::spawn(handle_connection(conn));
 
@@ -127,21 +179,16 @@ async fn accept_connection(stream: tokio::net::TcpStream) {
     }
 }
 
+pub async fn start_websocket(address: SocketAddr, message_tx: mpsc::UnboundedSender<InputMessage>) -> Result<(), WebSocketError> {
+    let mut listener = tokio::net::TcpListener::bind(address).await?;
 
+    while let Ok((stream, _)) = listener.accept().await {
+        // it's fine to be cloning the channel on all new connection, because in principle
+        // this server should only EVER have a single client connected
+        tokio::spawn(accept_connection(stream, message_tx.clone()));
+    }
 
-pub fn start(address: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
-    let mut rt = Runtime::new()?;
-
-    rt.block_on(async {
-        let mut listener = tokio::net::TcpListener::bind(address).await?;
-
-        while let Ok((stream, _)) = listener.accept().await {
-            // TODO: should it rather be rt.spawn?
-            tokio::spawn(accept_connection(stream));
-        }
-
-        eprintln!("The websocket went kaput...");
-        Ok(())
-    })
+    eprintln!("The websocket went kaput...");
+    Ok(())
 }
 

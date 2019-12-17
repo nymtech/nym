@@ -17,14 +17,16 @@ use tokio::runtime::Runtime;
 use tokio::time::{interval_at, Instant};
 
 pub fn execute(matches: &ArgMatches) {
-    let is_local = matches.is_present("local");
-    println!("Starting client, local: {:?}", is_local);
+    unimplemented!() // currently the 'run' starts websocket!
 
-    // todo: to be taken from config or something
-    let my_address = [42u8; 32];
-    let is_local = true;
-    let client = NymClient::new(my_address, is_local);
-    client.start().unwrap();
+    //    let is_local = matches.is_present("local");
+    //    println!("Starting client, local: {:?}", is_local);
+    //
+    //    // todo: to be taken from config or something
+    //    let my_address = [42u8; 32];
+    //    let is_local = true;
+    //    let client = NymClient::new(my_address, is_local);
+    //    client.start().unwrap();
     // Grab the network topology from the remote directory server
     //    let topology = get_topology(is_local);
 

@@ -1,5 +1,5 @@
 use crate::banner;
-use crate::sockets::ws;
+use crate::clients::NymClient;
 use clap::ArgMatches;
 use std::net::ToSocketAddrs;
 
@@ -19,5 +19,13 @@ pub fn execute(matches: &ArgMatches) {
         .next()
         .expect("Failed to extract the socket address from the iterator");
 
-    ws::start(socket_address);
+    let is_local = matches.is_present("local");
+    println!("Starting client, local: {:?}", is_local);
+
+    // todo: to be taken from config or something
+    let my_address = [42u8; 32];
+    let is_local = true;
+    let client = NymClient::new(my_address, is_local);
+
+    client.start(socket_address).unwrap();
 }

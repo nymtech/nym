@@ -9,7 +9,9 @@ use sphinx::route::{Destination, DestinationAddressBytes, NodeAddressBytes};
 use sphinx::SphinxPacket;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use futures::future::join4;
+use futures::future::join5;
+use crate::sockets::ws;
+use std::net::SocketAddr;
 
 pub mod directory;
 pub mod mix;
@@ -17,7 +19,7 @@ pub mod provider;
 pub mod validator;
 
 // TODO: put that in config once it exists
-const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
+const LOOP_COVER_AVERAGE_DELAY: f64 = 10.0;
 // assume seconds
 const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 10.0;
 // assume seconds;
@@ -134,29 +136,13 @@ impl NymClient {
         }
     }
 
-    pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn start(self, socket_address: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
         println!("starting nym client");
 
         let (mix_tx, mix_rx) = mpsc::unbounded();
         let mut rt = Runtime::new()?;
 
-
         let topology = get_topology(self.is_local);
-
-
-//        let mut input_channel = self.input_tx.clone();
-//        let bar = self.address.clone();
-//        rt.spawn(async move {
-//            loop {
-//                let foomp = Destination::new(bar, Default::default());
-//
-//                let test_message = b"foomp".to_vec();
-//                let recipient = foomp;
-//                let input_message = InputMessage(recipient, test_message);
-//                input_channel.send(input_message).await.unwrap();
-//                tokio::time::delay_for(Duration::from_secs(1)).await;
-//            }
-//        });
 
         let mix_traffic_future = rt.spawn(MixTrafficController::run(mix_rx));
         let loop_cover_traffic_future = rt.spawn(NymClient::start_loop_cover_traffic_stream(
@@ -173,13 +159,12 @@ impl NymClient {
         ));
 
         let provider_polling_future = rt.spawn(NymClient::start_provider_polling());
-
-        // TODO: websocket handler future
+        let websocket_future = rt.spawn(ws::start_websocket(socket_address, self.input_tx));
 
         rt.block_on(async {
-            let future_results = join4(mix_traffic_future, loop_cover_traffic_future, out_queue_control_future, provider_polling_future).await;
+            let future_results = join5(mix_traffic_future, loop_cover_traffic_future, out_queue_control_future, provider_polling_future, websocket_future).await;
             assert!(
-                future_results.0.is_ok() && future_results.1.is_ok() && future_results.2.is_ok() && future_results.3.is_ok()
+                future_results.0.is_ok() && future_results.1.is_ok() && future_results.2.is_ok() && future_results.3.is_ok() && future_results.4.is_ok()
             );
         });
 

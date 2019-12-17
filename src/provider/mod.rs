@@ -26,7 +26,7 @@ pub struct ServiceProvider {
     client_network_address: SocketAddr,
     secret_key: Scalar,
     store_dir: PathBuf,
-    registered_clients_ledger: HashMap<Vec<u8>, Vec<u8>>,
+    registered_clients_ledger: HashMap<[u8; 32], Vec<u8>>,
 }
 
 impl ServiceProvider {

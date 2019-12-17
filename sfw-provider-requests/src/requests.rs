@@ -50,7 +50,7 @@ pub trait ProviderRequest
 
 #[derive(Debug)]
 pub struct AuthToken {
-    pub value: Vec<u8>
+    pub value: [u8; 32]
 }
 
 #[derive(Debug)]
@@ -83,7 +83,7 @@ impl ProviderRequest for PullRequest {
     }
 
     fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderRequestError> {
-        if bytes.len() != 2 + 32 {
+        if bytes.len() != 2 + 32 + 32 {
             return Err(ProviderRequestError::UnmarshalError);
         }
 
@@ -96,7 +96,8 @@ impl ProviderRequest for PullRequest {
         let mut destination_address = [0u8; 32];
         destination_address.copy_from_slice(&bytes[2..]);
 
-        let auth_token = bytes[32..].to_vec();
+        let mut auth_token= [0u8; 32];
+        auth_token.copy_from_slice(&bytes[34..]);
 
         Ok(PullRequest {
             auth_token: AuthToken { value: auth_token },
@@ -124,7 +125,23 @@ impl ProviderRequest for RegisterRequest {
     }
 
     fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderRequestError> {
-        unimplemented!()
+        if bytes.len() != 2 + 32 {
+            return Err(ProviderRequestError::UnmarshalError);
+        }
+
+        let mut received_prefix = [0u8; 2];
+        received_prefix.copy_from_slice(&bytes[..2]);
+        if received_prefix != Self::get_prefix() {
+            return Err(ProviderRequestError::UnmarshalErrorIncorrectPrefix);
+        }
+
+        let mut destination_address = [0u8; 32];
+        destination_address.copy_from_slice(&bytes[2..]);
+
+        Ok(RegisterRequest {
+            destination_address
+        })
+
     }
 }
 
@@ -138,7 +155,7 @@ mod creating_pull_request {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
             0, 1, 2,
         ];
-        let auth_token = AuthToken { value: vec![1u8; 10] };
+        let auth_token = AuthToken { value: [1u8; 32] };
         let pull_request = PullRequest::new(address, auth_token);
         let bytes = pull_request.to_bytes();
 
@@ -152,7 +169,7 @@ mod creating_pull_request {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
             0, 1, 2,
         ];
-        let auth_token = AuthToken { value: vec![1u8; 10] };
+        let auth_token = AuthToken { value: [1u8; 32] };
         let pull_request = PullRequest::new(address, auth_token);
         let bytes = pull_request.to_bytes();
 

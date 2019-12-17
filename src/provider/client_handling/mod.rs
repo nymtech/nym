@@ -38,11 +38,11 @@ impl From<StoreError> for ClientProcessingError {
 #[derive(Debug, Clone)]
 pub(crate) struct ClientProcessingData {
     store_dir: PathBuf,
-    registered_clients_ledger: HashMap<Vec<u8>, Vec<u8>>,
+    registered_clients_ledger: HashMap<[u8; 32], Vec<u8>>,
 }
 
 impl ClientProcessingData {
-    pub(crate) fn new(store_dir: PathBuf, registered_clients_ledger: HashMap<Vec<u8>, Vec<u8>>) -> Self {
+    pub(crate) fn new(store_dir: PathBuf, registered_clients_ledger: HashMap<[u8; 32], Vec<u8>>) -> Self {
         ClientProcessingData { store_dir,  registered_clients_ledger}
     }
 
@@ -84,14 +84,14 @@ impl ClientRequestProcessor {
         Ok(PullResponse::new(retrieved_messages))
     }
 
-    fn register_new_client(req:RegisterRequest, store_dir: &Path, registered_client_ledger: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<RegisterResponse, ClientProcessingError>{
+    fn register_new_client(req:RegisterRequest, store_dir: &Path, registered_client_ledger: &mut HashMap<[u8; 32], Vec<u8>>) -> Result<RegisterResponse, ClientProcessingError>{
         println!("Processing register new client request!");
         let auth_token = ClientRequestProcessor::generate_new_auth_token(req.destination_address.to_vec());
         if !registered_client_ledger.contains_key(&auth_token.value) {
             registered_client_ledger.insert(auth_token.value.clone(), req.destination_address.to_vec());
             ClientRequestProcessor::create_storage_dir(req.destination_address, store_dir);
         }
-        Ok(RegisterResponse::new(auth_token.value))
+        Ok(RegisterResponse::new(auth_token.value.to_vec()))
     }
 
     fn create_storage_dir(client_address : sphinx::route::DestinationAddressBytes, store_dir: &Path) -> io::Result<()>{
@@ -104,10 +104,11 @@ impl ClientRequestProcessor {
 
     fn generate_new_auth_token(data: Vec<u8>) -> AuthToken{
         // TODO: We can use hmac with providers secret key to have HMAC instead of SHA
-        let mut sha256Hasher = Sha256::new();
-        sha256Hasher.input(data);
-        AuthToken{value: sha256Hasher.result().to_vec() }
-
+        let hash= sha2::Sha256::digest(&data).to_vec();
+        // TODO: this probably can be coverted in some better way
+        let mut result = [0u8; 32];
+        result.copy_from_slice(&hash);
+        AuthToken{value: result}
     }
 
 }
@@ -119,7 +120,7 @@ mod register_new_client {
     #[test]
     fn registers_new_auth_token_for_each_new_client(){
         let req1 = RegisterRequest{destination_address: [1u8; 32]};
-        let mut registered_client_ledger: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
+        let mut registered_client_ledger: HashMap<[u8; 32], Vec<u8>> = HashMap::new();
         let store_dir = Path::new("./foo/");
         assert_eq!(0, registered_client_ledger.len());
         ClientRequestProcessor::register_new_client(req1, &store_dir, &mut registered_client_ledger);
@@ -133,7 +134,7 @@ mod register_new_client {
     #[test]
     fn registers_given_token_only_once() {
         let req1 = RegisterRequest{destination_address: [1u8; 32]};
-        let mut registered_client_ledger: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
+        let mut registered_client_ledger: HashMap<[u8; 32], Vec<u8>> = HashMap::new();
         let store_dir = Path::new("./foo/");
         ClientRequestProcessor::register_new_client(req1, &store_dir, &mut registered_client_ledger);
         let req2 = RegisterRequest{destination_address: [1u8; 32]};

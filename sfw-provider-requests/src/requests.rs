@@ -40,8 +40,8 @@ pub enum ProviderRequestError {
 }
 
 pub trait ProviderRequest
-where
-    Self: Sized,
+    where
+        Self: Sized,
 {
     fn get_prefix() -> [u8; 2];
     fn to_bytes(&self) -> Vec<u8>;
@@ -50,7 +50,7 @@ where
 
 #[derive(Debug)]
 pub struct AuthToken {
-    pub value : Vec<u8>
+    pub value: Vec<u8>
 }
 
 #[derive(Debug)]
@@ -99,7 +99,7 @@ impl ProviderRequest for PullRequest {
         let auth_token = bytes[32..].to_vec();
 
         Ok(PullRequest {
-            auth_token: AuthToken{value: auth_token},
+            auth_token: AuthToken { value: auth_token },
             destination_address,
         })
     }
@@ -138,7 +138,7 @@ mod creating_pull_request {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
             0, 1, 2,
         ];
-        let auth_token = AuthToken {value: vec![1u8; 10]};
+        let auth_token = AuthToken { value: vec![1u8; 10] };
         let pull_request = PullRequest::new(address, auth_token);
         let bytes = pull_request.to_bytes();
 
@@ -152,7 +152,7 @@ mod creating_pull_request {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
             0, 1, 2,
         ];
-        let auth_token = AuthToken {value: vec![1u8; 10]};
+        let auth_token = AuthToken { value: vec![1u8; 10] };
         let pull_request = PullRequest::new(address, auth_token);
         let bytes = pull_request.to_bytes();
 

@@ -19,6 +19,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use futures::{Future, AsyncReadExt};
 use std::sync::{Arc, RwLock};
+use std::error::Error;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -28,6 +29,7 @@ pub enum ClientProcessingError {
     StoreError,
     InvalidRequest,
     WrongToken,
+    IOError
 }
 
 impl From<ProviderRequestError> for ClientProcessingError {
@@ -44,6 +46,14 @@ impl From<StoreError> for ClientProcessingError {
             StoreError::ClientDoesntExistError => ClientProcessingError::ClientDoesntExistError,
             _ => ClientProcessingError::StoreError,
         }
+    }
+}
+
+impl From<io::Error> for ClientProcessingError {
+    fn from(_: io::Error) -> Self {
+        use ClientProcessingError::*;
+
+        IOError
     }
 }
 
@@ -119,18 +129,17 @@ impl ClientRequestProcessor {
         processing_data: Arc<FMutex<ClientProcessingData>>,
     ) -> Result<RegisterResponse, ClientProcessingError> {
         println!("Processing register new client request!");
+        let mut unlocked = processing_data.lock().await;
 
-//
-//        let auth_token = ClientRequestProcessor::generate_new_auth_token(
-//            req.destination_address.to_vec(),
-//            provider_secret_key,
-//        );
-//        if !registered_client_ledger.0.contains_key(&auth_token) {
-//            registered_client_ledger.0.insert(auth_token, req.destination_address);
-//            ClientRequestProcessor::create_storage_dir(req.destination_address, store_dir);
-//        }
-//        Ok(RegisterResponse::new(auth_token.to_vec()))
-        Ok(RegisterResponse::new(Vec::new()))
+        let auth_token = ClientRequestProcessor::generate_new_auth_token(
+            req.destination_address.to_vec(),
+            unlocked.secret_key,
+        );
+        if !unlocked.registered_clients_ledger.has_token(auth_token) {
+            unlocked.registered_clients_ledger.insert_token(auth_token, req.destination_address);
+            ClientRequestProcessor::create_storage_dir(req.destination_address, unlocked.store_dir.as_path())?;
+        }
+        Ok(RegisterResponse::new(auth_token.to_vec()))
     }
 
     fn create_storage_dir(
@@ -139,9 +148,7 @@ impl ClientRequestProcessor {
     ) -> io::Result<()> {
         let client_dir_name = hex::encode(client_address);
         let full_store_dir = store_dir.join(client_dir_name);
-        let full_store_path = full_store_dir.join(ClientStorage::generate_random_file_name());
-        std::fs::create_dir_all(full_store_dir)?;
-        Ok(())
+        std::fs::create_dir_all(full_store_dir)
     }
 
     fn generate_new_auth_token(data: Vec<u8>, key: Scalar) -> AuthToken {

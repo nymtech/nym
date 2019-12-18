@@ -78,6 +78,10 @@ impl ClientLedger {
         return self.0.contains_key(&auth_token)
     }
 
+    fn insert_token(&mut self, auth_token: AuthToken, client_address: DestinationAddressBytes) -> Option<DestinationAddressBytes>{
+        self.0.insert(auth_token, client_address)
+    }
+
     fn load(file: PathBuf) -> Self {
         unimplemented!()
     }

@@ -30,8 +30,13 @@ pub struct ProviderClient {
 
 impl ProviderClient {
     pub fn new(provider_network_address: SocketAddrV4, our_address: DestinationAddressBytes, auth_token: Option<AuthToken>) -> Self {
+        // DH temporary: the provider's client port is not in the topology, but we can't change that
+        // right now without messing up the existing Go mixnet. So I'm going to hardcode this
+        // for the moment until the Go mixnet goes away.
+        let provider_socket = SocketAddrV4::new(*provider_network_address.ip(), 9000);
+
         ProviderClient {
-            provider_network_address,
+            provider_network_address: provider_socket,
             our_address,
             auth_token,
         }
@@ -47,13 +52,7 @@ impl ProviderClient {
         let pull_request = PullRequest::new(self.our_address, self.auth_token.unwrap());
         let bytes = pull_request.to_bytes();
 
-        // DH temporary: the provider's client port is not in the topology, but we can't change that
-        // right now without messing up the existing Go mixnet. So I'm going to hardcode this
-        // for the moment until the Go mixnet goes away.
-        let provider_socket = SocketAddrV4::new(*self.provider_network_address.ip(), 9000);
-        println!("Provider: {:?}", provider_socket);
-
-        let mut socket = tokio::net::TcpStream::connect(provider_socket).await?;
+        let mut socket = tokio::net::TcpStream::connect(self.provider_network_address).await?;
         println!("keep alive: {:?}", socket.keepalive());
         socket.set_keepalive(Some(Duration::from_secs(2))).unwrap();
         socket.write_all(&bytes[..]).await?;

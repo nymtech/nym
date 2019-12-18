@@ -106,9 +106,9 @@ impl ClientStorage {
             })
             .map(|entry| {
                 let content = std::fs::read(entry.path()).unwrap();
-                ClientStorage::delete_file(entry.path());
+                ClientStorage::delete_file(entry.path()).unwrap();
                 content
-            }) // TODO: THIS MAP IS UNSAFE (BOTH READING AND DELETING)!!
+            }) // TODO: THIS MAP IS UNSAFE (BOTH FOR READING AND DELETING)!! - in the case where there are multiple requests from the same client being processed in parallel
             .chain(std::iter::repeat(ClientStorage::dummy_message()))
             .take(MESSAGE_RETRIEVAL_LIMIT)
             .collect();
@@ -121,8 +121,8 @@ impl ClientStorage {
     // TODO: THIS NEEDS A LOCKING MECHANISM!!! (or a db layer on top - basically 'ClientStorage' on steroids)
     // TODO 2: This should only be called AFTER we sent the reply. Because if client's connection failed after sending request
     // the messages would be deleted but he wouldn't have received them
-    fn delete_file(path: PathBuf) {
+    fn delete_file(path: PathBuf) -> io::Result<()> {
         println!("Here {:?} will be deleted!", path);
-        std::fs::remove_file(path); // another argument for db layer -> remove_file is NOT guaranteed to immediately get rid of the file
+        std::fs::remove_file(path) // another argument for db layer -> remove_file is NOT guaranteed to immediately get rid of the file
     }
 }

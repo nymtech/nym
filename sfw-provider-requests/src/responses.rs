@@ -1,4 +1,4 @@
-use crate::requests::{AuthToken, RegisterRequest};
+use crate::AuthToken;
 use std::convert::TryInto;
 
 #[derive(Debug)]

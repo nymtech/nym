@@ -1,3 +1,4 @@
+use crate::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 
 const PULL_REQUEST_MESSAGE_PREFIX: [u8; 2] = [1, 0];
@@ -49,8 +50,6 @@ where
     fn to_bytes(&self) -> Vec<u8>;
     fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderRequestError>;
 }
-
-pub type AuthToken = [u8; 32];
 
 #[derive(Debug)]
 pub struct PullRequest {

@@ -1,7 +1,6 @@
 use crate::provider::presence;
 use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use curve25519_dalek::scalar::Scalar;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process;

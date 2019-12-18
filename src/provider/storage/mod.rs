@@ -22,6 +22,7 @@ impl From<std::io::Error> for StoreError {
 
 pub struct StoreData {
     client_address: DestinationAddressBytes,
+    #[allow(dead_code)]
     client_surb_id: SURBIdentifier,
     message: Vec<u8>,
 }

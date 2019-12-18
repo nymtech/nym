@@ -1,25 +1,18 @@
 use crate::provider::storage::{ClientStorage, StoreError};
 use crate::provider::ClientLedger;
-use curve25519_dalek::digest::Digest;
 use curve25519_dalek::scalar::Scalar;
 use futures::lock::Mutex as FMutex;
 use hmac::{Hmac, Mac};
-use serde::{Deserialize, Serialize};
-use serde_json::json;
 use sfw_provider_requests::requests::{
-    AuthToken, ProviderRequest, ProviderRequestError, ProviderRequests, PullRequest,
+    ProviderRequestError, ProviderRequests, PullRequest,
     RegisterRequest,
 };
 use sfw_provider_requests::responses::{ProviderResponse, PullResponse, RegisterResponse};
 use sha2::Sha256;
-use sphinx::route::DestinationAddressBytes;
-use std::collections::HashMap;
-use std::hash::Hash;
 use std::io;
 use std::path::{Path, PathBuf};
-use futures::{Future, AsyncReadExt};
-use std::sync::{Arc, RwLock};
-use std::error::Error;
+use std::sync::Arc;
+use sfw_provider_requests::AuthToken;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -29,7 +22,7 @@ pub enum ClientProcessingError {
     StoreError,
     InvalidRequest,
     WrongToken,
-    IOError
+    IOError,
 }
 
 impl From<ProviderRequestError> for ClientProcessingError {

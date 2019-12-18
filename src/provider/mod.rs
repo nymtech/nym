@@ -10,7 +10,7 @@ use crate::provider::client_handling::{ClientProcessingData, ClientRequestProces
 use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
 use crate::provider::storage::ClientStorage;
 use futures::io::Error;
-use sfw_provider_requests::requests::AuthToken;
+use sfw_provider_requests::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use std::collections::HashMap;
 use futures::lock::Mutex as FMutex;
@@ -82,7 +82,8 @@ impl ClientLedger {
         self.0.insert(auth_token, client_address)
     }
 
-    fn load(file: PathBuf) -> Self {
+    #[allow(dead_code)]
+    fn load(_file: PathBuf) -> Self {
         unimplemented!()
     }
 }

@@ -194,3 +194,39 @@ mod creating_pull_request {
         }
     }
 }
+
+#[cfg(test)]
+mod creating_register_request {
+    use super::*;
+
+    #[test]
+    fn it_is_possible_to_recover_it_from_bytes() {
+        let address = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+            0, 1, 2,
+        ];
+        let register_request = RegisterRequest::new(address);
+        let bytes = register_request.to_bytes();
+
+        let recovered = RegisterRequest::from_bytes(&bytes).unwrap();
+        assert_eq!(address, recovered.destination_address);
+    }
+
+    #[test]
+    fn it_is_possible_to_recover_it_from_bytes_with_enum_wrapper() {
+        let address = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+            0, 1, 2,
+        ];
+        let register_request = RegisterRequest::new(address);
+        let bytes = register_request.to_bytes();
+
+        let recovered = ProviderRequests::from_bytes(&bytes).unwrap();
+        match recovered {
+            ProviderRequests::Register(req) => {
+                assert_eq!(address, req.destination_address);
+            }
+            _ => panic!("expected to recover pull request!"),
+        }
+    }
+}

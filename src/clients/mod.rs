@@ -4,7 +4,7 @@ use crate::clients::provider::ProviderClient;
 use crate::sockets::ws;
 use crate::utils;
 use crate::utils::topology::get_topology;
-use futures::channel::mpsc;
+use futures::channel::{mpsc, oneshot};
 use futures::future::join5;
 use futures::select;
 use futures::{SinkExt, StreamExt};
@@ -15,6 +15,8 @@ use std::net::SocketAddrV4;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use sfw_provider_requests::AuthToken;
+use futures::lock::Mutex as FMutex;
+use std::sync::Arc;
 
 pub mod directory;
 pub mod mix;
@@ -55,6 +57,42 @@ impl MixTrafficController {
                 Err(e) => eprintln!("We failed to send the message :( - {:?}", e),
             };
         }
+    }
+}
+
+type BufferResponse = oneshot::Sender<Vec<Vec<u8>>>;
+
+struct ReceivedMessagesBuffer{
+    messages: Vec<Vec<u8>>
+}
+
+impl ReceivedMessagesBuffer{
+    fn add_arc_futures_mutex(self) -> Arc<FMutex<Self>> {
+        Arc::new(FMutex::new(self))
+    }
+
+    fn new() -> Self {
+        ReceivedMessagesBuffer{
+            messages: Vec::new()
+        }
+    }
+
+    async fn add_new_messages(buf: Arc<FMutex<Self>>, msgs: Vec<Vec<u8>>) {
+        let mut unlocked = buf.lock().await;
+        unlocked.messages.extend(msgs);
+    }
+
+    async fn run_poller_input_controller(buf: Arc<FMutex<Self>>, poller_rx: mpsc::UnboundedReceiver<Vec<Vec<u8>>>) {
+
+    }
+
+    async fn acquire_and_empty(buf: Arc<FMutex<Self>>) -> Vec<Vec<u8>> {
+        let mut unlocked = buf.lock().await;
+        std::mem::replace(&mut unlocked.messages, Vec::new())
+    }
+
+    async fn run_query_output_controller(buf: Arc<FMutex<Self>>, query_receiver: mpsc::UnboundedReceiver<BufferResponse>) {
+
     }
 }
 
@@ -134,12 +172,10 @@ impl NymClient {
     }
 
     async fn start_provider_polling(provider_client: ProviderClient) {
-//        let provider_client = ProviderClient::new(provider_address);
-
         loop {
-            println!("[FETCH MSG] - Polling provider...");
             let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
             tokio::time::delay_for(delay_duration).await;
+            println!("[FETCH MSG] - Polling provider...");
             let messages = provider_client
                 .retrieve_messages()
                 .await

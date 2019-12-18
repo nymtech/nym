@@ -26,7 +26,7 @@ pub fn execute(matches: &ArgMatches) {
         .expect("Failed to extract the socket address from the iterator");
 
     let keypair = pemstore::read_keypair_from_disk(id);
-    let _client = NymClient::new(keypair.public_bytes(), is_local);
+    let _client = NymClient::new(keypair.public_bytes(), is_local, None);
     // Question: should we be passing the client into the TCP socket somehow next?
 
     tcp::start(socket_address);

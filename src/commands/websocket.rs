@@ -25,7 +25,9 @@ pub fn execute(matches: &ArgMatches) {
         .expect("Failed to extract the socket address from the iterator");
 
     let keypair = pemstore::read_keypair_from_disk(id);
-    let client = NymClient::new(keypair.public_bytes(), is_local);
+    // TODO: reading auth_token from disk (if exists);
+    let auth_token = None;
+    let client = NymClient::new(keypair.public_bytes(), is_local, auth_token);
 
     client.start(socket_address).unwrap();
 }

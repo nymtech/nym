@@ -14,6 +14,7 @@ use std::net::SocketAddr;
 use std::net::SocketAddrV4;
 use std::time::Duration;
 use tokio::runtime::Runtime;
+use sfw_provider_requests::requests::AuthToken;
 
 pub mod directory;
 pub mod mix;
@@ -65,13 +66,14 @@ pub struct NymClient {
     input_rx: mpsc::UnboundedReceiver<InputMessage>,
 
     is_local: bool,
+    auth_token: Option<AuthToken>
 }
 
 #[derive(Debug)]
 pub struct InputMessage(pub Destination, pub Vec<u8>);
 
 impl NymClient {
-    pub fn new(address: DestinationAddressBytes, is_local: bool) -> Self {
+    pub fn new(address: DestinationAddressBytes, is_local: bool, auth_token: Option<AuthToken>) -> Self {
         let (input_tx, input_rx) = mpsc::unbounded::<InputMessage>();
 
         NymClient {
@@ -79,6 +81,7 @@ impl NymClient {
             input_tx,
             input_rx,
             is_local,
+            auth_token,
         }
     }
 
@@ -147,6 +150,10 @@ impl NymClient {
         println!("starting nym client");
 
 
+        match self.auth_token {
+            None => println!("Need to register!"),
+            Some(token) => println!("Already got the token! - {:?}", token),
+        }
         // TODO: registration here
 
         return Ok(());

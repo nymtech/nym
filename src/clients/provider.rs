@@ -83,7 +83,7 @@ impl ProviderClient {
 
     pub async fn retrieve_messages(
         &self,
-    ) -> Result<(), ProviderClientError> {
+    ) -> Result<Vec<Vec<u8>>, ProviderClientError> {
         if self.auth_token.is_none() {
             return Err(ProviderClientError::EmptyAuthTokenError)
         }
@@ -95,12 +95,7 @@ impl ProviderClient {
         println!("Received the following response: {:?}", response);
 
         let parsed_response = PullResponse::from_bytes(&response)?;
-        for message in parsed_response.messages {
-            println!("Received: {:?}", String::from_utf8(message).unwrap())
-        }
-
-        // TODO: make it return the actual messages instead
-        Ok(())
+        Ok(parsed_response.messages)
     }
 
     pub async fn register(&self) -> Result<AuthToken, ProviderClientError> {
@@ -112,11 +107,8 @@ impl ProviderClient {
         let bytes = register_request.to_bytes();
 
         let response = self.send_request(bytes).await?;
-        println!("Received the following response: {:?}", response);
-
         let parsed_response = RegisterResponse::from_bytes(&response)?;
-        println!("parsed register: {:?}", parsed_response);
 
-        Ok([0;32])
+        Ok(parsed_response.auth_token)
     }
 }

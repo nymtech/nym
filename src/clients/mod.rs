@@ -140,15 +140,19 @@ impl NymClient {
             println!("[FETCH MSG] - Polling provider...");
             let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
             tokio::time::delay_for(delay_duration).await;
-            provider_client
+            let messages = provider_client
                 .retrieve_messages()
                 .await
                 .unwrap();
+            for message in messages {
+                println!("Retrieved: {:?}", String::from_utf8(message).unwrap())
+            }
         }
     }
 
     pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
         println!("starting nym client");
+        let mut rt = Runtime::new()?;
 
         let topology = get_topology(self.is_local);
         let provider_address: SocketAddrV4 = topology
@@ -161,19 +165,24 @@ impl NymClient {
 
 
 
-        let provider_client = ProviderClient::new(provider_address, self.address, self.auth_token);
+        let mut provider_client = ProviderClient::new(provider_address, self.address, self.auth_token);
 
-        match self.auth_token {
-            None => println!("Need to register!"),
-            Some(token) => println!("Already got the token! - {:?}", token),
-        }
-        // TODO: registration here
+        rt.block_on(async {
+            match self.auth_token {
+                None => {
+                    let auth_token = provider_client.register().await.unwrap();
+                    provider_client.update_token(auth_token);
+                    println!("Obtained new token! - {:?}", auth_token);
+                },
+                Some(token) => println!("Already got the token! - {:?}", token),
+            }
+        });
+
 
         return Ok(());
         // don't start anything, just register
 
         let (mix_tx, mix_rx) = mpsc::unbounded();
-        let mut rt = Runtime::new()?;
 
         let mix_traffic_future = rt.spawn(MixTrafficController::run(mix_rx));
         let loop_cover_traffic_future = rt.spawn(NymClient::start_loop_cover_traffic_stream(

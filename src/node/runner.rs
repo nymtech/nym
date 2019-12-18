@@ -21,7 +21,7 @@ pub fn start(matches: &ArgMatches) {
         let notifier = presence::Notifier::new(&config);
         notifier.run();
     });
-    mix.start_listening().unwrap();
+    mix.start().unwrap();
 }
 
 fn new_config(matches: &ArgMatches) -> node::Config {

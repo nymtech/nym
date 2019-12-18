@@ -40,18 +40,15 @@ pub enum ProviderRequestError {
 }
 
 pub trait ProviderRequest
-    where
-        Self: Sized,
+where
+    Self: Sized,
 {
     fn get_prefix() -> [u8; 2];
     fn to_bytes(&self) -> Vec<u8>;
     fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderRequestError>;
 }
 
-#[derive(Debug)]
-pub struct AuthToken {
-    pub value: [u8; 32]
-}
+pub type AuthToken = [u8; 32];
 
 #[derive(Debug)]
 pub struct PullRequest {
@@ -61,7 +58,10 @@ pub struct PullRequest {
 }
 
 impl PullRequest {
-    pub fn new(destination_address: sphinx::route::DestinationAddressBytes, auth_token: AuthToken) -> Self {
+    pub fn new(
+        destination_address: sphinx::route::DestinationAddressBytes,
+        auth_token: AuthToken,
+    ) -> Self {
         PullRequest {
             auth_token,
             destination_address,
@@ -96,11 +96,11 @@ impl ProviderRequest for PullRequest {
         let mut destination_address = [0u8; 32];
         destination_address.copy_from_slice(&bytes[2..]);
 
-        let mut auth_token= [0u8; 32];
+        let mut auth_token = [0u8; 32];
         auth_token.copy_from_slice(&bytes[34..]);
 
         Ok(PullRequest {
-            auth_token: AuthToken { value: auth_token },
+            auth_token,
             destination_address,
         })
     }
@@ -139,9 +139,8 @@ impl ProviderRequest for RegisterRequest {
         destination_address.copy_from_slice(&bytes[2..]);
 
         Ok(RegisterRequest {
-            destination_address
+            destination_address,
         })
-
     }
 }
 

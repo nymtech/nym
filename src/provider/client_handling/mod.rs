@@ -47,13 +47,13 @@ impl From<StoreError> for ClientProcessingError {
 #[derive(Debug, Clone)]
 pub(crate) struct ClientProcessingData {
     store_dir: PathBuf,
-    registered_clients_ledger: HashMap<DestinationAddressBytes, Vec<u8>>,
+    registered_clients_ledger: HashMap<AuthToken, DestinationAddressBytes>,
 }
 
 impl ClientProcessingData {
     pub(crate) fn new(
         store_dir: PathBuf,
-        registered_clients_ledger: HashMap<DestinationAddressBytes, Vec<u8>>,
+        registered_clients_ledger: HashMap<AuthToken, DestinationAddressBytes>,
     ) -> Self {
         ClientProcessingData {
             store_dir,
@@ -106,10 +106,10 @@ impl ClientRequestProcessor {
     fn process_pull_messages_request(
         req: PullRequest,
         store_dir: &Path,
-        registered_client_ledger: &mut HashMap<DestinationAddressBytes, Vec<u8>>,
+        registered_client_ledger: &mut HashMap<AuthToken, DestinationAddressBytes>,
     ) -> Result<PullResponse, ClientProcessingError> {
         println!("Processing pull!");
-        if registered_client_ledger.contains_key(&req.auth_token.value) {
+        if registered_client_ledger.contains_key(&req.auth_token) {
             let retrieved_messages =
                 ClientStorage::retrieve_client_files(req.destination_address, store_dir)?;
             Ok(PullResponse::new(retrieved_messages))
@@ -121,7 +121,7 @@ impl ClientRequestProcessor {
     fn register_new_client(
         req: RegisterRequest,
         store_dir: &Path,
-        registered_client_ledger: &mut HashMap<DestinationAddressBytes, Vec<u8>>,
+        registered_client_ledger: &mut HashMap<AuthToken, DestinationAddressBytes>,
         provider_secret_key: Scalar,
     ) -> Result<RegisterResponse, ClientProcessingError> {
         println!("Processing register new client request!");
@@ -129,12 +129,11 @@ impl ClientRequestProcessor {
             req.destination_address.to_vec(),
             provider_secret_key,
         );
-        if !registered_client_ledger.contains_key(&auth_token.value) {
-            registered_client_ledger
-                .insert(auth_token.value.clone(), req.destination_address.to_vec());
+        if !registered_client_ledger.contains_key(&auth_token) {
+            registered_client_ledger.insert(auth_token, req.destination_address);
             ClientRequestProcessor::create_storage_dir(req.destination_address, store_dir);
         }
-        Ok(RegisterResponse::new(auth_token.value.to_vec()))
+        Ok(RegisterResponse::new(auth_token.to_vec()))
     }
 
     fn create_storage_dir(
@@ -149,12 +148,12 @@ impl ClientRequestProcessor {
     }
 
     fn generate_new_auth_token(data: Vec<u8>, key: Scalar) -> AuthToken {
-        let mut auth_token =
+        let mut auth_token_raw =
             HmacSha256::new_varkey(&key.to_bytes()).expect("HMAC can take key of any size");
-        auth_token.input(&data);
-        let mut result = [0u8; 32];
-        result.copy_from_slice(&auth_token.result().code().to_vec());
-        AuthToken { value: result }
+        auth_token_raw.input(&data);
+        let mut auth_token = [0u8; 32];
+        auth_token.copy_from_slice(&auth_token_raw.result().code().to_vec());
+        auth_token
     }
 }
 
@@ -167,7 +166,7 @@ mod register_new_client {
         let req1 = RegisterRequest {
             destination_address: [1u8; 32],
         };
-        let mut registered_client_ledger: HashMap<DestinationAddressBytes, Vec<u8>> =
+        let mut registered_client_ledger: HashMap<AuthToken, DestinationAddressBytes> =
             HashMap::new();
         let store_dir = Path::new("./foo/");
         let key = Scalar::from_bytes_mod_order([1u8; 32]);
@@ -197,7 +196,7 @@ mod register_new_client {
         let req1 = RegisterRequest {
             destination_address: [1u8; 32],
         };
-        let mut registered_client_ledger: HashMap<DestinationAddressBytes, Vec<u8>> =
+        let mut registered_client_ledger: HashMap<AuthToken, DestinationAddressBytes> =
             HashMap::new();
         let store_dir = Path::new("./foo/");
         let key = Scalar::from_bytes_mod_order([1u8; 32]);

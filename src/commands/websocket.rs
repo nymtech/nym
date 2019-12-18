@@ -27,7 +27,7 @@ pub fn execute(matches: &ArgMatches) {
     let keypair = pemstore::read_keypair_from_disk(id);
     // TODO: reading auth_token from disk (if exists);
     let auth_token = None;
-    let client = NymClient::new(keypair.public_bytes(), is_local, auth_token);
+    let client = NymClient::new(keypair.public_bytes(), socket_address, is_local, auth_token);
 
-    client.start(socket_address).unwrap();
+    client.start().unwrap();
 }

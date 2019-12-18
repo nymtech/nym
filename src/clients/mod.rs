@@ -64,7 +64,7 @@ pub struct NymClient {
     pub input_tx: mpsc::UnboundedSender<InputMessage>,
     // to be used by "send" function or socket, etc
     input_rx: mpsc::UnboundedReceiver<InputMessage>,
-
+    socket_listening_address: SocketAddr,
     is_local: bool,
     auth_token: Option<AuthToken>
 }
@@ -73,13 +73,14 @@ pub struct NymClient {
 pub struct InputMessage(pub Destination, pub Vec<u8>);
 
 impl NymClient {
-    pub fn new(address: DestinationAddressBytes, is_local: bool, auth_token: Option<AuthToken>) -> Self {
+    pub fn new(address: DestinationAddressBytes, socket_listening_address: SocketAddr, is_local: bool, auth_token: Option<AuthToken>) -> Self {
         let (input_tx, input_rx) = mpsc::unbounded::<InputMessage>();
 
         NymClient {
             address,
             input_tx,
             input_rx,
+            socket_listening_address,
             is_local,
             auth_token,
         }
@@ -146,7 +147,7 @@ impl NymClient {
         }
     }
 
-    pub fn start(self, socket_address: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
         println!("starting nym client");
 
 
@@ -185,7 +186,7 @@ impl NymClient {
         ));
 
         let provider_polling_future = rt.spawn(NymClient::start_provider_polling(provider_address));
-        let websocket_future = rt.spawn(ws::start_websocket(socket_address, self.input_tx));
+        let websocket_future = rt.spawn(ws::start_websocket(self.socket_listening_address, self.input_tx));
 
         rt.block_on(async {
             let future_results = join5(

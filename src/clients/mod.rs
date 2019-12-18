@@ -17,6 +17,7 @@ use tokio::runtime::Runtime;
 use sfw_provider_requests::AuthToken;
 use futures::lock::Mutex as FMutex;
 use std::sync::Arc;
+use futures::join;
 
 pub mod directory;
 pub mod mix;
@@ -78,6 +79,7 @@ impl ReceivedMessagesBuffer{
     }
 
     async fn add_new_messages(buf: Arc<FMutex<Self>>, msgs: Vec<Vec<u8>>) {
+        println!("Adding new messages to the buffer! {:?}", msgs);
         let mut unlocked = buf.lock().await;
         unlocked.messages.extend(msgs);
     }
@@ -178,7 +180,7 @@ impl NymClient {
         }
     }
 
-    async fn start_provider_polling(provider_client: ProviderClient) {
+    async fn start_provider_polling(provider_client: ProviderClient, mut poller_tx: mpsc::UnboundedSender<Vec<Vec<u8>>>) {
         loop {
             let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
             tokio::time::delay_for(delay_duration).await;
@@ -187,9 +189,8 @@ impl NymClient {
                 .retrieve_messages()
                 .await
                 .unwrap();
-            for message in messages {
-                println!("Retrieved: {:?}", String::from_utf8(message).unwrap())
-            }
+            // if any of those fails, whole application should blow...
+            poller_tx.send(messages).await.unwrap();
         }
     }
 
@@ -209,6 +210,7 @@ impl NymClient {
 
         let mut provider_client = ProviderClient::new(provider_address, self.address, self.auth_token);
 
+        // registration
         rt.block_on(async {
             match self.auth_token {
                 None => {
@@ -220,8 +222,15 @@ impl NymClient {
             }
         });
 
-
+        // channels for intercomponent communication
         let (mix_tx, mix_rx) = mpsc::unbounded();
+        let (poller_input_tx, poller_input_rx) = mpsc::unbounded();
+        let (received_messages_buffer_output_tx, received_messages_buffer_output_rx) = mpsc::unbounded();
+
+        let received_messages_buffer = ReceivedMessagesBuffer::new().add_arc_futures_mutex();
+
+        let received_messages_buffer_input_controller_future = rt.spawn(ReceivedMessagesBuffer::run_poller_input_controller(received_messages_buffer.clone(), poller_input_rx));
+        let received_messages_buffer_output_controller_future = rt.spawn(ReceivedMessagesBuffer::run_query_output_controller(received_messages_buffer, received_messages_buffer_output_rx));
 
         let mix_traffic_future = rt.spawn(MixTrafficController::run(mix_rx));
         let loop_cover_traffic_future = rt.spawn(NymClient::start_loop_cover_traffic_stream(
@@ -237,24 +246,36 @@ impl NymClient {
             topology.clone(),
         ));
 
-        let provider_polling_future = rt.spawn(NymClient::start_provider_polling(provider_client));
+        let provider_polling_future = rt.spawn(NymClient::start_provider_polling(provider_client, poller_input_tx));
         let websocket_future = rt.spawn(ws::start_websocket(self.socket_listening_address, self.input_tx));
 
         rt.block_on(async {
-            let future_results = join5(
+            let future_results = join!(
+                received_messages_buffer_input_controller_future,
+                received_messages_buffer_output_controller_future,
                 mix_traffic_future,
                 loop_cover_traffic_future,
                 out_queue_control_future,
                 provider_polling_future,
                 websocket_future,
-            )
-            .await;
+            );
+
+//            let future_results = join5(
+//                mix_traffic_future,
+//                loop_cover_traffic_future,
+//                out_queue_control_future,
+//                provider_polling_future,
+//                websocket_future,
+//            )
+//            .await;
             assert!(
                 future_results.0.is_ok()
                     && future_results.1.is_ok()
                     && future_results.2.is_ok()
                     && future_results.3.is_ok()
                     && future_results.4.is_ok()
+                    && future_results.5.is_ok()
+                    && future_results.6.is_ok()
             );
         });
 

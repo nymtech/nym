@@ -1,13 +1,15 @@
 use crate::clients::InputMessage;
-use futures::channel::mpsc;
+use futures::channel::{mpsc, oneshot};
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
-use futures::{SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt, AsyncReadExt};
 use serde::{Deserialize, Serialize};
 use sphinx::route::Destination;
 use std::net::SocketAddr;
 use tungstenite::protocol::Message;
 use std::io;
 use futures::io::Error;
+use crate::clients::BufferResponse;
+use futures::future::FutureExt;
 
 struct Connection {
     address: SocketAddr,
@@ -15,6 +17,7 @@ struct Connection {
     tx: UnboundedSender<Message>,
 
     msg_input: mpsc::UnboundedSender<InputMessage>,
+    msg_query: mpsc::UnboundedSender<BufferResponse>,
 }
 
 #[derive(Debug)]
@@ -38,7 +41,6 @@ impl From<io::Error> for WebSocketError {
         }
     }
 }
-
 
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -88,8 +90,23 @@ impl ClientRequest {
         ServerResponse::Send
     }
 
-    async fn handle_fetch() -> ServerResponse {
-        ServerResponse::Error { message: "NOT IMPLEMENTED".to_string() }
+    async fn handle_fetch(mut msg_query: mpsc::UnboundedSender<BufferResponse>) -> ServerResponse {
+        let (res_tx, res_rx) = oneshot::channel();
+        if msg_query.send(res_tx).await.is_err() {
+            return ServerResponse::Error { message: "Server failed to receive messages".to_string() };
+        }
+
+        let messages = res_rx.map(|msg| {
+            msg
+        }).await;
+
+        if messages.is_err() {
+            return ServerResponse::Error { message: "Server failed to receive messages".to_string() };
+        }
+
+        let messages = messages.unwrap();
+
+        ServerResponse::Fetch {messages}
     }
 
     async fn handle_get_clients() -> ServerResponse {
@@ -117,7 +134,8 @@ fn dummy_response() -> Message {
 
 impl Into<Message> for ServerResponse {
     fn into(self) -> Message {
-        dummy_response()
+        let str_res = serde_json::to_string(&self).unwrap();
+        Message::Text(str_res)
     }
 }
 
@@ -130,7 +148,7 @@ async fn handle_connection(conn: Connection) {
 
         let response = match request {
             ClientRequest::Send { message, recipient_address } => ClientRequest::handle_send(message, recipient_address, conn.msg_input.clone()).await,
-            ClientRequest::Fetch => ClientRequest::handle_fetch().await,
+            ClientRequest::Fetch => ClientRequest::handle_fetch(conn.msg_query.clone()).await,
             ClientRequest::GetClients => ClientRequest::handle_get_clients().await,
             ClientRequest::OwnDetails => ClientRequest::handle_own_details().await,
         };
@@ -142,7 +160,7 @@ async fn handle_connection(conn: Connection) {
     }
 }
 
-async fn accept_connection(stream: tokio::net::TcpStream, msg_input: mpsc::UnboundedSender<InputMessage>) {
+async fn accept_connection(stream: tokio::net::TcpStream, msg_input: mpsc::UnboundedSender<InputMessage>, msg_query: mpsc::UnboundedSender<BufferResponse>) {
     let address = stream
         .peer_addr()
         .expect("connected streams should have a peer address");
@@ -165,6 +183,7 @@ async fn accept_connection(stream: tokio::net::TcpStream, msg_input: mpsc::Unbou
         tx: response_tx,
 
         msg_input,
+        msg_query,
     };
     tokio::spawn(handle_connection(conn));
 
@@ -179,13 +198,13 @@ async fn accept_connection(stream: tokio::net::TcpStream, msg_input: mpsc::Unbou
     }
 }
 
-pub async fn start_websocket(address: SocketAddr, message_tx: mpsc::UnboundedSender<InputMessage>) -> Result<(), WebSocketError> {
+pub async fn start_websocket(address: SocketAddr, message_tx: mpsc::UnboundedSender<InputMessage>, received_messages_query_tx: mpsc::UnboundedSender<BufferResponse>) -> Result<(), WebSocketError> {
     let mut listener = tokio::net::TcpListener::bind(address).await?;
 
     while let Ok((stream, _)) = listener.accept().await {
         // it's fine to be cloning the channel on all new connection, because in principle
         // this server should only EVER have a single client connected
-        tokio::spawn(accept_connection(stream, message_tx.clone()));
+        tokio::spawn(accept_connection(stream, message_tx.clone(), received_messages_query_tx.clone()));
     }
 
     eprintln!("The websocket went kaput...");

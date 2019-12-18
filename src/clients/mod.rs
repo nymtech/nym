@@ -61,7 +61,7 @@ impl MixTrafficController {
     }
 }
 
-type BufferResponse = oneshot::Sender<Vec<Vec<u8>>>;
+pub type BufferResponse = oneshot::Sender<Vec<Vec<u8>>>;
 
 struct ReceivedMessagesBuffer{
     messages: Vec<Vec<u8>>
@@ -247,7 +247,7 @@ impl NymClient {
         ));
 
         let provider_polling_future = rt.spawn(NymClient::start_provider_polling(provider_client, poller_input_tx));
-        let websocket_future = rt.spawn(ws::start_websocket(self.socket_listening_address, self.input_tx));
+        let websocket_future = rt.spawn(ws::start_websocket(self.socket_listening_address, self.input_tx, received_messages_buffer_output_tx));
 
         rt.block_on(async {
             let future_results = join!(
@@ -260,14 +260,6 @@ impl NymClient {
                 websocket_future,
             );
 
-//            let future_results = join5(
-//                mix_traffic_future,
-//                loop_cover_traffic_future,
-//                out_queue_control_future,
-//                provider_polling_future,
-//                websocket_future,
-//            )
-//            .await;
             assert!(
                 future_results.0.is_ok()
                     && future_results.1.is_ok()

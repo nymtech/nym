@@ -74,6 +74,10 @@ impl ClientLedger {
         ClientLedger(HashMap::new())
     }
 
+    fn has_token(&self, auth_token: AuthToken) -> bool {
+        return self.0.contains_key(&auth_token)
+    }
+
     fn load(file: PathBuf) -> Self {
         unimplemented!()
     }

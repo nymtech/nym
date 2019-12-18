@@ -42,6 +42,26 @@ impl ProviderClient {
         }
     }
 
+    pub async fn send_request(&self, bytes: Vec<u8>) -> Result<Vec<u8>, ProviderClientError> {
+        let mut socket = tokio::net::TcpStream::connect(self.provider_network_address).await?;
+        println!("keep alive: {:?}", socket.keepalive());
+        socket.set_keepalive(Some(Duration::from_secs(2))).unwrap();
+        socket.write_all(&bytes[..]).await?;
+        if let Err(e) = socket.shutdown(Shutdown::Write) {
+            // TODO: make it a silent log once we have a proper logging library
+//            eprintln!("failed to close write part of the socket; err = {:?}", e)
+        }
+
+        let mut response = Vec::new();
+        socket.read_to_end(&mut response).await?;
+        if let Err(e) = socket.shutdown(Shutdown::Read) {
+            // TODO: make it a silent log once we have a proper logging library
+//            eprintln!("failed to close read part of the socket; err = {:?}", e)
+        }
+
+        Ok(response)
+    }
+
     pub async fn retrieve_messages(
         &self,
     ) -> Result<(), ProviderClientError> {
@@ -52,21 +72,9 @@ impl ProviderClient {
         let pull_request = PullRequest::new(self.our_address, self.auth_token.unwrap());
         let bytes = pull_request.to_bytes();
 
-        let mut socket = tokio::net::TcpStream::connect(self.provider_network_address).await?;
-        println!("keep alive: {:?}", socket.keepalive());
-        socket.set_keepalive(Some(Duration::from_secs(2))).unwrap();
-        socket.write_all(&bytes[..]).await?;
-        if let Err(e) = socket.shutdown(Shutdown::Write) {
-            eprintln!("failed to close write part of the socket; err = {:?}", e)
-        }
-
-        let mut response = Vec::new();
-        socket.read_to_end(&mut response).await?;
-        if let Err(e) = socket.shutdown(Shutdown::Read) {
-            eprintln!("failed to close read part of the socket; err = {:?}", e)
-        }
-
+        let response = self.send_request(bytes).await?;
         println!("Received the following response: {:?}", response);
+        
         let parsed_response = PullResponse::from_bytes(&response).unwrap();
         for message in parsed_response.messages {
             println!("Received: {:?}", String::from_utf8(message).unwrap())

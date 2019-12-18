@@ -57,6 +57,10 @@ impl ProviderClient {
         }
     }
 
+    pub fn update_token(&mut self, auth_token: AuthToken) {
+        self.auth_token = Some(auth_token)
+    }
+
     pub async fn send_request(&self, bytes: Vec<u8>) -> Result<Vec<u8>, ProviderClientError> {
         let mut socket = tokio::net::TcpStream::connect(self.provider_network_address).await?;
         println!("keep alive: {:?}", socket.keepalive());
@@ -99,7 +103,7 @@ impl ProviderClient {
         Ok(())
     }
 
-    pub async fn register(&mut self) -> Result<AuthToken, ProviderClientError> {
+    pub async fn register(&self) -> Result<AuthToken, ProviderClientError> {
         if self.auth_token.is_some() {
             return Err(ProviderClientError::ClientAlreadyRegisteredError);
         }

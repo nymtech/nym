@@ -2,12 +2,10 @@ use std::net::{Shutdown, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::RwLock;
-
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
-
 use crate::provider::client_handling::{ClientProcessingData, ClientRequestProcessor};
 use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
 use crate::provider::storage::ClientStorage;
@@ -15,6 +13,7 @@ use futures::io::Error;
 use sfw_provider_requests::requests::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use std::collections::HashMap;
+use futures::lock::Mutex as FMutex;
 
 mod client_handling;
 mod mix_handling;
@@ -67,12 +66,25 @@ impl From<io::Error> for ProviderError {
     }
 }
 
+#[derive(Debug)]
+pub struct ClientLedger(HashMap<AuthToken, DestinationAddressBytes>);
+
+impl ClientLedger {
+    fn new() -> Self {
+        ClientLedger(HashMap::new())
+    }
+
+    fn load(file: PathBuf) -> Self {
+        unimplemented!()
+    }
+}
+
 pub struct ServiceProvider {
     mix_network_address: SocketAddr,
     client_network_address: SocketAddr,
     secret_key: Scalar,
     store_dir: PathBuf,
-    registered_clients_ledger: HashMap<AuthToken, DestinationAddressBytes>,
+    registered_clients_ledger: ClientLedger,
 }
 
 impl ServiceProvider {
@@ -83,7 +95,7 @@ impl ServiceProvider {
             secret_key: config.secret_key,
             store_dir: PathBuf::from(config.store_dir.clone()),
             // TODO: load initial ledger from file
-            registered_clients_ledger: HashMap::new(),
+            registered_clients_ledger: ClientLedger::new(),
         }
     }
 
@@ -116,10 +128,10 @@ impl ServiceProvider {
                         store_data,
                         processing_data.read().unwrap().store_dir.as_path(),
                     )
-                    .unwrap_or_else(|e| {
-                        eprintln!("failed to store processed sphinx message; err = {:?}", e);
-                        return;
-                    });
+                        .unwrap_or_else(|e| {
+                            eprintln!("failed to store processed sphinx message; err = {:?}", e);
+                            return;
+                        });
                 }
                 Err(e) => {
                     eprintln!("failed to read from socket; err = {:?}", e);
@@ -147,7 +159,7 @@ impl ServiceProvider {
     // TODO: FIGURE OUT HOW TO SET READ_DEADLINES IN TOKIO
     async fn process_client_socket_connection(
         mut socket: tokio::net::TcpStream,
-        processing_data: Arc<RwLock<ClientProcessingData>>,
+        processing_data: Arc<FMutex<ClientProcessingData>>,
     ) {
         let mut buf = [0; 1024];
 
@@ -161,8 +173,8 @@ impl ServiceProvider {
             Ok(n) => {
                 match ClientRequestProcessor::process_client_request(
                     buf[..n].as_ref(),
-                    processing_data.as_ref(),
-                ) {
+                    processing_data,
+                ).await {
                     Err(e) => {
                         eprintln!("failed to process client request; err = {:?}", e);
                         Err(())
@@ -215,12 +227,12 @@ impl ServiceProvider {
     async fn start_client_listening(
         address: SocketAddr,
         store_dir: PathBuf,
-        client_ledger: HashMap<AuthToken, DestinationAddressBytes>,
+        client_ledger: ClientLedger,
         secret_key: Scalar,
     ) -> Result<(), ProviderError> {
         let mut listener = tokio::net::TcpListener::bind(address).await?;
         let processing_data =
-            ClientProcessingData::new(store_dir, client_ledger, secret_key).add_arc_rwlock();
+            ClientProcessingData::new(store_dir, client_ledger, secret_key).add_arc_futures_mutex();
 
         loop {
             let (socket, _) = listener.accept().await?;
@@ -234,7 +246,8 @@ impl ServiceProvider {
         }
     }
 
-    pub fn start_listening(&self) -> Result<(), Box<dyn std::error::Error>> {
+    // Note: this now consumes the provider
+    pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
         // Create the runtime, probably later move it to Provider struct itself?
         // TODO: figure out the difference between Runtime and Handle
         let mut rt = Runtime::new()?;
@@ -248,7 +261,7 @@ impl ServiceProvider {
         let client_future = rt.spawn(ServiceProvider::start_client_listening(
             self.client_network_address,
             self.store_dir.clone(),
-            self.registered_clients_ledger.clone(), // we're just cloning the initial ledger state
+            self.registered_clients_ledger, // we're just cloning the initial ledger state
             self.secret_key,
         ));
         // Spawn the root task

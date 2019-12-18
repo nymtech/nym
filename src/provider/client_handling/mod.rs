@@ -1,6 +1,8 @@
 use crate::provider::storage::{ClientStorage, StoreError};
+use crate::provider::ClientLedger;
 use curve25519_dalek::digest::Digest;
 use curve25519_dalek::scalar::Scalar;
+use futures::lock::Mutex as FMutex;
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -15,6 +17,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::io;
 use std::path::{Path, PathBuf};
+use futures::{Future, AsyncReadExt};
 use std::sync::{Arc, RwLock};
 
 type HmacSha256 = Hmac<Sha256>;
@@ -44,17 +47,17 @@ impl From<StoreError> for ClientProcessingError {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct ClientProcessingData {
     store_dir: PathBuf,
-    registered_clients_ledger: HashMap<AuthToken, DestinationAddressBytes>,
+    registered_clients_ledger: ClientLedger,
     secret_key: Scalar,
 }
 
 impl ClientProcessingData {
     pub(crate) fn new(
         store_dir: PathBuf,
-        registered_clients_ledger: HashMap<AuthToken, DestinationAddressBytes>,
+        registered_clients_ledger: ClientLedger,
         secret_key: Scalar,
     ) -> Self {
         ClientProcessingData {
@@ -64,56 +67,65 @@ impl ClientProcessingData {
         }
     }
 
-    pub(crate) fn add_arc_rwlock(self) -> Arc<RwLock<Self>> {
-        Arc::new(RwLock::new(self))
+    pub(crate) fn add_arc_futures_mutex(self) -> Arc<FMutex<Self>> {
+        Arc::new(FMutex::new(self))
     }
 }
 
 pub(crate) struct ClientRequestProcessor(());
 
 impl ClientRequestProcessor {
-    pub(crate) fn process_client_request(
+    pub(crate) async fn process_client_request(
         data: &[u8],
-        processing_data: &RwLock<ClientProcessingData>,
+        processing_data: Arc<FMutex<ClientProcessingData>>,
     ) -> Result<Vec<u8>, ClientProcessingError> {
-        let read_processing_data = processing_data.read().unwrap();
-        let client_request = ProviderRequests::from_bytes(&data)?;
-        println!("Received the following request: {:?}", client_request);
-        match client_request {
-            ProviderRequests::Register(req) => Ok(ClientRequestProcessor::register_new_client(
-                req,
-                read_processing_data.store_dir.as_path(),
-                // TODO: this WILL NOT work because ledger is cloned
-                &mut processing_data
-                    .read()
-                    .unwrap()
-                    .registered_clients_ledger
-                    .clone(),
-                read_processing_data.secret_key,
-            )?
-            .to_bytes()),
-            ProviderRequests::PullMessages(req) => {
-                Ok(ClientRequestProcessor::process_pull_messages_request(
-                    req,
-                    processing_data.read().unwrap().store_dir.as_path(),
-                    &mut processing_data
-                        .read()
-                        .unwrap()
-                        .registered_clients_ledger
-                        .clone(),
-                )?
-                .to_bytes())
-            }
-        }
+//        let read_processing_data = processing_data.read().map(|mut guard| *guard).await.unwrap();
+
+//        let fut = processing_data.read().map(|mut guard| {
+//            *guard
+//        });
+//
+//        let read_processing_data = processing_data.read().await;
+
+
+        Ok((vec![]))
+//        let client_request = ProviderRequests::from_bytes(&data)?;
+//        println!("Received the following request: {:?}", client_request);
+//        match client_request {
+//            ProviderRequests::Register(req) => Ok(ClientRequestProcessor::register_new_client(
+//                req,
+//                read_processing_data.store_dir.as_path(),
+//                // TODO: this WILL NOT work because ledger is cloned
+//                &mut processing_data
+//                    .read()
+//                    .unwrap()
+//                    .registered_clients_ledger
+//                    .clone(),
+//                read_processing_data.secret_key,
+//            )?
+//            .to_bytes()),
+//            ProviderRequests::PullMessages(req) => {
+//                Ok(ClientRequestProcessor::process_pull_messages_request(
+//                    req,
+//                    processing_data.read().unwrap().store_dir.as_path(),
+//                    &mut processing_data
+//                        .read()
+//                        .unwrap()
+//                        .registered_clients_ledger
+//                        .clone(),
+//                )?
+//                .to_bytes())
+//            }
+//        }
     }
 
     fn process_pull_messages_request(
         req: PullRequest,
         store_dir: &Path,
-        registered_client_ledger: &mut HashMap<AuthToken, DestinationAddressBytes>,
+        registered_client_ledger: &mut ClientLedger,
     ) -> Result<PullResponse, ClientProcessingError> {
         println!("Processing pull!");
-        if registered_client_ledger.contains_key(&req.auth_token) {
+        if registered_client_ledger.0.contains_key(&req.auth_token) {
             let retrieved_messages =
                 ClientStorage::retrieve_client_files(req.destination_address, store_dir)?;
             Ok(PullResponse::new(retrieved_messages))
@@ -125,7 +137,7 @@ impl ClientRequestProcessor {
     fn register_new_client(
         req: RegisterRequest,
         store_dir: &Path,
-        registered_client_ledger: &mut HashMap<AuthToken, DestinationAddressBytes>,
+        registered_client_ledger: &mut ClientLedger,
         provider_secret_key: Scalar,
     ) -> Result<RegisterResponse, ClientProcessingError> {
         println!("Processing register new client request!");
@@ -133,8 +145,8 @@ impl ClientRequestProcessor {
             req.destination_address.to_vec(),
             provider_secret_key,
         );
-        if !registered_client_ledger.contains_key(&auth_token) {
-            registered_client_ledger.insert(auth_token, req.destination_address);
+        if !registered_client_ledger.0.contains_key(&auth_token) {
+            registered_client_ledger.0.insert(auth_token, req.destination_address);
             ClientRequestProcessor::create_storage_dir(req.destination_address, store_dir);
         }
         Ok(RegisterResponse::new(auth_token.to_vec()))
@@ -170,18 +182,17 @@ mod register_new_client {
         let req1 = RegisterRequest {
             destination_address: [1u8; 32],
         };
-        let mut registered_client_ledger: HashMap<AuthToken, DestinationAddressBytes> =
-            HashMap::new();
+        let mut registered_client_ledger = ClientLedger::new();
         let store_dir = Path::new("./foo/");
         let key = Scalar::from_bytes_mod_order([1u8; 32]);
-        assert_eq!(0, registered_client_ledger.len());
+        assert_eq!(0, registered_client_ledger.0.len());
         ClientRequestProcessor::register_new_client(
             req1,
             &store_dir,
             &mut registered_client_ledger,
             key,
         );
-        assert_eq!(1, registered_client_ledger.len());
+        assert_eq!(1, registered_client_ledger.0.len());
 
         let req2 = RegisterRequest {
             destination_address: [2u8; 32],
@@ -192,7 +203,7 @@ mod register_new_client {
             &mut registered_client_ledger,
             key,
         );
-        assert_eq!(2, registered_client_ledger.len());
+        assert_eq!(2, registered_client_ledger.0.len());
     }
 
     #[test]
@@ -200,8 +211,7 @@ mod register_new_client {
         let req1 = RegisterRequest {
             destination_address: [1u8; 32],
         };
-        let mut registered_client_ledger: HashMap<AuthToken, DestinationAddressBytes> =
-            HashMap::new();
+        let mut registered_client_ledger = ClientLedger::new();
         let store_dir = Path::new("./foo/");
         let key = Scalar::from_bytes_mod_order([1u8; 32]);
         ClientRequestProcessor::register_new_client(
@@ -219,7 +229,7 @@ mod register_new_client {
             &mut registered_client_ledger,
             key,
         );
-        assert_eq!(1, registered_client_ledger.len())
+        assert_eq!(1, registered_client_ledger.0.len())
     }
 }
 

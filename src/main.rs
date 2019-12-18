@@ -87,7 +87,7 @@ fn run(matches: &ArgMatches) {
         notifier.run();
     });
 
-    provider.start_listening().unwrap()
+    provider.start().unwrap()
 }
 
 fn execute(matches: ArgMatches) -> Result<(), String> {

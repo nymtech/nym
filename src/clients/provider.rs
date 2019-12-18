@@ -1,33 +1,56 @@
-use sfw_provider_requests::requests::{ProviderRequest, PullRequest};
+use sfw_provider_requests::requests::{ProviderRequest, PullRequest, AuthToken, RegisterRequest};
 use sfw_provider_requests::responses::{ProviderResponse, PullResponse};
 use std::net::{Shutdown, SocketAddr};
 use std::net::SocketAddrV4;
 use tokio::prelude::*;
 use std::time::Duration;
+use sphinx::route::DestinationAddressBytes;
+use futures::io::Error;
+
+#[derive(Debug)]
+pub enum ProviderClientError {
+    EmptyAuthTokenError,
+    NetworkError,
+}
+
+impl From<io::Error> for ProviderClientError {
+    fn from(_: Error) -> Self {
+        use ProviderClientError::*;
+
+        NetworkError
+    }
+}
+
 
 pub struct ProviderClient {
-    address: SocketAddrV4,
+    provider_network_address: SocketAddrV4,
+    our_address: DestinationAddressBytes,
+    auth_token: Option<AuthToken>,
 }
 
 impl ProviderClient {
-    pub fn new(address: SocketAddrV4) -> Self {
+    pub fn new(provider_network_address: SocketAddrV4, our_address: DestinationAddressBytes, auth_token: Option<AuthToken>) -> Self {
         ProviderClient {
-            address
+            provider_network_address,
+            our_address,
+            auth_token,
         }
     }
 
     pub async fn retrieve_messages(
         &self,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let destination_address = [42u8; 32];
-        let dummy_auth_token_to_make_it_compile = [0u8; 32];
-        let pull_request = PullRequest::new(destination_address, dummy_auth_token_to_make_it_compile);
+    ) -> Result<(), ProviderClientError> {
+        if self.auth_token.is_none() {
+            return Err(ProviderClientError::EmptyAuthTokenError)
+        }
+
+        let pull_request = PullRequest::new(self.our_address, self.auth_token.unwrap());
         let bytes = pull_request.to_bytes();
 
         // DH temporary: the provider's client port is not in the topology, but we can't change that
         // right now without messing up the existing Go mixnet. So I'm going to hardcode this
         // for the moment until the Go mixnet goes away.
-        let provider_socket = SocketAddrV4::new(*self.address.ip(), 9000);
+        let provider_socket = SocketAddrV4::new(*self.provider_network_address.ip(), 9000);
         println!("Provider: {:?}", provider_socket);
 
         let mut socket = tokio::net::TcpStream::connect(provider_socket).await?;
@@ -50,5 +73,11 @@ impl ProviderClient {
             println!("Received: {:?}", String::from_utf8(message).unwrap())
         }
         Ok(())
+    }
+
+    pub async fn register(&mut self) -> Result<AuthToken, Box<dyn std::error::Error>> {
+        let register_request = RegisterRequest::new(self.our_address);
+
+        Ok([0;32])
     }
 }

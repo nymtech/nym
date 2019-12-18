@@ -133,8 +133,8 @@ impl NymClient {
         }
     }
 
-    async fn start_provider_polling(provider_address: SocketAddrV4) {
-        let provider_client = ProviderClient::new(provider_address);
+    async fn start_provider_polling(provider_client: ProviderClient) {
+//        let provider_client = ProviderClient::new(provider_address);
 
         loop {
             println!("[FETCH MSG] - Polling provider...");
@@ -150,6 +150,18 @@ impl NymClient {
     pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
         println!("starting nym client");
 
+        let topology = get_topology(self.is_local);
+        let provider_address: SocketAddrV4 = topology
+            .mix_provider_nodes
+            .first()
+            .unwrap()
+            .host
+            .parse()
+            .unwrap();
+
+
+
+        let provider_client = ProviderClient::new(provider_address, self.address, self.auth_token);
 
         match self.auth_token {
             None => println!("Need to register!"),
@@ -162,14 +174,6 @@ impl NymClient {
 
         let (mix_tx, mix_rx) = mpsc::unbounded();
         let mut rt = Runtime::new()?;
-        let topology = get_topology(self.is_local);
-        let provider_address: SocketAddrV4 = topology
-            .mix_provider_nodes
-            .first()
-            .unwrap()
-            .host
-            .parse()
-            .unwrap();
 
         let mix_traffic_future = rt.spawn(MixTrafficController::run(mix_rx));
         let loop_cover_traffic_future = rt.spawn(NymClient::start_loop_cover_traffic_stream(
@@ -185,7 +189,7 @@ impl NymClient {
             topology.clone(),
         ));
 
-        let provider_polling_future = rt.spawn(NymClient::start_provider_polling(provider_address));
+        let provider_polling_future = rt.spawn(NymClient::start_provider_polling(provider_client));
         let websocket_future = rt.spawn(ws::start_websocket(self.socket_listening_address, self.input_tx));
 
         rt.block_on(async {

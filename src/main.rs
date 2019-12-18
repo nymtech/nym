@@ -1,7 +1,6 @@
 use crate::provider::presence;
 use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use curve25519_dalek::scalar::Scalar;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process;
@@ -54,6 +53,15 @@ fn main() {
                         .long("storeDir")
                         .help("Directory storing all packets for the clients")
                         .takes_value(true)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("registeredLedger")
+                        .short("r")
+                        .long("registeredLedger")
+                        .help("Directory of the ledger of registered clients")
+                        .takes_value(true)
+                        .required(true),
                 ).arg(Arg::with_name("local")
                     .long("local")
                     .help("Flag to indicate whether the provider should run on a local deployment.")
@@ -78,7 +86,7 @@ fn run(matches: &ArgMatches) {
         notifier.run();
     });
 
-    provider.start_listening().unwrap()
+    provider.start().unwrap()
 }
 
 fn execute(matches: ArgMatches) -> Result<(), String> {
@@ -115,6 +123,7 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
     };
 
     let store_dir = PathBuf::from(matches.value_of("storeDir").unwrap_or("/tmp/nym-provider"));
+    let registered_client_ledger_dir = PathBuf::from(matches.value_of("registeredLedger").unwrap());
     let (secret_key, public_key) = sphinx::crypto::keygen();
 
     println!("The value of mix_host is: {:?}", mix_host);
@@ -123,6 +132,10 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
     println!("The value of client_port is: {:?}", client_port);
     println!("The value of key is: {:?}", secret_key);
     println!("The value of store_dir is: {:?}", store_dir);
+    println!(
+        "The value of registered_client_ledger_dir is: {:?}",
+        registered_client_ledger_dir
+    );
 
     let mix_socket_address = (mix_host, mix_port)
         .to_socket_addrs()

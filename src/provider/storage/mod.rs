@@ -22,6 +22,7 @@ impl From<std::io::Error> for StoreError {
 
 pub struct StoreData {
     client_address: DestinationAddressBytes,
+    #[allow(dead_code)]
     client_surb_id: SURBIdentifier,
     message: Vec<u8>,
 }
@@ -45,7 +46,7 @@ pub struct ClientStorage(());
 
 // TODO: change it to some generic implementation to inject fs
 impl ClientStorage {
-    fn generate_random_file_name() -> String {
+    pub(crate) fn generate_random_file_name() -> String {
         rand::thread_rng()
             .sample_iter(&rand::distributions::Alphanumeric)
             .take(STORED_MESSAGE_FILENAME_LENGTH)
@@ -72,9 +73,6 @@ impl ClientStorage {
         );
 
         // TODO: what to do with surbIDs??
-
-        // TODO: this should be called when client sends 'register' request!
-        std::fs::create_dir_all(full_store_dir)?;
 
         // we can use normal io here, no need for tokio as it's all happening in one thread per connection
         let mut file = File::create(full_store_path)?;
@@ -109,9 +107,9 @@ impl ClientStorage {
             })
             .map(|entry| {
                 let content = std::fs::read(entry.path()).unwrap();
-                ClientStorage::delete_file(entry.path());
+                ClientStorage::delete_file(entry.path()).unwrap();
                 content
-            }) // TODO: THIS MAP IS UNSAFE (BOTH READING AND DELETING)!!
+            }) // TODO: THIS MAP IS UNSAFE (BOTH FOR READING AND DELETING)!! - in the case where there are multiple requests from the same client being processed in parallel
             .chain(std::iter::repeat(ClientStorage::dummy_message()))
             .take(MESSAGE_RETRIEVAL_LIMIT)
             .collect();
@@ -124,8 +122,8 @@ impl ClientStorage {
     // TODO: THIS NEEDS A LOCKING MECHANISM!!! (or a db layer on top - basically 'ClientStorage' on steroids)
     // TODO 2: This should only be called AFTER we sent the reply. Because if client's connection failed after sending request
     // the messages would be deleted but he wouldn't have received them
-    fn delete_file(path: PathBuf) {
+    fn delete_file(path: PathBuf) -> io::Result<()> {
         println!("Here {:?} will be deleted!", path);
-        std::fs::remove_file(path); // another argument for db layer -> remove_file is NOT guaranteed to immediately get rid of the file
+        std::fs::remove_file(path) // another argument for db layer -> remove_file is NOT guaranteed to immediately get rid of the file
     }
 }

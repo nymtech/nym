@@ -48,16 +48,19 @@ impl From<StoreError> for ClientProcessingError {
 pub(crate) struct ClientProcessingData {
     store_dir: PathBuf,
     registered_clients_ledger: HashMap<AuthToken, DestinationAddressBytes>,
+    secret_key: Scalar,
 }
 
 impl ClientProcessingData {
     pub(crate) fn new(
         store_dir: PathBuf,
         registered_clients_ledger: HashMap<AuthToken, DestinationAddressBytes>,
+        secret_key: Scalar,
     ) -> Self {
         ClientProcessingData {
             store_dir,
             registered_clients_ledger,
+            secret_key,
         }
     }
 
@@ -72,20 +75,21 @@ impl ClientRequestProcessor {
     pub(crate) fn process_client_request(
         data: &[u8],
         processing_data: &RwLock<ClientProcessingData>,
-        provider_secret_key: Scalar,
     ) -> Result<Vec<u8>, ClientProcessingError> {
+        let read_processing_data = processing_data.read().unwrap();
         let client_request = ProviderRequests::from_bytes(&data)?;
         println!("Received the following request: {:?}", client_request);
         match client_request {
             ProviderRequests::Register(req) => Ok(ClientRequestProcessor::register_new_client(
                 req,
-                processing_data.read().unwrap().store_dir.as_path(),
+                read_processing_data.store_dir.as_path(),
+                // TODO: this WILL NOT work because ledger is cloned
                 &mut processing_data
                     .read()
                     .unwrap()
                     .registered_clients_ledger
                     .clone(),
-                provider_secret_key,
+                read_processing_data.secret_key,
             )?
             .to_bytes()),
             ProviderRequests::PullMessages(req) => {
@@ -242,7 +246,7 @@ mod generating_new_auth_token {
         let key = Scalar::from_bytes_mod_order([1u8; 32]);
         let token1 = ClientRequestProcessor::generate_new_auth_token(data1, key);
         let token2 = ClientRequestProcessor::generate_new_auth_token(data2, key);
-        assert_eq!(token1.value, token2.value);
+        assert_eq!(token1, token2);
     }
 
     #[test]
@@ -252,13 +256,13 @@ mod generating_new_auth_token {
         let key = Scalar::from_bytes_mod_order([1u8; 32]);
         let token1 = ClientRequestProcessor::generate_new_auth_token(data1, key);
         let token2 = ClientRequestProcessor::generate_new_auth_token(data2, key);
-        assert_ne!(token1.value, token2.value);
+        assert_ne!(token1, token2);
 
         let data1 = vec![1u8; 50];
         let data2 = vec![2u8; 55];
         let key = Scalar::from_bytes_mod_order([1u8; 32]);
         let token1 = ClientRequestProcessor::generate_new_auth_token(data1, key);
         let token2 = ClientRequestProcessor::generate_new_auth_token(data2, key);
-        assert_ne!(token1.value, token2.value);
+        assert_ne!(token1, token2);
     }
 }

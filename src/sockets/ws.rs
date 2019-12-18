@@ -1,7 +1,7 @@
 use crate::clients::InputMessage;
 use futures::channel::{mpsc, oneshot};
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
-use futures::{SinkExt, StreamExt, AsyncReadExt};
+use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use sphinx::route::Destination;
 use std::net::SocketAddr;

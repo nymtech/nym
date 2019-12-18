@@ -5,7 +5,6 @@ use crate::sockets::ws;
 use crate::utils;
 use crate::utils::topology::get_topology;
 use futures::channel::{mpsc, oneshot};
-use futures::future::join5;
 use futures::select;
 use futures::{SinkExt, StreamExt};
 use sphinx::route::{Destination, DestinationAddressBytes, NodeAddressBytes};

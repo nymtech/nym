@@ -1,3 +1,5 @@
+use sphinx::route::DestinationAddressBytes;
+
 const PULL_REQUEST_MESSAGE_PREFIX: [u8; 2] = [1, 0];
 const REGISTER_MESSAGE_PREFIX: [u8; 2] = [0, 1];
 
@@ -108,7 +110,15 @@ impl ProviderRequest for PullRequest {
 
 #[derive(Debug)]
 pub struct RegisterRequest {
-    pub destination_address: sphinx::route::DestinationAddressBytes,
+    pub destination_address: DestinationAddressBytes,
+}
+
+impl RegisterRequest {
+    pub fn new(destination_address: DestinationAddressBytes) -> Self {
+        RegisterRequest {
+            destination_address,
+        }
+    }
 }
 
 impl ProviderRequest for RegisterRequest {

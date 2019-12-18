@@ -128,9 +128,6 @@ enum ServerResponse {
     Error { message: String },
 }
 
-fn dummy_response() -> Message {
-    Message::Text("foomp".to_string())
-}
 
 impl Into<Message> for ServerResponse {
     fn into(self) -> Message {

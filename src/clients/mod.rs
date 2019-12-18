@@ -14,6 +14,7 @@ use std::net::SocketAddr;
 use std::net::SocketAddrV4;
 use std::time::Duration;
 use tokio::runtime::Runtime;
+use sfw_provider_requests::AuthToken;
 
 pub mod directory;
 pub mod mix;
@@ -63,22 +64,25 @@ pub struct NymClient {
     pub input_tx: mpsc::UnboundedSender<InputMessage>,
     // to be used by "send" function or socket, etc
     input_rx: mpsc::UnboundedReceiver<InputMessage>,
-
+    socket_listening_address: SocketAddr,
     is_local: bool,
+    auth_token: Option<AuthToken>
 }
 
 #[derive(Debug)]
 pub struct InputMessage(pub Destination, pub Vec<u8>);
 
 impl NymClient {
-    pub fn new(address: DestinationAddressBytes, is_local: bool) -> Self {
+    pub fn new(address: DestinationAddressBytes, socket_listening_address: SocketAddr, is_local: bool, auth_token: Option<AuthToken>) -> Self {
         let (input_tx, input_rx) = mpsc::unbounded::<InputMessage>();
 
         NymClient {
             address,
             input_tx,
             input_rx,
+            socket_listening_address,
             is_local,
+            auth_token,
         }
     }
 
@@ -129,26 +133,29 @@ impl NymClient {
         }
     }
 
-    async fn start_provider_polling(provider_address: SocketAddrV4) {
-        let provider_client = ProviderClient::new();
+    async fn start_provider_polling(provider_client: ProviderClient) {
+//        let provider_client = ProviderClient::new(provider_address);
 
         loop {
             println!("[FETCH MSG] - Polling provider...");
             let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
             tokio::time::delay_for(delay_duration).await;
-            provider_client
-                .retrieve_messages(provider_address)
+            let messages = provider_client
+                .retrieve_messages()
                 .await
                 .unwrap();
+            for message in messages {
+                println!("Retrieved: {:?}", String::from_utf8(message).unwrap())
+            }
         }
     }
 
-    pub fn start(self, socket_address: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
         println!("starting nym client");
-
-        let (mix_tx, mix_rx) = mpsc::unbounded();
         let mut rt = Runtime::new()?;
+
         let topology = get_topology(self.is_local);
+        // this is temporary and assumes there exists only a single provider.
         let provider_address: SocketAddrV4 = topology
             .mix_provider_nodes
             .first()
@@ -156,6 +163,22 @@ impl NymClient {
             .host
             .parse()
             .unwrap();
+
+        let mut provider_client = ProviderClient::new(provider_address, self.address, self.auth_token);
+
+        rt.block_on(async {
+            match self.auth_token {
+                None => {
+                    let auth_token = provider_client.register().await.unwrap();
+                    provider_client.update_token(auth_token);
+                    println!("Obtained new token! - {:?}", auth_token);
+                },
+                Some(token) => println!("Already got the token! - {:?}", token),
+            }
+        });
+
+
+        let (mix_tx, mix_rx) = mpsc::unbounded();
 
         let mix_traffic_future = rt.spawn(MixTrafficController::run(mix_rx));
         let loop_cover_traffic_future = rt.spawn(NymClient::start_loop_cover_traffic_stream(
@@ -171,8 +194,8 @@ impl NymClient {
             topology.clone(),
         ));
 
-        let provider_polling_future = rt.spawn(NymClient::start_provider_polling(provider_address));
-        let websocket_future = rt.spawn(ws::start_websocket(socket_address, self.input_tx));
+        let provider_polling_future = rt.spawn(NymClient::start_provider_polling(provider_client));
+        let websocket_future = rt.spawn(ws::start_websocket(self.socket_listening_address, self.input_tx));
 
         rt.block_on(async {
             let future_results = join5(

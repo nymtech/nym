@@ -11,6 +11,7 @@ use crate::provider::client_handling::{ClientProcessingData, ClientRequestProces
 use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
 use crate::provider::storage::ClientStorage;
 use std::collections::HashMap;
+use sphinx::route::DestinationAddressBytes;
 
 mod client_handling;
 mod mix_handling;
@@ -26,7 +27,7 @@ pub struct ServiceProvider {
     client_network_address: SocketAddr,
     secret_key: Scalar,
     store_dir: PathBuf,
-    registered_clients_ledger: HashMap<[u8; 32], Vec<u8>>,
+    registered_clients_ledger: HashMap<DestinationAddressBytes, Vec<u8>>,
 }
 
 impl ServiceProvider {

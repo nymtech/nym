@@ -82,8 +82,10 @@ impl ReceivedMessagesBuffer{
         unlocked.messages.extend(msgs);
     }
 
-    async fn run_poller_input_controller(buf: Arc<FMutex<Self>>, poller_rx: mpsc::UnboundedReceiver<Vec<Vec<u8>>>) {
-
+    async fn run_poller_input_controller(buf: Arc<FMutex<Self>>, mut poller_rx: mpsc::UnboundedReceiver<Vec<Vec<u8>>>) {
+        while let Some(new_messages) = poller_rx.next().await {
+            ReceivedMessagesBuffer::add_new_messages(buf.clone(), new_messages).await;
+        }
     }
 
     async fn acquire_and_empty(buf: Arc<FMutex<Self>>) -> Vec<Vec<u8>> {
@@ -91,8 +93,13 @@ impl ReceivedMessagesBuffer{
         std::mem::replace(&mut unlocked.messages, Vec::new())
     }
 
-    async fn run_query_output_controller(buf: Arc<FMutex<Self>>, query_receiver: mpsc::UnboundedReceiver<BufferResponse>) {
-
+    async fn run_query_output_controller(buf: Arc<FMutex<Self>>, mut query_receiver: mpsc::UnboundedReceiver<BufferResponse>) {
+        while let Some(request) = query_receiver.next().await {
+            let messages = ReceivedMessagesBuffer::acquire_and_empty(buf.clone()).await;
+            // if this fails, the whole application needs to blow
+            // because currently only this thread would fail
+            request.send(messages).unwrap();
+        }
     }
 }
 

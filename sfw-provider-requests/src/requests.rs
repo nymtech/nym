@@ -81,6 +81,7 @@ impl ProviderRequest for PullRequest {
             .to_vec()
             .into_iter()
             .chain(self.destination_address.iter().cloned())
+            .chain(self.auth_token.iter().cloned())
             .collect()
     }
 
@@ -96,7 +97,7 @@ impl ProviderRequest for PullRequest {
         }
 
         let mut destination_address = [0u8; 32];
-        destination_address.copy_from_slice(&bytes[2..]);
+        destination_address.copy_from_slice(&bytes[2..34]);
 
         let mut auth_token = [0u8; 32];
         auth_token.copy_from_slice(&bytes[34..]);
@@ -164,12 +165,13 @@ mod creating_pull_request {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
             0, 1, 2,
         ];
-        let auth_token = AuthToken { value: [1u8; 32] };
+        let auth_token = [1u8; 32];
         let pull_request = PullRequest::new(address, auth_token);
         let bytes = pull_request.to_bytes();
 
         let recovered = PullRequest::from_bytes(&bytes).unwrap();
         assert_eq!(address, recovered.destination_address);
+        assert_eq!(auth_token, recovered.auth_token);
     }
 
     #[test]
@@ -178,13 +180,16 @@ mod creating_pull_request {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
             0, 1, 2,
         ];
-        let auth_token = AuthToken { value: [1u8; 32] };
+        let auth_token = [1u8; 32];
         let pull_request = PullRequest::new(address, auth_token);
         let bytes = pull_request.to_bytes();
 
         let recovered = ProviderRequests::from_bytes(&bytes).unwrap();
         match recovered {
-            ProviderRequests::PullMessages(req) => assert_eq!(address, req.destination_address),
+            ProviderRequests::PullMessages(req) => {
+                assert_eq!(address, req.destination_address);
+                assert_eq!(auth_token, req.auth_token);
+            }
             _ => panic!("expected to recover pull request!"),
         }
     }

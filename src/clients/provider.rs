@@ -1,5 +1,5 @@
 use sfw_provider_requests::requests::{ProviderRequest, PullRequest, AuthToken, RegisterRequest};
-use sfw_provider_requests::responses::{ProviderResponse, PullResponse};
+use sfw_provider_requests::responses::{ProviderResponse, PullResponse, RegisterResponse, ProviderResponseError};
 use std::net::{Shutdown, SocketAddr};
 use std::net::SocketAddrV4;
 use tokio::prelude::*;
@@ -9,8 +9,13 @@ use futures::io::Error;
 
 #[derive(Debug)]
 pub enum ProviderClientError {
+    ClientAlreadyRegisteredError,
     EmptyAuthTokenError,
     NetworkError,
+
+    InvalidRequestError,
+    InvalidResponseError,
+    InvalidResponseLengthError,
 }
 
 impl From<io::Error> for ProviderClientError {
@@ -21,6 +26,16 @@ impl From<io::Error> for ProviderClientError {
     }
 }
 
+impl From<ProviderResponseError> for ProviderClientError {
+    fn from(err: ProviderResponseError) -> Self {
+        use ProviderClientError::*;
+        match err {
+            ProviderResponseError::MarshalError => InvalidRequestError,
+            ProviderResponseError::UnmarshalError => InvalidResponseError,
+            ProviderResponseError::UnmarshalErrorInvalidLength => InvalidResponseLengthError,
+        }
+    }
+}
 
 pub struct ProviderClient {
     provider_network_address: SocketAddrV4,
@@ -74,16 +89,29 @@ impl ProviderClient {
 
         let response = self.send_request(bytes).await?;
         println!("Received the following response: {:?}", response);
-        
-        let parsed_response = PullResponse::from_bytes(&response).unwrap();
+
+        let parsed_response = PullResponse::from_bytes(&response)?;
         for message in parsed_response.messages {
             println!("Received: {:?}", String::from_utf8(message).unwrap())
         }
+
+        // TODO: make it return the actual messages instead
         Ok(())
     }
 
-    pub async fn register(&mut self) -> Result<AuthToken, Box<dyn std::error::Error>> {
+    pub async fn register(&mut self) -> Result<AuthToken, ProviderClientError> {
+        if self.auth_token.is_some() {
+            return Err(ProviderClientError::ClientAlreadyRegisteredError);
+        }
+
         let register_request = RegisterRequest::new(self.our_address);
+        let bytes = register_request.to_bytes();
+
+        let response = self.send_request(bytes).await?;
+        println!("Received the following response: {:?}", response);
+
+        let parsed_response = RegisterResponse::from_bytes(&response)?;
+        println!("parsed register: {:?}", parsed_response);
 
         Ok([0;32])
     }

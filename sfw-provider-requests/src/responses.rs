@@ -1,5 +1,5 @@
+use crate::requests::{AuthToken, RegisterRequest};
 use std::convert::TryInto;
-use crate::requests::RegisterRequest;
 
 #[derive(Debug)]
 pub enum ProviderResponseError {
@@ -9,8 +9,8 @@ pub enum ProviderResponseError {
 }
 
 pub trait ProviderResponse
-    where
-        Self: Sized,
+where
+    Self: Sized,
 {
     fn to_bytes(&self) -> Vec<u8>;
     fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderResponseError>;
@@ -23,7 +23,7 @@ pub struct PullResponse {
 
 #[derive(Debug)]
 pub struct RegisterResponse {
-    pub response: Vec<u8>,
+    pub auth_token: AuthToken,
 }
 
 impl PullResponse {
@@ -33,8 +33,8 @@ impl PullResponse {
 }
 
 impl RegisterResponse {
-    pub fn new(response: Vec<u8>) -> Self {
-        RegisterResponse { response }
+    pub fn new(auth_token: AuthToken) -> Self {
+        RegisterResponse { auth_token }
     }
 }
 
@@ -108,12 +108,19 @@ impl ProviderResponse for PullResponse {
 }
 
 impl ProviderResponse for RegisterResponse {
-    fn to_bytes(&self) -> Vec<u8>{
-        self.response.clone()
+    fn to_bytes(&self) -> Vec<u8> {
+        self.auth_token.to_vec()
     }
 
-    fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderResponseError>{
-        unimplemented!()
+    fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderResponseError> {
+        match bytes.len() {
+            32 => {
+                let mut auth_token = [0u8; 32];
+                auth_token.copy_from_slice(&bytes[..32]);
+                Ok(RegisterResponse { auth_token })
+            }
+            _ => Err(ProviderResponseError::UnmarshalErrorInvalidLength),
+        }
     }
 }
 

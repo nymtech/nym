@@ -139,7 +139,7 @@ impl ClientRequestProcessor {
             unlocked.registered_clients_ledger.insert_token(auth_token, req.destination_address);
             ClientRequestProcessor::create_storage_dir(req.destination_address, unlocked.store_dir.as_path())?;
         }
-        Ok(RegisterResponse::new(auth_token.to_vec()))
+        Ok(RegisterResponse::new(auth_token))
     }
 
     fn create_storage_dir(

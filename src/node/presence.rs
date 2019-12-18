@@ -21,7 +21,7 @@ impl Notifier {
             host: node_config.socket_address.to_string(), // note: the directory server determines the real incoming IP itself, but uses the socket. Host here is just a placeholder.
             pub_key: node_config.public_key_string(),
             layer: node_config.layer as u64,
-            last_seen: 666,
+            last_seen: 0,
         };
         Notifier {
             net_client,

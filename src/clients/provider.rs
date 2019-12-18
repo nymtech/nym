@@ -1,11 +1,12 @@
-use sfw_provider_requests::requests::{ProviderRequest, PullRequest, AuthToken, RegisterRequest};
+use sfw_provider_requests::requests::{ProviderRequest, PullRequest, RegisterRequest};
 use sfw_provider_requests::responses::{ProviderResponse, PullResponse, RegisterResponse, ProviderResponseError};
-use std::net::{Shutdown, SocketAddr};
+use std::net::Shutdown;
 use std::net::SocketAddrV4;
 use tokio::prelude::*;
 use std::time::Duration;
 use sphinx::route::DestinationAddressBytes;
 use futures::io::Error;
+use sfw_provider_requests::AuthToken;
 
 #[derive(Debug)]
 pub enum ProviderClientError {
@@ -66,14 +67,14 @@ impl ProviderClient {
         println!("keep alive: {:?}", socket.keepalive());
         socket.set_keepalive(Some(Duration::from_secs(2))).unwrap();
         socket.write_all(&bytes[..]).await?;
-        if let Err(e) = socket.shutdown(Shutdown::Write) {
+        if let Err(_e) = socket.shutdown(Shutdown::Write) {
             // TODO: make it a silent log once we have a proper logging library
 //            eprintln!("failed to close write part of the socket; err = {:?}", e)
         }
 
         let mut response = Vec::new();
         socket.read_to_end(&mut response).await?;
-        if let Err(e) = socket.shutdown(Shutdown::Read) {
+        if let Err(_e) = socket.shutdown(Shutdown::Read) {
             // TODO: make it a silent log once we have a proper logging library
 //            eprintln!("failed to close read part of the socket; err = {:?}", e)
         }
@@ -85,7 +86,7 @@ impl ProviderClient {
         &self,
     ) -> Result<Vec<Vec<u8>>, ProviderClientError> {
         if self.auth_token.is_none() {
-            return Err(ProviderClientError::EmptyAuthTokenError)
+            return Err(ProviderClientError::EmptyAuthTokenError);
         }
 
         let pull_request = PullRequest::new(self.our_address, self.auth_token.unwrap());

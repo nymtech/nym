@@ -14,7 +14,7 @@ use std::net::SocketAddr;
 use std::net::SocketAddrV4;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use sfw_provider_requests::requests::AuthToken;
+use sfw_provider_requests::AuthToken;
 
 pub mod directory;
 pub mod mix;
@@ -155,6 +155,7 @@ impl NymClient {
         let mut rt = Runtime::new()?;
 
         let topology = get_topology(self.is_local);
+        // this is temporary and assumes there exists only a single provider.
         let provider_address: SocketAddrV4 = topology
             .mix_provider_nodes
             .first()
@@ -162,8 +163,6 @@ impl NymClient {
             .host
             .parse()
             .unwrap();
-
-
 
         let mut provider_client = ProviderClient::new(provider_address, self.address, self.auth_token);
 
@@ -178,9 +177,6 @@ impl NymClient {
             }
         });
 
-
-        return Ok(());
-        // don't start anything, just register
 
         let (mix_tx, mix_rx) = mpsc::unbounded();
 

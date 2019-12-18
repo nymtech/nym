@@ -1,9 +1,9 @@
 use crate::banner;
-use crate::clients::NymClient;
-use crate::persistence::pemstore;
+//use crate::clients::NymClient;
+//use crate::persistence::pemstore;
 use clap::ArgMatches;
 
-pub fn execute(matches: &ArgMatches) {
+pub fn execute(_matches: &ArgMatches) {
     println!("{}", banner());
     panic!("For time being this command is deprecated! Please use 'websocket' instead");
     //

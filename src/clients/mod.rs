@@ -130,14 +130,14 @@ impl NymClient {
     }
 
     async fn start_provider_polling(provider_address: SocketAddrV4) {
-        let provider_client = ProviderClient::new();
+        let provider_client = ProviderClient::new(provider_address);
 
         loop {
             println!("[FETCH MSG] - Polling provider...");
             let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
             tokio::time::delay_for(delay_duration).await;
             provider_client
-                .retrieve_messages(provider_address)
+                .retrieve_messages()
                 .await
                 .unwrap();
         }
@@ -145,6 +145,12 @@ impl NymClient {
 
     pub fn start(self, socket_address: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
         println!("starting nym client");
+
+
+        // TODO: registration here
+
+        return Ok(());
+        // don't start anything, just register
 
         let (mix_tx, mix_rx) = mpsc::unbounded();
         let mut rt = Runtime::new()?;

@@ -23,7 +23,7 @@ mod storage;
 
 // TODO: if we ever create config file, this should go there
 const STORED_MESSAGE_FILENAME_LENGTH: usize = 16;
-const MESSAGE_RETRIEVAL_LIMIT: usize = 2;
+const MESSAGE_RETRIEVAL_LIMIT: usize = 5;
 
 pub struct Config {
     pub client_socket_address: SocketAddr,

@@ -205,7 +205,7 @@ impl NymClient {
     }
 
     pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
-        println!("starting nym client");
+        println!("Starting nym client");
         let mut rt = Runtime::new()?;
 
         let topology = get_topology(self.is_local);

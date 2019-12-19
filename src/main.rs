@@ -47,7 +47,6 @@ fn main() {
                         .long("storeDir")
                         .help("Directory storing all packets for the clients")
                         .takes_value(true)
-                        .required(true),
                 )
                 .arg(
                     Arg::with_name("registeredLedger")
@@ -55,7 +54,6 @@ fn main() {
                         .long("registeredLedger")
                         .help("Directory of the ledger of registered clients")
                         .takes_value(true)
-                        .required(true),
                 ).arg(Arg::with_name("local")
                     .long("local")
                     .help("Flag to indicate whether the provider should run on a local deployment.")
@@ -110,8 +108,16 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
     };
 
     let key_pair = KeyPair::new(); // TODO: persist this so keypairs don't change every restart
-    let store_dir = PathBuf::from(matches.value_of("storeDir").unwrap_or("/tmp/nym-provider"));
-    let registered_client_ledger_dir = PathBuf::from(matches.value_of("registeredLedger").unwrap());
+    let store_dir = PathBuf::from(
+        matches
+            .value_of("storeDir")
+            .unwrap_or("/tmp/nym-provider/inboxes"),
+    );
+    let registered_client_ledger_dir = PathBuf::from(
+        matches
+            .value_of("registeredLedger")
+            .unwrap_or("/tmp/nym-provider/registered_clients"),
+    );
 
     println!("The value of mix_host is: {:?}", mix_host);
     println!("The value of mix_port is: {:?}", mix_port);

@@ -4,7 +4,7 @@ use curve25519_dalek::montgomery::MontgomeryPoint;
 use sphinx::route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier};
 use sphinx::SphinxPacket;
 
-const LOOP_COVER_MESSAGE_PAYLOAD: &[u8] = b"The cake is a lie!";
+pub const LOOP_COVER_MESSAGE_PAYLOAD: &[u8] = b"The cake is a lie!";
 
 pub fn loop_cover_message(
     our_address: DestinationAddressBytes,

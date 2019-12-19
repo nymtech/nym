@@ -1,3 +1,4 @@
+use crate::clients::directory::presence::Topology;
 use crate::clients::BufferResponse;
 use crate::clients::InputMessage;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -6,18 +7,19 @@ use futures::future::FutureExt;
 use futures::io::Error;
 use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
-use sphinx::route::Destination;
+use sphinx::route::{Destination, DestinationAddressBytes};
 use std::io;
 use std::net::SocketAddr;
 use tungstenite::protocol::Message;
 
 struct Connection {
     address: SocketAddr,
-    rx: UnboundedReceiver<Message>,
-    tx: UnboundedSender<Message>,
-
     msg_input: mpsc::UnboundedSender<InputMessage>,
     msg_query: mpsc::UnboundedSender<BufferResponse>,
+    rx: UnboundedReceiver<Message>,
+    self_address: DestinationAddressBytes,
+    topology: Topology,
+    tx: UnboundedSender<Message>,
 }
 
 #[derive(Debug)]
@@ -72,7 +74,7 @@ impl ClientRequest {
         recipient_address: String,
         mut input_tx: mpsc::UnboundedSender<InputMessage>,
     ) -> ServerResponse {
-        let address_vec = match hex::decode(recipient_address) {
+        let address_vec = match base64::decode_config(&recipient_address, base64::URL_SAFE) {
             Err(e) => {
                 return ServerResponse::Error {
                     message: e.to_string(),
@@ -94,6 +96,7 @@ impl ClientRequest {
 
         let input_msg = InputMessage(Destination::new(address, dummy_surb), msg.into_bytes());
 
+        println!("ALMOST ABOUT TO SOMEDAY SEND {:?}", input_msg);
         input_tx.send(input_msg).await.unwrap();
 
         ServerResponse::Send
@@ -116,19 +119,29 @@ impl ClientRequest {
         }
 
         let messages = messages.unwrap();
-
-        ServerResponse::Fetch { messages }
-    }
-
-    async fn handle_get_clients() -> ServerResponse {
-        ServerResponse::Error {
-            message: "NOT IMPLEMENTED".to_string(),
+        let messages_as_b64 = messages
+            .iter()
+            .map(|message| base64::encode_config(message, base64::URL_SAFE))
+            .collect();
+        ServerResponse::Fetch {
+            messages: messages_as_b64,
         }
     }
 
-    async fn handle_own_details() -> ServerResponse {
-        ServerResponse::Error {
-            message: "NOT IMPLEMENTED".to_string(),
+    async fn handle_get_clients(topology: Topology) -> ServerResponse {
+        let clients = topology
+            .mix_provider_nodes
+            .into_iter()
+            .flat_map(|provider| provider.registered_clients.into_iter())
+            .map(|client| client.pub_key)
+            .collect();
+        ServerResponse::GetClients { clients }
+    }
+
+    async fn handle_own_details(self_address_bytes: DestinationAddressBytes) -> ServerResponse {
+        let self_address = base64::encode_config(&self_address_bytes, base64::URL_SAFE);
+        ServerResponse::OwnDetails {
+            address: self_address,
         }
     }
 }
@@ -137,7 +150,7 @@ impl ClientRequest {
 #[serde(tag = "type", rename_all = "camelCase")]
 enum ServerResponse {
     Send,
-    Fetch { messages: Vec<Vec<u8>> },
+    Fetch { messages: Vec<String> },
     GetClients { clients: Vec<String> },
     OwnDetails { address: String },
     Error { message: String },
@@ -164,8 +177,10 @@ async fn handle_connection(conn: Connection) {
                 ClientRequest::handle_send(message, recipient_address, conn.msg_input.clone()).await
             }
             ClientRequest::Fetch => ClientRequest::handle_fetch(conn.msg_query.clone()).await,
-            ClientRequest::GetClients => ClientRequest::handle_get_clients().await,
-            ClientRequest::OwnDetails => ClientRequest::handle_own_details().await,
+            ClientRequest::GetClients => {
+                ClientRequest::handle_get_clients(conn.topology.clone()).await
+            }
+            ClientRequest::OwnDetails => ClientRequest::handle_own_details(conn.self_address).await,
         };
 
         conn.tx
@@ -178,6 +193,8 @@ async fn accept_connection(
     stream: tokio::net::TcpStream,
     msg_input: mpsc::UnboundedSender<InputMessage>,
     msg_query: mpsc::UnboundedSender<BufferResponse>,
+    self_address: DestinationAddressBytes,
+    topology: Topology,
 ) {
     let address = stream
         .peer_addr()
@@ -199,9 +216,10 @@ async fn accept_connection(
         address,
         rx: msg_rx,
         tx: response_tx,
-
+        topology,
         msg_input,
         msg_query,
+        self_address,
     };
     tokio::spawn(handle_connection(conn));
 
@@ -220,6 +238,8 @@ pub async fn start_websocket(
     address: SocketAddr,
     message_tx: mpsc::UnboundedSender<InputMessage>,
     received_messages_query_tx: mpsc::UnboundedSender<BufferResponse>,
+    self_address: DestinationAddressBytes,
+    topology: Topology,
 ) -> Result<(), WebSocketError> {
     let mut listener = tokio::net::TcpListener::bind(address).await?;
 
@@ -230,6 +250,8 @@ pub async fn start_websocket(
             stream,
             message_tx.clone(),
             received_messages_query_tx.clone(),
+            self_address,
+            topology.clone(),
         ));
     }
 

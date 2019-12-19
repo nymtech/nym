@@ -23,12 +23,9 @@ pub mod mix;
 pub mod provider;
 pub mod validator;
 
-// TODO: put that in config once it exists
-const LOOP_COVER_AVERAGE_DELAY: f64 = 10.0;
-// assume seconds
-const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 10.0;
-// assume seconds;
-const FETCH_MESSAGES_DELAY: f64 = 10.0; // assume seconds;
+const LOOP_COVER_AVERAGE_DELAY: f64 = 10.0; // seconds
+const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 1.0; //  seconds;
+const FETCH_MESSAGES_DELAY: f64 = 1.0; // seconds;
 
 // provider-poller sends polls service provider; receives messages
 // provider-poller sends (TX) to ReceivedBufferController (RX)
@@ -194,18 +191,24 @@ impl NymClient {
         provider_client: ProviderClient,
         mut poller_tx: mpsc::UnboundedSender<Vec<Vec<u8>>>,
     ) {
+        let loop_message = &utils::sphinx::LOOP_COVER_MESSAGE_PAYLOAD.to_vec();
+        let dummy_message = &sfw_provider_requests::DUMMY_MESSAGE_CONTENT.to_vec();
         loop {
             let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
             tokio::time::delay_for(delay_duration).await;
             println!("[FETCH MSG] - Polling provider...");
             let messages = provider_client.retrieve_messages().await.unwrap();
+            let good_messages = messages
+                .into_iter()
+                .filter(|message| message != loop_message && message != dummy_message)
+                .collect();
             // if any of those fails, whole application should blow...
-            poller_tx.send(messages).await.unwrap();
+            poller_tx.send(good_messages).await.unwrap();
         }
     }
 
     pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
-        println!("starting nym client");
+        println!("Starting nym client");
         let mut rt = Runtime::new()?;
 
         let topology = get_topology(self.is_local);
@@ -274,6 +277,8 @@ impl NymClient {
             self.socket_listening_address,
             self.input_tx,
             received_messages_buffer_output_tx,
+            self.address,
+            topology,
         ));
 
         rt.block_on(async {

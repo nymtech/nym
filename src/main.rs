@@ -75,7 +75,6 @@ fn main() {
                         .long("port")
                         .help("Port for websocket to listen on")
                         .takes_value(true)
-                        .required(true),
                 )
                 .arg(Arg::with_name("local")
                     .long("local")

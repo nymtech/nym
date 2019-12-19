@@ -74,6 +74,10 @@ impl ClientLedger {
         ClientLedger(HashMap::new())
     }
 
+    fn add_arc_futures_mutex(self) -> Arc<FMutex<Self>> {
+        Arc::new(FMutex::new(self))
+    }
+
     fn has_token(&self, auth_token: AuthToken) -> bool {
         return self.0.contains_key(&auth_token);
     }
@@ -176,7 +180,7 @@ impl ServiceProvider {
     // TODO: FIGURE OUT HOW TO SET READ_DEADLINES IN TOKIO
     async fn process_client_socket_connection(
         mut socket: tokio::net::TcpStream,
-        processing_data: Arc<FMutex<ClientProcessingData>>,
+        processing_data: Arc<ClientProcessingData>,
     ) {
         let mut buf = [0; 1024];
 
@@ -246,12 +250,12 @@ impl ServiceProvider {
     async fn start_client_listening(
         address: SocketAddr,
         store_dir: PathBuf,
-        client_ledger: ClientLedger,
+        client_ledger: Arc<FMutex<ClientLedger>>,
         secret_key: Scalar,
     ) -> Result<(), ProviderError> {
         let mut listener = tokio::net::TcpListener::bind(address).await?;
         let processing_data =
-            ClientProcessingData::new(store_dir, client_ledger, secret_key).add_arc_futures_mutex();
+            ClientProcessingData::new(store_dir, client_ledger, secret_key).add_arc();
 
         loop {
             let (socket, _) = listener.accept().await?;
@@ -272,6 +276,9 @@ impl ServiceProvider {
         let mut rt = Runtime::new()?;
         //        let mut h = rt.handle();
 
+        let initial_client_ledger = self.registered_clients_ledger;
+        let thread_shareable_ledger = initial_client_ledger.add_arc_futures_mutex();
+
         let presence_notifier = presence::Notifier::new(
             self.directory_server,
             self.mix_network_address.clone(),
@@ -287,7 +294,7 @@ impl ServiceProvider {
         let client_future = rt.spawn(ServiceProvider::start_client_listening(
             self.client_network_address,
             self.store_dir.clone(),
-            self.registered_clients_ledger, // we're just cloning the initial ledger state
+            thread_shareable_ledger.clone(),
             self.secret_key,
         ));
         // Spawn the root task

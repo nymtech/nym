@@ -5,6 +5,7 @@ use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
 use futures::io::Error;
 use futures::lock::Mutex as FMutex;
+use nym_client::clients::directory::presence::MixProviderClient;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use std::collections::HashMap;
@@ -88,6 +89,14 @@ impl ClientLedger {
         client_address: DestinationAddressBytes,
     ) -> Option<DestinationAddressBytes> {
         self.0.insert(auth_token, client_address)
+    }
+
+    fn current_clients(&self) -> Vec<MixProviderClient> {
+        self.0
+            .iter()
+            .map(|(_, &v)| Config::public_key_string(MontgomeryPoint(v)))
+            .map(|pub_key| MixProviderClient { pub_key })
+            .collect()
     }
 
     #[allow(dead_code)]
@@ -283,6 +292,7 @@ impl ServiceProvider {
             self.directory_server,
             self.mix_network_address.clone(),
             self.public_key,
+            thread_shareable_ledger.clone(),
         );
 
         let presence_future = rt.spawn(presence_notifier.run());
@@ -294,7 +304,7 @@ impl ServiceProvider {
         let client_future = rt.spawn(ServiceProvider::start_client_listening(
             self.client_network_address,
             self.store_dir.clone(),
-            thread_shareable_ledger.clone(),
+            thread_shareable_ledger,
             self.secret_key,
         ));
         // Spawn the root task

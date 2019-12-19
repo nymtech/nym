@@ -23,12 +23,9 @@ pub mod mix;
 pub mod provider;
 pub mod validator;
 
-// TODO: put that in config once it exists
-const LOOP_COVER_AVERAGE_DELAY: f64 = 10.0;
-// assume seconds
-const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 10.0;
-// assume seconds;
-const FETCH_MESSAGES_DELAY: f64 = 10.0; // assume seconds;
+const LOOP_COVER_AVERAGE_DELAY: f64 = 10.0; // seconds
+const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 1.0; //  seconds;
+const FETCH_MESSAGES_DELAY: f64 = 1.0; // seconds;
 
 // provider-poller sends polls service provider; receives messages
 // provider-poller sends (TX) to ReceivedBufferController (RX)

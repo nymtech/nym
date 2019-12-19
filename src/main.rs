@@ -1,6 +1,7 @@
 use crate::provider::presence;
 use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches, SubCommand};
+use nym_client::identity::mixnet::KeyPair;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process;
@@ -41,19 +42,11 @@ fn main() {
                         .takes_value(true)
                 )
                 .arg(
-                    Arg::with_name("keyfile")
-                        .short("k")
-                        .long("keyfile")
-                        .help("Optional path to the persistent keyfile of the node")
-                        .takes_value(true),
-                )
-                .arg(
                     Arg::with_name("storeDir")
                         .short("s")
                         .long("storeDir")
                         .help("Directory storing all packets for the clients")
                         .takes_value(true)
-                        .required(true),
                 )
                 .arg(
                     Arg::with_name("registeredLedger")
@@ -61,7 +54,6 @@ fn main() {
                         .long("registeredLedger")
                         .help("Directory of the ledger of registered clients")
                         .takes_value(true)
-                        .required(true),
                 ).arg(Arg::with_name("local")
                     .long("local")
                     .help("Flag to indicate whether the provider should run on a local deployment.")
@@ -89,13 +81,6 @@ fn run(matches: &ArgMatches) {
     provider.start().unwrap()
 }
 
-fn execute(matches: ArgMatches) -> Result<(), String> {
-    match matches.subcommand() {
-        ("run", Some(m)) => Ok(run(m)),
-        _ => Err(usage()),
-    }
-}
-
 fn new_config(matches: &ArgMatches) -> provider::Config {
     println!("Running the service provider!");
     let is_local = matches.is_present("local");
@@ -109,7 +94,7 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
     let mix_host = matches.value_of("mixHost").unwrap_or("0.0.0.0");
     let mix_port = match matches.value_of("mixPort").unwrap_or("8085").parse::<u16>() {
         Ok(n) => n,
-        Err(err) => panic!("Invalid port value provided - {:?}", err),
+        Err(err) => panic!("Invalid mix host port value provided - {:?}", err),
     };
 
     let client_host = matches.value_of("clientHost").unwrap_or("0.0.0.0");
@@ -119,18 +104,26 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
         .parse::<u16>()
     {
         Ok(n) => n,
-        Err(err) => panic!("Invalid port value provided - {:?}", err),
+        Err(err) => panic!("Invalid client port value provided - {:?}", err),
     };
 
-    let store_dir = PathBuf::from(matches.value_of("storeDir").unwrap_or("/tmp/nym-provider"));
-    let registered_client_ledger_dir = PathBuf::from(matches.value_of("registeredLedger").unwrap());
-    let (secret_key, public_key) = sphinx::crypto::keygen();
+    let key_pair = KeyPair::new(); // TODO: persist this so keypairs don't change every restart
+    let store_dir = PathBuf::from(
+        matches
+            .value_of("storeDir")
+            .unwrap_or("/tmp/nym-provider/inboxes"),
+    );
+    let registered_client_ledger_dir = PathBuf::from(
+        matches
+            .value_of("registeredLedger")
+            .unwrap_or("/tmp/nym-provider/registered_clients"),
+    );
 
     println!("The value of mix_host is: {:?}", mix_host);
     println!("The value of mix_port is: {:?}", mix_port);
     println!("The value of client_host is: {:?}", client_host);
     println!("The value of client_port is: {:?}", client_port);
-    println!("The value of key is: {:?}", secret_key);
+    println!("The value of key is: {:?}", key_pair.private.clone());
     println!("The value of store_dir is: {:?}", store_dir);
     println!(
         "The value of registered_client_ledger_dir is: {:?}",
@@ -159,12 +152,19 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
     );
 
     provider::Config {
-        directory_server,
-        public_key,
-        client_socket_address,
         mix_socket_address,
-        secret_key,
+        directory_server,
+        public_key: key_pair.public,
+        client_socket_address,
+        secret_key: key_pair.private,
         store_dir: PathBuf::from(store_dir),
+    }
+}
+
+fn execute(matches: ArgMatches) -> Result<(), String> {
+    match matches.subcommand() {
+        ("run", Some(m)) => Ok(run(m)),
+        _ => Err(usage()),
     }
 }
 

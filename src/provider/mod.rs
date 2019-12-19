@@ -1,19 +1,19 @@
+use crate::provider::client_handling::{ClientProcessingData, ClientRequestProcessor};
+use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
+use crate::provider::storage::ClientStorage;
+use curve25519_dalek::montgomery::MontgomeryPoint;
+use curve25519_dalek::scalar::Scalar;
+use futures::io::Error;
+use futures::lock::Mutex as FMutex;
+use sfw_provider_requests::AuthToken;
+use sphinx::route::DestinationAddressBytes;
+use std::collections::HashMap;
 use std::net::{Shutdown, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::RwLock;
-use curve25519_dalek::montgomery::MontgomeryPoint;
-use curve25519_dalek::scalar::Scalar;
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
-use crate::provider::client_handling::{ClientProcessingData, ClientRequestProcessor};
-use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
-use crate::provider::storage::ClientStorage;
-use futures::io::Error;
-use sfw_provider_requests::AuthToken;
-use sphinx::route::DestinationAddressBytes;
-use std::collections::HashMap;
-use futures::lock::Mutex as FMutex;
 
 mod client_handling;
 mod mix_handling;
@@ -75,10 +75,14 @@ impl ClientLedger {
     }
 
     fn has_token(&self, auth_token: AuthToken) -> bool {
-        return self.0.contains_key(&auth_token)
+        return self.0.contains_key(&auth_token);
     }
 
-    fn insert_token(&mut self, auth_token: AuthToken, client_address: DestinationAddressBytes) -> Option<DestinationAddressBytes>{
+    fn insert_token(
+        &mut self,
+        auth_token: AuthToken,
+        client_address: DestinationAddressBytes,
+    ) -> Option<DestinationAddressBytes> {
         self.0.insert(auth_token, client_address)
     }
 
@@ -137,10 +141,10 @@ impl ServiceProvider {
                         store_data,
                         processing_data.read().unwrap().store_dir.as_path(),
                     )
-                        .unwrap_or_else(|e| {
-                            eprintln!("failed to store processed sphinx message; err = {:?}", e);
-                            return;
-                        });
+                    .unwrap_or_else(|e| {
+                        eprintln!("failed to store processed sphinx message; err = {:?}", e);
+                        return;
+                    });
                 }
                 Err(e) => {
                     eprintln!("failed to read from socket; err = {:?}", e);
@@ -183,7 +187,9 @@ impl ServiceProvider {
                 match ClientRequestProcessor::process_client_request(
                     buf[..n].as_ref(),
                     processing_data,
-                ).await {
+                )
+                .await
+                {
                     Err(e) => {
                         eprintln!("failed to process client request; err = {:?}", e);
                         Err(())

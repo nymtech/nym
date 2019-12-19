@@ -5,7 +5,6 @@ use std::thread;
 use std::time::Duration;
 
 use nym_client::clients::directory::presence::MixProviderPresence;
-
 use nym_client::clients::directory::requests::presence_providers_post::PresenceMixProviderPoster;
 
 pub struct Notifier {

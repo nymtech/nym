@@ -4,15 +4,14 @@ use curve25519_dalek::scalar::Scalar;
 use futures::lock::Mutex as FMutex;
 use hmac::{Hmac, Mac};
 use sfw_provider_requests::requests::{
-    ProviderRequestError, ProviderRequests, PullRequest,
-    RegisterRequest,
+    ProviderRequestError, ProviderRequests, PullRequest, RegisterRequest,
 };
 use sfw_provider_requests::responses::{ProviderResponse, PullResponse, RegisterResponse};
+use sfw_provider_requests::AuthToken;
 use sha2::Sha256;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use sfw_provider_requests::AuthToken;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -88,11 +87,14 @@ impl ClientRequestProcessor {
             ProviderRequests::Register(req) => Ok(ClientRequestProcessor::register_new_client(
                 req,
                 processing_data,
-            ).await?.to_bytes()),
-            ProviderRequests::PullMessages(req) => Ok(ClientRequestProcessor::process_pull_messages_request(
-                req,
-                processing_data,
-            ).await?.to_bytes())
+            )
+            .await?
+            .to_bytes()),
+            ProviderRequests::PullMessages(req) => Ok(
+                ClientRequestProcessor::process_pull_messages_request(req, processing_data)
+                    .await?
+                    .to_bytes(),
+            ),
         }
     }
 
@@ -109,8 +111,10 @@ impl ClientRequestProcessor {
             let store_dir_clone = unlocked.store_dir.clone();
             // drop the mutex so that we could do IO without blocking others wanting to get the lock
             drop(unlocked);
-            let retrieved_messages =
-                ClientStorage::retrieve_client_files(req.destination_address, store_dir_clone.as_path())?;
+            let retrieved_messages = ClientStorage::retrieve_client_files(
+                req.destination_address,
+                store_dir_clone.as_path(),
+            )?;
             Ok(PullResponse::new(retrieved_messages))
         } else {
             Err(ClientProcessingError::WrongToken)
@@ -129,8 +133,13 @@ impl ClientRequestProcessor {
             unlocked.secret_key,
         );
         if !unlocked.registered_clients_ledger.has_token(auth_token) {
-            unlocked.registered_clients_ledger.insert_token(auth_token, req.destination_address);
-            ClientRequestProcessor::create_storage_dir(req.destination_address, unlocked.store_dir.as_path())?;
+            unlocked
+                .registered_clients_ledger
+                .insert_token(auth_token, req.destination_address);
+            ClientRequestProcessor::create_storage_dir(
+                req.destination_address,
+                unlocked.store_dir.as_path(),
+            )?;
         }
         Ok(RegisterResponse::new(auth_token))
     }
@@ -156,66 +165,66 @@ impl ClientRequestProcessor {
 
 #[cfg(test)]
 mod register_new_client {
-    use super::*;
+    // use super::*;
 
     // TODO: those tests require being called in async context. we need to research how to test this stuff...
-//    #[test]
-//    fn registers_new_auth_token_for_each_new_client() {
-//        let req1 = RegisterRequest {
-//            destination_address: [1u8; 32],
-//        };
-//        let registered_client_ledger = ClientLedger::new();
-//        let store_dir = PathBuf::from("./foo/");
-//        let key = Scalar::from_bytes_mod_order([1u8; 32]);
-//        let client_processing_data = ClientProcessingData::new(store_dir, registered_client_ledger, key).add_arc_futures_mutex();
-//
-//
-//        // need to do async....
-//        client_processing_data.lock().await;
-//        assert_eq!(0, registered_client_ledger.0.len());
-//        ClientRequestProcessor::register_new_client(
-//            req1,
-//            client_processing_data.clone(),
-//        );
-//
-//        assert_eq!(1, registered_client_ledger.0.len());
-//
-//        let req2 = RegisterRequest {
-//            destination_address: [2u8; 32],
-//        };
-//        ClientRequestProcessor::register_new_client(
-//            req2,
-//            client_processing_data,
-//        );
-//        assert_eq!(2, registered_client_ledger.0.len());
-//    }
-//
-//    #[test]
-//    fn registers_given_token_only_once() {
-//        let req1 = RegisterRequest {
-//            destination_address: [1u8; 32],
-//        };
-//        let registered_client_ledger = ClientLedger::new();
-//        let store_dir = PathBuf::from("./foo/");
-//        let key = Scalar::from_bytes_mod_order([1u8; 32]);
-//        let client_processing_data = ClientProcessingData::new(store_dir, registered_client_ledger, key).add_arc_futures_mutex();
-//
-//        ClientRequestProcessor::register_new_client(
-//            req1,
-//            client_processing_data.clone(),
-//        );
-//        let req2 = RegisterRequest {
-//            destination_address: [1u8; 32],
-//        };
-//        ClientRequestProcessor::register_new_client(
-//            req2,
-//            client_processing_data.clone(),
-//        );
-//
-//        client_processing_data.lock().await;
-//
-//        assert_eq!(1, registered_client_ledger.0.len())
-//    }
+    //    #[test]
+    //    fn registers_new_auth_token_for_each_new_client() {
+    //        let req1 = RegisterRequest {
+    //            destination_address: [1u8; 32],
+    //        };
+    //        let registered_client_ledger = ClientLedger::new();
+    //        let store_dir = PathBuf::from("./foo/");
+    //        let key = Scalar::from_bytes_mod_order([1u8; 32]);
+    //        let client_processing_data = ClientProcessingData::new(store_dir, registered_client_ledger, key).add_arc_futures_mutex();
+    //
+    //
+    //        // need to do async....
+    //        client_processing_data.lock().await;
+    //        assert_eq!(0, registered_client_ledger.0.len());
+    //        ClientRequestProcessor::register_new_client(
+    //            req1,
+    //            client_processing_data.clone(),
+    //        );
+    //
+    //        assert_eq!(1, registered_client_ledger.0.len());
+    //
+    //        let req2 = RegisterRequest {
+    //            destination_address: [2u8; 32],
+    //        };
+    //        ClientRequestProcessor::register_new_client(
+    //            req2,
+    //            client_processing_data,
+    //        );
+    //        assert_eq!(2, registered_client_ledger.0.len());
+    //    }
+    //
+    //    #[test]
+    //    fn registers_given_token_only_once() {
+    //        let req1 = RegisterRequest {
+    //            destination_address: [1u8; 32],
+    //        };
+    //        let registered_client_ledger = ClientLedger::new();
+    //        let store_dir = PathBuf::from("./foo/");
+    //        let key = Scalar::from_bytes_mod_order([1u8; 32]);
+    //        let client_processing_data = ClientProcessingData::new(store_dir, registered_client_ledger, key).add_arc_futures_mutex();
+    //
+    //        ClientRequestProcessor::register_new_client(
+    //            req1,
+    //            client_processing_data.clone(),
+    //        );
+    //        let req2 = RegisterRequest {
+    //            destination_address: [1u8; 32],
+    //        };
+    //        ClientRequestProcessor::register_new_client(
+    //            req2,
+    //            client_processing_data.clone(),
+    //        );
+    //
+    //        client_processing_data.lock().await;
+    //
+    //        assert_eq!(1, registered_client_ledger.0.len())
+    //    }
 }
 
 #[cfg(test)]
@@ -227,7 +236,7 @@ mod create_storage_dir {
     fn it_creates_a_correct_storage_directory() {
         let client_address: DestinationAddressBytes = [1u8; 32];
         let store_dir = Path::new("./foo/");
-        ClientRequestProcessor::create_storage_dir(client_address, store_dir);
+        ClientRequestProcessor::create_storage_dir(client_address, store_dir).unwrap();
     }
 }
 

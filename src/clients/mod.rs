@@ -5,18 +5,18 @@ use crate::sockets::ws;
 use crate::utils;
 use crate::utils::topology::get_topology;
 use futures::channel::{mpsc, oneshot};
+use futures::join;
+use futures::lock::Mutex as FMutex;
 use futures::select;
 use futures::{SinkExt, StreamExt};
+use sfw_provider_requests::AuthToken;
 use sphinx::route::{Destination, DestinationAddressBytes, NodeAddressBytes};
 use sphinx::SphinxPacket;
 use std::net::SocketAddr;
 use std::net::SocketAddrV4;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use sfw_provider_requests::AuthToken;
-use futures::lock::Mutex as FMutex;
-use std::sync::Arc;
-use futures::join;
 
 pub mod directory;
 pub mod mix;
@@ -62,18 +62,18 @@ impl MixTrafficController {
 
 pub type BufferResponse = oneshot::Sender<Vec<Vec<u8>>>;
 
-struct ReceivedMessagesBuffer{
-    messages: Vec<Vec<u8>>
+struct ReceivedMessagesBuffer {
+    messages: Vec<Vec<u8>>,
 }
 
-impl ReceivedMessagesBuffer{
+impl ReceivedMessagesBuffer {
     fn add_arc_futures_mutex(self) -> Arc<FMutex<Self>> {
         Arc::new(FMutex::new(self))
     }
 
     fn new() -> Self {
-        ReceivedMessagesBuffer{
-            messages: Vec::new()
+        ReceivedMessagesBuffer {
+            messages: Vec::new(),
         }
     }
 
@@ -83,7 +83,10 @@ impl ReceivedMessagesBuffer{
         unlocked.messages.extend(msgs);
     }
 
-    async fn run_poller_input_controller(buf: Arc<FMutex<Self>>, mut poller_rx: mpsc::UnboundedReceiver<Vec<Vec<u8>>>) {
+    async fn run_poller_input_controller(
+        buf: Arc<FMutex<Self>>,
+        mut poller_rx: mpsc::UnboundedReceiver<Vec<Vec<u8>>>,
+    ) {
         while let Some(new_messages) = poller_rx.next().await {
             ReceivedMessagesBuffer::add_new_messages(buf.clone(), new_messages).await;
         }
@@ -94,7 +97,10 @@ impl ReceivedMessagesBuffer{
         std::mem::replace(&mut unlocked.messages, Vec::new())
     }
 
-    async fn run_query_output_controller(buf: Arc<FMutex<Self>>, mut query_receiver: mpsc::UnboundedReceiver<BufferResponse>) {
+    async fn run_query_output_controller(
+        buf: Arc<FMutex<Self>>,
+        mut query_receiver: mpsc::UnboundedReceiver<BufferResponse>,
+    ) {
         while let Some(request) = query_receiver.next().await {
             let messages = ReceivedMessagesBuffer::acquire_and_empty(buf.clone()).await;
             // if this fails, the whole application needs to blow
@@ -112,14 +118,19 @@ pub struct NymClient {
     input_rx: mpsc::UnboundedReceiver<InputMessage>,
     socket_listening_address: SocketAddr,
     is_local: bool,
-    auth_token: Option<AuthToken>
+    auth_token: Option<AuthToken>,
 }
 
 #[derive(Debug)]
 pub struct InputMessage(pub Destination, pub Vec<u8>);
 
 impl NymClient {
-    pub fn new(address: DestinationAddressBytes, socket_listening_address: SocketAddr, is_local: bool, auth_token: Option<AuthToken>) -> Self {
+    pub fn new(
+        address: DestinationAddressBytes,
+        socket_listening_address: SocketAddr,
+        is_local: bool,
+        auth_token: Option<AuthToken>,
+    ) -> Self {
         let (input_tx, input_rx) = mpsc::unbounded::<InputMessage>();
 
         NymClient {
@@ -179,15 +190,15 @@ impl NymClient {
         }
     }
 
-    async fn start_provider_polling(provider_client: ProviderClient, mut poller_tx: mpsc::UnboundedSender<Vec<Vec<u8>>>) {
+    async fn start_provider_polling(
+        provider_client: ProviderClient,
+        mut poller_tx: mpsc::UnboundedSender<Vec<Vec<u8>>>,
+    ) {
         loop {
             let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
             tokio::time::delay_for(delay_duration).await;
             println!("[FETCH MSG] - Polling provider...");
-            let messages = provider_client
-                .retrieve_messages()
-                .await
-                .unwrap();
+            let messages = provider_client.retrieve_messages().await.unwrap();
             // if any of those fails, whole application should blow...
             poller_tx.send(messages).await.unwrap();
         }
@@ -207,7 +218,8 @@ impl NymClient {
             .parse()
             .unwrap();
 
-        let mut provider_client = ProviderClient::new(provider_address, self.address, self.auth_token);
+        let mut provider_client =
+            ProviderClient::new(provider_address, self.address, self.auth_token);
 
         // registration
         rt.block_on(async {
@@ -216,7 +228,7 @@ impl NymClient {
                     let auth_token = provider_client.register().await.unwrap();
                     provider_client.update_token(auth_token);
                     println!("Obtained new token! - {:?}", auth_token);
-                },
+                }
                 Some(token) => println!("Already got the token! - {:?}", token),
             }
         });
@@ -224,12 +236,21 @@ impl NymClient {
         // channels for intercomponent communication
         let (mix_tx, mix_rx) = mpsc::unbounded();
         let (poller_input_tx, poller_input_rx) = mpsc::unbounded();
-        let (received_messages_buffer_output_tx, received_messages_buffer_output_rx) = mpsc::unbounded();
+        let (received_messages_buffer_output_tx, received_messages_buffer_output_rx) =
+            mpsc::unbounded();
 
         let received_messages_buffer = ReceivedMessagesBuffer::new().add_arc_futures_mutex();
 
-        let received_messages_buffer_input_controller_future = rt.spawn(ReceivedMessagesBuffer::run_poller_input_controller(received_messages_buffer.clone(), poller_input_rx));
-        let received_messages_buffer_output_controller_future = rt.spawn(ReceivedMessagesBuffer::run_query_output_controller(received_messages_buffer, received_messages_buffer_output_rx));
+        let received_messages_buffer_input_controller_future =
+            rt.spawn(ReceivedMessagesBuffer::run_poller_input_controller(
+                received_messages_buffer.clone(),
+                poller_input_rx,
+            ));
+        let received_messages_buffer_output_controller_future =
+            rt.spawn(ReceivedMessagesBuffer::run_query_output_controller(
+                received_messages_buffer,
+                received_messages_buffer_output_rx,
+            ));
 
         let mix_traffic_future = rt.spawn(MixTrafficController::run(mix_rx));
         let loop_cover_traffic_future = rt.spawn(NymClient::start_loop_cover_traffic_stream(
@@ -245,8 +266,15 @@ impl NymClient {
             topology.clone(),
         ));
 
-        let provider_polling_future = rt.spawn(NymClient::start_provider_polling(provider_client, poller_input_tx));
-        let websocket_future = rt.spawn(ws::start_websocket(self.socket_listening_address, self.input_tx, received_messages_buffer_output_tx));
+        let provider_polling_future = rt.spawn(NymClient::start_provider_polling(
+            provider_client,
+            poller_input_tx,
+        ));
+        let websocket_future = rt.spawn(ws::start_websocket(
+            self.socket_listening_address,
+            self.input_tx,
+            received_messages_buffer_output_tx,
+        ));
 
         rt.block_on(async {
             let future_results = join!(

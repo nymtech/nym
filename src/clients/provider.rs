@@ -1,12 +1,14 @@
+use futures::io::Error;
 use sfw_provider_requests::requests::{ProviderRequest, PullRequest, RegisterRequest};
-use sfw_provider_requests::responses::{ProviderResponse, PullResponse, RegisterResponse, ProviderResponseError};
+use sfw_provider_requests::responses::{
+    ProviderResponse, ProviderResponseError, PullResponse, RegisterResponse,
+};
+use sfw_provider_requests::AuthToken;
+use sphinx::route::DestinationAddressBytes;
 use std::net::Shutdown;
 use std::net::SocketAddrV4;
-use tokio::prelude::*;
 use std::time::Duration;
-use sphinx::route::DestinationAddressBytes;
-use futures::io::Error;
-use sfw_provider_requests::AuthToken;
+use tokio::prelude::*;
 
 #[derive(Debug)]
 pub enum ProviderClientError {
@@ -45,7 +47,11 @@ pub struct ProviderClient {
 }
 
 impl ProviderClient {
-    pub fn new(provider_network_address: SocketAddrV4, our_address: DestinationAddressBytes, auth_token: Option<AuthToken>) -> Self {
+    pub fn new(
+        provider_network_address: SocketAddrV4,
+        our_address: DestinationAddressBytes,
+        auth_token: Option<AuthToken>,
+    ) -> Self {
         // DH temporary: the provider's client port is not in the topology, but we can't change that
         // right now without messing up the existing Go mixnet. So I'm going to hardcode this
         // for the moment until the Go mixnet goes away.
@@ -69,22 +75,20 @@ impl ProviderClient {
         socket.write_all(&bytes[..]).await?;
         if let Err(_e) = socket.shutdown(Shutdown::Write) {
             // TODO: make it a silent log once we have a proper logging library
-//            eprintln!("failed to close write part of the socket; err = {:?}", e)
+            //            eprintln!("failed to close write part of the socket; err = {:?}", e)
         }
 
         let mut response = Vec::new();
         socket.read_to_end(&mut response).await?;
         if let Err(_e) = socket.shutdown(Shutdown::Read) {
             // TODO: make it a silent log once we have a proper logging library
-//            eprintln!("failed to close read part of the socket; err = {:?}", e)
+            //            eprintln!("failed to close read part of the socket; err = {:?}", e)
         }
 
         Ok(response)
     }
 
-    pub async fn retrieve_messages(
-        &self,
-    ) -> Result<Vec<Vec<u8>>, ProviderClientError> {
+    pub async fn retrieve_messages(&self) -> Result<Vec<Vec<u8>>, ProviderClientError> {
         if self.auth_token.is_none() {
             return Err(ProviderClientError::EmptyAuthTokenError);
         }

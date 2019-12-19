@@ -42,7 +42,6 @@ mod healthcheck_requests {
             let req = Request::new(mockito::server_url());
             assert!(req.get().is_err());
             _m.assert();
-
         }
     }
 

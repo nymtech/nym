@@ -4,8 +4,7 @@ use crate::clients::provider::ProviderClient;
 use crate::sockets::ws;
 use crate::utils;
 use crate::utils::topology::get_topology;
-use futures::channel::mpsc;
-use futures::future::join5;
+use futures::channel::{mpsc, oneshot};
 use futures::select;
 use futures::{SinkExt, StreamExt};
 use sphinx::route::{Destination, DestinationAddressBytes, NodeAddressBytes};
@@ -15,6 +14,9 @@ use std::net::SocketAddrV4;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use sfw_provider_requests::AuthToken;
+use futures::lock::Mutex as FMutex;
+use std::sync::Arc;
+use futures::join;
 
 pub mod directory;
 pub mod mix;
@@ -54,6 +56,50 @@ impl MixTrafficController {
                 Ok(_) => println!("We successfully sent the message!"),
                 Err(e) => eprintln!("We failed to send the message :( - {:?}", e),
             };
+        }
+    }
+}
+
+pub type BufferResponse = oneshot::Sender<Vec<Vec<u8>>>;
+
+struct ReceivedMessagesBuffer{
+    messages: Vec<Vec<u8>>
+}
+
+impl ReceivedMessagesBuffer{
+    fn add_arc_futures_mutex(self) -> Arc<FMutex<Self>> {
+        Arc::new(FMutex::new(self))
+    }
+
+    fn new() -> Self {
+        ReceivedMessagesBuffer{
+            messages: Vec::new()
+        }
+    }
+
+    async fn add_new_messages(buf: Arc<FMutex<Self>>, msgs: Vec<Vec<u8>>) {
+        println!("Adding new messages to the buffer! {:?}", msgs);
+        let mut unlocked = buf.lock().await;
+        unlocked.messages.extend(msgs);
+    }
+
+    async fn run_poller_input_controller(buf: Arc<FMutex<Self>>, mut poller_rx: mpsc::UnboundedReceiver<Vec<Vec<u8>>>) {
+        while let Some(new_messages) = poller_rx.next().await {
+            ReceivedMessagesBuffer::add_new_messages(buf.clone(), new_messages).await;
+        }
+    }
+
+    async fn acquire_and_empty(buf: Arc<FMutex<Self>>) -> Vec<Vec<u8>> {
+        let mut unlocked = buf.lock().await;
+        std::mem::replace(&mut unlocked.messages, Vec::new())
+    }
+
+    async fn run_query_output_controller(buf: Arc<FMutex<Self>>, mut query_receiver: mpsc::UnboundedReceiver<BufferResponse>) {
+        while let Some(request) = query_receiver.next().await {
+            let messages = ReceivedMessagesBuffer::acquire_and_empty(buf.clone()).await;
+            // if this fails, the whole application needs to blow
+            // because currently only this thread would fail
+            request.send(messages).unwrap();
         }
     }
 }
@@ -133,20 +179,17 @@ impl NymClient {
         }
     }
 
-    async fn start_provider_polling(provider_client: ProviderClient) {
-//        let provider_client = ProviderClient::new(provider_address);
-
+    async fn start_provider_polling(provider_client: ProviderClient, mut poller_tx: mpsc::UnboundedSender<Vec<Vec<u8>>>) {
         loop {
-            println!("[FETCH MSG] - Polling provider...");
             let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
             tokio::time::delay_for(delay_duration).await;
+            println!("[FETCH MSG] - Polling provider...");
             let messages = provider_client
                 .retrieve_messages()
                 .await
                 .unwrap();
-            for message in messages {
-                println!("Retrieved: {:?}", String::from_utf8(message).unwrap())
-            }
+            // if any of those fails, whole application should blow...
+            poller_tx.send(messages).await.unwrap();
         }
     }
 
@@ -166,6 +209,7 @@ impl NymClient {
 
         let mut provider_client = ProviderClient::new(provider_address, self.address, self.auth_token);
 
+        // registration
         rt.block_on(async {
             match self.auth_token {
                 None => {
@@ -177,8 +221,15 @@ impl NymClient {
             }
         });
 
-
+        // channels for intercomponent communication
         let (mix_tx, mix_rx) = mpsc::unbounded();
+        let (poller_input_tx, poller_input_rx) = mpsc::unbounded();
+        let (received_messages_buffer_output_tx, received_messages_buffer_output_rx) = mpsc::unbounded();
+
+        let received_messages_buffer = ReceivedMessagesBuffer::new().add_arc_futures_mutex();
+
+        let received_messages_buffer_input_controller_future = rt.spawn(ReceivedMessagesBuffer::run_poller_input_controller(received_messages_buffer.clone(), poller_input_rx));
+        let received_messages_buffer_output_controller_future = rt.spawn(ReceivedMessagesBuffer::run_query_output_controller(received_messages_buffer, received_messages_buffer_output_rx));
 
         let mix_traffic_future = rt.spawn(MixTrafficController::run(mix_rx));
         let loop_cover_traffic_future = rt.spawn(NymClient::start_loop_cover_traffic_stream(
@@ -194,24 +245,28 @@ impl NymClient {
             topology.clone(),
         ));
 
-        let provider_polling_future = rt.spawn(NymClient::start_provider_polling(provider_client));
-        let websocket_future = rt.spawn(ws::start_websocket(self.socket_listening_address, self.input_tx));
+        let provider_polling_future = rt.spawn(NymClient::start_provider_polling(provider_client, poller_input_tx));
+        let websocket_future = rt.spawn(ws::start_websocket(self.socket_listening_address, self.input_tx, received_messages_buffer_output_tx));
 
         rt.block_on(async {
-            let future_results = join5(
+            let future_results = join!(
+                received_messages_buffer_input_controller_future,
+                received_messages_buffer_output_controller_future,
                 mix_traffic_future,
                 loop_cover_traffic_future,
                 out_queue_control_future,
                 provider_polling_future,
                 websocket_future,
-            )
-            .await;
+            );
+
             assert!(
                 future_results.0.is_ok()
                     && future_results.1.is_ok()
                     && future_results.2.is_ok()
                     && future_results.3.is_ok()
                     && future_results.4.is_ok()
+                    && future_results.5.is_ok()
+                    && future_results.6.is_ok()
             );
         });
 

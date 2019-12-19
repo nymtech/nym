@@ -52,14 +52,14 @@ impl From<io::Error> for ClientProcessingError {
 #[derive(Debug)]
 pub(crate) struct ClientProcessingData {
     store_dir: PathBuf,
-    registered_clients_ledger: ClientLedger,
+    registered_clients_ledger: Arc<FMutex<ClientLedger>>,
     secret_key: Scalar,
 }
 
 impl ClientProcessingData {
     pub(crate) fn new(
         store_dir: PathBuf,
-        registered_clients_ledger: ClientLedger,
+        registered_clients_ledger: Arc<FMutex<ClientLedger>>,
         secret_key: Scalar,
     ) -> Self {
         ClientProcessingData {
@@ -69,17 +69,17 @@ impl ClientProcessingData {
         }
     }
 
-    pub(crate) fn add_arc_futures_mutex(self) -> Arc<FMutex<Self>> {
-        Arc::new(FMutex::new(self))
+    pub(crate) fn add_arc(self) -> Arc<Self> {
+        Arc::new(self)
     }
 }
 
-pub(crate) struct ClientRequestProcessor(());
+pub(crate) struct ClientRequestProcessor;
 
 impl ClientRequestProcessor {
     pub(crate) async fn process_client_request(
         data: &[u8],
-        processing_data: Arc<FMutex<ClientProcessingData>>,
+        processing_data: Arc<ClientProcessingData>,
     ) -> Result<Vec<u8>, ClientProcessingError> {
         let client_request = ProviderRequests::from_bytes(&data)?;
         println!("Received the following request: {:?}", client_request);
@@ -100,20 +100,19 @@ impl ClientRequestProcessor {
 
     async fn process_pull_messages_request(
         req: PullRequest,
-        processing_data: Arc<FMutex<ClientProcessingData>>,
+        processing_data: Arc<ClientProcessingData>,
     ) -> Result<PullResponse, ClientProcessingError> {
         // TODO: this lock is completely unnecessary as we're only reading the data.
         // Wait for https://github.com/nymtech/nym-sfw-provider/issues/19 to resolve.
-        let unlocked = processing_data.lock().await;
+        let unlocked_ledger = processing_data.registered_clients_ledger.lock().await;
 
         println!("Processing pull!");
-        if unlocked.registered_clients_ledger.has_token(req.auth_token) {
-            let store_dir_clone = unlocked.store_dir.clone();
+        if unlocked_ledger.has_token(req.auth_token) {
             // drop the mutex so that we could do IO without blocking others wanting to get the lock
-            drop(unlocked);
+            drop(unlocked_ledger);
             let retrieved_messages = ClientStorage::retrieve_client_files(
                 req.destination_address,
-                store_dir_clone.as_path(),
+                processing_data.store_dir.as_path(),
             )?;
             Ok(PullResponse::new(retrieved_messages))
         } else {
@@ -123,22 +122,20 @@ impl ClientRequestProcessor {
 
     async fn register_new_client(
         req: RegisterRequest,
-        processing_data: Arc<FMutex<ClientProcessingData>>,
+        processing_data: Arc<ClientProcessingData>,
     ) -> Result<RegisterResponse, ClientProcessingError> {
         println!("Processing register new client request!");
-        let mut unlocked = processing_data.lock().await;
+        let mut unlocked_ledger = processing_data.registered_clients_ledger.lock().await;
 
         let auth_token = ClientRequestProcessor::generate_new_auth_token(
             req.destination_address.to_vec(),
-            unlocked.secret_key,
+            processing_data.secret_key,
         );
-        if !unlocked.registered_clients_ledger.has_token(auth_token) {
-            unlocked
-                .registered_clients_ledger
-                .insert_token(auth_token, req.destination_address);
+        if !unlocked_ledger.has_token(auth_token) {
+            unlocked_ledger.insert_token(auth_token, req.destination_address);
             ClientRequestProcessor::create_storage_dir(
                 req.destination_address,
-                unlocked.store_dir.as_path(),
+                processing_data.store_dir.as_path(),
             )?;
         }
         Ok(RegisterResponse::new(auth_token))

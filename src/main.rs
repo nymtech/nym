@@ -1,11 +1,9 @@
-use crate::provider::presence;
 use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use nym_client::identity::mixnet::KeyPair;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process;
-use std::thread;
 
 pub mod provider;
 
@@ -71,12 +69,6 @@ fn main() {
 fn run(matches: &ArgMatches) {
     let config = new_config(matches);
     let provider = ServiceProvider::new(&config);
-
-    // Start sending presence notifications in a separate thread
-    thread::spawn(move || {
-        let notifier = presence::Notifier::new(&config);
-        notifier.run();
-    });
 
     provider.start().unwrap()
 }

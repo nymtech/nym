@@ -5,6 +5,7 @@ use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
 use futures::io::Error;
 use futures::lock::Mutex as FMutex;
+use nym_client::clients::directory::presence::MixProviderClient;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use std::collections::HashMap;
@@ -34,8 +35,8 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn public_key_string(&self) -> String {
-        let key_bytes = self.public_key.to_bytes().to_vec();
+    pub fn public_key_string(public_key: MontgomeryPoint) -> String {
+        let key_bytes = public_key.to_bytes().to_vec();
         base64::encode_config(&key_bytes, base64::URL_SAFE)
     }
 }
@@ -74,6 +75,10 @@ impl ClientLedger {
         ClientLedger(HashMap::new())
     }
 
+    fn add_arc_futures_mutex(self) -> Arc<FMutex<Self>> {
+        Arc::new(FMutex::new(self))
+    }
+
     fn has_token(&self, auth_token: AuthToken) -> bool {
         return self.0.contains_key(&auth_token);
     }
@@ -86,6 +91,14 @@ impl ClientLedger {
         self.0.insert(auth_token, client_address)
     }
 
+    fn current_clients(&self) -> Vec<MixProviderClient> {
+        self.0
+            .iter()
+            .map(|(_, &v)| Config::public_key_string(MontgomeryPoint(v)))
+            .map(|pub_key| MixProviderClient { pub_key })
+            .collect()
+    }
+
     #[allow(dead_code)]
     fn load(_file: PathBuf) -> Self {
         unimplemented!()
@@ -93,9 +106,11 @@ impl ClientLedger {
 }
 
 pub struct ServiceProvider {
+    directory_server: String,
     mix_network_address: SocketAddr,
     client_network_address: SocketAddr,
     secret_key: Scalar,
+    public_key: MontgomeryPoint,
     store_dir: PathBuf,
     registered_clients_ledger: ClientLedger,
 }
@@ -106,9 +121,11 @@ impl ServiceProvider {
             mix_network_address: config.mix_socket_address,
             client_network_address: config.client_socket_address,
             secret_key: config.secret_key,
+            public_key: config.public_key,
             store_dir: PathBuf::from(config.store_dir.clone()),
             // TODO: load initial ledger from file
             registered_clients_ledger: ClientLedger::new(),
+            directory_server: config.directory_server.clone(),
         }
     }
 
@@ -172,7 +189,7 @@ impl ServiceProvider {
     // TODO: FIGURE OUT HOW TO SET READ_DEADLINES IN TOKIO
     async fn process_client_socket_connection(
         mut socket: tokio::net::TcpStream,
-        processing_data: Arc<FMutex<ClientProcessingData>>,
+        processing_data: Arc<ClientProcessingData>,
     ) {
         let mut buf = [0; 1024];
 
@@ -242,12 +259,12 @@ impl ServiceProvider {
     async fn start_client_listening(
         address: SocketAddr,
         store_dir: PathBuf,
-        client_ledger: ClientLedger,
+        client_ledger: Arc<FMutex<ClientLedger>>,
         secret_key: Scalar,
     ) -> Result<(), ProviderError> {
         let mut listener = tokio::net::TcpListener::bind(address).await?;
         let processing_data =
-            ClientProcessingData::new(store_dir, client_ledger, secret_key).add_arc_futures_mutex();
+            ClientProcessingData::new(store_dir, client_ledger, secret_key).add_arc();
 
         loop {
             let (socket, _) = listener.accept().await?;
@@ -268,6 +285,17 @@ impl ServiceProvider {
         let mut rt = Runtime::new()?;
         //        let mut h = rt.handle();
 
+        let initial_client_ledger = self.registered_clients_ledger;
+        let thread_shareable_ledger = initial_client_ledger.add_arc_futures_mutex();
+
+        let presence_notifier = presence::Notifier::new(
+            self.directory_server,
+            self.mix_network_address.clone(),
+            self.public_key,
+            thread_shareable_ledger.clone(),
+        );
+
+        let presence_future = rt.spawn(presence_notifier.run());
         let mix_future = rt.spawn(ServiceProvider::start_mixnet_listening(
             self.mix_network_address,
             self.secret_key,
@@ -276,12 +304,13 @@ impl ServiceProvider {
         let client_future = rt.spawn(ServiceProvider::start_client_listening(
             self.client_network_address,
             self.store_dir.clone(),
-            self.registered_clients_ledger, // we're just cloning the initial ledger state
+            thread_shareable_ledger,
             self.secret_key,
         ));
         // Spawn the root task
         rt.block_on(async {
-            let future_results = futures::future::join(mix_future, client_future).await;
+            let future_results =
+                futures::future::join3(mix_future, client_future, presence_future).await;
             assert!(future_results.0.is_ok() && future_results.1.is_ok());
         });
 

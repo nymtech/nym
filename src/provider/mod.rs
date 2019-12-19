@@ -34,8 +34,8 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn public_key_string(&self) -> String {
-        let key_bytes = self.public_key.to_bytes().to_vec();
+    pub fn public_key_string(public_key: MontgomeryPoint) -> String {
+        let key_bytes = public_key.to_bytes().to_vec();
         base64::encode_config(&key_bytes, base64::URL_SAFE)
     }
 }
@@ -93,9 +93,11 @@ impl ClientLedger {
 }
 
 pub struct ServiceProvider {
+    directory_server: String,
     mix_network_address: SocketAddr,
     client_network_address: SocketAddr,
     secret_key: Scalar,
+    public_key: MontgomeryPoint,
     store_dir: PathBuf,
     registered_clients_ledger: ClientLedger,
 }
@@ -106,9 +108,11 @@ impl ServiceProvider {
             mix_network_address: config.mix_socket_address,
             client_network_address: config.client_socket_address,
             secret_key: config.secret_key,
+            public_key: config.public_key,
             store_dir: PathBuf::from(config.store_dir.clone()),
             // TODO: load initial ledger from file
             registered_clients_ledger: ClientLedger::new(),
+            directory_server: config.directory_server.clone(),
         }
     }
 
@@ -268,6 +272,13 @@ impl ServiceProvider {
         let mut rt = Runtime::new()?;
         //        let mut h = rt.handle();
 
+        let presence_notifier = presence::Notifier::new(
+            self.directory_server,
+            self.mix_network_address.clone(),
+            self.public_key,
+        );
+
+        let presence_future = rt.spawn(presence_notifier.run());
         let mix_future = rt.spawn(ServiceProvider::start_mixnet_listening(
             self.mix_network_address,
             self.secret_key,
@@ -281,7 +292,8 @@ impl ServiceProvider {
         ));
         // Spawn the root task
         rt.block_on(async {
-            let future_results = futures::future::join(mix_future, client_future).await;
+            let future_results =
+                futures::future::join3(mix_future, client_future, presence_future).await;
             assert!(future_results.0.is_ok() && future_results.1.is_ok());
         });
 

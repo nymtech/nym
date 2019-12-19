@@ -72,12 +72,6 @@ fn run(matches: &ArgMatches) {
     let config = new_config(matches);
     let provider = ServiceProvider::new(&config);
 
-    // Start sending presence notifications in a separate thread
-    thread::spawn(move || {
-        let notifier = presence::Notifier::new(&config);
-        notifier.run();
-    });
-
     provider.start().unwrap()
 }
 

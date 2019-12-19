@@ -1,11 +1,13 @@
 use crate::provider;
 use nym_client::clients::directory;
 use nym_client::clients::directory::DirectoryClient;
-use std::thread;
 use std::time::Duration;
 
+use crate::provider::Config;
+use curve25519_dalek::montgomery::MontgomeryPoint;
 use nym_client::clients::directory::presence::MixProviderPresence;
 use nym_client::clients::directory::requests::presence_providers_post::PresenceMixProviderPoster;
+use std::net::SocketAddr;
 
 pub struct Notifier {
     pub net_client: directory::Client,
@@ -13,14 +15,18 @@ pub struct Notifier {
 }
 
 impl Notifier {
-    pub fn new(config: &provider::Config) -> Notifier {
+    pub fn new(
+        directory_server_address: String,
+        host: SocketAddr,
+        pub_key: MontgomeryPoint,
+    ) -> Notifier {
         let directory_config = directory::Config {
-            base_url: config.directory_server.clone(),
+            base_url: directory_server_address,
         };
         let net_client = directory::Client::new(directory_config);
         let presence = MixProviderPresence {
-            host: config.mix_socket_address.to_string(),
-            pub_key: config.public_key_string(),
+            host: host.to_string(),
+            pub_key: Config::public_key_string(pub_key),
             registered_clients: vec![],
         };
         Notifier {
@@ -36,10 +42,11 @@ impl Notifier {
             .unwrap();
     }
 
-    pub fn run(&self) {
+    pub async fn run(self) {
         loop {
             self.notify();
-            thread::sleep(Duration::from_secs(5));
+            let delay_duration = Duration::from_secs(5);
+            tokio::time::delay_for(delay_duration).await;
         }
     }
 }

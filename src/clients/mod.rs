@@ -274,6 +274,8 @@ impl NymClient {
             self.socket_listening_address,
             self.input_tx,
             received_messages_buffer_output_tx,
+            self.address,
+            topology,
         ));
 
         rt.block_on(async {

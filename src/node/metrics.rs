@@ -1,25 +1,25 @@
-use std::sync::Arc;
-use futures::lock::Mutex;
 use futures::channel::mpsc;
+use futures::lock::Mutex;
 use futures::StreamExt;
-use std::time::Duration;
 use nym_client::clients::directory;
-use nym_client::clients::directory::DirectoryClient;
-use nym_client::clients::directory::requests::metrics_mixes_post::MetricsMixPoster;
 use nym_client::clients::directory::metrics::MixMetric;
+use nym_client::clients::directory::requests::metrics_mixes_post::MetricsMixPoster;
+use nym_client::clients::directory::DirectoryClient;
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
 
 const METRICS_INTERVAL: u64 = 3;
 
 #[derive(Debug)]
 pub struct MetricsReporter {
     received: u64,
-    sent: HashMap<String, u64>
+    sent: HashMap<String, u64>,
 }
 
 impl MetricsReporter {
     pub(crate) fn new() -> Self {
-        MetricsReporter{
+        MetricsReporter {
             received: 0,
             sent: HashMap::new(),
         }
@@ -34,7 +34,10 @@ impl MetricsReporter {
         unlocked.received += 1;
     }
 
-    pub(crate) async fn run_received_metrics_control(metrics: Arc<Mutex<MetricsReporter>>, mut rx: mpsc::Receiver<()>) {
+    pub(crate) async fn run_received_metrics_control(
+        metrics: Arc<Mutex<MetricsReporter>>,
+        mut rx: mpsc::Receiver<()>,
+    ) {
         while let Some(_) = rx.next().await {
             MetricsReporter::increment_received_metrics(metrics.clone()).await;
         }
@@ -46,13 +49,18 @@ impl MetricsReporter {
         *receiver_count += 1;
     }
 
-    pub(crate) async fn run_sent_metrics_control(metrics: Arc<Mutex<MetricsReporter>>, mut rx: mpsc::Receiver<String>) {
+    pub(crate) async fn run_sent_metrics_control(
+        metrics: Arc<Mutex<MetricsReporter>>,
+        mut rx: mpsc::Receiver<String>,
+    ) {
         while let Some(sent_metric) = rx.next().await {
             MetricsReporter::increment_sent_metrics(metrics.clone(), sent_metric).await;
         }
     }
 
-    async fn acquire_and_reset_metrics(metrics: Arc<Mutex<MetricsReporter>>) -> (u64, HashMap<String, u64>) {
+    async fn acquire_and_reset_metrics(
+        metrics: Arc<Mutex<MetricsReporter>>,
+    ) -> (u64, HashMap<String, u64>) {
         let mut unlocked = metrics.lock().await;
         let received = unlocked.received;
 
@@ -62,17 +70,25 @@ impl MetricsReporter {
         (received, sent)
     }
 
-    pub(crate) async fn run_metrics_sender(metrics: Arc<Mutex<MetricsReporter>>, cfg: directory::Config, pub_key_str: String) {
+    pub(crate) async fn run_metrics_sender(
+        metrics: Arc<Mutex<MetricsReporter>>,
+        cfg: directory::Config,
+        pub_key_str: String,
+    ) {
         let delay_duration = Duration::from_secs(METRICS_INTERVAL);
-        let directory_client= directory::Client::new(cfg);
+        let directory_client = directory::Client::new(cfg);
         loop {
             tokio::time::delay_for(delay_duration).await;
-            let (received, sent) = MetricsReporter::acquire_and_reset_metrics(metrics.clone()).await;
-            directory_client.metrics_post.post(&MixMetric{
-                pub_key: pub_key_str.clone(),
-                received,
-                sent,
-            }).unwrap();
+            let (received, sent) =
+                MetricsReporter::acquire_and_reset_metrics(metrics.clone()).await;
+            directory_client
+                .metrics_post
+                .post(&MixMetric {
+                    pub_key: pub_key_str.clone(),
+                    received,
+                    sent,
+                })
+                .unwrap();
         }
     }
 }

@@ -1,7 +1,6 @@
+use crate::provider;
 use nym_client::clients::directory;
 use nym_client::clients::directory::DirectoryClient;
-use nym_client::identity::mixnet::KeyPair;
-use std::net::SocketAddr;
 use std::thread;
 use std::time::Duration;
 
@@ -14,22 +13,14 @@ pub struct Notifier {
 }
 
 impl Notifier {
-    pub fn new(is_local: bool, host: SocketAddr, key_pair: &KeyPair) -> Notifier {
-        let url = if is_local {
-            "http://localhost:8080".to_string()
-        } else {
-            "https://directory.nymtech.net".to_string()
+    pub fn new(config: &provider::Config) -> Notifier {
+        let directory_config = directory::Config {
+            base_url: config.directory_server.clone(),
         };
-
-        let key_bytes = key_pair.public.to_bytes().to_vec();
-        let b64 = base64::encode_config(&key_bytes, base64::URL_SAFE);
-        let public_key64 = b64.to_string();
-
-        let config = directory::Config { base_url: url };
-        let net_client = directory::Client::new(config);
+        let net_client = directory::Client::new(directory_config);
         let presence = MixProviderPresence {
-            host: host.to_string(),
-            pub_key: public_key64,
+            host: config.mix_socket_address.to_string(),
+            pub_key: config.public_key_string(),
             registered_clients: vec![],
         };
         Notifier {

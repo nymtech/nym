@@ -1,14 +1,13 @@
 use crate::provider::presence;
 use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use curve25519_dalek::scalar::Scalar;
 use nym_client::identity::mixnet::KeyPair;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process;
 use std::thread;
 
-mod provider;
+pub mod provider;
 
 fn main() {
     let arg_matches = App::new("Nym Service Provider")
@@ -29,7 +28,6 @@ fn main() {
                         .long("mixPort")
                         .help("The port on which the service provider will be listening for sphinx packets")
                         .takes_value(true)
-                        .required(true),
                 )
                 .arg(
                     Arg::with_name("clientHost")
@@ -42,13 +40,20 @@ fn main() {
                         .long("clientPort")
                         .help("The port on which the service provider will be listening for client sfw-provider-requests")
                         .takes_value(true)
-                        .required(true),
                 )
                 .arg(
                     Arg::with_name("storeDir")
                         .short("s")
                         .long("storeDir")
                         .help("Directory storing all packets for the clients")
+                        .takes_value(true)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("registeredLedger")
+                        .short("r")
+                        .long("registeredLedger")
+                        .help("Directory of the ledger of registered clients")
                         .takes_value(true)
                         .required(true),
                 ).arg(Arg::with_name("local")
@@ -66,24 +71,47 @@ fn main() {
 }
 
 fn run(matches: &ArgMatches) {
-    println!("Running the service provider");
+    let config = new_config(matches);
+    let provider = ServiceProvider::new(&config);
+
+    // Start sending presence notifications in a separate thread
+    thread::spawn(move || {
+        let notifier = presence::Notifier::new(&config);
+        notifier.run();
+    });
+
+    provider.start().unwrap()
+}
+
+fn new_config(matches: &ArgMatches) -> provider::Config {
+    println!("Running the service provider!");
     let is_local = matches.is_present("local");
 
+    let directory_server = if is_local {
+        "http://localhost:8080".to_string()
+    } else {
+        "https://directory.nymtech.net".to_string()
+    };
+
     let mix_host = matches.value_of("mixHost").unwrap_or("0.0.0.0");
-    let mix_port = match matches.value_of("mixPort").unwrap().parse::<u16>() {
+    let mix_port = match matches.value_of("mixPort").unwrap_or("8085").parse::<u16>() {
         Ok(n) => n,
         Err(err) => panic!("Invalid mix host port value provided - {:?}", err),
     };
 
     let client_host = matches.value_of("clientHost").unwrap_or("0.0.0.0");
-    let client_port = match matches.value_of("clientPort").unwrap().parse::<u16>() {
+    let client_port = match matches
+        .value_of("clientPort")
+        .unwrap_or("9000")
+        .parse::<u16>()
+    {
         Ok(n) => n,
         Err(err) => panic!("Invalid client port value provided - {:?}", err),
     };
 
     let key_pair = KeyPair::new(); // TODO: persist this so keypairs don't change every restart
-
-    let store_dir = PathBuf::from(matches.value_of("storeDir").unwrap());
+    let store_dir = PathBuf::from(matches.value_of("storeDir").unwrap_or("/tmp/nym-provider"));
+    let registered_client_ledger_dir = PathBuf::from(matches.value_of("registeredLedger").unwrap());
 
     println!("The value of mix_host is: {:?}", mix_host);
     println!("The value of mix_port is: {:?}", mix_port);
@@ -91,6 +119,10 @@ fn run(matches: &ArgMatches) {
     println!("The value of client_port is: {:?}", client_port);
     println!("The value of key is: {:?}", key_pair.private.clone());
     println!("The value of store_dir is: {:?}", store_dir);
+    println!(
+        "The value of registered_client_ledger_dir is: {:?}",
+        registered_client_ledger_dir
+    );
 
     let mix_socket_address = (mix_host, mix_port)
         .to_socket_addrs()
@@ -113,19 +145,14 @@ fn run(matches: &ArgMatches) {
         client_socket_address
     );
 
-    let provider = ServiceProvider::new(
+    provider::Config {
         mix_socket_address,
+        directory_server,
+        public_key: key_pair.public,
         client_socket_address,
-        key_pair.private,
-        store_dir,
-    );
-
-    // Start sending presence notifications in a separate thread
-    thread::spawn(move || {
-        let notifier = presence::Notifier::new(is_local.clone(), mix_socket_address, &key_pair);
-        notifier.run();
-    });
-    provider.start_listening().unwrap()
+        secret_key: key_pair.private,
+        store_dir: PathBuf::from(store_dir),
+    }
 }
 
 fn execute(matches: ArgMatches) -> Result<(), String> {

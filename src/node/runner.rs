@@ -27,7 +27,7 @@ pub fn start(matches: &ArgMatches) {
 fn new_config(matches: &ArgMatches) -> node::Config {
     let host = matches.value_of("host").unwrap_or("0.0.0.0");
 
-    let port = match matches.value_of("port").unwrap().parse::<u16>() {
+    let port = match matches.value_of("port").unwrap_or("1789").parse::<u16>() {
         Ok(n) => n,
         Err(err) => panic!("Invalid port value provided - {:?}", err),
     };

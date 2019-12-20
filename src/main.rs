@@ -23,7 +23,6 @@ fn main() {
                         .long("port")
                         .help("The port on which the mixnode will be listening")
                         .takes_value(true)
-                        .required(true),
                 )
                 .arg(
                     Arg::with_name("layer")

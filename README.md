@@ -16,4 +16,4 @@ The built binary can be found at `target/release/nym-mixnode`
 * `nym-mixnode run --help` prints a help message showing usage options for the run command
 * `nym-mixnode run --layer 1` will start the mixnode in layer 1 (coordinate with other people to find out which layer you need to start yours in)
 
-By default, the Nym Mixnode will start on port 1789. If desired, you can change the port using the `--port` option. 
+By default, the Nym Mixnode will start on port 1789. If desired, you can change the port using the `--port` option.

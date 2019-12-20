@@ -1,5 +1,5 @@
 use crate::banner;
-use crate::clients::NymClient;
+use crate::clients::{NymClient, SocketType};
 use crate::persistence::pemstore;
 use crate::sockets::tcp;
 
@@ -26,13 +26,15 @@ pub fn execute(matches: &ArgMatches) {
         .expect("Failed to extract the socket address from the iterator");
 
     let keypair = pemstore::read_keypair_from_disk(id);
-    let _client = NymClient::new(
+    let auth_token = None;
+
+    let client = NymClient::new(
         keypair.public_bytes(),
         socket_address.clone(),
         is_local,
-        None,
+        auth_token,
+        SocketType::TCP,
     );
-    // Question: should we be passing the client into the TCP socket somehow next?
 
-    tcp::start(socket_address);
+    client.start().unwrap();
 }

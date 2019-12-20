@@ -1,6 +1,7 @@
 use crate::clients::directory::presence::Topology;
 use crate::clients::mix::MixClient;
 use crate::clients::provider::ProviderClient;
+use crate::sockets::tcp;
 use crate::sockets::ws;
 use crate::utils;
 use crate::utils::topology::get_topology;
@@ -23,9 +24,11 @@ pub mod mix;
 pub mod provider;
 pub mod validator;
 
-const LOOP_COVER_AVERAGE_DELAY: f64 = 10.0; // seconds
-const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 1.0; //  seconds;
-const FETCH_MESSAGES_DELAY: f64 = 1.0; // seconds;
+const LOOP_COVER_AVERAGE_DELAY: f64 = 100.0;
+// seconds
+const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 10.0;
+//  seconds;
+const FETCH_MESSAGES_DELAY: f64 = 10.0; // seconds;
 
 // provider-poller sends polls service provider; receives messages
 // provider-poller sends (TX) to ReceivedBufferController (RX)
@@ -107,6 +110,12 @@ impl ReceivedMessagesBuffer {
     }
 }
 
+pub enum SocketType {
+    TCP,
+    WebSocket,
+    None,
+}
+
 pub struct NymClient {
     // to be replaced by something else I guess
     address: DestinationAddressBytes,
@@ -116,6 +125,7 @@ pub struct NymClient {
     socket_listening_address: SocketAddr,
     is_local: bool,
     auth_token: Option<AuthToken>,
+    socket_type: SocketType,
 }
 
 #[derive(Debug)]
@@ -127,6 +137,7 @@ impl NymClient {
         socket_listening_address: SocketAddr,
         is_local: bool,
         auth_token: Option<AuthToken>,
+        socket_type: SocketType,
     ) -> Self {
         let (input_tx, input_rx) = mpsc::unbounded::<InputMessage>();
 
@@ -137,6 +148,7 @@ impl NymClient {
             socket_listening_address,
             is_local,
             auth_token,
+            socket_type,
         }
     }
 
@@ -180,7 +192,8 @@ impl NymClient {
                     let cover_message = utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, &topology);
                     mix_tx.send(MixMessage(cover_message.0, cover_message.1)).await.unwrap();
                 }
-            };
+            }
+            ;
 
             let delay_duration = Duration::from_secs_f64(MESSAGE_SENDING_AVERAGE_DELAY);
             tokio::time::delay_for(delay_duration).await;
@@ -273,13 +286,28 @@ impl NymClient {
             provider_client,
             poller_input_tx,
         ));
-        let websocket_future = rt.spawn(ws::start_websocket(
-            self.socket_listening_address,
-            self.input_tx,
-            received_messages_buffer_output_tx,
-            self.address,
-            topology,
-        ));
+
+        match self.socket_type {
+            SocketType::WebSocket => {
+                rt.spawn(ws::start_websocket(
+                    self.socket_listening_address,
+                    self.input_tx,
+                    received_messages_buffer_output_tx,
+                    self.address,
+                    topology,
+                ));
+            }
+            SocketType::TCP => {
+                rt.spawn(tcp::start_tcpsocket(
+                    self.socket_listening_address,
+                    self.input_tx,
+                    received_messages_buffer_output_tx,
+                    self.address,
+                    topology
+                ));
+            }
+            SocketType::None => (),
+        }
 
         rt.block_on(async {
             let future_results = join!(
@@ -289,7 +317,6 @@ impl NymClient {
                 loop_cover_traffic_future,
                 out_queue_control_future,
                 provider_polling_future,
-                websocket_future,
             );
 
             assert!(
@@ -299,7 +326,6 @@ impl NymClient {
                     && future_results.3.is_ok()
                     && future_results.4.is_ok()
                     && future_results.5.is_ok()
-                    && future_results.6.is_ok()
             );
         });
 

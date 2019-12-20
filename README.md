@@ -5,7 +5,7 @@ A Rust mixnode implementation.
 ## Building
 
 * check out the code
-* install rust (stable)
+* [install rust](https://www.rust-lang.org/tools/install) (stable)
 * `cargo build --release` (for a production build)
 
 The built binary can be found at `target/release/nym-mixnode`

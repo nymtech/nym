@@ -1,5 +1,5 @@
 use crate::banner;
-use crate::clients::NymClient;
+use crate::clients::{NymClient, SocketType};
 use crate::persistence::pemstore;
 
 use clap::ArgMatches;
@@ -27,7 +27,13 @@ pub fn execute(matches: &ArgMatches) {
     let keypair = pemstore::read_keypair_from_disk(id);
     // TODO: reading auth_token from disk (if exists);
     let auth_token = None;
-    let client = NymClient::new(keypair.public_bytes(), socket_address, is_local, auth_token);
+    let client = NymClient::new(
+        keypair.public_bytes(),
+        socket_address,
+        is_local,
+        auth_token,
+        SocketType::WebSocket,
+    );
 
     client.start().unwrap();
 }

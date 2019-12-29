@@ -12,6 +12,7 @@ pub fn start(matches: &ArgMatches) {
     println!("Starting mixnode...");
 
     let config = new_config(matches);
+    println!("Public key: {}", config.public_key_string());
 
     // println!("Startup on: {}", config.socket_address);
     println!("Listening for incoming packets...");

@@ -1,21 +1,22 @@
+use curve25519_dalek::digest::Digest;
+use nym_client::utils::addressing;
+use std::convert::TryInto;
 use std::error::Error;
-use std::net::{Ipv4Addr, SocketAddrV4};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use tokio::prelude::*;
 
 #[derive(Debug)]
 pub struct MixPeer {
-    connection: SocketAddrV4,
+    connection: SocketAddr,
 }
 
 impl MixPeer {
     // note that very soon `next_hop_address` will be changed to `next_hop_metadata`
     pub fn new(next_hop_address: [u8; 32]) -> MixPeer {
-        let b = next_hop_address;
-        let host = Ipv4Addr::new(b[0], b[1], b[2], b[3]);
-        let port: u16 = u16::from_be_bytes([b[4], b[5]]);
-        let socket_address = SocketAddrV4::new(host, port);
+        let next_hop_socket_address =
+            addressing::socket_address_from_encoded_bytes(next_hop_address);
         MixPeer {
-            connection: socket_address,
+            connection: next_hop_socket_address,
         }
     }
 

@@ -10,6 +10,7 @@ use std::time::Duration;
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
 
+use crate::mix_peer;
 use crate::mix_peer::MixPeer;
 use crate::node::metrics::MetricsReporter;
 use futures::SinkExt;
@@ -36,6 +37,7 @@ impl Config {
 
 #[derive(Debug)]
 pub enum MixProcessingError {
+    InvalidPeerAddressError,
     SphinxRecoveryError,
     ReceivedFinalHopError,
 }
@@ -98,7 +100,7 @@ impl ProcessingData {
     }
 }
 
-struct PacketProcessor {}
+struct PacketProcessor;
 
 impl PacketProcessor {
     pub async fn process_sphinx_data_packet(

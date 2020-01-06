@@ -1,5 +1,5 @@
 use crate::clients::directory::presence::Topology;
-use crate::utils::{bytes, topology};
+use crate::utils::{addressing, bytes, topology};
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use sphinx::route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier};
 use sphinx::SphinxPacket;
@@ -29,7 +29,7 @@ pub fn encapsulate_message(
     let key = MontgomeryPoint(key_bytes);
 
     let provider = Node::new(
-        topology::socket_bytes_from_string(first_provider.host.clone()),
+        addressing::encoded_bytes_from_socket_address(first_provider.host.clone().parse().unwrap()),
         key,
     );
 

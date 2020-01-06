@@ -122,7 +122,7 @@ pub struct NymClient {
     // to be used by "send" function or socket, etc
     input_rx: mpsc::UnboundedReceiver<InputMessage>,
     socket_listening_address: SocketAddr,
-    is_local: bool,
+    directory: String,
     auth_token: Option<AuthToken>,
     socket_type: SocketType,
 }
@@ -134,7 +134,7 @@ impl NymClient {
     pub fn new(
         address: DestinationAddressBytes,
         socket_listening_address: SocketAddr,
-        is_local: bool,
+        directory: String,
         auth_token: Option<AuthToken>,
         socket_type: SocketType,
     ) -> Self {
@@ -145,7 +145,7 @@ impl NymClient {
             input_tx,
             input_rx,
             socket_listening_address,
-            is_local,
+            directory,
             auth_token,
             socket_type,
         }
@@ -222,7 +222,7 @@ impl NymClient {
         println!("Starting nym client");
         let mut rt = Runtime::new()?;
 
-        let topology = get_topology(self.is_local);
+        let topology = get_topology(self.directory.clone());
         // this is temporary and assumes there exists only a single provider.
         let provider_address: SocketAddr = topology
             .mix_provider_nodes

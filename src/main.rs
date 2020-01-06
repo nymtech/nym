@@ -37,10 +37,11 @@ fn main() {
                     .takes_value(true)
                     .required(true)
                 )
-                .arg(Arg::with_name("local")
-                    .long("local")
-                    .help("Flag to indicate whether the client is expected to run on the local deployment.")
-                    .takes_value(false)
+                .arg(
+                    Arg::with_name("directory")
+                        .long("directory")
+                        .help("Address of the directory server the client is getting topology from")
+                        .takes_value(true),
                 )
         )
         .subcommand(
@@ -54,10 +55,11 @@ fn main() {
                         .takes_value(true)
                         .required(true),
                 )
-                .arg(Arg::with_name("local")
-                    .long("local")
-                    .help("Flag to indicate whether the client is expected to run on the local deployment.")
-                    .takes_value(false)
+                .arg(
+                    Arg::with_name("directory")
+                        .long("directory")
+                        .help("Address of the directory server the client is getting topology from")
+                        .takes_value(true),
                 )
                 .arg(Arg::with_name("id")
                     .long("id")
@@ -76,10 +78,11 @@ fn main() {
                         .help("Port for websocket to listen on")
                         .takes_value(true)
                 )
-                .arg(Arg::with_name("local")
-                    .long("local")
-                    .help("Flag to indicate whether the client is expected to run on the local deployment.")
-                    .takes_value(false)
+                .arg(
+                    Arg::with_name("directory")
+                        .long("directory")
+                        .help("Address of the directory server the client is getting topology from")
+                        .takes_value(true),
                 )
                 .arg(Arg::with_name("id")
                     .long("id")

@@ -5,22 +5,16 @@ use crate::clients::directory::requests::presence_topology_get::PresenceTopology
 use crate::clients::directory::DirectoryClient;
 use crate::utils::{addressing, bytes};
 use curve25519_dalek::montgomery::MontgomeryPoint;
-use futures::AsyncReadExt;
 use rand::seq::SliceRandom;
 use sphinx::route::Node as SphinxNode;
 use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::net::{IpAddr, SocketAddr};
-use std::string::ToString;
+use std::net::SocketAddr;
 
-pub(crate) fn get_topology(is_local: bool) -> Topology {
-    let url = if is_local {
-        "http://localhost:8080".to_string()
-    } else {
-        "https://directory.nymtech.net".to_string()
+pub(crate) fn get_topology(directory_server: String) -> Topology {
+    println!("Using directory server: {:?}", directory_server);
+    let directory_config = directory::Config {
+        base_url: directory_server,
     };
-    println!("Using directory server: {:?}", url);
-    let directory_config = directory::Config { base_url: url };
     let directory = directory::Client::new(directory_config);
 
     let topology = directory

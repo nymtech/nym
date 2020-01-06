@@ -5,8 +5,7 @@ use sfw_provider_requests::responses::{
 };
 use sfw_provider_requests::AuthToken;
 use sphinx::route::DestinationAddressBytes;
-use std::net::Shutdown;
-use std::net::SocketAddrV4;
+use std::net::{Shutdown, SocketAddr};
 use std::time::Duration;
 use tokio::prelude::*;
 
@@ -41,21 +40,21 @@ impl From<ProviderResponseError> for ProviderClientError {
 }
 
 pub struct ProviderClient {
-    provider_network_address: SocketAddrV4,
+    provider_network_address: SocketAddr,
     our_address: DestinationAddressBytes,
     auth_token: Option<AuthToken>,
 }
 
 impl ProviderClient {
     pub fn new(
-        provider_network_address: SocketAddrV4,
+        provider_network_address: SocketAddr,
         our_address: DestinationAddressBytes,
         auth_token: Option<AuthToken>,
     ) -> Self {
         // DH temporary: the provider's client port is not in the topology, but we can't change that
         // right now without messing up the existing Go mixnet. So I'm going to hardcode this
         // for the moment until the Go mixnet goes away.
-        let provider_socket = SocketAddrV4::new(*provider_network_address.ip(), 9000);
+        let provider_socket = SocketAddr::new(provider_network_address.ip(), 9000);
 
         ProviderClient {
             provider_network_address: provider_socket,

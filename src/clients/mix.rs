@@ -1,6 +1,6 @@
 use sphinx::route::NodeAddressBytes;
 use sphinx::SphinxPacket;
-use std::net::{Ipv4Addr, SocketAddrV4};
+use std::net::SocketAddr;
 use tokio::prelude::*;
 
 pub struct MixClient {}
@@ -14,17 +14,13 @@ impl MixClient {
     pub async fn send(
         &self,
         packet: SphinxPacket,
-        mix_addr: NodeAddressBytes,
+        mix_addr: SocketAddr,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let bytes = packet.to_bytes();
 
-        let b = mix_addr;
-        let host = Ipv4Addr::new(b[0], b[1], b[2], b[3]);
-        let port: u16 = u16::from_be_bytes([b[4], b[5]]);
-        let socket_address = SocketAddrV4::new(host, port);
-        println!("socket addr: {:?}", socket_address);
+        println!("socket addr: {:?}", mix_addr);
 
-        let mut stream = tokio::net::TcpStream::connect(socket_address).await?;
+        let mut stream = tokio::net::TcpStream::connect(mix_addr).await?;
         stream.write_all(&bytes[..]).await?;
         Ok(())
     }

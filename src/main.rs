@@ -153,6 +153,11 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
     }
 }
 
+pub mod built_info {
+    // The file has been placed there by the build script.
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
 fn execute(matches: ArgMatches) -> Result<(), String> {
     match matches.subcommand() {
         ("run", Some(m)) => Ok(run(m)),
@@ -165,7 +170,8 @@ fn usage() -> String {
 }
 
 fn banner() -> String {
-    return r#"
+    format!(
+        r#"
 
       _ __  _   _ _ __ ___
      | '_ \| | | | '_ \ _ \
@@ -173,8 +179,9 @@ fn banner() -> String {
      |_| |_|\__, |_| |_| |_|
             |___/
 
-             (store-and-forward provider)
+             (store-and-forward provider - version {:})
 
-    "#
-    .to_string();
+    "#,
+        built_info::PKG_VERSION
+    )
 }

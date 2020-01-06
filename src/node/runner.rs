@@ -13,7 +13,7 @@ pub fn start(matches: &ArgMatches) {
 
     let config = new_config(matches);
     println!("Public key: {}", config.public_key_string());
-
+    println!("Directory server: {}", config.directory_server);
     println!(
         "Listening for incoming packets on {}",
         config.socket_address

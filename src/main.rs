@@ -36,7 +36,7 @@ fn main() {
                     Arg::with_name("directory")
                         .long("directory")
                         .help("Address of the directory server the node is sending presence and metrics to")
-                        .takes_value(false),
+                        .takes_value(true),
                 ),
         )
         .get_matches();

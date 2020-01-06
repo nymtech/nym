@@ -1,4 +1,5 @@
 [package]
+build = "build.rs"
 name = "nym-sfw-provider"
 version = "0.1.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
@@ -21,3 +22,6 @@ sha2 = "0.8.0"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0.44"
 hmac = "0.7.1"
+
+[build-dependencies]
+built = "0.3.2"

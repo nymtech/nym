@@ -96,6 +96,11 @@ fn main() {
     }
 }
 
+pub mod built_info {
+    // The file has been placed there by the build script.
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
 fn execute(matches: ArgMatches) -> Result<(), String> {
     match matches.subcommand() {
         ("init", Some(m)) => Ok(commands::init::execute(m)),
@@ -111,7 +116,8 @@ fn usage() -> String {
 }
 
 fn banner() -> String {
-    return r#"
+    format!(
+        r#"
 
       _ __  _   _ _ __ ___
      | '_ \| | | | '_ \ _ \
@@ -119,8 +125,9 @@ fn banner() -> String {
      |_| |_|\__, |_| |_| |_|
             |___/
 
-             (client)
+             (client - version {:})
 
-    "#
-    .to_string();
+    "#,
+        built_info::PKG_VERSION
+    )
 }

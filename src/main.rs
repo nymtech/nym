@@ -83,13 +83,13 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
         .unwrap_or("https://directory.nymtech.net")
         .to_string();
 
-    let mix_host = matches.value_of("mixHost").unwrap_or("0.0.0.0");
+    let mix_host = matches.value_of("mixHost").unwrap();
     let mix_port = match matches.value_of("mixPort").unwrap_or("8085").parse::<u16>() {
         Ok(n) => n,
         Err(err) => panic!("Invalid mix host port value provided - {:?}", err),
     };
 
-    let client_host = matches.value_of("clientHost").unwrap_or("0.0.0.0");
+    let client_host = matches.value_of("clientHost").unwrap();
     let client_port = match matches
         .value_of("clientPort")
         .unwrap_or("9000")

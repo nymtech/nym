@@ -11,10 +11,9 @@ use futures::lock::Mutex as FMutex;
 use futures::select;
 use futures::{SinkExt, StreamExt};
 use sfw_provider_requests::AuthToken;
-use sphinx::route::{Destination, DestinationAddressBytes, NodeAddressBytes};
+use sphinx::route::{Destination, DestinationAddressBytes};
 use sphinx::SphinxPacket;
 use std::net::SocketAddr;
-use std::net::SocketAddrV4;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -38,7 +37,7 @@ const FETCH_MESSAGES_DELAY: f64 = 1.0; // seconds;
 // ... ??Client?? sends (TX) to outQueueController (RX)
 // Loop cover traffic stream just sends messages to mixnet without any channel communication
 
-struct MixMessage(NodeAddressBytes, SphinxPacket);
+struct MixMessage(SocketAddr, SphinxPacket);
 
 struct MixTrafficController;
 
@@ -225,7 +224,7 @@ impl NymClient {
 
         let topology = get_topology(self.is_local);
         // this is temporary and assumes there exists only a single provider.
-        let provider_address: SocketAddrV4 = topology
+        let provider_address: SocketAddr = topology
             .mix_provider_nodes
             .first()
             .unwrap()

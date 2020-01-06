@@ -38,7 +38,7 @@ impl TryFrom<u8> for AddressType {
 }
 
 /// FLAG || port || octets || zeropad
-pub(crate) fn encoded_bytes_from_socket_address(address: SocketAddr) -> [u8; 32] {
+pub fn encoded_bytes_from_socket_address(address: SocketAddr) -> [u8; 32] {
     let port_bytes = address.port().to_be_bytes();
 
     let encoded_host: Vec<u8> = match address.ip() {
@@ -62,7 +62,7 @@ pub(crate) fn encoded_bytes_from_socket_address(address: SocketAddr) -> [u8; 32]
     address_bytes
 }
 
-pub(crate) fn socket_address_from_encoded_bytes(b: [u8; 32]) -> SocketAddr {
+pub fn socket_address_from_encoded_bytes(b: [u8; 32]) -> SocketAddr {
     let address_type: AddressType = b[0].try_into().unwrap();
 
     let port: u16 = u16::from_be_bytes([b[1], b[2]]);

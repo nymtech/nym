@@ -5,6 +5,7 @@ use crate::clients::directory::requests::presence_topology_get::PresenceTopology
 use crate::clients::directory::DirectoryClient;
 use crate::utils::{addressing, bytes};
 use curve25519_dalek::montgomery::MontgomeryPoint;
+use futures::AsyncReadExt;
 use rand::seq::SliceRandom;
 use sphinx::route::Node as SphinxNode;
 use std::collections::HashMap;
@@ -61,4 +62,3 @@ pub(crate) fn route_from(topology: &Topology) -> Vec<SphinxNode> {
         })
         .collect()
 }
-

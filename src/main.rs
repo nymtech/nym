@@ -52,11 +52,13 @@ fn main() {
                         .long("registeredLedger")
                         .help("Directory of the ledger of registered clients")
                         .takes_value(true)
-                ).arg(Arg::with_name("local")
-                    .long("local")
-                    .help("Flag to indicate whether the provider should run on a local deployment.")
-                    .takes_value(false)
                 )
+                .arg(
+                    Arg::with_name("directory")
+                        .long("directory")
+                        .help("Address of the directory server the node is sending presence and metrics to")
+                        .takes_value(true),
+                ),
         )
         .get_matches();
 
@@ -75,21 +77,19 @@ fn run(matches: &ArgMatches) {
 
 fn new_config(matches: &ArgMatches) -> provider::Config {
     println!("Running the service provider!");
-    let is_local = matches.is_present("local");
 
-    let directory_server = if is_local {
-        "http://localhost:8080".to_string()
-    } else {
-        "https://directory.nymtech.net".to_string()
-    };
+    let directory_server = matches
+        .value_of("directory")
+        .unwrap_or("https://directory.nymtech.net")
+        .to_string();
 
-    let mix_host = matches.value_of("mixHost").unwrap_or("0.0.0.0");
+    let mix_host = matches.value_of("mixHost").unwrap();
     let mix_port = match matches.value_of("mixPort").unwrap_or("8085").parse::<u16>() {
         Ok(n) => n,
         Err(err) => panic!("Invalid mix host port value provided - {:?}", err),
     };
 
-    let client_host = matches.value_of("clientHost").unwrap_or("0.0.0.0");
+    let client_host = matches.value_of("clientHost").unwrap();
     let client_port = match matches
         .value_of("clientPort")
         .unwrap_or("9000")

@@ -8,12 +8,16 @@ use std::net::ToSocketAddrs;
 pub fn execute(matches: &ArgMatches) {
     println!("{}", banner());
 
-    let is_local = matches.is_present("local");
     let id = matches.value_of("id").unwrap().to_string();
     let port = match matches.value_of("port").unwrap_or("9001").parse::<u16>() {
         Ok(n) => n,
         Err(err) => panic!("Invalid port value provided - {:?}", err),
     };
+
+    let directory_server = matches
+        .value_of("directory")
+        .unwrap_or("https://directory.nymtech.net")
+        .to_string();
 
     println!("Starting websocket on port: {:?}", port);
     println!("Listening for messages...");
@@ -30,7 +34,7 @@ pub fn execute(matches: &ArgMatches) {
     let client = NymClient::new(
         keypair.public_bytes(),
         socket_address,
-        is_local,
+        directory_server,
         auth_token,
         SocketType::WebSocket,
     );

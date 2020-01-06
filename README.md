@@ -17,3 +17,11 @@ The built binary can be found at `target/release/nym-mixnode`
 * `nym-mixnode run --layer 1` will start the mixnode in layer 1 (coordinate with other people to find out which layer you need to start yours in)
 
 By default, the Nym Mixnode will start on port 1789. If desired, you can change the port using the `--port` option.
+
+### Dependencies
+
+It's important to download the following repositories before building the mixnode:
+
+* https://github.com/nymtech/nym-client
+* https://github.com/nymtech/nym-sfw-provider
+* https://github.com/nymtech/sphinx

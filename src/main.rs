@@ -16,13 +16,14 @@ fn main() {
                     Arg::with_name("host")
                         .long("host")
                         .help("The custom host on which the mixnode will be running")
-                        .takes_value(true),
+                        .takes_value(true)
+                        .required(true),
                 )
                 .arg(
                     Arg::with_name("port")
                         .long("port")
                         .help("The port on which the mixnode will be listening")
-                        .takes_value(true)
+                        .takes_value(true),
                 )
                 .arg(
                     Arg::with_name("layer")
@@ -32,10 +33,10 @@ fn main() {
                         .required(true),
                 )
                 .arg(
-                    Arg::with_name("local")
-                        .long("local")
-                        .help("Flag to indicate whether the client is expected to run on a local deployment.")
-                        .takes_value(false),
+                    Arg::with_name("directory")
+                        .long("directory")
+                        .help("Address of the directory server the node is sending presence and metrics to")
+                        .takes_value(true),
                 ),
         )
         .get_matches();
@@ -44,6 +45,11 @@ fn main() {
         println!("{}", e);
         process::exit(1);
     }
+}
+
+pub mod built_info {
+    // The file has been placed there by the build script.
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
 fn execute(matches: ArgMatches) -> Result<(), String> {
@@ -58,7 +64,8 @@ fn usage() -> String {
 }
 
 fn banner() -> String {
-    return r#"
+    format!(
+        r#"
 
       _ __  _   _ _ __ ___
      | '_ \| | | | '_ \ _ \
@@ -66,8 +73,9 @@ fn banner() -> String {
      |_| |_|\__, |_| |_| |_|
             |___/
 
-             (mixnode)
+             (mixnode - version {:})
 
-    "#
-    .to_string();
+    "#,
+        built_info::PKG_VERSION
+    )
 }

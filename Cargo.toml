@@ -1,7 +1,8 @@
 [package]
+build = "build.rs"
 name = "nym-mixnode"
-version = "0.1.0"
-authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
+version = "0.2.0"
+authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -14,3 +15,7 @@ futures = "0.3.1"
 nym-client = { path = "../nym-client" }
 sphinx = { path = "../sphinx" }
 tokio = { version = "0.2", features = ["full"] }
+
+
+[build-dependencies]
+built = "0.3.2"

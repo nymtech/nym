@@ -24,11 +24,11 @@ pub mod mix;
 pub mod provider;
 pub mod validator;
 
-const LOOP_COVER_AVERAGE_DELAY: f64 = 100.0;
+const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
 // seconds
-const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 10.0;
+const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 0.5;
 //  seconds;
-const FETCH_MESSAGES_DELAY: f64 = 10.0; // seconds;
+const FETCH_MESSAGES_DELAY: f64 = 1.0; // seconds;
 
 // provider-poller sends polls service provider; receives messages
 // provider-poller sends (TX) to ReceivedBufferController (RX)
@@ -192,8 +192,7 @@ impl NymClient {
                     let cover_message = utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, &topology);
                     mix_tx.send(MixMessage(cover_message.0, cover_message.1)).await.unwrap();
                 }
-            }
-            ;
+            };
 
             let delay_duration = Duration::from_secs_f64(MESSAGE_SENDING_AVERAGE_DELAY);
             tokio::time::delay_for(delay_duration).await;
@@ -303,7 +302,7 @@ impl NymClient {
                     self.input_tx,
                     received_messages_buffer_output_tx,
                     self.address,
-                    topology
+                    topology,
                 ));
             }
             SocketType::None => (),

@@ -11,6 +11,3 @@ jobs:
 before_script:
   - git clone --depth=50 --branch=develop https://github.com/nymtech/sphinx.git nymtech/sphinx
   - ls
-
-script:
-  - ls

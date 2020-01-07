@@ -101,37 +101,43 @@ mod topology_requests {
                        "host": "35.176.155.107:1789",
                        "pubKey": "zSob16499jT7C3S3ky4GihNOjlU6aLfSRkf1xAxOwV0=",
                        "layer": 3,
-                       "lastSeen": 1575915096805374500
+                       "lastSeen": 1575915096805374500,
+                       "version": "0.1.0"
                      },
                      {
                        "host": "18.130.86.190:1789",
                        "pubKey": "vCdpFc0NvW0NSqsuTxtjFtiSY35aXesgT3JNA8sSIXk=",
                        "layer": 1,
-                       "lastSeen": 1575915097370376000
+                       "lastSeen": 1575915097370376000,
+                       "version": "0.1.0"
                      },
                      {
                        "host": "3.10.22.152:1789",
                        "pubKey": "OwOqwWjh_IlnaWS2PxO6odnhNahOYpRCkju50beQCTA=",
                        "layer": 1,
-                       "lastSeen": 1575915097639423500
+                       "lastSeen": 1575915097639423500,
+                       "version": "0.1.0"
                      },
                      {
                        "host": "35.178.213.77:1789",
                        "pubKey": "nkkrUjgL8UJk05QydvWvFSvtRB6nmeV8RMvH5540J3s=",
                        "layer": 2,
-                       "lastSeen": 1575915097895166500
+                       "lastSeen": 1575915097895166500,
+                       "version": "0.1.0"
                      },
                      {
                        "host": "52.56.99.196:1789",
                        "pubKey": "whHuBuEc6zyOZOquKbuATaH4Crml61V_3Y-MztpWhF4=",
                        "layer": 2,
-                       "lastSeen": 1575915096255174700
+                       "lastSeen": 1575915096255174700,
+                       "version": "0.1.0"
                      },
                      {
                        "host": "3.9.12.238:1789",
                        "pubKey": "vk5Sr-Xyi0cTbugACv8U42ZJ6hs6cGDox0rpmXY94Fc=",
                        "layer": 3,
-                       "lastSeen": 1575915096497827600
+                       "lastSeen": 1575915096497827600,
+                       "version": "0.1.0"
                      }
                    ],
                    "mixProviderNodes": [

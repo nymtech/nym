@@ -15,6 +15,7 @@ pub struct MixNodePresence {
     pub pub_key: String,
     pub layer: u64,
     pub last_seen: u64,
+    pub version: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

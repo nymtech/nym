@@ -9,5 +9,8 @@ jobs:
   fast_finish: true
 
 before_script:
-  - ls
   - git clone --depth=50 --branch=develop https://github.com/nymtech/sphinx.git nymtech/sphinx
+  - ls
+
+  after_failure:
+  - ls

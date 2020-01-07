@@ -254,7 +254,8 @@ mod topology_requests {
                            "pubKey": "COGdpfhmzNGR6YX820GqJIkjOihL8mr6-h-d3JlTDFA="
                          }
                        ],
-                       "lastSeen": 1575915097358694100
+                       "lastSeen": 1575915097358694100,
+                       "version": "0.1.0"
                      },
                      {
                        "host": "35.178.212.193:1789",
@@ -303,7 +304,8 @@ mod topology_requests {
                            "pubKey": "w1bfLpnd3rWu5JczB0nQfnE2S6nUCbx2AA7HDE48DQo="
                          }
                        ],
-                       "lastSeen": 1575915097869025000
+                       "lastSeen": 1575915097869025000,
+                       "version": "0.1.0"
                      }
                    ]
                  }"#.to_string()

@@ -24,6 +24,7 @@ pub struct MixProviderPresence {
     pub host: String,
     pub pub_key: String,
     pub registered_clients: Vec<MixProviderClient>,
+    pub version: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

@@ -177,21 +177,29 @@ impl NymClient {
     ) {
         loop {
             println!("[OUT QUEUE] here I will be sending real traffic (or loop cover if nothing is available)");
-            select! {
+            // TODO: consider replacing select macro with our own proper future definition with polling
+            let traffic_message = select! {
                 real_message = input_rx.next() => {
                     println!("[OUT QUEUE] - we got a real message!");
-                    let real_message = real_message.expect("The channel must have closed! - if the client hasn't crashed, it should have!");
+                    if real_message.is_none() {
+                        eprintln!("Unexpected 'None' real message!");
+                        std::process::exit(1);
+                    }
+                    let real_message = real_message.unwrap();
                     println!("real: {:?}", real_message);
-                    let encapsulated_message = utils::sphinx::encapsulate_message(real_message.0, real_message.1, &topology);
-                    mix_tx.send(MixMessage(encapsulated_message.0, encapsulated_message.1)).await.unwrap();
+                    utils::sphinx::encapsulate_message(real_message.0, real_message.1, &topology)
                 },
 
                 default => {
                     println!("[OUT QUEUE] - no real message - going to send extra loop cover");
-                    let cover_message = utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, &topology);
-                    mix_tx.send(MixMessage(cover_message.0, cover_message.1)).await.unwrap();
+                    utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, &topology)
                 }
             };
+
+            mix_tx
+                .send(MixMessage(traffic_message.0, traffic_message.1))
+                .await
+                .unwrap();
 
             let delay_duration = Duration::from_secs_f64(MESSAGE_SENDING_AVERAGE_DELAY);
             tokio::time::delay_for(delay_duration).await;

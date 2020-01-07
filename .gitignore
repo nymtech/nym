@@ -1,3 +1,6 @@
-.idea
-/target
+/targetString
 **/*.rs.bk
+/*/target
+/test_inbox
+.idea
+target

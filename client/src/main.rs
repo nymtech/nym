@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 use clap::{App, Arg, ArgMatches, SubCommand};
 use std::process;
 

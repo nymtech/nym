@@ -1,3 +1,11 @@
+use crate::validator::config::Config;
+use crate::validator::Validator;
+use clap::{App, Arg, ArgMatches, SubCommand};
+use dotenv;
+use log::{error, trace};
+use std::process;
+use toml;
+
 mod validator;
 
 fn main() {

@@ -1,4 +1,5 @@
 [package]
+build = "build.rs"
 name = "nym-validator"
 version = "0.1.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
@@ -7,3 +8,17 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap = "2.33.0"
+# Read notes https://crates.io/crates/dotenv - tl;dr: don't use in production, set environmental variables properly.
+dotenv = "0.15.0"
+log = "0.4.8"
+pretty_env_logger = "0.3.1"
+serde = "1.0.104"
+serde_derive = "1.0.104"
+toml = "0.5.5"
+
+[build-dependencies]
+built = "0.3.2"
+
+[dev-dependencies]
+

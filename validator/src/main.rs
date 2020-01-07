@@ -1,6 +1,11 @@
 mod validator;
 fn main() {
 
+    // if we want to log to file or use different logger, we'd need to replace it here.
+    // a better alternative, but way more complex would be `slog` crate - we should
+    // perhaps research it at some point.
+    pretty_env_logger::init();
+
     let arg_matches = App::new("Nym Validator")
         .version(built_info::PKG_VERSION)
         .author("Nymtech")
@@ -19,11 +24,15 @@ fn main() {
         .get_matches();
 
     if let Err(e) = execute(arg_matches) {
+        error!("{:?}", e);
         process::exit(1);
     }
+}
 
 fn run(matches: &ArgMatches) {
     let config = parse_config(matches);
+    trace!("read config: {:?}", config);
+
     let validator = Validator::new(&config);
     validator.start()
 }

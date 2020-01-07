@@ -28,7 +28,7 @@ $ tree -L 1
 ├── sphinx
 ```
 
-Entering each top-level crate (`client`, `mixnode` or `sfw-provider`) and doing a `cargo build` will build the software.
+`cargo build` will build the software.
 
 As with any other Rust project, there are other ways to build:
 

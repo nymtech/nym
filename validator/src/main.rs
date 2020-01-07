@@ -1,3 +1,68 @@
 fn main() {
-    println!("Hello, world!");
+
+    let arg_matches = App::new("Nym Validator")
+        .version(built_info::PKG_VERSION)
+        .author("Nymtech")
+        .about("Implementation of Nym Validator")
+        .subcommand(
+            SubCommand::with_name("run")
+                .about("Starts the validator")
+                .arg(
+                    Arg::with_name("config")
+                        .long("config")
+                        .help("Location of the validator configuration file")
+                        .takes_value(true)
+                        .required(true),
+                ),
+        )
+        .get_matches();
+
+    if let Err(e) = execute(arg_matches) {
+        process::exit(1);
+    }
+
+fn run(matches: &ArgMatches) {
+    let config = parse_config(matches);
+    let validator = Validator::new(&config);
+    validator.start()
+}
+
+fn parse_config(matches: &ArgMatches) -> Config {
+    let config_file_path = matches.value_of("config").unwrap();
+    // since this is happening at the very startup, it's fine to panic if file doesn't exist
+    let config_content = std::fs::read_to_string(config_file_path).unwrap();
+    toml::from_str(&config_content).unwrap()
+}
+
+pub mod built_info {
+    // The file has been placed there by the build script.
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
+
+fn execute(matches: ArgMatches) -> Result<(), String> {
+    match matches.subcommand() {
+        ("run", Some(m)) => Ok(run(m)),
+        _ => Err(usage()),
+    }
+}
+
+fn usage() -> String {
+    banner() + "usage: --help to see available options.\n\n"
+}
+
+fn banner() -> String {
+    format!(
+        r#"
+
+      _ __  _   _ _ __ ___
+     | '_ \| | | | '_ \ _ \
+     | | | | |_| | | | | | |
+     |_| |_|\__, |_| |_| |_|
+            |___/
+
+             (validator - version {:})
+
+    "#,
+        built_info::PKG_VERSION
+    )
 }

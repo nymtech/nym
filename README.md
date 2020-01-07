@@ -19,7 +19,7 @@ The platform is composed of multiple Rust crates. Top-level crates include:
 Your directory structure should look like this:
 
 ```
-tree -L 1
+$ tree -L 1
 ├── nym
 │   ├── client
 │   ├── mixnode

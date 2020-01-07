@@ -1,3 +1,4 @@
+mod validator;
 fn main() {
 
     let arg_matches = App::new("Nym Validator")

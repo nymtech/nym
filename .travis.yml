@@ -7,3 +7,6 @@ jobs:
   allow_failures:
     - rust: nightly
   fast_finish: true
+
+before_script:
+  - git clone https://github.com/nymtech/sphinx.git

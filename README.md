@@ -14,7 +14,7 @@ The platform is composed of multiple Rust crates. Top-level crates include:
 
 * Rust 1.39 or later. Stable works.
 * The `nym` platform repo (this one).
-* Checkout the [Sphinx]() repo beside the `nym` repo.
+* Checkout the [Sphinx](https://github.com/nymtech/sphinx) repo beside the `nym` repo.
 
 Your directory structure should look like this:
 

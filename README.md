@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/nymtech/nym.svg?branch=develop)](https://travis-ci.com/nymtech/nym)
+
 ## The Nym Privacy Platform
 
 This repository contains the full Nym platform, written in Rust.

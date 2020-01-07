@@ -22,6 +22,7 @@ impl Notifier {
             pub_key: node_config.public_key_string(),
             layer: node_config.layer as u64,
             last_seen: 0,
+            version: env!("CARGO_PKG_VERSION").to_string(),
         };
         Notifier {
             net_client,

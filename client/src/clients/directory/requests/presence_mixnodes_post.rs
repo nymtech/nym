@@ -81,6 +81,7 @@ mod metrics_get_request {
                 pub_key: "abc".to_string(),
                 layer: 1,
                 last_seen: 0,
+                version: "0.1.0".to_string(),
             }
         }
     }

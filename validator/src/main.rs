@@ -1,5 +1,11 @@
 mod validator;
+
 fn main() {
+    // load environment variables from .env file
+    // DO NOT USE IN PRODUCTION - REPLACE WITH PROPERLY SET VARIABLES
+    if dotenv::dotenv().is_err() {
+        eprint!("failed to read .env file - the logging is unlikely to work correctly")
+    }
 
     // if we want to log to file or use different logger, we'd need to replace it here.
     // a better alternative, but way more complex would be `slog` crate - we should

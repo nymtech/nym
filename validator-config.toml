@@ -1,0 +1,3 @@
+[healthcheck]
+
+directory-server = "http://foo.co.uk"

@@ -1166,6 +1166,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-validator"
+version = "0.1.0"
+
+[[package]]
 name = "opaque-debug"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

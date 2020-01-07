@@ -4,5 +4,6 @@ members = [
     "client",
     "mixnode",
     "sfw-provider",
-    "sfw-provider/sfw-provider-requests"
+    "sfw-provider/sfw-provider-requests",
+    "validator",
 ]

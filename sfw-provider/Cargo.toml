@@ -13,10 +13,10 @@ clap = "2.33.0"
 curve25519-dalek = "1.2.3"
 hex = "0.4.0"
 futures = "0.3.1"
-nym-client = { path = "../nym-client" }
+nym-client = { path = "../client" }
 rand = "0.7.2"
 sfw-provider-requests = { path = "./sfw-provider-requests" }
-sphinx = { path = "../sphinx" }
+sphinx = { path = "../../sphinx" }
 tokio = { version = "0.2.4", features = ["full"] }
 sha2 = "0.8.0"
 serde = { version = "1.0.104", features = ["derive"] }

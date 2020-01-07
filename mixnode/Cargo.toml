@@ -12,8 +12,8 @@ base64 = "0.11.0"
 clap = "2.33.0"
 curve25519-dalek = "1.2.3"
 futures = "0.3.1"
-nym-client = { path = "../nym-client" }
-sphinx = { path = "../sphinx" }
+nym-client = { path = "../client" }
+sphinx = { path = "../../sphinx" }
 tokio = { version = "0.2", features = ["full"] }
 
 

@@ -1065,7 +1065,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "built 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1089,14 +1089,14 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "built 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "curve25519-dalek 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "nym-client 0.1.0",
+ "nym-client 0.2.0",
  "sphinx 0.1.0",
  "tokio 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

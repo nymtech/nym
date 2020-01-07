@@ -10,7 +10,7 @@ mod utils;
 
 fn main() {
     let arg_matches = App::new("Nym Client")
-        .version("0.1.0")
+        .version(built_info::PKG_VERSION)
         .author("Nymtech")
         .about("Implementation of the Nym Client")
         .subcommand(

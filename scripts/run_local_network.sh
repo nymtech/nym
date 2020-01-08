@@ -18,16 +18,6 @@ echo "Press CTRL-C to stop."
 
 cargo build
 
-# logDir="$PWD/logs"
-#
-# if [ -d $logDir ]
-# then
-#     echo "Logging directory already exists"
-# else
-#     mkdir $logDir
-#     echo "Created logging directory"
-# fi
-
 MAX_LAYERS=3
 NUMMIXES=${1:-3} # Set $NUMMIXES to default of 3, but allow the user to set other values if desired
 

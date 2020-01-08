@@ -1,4 +1,3 @@
-use sphinx::route::NodeAddressBytes;
 use sphinx::SphinxPacket;
 use std::net::SocketAddr;
 use tokio::prelude::*;

@@ -1,4 +1,4 @@
-use crate::clients::directory::presence::CocoPresence;
+use crate::presence::CocoPresence;
 use reqwest::Response;
 
 pub struct Request {
@@ -73,7 +73,7 @@ mod metrics_get_request {
 
     #[cfg(test)]
     mod fixtures {
-        use crate::clients::directory::presence::CocoPresence;
+        use crate::presence::CocoPresence;
 
         pub fn new_presence() -> CocoPresence {
             CocoPresence {

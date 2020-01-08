@@ -1,4 +1,4 @@
-use crate::clients::directory::presence::MixProviderPresence;
+use crate::presence::MixProviderPresence;
 use reqwest::Response;
 
 pub struct Request {
@@ -72,13 +72,14 @@ mod metrics_get_request {
     }
     #[cfg(test)]
     mod fixtures {
-        use crate::clients::directory::presence::MixProviderPresence;
+        use crate::presence::MixProviderPresence;
 
         pub fn new_presence() -> MixProviderPresence {
             MixProviderPresence {
                 host: "foo.com".to_string(),
                 pub_key: "abc".to_string(),
                 registered_clients: vec![],
+                last_seen: 0,
                 version: "0.1.0".to_string(),
             }
         }

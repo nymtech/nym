@@ -1,10 +1,7 @@
-use crate::clients::directory::presence::Topology;
-use crate::clients::mix::MixClient;
-use crate::clients::provider::ProviderClient;
 use crate::sockets::tcp;
 use crate::sockets::ws;
 use crate::utils;
-use crate::utils::topology::get_topology;
+use directory_client::presence::Topology;
 use futures::channel::{mpsc, oneshot};
 use futures::join;
 use futures::lock::Mutex as FMutex;
@@ -17,11 +14,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-
-pub mod directory;
-pub mod mix;
-pub mod provider;
-pub mod validator;
+use topology::NymTopology;
 
 const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
 // seconds
@@ -44,7 +37,7 @@ struct MixTrafficController;
 impl MixTrafficController {
     // this was way more difficult to implement than what this code may suggest...
     async fn run(mut rx: mpsc::UnboundedReceiver<MixMessage>) {
-        let mix_client = MixClient::new();
+        let mix_client = mix_client::MixClient::new();
         while let Some(mix_message) = rx.next().await {
             println!(
                 "[MIX TRAFFIC CONTROL] - got a mix_message for {:?}",
@@ -207,7 +200,7 @@ impl NymClient {
     }
 
     async fn start_provider_polling(
-        provider_client: ProviderClient,
+        provider_client: provider_client::ProviderClient,
         mut poller_tx: mpsc::UnboundedSender<Vec<Vec<u8>>>,
     ) {
         let loop_message = &utils::sphinx::LOOP_COVER_MESSAGE_PAYLOAD.to_vec();
@@ -230,10 +223,10 @@ impl NymClient {
         println!("Starting nym client");
         let mut rt = Runtime::new()?;
 
-        let topology = get_topology(self.directory.clone());
+        let topology = Topology::new(self.directory.clone());
         // this is temporary and assumes there exists only a single provider.
         let provider_address: SocketAddr = topology
-            .mix_provider_nodes
+            .get_mix_provider_nodes()
             .first()
             .unwrap()
             .host
@@ -241,7 +234,7 @@ impl NymClient {
             .unwrap();
 
         let mut provider_client =
-            ProviderClient::new(provider_address, self.address, self.auth_token);
+            provider_client::ProviderClient::new(provider_address, self.address, self.auth_token);
 
         // registration
         rt.block_on(async {

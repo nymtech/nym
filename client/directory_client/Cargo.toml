@@ -1,0 +1,17 @@
+[package]
+name = "directory_client"
+version = "0.1.0"
+authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+reqwest = "0.9.22"
+serde = { version = "1.0.104", features = ["derive"] }
+
+## internal
+topology = {path = "../../common/topology"}
+
+[dev-dependencies]
+mockito = "0.22.0"

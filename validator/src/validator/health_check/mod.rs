@@ -1,5 +1,5 @@
 use crate::validator::config;
-use log::debug;
+use log::{debug, trace};
 use std::time::Duration;
 
 pub(crate) struct HealthChecker {
@@ -15,10 +15,14 @@ impl HealthChecker {
         }
     }
 
-    pub fn run(self) {
+    pub async fn run(self) {
         debug!(
             "healthcheck run. will use directory at: {:?} and run every {:?}",
             self.directory_server, self.interval,
-        )
+        );
+        loop {
+            tokio::time::delay_for(self.interval).await;
+            trace!("going to perform a healthcheck!");
+        }
     }
 }

@@ -1,6 +1,7 @@
 use crate::validator::config::Config;
 use crate::validator::health_check::HealthChecker;
 use log::debug;
+use tokio::runtime::Runtime;
 
 pub mod config;
 mod health_check;
@@ -20,6 +21,11 @@ impl Validator {
 
     pub fn start(self) {
         debug!("validator run");
-        self.heath_check.run()
+
+        let mut rt = Runtime::new().unwrap();
+
+        let health_check_future = self.heath_check.run();
+
+        rt.block_on(health_check_future);
     }
 }

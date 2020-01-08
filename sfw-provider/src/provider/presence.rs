@@ -1,16 +1,15 @@
 use crate::provider::{ClientLedger, Config};
 use curve25519_dalek::montgomery::MontgomeryPoint;
+use directory_client::presence::MixProviderPresence;
+use directory_client::requests::presence_providers_post::PresenceMixProviderPoster;
+use directory_client::DirectoryClient;
 use futures::lock::Mutex as FMutex;
-use nym_client::clients::directory;
-use nym_client::clients::directory::presence::MixProviderPresence;
-use nym_client::clients::directory::requests::presence_providers_post::PresenceMixProviderPoster;
-use nym_client::clients::directory::DirectoryClient;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
 pub struct Notifier {
-    pub net_client: directory::Client,
+    pub net_client: directory_client::Client,
     client_ledger: Arc<FMutex<ClientLedger>>,
     host: String,
     pub_key: String,
@@ -23,10 +22,10 @@ impl Notifier {
         pub_key: MontgomeryPoint,
         client_ledger: Arc<FMutex<ClientLedger>>,
     ) -> Notifier {
-        let directory_config = directory::Config {
+        let directory_config = directory_client::Config {
             base_url: directory_server_address,
         };
-        let net_client = directory::Client::new(directory_config);
+        let net_client = directory_client::Client::new(directory_config);
 
         Notifier {
             net_client,

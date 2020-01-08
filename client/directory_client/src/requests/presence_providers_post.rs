@@ -1,4 +1,4 @@
-use crate::clients::directory::presence::CocoPresence;
+use crate::presence::MixProviderPresence;
 use reqwest::Response;
 
 pub struct Request {
@@ -6,20 +6,20 @@ pub struct Request {
     path: String,
 }
 
-pub trait PresenceCocoNodesPoster {
+pub trait PresenceMixProviderPoster {
     fn new(base_url: String) -> Self;
-    fn post(&self, presence: &CocoPresence) -> Result<Response, reqwest::Error>;
+    fn post(&self, presence: &MixProviderPresence) -> Result<Response, reqwest::Error>;
 }
 
-impl PresenceCocoNodesPoster for Request {
+impl PresenceMixProviderPoster for Request {
     fn new(base_url: String) -> Self {
         Request {
             base_url,
-            path: "/api/presence/coconodes".to_string(),
+            path: "/api/presence/mixproviders".to_string(),
         }
     }
 
-    fn post(&self, presence: &CocoPresence) -> Result<Response, reqwest::Error> {
+    fn post(&self, presence: &MixProviderPresence) -> Result<Response, reqwest::Error> {
         let url = format!("{}{}", self.base_url, self.path);
         let client = reqwest::Client::new();
         let p = client.post(&url).json(&presence).send()?;
@@ -40,7 +40,7 @@ mod metrics_get_request {
 
         #[test]
         fn it_returns_an_error() {
-            let _m = mock("POST", "/api/presence/coconodes")
+            let _m = mock("POST", "/api/presence/mixproviders")
                 .with_status(400)
                 .create();
             let req = Request::new(mockito::server_url());
@@ -59,7 +59,7 @@ mod metrics_get_request {
             let json = r#"{
                           "ok": true
                       }"#;
-            let _m = mock("POST", "/api/presence/coconodes")
+            let _m = mock("POST", "/api/presence/mixproviders")
                 .with_status(201)
                 .with_body(json)
                 .create();
@@ -70,16 +70,16 @@ mod metrics_get_request {
             _m.assert();
         }
     }
-
     #[cfg(test)]
     mod fixtures {
-        use crate::clients::directory::presence::CocoPresence;
+        use crate::clients::directory::presence::MixProviderPresence;
 
-        pub fn new_presence() -> CocoPresence {
-            CocoPresence {
+        pub fn new_presence() -> MixProviderPresence {
+            MixProviderPresence {
                 host: "foo.com".to_string(),
                 pub_key: "abc".to_string(),
-                last_seen: 666,
+                registered_clients: vec![],
+                version: "0.1.0".to_string(),
             }
         }
     }

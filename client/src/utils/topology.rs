@@ -1,21 +1,18 @@
-use crate::clients::directory;
-use crate::clients::directory::presence::MixNodePresence;
-use crate::clients::directory::presence::Topology;
-use crate::clients::directory::requests::presence_topology_get::PresenceTopologyGetRequester;
-use crate::clients::directory::DirectoryClient;
 use crate::utils::{addressing, bytes};
 use curve25519_dalek::montgomery::MontgomeryPoint;
+use directory_client::presence::{MixNodePresence, Topology};
+use directory_client::requests::presence_topology_get::PresenceTopologyGetRequester;
+use directory_client::DirectoryClient;
 use rand::seq::SliceRandom;
 use sphinx::route::Node as SphinxNode;
 use std::collections::HashMap;
-use std::net::SocketAddr;
 
 pub(crate) fn get_topology(directory_server: String) -> Topology {
     println!("Using directory server: {:?}", directory_server);
-    let directory_config = directory::Config {
+    let directory_config = directory_client::Config {
         base_url: directory_server,
     };
-    let directory = directory::Client::new(directory_config);
+    let directory = directory_client::Client::new(directory_config);
 
     let topology = directory
         .presence_topology

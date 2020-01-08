@@ -2,6 +2,10 @@
 
 members = [
     "client",
+    "client/directory_client",
+    "client/mix_client",
+    "client/provider_client",
+    "client/validator_client",
     "mixnode",
     "sfw-provider",
     "sfw-provider/sfw-provider-requests"

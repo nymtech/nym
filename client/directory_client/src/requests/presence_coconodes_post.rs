@@ -1,4 +1,4 @@
-use crate::clients::directory::presence::MixNodePresence;
+use crate::presence::CocoPresence;
 use reqwest::Response;
 
 pub struct Request {
@@ -6,20 +6,20 @@ pub struct Request {
     path: String,
 }
 
-pub trait PresenceMixNodesPoster {
+pub trait PresenceCocoNodesPoster {
     fn new(base_url: String) -> Self;
-    fn post(&self, presence: &MixNodePresence) -> Result<Response, reqwest::Error>;
+    fn post(&self, presence: &CocoPresence) -> Result<Response, reqwest::Error>;
 }
 
-impl PresenceMixNodesPoster for Request {
+impl PresenceCocoNodesPoster for Request {
     fn new(base_url: String) -> Self {
         Request {
             base_url,
-            path: "/api/presence/mixnodes".to_string(),
+            path: "/api/presence/coconodes".to_string(),
         }
     }
 
-    fn post(&self, presence: &MixNodePresence) -> Result<Response, reqwest::Error> {
+    fn post(&self, presence: &CocoPresence) -> Result<Response, reqwest::Error> {
         let url = format!("{}{}", self.base_url, self.path);
         let client = reqwest::Client::new();
         let p = client.post(&url).json(&presence).send()?;
@@ -40,7 +40,7 @@ mod metrics_get_request {
 
         #[test]
         fn it_returns_an_error() {
-            let _m = mock("POST", "/api/presence/mixnodes")
+            let _m = mock("POST", "/api/presence/coconodes")
                 .with_status(400)
                 .create();
             let req = Request::new(mockito::server_url());
@@ -59,7 +59,7 @@ mod metrics_get_request {
             let json = r#"{
                           "ok": true
                       }"#;
-            let _m = mock("POST", "/api/presence/mixnodes")
+            let _m = mock("POST", "/api/presence/coconodes")
                 .with_status(201)
                 .with_body(json)
                 .create();
@@ -73,15 +73,13 @@ mod metrics_get_request {
 
     #[cfg(test)]
     mod fixtures {
-        use crate::clients::directory::presence::MixNodePresence;
+        use crate::clients::directory::presence::CocoPresence;
 
-        pub fn new_presence() -> MixNodePresence {
-            MixNodePresence {
+        pub fn new_presence() -> CocoPresence {
+            CocoPresence {
                 host: "foo.com".to_string(),
                 pub_key: "abc".to_string(),
-                layer: 1,
-                last_seen: 0,
-                version: "0.1.0".to_string(),
+                last_seen: 666,
             }
         }
     }

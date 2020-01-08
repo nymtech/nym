@@ -1,4 +1,4 @@
-use crate::clients::directory::presence::MixProviderPresence;
+use crate::presence::MixNodePresence;
 use reqwest::Response;
 
 pub struct Request {
@@ -6,20 +6,20 @@ pub struct Request {
     path: String,
 }
 
-pub trait PresenceMixProviderPoster {
+pub trait PresenceMixNodesPoster {
     fn new(base_url: String) -> Self;
-    fn post(&self, presence: &MixProviderPresence) -> Result<Response, reqwest::Error>;
+    fn post(&self, presence: &MixNodePresence) -> Result<Response, reqwest::Error>;
 }
 
-impl PresenceMixProviderPoster for Request {
+impl PresenceMixNodesPoster for Request {
     fn new(base_url: String) -> Self {
         Request {
             base_url,
-            path: "/api/presence/mixproviders".to_string(),
+            path: "/api/presence/mixnodes".to_string(),
         }
     }
 
-    fn post(&self, presence: &MixProviderPresence) -> Result<Response, reqwest::Error> {
+    fn post(&self, presence: &MixNodePresence) -> Result<Response, reqwest::Error> {
         let url = format!("{}{}", self.base_url, self.path);
         let client = reqwest::Client::new();
         let p = client.post(&url).json(&presence).send()?;
@@ -40,7 +40,7 @@ mod metrics_get_request {
 
         #[test]
         fn it_returns_an_error() {
-            let _m = mock("POST", "/api/presence/mixproviders")
+            let _m = mock("POST", "/api/presence/mixnodes")
                 .with_status(400)
                 .create();
             let req = Request::new(mockito::server_url());
@@ -59,7 +59,7 @@ mod metrics_get_request {
             let json = r#"{
                           "ok": true
                       }"#;
-            let _m = mock("POST", "/api/presence/mixproviders")
+            let _m = mock("POST", "/api/presence/mixnodes")
                 .with_status(201)
                 .with_body(json)
                 .create();
@@ -70,15 +70,17 @@ mod metrics_get_request {
             _m.assert();
         }
     }
+
     #[cfg(test)]
     mod fixtures {
-        use crate::clients::directory::presence::MixProviderPresence;
+        use crate::clients::directory::presence::MixNodePresence;
 
-        pub fn new_presence() -> MixProviderPresence {
-            MixProviderPresence {
+        pub fn new_presence() -> MixNodePresence {
+            MixNodePresence {
                 host: "foo.com".to_string(),
                 pub_key: "abc".to_string(),
-                registered_clients: vec![],
+                layer: 1,
+                last_seen: 0,
                 version: "0.1.0".to_string(),
             }
         }

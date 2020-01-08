@@ -1,6 +1,6 @@
-use crate::clients::directory::presence::Topology;
 use crate::utils::{addressing, bytes, topology};
 use curve25519_dalek::montgomery::MontgomeryPoint;
+use directory_client::presence::Topology;
 use sphinx::route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier};
 use sphinx::SphinxPacket;
 use std::net::SocketAddr;

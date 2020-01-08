@@ -1,4 +1,4 @@
-use crate::clients::directory::metrics::MixMetric;
+use crate::metrics::MixMetric;
 use reqwest::Response;
 
 pub struct Request {

@@ -1,10 +1,10 @@
-use crate::clients::directory::presence::Topology;
 use crate::clients::mix::MixClient;
 use crate::clients::provider::ProviderClient;
 use crate::sockets::tcp;
 use crate::sockets::ws;
 use crate::utils;
 use crate::utils::topology::get_topology;
+use directory_client::presence::Topology;
 use futures::channel::{mpsc, oneshot};
 use futures::join;
 use futures::lock::Mutex as FMutex;
@@ -18,7 +18,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 
-pub mod directory;
 pub mod mix;
 pub mod provider;
 pub mod validator;

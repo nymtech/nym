@@ -12,10 +12,14 @@ base64 = "0.11.0"
 clap = "2.33.0"
 curve25519-dalek = "1.2.3"
 futures = "0.3.1"
-nym-client = { path = "../client" }
-sphinx = { path = "../../sphinx" }
 tokio = { version = "0.2", features = ["full"] }
 
+## internal
+directory_client = { path = "../client/directory_client" }
+nym-client = { path = "../client" }
+
+## will be moved to proper dependencies once released
+sphinx = { path = "../../sphinx" }
 
 [build-dependencies]
 built = "0.3.2"

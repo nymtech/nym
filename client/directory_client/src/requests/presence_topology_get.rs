@@ -1,4 +1,4 @@
-use crate::clients::directory::presence::Topology;
+use crate::presence::Topology;
 
 pub struct Request {
     base_url: String,

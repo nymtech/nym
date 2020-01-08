@@ -1,3 +1,4 @@
 [healthcheck]
 
 directory-server = "http://localhost:8080"
+interval = 10.0

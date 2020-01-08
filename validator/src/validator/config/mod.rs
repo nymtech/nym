@@ -10,4 +10,6 @@ pub struct Config {
 pub struct HealthCheck {
     #[serde(rename(deserialize = "directory-server"))]
     pub directory_server: String,
+
+    pub interval: f64, // in seconds
 }

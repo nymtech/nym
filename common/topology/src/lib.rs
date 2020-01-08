@@ -1,4 +1,3 @@
-use crate::utils::bytes;
 use addressing;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use directory_client::presence::{MixNodePresence, Topology};
@@ -8,7 +7,7 @@ use rand::seq::SliceRandom;
 use sphinx::route::Node as SphinxNode;
 use std::collections::HashMap;
 
-pub(crate) fn get_topology(directory_server: String) -> Topology {
+pub fn get_topology(directory_server: String) -> Topology {
     println!("Using directory server: {:?}", directory_server);
     let directory_config = directory_client::Config {
         base_url: directory_server,
@@ -22,7 +21,7 @@ pub(crate) fn get_topology(directory_server: String) -> Topology {
     topology
 }
 
-pub(crate) fn route_from(topology: &Topology) -> Vec<SphinxNode> {
+pub fn route_from(topology: &Topology) -> Vec<SphinxNode> {
     let mut layered_topology: HashMap<u64, Vec<MixNodePresence>> = HashMap::new();
     let mixes = topology.mix_nodes.iter();
     for mix in mixes {
@@ -45,7 +44,8 @@ pub(crate) fn route_from(topology: &Topology) -> Vec<SphinxNode> {
             let address_bytes =
                 addressing::encoded_bytes_from_socket_address(mix.host.clone().parse().unwrap());
             let decoded_key_bytes = base64::decode_config(&mix.pub_key, base64::URL_SAFE).unwrap();
-            let key_bytes = bytes::zero_pad_to_32(decoded_key_bytes);
+            let mut key_bytes = [0; 32];
+            key_bytes.copy_from_slice(&decoded_key_bytes[..]);
             let key = MontgomeryPoint(key_bytes);
             SphinxNode {
                 address: address_bytes,

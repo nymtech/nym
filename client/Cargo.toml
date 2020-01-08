@@ -33,6 +33,7 @@ directory_client = { path = "directory_client" }
 mix_client = { path = "mix_client" }
 provider_client = { path = "provider_client" }
 sfw-provider-requests = { path = "../sfw-provider/sfw-provider-requests" }
+topology = {path = "../common/topology" }
 
 ## will be moved to proper dependencies once released
 sphinx = { path = "../../sphinx" }

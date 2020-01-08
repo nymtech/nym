@@ -1,7 +1,6 @@
 use crate::sockets::tcp;
 use crate::sockets::ws;
 use crate::utils;
-use crate::utils::topology::get_topology;
 use directory_client::presence::Topology;
 use futures::channel::{mpsc, oneshot};
 use futures::join;
@@ -15,6 +14,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
+use topology::get_topology;
 
 const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
 // seconds

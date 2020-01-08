@@ -1,4 +1,3 @@
-use crate::clients::provider::ProviderClient;
 use crate::sockets::tcp;
 use crate::sockets::ws;
 use crate::utils;
@@ -16,9 +15,6 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-
-pub mod provider;
-pub mod validator;
 
 const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
 // seconds
@@ -204,7 +200,7 @@ impl NymClient {
     }
 
     async fn start_provider_polling(
-        provider_client: ProviderClient,
+        provider_client: provider_client::ProviderClient,
         mut poller_tx: mpsc::UnboundedSender<Vec<Vec<u8>>>,
     ) {
         let loop_message = &utils::sphinx::LOOP_COVER_MESSAGE_PAYLOAD.to_vec();
@@ -238,7 +234,7 @@ impl NymClient {
             .unwrap();
 
         let mut provider_client =
-            ProviderClient::new(provider_address, self.address, self.auth_token);
+            provider_client::ProviderClient::new(provider_address, self.address, self.auth_token);
 
         // registration
         rt.block_on(async {

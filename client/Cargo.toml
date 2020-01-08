@@ -30,6 +30,7 @@ tungstenite = "0.9.2"
 ## internal
 directory_client = { path = "directory_client" }
 mix_client = { path = "mix_client" }
+provider_client = { path = "provider_client" }
 sfw-provider-requests = { path = "../sfw-provider/sfw-provider-requests" }
 
 ## will be moved to proper dependencies once released

@@ -14,7 +14,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use topology::get_topology;
+use topology::NymTopology;
 
 const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
 // seconds
@@ -223,10 +223,10 @@ impl NymClient {
         println!("Starting nym client");
         let mut rt = Runtime::new()?;
 
-        let topology = get_topology(self.directory.clone());
+        let topology = Topology::new(self.directory.clone());
         // this is temporary and assumes there exists only a single provider.
         let provider_address: SocketAddr = topology
-            .mix_provider_nodes
+            .get_mix_provider_nodes()
             .first()
             .unwrap()
             .host

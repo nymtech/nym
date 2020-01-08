@@ -15,7 +15,6 @@ serde = { version = "1.0.104", features = ["derive"] }
 
 ## internal
 addressing = {path = "../addressing"}
-directory_client = { path = "../../client/directory_client" }
 
 ## will be moved to proper dependencies once released
 sphinx = { path = "../../../sphinx" }

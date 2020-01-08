@@ -5,6 +5,7 @@ use directory_client::presence::Topology;
 use sphinx::route::{Destination, DestinationAddressBytes, Node, SURBIdentifier};
 use sphinx::SphinxPacket;
 use std::net::SocketAddr;
+use topology::NymTopology;
 
 pub const LOOP_COVER_MESSAGE_PAYLOAD: &[u8] = b"The cake is a lie!";
 
@@ -23,7 +24,7 @@ pub fn encapsulate_message(
     message: Vec<u8>,
     topology: &Topology,
 ) -> (SocketAddr, SphinxPacket) {
-    let mixes_route = topology::route_from(&topology);
+    let mixes_route = topology.route_from();
     let first_provider = topology.mix_provider_nodes.first().unwrap();
     let decoded_key_bytes =
         base64::decode_config(&first_provider.pub_key, base64::URL_SAFE).unwrap();

@@ -9,3 +9,6 @@ edition = "2018"
 [dependencies]
 reqwest = "0.9.22"
 serde = { version = "1.0.104", features = ["derive"] }
+
+## internal
+topology = {path = "../../common/topology"}

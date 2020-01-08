@@ -42,6 +42,7 @@ impl Notifier {
             host: self.host.clone(),
             pub_key: self.pub_key.clone(),
             registered_clients: unlocked_ledger.current_clients(),
+            last_seen: 0,
             version: env!("CARGO_PKG_VERSION").to_string(),
         }
     }

@@ -8,7 +8,7 @@ mod commands;
 mod identity;
 mod persistence;
 mod sockets;
-mod utils;
+pub mod utils;
 
 fn main() {
     let arg_matches = App::new("Nym Client")

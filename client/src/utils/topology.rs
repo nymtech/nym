@@ -10,7 +10,7 @@ use sphinx::route::Node as SphinxNode;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 
-pub(crate) fn get_topology(directory_server: String) -> Topology {
+pub fn get_topology(directory_server: String) -> Topology {
     println!("Using directory server: {:?}", directory_server);
     let directory_config = directory::Config {
         base_url: directory_server,

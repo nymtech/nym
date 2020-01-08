@@ -60,7 +60,11 @@ impl Into<topology::MixProviderNode> for MixProviderPresence {
             client_listener: self.client_listener.parse().unwrap(),
             mixnet_listener: self.mixnet_listener.parse().unwrap(),
             pub_key: self.pub_key,
-            registered_clients: self.registered_clients.into_iter().map(|c| c.into()).collect(),
+            registered_clients: self
+                .registered_clients
+                .into_iter()
+                .map(|c| c.into())
+                .collect(),
             last_seen: self.last_seen,
             version: self.version,
         }
@@ -110,7 +114,10 @@ impl NymTopology for Topology {
     }
 
     fn get_mix_provider_nodes(&self) -> Vec<topology::MixProviderNode> {
-        self.mix_provider_nodes.iter().map(|x| x.clone().into()).collect()
+        self.mix_provider_nodes
+            .iter()
+            .map(|x| x.clone().into())
+            .collect()
     }
 
     fn get_coco_nodes(&self) -> Vec<topology::CocoNode> {

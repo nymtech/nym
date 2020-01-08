@@ -103,5 +103,11 @@ pub trait NymTopology {
             })
             .collect())
     }
+
+    // sets a route to specific provider
+    fn route_to(&self, node: SphinxNode) -> Result<Vec<SphinxNode>, NymTopologyError> {
+        Ok(self.mix_route()?.into_iter().chain(std::iter::once(node)).collect())
+    }
+
     }
 }

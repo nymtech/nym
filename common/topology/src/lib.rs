@@ -3,10 +3,11 @@ use curve25519_dalek::montgomery::MontgomeryPoint;
 use rand::seq::SliceRandom;
 use sphinx::route::Node as SphinxNode;
 use std::collections::HashMap;
+use std::net::SocketAddr;
 
 #[derive(Debug)]
 pub struct MixNode {
-    pub host: String,
+    pub host: SocketAddr,
     pub pub_key: String,
     pub layer: u64,
     pub last_seen: u64,
@@ -20,7 +21,8 @@ pub struct MixProviderClient {
 
 #[derive(Debug)]
 pub struct MixProviderNode {
-    pub host: String,
+    pub client_listener: SocketAddr,
+    pub mixnet_listener: SocketAddr,
     pub pub_key: String,
     pub registered_clients: Vec<MixProviderClient>,
     pub last_seen: u64,
@@ -57,9 +59,7 @@ pub trait NymTopology {
         route
             .iter()
             .map(|mix| {
-                let address_bytes = addressing::encoded_bytes_from_socket_address(
-                    mix.host.clone().parse().unwrap(),
-                );
+                let address_bytes = addressing::encoded_bytes_from_socket_address(mix.host.clone());
                 let decoded_key_bytes =
                     base64::decode_config(&mix.pub_key, base64::URL_SAFE).unwrap();
                 let mut key_bytes = [0; 32];

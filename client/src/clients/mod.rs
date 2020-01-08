@@ -225,16 +225,17 @@ impl NymClient {
 
         let topology = Topology::new(self.directory.clone());
         // this is temporary and assumes there exists only a single provider.
-        let provider_address: SocketAddr = topology
+        let provider_client_listener_address: SocketAddr = topology
             .get_mix_provider_nodes()
             .first()
             .unwrap()
-            .host
-            .parse()
-            .unwrap();
+            .client_listener;
 
-        let mut provider_client =
-            provider_client::ProviderClient::new(provider_address, self.address, self.auth_token);
+        let mut provider_client = provider_client::ProviderClient::new(
+            provider_client_listener_address,
+            self.address,
+            self.auth_token,
+        );
 
         // registration
         rt.block_on(async {

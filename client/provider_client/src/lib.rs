@@ -51,13 +51,8 @@ impl ProviderClient {
         our_address: DestinationAddressBytes,
         auth_token: Option<AuthToken>,
     ) -> Self {
-        // DH temporary: the provider's client port is not in the topology, but we can't change that
-        // right now without messing up the existing Go mixnet. So I'm going to hardcode this
-        // for the moment until the Go mixnet goes away.
-        let provider_socket = SocketAddr::new(provider_network_address.ip(), 9000);
-
         ProviderClient {
-            provider_network_address: provider_socket,
+            provider_network_address,
             our_address,
             auth_token,
         }

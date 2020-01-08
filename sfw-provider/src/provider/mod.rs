@@ -290,6 +290,7 @@ impl ServiceProvider {
 
         let presence_notifier = presence::Notifier::new(
             self.directory_server,
+            self.client_network_address.clone(),
             self.mix_network_address.clone(),
             self.public_key,
             thread_shareable_ledger.clone(),

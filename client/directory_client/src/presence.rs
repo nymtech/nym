@@ -34,7 +34,7 @@ pub struct MixNodePresence {
 impl Into<topology::MixNode> for MixNodePresence {
     fn into(self) -> topology::MixNode {
         topology::MixNode {
-            host: self.host,
+            host: self.host.parse().unwrap(),
             pub_key: self.pub_key,
             layer: self.layer,
             last_seen: self.last_seen,
@@ -46,7 +46,8 @@ impl Into<topology::MixNode> for MixNodePresence {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MixProviderPresence {
-    pub host: String,
+    pub client_listener: String,
+    pub mixnet_listener: String,
     pub pub_key: String,
     pub registered_clients: Vec<MixProviderClient>,
     pub last_seen: u64,
@@ -56,9 +57,14 @@ pub struct MixProviderPresence {
 impl Into<topology::MixProviderNode> for MixProviderPresence {
     fn into(self) -> topology::MixProviderNode {
         topology::MixProviderNode {
-            host: self.host,
+            client_listener: self.client_listener.parse().unwrap(),
+            mixnet_listener: self.mixnet_listener.parse().unwrap(),
             pub_key: self.pub_key,
-            registered_clients: self.registered_clients.into_iter().map(|c| c.into()).collect(),
+            registered_clients: self
+                .registered_clients
+                .into_iter()
+                .map(|c| c.into())
+                .collect(),
             last_seen: self.last_seen,
             version: self.version,
         }
@@ -108,7 +114,10 @@ impl NymTopology for Topology {
     }
 
     fn get_mix_provider_nodes(&self) -> Vec<topology::MixProviderNode> {
-        self.mix_provider_nodes.iter().map(|x| x.clone().into()).collect()
+        self.mix_provider_nodes
+            .iter()
+            .map(|x| x.clone().into())
+            .collect()
     }
 
     fn get_coco_nodes(&self) -> Vec<topology::CocoNode> {

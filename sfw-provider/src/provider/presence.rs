@@ -11,14 +11,16 @@ use std::time::Duration;
 pub struct Notifier {
     pub net_client: directory_client::Client,
     client_ledger: Arc<FMutex<ClientLedger>>,
-    host: String,
+    client_listener: String,
+    mixnet_listener: String,
     pub_key: String,
 }
 
 impl Notifier {
     pub fn new(
         directory_server_address: String,
-        host: SocketAddr,
+        client_listener: SocketAddr,
+        mixnet_listener: SocketAddr,
         pub_key: MontgomeryPoint,
         client_ledger: Arc<FMutex<ClientLedger>>,
     ) -> Notifier {
@@ -29,7 +31,8 @@ impl Notifier {
 
         Notifier {
             net_client,
-            host: host.to_string(),
+            client_listener: client_listener.to_string(),
+            mixnet_listener: mixnet_listener.to_string(),
             pub_key: Config::public_key_string(pub_key),
             client_ledger,
         }
@@ -39,7 +42,8 @@ impl Notifier {
         let unlocked_ledger = self.client_ledger.lock().await;
 
         MixProviderPresence {
-            host: self.host.clone(),
+            client_listener: self.client_listener.clone(),
+            mixnet_listener: self.mixnet_listener.clone(),
             pub_key: self.pub_key.clone(),
             registered_clients: unlocked_ledger.current_clients(),
             last_seen: 0,

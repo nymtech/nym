@@ -1,5 +1,5 @@
 [package]
-name = "directory_client"
+name = "provider-client"
 version = "0.1.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
@@ -7,11 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-reqwest = "0.9.22"
-serde = { version = "1.0.104", features = ["derive"] }
+futures = "0.3.1"
+tokio = { version = "0.2", features = ["full"] }
 
 ## internal
-topology = {path = "../../common/topology"}
+sfw-provider-requests = { path = "../../sfw-provider/sfw-provider-requests" }
 
-[dev-dependencies]
-mockito = "0.22.0"
+## will be moved to proper dependencies once released
+sphinx = { path = "../../../sphinx" }

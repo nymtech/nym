@@ -39,7 +39,9 @@ pub fn encapsulate_message<T: NymTopology>(
 
     let route = [mixes_route, vec![provider]].concat();
 
-    let delays = sphinx::header::delays::generate(route.len());
+    // Set average packet dealy to an arbitrary but at least not super-slow value for testing.
+    let average_delay = 0.1;
+    let delays = sphinx::header::delays::generate(route.len(), average_delay);
 
     // build the packet
     let packet = sphinx::SphinxPacket::new(message, &route[..], &recipient, &delays).unwrap();

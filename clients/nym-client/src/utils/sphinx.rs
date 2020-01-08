@@ -23,7 +23,7 @@ pub fn encapsulate_message<T: NymTopology>(
     message: Vec<u8>,
     topology: &T,
 ) -> (SocketAddr, SphinxPacket) {
-    let mixes_route = topology.route_from();
+    let mixes_route = topology.mix_route();
     let providers = topology.get_mix_provider_nodes();
     let first_provider = providers.first().unwrap();
     let decoded_key_bytes =
@@ -36,7 +36,7 @@ pub fn encapsulate_message<T: NymTopology>(
         key,
     );
 
-    let route = [mixes_route, vec![provider]].concat();
+    let route = [mixes_route.unwrap(), vec![provider]].concat();
 
     // Set average packet delay to an arbitrary but at least not super-slow value for testing.
     let average_delay = 0.1;

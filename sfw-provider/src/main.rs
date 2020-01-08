@@ -19,7 +19,8 @@ fn main() {
                     Arg::with_name("mixHost")
                         .long("mixHost")
                         .help("The custom host on which the service provider will be running for receiving sphinx packets")
-                        .takes_value(true),
+                        .takes_value(true)
+                        .required(true),
                 )
                 .arg(
                     Arg::with_name("mixPort")
@@ -31,7 +32,8 @@ fn main() {
                     Arg::with_name("clientHost")
                         .long("clientHost")
                         .help("The custom host on which the service provider will be running for receiving client sfw-provider-requests")
-                        .takes_value(true),
+                        .takes_value(true)
+                        .required(true),
                 )
                 .arg(
                     Arg::with_name("clientPort")

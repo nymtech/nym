@@ -6,7 +6,7 @@ mod node;
 
 fn main() {
     let arg_matches = App::new("Nym Mixnode")
-        .version("0.1.0")
+        .version(built_info::PKG_VERSION)
         .author("Nymtech")
         .about("Implementation of the Loopix-based Mixnode")
         .subcommand(

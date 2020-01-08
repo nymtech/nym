@@ -1,0 +1,13 @@
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+jobs:
+  allow_failures:
+    - rust: nightly
+  fast_finish: true
+
+before_script:
+  - git clone --depth=50 --branch=develop https://github.com/nymtech/sphinx.git /home/travis/build/nymtech/sphinx
+  - ls

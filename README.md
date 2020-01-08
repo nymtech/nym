@@ -8,13 +8,15 @@ The platform is composed of multiple Rust crates. Top-level crates include:
 * mixnode - an executable mixnode crate
 * sfw-provider - an executable store-and-forward provider crate. The provider acts sort of like a mailbox for mixnet messages.
 
+[![Build Status](https://travis-ci.com/nymtech/nym.svg?branch=develop)](https://travis-ci.com/nymtech/nym)
+
 ### Building
 
 #### Prerequisites
 
 * Rust 1.39 or later. Stable works.
 * The `nym` platform repo (this one).
-* Checkout the [Sphinx]() repo beside the `nym` repo.
+* Checkout the [Sphinx](https://github.com/nymtech/sphinx) repo beside the `nym` repo.
 
 Your directory structure should look like this:
 

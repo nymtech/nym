@@ -1,0 +1,45 @@
+[package]
+build = "build.rs"
+name = "nym-client"
+version = "0.2.0"
+authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
+edition = "2018"
+
+[lib]
+name = "nym_client"
+path = "src/lib.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+base64 = "0.11.0"
+clap = "2.33.0"
+curve25519-dalek = "1.2.3"
+dirs = "2.0.2"
+futures = "0.3.1"
+hex = "0.4.0"
+pem = "0.7.0"
+rand = "0.7.2"
+rand_distr = "0.2.2"
+reqwest = "0.9.22"
+serde = { version = "1.0.104", features = ["derive"] }
+serde_json = "1.0.44"
+tokio = { version = "0.2", features = ["full"] }
+tungstenite = "0.9.2"
+
+## internal
+addressing = {path = "../../common/addressing" }
+directory-client = { path = "../directory-client" }
+mix-client = { path = "../mix-client" }
+provider-client = { path = "../provider-client" }
+sfw-provider-requests = { path = "../../sfw-provider/sfw-provider-requests" }
+topology = {path = "../../common/topology" }
+
+## will be moved to proper dependencies once released
+sphinx = { path = "../../../sphinx" }
+
+# putting this explicitly below everything and most likely, the next time we look into it, it will already have a proper release
+tokio-tungstenite = { git = "https://github.com/dbcfd/tokio-tungstenite", rev="6dc2018cbfe8fe7ddd75ff977343086503135b38" }
+
+[build-dependencies]
+built = "0.3.2"

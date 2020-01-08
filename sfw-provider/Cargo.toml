@@ -13,15 +13,20 @@ clap = "2.33.0"
 curve25519-dalek = "1.2.3"
 hex = "0.4.0"
 futures = "0.3.1"
-nym-client = { path = "../client" }
 rand = "0.7.2"
-sfw-provider-requests = { path = "./sfw-provider-requests" }
-sphinx = { path = "../../sphinx" }
 tokio = { version = "0.2.4", features = ["full"] }
 sha2 = "0.8.0"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0.44"
 hmac = "0.7.1"
+
+## internal
+directory-client = { path = "../clients/directory-client" }
+nym-client = { path = "../clients/nym-client" }
+sfw-provider-requests = { path = "./sfw-provider-requests" }
+
+## will be moved to proper dependencies once released
+sphinx = { path = "../../sphinx" }
 
 [build-dependencies]
 built = "0.3.2"

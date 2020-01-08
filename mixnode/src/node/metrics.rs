@@ -1,10 +1,9 @@
+use directory_client::metrics::MixMetric;
+use directory_client::requests::metrics_mixes_post::MetricsMixPoster;
+use directory_client::DirectoryClient;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
-use nym_client::clients::directory;
-use nym_client::clients::directory::metrics::MixMetric;
-use nym_client::clients::directory::requests::metrics_mixes_post::MetricsMixPoster;
-use nym_client::clients::directory::DirectoryClient;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -72,11 +71,11 @@ impl MetricsReporter {
 
     pub(crate) async fn run_metrics_sender(
         metrics: Arc<Mutex<MetricsReporter>>,
-        cfg: directory::Config,
+        cfg: directory_client::Config,
         pub_key_str: String,
     ) {
         let delay_duration = Duration::from_secs(METRICS_INTERVAL);
-        let directory_client = directory::Client::new(cfg);
+        let directory_client = directory_client::Client::new(cfg);
         loop {
             tokio::time::delay_for(delay_duration).await;
             let (received, sent) =

@@ -1,7 +1,11 @@
 [workspace]
 
 members = [
-    "client",
+    "clients/nym-client",
+    "clients/directory-client",
+    "clients/mix-client",
+    "clients/provider-client",
+    "clients/validator-client",
     "mixnode",
     "sfw-provider",
     "sfw-provider/sfw-provider-requests",

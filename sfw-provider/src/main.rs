@@ -9,7 +9,7 @@ pub mod provider;
 
 fn main() {
     let arg_matches = App::new("Nym Service Provider")
-        .version("0.1.0")
+        .version(built_info::PKG_VERSION)
         .author("Nymtech")
         .about("Implementation of the Loopix-based Service Provider")
         .subcommand(
@@ -19,7 +19,8 @@ fn main() {
                     Arg::with_name("mixHost")
                         .long("mixHost")
                         .help("The custom host on which the service provider will be running for receiving sphinx packets")
-                        .takes_value(true),
+                        .takes_value(true)
+                        .required(true),
                 )
                 .arg(
                     Arg::with_name("mixPort")
@@ -31,7 +32,8 @@ fn main() {
                     Arg::with_name("clientHost")
                         .long("clientHost")
                         .help("The custom host on which the service provider will be running for receiving client sfw-provider-requests")
-                        .takes_value(true),
+                        .takes_value(true)
+                        .required(true),
                 )
                 .arg(
                     Arg::with_name("clientPort")

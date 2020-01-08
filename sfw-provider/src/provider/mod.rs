@@ -3,9 +3,9 @@ use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
 use crate::provider::storage::ClientStorage;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
+use directory_client::presence::MixProviderClient;
 use futures::io::Error;
 use futures::lock::Mutex as FMutex;
-use nym_client::clients::directory::presence::MixProviderClient;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use std::collections::HashMap;
@@ -290,6 +290,7 @@ impl ServiceProvider {
 
         let presence_notifier = presence::Notifier::new(
             self.directory_server,
+            self.client_network_address.clone(),
             self.mix_network_address.clone(),
             self.public_key,
             thread_shareable_ledger.clone(),

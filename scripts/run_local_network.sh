@@ -14,6 +14,11 @@
 
 #!/bin/bash
 
+echo "Killing old testnet processes..."
+
+killall nym-mixnode
+killall nym-sfw-provider
+
 echo "Press CTRL-C to stop."
 
 cargo build

@@ -1,4 +1,5 @@
-use crate::utils::{addressing, bytes};
+use crate::utils::bytes;
+use addressing;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use directory_client::presence::{MixNodePresence, Topology};
 use directory_client::requests::presence_topology_get::PresenceTopologyGetRequester;

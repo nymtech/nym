@@ -15,8 +15,8 @@ futures = "0.3.1"
 tokio = { version = "0.2", features = ["full"] }
 
 ## internal
+addressing = {path = "../common/addressing" }
 directory_client = { path = "../client/directory_client" }
-nym-client = { path = "../client" }
 
 ## will be moved to proper dependencies once released
 sphinx = { path = "../../sphinx" }

@@ -47,7 +47,7 @@ fn run(matches: &ArgMatches) {
     let config = parse_config(matches);
     trace!("read config: {:?}", config);
 
-    let validator = Validator::new(&config);
+    let validator = Validator::new(config);
     validator.start()
 }
 

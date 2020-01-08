@@ -32,12 +32,12 @@ for (( j=0; j<$NUMMIXES; j++ ))
 # Will make it later either configurable by flags or config file.
 do
     let layer=j%MAX_LAYERS+1
-    $PWD/target/debug/nym-mixnode run --port $((9980+$j)) --host "localhost" --layer $layer --directory http://localhost:8080/ &
+    $PWD/target/debug/nym-mixnode run --port $((9980+$j)) --host "localhost" --layer $layer --directory http://localhost:8080 &
     sleep 1
 done
 
 sleep 1
-$PWD/target/debug/nym-sfw-provider run --clientHost "localhost" --mixHost "localhost" --mixPort 9997 --clientPort 9998 --directory http://localhost:8080/
+$PWD/target/debug/nym-sfw-provider run --clientHost "localhost" --mixHost "localhost" --mixPort 9997 --clientPort 9998 --directory http://localhost:8080
 
 # trap call ctrl_c()
 trap ctrl_c SIGINT SIGTERM SIGTSTP

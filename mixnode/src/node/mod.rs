@@ -34,7 +34,6 @@ impl Config {
 
 #[derive(Debug)]
 pub enum MixProcessingError {
-    InvalidPeerAddressError,
     SphinxRecoveryError,
     ReceivedFinalHopError,
 }

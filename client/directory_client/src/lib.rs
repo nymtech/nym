@@ -1,22 +1,16 @@
-use crate::clients::directory::requests::health_check_get::{
-    HealthCheckRequester, Request as HealthCheckRequest,
-};
-use crate::clients::directory::requests::metrics_mixes_get::{
-    MetricsMixRequester, Request as MetricsMixRequest,
-};
-use crate::clients::directory::requests::metrics_mixes_post::{
-    MetricsMixPoster, Request as MetricsMixPost,
-};
-use crate::clients::directory::requests::presence_coconodes_post::{
+use crate::requests::health_check_get::{HealthCheckRequester, Request as HealthCheckRequest};
+use crate::requests::metrics_mixes_get::{MetricsMixRequester, Request as MetricsMixRequest};
+use crate::requests::metrics_mixes_post::{MetricsMixPoster, Request as MetricsMixPost};
+use crate::requests::presence_coconodes_post::{
     PresenceCocoNodesPoster, Request as PresenceCocoNodesPost,
 };
-use crate::clients::directory::requests::presence_mixnodes_post::{
+use crate::requests::presence_mixnodes_post::{
     PresenceMixNodesPoster, Request as PresenceMixNodesPost,
 };
-use crate::clients::directory::requests::presence_providers_post::{
+use crate::requests::presence_providers_post::{
     PresenceMixProviderPoster, Request as PresenceProvidersPost,
 };
-use crate::clients::directory::requests::presence_topology_get::{
+use crate::requests::presence_topology_get::{
     PresenceTopologyGetRequester, Request as PresenceTopologyRequest,
 };
 

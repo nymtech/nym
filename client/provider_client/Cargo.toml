@@ -1,25 +1,17 @@
 [package]
-build = "build.rs"
-name = "nym-mixnode"
-version = "0.2.0"
+name = "provider_client"
+version = "0.1.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-base64 = "0.11.0"
-clap = "2.33.0"
-curve25519-dalek = "1.2.3"
 futures = "0.3.1"
 tokio = { version = "0.2", features = ["full"] }
 
 ## internal
-addressing = {path = "../common/addressing" }
-directory_client = { path = "../client/directory_client" }
+sfw-provider-requests = { path = "../../sfw-provider/sfw-provider-requests" }
 
 ## will be moved to proper dependencies once released
-sphinx = { path = "../../sphinx" }
-
-[build-dependencies]
-built = "0.3.2"
+sphinx = { path = "../../../sphinx" }

@@ -1,8 +1,6 @@
-use curve25519_dalek::digest::Digest;
-use nym_client::utils::addressing;
-use std::convert::TryInto;
+use addressing;
 use std::error::Error;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::SocketAddr;
 use tokio::prelude::*;
 
 #[derive(Debug)]

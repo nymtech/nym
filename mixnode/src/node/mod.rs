@@ -1,7 +1,10 @@
+use crate::mix_peer::MixPeer;
+use crate::node::metrics::MetricsReporter;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
+use futures::SinkExt;
 use sphinx::header::delays::Delay as SphinxDelay;
 use sphinx::{ProcessedPacket, SphinxPacket};
 use std::net::SocketAddr;
@@ -9,12 +12,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
-
-use crate::mix_peer;
-use crate::mix_peer::MixPeer;
-use crate::node::metrics::MetricsReporter;
-use futures::SinkExt;
-use nym_client::clients::directory;
 
 mod metrics;
 mod presence;
@@ -37,7 +34,6 @@ impl Config {
 
 #[derive(Debug)]
 pub enum MixProcessingError {
-    InvalidPeerAddressError,
     SphinxRecoveryError,
     ReceivedFinalHopError,
 }
@@ -225,7 +221,7 @@ impl MixNode {
         let (received_tx, received_rx) = mpsc::channel(1024);
         let (sent_tx, sent_rx) = mpsc::channel(1024);
 
-        let directory_cfg = directory::Config {
+        let directory_cfg = directory_client::Config {
             base_url: self.directory_server.clone(),
         };
         let pub_key_str =

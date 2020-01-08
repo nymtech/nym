@@ -1,7 +1,6 @@
 use crate::banner;
 use crate::clients::{NymClient, SocketType};
 use crate::persistence::pemstore;
-use crate::sockets::tcp;
 
 use clap::ArgMatches;
 use std::net::ToSocketAddrs;

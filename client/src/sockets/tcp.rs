@@ -1,17 +1,17 @@
-use crate::clients::directory::presence::Topology;
 use crate::clients::BufferResponse;
 use crate::clients::InputMessage;
+use directory_client::presence::Topology;
 use futures::channel::{mpsc, oneshot};
 use futures::future::FutureExt;
 use futures::io::Error;
 use futures::SinkExt;
 use sphinx::route::{Destination, DestinationAddressBytes};
+use std::borrow::Borrow;
+use std::convert::TryFrom;
 use std::io;
 use std::net::SocketAddr;
-use tokio::prelude::*;
-use std::convert::TryFrom;
 use std::sync::Arc;
-use std::borrow::Borrow;
+use tokio::prelude::*;
 
 const SEND_REQUEST_PREFIX: u8 = 1;
 const FETCH_REQUEST_PREFIX: u8 = 2;
@@ -42,7 +42,6 @@ impl From<io::Error> for TCPSocketError {
     }
 }
 
-
 enum ClientRequest {
     Send {
         message: Vec<u8>,
@@ -67,7 +66,7 @@ impl TryFrom<&[u8]> for ClientRequest {
             FETCH_REQUEST_PREFIX => Ok(ClientRequest::Fetch),
             GET_CLIENTS_REQUEST_PREFIX => Ok(ClientRequest::GetClients),
             OWN_DETAILS_REQUEST_PREFIX => Ok(ClientRequest::OwnDetails),
-            _ => Err(UnknownRequestError)
+            _ => Err(UnknownRequestError),
         }
     }
 }
@@ -95,7 +94,10 @@ impl ClientRequest {
         recipient_address: DestinationAddressBytes,
         mut input_tx: mpsc::UnboundedSender<InputMessage>,
     ) -> ServerResponse {
-        println!("send handle. sending to: {:?}, msg: {:?}", recipient_address, msg);
+        println!(
+            "send handle. sending to: {:?}, msg: {:?}",
+            recipient_address, msg
+        );
         let dummy_surb = [0; 16];
         let input_msg = InputMessage(Destination::new(recipient_address, dummy_surb), msg);
 
@@ -124,9 +126,7 @@ impl ClientRequest {
 
         let messages = messages.unwrap();
         println!("fetched {} messages", messages.len());
-        ServerResponse::Fetch {
-            messages,
-        }
+        ServerResponse::Fetch { messages }
     }
 
     async fn handle_get_clients(topology: &Topology) -> ServerResponse {
@@ -148,7 +148,6 @@ impl ClientRequest {
     }
 }
 
-
 enum ServerResponse {
     Send,
     Fetch { messages: Vec<Vec<u8>> },
@@ -161,10 +160,10 @@ impl Into<Vec<u8>> for ServerResponse {
     fn into(self) -> Vec<u8> {
         match self {
             ServerResponse::Send => b"ok".to_vec(),
-            ServerResponse::Fetch {messages} =>encode_fetched_messages(messages),
-            ServerResponse::GetClients {clients} => encode_list_of_clients(clients),
-            ServerResponse::OwnDetails {address} => address,
-            ServerResponse::Error { message } => message.as_bytes().to_vec()
+            ServerResponse::Fetch { messages } => encode_fetched_messages(messages),
+            ServerResponse::GetClients { clients } => encode_list_of_clients(clients),
+            ServerResponse::OwnDetails { address } => address,
+            ServerResponse::Error { message } => message.as_bytes().to_vec(),
         }
     }
 }
@@ -204,17 +203,26 @@ impl ServerResponse {
     }
 }
 
-
-async fn handle_connection(data: &[u8], request_handling_data: RequestHandlingData) -> Result<ServerResponse, TCPSocketError> {
+async fn handle_connection(
+    data: &[u8],
+    request_handling_data: RequestHandlingData,
+) -> Result<ServerResponse, TCPSocketError> {
     let request = ClientRequest::try_from(data)?;
     let response = match request {
         ClientRequest::Send {
             message,
-            recipient_address
-        } => ClientRequest::handle_send(message, recipient_address, request_handling_data.msg_input).await,
+            recipient_address,
+        } => {
+            ClientRequest::handle_send(message, recipient_address, request_handling_data.msg_input)
+                .await
+        }
         ClientRequest::Fetch => ClientRequest::handle_fetch(request_handling_data.msg_query).await,
-        ClientRequest::GetClients => ClientRequest::handle_get_clients(request_handling_data.topology.borrow()).await,
-        ClientRequest::OwnDetails => ClientRequest::handle_own_details(request_handling_data.self_address).await,
+        ClientRequest::GetClients => {
+            ClientRequest::handle_get_clients(request_handling_data.topology.borrow()).await
+        }
+        ClientRequest::OwnDetails => {
+            ClientRequest::handle_own_details(request_handling_data.self_address).await
+        }
     };
 
     Ok(response)
@@ -262,7 +270,7 @@ async fn accept_connection(
                 };
                 match handle_connection(&buf[..n], request_handling_data).await {
                     Ok(res) => res,
-                    Err(e) => ServerResponse::new_error(format!("{:?}", e))
+                    Err(e) => ServerResponse::new_error(format!("{:?}", e)),
                 }
             }
             Err(e) => {

@@ -1,4 +1,4 @@
-use crate::clients::directory::metrics::PersistedMixMetric;
+use crate::metrics::PersistedMixMetric;
 
 pub struct Request {
     base_url: String,

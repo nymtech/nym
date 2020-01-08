@@ -1,6 +1,6 @@
-use crate::clients::directory::presence::Topology;
 use crate::clients::BufferResponse;
 use crate::clients::InputMessage;
+use directory_client::presence::Topology;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use futures::channel::{mpsc, oneshot};
 use futures::future::FutureExt;

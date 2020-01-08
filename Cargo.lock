@@ -1046,6 +1046,10 @@ dependencies = [
 [[package]]
 name = "mix_client"
 version = "0.1.0"
+dependencies = [
+ "sphinx 0.1.0",
+ "tokio 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "mockito"
@@ -1129,6 +1133,7 @@ dependencies = [
  "dirs 2.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hex 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mix_client 0.1.0",
  "mockito 0.22.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pem 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",

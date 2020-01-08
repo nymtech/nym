@@ -1,4 +1,3 @@
-use crate::clients::mix::MixClient;
 use crate::clients::provider::ProviderClient;
 use crate::sockets::tcp;
 use crate::sockets::ws;
@@ -18,7 +17,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 
-pub mod mix;
 pub mod provider;
 pub mod validator;
 
@@ -43,7 +41,7 @@ struct MixTrafficController;
 impl MixTrafficController {
     // this was way more difficult to implement than what this code may suggest...
     async fn run(mut rx: mpsc::UnboundedReceiver<MixMessage>) {
-        let mix_client = MixClient::new();
+        let mix_client = mix_client::MixClient::new();
         while let Some(mix_message) = rx.next().await {
             println!(
                 "[MIX TRAFFIC CONTROL] - got a mix_message for {:?}",

@@ -69,7 +69,7 @@ mod metrics_get_request {
 
     #[cfg(test)]
     mod fixtures {
-        use crate::clients::directory::metrics::MixMetric;
+        use crate::metrics::MixMetric;
 
         pub fn new_metric() -> MixMetric {
             MixMetric {

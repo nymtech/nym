@@ -447,6 +447,7 @@ dependencies = [
 name = "directory_client"
 version = "0.1.0"
 dependencies = [
+ "mockito 0.22.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.9.24 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.104 (registry+https://github.com/rust-lang/crates.io-index)",
  "topology 0.1.0",
@@ -1140,7 +1141,6 @@ dependencies = [
  "futures 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hex 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "mix_client 0.1.0",
- "mockito 0.22.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pem 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "provider_client 0.1.0",
  "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",

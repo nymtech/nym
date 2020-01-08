@@ -43,6 +43,3 @@ tokio-tungstenite = { git = "https://github.com/dbcfd/tokio-tungstenite", rev="6
 
 [build-dependencies]
 built = "0.3.2"
-
-[dev-dependencies]
-mockito = "0.22.0"

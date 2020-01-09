@@ -22,6 +22,12 @@ pub struct Config {
     pub base_url: String,
 }
 
+impl Config {
+    pub fn new(base_url: String) -> Self {
+        Config { base_url }
+    }
+}
+
 pub trait DirectoryClient {
     fn new(config: Config) -> Self;
 }

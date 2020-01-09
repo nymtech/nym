@@ -1,10 +1,11 @@
 use addressing;
 use curve25519_dalek::montgomery::MontgomeryPoint;
-use rand::seq::SliceRandom;
+use itertools::Itertools;
+use rand::seq::IteratorRandom;
 use sphinx::route::Node as SphinxNode;
+use std::cmp::max;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::cmp::max;
 
 #[derive(Debug)]
 pub struct MixNode {
@@ -113,7 +114,7 @@ pub trait NymTopology {
             .collect();
 
         Ok(route)
-                }
+    }
 
     // sets a route to specific provider
     fn route_to(&self, provider_node: SphinxNode) -> Result<Vec<SphinxNode>, NymTopologyError> {
@@ -124,10 +125,25 @@ pub trait NymTopology {
             .collect())
     }
 
-    // sets a route to specific provider
-    fn route_to(&self, node: SphinxNode) -> Result<Vec<SphinxNode>, NymTopologyError> {
-        Ok(self.mix_route()?.into_iter().chain(std::iter::once(node)).collect())
-    }
+    fn all_paths(&self) -> Result<Vec<Vec<SphinxNode>>, NymTopologyError> {
+        let mut layered_topology = self.make_layered_topology()?;
+        let providers = self.get_mix_provider_nodes();
 
+        let sorted_layers: Vec<Vec<SphinxNode>> = (1..=layered_topology.len() as u64)
+            .map(|layer| layered_topology.remove(&layer).unwrap()) // get all nodes per layer
+            .map(|layer_nodes| layer_nodes.into_iter().map(|node| node.into()).collect()) // convert them into 'proper' sphinx nodes
+            .chain(std::iter::once(
+                providers.into_iter().map(|node| node.into()).collect(),
+            )) // append all providers to the end
+            .collect();
+
+        let all_paths = sorted_layers
+            .into_iter()
+            .multi_cartesian_product() // create all possible paths through that
+            .collect();
+
+        Ok(all_paths)
     }
 }
+
+// TODO: tests...

@@ -31,22 +31,6 @@ fn main() {
                 )
         )
         .subcommand(
-            SubCommand::with_name("run")
-                .about("Run a persistent Nym client process")
-                .arg(Arg::with_name("id")
-                    .long("id")
-                    .help("Id of the nym-mixnet-client we want to run.")
-                    .takes_value(true)
-                    .required(true)
-                )
-                .arg(
-                    Arg::with_name("directory")
-                        .long("directory")
-                        .help("Address of the directory server the client is getting topology from")
-                        .takes_value(true),
-                )
-        )
-        .subcommand(
             SubCommand::with_name("tcpsocket")
                 .about("Run Nym client that listens for bytes on a TCP socket")
                 .arg(

@@ -12,4 +12,7 @@ pub struct HealthCheck {
     pub directory_server: String,
 
     pub interval: f64, // in seconds
+
+    #[serde(rename(deserialize = "test-packets-per-node"))]
+    pub num_test_packets: usize,
 }

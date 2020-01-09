@@ -2,3 +2,4 @@
 
 directory-server = "http://localhost:8080"
 interval = 10.0
+test-packets-per-node = 2

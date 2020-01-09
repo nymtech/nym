@@ -130,6 +130,7 @@ impl std::fmt::Display for NodeScore {
 pub(crate) struct HealthChecker {
     directory_client: directory_client::Client,
     interval: Duration,
+    num_test_packets: usize,
 }
 
 impl HealthChecker {
@@ -142,6 +143,7 @@ impl HealthChecker {
         HealthChecker {
             directory_client: directory_client::Client::new(directory_client_config),
             interval: Duration::from_secs_f64(config.interval),
+            num_test_packets: config.num_test_packets,
         }
     }
 
@@ -166,7 +168,10 @@ impl HealthChecker {
     }
 
     pub async fn run(self) -> Result<(), HealthCheckerError> {
-        debug!("healthcheck will run every {:?}", self.interval,);
+        debug!(
+            "healthcheck will run every {:?} and will send {} packets to each node",
+            self.interval, self.num_test_packets
+        );
 
         loop {
             match self.do_check() {

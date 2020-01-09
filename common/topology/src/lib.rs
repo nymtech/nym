@@ -104,27 +104,23 @@ pub trait NymTopology {
         Ok(layered_topology)
     }
     fn mix_route(&self) -> Result<Vec<SphinxNode>, NymTopologyError> {
-        let layered_topology = self.make_layered_topology()?;
+        let mut layered_topology = self.make_layered_topology()?;
         let num_layers = layered_topology.len();
-        let route: Vec<_> = (1..=num_layers as u64)
-            .map(|layer| &layered_topology[&layer]) // for each layer
-            .map(|nodes| nodes.choose(&mut rand::thread_rng()).unwrap()) // choose random node
+        let route = (1..=num_layers as u64)
+            .map(|layer| layered_topology.remove(&layer).unwrap()) // for each layer
+            .map(|nodes| nodes.into_iter().choose(&mut rand::thread_rng()).unwrap()) // choose random node
+            .map(|random_node| random_node.into()) // and convert it into sphinx specific node format
             .collect();
 
-        Ok(route
-            .iter()
-            .map(|mix| {
-                let address_bytes = addressing::encoded_bytes_from_socket_address(mix.host.clone());
-                let decoded_key_bytes =
-                    base64::decode_config(&mix.pub_key, base64::URL_SAFE).unwrap();
-                let mut key_bytes = [0; 32];
-                key_bytes.copy_from_slice(&decoded_key_bytes[..]);
-                let key = MontgomeryPoint(key_bytes);
-                SphinxNode {
-                    address: address_bytes,
-                    pub_key: key,
+        Ok(route)
                 }
-            })
+
+    // sets a route to specific provider
+    fn route_to(&self, provider_node: SphinxNode) -> Result<Vec<SphinxNode>, NymTopologyError> {
+        Ok(self
+            .mix_route()?
+            .into_iter()
+            .chain(std::iter::once(provider_node))
             .collect())
     }
 

@@ -71,12 +71,8 @@ struct NodeScore {
 
 impl NodeScore {
     fn from_mixnode(node: MixNode) -> Self {
-        let decoded_key_bytes = base64::decode_config(&node.pub_key, base64::URL_SAFE).unwrap();
-        let mut key_bytes = [0; 32];
-        key_bytes.copy_from_slice(&decoded_key_bytes[..]);
-
         NodeScore {
-            pub_key: key_bytes,
+            pub_key: NodeAddressBytes::from_b64_string(node.pub_key),
             addresses: vec![node.host],
             version: node.version,
             packets_sent: 0,
@@ -85,12 +81,8 @@ impl NodeScore {
     }
 
     fn from_provider(node: MixProviderNode) -> Self {
-        let decoded_key_bytes = base64::decode_config(&node.pub_key, base64::URL_SAFE).unwrap();
-        let mut key_bytes = [0; 32];
-        key_bytes.copy_from_slice(&decoded_key_bytes[..]);
-
         NodeScore {
-            pub_key: key_bytes,
+            pub_key: NodeAddressBytes::from_b64_string(node.pub_key),
             addresses: vec![node.mixnet_listener, node.client_listener],
             version: node.version,
             packets_sent: 0,
@@ -123,7 +115,7 @@ impl std::fmt::Display for NodeScore {
             0 => 0.0,
             _ => (self.packets_received as f64 / self.packets_sent as f64) * 100.0,
         };
-        let stringified_key = base64::encode_config(&self.pub_key, base64::URL_SAFE);
+        let stringified_key = self.pub_key.to_b64_string();
         write!(
             f,
             "{}/{} ({}%) || v{} <{}> - {}",

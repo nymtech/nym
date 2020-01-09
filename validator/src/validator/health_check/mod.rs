@@ -41,17 +41,17 @@ impl HealthCheckResult {
         let mixes = topology.get_mix_nodes();
         let providers = topology.get_mix_provider_nodes();
 
-        let score = mixes
+        let health = mixes
             .into_iter()
-            .map(|node| NodeScore::from_mixnode(node, 0, 0))
+            .map(|node| NodeScore::from_mixnode(node))
             .chain(
                 providers
                     .into_iter()
-                    .map(|node| NodeScore::from_provider(node, 0, 0)),
+                    .map(|node| NodeScore::from_provider(node)),
             )
             .collect();
 
-        HealthCheckResult(score)
+        HealthCheckResult(health)
     }
 
     fn calculate<T: NymTopology>(topology: T) -> Self {
@@ -69,23 +69,23 @@ struct NodeScore {
 }
 
 impl NodeScore {
-    fn from_mixnode(node: MixNode, packets_sent: u64, packets_received: u64) -> Self {
+    fn from_mixnode(node: MixNode) -> Self {
         NodeScore {
             pub_key: node.pub_key,
             addresses: vec![node.host],
             version: node.version,
-            packets_sent,
-            packets_received,
+            packets_sent: 0,
+            packets_received: 0,
         }
     }
 
-    fn from_provider(node: MixProviderNode, packets_sent: u64, packets_received: u64) -> Self {
+    fn from_provider(node: MixProviderNode) -> Self {
         NodeScore {
             pub_key: node.pub_key,
             addresses: vec![node.mixnet_listener, node.client_listener],
             version: node.version,
-            packets_sent,
-            packets_received,
+            packets_sent: 0,
+            packets_received: 0,
         }
     }
 }

@@ -71,6 +71,7 @@ fn main() {
 }
 
 fn run(matches: &ArgMatches) {
+    println!("{}", banner());
     let config = new_config(matches);
     let provider = ServiceProvider::new(&config);
 
@@ -78,8 +79,6 @@ fn run(matches: &ArgMatches) {
 }
 
 fn new_config(matches: &ArgMatches) -> provider::Config {
-    println!("Running the service provider!");
-
     let directory_server = matches
         .value_of("directory")
         .unwrap_or("https://directory.nymtech.net")
@@ -113,14 +112,9 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
             .unwrap_or("/tmp/nym-provider/registered_clients"),
     );
 
-    println!("The value of mix_host is: {:?}", mix_host);
-    println!("The value of mix_port is: {:?}", mix_port);
-    println!("The value of client_host is: {:?}", client_host);
-    println!("The value of client_port is: {:?}", client_port);
-    println!("The value of key is: {:?}", key_pair.private.clone());
-    println!("The value of store_dir is: {:?}", store_dir);
+    println!("store_dir is: {:?}", store_dir);
     println!(
-        "The value of registered_client_ledger_dir is: {:?}",
+        "registered_client_ledger_dir is: {:?}",
         registered_client_ledger_dir
     );
 
@@ -136,14 +130,8 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
         .next()
         .expect("Failed to extract the socket address from the iterator");
 
-    println!(
-        "The full combined mix socket address is {}",
-        mix_socket_address
-    );
-    println!(
-        "The full combined client socket address is {}",
-        client_socket_address
-    );
+    println!("Listening for mixnet packets on {}", mix_socket_address);
+    println!("Listening for client requests on {}", client_socket_address);
 
     provider::Config {
         mix_socket_address,

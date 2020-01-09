@@ -78,7 +78,7 @@ pub trait NymTopology {
         for mix in self.get_mix_nodes() {
             // we need to have extra space for provider
             if mix.layer > sphinx::constants::MAX_PATH_LENGTH as u64 {
-                return Err(NymTopologyError::InvalidMixLayerError)
+                return Err(NymTopologyError::InvalidMixLayerError);
             }
             highest_layer = max(highest_layer, mix.layer);
 

@@ -14,6 +14,7 @@ use topology::{MixNode, MixProviderNode, NymTopology, NymTopologyError};
 pub enum HealthCheckerError {
     FailedToObtainTopologyError,
     InvalidTopologyError,
+    UnknownError,
 }
 
 impl From<topology::NymTopologyError> for HealthCheckerError {
@@ -55,8 +56,54 @@ impl HealthCheckResult {
         HealthCheckResult(health)
     }
 
-    fn calculate<T: NymTopology>(topology: T) -> Self {
-        HealthCheckResult(Vec::new())
+    fn check_path(path: Vec<SphinxNode>) -> bool {
+        trace!("Checking path: {:?}", path);
+        // TODO:
+        false
+    }
+
+    pub fn calculate<T: NymTopology>(topology: T) -> Self {
+        let all_paths = match current_topology.all_paths() {
+            Ok(paths) => paths,
+            Err(_) => return Self::zero_score(topology),
+        };
+
+        // create entries for all nodes
+        let mut score_map = HashMap::new();
+        current_topology
+            .get_mix_nodes()
+            .into_iter()
+            .for_each(|node| {
+                score_map.insert(
+                    NodeAddressBytes::from_b64_string(node.pub_key.clone()).0,
+                    NodeScore::from_mixnode(node),
+                );
+            });
+
+        current_topology
+            .get_mix_provider_nodes()
+            .into_iter()
+            .for_each(|node| {
+                score_map.insert(
+                    NodeAddressBytes::from_b64_string(node.pub_key.clone()).0,
+                    NodeScore::from_provider(node),
+                );
+            });
+
+        for path in all_paths {
+            let path_status = HealthCheckResult::check_path(path);
+            for node in path {
+                // if value doesn't exist, something extremely weird must have happened
+                let current_score = score_map.get_mut(&node.pub_key.0);
+                if current_score.is_none() {
+                    return Self::zero_score(topology);
+                }
+                let current_score = current_score.unwrap();
+                current_score.increase_packet_count(path_status);
+            }
+        }
+
+        HealthCheckResult(score_map.values().collect())
     }
 }
 
@@ -90,9 +137,9 @@ impl NodeScore {
         }
     }
 
-    fn test_packet(&mut self, was_successful: bool) {
+    fn increase_packet_count(&mut self, was_delivered: bool) {
         self.packets_sent += 1;
-        if was_successful {
+        if was_delivered {
             self.packets_received += 1;
         }
     }
@@ -149,24 +196,15 @@ impl HealthChecker {
         }
     }
 
-    fn check_path(path: Vec<SphinxNode>) -> bool {
-        false
-    }
-
     fn do_check(&self) -> Result<HealthCheckResult, HealthCheckerError> {
         trace!("going to perform a healthcheck!");
         let current_topology = match self.directory_client.presence_topology.get() {
             Ok(topology) => topology,
             Err(_) => return Err(HealthCheckerError::FailedToObtainTopologyError),
         };
-
         trace!("current topology: {:?}", current_topology);
-        let all_paths = match current_topology.all_paths() {
-            Ok(paths) => paths,
-            Err(_) => return Ok(HealthCheckResult::zero_score(current_topology)),
-        };
 
-        Ok(HealthCheckResult::zero_score(current_topology))
+        Ok(HealthCheckResult::calculate(current_topology))
     }
 
     pub async fn run(self) -> Result<(), HealthCheckerError> {

@@ -19,9 +19,12 @@ serde_derive = "1.0.104"
 tokio = { version = "0.2", features = ["full"] }
 toml = "0.5.5"
 
-
 ## internal
 directory-client = { path = "../clients/directory-client" }
+topology = {path = "../common/topology" }
+
+## will be moved to proper dependencies once released
+sphinx = { path = "../../sphinx" }
 
 [build-dependencies]
 built = "0.3.2"

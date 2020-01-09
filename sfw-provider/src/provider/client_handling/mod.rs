@@ -232,7 +232,7 @@ mod create_storage_dir {
     #[test]
     fn it_creates_a_correct_storage_directory() {
         let client_address: DestinationAddressBytes = [1u8; 32];
-        let store_dir = Path::new("./foo/");
+        let store_dir = Path::new("/tmp/");
         ClientRequestProcessor::create_storage_dir(client_address, store_dir).unwrap();
     }
 }

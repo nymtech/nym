@@ -35,10 +35,12 @@ impl PemStore {
     }
 
     fn read_file(&self, filepath: PathBuf) -> Vec<u8> {
-        let mut pem_bytes = File::open(filepath).unwrap();
+        let mut pem_bytes = File::open(filepath).expect("Could not open stored keys from disk.");
         let mut buf = Vec::new();
-        pem_bytes.read_to_end(&mut buf).unwrap();
-        let pem = parse(&buf).unwrap();
+        pem_bytes
+            .read_to_end(&mut buf)
+            .expect("PEM bytes reading failed.");
+        let pem = parse(&buf).expect("PEM parsing failed while reading keys");
         pem.contents
     }
     // This should be refactored and made more generic for when we have other kinds of

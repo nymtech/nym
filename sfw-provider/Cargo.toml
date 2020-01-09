@@ -22,7 +22,7 @@ hmac = "0.7.1"
 
 ## internal
 directory-client = { path = "../clients/directory-client" }
-nym-client = { path = "../clients/nym-client" }
+nym-client = { path = "../clients/nym-client" } # TODO: this is only due to dependecy on 'KeyPair'. Perhaps identity should be moved into own crate?
 sfw-provider-requests = { path = "./sfw-provider-requests" }
 
 ## will be moved to proper dependencies once released

@@ -88,6 +88,13 @@ impl NodeScore {
             packets_received: 0,
         }
     }
+
+    fn test_packet(&mut self, was_successful: bool) {
+        self.packets_sent += 1;
+        if was_successful {
+            self.packets_received += 1;
+        }
+    }
 }
 
 impl std::fmt::Display for NodeScore {

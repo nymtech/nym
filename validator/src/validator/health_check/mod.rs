@@ -4,7 +4,8 @@ use directory_client::DirectoryClient;
 use log::{debug, error, info, trace, warn};
 use serde::export::fmt::Error;
 use serde::export::Formatter;
-use sphinx::route::Node as SphinxNode;
+use sphinx::route::{Node as SphinxNode, NodeAddressBytes};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 use topology::{MixNode, MixProviderNode, NymTopology, NymTopologyError};
@@ -61,7 +62,7 @@ impl HealthCheckResult {
 
 #[derive(Debug)]
 struct NodeScore {
-    pub_key: String,
+    pub_key: NodeAddressBytes,
     addresses: Vec<SocketAddr>,
     version: String,
     packets_sent: u64,
@@ -70,8 +71,12 @@ struct NodeScore {
 
 impl NodeScore {
     fn from_mixnode(node: MixNode) -> Self {
+        let decoded_key_bytes = base64::decode_config(&node.pub_key, base64::URL_SAFE).unwrap();
+        let mut key_bytes = [0; 32];
+        key_bytes.copy_from_slice(&decoded_key_bytes[..]);
+
         NodeScore {
-            pub_key: node.pub_key,
+            pub_key: key_bytes,
             addresses: vec![node.host],
             version: node.version,
             packets_sent: 0,
@@ -80,8 +85,12 @@ impl NodeScore {
     }
 
     fn from_provider(node: MixProviderNode) -> Self {
+        let decoded_key_bytes = base64::decode_config(&node.pub_key, base64::URL_SAFE).unwrap();
+        let mut key_bytes = [0; 32];
+        key_bytes.copy_from_slice(&decoded_key_bytes[..]);
+
         NodeScore {
-            pub_key: node.pub_key,
+            pub_key: key_bytes,
             addresses: vec![node.mixnet_listener, node.client_listener],
             version: node.version,
             packets_sent: 0,
@@ -114,6 +123,7 @@ impl std::fmt::Display for NodeScore {
             0 => 0.0,
             _ => (self.packets_received as f64 / self.packets_sent as f64) * 100.0,
         };
+        let stringified_key = base64::encode_config(&self.pub_key, base64::URL_SAFE);
         write!(
             f,
             "{}/{} ({}%) || v{} <{}> - {}",
@@ -122,7 +132,7 @@ impl std::fmt::Display for NodeScore {
             health_percentage,
             self.version,
             fmtd_addresses,
-            self.pub_key,
+            stringified_key,
         )
     }
 }

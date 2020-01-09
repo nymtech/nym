@@ -71,7 +71,13 @@ impl std::fmt::Display for NodeScore {
         let fmtd_addresses = match self.addresses.len() {
             1 => format!("{}", self.addresses[0]),
             2 => format!("{}, {}", self.addresses[0], self.addresses[1]),
-            _ => return Err(std::fmt::Error),
+            n => {
+                error!(
+                    "could not format score - node has {} addresses while only 1 or 2 are allowed!",
+                    n
+                );
+                return Err(std::fmt::Error);
+            }
         };
         let health_percentage = match self.packets_sent {
             0 => 0.0,

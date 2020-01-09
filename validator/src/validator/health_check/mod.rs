@@ -35,6 +35,30 @@ impl std::fmt::Display for HealthCheckResult {
     }
 }
 
+impl HealthCheckResult {
+    fn zero_score<T: NymTopology>(topology: T) -> Self {
+        warn!("The network is unhealthy, could not send any packets - returning zero score!");
+        let mixes = topology.get_mix_nodes();
+        let providers = topology.get_mix_provider_nodes();
+
+        let score = mixes
+            .into_iter()
+            .map(|node| NodeScore::from_mixnode(node, 0, 0))
+            .chain(
+                providers
+                    .into_iter()
+                    .map(|node| NodeScore::from_provider(node, 0, 0)),
+            )
+            .collect();
+
+        HealthCheckResult(score)
+    }
+
+    fn calculate<T: NymTopology>(topology: T) -> Self {
+        HealthCheckResult(Vec::new())
+    }
+}
+
 #[derive(Debug)]
 struct NodeScore {
     pub_key: String,
@@ -114,24 +138,6 @@ impl HealthChecker {
         }
     }
 
-    fn zero_score<T: NymTopology>(topology: T) -> HealthCheckResult {
-        warn!("The network is unhealthy, could not send any packets - returning zero score!");
-        let mixes = topology.get_mix_nodes();
-        let providers = topology.get_mix_provider_nodes();
-
-        let score = mixes
-            .into_iter()
-            .map(|node| NodeScore::from_mixnode(node, 0, 0))
-            .chain(
-                providers
-                    .into_iter()
-                    .map(|node| NodeScore::from_provider(node, 0, 0)),
-            )
-            .collect();
-
-        HealthCheckResult(score)
-    }
-
     fn check_path(path: Vec<SphinxNode>) -> bool {
         false
     }
@@ -146,10 +152,10 @@ impl HealthChecker {
         trace!("current topology: {:?}", current_topology);
         let all_paths = match current_topology.all_paths() {
             Ok(paths) => paths,
-            Err(_) => return Ok(HealthChecker::zero_score(current_topology)),
+            Err(_) => return Ok(HealthCheckResult::zero_score(current_topology)),
         };
 
-        Ok(HealthChecker::zero_score(current_topology))
+        Ok(HealthCheckResult::zero_score(current_topology))
     }
 
     pub async fn run(self) -> Result<(), HealthCheckerError> {

@@ -42,6 +42,18 @@ pub struct MixProviderNode {
     pub version: String,
 }
 
+impl Into<SphinxNode> for MixProviderNode {
+    fn into(self) -> SphinxNode {
+        let address_bytes = addressing::encoded_bytes_from_socket_address(self.mixnet_listener);
+        let decoded_key_bytes = base64::decode_config(&self.pub_key, base64::URL_SAFE).unwrap();
+        let mut key_bytes = [0; 32];
+        key_bytes.copy_from_slice(&decoded_key_bytes[..]);
+        let key = MontgomeryPoint(key_bytes);
+
+        SphinxNode::new(address_bytes, key)
+    }
+}
+
 #[derive(Debug)]
 pub struct CocoNode {
     pub host: String,

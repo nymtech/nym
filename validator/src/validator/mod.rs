@@ -26,6 +26,7 @@ impl Validator {
 
         let health_check_future = self.heath_check.run();
 
-        rt.block_on(health_check_future);
+        let health_check_res = rt.block_on(health_check_future);
+        assert!(health_check_res.is_ok()); // if it got here it means healthchecker failed anyway
     }
 }

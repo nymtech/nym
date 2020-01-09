@@ -109,7 +109,6 @@ pub mod built_info {
 fn execute(matches: ArgMatches) -> Result<(), String> {
     match matches.subcommand() {
         ("init", Some(m)) => Ok(commands::init::execute(m)),
-        ("run", Some(m)) => Ok(commands::run::execute(m)),
         ("tcpsocket", Some(m)) => Ok(commands::tcpsocket::execute(m)),
         ("websocket", Some(m)) => Ok(commands::websocket::execute(m)),
         _ => Err(usage()),

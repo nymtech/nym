@@ -228,7 +228,7 @@ impl NymClient {
         let provider_client_listener_address: SocketAddr = topology
             .get_mix_provider_nodes()
             .first()
-            .unwrap()
+            .expect("Could not get a provider from the supplied network topology, are you using the right directory server?")
             .client_listener;
 
         let mut provider_client = provider_client::ProviderClient::new(

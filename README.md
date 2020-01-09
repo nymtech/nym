@@ -23,14 +23,10 @@ Your directory structure should look like this:
 ```
 $ tree -L 1
 ├── nym
-│   ├── client
-│   ├── mixnode
-│   ├── README.md
-│   └── sfw-provider
 ├── sphinx
 ```
 
-`cargo build` will build the software.
+Change directory in `nym` and then `cargo build` will build the software.
 
 As with any other Rust project, there are other ways to build:
 

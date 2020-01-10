@@ -2,7 +2,7 @@ use addressing;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use itertools::Itertools;
 use rand::seq::IteratorRandom;
-use sphinx::route::Node as SphinxNode;
+use sphinx::route::{Node as SphinxNode, NodeAddressBytes};
 use std::cmp::max;
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -24,7 +24,7 @@ impl Into<SphinxNode> for MixNode {
         key_bytes.copy_from_slice(&decoded_key_bytes[..]);
         let key = MontgomeryPoint(key_bytes);
 
-        SphinxNode::new(address_bytes, key)
+        SphinxNode::new(NodeAddressBytes::from_bytes(address_bytes), key)
     }
 }
 
@@ -51,7 +51,7 @@ impl Into<SphinxNode> for MixProviderNode {
         key_bytes.copy_from_slice(&decoded_key_bytes[..]);
         let key = MontgomeryPoint(key_bytes);
 
-        SphinxNode::new(address_bytes, key)
+        SphinxNode::new(NodeAddressBytes::from_bytes(address_bytes), key)
     }
 }
 

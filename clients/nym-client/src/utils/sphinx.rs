@@ -34,7 +34,7 @@ pub fn encapsulate_message<T: NymTopology>(
     let packet = sphinx::SphinxPacket::new(message, &route[..], &recipient, &delays).unwrap();
 
     let first_node_address =
-        addressing::socket_address_from_encoded_bytes(route.first().unwrap().address);
+        addressing::socket_address_from_encoded_bytes(route.first().unwrap().address.to_bytes());
 
     (first_node_address, packet)
 }

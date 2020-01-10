@@ -1,4 +1,5 @@
 use crate::provider::{ClientLedger, Config};
+use crypto::identity::DummyMixIdentityPublicKey;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use directory_client::presence::MixProviderPresence;
 use directory_client::requests::presence_providers_post::PresenceMixProviderPoster;
@@ -21,7 +22,7 @@ impl Notifier {
         directory_server_address: String,
         client_listener: SocketAddr,
         mixnet_listener: SocketAddr,
-        pub_key: MontgomeryPoint,
+        pub_key: DummyMixIdentityPublicKey,
         client_ledger: Arc<FMutex<ClientLedger>>,
     ) -> Notifier {
         let directory_config = directory_client::Config {
@@ -33,7 +34,7 @@ impl Notifier {
             net_client,
             client_listener: client_listener.to_string(),
             mixnet_listener: mixnet_listener.to_string(),
-            pub_key: Config::public_key_string(pub_key),
+            pub_key: pub_key.to_b64_string(),
             client_ledger,
         }
     }

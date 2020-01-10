@@ -21,12 +21,12 @@ serde_json = "1.0.44"
 hmac = "0.7.1"
 
 ## internal
+crypto = {path = "../common/crypto"}
 directory-client = { path = "../clients/directory-client" }
-nym-client = { path = "../clients/nym-client" } # TODO: this is only due to dependecy on 'KeyPair'. Perhaps identity should be moved into own crate?
 sfw-provider-requests = { path = "./sfw-provider-requests" }
 
 ## will be moved to proper dependencies once released
-sphinx = { path = "../../sphinx" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="50ba6c4bbeb9be59257f32ff1e8f734e4fd82633" }
 
 [build-dependencies]
 built = "0.3.2"

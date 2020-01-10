@@ -7,9 +7,12 @@ use futures::join;
 use futures::lock::Mutex as FMutex;
 use futures::select;
 use futures::{SinkExt, StreamExt};
+use log::*;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::{Destination, DestinationAddressBytes};
 use sphinx::SphinxPacket;
+use std::io;
+use std::io::prelude::*;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -39,14 +42,17 @@ impl MixTrafficController {
     async fn run(mut rx: mpsc::UnboundedReceiver<MixMessage>) {
         let mix_client = mix_client::MixClient::new();
         while let Some(mix_message) = rx.next().await {
-            println!(
+            info!(
                 "[MIX TRAFFIC CONTROL] - got a mix_message for {:?}",
                 mix_message.0
             );
             let send_res = mix_client.send(mix_message.1, mix_message.0).await;
             match send_res {
-                Ok(_) => println!("We successfully sent the message!"),
-                Err(e) => eprintln!("We failed to send the message :( - {:?}", e),
+                Ok(_) => {
+                    print!(".");
+                    io::stdout().flush().ok().expect("Could not flush stdout");
+                }
+                Err(e) => error!("We failed to send the message :( - {:?}", e),
             };
         }
     }
@@ -70,7 +76,7 @@ impl ReceivedMessagesBuffer {
     }
 
     async fn add_new_messages(buf: Arc<FMutex<Self>>, msgs: Vec<Vec<u8>>) {
-        println!("Adding new messages to the buffer! {:?}", msgs);
+        info!("Adding new messages to the buffer! {:?}", msgs);
         let mut unlocked = buf.lock().await;
         unlocked.messages.extend(msgs);
     }
@@ -150,7 +156,7 @@ impl NymClient {
         topology: Topology,
     ) {
         loop {
-            println!("[LOOP COVER TRAFFIC STREAM] - next cover message!");
+            info!("[LOOP COVER TRAFFIC STREAM] - next cover message!");
             let delay = utils::poisson::sample(LOOP_COVER_AVERAGE_DELAY);
             let delay_duration = Duration::from_secs_f64(delay);
             tokio::time::delay_for(delay_duration).await;
@@ -169,13 +175,13 @@ impl NymClient {
         topology: Topology,
     ) {
         loop {
-            println!("[OUT QUEUE] here I will be sending real traffic (or loop cover if nothing is available)");
+            info!("[OUT QUEUE] here I will be sending real traffic (or loop cover if nothing is available)");
             // TODO: consider replacing select macro with our own proper future definition with polling
             let traffic_message = select! {
                 real_message = input_rx.next() => {
-                    println!("[OUT QUEUE] - we got a real message!");
+                    info!("[OUT QUEUE] - we got a real message!");
                     if real_message.is_none() {
-                        eprintln!("Unexpected 'None' real message!");
+                        error!("Unexpected 'None' real message!");
                         std::process::exit(1);
                     }
                     let real_message = real_message.unwrap();
@@ -184,7 +190,7 @@ impl NymClient {
                 },
 
                 default => {
-                    println!("[OUT QUEUE] - no real message - going to send extra loop cover");
+                    info!("[OUT QUEUE] - no real message - going to send extra loop cover");
                     utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, &topology)
                 }
             };
@@ -208,7 +214,7 @@ impl NymClient {
         loop {
             let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
             tokio::time::delay_for(delay_duration).await;
-            println!("[FETCH MSG] - Polling provider...");
+            info!("[FETCH MSG] - Polling provider...");
             let messages = provider_client.retrieve_messages().await.unwrap();
             let good_messages = messages
                 .into_iter()
@@ -228,7 +234,7 @@ impl NymClient {
         let provider_client_listener_address: SocketAddr = topology
             .get_mix_provider_nodes()
             .first()
-            .unwrap()
+            .expect("Could not get a provider from the supplied network topology, are you using the right directory server?")
             .client_listener;
 
         let mut provider_client = provider_client::ProviderClient::new(
@@ -243,7 +249,7 @@ impl NymClient {
                 None => {
                     let auth_token = provider_client.register().await.unwrap();
                     provider_client.update_token(auth_token);
-                    println!("Obtained new token! - {:?}", auth_token);
+                    info!("Obtained new token! - {:?}", auth_token);
                 }
                 Some(token) => println!("Already got the token! - {:?}", token),
             }

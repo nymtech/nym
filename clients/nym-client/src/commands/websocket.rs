@@ -3,6 +3,7 @@ use crate::clients::{NymClient, SocketType};
 use crate::persistence::pemstore;
 
 use clap::ArgMatches;
+use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPublicKey};
 use std::net::ToSocketAddrs;
 
 pub fn execute(matches: &ArgMatches) {
@@ -28,11 +29,15 @@ pub fn execute(matches: &ArgMatches) {
         .next()
         .expect("Failed to extract the socket address from the iterator");
 
-    let keypair = pemstore::read_keypair_from_disk(id);
+    let keypair = pemstore::read_mix_identity_keypair_from_disk(id);
     // TODO: reading auth_token from disk (if exists);
+
+    let mut temporary_address = [0u8; 32];
+    let public_key_bytes = keypair.public_key().to_bytes();
+    temporary_address.copy_from_slice(&public_key_bytes[..]);
     let auth_token = None;
     let client = NymClient::new(
-        keypair.public_bytes(),
+        temporary_address,
         socket_address,
         directory_server,
         auth_token,

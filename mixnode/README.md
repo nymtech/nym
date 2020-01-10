@@ -2,26 +2,10 @@
 
 A Rust mixnode implementation.
 
-## Building
-
-* check out the code
-* [install rust](https://www.rust-lang.org/tools/install) (stable)
-* `cargo build --release` (for a production build)
-
-The built binary can be found at `target/release/nym-mixnode`
-
 ## Usage
 
 * `nym-mixnode` prints a help message showing usage options
 * `nym-mixnode run --help` prints a help message showing usage options for the run command
-* `nym-mixnode run --layer 1` will start the mixnode in layer 1 (coordinate with other people to find out which layer you need to start yours in)
+* `nym-mixnode run --layer 1 --host x.x.x.x` will start the mixnode in layer 1 and bind to the specified host IP address. Coordinate with other people in your network to find out which layer needs coverage.
 
 By default, the Nym Mixnode will start on port 1789. If desired, you can change the port using the `--port` option.
-
-### Dependencies
-
-It's important to download the following repositories before building the mixnode:
-
-* https://github.com/nymtech/nym-client
-* https://github.com/nymtech/nym-sfw-provider
-* https://github.com/nymtech/sphinx

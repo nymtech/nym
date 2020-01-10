@@ -1,16 +1,19 @@
 #![recursion_limit = "256"]
 
 use clap::{App, Arg, ArgMatches, SubCommand};
+use env_logger;
+use log::*;
 use std::process;
 
 pub mod clients;
 mod commands;
-mod identity;
 mod persistence;
 mod sockets;
 pub mod utils;
 
 fn main() {
+    env_logger::init();
+
     let arg_matches = App::new("Nym Client")
         .version(built_info::PKG_VERSION)
         .author("Nymtech")
@@ -28,22 +31,6 @@ fn main() {
                     .long("provider")
                     .help("Id of the provider we have preference to connect to. If left empty, a random provider will be chosen.")
                     .takes_value(true)
-                )
-        )
-        .subcommand(
-            SubCommand::with_name("run")
-                .about("Run a persistent Nym client process")
-                .arg(Arg::with_name("id")
-                    .long("id")
-                    .help("Id of the nym-mixnet-client we want to run.")
-                    .takes_value(true)
-                    .required(true)
-                )
-                .arg(
-                    Arg::with_name("directory")
-                        .long("directory")
-                        .help("Address of the directory server the client is getting topology from")
-                        .takes_value(true),
                 )
         )
         .subcommand(
@@ -96,7 +83,7 @@ fn main() {
         .get_matches();
 
     if let Err(e) = execute(arg_matches) {
-        println!("{}", e);
+        error!("{}", e);
         process::exit(1);
     }
 }
@@ -109,7 +96,6 @@ pub mod built_info {
 fn execute(matches: ArgMatches) -> Result<(), String> {
     match matches.subcommand() {
         ("init", Some(m)) => Ok(commands::init::execute(m)),
-        ("run", Some(m)) => Ok(commands::run::execute(m)),
         ("tcpsocket", Some(m)) => Ok(commands::tcpsocket::execute(m)),
         ("websocket", Some(m)) => Ok(commands::websocket::execute(m)),
         _ => Err(usage()),

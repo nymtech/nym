@@ -2,6 +2,8 @@ use crate::encryption;
 use crate::encryption::{
     MixnetEncryptionKeyPair, MixnetEncryptionPrivateKey, MixnetEncryptionPublicKey,
 };
+use crate::{encryption, PemStorable};
+use curve25519_dalek::scalar::Scalar;
 
 pub trait MixnetIdentityKeyPair<Priv, Pub>
 where
@@ -16,7 +18,7 @@ where
 }
 
 pub trait MixnetIdentityPublicKey:
-    Sized + for<'a> From<&'a <Self as MixnetIdentityPublicKey>::PrivateKeyMaterial>
+    Sized + PemStorable + for<'a> From<&'a <Self as MixnetIdentityPublicKey>::PrivateKeyMaterial>
 {
     // we need to couple public and private keys together
     type PrivateKeyMaterial: MixnetIdentityPrivateKey<PublicKeyMaterial = Self>;
@@ -25,7 +27,7 @@ pub trait MixnetIdentityPublicKey:
     fn from_bytes(b: &[u8]) -> Self;
 }
 
-pub trait MixnetIdentityPrivateKey: Sized {
+pub trait MixnetIdentityPrivateKey: Sized + PemStorable {
     // we need to couple public and private keys together
     type PublicKeyMaterial: MixnetIdentityPublicKey<PrivateKeyMaterial = Self>;
 

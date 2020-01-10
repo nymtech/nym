@@ -1,8 +1,8 @@
 use crate::banner;
-use crate::identity::mixnet;
 use crate::persistence::pathfinder::Pathfinder;
 use crate::persistence::pemstore::PemStore;
 use clap::ArgMatches;
+use crypto::identity::MixnetIdentityKeyPair;
 
 pub fn execute(matches: &ArgMatches) {
     println!("{}", banner());
@@ -12,9 +12,9 @@ pub fn execute(matches: &ArgMatches) {
     let pathfinder = Pathfinder::new(id);
 
     println!("Writing keypairs to {:?}...", pathfinder.config_dir);
-    let mix_keys = mixnet::KeyPair::new();
+    let mix_keys = crypto::identity::DummyMixIdentityKeyPair::new();
     let pem_store = PemStore::new(pathfinder);
-    pem_store.write(mix_keys);
+    pem_store.write_identity(mix_keys);
 
     println!("Client configuration completed.\n\n\n")
 }

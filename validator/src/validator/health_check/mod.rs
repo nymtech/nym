@@ -56,31 +56,29 @@ impl HealthCheckResult {
         HealthCheckResult(health)
     }
 
-    fn check_path(path: Vec<SphinxNode>) -> bool {
+    fn check_path(path: &Vec<SphinxNode>) -> bool {
         trace!("Checking path: {:?}", path);
+
         // TODO:
-        false
+        true
     }
 
     pub fn calculate<T: NymTopology>(topology: T) -> Self {
-        let all_paths = match current_topology.all_paths() {
+        let all_paths = match topology.all_paths() {
             Ok(paths) => paths,
             Err(_) => return Self::zero_score(topology),
         };
 
         // create entries for all nodes
         let mut score_map = HashMap::new();
-        current_topology
-            .get_mix_nodes()
-            .into_iter()
-            .for_each(|node| {
-                score_map.insert(
-                    NodeAddressBytes::from_b64_string(node.pub_key.clone()).0,
-                    NodeScore::from_mixnode(node),
-                );
-            });
+        topology.get_mix_nodes().into_iter().for_each(|node| {
+            score_map.insert(
+                NodeAddressBytes::from_b64_string(node.pub_key.clone()).0,
+                NodeScore::from_mixnode(node),
+            );
+        });
 
-        current_topology
+        topology
             .get_mix_provider_nodes()
             .into_iter()
             .for_each(|node| {
@@ -91,7 +89,7 @@ impl HealthCheckResult {
             });
 
         for path in all_paths {
-            let path_status = HealthCheckResult::check_path(path);
+            let path_status = HealthCheckResult::check_path(&path);
             for node in path {
                 // if value doesn't exist, something extremely weird must have happened
                 let current_score = score_map.get_mut(&node.pub_key.0);
@@ -103,7 +101,7 @@ impl HealthCheckResult {
             }
         }
 
-        HealthCheckResult(score_map.values().collect())
+        HealthCheckResult(score_map.drain().map(|(k, v)| v).collect())
     }
 }
 

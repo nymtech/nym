@@ -19,12 +19,19 @@ pub struct MixNode {
 impl Into<SphinxNode> for MixNode {
     fn into(self) -> SphinxNode {
         let address_bytes = addressing::encoded_bytes_from_socket_address(self.host);
-        let decoded_key_bytes = base64::decode_config(&self.pub_key, base64::URL_SAFE).unwrap();
-        let mut key_bytes = [0; 32];
-        key_bytes.copy_from_slice(&decoded_key_bytes[..]);
+        let key_bytes = self.get_pub_key_bytes();
         let key = MontgomeryPoint(key_bytes);
 
         SphinxNode::new(NodeAddressBytes::from_bytes(address_bytes), key)
+    }
+}
+
+impl MixNode {
+    pub fn get_pub_key_bytes(&self) -> [u8; 32] {
+        let decoded_key_bytes = base64::decode_config(&self.pub_key, base64::URL_SAFE).unwrap();
+        let mut key_bytes = [0; 32];
+        key_bytes.copy_from_slice(&decoded_key_bytes[..]);
+        key_bytes
     }
 }
 
@@ -46,12 +53,19 @@ pub struct MixProviderNode {
 impl Into<SphinxNode> for MixProviderNode {
     fn into(self) -> SphinxNode {
         let address_bytes = addressing::encoded_bytes_from_socket_address(self.mixnet_listener);
-        let decoded_key_bytes = base64::decode_config(&self.pub_key, base64::URL_SAFE).unwrap();
-        let mut key_bytes = [0; 32];
-        key_bytes.copy_from_slice(&decoded_key_bytes[..]);
+        let key_bytes = self.get_pub_key_bytes();
         let key = MontgomeryPoint(key_bytes);
 
         SphinxNode::new(NodeAddressBytes::from_bytes(address_bytes), key)
+    }
+}
+
+impl MixProviderNode {
+    pub fn get_pub_key_bytes(&self) -> [u8; 32] {
+        let decoded_key_bytes = base64::decode_config(&self.pub_key, base64::URL_SAFE).unwrap();
+        let mut key_bytes = [0; 32];
+        key_bytes.copy_from_slice(&decoded_key_bytes[..]);
+        key_bytes
     }
 }
 

@@ -21,8 +21,8 @@ serde_json = "1.0.44"
 hmac = "0.7.1"
 
 ## internal
+crypto = {path = "../common/crypto"}
 directory-client = { path = "../clients/directory-client" }
-nym-client = { path = "../clients/nym-client" }
 sfw-provider-requests = { path = "./sfw-provider-requests" }
 
 ## will be moved to proper dependencies once released

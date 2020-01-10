@@ -1,11 +1,7 @@
 use crate::validator::health_check::path_check::PathChecker;
 use crate::validator::health_check::score::NodeScore;
-use crypto::identity::{
-    DummyMixIdentityKeyPair, DummyMixIdentityPublicKey, MixnetIdentityKeyPair,
-    MixnetIdentityPublicKey,
-};
-use log::{debug, error, warn};
-use sphinx::route::NodeAddressBytes;
+use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair};
+use log::{debug, warn};
 use std::collections::HashMap;
 use std::fmt::{Error, Formatter};
 use topology::NymTopology;

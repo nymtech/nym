@@ -1,7 +1,7 @@
 use crate::utils::bytes;
 use addressing;
 use curve25519_dalek::montgomery::MontgomeryPoint;
-use sphinx::route::{Destination, DestinationAddressBytes, Node, SURBIdentifier};
+use sphinx::route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier};
 use sphinx::SphinxPacket;
 use std::net::SocketAddr;
 use topology::NymTopology;
@@ -32,7 +32,9 @@ pub fn encapsulate_message<T: NymTopology>(
     let key = MontgomeryPoint(key_bytes);
 
     let provider = Node::new(
-        addressing::encoded_bytes_from_socket_address(first_provider.mixnet_listener.clone()),
+        NodeAddressBytes::from_bytes(addressing::encoded_bytes_from_socket_address(
+            first_provider.mixnet_listener.clone(),
+        )),
         key,
     );
 
@@ -46,7 +48,7 @@ pub fn encapsulate_message<T: NymTopology>(
     let packet = sphinx::SphinxPacket::new(message, &route[..], &recipient, &delays).unwrap();
 
     let first_node_address =
-        addressing::socket_address_from_encoded_bytes(route.first().unwrap().address);
+        addressing::socket_address_from_encoded_bytes(route.first().unwrap().address.to_bytes());
 
     (first_node_address, packet)
 }

@@ -14,7 +14,6 @@ use topology::{MixNode, MixProviderNode, NymTopology, NymTopologyError};
 pub enum HealthCheckerError {
     FailedToObtainTopologyError,
     InvalidTopologyError,
-    UnknownError,
 }
 
 impl From<topology::NymTopologyError> for HealthCheckerError {
@@ -101,7 +100,7 @@ impl HealthCheckResult {
             }
         }
 
-        HealthCheckResult(score_map.drain().map(|(k, v)| v).collect())
+        HealthCheckResult(score_map.drain().map(|(_, v)| v).collect())
     }
 }
 
@@ -110,6 +109,7 @@ struct NodeScore {
     pub_key: NodeAddressBytes,
     addresses: Vec<SocketAddr>,
     version: String,
+    layer: String,
     packets_sent: u64,
     packets_received: u64,
 }
@@ -120,6 +120,7 @@ impl NodeScore {
             pub_key: NodeAddressBytes::from_b64_string(node.pub_key),
             addresses: vec![node.host],
             version: node.version,
+            layer: format!("layer {}", node.layer),
             packets_sent: 0,
             packets_received: 0,
         }
@@ -130,6 +131,7 @@ impl NodeScore {
             pub_key: NodeAddressBytes::from_b64_string(node.pub_key),
             addresses: vec![node.mixnet_listener, node.client_listener],
             version: node.version,
+            layer: format!("provider"),
             packets_sent: 0,
             packets_received: 0,
         }
@@ -163,10 +165,11 @@ impl std::fmt::Display for NodeScore {
         let stringified_key = self.pub_key.to_b64_string();
         write!(
             f,
-            "{}/{} ({}%) || v{} <{}> - {}",
+            "{}/{}\t({}%)\t|| {}\tv{} <{}> - {}",
             self.packets_received,
             self.packets_sent,
             health_percentage,
+            self.layer,
             self.version,
             fmtd_addresses,
             stringified_key,

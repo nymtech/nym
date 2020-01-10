@@ -7,6 +7,7 @@ members = [
     "clients/provider-client",
     "clients/validator-client",
     "common/addressing",
+    "common/crypto",
     "common/topology",
     "mixnode",
     "sfw-provider",

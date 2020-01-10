@@ -67,11 +67,6 @@ impl ClientStorage {
             store_data.message, full_store_path
         );
 
-        println!(
-            "string message: {:?}",
-            std::str::from_utf8(&store_data.message)
-        );
-
         // TODO: what to do with surbIDs??
 
         // we can use normal io here, no need for tokio as it's all happening in one thread per connection

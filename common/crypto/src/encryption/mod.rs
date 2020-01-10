@@ -10,6 +10,7 @@ where
     fn new() -> Self;
     fn private_key(&self) -> &Priv;
     fn public_key(&self) -> &Pub;
+    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self;
 
     // TODO: encryption related methods
 }

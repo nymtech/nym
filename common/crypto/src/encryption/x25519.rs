@@ -33,9 +33,17 @@ impl MixnetEncryptionKeyPair<PrivateKey, PublicKey> for KeyPair {
     fn public_key(&self) -> &PublicKey {
         &self.public_key
     }
+
+    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self {
+        KeyPair {
+            private_key: PrivateKey::from_bytes(priv_bytes),
+            public_key: PublicKey::from_bytes(pub_bytes),
+        }
+    }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+// COPY IS DERIVED ONLY TEMPORARILY UNTIL https://github.com/nymtech/nym/issues/47 is fixed
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct PrivateKey(pub Scalar);
 
 impl MixnetEncryptionPrivateKey for PrivateKey {

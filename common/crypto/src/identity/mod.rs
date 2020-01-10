@@ -1,4 +1,3 @@
-use crate::encryption;
 use crate::encryption::{
     MixnetEncryptionKeyPair, MixnetEncryptionPrivateKey, MixnetEncryptionPublicKey,
 };
@@ -13,6 +12,7 @@ where
     fn new() -> Self;
     fn private_key(&self) -> &Priv;
     fn public_key(&self) -> &Pub;
+    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self;
 
     // TODO: signing related methods
 }
@@ -45,9 +45,9 @@ pub trait MixnetIdentityPrivateKey: Sized + PemStorable {
 // TODO: SUPER TEMPORARY:
 // for time being define a dummy identity using x25519 encryption keys (as we've done so far)
 
-struct DummyMixIdentityKeyPair {
-    private_key: DummyMixIdentityPrivateKey,
-    public_key: DummyMixIdentityPublicKey,
+pub struct DummyMixIdentityKeyPair {
+    pub private_key: DummyMixIdentityPrivateKey,
+    pub public_key: DummyMixIdentityPublicKey,
 }
 
 impl MixnetIdentityKeyPair<DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey>
@@ -68,9 +68,17 @@ impl MixnetIdentityKeyPair<DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey
     fn public_key(&self) -> &DummyMixIdentityPublicKey {
         &self.public_key
     }
+
+    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self {
+        DummyMixIdentityKeyPair {
+            private_key: DummyMixIdentityPrivateKey::from_bytes(priv_bytes),
+            public_key: DummyMixIdentityPublicKey::from_bytes(pub_bytes),
+        }
+    }
 }
 
-struct DummyMixIdentityPublicKey(encryption::x25519::PublicKey);
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct DummyMixIdentityPublicKey(encryption::x25519::PublicKey);
 
 impl MixnetIdentityPublicKey for DummyMixIdentityPublicKey {
     type PrivateKeyMaterial = DummyMixIdentityPrivateKey;
@@ -84,7 +92,25 @@ impl MixnetIdentityPublicKey for DummyMixIdentityPublicKey {
     }
 }
 
-struct DummyMixIdentityPrivateKey(encryption::x25519::PrivateKey);
+impl PemStorable for DummyMixIdentityPublicKey {
+    fn pem_type(&self) -> String {
+        format!("DUMMY KEY BASED ON {}", self.0.pem_type())
+    }
+}
+
+impl DummyMixIdentityPublicKey {
+    pub fn to_b64_string(&self) -> String {
+        base64::encode_config(&self.to_bytes(), base64::URL_SAFE)
+    }
+
+    fn from_b64_string(val: String) -> Self {
+        Self::from_bytes(&base64::decode_config(&val, base64::URL_SAFE).unwrap())
+    }
+}
+
+// COPY IS DERIVED ONLY TEMPORARILY UNTIL https://github.com/nymtech/nym/issues/47 is fixed
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct DummyMixIdentityPrivateKey(pub encryption::x25519::PrivateKey);
 
 impl<'a> From<&'a DummyMixIdentityPrivateKey> for DummyMixIdentityPublicKey {
     fn from(pk: &'a DummyMixIdentityPrivateKey) -> Self {
@@ -103,5 +129,19 @@ impl MixnetIdentityPrivateKey for DummyMixIdentityPrivateKey {
 
     fn from_bytes(b: &[u8]) -> Self {
         Self(encryption::x25519::PrivateKey::from_bytes(b))
+    }
+}
+
+// TODO: this will be implemented differently by using the proper trait
+impl DummyMixIdentityPrivateKey {
+    pub fn as_scalar(self) -> Scalar {
+        let encryption_key = self.0;
+        encryption_key.0
+    }
+}
+
+impl PemStorable for DummyMixIdentityPrivateKey {
+    fn pem_type(&self) -> String {
+        format!("DUMMY KEY BASED ON {}", self.0.pem_type())
     }
 }

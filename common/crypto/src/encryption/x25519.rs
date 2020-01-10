@@ -7,7 +7,7 @@ use curve25519_dalek::scalar::Scalar;
 
 // TODO: ensure this is a proper name for this considering we are not implementing entire DH here
 
-pub const CURVE_GENERATOR: MontgomeryPoint = curve25519_dalek::constants::X25519_BASEPOINT;
+const CURVE_GENERATOR: MontgomeryPoint = curve25519_dalek::constants::X25519_BASEPOINT;
 
 pub struct KeyPair {
     pub(crate) private_key: PrivateKey,

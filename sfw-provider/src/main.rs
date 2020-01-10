@@ -1,6 +1,6 @@
 use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use nym_client::identity::mixnet::KeyPair;
+use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process;
@@ -73,7 +73,7 @@ fn main() {
 fn run(matches: &ArgMatches) {
     println!("{}", banner());
     let config = new_config(matches);
-    let provider = ServiceProvider::new(&config);
+    let provider = ServiceProvider::new(config);
 
     provider.start().unwrap()
 }
@@ -100,7 +100,7 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
         Err(err) => panic!("Invalid client port value provided - {:?}", err),
     };
 
-    let key_pair = KeyPair::new(); // TODO: persist this so keypairs don't change every restart
+    let key_pair = crypto::identity::DummyMixIdentityKeyPair::new(); // TODO: persist this so keypairs don't change every restart
     let store_dir = PathBuf::from(
         matches
             .value_of("storeDir")
@@ -136,9 +136,9 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
     provider::Config {
         mix_socket_address,
         directory_server,
-        public_key: key_pair.public,
+        public_key: key_pair.public_key,
         client_socket_address,
-        secret_key: key_pair.private,
+        secret_key: key_pair.private_key,
         store_dir: PathBuf::from(store_dir),
     }
 }

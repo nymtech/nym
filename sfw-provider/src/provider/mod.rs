@@ -1,8 +1,9 @@
 use crate::provider::client_handling::{ClientProcessingData, ClientRequestProcessor};
 use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
 use crate::provider::storage::ClientStorage;
-use curve25519_dalek::montgomery::MontgomeryPoint;
-use curve25519_dalek::scalar::Scalar;
+use crypto::identity::{
+    DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey, MixnetIdentityPublicKey,
+};
 use directory_client::presence::MixProviderClient;
 use futures::io::Error;
 use futures::lock::Mutex as FMutex;
@@ -29,16 +30,9 @@ pub struct Config {
     pub client_socket_address: SocketAddr,
     pub directory_server: String,
     pub mix_socket_address: SocketAddr,
-    pub public_key: MontgomeryPoint,
-    pub secret_key: Scalar,
+    pub public_key: DummyMixIdentityPublicKey,
+    pub secret_key: DummyMixIdentityPrivateKey,
     pub store_dir: PathBuf,
-}
-
-impl Config {
-    pub fn public_key_string(public_key: MontgomeryPoint) -> String {
-        let key_bytes = public_key.to_bytes().to_vec();
-        base64::encode_config(&key_bytes, base64::URL_SAFE)
-    }
 }
 
 #[derive(Debug)]
@@ -94,7 +88,7 @@ impl ClientLedger {
     fn current_clients(&self) -> Vec<MixProviderClient> {
         self.0
             .iter()
-            .map(|(_, &v)| Config::public_key_string(MontgomeryPoint(v)))
+            .map(|(_, v)| base64::encode_config(v, base64::URL_SAFE))
             .map(|pub_key| MixProviderClient { pub_key })
             .collect()
     }
@@ -109,14 +103,14 @@ pub struct ServiceProvider {
     directory_server: String,
     mix_network_address: SocketAddr,
     client_network_address: SocketAddr,
-    secret_key: Scalar,
-    public_key: MontgomeryPoint,
+    public_key: DummyMixIdentityPublicKey,
+    secret_key: DummyMixIdentityPrivateKey,
     store_dir: PathBuf,
     registered_clients_ledger: ClientLedger,
 }
 
 impl ServiceProvider {
-    pub fn new(config: &Config) -> Self {
+    pub fn new(config: Config) -> Self {
         ServiceProvider {
             mix_network_address: config.mix_socket_address,
             client_network_address: config.client_socket_address,
@@ -238,7 +232,7 @@ impl ServiceProvider {
 
     async fn start_mixnet_listening(
         address: SocketAddr,
-        secret_key: Scalar,
+        secret_key: DummyMixIdentityPrivateKey,
         store_dir: PathBuf,
     ) -> Result<(), ProviderError> {
         let mut listener = tokio::net::TcpListener::bind(address).await?;
@@ -260,7 +254,7 @@ impl ServiceProvider {
         address: SocketAddr,
         store_dir: PathBuf,
         client_ledger: Arc<FMutex<ClientLedger>>,
-        secret_key: Scalar,
+        secret_key: DummyMixIdentityPrivateKey,
     ) -> Result<(), ProviderError> {
         let mut listener = tokio::net::TcpListener::bind(address).await?;
         let processing_data =
@@ -299,7 +293,7 @@ impl ServiceProvider {
         let presence_future = rt.spawn(presence_notifier.run());
         let mix_future = rt.spawn(ServiceProvider::start_mixnet_listening(
             self.mix_network_address,
-            self.secret_key,
+            self.secret_key.clone(),
             self.store_dir.clone(),
         ));
         let client_future = rt.spawn(ServiceProvider::start_client_listening(

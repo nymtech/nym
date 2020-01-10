@@ -43,7 +43,7 @@ impl PathChecker {
                 }
             };
 
-            if insertion_result.is_none() {
+            if insertion_result.is_some() {
                 error!("provider {} already existed!", provider.pub_key);
             }
         }

@@ -60,13 +60,13 @@ impl HealthCheckResult {
         let ephemeral_keys = DummyMixIdentityKeyPair::new();
         let providers = topology.get_mix_provider_nodes();
 
-        let path_checker = PathChecker::new(providers, ephemeral_keys).await;
+        let mut path_checker = PathChecker::new(providers, ephemeral_keys).await;
 
         // do it as many times is specified in config
         for i in 0..iterations {
             debug!("running healthcheck iteration {} / {}", i + 1, iterations);
             for path in &all_paths {
-                let path_status = path_checker.check_path(&path);
+                let path_status = path_checker.check_path(&path).await;
                 for node in path {
                     // if value doesn't exist, something extremely weird must have happened
                     let current_score = score_map.get_mut(&node.pub_key.0);

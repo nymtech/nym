@@ -20,8 +20,10 @@ tokio = { version = "0.2", features = ["full"] }
 toml = "0.5.5"
 
 ## internal
+addressing = {path = "../common/addressing" }
 crypto = { path = "../common/crypto" }
 directory-client = { path = "../clients/directory-client" }
+mix-client = { path = "../clients/mix-client" }
 provider-client = { path = "../clients/provider-client" }
 topology = {path = "../common/topology" }
 

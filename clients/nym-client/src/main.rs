@@ -7,7 +7,6 @@ use std::process;
 
 pub mod clients;
 mod commands;
-mod identity;
 mod persistence;
 mod sockets;
 mod utils;

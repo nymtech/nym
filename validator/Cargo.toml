@@ -20,7 +20,9 @@ tokio = { version = "0.2", features = ["full"] }
 toml = "0.5.5"
 
 ## internal
+crypto = { path = "../common/crypto" }
 directory-client = { path = "../clients/directory-client" }
+provider-client = { path = "../clients/provider-client" }
 topology = {path = "../common/topology" }
 
 ## will be moved to proper dependencies once released

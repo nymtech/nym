@@ -1,5 +1,9 @@
 use crate::validator::health_check::path_check::PathChecker;
 use crate::validator::health_check::score::NodeScore;
+use crypto::identity::{
+    DummyMixIdentityKeyPair, DummyMixIdentityPublicKey, MixnetIdentityKeyPair,
+    MixnetIdentityPublicKey,
+};
 use log::{debug, error, warn};
 use sphinx::route::NodeAddressBytes;
 use std::collections::HashMap;
@@ -38,7 +42,7 @@ impl HealthCheckResult {
         HealthCheckResult(health)
     }
 
-    pub fn calculate<T: NymTopology>(topology: T, iterations: usize) -> Self {
+    pub async fn calculate<T: NymTopology>(topology: T, iterations: usize) -> Self {
         let all_paths = match topology.all_paths() {
             Ok(paths) => paths,
             Err(_) => return Self::zero_score(topology),
@@ -47,29 +51,20 @@ impl HealthCheckResult {
         // create entries for all nodes
         let mut score_map = HashMap::new();
         topology.get_mix_nodes().into_iter().for_each(|node| {
-            score_map.insert(
-                NodeAddressBytes::from_b64_string(node.pub_key.clone()).0,
-                NodeScore::from_mixnode(node),
-            );
+            score_map.insert(node.get_pub_key_bytes(), NodeScore::from_mixnode(node));
         });
 
         topology
             .get_mix_provider_nodes()
             .into_iter()
             .for_each(|node| {
-                score_map.insert(
-                    NodeAddressBytes::from_b64_string(node.pub_key.clone()).0,
-                    NodeScore::from_provider(node),
-                );
+                score_map.insert(node.get_pub_key_bytes(), NodeScore::from_provider(node));
             });
 
-        let path_checker = match PathChecker::new() {
-            Ok(path_checker) => path_checker,
-            Err(err) => {
-                error!("could not check network health - {:?}", err);
-                return Self::zero_score(topology);
-            }
-        };
+        let ephemeral_keys = DummyMixIdentityKeyPair::new();
+        let providers = topology.get_mix_provider_nodes();
+
+        let path_checker = PathChecker::new(providers, ephemeral_keys).await;
 
         // do it as many times is specified in config
         for i in 0..iterations {

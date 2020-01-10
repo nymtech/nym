@@ -43,7 +43,7 @@ impl HealthChecker {
         }
     }
 
-    fn do_check(&self) -> Result<HealthCheckResult, HealthCheckerError> {
+    async fn do_check(&self) -> Result<HealthCheckResult, HealthCheckerError> {
         trace!("going to perform a healthcheck!");
         let current_topology = match self.directory_client.presence_topology.get() {
             Ok(topology) => topology,
@@ -51,10 +51,7 @@ impl HealthChecker {
         };
         trace!("current topology: {:?}", current_topology);
 
-        Ok(HealthCheckResult::calculate(
-            current_topology,
-            self.num_test_packets,
-        ))
+        Ok(HealthCheckResult::calculate(current_topology, self.num_test_packets).await)
     }
 
     pub async fn run(self) -> Result<(), HealthCheckerError> {
@@ -64,7 +61,7 @@ impl HealthChecker {
         );
 
         loop {
-            match self.do_check() {
+            match self.do_check().await {
                 Ok(health) => info!("current network health: \n{}", health),
                 Err(err) => error!("failed to perform healthcheck - {:?}", err),
             };

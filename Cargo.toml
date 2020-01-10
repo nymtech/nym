@@ -1,2 +1,14 @@
 [workspace]
-members = ["mixnode", "sfw-provider"]
+
+members = [
+    "clients/nym-client",
+    "clients/directory-client",
+    "clients/mix-client",
+    "clients/provider-client",
+    "clients/validator-client",
+    "common/addressing",
+    "common/topology",
+    "mixnode",
+    "sfw-provider",
+    "sfw-provider/sfw-provider-requests",
+]

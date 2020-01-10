@@ -1,3 +1,5 @@
+use crate::PemStorable;
+
 pub mod x25519;
 
 pub trait MixnetEncryptionKeyPair<Priv, Pub>
@@ -13,7 +15,7 @@ where
 }
 
 pub trait MixnetEncryptionPublicKey:
-    Sized + for<'a> From<&'a <Self as MixnetEncryptionPublicKey>::PrivateKeyMaterial>
+    Sized + PemStorable + for<'a> From<&'a <Self as MixnetEncryptionPublicKey>::PrivateKeyMaterial>
 {
     // we need to couple public and private keys together
     type PrivateKeyMaterial: MixnetEncryptionPrivateKey<PublicKeyMaterial = Self>;
@@ -22,7 +24,7 @@ pub trait MixnetEncryptionPublicKey:
     fn from_bytes(b: &[u8]) -> Self;
 }
 
-pub trait MixnetEncryptionPrivateKey: Sized {
+pub trait MixnetEncryptionPrivateKey: Sized + PemStorable {
     // we need to couple public and private keys together
     type PublicKeyMaterial: MixnetEncryptionPublicKey<PrivateKeyMaterial = Self>;
 

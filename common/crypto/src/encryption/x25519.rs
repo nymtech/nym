@@ -1,6 +1,7 @@
 use crate::encryption::{
     MixnetEncryptionKeyPair, MixnetEncryptionPrivateKey, MixnetEncryptionPublicKey,
 };
+use crate::PemStorable;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
 
@@ -52,6 +53,12 @@ impl MixnetEncryptionPrivateKey for PrivateKey {
     }
 }
 
+impl PemStorable for PrivateKey {
+    fn pem_type(&self) -> String {
+        String::from("X25519 PRIVATE KEY")
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct PublicKey(pub MontgomeryPoint);
 
@@ -73,5 +80,11 @@ impl MixnetEncryptionPublicKey for PublicKey {
         bytes.copy_from_slice(&b[..]);
         let key = MontgomeryPoint(bytes);
         Self(key)
+    }
+}
+
+impl PemStorable for PublicKey {
+    fn pem_type(&self) -> String {
+        String::from("X25519 PUBLIC KEY")
     }
 }

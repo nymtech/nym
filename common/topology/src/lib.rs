@@ -1,7 +1,7 @@
 use addressing;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use rand::seq::SliceRandom;
-use sphinx::route::Node as SphinxNode;
+use sphinx::route::{Node as SphinxNode, NodeAddressBytes};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 
@@ -66,7 +66,7 @@ pub trait NymTopology {
                 key_bytes.copy_from_slice(&decoded_key_bytes[..]);
                 let key = MontgomeryPoint(key_bytes);
                 SphinxNode {
-                    address: address_bytes,
+                    address: NodeAddressBytes::from_bytes(address_bytes),
                     pub_key: key,
                 }
             })

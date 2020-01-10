@@ -1,15 +1,20 @@
-use crate::identity::mixnet::KeyPair;
 use crate::persistence::pathfinder::Pathfinder;
 use pem::{encode, parse, Pem};
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
 
-pub fn read_keypair_from_disk(id: String) -> KeyPair {
+pub fn read_mix_identity_keypair_from_disk(
+    id: String,
+) -> crypto::identity::DummyMixIdentityKeyPair {
     let pathfinder = Pathfinder::new(id);
     let pem_store = PemStore::new(pathfinder);
-    let keypair = pem_store.read();
+    let keypair = pem_store.read_identity();
     keypair
+}
+
+pub fn read_mix_encryption_keypair_from_disk(id: String) -> crypto::encryption::x25519::KeyPair {
+    unimplemented!()
 }
 
 pub struct PemStore {
@@ -27,44 +32,62 @@ impl PemStore {
         }
     }
 
-    pub fn read(&self) -> KeyPair {
-        let private = self.read_file(self.private_mix_key.clone());
-        let public = self.read_file(self.public_mix_key.clone());
+    pub fn read_identity<IDPair, Priv, Pub>(&self) -> IDPair
+    where
+        IDPair: crypto::identity::MixnetIdentityKeyPair<Priv, Pub>,
+        Priv: crypto::identity::MixnetIdentityPrivateKey,
+        Pub: crypto::identity::MixnetIdentityPublicKey,
+    {
+        let private_pem = self.read_pem_file(self.private_mix_key.clone());
+        let public_pem = self.read_pem_file(self.public_mix_key.clone());
 
-        KeyPair::from_bytes(private, public)
+        let key_pair = IDPair::from_bytes(&private_pem.contents, &public_pem.contents);
+
+        assert_eq!(key_pair.private_key().pem_type(), private_pem.tag);
+        assert_eq!(key_pair.public_key().pem_type(), public_pem.tag);
+
+        key_pair
     }
 
-    fn read_file(&self, filepath: PathBuf) -> Vec<u8> {
+    fn read_pem_file(&self, filepath: PathBuf) -> Pem {
         let mut pem_bytes = File::open(filepath).expect("Could not open stored keys from disk.");
         let mut buf = Vec::new();
         pem_bytes
             .read_to_end(&mut buf)
             .expect("PEM bytes reading failed.");
         let pem = parse(&buf).expect("PEM parsing failed while reading keys");
-        pem.contents
+
+        pem
     }
     // This should be refactored and made more generic for when we have other kinds of
     // KeyPairs that we want to persist (e.g. validator keypairs, or keys for
     // signing vs encryption). However, for the moment, it does the job.
-    pub fn write(&self, key_pair: KeyPair) {
+    pub fn write_identity<IDPair, Priv, Pub>(&self, key_pair: IDPair)
+    where
+        IDPair: crypto::identity::MixnetIdentityKeyPair<Priv, Pub>,
+        Priv: crypto::identity::MixnetIdentityPrivateKey,
+        Pub: crypto::identity::MixnetIdentityPublicKey,
+    {
         std::fs::create_dir_all(self.config_dir.clone()).unwrap();
 
+        let private_key = key_pair.private_key();
+        let public_key = key_pair.public_key();
         self.write_pem_file(
             self.private_mix_key.clone(),
-            key_pair.private_bytes(),
-            String::from("SPHINX CURVE25519 PRIVATE KEY"),
+            private_key.to_bytes(),
+            private_key.pem_type(),
         );
         self.write_pem_file(
             self.public_mix_key.clone(),
-            key_pair.public_bytes(),
-            String::from("SPHINX CURVE25519 PUBLIC KEY"),
+            public_key.to_bytes(),
+            public_key.pem_type(),
         );
     }
 
-    fn write_pem_file(&self, filepath: PathBuf, data: [u8; 32], tag: String) {
+    fn write_pem_file(&self, filepath: PathBuf, data: Vec<u8>, tag: String) {
         let pem = Pem {
             tag,
-            contents: data.to_vec(),
+            contents: data,
         };
         let key = encode(&pem);
 

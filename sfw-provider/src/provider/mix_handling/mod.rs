@@ -1,4 +1,5 @@
 use crate::provider::storage::StoreData;
+use crypto::identity::DummyMixIdentityPrivateKey;
 use curve25519_dalek::scalar::Scalar;
 use sphinx::{ProcessedPacket, SphinxPacket};
 use std::path::PathBuf;
@@ -35,12 +36,12 @@ impl From<std::io::Error> for MixProcessingError {
 // ProcessingData defines all data required to correctly unwrap sphinx packets
 #[derive(Debug, Clone)]
 pub(crate) struct MixProcessingData {
-    secret_key: Scalar,
+    secret_key: DummyMixIdentityPrivateKey,
     pub(crate) store_dir: PathBuf,
 }
 
 impl MixProcessingData {
-    pub(crate) fn new(secret_key: Scalar, store_dir: PathBuf) -> Self {
+    pub(crate) fn new(secret_key: DummyMixIdentityPrivateKey, store_dir: PathBuf) -> Self {
         MixProcessingData {
             secret_key,
             store_dir,
@@ -62,7 +63,7 @@ impl MixPacketProcessor {
         let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
         let read_processing_data = processing_data.read().unwrap();
         let (client_address, client_surb_id, payload) =
-            match packet.process(read_processing_data.secret_key) {
+            match packet.process(read_processing_data.secret_key.as_scalar()) {
                 ProcessedPacket::ProcessedPacketFinalHop(client_address, surb_id, payload) => {
                     (client_address, surb_id, payload)
                 }

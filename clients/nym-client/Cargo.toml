@@ -31,6 +31,7 @@ tungstenite = "0.9.2"
 
 ## internal
 addressing = {path = "../../common/addressing" }
+crypto = {path = "../../common/crypto"}
 directory-client = { path = "../directory-client" }
 mix-client = { path = "../mix-client" }
 provider-client = { path = "../provider-client" }

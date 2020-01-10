@@ -1,6 +1,6 @@
 use crate::validator::health_check::path_check::PathChecker;
 use crate::validator::health_check::score::NodeScore;
-use log::{debug, warn};
+use log::{debug, error, warn};
 use sphinx::route::NodeAddressBytes;
 use std::collections::HashMap;
 use std::fmt::{Error, Formatter};
@@ -63,7 +63,13 @@ impl HealthCheckResult {
                 );
             });
 
-        let path_checker = PathChecker::new();
+        let path_checker = match PathChecker::new() {
+            Ok(path_checker) => path_checker,
+            Err(err) => {
+                error!("could not check network health - {:?}", err);
+                return Self::zero_score(topology);
+            }
+        };
 
         // do it as many times is specified in config
         for i in 0..iterations {

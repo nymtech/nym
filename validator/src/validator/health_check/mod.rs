@@ -62,7 +62,7 @@ impl HealthCheckResult {
         true
     }
 
-    pub fn calculate<T: NymTopology>(topology: T) -> Self {
+    pub fn calculate<T: NymTopology>(topology: T, iterations: usize) -> Self {
         let all_paths = match topology.all_paths() {
             Ok(paths) => paths,
             Err(_) => return Self::zero_score(topology),
@@ -87,16 +87,20 @@ impl HealthCheckResult {
                 );
             });
 
-        for path in all_paths {
-            let path_status = HealthCheckResult::check_path(&path);
-            for node in path {
-                // if value doesn't exist, something extremely weird must have happened
-                let current_score = score_map.get_mut(&node.pub_key.0);
-                if current_score.is_none() {
-                    return Self::zero_score(topology);
+        // do it as many times is specified in config
+        for i in 0..iterations {
+            debug!("running healthcheck iteration {} / {}", i + 1, iterations);
+            for path in &all_paths {
+                let path_status = HealthCheckResult::check_path(&path);
+                for node in path {
+                    // if value doesn't exist, something extremely weird must have happened
+                    let current_score = score_map.get_mut(&node.pub_key.0);
+                    if current_score.is_none() {
+                        return Self::zero_score(topology);
+                    }
+                    let current_score = current_score.unwrap();
+                    current_score.increase_packet_count(path_status);
                 }
-                let current_score = current_score.unwrap();
-                current_score.increase_packet_count(path_status);
             }
         }
 
@@ -205,7 +209,10 @@ impl HealthChecker {
         };
         trace!("current topology: {:?}", current_topology);
 
-        Ok(HealthCheckResult::calculate(current_topology))
+        Ok(HealthCheckResult::calculate(
+            current_topology,
+            self.num_test_packets,
+        ))
     }
 
     pub async fn run(self) -> Result<(), HealthCheckerError> {

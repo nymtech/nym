@@ -49,7 +49,10 @@ impl HealthChecker {
         trace!("going to perform a healthcheck!");
         let current_topology = match self.directory_client.presence_topology.get() {
             Ok(topology) => topology,
-            Err(_) => return Err(HealthCheckerError::FailedToObtainTopologyError),
+            Err(err) => {
+                error!("failed to obtain topology - {:?}", err);
+                return Err(HealthCheckerError::FailedToObtainTopologyError);
+            }
         };
         trace!("current topology: {:?}", current_topology);
 

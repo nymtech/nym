@@ -37,13 +37,14 @@ impl NodeScore {
         }
     }
 
-    pub(crate) fn increase_packet_count(&mut self, was_delivered: bool) {
+    pub(crate) fn increase_sent_packet_count(&mut self) {
         self.packets_sent += 1;
-        if was_delivered {
+    }
+
+    pub(crate) fn increase_received_packet_count(&mut self) {
             self.packets_received += 1;
         }
     }
-}
 
 impl std::fmt::Display for NodeScore {
     fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {

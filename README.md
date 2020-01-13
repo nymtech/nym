@@ -12,32 +12,7 @@ The platform is composed of multiple Rust crates. Top-level crates include:
 
 ### Building
 
-#### Prerequisites
-
-* [Rust](https://www.rust-lang.org/tools/install) 1.39 or later. Stable works.
-* The `nym` platform repo (this one).
-* Checkout the [Sphinx](https://github.com/nymtech/sphinx) repo beside the `nym` repo.
-
-Your directory structure should look like this:
-
-```
-$ tree -L 1
-├── nym
-├── sphinx
-```
-
-Change directory in `nym` and then `cargo build` will build the software.
-
-As with any other Rust project, there are other ways to build:
-
-* `cargo build --release` will build an optimized release version for use in production
-* `cargo test` will run unit and integration tests for the crate (once)
-* `cargo watch -x test` will run tests whenever you change a file in the crate. Very handy in development.
-
-Binaries can be found at `target/debug/` if you've done `cargo build` (without specifying `--release`).
-
-Production binaries can be found at `target/release/` if you've done `cargo build --release`.
-
+Platform build instructions are available on [on docs site](https://nymtech.net/docs/mixnet/installation/).
 
 ### Developing
 

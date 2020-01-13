@@ -6,6 +6,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::future::FutureExt;
 use futures::io::Error;
 use futures::{SinkExt, StreamExt};
+use log::*;
 use serde::{Deserialize, Serialize};
 use sphinx::route::{Destination, DestinationAddressBytes};
 use std::io;
@@ -64,7 +65,7 @@ impl From<Message> for ClientRequest {
             Message::Close(_) => panic!("todo: handle close!"),
             _ => panic!("Other types of messages are also unsupported!"),
         };
-        serde_json::from_str(&text_msg).unwrap()
+        serde_json::from_str(&text_msg).expect("unable to deserialize From<Message> json")
     }
 }
 
@@ -105,6 +106,7 @@ impl ClientRequest {
     async fn handle_fetch(mut msg_query: mpsc::UnboundedSender<BufferResponse>) -> ServerResponse {
         let (res_tx, res_rx) = oneshot::channel();
         if msg_query.send(res_tx).await.is_err() {
+            warn!("Failed to handle_fetch. msg_query.send() is an error.");
             return ServerResponse::Error {
                 message: "Server failed to receive messages".to_string(),
             };
@@ -113,6 +115,7 @@ impl ClientRequest {
         let messages = res_rx.map(|msg| msg).await;
 
         if messages.is_err() {
+            warn!("Failed to handle_fetch. messages is an error");
             return ServerResponse::Error {
                 message: "Server failed to receive messages".to_string(),
             };
@@ -196,6 +199,7 @@ async fn accept_connection(
     self_address: DestinationAddressBytes,
     topology: Topology,
 ) {
+    warn!("accept_connection");
     let address = stream
         .peer_addr()
         .expect("connected streams should have a peer address");

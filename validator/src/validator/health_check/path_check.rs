@@ -63,6 +63,7 @@ impl PathChecker {
             provider_clients,
             layer_one_clients: HashMap::new(),
             our_destination: Destination::new(temporary_address, Default::default()),
+            paths_status: HashMap::new(),
         }
     }
 

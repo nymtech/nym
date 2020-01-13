@@ -72,8 +72,8 @@ impl PathChecker {
     fn unique_path_key(path: &Vec<SphinxNode>, iteration: u8) -> Vec<u8> {
         std::iter::once(iteration)
             .chain(
-        path.iter()
-            .map(|node| node.pub_key.to_bytes().to_vec())
+                path.iter()
+                    .map(|node| node.pub_key.to_bytes().to_vec())
                     .flatten(),
             )
             .collect()
@@ -208,7 +208,7 @@ impl PathChecker {
             &self.our_destination,
             &delays,
         )
-                .unwrap();
+        .unwrap();
 
         debug!("sending test packet to {}", first_node_address);
         match first_node_client.send(packet, first_node_address).await {
@@ -227,7 +227,7 @@ impl PathChecker {
                     .paths_status
                     .insert(path_identifier, PathStatus::Pending)
                     .is_some()
-        {
+                {
                     panic!("Overwriting path checks!")
                 }
             }

@@ -21,6 +21,10 @@ impl std::fmt::Display for HealthCheckResult {
 }
 
 impl HealthCheckResult {
+    pub fn sort_scores(&mut self) {
+        self.0.sort();
+    }
+
     fn zero_score<T: NymTopology>(topology: T) -> Self {
         warn!("The network is unhealthy, could not send any packets - returning zero score!");
         let mixes = topology.get_mix_nodes();

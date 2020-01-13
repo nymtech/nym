@@ -56,12 +56,14 @@ impl HealthChecker {
         };
         trace!("current topology: {:?}", current_topology);
 
-        Ok(HealthCheckResult::calculate(
+        let mut healthcheck_result = HealthCheckResult::calculate(
             current_topology,
             self.num_test_packets,
             self.resolution_timeout,
         )
-        .await)
+        .await;
+        healthcheck_result.sort_scores();
+        Ok(healthcheck_result)
     }
 
     pub async fn run(self) -> Result<(), HealthCheckerError> {

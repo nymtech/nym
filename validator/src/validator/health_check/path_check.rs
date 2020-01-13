@@ -8,17 +8,20 @@ use sphinx::route::{Destination, Node as SphinxNode};
 use std::collections::HashMap;
 use topology::MixProviderNode;
 
-#[derive(Debug)]
-pub(crate) enum PathCheckerError {
-    CouldNotRegisterWithEndProviderError,
+#[derive(Debug, PartialEq, Clone)]
+pub enum PathStatus {
+    Healthy,
+    Unhealthy,
+    Pending,
 }
 
 pub(crate) struct PathChecker {
     provider_clients: HashMap<[u8; 32], Option<ProviderClient>>,
     // currently this is an overkill as MixClient is extremely cheap to create,
     // however, once we introduce persistent connection between client and layer one mixes,
-    // this will be extremely helfpul to have
+    // this will be extremely helpful to have
     layer_one_clients: HashMap<[u8; 32], Option<MixClient>>,
+    paths_status: HashMap<Vec<u8>, PathStatus>,
     our_destination: Destination,
 }
 

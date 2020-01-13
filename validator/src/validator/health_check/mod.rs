@@ -27,6 +27,7 @@ pub(crate) struct HealthChecker {
     directory_client: directory_client::Client,
     interval: Duration,
     num_test_packets: usize,
+    resolution_timeout: Duration,
 }
 
 impl HealthChecker {
@@ -39,6 +40,7 @@ impl HealthChecker {
         HealthChecker {
             directory_client: directory_client::Client::new(directory_client_config),
             interval: Duration::from_secs_f64(config.interval),
+            resolution_timeout: Duration::from_secs_f64(config.resolution_timeout),
             num_test_packets: config.num_test_packets,
         }
     }
@@ -51,7 +53,12 @@ impl HealthChecker {
         };
         trace!("current topology: {:?}", current_topology);
 
-        Ok(HealthCheckResult::calculate(current_topology, self.num_test_packets).await)
+        Ok(HealthCheckResult::calculate(
+            current_topology,
+            self.num_test_packets,
+            self.resolution_timeout,
+        )
+        .await)
     }
 
     pub async fn run(self) -> Result<(), HealthCheckerError> {

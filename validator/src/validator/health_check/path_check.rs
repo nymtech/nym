@@ -95,6 +95,71 @@ impl PathChecker {
             .collect()
     }
 
+    fn update_path_statuses(&mut self, messages: Vec<Vec<u8>>) {
+        for msg in messages.into_iter() {
+            // mark path as healthy
+            let previous_status = self.paths_status.insert(msg, PathStatus::Healthy);
+            match previous_status {
+                None => warn!("we received information about unknown path! - perhaps somebody is messing with healthchecker?"),
+                Some(status) => {
+                    if status != PathStatus::Pending {
+                        warn!("we received information about path that WASN'T in PENDING state! (it was in {:?}", status);
+                    }
+                }
+            }
+        }
+    }
+
+    // consume path_checker and return all path statuses
+    pub(crate) fn get_all_statuses(self) -> HashMap<Vec<u8>, PathStatus> {
+        self.paths_status
+    }
+
+    async fn resolve_pending_provider_checks(
+        &self,
+        provider_client: &ProviderClient,
+    ) -> Vec<Vec<u8>> {
+        // keep getting messages until we encounter the dummy message
+        let mut provider_messages = Vec::new();
+        loop {
+            match provider_client.retrieve_messages().await {
+                Err(err) => {
+                    error!("failed to fetch provider messages! - {:?}", err);
+                    break;
+                }
+                Ok(messages) => {
+                    let mut should_stop = false;
+                    for msg in messages.into_iter() {
+                        if msg == sfw_provider_requests::DUMMY_MESSAGE_CONTENT {
+                            should_stop = true;
+                        } else {
+                            provider_messages.push(msg);
+                        }
+                    }
+                    if should_stop {
+                        break;
+                    }
+                }
+            }
+        }
+        provider_messages
+    }
+
+    // resolve every pending check + consume itself and return the status map
+    pub(crate) async fn resolve_pending_checks(&mut self) {
+        // not sure how to nicely put it into an iterator due to it being async calls
+        let mut provider_messages = Vec::new();
+        for provider_client in self.provider_clients.values() {
+            // if it was none all associated paths were already marked as unhealthy
+            if provider_client.is_some() {
+                let pc = provider_client.as_ref().unwrap();
+                provider_messages.extend(self.resolve_pending_provider_checks(pc).await);
+            }
+        }
+
+        self.update_path_statuses(provider_messages);
+    }
+
     pub(crate) async fn send_test_packet(&mut self, path: &Vec<SphinxNode>, iteration: u8) {
         debug!("Checking path: {:?} ({})", path, iteration);
         let path_identifier = PathChecker::unique_path_key(path, iteration);

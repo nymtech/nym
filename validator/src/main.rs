@@ -10,7 +10,6 @@ mod validator;
 
 fn main() {
     // load environment variables from .env file
-    // DO NOT USE IN PRODUCTION - REPLACE WITH PROPERLY SET VARIABLES
     if dotenv::dotenv().is_err() {
         eprint!("failed to read .env file - the logging is unlikely to work correctly")
     }

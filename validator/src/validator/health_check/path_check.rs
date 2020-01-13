@@ -95,9 +95,13 @@ impl PathChecker {
             .collect()
     }
 
-    pub(crate) async fn check_path(&mut self, path: &Vec<SphinxNode>) -> bool {
-        debug!("Checking path: {:?}", path);
+    pub(crate) async fn send_test_packet(&mut self, path: &Vec<SphinxNode>, iteration: u8) {
+        debug!("Checking path: {:?} ({})", path, iteration);
+        let path_identifier = PathChecker::unique_path_key(path, iteration);
 
+        // check if there is even any point in sending the packet
+
+        // does provider exist?
         let provider_client = self
             .provider_clients
             .get(&path.last().unwrap().pub_key.to_bytes())
@@ -105,10 +109,11 @@ impl PathChecker {
 
         if provider_client.is_none() {
             debug!("we can ignore this path as provider itself is inaccessible");
-            return false;
+            self.paths_status
+                .insert(path_identifier, PathStatus::Unhealthy)
+                .unwrap();
+            return;
         }
-
-        let provider_client = provider_client.as_ref().unwrap();
 
         let layer_one_mix = path.first().unwrap();
         let first_node_key = layer_one_mix.pub_key.to_bytes();
@@ -122,29 +127,45 @@ impl PathChecker {
 
         if first_node_client.is_none() {
             debug!("we can ignore this path as layer one mix is inaccessible");
-            return false;
+            self.paths_status
+                .insert(path_identifier, PathStatus::Unhealthy)
+                .unwrap();
+            return;
         }
 
         let first_node_client = first_node_client.as_ref().unwrap();
 
-        let packet_message = PathChecker::construct_check_message(path);
         let delays: Vec<_> = path.iter().map(|_| Delay::new(0)).collect();
 
-        let packet =
-            sphinx::SphinxPacket::new(packet_message, &path[..], &self.our_destination, &delays)
+        let packet = sphinx::SphinxPacket::new(
+            path_identifier.clone(),
+            &path[..],
+            &self.our_destination,
+            &delays,
+        )
                 .unwrap();
 
         debug!("sending test packet to {}", first_node_address);
-        if first_node_client
-            .send(packet, first_node_address)
-            .await
-            .is_err()
+        match first_node_client.send(packet, first_node_address).await {
+            Err(err) => {
+                warn!("failed to send packet to {} - {}", first_node_address, err);
+                if self
+                    .paths_status
+                    .insert(path_identifier, PathStatus::Unhealthy)
+                    .is_some()
+                {
+                    panic!("Overwriting path checks!")
+                }
+            }
+            Ok(_) => {
+                if self
+                    .paths_status
+                    .insert(path_identifier, PathStatus::Pending)
+                    .is_some()
         {
-            warn!("failed to send packet to {}", first_node_address);
-            return false;
+                    panic!("Overwriting path checks!")
+                }
+            }
         }
-
-        // TODO:
-        true
     }
 }

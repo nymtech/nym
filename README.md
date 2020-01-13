@@ -37,3 +37,8 @@ As with any other Rust project, there are other ways to build:
 Binaries can be found at `target/debug/` if you've done `cargo build` (without specifying `--release`).
 
 Production binaries can be found at `target/release/` if you've done `cargo build --release`.
+
+
+### Developing
+
+There's a `.env.sample-dev` file provided which you can rename to `.env` if you want convenient logging, backtrace, or other environment variables pre-set. The `.env` file is ignored so you don't need to worry about checking it in. 

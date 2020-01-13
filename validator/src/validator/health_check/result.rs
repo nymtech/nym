@@ -1,9 +1,10 @@
-use crate::validator::health_check::path_check::PathChecker;
+use crate::validator::health_check::path_check::{PathChecker, PathStatus};
 use crate::validator::health_check::score::NodeScore;
 use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair};
-use log::{debug, warn};
+use log::{debug, info, warn};
 use std::collections::HashMap;
 use std::fmt::{Error, Formatter};
+use std::time::Duration;
 use topology::NymTopology;
 
 #[derive(Debug)]
@@ -69,24 +70,36 @@ impl HealthCheckResult {
         let providers = topology.get_mix_provider_nodes();
 
         let mut path_checker = PathChecker::new(providers, ephemeral_keys).await;
-
-        // do it as many times is specified in config
         for i in 0..iterations {
             debug!("running healthcheck iteration {} / {}", i + 1, iterations);
             for path in &all_paths {
-                let path_status = path_checker.check_path(&path).await;
+                path_checker.send_test_packet(&path, i as u8).await;
+                // increase sent count for each node
                 for node in path {
-                    // if value doesn't exist, something extremely weird must have happened
-                    let current_score = score_map.get_mut(&node.pub_key.0);
-                    if current_score.is_none() {
-                        return Self::zero_score(topology);
-                    }
-                    let current_score = current_score.unwrap();
-                    current_score.increase_packet_count(path_status);
+                    let current_node_score = score_map.get_mut(&node.pub_key.0).unwrap();
+                    current_node_score.increase_sent_packet_count();
                 }
             }
         }
 
-        HealthCheckResult(score_map.drain().map(|(_, v)| v).collect())
+        info!(
+            "waiting {:?} for pending requests to resolve",
+            resolution_timeout
+        );
+        tokio::time::delay_for(resolution_timeout).await;
+        path_checker.resolve_pending_checks().await;
+
+        let all_statuses = path_checker.get_all_statuses();
+        for (path_key, status) in all_statuses.into_iter() {
+            let node_keys = PathChecker::path_key_to_node_keys(path_key);
+            for node in node_keys {
+                if status == PathStatus::Healthy {
+                    let current_node_score = score_map.get_mut(&node).unwrap();
+                    current_node_score.increase_received_packet_count();
+                }
+            }
+        }
+
+        HealthCheckResult(score_map.into_iter().map(|(_, v)| v).collect())
     }
 }

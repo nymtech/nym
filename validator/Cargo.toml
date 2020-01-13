@@ -26,6 +26,7 @@ crypto = { path = "../common/crypto" }
 directory-client = { path = "../clients/directory-client" }
 mix-client = { path = "../clients/mix-client" }
 provider-client = { path = "../clients/provider-client" }
+sfw-provider-requests = { path = "../sfw-provider/sfw-provider-requests" }
 topology = {path = "../common/topology" }
 
 ## will be moved to proper dependencies once released

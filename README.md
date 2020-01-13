@@ -12,7 +12,7 @@ The platform is composed of multiple Rust crates. Top-level crates include:
 
 ### Building
 
-Platform build instructions are available on [on docs site](https://nymtech.net/docs/mixnet/installation/).
+Platform build instructions are available on [our docs site](https://nymtech.net/docs/mixnet/installation/).
 
 ### Developing
 

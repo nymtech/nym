@@ -67,10 +67,31 @@ impl PathChecker {
         }
     }
 
-    fn construct_check_message(path: &Vec<SphinxNode>) -> Vec<u8> {
+    // iteration is used to distinguish packets sent through the same path (as the healthcheck
+    // may try to send say 10 packets through given path)
+    fn unique_path_key(path: &Vec<SphinxNode>, iteration: u8) -> Vec<u8> {
+        std::iter::once(iteration)
+            .chain(
         path.iter()
             .map(|node| node.pub_key.to_bytes().to_vec())
-            .flatten()
+                    .flatten(),
+            )
+            .collect()
+    }
+
+    pub(crate) fn path_key_to_node_keys(path_key: Vec<u8>) -> Vec<[u8; 32]> {
+        assert_eq!(path_key.len() % 32, 1);
+        path_key
+            .into_iter()
+            .skip(1) // remove first byte as it represents the iteration number which we do not care about now
+            .chunks(32)
+            .into_iter()
+            .map(|key_chunk| {
+                let key_chunk_vec: Vec<_> = key_chunk.collect();
+                let mut key = [0u8; 32];
+                key.copy_from_slice(&key_chunk_vec);
+                key
+            })
             .collect()
     }
 

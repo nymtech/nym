@@ -1,10 +1,11 @@
 use log::error;
 use sphinx::route::NodeAddressBytes;
+use std::cmp::Ordering;
 use std::fmt::Formatter;
 use std::net::SocketAddr;
 use topology::{MixNode, MixProviderNode};
 
-#[derive(Debug)]
+#[derive(Debug, Eq)]
 pub(crate) struct NodeScore {
     pub_key: NodeAddressBytes,
     addresses: Vec<SocketAddr>,
@@ -12,6 +13,56 @@ pub(crate) struct NodeScore {
     layer: String,
     packets_sent: u64,
     packets_received: u64,
+}
+
+impl Ord for NodeScore {
+    // order by: version, layer, sent, received, pubkey; ignore addresses
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.version > other.version {
+            return Ordering::Greater;
+        } else if self.version < other.version {
+            return Ordering::Less;
+        }
+        if self.layer > other.layer {
+            return Ordering::Greater;
+        } else if self.layer < other.layer {
+            return Ordering::Less;
+        }
+        if self.packets_sent > other.packets_sent {
+            return Ordering::Greater;
+        } else if self.packets_sent < other.packets_sent {
+            return Ordering::Less;
+        }
+        if self.packets_received > other.packets_received {
+            return Ordering::Greater;
+        } else if self.packets_received < other.packets_received {
+            return Ordering::Less;
+        }
+        if self.pub_key > other.pub_key {
+            return Ordering::Greater;
+        } else if self.pub_key < other.pub_key {
+            return Ordering::Less;
+        }
+
+        Ordering::Equal
+    }
+}
+
+impl PartialOrd for NodeScore {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for NodeScore {
+    fn eq(&self, other: &Self) -> bool {
+        self.pub_key == other.pub_key
+            && self.addresses == other.addresses
+            && self.version == other.version
+            && self.layer == other.layer
+            && self.packets_sent == other.packets_sent
+            && self.packets_received == other.packets_received
+    }
 }
 
 impl NodeScore {

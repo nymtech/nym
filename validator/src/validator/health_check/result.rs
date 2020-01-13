@@ -38,7 +38,15 @@ impl HealthCheckResult {
         HealthCheckResult(health)
     }
 
-    pub async fn calculate<T: NymTopology>(topology: T, iterations: usize) -> Self {
+    pub async fn calculate<T: NymTopology>(
+        topology: T,
+        iterations: usize,
+        resolution_timeout: Duration,
+    ) -> Self {
+        // currently healthchecker supports only up to 255 iterations - if we somehow
+        // find we need more, it's relatively easy change
+        assert!(iterations <= 255);
+
         let all_paths = match topology.all_paths() {
             Ok(paths) => paths,
             Err(_) => return Self::zero_score(topology),

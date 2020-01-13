@@ -1,6 +1,6 @@
 use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair, MixnetIdentityPublicKey};
 use itertools::Itertools;
-use log::{debug, error, trace, warn};
+use log::{debug, error, warn};
 use mix_client::MixClient;
 use provider_client::ProviderClient;
 use sphinx::header::delays::Delay;
@@ -115,6 +115,7 @@ impl PathChecker {
         self.paths_status
     }
 
+    // pull messages from given provider until there are no more 'real' messages
     async fn resolve_pending_provider_checks(
         &self,
         provider_client: &ProviderClient,
@@ -131,6 +132,7 @@ impl PathChecker {
                     let mut should_stop = false;
                     for msg in messages.into_iter() {
                         if msg == sfw_provider_requests::DUMMY_MESSAGE_CONTENT {
+                            // finish iterating the loop as the messages might not be ordered
                             should_stop = true;
                         } else {
                             provider_messages.push(msg);
@@ -145,7 +147,6 @@ impl PathChecker {
         provider_messages
     }
 
-    // resolve every pending check + consume itself and return the status map
     pub(crate) async fn resolve_pending_checks(&mut self) {
         // not sure how to nicely put it into an iterator due to it being async calls
         let mut provider_messages = Vec::new();

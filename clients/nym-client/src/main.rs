@@ -9,7 +9,7 @@ pub mod clients;
 mod commands;
 mod persistence;
 mod sockets;
-mod utils;
+pub mod utils;
 
 fn main() {
     env_logger::init();

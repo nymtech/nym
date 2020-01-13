@@ -1,0 +1,39 @@
+[package]
+build = "build.rs"
+name = "nym-validator"
+version = "0.1.0"
+authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "2.33.0"
+# Read notes https://crates.io/crates/dotenv - tl;dr: don't use in production, set environmental variables properly.
+dotenv = "0.15.0"
+futures = "0.3.1"
+itertools = "0.8.2"
+log = "0.4.8"
+pretty_env_logger = "0.3.1"
+serde = "1.0.104"
+serde_derive = "1.0.104"
+tokio = { version = "0.2", features = ["full"] }
+toml = "0.5.5"
+
+## internal
+addressing = {path = "../common/addressing" }
+crypto = { path = "../common/crypto" }
+directory-client = { path = "../clients/directory-client" }
+mix-client = { path = "../clients/mix-client" }
+provider-client = { path = "../clients/provider-client" }
+sfw-provider-requests = { path = "../sfw-provider/sfw-provider-requests" }
+topology = {path = "../common/topology" }
+
+## will be moved to proper dependencies once released
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f" }
+
+[build-dependencies]
+built = "0.3.2"
+
+[dev-dependencies]
+

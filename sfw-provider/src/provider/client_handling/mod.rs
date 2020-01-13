@@ -1,7 +1,6 @@
 use crate::provider::storage::{ClientStorage, StoreError};
 use crate::provider::ClientLedger;
 use crypto::identity::{DummyMixIdentityPrivateKey, MixnetIdentityPrivateKey};
-use curve25519_dalek::scalar::Scalar;
 use futures::lock::Mutex as FMutex;
 use hmac::{Hmac, Mac};
 use sfw_provider_requests::requests::{

@@ -12,7 +12,7 @@ log = "0.4.8"
 tokio = { version = "0.2", features = ["full"] }
 
 ## internal
-sfw-provider-requests = { path = "../../sfw-provider/sfw-provider-requests" }
+sfw-provider-requests = { path = "../../../sfw-provider/sfw-provider-requests" }
 
 ## will be moved to proper dependencies once released
 sphinx = { git = "https://github.com/nymtech/sphinx", rev="1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f" }

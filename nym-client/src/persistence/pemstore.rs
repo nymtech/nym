@@ -13,6 +13,7 @@ pub fn read_mix_identity_keypair_from_disk(
     keypair
 }
 
+#[allow(dead_code)]
 pub fn read_mix_encryption_keypair_from_disk(_id: String) -> crypto::encryption::x25519::KeyPair {
     unimplemented!()
 }

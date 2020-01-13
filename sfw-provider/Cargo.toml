@@ -22,7 +22,7 @@ hmac = "0.7.1"
 
 ## internal
 crypto = {path = "../common/crypto"}
-directory-client = { path = "../clients/directory-client" }
+directory-client = { path = "../common/clients/directory-client" }
 sfw-provider-requests = { path = "./sfw-provider-requests" }
 
 ## will be moved to proper dependencies once released

@@ -16,7 +16,7 @@ tokio = { version = "0.2", features = ["full"] }
 
 ## internal
 addressing = {path = "../common/addressing" }
-directory-client = { path = "../clients/directory-client" }
+directory-client = { path = "../common/clients/directory-client" }
 
 ## will be moved to proper dependencies once released
 sphinx = { git = "https://github.com/nymtech/sphinx", rev="1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f" }

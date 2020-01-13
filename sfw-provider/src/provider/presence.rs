@@ -1,6 +1,5 @@
-use crate::provider::{ClientLedger, Config};
+use crate::provider::ClientLedger;
 use crypto::identity::DummyMixIdentityPublicKey;
-use curve25519_dalek::montgomery::MontgomeryPoint;
 use directory_client::presence::MixProviderPresence;
 use directory_client::requests::presence_providers_post::PresenceMixProviderPoster;
 use directory_client::DirectoryClient;

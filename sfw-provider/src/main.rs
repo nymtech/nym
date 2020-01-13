@@ -1,6 +1,6 @@
 use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
+use crypto::identity::MixnetIdentityKeyPair;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process;

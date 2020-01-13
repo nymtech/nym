@@ -1,6 +1,5 @@
 use crate::provider::storage::StoreData;
 use crypto::identity::DummyMixIdentityPrivateKey;
-use curve25519_dalek::scalar::Scalar;
 use sphinx::{ProcessedPacket, SphinxPacket};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};

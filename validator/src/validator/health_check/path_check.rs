@@ -1,4 +1,5 @@
 use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair, MixnetIdentityPublicKey};
+use itertools::Itertools;
 use log::{debug, error, trace, warn};
 use mix_client::MixClient;
 use provider_client::ProviderClient;

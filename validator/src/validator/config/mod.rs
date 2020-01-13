@@ -13,6 +13,9 @@ pub struct HealthCheck {
 
     pub interval: f64, // in seconds
 
+    #[serde(rename(deserialize = "resolution-timeout"))]
+    pub resolution_timeout: f64, // in seconds
+
     #[serde(rename(deserialize = "test-packets-per-node"))]
     pub num_test_packets: usize,
 }

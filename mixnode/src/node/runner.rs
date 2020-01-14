@@ -7,6 +7,15 @@ use clap::ArgMatches;
 use std::net::ToSocketAddrs;
 use std::thread;
 
+fn print_binding_warning(address: &str) {
+    println!("\n##### WARNING #####");
+    println!(
+        "\nYou are trying to bind to {} - you might not be accessible to other nodes",
+        address
+    );
+    println!("\n##### WARNING #####\n");
+}
+
 pub fn start(matches: &ArgMatches) {
     println!("{}", banner());
     println!("Starting mixnode...");
@@ -29,6 +38,9 @@ pub fn start(matches: &ArgMatches) {
 
 fn new_config(matches: &ArgMatches) -> node::Config {
     let host = matches.value_of("host").unwrap();
+    if host == "localhost" || host == "127.0.0.1" || host == "0.0.0.0" {
+        print_binding_warning(host);
+    }
 
     let port = match matches.value_of("port").unwrap_or("1789").parse::<u16>() {
         Ok(n) => n,

@@ -123,10 +123,6 @@ impl NodeScore {
         self.packets_received += 1;
     }
 
-    pub(crate) fn typ(&self) -> NodeType {
-        self.typ
-    }
-
     pub(crate) fn score(&self) -> f64 {
         match self.packets_sent {
             0 => 0.0,

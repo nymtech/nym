@@ -1,14 +1,15 @@
 use crate::path_check::{PathChecker, PathStatus};
 use crate::score::NodeScore;
 use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair};
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
+use sphinx::route::NodeAddressBytes;
 use std::collections::HashMap;
 use std::fmt::{Error, Formatter};
 use std::time::Duration;
 use topology::NymTopology;
 
 #[derive(Debug)]
-pub(crate) struct HealthCheckResult(Vec<NodeScore>);
+pub struct HealthCheckResult(Vec<NodeScore>);
 
 impl std::fmt::Display for HealthCheckResult {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
@@ -41,6 +42,56 @@ impl HealthCheckResult {
             .collect();
 
         HealthCheckResult(health)
+    }
+
+    // TODO: that is O(n) so maybe not the most efficient considering it will be called n times...
+    fn node_score(&self, node_key: NodeAddressBytes) -> Option<f64> {
+        self.0
+            .iter()
+            .find(|&node_score| node_score.pub_key() == node_key)
+            .map(|node| node.score())
+    }
+
+    pub fn filter_topology_by_score<T: NymTopology>(
+        &self,
+        topology: &T,
+        score_threshold: f64,
+    ) -> T {
+        let filtered_mix_nodes = topology
+            .get_mix_nodes()
+            .into_iter()
+            .filter(|node| {
+                match self.node_score(NodeAddressBytes::from_b64_string(node.pub_key.clone())) {
+                    None => {
+                        error!("Unknown node in topology - {:?}", node);
+                        false
+                    }
+                    Some(score) => score >= score_threshold,
+                }
+            })
+            .collect();
+
+        let filtered_provider_nodes = topology
+            .get_mix_provider_nodes()
+            .into_iter()
+            .filter(|node| {
+                match self.node_score(NodeAddressBytes::from_b64_string(node.pub_key.clone())) {
+                    None => {
+                        error!("Unknown node in topology - {:?}", node);
+                        false
+                    }
+                    Some(score) => score >= score_threshold,
+                }
+            })
+            .collect();
+        // coco nodes remain unchanged as no healthcheck is being run on them or time being
+        let filtered_coco_nodes = topology.get_coco_nodes();
+
+        T::new_from_nodes(
+            filtered_mix_nodes,
+            filtered_provider_nodes,
+            filtered_coco_nodes,
+        )
     }
 
     pub async fn calculate<T: NymTopology>(

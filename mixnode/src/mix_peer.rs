@@ -1,8 +1,7 @@
-use curve25519_dalek::digest::Digest;
-use nym_client::utils::addressing;
-use std::convert::TryInto;
+use addressing;
+use sphinx::route::NodeAddressBytes;
 use std::error::Error;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::SocketAddr;
 use tokio::prelude::*;
 
 #[derive(Debug)]
@@ -12,9 +11,9 @@ pub struct MixPeer {
 
 impl MixPeer {
     // note that very soon `next_hop_address` will be changed to `next_hop_metadata`
-    pub fn new(next_hop_address: [u8; 32]) -> MixPeer {
+    pub fn new(next_hop_address: NodeAddressBytes) -> MixPeer {
         let next_hop_socket_address =
-            addressing::socket_address_from_encoded_bytes(next_hop_address);
+            addressing::socket_address_from_encoded_bytes(next_hop_address.to_bytes());
         MixPeer {
             connection: next_hop_socket_address,
         }

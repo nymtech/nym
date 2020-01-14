@@ -1,0 +1,17 @@
+[workspace]
+
+members = [
+    "common/clients/directory-client",
+    "common/clients/mix-client",
+    "common/clients/provider-client",
+    "common/clients/validator-client",
+    "common/addressing",
+    "common/crypto",
+    "common/healthcheck",
+    "common/topology",
+    "mixnode",
+    "nym-client",
+    "sfw-provider",
+    "sfw-provider/sfw-provider-requests",
+    "validator",
+]

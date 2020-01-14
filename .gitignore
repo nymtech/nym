@@ -4,3 +4,4 @@
 /test_inbox
 .idea
 target
+.env

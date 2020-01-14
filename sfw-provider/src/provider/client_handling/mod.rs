@@ -1,6 +1,6 @@
 use crate::provider::storage::{ClientStorage, StoreError};
 use crate::provider::ClientLedger;
-use curve25519_dalek::scalar::Scalar;
+use crypto::identity::{DummyMixIdentityPrivateKey, MixnetIdentityPrivateKey};
 use futures::lock::Mutex as FMutex;
 use hmac::{Hmac, Mac};
 use sfw_provider_requests::requests::{
@@ -53,14 +53,14 @@ impl From<io::Error> for ClientProcessingError {
 pub(crate) struct ClientProcessingData {
     store_dir: PathBuf,
     registered_clients_ledger: Arc<FMutex<ClientLedger>>,
-    secret_key: Scalar,
+    secret_key: DummyMixIdentityPrivateKey,
 }
 
 impl ClientProcessingData {
     pub(crate) fn new(
         store_dir: PathBuf,
         registered_clients_ledger: Arc<FMutex<ClientLedger>>,
-        secret_key: Scalar,
+        secret_key: DummyMixIdentityPrivateKey,
     ) -> Self {
         ClientProcessingData {
             store_dir,
@@ -150,7 +150,7 @@ impl ClientRequestProcessor {
         std::fs::create_dir_all(full_store_dir)
     }
 
-    fn generate_new_auth_token(data: Vec<u8>, key: Scalar) -> AuthToken {
+    fn generate_new_auth_token(data: Vec<u8>, key: DummyMixIdentityPrivateKey) -> AuthToken {
         let mut auth_token_raw =
             HmacSha256::new_varkey(&key.to_bytes()).expect("HMAC can take key of any size");
         auth_token_raw.input(&data);
@@ -232,7 +232,7 @@ mod create_storage_dir {
     #[test]
     fn it_creates_a_correct_storage_directory() {
         let client_address: DestinationAddressBytes = [1u8; 32];
-        let store_dir = Path::new("./foo/");
+        let store_dir = Path::new("/tmp/");
         ClientRequestProcessor::create_storage_dir(client_address, store_dir).unwrap();
     }
 }
@@ -245,7 +245,7 @@ mod generating_new_auth_token {
     fn for_the_same_input_generates_the_same_auth_token() {
         let data1 = vec![1u8; 55];
         let data2 = vec![1u8; 55];
-        let key = Scalar::from_bytes_mod_order([1u8; 32]);
+        let key = DummyMixIdentityPrivateKey::from_bytes(&[1u8; 32]);
         let token1 = ClientRequestProcessor::generate_new_auth_token(data1, key);
         let token2 = ClientRequestProcessor::generate_new_auth_token(data2, key);
         assert_eq!(token1, token2);
@@ -255,14 +255,14 @@ mod generating_new_auth_token {
     fn for_different_inputs_generates_different_auth_tokens() {
         let data1 = vec![1u8; 55];
         let data2 = vec![2u8; 55];
-        let key = Scalar::from_bytes_mod_order([1u8; 32]);
+        let key = DummyMixIdentityPrivateKey::from_bytes(&[1u8; 32]);
         let token1 = ClientRequestProcessor::generate_new_auth_token(data1, key);
         let token2 = ClientRequestProcessor::generate_new_auth_token(data2, key);
         assert_ne!(token1, token2);
 
         let data1 = vec![1u8; 50];
         let data2 = vec![2u8; 55];
-        let key = Scalar::from_bytes_mod_order([1u8; 32]);
+        let key = DummyMixIdentityPrivateKey::from_bytes(&[1u8; 32]);
         let token1 = ClientRequestProcessor::generate_new_auth_token(data1, key);
         let token2 = ClientRequestProcessor::generate_new_auth_token(data2, key);
         assert_ne!(token1, token2);

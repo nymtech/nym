@@ -1,6 +1,6 @@
 use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use nym_client::identity::mixnet::KeyPair;
+use crypto::identity::MixnetIdentityKeyPair;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process;
@@ -9,7 +9,7 @@ pub mod provider;
 
 fn main() {
     let arg_matches = App::new("Nym Service Provider")
-        .version("0.1.0")
+        .version(built_info::PKG_VERSION)
         .author("Nymtech")
         .about("Implementation of the Loopix-based Service Provider")
         .subcommand(
@@ -19,7 +19,8 @@ fn main() {
                     Arg::with_name("mixHost")
                         .long("mixHost")
                         .help("The custom host on which the service provider will be running for receiving sphinx packets")
-                        .takes_value(true),
+                        .takes_value(true)
+                        .required(true),
                 )
                 .arg(
                     Arg::with_name("mixPort")
@@ -31,7 +32,8 @@ fn main() {
                     Arg::with_name("clientHost")
                         .long("clientHost")
                         .help("The custom host on which the service provider will be running for receiving client sfw-provider-requests")
-                        .takes_value(true),
+                        .takes_value(true)
+                        .required(true),
                 )
                 .arg(
                     Arg::with_name("clientPort")
@@ -68,16 +70,24 @@ fn main() {
     }
 }
 
+fn print_binding_warning(address: &str) {
+    println!("\n##### WARNING #####");
+    println!(
+        "\nYou are trying to bind to {} - you might not be accessible to other nodes",
+        address
+    );
+    println!("\n##### WARNING #####\n");
+}
+
 fn run(matches: &ArgMatches) {
+    println!("{}", banner());
     let config = new_config(matches);
-    let provider = ServiceProvider::new(&config);
+    let provider = ServiceProvider::new(config);
 
     provider.start().unwrap()
 }
 
 fn new_config(matches: &ArgMatches) -> provider::Config {
-    println!("Running the service provider!");
-
     let directory_server = matches
         .value_of("directory")
         .unwrap_or("https://directory.nymtech.net")
@@ -99,7 +109,15 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
         Err(err) => panic!("Invalid client port value provided - {:?}", err),
     };
 
-    let key_pair = KeyPair::new(); // TODO: persist this so keypairs don't change every restart
+    if mix_host == "localhost" || mix_host == "127.0.0.1" || mix_host == "0.0.0.0" {
+        print_binding_warning(mix_host);
+    }
+
+    if client_host == "localhost" || client_host == "127.0.0.1" || client_host == "0.0.0.0" {
+        print_binding_warning(client_host);
+    }
+
+    let key_pair = crypto::identity::DummyMixIdentityKeyPair::new(); // TODO: persist this so keypairs don't change every restart
     let store_dir = PathBuf::from(
         matches
             .value_of("storeDir")
@@ -111,14 +129,9 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
             .unwrap_or("/tmp/nym-provider/registered_clients"),
     );
 
-    println!("The value of mix_host is: {:?}", mix_host);
-    println!("The value of mix_port is: {:?}", mix_port);
-    println!("The value of client_host is: {:?}", client_host);
-    println!("The value of client_port is: {:?}", client_port);
-    println!("The value of key is: {:?}", key_pair.private.clone());
-    println!("The value of store_dir is: {:?}", store_dir);
+    println!("store_dir is: {:?}", store_dir);
     println!(
-        "The value of registered_client_ledger_dir is: {:?}",
+        "registered_client_ledger_dir is: {:?}",
         registered_client_ledger_dir
     );
 
@@ -134,21 +147,15 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
         .next()
         .expect("Failed to extract the socket address from the iterator");
 
-    println!(
-        "The full combined mix socket address is {}",
-        mix_socket_address
-    );
-    println!(
-        "The full combined client socket address is {}",
-        client_socket_address
-    );
+    println!("Listening for mixnet packets on {}", mix_socket_address);
+    println!("Listening for client requests on {}", client_socket_address);
 
     provider::Config {
         mix_socket_address,
         directory_server,
-        public_key: key_pair.public,
+        public_key: key_pair.public_key,
         client_socket_address,
-        secret_key: key_pair.private,
+        secret_key: key_pair.private_key,
         store_dir: PathBuf::from(store_dir),
     }
 }

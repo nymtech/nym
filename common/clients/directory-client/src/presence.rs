@@ -61,7 +61,7 @@ impl From<topology::MixNode> for MixNodePresence {
         MixNodePresence {
             host: mn.host.to_string(),
             pub_key: mn.pub_key,
-            layer: mn.last_seen,
+            layer: mn.layer,
             last_seen: mn.last_seen,
             version: mn.version,
         }

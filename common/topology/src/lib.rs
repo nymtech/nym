@@ -165,7 +165,7 @@ pub trait NymTopology: Sized {
         Ok(all_paths)
     }
 
-    fn remove_incompatible_nodes(&self, mix_version: &str, provider_version: &str, coco_version: &str) -> Self {
+    fn filter_node_versions(&self, mix_version: &str, provider_version: &str, coco_version: &str) -> Self {
         let filtered_mixes = self.get_mix_nodes().iter().cloned().filter(|mix_node| mix_node.version == mix_version).collect();
         let filtered_providers = self.get_mix_provider_nodes().iter().cloned().filter(|provider_node| provider_node.version == provider_version).collect();
         let filtered_coco_nodes = self.get_coco_nodes().iter().cloned().filter(|coco_node| coco_node.version == coco_version).collect();

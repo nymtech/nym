@@ -70,6 +70,15 @@ fn main() {
     }
 }
 
+fn print_binding_warning(address: &str) {
+    println!("\n##### WARNING #####");
+    println!(
+        "\nYou are trying to bind to {} - you might not be accessible to other nodes",
+        address
+    );
+    println!("\n##### WARNING #####\n");
+}
+
 fn run(matches: &ArgMatches) {
     println!("{}", banner());
     let config = new_config(matches);
@@ -99,6 +108,14 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
         Ok(n) => n,
         Err(err) => panic!("Invalid client port value provided - {:?}", err),
     };
+
+    if mix_host == "localhost" || mix_host == "127.0.0.1" || mix_host == "0.0.0.0" {
+        print_binding_warning(mix_host);
+    }
+
+    if client_host == "localhost" || client_host == "127.0.0.1" || client_host == "0.0.0.0" {
+        print_binding_warning(client_host);
+    }
 
     let key_pair = crypto::identity::DummyMixIdentityKeyPair::new(); // TODO: persist this so keypairs don't change every restart
     let store_dir = PathBuf::from(

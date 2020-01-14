@@ -80,6 +80,7 @@ mod metrics_get_request {
                 host: "foo.com".to_string(),
                 pub_key: "abc".to_string(),
                 last_seen: 666,
+                version: "0.2.0".to_string(),
             }
         }
     }

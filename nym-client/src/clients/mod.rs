@@ -1,3 +1,4 @@
+use crate::built_info;
 use crate::sockets::tcp;
 use crate::sockets::ws;
 use crate::utils;
@@ -226,12 +227,56 @@ impl NymClient {
     }
 
     pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
+        let score_threshold = 10.0;
         println!("Starting nym client");
         let mut rt = Runtime::new()?;
 
-        let topology = Topology::new(self.directory.clone());
+        println!("Trying to obtain valid, healthy, topology");
+        let full_topology = Topology::new(self.directory.clone());
+
+        // run a healthcheck to determine healthy-ish nodes:
+        // this is a temporary solution as the healthcheck will eventually be moved to validators
+        let healthcheck_config = healthcheck::config::HealthCheck {
+            directory_server: self.directory.clone(),
+            // those are literally unrelevant when running single check
+            interval: 100000.0,
+            resolution_timeout: 5.0,
+            num_test_packets: 2,
+        };
+        let healthcheck = healthcheck::HealthChecker::new(healthcheck_config);
+        let healthcheck_result = rt.block_on(healthcheck.do_check());
+
+        let healthcheck_scores = match healthcheck_result {
+            Err(err) => {
+                error!(
+                    "failed to perform healthcheck to determine healthy topology - {:?}",
+                    err
+                );
+                return Err(Box::new(err));
+            }
+            Ok(scores) => scores,
+        };
+
+        let healthy_topology =
+            healthcheck_scores.filter_topology_by_score(&full_topology, score_threshold);
+
+        // for time being assume same versioning, i.e. if client is running X.Y.Z,
+        // we're expecting mixes, providers and coconodes to also be running X.Y.Z
+        let versioned_healthy_topology = healthy_topology.filter_node_versions(
+            built_info::PKG_VERSION,
+            built_info::PKG_VERSION,
+            built_info::PKG_VERSION,
+        );
+
+        // make sure you can still send a packet through the network:
+        if !versioned_healthy_topology.can_construct_path_through() {
+            error!("No valid path exists in the topology");
+            // TODO: replace panic with proper return type
+            panic!("No valid path exists in the topology");
+        }
+
         // this is temporary and assumes there exists only a single provider.
-        let provider_client_listener_address: SocketAddr = topology
+        let provider_client_listener_address: SocketAddr = versioned_healthy_topology
             .get_mix_provider_nodes()
             .first()
             .expect("Could not get a provider from the supplied network topology, are you using the right directory server?")
@@ -278,14 +323,14 @@ impl NymClient {
         let loop_cover_traffic_future = rt.spawn(NymClient::start_loop_cover_traffic_stream(
             mix_tx.clone(),
             Destination::new(self.address, Default::default()),
-            topology.clone(),
+            versioned_healthy_topology.clone(),
         ));
 
         let out_queue_control_future = rt.spawn(NymClient::control_out_queue(
             mix_tx,
             self.input_rx,
             Destination::new(self.address, Default::default()),
-            topology.clone(),
+            versioned_healthy_topology.clone(),
         ));
 
         let provider_polling_future = rt.spawn(NymClient::start_provider_polling(
@@ -300,7 +345,7 @@ impl NymClient {
                     self.input_tx,
                     received_messages_buffer_output_tx,
                     self.address,
-                    topology,
+                    versioned_healthy_topology,
                 ));
             }
             SocketType::TCP => {
@@ -309,7 +354,7 @@ impl NymClient {
                     self.input_tx,
                     received_messages_buffer_output_tx,
                     self.address,
-                    topology,
+                    versioned_healthy_topology,
                 ));
             }
             SocketType::None => (),

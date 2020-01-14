@@ -74,6 +74,7 @@ pub struct CocoNode {
     pub host: String,
     pub pub_key: String,
     pub last_seen: u64,
+    pub version: String,
 }
 
 #[derive(Debug)]

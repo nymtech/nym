@@ -9,6 +9,7 @@ pub struct CocoPresence {
     pub host: String,
     pub pub_key: String,
     pub last_seen: u64,
+    pub version: String,
 }
 
 impl Into<topology::CocoNode> for CocoPresence {
@@ -17,6 +18,7 @@ impl Into<topology::CocoNode> for CocoPresence {
             host: self.host,
             pub_key: self.pub_key,
             last_seen: self.last_seen,
+            version: self.version,
         }
     }
 }

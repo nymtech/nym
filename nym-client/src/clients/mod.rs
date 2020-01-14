@@ -243,6 +243,8 @@ impl NymClient {
             self.auth_token,
         );
 
+        println!("Public Key: {}", base64::encode_config(&self.address, base64::URL_SAFE));
+
         // registration
         rt.block_on(async {
             match self.auth_token {

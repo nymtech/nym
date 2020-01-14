@@ -83,8 +83,13 @@ pub enum NymTopologyError {
     MissingLayerError(Vec<u64>),
 }
 
-pub trait NymTopology {
+pub trait NymTopology: Sized {
     fn new(directory_server: String) -> Self;
+    fn new_from_nodes(
+        mix_nodes: Vec<MixNode>,
+        mix_provider_nodes: Vec<MixProviderNode>,
+        coco_nodes: Vec<CocoNode>,
+    ) -> Self;
     fn get_mix_nodes(&self) -> Vec<MixNode>;
     fn get_mix_provider_nodes(&self) -> Vec<MixProviderNode>;
     fn get_coco_nodes(&self) -> Vec<CocoNode>;
@@ -158,6 +163,14 @@ pub trait NymTopology {
             .collect();
 
         Ok(all_paths)
+    }
+
+    fn remove_incompatible_nodes(&self, version: String) -> Self {
+        let filtered_mixes = self.get_mix_nodes().iter().cloned().filter(|mix_node| mix_node.version == version).collect();
+        let filtered_providers = self.get_mix_provider_nodes().iter().cloned().filter(|provider_node| provider_node.version == version).collect();
+        let filtered_coco_nodes = self.get_coco_nodes().iter().cloned().filter(|coco_node| coco_node.version == version).collect();
+
+        Self::new_from_nodes(filtered_mixes, filtered_providers, filtered_coco_nodes)
     }
 }
 

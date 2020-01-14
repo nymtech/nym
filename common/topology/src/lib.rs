@@ -7,7 +7,7 @@ use std::cmp::max;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MixNode {
     pub host: SocketAddr,
     pub pub_key: String,
@@ -35,12 +35,12 @@ impl MixNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MixProviderClient {
     pub pub_key: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MixProviderNode {
     pub client_listener: SocketAddr,
     pub mixnet_listener: SocketAddr,
@@ -69,7 +69,7 @@ impl MixProviderNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CocoNode {
     pub host: String,
     pub pub_key: String,

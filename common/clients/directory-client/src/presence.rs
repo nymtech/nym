@@ -1,7 +1,7 @@
 use crate::requests::presence_topology_get::PresenceTopologyGetRequester;
 use crate::{Client, Config, DirectoryClient};
 use serde::{Deserialize, Serialize};
-use topology::{NymTopology, MixProviderNode, MixNode, CocoNode};
+use topology::{CocoNode, MixNode, MixProviderNode, NymTopology};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,7 +68,6 @@ impl From<topology::MixNode> for MixNodePresence {
     }
 }
 
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MixProviderPresence {
@@ -103,7 +102,11 @@ impl From<topology::MixProviderNode> for MixProviderPresence {
             client_listener: mpn.client_listener.to_string(),
             mixnet_listener: mpn.mixnet_listener.to_string(),
             pub_key: mpn.pub_key,
-            registered_clients: mpn.registered_clients.into_iter().map(|c| c.into()).collect(),
+            registered_clients: mpn
+                .registered_clients
+                .into_iter()
+                .map(|c| c.into())
+                .collect(),
             last_seen: mpn.last_seen,
             version: mpn.version,
         }
@@ -156,11 +159,18 @@ impl NymTopology for Topology {
         topology
     }
 
-    fn new_from_nodes(mix_nodes: Vec<MixNode>, mix_provider_nodes: Vec<MixProviderNode>, coco_nodes: Vec<CocoNode>) -> Self {
+    fn new_from_nodes(
+        mix_nodes: Vec<MixNode>,
+        mix_provider_nodes: Vec<MixProviderNode>,
+        coco_nodes: Vec<CocoNode>,
+    ) -> Self {
         Topology {
             coco_nodes: coco_nodes.into_iter().map(|node| node.into()).collect(),
             mix_nodes: mix_nodes.into_iter().map(|node| node.into()).collect(),
-            mix_provider_nodes: mix_provider_nodes.into_iter().map(|node| node.into()).collect(),
+            mix_provider_nodes: mix_provider_nodes
+                .into_iter()
+                .map(|node| node.into())
+                .collect(),
         }
     }
 

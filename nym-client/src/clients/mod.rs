@@ -227,7 +227,7 @@ impl NymClient {
     }
 
     pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
-        let score_threshold = 10.0;
+        let score_threshold = 0.0;
         println!("Starting nym client");
         let mut rt = Runtime::new()?;
 

@@ -1,0 +1,29 @@
+[package]
+name = "healthcheck"
+version = "0.1.0"
+authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures = "0.3.1"
+itertools = "0.8.2"
+log = "0.4.8"
+serde = "1.0.104"
+serde_derive = "1.0.104"
+tokio = { version = "0.2", features = ["full"] }
+
+## internal
+addressing = {path = "../addressing" }
+crypto = { path = "../crypto" }
+directory-client = { path = "../clients/directory-client" }
+mix-client = { path = "../clients/mix-client" }
+provider-client = { path = "../clients/provider-client" }
+sfw-provider-requests = { path = "../../sfw-provider/sfw-provider-requests" }
+topology = {path = "../topology" }
+
+## will be moved to proper dependencies once released
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f" }
+
+[dev-dependencies]

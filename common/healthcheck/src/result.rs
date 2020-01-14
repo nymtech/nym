@@ -1,5 +1,5 @@
-use crate::validator::health_check::path_check::{PathChecker, PathStatus};
-use crate::validator::health_check::score::NodeScore;
+use crate::path_check::{PathChecker, PathStatus};
+use crate::score::NodeScore;
 use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair};
 use log::{debug, info, warn};
 use std::collections::HashMap;

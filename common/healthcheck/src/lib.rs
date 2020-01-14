@@ -1,11 +1,11 @@
-use crate::validator::config;
-use crate::validator::health_check::result::HealthCheckResult;
+use crate::result::HealthCheckResult;
 use directory_client::requests::presence_topology_get::PresenceTopologyGetRequester;
 use directory_client::DirectoryClient;
 use log::{debug, error, info, trace};
 use std::time::Duration;
 use topology::NymTopologyError;
 
+pub mod config;
 mod path_check;
 mod result;
 mod score;
@@ -23,7 +23,7 @@ impl From<topology::NymTopologyError> for HealthCheckerError {
     }
 }
 
-pub(crate) struct HealthChecker {
+pub struct HealthChecker {
     directory_client: directory_client::Client,
     interval: Duration,
     num_test_packets: usize,
@@ -61,7 +61,7 @@ impl HealthChecker {
             self.num_test_packets,
             self.resolution_timeout,
         )
-        .await;
+            .await;
         healthcheck_result.sort_scores();
         Ok(healthcheck_result)
     }

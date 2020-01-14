@@ -1,6 +1,7 @@
 use log::error;
 use sphinx::route::NodeAddressBytes;
 use std::cmp::Ordering;
+use std::fmt::Error;
 use std::fmt::Formatter;
 use std::net::SocketAddr;
 use topology::{MixNode, MixProviderNode};
@@ -126,6 +127,18 @@ impl NodeScore {
         self.typ
     }
 
+    pub(crate) fn score(&self) -> f64 {
+        match self.packets_sent {
+            0 => 0.0,
+            _ => (self.packets_received as f64 / self.packets_sent as f64) * 100.0,
+        }
+    }
+
+    pub(crate) fn pub_key(&self) -> NodeAddressBytes {
+        self.pub_key.clone()
+    }
+}
+
 impl std::fmt::Display for NodeScore {
     fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
         let fmtd_addresses = match self.addresses.len() {
@@ -146,7 +159,7 @@ impl std::fmt::Display for NodeScore {
             self.typ,
             self.packets_received,
             self.packets_sent,
-            health_percentage,
+            self.score(),
             self.layer,
             self.version,
             fmtd_addresses,

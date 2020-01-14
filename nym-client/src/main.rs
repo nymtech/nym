@@ -10,6 +10,10 @@ mod commands;
 mod persistence;
 mod sockets;
 pub mod utils;
+pub mod built_info {
+    // The file has been placed there by the build script.
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}
 
 fn main() {
     env_logger::init();
@@ -86,11 +90,6 @@ fn main() {
         error!("{}", e);
         process::exit(1);
     }
-}
-
-pub mod built_info {
-    // The file has been placed there by the build script.
-    include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
 fn execute(matches: ArgMatches) -> Result<(), String> {

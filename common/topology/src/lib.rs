@@ -7,7 +7,7 @@ use std::cmp::max;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MixNode {
     pub host: SocketAddr,
     pub pub_key: String,
@@ -35,12 +35,12 @@ impl MixNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MixProviderClient {
     pub pub_key: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MixProviderNode {
     pub client_listener: SocketAddr,
     pub mixnet_listener: SocketAddr,
@@ -69,11 +69,12 @@ impl MixProviderNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CocoNode {
     pub host: String,
     pub pub_key: String,
     pub last_seen: u64,
+    pub version: String,
 }
 
 #[derive(Debug)]
@@ -82,8 +83,13 @@ pub enum NymTopologyError {
     MissingLayerError(Vec<u64>),
 }
 
-pub trait NymTopology {
+pub trait NymTopology: Sized {
     fn new(directory_server: String) -> Self;
+    fn new_from_nodes(
+        mix_nodes: Vec<MixNode>,
+        mix_provider_nodes: Vec<MixProviderNode>,
+        coco_nodes: Vec<CocoNode>,
+    ) -> Self;
     fn get_mix_nodes(&self) -> Vec<MixNode>;
     fn get_mix_provider_nodes(&self) -> Vec<MixProviderNode>;
     fn get_coco_nodes(&self) -> Vec<CocoNode>;
@@ -157,6 +163,41 @@ pub trait NymTopology {
             .collect();
 
         Ok(all_paths)
+    }
+
+    fn filter_node_versions(
+        &self,
+        mix_version: &str,
+        provider_version: &str,
+        coco_version: &str,
+    ) -> Self {
+        let filtered_mixes = self
+            .get_mix_nodes()
+            .iter()
+            .cloned()
+            .filter(|mix_node| mix_node.version == mix_version)
+            .collect();
+        let filtered_providers = self
+            .get_mix_provider_nodes()
+            .iter()
+            .cloned()
+            .filter(|provider_node| provider_node.version == provider_version)
+            .collect();
+        let filtered_coco_nodes = self
+            .get_coco_nodes()
+            .iter()
+            .cloned()
+            .filter(|coco_node| coco_node.version == coco_version)
+            .collect();
+
+        Self::new_from_nodes(filtered_mixes, filtered_providers, filtered_coco_nodes)
+    }
+
+    fn can_construct_path_through(&self) -> bool {
+        match self.make_layered_topology() {
+            Ok(_) => true,
+            Err(_) => false,
+        }
     }
 }
 

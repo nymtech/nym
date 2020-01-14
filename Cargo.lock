@@ -846,6 +846,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "healthcheck"
+version = "0.1.0"
+dependencies = [
+ "addressing",
+ "crypto",
+ "directory-client",
+ "futures 0.3.1",
+ "itertools",
+ "log",
+ "mix-client",
+ "provider-client",
+ "serde",
+ "serde_derive",
+ "sfw-provider-requests",
+ "sphinx",
+ "tokio 0.2.9",
+ "topology",
+]
+
+[[package]]
 name = "hermit-abi"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1331,6 +1351,7 @@ dependencies = [
  "dirs",
  "env_logger 0.7.1",
  "futures 0.3.1",
+ "healthcheck",
  "hex",
  "log",
  "mix-client",
@@ -1390,25 +1411,17 @@ dependencies = [
 name = "nym-validator"
 version = "0.1.0"
 dependencies = [
- "addressing",
  "built",
  "clap",
- "crypto",
- "directory-client",
  "dotenv",
  "futures 0.3.1",
- "itertools",
+ "healthcheck",
  "log",
- "mix-client",
  "pretty_env_logger",
- "provider-client",
  "serde",
  "serde_derive",
- "sfw-provider-requests",
- "sphinx",
  "tokio 0.2.9",
  "toml",
- "topology",
 ]
 
 [[package]]

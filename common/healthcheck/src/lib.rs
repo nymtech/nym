@@ -1,11 +1,12 @@
-use crate::validator::config;
-use crate::validator::health_check::result::HealthCheckResult;
+use crate::result::HealthCheckResult;
 use directory_client::requests::presence_topology_get::PresenceTopologyGetRequester;
 use directory_client::DirectoryClient;
 use log::{debug, error, info, trace};
+use std::fmt::{Error, Formatter};
 use std::time::Duration;
 use topology::NymTopologyError;
 
+pub mod config;
 mod path_check;
 mod result;
 mod score;
@@ -16,6 +17,16 @@ pub enum HealthCheckerError {
     InvalidTopologyError,
 }
 
+// required by std::error::Error
+impl std::fmt::Display for HealthCheckerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        // just have implementation equivalent to derived debug
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::error::Error for HealthCheckerError {}
+
 impl From<topology::NymTopologyError> for HealthCheckerError {
     fn from(_: NymTopologyError) -> Self {
         use HealthCheckerError::*;
@@ -23,7 +34,7 @@ impl From<topology::NymTopologyError> for HealthCheckerError {
     }
 }
 
-pub(crate) struct HealthChecker {
+pub struct HealthChecker {
     directory_client: directory_client::Client,
     interval: Duration,
     num_test_packets: usize,
@@ -45,7 +56,7 @@ impl HealthChecker {
         }
     }
 
-    async fn do_check(&self) -> Result<HealthCheckResult, HealthCheckerError> {
+    pub async fn do_check(&self) -> Result<HealthCheckResult, HealthCheckerError> {
         trace!("going to perform a healthcheck!");
         let current_topology = match self.directory_client.presence_topology.get() {
             Ok(topology) => topology,

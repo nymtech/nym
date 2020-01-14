@@ -1,10 +1,9 @@
 use crate::validator::config::Config;
-use crate::validator::health_check::HealthChecker;
+use healthcheck::HealthChecker;
 use log::debug;
 use tokio::runtime::Runtime;
 
 pub mod config;
-mod health_check;
 
 pub struct Validator {
     heath_check: HealthChecker,

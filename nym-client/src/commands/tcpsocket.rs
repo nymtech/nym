@@ -32,6 +32,8 @@ pub fn execute(matches: &ArgMatches) {
     let keypair = pemstore::read_mix_identity_keypair_from_disk(id);
     // TODO: reading auth_token from disk (if exists);
 
+    println!("Public key: {}", keypair.public_key.to_b64_string());
+
     let mut temporary_address = [0u8; 32];
     let public_key_bytes = keypair.public_key().to_bytes();
     temporary_address.copy_from_slice(&public_key_bytes[..]);

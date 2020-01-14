@@ -156,6 +156,14 @@ impl NymTopology for Topology {
         topology
     }
 
+    fn new_from_nodes(mix_nodes: Vec<MixNode>, mix_provider_nodes: Vec<MixProviderNode>, coco_nodes: Vec<CocoNode>) -> Self {
+        Topology {
+            coco_nodes: coco_nodes.into_iter().map(|node| node.into()).collect(),
+            mix_nodes: mix_nodes.into_iter().map(|node| node.into()).collect(),
+            mix_provider_nodes: mix_provider_nodes.into_iter().map(|node| node.into()).collect(),
+        }
+    }
+
     fn get_mix_nodes(&self) -> Vec<topology::MixNode> {
         self.mix_nodes.iter().map(|x| x.clone().into()).collect()
     }

@@ -66,7 +66,7 @@ impl HealthCheckResult {
                         error!("Unknown node in topology - {:?}", node);
                         false
                     }
-                    Some(score) => score >= score_threshold,
+                    Some(score) => score > score_threshold,
                 }
             })
             .collect();
@@ -80,7 +80,7 @@ impl HealthCheckResult {
                         error!("Unknown node in topology - {:?}", node);
                         false
                     }
-                    Some(score) => score >= score_threshold,
+                    Some(score) => score > score_threshold,
                 }
             })
             .collect();

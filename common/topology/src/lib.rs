@@ -192,6 +192,13 @@ pub trait NymTopology: Sized {
 
         Self::new_from_nodes(filtered_mixes, filtered_providers, filtered_coco_nodes)
     }
+
+    fn can_construct_path_through(&self) -> bool {
+        match self.make_layered_topology() {
+            Ok(_) => true,
+            Err(_) => false,
+        }
+    }
 }
 
 // TODO: tests...

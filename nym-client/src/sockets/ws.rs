@@ -62,8 +62,9 @@ impl From<Message> for ClientRequest {
         let text_msg = match msg {
             Message::Text(msg) => msg,
             Message::Binary(_) => panic!("binary messages are not supported!"),
+            Message::Ping(_) => unreachable!("ping"),
+            Message::Pong(_) => panic!("todo: handle pong!"),
             Message::Close(_) => panic!("todo: handle close!"),
-            _ => panic!("Other types of messages are also unsupported!"),
         };
         serde_json::from_str(&text_msg).expect("unable to deserialize From<Message> json")
     }
@@ -229,6 +230,14 @@ async fn accept_connection(
 
     while let Some(message) = ws_stream.next().await {
         let message = message.expect("Failed to get request");
+
+        if let Message::Ping(ping_data) = message {
+            ws_stream.send(Message::Pong(ping_data))
+                .await
+                .expect("Failed to respond to ping message");
+            continue;
+        }
+
         msg_tx
             .unbounded_send(message)
             .expect("Failed to forward request");

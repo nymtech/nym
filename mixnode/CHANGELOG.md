@@ -1,5 +1,9 @@
 # nym-mixnode Changelog
 
+## 0.3.1
+
+* Fixed crash when directory server goes down
+
 ## 0.3.0
 
 * cleaned up a lot of internal dependencies

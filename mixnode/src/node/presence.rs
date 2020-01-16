@@ -36,10 +36,12 @@ impl Notifier {
             .unwrap();
     }
 
-    pub fn run(&self) {
+    pub async fn run(self) {
+        let delay_duration = Duration::from_secs(5);
+
         loop {
             self.notify();
-            thread::sleep(Duration::from_secs(5));
+            tokio::time::delay_for(delay_duration).await;
         }
     }
 }

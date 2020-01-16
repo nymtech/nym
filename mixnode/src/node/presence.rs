@@ -2,6 +2,7 @@ use crate::node;
 use directory_client::presence::MixNodePresence;
 use directory_client::requests::presence_mixnodes_post::PresenceMixNodesPoster;
 use directory_client::DirectoryClient;
+use log::{debug, error};
 use std::time::Duration;
 
 pub struct Notifier {
@@ -29,10 +30,10 @@ impl Notifier {
     }
 
     pub fn notify(&self) {
-        self.net_client
-            .presence_mix_nodes_post
-            .post(&self.presence)
-            .unwrap();
+        match self.net_client.presence_mix_nodes_post.post(&self.presence) {
+            Err(err) => error!("failed to send presence - {:?}", err),
+            Ok(_) => debug!("sent presence information"),
+        }
     }
 
     pub async fn run(self) {

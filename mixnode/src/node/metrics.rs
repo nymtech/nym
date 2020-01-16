@@ -4,6 +4,7 @@ use directory_client::DirectoryClient;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
+use log::{debug, error};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -80,14 +81,15 @@ impl MetricsReporter {
             tokio::time::delay_for(delay_duration).await;
             let (received, sent) =
                 MetricsReporter::acquire_and_reset_metrics(metrics.clone()).await;
-            directory_client
-                .metrics_post
-                .post(&MixMetric {
-                    pub_key: pub_key_str.clone(),
-                    received,
-                    sent,
-                })
-                .unwrap();
+
+            match directory_client.metrics_post.post(&MixMetric {
+                pub_key: pub_key_str.clone(),
+                received,
+                sent,
+            }) {
+                Err(err) => error!("failed to send metrics - {:?}", err),
+                Ok(_) => debug!("sent metrics information"),
+            }
         }
     }
 }

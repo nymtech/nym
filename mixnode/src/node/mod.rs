@@ -1,4 +1,5 @@
 use crate::mix_peer::MixPeer;
+use crate::node;
 use crate::node::metrics::MetricsReporter;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
@@ -214,7 +215,7 @@ impl MixNode {
         }
     }
 
-    pub fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn start(&self, config: node::Config) -> Result<(), Box<dyn std::error::Error>> {
         // Create the runtime, probably later move it to MixNode itself?
         let mut rt = Runtime::new()?;
 
@@ -226,6 +227,11 @@ impl MixNode {
         };
         let pub_key_str =
             base64::encode_config(&self.public_key.to_bytes().to_vec(), base64::URL_SAFE);
+
+        rt.spawn({
+            let presence_notifier = presence::Notifier::new(&config);
+            presence_notifier.run()
+        });
 
         let metrics = MetricsReporter::new().add_arc_mutex();
         rt.spawn(MetricsReporter::run_received_metrics_control(

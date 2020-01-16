@@ -1,11 +1,8 @@
 use crate::banner;
 use crate::node;
-use crate::node::presence;
 use crate::node::MixNode;
 use clap::ArgMatches;
-
 use std::net::ToSocketAddrs;
-use std::thread;
 
 fn print_binding_warning(address: &str) {
     println!("\n##### WARNING #####");
@@ -29,11 +26,7 @@ pub fn start(matches: &ArgMatches) {
     );
 
     let mix = MixNode::new(&config);
-    thread::spawn(move || {
-        let notifier = presence::Notifier::new(&config);
-        notifier.run();
-    });
-    mix.start().unwrap();
+    mix.start(config).unwrap();
 }
 
 fn new_config(matches: &ArgMatches) -> node::Config {

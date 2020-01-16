@@ -1339,7 +1339,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "addressing",
  "base64 0.11.0",
@@ -1372,7 +1372,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "addressing",
  "base64 0.11.0",
@@ -1381,13 +1381,14 @@ dependencies = [
  "curve25519-dalek",
  "directory-client",
  "futures 0.3.1",
+ "log",
  "sphinx",
  "tokio 0.2.9",
 ]
 
 [[package]]
 name = "nym-sfw-provider"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "base64 0.11.0",
  "built",
@@ -1398,6 +1399,7 @@ dependencies = [
  "futures 0.3.1",
  "hex",
  "hmac",
+ "log",
  "rand 0.7.2",
  "serde",
  "serde_json",

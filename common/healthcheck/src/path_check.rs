@@ -175,9 +175,13 @@ impl PathChecker {
 
         if provider_client.is_none() {
             debug!("we can ignore this path as provider itself is inaccessible");
-            self.paths_status
+            if self
+                .paths_status
                 .insert(path_identifier, PathStatus::Unhealthy)
-                .unwrap();
+                .is_some()
+            {
+                panic!("Overwriting path checks!")
+            }
             return;
         }
 
@@ -193,9 +197,13 @@ impl PathChecker {
 
         if first_node_client.is_none() {
             debug!("we can ignore this path as layer one mix is inaccessible");
-            self.paths_status
+            if self
+                .paths_status
                 .insert(path_identifier, PathStatus::Unhealthy)
-                .unwrap();
+                .is_some()
+            {
+                panic!("Overwriting path checks!")
+            }
             return;
         }
 

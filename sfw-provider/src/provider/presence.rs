@@ -4,6 +4,7 @@ use directory_client::presence::MixProviderPresence;
 use directory_client::requests::presence_providers_post::PresenceMixProviderPoster;
 use directory_client::DirectoryClient;
 use futures::lock::Mutex as FMutex;
+use log::{debug, error};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -52,10 +53,10 @@ impl Notifier {
     }
 
     pub fn notify(&self, presence: MixProviderPresence) {
-        self.net_client
-            .presence_providers_post
-            .post(&presence)
-            .unwrap();
+        match self.net_client.presence_providers_post.post(&presence) {
+            Err(err) => error!("failed to send presence - {:?}", err),
+            Ok(_) => debug!("sent presence information"),
+        }
     }
 
     pub async fn run(self) {

@@ -2,7 +2,6 @@ use crate::node;
 use directory_client::presence::MixNodePresence;
 use directory_client::requests::presence_mixnodes_post::PresenceMixNodesPoster;
 use directory_client::DirectoryClient;
-use std::thread;
 use std::time::Duration;
 
 pub struct Notifier {

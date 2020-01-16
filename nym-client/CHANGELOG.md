@@ -1,5 +1,9 @@
 # nym-client Changelog
 
+## 0.3.1
+
+* Version increase for consistency with `nym-mixnode` and `nym-sfw-provider`
+
 ## 0.3.0
 
 * cleaned up a lot of internal dependencies

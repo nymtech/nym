@@ -1,5 +1,9 @@
 # nym-sfw-provider Changelog
 
+## 0.3.2
+
+* Version increase for consistency with `nym-mixnode` and `nym-client`
+
 ## 0.3.1
 
 * Fixed crash when directory server goes down

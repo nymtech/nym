@@ -1,5 +1,10 @@
 # nym-mixnode Changelog
 
+## 0.3.2
+
+* added separate announce address
+* allows announcing dns hostname instead of an ip address 
+
 ## 0.3.1
 
 * Fixed crash when directory server goes down

@@ -1,5 +1,9 @@
 # nym-client Changelog
 
+## 0.3.2
+
+* allows receiving topology with dns hostname instead of an ip address
+
 ## 0.3.1
 
 * Version increase for consistency with `nym-mixnode` and `nym-sfw-provider`

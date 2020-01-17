@@ -17,7 +17,7 @@ impl Notifier {
         };
         let net_client = directory_client::Client::new(config);
         let presence = MixNodePresence {
-            host: node_config.announce_socket_address.to_string(),
+            host: node_config.announce_address.clone(),
             pub_key: node_config.public_key_string(),
             layer: node_config.layer as u64,
             last_seen: 0,

@@ -24,6 +24,10 @@ pub fn start(matches: &ArgMatches) {
         "Listening for incoming packets on {}",
         config.socket_address
     );
+    println!(
+        "Announcing the following socket address: {}",
+        config.announce_address
+    );
 
     let mix = MixNode::new(&config);
     mix.start(config).unwrap();
@@ -51,17 +55,19 @@ fn new_config(matches: &ArgMatches) -> node::Config {
         .next()
         .expect("Failed to extract the socket address from the iterator");
 
-    let announce_host = matches.value_of("announce-host").unwrap_or(host);
+    let announce_host = matches.value_of("announce_host").unwrap_or(host);
     let announce_port = matches
-        .value_of("announce-port")
+        .value_of("announce_port")
         .map(|port| port.parse::<u16>().unwrap())
         .unwrap_or(port);
 
-    let announce_socket_address = (announce_host, announce_port)
+    let _ = (announce_host, announce_port)
         .to_socket_addrs()
         .expect("Failed to combine announce host and port")
         .next()
         .expect("Failed to extract the announce socket address from the iterator");
+
+    let announce_address = format!("{}:{}", announce_host, announce_port);
 
     let (secret_key, public_key) = sphinx::crypto::keygen();
 
@@ -75,7 +81,7 @@ fn new_config(matches: &ArgMatches) -> node::Config {
         layer,
         public_key,
         socket_address,
-        announce_socket_address,
+        announce_address,
         secret_key,
     }
 }

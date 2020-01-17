@@ -51,6 +51,18 @@ fn new_config(matches: &ArgMatches) -> node::Config {
         .next()
         .expect("Failed to extract the socket address from the iterator");
 
+    let announce_host = matches.value_of("announce-host").unwrap_or(host);
+    let announce_port = matches
+        .value_of("announce-port")
+        .map(|port| port.parse::<u16>().unwrap())
+        .unwrap_or(port);
+
+    let announce_socket_address = (announce_host, announce_port)
+        .to_socket_addrs()
+        .expect("Failed to combine announce host and port")
+        .next()
+        .expect("Failed to extract the announce socket address from the iterator");
+
     let (secret_key, public_key) = sphinx::crypto::keygen();
 
     let directory_server = matches
@@ -63,6 +75,7 @@ fn new_config(matches: &ArgMatches) -> node::Config {
         layer,
         public_key,
         socket_address,
+        announce_socket_address,
         secret_key,
     }
 }

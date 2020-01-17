@@ -19,6 +19,7 @@ mod presence;
 pub mod runner;
 
 pub struct Config {
+    announce_socket_address: SocketAddr,
     directory_server: String,
     layer: usize,
     public_key: MontgomeryPoint,

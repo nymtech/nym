@@ -1,6 +1,7 @@
 use crate::requests::presence_topology_get::PresenceTopologyGetRequester;
 use crate::{Client, Config, DirectoryClient};
 use serde::{Deserialize, Serialize};
+use std::net::ToSocketAddrs;
 use topology::{CocoNode, MixNode, MixProviderNode, NymTopology};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -47,7 +48,15 @@ pub struct MixNodePresence {
 impl Into<topology::MixNode> for MixNodePresence {
     fn into(self) -> topology::MixNode {
         topology::MixNode {
-            host: self.host.parse().unwrap(),
+            host: self
+                .host
+                .to_socket_addrs()
+                .expect(&format!(
+                    "failed to parse topology host ({:?}) into a SocketAddr",
+                    self.host
+                ))
+                .next()
+                .unwrap(),
             pub_key: self.pub_key,
             layer: self.layer,
             last_seen: self.last_seen,

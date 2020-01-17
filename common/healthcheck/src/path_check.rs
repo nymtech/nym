@@ -1,6 +1,6 @@
 use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair, MixnetIdentityPublicKey};
 use itertools::Itertools;
-use log::{debug, error, warn};
+use log::{debug, error, trace, warn};
 use mix_client::MixClient;
 use provider_client::ProviderClient;
 use sphinx::header::delays::Delay;
@@ -131,6 +131,7 @@ impl PathChecker {
                 Ok(messages) => {
                     let mut should_stop = false;
                     for msg in messages.into_iter() {
+                        trace!("received provider response: {:?}", msg);
                         if msg == sfw_provider_requests::DUMMY_MESSAGE_CONTENT {
                             // finish iterating the loop as the messages might not be ordered
                             should_stop = true;

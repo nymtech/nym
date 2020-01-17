@@ -1,6 +1,6 @@
 use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair, MixnetIdentityPublicKey};
 use itertools::Itertools;
-use log::{debug, error, warn};
+use log::{debug, error, trace, warn};
 use mix_client::MixClient;
 use provider_client::ProviderClient;
 use sphinx::header::delays::Delay;
@@ -131,6 +131,7 @@ impl PathChecker {
                 Ok(messages) => {
                     let mut should_stop = false;
                     for msg in messages.into_iter() {
+                        trace!("received provider response: {:?}", msg);
                         if msg == sfw_provider_requests::DUMMY_MESSAGE_CONTENT {
                             // finish iterating the loop as the messages might not be ordered
                             should_stop = true;
@@ -175,9 +176,13 @@ impl PathChecker {
 
         if provider_client.is_none() {
             debug!("we can ignore this path as provider itself is inaccessible");
-            self.paths_status
+            if self
+                .paths_status
                 .insert(path_identifier, PathStatus::Unhealthy)
-                .unwrap();
+                .is_some()
+            {
+                panic!("Overwriting path checks!")
+            }
             return;
         }
 
@@ -193,9 +198,13 @@ impl PathChecker {
 
         if first_node_client.is_none() {
             debug!("we can ignore this path as layer one mix is inaccessible");
-            self.paths_status
+            if self
+                .paths_status
                 .insert(path_identifier, PathStatus::Unhealthy)
-                .unwrap();
+                .is_some()
+            {
+                panic!("Overwriting path checks!")
+            }
             return;
         }
 

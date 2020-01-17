@@ -33,6 +33,18 @@ fn main() {
                         .required(true),
                 )
                 .arg(
+                    Arg::with_name("announce_host")
+                        .long("announce-host")
+                        .help("The host that will be reported to the directory server")
+                        .takes_value(true)
+                )
+                .arg(
+                    Arg::with_name("announce_port")
+                        .long("announce-port")
+                        .help("The port that will be reported to the directory server")
+                        .takes_value(true)
+                )
+                .arg(
                     Arg::with_name("directory")
                         .long("directory")
                         .help("Address of the directory server the node is sending presence and metrics to")

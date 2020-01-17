@@ -1,6 +1,8 @@
 use crate::requests::presence_topology_get::PresenceTopologyGetRequester;
 use crate::{Client, Config, DirectoryClient};
 use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
+use std::io;
 use std::net::ToSocketAddrs;
 use topology::{CocoNode, MixNode, MixProviderNode, NymTopology};
 
@@ -45,23 +47,25 @@ pub struct MixNodePresence {
     pub version: String,
 }
 
-impl Into<topology::MixNode> for MixNodePresence {
-    fn into(self) -> topology::MixNode {
-        topology::MixNode {
-            host: self
-                .host
-                .to_socket_addrs()
-                .expect(&format!(
-                    "failed to parse topology host ({:?}) into a SocketAddr",
-                    self.host
-                ))
-                .next()
-                .unwrap(),
+impl TryInto<topology::MixNode> for MixNodePresence {
+    type Error = io::Error;
+
+    fn try_into(self) -> Result<MixNode, Self::Error> {
+        let resolved_hostname = self.host.to_socket_addrs()?.next();
+        if resolved_hostname.is_none() {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "no valid socket address",
+            ));
+        }
+
+        Ok(topology::MixNode {
+            host: resolved_hostname.unwrap(),
             pub_key: self.pub_key,
             layer: self.layer,
             last_seen: self.last_seen,
             version: self.version,
-        }
+        })
     }
 }
 
@@ -184,7 +188,10 @@ impl NymTopology for Topology {
     }
 
     fn get_mix_nodes(&self) -> Vec<topology::MixNode> {
-        self.mix_nodes.iter().map(|x| x.clone().into()).collect()
+        self.mix_nodes
+            .iter()
+            .filter_map(|x| x.clone().try_into().ok())
+            .collect()
     }
 
     fn get_mix_provider_nodes(&self) -> Vec<topology::MixProviderNode> {
@@ -196,5 +203,42 @@ impl NymTopology for Topology {
 
     fn get_coco_nodes(&self) -> Vec<topology::CocoNode> {
         self.coco_nodes.iter().map(|x| x.clone().into()).collect()
+    }
+}
+
+#[cfg(test)]
+mod converting_mixnode_presence_into_topology_mixnode {
+    use super::*;
+
+    #[test]
+    fn it_returns_error_on_unresolvable_hostname() {
+        let unresolvable_hostname = "foomp.foomp.foomp:1234";
+
+        let mix_presence = MixNodePresence {
+            host: unresolvable_hostname.to_string(),
+            pub_key: "".to_string(),
+            layer: 0,
+            last_seen: 0,
+            version: "".to_string(),
+        };
+
+        let result: Result<topology::MixNode, io::Error> = mix_presence.try_into();
+        assert!(result.is_err())
+    }
+
+    #[test]
+    fn it_returns_resolved_ip_on_resolvable_hostname() {
+        let resolvable_hostname = "nymtech.net:1234";
+
+        let mix_presence = MixNodePresence {
+            host: resolvable_hostname.to_string(),
+            pub_key: "".to_string(),
+            layer: 0,
+            last_seen: 0,
+            version: "".to_string(),
+        };
+
+        let result: Result<topology::MixNode, io::Error> = mix_presence.try_into();
+        assert!(result.is_ok())
     }
 }

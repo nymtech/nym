@@ -2381,7 +2381,7 @@ dependencies = [
 [[package]]
 name = "tokio-tungstenite"
 version = "0.10.0"
-source = "git+https://github.com/dbcfd/tokio-tungstenite?rev=6dc2018cbfe8fe7ddd75ff977343086503135b38#6dc2018cbfe8fe7ddd75ff977343086503135b38"
+source = "git+https://github.com/snapview/tokio-tungstenite?rev=308d9680c0e59dd1e8651659a775c05df937934e#308d9680c0e59dd1e8651659a775c05df937934e"
 dependencies = [
  "futures 0.3.1",
  "log",

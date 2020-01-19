@@ -43,3 +43,8 @@ tokio-tungstenite = { git = "https://github.com/snapview/tokio-tungstenite", rev
 
 [build-dependencies]
 built = "0.3.2"
+
+[lib]
+name = "nym_client"
+path = "src/lib.rs"
+

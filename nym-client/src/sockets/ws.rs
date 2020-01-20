@@ -75,6 +75,26 @@ impl ClientRequest {
         recipient_address: String,
         mut input_tx: mpsc::UnboundedSender<InputMessage>,
     ) -> ServerResponse {
+        let message_bytes = msg.into_bytes();
+        // TODO: wait until 0.4.0 release to replace those constants with newly exposed
+        // sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH
+        // we can't do it now for compatibility reasons as most recent sphinx revision
+        // has breaking changes due to packet format changes
+        let maximum_plaintext_length = sphinx::constants::PAYLOAD_SIZE
+            - sphinx::constants::SECURITY_PARAMETER
+            - sphinx::constants::DESTINATION_ADDRESS_LENGTH
+            - 1;
+        if message_bytes.len() > maximum_plaintext_length {
+            return ServerResponse::Error {
+                message: format!(
+                    "too long message. Sent {} bytes while the maximum is {}",
+                    message_bytes.len(),
+                    maximum_plaintext_length
+                )
+                .to_string(),
+            };
+        }
+
         let address_vec = match base64::decode_config(&recipient_address, base64::URL_SAFE) {
             Err(e) => {
                 return ServerResponse::Error {
@@ -95,9 +115,7 @@ impl ClientRequest {
 
         let dummy_surb = [0; 16];
 
-        let input_msg = InputMessage(Destination::new(address, dummy_surb), msg.into_bytes());
-
-        println!("ALMOST ABOUT TO SOMEDAY SEND {:?}", input_msg);
+        let input_msg = InputMessage(Destination::new(address, dummy_surb), message_bytes);
         input_tx.send(input_msg).await.unwrap();
 
         ServerResponse::Send

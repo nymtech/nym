@@ -113,7 +113,6 @@ impl ClientRequest {
         }
 
         let messages = res_rx.map(|msg| msg).await;
-
         if messages.is_err() {
             warn!("Failed to handle_fetch. messages is an error");
             return ServerResponse::Error {
@@ -121,14 +120,27 @@ impl ClientRequest {
             };
         }
 
-        let messages = messages.unwrap();
-        let messages_as_b64 = messages
-            .iter()
-            .map(|message| base64::encode_config(message, base64::URL_SAFE))
+        //        let s = match str::from_utf8(buf) {
+        //            Ok(v) => v,
+        //            Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+        //        };
+
+        let messages = messages
+            .unwrap()
+            .into_iter()
+            .map(|message| {
+                match std::str::from_utf8(&message) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        error!("Invalid UTF-8 sequence in response message: {}", e);
+                        ""
+                    }
+                }
+                .to_owned()
+            })
             .collect();
-        ServerResponse::Fetch {
-            messages: messages_as_b64,
-        }
+
+        ServerResponse::Fetch { messages }
     }
 
     async fn handle_get_clients(topology: Topology) -> ServerResponse {

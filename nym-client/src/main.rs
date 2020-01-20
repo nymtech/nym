@@ -2,15 +2,12 @@
 
 use clap::{App, Arg, ArgMatches, SubCommand};
 
+pub mod built_info;
 pub mod clients;
 mod commands;
 mod persistence;
 mod sockets;
 pub mod utils;
-pub mod built_info {
-    // The file has been placed there by the build script.
-    include!(concat!(env!("OUT_DIR"), "/built.rs"));
-}
 
 fn main() {
     env_logger::init();

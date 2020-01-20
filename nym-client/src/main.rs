@@ -91,9 +91,18 @@ fn main() {
 
 fn execute(matches: ArgMatches) -> Result<(), String> {
     match matches.subcommand() {
-        ("init", Some(m)) => Ok(commands::init::execute(m)),
-        ("tcpsocket", Some(m)) => Ok(commands::tcpsocket::execute(m)),
-        ("websocket", Some(m)) => Ok(commands::websocket::execute(m)),
+        ("init", Some(m)) => {
+            println!("{}", banner());
+            Ok(commands::init::execute(m))
+        }
+        ("tcpsocket", Some(m)) => {
+            println!("{}", banner());
+            Ok(commands::tcpsocket::execute(m))
+        }
+        ("websocket", Some(m)) => {
+            println!("{}", banner());
+            Ok(commands::websocket::execute(m))
+        }
         _ => Err(usage()),
     }
 }

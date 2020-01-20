@@ -5,15 +5,12 @@ use env_logger;
 use log::*;
 use std::process;
 
+pub mod built_info;
 pub mod clients;
 mod commands;
 mod persistence;
 mod sockets;
 pub mod utils;
-pub mod built_info {
-    // The file has been placed there by the build script.
-    include!(concat!(env!("OUT_DIR"), "/built.rs"));
-}
 
 fn main() {
     env_logger::init();
@@ -94,9 +91,18 @@ fn main() {
 
 fn execute(matches: ArgMatches) -> Result<(), String> {
     match matches.subcommand() {
-        ("init", Some(m)) => Ok(commands::init::execute(m)),
-        ("tcpsocket", Some(m)) => Ok(commands::tcpsocket::execute(m)),
-        ("websocket", Some(m)) => Ok(commands::websocket::execute(m)),
+        ("init", Some(m)) => {
+            println!("{}", banner());
+            Ok(commands::init::execute(m))
+        }
+        ("tcpsocket", Some(m)) => {
+            println!("{}", banner());
+            Ok(commands::tcpsocket::execute(m))
+        }
+        ("websocket", Some(m)) => {
+            println!("{}", banner());
+            Ok(commands::websocket::execute(m))
+        }
         _ => Err(usage()),
     }
 }

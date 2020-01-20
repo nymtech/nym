@@ -1,4 +1,3 @@
-use crate::banner;
 use crate::clients::{NymClient, SocketType};
 use crate::persistence::pemstore;
 
@@ -7,8 +6,6 @@ use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPublicKey};
 use std::net::ToSocketAddrs;
 
 pub fn execute(matches: &ArgMatches) {
-    println!("{}", banner());
-
     let id = matches.value_of("id").unwrap().to_string();
     let port = match matches.value_of("port").unwrap_or("9001").parse::<u16>() {
         Ok(n) => n,

@@ -1,11 +1,9 @@
-use crate::banner;
 use crate::persistence::pathfinder::Pathfinder;
 use crate::persistence::pemstore::PemStore;
 use clap::ArgMatches;
 use crypto::identity::MixnetIdentityKeyPair;
 
 pub fn execute(matches: &ArgMatches) {
-    println!("{}", banner());
     println!("Initialising client...");
 
     let id = matches.value_of("id").unwrap().to_string(); // required for now

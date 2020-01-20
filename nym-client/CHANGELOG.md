@@ -1,5 +1,12 @@
 # nym-client Changelog
 
+## 0.3.3
+
+* websocket handling of 'ping', 'pong' and 'close' messages
+* websocket not crashing on binary messages
+* websocket returning text rather than base64
+* restored `nym-client` lib functionality 
+
 ## 0.3.2
 
 * allows receiving topology with dns hostname instead of an ip address

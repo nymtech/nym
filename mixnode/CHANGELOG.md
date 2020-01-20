@@ -1,5 +1,9 @@
 # nym-mixnode Changelog
 
+## 0.3.3
+
+* Version increase for consistency with `nym-client`
+
 ## 0.3.2
 
 * added separate announce address

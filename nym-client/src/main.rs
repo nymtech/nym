@@ -1,7 +1,6 @@
 #![recursion_limit = "256"]
 
 use clap::{App, Arg, ArgMatches, SubCommand};
-use std::process;
 
 pub mod clients;
 mod commands;
@@ -84,18 +83,26 @@ fn main() {
         )
         .get_matches();
 
-    if let Err(e) = execute(arg_matches) {
-        println!("{}", e);
-        process::exit(1);
-    }
+    execute(arg_matches);
 }
 
-fn execute(matches: ArgMatches) -> Result<(), String> {
+fn execute(matches: ArgMatches) {
     match matches.subcommand() {
-        ("init", Some(m)) => Ok(commands::init::execute(m)),
-        ("tcpsocket", Some(m)) => Ok(commands::tcpsocket::execute(m)),
-        ("websocket", Some(m)) => Ok(commands::websocket::execute(m)),
-        _ => Err(usage()),
+        ("init", Some(m)) => {
+            println!("{}", banner());
+            commands::init::execute(m);
+        }
+        ("tcpsocket", Some(m)) => {
+            println!("{}", banner());
+            commands::tcpsocket::execute(m);
+        }
+        ("websocket", Some(m)) => {
+            println!("{}", banner());
+            commands::websocket::execute(m);
+        }
+        _ => {
+            println!("{}", usage());
+        }
     }
 }
 

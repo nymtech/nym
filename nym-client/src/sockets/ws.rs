@@ -120,11 +120,6 @@ impl ClientRequest {
             };
         }
 
-        //        let s = match str::from_utf8(buf) {
-        //            Ok(v) => v,
-        //            Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-        //        };
-
         let messages = messages
             .unwrap()
             .into_iter()

@@ -2,11 +2,11 @@
 
 This repository contains the full Nym platform, written in Rust.
 
-The platform is composed of multiple Rust crates. Top-level crates include:
+The platform is composed of multiple Rust crates. Top-level executable binary crates include:
 
-* client - an executable crate which you can use for interacting with Nym nodes
-* mixnode - an executable mixnode crate
-* sfw-provider - an executable store-and-forward provider crate. The provider acts sort of like a mailbox for mixnet messages.
+* client - an executable which you can build into your own applications. Use it for interacting with Nym nodes.
+* mixnode - the mixnode crate.
+* sfw-provider - a store-and-forward service provider. The provider acts sort of like a mailbox for mixnet messages.
 * validator - currently just starting development. Handles consensus ordering of transactions, mixmining, and coconut credential generation and validation. 
 
 [![Build Status](https://travis-ci.com/nymtech/nym.svg?branch=develop)](https://travis-ci.com/nymtech/nym)

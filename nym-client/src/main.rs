@@ -1,8 +1,6 @@
 #![recursion_limit = "256"]
 
 use clap::{App, Arg, ArgMatches, SubCommand};
-use env_logger;
-use log::*;
 use std::process;
 
 pub mod clients;
@@ -87,7 +85,7 @@ fn main() {
         .get_matches();
 
     if let Err(e) = execute(arg_matches) {
-        error!("{}", e);
+        println!("{}", e);
         process::exit(1);
     }
 }

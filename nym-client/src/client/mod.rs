@@ -12,12 +12,12 @@ use futures::{SinkExt, StreamExt};
 use log::*;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::{Destination, DestinationAddressBytes};
-use std::error::Error;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
+mod cover_traffic_stream;
 mod mix_traffic;
 mod provider_poller;
 pub mod received_buffer;
@@ -75,24 +75,6 @@ impl NymClient {
             directory,
             auth_token,
             socket_type,
-        }
-    }
-
-    async fn start_loop_cover_traffic_stream(
-        mut tx: mpsc::UnboundedSender<MixMessage>,
-        our_info: Destination,
-        topology: Topology,
-    ) {
-        loop {
-            info!("[LOOP COVER TRAFFIC STREAM] - next cover message!");
-            let delay = utils::poisson::sample(LOOP_COVER_AVERAGE_DELAY);
-            let delay_duration = Duration::from_secs_f64(delay);
-            tokio::time::delay_for(delay_duration).await;
-            let cover_message =
-                utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, &topology);
-            tx.send(MixMessage::new(cover_message.0, cover_message.1))
-                .await
-                .unwrap();
         }
     }
 
@@ -220,11 +202,12 @@ impl NymClient {
         );
 
         let mix_traffic_future = rt.spawn(MixTrafficController::run(mix_rx));
-        let loop_cover_traffic_future = rt.spawn(NymClient::start_loop_cover_traffic_stream(
-            mix_tx.clone(),
-            Destination::new(self.address, Default::default()),
-            initial_topology.clone(),
-        ));
+        let loop_cover_traffic_future =
+            rt.spawn(cover_traffic_stream::start_loop_cover_traffic_stream(
+                mix_tx.clone(),
+                Destination::new(self.address, Default::default()),
+                initial_topology.clone(),
+            ));
 
         let out_queue_control_future = rt.spawn(NymClient::control_out_queue(
             mix_tx,

@@ -1,3 +1,6 @@
+[profile.release]
+panic = "abort"
+
 [workspace]
 
 members = [

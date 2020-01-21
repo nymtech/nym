@@ -1,25 +1,22 @@
 use crate::built_info;
-use crate::client::mix_traffic::{MixMessage, MixTrafficController};
+use crate::client::mix_traffic::MixTrafficController;
 use crate::client::received_buffer::ReceivedMessagesBuffer;
 use crate::sockets::tcp;
 use crate::sockets::ws;
-use crate::utils;
 use directory_client::presence::Topology;
 use futures::channel::mpsc;
 use futures::join;
-use futures::select;
-use futures::{SinkExt, StreamExt};
 use log::*;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::{Destination, DestinationAddressBytes};
 use std::net::SocketAddr;
-use std::time::Duration;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
 mod cover_traffic_stream;
 mod mix_traffic;
 mod provider_poller;
+mod real_traffic_stream;
 pub mod received_buffer;
 
 // TODO: all of those constants should probably be moved to config file
@@ -38,8 +35,10 @@ pub enum SocketType {
 pub struct NymClient {
     // to be replaced by something else I guess
     address: DestinationAddressBytes,
-    pub input_tx: mpsc::UnboundedSender<InputMessage>,
+
     // to be used by "send" function or socket, etc
+    pub input_tx: mpsc::UnboundedSender<InputMessage>,
+
     input_rx: mpsc::UnboundedReceiver<InputMessage>,
     socket_listening_address: SocketAddr,
     directory: String,
@@ -75,43 +74,6 @@ impl NymClient {
             directory,
             auth_token,
             socket_type,
-        }
-    }
-
-    async fn control_out_queue(
-        mut mix_tx: mpsc::UnboundedSender<MixMessage>,
-        mut input_rx: mpsc::UnboundedReceiver<InputMessage>,
-        our_info: Destination,
-        topology: Topology,
-    ) {
-        loop {
-            info!("[OUT QUEUE] here I will be sending real traffic (or loop cover if nothing is available)");
-            // TODO: consider replacing select macro with our own proper future definition with polling
-            let traffic_message = select! {
-                real_message = input_rx.next() => {
-                    info!("[OUT QUEUE] - we got a real message!");
-                    if real_message.is_none() {
-                        error!("Unexpected 'None' real message!");
-                        std::process::exit(1);
-                    }
-                    let real_message = real_message.unwrap();
-                    println!("real: {:?}", real_message);
-                    utils::sphinx::encapsulate_message(real_message.0, real_message.1, &topology)
-                },
-
-                default => {
-                    info!("[OUT QUEUE] - no real message - going to send extra loop cover");
-                    utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, &topology)
-                }
-            };
-
-            mix_tx
-                .send(MixMessage::new(traffic_message.0, traffic_message.1))
-                .await
-                .unwrap();
-
-            let delay_duration = Duration::from_secs_f64(MESSAGE_SENDING_AVERAGE_DELAY);
-            tokio::time::delay_for(delay_duration).await;
         }
     }
 
@@ -209,7 +171,7 @@ impl NymClient {
                 initial_topology.clone(),
             ));
 
-        let out_queue_control_future = rt.spawn(NymClient::control_out_queue(
+        let out_queue_control_future = rt.spawn(real_traffic_stream::control_out_queue(
             mix_tx,
             self.input_rx,
             Destination::new(self.address, Default::default()),

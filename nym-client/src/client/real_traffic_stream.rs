@@ -4,7 +4,7 @@ use crate::utils;
 use directory_client::presence::Topology;
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
-use futures::{select, Stream, StreamExt};
+use futures::{select, Future, Stream, StreamExt};
 use log::{debug, error, info, trace, warn};
 use sphinx::route::Destination;
 use sphinx::SphinxPacket;
@@ -15,7 +15,7 @@ use tokio::time;
 use topology::NymTopology;
 
 pub(crate) struct OutQueueControl {
-    interval: time::Interval,
+    delay: time::Delay,
     mix_tx: mpsc::UnboundedSender<MixMessage>,
     input_rx: mpsc::UnboundedReceiver<InputMessage>,
     our_info: Destination,
@@ -31,10 +31,23 @@ impl Stream for OutQueueControl {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // it is not yet time to return a message
-        if Stream::poll_next(Pin::new(&mut self.interval), cx).is_pending() {
+        if Future::poll(Pin::new(&mut self.delay), cx).is_pending() {
             return Poll::Pending;
         };
 
+        // we know it's time to send a message, so let's prepare delay for the next one
+        // Get the `now` by looking at the current `delay` deadline
+        let now = self.delay.deadline();
+
+        let next_poisson_delay =
+            Duration::from_secs_f64(utils::poisson::sample(MESSAGE_SENDING_AVERAGE_DELAY));
+
+        // The next interval value is `next_poisson_delay` after the one that just
+        // yielded.
+        let next = now + next_poisson_delay;
+        self.delay.reset(next);
+
+        // decide what kind of message to send
         match Stream::poll_next(Pin::new(&mut self.input_rx), cx) {
             // in the case our real message channel stream was closed, we should also indicate we are closed
             // (and whoever is using the stream should panic)
@@ -70,8 +83,9 @@ impl OutQueueControl {
         our_info: Destination,
         topology: Topology,
     ) -> Self {
+        let initial_delay = time::delay_for(Duration::from_secs_f64(MESSAGE_SENDING_AVERAGE_DELAY));
         OutQueueControl {
-            interval: time::interval(Duration::from_secs_f64(MESSAGE_SENDING_AVERAGE_DELAY)),
+            delay: initial_delay,
             mix_tx,
             input_rx,
             our_info,

@@ -171,13 +171,20 @@ impl NymClient {
                 initial_topology.clone(),
             ));
 
-        let out_queue_control_future = rt.spawn(real_traffic_stream::control_out_queue(
-            mix_tx,
-            self.input_rx,
-            Destination::new(self.address, Default::default()),
-            initial_topology.clone(),
-        ));
+        let topology_clone = initial_topology.clone();
+        let self_address = self.address;
+        let input_rx = self.input_rx;
 
+        let out_queue_control_future = rt.spawn(async move {
+            real_traffic_stream::OutQueueControl::new(
+                mix_tx,
+                input_rx,
+                Destination::new(self_address, Default::default()),
+                topology_clone,
+            )
+            .run_out_queue_control()
+            .await
+        });
         let provider_polling_future = rt.spawn(provider_poller.start_provider_polling());
 
         match self.socket_type {

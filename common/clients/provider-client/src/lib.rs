@@ -92,7 +92,6 @@ impl ProviderClient {
         let bytes = pull_request.to_bytes();
 
         let response = self.send_request(bytes).await?;
-        info!("Received the following response: {:?}", response);
 
         let parsed_response = PullResponse::from_bytes(&response)?;
         Ok(parsed_response.messages)

@@ -18,8 +18,10 @@ use tokio::runtime::Runtime;
 use topology::NymTopology;
 
 mod mix_traffic;
+mod provider_poller;
 pub mod received_buffer;
 
+// TODO: all of those constants should probably be moved to config file
 const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
 // seconds
 const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 0.5;
@@ -123,26 +125,6 @@ impl NymClient {
         }
     }
 
-    async fn start_provider_polling(
-        provider_client: provider_client::ProviderClient,
-        mut poller_tx: mpsc::UnboundedSender<Vec<Vec<u8>>>,
-    ) {
-        let loop_message = &utils::sphinx::LOOP_COVER_MESSAGE_PAYLOAD.to_vec();
-        let dummy_message = &sfw_provider_requests::DUMMY_MESSAGE_CONTENT.to_vec();
-        loop {
-            let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
-            tokio::time::delay_for(delay_duration).await;
-            info!("[FETCH MSG] - Polling provider...");
-            let messages = provider_client.retrieve_messages().await.unwrap();
-            let good_messages = messages
-                .into_iter()
-                .filter(|message| message != loop_message && message != dummy_message)
-                .collect();
-            // if any of those fails, whole application should blow...
-            poller_tx.send(good_messages).await.unwrap();
-        }
-    }
-
     pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
         let score_threshold = 0.0;
         println!("Starting nym client");
@@ -192,6 +174,12 @@ impl NymClient {
             panic!("No valid path exists in the topology");
         }
 
+        // channels for intercomponent communication
+        let (mix_tx, mix_rx) = mpsc::unbounded();
+        let (poller_input_tx, poller_input_rx) = mpsc::unbounded();
+        let (received_messages_buffer_output_tx, received_messages_buffer_output_rx) =
+            mpsc::unbounded();
+
         // this is temporary and assumes there exists only a single provider.
         let provider_client_listener_address: SocketAddr = versioned_healthy_topology
             .get_mix_provider_nodes()
@@ -199,29 +187,17 @@ impl NymClient {
             .expect("Could not get a provider from the supplied network topology, are you using the right directory server?")
             .client_listener;
 
-        let mut provider_client = provider_client::ProviderClient::new(
+        let mut provider_poller = provider_poller::ProviderPoller::new(
+            poller_input_tx,
             provider_client_listener_address,
             self.address,
             self.auth_token,
         );
 
         // registration
-        rt.block_on(async {
-            match self.auth_token {
-                None => {
-                    let auth_token = provider_client.register().await.unwrap();
-                    provider_client.update_token(auth_token);
-                    info!("Obtained new token! - {:?}", auth_token);
-                }
-                Some(token) => println!("Already got the token! - {:?}", token),
-            }
-        });
-
-        // channels for intercomponent communication
-        let (mix_tx, mix_rx) = mpsc::unbounded();
-        let (poller_input_tx, poller_input_rx) = mpsc::unbounded();
-        let (received_messages_buffer_output_tx, received_messages_buffer_output_rx) =
-            mpsc::unbounded();
+        if let Err(err) = rt.block_on(provider_poller.perform_initial_registration()) {
+            panic!("Failed to perform initial registration: {:?}", err);
+        };
 
         let received_messages_buffer_controllers_future = rt.spawn(
             ReceivedMessagesBuffer::new()
@@ -242,10 +218,7 @@ impl NymClient {
             versioned_healthy_topology.clone(),
         ));
 
-        let provider_polling_future = rt.spawn(NymClient::start_provider_polling(
-            provider_client,
-            poller_input_tx,
-        ));
+        let provider_polling_future = rt.spawn(provider_poller.start_provider_polling());
 
         match self.socket_type {
             SocketType::WebSocket => {

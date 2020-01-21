@@ -1,4 +1,5 @@
 use crate::built_info;
+use crate::client::mix_traffic::{MixMessage, MixTrafficController};
 use crate::sockets::tcp;
 use crate::sockets::ws;
 use crate::utils;
@@ -11,53 +12,19 @@ use futures::{SinkExt, StreamExt};
 use log::*;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::{Destination, DestinationAddressBytes};
-use sphinx::SphinxPacket;
-use std::io;
-use std::io::prelude::*;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
+mod mix_traffic;
+
 const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
 // seconds
 const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 0.5;
 //  seconds;
 const FETCH_MESSAGES_DELAY: f64 = 1.0; // seconds;
-
-// provider-poller sends polls service provider; receives messages
-// provider-poller sends (TX) to ReceivedBufferController (RX)
-// ReceivedBufferController sends (TX) to ... ??Client??
-// outQueueController sends (TX) to TrafficStreamController (RX)
-// TrafficStreamController sends messages to mixnet
-// ... ??Client?? sends (TX) to outQueueController (RX)
-// Loop cover traffic stream just sends messages to mixnet without any channel communication
-
-struct MixMessage(SocketAddr, SphinxPacket);
-
-struct MixTrafficController;
-
-impl MixTrafficController {
-    // this was way more difficult to implement than what this code may suggest...
-    async fn run(mut rx: mpsc::UnboundedReceiver<MixMessage>) {
-        let mix_client = mix_client::MixClient::new();
-        while let Some(mix_message) = rx.next().await {
-            info!(
-                "[MIX TRAFFIC CONTROL] - got a mix_message for {:?}",
-                mix_message.0
-            );
-            let send_res = mix_client.send(mix_message.1, mix_message.0).await;
-            match send_res {
-                Ok(_) => {
-                    print!(".");
-                    io::stdout().flush().ok().expect("Could not flush stdout");
-                }
-                Err(e) => error!("We failed to send the message :( - {:?}", e),
-            };
-        }
-    }
-}
 
 pub type BufferResponse = oneshot::Sender<Vec<Vec<u8>>>;
 
@@ -163,7 +130,7 @@ impl NymClient {
             tokio::time::delay_for(delay_duration).await;
             let cover_message =
                 utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, &topology);
-            tx.send(MixMessage(cover_message.0, cover_message.1))
+            tx.send(MixMessage::new(cover_message.0, cover_message.1))
                 .await
                 .unwrap();
         }
@@ -197,7 +164,7 @@ impl NymClient {
             };
 
             mix_tx
-                .send(MixMessage(traffic_message.0, traffic_message.1))
+                .send(MixMessage::new(traffic_message.0, traffic_message.1))
                 .await
                 .unwrap();
 

@@ -1,4 +1,4 @@
-use crate::clients::{NymClient, SocketType};
+use crate::client::{NymClient, SocketType};
 use crate::persistence::pemstore;
 
 use clap::ArgMatches;

@@ -3,7 +3,7 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
 
 pub mod built_info;
-pub mod clients;
+pub mod client;
 mod commands;
 mod persistence;
 mod sockets;

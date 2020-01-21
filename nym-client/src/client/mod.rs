@@ -12,6 +12,7 @@ use futures::{SinkExt, StreamExt};
 use log::*;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::{Destination, DestinationAddressBytes};
+use std::error::Error;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -44,6 +45,13 @@ pub struct NymClient {
     directory: String,
     auth_token: Option<AuthToken>,
     socket_type: SocketType,
+}
+
+// TODO: this will be moved into module responsible for refreshing topology
+#[derive(Debug)]
+enum TopologyError {
+    HealthCheckError,
+    NoValidPathsError,
 }
 
 #[derive(Debug)]
@@ -125,12 +133,11 @@ impl NymClient {
         }
     }
 
-    pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
+    // TODO: this will be moved into module responsible for refreshing topology
+    async fn get_compatible_topology(&self) -> Result<Topology, TopologyError> {
         let score_threshold = 0.0;
-        println!("Starting nym client");
-        let mut rt = Runtime::new()?;
+        info!("Trying to obtain valid, healthy, topology");
 
-        println!("Trying to obtain valid, healthy, topology");
         let full_topology = Topology::new(self.directory.clone());
 
         // run a healthcheck to determine healthy-ish nodes:
@@ -143,15 +150,11 @@ impl NymClient {
             num_test_packets: 2,
         };
         let healthcheck = healthcheck::HealthChecker::new(healthcheck_config);
-        let healthcheck_result = rt.block_on(healthcheck.do_check());
+        let healthcheck_result = healthcheck.do_check().await;
 
         let healthcheck_scores = match healthcheck_result {
             Err(err) => {
-                error!(
-                    "failed to perform healthcheck to determine healthy topology - {:?}",
-                    err
-                );
-                return Err(Box::new(err));
+                return Err(TopologyError::HealthCheckError);
             }
             Ok(scores) => scores,
         };
@@ -169,10 +172,15 @@ impl NymClient {
 
         // make sure you can still send a packet through the network:
         if !versioned_healthy_topology.can_construct_path_through() {
-            error!("No valid path exists in the topology");
-            // TODO: replace panic with proper return type
-            panic!("No valid path exists in the topology");
+            return Err(TopologyError::NoValidPathsError);
         }
+
+        Ok(versioned_healthy_topology)
+    }
+
+    pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
+        info!("Starting nym client");
+        let mut rt = Runtime::new()?;
 
         // channels for intercomponent communication
         let (mix_tx, mix_rx) = mpsc::unbounded();
@@ -180,8 +188,15 @@ impl NymClient {
         let (received_messages_buffer_output_tx, received_messages_buffer_output_rx) =
             mpsc::unbounded();
 
+        let initial_topology = match rt.block_on(self.get_compatible_topology()) {
+            Ok(topology) => topology,
+            Err(err) => {
+                panic!("Failed to obtain initial network topology: {:?}", err);
+            }
+        };
+
         // this is temporary and assumes there exists only a single provider.
-        let provider_client_listener_address: SocketAddr = versioned_healthy_topology
+        let provider_client_listener_address: SocketAddr = initial_topology
             .get_mix_provider_nodes()
             .first()
             .expect("Could not get a provider from the supplied network topology, are you using the right directory server?")
@@ -208,14 +223,14 @@ impl NymClient {
         let loop_cover_traffic_future = rt.spawn(NymClient::start_loop_cover_traffic_stream(
             mix_tx.clone(),
             Destination::new(self.address, Default::default()),
-            versioned_healthy_topology.clone(),
+            initial_topology.clone(),
         ));
 
         let out_queue_control_future = rt.spawn(NymClient::control_out_queue(
             mix_tx,
             self.input_rx,
             Destination::new(self.address, Default::default()),
-            versioned_healthy_topology.clone(),
+            initial_topology.clone(),
         ));
 
         let provider_polling_future = rt.spawn(provider_poller.start_provider_polling());
@@ -227,7 +242,7 @@ impl NymClient {
                     self.input_tx,
                     received_messages_buffer_output_tx,
                     self.address,
-                    versioned_healthy_topology,
+                    initial_topology,
                 ));
             }
             SocketType::TCP => {
@@ -236,7 +251,7 @@ impl NymClient {
                     self.input_tx,
                     received_messages_buffer_output_tx,
                     self.address,
-                    versioned_healthy_topology,
+                    initial_topology,
                 ));
             }
             SocketType::None => (),

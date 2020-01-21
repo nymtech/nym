@@ -1,5 +1,6 @@
 use crate::built_info;
 use crate::client::mix_traffic::{MixMessage, MixTrafficController};
+use crate::client::received_buffer::ReceivedMessagesBuffer;
 use crate::sockets::tcp;
 use crate::sockets::ws;
 use crate::utils;
@@ -15,7 +16,6 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
-use crate::client::received_buffer::ReceivedMessagesBuffer;
 
 mod mix_traffic;
 pub mod received_buffer;
@@ -223,18 +223,10 @@ impl NymClient {
         let (received_messages_buffer_output_tx, received_messages_buffer_output_rx) =
             mpsc::unbounded();
 
-        let received_messages_buffer = ReceivedMessagesBuffer::new().add_arc_futures_mutex();
-
-        let received_messages_buffer_input_controller_future =
-            rt.spawn(ReceivedMessagesBuffer::run_poller_input_controller(
-                received_messages_buffer.clone(),
-                poller_input_rx,
-            ));
-        let received_messages_buffer_output_controller_future =
-            rt.spawn(ReceivedMessagesBuffer::run_query_output_controller(
-                received_messages_buffer,
-                received_messages_buffer_output_rx,
-            ));
+        let received_messages_buffer_controllers_future = rt.spawn(
+            ReceivedMessagesBuffer::new()
+                .start_controllers(poller_input_rx, received_messages_buffer_output_rx),
+        );
 
         let mix_traffic_future = rt.spawn(MixTrafficController::run(mix_rx));
         let loop_cover_traffic_future = rt.spawn(NymClient::start_loop_cover_traffic_stream(
@@ -279,8 +271,7 @@ impl NymClient {
 
         rt.block_on(async {
             let future_results = join!(
-                received_messages_buffer_input_controller_future,
-                received_messages_buffer_output_controller_future,
+                received_messages_buffer_controllers_future,
                 mix_traffic_future,
                 loop_cover_traffic_future,
                 out_queue_control_future,
@@ -293,7 +284,6 @@ impl NymClient {
                     && future_results.2.is_ok()
                     && future_results.3.is_ok()
                     && future_results.4.is_ok()
-                    && future_results.5.is_ok()
             );
         });
 

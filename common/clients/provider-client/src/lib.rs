@@ -111,4 +111,8 @@ impl ProviderClient {
 
         Ok(parsed_response.auth_token)
     }
+
+    pub fn is_registered(&self) -> bool {
+        self.auth_token.is_some()
+    }
 }

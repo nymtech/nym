@@ -8,6 +8,7 @@ members = [
     "common/addressing",
     "common/crypto",
     "common/healthcheck",
+    "common/pemstore",
     "common/topology",
     "mixnode",
     "nym-client",

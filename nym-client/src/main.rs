@@ -5,7 +5,7 @@ use clap::{App, Arg, ArgMatches, SubCommand};
 pub mod built_info;
 pub mod client;
 mod commands;
-mod persistence;
+pub mod config;
 mod sockets;
 pub mod utils;
 

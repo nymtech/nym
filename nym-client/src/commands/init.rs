@@ -1,13 +1,13 @@
-use crate::persistence::pathfinder::Pathfinder;
-use crate::persistence::pemstore::PemStore;
+use crate::config::persistance::pathfinder::ClientPathfinder;
 use clap::ArgMatches;
 use crypto::identity::MixnetIdentityKeyPair;
+use pemstore::pemstore::PemStore;
 
 pub fn execute(matches: &ArgMatches) {
     println!("Initialising client...");
 
     let id = matches.value_of("id").unwrap().to_string(); // required for now
-    let pathfinder = Pathfinder::new(id);
+    let pathfinder = ClientPathfinder::new(id);
 
     println!("Writing keypairs to {:?}...", pathfinder.config_dir);
     let mix_keys = crypto::identity::DummyMixIdentityKeyPair::new();

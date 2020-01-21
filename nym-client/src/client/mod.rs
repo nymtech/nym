@@ -126,12 +126,13 @@ impl NymClient {
         info!("Starting nym client");
         let mut rt = Runtime::new()?;
 
-        // channels for intercomponent communication
+        // channels for inter-component communication
         let (mix_tx, mix_rx) = mpsc::unbounded();
         let (poller_input_tx, poller_input_rx) = mpsc::unbounded();
         let (received_messages_buffer_output_tx, received_messages_buffer_output_rx) =
             mpsc::unbounded();
 
+        // get initial topology; already filtered by health and version
         let initial_topology = match rt.block_on(self.get_compatible_topology()) {
             Ok(topology) => topology,
             Err(err) => {
@@ -158,12 +159,20 @@ impl NymClient {
             panic!("Failed to perform initial registration: {:?}", err);
         };
 
+        // setup all of futures for the components running on the client
+
+        // buffer controlling all messages fetched from provider
+        // required so that other components would be able to use them (say the websocket)
         let received_messages_buffer_controllers_future = rt.spawn(
             ReceivedMessagesBuffer::new()
                 .start_controllers(poller_input_rx, received_messages_buffer_output_rx),
         );
 
+        // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
         let mix_traffic_future = rt.spawn(MixTrafficController::run(mix_rx));
+
+        // future constantly pumping loop cover traffic at some specified average rate
+        // the pumped traffic goes to the MixTrafficController
         let loop_cover_traffic_future =
             rt.spawn(cover_traffic_stream::start_loop_cover_traffic_stream(
                 mix_tx.clone(),
@@ -171,10 +180,15 @@ impl NymClient {
                 initial_topology.clone(),
             ));
 
+        // cloning arguments required by OutQueueControl; required due to move
         let topology_clone = initial_topology.clone();
         let self_address = self.address;
         let input_rx = self.input_rx;
 
+        // future constantly pumping traffic at some specified average rate
+        // if a real message is available on 'input_rx' that might have been received from say
+        // the websocket, the real message is used, otherwise a loop cover message is generated
+        // the pumped traffic goes to the MixTrafficController
         let out_queue_control_future = rt.spawn(async move {
             real_traffic_stream::OutQueueControl::new(
                 mix_tx,
@@ -185,8 +199,13 @@ impl NymClient {
             .run_out_queue_control()
             .await
         });
+
+        // future constantly trying to fetch any received messages from the provider
+        // the received messages are sent to ReceivedMessagesBuffer to be available to rest of the system
         let provider_polling_future = rt.spawn(provider_poller.start_provider_polling());
 
+        // a temporary workaround for starting socket listener of specified type
+        // in the future the actual socket handler should start THIS client instead
         match self.socket_type {
             SocketType::WebSocket => {
                 rt.spawn(ws::start_websocket(

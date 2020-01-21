@@ -51,9 +51,12 @@ impl ReceivedMessagesBuffer {
 
         while let Some(request) = query_receiver.next().await {
             let messages = ReceivedMessagesBuffer::acquire_and_empty(buf.clone()).await;
-            // if this fails, the whole application needs to blow
-            // because currently only this thread would fail
-            request.send(messages).unwrap();
+            if let Err(failed_messages) = request.send(messages) {
+                error!(
+                    "Failed to send the messages to the requester. Adding them back to the buffer"
+                );
+                ReceivedMessagesBuffer::add_new_messages(buf.clone(), failed_messages).await;
+            }
         }
     }
 }

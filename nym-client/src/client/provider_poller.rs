@@ -57,18 +57,18 @@ impl ProviderPoller {
         let dummy_message = &sfw_provider_requests::DUMMY_MESSAGE_CONTENT.to_vec();
 
         let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
+        let extended_delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY * 10.0);
+
         loop {
             debug!("Polling provider...");
 
             let messages = match self.provider_client.retrieve_messages().await {
-                Ok(messages) => messages,
                 Err(err) => {
-                    let extended_delay_duration =
-                        Duration::from_secs_f64(FETCH_MESSAGES_DELAY * 10.0);
                     error!("Failed to query the provider for messages... Going to wait {:?} before retrying", extended_delay_duration);
                     tokio::time::delay_for(extended_delay_duration).await;
                     continue;
                 }
+                Ok(messages) => messages,
             };
 
             let good_messages = messages

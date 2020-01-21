@@ -1,51 +1,95 @@
 use crate::client::mix_traffic::MixMessage;
 use crate::client::{InputMessage, MESSAGE_SENDING_AVERAGE_DELAY};
 use crate::utils;
+use directory_client::presence::Topology;
 use futures::channel::mpsc;
-use futures::{select, StreamExt};
-use log::{debug, error, info, trace};
+use futures::task::{Context, Poll};
+use futures::{select, Stream, StreamExt};
+use log::{debug, error, info, trace, warn};
 use sphinx::route::Destination;
+use sphinx::SphinxPacket;
+use std::net::SocketAddr;
+use std::pin::Pin;
 use std::time::Duration;
+use tokio::time;
 use topology::NymTopology;
 
-pub(crate) async fn control_out_queue<T>(
+pub(crate) struct OutQueueControl {
+    interval: time::Interval,
     mix_tx: mpsc::UnboundedSender<MixMessage>,
-    mut input_rx: mpsc::UnboundedReceiver<InputMessage>,
+    input_rx: mpsc::UnboundedReceiver<InputMessage>,
     our_info: Destination,
-    topology: T,
-) where
-    T: NymTopology,
-{
-    info!("Starting out queue controller where real traffic (or loop cover if nothing is available) will be sent");
-    loop {
-        // TODO: consider replacing select macro with our own proper future definition with polling
-        let traffic_message = select! {
-            real_message = input_rx.next() => {
-                debug!("we got a real message!");
-                if real_message.is_none() {
-                    error!("Unexpected 'None' real message!");
-                    std::process::exit(1);
-                }
-                let real_message = real_message.unwrap();
-                trace!("real message: {:?}", real_message);
-                utils::sphinx::encapsulate_message(real_message.0, real_message.1, &topology)
-            },
 
-            default => {
-                debug!("no real message - going to send extra loop cover");
-                utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, &topology)
-            }
+    // due to pinning, DerefMut trait, futures, etc its way easier to
+    // just have concrete implementation here rather than generic NymTopology
+    // considering that it will be replaced with refreshing topology within few days anyway
+    topology: Topology,
+}
+
+impl Stream for OutQueueControl {
+    type Item = (SocketAddr, SphinxPacket);
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        // it is not yet time to return a message
+        if Stream::poll_next(Pin::new(&mut self.interval), cx).is_pending() {
+            return Poll::Pending;
         };
 
-        // if this one fails, there's no retrying because it means that either:
-        // - we run out of memory
-        // - the receiver channel is closed
-        // in either case there's no recovery and we can only panic
-        mix_tx
-            .unbounded_send(MixMessage::new(traffic_message.0, traffic_message.1))
-            .unwrap();
+        match Stream::poll_next(Pin::new(&mut self.input_rx), cx) {
+            // in the case our real message channel stream was closed, we should also indicate we are closed
+            // (and whoever is using the stream should panic)
+            Poll::Ready(None) => Poll::Ready(None),
 
-        let delay_duration = Duration::from_secs_f64(MESSAGE_SENDING_AVERAGE_DELAY);
-        tokio::time::delay_for(delay_duration).await;
+            // if there's an actual message - return it
+            Poll::Ready(Some(real_message)) => {
+                trace!("real message");
+                Poll::Ready(Some(utils::sphinx::encapsulate_message(
+                    real_message.0,
+                    real_message.1,
+                    &self.topology,
+                )))
+            }
+
+            // otherwise construct a dummy one
+            _ => {
+                trace!("loop cover message");
+                Poll::Ready(Some(utils::sphinx::loop_cover_message(
+                    self.our_info.address,
+                    self.our_info.identifier,
+                    &self.topology,
+                )))
+            }
+        }
+    }
+}
+
+impl OutQueueControl {
+    pub(crate) fn new(
+        mix_tx: mpsc::UnboundedSender<MixMessage>,
+        input_rx: mpsc::UnboundedReceiver<InputMessage>,
+        our_info: Destination,
+        topology: Topology,
+    ) -> Self {
+        OutQueueControl {
+            interval: time::interval(Duration::from_secs_f64(MESSAGE_SENDING_AVERAGE_DELAY)),
+            mix_tx,
+            input_rx,
+            our_info,
+            topology,
+        }
+    }
+
+    pub(crate) async fn run_out_queue_control(mut self) {
+        info!("starting out queue controller");
+        while let Some(next_message) = self.next().await {
+            debug!("created new message");
+            // if this one fails, there's no retrying because it means that either:
+            // - we run out of memory
+            // - the receiver channel is closed
+            // in either case there's no recovery and we can only panic
+            self.mix_tx
+                .unbounded_send(MixMessage::new(next_message.0, next_message.1))
+                .unwrap();
+        }
     }
 }

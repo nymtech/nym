@@ -4,77 +4,27 @@ use crate::sockets::tcp;
 use crate::sockets::ws;
 use crate::utils;
 use directory_client::presence::Topology;
-use futures::channel::{mpsc, oneshot};
+use futures::channel::mpsc;
 use futures::join;
-use futures::lock::Mutex as FMutex;
 use futures::select;
 use futures::{SinkExt, StreamExt};
 use log::*;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::{Destination, DestinationAddressBytes};
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
+use crate::client::received_buffer::ReceivedMessagesBuffer;
 
 mod mix_traffic;
+pub mod received_buffer;
 
 const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
 // seconds
 const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 0.5;
 //  seconds;
 const FETCH_MESSAGES_DELAY: f64 = 1.0; // seconds;
-
-pub type BufferResponse = oneshot::Sender<Vec<Vec<u8>>>;
-
-struct ReceivedMessagesBuffer {
-    messages: Vec<Vec<u8>>,
-}
-
-impl ReceivedMessagesBuffer {
-    fn add_arc_futures_mutex(self) -> Arc<FMutex<Self>> {
-        Arc::new(FMutex::new(self))
-    }
-
-    fn new() -> Self {
-        ReceivedMessagesBuffer {
-            messages: Vec::new(),
-        }
-    }
-
-    async fn add_new_messages(buf: Arc<FMutex<Self>>, msgs: Vec<Vec<u8>>) {
-        info!("Adding new messages to the buffer! {:?}", msgs);
-        let mut unlocked = buf.lock().await;
-        unlocked.messages.extend(msgs);
-    }
-
-    async fn run_poller_input_controller(
-        buf: Arc<FMutex<Self>>,
-        mut poller_rx: mpsc::UnboundedReceiver<Vec<Vec<u8>>>,
-    ) {
-        while let Some(new_messages) = poller_rx.next().await {
-            ReceivedMessagesBuffer::add_new_messages(buf.clone(), new_messages).await;
-        }
-    }
-
-    async fn acquire_and_empty(buf: Arc<FMutex<Self>>) -> Vec<Vec<u8>> {
-        let mut unlocked = buf.lock().await;
-        std::mem::replace(&mut unlocked.messages, Vec::new())
-    }
-
-    async fn run_query_output_controller(
-        buf: Arc<FMutex<Self>>,
-        mut query_receiver: mpsc::UnboundedReceiver<BufferResponse>,
-    ) {
-        while let Some(request) = query_receiver.next().await {
-            let messages = ReceivedMessagesBuffer::acquire_and_empty(buf.clone()).await;
-            // if this fails, the whole application needs to blow
-            // because currently only this thread would fail
-            request.send(messages).unwrap();
-        }
-    }
-}
 
 pub enum SocketType {
     TCP,

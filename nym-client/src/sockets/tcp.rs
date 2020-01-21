@@ -1,4 +1,4 @@
-use crate::client::BufferResponse;
+use crate::client::received_buffer::BufferResponse;
 use crate::client::InputMessage;
 use directory_client::presence::Topology;
 use futures::channel::{mpsc, oneshot};

@@ -1,4 +1,5 @@
 use futures::io::Error;
+use log::*;
 use sfw_provider_requests::requests::{ProviderRequest, PullRequest, RegisterRequest};
 use sfw_provider_requests::responses::{
     ProviderResponse, ProviderResponseError, PullResponse, RegisterResponse,
@@ -67,16 +68,14 @@ impl ProviderClient {
 
         socket.set_keepalive(Some(Duration::from_secs(2))).unwrap();
         socket.write_all(&bytes[..]).await?;
-        if let Err(_e) = socket.shutdown(Shutdown::Write) {
-            // TODO: make it a silent log once we have a proper logging library
-            //            eprintln!("failed to close write part of the socket; err = {:?}", e)
+        if let Err(e) = socket.shutdown(Shutdown::Write) {
+            warn!("failed to close write part of the socket; err = {:?}", e)
         }
 
         let mut response = Vec::new();
         socket.read_to_end(&mut response).await?;
-        if let Err(_e) = socket.shutdown(Shutdown::Read) {
-            // TODO: make it a silent log once we have a proper logging library
-            //            eprintln!("failed to close read part of the socket; err = {:?}", e)
+        if let Err(e) = socket.shutdown(Shutdown::Read) {
+            warn!("failed to close read part of the socket; err = {:?}", e)
         }
 
         Ok(response)

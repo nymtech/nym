@@ -1,17 +1,8 @@
-use crate::persistence::pathfinder::Pathfinder;
+use crate::pathfinder::PathFinder;
 use pem::{encode, parse, Pem};
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
-
-pub fn read_mix_identity_keypair_from_disk(
-    id: String,
-) -> crypto::identity::DummyMixIdentityKeyPair {
-    let pathfinder = Pathfinder::new(id);
-    let pem_store = PemStore::new(pathfinder);
-    let keypair = pem_store.read_identity();
-    keypair
-}
 
 #[allow(dead_code)]
 pub fn read_mix_encryption_keypair_from_disk(_id: String) -> crypto::encryption::x25519::KeyPair {
@@ -25,11 +16,11 @@ pub struct PemStore {
 }
 
 impl PemStore {
-    pub fn new(pathfinder: Pathfinder) -> PemStore {
+    pub fn new<P: PathFinder>(pathfinder: P) -> PemStore {
         PemStore {
-            config_dir: pathfinder.config_dir,
-            private_mix_key: pathfinder.private_mix_key,
-            public_mix_key: pathfinder.public_mix_key,
+            config_dir: pathfinder.config_dir(),
+            private_mix_key: pathfinder.private_identity_key(),
+            public_mix_key: pathfinder.public_identity_key(),
         }
     }
 

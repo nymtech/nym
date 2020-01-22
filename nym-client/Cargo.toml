@@ -21,8 +21,6 @@ futures = "0.3.1"
 hex = "0.4.0"
 log = "0.4.8"
 pem = "0.7.0"
-rand = "0.7.2"
-rand_distr = "0.2.2"
 reqwest = "0.9.22"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0.44"
@@ -35,6 +33,7 @@ crypto = {path = "../common/crypto"}
 directory-client = { path = "../common/clients/directory-client" }
 healthcheck = { path = "../common/healthcheck" }
 mix-client = { path = "../common/clients/mix-client" }
+pemstore = {path = "../common/pemstore"}
 provider-client = { path = "../common/clients/provider-client" }
 sfw-provider-requests = { path = "../sfw-provider/sfw-provider-requests" }
 topology = {path = "../common/topology" }

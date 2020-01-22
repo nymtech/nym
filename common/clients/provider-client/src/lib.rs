@@ -65,7 +65,7 @@ impl ProviderClient {
 
     pub async fn send_request(&self, bytes: Vec<u8>) -> Result<Vec<u8>, ProviderClientError> {
         let mut socket = tokio::net::TcpStream::connect(self.provider_network_address).await?;
-        info!("keep alive: {:?}", socket.keepalive());
+
         socket.set_keepalive(Some(Duration::from_secs(2))).unwrap();
         socket.write_all(&bytes[..]).await?;
         if let Err(_e) = socket.shutdown(Shutdown::Write) {
@@ -92,7 +92,6 @@ impl ProviderClient {
         let bytes = pull_request.to_bytes();
 
         let response = self.send_request(bytes).await?;
-        info!("Received the following response: {:?}", response);
 
         let parsed_response = PullResponse::from_bytes(&response)?;
         Ok(parsed_response.messages)
@@ -110,5 +109,9 @@ impl ProviderClient {
         let parsed_response = RegisterResponse::from_bytes(&response)?;
 
         Ok(parsed_response.auth_token)
+    }
+
+    pub fn is_registered(&self) -> bool {
+        self.auth_token.is_some()
     }
 }

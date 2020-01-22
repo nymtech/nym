@@ -3,6 +3,9 @@ use sphinx::SphinxPacket;
 use std::net::SocketAddr;
 use tokio::prelude::*;
 
+pub mod packet;
+pub mod poisson;
+
 pub struct MixClient {}
 
 impl MixClient {
@@ -17,8 +20,7 @@ impl MixClient {
         mix_addr: SocketAddr,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let bytes = packet.to_bytes();
-
-        info!("socket addr: {:?}", mix_addr);
+        debug!("Sending to the following address: {:?}", mix_addr);
 
         let mut stream = tokio::net::TcpStream::connect(mix_addr).await?;
         stream.write_all(&bytes[..]).await?;

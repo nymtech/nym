@@ -1,5 +1,5 @@
-use crate::clients::BufferResponse;
-use crate::clients::InputMessage;
+use crate::client::received_buffer::BufferResponse;
+use crate::client::InputMessage;
 use directory_client::presence::Topology;
 use futures::channel::{mpsc, oneshot};
 use futures::future::FutureExt;
@@ -130,7 +130,7 @@ impl ClientRequest {
     }
 
     async fn handle_get_clients(topology: &Topology) -> ServerResponse {
-        println!("get clients handle");
+        println!("get client handle");
         let clients = topology
             .mix_provider_nodes
             .iter()
@@ -189,8 +189,8 @@ fn encode_fetched_messages(messages: Vec<Vec<u8>>) -> Vec<u8> {
 }
 
 fn encode_list_of_clients(clients: Vec<Vec<u8>>) -> Vec<u8> {
-    println!("clients: {:?}", clients);
-    // we can just concat all clients since all of them got to be 32 bytes long
+    println!("client: {:?}", clients);
+    // we can just concat all client since all of them got to be 32 bytes long
     // (if not, then we have bigger problem somewhere up the line)
 
     // converts [[1,2,3],[4,5,6],...] into [1,2,3,4,5,6,...]

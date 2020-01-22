@@ -7,6 +7,7 @@ pub mod config;
 mod sockets;
 
 fn main() {
+    dotenv::dotenv().ok();
     pretty_env_logger::init();
 
     let arg_matches = App::new("Nym Client")

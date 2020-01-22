@@ -98,6 +98,7 @@ impl NymClient {
 
         let healthcheck_scores = match healthcheck_result {
             Err(err) => {
+                error!("Error while performing the healtcheck: {:?}", err);
                 return Err(TopologyError::HealthCheckError);
             }
             Ok(scores) => scores,

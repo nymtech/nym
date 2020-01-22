@@ -49,7 +49,7 @@ impl ProviderPoller {
         Ok(())
     }
 
-    pub(crate) async fn start_provider_polling(mut self) {
+    pub(crate) async fn start_provider_polling(self) {
         info!("Starting provider poller");
 
         let loop_message = &mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD.to_vec();

@@ -6,6 +6,7 @@ use sphinx::route::{Node as SphinxNode, NodeAddressBytes};
 use std::cmp::max;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use version_checker;
 
 #[derive(Debug, Clone)]
 pub struct MixNode {
@@ -167,27 +168,33 @@ pub trait NymTopology: Sized {
 
     fn filter_node_versions(
         &self,
-        mix_version: &str,
-        provider_version: &str,
-        coco_version: &str,
+        expected_mix_version: &str,
+        expected_provider_version: &str,
+        expected_coco_version: &str,
     ) -> Self {
         let filtered_mixes = self
             .get_mix_nodes()
             .iter()
+            .filter(|mix_node| {
+                version_checker::is_compatible(&mix_node.version, expected_mix_version)
+            })
             .cloned()
-            .filter(|mix_node| mix_node.version == mix_version)
             .collect();
         let filtered_providers = self
             .get_mix_provider_nodes()
             .iter()
+            .filter(|provider_node| {
+                version_checker::is_compatible(&provider_node.version, expected_provider_version)
+            })
             .cloned()
-            .filter(|provider_node| provider_node.version == provider_version)
             .collect();
         let filtered_coco_nodes = self
             .get_coco_nodes()
             .iter()
+            .filter(|coco_node| {
+                version_checker::is_compatible(&coco_node.version, expected_coco_version)
+            })
             .cloned()
-            .filter(|coco_node| coco_node.version == coco_version)
             .collect();
 
         Self::new_from_nodes(filtered_mixes, filtered_providers, filtered_coco_nodes)

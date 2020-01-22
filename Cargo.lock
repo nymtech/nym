@@ -2422,6 +2422,7 @@ dependencies = [
  "rand 0.7.2",
  "serde",
  "sphinx",
+ "version-checker",
 ]
 
 [[package]]
@@ -2556,6 +2557,13 @@ name = "vec_map"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05c78687fb1a80548ae3250346c3db86a80a7cdd77bda190189f2d0a0987c81a"
+
+[[package]]
+name = "version-checker"
+version = "0.1.0"
+dependencies = [
+ "semver",
+]
 
 [[package]]
 name = "version_check"

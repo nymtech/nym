@@ -16,6 +16,7 @@ serde = { version = "1.0.104", features = ["derive"] }
 
 ## internal
 addressing = {path = "../addressing"}
+version-checker = {path = "../version-checker" }
 
 ## will be moved to proper dependencies once released
 sphinx = { git = "https://github.com/nymtech/sphinx", rev="1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f" }

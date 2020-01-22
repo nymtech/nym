@@ -8,6 +8,8 @@ use std::process;
 pub mod provider;
 
 fn main() {
+    pretty_env_logger::init();
+
     let arg_matches = App::new("Nym Service Provider")
         .version(built_info::PKG_VERSION)
         .author("Nymtech")

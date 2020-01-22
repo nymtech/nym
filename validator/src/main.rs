@@ -1,7 +1,6 @@
 use crate::validator::config::Config;
 use crate::validator::Validator;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use dotenv;
 use log::{error, trace};
 use std::process;
 use toml;
@@ -9,14 +8,6 @@ use toml;
 mod validator;
 
 fn main() {
-    // load environment variables from .env file
-    if dotenv::dotenv().is_err() {
-        eprint!("failed to read .env file - the logging is unlikely to work correctly")
-    }
-
-    // if we want to log to file or use different logger, we'd need to replace it here.
-    // a better alternative, but way more complex would be `slog` crate - we should
-    // perhaps research it at some point.
     pretty_env_logger::init();
 
     let arg_matches = App::new("Nym Validator")

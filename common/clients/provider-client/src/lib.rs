@@ -1,5 +1,4 @@
 use futures::io::Error;
-use log::info;
 use sfw_provider_requests::requests::{ProviderRequest, PullRequest, RegisterRequest};
 use sfw_provider_requests::responses::{
     ProviderResponse, ProviderResponseError, PullResponse, RegisterResponse,

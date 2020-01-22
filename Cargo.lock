@@ -1256,9 +1256,13 @@ dependencies = [
 name = "mix-client"
 version = "0.1.0"
 dependencies = [
+ "addressing",
  "log",
+ "rand 0.7.2",
+ "rand_distr",
  "sphinx",
  "tokio 0.2.9",
+ "topology",
 ]
 
 [[package]]
@@ -1358,8 +1362,6 @@ dependencies = [
  "pem",
  "pemstore",
  "provider-client",
- "rand 0.7.2",
- "rand_distr",
  "reqwest",
  "serde",
  "serde_json",

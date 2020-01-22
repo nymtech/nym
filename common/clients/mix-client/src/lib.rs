@@ -3,6 +3,9 @@ use sphinx::SphinxPacket;
 use std::net::SocketAddr;
 use tokio::prelude::*;
 
+pub mod packet;
+pub mod poisson;
+
 pub struct MixClient {}
 
 impl MixClient {

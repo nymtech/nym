@@ -3,6 +3,10 @@
 [[package]]
 name = "addressing"
 version = "0.1.0"
+dependencies = [
+ "log",
+ "pretty_env_logger",
+]
 
 [[package]]
 name = "adler32"
@@ -458,6 +462,8 @@ version = "0.1.0"
 dependencies = [
  "base64 0.11.0",
  "curve25519-dalek",
+ "log",
+ "pretty_env_logger",
  "rand 0.7.2",
  "rand_os",
 ]
@@ -514,7 +520,9 @@ dependencies = [
 name = "directory-client"
 version = "0.1.0"
 dependencies = [
+ "log",
  "mockito",
+ "pretty_env_logger",
  "reqwest",
  "serde",
  "topology",
@@ -856,6 +864,7 @@ dependencies = [
  "itertools",
  "log",
  "mix-client",
+ "pretty_env_logger",
  "provider-client",
  "serde",
  "serde_derive",
@@ -1258,6 +1267,7 @@ version = "0.1.0"
 dependencies = [
  "addressing",
  "log",
+ "pretty_env_logger",
  "rand 0.7.2",
  "rand_distr",
  "sphinx",
@@ -1361,6 +1371,7 @@ dependencies = [
  "mix-client",
  "pem",
  "pemstore",
+ "pretty_env_logger",
  "provider-client",
  "reqwest",
  "serde",
@@ -1385,6 +1396,7 @@ dependencies = [
  "directory-client",
  "futures 0.3.1",
  "log",
+ "pretty_env_logger",
  "sphinx",
  "tokio 0.2.9",
 ]
@@ -1403,6 +1415,7 @@ dependencies = [
  "hex",
  "hmac",
  "log",
+ "pretty_env_logger",
  "rand 0.7.2",
  "serde",
  "serde_json",
@@ -1510,7 +1523,9 @@ name = "pemstore"
 version = "0.1.0"
 dependencies = [
  "crypto",
+ "log",
  "pem",
+ "pretty_env_logger",
 ]
 
 [[package]]
@@ -1612,6 +1627,7 @@ version = "0.1.0"
 dependencies = [
  "futures 0.3.1",
  "log",
+ "pretty_env_logger",
  "sfw-provider-requests",
  "sphinx",
  "tokio 0.2.9",
@@ -2419,6 +2435,7 @@ dependencies = [
  "curve25519-dalek",
  "itertools",
  "log",
+ "pretty_env_logger",
  "rand 0.7.2",
  "serde",
  "sphinx",
@@ -2544,6 +2561,10 @@ dependencies = [
 [[package]]
 name = "validator-client"
 version = "0.1.0"
+dependencies = [
+ "log",
+ "pretty_env_logger",
+]
 
 [[package]]
 name = "vcpkg"

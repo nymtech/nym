@@ -10,7 +10,8 @@ edition = "2018"
 base64 = "0.11.0"
 curve25519-dalek = "1.2.3"
 itertools = "0.8.2"
-log = "0.4.8"
+log = "0.4"
+pretty_env_logger = "0.3"
 rand = "0.7.2"
 serde = { version = "1.0.104", features = ["derive"] }
 

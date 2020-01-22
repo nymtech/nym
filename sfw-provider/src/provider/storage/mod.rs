@@ -1,4 +1,5 @@
 use crate::provider::{MESSAGE_RETRIEVAL_LIMIT, STORED_MESSAGE_FILENAME_LENGTH};
+use log::*;
 use rand::Rng;
 use sfw_provider_requests::DUMMY_MESSAGE_CONTENT;
 use sphinx::route::{DestinationAddressBytes, SURBIdentifier};
@@ -62,7 +63,7 @@ impl ClientStorage {
         let client_dir_name = hex::encode(store_data.client_address);
         let full_store_dir = store_dir.join(client_dir_name);
         let full_store_path = full_store_dir.join(ClientStorage::generate_random_file_name());
-        println!(
+        debug!(
             "going to store: {:?} in file: {:?}",
             store_data.message, full_store_path
         );
@@ -83,7 +84,7 @@ impl ClientStorage {
         let client_dir_name = hex::encode(client_address);
         let full_store_dir = store_dir.join(client_dir_name);
 
-        println!("going to lookup: {:?}!", full_store_dir);
+        trace!("going to lookup: {:?}!", full_store_dir);
         if !full_store_dir.exists() {
             return Err(StoreError::ClientDoesntExistError);
         }
@@ -93,7 +94,7 @@ impl ClientStorage {
             .filter(|entry| {
                 let is_file = entry.metadata().unwrap().is_file();
                 if !is_file {
-                    eprintln!(
+                    error!(
                         "potentially corrupted client inbox! - found a non-file - {:?}",
                         entry.path()
                     );
@@ -109,8 +110,6 @@ impl ClientStorage {
             .take(MESSAGE_RETRIEVAL_LIMIT)
             .collect();
 
-        println!("retrieved the following data: {:?}", msgs);
-
         Ok(msgs)
     }
 
@@ -118,7 +117,7 @@ impl ClientStorage {
     // TODO 2: This should only be called AFTER we sent the reply. Because if client's connection failed after sending request
     // the messages would be deleted but he wouldn't have received them
     fn delete_file(path: PathBuf) -> io::Result<()> {
-        println!("Here {:?} will be deleted!", path);
+        trace!("Here {:?} will be deleted!", path);
         std::fs::remove_file(path) // another argument for db layer -> remove_file is NOT guaranteed to immediately get rid of the file
     }
 }

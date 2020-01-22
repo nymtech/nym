@@ -6,6 +6,7 @@ use curve25519_dalek::scalar::Scalar;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::SinkExt;
+use log::*;
 use sphinx::header::delays::Delay as SphinxDelay;
 use sphinx::{ProcessedPacket, SphinxPacket};
 use std::net::SocketAddr;
@@ -140,7 +141,7 @@ impl PacketProcessor {
             .await
             .unwrap();
 
-        println!("RECIPIENT: {:?}", forwarding_data.recipient);
+        trace!("RECIPIENT: {:?}", forwarding_data.recipient);
         match forwarding_data
             .recipient
             .send(forwarding_data.packet.to_bytes())
@@ -148,7 +149,7 @@ impl PacketProcessor {
         {
             Ok(()) => (),
             Err(e) => {
-                println!(
+                warn!(
                     "failed to write bytes to next mix peer. err = {:?}",
                     e.to_string()
                 );
@@ -190,7 +191,7 @@ impl MixNode {
             match socket.read(&mut buf).await {
                 // socket closed
                 Ok(n) if n == 0 => {
-                    println!("Remote connection closed.");
+                    trace!("Remote connection closed.");
                     return;
                 }
                 Ok(_) => {
@@ -203,14 +204,14 @@ impl MixNode {
                     PacketProcessor::wait_and_forward(fwd_data).await;
                 }
                 Err(e) => {
-                    println!("failed to read from socket; err = {:?}", e);
+                    warn!("failed to read from socket; err = {:?}", e);
                     return;
                 }
             };
 
             // Write the some data back
             if let Err(e) = socket.write_all(b"foomp").await {
-                println!("failed to write reply to socket; err = {:?}", e);
+                warn!("failed to write reply to socket; err = {:?}", e);
                 return;
             }
         }

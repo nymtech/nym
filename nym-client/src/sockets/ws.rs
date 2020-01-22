@@ -406,6 +406,6 @@ pub async fn start_websocket(
         ));
     }
 
-    eprintln!("The websocket went kaput...");
+    error!("The websocket went kaput...");
     Ok(())
 }

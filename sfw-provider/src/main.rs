@@ -1,6 +1,7 @@
 use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use crypto::identity::MixnetIdentityKeyPair;
+use log::error;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::process;
@@ -67,7 +68,7 @@ fn main() {
         .get_matches();
 
     if let Err(e) = execute(arg_matches) {
-        println!("{}", e);
+        error!("{}", e);
         process::exit(1);
     }
 }

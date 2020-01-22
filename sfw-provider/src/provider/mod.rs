@@ -5,6 +5,7 @@ use crypto::identity::{DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey};
 use directory_client::presence::MixProviderClient;
 use futures::io::Error;
 use futures::lock::Mutex as FMutex;
+use log::*;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use std::collections::HashMap;
@@ -132,7 +133,7 @@ impl ServiceProvider {
             match socket.read(&mut buf).await {
                 // socket closed
                 Ok(n) if n == 0 => {
-                    println!("Remote connection closed.");
+                    trace!("Remote connection closed.");
                     return;
                 }
                 Ok(_) => {
@@ -142,7 +143,7 @@ impl ServiceProvider {
                     ) {
                         Ok(sd) => sd,
                         Err(e) => {
-                            eprintln!("failed to process sphinx packet; err = {:?}", e);
+                            warn!("failed to process sphinx packet; err = {:?}", e);
                             return;
                         }
                     };
@@ -151,19 +152,19 @@ impl ServiceProvider {
                         processing_data.read().unwrap().store_dir.as_path(),
                     )
                     .unwrap_or_else(|e| {
-                        eprintln!("failed to store processed sphinx message; err = {:?}", e);
+                        error!("failed to store processed sphinx message; err = {:?}", e);
                         return;
                     });
                 }
                 Err(e) => {
-                    eprintln!("failed to read from socket; err = {:?}", e);
+                    warn!("failed to read from socket; err = {:?}", e);
                     return;
                 }
             };
 
             // Write the some data back
             if let Err(e) = socket.write_all(b"foomp").await {
-                eprintln!("failed to write reply to socket; err = {:?}", e);
+                warn!("failed to write reply to socket; err = {:?}", e);
                 return;
             }
         }
@@ -171,10 +172,10 @@ impl ServiceProvider {
 
     async fn send_response(mut socket: tokio::net::TcpStream, data: &[u8]) {
         if let Err(e) = socket.write_all(data).await {
-            eprintln!("failed to write reply to socket; err = {:?}", e)
+            warn!("failed to write reply to socket; err = {:?}", e)
         }
         if let Err(e) = socket.shutdown(Shutdown::Write) {
-            eprintln!("failed to close write part of the socket; err = {:?}", e)
+            warn!("failed to close write part of the socket; err = {:?}", e)
         }
     }
 
@@ -189,7 +190,7 @@ impl ServiceProvider {
         let response = match socket.read(&mut buf).await {
             // socket closed
             Ok(n) if n == 0 => {
-                println!("Remote connection closed.");
+                trace!("Remote connection closed.");
                 Err(())
             }
             Ok(n) => {
@@ -200,29 +201,27 @@ impl ServiceProvider {
                 .await
                 {
                     Err(e) => {
-                        eprintln!("failed to process client request; err = {:?}", e);
+                        warn!("failed to process client request; err = {:?}", e);
                         Err(())
                     }
                     Ok(res) => Ok(res),
                 }
             }
             Err(e) => {
-                eprintln!("failed to read from socket; err = {:?}", e);
+                warn!("failed to read from socket; err = {:?}", e);
                 Err(())
             }
         };
 
         if let Err(e) = socket.shutdown(Shutdown::Read) {
-            eprintln!("failed to close read part of the socket; err = {:?}", e)
+            warn!("failed to close read part of the socket; err = {:?}", e)
         }
 
         match response {
             Ok(res) => {
-                println!("should send this response! {:?}", res);
                 ServiceProvider::send_response(socket, &res).await;
             }
             _ => {
-                println!("we failed...");
                 ServiceProvider::send_response(socket, b"bad foomp").await;
             }
         }
@@ -308,7 +307,7 @@ impl ServiceProvider {
         });
 
         // this line in theory should never be reached as the runtime should be permanently blocked on listeners
-        eprintln!("The server went kaput...");
+        error!("The server went kaput...");
         Ok(())
     }
 }

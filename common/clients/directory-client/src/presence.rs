@@ -6,7 +6,7 @@ use std::io;
 use std::net::ToSocketAddrs;
 use topology::{CocoNode, MixNode, MixProviderNode, NymTopology};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct CocoPresence {
     pub host: String,
@@ -37,7 +37,7 @@ impl From<topology::CocoNode> for CocoPresence {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MixNodePresence {
     pub host: String,
@@ -81,7 +81,7 @@ impl From<topology::MixNode> for MixNodePresence {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MixProviderPresence {
     pub client_listener: String,
@@ -126,7 +126,7 @@ impl From<topology::MixProviderNode> for MixProviderPresence {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct MixProviderClient {
     pub pub_key: String,
@@ -149,7 +149,7 @@ impl From<topology::MixProviderClient> for MixProviderClient {
 }
 
 // Topology shows us the current state of the overall Nym network
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Topology {
     pub coco_nodes: Vec<CocoPresence>,

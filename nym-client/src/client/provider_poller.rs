@@ -1,5 +1,4 @@
 use crate::client::FETCH_MESSAGES_DELAY;
-use crate::utils;
 use futures::channel::mpsc;
 use log::{debug, error, info, trace, warn};
 use provider_client::ProviderClientError;
@@ -53,7 +52,7 @@ impl ProviderPoller {
     pub(crate) async fn start_provider_polling(mut self) {
         info!("Starting provider poller");
 
-        let loop_message = &utils::sphinx::LOOP_COVER_MESSAGE_PAYLOAD.to_vec();
+        let loop_message = &mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD.to_vec();
         let dummy_message = &sfw_provider_requests::DUMMY_MESSAGE_CONTENT.to_vec();
 
         let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
@@ -64,7 +63,7 @@ impl ProviderPoller {
 
             let messages = match self.provider_client.retrieve_messages().await {
                 Err(err) => {
-                    error!("Failed to query the provider for messages... Going to wait {:?} before retrying", extended_delay_duration);
+                    error!("Failed to query the provider for messages: {:?}, ... Going to wait {:?} before retrying", err, extended_delay_duration);
                     tokio::time::delay_for(extended_delay_duration).await;
                     continue;
                 }

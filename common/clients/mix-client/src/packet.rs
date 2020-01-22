@@ -14,7 +14,12 @@ pub fn loop_cover_message<T: NymTopology>(
 ) -> (SocketAddr, SphinxPacket) {
     let destination = Destination::new(our_address, surb_id);
 
-    encapsulate_message(destination, LOOP_COVER_MESSAGE_PAYLOAD.to_vec(), topology, LOOP_COVER_MESSAGE_AVERAGE_DELAY)
+    encapsulate_message(
+        destination,
+        LOOP_COVER_MESSAGE_PAYLOAD.to_vec(),
+        topology,
+        LOOP_COVER_MESSAGE_AVERAGE_DELAY,
+    )
 }
 
 pub fn encapsulate_message<T: NymTopology>(
@@ -27,7 +32,7 @@ pub fn encapsulate_message<T: NymTopology>(
     let provider = providers.pop().unwrap().into();
 
     let route = topology.route_to(provider).unwrap();
-    
+
     let delays = sphinx::header::delays::generate(route.len(), average_delay);
 
     // build the packet

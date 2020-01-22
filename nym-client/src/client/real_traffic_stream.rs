@@ -1,18 +1,19 @@
 use crate::client::mix_traffic::MixMessage;
 use crate::client::{InputMessage, MESSAGE_SENDING_AVERAGE_DELAY};
-use crate::utils;
 use directory_client::presence::Topology;
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
-use futures::{select, Future, Stream, StreamExt};
-use log::{debug, error, info, trace, warn};
+use futures::{Future, Stream, StreamExt};
+use log::{debug, info, trace};
 use sphinx::route::Destination;
 use sphinx::SphinxPacket;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::time::Duration;
 use tokio::time;
-use topology::NymTopology;
+
+// have a rather low value for test sake
+const AVERAGE_PACKET_DELAY: f64 = 0.1;
 
 pub(crate) struct OutQueueControl {
     delay: time::Delay,
@@ -40,7 +41,7 @@ impl Stream for OutQueueControl {
         let now = self.delay.deadline();
 
         let next_poisson_delay =
-            Duration::from_secs_f64(utils::poisson::sample(MESSAGE_SENDING_AVERAGE_DELAY));
+            Duration::from_secs_f64(mix_client::poisson::sample(MESSAGE_SENDING_AVERAGE_DELAY));
 
         // The next interval value is `next_poisson_delay` after the one that just
         // yielded.
@@ -56,17 +57,18 @@ impl Stream for OutQueueControl {
             // if there's an actual message - return it
             Poll::Ready(Some(real_message)) => {
                 trace!("real message");
-                Poll::Ready(Some(utils::sphinx::encapsulate_message(
+                Poll::Ready(Some(mix_client::packet::encapsulate_message(
                     real_message.0,
                     real_message.1,
                     &self.topology,
+                    AVERAGE_PACKET_DELAY,
                 )))
             }
 
             // otherwise construct a dummy one
             _ => {
                 trace!("loop cover message");
-                Poll::Ready(Some(utils::sphinx::loop_cover_message(
+                Poll::Ready(Some(mix_client::packet::loop_cover_message(
                     self.our_info.address,
                     self.our_info.identifier,
                     &self.topology,

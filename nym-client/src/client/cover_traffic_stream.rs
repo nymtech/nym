@@ -1,6 +1,5 @@
 use crate::client::mix_traffic::MixMessage;
 use crate::client::LOOP_COVER_AVERAGE_DELAY;
-use crate::utils;
 use futures::channel::mpsc;
 use log::{info, trace};
 use sphinx::route::Destination;
@@ -17,11 +16,14 @@ pub(crate) async fn start_loop_cover_traffic_stream<T>(
     info!("Starting loop cover traffic stream");
     loop {
         trace!("next cover message!");
-        let delay = utils::poisson::sample(LOOP_COVER_AVERAGE_DELAY);
+        let delay = mix_client::poisson::sample(LOOP_COVER_AVERAGE_DELAY);
         let delay_duration = Duration::from_secs_f64(delay);
         tokio::time::delay_for(delay_duration).await;
-        let cover_message =
-            utils::sphinx::loop_cover_message(our_info.address, our_info.identifier, &topology);
+        let cover_message = mix_client::packet::loop_cover_message(
+            our_info.address,
+            our_info.identifier,
+            &topology,
+        );
 
         // if this one fails, there's no retrying because it means that either:
         // - we run out of memory

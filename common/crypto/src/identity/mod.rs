@@ -2,6 +2,7 @@ use crate::encryption::{
     MixnetEncryptionKeyPair, MixnetEncryptionPrivateKey, MixnetEncryptionPublicKey,
 };
 use crate::{encryption, PemStorable};
+use bs58;
 use curve25519_dalek::scalar::Scalar;
 
 pub trait MixnetIdentityKeyPair<Priv, Pub>
@@ -100,12 +101,12 @@ impl PemStorable for DummyMixIdentityPublicKey {
 
 impl DummyMixIdentityPublicKey {
     pub fn to_b64_string(&self) -> String {
-        base64::encode_config(&self.to_bytes(), base64::URL_SAFE)
+        bs58::encode(&self.to_bytes()).into_string()
     }
 
     #[allow(dead_code)]
     fn from_b64_string(val: String) -> Self {
-        Self::from_bytes(&base64::decode_config(&val, base64::URL_SAFE).unwrap())
+        Self::from_bytes(&bs58::decode(&val).into_vec().unwrap())
     }
 }
 

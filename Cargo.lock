@@ -214,6 +214,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bs58"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b170cd256a3f9fa6b9edae3e44a7dfdfc77e8124dbc3e2612d75f9c3e2396dae"
+
+[[package]]
 name = "built"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -460,7 +466,7 @@ dependencies = [
 name = "crypto"
 version = "0.1.0"
 dependencies = [
- "base64 0.11.0",
+ "bs58",
  "curve25519-dalek",
  "log",
  "pretty_env_logger",

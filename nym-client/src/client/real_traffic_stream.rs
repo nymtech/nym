@@ -88,7 +88,7 @@ impl<T: NymTopology> OutQueueControl<T> {
             let topology = read_lock.topology.as_ref();
 
             if topology.is_none() {
-                warn!("No valid topology detected - won't send any loop cover message this time");
+                warn!("No valid topology detected - won't send any loop cover or real message this time");
                 continue;
             }
 

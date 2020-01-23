@@ -1,11 +1,11 @@
 use semver::Version;
 use semver::VersionReq;
 
-/// Checks whether given `version` is compatible with a given semantic
-/// version requirement `req` according to major-minor semver rules.
-/// The semantic version requirement can be passed as a full, concrete version
-/// number, because that's what we'll have in our Cargo.toml files (e.g. 0.3.2).
-/// The patch number in the requirement will be dropped and replaced with a wildcard (0.3.*) as all minor versions should be compatible with each other.
+/// Checks whether given `version` is compatible with a given semantic version requirement `req`
+/// according to major-minor semver rules. The semantic version requirement can be passed as a full,
+/// concrete version number, because that's what we'll have in our Cargo.toml files (e.g. 0.3.2).
+/// The patch number in the requirement gets dropped and replaced with a wildcard (0.3.*) as all
+/// minor versions should be compatible with each other.
 pub fn is_compatible(version: &str, req: &str) -> bool {
     let version = Version::parse(version).unwrap();
     let tmp = Version::parse(req).unwrap();

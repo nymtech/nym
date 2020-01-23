@@ -11,8 +11,10 @@ edition = "2018"
 base64 = "0.11.0"
 clap = "2.33.0"
 curve25519-dalek = "1.2.3"
+dotenv = "0.15.0"
 futures = "0.3.1"
-log = "0.4.8"
+log = "0.4"
+pretty_env_logger = "0.3"
 tokio = { version = "0.2", features = ["full"] }
 
 ## internal

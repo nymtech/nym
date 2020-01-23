@@ -5,6 +5,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::future::FutureExt;
 use futures::io::Error;
 use futures::SinkExt;
+use log::*;
 use sphinx::route::{Destination, DestinationAddressBytes};
 use std::convert::TryFrom;
 use std::io;
@@ -93,26 +94,20 @@ impl ClientRequest {
         recipient_address: DestinationAddressBytes,
         mut input_tx: mpsc::UnboundedSender<InputMessage>,
     ) -> ServerResponse {
-        println!(
-            "send handle. sending to: {:?}, msg: {:?}",
-            recipient_address, msg
-        );
+        trace!("sending to: {:?}, msg: {:?}", recipient_address, msg);
         let dummy_surb = [0; 16];
         let input_msg = InputMessage(Destination::new(recipient_address, dummy_surb), msg);
-
-        println!("ALMOST ABOUT TO SOMEDAY SEND {:?}", input_msg);
         input_tx.send(input_msg).await.unwrap();
-
         ServerResponse::Send
     }
 
     async fn handle_fetch(mut msg_query: mpsc::UnboundedSender<BufferResponse>) -> ServerResponse {
-        println!("fetch handle");
+        trace!("handle_fetch called");
         let (res_tx, res_rx) = oneshot::channel();
         if msg_query.send(res_tx).await.is_err() {
-            return ServerResponse::Error {
-                message: "Server failed to receive messages".to_string(),
-            };
+            let e = "Nym-client TCP socket failed to receive messages".to_string();
+            error!("{}", e);
+            return ServerResponse::Error { message: e };
         }
 
         let messages = res_rx.map(|msg| msg).await;
@@ -124,7 +119,7 @@ impl ClientRequest {
         }
 
         let messages = messages.unwrap();
-        println!("fetched {} messages", messages.len());
+        trace!("fetched {} messages", messages.len());
         ServerResponse::Fetch { messages }
     }
 
@@ -149,7 +144,6 @@ impl ClientRequest {
     }
 
     async fn handle_own_details(self_address_bytes: DestinationAddressBytes) -> ServerResponse {
-        println!("own details handle");
         ServerResponse::OwnDetails {
             address: self_address_bytes.to_vec(),
         }
@@ -197,7 +191,7 @@ fn encode_fetched_messages(messages: Vec<Vec<u8>>) -> Vec<u8> {
 }
 
 fn encode_list_of_clients(clients: Vec<Vec<u8>>) -> Vec<u8> {
-    println!("client: {:?}", clients);
+    debug!("client: {:?}", clients);
     // we can just concat all client since all of them got to be 32 bytes long
     // (if not, then we have bigger problem somewhere up the line)
 
@@ -253,7 +247,7 @@ async fn accept_connection<T: 'static + NymTopology>(
     let address = socket
         .peer_addr()
         .expect("connected streams should have a peer address");
-    println!("Peer address: {}", address);
+    debug!("Peer address: {}", address);
 
     let mut buf = [0u8; 2048];
 
@@ -264,7 +258,7 @@ async fn accept_connection<T: 'static + NymTopology>(
         let response = match socket.read(&mut buf).await {
             // socket closed
             Ok(n) if n == 0 => {
-                println!("Remote connection closed.");
+                trace!("Remote connection closed.");
                 return;
             }
             Ok(n) => {
@@ -280,14 +274,14 @@ async fn accept_connection<T: 'static + NymTopology>(
                 }
             }
             Err(e) => {
-                eprintln!("failed to read from socket; err = {:?}", e);
+                warn!("failed to read from socket; err = {:?}", e);
                 return;
             }
         };
 
         let response_vec: Vec<u8> = response.into();
         if let Err(e) = socket.write_all(&response_vec).await {
-            eprintln!("failed to write reply to socket; err = {:?}", e);
+            warn!("failed to write reply to socket; err = {:?}", e);
             return;
         }
     }
@@ -314,6 +308,6 @@ pub async fn start_tcpsocket<T: 'static + NymTopology>(
         ));
     }
 
-    eprintln!("The tcpsocket went kaput...");
+    error!("The tcpsocket went kaput...");
     Ok(())
 }

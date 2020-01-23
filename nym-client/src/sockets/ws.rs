@@ -414,6 +414,6 @@ pub async fn start_websocket<T: 'static + NymTopology>(
         ));
     }
 
-    eprintln!("The websocket went kaput...");
+    error!("The websocket went kaput...");
     Ok(())
 }

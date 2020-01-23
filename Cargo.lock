@@ -3,6 +3,10 @@
 [[package]]
 name = "addressing"
 version = "0.1.0"
+dependencies = [
+ "log",
+ "pretty_env_logger",
+]
 
 [[package]]
 name = "adler32"
@@ -458,6 +462,8 @@ version = "0.1.0"
 dependencies = [
  "base64 0.11.0",
  "curve25519-dalek",
+ "log",
+ "pretty_env_logger",
  "rand 0.7.2",
  "rand_os",
 ]
@@ -514,7 +520,9 @@ dependencies = [
 name = "directory-client"
 version = "0.1.0"
 dependencies = [
+ "log",
  "mockito",
+ "pretty_env_logger",
  "reqwest",
  "serde",
  "topology",
@@ -574,19 +582,6 @@ name = "env_logger"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aafcde04e90a5226a6443b7aabdb016ba2f8307c847d524724bd9b346dd1a2d3"
-dependencies = [
- "atty",
- "humantime",
- "log",
- "regex",
- "termcolor",
-]
-
-[[package]]
-name = "env_logger"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44533bbbb3bb3c1fa17d9f2e4e38bbbaf8396ba82193c4cb1b6445d711445d36"
 dependencies = [
  "atty",
  "humantime",
@@ -856,6 +851,7 @@ dependencies = [
  "itertools",
  "log",
  "mix-client",
+ "pretty_env_logger",
  "provider-client",
  "serde",
  "serde_derive",
@@ -1258,6 +1254,7 @@ version = "0.1.0"
 dependencies = [
  "addressing",
  "log",
+ "pretty_env_logger",
  "rand 0.7.2",
  "rand_distr",
  "sphinx",
@@ -1353,7 +1350,7 @@ dependencies = [
  "curve25519-dalek",
  "directory-client",
  "dirs",
- "env_logger 0.7.1",
+ "dotenv",
  "futures 0.3.1",
  "healthcheck",
  "hex",
@@ -1361,6 +1358,7 @@ dependencies = [
  "mix-client",
  "pem",
  "pemstore",
+ "pretty_env_logger",
  "provider-client",
  "reqwest",
  "serde",
@@ -1383,8 +1381,10 @@ dependencies = [
  "clap",
  "curve25519-dalek",
  "directory-client",
+ "dotenv",
  "futures 0.3.1",
  "log",
+ "pretty_env_logger",
  "sphinx",
  "tokio 0.2.9",
 ]
@@ -1399,10 +1399,12 @@ dependencies = [
  "crypto",
  "curve25519-dalek",
  "directory-client",
+ "dotenv",
  "futures 0.3.1",
  "hex",
  "hmac",
  "log",
+ "pretty_env_logger",
  "rand 0.7.2",
  "serde",
  "serde_json",
@@ -1510,7 +1512,9 @@ name = "pemstore"
 version = "0.1.0"
 dependencies = [
  "crypto",
+ "log",
  "pem",
+ "pretty_env_logger",
 ]
 
 [[package]]
@@ -1576,7 +1580,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "717ee476b1690853d222af4634056d830b5197ffd747726a9a1eee6da9f49074"
 dependencies = [
  "chrono",
- "env_logger 0.6.2",
+ "env_logger",
  "log",
 ]
 
@@ -1612,6 +1616,7 @@ version = "0.1.0"
 dependencies = [
  "futures 0.3.1",
  "log",
+ "pretty_env_logger",
  "sfw-provider-requests",
  "sphinx",
  "tokio 0.2.9",
@@ -2419,9 +2424,11 @@ dependencies = [
  "curve25519-dalek",
  "itertools",
  "log",
+ "pretty_env_logger",
  "rand 0.7.2",
  "serde",
  "sphinx",
+ "version-checker",
 ]
 
 [[package]]
@@ -2544,6 +2551,10 @@ dependencies = [
 [[package]]
 name = "validator-client"
 version = "0.1.0"
+dependencies = [
+ "log",
+ "pretty_env_logger",
+]
 
 [[package]]
 name = "vcpkg"
@@ -2556,6 +2567,13 @@ name = "vec_map"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05c78687fb1a80548ae3250346c3db86a80a7cdd77bda190189f2d0a0987c81a"
+
+[[package]]
+name = "version-checker"
+version = "0.1.0"
+dependencies = [
+ "semver",
+]
 
 [[package]]
 name = "version_check"

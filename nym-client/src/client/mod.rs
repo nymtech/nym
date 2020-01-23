@@ -221,7 +221,7 @@ impl NymClient {
         });
 
         // this line in theory should never be reached as the runtime should be permanently blocked on traffic senders
-        eprintln!("The client went kaput...");
+        error!("The client went kaput...");
         Ok(())
     }
 }

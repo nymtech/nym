@@ -1,5 +1,6 @@
 use crate::requests::presence_topology_get::PresenceTopologyGetRequester;
 use crate::{Client, Config, DirectoryClient};
+use log::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::convert::TryInto;
@@ -303,6 +304,7 @@ impl PartialEq for Topology {
 
 impl NymTopology for Topology {
     fn new(directory_server: String) -> Self {
+        debug!("Using directory server: {:?}", directory_server);
         let directory_config = Config {
             base_url: directory_server,
         };

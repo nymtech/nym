@@ -1,6 +1,6 @@
 use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair, MixnetIdentityPublicKey};
 use itertools::Itertools;
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace, warn};
 use mix_client::MixClient;
 use provider_client::ProviderClient;
 use sphinx::header::delays::Delay;

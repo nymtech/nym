@@ -67,10 +67,11 @@ impl<T: NymTopology> TopologyControl<T> {
         let healthy_topology =
             healthcheck_scores.filter_topology_by_score(&full_topology, NODE_HEALTH_THRESHOLD);
 
-        // for time being assume same versioning, i.e. if client is running X.Y.Z,
-        // we're expecting mixes, providers and coconodes to also be running X.Y.Z
-        let versioned_healthy_topology =
-            healthy_topology.filter_node_versions("0.3.2", "0.3.2", built_info::PKG_VERSION);
+        let versioned_healthy_topology = healthy_topology.filter_node_versions(
+            built_info::PKG_VERSION,
+            built_info::PKG_VERSION,
+            built_info::PKG_VERSION,
+        );
 
         // make sure you can still send a packet through the network:
         if !versioned_healthy_topology.can_construct_path_through() {

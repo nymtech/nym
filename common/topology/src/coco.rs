@@ -1,3 +1,5 @@
+use crate::filter;
+
 #[derive(Debug, Clone)]
 pub struct Node {
     pub host: String,
@@ -6,7 +8,7 @@ pub struct Node {
     pub version: String,
 }
 
-impl super::Versioned for Node {
+impl filter::Versioned for Node {
     fn get_version(&self) -> String {
         self.version.clone()
     }

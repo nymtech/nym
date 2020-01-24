@@ -1,11 +1,12 @@
+use crate::filter::VersionFiltererable;
 use itertools::Itertools;
 use rand::seq::IteratorRandom;
 use sphinx::route::Node as SphinxNode;
 use std::cmp::max;
 use std::collections::HashMap;
-use version_checker;
 
 pub mod coco;
+mod filter;
 pub mod mix;
 pub mod provider;
 
@@ -99,19 +100,13 @@ pub trait NymTopology: Sized {
         expected_provider_version: &str,
         expected_coco_version: &str,
     ) -> Self {
-        let mixes = Filter::new(self.mix_nodes()).run(expected_mix_version);
-        let providers = Filter::new(self.providers()).run(expected_provider_version);
-        let cocos = Filter::new(self.coco_nodes()).run(expected_coco_version);
+        let mixes = self.mix_nodes().filter_by_version(expected_mix_version);
+        let providers = self
+            .providers()
+            .filter_by_version(expected_provider_version);
+        let cocos = self.coco_nodes().filter_by_version(expected_coco_version);
 
         Self::new_from_nodes(mixes, providers, cocos)
-    }
-
-    fn filter<T: Versioned>(&self, nodes: Vec<T>, expected_version: &str) -> Vec<T> {
-        nodes
-            .iter()
-            .filter(|node| version_checker::is_compatible(&node.get_version(), expected_version))
-            .cloned()
-            .collect()
     }
 
     fn can_construct_path_through(&self) -> bool {
@@ -119,28 +114,6 @@ pub trait NymTopology: Sized {
             Ok(_) => true,
             Err(_) => false,
         }
-    }
-}
-
-pub trait Versioned: Clone + Sized {
-    fn get_version(&self) -> String;
-}
-
-pub struct Filter<T> {
-    nodes: Vec<T>,
-}
-
-impl<T: Versioned> Filter<T> {
-    fn new(nodes: Vec<T>) -> Self {
-        Self { nodes }
-    }
-
-    fn run(&self, expected_version: &str) -> Vec<T> {
-        self.nodes
-            .iter()
-            .filter(|node| version_checker::is_compatible(&node.get_version(), expected_version))
-            .cloned()
-            .collect()
     }
 }
 

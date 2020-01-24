@@ -1,3 +1,4 @@
+use crate::filter;
 use sphinx::route::Node as SphinxNode;
 use sphinx::route::NodeAddressBytes;
 use std::net::SocketAddr;
@@ -20,7 +21,7 @@ impl Node {
     }
 }
 
-impl super::Versioned for Node {
+impl filter::Versioned for Node {
     fn get_version(&self) -> String {
         self.version.clone()
     }

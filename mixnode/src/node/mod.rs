@@ -39,6 +39,7 @@ impl Config {
 pub enum MixProcessingError {
     SphinxRecoveryError,
     ReceivedFinalHopError,
+    SphinxProcessingError,
 }
 
 impl From<sphinx::ProcessingError> for MixProcessingError {
@@ -115,10 +116,14 @@ impl PacketProcessor {
         let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
         let (next_packet, next_hop_address, delay) =
             match packet.process(processing_data.secret_key) {
-                ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay) => {
+                Ok(ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay)) => {
                     (packet, address, delay)
                 }
-                _ => return Err(MixProcessingError::ReceivedFinalHopError),
+                Ok(_) => return Err(MixProcessingError::ReceivedFinalHopError),
+                Err(e) => {
+                    warn!("Failed to unwrap Sphinx pakcet: {:?}", e);
+                    return Err(MixProcessingError::SphinxProcessingError);
+                }
             };
 
         let next_mix = MixPeer::new(next_hop_address);

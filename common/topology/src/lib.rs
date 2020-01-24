@@ -84,7 +84,7 @@ pub enum NymTopologyError {
     MissingLayerError(Vec<u64>),
 }
 
-pub trait NymTopology: Sized {
+pub trait NymTopology: Sized + PartialEq + std::fmt::Debug + Send + Sync {
     fn new(directory_server: String) -> Self;
     fn new_from_nodes(
         mix_nodes: Vec<MixNode>,

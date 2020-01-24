@@ -1,6 +1,6 @@
 use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair, MixnetIdentityPublicKey};
 use itertools::Itertools;
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace, warn};
 use mix_client::MixClient;
 use provider_client::ProviderClient;
 use sphinx::header::delays::Delay;
@@ -223,7 +223,7 @@ impl PathChecker {
         debug!("sending test packet to {}", first_node_address);
         match first_node_client.send(packet, first_node_address).await {
             Err(err) => {
-                warn!("failed to send packet to {} - {}", first_node_address, err);
+                info!("failed to send packet to {} - {}", first_node_address, err);
                 if self
                     .paths_status
                     .insert(path_identifier, PathStatus::Unhealthy)

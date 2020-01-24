@@ -877,12 +877,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hex"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "023b39be39e3a2da62a94feb433e91e8bcd37676fbc8bea371daf52b7a769a3e"
-
-[[package]]
 name = "hkdf"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1407,7 +1401,6 @@ dependencies = [
  "directory-client",
  "dotenv",
  "futures 0.3.1",
- "hex",
  "hmac",
  "log",
  "pretty_env_logger",

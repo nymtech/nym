@@ -148,7 +148,7 @@ impl ClientRequestProcessor {
         client_address: sphinx::route::DestinationAddressBytes,
         store_dir: &Path,
     ) -> io::Result<()> {
-        let client_dir_name = hex::encode(client_address);
+        let client_dir_name = bs58::encode(client_address).into_string();
         let full_store_dir = store_dir.join(client_dir_name);
         std::fs::create_dir_all(full_store_dir)
     }

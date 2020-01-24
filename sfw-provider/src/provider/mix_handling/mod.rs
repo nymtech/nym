@@ -1,6 +1,6 @@
 use crate::provider::storage::StoreData;
 use crypto::identity::DummyMixIdentityPrivateKey;
-use log::warn;
+use log::{error, warn};
 use sphinx::{ProcessedPacket, SphinxPacket};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
@@ -62,7 +62,13 @@ impl MixPacketProcessor {
         processing_data: &RwLock<MixProcessingData>,
     ) -> Result<StoreData, MixProcessingError> {
         let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
-        let read_processing_data = processing_data.read().unwrap();
+        let read_processing_data = match processing_data.read() {
+            Ok(guard) => guard,
+            Err(e) => {
+                error!("processing data lock was poisoned! - {:?}", e);
+                std::process::exit(1)
+            }
+        };
         let (client_address, client_surb_id, payload) =
             match packet.process(read_processing_data.secret_key.as_scalar()) {
                 Ok(ProcessedPacket::ProcessedPacketFinalHop(client_address, surb_id, payload)) => {

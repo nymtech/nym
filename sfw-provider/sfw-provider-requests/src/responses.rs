@@ -45,8 +45,8 @@ fn read_be_u16(input: &mut &[u8]) -> u16 {
     u16::from_be_bytes(int_bytes.try_into().unwrap())
 }
 
-// TODO: currently this allows for maximum 64kB payload - if we go over that in sphinx,
-// we need to update this code.
+// TODO: currently this allows for maximum 64kB payload -
+// if we go over that in sphinx we need to update this code.
 impl ProviderResponse for PullResponse {
     // num_msgs || len1 || len2 || ... || msg1 || msg2 || ...
     fn to_bytes(&self) -> Vec<u8> {

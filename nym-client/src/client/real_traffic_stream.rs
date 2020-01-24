@@ -4,7 +4,7 @@ use crate::client::{InputMessage, MESSAGE_SENDING_AVERAGE_DELAY};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
-use log::{info, trace, warn};
+use log::{error, info, trace, warn};
 use sphinx::route::Destination;
 use std::pin::Pin;
 use std::time::Duration;
@@ -85,14 +85,15 @@ impl<T: NymTopology> OutQueueControl<T> {
         while let Some(next_message) = self.next().await {
             trace!("created new message");
             let read_lock = self.topology_ctrl_ref.read().await;
-            let topology = read_lock.topology.as_ref();
-
-            if topology.is_none() {
-                warn!("No valid topology detected - won't send any loop cover or real message this time");
-                continue;
-            }
-
-            let topology = topology.unwrap();
+            let topology = match read_lock.topology.as_ref() {
+                None => {
+                    warn!(
+                        "No valid topology detected - won't send any loop cover message this time"
+                    );
+                    continue;
+                }
+                Some(topology) => topology,
+            };
 
             let next_packet = match next_message {
                 StreamMessage::Cover => mix_client::packet::loop_cover_message(
@@ -106,6 +107,17 @@ impl<T: NymTopology> OutQueueControl<T> {
                     topology,
                     AVERAGE_PACKET_DELAY,
                 ),
+            };
+
+            let next_packet = match next_packet {
+                Ok(message) => message,
+                Err(err) => {
+                    error!(
+                        "Somehow we managed to create an invalid traffic message - {:?}",
+                        err
+                    );
+                    continue;
+                }
             };
 
             // if this one fails, there's no retrying because it means that either:

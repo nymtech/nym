@@ -66,7 +66,7 @@ impl ProviderClient {
     pub async fn send_request(&self, bytes: Vec<u8>) -> Result<Vec<u8>, ProviderClientError> {
         let mut socket = tokio::net::TcpStream::connect(self.provider_network_address).await?;
 
-        socket.set_keepalive(Some(Duration::from_secs(2))).unwrap();
+        socket.set_keepalive(Some(Duration::from_secs(2)))?;
         socket.write_all(&bytes[..]).await?;
         if let Err(e) = socket.shutdown(Shutdown::Write) {
             warn!("failed to close write part of the socket; err = {:?}", e)
@@ -82,11 +82,14 @@ impl ProviderClient {
     }
 
     pub async fn retrieve_messages(&self) -> Result<Vec<Vec<u8>>, ProviderClientError> {
-        if self.auth_token.is_none() {
-            return Err(ProviderClientError::EmptyAuthTokenError);
-        }
+        let auth_token = match self.auth_token {
+            Some(token) => token,
+            None => {
+                return Err(ProviderClientError::EmptyAuthTokenError);
+            }
+        };
 
-        let pull_request = PullRequest::new(self.our_address, self.auth_token.unwrap());
+        let pull_request = PullRequest::new(self.our_address, auth_token);
         let bytes = pull_request.to_bytes();
 
         let response = self.send_request(bytes).await?;

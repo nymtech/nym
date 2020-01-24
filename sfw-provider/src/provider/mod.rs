@@ -147,9 +147,16 @@ impl ServiceProvider {
                             return;
                         }
                     };
+                    let processing_data_lock = match processing_data.read() {
+                        Ok(guard) => guard,
+                        Err(e) => {
+                            error!("processing data lock was poisoned! - {:?}", e);
+                            std::process::exit(1)
+                        }
+                    };
                     ClientStorage::store_processed_data(
                         store_data,
-                        processing_data.read().unwrap().store_dir.as_path(),
+                        processing_data_lock.store_dir.as_path(),
                     )
                     .unwrap_or_else(|e| {
                         error!("failed to store processed sphinx message; err = {:?}", e);

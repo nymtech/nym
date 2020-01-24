@@ -120,15 +120,16 @@ impl ClientRequest {
             return ServerResponse::Error { message: e };
         }
 
-        let messages = res_rx.map(|msg| msg).await;
+        let messages = match res_rx.map(|msg| msg).await {
+            Ok(messages) => messages,
+            Err(e) => {
+                warn!("Failed to fetch client messages - {:?}", e);
+                return ServerResponse::Error {
+                    message: format!("Server failed to receive messages").to_string(),
+                };
+            }
+        };
 
-        if messages.is_err() {
-            return ServerResponse::Error {
-                message: "Server failed to receive messages".to_string(),
-            };
-        }
-
-        let messages = messages.unwrap();
         trace!("fetched {} messages", messages.len());
         ServerResponse::Fetch { messages }
     }

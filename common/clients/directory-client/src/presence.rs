@@ -9,6 +9,7 @@ use std::net::ToSocketAddrs;
 use topology::coco;
 use topology::mix;
 use topology::provider;
+use topology::provider::Node;
 use topology::NymTopology;
 
 // special version of 'PartialEq' that does not care about last_seen field (where applicable)
@@ -62,16 +63,18 @@ impl TryInto<topology::mix::Node> for MixNodePresence {
     type Error = io::Error;
 
     fn try_into(self) -> Result<topology::mix::Node, Self::Error> {
-        let resolved_hostname = self.host.to_socket_addrs()?.next();
-        if resolved_hostname.is_none() {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                "no valid socket address",
-            ));
-        }
+        let resolved_hostname = match self.host.to_socket_addrs()?.next() {
+            None => {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "no valid socket address",
+                ));
+            }
+            Some(host) => host,
+        };
 
         Ok(topology::mix::Node {
-            host: resolved_hostname.unwrap(),
+            host: resolved_hostname,
             pub_key: self.pub_key,
             layer: self.layer,
             last_seen: self.last_seen,
@@ -129,11 +132,13 @@ impl PresenceEq for MixProviderPresence {
     }
 }
 
-impl Into<topology::provider::Node> for MixProviderPresence {
-    fn into(self) -> topology::provider::Node {
-        topology::provider::Node {
-            client_listener: self.client_listener.parse().unwrap(),
-            mixnet_listener: self.mixnet_listener.parse().unwrap(),
+impl TryInto<topology::provider::Node> for MixProviderPresence {
+    type Error = std::net::AddrParseError;
+
+    fn try_into(self) -> Result<Node, Self::Error> {
+        Ok(topology::provider::Node {
+            client_listener: self.client_listener.parse()?,
+            mixnet_listener: self.mixnet_listener.parse()?,
             pub_key: self.pub_key,
             registered_clients: self
                 .registered_clients
@@ -142,7 +147,7 @@ impl Into<topology::provider::Node> for MixProviderPresence {
                 .collect(),
             last_seen: self.last_seen,
             version: self.version,
-        }
+        })
     }
 }
 
@@ -345,7 +350,7 @@ impl NymTopology for Topology {
     fn providers(&self) -> Vec<provider::Node> {
         self.mix_provider_nodes
             .iter()
-            .map(|x| x.clone().into())
+            .filter_map(|x| x.clone().try_into().ok())
             .collect()
     }
 

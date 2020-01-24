@@ -8,7 +8,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-base64 = "0.11.0"
+bs58 = "0.3.0"
 clap = "2.33.0"
 curve25519-dalek = "1.2.3"
 dotenv = "0.15.0"

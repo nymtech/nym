@@ -87,7 +87,7 @@ impl ClientLedger {
     fn current_clients(&self) -> Vec<MixProviderClient> {
         self.0
             .iter()
-            .map(|(_, v)| base64::encode_config(v, base64::URL_SAFE))
+            .map(|(_, v)| bs58::encode(v).into_string())
             .map(|pub_key| MixProviderClient { pub_key })
             .collect()
     }

@@ -3,7 +3,6 @@ use rand::seq::IteratorRandom;
 use sphinx::route::Node as SphinxNode;
 use std::cmp::max;
 use std::collections::HashMap;
-use std::marker::PhantomData;
 use version_checker;
 
 pub mod coco;

@@ -90,18 +90,10 @@ impl ClientStorage {
         }
 
         let msgs: Vec<_> = std::fs::read_dir(full_store_dir)?
-            .map(|entry| entry.unwrap())
-            .filter(|entry| {
-                let is_file = entry.metadata().unwrap().is_file();
-                if !is_file {
-                    error!(
-                        "potentially corrupted client inbox! - found a non-file - {:?}",
-                        entry.path()
-                    );
-                }
-                is_file
-            })
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| ClientStorage::is_valid_file(entry))
             .map(|entry| {
+                // Not yet sure how to exactly get rid of those unwraps
                 let content = std::fs::read(entry.path()).unwrap();
                 ClientStorage::delete_file(entry.path()).unwrap();
                 content
@@ -111,6 +103,30 @@ impl ClientStorage {
             .collect();
 
         Ok(msgs)
+    }
+
+    fn is_valid_file(entry: &std::fs::DirEntry) -> bool {
+        let metadata = match entry.metadata() {
+            Ok(meta) => meta,
+            Err(e) => {
+                error!(
+                    "potentially corrupted client inbox! ({:?} - failed to read its metadata - {:?}",
+                    entry.path(),
+                    e,
+                );
+                return false;
+            }
+        };
+
+        let is_file = metadata.is_file();
+        if !is_file {
+            error!(
+                "potentially corrupted client inbox! - found a non-file - {:?}",
+                entry.path()
+            );
+        }
+
+        is_file
     }
 
     // TODO: THIS NEEDS A LOCKING MECHANISM!!! (or a db layer on top - basically 'ClientStorage' on steroids)

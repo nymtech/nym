@@ -154,8 +154,9 @@ impl ClientRequestProcessor {
     }
 
     fn generate_new_auth_token(data: Vec<u8>, key: DummyMixIdentityPrivateKey) -> AuthToken {
-        let mut auth_token_raw =
-            HmacSha256::new_varkey(&key.to_bytes()).expect("HMAC can take key of any size");
+        // also note that `new_varkey` doesn't even have an execution branch returning an error
+        let mut auth_token_raw = HmacSha256::new_varkey(&key.to_bytes())
+            .expect("HMAC should be able take key of any size");
         auth_token_raw.input(&data);
         let mut auth_token = [0u8; 32];
         auth_token.copy_from_slice(&auth_token_raw.result().code().to_vec());

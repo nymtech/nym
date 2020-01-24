@@ -234,16 +234,17 @@ impl ClientRequest {
             };
         }
 
-        let messages = res_rx.map(|msg| msg).await;
-        if messages.is_err() {
-            warn!("Failed to handle_fetch. messages is an error");
-            return ServerResponse::Error {
-                message: "Server failed to receive messages".to_string(),
-            };
-        }
+        let messages = match res_rx.map(|msg| msg).await {
+            Ok(messages) => messages,
+            Err(e) => {
+                warn!("Failed to fetch client messages - {:?}", e);
+                return ServerResponse::Error {
+                    message: format!("Server failed to receive messages").to_string(),
+                };
+            }
+        };
 
         let messages = messages
-            .unwrap()
             .into_iter()
             .map(|message| {
                 match std::str::from_utf8(&message) {

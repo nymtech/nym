@@ -20,13 +20,13 @@ pub(crate) async fn start_loop_cover_traffic_stream<T: NymTopology>(
         tokio::time::delay_for(delay_duration).await;
 
         let read_lock = topology_ctrl_ref.read().await;
-        let topology = read_lock.topology.as_ref();
-        if topology.is_none() {
-            warn!("No valid topology detected - won't send any loop cover message this time");
-            continue;
-        }
-
-        let topology = topology.unwrap();
+        let topology = match read_lock.topology.as_ref() {
+            None => {
+                warn!("No valid topology detected - won't send any loop cover message this time");
+                continue;
+            }
+            Some(topology) => topology,
+        };
 
         let cover_message =
             mix_client::packet::loop_cover_message(our_info.address, our_info.identifier, topology);

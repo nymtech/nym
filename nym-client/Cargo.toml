@@ -40,8 +40,8 @@ sfw-provider-requests = { path = "../sfw-provider/sfw-provider-requests" }
 topology = {path = "../common/topology" }
 
 ## will be moved to proper dependencies once released
-# sphinx = { git = "https://github.com/nymtech/sphinx", rev="1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f" }
-sphinx = { path = "../../sphinx"}
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="47c4fbba8272c4aee03cc8165220f33572a96602" }
+# sphinx = { path = "../../sphinx"}
 
 # putting this explicitly below everything and most likely, the next time we look into it, it will already have a proper release
 tokio-tungstenite = { git = "https://github.com/snapview/tokio-tungstenite", rev="308d9680c0e59dd1e8651659a775c05df937934e" }

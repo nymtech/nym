@@ -128,7 +128,7 @@ impl ClientRequest {
         match topology_data {
             Some(topology) => {
                 let clients = topology
-                    .get_mix_provider_nodes()
+                    .providers()
                     .iter()
                     .flat_map(|provider| provider.registered_clients.iter())
                     .filter_map(|client| {

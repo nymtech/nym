@@ -2098,7 +2098,7 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f#1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f"
+source = "git+https://github.com/nymtech/sphinx?rev=47c4fbba8272c4aee03cc8165220f33572a96602#47c4fbba8272c4aee03cc8165220f33572a96602"
 dependencies = [
  "aes-ctr",
  "arrayref",
@@ -2110,6 +2110,7 @@ dependencies = [
  "hkdf",
  "hmac",
  "lioness",
+ "log",
  "rand 0.7.2",
  "rand_distr",
  "rand_os",

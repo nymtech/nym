@@ -79,7 +79,7 @@ impl NymClient {
     ) -> SocketAddr {
         // this is temporary and assumes there exists only a single provider.
         topology_ctrl_ref.read().await.topology.as_ref().unwrap()
-            .get_mix_provider_nodes()
+            .providers()
             .first()
             .expect("Could not get a provider from the initial network topology, are you using the right directory server?")
             .client_listener

@@ -28,8 +28,8 @@ impl HealthCheckResult {
 
     fn zero_score<T: NymTopology>(topology: T) -> Self {
         warn!("The network is unhealthy, could not send any packets - returning zero score!");
-        let mixes = topology.get_mix_nodes();
-        let providers = topology.get_mix_provider_nodes();
+        let mixes = topology.mix_nodes();
+        let providers = topology.providers();
 
         let health = mixes
             .into_iter()
@@ -58,7 +58,7 @@ impl HealthCheckResult {
         score_threshold: f64,
     ) -> T {
         let filtered_mix_nodes = topology
-            .get_mix_nodes()
+            .mix_nodes()
             .into_iter()
             .filter(|node| {
                 match self.node_score(NodeAddressBytes::from_b64_string(node.pub_key.clone())) {
@@ -72,7 +72,7 @@ impl HealthCheckResult {
             .collect();
 
         let filtered_provider_nodes = topology
-            .get_mix_provider_nodes()
+            .providers()
             .into_iter()
             .filter(|node| {
                 match self.node_score(NodeAddressBytes::from_b64_string(node.pub_key.clone())) {
@@ -85,7 +85,7 @@ impl HealthCheckResult {
             })
             .collect();
         // coco nodes remain unchanged as no healthcheck is being run on them or time being
-        let filtered_coco_nodes = topology.get_coco_nodes();
+        let filtered_coco_nodes = topology.coco_nodes();
 
         T::new_from_nodes(
             filtered_mix_nodes,
@@ -110,19 +110,16 @@ impl HealthCheckResult {
 
         // create entries for all nodes
         let mut score_map = HashMap::new();
-        topology.get_mix_nodes().into_iter().for_each(|node| {
+        topology.mix_nodes().into_iter().for_each(|node| {
             score_map.insert(node.get_pub_key_bytes(), NodeScore::from_mixnode(node));
         });
 
-        topology
-            .get_mix_provider_nodes()
-            .into_iter()
-            .for_each(|node| {
-                score_map.insert(node.get_pub_key_bytes(), NodeScore::from_provider(node));
-            });
+        topology.providers().into_iter().for_each(|node| {
+            score_map.insert(node.get_pub_key_bytes(), NodeScore::from_provider(node));
+        });
 
         let ephemeral_keys = DummyMixIdentityKeyPair::new();
-        let providers = topology.get_mix_provider_nodes();
+        let providers = topology.providers();
 
         let mut path_checker = PathChecker::new(providers, ephemeral_keys).await;
         for i in 0..iterations {

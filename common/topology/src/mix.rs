@@ -22,7 +22,7 @@ impl Node {
 }
 
 impl filter::Versioned for Node {
-    fn get_version(&self) -> String {
+    fn version(&self) -> String {
         self.version.clone()
     }
 }

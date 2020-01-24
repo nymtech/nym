@@ -109,9 +109,14 @@ impl PacketProcessor {
     ) -> Result<ForwardingData, MixProcessingError> {
         // we received something resembling a sphinx packet, report it!
         let processing_data = processing_data.lock().await;
-        let mut received_sender = processing_data.received_metrics_tx.clone();
+        let mut received_metrics_tx = processing_data.received_metrics_tx.clone();
 
-        received_sender.send(()).await.unwrap();
+        // if unwrap failed it means our metrics reporter died, so we should exit application and
+        // force restart
+        if received_metrics_tx.send(()).await.is_err() {
+            error!("failed to send metrics data to the controller - the underlying thread probably died!");
+            std::process::exit(1);
+        }
 
         let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
         let (next_packet, next_hop_address, delay) =
@@ -140,11 +145,16 @@ impl PacketProcessor {
     async fn wait_and_forward(mut forwarding_data: ForwardingData) {
         let delay_duration = Duration::from_nanos(forwarding_data.delay.get_value());
         tokio::time::delay_for(delay_duration).await;
-        forwarding_data
+
+        if forwarding_data
             .sent_metrics_tx
             .send(forwarding_data.recipient.to_string())
             .await
-            .unwrap();
+            .is_err()
+        {
+            error!("failed to send metrics data to the controller - the underlying thread probably died!");
+            std::process::exit(1);
+        }
 
         trace!("RECIPIENT: {:?}", forwarding_data.recipient);
         match forwarding_data
@@ -188,7 +198,6 @@ impl MixNode {
         mut socket: tokio::net::TcpStream,
         processing_data: Arc<Mutex<ProcessingData>>,
     ) {
-        // NOTE: processing_data is copied here!!
         let mut buf = [0u8; sphinx::PACKET_SIZE];
 
         // In a loop, read data from the socket and write the data back.
@@ -200,12 +209,18 @@ impl MixNode {
                     return;
                 }
                 Ok(_) => {
-                    let fwd_data = PacketProcessor::process_sphinx_data_packet(
+                    let fwd_data = match PacketProcessor::process_sphinx_data_packet(
                         buf.as_ref(),
                         processing_data.clone(),
                     )
                     .await
-                    .unwrap();
+                    {
+                        Ok(fwd_data) => fwd_data,
+                        Err(e) => {
+                            warn!("failed to process sphinx packet: {:?}", e);
+                            return;
+                        }
+                    };
                     PacketProcessor::wait_and_forward(fwd_data).await;
                 }
                 Err(e) => {

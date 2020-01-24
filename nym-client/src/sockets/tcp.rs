@@ -95,6 +95,16 @@ impl ClientRequest {
         mut input_tx: mpsc::UnboundedSender<InputMessage>,
     ) -> ServerResponse {
         trace!("sending to: {:?}, msg: {:?}", recipient_address, msg);
+        if msg.len() > sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH {
+            return ServerResponse::Error {
+                message: format!(
+                    "too long message. Sent {} bytes while the maximum is {}",
+                    msg.len(),
+                    sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH
+                )
+                .to_string(),
+            };
+        }
         let dummy_surb = [0; 16];
         let input_msg = InputMessage(Destination::new(recipient_address, dummy_surb), msg);
         input_tx.send(input_msg).await.unwrap();

@@ -6,7 +6,7 @@ use provider_client::ProviderClient;
 use sphinx::header::delays::Delay;
 use sphinx::route::{Destination, Node as SphinxNode};
 use std::collections::HashMap;
-use topology::MixProviderNode;
+use topology::provider;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum PathStatus {
@@ -27,7 +27,7 @@ pub(crate) struct PathChecker {
 
 impl PathChecker {
     pub(crate) async fn new(
-        providers: Vec<MixProviderNode>,
+        providers: Vec<provider::Node>,
         ephemeral_keys: DummyMixIdentityKeyPair,
     ) -> Self {
         let mut provider_clients = HashMap::new();

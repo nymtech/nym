@@ -5,7 +5,10 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::io;
 use std::net::ToSocketAddrs;
-use topology::{CocoNode, MixNode, MixProviderNode, NymTopology};
+use topology::coco;
+use topology::mix;
+use topology::provider;
+use topology::NymTopology;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,9 +19,9 @@ pub struct CocoPresence {
     pub version: String,
 }
 
-impl Into<topology::CocoNode> for CocoPresence {
-    fn into(self) -> topology::CocoNode {
-        topology::CocoNode {
+impl Into<topology::coco::Node> for CocoPresence {
+    fn into(self) -> topology::coco::Node {
+        topology::coco::Node {
             host: self.host,
             pub_key: self.pub_key,
             last_seen: self.last_seen,
@@ -27,8 +30,8 @@ impl Into<topology::CocoNode> for CocoPresence {
     }
 }
 
-impl From<topology::CocoNode> for CocoPresence {
-    fn from(cn: CocoNode) -> Self {
+impl From<topology::coco::Node> for CocoPresence {
+    fn from(cn: coco::Node) -> Self {
         CocoPresence {
             host: cn.host,
             pub_key: cn.pub_key,
@@ -48,10 +51,10 @@ pub struct MixNodePresence {
     pub version: String,
 }
 
-impl TryInto<topology::MixNode> for MixNodePresence {
+impl TryInto<topology::mix::Node> for MixNodePresence {
     type Error = io::Error;
 
-    fn try_into(self) -> Result<MixNode, Self::Error> {
+    fn try_into(self) -> Result<topology::mix::Node, Self::Error> {
         let resolved_hostname = self.host.to_socket_addrs()?.next();
         if resolved_hostname.is_none() {
             return Err(io::Error::new(
@@ -60,7 +63,7 @@ impl TryInto<topology::MixNode> for MixNodePresence {
             ));
         }
 
-        Ok(topology::MixNode {
+        Ok(topology::mix::Node {
             host: resolved_hostname.unwrap(),
             pub_key: self.pub_key,
             layer: self.layer,
@@ -70,8 +73,8 @@ impl TryInto<topology::MixNode> for MixNodePresence {
     }
 }
 
-impl From<topology::MixNode> for MixNodePresence {
-    fn from(mn: MixNode) -> Self {
+impl From<topology::mix::Node> for MixNodePresence {
+    fn from(mn: mix::Node) -> Self {
         MixNodePresence {
             host: mn.host.to_string(),
             pub_key: mn.pub_key,
@@ -93,9 +96,9 @@ pub struct MixProviderPresence {
     pub version: String,
 }
 
-impl Into<topology::MixProviderNode> for MixProviderPresence {
-    fn into(self) -> topology::MixProviderNode {
-        topology::MixProviderNode {
+impl Into<provider::Node> for MixProviderPresence {
+    fn into(self) -> provider::Node {
+        provider::Node {
             client_listener: self.client_listener.parse().unwrap(),
             mixnet_listener: self.mixnet_listener.parse().unwrap(),
             pub_key: self.pub_key,
@@ -110,8 +113,8 @@ impl Into<topology::MixProviderNode> for MixProviderPresence {
     }
 }
 
-impl From<topology::MixProviderNode> for MixProviderPresence {
-    fn from(mpn: MixProviderNode) -> Self {
+impl From<topology::provider::Node> for MixProviderPresence {
+    fn from(mpn: provider::Node) -> Self {
         MixProviderPresence {
             client_listener: mpn.client_listener.to_string(),
             mixnet_listener: mpn.mixnet_listener.to_string(),
@@ -133,16 +136,16 @@ pub struct MixProviderClient {
     pub pub_key: String,
 }
 
-impl Into<topology::MixProviderClient> for MixProviderClient {
-    fn into(self) -> topology::MixProviderClient {
-        topology::MixProviderClient {
+impl Into<topology::provider::Client> for MixProviderClient {
+    fn into(self) -> topology::provider::Client {
+        topology::provider::Client {
             pub_key: self.pub_key,
         }
     }
 }
 
-impl From<topology::MixProviderClient> for MixProviderClient {
-    fn from(mpc: topology::MixProviderClient) -> Self {
+impl From<topology::provider::Client> for MixProviderClient {
+    fn from(mpc: topology::provider::Client) -> Self {
         MixProviderClient {
             pub_key: mpc.pub_key,
         }
@@ -174,9 +177,9 @@ impl NymTopology for Topology {
     }
 
     fn new_from_nodes(
-        mix_nodes: Vec<MixNode>,
-        mix_provider_nodes: Vec<MixProviderNode>,
-        coco_nodes: Vec<CocoNode>,
+        mix_nodes: Vec<mix::Node>,
+        mix_provider_nodes: Vec<provider::Node>,
+        coco_nodes: Vec<coco::Node>,
     ) -> Self {
         Topology {
             coco_nodes: coco_nodes.into_iter().map(|node| node.into()).collect(),
@@ -188,21 +191,21 @@ impl NymTopology for Topology {
         }
     }
 
-    fn get_mix_nodes(&self) -> Vec<topology::MixNode> {
+    fn mix_nodes(&self) -> Vec<mix::Node> {
         self.mix_nodes
             .iter()
             .filter_map(|x| x.clone().try_into().ok())
             .collect()
     }
 
-    fn get_mix_provider_nodes(&self) -> Vec<topology::MixProviderNode> {
+    fn providers(&self) -> Vec<provider::Node> {
         self.mix_provider_nodes
             .iter()
             .map(|x| x.clone().into())
             .collect()
     }
 
-    fn get_coco_nodes(&self) -> Vec<topology::CocoNode> {
+    fn coco_nodes(&self) -> Vec<topology::coco::Node> {
         self.coco_nodes.iter().map(|x| x.clone().into()).collect()
     }
 }
@@ -223,7 +226,7 @@ mod converting_mixnode_presence_into_topology_mixnode {
             version: "".to_string(),
         };
 
-        let result: Result<topology::MixNode, io::Error> = mix_presence.try_into();
+        let result: Result<mix::Node, io::Error> = mix_presence.try_into();
         assert!(result.is_err())
     }
 
@@ -239,7 +242,7 @@ mod converting_mixnode_presence_into_topology_mixnode {
             version: "".to_string(),
         };
 
-        let result: Result<topology::MixNode, io::Error> = mix_presence.try_into();
+        let result: Result<topology::mix::Node, io::Error> = mix_presence.try_into();
         assert!(result.is_ok())
     }
 }

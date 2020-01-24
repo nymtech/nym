@@ -154,7 +154,7 @@ impl NymClient {
 
         // this is temporary and assumes there exists only a single provider.
         let provider_client_listener_address: SocketAddr = initial_topology
-            .get_mix_provider_nodes()
+            .providers()
             .first()
             .expect("Could not get a provider from the supplied network topology, are you using the right directory server?")
             .client_listener;

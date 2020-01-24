@@ -100,13 +100,9 @@ pub trait NymTopology: Sized {
         expected_provider_version: &str,
         expected_coco_version: &str,
     ) -> Self {
-        let unversioned_mixnodes = self.mix_nodes();
-        // let f = Filter::new(unversioned_mixnodes)
-        // unversioned_mixnodes
-
-        let mixes = self.filter::<mix::Node>(self.mix_nodes(), expected_mix_version);
-        let providers = self.filter::<provider::Node>(self.providers(), expected_provider_version);
-        let cocos = self.filter::<coco::Node>(self.coco_nodes(), expected_coco_version);
+        let mixes = Filter::new(self.mix_nodes()).run(expected_mix_version);
+        let providers = Filter::new(self.providers()).run(expected_provider_version);
+        let cocos = Filter::new(self.coco_nodes()).run(expected_coco_version);
 
         Self::new_from_nodes(mixes, providers, cocos)
     }
@@ -132,38 +128,22 @@ pub trait Versioned: Clone + Sized {
 }
 
 pub struct Filter<T> {
-    _phantom_data: PhantomData<T>,
+    nodes: Vec<T>,
 }
 
 impl<T: Versioned> Filter<T> {
-    fn new() -> Self {
-        Self {
-            _phantom_data: PhantomData,
-        }
+    fn new(nodes: Vec<T>) -> Self {
+        Self { nodes }
     }
 
-    fn run(&self, nodes: Vec<T>, expected_version: &str) -> Vec<T> {
-        nodes
+    fn run(&self, expected_version: &str) -> Vec<T> {
+        self.nodes
             .iter()
             .filter(|node| version_checker::is_compatible(&node.get_version(), expected_version))
             .cloned()
             .collect()
     }
 }
-
-// impl<T: Versioned> VersionFilter<T> {
-//     fn new() -> Self {
-//         Self {}
-//     }
-
-//     fn run(&self, nodes: Vec<T>, expected_version: &str) -> Vec<T> {
-//         nodes
-//             .iter()
-//             .filter(|node| version_checker::is_compatible(&node.get_version(), expected_version))
-//             .cloned()
-//             .collect()
-//     }
-// }
 
 #[derive(Debug)]
 pub enum NymTopologyError {

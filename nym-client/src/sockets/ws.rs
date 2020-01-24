@@ -205,7 +205,7 @@ impl ClientRequest {
                     message: e.to_string(),
                 };
             }
-            Ok(hex) => hex,
+            Ok(bytes) => bytes,
         };
 
         if address_vec.len() != 32 {

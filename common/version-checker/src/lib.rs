@@ -7,10 +7,16 @@ use semver::VersionReq;
 /// The patch number in the requirement gets dropped and replaced with a wildcard (0.3.*) as all
 /// minor versions should be compatible with each other.
 pub fn is_minor_version_compatible(version: &str, req: &str) -> bool {
-    let version = Version::parse(version).unwrap();
-    let tmp = Version::parse(req).unwrap();
+    let version = match Version::parse(version) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+    let tmp = match Version::parse(req) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
     let wildcard = format!("{}.{}.*", tmp.major, tmp.minor).to_string();
-    let semver_requirement = VersionReq::parse(&wildcard).unwrap();
+    let semver_requirement = VersionReq::parse(&wildcard).expect("panicked on semver requirement parsing. This should never happen as inputs should already have been sanitized.");
 
     semver_requirement.matches(&version)
 }
@@ -50,8 +56,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn panics_on_foo_version() {
-        assert!(!is_minor_version_compatible("foo", "bar"));
+    fn returns_false_on_foo_version() {
+        assert!(!is_minor_version_compatible("foo", "0.3.2"));
+    }
+
+    #[test]
+    fn returns_false_on_bar_version() {
+        assert!(!is_minor_version_compatible("0.3.2", "bar"));
     }
 }

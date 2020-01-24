@@ -40,6 +40,7 @@ pub enum MixProcessingError {
     SphinxRecoveryError,
     ReceivedFinalHopError,
     SphinxProcessingError,
+    InvalidHopAddress,
 }
 
 impl From<sphinx::ProcessingError> for MixProcessingError {
@@ -131,7 +132,10 @@ impl PacketProcessor {
                 }
             };
 
-        let next_mix = MixPeer::new(next_hop_address);
+        let next_mix = match MixPeer::new(next_hop_address) {
+            Ok(next_mix) => next_mix,
+            Err(_) => return Err(MixProcessingError::InvalidHopAddress),
+        };
 
         let fwd_data = ForwardingData::new(
             next_packet,

@@ -1,6 +1,6 @@
 use crate::client::received_buffer::BufferResponse;
+use crate::client::topology_control::TopologyInnerRef;
 use crate::client::InputMessage;
-use directory_client::presence::Topology;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use futures::channel::{mpsc, oneshot};
 use futures::future::FutureExt;
@@ -12,20 +12,21 @@ use sphinx::route::{Destination, DestinationAddressBytes};
 use std::convert::TryFrom;
 use std::io;
 use std::net::SocketAddr;
+use topology::NymTopology;
 use tungstenite::protocol::frame::coding::CloseCode;
 use tungstenite::protocol::{CloseFrame, Message};
 
-struct Connection {
+struct Connection<T: NymTopology> {
     address: SocketAddr,
     msg_input: mpsc::UnboundedSender<InputMessage>,
     msg_query: mpsc::UnboundedSender<BufferResponse>,
     rx: UnboundedReceiver<Message>,
     self_address: DestinationAddressBytes,
-    topology: Topology,
+    topology: TopologyInnerRef<T>,
     tx: UnboundedSender<Message>,
 }
 
-impl Connection {
+impl<T: NymTopology> Connection<T> {
     async fn handle_text_message(&self, msg: String) -> ServerResponse {
         debug!("Handling text message request");
         trace!("Content: {:?}", msg.clone());
@@ -48,9 +49,7 @@ impl Connection {
                 ClientRequest::handle_send(message, recipient_address, self.msg_input.clone()).await
             }
             ClientRequest::Fetch => ClientRequest::handle_fetch(self.msg_query.clone()).await,
-            ClientRequest::GetClients => {
-                ClientRequest::handle_get_clients(self.topology.clone()).await
-            }
+            ClientRequest::GetClients => ClientRequest::handle_get_clients(&self.topology).await,
             ClientRequest::OwnDetails => ClientRequest::handle_own_details(self.self_address).await,
         }
     }
@@ -189,20 +188,12 @@ impl ClientRequest {
         mut input_tx: mpsc::UnboundedSender<InputMessage>,
     ) -> ServerResponse {
         let message_bytes = msg.into_bytes();
-        // TODO: wait until 0.4.0 release to replace those constants with newly exposed
-        // sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH
-        // we can't do it now for compatibility reasons as most recent sphinx revision
-        // has breaking changes due to packet format changes
-        let maximum_plaintext_length = sphinx::constants::PAYLOAD_SIZE
-            - sphinx::constants::SECURITY_PARAMETER
-            - sphinx::constants::DESTINATION_ADDRESS_LENGTH
-            - 1;
-        if message_bytes.len() > maximum_plaintext_length {
+        if message_bytes.len() > sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH {
             return ServerResponse::Error {
                 message: format!(
-                    "too long message. Sent {} bytes while the maximum is {}",
+                    "message too long. Sent {} bytes, but the maximum is {}",
                     message_bytes.len(),
-                    maximum_plaintext_length
+                    sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH
                 )
                 .to_string(),
             };
@@ -212,7 +203,7 @@ impl ClientRequest {
             Err(e) => {
                 return ServerResponse::Error {
                     message: e.to_string(),
-                }
+                };
             }
             Ok(hex) => hex,
         };
@@ -269,14 +260,22 @@ impl ClientRequest {
         ServerResponse::Fetch { messages }
     }
 
-    async fn handle_get_clients(topology: Topology) -> ServerResponse {
-        let clients = topology
-            .mix_provider_nodes
-            .into_iter()
-            .flat_map(|provider| provider.registered_clients.into_iter())
-            .map(|client| client.pub_key)
-            .collect();
-        ServerResponse::GetClients { clients }
+    async fn handle_get_clients<T: NymTopology>(topology: &TopologyInnerRef<T>) -> ServerResponse {
+        let topology_data = &topology.read().await.topology;
+        match topology_data {
+            Some(topology) => {
+                let clients = topology
+                    .providers()
+                    .iter()
+                    .flat_map(|provider| provider.registered_clients.iter())
+                    .map(|client| client.pub_key.clone())
+                    .collect();
+                ServerResponse::GetClients { clients }
+            }
+            None => ServerResponse::Error {
+                message: "Invalid network topology".to_string(),
+            },
+        }
     }
 
     async fn handle_own_details(self_address_bytes: DestinationAddressBytes) -> ServerResponse {
@@ -306,14 +305,13 @@ impl Into<Message> for ServerResponse {
     }
 }
 
-async fn accept_connection(
+async fn accept_connection<T: 'static + NymTopology>(
     stream: tokio::net::TcpStream,
     msg_input: mpsc::UnboundedSender<InputMessage>,
     msg_query: mpsc::UnboundedSender<BufferResponse>,
     self_address: DestinationAddressBytes,
-    topology: Topology,
+    topology: TopologyInnerRef<T>,
 ) {
-    warn!("accept_connection");
     let address = stream
         .peer_addr()
         .expect("connected streams should have a peer address");
@@ -337,6 +335,8 @@ async fn accept_connection(
         msg_query,
         self_address,
     };
+
+    // TODO: make sure this actually doesn't leak memory...
     tokio::spawn(conn.handle());
 
     while let Some(message) = ws_stream.next().await {
@@ -385,12 +385,12 @@ async fn accept_connection(
     }
 }
 
-pub async fn start_websocket(
+pub async fn start_websocket<T: 'static + NymTopology>(
     address: SocketAddr,
     message_tx: mpsc::UnboundedSender<InputMessage>,
     received_messages_query_tx: mpsc::UnboundedSender<BufferResponse>,
     self_address: DestinationAddressBytes,
-    topology: Topology,
+    topology: TopologyInnerRef<T>,
 ) -> Result<(), WebSocketError> {
     let mut listener = tokio::net::TcpListener::bind(address).await?;
 

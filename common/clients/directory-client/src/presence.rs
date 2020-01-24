@@ -2,10 +2,20 @@ use crate::requests::presence_topology_get::PresenceTopologyGetRequester;
 use crate::{Client, Config, DirectoryClient};
 use log::*;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::convert::TryInto;
 use std::io;
 use std::net::ToSocketAddrs;
-use topology::{CocoNode, MixNode, MixProviderNode, NymTopology};
+use topology::coco;
+use topology::mix;
+use topology::provider;
+use topology::NymTopology;
+
+// special version of 'PartialEq' that does not care about last_seen field (where applicable)
+// or order of elements in vectors
+trait PresenceEq {
+    fn presence_eq(&self, other: &Self) -> bool;
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,9 +26,9 @@ pub struct CocoPresence {
     pub version: String,
 }
 
-impl Into<topology::CocoNode> for CocoPresence {
-    fn into(self) -> topology::CocoNode {
-        topology::CocoNode {
+impl Into<topology::coco::Node> for CocoPresence {
+    fn into(self) -> topology::coco::Node {
+        topology::coco::Node {
             host: self.host,
             pub_key: self.pub_key,
             last_seen: self.last_seen,
@@ -27,8 +37,8 @@ impl Into<topology::CocoNode> for CocoPresence {
     }
 }
 
-impl From<topology::CocoNode> for CocoPresence {
-    fn from(cn: CocoNode) -> Self {
+impl From<topology::coco::Node> for CocoPresence {
+    fn from(cn: coco::Node) -> Self {
         CocoPresence {
             host: cn.host,
             pub_key: cn.pub_key,
@@ -48,10 +58,10 @@ pub struct MixNodePresence {
     pub version: String,
 }
 
-impl TryInto<topology::MixNode> for MixNodePresence {
+impl TryInto<topology::mix::Node> for MixNodePresence {
     type Error = io::Error;
 
-    fn try_into(self) -> Result<MixNode, Self::Error> {
+    fn try_into(self) -> Result<topology::mix::Node, Self::Error> {
         let resolved_hostname = self.host.to_socket_addrs()?.next();
         if resolved_hostname.is_none() {
             return Err(io::Error::new(
@@ -60,7 +70,7 @@ impl TryInto<topology::MixNode> for MixNodePresence {
             ));
         }
 
-        Ok(topology::MixNode {
+        Ok(topology::mix::Node {
             host: resolved_hostname.unwrap(),
             pub_key: self.pub_key,
             layer: self.layer,
@@ -70,8 +80,8 @@ impl TryInto<topology::MixNode> for MixNodePresence {
     }
 }
 
-impl From<topology::MixNode> for MixNodePresence {
-    fn from(mn: MixNode) -> Self {
+impl From<topology::mix::Node> for MixNodePresence {
+    fn from(mn: mix::Node) -> Self {
         MixNodePresence {
             host: mn.host.to_string(),
             pub_key: mn.pub_key,
@@ -93,9 +103,35 @@ pub struct MixProviderPresence {
     pub version: String,
 }
 
-impl Into<topology::MixProviderNode> for MixProviderPresence {
-    fn into(self) -> topology::MixProviderNode {
-        topology::MixProviderNode {
+impl PresenceEq for MixProviderPresence {
+    fn presence_eq(&self, other: &Self) -> bool {
+        if self.registered_clients.len() != other.registered_clients.len() {
+            return false;
+        }
+
+        if self.client_listener != other.client_listener
+            || self.mixnet_listener != other.mixnet_listener
+            || self.pub_key != other.pub_key
+            || self.version != other.version
+        {
+            return false;
+        }
+
+        let clients_self_set: HashSet<_> =
+            self.registered_clients.iter().map(|c| &c.pub_key).collect();
+        let clients_other_set: HashSet<_> = other
+            .registered_clients
+            .iter()
+            .map(|c| &c.pub_key)
+            .collect();
+
+        clients_self_set == clients_other_set
+    }
+}
+
+impl Into<topology::provider::Node> for MixProviderPresence {
+    fn into(self) -> topology::provider::Node {
+        topology::provider::Node {
             client_listener: self.client_listener.parse().unwrap(),
             mixnet_listener: self.mixnet_listener.parse().unwrap(),
             pub_key: self.pub_key,
@@ -110,8 +146,8 @@ impl Into<topology::MixProviderNode> for MixProviderPresence {
     }
 }
 
-impl From<topology::MixProviderNode> for MixProviderPresence {
-    fn from(mpn: MixProviderNode) -> Self {
+impl From<topology::provider::Node> for MixProviderPresence {
+    fn from(mpn: provider::Node) -> Self {
         MixProviderPresence {
             client_listener: mpn.client_listener.to_string(),
             mixnet_listener: mpn.mixnet_listener.to_string(),
@@ -133,19 +169,113 @@ pub struct MixProviderClient {
     pub pub_key: String,
 }
 
-impl Into<topology::MixProviderClient> for MixProviderClient {
-    fn into(self) -> topology::MixProviderClient {
-        topology::MixProviderClient {
+impl Into<topology::provider::Client> for MixProviderClient {
+    fn into(self) -> topology::provider::Client {
+        topology::provider::Client {
             pub_key: self.pub_key,
         }
     }
 }
 
-impl From<topology::MixProviderClient> for MixProviderClient {
-    fn from(mpc: topology::MixProviderClient) -> Self {
+impl From<topology::provider::Client> for MixProviderClient {
+    fn from(mpc: topology::provider::Client) -> Self {
         MixProviderClient {
             pub_key: mpc.pub_key,
         }
+    }
+}
+
+impl PresenceEq for Vec<CocoPresence> {
+    fn presence_eq(&self, other: &Self) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+
+        // we can't take the whole thing into set as it does not implement 'Eq' and we can't
+        // derive it as we don't want to take 'last_seen' into consideration
+        let self_set: HashSet<_> = self
+            .iter()
+            .map(|c| (&c.host, &c.pub_key, &c.version))
+            .collect();
+        let other_set: HashSet<_> = other
+            .iter()
+            .map(|c| (&c.host, &c.pub_key, &c.version))
+            .collect();
+
+        self_set == other_set
+    }
+}
+
+impl PresenceEq for Vec<MixNodePresence> {
+    fn presence_eq(&self, other: &Self) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+
+        // we can't take the whole thing into set as it does not implement 'Eq' and we can't
+        // derive it as we don't want to take 'last_seen' into consideration
+        let self_set: HashSet<_> = self
+            .iter()
+            .map(|m| (&m.host, &m.pub_key, &m.version, &m.layer))
+            .collect();
+        let other_set: HashSet<_> = other
+            .iter()
+            .map(|m| (&m.host, &m.pub_key, &m.version, &m.layer))
+            .collect();
+
+        self_set == other_set
+    }
+}
+
+impl PresenceEq for Vec<MixProviderPresence> {
+    fn presence_eq(&self, other: &Self) -> bool {
+        if self.len() != other.len() {
+            return false;
+        }
+
+        // we can't take the whole thing into set as it does not implement 'Eq' and we can't
+        // derive it as we don't want to take 'last_seen' into consideration.
+        // We also don't care about order of registered_clients
+
+        // since we're going to be getting rid of this very soon anyway, just clone registered
+        // clients vector and sort it
+
+        let self_set: HashSet<_> = self
+            .iter()
+            .map(|p| {
+                (
+                    &p.client_listener,
+                    &p.mixnet_listener,
+                    &p.pub_key,
+                    &p.version,
+                    p.registered_clients
+                        .iter()
+                        .cloned()
+                        .map(|c| c.pub_key)
+                        .collect::<Vec<_>>()
+                        .sort(),
+                )
+            })
+            .collect();
+        let other_set: HashSet<_> = other
+            .iter()
+            .map(|p| {
+                (
+                    &p.client_listener,
+                    &p.mixnet_listener,
+                    &p.pub_key,
+                    &p.version,
+                    p.registered_clients
+                        .iter()
+                        .cloned()
+                        .map(|c| c.pub_key)
+                        .collect::<Vec<_>>()
+                        .sort(),
+                )
+            })
+            .collect();
+
+        self_set == other_set
     }
 }
 
@@ -156,6 +286,23 @@ pub struct Topology {
     pub coco_nodes: Vec<CocoPresence>,
     pub mix_nodes: Vec<MixNodePresence>,
     pub mix_provider_nodes: Vec<MixProviderPresence>,
+}
+
+impl PartialEq for Topology {
+    // we need a custom implementation as the order of nodes does not matter
+    // also we do not care about 'last_seen' when comparing topologies
+    fn eq(&self, other: &Self) -> bool {
+        if !self.coco_nodes.presence_eq(&other.coco_nodes)
+            || !self.mix_nodes.presence_eq(&other.mix_nodes)
+            || !self
+                .mix_provider_nodes
+                .presence_eq(&other.mix_provider_nodes)
+        {
+            return false;
+        }
+
+        true
+    }
 }
 
 impl NymTopology for Topology {
@@ -174,9 +321,9 @@ impl NymTopology for Topology {
     }
 
     fn new_from_nodes(
-        mix_nodes: Vec<MixNode>,
-        mix_provider_nodes: Vec<MixProviderNode>,
-        coco_nodes: Vec<CocoNode>,
+        mix_nodes: Vec<mix::Node>,
+        mix_provider_nodes: Vec<provider::Node>,
+        coco_nodes: Vec<coco::Node>,
     ) -> Self {
         Topology {
             coco_nodes: coco_nodes.into_iter().map(|node| node.into()).collect(),
@@ -188,21 +335,21 @@ impl NymTopology for Topology {
         }
     }
 
-    fn get_mix_nodes(&self) -> Vec<topology::MixNode> {
+    fn mix_nodes(&self) -> Vec<mix::Node> {
         self.mix_nodes
             .iter()
             .filter_map(|x| x.clone().try_into().ok())
             .collect()
     }
 
-    fn get_mix_provider_nodes(&self) -> Vec<topology::MixProviderNode> {
+    fn providers(&self) -> Vec<provider::Node> {
         self.mix_provider_nodes
             .iter()
             .map(|x| x.clone().into())
             .collect()
     }
 
-    fn get_coco_nodes(&self) -> Vec<topology::CocoNode> {
+    fn coco_nodes(&self) -> Vec<topology::coco::Node> {
         self.coco_nodes.iter().map(|x| x.clone().into()).collect()
     }
 }
@@ -223,7 +370,7 @@ mod converting_mixnode_presence_into_topology_mixnode {
             version: "".to_string(),
         };
 
-        let result: Result<topology::MixNode, io::Error> = mix_presence.try_into();
+        let result: Result<mix::Node, io::Error> = mix_presence.try_into();
         assert!(result.is_err())
     }
 
@@ -239,7 +386,7 @@ mod converting_mixnode_presence_into_topology_mixnode {
             version: "".to_string(),
         };
 
-        let result: Result<topology::MixNode, io::Error> = mix_presence.try_into();
+        let result: Result<topology::mix::Node, io::Error> = mix_presence.try_into();
         assert!(result.is_ok())
     }
 }

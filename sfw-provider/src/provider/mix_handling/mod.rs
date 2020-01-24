@@ -1,5 +1,6 @@
 use crate::provider::storage::StoreData;
 use crypto::identity::DummyMixIdentityPrivateKey;
+use log::warn;
 use sphinx::{ProcessedPacket, SphinxPacket};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
@@ -8,11 +9,12 @@ use std::sync::{Arc, RwLock};
 // DUPLICATE WITH MIXNODE CODE!!!
 #[derive(Debug)]
 pub enum MixProcessingError {
-    SphinxRecoveryError,
-    ReceivedForwardHopError,
+    FileIOFailure,
     InvalidPayload,
     NonMatchingRecipient,
-    FileIOFailure,
+    ReceivedForwardHopError,
+    SphinxRecoveryError,
+    SphinxProcessingError,
 }
 
 impl From<sphinx::ProcessingError> for MixProcessingError {
@@ -63,10 +65,14 @@ impl MixPacketProcessor {
         let read_processing_data = processing_data.read().unwrap();
         let (client_address, client_surb_id, payload) =
             match packet.process(read_processing_data.secret_key.as_scalar()) {
-                ProcessedPacket::ProcessedPacketFinalHop(client_address, surb_id, payload) => {
+                Ok(ProcessedPacket::ProcessedPacketFinalHop(client_address, surb_id, payload)) => {
                     (client_address, surb_id, payload)
                 }
-                _ => return Err(MixProcessingError::ReceivedForwardHopError),
+                Ok(_) => return Err(MixProcessingError::ReceivedForwardHopError),
+                Err(e) => {
+                    warn!("Error unwrapping Sphinx packet: {:?}", e);
+                    return Err(MixProcessingError::SphinxProcessingError);
+                }
             };
 
         // TODO: should provider try to be recovering plaintext? this would potentially make client retrieve messages of non-constant length,

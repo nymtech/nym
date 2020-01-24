@@ -1,12 +1,12 @@
 use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair, MixnetIdentityPublicKey};
 use itertools::Itertools;
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace, warn};
 use mix_client::MixClient;
 use provider_client::ProviderClient;
 use sphinx::header::delays::Delay;
 use sphinx::route::{Destination, Node as SphinxNode};
 use std::collections::HashMap;
-use topology::MixProviderNode;
+use topology::provider;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum PathStatus {
@@ -27,7 +27,7 @@ pub(crate) struct PathChecker {
 
 impl PathChecker {
     pub(crate) async fn new(
-        providers: Vec<MixProviderNode>,
+        providers: Vec<provider::Node>,
         ephemeral_keys: DummyMixIdentityKeyPair,
     ) -> Self {
         let mut provider_clients = HashMap::new();
@@ -223,7 +223,7 @@ impl PathChecker {
         debug!("sending test packet to {}", first_node_address);
         match first_node_client.send(packet, first_node_address).await {
             Err(err) => {
-                warn!("failed to send packet to {} - {}", first_node_address, err);
+                info!("failed to send packet to {} - {}", first_node_address, err);
                 if self
                     .paths_status
                     .insert(path_identifier, PathStatus::Unhealthy)

@@ -1,6 +1,6 @@
-use crate::built_info;
 use crate::client::mix_traffic::MixTrafficController;
 use crate::client::received_buffer::ReceivedMessagesBuffer;
+use crate::client::topology_control::TopologyInnerRef;
 use crate::sockets::tcp;
 use crate::sockets::ws;
 use directory_client::presence::Topology;
@@ -18,6 +18,7 @@ mod mix_traffic;
 mod provider_poller;
 mod real_traffic_stream;
 pub mod received_buffer;
+pub mod topology_control;
 
 // TODO: all of those constants should probably be moved to config file
 const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
@@ -25,6 +26,8 @@ const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
 const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 0.5;
 //  seconds;
 const FETCH_MESSAGES_DELAY: f64 = 1.0; // seconds;
+
+const TOPOLOGY_REFRESH_RATE: f64 = 10.0; // seconds
 
 pub enum SocketType {
     TCP,
@@ -44,13 +47,6 @@ pub struct NymClient {
     directory: String,
     auth_token: Option<AuthToken>,
     socket_type: SocketType,
-}
-
-// TODO: this will be moved into module responsible for refreshing topology
-#[derive(Debug)]
-enum TopologyError {
-    HealthCheckError,
-    NoValidPathsError,
 }
 
 #[derive(Debug)]
@@ -77,50 +73,16 @@ impl NymClient {
         }
     }
 
-    // TODO: this will be moved into module responsible for refreshing topology
-    async fn get_compatible_topology(&self) -> Result<Topology, TopologyError> {
-        let score_threshold = 0.0;
-        info!("Trying to obtain valid, healthy, topology");
-
-        let full_topology = Topology::new(self.directory.clone());
-
-        // run a healthcheck to determine healthy-ish nodes:
-        // this is a temporary solution as the healthcheck will eventually be moved to validators
-        let healthcheck_config = healthcheck::config::HealthCheck {
-            directory_server: self.directory.clone(),
-            // those are literally unrelevant when running single check
-            interval: 100000.0,
-            resolution_timeout: 5.0,
-            num_test_packets: 2,
-        };
-        let healthcheck = healthcheck::HealthChecker::new(healthcheck_config);
-        let healthcheck_result = healthcheck.do_check().await;
-
-        let healthcheck_scores = match healthcheck_result {
-            Err(err) => {
-                error!("Error while performing the healtcheck: {:?}", err);
-                return Err(TopologyError::HealthCheckError);
-            }
-            Ok(scores) => scores,
-        };
-
-        let healthy_topology =
-            healthcheck_scores.filter_topology_by_score(&full_topology, score_threshold);
-
-        // for time being assume same versioning, i.e. if client is running X.Y.Z,
-        // we're expecting mixes, providers and coconodes to also be running X.Y.Z
-        let versioned_healthy_topology = healthy_topology.filter_node_versions(
-            built_info::PKG_VERSION,
-            built_info::PKG_VERSION,
-            built_info::PKG_VERSION,
-        );
-
-        // make sure you can still send a packet through the network:
-        if !versioned_healthy_topology.can_construct_path_through() {
-            return Err(TopologyError::NoValidPathsError);
-        }
-
-        Ok(versioned_healthy_topology)
+    async fn get_provider_socket_address<T: NymTopology>(
+        &self,
+        topology_ctrl_ref: TopologyInnerRef<T>,
+    ) -> SocketAddr {
+        // this is temporary and assumes there exists only a single provider.
+        topology_ctrl_ref.read().await.topology.as_ref().unwrap()
+            .providers()
+            .first()
+            .expect("Could not get a provider from the initial network topology, are you using the right directory server?")
+            .client_listener
     }
 
     pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
@@ -144,20 +106,14 @@ impl NymClient {
         let (received_messages_buffer_output_tx, received_messages_buffer_output_rx) =
             mpsc::unbounded();
 
-        // get initial topology; already filtered by health and version
-        let initial_topology = match rt.block_on(self.get_compatible_topology()) {
-            Ok(topology) => topology,
-            Err(err) => {
-                panic!("Failed to obtain initial network topology: {:?}", err);
-            }
-        };
+        // TODO: when we switch to our graph topology, we need to remember to change 'Topology' type
+        let topology_controller = rt.block_on(topology_control::TopologyControl::<Topology>::new(
+            self.directory.clone(),
+            TOPOLOGY_REFRESH_RATE,
+        ));
 
-        // this is temporary and assumes there exists only a single provider.
-        let provider_client_listener_address: SocketAddr = initial_topology
-            .get_mix_provider_nodes()
-            .first()
-            .expect("Could not get a provider from the supplied network topology, are you using the right directory server?")
-            .client_listener;
+        let provider_client_listener_address =
+            rt.block_on(self.get_provider_socket_address(topology_controller.get_inner_ref()));
 
         let mut provider_poller = provider_poller::ProviderPoller::new(
             poller_input_tx,
@@ -189,13 +145,13 @@ impl NymClient {
             rt.spawn(cover_traffic_stream::start_loop_cover_traffic_stream(
                 mix_tx.clone(),
                 Destination::new(self.address, Default::default()),
-                initial_topology.clone(),
+                topology_controller.get_inner_ref(),
             ));
 
         // cloning arguments required by OutQueueControl; required due to move
-        let topology_clone = initial_topology.clone();
         let self_address = self.address;
         let input_rx = self.input_rx;
+        let topology_ref = topology_controller.get_inner_ref();
 
         // future constantly pumping traffic at some specified average rate
         // if a real message is available on 'input_rx' that might have been received from say
@@ -206,7 +162,7 @@ impl NymClient {
                 mix_tx,
                 input_rx,
                 Destination::new(self_address, Default::default()),
-                topology_clone,
+                topology_ref,
             )
             .run_out_queue_control()
             .await
@@ -225,7 +181,7 @@ impl NymClient {
                     self.input_tx,
                     received_messages_buffer_output_tx,
                     self.address,
-                    initial_topology,
+                    topology_controller.get_inner_ref(),
                 ));
             }
             SocketType::TCP => {
@@ -234,11 +190,15 @@ impl NymClient {
                     self.input_tx,
                     received_messages_buffer_output_tx,
                     self.address,
-                    initial_topology,
+                    topology_controller.get_inner_ref(),
                 ));
             }
             SocketType::None => (),
         }
+
+        // future responsible for periodically polling directory server and updating
+        // the current global view of topology
+        let topology_refresher_future = rt.spawn(topology_controller.run_refresher());
 
         rt.block_on(async {
             let future_results = join!(
@@ -247,6 +207,7 @@ impl NymClient {
                 loop_cover_traffic_future,
                 out_queue_control_future,
                 provider_polling_future,
+                topology_refresher_future,
             );
 
             assert!(
@@ -255,6 +216,7 @@ impl NymClient {
                     && future_results.2.is_ok()
                     && future_results.3.is_ok()
                     && future_results.4.is_ok()
+                    && future_results.5.is_ok()
             );
         });
 

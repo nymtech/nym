@@ -4,7 +4,8 @@ use std::cmp::Ordering;
 use std::fmt::Error;
 use std::fmt::Formatter;
 use std::net::SocketAddr;
-use topology::{MixNode, MixProviderNode};
+use topology::mix;
+use topology::provider;
 
 // TODO: should 'nodetype' really be part of healthcheck::score
 
@@ -91,7 +92,7 @@ impl PartialEq for NodeScore {
 }
 
 impl NodeScore {
-    pub(crate) fn from_mixnode(node: MixNode) -> Self {
+    pub(crate) fn from_mixnode(node: mix::Node) -> Self {
         NodeScore {
             typ: NodeType::Mix,
             pub_key: NodeAddressBytes::from_b64_string(node.pub_key),
@@ -103,7 +104,7 @@ impl NodeScore {
         }
     }
 
-    pub(crate) fn from_provider(node: MixProviderNode) -> Self {
+    pub(crate) fn from_provider(node: provider::Node) -> Self {
         NodeScore {
             typ: NodeType::MixProvider,
             pub_key: NodeAddressBytes::from_b64_string(node.pub_key),

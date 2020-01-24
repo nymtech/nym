@@ -191,7 +191,7 @@ impl ClientRequest {
         if message_bytes.len() > sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH {
             return ServerResponse::Error {
                 message: format!(
-                    "too long message. Sent {} bytes while the maximum is {}",
+                    "message too long. Sent {} bytes, but the maximum is {}",
                     message_bytes.len(),
                     sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH
                 )

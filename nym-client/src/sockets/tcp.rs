@@ -1,18 +1,17 @@
 use crate::client::received_buffer::BufferResponse;
+use crate::client::topology_control::TopologyInnerRef;
 use crate::client::InputMessage;
-use directory_client::presence::Topology;
 use futures::channel::{mpsc, oneshot};
 use futures::future::FutureExt;
 use futures::io::Error;
 use futures::SinkExt;
 use log::*;
 use sphinx::route::{Destination, DestinationAddressBytes};
-use std::borrow::Borrow;
 use std::convert::TryFrom;
 use std::io;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use tokio::prelude::*;
+use topology::NymTopology;
 
 const SEND_REQUEST_PREFIX: u8 = 1;
 const FETCH_REQUEST_PREFIX: u8 = 2;
@@ -124,14 +123,24 @@ impl ClientRequest {
         ServerResponse::Fetch { messages }
     }
 
-    async fn handle_get_clients(topology: &Topology) -> ServerResponse {
-        let clients = topology
-            .mix_provider_nodes
-            .iter()
-            .flat_map(|provider| provider.registered_clients.iter())
-            .map(|client| base64::decode_config(&client.pub_key, base64::URL_SAFE).unwrap()) // TODO: this can potentially throw an error
-            .collect();
-        ServerResponse::GetClients { clients }
+    async fn handle_get_clients<T: NymTopology>(topology: &TopologyInnerRef<T>) -> ServerResponse {
+        let topology_data = &topology.read().await.topology;
+        match topology_data {
+            Some(topology) => {
+                let clients = topology
+                    .providers()
+                    .iter()
+                    .flat_map(|provider| provider.registered_clients.iter())
+                    .filter_map(|client| {
+                        base64::decode_config(&client.pub_key, base64::URL_SAFE).ok()
+                    })
+                    .collect();
+                ServerResponse::GetClients { clients }
+            }
+            None => ServerResponse::Error {
+                message: "Invalid network topology".to_string(),
+            },
+        }
     }
 
     async fn handle_own_details(self_address_bytes: DestinationAddressBytes) -> ServerResponse {
@@ -196,9 +205,9 @@ impl ServerResponse {
     }
 }
 
-async fn handle_connection(
+async fn handle_connection<T: NymTopology>(
     data: &[u8],
-    request_handling_data: RequestHandlingData,
+    request_handling_data: RequestHandlingData<T>,
 ) -> Result<ServerResponse, TCPSocketError> {
     let request = ClientRequest::try_from(data)?;
     let response = match request {
@@ -211,7 +220,7 @@ async fn handle_connection(
         }
         ClientRequest::Fetch => ClientRequest::handle_fetch(request_handling_data.msg_query).await,
         ClientRequest::GetClients => {
-            ClientRequest::handle_get_clients(request_handling_data.topology.borrow()).await
+            ClientRequest::handle_get_clients(&request_handling_data.topology).await
         }
         ClientRequest::OwnDetails => {
             ClientRequest::handle_own_details(request_handling_data.self_address).await
@@ -221,26 +230,24 @@ async fn handle_connection(
     Ok(response)
 }
 
-struct RequestHandlingData {
+struct RequestHandlingData<T: NymTopology> {
     msg_input: mpsc::UnboundedSender<InputMessage>,
     msg_query: mpsc::UnboundedSender<BufferResponse>,
     self_address: DestinationAddressBytes,
-    topology: Arc<Topology>,
+    topology: TopologyInnerRef<T>,
 }
 
-async fn accept_connection(
+async fn accept_connection<T: 'static + NymTopology>(
     mut socket: tokio::net::TcpStream,
     msg_input: mpsc::UnboundedSender<InputMessage>,
     msg_query: mpsc::UnboundedSender<BufferResponse>,
     self_address: DestinationAddressBytes,
-    topology: Topology,
+    topology: TopologyInnerRef<T>,
 ) {
     let address = socket
         .peer_addr()
         .expect("connected streams should have a peer address");
     debug!("Peer address: {}", address);
-
-    let topology = Arc::new(topology);
 
     let mut buf = [0u8; 2048];
 
@@ -280,12 +287,12 @@ async fn accept_connection(
     }
 }
 
-pub async fn start_tcpsocket(
+pub async fn start_tcpsocket<T: 'static + NymTopology>(
     address: SocketAddr,
     message_tx: mpsc::UnboundedSender<InputMessage>,
     received_messages_query_tx: mpsc::UnboundedSender<BufferResponse>,
     self_address: DestinationAddressBytes,
-    topology: Topology,
+    topology: TopologyInnerRef<T>,
 ) -> Result<(), TCPSocketError> {
     let mut listener = tokio::net::TcpListener::bind(address).await?;
 

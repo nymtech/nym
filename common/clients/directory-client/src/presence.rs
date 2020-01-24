@@ -11,8 +11,8 @@ use topology::mix;
 use topology::provider;
 use topology::NymTopology;
 
-// special version of 'PartialEq' that does not care about last_seen field (where applicable)
-// or order of elements in vectors
+// special version of 'PartialEq' that does not care about last_seen field
+//(where applicable) or order of elements in vectors
 trait PresenceEq {
     fn presence_eq(&self, other: &Self) -> bool;
 }

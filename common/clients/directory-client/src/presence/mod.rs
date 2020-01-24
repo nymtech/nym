@@ -3,7 +3,6 @@ use crate::{Client, Config, DirectoryClient};
 use log::*;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
-use std::io;
 use topology::coco;
 use topology::mix;
 use topology::provider;
@@ -110,7 +109,7 @@ mod converting_mixnode_presence_into_topology_mixnode {
             version: "".to_string(),
         };
 
-        let result: Result<mix::Node, io::Error> = mix_presence.try_into();
+        let result: Result<mix::Node, std::io::Error> = mix_presence.try_into();
         assert!(result.is_err())
     }
 
@@ -126,7 +125,7 @@ mod converting_mixnode_presence_into_topology_mixnode {
             version: "".to_string(),
         };
 
-        let result: Result<topology::mix::Node, io::Error> = mix_presence.try_into();
+        let result: Result<topology::mix::Node, std::io::Error> = mix_presence.try_into();
         assert!(result.is_ok())
     }
 }

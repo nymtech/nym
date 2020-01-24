@@ -1,4 +1,4 @@
-use crate::filter::VersionFiltererable;
+use crate::filter::VersionFilterable;
 use itertools::Itertools;
 use rand::seq::IteratorRandom;
 use sphinx::route::Node as SphinxNode;

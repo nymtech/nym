@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 base64 = "0.11.0"
-curve25519-dalek = "1.2.3"
+bs58 = "0.3.0"
 itertools = "0.8.2"
 log = "0.4"
 pretty_env_logger = "0.3"

@@ -1382,7 +1382,7 @@ name = "nym-mixnode"
 version = "0.3.3"
 dependencies = [
  "addressing",
- "base64 0.11.0",
+ "bs58",
  "built",
  "clap",
  "curve25519-dalek",

@@ -28,7 +28,7 @@ pub fn encapsulate_message<T: NymTopology>(
     topology: &T,
     average_delay: f64,
 ) -> (SocketAddr, SphinxPacket) {
-    let mut providers = topology.get_mix_provider_nodes();
+    let mut providers = topology.providers();
     let provider = providers.pop().unwrap().into();
 
     let route = topology.route_to(provider).unwrap();

@@ -127,7 +127,7 @@ impl PacketProcessor {
                 }
                 Ok(_) => return Err(MixProcessingError::ReceivedFinalHopError),
                 Err(e) => {
-                    warn!("Failed to unwrap Sphinx pakcet: {:?}", e);
+                    warn!("Failed to unwrap Sphinx packet: {:?}", e);
                     return Err(MixProcessingError::SphinxProcessingError);
                 }
             };

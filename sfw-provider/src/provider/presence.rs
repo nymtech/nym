@@ -1,6 +1,6 @@
 use crate::provider::ClientLedger;
 use crypto::identity::DummyMixIdentityPublicKey;
-use directory_client::presence::MixProviderPresence;
+use directory_client::presence::providers::MixProviderPresence;
 use directory_client::requests::presence_providers_post::PresenceMixProviderPoster;
 use directory_client::DirectoryClient;
 use futures::lock::Mutex as FMutex;

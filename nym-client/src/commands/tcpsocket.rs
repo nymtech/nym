@@ -27,7 +27,9 @@ pub fn execute(matches: &ArgMatches) {
         .expect("Failed to extract the socket address from the iterator");
 
     // TODO: currently we know we are reading the 'DummyMixIdentityKeyPair', but how to properly assert the type?
-    let keypair: DummyMixIdentityKeyPair = PemStore::new(ClientPathfinder::new(id)).read_identity();
+    let keypair: DummyMixIdentityKeyPair = PemStore::new(ClientPathfinder::new(id))
+        .read_identity()
+        .unwrap();
     // TODO: reading auth_token from disk (if exists);
 
     println!("Public key: {}", keypair.public_key.to_b64_string());

@@ -12,7 +12,7 @@ pub fn execute(matches: &ArgMatches) {
     println!("Writing keypairs to {:?}...", pathfinder.config_dir);
     let mix_keys = crypto::identity::DummyMixIdentityKeyPair::new();
     let pem_store = PemStore::new(pathfinder);
-    pem_store.write_identity(mix_keys);
+    pem_store.write_identity(mix_keys).unwrap();
 
     println!("Client configuration completed.\n\n\n")
 }

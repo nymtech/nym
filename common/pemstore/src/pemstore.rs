@@ -1,6 +1,7 @@
 use crate::pathfinder::PathFinder;
 use pem::{encode, parse, Pem};
 use std::fs::File;
+use std::io;
 use std::io::prelude::*;
 use std::path::PathBuf;
 
@@ -24,43 +25,50 @@ impl PemStore {
         }
     }
 
-    pub fn read_identity<IDPair, Priv, Pub>(&self) -> IDPair
+    pub fn read_identity<IDPair, Priv, Pub>(&self) -> io::Result<IDPair>
     where
         IDPair: crypto::identity::MixnetIdentityKeyPair<Priv, Pub>,
         Priv: crypto::identity::MixnetIdentityPrivateKey,
         Pub: crypto::identity::MixnetIdentityPublicKey,
     {
-        let private_pem = self.read_pem_file(self.private_mix_key.clone());
-        let public_pem = self.read_pem_file(self.public_mix_key.clone());
+        let private_pem = self.read_pem_file(self.private_mix_key.clone())?;
+        let public_pem = self.read_pem_file(self.public_mix_key.clone())?;
 
         let key_pair = IDPair::from_bytes(&private_pem.contents, &public_pem.contents);
 
-        assert_eq!(key_pair.private_key().pem_type(), private_pem.tag);
-        assert_eq!(key_pair.public_key().pem_type(), public_pem.tag);
+        if key_pair.private_key().pem_type() != private_pem.tag {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "unexpected private key pem tag",
+            ));
+        }
 
-        key_pair
+        if key_pair.public_key().pem_type() != public_pem.tag {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "unexpected public key pem tag",
+            ));
+        }
+
+        Ok(key_pair)
     }
 
-    fn read_pem_file(&self, filepath: PathBuf) -> Pem {
-        let mut pem_bytes = File::open(filepath).expect("Could not open stored keys from disk.");
+    fn read_pem_file(&self, filepath: PathBuf) -> io::Result<Pem> {
+        let mut pem_bytes = File::open(filepath)?;
         let mut buf = Vec::new();
-        pem_bytes
-            .read_to_end(&mut buf)
-            .expect("PEM bytes reading failed.");
-        let pem = parse(&buf).expect("PEM parsing failed while reading keys");
-
-        pem
+        pem_bytes.read_to_end(&mut buf)?;
+        parse(&buf).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     }
     // This should be refactored and made more generic for when we have other kinds of
     // KeyPairs that we want to persist (e.g. validator keypairs, or keys for
     // signing vs encryption). However, for the moment, it does the job.
-    pub fn write_identity<IDPair, Priv, Pub>(&self, key_pair: IDPair)
+    pub fn write_identity<IDPair, Priv, Pub>(&self, key_pair: IDPair) -> io::Result<()>
     where
         IDPair: crypto::identity::MixnetIdentityKeyPair<Priv, Pub>,
         Priv: crypto::identity::MixnetIdentityPrivateKey,
         Pub: crypto::identity::MixnetIdentityPublicKey,
     {
-        std::fs::create_dir_all(self.config_dir.clone()).unwrap();
+        std::fs::create_dir_all(self.config_dir.clone())?;
 
         let private_key = key_pair.private_key();
         let public_key = key_pair.public_key();
@@ -68,22 +76,25 @@ impl PemStore {
             self.private_mix_key.clone(),
             private_key.to_bytes(),
             private_key.pem_type(),
-        );
+        )?;
         self.write_pem_file(
             self.public_mix_key.clone(),
             public_key.to_bytes(),
             public_key.pem_type(),
-        );
+        )?;
+        Ok(())
     }
 
-    fn write_pem_file(&self, filepath: PathBuf, data: Vec<u8>, tag: String) {
+    fn write_pem_file(&self, filepath: PathBuf, data: Vec<u8>, tag: String) -> io::Result<()> {
         let pem = Pem {
             tag,
             contents: data,
         };
         let key = encode(&pem);
 
-        let mut file = File::create(filepath).unwrap();
-        file.write_all(key.as_bytes()).unwrap();
+        let mut file = File::create(filepath)?;
+        file.write_all(key.as_bytes())?;
+
+        Ok(())
     }
 }

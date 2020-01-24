@@ -56,6 +56,7 @@ impl MixnetEncryptionPrivateKey for PrivateKey {
     fn from_bytes(b: &[u8]) -> Self {
         let mut bytes = [0; 32];
         bytes.copy_from_slice(&b[..]);
+        // due to trait restriction we have no choice but to panic if this fails
         let key = Scalar::from_canonical_bytes(bytes).unwrap();
         Self(key)
     }

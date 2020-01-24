@@ -4,7 +4,7 @@ use crate::client::{InputMessage, MESSAGE_SENDING_AVERAGE_DELAY};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
-use log::{info, trace, warn};
+use log::{error, info, trace, warn};
 use sphinx::route::Destination;
 use std::pin::Pin;
 use std::time::Duration;
@@ -107,6 +107,17 @@ impl<T: NymTopology> OutQueueControl<T> {
                     topology,
                     AVERAGE_PACKET_DELAY,
                 ),
+            };
+
+            let next_packet = match next_packet {
+                Ok(message) => message,
+                Err(err) => {
+                    error!(
+                        "Somehow we managed to create an invalid traffic message - {:?}",
+                        err
+                    );
+                    continue;
+                }
             };
 
             // if this one fails, there's no retrying because it means that either:

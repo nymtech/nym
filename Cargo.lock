@@ -856,7 +856,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "sfw-provider-requests",
- "sphinx 0.1.0",
+ "sphinx",
  "tokio 0.2.9",
  "topology",
 ]
@@ -1257,7 +1257,7 @@ dependencies = [
  "pretty_env_logger",
  "rand 0.7.2",
  "rand_distr",
- "sphinx 0.1.0",
+ "sphinx",
  "tokio 0.2.9",
  "topology",
 ]
@@ -1364,7 +1364,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sfw-provider-requests",
- "sphinx 0.1.0",
+ "sphinx",
  "tokio 0.2.9",
  "tokio-tungstenite",
  "topology",
@@ -1385,7 +1385,7 @@ dependencies = [
  "futures 0.3.1",
  "log",
  "pretty_env_logger",
- "sphinx 0.1.0 (git+https://github.com/nymtech/sphinx?rev=1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f)",
+ "sphinx",
  "tokio 0.2.9",
 ]
 
@@ -1410,7 +1410,7 @@ dependencies = [
  "serde_json",
  "sfw-provider-requests",
  "sha2",
- "sphinx 0.1.0 (git+https://github.com/nymtech/sphinx?rev=1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f)",
+ "sphinx",
  "tokio 0.2.9",
 ]
 
@@ -1618,7 +1618,7 @@ dependencies = [
  "log",
  "pretty_env_logger",
  "sfw-provider-requests",
- "sphinx 0.1.0 (git+https://github.com/nymtech/sphinx?rev=1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f)",
+ "sphinx",
  "tokio 0.2.9",
 ]
 
@@ -2025,7 +2025,7 @@ dependencies = [
 name = "sfw-provider-requests"
 version = "0.1.0"
 dependencies = [
- "sphinx 0.1.0 (git+https://github.com/nymtech/sphinx?rev=1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f)",
+ "sphinx",
 ]
 
 [[package]]
@@ -2098,27 +2098,7 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f#1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f"
-dependencies = [
- "aes-ctr",
- "arrayref",
- "base64 0.11.0",
- "blake2",
- "byteorder",
- "chacha",
- "curve25519-dalek",
- "hkdf",
- "hmac",
- "lioness",
- "rand 0.7.2",
- "rand_distr",
- "rand_os",
- "sha2",
-]
-
-[[package]]
-name = "sphinx"
-version = "0.1.0"
+source = "git+https://github.com/nymtech/sphinx?rev=47c4fbba8272c4aee03cc8165220f33572a96602#47c4fbba8272c4aee03cc8165220f33572a96602"
 dependencies = [
  "aes-ctr",
  "arrayref",
@@ -2448,7 +2428,7 @@ dependencies = [
  "pretty_env_logger",
  "rand 0.7.2",
  "serde",
- "sphinx 0.1.0",
+ "sphinx",
  "version-checker",
 ]
 

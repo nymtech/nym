@@ -22,7 +22,7 @@ addressing = {path = "../common/addressing" }
 directory-client = { path = "../common/clients/directory-client" }
 
 ## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="47c4fbba8272c4aee03cc8165220f33572a96602" }
 
 [build-dependencies]
 built = "0.3.2"

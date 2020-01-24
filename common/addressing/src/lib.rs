@@ -62,8 +62,8 @@ pub fn encoded_bytes_from_socket_address(address: SocketAddr) -> [u8; 32] {
     address_bytes
 }
 
-pub fn socket_address_from_encoded_bytes(b: [u8; 32]) -> SocketAddr {
-    let address_type: AddressType = b[0].try_into().unwrap();
+pub fn socket_address_from_encoded_bytes(b: [u8; 32]) -> Result<SocketAddr, AddressTypeError> {
+    let address_type: AddressType = b[0].try_into()?;
 
     let port: u16 = u16::from_be_bytes([b[1], b[2]]);
 
@@ -76,5 +76,5 @@ pub fn socket_address_from_encoded_bytes(b: [u8; 32]) -> SocketAddr {
         }
     };
 
-    SocketAddr::new(ip, port)
+    Ok(SocketAddr::new(ip, port))
 }

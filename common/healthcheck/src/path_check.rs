@@ -153,16 +153,23 @@ impl PathChecker {
         let mut provider_messages = Vec::new();
         for provider_client in self.provider_clients.values() {
             // if it was none all associated paths were already marked as unhealthy
-            if provider_client.is_some() {
-                let pc = provider_client.as_ref().unwrap();
-                provider_messages.extend(self.resolve_pending_provider_checks(pc).await);
-            }
+            let pc = match provider_client {
+                Some(pc) => pc,
+                None => continue,
+            };
+
+            provider_messages.extend(self.resolve_pending_provider_checks(pc).await);
         }
 
         self.update_path_statuses(provider_messages);
     }
 
     pub(crate) async fn send_test_packet(&mut self, path: &Vec<SphinxNode>, iteration: u8) {
+        if path.len() == 0 {
+            warn!("trying to send test packet through an empty path!");
+            return;
+        }
+
         debug!("Checking path: {:?} ({})", path, iteration);
         let path_identifier = PathChecker::unique_path_key(path, iteration);
 
@@ -171,7 +178,13 @@ impl PathChecker {
         // does provider exist?
         let provider_client = self
             .provider_clients
-            .get(&path.last().unwrap().pub_key.to_bytes())
+            .get(
+                &path
+                    .last()
+                    .expect("We checked the path to contain at least one entry")
+                    .pub_key
+                    .to_bytes(),
+            )
             .unwrap();
 
         if provider_client.is_none() {
@@ -186,10 +199,15 @@ impl PathChecker {
             return;
         }
 
-        let layer_one_mix = path.first().unwrap();
+        let layer_one_mix = path
+            .first()
+            .expect("We checked the path to contain at least one entry");
         let first_node_key = layer_one_mix.pub_key.to_bytes();
+
+        // we generated the bytes data so unwrap is fine
         let first_node_address =
-            addressing::socket_address_from_encoded_bytes(layer_one_mix.address.to_bytes());
+            addressing::socket_address_from_encoded_bytes(layer_one_mix.address.to_bytes())
+                .unwrap();
 
         let first_node_client = self
             .layer_one_clients
@@ -208,10 +226,12 @@ impl PathChecker {
             return;
         }
 
+        // we already checked for 'None' case
         let first_node_client = first_node_client.as_ref().unwrap();
 
         let delays: Vec<_> = path.iter().map(|_| Delay::new(0)).collect();
 
+        // all of the data used to create the packet was created by us
         let packet = sphinx::SphinxPacket::new(
             path_identifier.clone(),
             &path[..],

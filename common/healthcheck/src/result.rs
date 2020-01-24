@@ -14,9 +14,9 @@ pub struct HealthCheckResult(Vec<NodeScore>);
 impl std::fmt::Display for HealthCheckResult {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         write!(f, "NETWORK HEALTH\n==============\n")?;
-        self.0
-            .iter()
-            .for_each(|score| write!(f, "{}\n", score).unwrap());
+        for score in self.0.iter() {
+            write!(f, "{}\n", score)?
+        }
         Ok(())
     }
 }

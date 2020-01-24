@@ -57,6 +57,8 @@ pub trait NymTopology: Sized + PartialEq + std::fmt::Debug + Send + Sync {
         let mut layered_topology = self.make_layered_topology()?;
         let num_layers = layered_topology.len();
         let route = (1..=num_layers as u64)
+            // unwrap is safe for 'remove' as it it failed, it implied the entry never existed
+            // in the map in the first place which would contradict what we've just done
             .map(|layer| layered_topology.remove(&layer).unwrap()) // for each layer
             .map(|nodes| nodes.into_iter().choose(&mut rand::thread_rng()).unwrap()) // choose random node
             .map(|random_node| random_node.into()) // and convert it into sphinx specific node format

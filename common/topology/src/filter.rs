@@ -9,7 +9,7 @@ pub trait VersionFiltererable<T> {
 impl<T: Versioned> VersionFiltererable<T> for Vec<T> {
     fn filter_by_version(&self, expected_version: &str) -> Self {
         self.iter()
-            .filter(|node| version_checker::is_compatible(&node.version(), expected_version))
+            .filter(|node| version_checker::is_minor_version_compatible(&node.version(), expected_version))
             .cloned()
             .collect()
     }

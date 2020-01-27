@@ -95,7 +95,7 @@ impl NodeScore {
     pub(crate) fn from_mixnode(node: mix::Node) -> Self {
         NodeScore {
             typ: NodeType::Mix,
-            pub_key: NodeAddressBytes::from_b64_string(node.pub_key),
+            pub_key: NodeAddressBytes::from_base58_string(node.pub_key),
             addresses: vec![node.host],
             version: node.version,
             layer: format!("layer {}", node.layer),
@@ -107,7 +107,7 @@ impl NodeScore {
     pub(crate) fn from_provider(node: provider::Node) -> Self {
         NodeScore {
             typ: NodeType::MixProvider,
-            pub_key: NodeAddressBytes::from_b64_string(node.pub_key),
+            pub_key: NodeAddressBytes::from_base58_string(node.pub_key),
             addresses: vec![node.mixnet_listener, node.client_listener],
             version: node.version,
             layer: format!("provider"),
@@ -149,7 +149,7 @@ impl std::fmt::Display for NodeScore {
                 return Err(std::fmt::Error);
             }
         };
-        let stringified_key = self.pub_key.to_b64_string();
+        let stringified_key = self.pub_key.to_base58_string();
         write!(
             f,
             "({})\t{}/{}\t({}%)\t|| {}\tv{} <{}> - {}",

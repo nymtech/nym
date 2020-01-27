@@ -34,7 +34,7 @@ impl Notifier {
             net_client,
             client_listener: client_listener.to_string(),
             mixnet_listener: mixnet_listener.to_string(),
-            pub_key: pub_key.to_b64_string(),
+            pub_key: pub_key.to_base58_string(),
             client_ledger,
         }
     }

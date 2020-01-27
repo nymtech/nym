@@ -1,7 +1,7 @@
 use crate::client::{NymClient, SocketType};
 use crate::config::persistance::pathfinder::ClientPathfinder;
 use clap::ArgMatches;
-use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair, MixnetIdentityPublicKey};
+use crypto::identity::DummyMixIdentityKeyPair;
 use pemstore::pemstore::PemStore;
 use std::net::ToSocketAddrs;
 
@@ -35,12 +35,9 @@ pub fn execute(matches: &ArgMatches) {
 
     println!("Public key: {}", keypair.public_key.to_base58_string());
 
-    let mut temporary_address = [0u8; 32];
-    let public_key_bytes = keypair.public_key().to_bytes();
-    temporary_address.copy_from_slice(&public_key_bytes[..]);
     let auth_token = None;
     let client = NymClient::new(
-        temporary_address,
+        keypair,
         socket_address,
         directory_server,
         auth_token,

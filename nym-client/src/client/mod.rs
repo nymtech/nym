@@ -3,12 +3,14 @@ use crate::client::received_buffer::ReceivedMessagesBuffer;
 use crate::client::topology_control::TopologyInnerRef;
 use crate::sockets::tcp;
 use crate::sockets::ws;
+use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
 use directory_client::presence::Topology;
 use futures::channel::mpsc;
 use futures::join;
 use log::*;
 use sfw_provider_requests::AuthToken;
-use sphinx::route::{Destination, DestinationAddressBytes};
+use sphinx::route::Destination;
+use std::marker::PhantomData;
 use std::net::SocketAddr;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
@@ -35,9 +37,13 @@ pub enum SocketType {
     None,
 }
 
-pub struct NymClient {
-    // to be replaced by something else I guess
-    address: DestinationAddressBytes,
+pub struct NymClient<IDPair, Priv, Pub>
+where
+    IDPair: MixnetIdentityKeyPair<Priv, Pub> + Send + Sync,
+    Priv: MixnetIdentityPrivateKey + Send + Sync,
+    Pub: MixnetIdentityPublicKey + Send + Sync,
+{
+    keypair: IDPair,
 
     // to be used by "send" function or socket, etc
     pub input_tx: mpsc::UnboundedSender<InputMessage>,
@@ -47,14 +53,22 @@ pub struct NymClient {
     directory: String,
     auth_token: Option<AuthToken>,
     socket_type: SocketType,
+
+    _phantom_private: PhantomData<Priv>,
+    _phantom_public: PhantomData<Pub>,
 }
 
 #[derive(Debug)]
 pub struct InputMessage(pub Destination, pub Vec<u8>);
 
-impl NymClient {
+impl<IDPair: 'static, Priv: 'static, Pub: 'static> NymClient<IDPair, Priv, Pub>
+where
+    IDPair: MixnetIdentityKeyPair<Priv, Pub> + Send + Sync,
+    Priv: MixnetIdentityPrivateKey + Send + Sync,
+    Pub: MixnetIdentityPublicKey + Send + Sync,
+{
     pub fn new(
-        address: DestinationAddressBytes,
+        keypair: IDPair,
         socket_listening_address: SocketAddr,
         directory: String,
         auth_token: Option<AuthToken>,
@@ -63,13 +77,15 @@ impl NymClient {
         let (input_tx, input_rx) = mpsc::unbounded::<InputMessage>();
 
         NymClient {
-            address,
+            keypair,
             input_tx,
             input_rx,
             socket_listening_address,
             directory,
             auth_token,
             socket_type,
+            _phantom_private: PhantomData,
+            _phantom_public: PhantomData,
         }
     }
 
@@ -106,11 +122,18 @@ impl NymClient {
         let (received_messages_buffer_output_tx, received_messages_buffer_output_rx) =
             mpsc::unbounded();
 
+        let self_address = self.keypair.public_key().derive_address();
+
+        // generate same type of keys we have as our identity
+        let healthcheck_keys = IDPair::new();
+
         // TODO: when we switch to our graph topology, we need to remember to change 'Topology' type
-        let topology_controller = rt.block_on(topology_control::TopologyControl::<Topology>::new(
-            self.directory.clone(),
-            TOPOLOGY_REFRESH_RATE,
-        ));
+        let topology_controller =
+            rt.block_on(topology_control::TopologyControl::<Topology, _, _, _>::new(
+                self.directory.clone(),
+                TOPOLOGY_REFRESH_RATE,
+                healthcheck_keys,
+            ));
 
         let provider_client_listener_address =
             rt.block_on(self.get_provider_socket_address(topology_controller.get_inner_ref()));
@@ -118,7 +141,7 @@ impl NymClient {
         let mut provider_poller = provider_poller::ProviderPoller::new(
             poller_input_tx,
             provider_client_listener_address,
-            self.address,
+            self_address,
             self.auth_token,
         );
 
@@ -144,12 +167,11 @@ impl NymClient {
         let loop_cover_traffic_future =
             rt.spawn(cover_traffic_stream::start_loop_cover_traffic_stream(
                 mix_tx.clone(),
-                Destination::new(self.address, Default::default()),
+                Destination::new(self_address, Default::default()),
                 topology_controller.get_inner_ref(),
             ));
 
         // cloning arguments required by OutQueueControl; required due to move
-        let self_address = self.address;
         let input_rx = self.input_rx;
         let topology_ref = topology_controller.get_inner_ref();
 
@@ -180,7 +202,7 @@ impl NymClient {
                     self.socket_listening_address,
                     self.input_tx,
                     received_messages_buffer_output_tx,
-                    self.address,
+                    self_address,
                     topology_controller.get_inner_ref(),
                 ));
             }
@@ -189,7 +211,7 @@ impl NymClient {
                     self.socket_listening_address,
                     self.input_tx,
                     received_messages_buffer_output_tx,
-                    self.address,
+                    self_address,
                     topology_controller.get_inner_ref(),
                 ));
             }

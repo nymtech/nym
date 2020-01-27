@@ -58,7 +58,7 @@ impl<T: NymTopology> TopologyControl<T> {
 
         let healthcheck_scores = match healthcheck_result {
             Err(err) => {
-                error!("Error while performing the healtcheck: {:?}", err);
+                error!("Error while performing the healthcheck: {:?}", err);
                 return Err(TopologyError::HealthCheckError);
             }
             Ok(scores) => scores,
@@ -91,18 +91,6 @@ impl<T: NymTopology> TopologyControl<T> {
         write_lock.topology = new_topology;
     }
 
-    async fn should_update_topology(&mut self, new_topology: &Option<T>) -> bool {
-        let read_lock = self.inner.read().await;
-        match new_topology {
-            // if new topology is invalid, we MUST update to it as it is impossible to send packets through
-            None => true,
-            Some(new_topology) => match &read_lock.topology {
-                None => true,
-                Some(old_topology) => new_topology != old_topology,
-            },
-        }
-    }
-
     pub(crate) async fn run_refresher(mut self) {
         info!("Starting topology refresher");
         let delay_duration = Duration::from_secs_f64(self.refresh_rate);
@@ -119,12 +107,7 @@ impl<T: NymTopology> TopologyControl<T> {
                 }
             };
 
-            if self.should_update_topology(&new_topology).await {
-                info!("Detected changes in topology - updating global view!");
-
-                self.update_global_topology(new_topology).await;
-            }
-
+            self.update_global_topology(new_topology).await;
             tokio::time::delay_for(delay_duration).await;
         }
     }

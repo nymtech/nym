@@ -10,7 +10,7 @@ mod filter;
 pub mod mix;
 pub mod provider;
 
-pub trait NymTopology: Sized + PartialEq + std::fmt::Debug + Send + Sync {
+pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync {
     fn new(directory_server: String) -> Self;
     fn new_from_nodes(
         mix_nodes: Vec<mix::Node>,

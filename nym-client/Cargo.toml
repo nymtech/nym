@@ -39,7 +39,7 @@ sfw-provider-requests = { path = "../sfw-provider/sfw-provider-requests" }
 topology = {path = "../common/topology" }
 
 ## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="c3ba1447d61d6eb900fcdea0c20b3070a22bf11a" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="8424f4b0933b4a7f64ae828b2edefc5ba43a9e79" }
 # sphinx = { path = "../../sphinx"}
 
 # putting this explicitly below everything and most likely, the next time we look into it, it will already have a proper release

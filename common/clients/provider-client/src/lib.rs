@@ -75,7 +75,7 @@ impl ProviderClient {
         let mut response = Vec::new();
         socket.read_to_end(&mut response).await?;
         if let Err(e) = socket.shutdown(Shutdown::Read) {
-            warn!("failed to close read part of the socket; err = {:?}", e)
+            debug!("failed to close read part of the socket; err = {:?}. It was probably already closed by the provider", e)
         }
 
         Ok(response)

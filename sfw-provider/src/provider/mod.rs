@@ -2,7 +2,7 @@ use crate::provider::client_handling::{ClientProcessingData, ClientRequestProces
 use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
 use crate::provider::storage::ClientStorage;
 use crypto::identity::{DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey};
-use directory_client::presence::MixProviderClient;
+use directory_client::presence::providers::MixProviderClient;
 use futures::io::Error;
 use futures::lock::Mutex as FMutex;
 use log::*;
@@ -87,7 +87,7 @@ impl ClientLedger {
     fn current_clients(&self) -> Vec<MixProviderClient> {
         self.0
             .iter()
-            .map(|(_, v)| base64::encode_config(v, base64::URL_SAFE))
+            .map(|(_, v)| bs58::encode(v).into_string())
             .map(|pub_key| MixProviderClient { pub_key })
             .collect()
     }

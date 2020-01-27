@@ -1,6 +1,6 @@
 use crate::provider::ClientLedger;
 use crypto::identity::DummyMixIdentityPublicKey;
-use directory_client::presence::MixProviderPresence;
+use directory_client::presence::providers::MixProviderPresence;
 use directory_client::requests::presence_providers_post::PresenceMixProviderPoster;
 use directory_client::DirectoryClient;
 use futures::lock::Mutex as FMutex;
@@ -34,7 +34,7 @@ impl Notifier {
             net_client,
             client_listener: client_listener.to_string(),
             mixnet_listener: mixnet_listener.to_string(),
-            pub_key: pub_key.to_b64_string(),
+            pub_key: pub_key.to_base58_string(),
             client_ledger,
         }
     }

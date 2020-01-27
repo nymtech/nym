@@ -14,9 +14,8 @@ pub struct Node {
 
 impl Node {
     pub fn get_pub_key_bytes(&self) -> [u8; 32] {
-        let decoded_key_bytes = base64::decode_config(&self.pub_key, base64::URL_SAFE).unwrap();
         let mut key_bytes = [0; 32];
-        key_bytes.copy_from_slice(&decoded_key_bytes[..]);
+        bs58::decode(&self.pub_key).into(&mut key_bytes).unwrap();
         key_bytes
     }
 }

@@ -142,9 +142,7 @@ impl ClientRequest {
                     .providers()
                     .iter()
                     .flat_map(|provider| provider.registered_clients.iter())
-                    .filter_map(|client| {
-                        base64::decode_config(&client.pub_key, base64::URL_SAFE).ok()
-                    })
+                    .filter_map(|client| bs58::decode(&client.pub_key).into_vec().ok())
                     .collect();
                 ServerResponse::GetClients { clients }
             }

@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-base64 = "0.11.0"
+bs58 = "0.3.0"
 curve25519-dalek = "1.2.3"
 log = "0.4"
 pretty_env_logger = "0.3"

@@ -32,7 +32,7 @@ pub fn execute(matches: &ArgMatches) {
         .unwrap();
     // TODO: reading auth_token from disk (if exists);
 
-    println!("Public key: {}", keypair.public_key.to_b64_string());
+    println!("Public key: {}", keypair.public_key.to_base58_string());
 
     let mut temporary_address = [0u8; 32];
     let public_key_bytes = keypair.public_key().to_bytes();

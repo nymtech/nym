@@ -199,13 +199,13 @@ impl ClientRequest {
             };
         }
 
-        let address_vec = match base64::decode_config(&recipient_address, base64::URL_SAFE) {
+        let address_vec = match bs58::decode(&recipient_address).into_vec() {
             Err(e) => {
                 return ServerResponse::Error {
                     message: e.to_string(),
                 };
             }
-            Ok(hex) => hex,
+            Ok(bytes) => bytes,
         };
 
         if address_vec.len() != 32 {
@@ -280,7 +280,7 @@ impl ClientRequest {
     }
 
     async fn handle_own_details(self_address_bytes: DestinationAddressBytes) -> ServerResponse {
-        let self_address = base64::encode_config(&self_address_bytes, base64::URL_SAFE);
+        let self_address = bs58::encode(&self_address_bytes).into_string();
         ServerResponse::OwnDetails {
             address: self_address,
         }

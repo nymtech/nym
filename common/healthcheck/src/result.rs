@@ -61,7 +61,7 @@ impl HealthCheckResult {
             .mix_nodes()
             .into_iter()
             .filter(|node| {
-                match self.node_score(NodeAddressBytes::from_b64_string(node.pub_key.clone())) {
+                match self.node_score(NodeAddressBytes::from_base58_string(node.pub_key.clone())) {
                     None => {
                         error!("Unknown node in topology - {:?}", node);
                         false
@@ -75,7 +75,7 @@ impl HealthCheckResult {
             .providers()
             .into_iter()
             .filter(|node| {
-                match self.node_score(NodeAddressBytes::from_b64_string(node.pub_key.clone())) {
+                match self.node_score(NodeAddressBytes::from_base58_string(node.pub_key.clone())) {
                     None => {
                         error!("Unknown node in topology - {:?}", node);
                         false

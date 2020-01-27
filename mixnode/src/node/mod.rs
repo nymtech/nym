@@ -31,7 +31,7 @@ pub struct Config {
 impl Config {
     pub fn public_key_string(&self) -> String {
         let key_bytes = self.public_key.to_bytes().to_vec();
-        base64::encode_config(&key_bytes, base64::URL_SAFE)
+        bs58::encode(&key_bytes).into_string()
     }
 }
 
@@ -251,8 +251,7 @@ impl MixNode {
         let directory_cfg = directory_client::Config {
             base_url: self.directory_server.clone(),
         };
-        let pub_key_str =
-            base64::encode_config(&self.public_key.to_bytes().to_vec(), base64::URL_SAFE);
+        let pub_key_str = bs58::encode(&self.public_key.to_bytes().to_vec()).into_string();
 
         rt.spawn({
             let presence_notifier = presence::Notifier::new(&config);

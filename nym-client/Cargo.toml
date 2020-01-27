@@ -12,7 +12,6 @@ name = "nym_client"
 path = "src/lib.rs"
 
 [dependencies]
-base64 = "0.11.0"
 bs58 = "0.3.0"
 clap = "2.33.0"
 curve25519-dalek = "1.2.3"

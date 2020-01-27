@@ -472,6 +472,7 @@ dependencies = [
  "pretty_env_logger",
  "rand 0.7.3",
  "rand_os",
+ "sphinx",
 ]
 
 [[package]]
@@ -859,6 +860,8 @@ dependencies = [
  "mix-client",
  "pretty_env_logger",
  "provider-client",
+ "rand 0.7.3",
+ "rand_os",
  "serde",
  "serde_derive",
  "sfw-provider-requests",
@@ -1418,6 +1421,7 @@ version = "0.1.0"
 dependencies = [
  "built",
  "clap",
+ "crypto",
  "dotenv",
  "futures 0.3.1",
  "healthcheck",

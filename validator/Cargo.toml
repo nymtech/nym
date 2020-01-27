@@ -20,6 +20,7 @@ tokio = { version = "0.2", features = ["full"] }
 toml = "0.5.5"
 
 ## internal
+crypto = {path = "../common/crypto"}
 healthcheck = {path = "../common/healthcheck" }
 
 [build-dependencies]

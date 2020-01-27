@@ -1,7 +1,8 @@
 use crate::path_check::{PathChecker, PathStatus};
 use crate::score::NodeScore;
-use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair};
+use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
 use log::{debug, error, info, warn};
+use rand_os::rand_core::RngCore;
 use sphinx::route::NodeAddressBytes;
 use std::collections::HashMap;
 use std::fmt::{Error, Formatter};
@@ -94,14 +95,30 @@ impl HealthCheckResult {
         )
     }
 
-    pub async fn calculate<T: NymTopology>(
+    fn generate_check_id() -> [u8; 16] {
+        let mut id = [0u8; 16];
+        let mut rng = rand_os::OsRng::new().unwrap();
+        rng.fill_bytes(&mut id);
+        id
+    }
+
+    pub async fn calculate<T, IDPair, Priv, Pub>(
         topology: T,
         iterations: usize,
         resolution_timeout: Duration,
-    ) -> Self {
+        identity_keys: &IDPair,
+    ) -> Self
+    where
+        T: NymTopology,
+        IDPair: MixnetIdentityKeyPair<Priv, Pub>,
+        Priv: MixnetIdentityPrivateKey,
+        Pub: MixnetIdentityPublicKey,
+    {
         // currently healthchecker supports only up to 255 iterations - if we somehow
         // find we need more, it's relatively easy change
         assert!(iterations <= 255);
+
+        let check_id = Self::generate_check_id();
 
         let all_paths = match topology.all_paths() {
             Ok(paths) => paths,
@@ -118,10 +135,9 @@ impl HealthCheckResult {
             score_map.insert(node.get_pub_key_bytes(), NodeScore::from_provider(node));
         });
 
-        let ephemeral_keys = DummyMixIdentityKeyPair::new();
         let providers = topology.providers();
 
-        let mut path_checker = PathChecker::new(providers, ephemeral_keys).await;
+        let mut path_checker = PathChecker::new(providers, identity_keys, check_id).await;
         for i in 0..iterations {
             debug!("running healthcheck iteration {} / {}", i + 1, iterations);
             for path in &all_paths {

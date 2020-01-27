@@ -1,6 +1,4 @@
-use super::PresenceEq;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::convert::TryInto;
 use std::io;
 use std::net::ToSocketAddrs;
@@ -47,26 +45,5 @@ impl From<topology::mix::Node> for MixNodePresence {
             last_seen: mn.last_seen,
             version: mn.version,
         }
-    }
-}
-
-impl PresenceEq for Vec<MixNodePresence> {
-    fn presence_eq(&self, other: &Self) -> bool {
-        if self.len() != other.len() {
-            return false;
-        }
-
-        // we can't take the whole thing into set as it does not implement 'Eq' and we can't
-        // derive it as we don't want to take 'last_seen' into consideration
-        let self_set: HashSet<_> = self
-            .iter()
-            .map(|m| (&m.host, &m.pub_key, &m.version, &m.layer))
-            .collect();
-        let other_set: HashSet<_> = other
-            .iter()
-            .map(|m| (&m.host, &m.pub_key, &m.version, &m.layer))
-            .collect();
-
-        self_set == other_set
     }
 }

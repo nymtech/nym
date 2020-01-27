@@ -12,12 +12,6 @@ pub mod coconodes;
 pub mod mixnodes;
 pub mod providers;
 
-// special version of 'PartialEq' that does not care about last_seen field
-//(where applicable) or order of elements in vectors
-trait PresenceEq {
-    fn presence_eq(&self, other: &Self) -> bool;
-}
-
 // Topology shows us the current state of the overall Nym network
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,23 +19,6 @@ pub struct Topology {
     pub coco_nodes: Vec<coconodes::CocoPresence>,
     pub mix_nodes: Vec<mixnodes::MixNodePresence>,
     pub mix_provider_nodes: Vec<providers::MixProviderPresence>,
-}
-
-impl PartialEq for Topology {
-    // we need a custom implementation as the order of nodes does not matter
-    // also we do not care about 'last_seen' when comparing topologies
-    fn eq(&self, other: &Self) -> bool {
-        if !self.coco_nodes.presence_eq(&other.coco_nodes)
-            || !self.mix_nodes.presence_eq(&other.mix_nodes)
-            || !self
-                .mix_provider_nodes
-                .presence_eq(&other.mix_provider_nodes)
-        {
-            return false;
-        }
-
-        true
-    }
 }
 
 impl NymTopology for Topology {

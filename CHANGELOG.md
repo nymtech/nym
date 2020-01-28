@@ -2,7 +2,17 @@
 
 ## [Unreleased](https://github.com/nymtech/nym/tree/HEAD)
 
-[Full Changelog](https://github.com/nymtech/nym/compare/v0.4.0-rc.1...HEAD)
+[Full Changelog](https://github.com/nymtech/nym/compare/0.4.0-rc.2...HEAD)
+
+Nym 0.4.0 Platform
+
+In this release, we're taking a lot more care with version numbers, so that we can ensure upgrade compatibility for mixnodes, providers, clients, and validators more easily. 
+
+This release also integrates a health-checker and network topology refresh into the Nym client, so that the client can intelligently choose paths which route around any non-functional or incompatible nodes. 
+
+## [0.4.0-rc.2](https://github.com/nymtech/nym/tree/0.4.0-rc.2) (2020-01-28)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.4.0-rc.1...0.4.0-rc.2)
 
 **Merged pull requests:**
 
@@ -72,6 +82,10 @@
 
 [Full Changelog](https://github.com/nymtech/nym/compare/v0.3.1...v0.3.2)
 
+**Merged pull requests:**
+
+- Feature/separate presence address [\#59](https://github.com/nymtech/nym/pull/59) ([jstuczyn](https://github.com/jstuczyn))
+
 ## [v0.3.1](https://github.com/nymtech/nym/tree/v0.3.1) (2020-01-16)
 
 [Full Changelog](https://github.com/nymtech/nym/compare/v0.3.0...v0.3.1)
@@ -98,7 +112,6 @@
 
 **Merged pull requests:**
 
-- Feature/separate presence address [\#59](https://github.com/nymtech/nym/pull/59) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/client topology filtering [\#54](https://github.com/nymtech/nym/pull/54) ([jstuczyn](https://github.com/jstuczyn))
 - print public key for nym client tools [\#53](https://github.com/nymtech/nym/pull/53) ([mileschet](https://github.com/mileschet))
 - Showing binding warning on binding to localhost, 0.0.0.0 or 127.0.0.1 [\#52](https://github.com/nymtech/nym/pull/52) ([jstuczyn](https://github.com/jstuczyn))

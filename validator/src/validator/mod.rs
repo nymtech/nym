@@ -3,9 +3,12 @@ use crypto::identity::{
     DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey,
     MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey,
 };
+use directory_client::presence::Topology;
 use healthcheck::HealthChecker;
-use log::debug;
+use log::{debug, error, info};
+use std::time::Duration;
 use tokio::runtime::Runtime;
+use topology::NymTopology;
 
 pub mod config;
 
@@ -16,6 +19,7 @@ where
     Priv: MixnetIdentityPrivateKey,
     Pub: MixnetIdentityPublicKey,
 {
+    config: Config,
     #[allow(dead_code)]
     identity_keypair: IDPair,
     heath_check: HealthChecker<IDPair, Priv, Pub>,
@@ -30,7 +34,33 @@ impl Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIden
 
         Validator {
             identity_keypair: dummy_keypair.clone(),
-            heath_check: HealthChecker::new(config.health_check, dummy_keypair),
+            heath_check: HealthChecker::new(
+                config.health_check.resolution_timeout,
+                config.health_check.num_test_packets,
+                dummy_keypair,
+            ),
+            config,
+        }
+    }
+
+    async fn healthcheck_runner<T: NymTopology>(&self) {
+        let healthcheck_interval = Duration::from_secs_f64(self.config.health_check.interval);
+        debug!("healthcheck will run every {:?}", healthcheck_interval);
+
+        loop {
+            let full_topology = T::new(self.config.health_check.directory_server.clone());
+            let version_filtered_topology = full_topology.filter_node_versions(
+                crate::built_info::PKG_VERSION,
+                crate::built_info::PKG_VERSION,
+                crate::built_info::PKG_VERSION,
+            );
+
+            match self.heath_check.do_check(&version_filtered_topology).await {
+                Ok(health) => info!("current network health: \n{}", health),
+                Err(err) => error!("failed to perform healthcheck - {:?}", err),
+            };
+
+            tokio::time::delay_for(healthcheck_interval).await;
         }
     }
 
@@ -39,9 +69,7 @@ impl Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIden
 
         let mut rt = Runtime::new().unwrap();
 
-        let health_check_future = self.heath_check.run();
-
-        let health_check_res = rt.block_on(health_check_future);
-        assert!(health_check_res.is_ok()); // if it got here it means healthchecker failed anyway
+        let health_check_future = self.healthcheck_runner::<Topology>();
+        rt.block_on(health_check_future);
     }
 }

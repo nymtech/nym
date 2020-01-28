@@ -21,7 +21,9 @@ toml = "0.5.5"
 
 ## internal
 crypto = {path = "../common/crypto"}
+directory-client = { path = "../common/clients/directory-client" }
 healthcheck = {path = "../common/healthcheck" }
+topology = {path = "../common/topology"}
 
 [build-dependencies]
 built = "0.3.2"

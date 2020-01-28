@@ -1,5 +1,5 @@
 use futures::io::Error;
-use log::info;
+use log::*;
 use sfw_provider_requests::requests::{ProviderRequest, PullRequest, RegisterRequest};
 use sfw_provider_requests::responses::{
     ProviderResponse, ProviderResponseError, PullResponse, RegisterResponse,
@@ -65,34 +65,34 @@ impl ProviderClient {
 
     pub async fn send_request(&self, bytes: Vec<u8>) -> Result<Vec<u8>, ProviderClientError> {
         let mut socket = tokio::net::TcpStream::connect(self.provider_network_address).await?;
-        info!("keep alive: {:?}", socket.keepalive());
-        socket.set_keepalive(Some(Duration::from_secs(2))).unwrap();
+
+        socket.set_keepalive(Some(Duration::from_secs(2)))?;
         socket.write_all(&bytes[..]).await?;
-        if let Err(_e) = socket.shutdown(Shutdown::Write) {
-            // TODO: make it a silent log once we have a proper logging library
-            //            eprintln!("failed to close write part of the socket; err = {:?}", e)
+        if let Err(e) = socket.shutdown(Shutdown::Write) {
+            warn!("failed to close write part of the socket; err = {:?}", e)
         }
 
         let mut response = Vec::new();
         socket.read_to_end(&mut response).await?;
-        if let Err(_e) = socket.shutdown(Shutdown::Read) {
-            // TODO: make it a silent log once we have a proper logging library
-            //            eprintln!("failed to close read part of the socket; err = {:?}", e)
+        if let Err(e) = socket.shutdown(Shutdown::Read) {
+            debug!("failed to close read part of the socket; err = {:?}. It was probably already closed by the provider", e)
         }
 
         Ok(response)
     }
 
     pub async fn retrieve_messages(&self) -> Result<Vec<Vec<u8>>, ProviderClientError> {
-        if self.auth_token.is_none() {
-            return Err(ProviderClientError::EmptyAuthTokenError);
-        }
+        let auth_token = match self.auth_token {
+            Some(token) => token,
+            None => {
+                return Err(ProviderClientError::EmptyAuthTokenError);
+            }
+        };
 
-        let pull_request = PullRequest::new(self.our_address, self.auth_token.unwrap());
+        let pull_request = PullRequest::new(self.our_address, auth_token);
         let bytes = pull_request.to_bytes();
 
         let response = self.send_request(bytes).await?;
-        info!("Received the following response: {:?}", response);
 
         let parsed_response = PullResponse::from_bytes(&response)?;
         Ok(parsed_response.messages)
@@ -110,5 +110,9 @@ impl ProviderClient {
         let parsed_response = RegisterResponse::from_bytes(&response)?;
 
         Ok(parsed_response.auth_token)
+    }
+
+    pub fn is_registered(&self) -> bool {
+        self.auth_token.is_some()
     }
 }

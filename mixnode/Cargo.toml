@@ -1,18 +1,20 @@
 [package]
 build = "build.rs"
 name = "nym-mixnode"
-version = "0.3.3"
+version = "0.4.0-rc.1"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-base64 = "0.11.0"
+bs58 = "0.3.0"
 clap = "2.33.0"
 curve25519-dalek = "1.2.3"
+dotenv = "0.15.0"
 futures = "0.3.1"
-log = "0.4.8"
+log = "0.4"
+pretty_env_logger = "0.3"
 tokio = { version = "0.2", features = ["full"] }
 
 ## internal
@@ -20,7 +22,7 @@ addressing = {path = "../common/addressing" }
 directory-client = { path = "../common/clients/directory-client" }
 
 ## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="8424f4b0933b4a7f64ae828b2edefc5ba43a9e79" }
 
 [build-dependencies]
 built = "0.3.2"

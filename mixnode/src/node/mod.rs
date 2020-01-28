@@ -6,6 +6,7 @@ use curve25519_dalek::scalar::Scalar;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::SinkExt;
+use log::*;
 use sphinx::header::delays::Delay as SphinxDelay;
 use sphinx::{ProcessedPacket, SphinxPacket};
 use std::net::SocketAddr;
@@ -30,7 +31,7 @@ pub struct Config {
 impl Config {
     pub fn public_key_string(&self) -> String {
         let key_bytes = self.public_key.to_bytes().to_vec();
-        base64::encode_config(&key_bytes, base64::URL_SAFE)
+        bs58::encode(&key_bytes).into_string()
     }
 }
 
@@ -38,6 +39,8 @@ impl Config {
 pub enum MixProcessingError {
     SphinxRecoveryError,
     ReceivedFinalHopError,
+    SphinxProcessingError,
+    InvalidHopAddress,
 }
 
 impl From<sphinx::ProcessingError> for MixProcessingError {
@@ -107,20 +110,32 @@ impl PacketProcessor {
     ) -> Result<ForwardingData, MixProcessingError> {
         // we received something resembling a sphinx packet, report it!
         let processing_data = processing_data.lock().await;
-        let mut received_sender = processing_data.received_metrics_tx.clone();
+        let mut received_metrics_tx = processing_data.received_metrics_tx.clone();
 
-        received_sender.send(()).await.unwrap();
+        // if unwrap failed it means our metrics reporter died, so we should exit application and
+        // force restart
+        if received_metrics_tx.send(()).await.is_err() {
+            error!("failed to send metrics data to the controller - the underlying thread probably died!");
+            std::process::exit(1);
+        }
 
         let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
         let (next_packet, next_hop_address, delay) =
             match packet.process(processing_data.secret_key) {
-                ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay) => {
+                Ok(ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay)) => {
                     (packet, address, delay)
                 }
-                _ => return Err(MixProcessingError::ReceivedFinalHopError),
+                Ok(_) => return Err(MixProcessingError::ReceivedFinalHopError),
+                Err(e) => {
+                    warn!("Failed to unwrap Sphinx packet: {:?}", e);
+                    return Err(MixProcessingError::SphinxProcessingError);
+                }
             };
 
-        let next_mix = MixPeer::new(next_hop_address);
+        let next_mix = match MixPeer::new(next_hop_address) {
+            Ok(next_mix) => next_mix,
+            Err(_) => return Err(MixProcessingError::InvalidHopAddress),
+        };
 
         let fwd_data = ForwardingData::new(
             next_packet,
@@ -134,13 +149,18 @@ impl PacketProcessor {
     async fn wait_and_forward(mut forwarding_data: ForwardingData) {
         let delay_duration = Duration::from_nanos(forwarding_data.delay.get_value());
         tokio::time::delay_for(delay_duration).await;
-        forwarding_data
+
+        if forwarding_data
             .sent_metrics_tx
             .send(forwarding_data.recipient.to_string())
             .await
-            .unwrap();
+            .is_err()
+        {
+            error!("failed to send metrics data to the controller - the underlying thread probably died!");
+            std::process::exit(1);
+        }
 
-        println!("RECIPIENT: {:?}", forwarding_data.recipient);
+        trace!("RECIPIENT: {:?}", forwarding_data.recipient);
         match forwarding_data
             .recipient
             .send(forwarding_data.packet.to_bytes())
@@ -148,7 +168,7 @@ impl PacketProcessor {
         {
             Ok(()) => (),
             Err(e) => {
-                println!(
+                warn!(
                     "failed to write bytes to next mix peer. err = {:?}",
                     e.to_string()
                 );
@@ -182,7 +202,6 @@ impl MixNode {
         mut socket: tokio::net::TcpStream,
         processing_data: Arc<Mutex<ProcessingData>>,
     ) {
-        // NOTE: processing_data is copied here!!
         let mut buf = [0u8; sphinx::PACKET_SIZE];
 
         // In a loop, read data from the socket and write the data back.
@@ -190,27 +209,33 @@ impl MixNode {
             match socket.read(&mut buf).await {
                 // socket closed
                 Ok(n) if n == 0 => {
-                    println!("Remote connection closed.");
+                    trace!("Remote connection closed.");
                     return;
                 }
                 Ok(_) => {
-                    let fwd_data = PacketProcessor::process_sphinx_data_packet(
+                    let fwd_data = match PacketProcessor::process_sphinx_data_packet(
                         buf.as_ref(),
                         processing_data.clone(),
                     )
                     .await
-                    .unwrap();
+                    {
+                        Ok(fwd_data) => fwd_data,
+                        Err(e) => {
+                            warn!("failed to process sphinx packet: {:?}", e);
+                            return;
+                        }
+                    };
                     PacketProcessor::wait_and_forward(fwd_data).await;
                 }
                 Err(e) => {
-                    println!("failed to read from socket; err = {:?}", e);
+                    warn!("failed to read from socket; err = {:?}", e);
                     return;
                 }
             };
 
             // Write the some data back
             if let Err(e) = socket.write_all(b"foomp").await {
-                println!("failed to write reply to socket; err = {:?}", e);
+                warn!("failed to write reply to socket; err = {:?}", e);
                 return;
             }
         }
@@ -226,8 +251,7 @@ impl MixNode {
         let directory_cfg = directory_client::Config {
             base_url: self.directory_server.clone(),
         };
-        let pub_key_str =
-            base64::encode_config(&self.public_key.to_bytes().to_vec(), base64::URL_SAFE);
+        let pub_key_str = bs58::encode(&self.public_key.to_bytes().to_vec()).into_string();
 
         rt.spawn({
             let presence_notifier = presence::Notifier::new(&config);

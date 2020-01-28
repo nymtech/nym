@@ -8,7 +8,16 @@ edition = "2018"
 
 [dependencies]
 log = "0.4.8"
+pretty_env_logger = "0.3"
+rand = "0.7.2"
+rand_distr = "0.2.2"
 tokio = { version = "0.2", features = ["full"] }
 
+## internal
+addressing = {path = "../../addressing"}
+topology = {path = "../../topology"}
+
 ## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="8424f4b0933b4a7f64ae828b2edefc5ba43a9e79" }
+# sphinx = { path = "../../../../sphinx"}
+

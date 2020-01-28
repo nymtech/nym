@@ -1,7 +1,7 @@
 [package]
 build = "build.rs"
 name = "nym-validator"
-version = "0.1.0"
+version = "0.4.0-rc.1"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2018"
 
@@ -12,14 +12,15 @@ clap = "2.33.0"
 # Read notes https://crates.io/crates/dotenv - tl;dr: don't use in production, set environmental variables properly.
 dotenv = "0.15.0"
 futures = "0.3.1"
-log = "0.4.8"
-pretty_env_logger = "0.3.1"
+log = "0.4"
+pretty_env_logger = "0.3"
 serde = "1.0.104"
 serde_derive = "1.0.104"
 tokio = { version = "0.2", features = ["full"] }
 toml = "0.5.5"
 
 ## internal
+crypto = {path = "../common/crypto"}
 healthcheck = {path = "../common/healthcheck" }
 
 [build-dependencies]

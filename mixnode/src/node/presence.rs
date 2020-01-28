@@ -1,5 +1,5 @@
 use crate::node;
-use directory_client::presence::MixNodePresence;
+use directory_client::presence::mixnodes::MixNodePresence;
 use directory_client::requests::presence_mixnodes_post::PresenceMixNodesPoster;
 use directory_client::DirectoryClient;
 use log::{debug, error};

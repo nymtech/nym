@@ -1,16 +1,14 @@
-#![recursion_limit = "256"]
-
 use clap::{App, Arg, ArgMatches, SubCommand};
 
 pub mod built_info;
-pub mod clients;
+pub mod client;
 mod commands;
-mod persistence;
+pub mod config;
 mod sockets;
-pub mod utils;
 
 fn main() {
-    env_logger::init();
+    dotenv::dotenv().ok();
+    pretty_env_logger::init();
 
     let arg_matches = App::new("Nym Client")
         .version(built_info::PKG_VERSION)

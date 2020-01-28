@@ -1,102 +1,29 @@
-use addressing;
-use curve25519_dalek::montgomery::MontgomeryPoint;
+use crate::filter::VersionFilterable;
 use itertools::Itertools;
 use rand::seq::IteratorRandom;
-use sphinx::route::{Node as SphinxNode, NodeAddressBytes};
+use sphinx::route::Node as SphinxNode;
 use std::cmp::max;
 use std::collections::HashMap;
-use std::net::SocketAddr;
 
-#[derive(Debug, Clone)]
-pub struct MixNode {
-    pub host: SocketAddr,
-    pub pub_key: String,
-    pub layer: u64,
-    pub last_seen: u64,
-    pub version: String,
-}
+pub mod coco;
+mod filter;
+pub mod mix;
+pub mod provider;
 
-impl Into<SphinxNode> for MixNode {
-    fn into(self) -> SphinxNode {
-        let address_bytes = addressing::encoded_bytes_from_socket_address(self.host);
-        let key_bytes = self.get_pub_key_bytes();
-        let key = MontgomeryPoint(key_bytes);
-
-        SphinxNode::new(NodeAddressBytes::from_bytes(address_bytes), key)
-    }
-}
-
-impl MixNode {
-    pub fn get_pub_key_bytes(&self) -> [u8; 32] {
-        let decoded_key_bytes = base64::decode_config(&self.pub_key, base64::URL_SAFE).unwrap();
-        let mut key_bytes = [0; 32];
-        key_bytes.copy_from_slice(&decoded_key_bytes[..]);
-        key_bytes
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct MixProviderClient {
-    pub pub_key: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct MixProviderNode {
-    pub client_listener: SocketAddr,
-    pub mixnet_listener: SocketAddr,
-    pub pub_key: String,
-    pub registered_clients: Vec<MixProviderClient>,
-    pub last_seen: u64,
-    pub version: String,
-}
-
-impl Into<SphinxNode> for MixProviderNode {
-    fn into(self) -> SphinxNode {
-        let address_bytes = addressing::encoded_bytes_from_socket_address(self.mixnet_listener);
-        let key_bytes = self.get_pub_key_bytes();
-        let key = MontgomeryPoint(key_bytes);
-
-        SphinxNode::new(NodeAddressBytes::from_bytes(address_bytes), key)
-    }
-}
-
-impl MixProviderNode {
-    pub fn get_pub_key_bytes(&self) -> [u8; 32] {
-        let decoded_key_bytes = base64::decode_config(&self.pub_key, base64::URL_SAFE).unwrap();
-        let mut key_bytes = [0; 32];
-        key_bytes.copy_from_slice(&decoded_key_bytes[..]);
-        key_bytes
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct CocoNode {
-    pub host: String,
-    pub pub_key: String,
-    pub last_seen: u64,
-    pub version: String,
-}
-
-#[derive(Debug)]
-pub enum NymTopologyError {
-    InvalidMixLayerError,
-    MissingLayerError(Vec<u64>),
-}
-
-pub trait NymTopology: Sized {
+pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync {
     fn new(directory_server: String) -> Self;
     fn new_from_nodes(
-        mix_nodes: Vec<MixNode>,
-        mix_provider_nodes: Vec<MixProviderNode>,
-        coco_nodes: Vec<CocoNode>,
+        mix_nodes: Vec<mix::Node>,
+        mix_provider_nodes: Vec<provider::Node>,
+        coco_nodes: Vec<coco::Node>,
     ) -> Self;
-    fn get_mix_nodes(&self) -> Vec<MixNode>;
-    fn get_mix_provider_nodes(&self) -> Vec<MixProviderNode>;
-    fn get_coco_nodes(&self) -> Vec<CocoNode>;
-    fn make_layered_topology(&self) -> Result<HashMap<u64, Vec<MixNode>>, NymTopologyError> {
-        let mut layered_topology: HashMap<u64, Vec<MixNode>> = HashMap::new();
+    fn mix_nodes(&self) -> Vec<mix::Node>;
+    fn providers(&self) -> Vec<provider::Node>;
+    fn coco_nodes(&self) -> Vec<coco::Node>;
+    fn make_layered_topology(&self) -> Result<HashMap<u64, Vec<mix::Node>>, NymTopologyError> {
+        let mut layered_topology: HashMap<u64, Vec<mix::Node>> = HashMap::new();
         let mut highest_layer = 0;
-        for mix in self.get_mix_nodes() {
+        for mix in self.mix_nodes() {
             // we need to have extra space for provider
             if mix.layer > sphinx::constants::MAX_PATH_LENGTH as u64 {
                 return Err(NymTopologyError::InvalidMixLayerError);
@@ -124,10 +51,14 @@ pub trait NymTopology: Sized {
 
         Ok(layered_topology)
     }
+
+    // Tries to get a route through the mix network
     fn mix_route(&self) -> Result<Vec<SphinxNode>, NymTopologyError> {
         let mut layered_topology = self.make_layered_topology()?;
         let num_layers = layered_topology.len();
         let route = (1..=num_layers as u64)
+            // unwrap is safe for 'remove' as it it failed, it implied the entry never existed
+            // in the map in the first place which would contradict what we've just done
             .map(|layer| layered_topology.remove(&layer).unwrap()) // for each layer
             .map(|nodes| nodes.into_iter().choose(&mut rand::thread_rng()).unwrap()) // choose random node
             .map(|random_node| random_node.into()) // and convert it into sphinx specific node format
@@ -136,7 +67,7 @@ pub trait NymTopology: Sized {
         Ok(route)
     }
 
-    // sets a route to specific provider
+    // Sets up a route to a specific provider
     fn route_to(&self, provider_node: SphinxNode) -> Result<Vec<SphinxNode>, NymTopologyError> {
         Ok(self
             .mix_route()?
@@ -147,7 +78,7 @@ pub trait NymTopology: Sized {
 
     fn all_paths(&self) -> Result<Vec<Vec<SphinxNode>>, NymTopologyError> {
         let mut layered_topology = self.make_layered_topology()?;
-        let providers = self.get_mix_provider_nodes();
+        let providers = self.providers();
 
         let sorted_layers: Vec<Vec<SphinxNode>> = (1..=layered_topology.len() as u64)
             .map(|layer| layered_topology.remove(&layer).unwrap()) // get all nodes per layer
@@ -167,30 +98,17 @@ pub trait NymTopology: Sized {
 
     fn filter_node_versions(
         &self,
-        mix_version: &str,
-        provider_version: &str,
-        coco_version: &str,
+        expected_mix_version: &str,
+        expected_provider_version: &str,
+        expected_coco_version: &str,
     ) -> Self {
-        let filtered_mixes = self
-            .get_mix_nodes()
-            .iter()
-            .cloned()
-            .filter(|mix_node| mix_node.version == mix_version)
-            .collect();
-        let filtered_providers = self
-            .get_mix_provider_nodes()
-            .iter()
-            .cloned()
-            .filter(|provider_node| provider_node.version == provider_version)
-            .collect();
-        let filtered_coco_nodes = self
-            .get_coco_nodes()
-            .iter()
-            .cloned()
-            .filter(|coco_node| coco_node.version == coco_version)
-            .collect();
+        let mixes = self.mix_nodes().filter_by_version(expected_mix_version);
+        let providers = self
+            .providers()
+            .filter_by_version(expected_provider_version);
+        let cocos = self.coco_nodes().filter_by_version(expected_coco_version);
 
-        Self::new_from_nodes(filtered_mixes, filtered_providers, filtered_coco_nodes)
+        Self::new_from_nodes(mixes, providers, cocos)
     }
 
     fn can_construct_path_through(&self) -> bool {
@@ -201,4 +119,8 @@ pub trait NymTopology: Sized {
     }
 }
 
-// TODO: tests...
+#[derive(Debug)]
+pub enum NymTopologyError {
+    InvalidMixLayerError,
+    MissingLayerError(Vec<u64>),
+}

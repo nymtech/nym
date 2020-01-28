@@ -1,7 +1,8 @@
 use crate::path_check::{PathChecker, PathStatus};
 use crate::score::NodeScore;
-use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair};
+use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
 use log::{debug, error, info, warn};
+use rand_os::rand_core::RngCore;
 use sphinx::route::NodeAddressBytes;
 use std::collections::HashMap;
 use std::fmt::{Error, Formatter};
@@ -14,9 +15,9 @@ pub struct HealthCheckResult(Vec<NodeScore>);
 impl std::fmt::Display for HealthCheckResult {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         write!(f, "NETWORK HEALTH\n==============\n")?;
-        self.0
-            .iter()
-            .for_each(|score| write!(f, "{}\n", score).unwrap());
+        for score in self.0.iter() {
+            write!(f, "{}\n", score)?
+        }
         Ok(())
     }
 }
@@ -28,8 +29,8 @@ impl HealthCheckResult {
 
     fn zero_score<T: NymTopology>(topology: T) -> Self {
         warn!("The network is unhealthy, could not send any packets - returning zero score!");
-        let mixes = topology.get_mix_nodes();
-        let providers = topology.get_mix_provider_nodes();
+        let mixes = topology.mix_nodes();
+        let providers = topology.providers();
 
         let health = mixes
             .into_iter()
@@ -58,10 +59,10 @@ impl HealthCheckResult {
         score_threshold: f64,
     ) -> T {
         let filtered_mix_nodes = topology
-            .get_mix_nodes()
+            .mix_nodes()
             .into_iter()
             .filter(|node| {
-                match self.node_score(NodeAddressBytes::from_b64_string(node.pub_key.clone())) {
+                match self.node_score(NodeAddressBytes::from_base58_string(node.pub_key.clone())) {
                     None => {
                         error!("Unknown node in topology - {:?}", node);
                         false
@@ -72,10 +73,10 @@ impl HealthCheckResult {
             .collect();
 
         let filtered_provider_nodes = topology
-            .get_mix_provider_nodes()
+            .providers()
             .into_iter()
             .filter(|node| {
-                match self.node_score(NodeAddressBytes::from_b64_string(node.pub_key.clone())) {
+                match self.node_score(NodeAddressBytes::from_base58_string(node.pub_key.clone())) {
                     None => {
                         error!("Unknown node in topology - {:?}", node);
                         false
@@ -85,7 +86,7 @@ impl HealthCheckResult {
             })
             .collect();
         // coco nodes remain unchanged as no healthcheck is being run on them or time being
-        let filtered_coco_nodes = topology.get_coco_nodes();
+        let filtered_coco_nodes = topology.coco_nodes();
 
         T::new_from_nodes(
             filtered_mix_nodes,
@@ -94,14 +95,30 @@ impl HealthCheckResult {
         )
     }
 
-    pub async fn calculate<T: NymTopology>(
+    fn generate_check_id() -> [u8; 16] {
+        let mut id = [0u8; 16];
+        let mut rng = rand_os::OsRng::new().unwrap();
+        rng.fill_bytes(&mut id);
+        id
+    }
+
+    pub async fn calculate<T, IDPair, Priv, Pub>(
         topology: T,
         iterations: usize,
         resolution_timeout: Duration,
-    ) -> Self {
+        identity_keys: &IDPair,
+    ) -> Self
+    where
+        T: NymTopology,
+        IDPair: MixnetIdentityKeyPair<Priv, Pub>,
+        Priv: MixnetIdentityPrivateKey,
+        Pub: MixnetIdentityPublicKey,
+    {
         // currently healthchecker supports only up to 255 iterations - if we somehow
         // find we need more, it's relatively easy change
         assert!(iterations <= 255);
+
+        let check_id = Self::generate_check_id();
 
         let all_paths = match topology.all_paths() {
             Ok(paths) => paths,
@@ -110,21 +127,17 @@ impl HealthCheckResult {
 
         // create entries for all nodes
         let mut score_map = HashMap::new();
-        topology.get_mix_nodes().into_iter().for_each(|node| {
+        topology.mix_nodes().into_iter().for_each(|node| {
             score_map.insert(node.get_pub_key_bytes(), NodeScore::from_mixnode(node));
         });
 
-        topology
-            .get_mix_provider_nodes()
-            .into_iter()
-            .for_each(|node| {
-                score_map.insert(node.get_pub_key_bytes(), NodeScore::from_provider(node));
-            });
+        topology.providers().into_iter().for_each(|node| {
+            score_map.insert(node.get_pub_key_bytes(), NodeScore::from_provider(node));
+        });
 
-        let ephemeral_keys = DummyMixIdentityKeyPair::new();
-        let providers = topology.get_mix_provider_nodes();
+        let providers = topology.providers();
 
-        let mut path_checker = PathChecker::new(providers, ephemeral_keys).await;
+        let mut path_checker = PathChecker::new(providers, identity_keys, check_id).await;
         for i in 0..iterations {
             debug!("running healthcheck iteration {} / {}", i + 1, iterations);
             for path in &all_paths {

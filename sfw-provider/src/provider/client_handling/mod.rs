@@ -3,6 +3,7 @@ use crate::provider::ClientLedger;
 use crypto::identity::{DummyMixIdentityPrivateKey, MixnetIdentityPrivateKey};
 use futures::lock::Mutex as FMutex;
 use hmac::{Hmac, Mac};
+use log::*;
 use sfw_provider_requests::requests::{
     ProviderRequestError, ProviderRequests, PullRequest, RegisterRequest,
 };
@@ -82,7 +83,7 @@ impl ClientRequestProcessor {
         processing_data: Arc<ClientProcessingData>,
     ) -> Result<Vec<u8>, ClientProcessingError> {
         let client_request = ProviderRequests::from_bytes(&data)?;
-        println!("Received the following request: {:?}", client_request);
+        trace!("Received the following request: {:?}", client_request);
         match client_request {
             ProviderRequests::Register(req) => Ok(ClientRequestProcessor::register_new_client(
                 req,
@@ -106,7 +107,6 @@ impl ClientRequestProcessor {
         // Wait for https://github.com/nymtech/nym-sfw-provider/issues/19 to resolve.
         let unlocked_ledger = processing_data.registered_clients_ledger.lock().await;
 
-        println!("Processing pull!");
         if unlocked_ledger.has_token(req.auth_token) {
             // drop the mutex so that we could do IO without blocking others wanting to get the lock
             drop(unlocked_ledger);
@@ -124,7 +124,10 @@ impl ClientRequestProcessor {
         req: RegisterRequest,
         processing_data: Arc<ClientProcessingData>,
     ) -> Result<RegisterResponse, ClientProcessingError> {
-        println!("Processing register new client request!");
+        debug!(
+            "Processing register new client request: {:?}",
+            req.destination_address
+        );
         let mut unlocked_ledger = processing_data.registered_clients_ledger.lock().await;
 
         let auth_token = ClientRequestProcessor::generate_new_auth_token(
@@ -145,14 +148,15 @@ impl ClientRequestProcessor {
         client_address: sphinx::route::DestinationAddressBytes,
         store_dir: &Path,
     ) -> io::Result<()> {
-        let client_dir_name = hex::encode(client_address);
+        let client_dir_name = bs58::encode(client_address).into_string();
         let full_store_dir = store_dir.join(client_dir_name);
         std::fs::create_dir_all(full_store_dir)
     }
 
     fn generate_new_auth_token(data: Vec<u8>, key: DummyMixIdentityPrivateKey) -> AuthToken {
-        let mut auth_token_raw =
-            HmacSha256::new_varkey(&key.to_bytes()).expect("HMAC can take key of any size");
+        // also note that `new_varkey` doesn't even have an execution branch returning an error
+        let mut auth_token_raw = HmacSha256::new_varkey(&key.to_bytes())
+            .expect("HMAC should be able take key of any size");
         auth_token_raw.input(&data);
         let mut auth_token = [0u8; 32];
         auth_token.copy_from_slice(&auth_token_raw.result().code().to_vec());

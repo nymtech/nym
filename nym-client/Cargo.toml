@@ -1,7 +1,7 @@
 [package]
 build = "build.rs"
 name = "nym-client"
-version = "0.3.3"
+version = "0.4.0-rc.1"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
@@ -12,17 +12,15 @@ name = "nym_client"
 path = "src/lib.rs"
 
 [dependencies]
-base64 = "0.11.0"
+bs58 = "0.3.0"
 clap = "2.33.0"
 curve25519-dalek = "1.2.3"
 dirs = "2.0.2"
-env_logger = "0.7.1"
+dotenv = "0.15.0"
 futures = "0.3.1"
-hex = "0.4.0"
-log = "0.4.8"
+log = "0.4"
 pem = "0.7.0"
-rand = "0.7.2"
-rand_distr = "0.2.2"
+pretty_env_logger = "0.3"
 reqwest = "0.9.22"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0.44"
@@ -35,12 +33,14 @@ crypto = {path = "../common/crypto"}
 directory-client = { path = "../common/clients/directory-client" }
 healthcheck = { path = "../common/healthcheck" }
 mix-client = { path = "../common/clients/mix-client" }
+pemstore = {path = "../common/pemstore"}
 provider-client = { path = "../common/clients/provider-client" }
 sfw-provider-requests = { path = "../sfw-provider/sfw-provider-requests" }
 topology = {path = "../common/topology" }
 
 ## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="8424f4b0933b4a7f64ae828b2edefc5ba43a9e79" }
+# sphinx = { path = "../../sphinx"}
 
 # putting this explicitly below everything and most likely, the next time we look into it, it will already have a proper release
 tokio-tungstenite = { git = "https://github.com/snapview/tokio-tungstenite", rev="308d9680c0e59dd1e8651659a775c05df937934e" }

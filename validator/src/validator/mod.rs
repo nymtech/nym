@@ -1,20 +1,36 @@
 use crate::validator::config::Config;
+use crypto::identity::{
+    DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey,
+    MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey,
+};
 use healthcheck::HealthChecker;
 use log::debug;
 use tokio::runtime::Runtime;
 
 pub mod config;
 
-pub struct Validator {
-    heath_check: HealthChecker,
+// allow for a generic validator
+pub struct Validator<IDPair, Priv, Pub>
+where
+    IDPair: MixnetIdentityKeyPair<Priv, Pub>,
+    Priv: MixnetIdentityPrivateKey,
+    Pub: MixnetIdentityPublicKey,
+{
+    #[allow(dead_code)]
+    identity_keypair: IDPair,
+    heath_check: HealthChecker<IDPair, Priv, Pub>,
 }
 
-impl Validator {
+// but for time being, since it's a dummy one, have it use dummy keys
+impl Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey> {
     pub fn new(config: Config) -> Self {
         debug!("validator new");
 
+        let dummy_keypair = DummyMixIdentityKeyPair::new();
+
         Validator {
-            heath_check: HealthChecker::new(config.health_check),
+            identity_keypair: dummy_keypair.clone(),
+            heath_check: HealthChecker::new(config.health_check, dummy_keypair),
         }
     }
 

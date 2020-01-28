@@ -2,9 +2,11 @@ use crate::encryption::{
     MixnetEncryptionKeyPair, MixnetEncryptionPrivateKey, MixnetEncryptionPublicKey,
 };
 use crate::{encryption, PemStorable};
+use bs58;
 use curve25519_dalek::scalar::Scalar;
+use sphinx::route::DestinationAddressBytes;
 
-pub trait MixnetIdentityKeyPair<Priv, Pub>
+pub trait MixnetIdentityKeyPair<Priv, Pub>: Clone
 where
     Priv: MixnetIdentityPrivateKey,
     Pub: MixnetIdentityPublicKey,
@@ -18,16 +20,20 @@ where
 }
 
 pub trait MixnetIdentityPublicKey:
-    Sized + PemStorable + for<'a> From<&'a <Self as MixnetIdentityPublicKey>::PrivateKeyMaterial>
+    Sized
+    + PemStorable
+    + Clone
+    + for<'a> From<&'a <Self as MixnetIdentityPublicKey>::PrivateKeyMaterial>
 {
     // we need to couple public and private keys together
     type PrivateKeyMaterial: MixnetIdentityPrivateKey<PublicKeyMaterial = Self>;
 
+    fn derive_address(&self) -> DestinationAddressBytes;
     fn to_bytes(&self) -> Vec<u8>;
     fn from_bytes(b: &[u8]) -> Self;
 }
 
-pub trait MixnetIdentityPrivateKey: Sized + PemStorable {
+pub trait MixnetIdentityPrivateKey: Sized + PemStorable + Clone {
     // we need to couple public and private keys together
     type PublicKeyMaterial: MixnetIdentityPublicKey<PrivateKeyMaterial = Self>;
 
@@ -44,7 +50,7 @@ pub trait MixnetIdentityPrivateKey: Sized + PemStorable {
 
 // for time being define a dummy identity using x25519 encryption keys (as we've done so far)
 // and replace it with proper keys, like ed25519 later on
-
+#[derive(Clone)]
 pub struct DummyMixIdentityKeyPair {
     pub private_key: DummyMixIdentityPrivateKey,
     pub public_key: DummyMixIdentityPublicKey,
@@ -83,6 +89,14 @@ pub struct DummyMixIdentityPublicKey(encryption::x25519::PublicKey);
 impl MixnetIdentityPublicKey for DummyMixIdentityPublicKey {
     type PrivateKeyMaterial = DummyMixIdentityPrivateKey;
 
+    fn derive_address(&self) -> DestinationAddressBytes {
+        let mut temporary_address = [0u8; 32];
+        let public_key_bytes = self.to_bytes();
+        temporary_address.copy_from_slice(&public_key_bytes[..]);
+
+        temporary_address
+    }
+
     fn to_bytes(&self) -> Vec<u8> {
         self.0.to_bytes()
     }
@@ -99,13 +113,13 @@ impl PemStorable for DummyMixIdentityPublicKey {
 }
 
 impl DummyMixIdentityPublicKey {
-    pub fn to_b64_string(&self) -> String {
-        base64::encode_config(&self.to_bytes(), base64::URL_SAFE)
+    pub fn to_base58_string(&self) -> String {
+        bs58::encode(&self.to_bytes()).into_string()
     }
 
     #[allow(dead_code)]
-    fn from_b64_string(val: String) -> Self {
-        Self::from_bytes(&base64::decode_config(&val, base64::URL_SAFE).unwrap())
+    fn from_base58_string(val: String) -> Self {
+        Self::from_bytes(&bs58::decode(&val).into_vec().unwrap())
     }
 }
 

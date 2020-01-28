@@ -1,8 +1,8 @@
-use crate::clients::{NymClient, SocketType};
-use crate::persistence::pemstore;
-
+use crate::client::{NymClient, SocketType};
+use crate::config::persistance::pathfinder::ClientPathfinder;
 use clap::ArgMatches;
-use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPublicKey};
+use crypto::identity::DummyMixIdentityKeyPair;
+use pemstore::pemstore::PemStore;
 use std::net::ToSocketAddrs;
 
 pub fn execute(matches: &ArgMatches) {
@@ -26,17 +26,18 @@ pub fn execute(matches: &ArgMatches) {
         .next()
         .expect("Failed to extract the socket address from the iterator");
 
-    let keypair = pemstore::read_mix_identity_keypair_from_disk(id);
+    // TODO: currently we know we are reading the 'DummyMixIdentityKeyPair', but how to properly assert the type?
+    let keypair: DummyMixIdentityKeyPair = PemStore::new(ClientPathfinder::new(id))
+        .read_identity()
+        .unwrap();
+
     // TODO: reading auth_token from disk (if exists);
 
-    println!("Public key: {}", keypair.public_key.to_b64_string());
+    println!("Public key: {}", keypair.public_key.to_base58_string());
 
-    let mut temporary_address = [0u8; 32];
-    let public_key_bytes = keypair.public_key().to_bytes();
-    temporary_address.copy_from_slice(&public_key_bytes[..]);
     let auth_token = None;
     let client = NymClient::new(
-        temporary_address,
+        keypair,
         socket_address,
         directory_server,
         auth_token,

@@ -1,10 +1,14 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
+use log::*;
 use std::process;
 
 mod mix_peer;
 mod node;
 
 fn main() {
+    dotenv::dotenv().ok();
+    pretty_env_logger::init();
+
     let arg_matches = App::new("Nym Mixnode")
         .version(built_info::PKG_VERSION)
         .author("Nymtech")
@@ -54,7 +58,7 @@ fn main() {
         .get_matches();
 
     if let Err(e) = execute(arg_matches) {
-        println!("{}", e);
+        error!("{}", e);
         process::exit(1);
     }
 }

@@ -1,4 +1,4 @@
-use crate::presence::MixProviderPresence;
+use crate::presence::providers::MixProviderPresence;
 use reqwest::Response;
 
 pub struct Request {
@@ -72,7 +72,7 @@ mod metrics_get_request {
     }
     #[cfg(test)]
     mod fixtures {
-        use crate::presence::MixProviderPresence;
+        use crate::presence::providers::MixProviderPresence;
 
         pub fn new_presence() -> MixProviderPresence {
             MixProviderPresence {

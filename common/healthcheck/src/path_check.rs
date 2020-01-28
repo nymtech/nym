@@ -1,12 +1,12 @@
-use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair, MixnetIdentityPublicKey};
+use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
 use itertools::Itertools;
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace, warn};
 use mix_client::MixClient;
-use provider_client::ProviderClient;
+use provider_client::{ProviderClient, ProviderClientError};
 use sphinx::header::delays::Delay;
 use sphinx::route::{Destination, Node as SphinxNode};
 use std::collections::HashMap;
-use topology::MixProviderNode;
+use topology::provider;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum PathStatus {
@@ -23,26 +23,34 @@ pub(crate) struct PathChecker {
     layer_one_clients: HashMap<[u8; 32], Option<MixClient>>,
     paths_status: HashMap<Vec<u8>, PathStatus>,
     our_destination: Destination,
+    check_id: [u8; 16],
 }
 
 impl PathChecker {
-    pub(crate) async fn new(
-        providers: Vec<MixProviderNode>,
-        ephemeral_keys: DummyMixIdentityKeyPair,
-    ) -> Self {
+    pub(crate) async fn new<IDPair, Priv, Pub>(
+        providers: Vec<provider::Node>,
+        identity_keys: &IDPair,
+        check_id: [u8; 16],
+    ) -> Self
+    where
+        IDPair: MixnetIdentityKeyPair<Priv, Pub>,
+        Priv: MixnetIdentityPrivateKey,
+        Pub: MixnetIdentityPublicKey,
+    {
         let mut provider_clients = HashMap::new();
 
-        let mut temporary_address = [0u8; 32];
-        let public_key_bytes = ephemeral_keys.public_key().to_bytes();
-        temporary_address.copy_from_slice(&public_key_bytes[..]);
+        let address = identity_keys.public_key().derive_address();
 
         for provider in providers {
-            let mut provider_client =
-                ProviderClient::new(provider.client_listener, temporary_address, None);
+            let mut provider_client = ProviderClient::new(provider.client_listener, address, None);
             let insertion_result = match provider_client.register().await {
                 Ok(token) => {
                     debug!("registered at provider {}", provider.pub_key);
                     provider_client.update_token(token);
+                    provider_clients.insert(provider.get_pub_key_bytes(), Some(provider_client))
+                }
+                Err(ProviderClientError::ClientAlreadyRegisteredError) => {
+                    info!("We were already registered");
                     provider_clients.insert(provider.get_pub_key_bytes(), Some(provider_client))
                 }
                 Err(err) => {
@@ -62,15 +70,19 @@ impl PathChecker {
         PathChecker {
             provider_clients,
             layer_one_clients: HashMap::new(),
-            our_destination: Destination::new(temporary_address, Default::default()),
+            our_destination: Destination::new(address, Default::default()),
             paths_status: HashMap::new(),
+            check_id,
         }
     }
 
     // iteration is used to distinguish packets sent through the same path (as the healthcheck
     // may try to send say 10 packets through given path)
-    fn unique_path_key(path: &Vec<SphinxNode>, iteration: u8) -> Vec<u8> {
-        std::iter::once(iteration)
+    fn unique_path_key(path: &Vec<SphinxNode>, check_id: [u8; 16], iteration: u8) -> Vec<u8> {
+        check_id
+            .iter()
+            .cloned()
+            .chain(std::iter::once(iteration))
             .chain(
                 path.iter()
                     .map(|node| node.pub_key.to_bytes().to_vec())
@@ -80,10 +92,10 @@ impl PathChecker {
     }
 
     pub(crate) fn path_key_to_node_keys(path_key: Vec<u8>) -> Vec<[u8; 32]> {
-        assert_eq!(path_key.len() % 32, 1);
+        assert_eq!(path_key.len() % 32, 17);
         path_key
             .into_iter()
-            .skip(1) // remove first byte as it represents the iteration number which we do not care about now
+            .skip(16 + 1) // remove 16 + 1 bytes as it represents check_id and the iteration number which we do not care about now
             .chunks(32)
             .into_iter()
             .map(|key_chunk| {
@@ -135,6 +147,8 @@ impl PathChecker {
                         if msg == sfw_provider_requests::DUMMY_MESSAGE_CONTENT {
                             // finish iterating the loop as the messages might not be ordered
                             should_stop = true;
+                        } else if msg[..16] != self.check_id {
+                            warn!("received response from previous healthcheck")
                         } else {
                             provider_messages.push(msg);
                         }
@@ -153,25 +167,38 @@ impl PathChecker {
         let mut provider_messages = Vec::new();
         for provider_client in self.provider_clients.values() {
             // if it was none all associated paths were already marked as unhealthy
-            if provider_client.is_some() {
-                let pc = provider_client.as_ref().unwrap();
-                provider_messages.extend(self.resolve_pending_provider_checks(pc).await);
-            }
+            let pc = match provider_client {
+                Some(pc) => pc,
+                None => continue,
+            };
+
+            provider_messages.extend(self.resolve_pending_provider_checks(pc).await);
         }
 
         self.update_path_statuses(provider_messages);
     }
 
     pub(crate) async fn send_test_packet(&mut self, path: &Vec<SphinxNode>, iteration: u8) {
+        if path.len() == 0 {
+            warn!("trying to send test packet through an empty path!");
+            return;
+        }
+
         debug!("Checking path: {:?} ({})", path, iteration);
-        let path_identifier = PathChecker::unique_path_key(path, iteration);
+        let path_identifier = PathChecker::unique_path_key(path, self.check_id, iteration);
 
         // check if there is even any point in sending the packet
 
         // does provider exist?
         let provider_client = self
             .provider_clients
-            .get(&path.last().unwrap().pub_key.to_bytes())
+            .get(
+                &path
+                    .last()
+                    .expect("We checked the path to contain at least one entry")
+                    .pub_key
+                    .to_bytes(),
+            )
             .unwrap();
 
         if provider_client.is_none() {
@@ -186,10 +213,15 @@ impl PathChecker {
             return;
         }
 
-        let layer_one_mix = path.first().unwrap();
+        let layer_one_mix = path
+            .first()
+            .expect("We checked the path to contain at least one entry");
         let first_node_key = layer_one_mix.pub_key.to_bytes();
+
+        // we generated the bytes data so unwrap is fine
         let first_node_address =
-            addressing::socket_address_from_encoded_bytes(layer_one_mix.address.to_bytes());
+            addressing::socket_address_from_encoded_bytes(layer_one_mix.address.to_bytes())
+                .unwrap();
 
         let first_node_client = self
             .layer_one_clients
@@ -208,10 +240,12 @@ impl PathChecker {
             return;
         }
 
+        // we already checked for 'None' case
         let first_node_client = first_node_client.as_ref().unwrap();
 
         let delays: Vec<_> = path.iter().map(|_| Delay::new(0)).collect();
 
+        // all of the data used to create the packet was created by us
         let packet = sphinx::SphinxPacket::new(
             path_identifier.clone(),
             &path[..],
@@ -223,7 +257,7 @@ impl PathChecker {
         debug!("sending test packet to {}", first_node_address);
         match first_node_client.send(packet, first_node_address).await {
             Err(err) => {
-                warn!("failed to send packet to {} - {}", first_node_address, err);
+                info!("failed to send packet to {} - {}", first_node_address, err);
                 if self
                     .paths_status
                     .insert(path_identifier, PathStatus::Unhealthy)

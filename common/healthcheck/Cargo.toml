@@ -10,6 +10,9 @@ edition = "2018"
 futures = "0.3.1"
 itertools = "0.8.2"
 log = "0.4.8"
+pretty_env_logger = "0.3"
+rand_os = "0.1"
+rand = "0.7.2"
 serde = "1.0.104"
 serde_derive = "1.0.104"
 tokio = { version = "0.2", features = ["full"] }
@@ -24,6 +27,7 @@ sfw-provider-requests = { path = "../../sfw-provider/sfw-provider-requests" }
 topology = {path = "../topology" }
 
 ## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="1d8cefcb6a0cb8e87d00d89eb1ccf2839e92aa1f" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="8424f4b0933b4a7f64ae828b2edefc5ba43a9e79" }
+# sphinx = { path = "../../../sphinx"}
 
 [dev-dependencies]

@@ -1,4 +1,5 @@
 use crate::provider::{MESSAGE_RETRIEVAL_LIMIT, STORED_MESSAGE_FILENAME_LENGTH};
+use log::*;
 use rand::Rng;
 use sfw_provider_requests::DUMMY_MESSAGE_CONTENT;
 use sphinx::route::{DestinationAddressBytes, SURBIdentifier};
@@ -59,10 +60,10 @@ impl ClientStorage {
     }
 
     pub fn store_processed_data(store_data: StoreData, store_dir: &Path) -> io::Result<()> {
-        let client_dir_name = hex::encode(store_data.client_address);
+        let client_dir_name = bs58::encode(store_data.client_address).into_string();
         let full_store_dir = store_dir.join(client_dir_name);
         let full_store_path = full_store_dir.join(ClientStorage::generate_random_file_name());
-        println!(
+        debug!(
             "going to store: {:?} in file: {:?}",
             store_data.message, full_store_path
         );
@@ -80,27 +81,19 @@ impl ClientStorage {
         client_address: DestinationAddressBytes,
         store_dir: &Path,
     ) -> Result<Vec<Vec<u8>>, StoreError> {
-        let client_dir_name = hex::encode(client_address);
+        let client_dir_name = bs58::encode(client_address).into_string();
         let full_store_dir = store_dir.join(client_dir_name);
 
-        println!("going to lookup: {:?}!", full_store_dir);
+        trace!("going to lookup: {:?}!", full_store_dir);
         if !full_store_dir.exists() {
             return Err(StoreError::ClientDoesntExistError);
         }
 
         let msgs: Vec<_> = std::fs::read_dir(full_store_dir)?
-            .map(|entry| entry.unwrap())
-            .filter(|entry| {
-                let is_file = entry.metadata().unwrap().is_file();
-                if !is_file {
-                    eprintln!(
-                        "potentially corrupted client inbox! - found a non-file - {:?}",
-                        entry.path()
-                    );
-                }
-                is_file
-            })
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| ClientStorage::is_valid_file(entry))
             .map(|entry| {
+                // Not yet sure how to exactly get rid of those unwraps
                 let content = std::fs::read(entry.path()).unwrap();
                 ClientStorage::delete_file(entry.path()).unwrap();
                 content
@@ -109,16 +102,38 @@ impl ClientStorage {
             .take(MESSAGE_RETRIEVAL_LIMIT)
             .collect();
 
-        println!("retrieved the following data: {:?}", msgs);
-
         Ok(msgs)
+    }
+
+    fn is_valid_file(entry: &std::fs::DirEntry) -> bool {
+        let metadata = match entry.metadata() {
+            Ok(meta) => meta,
+            Err(e) => {
+                error!(
+                    "potentially corrupted client inbox! ({:?} - failed to read its metadata - {:?}",
+                    entry.path(),
+                    e,
+                );
+                return false;
+            }
+        };
+
+        let is_file = metadata.is_file();
+        if !is_file {
+            error!(
+                "potentially corrupted client inbox! - found a non-file - {:?}",
+                entry.path()
+            );
+        }
+
+        is_file
     }
 
     // TODO: THIS NEEDS A LOCKING MECHANISM!!! (or a db layer on top - basically 'ClientStorage' on steroids)
     // TODO 2: This should only be called AFTER we sent the reply. Because if client's connection failed after sending request
     // the messages would be deleted but he wouldn't have received them
     fn delete_file(path: PathBuf) -> io::Result<()> {
-        println!("Here {:?} will be deleted!", path);
+        trace!("Here {:?} will be deleted!", path);
         std::fs::remove_file(path) // another argument for db layer -> remove_file is NOT guaranteed to immediately get rid of the file
     }
 }

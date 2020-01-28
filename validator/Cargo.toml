@@ -8,6 +8,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+abci = "0.6.4"
 clap = "2.33.0"
 # Read notes https://crates.io/crates/dotenv - tl;dr: don't use in production, set environmental variables properly.
 dotenv = "0.15.0"

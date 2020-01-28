@@ -38,10 +38,10 @@
 - Feature/check packet length [\#99](https://github.com/nymtech/nym/pull/99) ([futurechimp](https://github.com/futurechimp))
 - Feature/version filtering improvements [\#96](https://github.com/nymtech/nym/pull/96) ([futurechimp](https://github.com/futurechimp))
 - Feature/refreshing topology [\#94](https://github.com/nymtech/nym/pull/94) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/consistent logging [\#93](https://github.com/nymtech/nym/pull/93) ([futurechimp](https://github.com/futurechimp))
 - Feature/semver client [\#92](https://github.com/nymtech/nym/pull/92) ([futurechimp](https://github.com/futurechimp))
 - Feature/client refactor [\#91](https://github.com/nymtech/nym/pull/91) ([jstuczyn](https://github.com/jstuczyn))
 - Release builds should no longer silently fail - everything will be im… [\#89](https://github.com/nymtech/nym/pull/89) ([jstuczyn](https://github.com/jstuczyn))
-- Feature/nym client lib [\#61](https://github.com/nymtech/nym/pull/61) ([jstuczyn](https://github.com/jstuczyn))
 
 ## [v0.3.3](https://github.com/nymtech/nym/tree/v0.3.3) (2020-01-20)
 
@@ -64,18 +64,13 @@
 
 **Merged pull requests:**
 
-- Feature/consistent logging [\#93](https://github.com/nymtech/nym/pull/93) ([futurechimp](https://github.com/futurechimp))
 - Feature/websocket improvements [\#88](https://github.com/nymtech/nym/pull/88) ([jstuczyn](https://github.com/jstuczyn))
 - Using println rather than log for startup banner, it's not an error [\#87](https://github.com/nymtech/nym/pull/87) ([futurechimp](https://github.com/futurechimp))
-- Feature/client topology filtering [\#54](https://github.com/nymtech/nym/pull/54) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/nym client lib [\#61](https://github.com/nymtech/nym/pull/61) ([jstuczyn](https://github.com/jstuczyn))
 
 ## [v0.3.2](https://github.com/nymtech/nym/tree/v0.3.2) (2020-01-17)
 
 [Full Changelog](https://github.com/nymtech/nym/compare/v0.3.1...v0.3.2)
-
-**Merged pull requests:**
-
-- Feature/separate presence address [\#59](https://github.com/nymtech/nym/pull/59) ([jstuczyn](https://github.com/jstuczyn))
 
 ## [v0.3.1](https://github.com/nymtech/nym/tree/v0.3.1) (2020-01-16)
 
@@ -103,6 +98,8 @@
 
 **Merged pull requests:**
 
+- Feature/separate presence address [\#59](https://github.com/nymtech/nym/pull/59) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/client topology filtering [\#54](https://github.com/nymtech/nym/pull/54) ([jstuczyn](https://github.com/jstuczyn))
 - print public key for nym client tools [\#53](https://github.com/nymtech/nym/pull/53) ([mileschet](https://github.com/mileschet))
 - Showing binding warning on binding to localhost, 0.0.0.0 or 127.0.0.1 [\#52](https://github.com/nymtech/nym/pull/52) ([jstuczyn](https://github.com/jstuczyn))
 - validator: moving sample config files into sample configs directory [\#51](https://github.com/nymtech/nym/pull/51) ([futurechimp](https://github.com/futurechimp))

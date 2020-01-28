@@ -5,6 +5,7 @@ use log::{error, trace};
 use std::process;
 use toml;
 
+mod tendermint_abci;
 mod validator;
 
 fn main() {
@@ -26,6 +27,7 @@ fn main() {
                         .required(true),
                 ),
         )
+        .subcommand(SubCommand::with_name("tm").about("Starts the Tendermint test app"))
         .get_matches();
 
     if let Err(e) = execute(arg_matches) {
@@ -40,6 +42,11 @@ fn run(matches: &ArgMatches) {
 
     let validator = Validator::new(config);
     validator.start()
+}
+
+fn tm(_matches: &ArgMatches) {
+    println!("Starting Tendermint app.");
+    abci::run_local(tendermint_abci::CounterApp::new());
 }
 
 fn parse_config(matches: &ArgMatches) -> Config {
@@ -57,6 +64,7 @@ pub mod built_info {
 fn execute(matches: ArgMatches) -> Result<(), String> {
     match matches.subcommand() {
         ("run", Some(m)) => Ok(run(m)),
+        ("tm", Some(m)) => Ok(tm(m)),
         _ => Err(usage()),
     }
 }

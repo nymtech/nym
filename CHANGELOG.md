@@ -2,7 +2,15 @@
 
 ## [Unreleased](https://github.com/nymtech/nym/tree/HEAD)
 
-[Full Changelog](https://github.com/nymtech/nym/compare/v0.3.3...HEAD)
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.4.0-rc.1...HEAD)
+
+**Merged pull requests:**
+
+- Hotfix/semver compatibility [\#106](https://github.com/nymtech/nym/pull/106) ([jstuczyn](https://github.com/jstuczyn))
+
+## [v0.4.0-rc.1](https://github.com/nymtech/nym/tree/v0.4.0-rc.1) (2020-01-28)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.3.3...v0.4.0-rc.1)
 
 **Closed issues:**
 
@@ -64,10 +72,6 @@
 
 [Full Changelog](https://github.com/nymtech/nym/compare/v0.3.1...v0.3.2)
 
-**Merged pull requests:**
-
-- Feature/separate presence address [\#59](https://github.com/nymtech/nym/pull/59) ([jstuczyn](https://github.com/jstuczyn))
-
 ## [v0.3.1](https://github.com/nymtech/nym/tree/v0.3.1) (2020-01-16)
 
 [Full Changelog](https://github.com/nymtech/nym/compare/v0.3.0...v0.3.1)
@@ -94,6 +98,7 @@
 
 **Merged pull requests:**
 
+- Feature/separate presence address [\#59](https://github.com/nymtech/nym/pull/59) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/client topology filtering [\#54](https://github.com/nymtech/nym/pull/54) ([jstuczyn](https://github.com/jstuczyn))
 - print public key for nym client tools [\#53](https://github.com/nymtech/nym/pull/53) ([mileschet](https://github.com/mileschet))
 - Showing binding warning on binding to localhost, 0.0.0.0 or 127.0.0.1 [\#52](https://github.com/nymtech/nym/pull/52) ([jstuczyn](https://github.com/jstuczyn))
@@ -114,7 +119,11 @@
 
 ## [v0.2.0](https://github.com/nymtech/nym/tree/v0.2.0) (2020-01-07)
 
-[Full Changelog](https://github.com/nymtech/nym/compare/3c64a2facd753f4f2f431e7f888e54842e2bc64e...v0.2.0)
+[Full Changelog](https://github.com/nymtech/nym/compare/0.2.0...v0.2.0)
+
+## [0.2.0](https://github.com/nymtech/nym/tree/0.2.0) (2020-01-06)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/0.1.0...0.2.0)
 
 
 

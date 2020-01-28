@@ -15,7 +15,6 @@ futures = "0.3.1"
 log = "0.4"
 pretty_env_logger = "0.3"
 serde = "1.0.104"
-serde_derive = "1.0.104"
 tokio = { version = "0.2", features = ["full"] }
 toml = "0.5.5"
 

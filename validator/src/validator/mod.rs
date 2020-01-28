@@ -42,6 +42,6 @@ impl Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIden
         let health_check_future = self.heath_check.run();
 
         let health_check_res = rt.block_on(health_check_future);
-        assert!(health_check_res.is_ok()); // if it got here it means healthchecker failed anyway
+        assert!(health_check_res.is_ok()); // panic if health checker failed
     }
 }

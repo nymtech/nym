@@ -9,6 +9,7 @@ edition = "2018"
 
 [dependencies]
 abci = "0.6.4"
+byteorder = "1.3.2"
 clap = "2.33.0"
 # Read notes https://crates.io/crates/dotenv - tl;dr: don't use in production, set environmental variables properly.
 dotenv = "0.15.0"

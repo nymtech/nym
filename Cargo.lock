@@ -1422,6 +1422,7 @@ dependencies = [
  "built",
  "clap",
  "crypto",
+ "directory-client",
  "dotenv",
  "futures 0.3.1",
  "healthcheck",
@@ -1431,6 +1432,7 @@ dependencies = [
  "serde_derive",
  "tokio 0.2.10",
  "toml",
+ "topology",
 ]
 
 [[package]]

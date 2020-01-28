@@ -13,6 +13,6 @@ Some of these functions may be moved away to their own node types in the future,
 Running the validator
 ---------------------
 
-1. Download and install [Tendermint 0.33.0](https://github.com/tendermint/tendermint/releases/tag/v0.33.0)
+1. Download and install [Tendermint 0.32.7](https://github.com/tendermint/tendermint/releases/tag/v0.32.7)
 2. `tendermint init`
-3. `tendermint run`
+3. `tendermint node`

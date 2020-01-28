@@ -57,13 +57,13 @@ mod tests {
         assert!(is_minor_version_compatible("0.4.0-rc.1", "0.4.0-rc.1"));
     }
 
-    //    #[test]
-    //    fn returns_false_on_foo_version() {
-    //        assert!(!is_minor_version_compatible("foo", "0.3.2"));
-    //    }
-    //
-    //    #[test]
-    //    fn returns_false_on_bar_version() {
-    //        assert!(!is_minor_version_compatible("0.3.2", "bar"));
-    //    }
+    #[test]
+    fn returns_false_on_foo_version() {
+        assert!(!is_minor_version_compatible("foo", "0.3.2"));
+    }
+
+    #[test]
+    fn returns_false_on_bar_version() {
+        assert!(!is_minor_version_compatible("0.3.2", "bar"));
+    }
 }

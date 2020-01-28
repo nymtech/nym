@@ -2,7 +2,25 @@
 
 ## [Unreleased](https://github.com/nymtech/nym/tree/HEAD)
 
-[Full Changelog](https://github.com/nymtech/nym/compare/v0.3.3...HEAD)
+[Full Changelog](https://github.com/nymtech/nym/compare/0.4.0-rc.2...HEAD)
+
+Nym 0.4.0 Platform
+
+In this release, we're taking a lot more care with version numbers, so that we can ensure upgrade compatibility for mixnodes, providers, clients, and validators more easily. 
+
+This release also integrates a health-checker and network topology refresh into the Nym client, so that the client can intelligently choose paths which route around any non-functional or incompatible nodes. 
+
+## [0.4.0-rc.2](https://github.com/nymtech/nym/tree/0.4.0-rc.2) (2020-01-28)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.4.0-rc.1...0.4.0-rc.2)
+
+**Merged pull requests:**
+
+- Hotfix/semver compatibility [\#106](https://github.com/nymtech/nym/pull/106) ([jstuczyn](https://github.com/jstuczyn))
+
+## [v0.4.0-rc.1](https://github.com/nymtech/nym/tree/v0.4.0-rc.1) (2020-01-28)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.3.3...v0.4.0-rc.1)
 
 **Closed issues:**
 
@@ -114,7 +132,11 @@
 
 ## [v0.2.0](https://github.com/nymtech/nym/tree/v0.2.0) (2020-01-07)
 
-[Full Changelog](https://github.com/nymtech/nym/compare/3c64a2facd753f4f2f431e7f888e54842e2bc64e...v0.2.0)
+[Full Changelog](https://github.com/nymtech/nym/compare/0.2.0...v0.2.0)
+
+## [0.2.0](https://github.com/nymtech/nym/tree/0.2.0) (2020-01-06)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/0.1.0...0.2.0)
 
 
 

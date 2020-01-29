@@ -15,6 +15,7 @@ Running the validator on your local machine
 
 1. Download and install [Tendermint 0.32.7](https://github.com/tendermint/tendermint/releases/tag/v0.32.7)
 2. `tendermint init` sets up Tendermint for use
-3. `tendermint node` runs Tendermint
-4. `cargo run -- run` builds the Nym Validator and runs it
+3. `tendermint node` runs Tendermint. You'll get errors until you run the Nym validator, this is normal :).
+4. `cp sample-configs/validator-config.toml.sample sample-configs/validator-config.toml`
+5. `cargo run -- run --config ../sample-configs/validator-config.toml` builds the Nym Validator and runs it
 

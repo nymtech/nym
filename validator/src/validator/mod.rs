@@ -1,4 +1,3 @@
-use crate::validator::config::Config;
 use crypto::identity::{
     DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey,
     MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey,
@@ -7,7 +6,13 @@ use healthcheck::HealthChecker;
 use log::debug;
 use tokio::runtime::Runtime;
 
-pub mod config;
+use serde_derive::Deserialize;
+
+#[derive(Deserialize, Debug)]
+pub struct Config {
+    #[serde(rename(deserialize = "healthcheck"))]
+    pub health_check: healthcheck::config::HealthCheck,
+}
 
 // allow for a generic validator
 pub struct Validator<IDPair, Priv, Pub>

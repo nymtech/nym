@@ -1,11 +1,12 @@
-use crate::validator::config::Config;
+use crate::validator::Config;
 use crate::validator::Validator;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use log::{error, info, trace};
+use network::tendermint_abci;
 use std::process;
 use toml;
 
-mod tendermint_abci;
+mod network;
 mod validator;
 
 fn main() {

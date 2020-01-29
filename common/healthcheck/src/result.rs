@@ -27,7 +27,7 @@ impl HealthCheckResult {
         self.0.sort();
     }
 
-    fn zero_score<T: NymTopology>(topology: T) -> Self {
+    fn zero_score<T: NymTopology>(topology: &T) -> Self {
         warn!("The network is unhealthy, could not send any packets - returning zero score!");
         let mixes = topology.mix_nodes();
         let providers = topology.providers();
@@ -103,7 +103,7 @@ impl HealthCheckResult {
     }
 
     pub async fn calculate<T, IDPair, Priv, Pub>(
-        topology: T,
+        topology: &T,
         iterations: usize,
         resolution_timeout: Duration,
         identity_keys: &IDPair,

@@ -1,4 +1,4 @@
-use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
+use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPublicKey};
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use mix_client::MixClient;
@@ -27,16 +27,11 @@ pub(crate) struct PathChecker {
 }
 
 impl PathChecker {
-    pub(crate) async fn new<IDPair, Priv, Pub>(
+    pub(crate) async fn new<IDPair: MixnetIdentityKeyPair>(
         providers: Vec<provider::Node>,
         identity_keys: &IDPair,
         check_id: [u8; 16],
-    ) -> Self
-    where
-        IDPair: MixnetIdentityKeyPair<Priv, Pub>,
-        Priv: MixnetIdentityPrivateKey,
-        Pub: MixnetIdentityPublicKey,
-    {
+    ) -> Self {
         let mut provider_clients = HashMap::new();
 
         let address = identity_keys.public_key().derive_address();

@@ -23,7 +23,7 @@ where
     Pub: MixnetIdentityPublicKey,
 {
     pub count: u64,
-    heath_check: HealthChecker<IDPair, Priv, Pub>,
+    health_check: HealthChecker<IDPair, Priv, Pub>,
     #[allow(dead_code)]
     identity_keypair: IDPair,
 }

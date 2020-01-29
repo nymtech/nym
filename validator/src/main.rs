@@ -1,7 +1,7 @@
 use crate::validator::config::Config;
 use crate::validator::Validator;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use log::{error, trace};
+use log::{error, info, trace};
 use std::process;
 use toml;
 
@@ -45,7 +45,7 @@ fn run(matches: &ArgMatches) {
 }
 
 fn tm(_matches: &ArgMatches) {
-    println!("Starting Tendermint app.");
+    info!("Starting Tendermint app.");
     abci::run_local(tendermint_abci::CounterApp::new());
 }
 

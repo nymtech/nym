@@ -2,7 +2,6 @@ use crate::validator::Config;
 use crate::validator::Validator;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use log::{error, info, trace};
-use network::tendermint_abci;
 use std::process;
 use toml;
 
@@ -28,7 +27,17 @@ fn main() {
                         .required(true),
                 ),
         )
-        .subcommand(SubCommand::with_name("tm").about("Starts the Tendermint test app"))
+        .subcommand(
+            SubCommand::with_name("tm")
+                .about("Starts the Tendermint test app")
+                .arg(
+                    Arg::with_name("config")
+                        .long("config")
+                        .help("Location of the validator configuration file")
+                        .takes_value(true)
+                        .required(true),
+                ),
+        )
         .get_matches();
 
     if let Err(e) = execute(arg_matches) {
@@ -45,9 +54,12 @@ fn run(matches: &ArgMatches) {
     validator.start()
 }
 
-fn tm(_matches: &ArgMatches) {
+fn tm(matches: &ArgMatches) {
+    let config = parse_config(matches);
+    trace!("read config: {:?}", config);
     info!("Starting Tendermint app.");
-    abci::run_local(tendermint_abci::CounterApp::new());
+    let validator = Validator::new(config);
+    abci::run_local(validator);
 }
 
 fn parse_config(matches: &ArgMatches) -> Config {

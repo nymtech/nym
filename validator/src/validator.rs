@@ -21,9 +21,10 @@ where
     Priv: MixnetIdentityPrivateKey,
     Pub: MixnetIdentityPublicKey,
 {
+    pub count: u64,
+    heath_check: HealthChecker<IDPair, Priv, Pub>,
     #[allow(dead_code)]
     identity_keypair: IDPair,
-    heath_check: HealthChecker<IDPair, Priv, Pub>,
 }
 
 // but for time being, since it's a dummy one, have it use dummy keys
@@ -34,8 +35,9 @@ impl Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIden
         let dummy_keypair = DummyMixIdentityKeyPair::new();
 
         Validator {
-            identity_keypair: dummy_keypair.clone(),
-            heath_check: HealthChecker::new(config.health_check, dummy_keypair),
+            count: 0,
+            heath_check: HealthChecker::new(config.health_check, dummy_keypair.clone()),
+            identity_keypair: dummy_keypair,
         }
     }
 

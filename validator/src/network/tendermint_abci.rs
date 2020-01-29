@@ -1,17 +1,9 @@
+use crate::validator::Validator;
 use abci::*;
 use byteorder::{BigEndian, ByteOrder};
-
-// Simple counter application.  Its only state is a u64 count
-// We use BigEndian to serialize the data across transactions calls
-pub struct CounterApp {
-    count: u64,
-}
-
-impl CounterApp {
-    pub fn new() -> CounterApp {
-        CounterApp { count: 0 }
-    }
-}
+use crypto::identity::{
+    DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey,
+};
 
 // Convert incoming tx data to the proper BigEndian size. txs.len() > 8 will return 0
 fn convert_tx(tx: &[u8]) -> u64 {
@@ -24,7 +16,9 @@ fn convert_tx(tx: &[u8]) -> u64 {
     BigEndian::read_u64(tx)
 }
 
-impl abci::Application for CounterApp {
+impl abci::Application
+    for Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey>
+{
     // Validate transactions. Rule:  Transactions must be incremental: 1,2,3,4...
     fn check_tx(&mut self, req: &RequestCheckTx) -> ResponseCheckTx {
         // Get the Tx [u8] and convert to u64

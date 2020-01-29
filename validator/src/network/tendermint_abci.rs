@@ -57,3 +57,8 @@ impl abci::Application
         resp
     }
 }
+pub async fn start(
+    app: Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey>,
+) {
+    abci::run_local(app);
+}

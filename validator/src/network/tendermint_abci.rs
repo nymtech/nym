@@ -5,7 +5,7 @@ use crypto::identity::{
     DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey,
 };
 
-// Convert incoming tx data to the proper BigEndian size. txs.len() > 8 will return 0
+// Convert incoming tx network data to the proper BigEndian size. txs.len() > 8 will return 0
 fn convert_tx(tx: &[u8]) -> u64 {
     if tx.len() < 8 {
         let pad = 8 - tx.len();

@@ -1,8 +1,8 @@
 # Changelog
 
-## [Unreleased](https://github.com/nymtech/nym/tree/HEAD)
+## [v0.4.0](https://github.com/nymtech/nym/tree/v0.4.0) (2020-01-28)
 
-[Full Changelog](https://github.com/nymtech/nym/compare/0.4.0-rc.2...HEAD)
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.4.0-rc.2...v0.4.0)
 
 Nym 0.4.0 Platform
 
@@ -10,9 +10,9 @@ In this release, we're taking a lot more care with version numbers, so that we c
 
 This release also integrates a health-checker and network topology refresh into the Nym client, so that the client can intelligently choose paths which route around any non-functional or incompatible nodes. 
 
-## [0.4.0-rc.2](https://github.com/nymtech/nym/tree/0.4.0-rc.2) (2020-01-28)
+## [v0.4.0-rc.2](https://github.com/nymtech/nym/tree/v0.4.0-rc.2) (2020-01-28)
 
-[Full Changelog](https://github.com/nymtech/nym/compare/v0.4.0-rc.1...0.4.0-rc.2)
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.4.0-rc.1...v0.4.0-rc.2)
 
 **Merged pull requests:**
 

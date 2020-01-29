@@ -31,8 +31,6 @@ where
 // but for time being, since it's a dummy one, have it use dummy keys
 impl Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey> {
     pub fn new(config: Config) -> Self {
-        debug!("validator new");
-
         let dummy_keypair = DummyMixIdentityKeyPair::new();
 
         Validator {
@@ -43,7 +41,6 @@ impl Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIden
     }
 
     pub fn start(self) {
-        info!("Setting up Tokio runtime");
         let mut rt = Runtime::new().unwrap();
 
         let abci_future = self.tendermint_abci.run();

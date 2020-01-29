@@ -45,7 +45,7 @@ impl Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIden
         let abci_future = self.tendermint_abci.run();
         let health_check_future = self.health_check.run();
 
-        rt.block_on(abci_future);
+        rt.spawn(abci_future);
 
         let health_check_res = rt.block_on(health_check_future);
         assert!(health_check_res.is_ok()); // panic if health checker failed

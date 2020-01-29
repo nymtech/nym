@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.4.1](https://github.com/nymtech/nym/tree/v0.4.1) (2020-01-29)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.4.0...v0.4.1)
+
+**Closed issues:**
+
+- Change healthcheck to run on provided topology rather than pull one itself [\#95](https://github.com/nymtech/nym/issues/95)
+
+**Merged pull requests:**
+
+- Bugfix/healthcheck on provided topology [\#108](https://github.com/nymtech/nym/pull/108) ([jstuczyn](https://github.com/jstuczyn))
+
 ## [v0.4.0](https://github.com/nymtech/nym/tree/v0.4.0) (2020-01-28)
 
 [Full Changelog](https://github.com/nymtech/nym/compare/v0.4.0-rc.2...v0.4.0)
@@ -82,10 +94,6 @@ This release also integrates a health-checker and network topology refresh into 
 
 [Full Changelog](https://github.com/nymtech/nym/compare/v0.3.1...v0.3.2)
 
-**Merged pull requests:**
-
-- Feature/separate presence address [\#59](https://github.com/nymtech/nym/pull/59) ([jstuczyn](https://github.com/jstuczyn))
-
 ## [v0.3.1](https://github.com/nymtech/nym/tree/v0.3.1) (2020-01-16)
 
 [Full Changelog](https://github.com/nymtech/nym/compare/v0.3.0...v0.3.1)
@@ -112,6 +120,7 @@ This release also integrates a health-checker and network topology refresh into 
 
 **Merged pull requests:**
 
+- Feature/separate presence address [\#59](https://github.com/nymtech/nym/pull/59) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/client topology filtering [\#54](https://github.com/nymtech/nym/pull/54) ([jstuczyn](https://github.com/jstuczyn))
 - print public key for nym client tools [\#53](https://github.com/nymtech/nym/pull/53) ([mileschet](https://github.com/mileschet))
 - Showing binding warning on binding to localhost, 0.0.0.0 or 127.0.0.1 [\#52](https://github.com/nymtech/nym/pull/52) ([jstuczyn](https://github.com/jstuczyn))

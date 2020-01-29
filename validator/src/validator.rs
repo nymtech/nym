@@ -1,4 +1,4 @@
-use crate::network::tendermint_abci;
+use crate::network::tendermint;
 use crypto::identity::{
     DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey,
     MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey,
@@ -22,7 +22,7 @@ where
     Priv: MixnetIdentityPrivateKey,
     Pub: MixnetIdentityPublicKey,
 {
-    pub count: u64,
+    tendermint_abci: tendermint::Abci,
     health_check: HealthChecker<IDPair, Priv, Pub>,
     #[allow(dead_code)]
     identity_keypair: IDPair,
@@ -36,18 +36,20 @@ impl Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIden
         let dummy_keypair = DummyMixIdentityKeyPair::new();
 
         Validator {
-            count: 0,
-            heath_check: HealthChecker::new(config.health_check, dummy_keypair.clone()),
+            tendermint_abci: tendermint::Abci::new(),
+            health_check: HealthChecker::new(config.health_check, dummy_keypair.clone()),
             identity_keypair: dummy_keypair,
         }
     }
 
     pub fn start(self) {
-        debug!("validator run");
-
+        info!("Setting up Tokio runtime");
         let mut rt = Runtime::new().unwrap();
 
-        let health_check_future = self.heath_check.run();
+        let abci_future = tendermint::start(self.tendermint_abci);
+        let health_check_future = self.health_check.run();
+
+        rt.block_on(abci_future);
 
         let health_check_res = rt.block_on(health_check_future);
         assert!(health_check_res.is_ok()); // panic if health checker failed

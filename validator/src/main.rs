@@ -1,7 +1,7 @@
 use crate::validator::Config;
 use crate::validator::Validator;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use log::{error, info, trace};
+use log::*;
 use std::process;
 use toml;
 

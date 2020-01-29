@@ -22,6 +22,10 @@ impl Abci {
     pub fn new() -> Abci {
         Abci { count: 0 }
     }
+
+    pub async fn run(self) {
+        abci::run_local(self);
+    }
 }
 
 impl abci::Application for Abci {
@@ -62,7 +66,4 @@ impl abci::Application for Abci {
         resp.set_data(buf.to_vec());
         resp
     }
-}
-pub async fn start(app: Abci) {
-    abci::run_local(app);
 }

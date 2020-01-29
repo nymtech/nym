@@ -1,9 +1,6 @@
-use crate::validator::Validator;
 use abci::*;
 use byteorder::{BigEndian, ByteOrder};
-use crypto::identity::{
-    DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey,
-};
+use serde_derive::Deserialize;
 
 // Convert incoming tx network data to the proper BigEndian size. txs.len() > 8 will return 0
 fn convert_tx(tx: &[u8]) -> u64 {
@@ -16,9 +13,18 @@ fn convert_tx(tx: &[u8]) -> u64 {
     BigEndian::read_u64(tx)
 }
 
-impl abci::Application
-    for Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey>
-{
+#[derive(Debug, Deserialize)]
+pub struct Abci {
+    count: u64,
+}
+
+impl Abci {
+    pub fn new() -> Abci {
+        Abci { count: 0 }
+    }
+}
+
+impl abci::Application for Abci {
     // Validate transactions. Rule:  Transactions must be incremental: 1,2,3,4...
     fn check_tx(&mut self, req: &RequestCheckTx) -> ResponseCheckTx {
         // Get the Tx [u8] and convert to u64
@@ -57,8 +63,6 @@ impl abci::Application
         resp
     }
 }
-pub async fn start(
-    app: Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey>,
-) {
+pub async fn start(app: Abci) {
     abci::run_local(app);
 }

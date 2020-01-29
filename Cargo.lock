@@ -350,6 +350,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "config"
+version = "0.1.0"
+dependencies = [
+ "handlebars",
+ "serde",
+ "toml",
+]
+
+[[package]]
 name = "constant_time_eq"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1369,13 +1378,13 @@ dependencies = [
  "bs58",
  "built",
  "clap",
+ "config",
  "crypto",
  "curve25519-dalek",
  "directory-client",
  "dirs",
  "dotenv",
  "futures 0.3.1",
- "handlebars",
  "healthcheck",
  "log",
  "mix-client",

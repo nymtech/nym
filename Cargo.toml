@@ -9,6 +9,7 @@ members = [
     "common/clients/provider-client",
     "common/clients/validator-client",
     "common/addressing",
+    "common/config",
     "common/crypto",
     "common/healthcheck",
     "common/pemstore",

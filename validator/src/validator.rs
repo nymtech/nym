@@ -46,7 +46,7 @@ impl Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIden
         info!("Setting up Tokio runtime");
         let mut rt = Runtime::new().unwrap();
 
-        let abci_future = self.tendermint_abci.start();
+        let abci_future = self.tendermint_abci.run();
         let health_check_future = self.health_check.run();
 
         rt.block_on(abci_future);

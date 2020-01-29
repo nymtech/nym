@@ -1,6 +1,5 @@
 use abci::*;
 use byteorder::{BigEndian, ByteOrder};
-use serde_derive::Deserialize;
 
 // Convert incoming tx network data to the proper BigEndian size. txs.len() > 8 will return 0
 fn convert_tx(tx: &[u8]) -> u64 {
@@ -13,7 +12,6 @@ fn convert_tx(tx: &[u8]) -> u64 {
     BigEndian::read_u64(tx)
 }
 
-#[derive(Debug, Deserialize)]
 pub struct Abci {
     count: u64,
 }

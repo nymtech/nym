@@ -3,7 +3,7 @@ use crypto::identity::{
     MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey,
 };
 use healthcheck::HealthChecker;
-use log::debug;
+use log::*;
 use tokio::runtime::Runtime;
 
 use serde_derive::Deserialize;

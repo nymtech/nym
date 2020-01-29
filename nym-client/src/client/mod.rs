@@ -8,6 +8,7 @@ use directory_client::presence::Topology;
 use futures::channel::mpsc;
 use futures::join;
 use log::*;
+use serde::{Deserialize, Serialize};
 use sfw_provider_requests::AuthToken;
 use sphinx::route::Destination;
 use std::marker::PhantomData;
@@ -31,6 +32,8 @@ const FETCH_MESSAGES_DELAY: f64 = 1.0; // seconds;
 
 const TOPOLOGY_REFRESH_RATE: f64 = 10.0; // seconds
 
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub enum SocketType {
     TCP,
     WebSocket,

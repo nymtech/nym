@@ -1,6 +1,6 @@
 use crate::path_check::{PathChecker, PathStatus};
 use crate::score::NodeScore;
-use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
+use crypto::identity::MixnetIdentityKeyPair;
 use log::{debug, error, info, warn};
 use rand_os::rand_core::RngCore;
 use sphinx::route::NodeAddressBytes;
@@ -102,7 +102,7 @@ impl HealthCheckResult {
         id
     }
 
-    pub async fn calculate<T, IDPair, Priv, Pub>(
+    pub async fn calculate<T, IDPair>(
         topology: &T,
         iterations: usize,
         resolution_timeout: Duration,
@@ -110,9 +110,7 @@ impl HealthCheckResult {
     ) -> Self
     where
         T: NymTopology,
-        IDPair: MixnetIdentityKeyPair<Priv, Pub>,
-        Priv: MixnetIdentityPrivateKey,
-        Pub: MixnetIdentityPublicKey,
+        IDPair: MixnetIdentityKeyPair,
     {
         // currently healthchecker supports only up to 255 iterations - if we somehow
         // find we need more, it's relatively easy change

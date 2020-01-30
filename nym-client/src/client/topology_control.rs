@@ -1,5 +1,5 @@
 use crate::built_info;
-use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
+use crypto::identity::MixnetIdentityKeyPair;
 use healthcheck::HealthChecker;
 use log::{error, info, trace, warn};
 use std::sync::Arc;
@@ -12,16 +12,14 @@ const NODE_HEALTH_THRESHOLD: f64 = 0.0;
 // auxiliary type for ease of use
 pub type TopologyInnerRef<T> = Arc<FRwLock<Inner<T>>>;
 
-pub(crate) struct TopologyControl<T, IDPair, Priv, Pub>
+pub(crate) struct TopologyControl<T, IDPair>
 where
     T: NymTopology,
-    IDPair: MixnetIdentityKeyPair<Priv, Pub>,
-    Priv: MixnetIdentityPrivateKey,
-    Pub: MixnetIdentityPublicKey,
+    IDPair: MixnetIdentityKeyPair,
 {
     directory_server: String,
     inner: Arc<FRwLock<Inner<T>>>,
-    health_checker: HealthChecker<IDPair, Priv, Pub>,
+    health_checker: HealthChecker<IDPair>,
     refresh_rate: f64,
 }
 
@@ -31,12 +29,10 @@ enum TopologyError {
     NoValidPathsError,
 }
 
-impl<T, IDPair, Priv, Pub> TopologyControl<T, IDPair, Priv, Pub>
+impl<T, IDPair> TopologyControl<T, IDPair>
 where
     T: NymTopology,
-    IDPair: MixnetIdentityKeyPair<Priv, Pub>,
-    Priv: MixnetIdentityPrivateKey,
-    Pub: MixnetIdentityPublicKey,
+    IDPair: MixnetIdentityKeyPair,
 {
     pub(crate) async fn new(
         directory_server: String,

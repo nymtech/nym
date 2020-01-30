@@ -1,4 +1,6 @@
 use crate::pathfinder::PathFinder;
+use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
+use crypto::PemStorable;
 use pem::{encode, parse, Pem};
 use std::fs::File;
 use std::io;
@@ -25,12 +27,7 @@ impl PemStore {
         }
     }
 
-    pub fn read_identity<IDPair, Priv, Pub>(&self) -> io::Result<IDPair>
-    where
-        IDPair: crypto::identity::MixnetIdentityKeyPair<Priv, Pub>,
-        Priv: crypto::identity::MixnetIdentityPrivateKey,
-        Pub: crypto::identity::MixnetIdentityPublicKey,
-    {
+    pub fn read_identity<IDPair: MixnetIdentityKeyPair>(&self) -> io::Result<IDPair> {
         let private_pem = self.read_pem_file(self.private_mix_key.clone())?;
         let public_pem = self.read_pem_file(self.public_mix_key.clone())?;
 
@@ -62,12 +59,10 @@ impl PemStore {
     // This should be refactored and made more generic for when we have other kinds of
     // KeyPairs that we want to persist (e.g. validator keypairs, or keys for
     // signing vs encryption). However, for the moment, it does the job.
-    pub fn write_identity<IDPair, Priv, Pub>(&self, key_pair: IDPair) -> io::Result<()>
-    where
-        IDPair: crypto::identity::MixnetIdentityKeyPair<Priv, Pub>,
-        Priv: crypto::identity::MixnetIdentityPrivateKey,
-        Pub: crypto::identity::MixnetIdentityPublicKey,
-    {
+    pub fn write_identity<IDPair: MixnetIdentityKeyPair>(
+        &self,
+        key_pair: IDPair,
+    ) -> io::Result<()> {
         std::fs::create_dir_all(self.config_dir.clone())?;
 
         let private_key = key_pair.private_key();

@@ -15,22 +15,22 @@ pub fn read_mix_encryption_keypair_from_disk(_id: String) -> crypto::encryption:
 
 pub struct PemStore {
     config_dir: PathBuf,
-    private_mix_key: PathBuf,
-    public_mix_key: PathBuf,
+    private_mix_key_file: PathBuf,
+    public_mix_key_file: PathBuf,
 }
 
 impl PemStore {
     pub fn new<P: PathFinder>(pathfinder: P) -> PemStore {
         PemStore {
             config_dir: pathfinder.config_dir(),
-            private_mix_key: pathfinder.private_identity_key(),
-            public_mix_key: pathfinder.public_identity_key(),
+            private_mix_key_file: pathfinder.private_identity_key(),
+            public_mix_key_file: pathfinder.public_identity_key(),
         }
     }
 
     pub fn read_identity(&self) -> io::Result<MixIdentityKeyPair> {
-        let private_pem = self.read_pem_file(self.private_mix_key.clone())?;
-        let public_pem = self.read_pem_file(self.public_mix_key.clone())?;
+        let private_pem = self.read_pem_file(self.private_mix_key_file.clone())?;
+        let public_pem = self.read_pem_file(self.public_mix_key_file.clone())?;
 
         let key_pair = MixIdentityKeyPair::from_bytes(&private_pem.contents, &public_pem.contents);
 
@@ -63,18 +63,25 @@ impl PemStore {
     pub fn write_identity(&self, key_pair: MixIdentityKeyPair) -> io::Result<()> {
         let private_key = key_pair.private_key();
         let public_key = key_pair.public_key();
+
         self.write_pem_file(
-            self.private_mix_key.clone(),
+            self.private_mix_key_file.clone(),
             private_key.to_bytes(),
             private_key.pem_type(),
         )?;
-        info!("Written private key to {:?}", self.private_mix_key.clone());
+        info!(
+            "Written private key to {:?}",
+            self.private_mix_key_file.clone()
+        );
         self.write_pem_file(
-            self.public_mix_key.clone(),
+            self.public_mix_key_file.clone(),
             public_key.to_bytes(),
             public_key.pem_type(),
         )?;
-        info!("Written public key to {:?}", self.public_mix_key.clone());
+        info!(
+            "Written public key to {:?}",
+            self.public_mix_key_file.clone()
+        );
         Ok(())
     }
 

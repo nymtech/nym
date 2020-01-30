@@ -24,27 +24,25 @@ impl<T: MixnetIdentityKeyPair + Send + Sync + 'static> HealthCheckRunner<T> {
     }
 
     pub async fn run(self) {
-        tokio::spawn(async move {
-            let healthcheck_interval = Duration::from_secs_f64(self.interval);
-            debug!("healthcheck will run every {:?}", healthcheck_interval);
-            loop {
-                let full_topology =
-                    directory_client::presence::Topology::new(self.directory_server.clone());
-                let version_filtered_topology = full_topology.filter_node_versions(
-                    crate::built_info::PKG_VERSION,
-                    crate::built_info::PKG_VERSION,
-                    crate::built_info::PKG_VERSION,
-                );
-                match self
-                    .health_checker
-                    .do_check(&version_filtered_topology)
-                    .await
-                {
-                    Ok(health) => info!("current network health: \n{}", health),
-                    Err(err) => error!("failed to perform healthcheck - {:?}", err),
-                };
-                tokio::time::delay_for(healthcheck_interval).await;
-            }
-        });
+        let healthcheck_interval = Duration::from_secs_f64(self.interval);
+        debug!("healthcheck will run every {:?}", healthcheck_interval);
+        loop {
+            let full_topology =
+                directory_client::presence::Topology::new(self.directory_server.clone());
+            let version_filtered_topology = full_topology.filter_node_versions(
+                crate::built_info::PKG_VERSION,
+                crate::built_info::PKG_VERSION,
+                crate::built_info::PKG_VERSION,
+            );
+            match self
+                .health_checker
+                .do_check(&version_filtered_topology)
+                .await
+            {
+                Ok(health) => info!("current network health: \n{}", health),
+                Err(err) => error!("failed to perform healthcheck - {:?}", err),
+            };
+            tokio::time::delay_for(healthcheck_interval).await;
+        }
     }
 }

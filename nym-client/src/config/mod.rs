@@ -14,6 +14,8 @@ const DEFAULT_AVERAGE_PACKET_DELAY: u64 = 200;
 const DEFAULT_FETCH_MESSAGES_DELAY: u64 = 1000;
 const DEFAULT_TOPOLOGY_REFRESH_RATE: u64 = 10_000;
 
+const DEFAULT_LISTENING_PORT: u16 = 9001;
+
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
@@ -81,6 +83,21 @@ impl Config {
 
     pub fn with_provider_id(mut self, id: String) -> Self {
         self.client.provider_id = id;
+        self
+    }
+
+    pub fn with_custom_directory(mut self, directory_server: String) -> Self {
+        self.client.directory_server = directory_server;
+        self
+    }
+
+    pub fn with_socket(mut self, socket_type: SocketType) -> Self {
+        self.socket.socket_type = socket_type;
+        self
+    }
+
+    pub fn with_port(mut self, port: u16) -> Self {
+        self.socket.listening_port = port;
         self
     }
 
@@ -158,14 +175,14 @@ impl Client {
 #[serde(deny_unknown_fields)]
 pub struct Socket {
     socket_type: SocketType,
-    listening_port: u64,
+    listening_port: u16,
 }
 
 impl Default for Socket {
     fn default() -> Self {
         Socket {
             socket_type: SocketType::None,
-            listening_port: 0,
+            listening_port: DEFAULT_LISTENING_PORT,
         }
     }
 }

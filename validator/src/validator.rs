@@ -14,7 +14,6 @@ pub struct Config {
 
 // allow for a generic validator
 pub struct Validator<IDPair: MixnetIdentityKeyPair> {
-    config: Config,
     #[allow(dead_code)]
     identity_keypair: IDPair,
     health_check_runner: health_check_runner::HealthCheckRunner<IDPair>,
@@ -40,7 +39,6 @@ impl Validator<DummyMixIdentityKeyPair> {
         Validator {
             identity_keypair: dummy_keypair,
             health_check_runner,
-            config,
             tendermint_abci: tendermint::Abci::new(),
         }
     }

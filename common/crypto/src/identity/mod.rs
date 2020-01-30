@@ -1,95 +1,46 @@
-use crate::encryption::{
-    MixnetEncryptionKeyPair, MixnetEncryptionPrivateKey, MixnetEncryptionPublicKey,
-};
 use crate::{encryption, PemStorable};
 use bs58;
 use curve25519_dalek::scalar::Scalar;
 use sphinx::route::DestinationAddressBytes;
 
-pub trait MixnetIdentityKeyPair: Clone {
-    type PublicKeyMaterial: MixnetIdentityPublicKey;
-    type PrivateKeyMaterial: MixnetIdentityPrivateKey;
-
-    fn new() -> Self;
-    fn private_key(&self) -> &Self::PrivateKeyMaterial;
-    fn public_key(&self) -> &Self::PublicKeyMaterial;
-    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self;
-
-    // TODO: signing related methods
-}
-
-pub trait MixnetIdentityPublicKey:
-    Sized
-    + PemStorable
-    + Clone
-    + for<'a> From<&'a <Self as MixnetIdentityPublicKey>::PrivateKeyMaterial>
-{
-    // we need to couple public and private keys together
-    type PrivateKeyMaterial: MixnetIdentityPrivateKey<PublicKeyMaterial = Self>;
-
-    fn derive_address(&self) -> DestinationAddressBytes;
-    fn to_bytes(&self) -> Vec<u8>;
-    fn from_bytes(b: &[u8]) -> Self;
-}
-
-pub trait MixnetIdentityPrivateKey: Sized + PemStorable + Clone {
-    // we need to couple public and private keys together
-    type PublicKeyMaterial: MixnetIdentityPublicKey<PrivateKeyMaterial = Self>;
-
-    /// Returns the associated public key
-    fn public_key(&self) -> Self::PublicKeyMaterial {
-        self.into()
-    }
-
-    fn to_bytes(&self) -> Vec<u8>;
-    fn from_bytes(b: &[u8]) -> Self;
-}
-
-// same for validator
-
 // for time being define a dummy identity using x25519 encryption keys (as we've done so far)
 // and replace it with proper keys, like ed25519 later on
 #[derive(Clone)]
-pub struct DummyMixIdentityKeyPair {
-    pub private_key: DummyMixIdentityPrivateKey,
-    pub public_key: DummyMixIdentityPublicKey,
+pub struct MixIdentityKeyPair {
+    pub private_key: MixIdentityPrivateKey,
+    pub public_key: MixIdentityPublicKey,
 }
 
-impl MixnetIdentityKeyPair for DummyMixIdentityKeyPair {
-    type PublicKeyMaterial = DummyMixIdentityPublicKey;
-    type PrivateKeyMaterial = DummyMixIdentityPrivateKey;
-
-    fn new() -> Self {
-        let keypair = encryption::x25519::KeyPair::new();
-        DummyMixIdentityKeyPair {
-            private_key: DummyMixIdentityPrivateKey(keypair.private_key),
-            public_key: DummyMixIdentityPublicKey(keypair.public_key),
+impl MixIdentityKeyPair {
+    pub fn new() -> Self {
+        let keypair = encryption::KeyPair::new();
+        MixIdentityKeyPair {
+            private_key: MixIdentityPrivateKey(keypair.private_key),
+            public_key: MixIdentityPublicKey(keypair.public_key),
         }
     }
 
-    fn private_key(&self) -> &DummyMixIdentityPrivateKey {
+    pub fn private_key(&self) -> &MixIdentityPrivateKey {
         &self.private_key
     }
 
-    fn public_key(&self) -> &DummyMixIdentityPublicKey {
+    pub fn public_key(&self) -> &MixIdentityPublicKey {
         &self.public_key
     }
 
-    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self {
-        DummyMixIdentityKeyPair {
-            private_key: DummyMixIdentityPrivateKey::from_bytes(priv_bytes),
-            public_key: DummyMixIdentityPublicKey::from_bytes(pub_bytes),
+    pub fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self {
+        MixIdentityKeyPair {
+            private_key: MixIdentityPrivateKey::from_bytes(priv_bytes),
+            public_key: MixIdentityPublicKey::from_bytes(pub_bytes),
         }
     }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct DummyMixIdentityPublicKey(encryption::x25519::PublicKey);
+pub struct MixIdentityPublicKey(encryption::PublicKey);
 
-impl MixnetIdentityPublicKey for DummyMixIdentityPublicKey {
-    type PrivateKeyMaterial = DummyMixIdentityPrivateKey;
-
-    fn derive_address(&self) -> DestinationAddressBytes {
+impl MixIdentityPublicKey {
+    pub fn derive_address(&self) -> DestinationAddressBytes {
         let mut temporary_address = [0u8; 32];
         let public_key_bytes = self.to_bytes();
         temporary_address.copy_from_slice(&public_key_bytes[..]);
@@ -97,65 +48,60 @@ impl MixnetIdentityPublicKey for DummyMixIdentityPublicKey {
         temporary_address
     }
 
-    fn to_bytes(&self) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         self.0.to_bytes()
     }
 
-    fn from_bytes(b: &[u8]) -> Self {
-        Self(encryption::x25519::PublicKey::from_bytes(b))
+    pub fn from_bytes(b: &[u8]) -> Self {
+        Self(encryption::PublicKey::from_bytes(b))
+    }
+
+    pub fn to_base58_string(&self) -> String {
+        bs58::encode(&self.to_bytes()).into_string()
+    }
+
+    pub fn from_base58_string(val: String) -> Self {
+        Self::from_bytes(&bs58::decode(&val).into_vec().unwrap())
     }
 }
 
-impl PemStorable for DummyMixIdentityPublicKey {
+impl PemStorable for MixIdentityPublicKey {
     fn pem_type(&self) -> String {
         format!("DUMMY KEY BASED ON {}", self.0.pem_type())
     }
 }
 
-impl DummyMixIdentityPublicKey {
-    pub fn to_base58_string(&self) -> String {
-        bs58::encode(&self.to_bytes()).into_string()
-    }
-
-    #[allow(dead_code)]
-    fn from_base58_string(val: String) -> Self {
-        Self::from_bytes(&bs58::decode(&val).into_vec().unwrap())
-    }
-}
-
 // COPY IS DERIVED ONLY TEMPORARILY UNTIL https://github.com/nymtech/nym/issues/47 is fixed
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct DummyMixIdentityPrivateKey(pub encryption::x25519::PrivateKey);
+pub struct MixIdentityPrivateKey(pub encryption::PrivateKey);
 
-impl<'a> From<&'a DummyMixIdentityPrivateKey> for DummyMixIdentityPublicKey {
-    fn from(pk: &'a DummyMixIdentityPrivateKey) -> Self {
+impl<'a> From<&'a MixIdentityPrivateKey> for MixIdentityPublicKey {
+    fn from(pk: &'a MixIdentityPrivateKey) -> Self {
         let private_ref = &pk.0;
-        let public: encryption::x25519::PublicKey = private_ref.into();
-        DummyMixIdentityPublicKey(public)
+        let public: encryption::PublicKey = private_ref.into();
+        MixIdentityPublicKey(public)
     }
 }
 
-impl MixnetIdentityPrivateKey for DummyMixIdentityPrivateKey {
-    type PublicKeyMaterial = DummyMixIdentityPublicKey;
-
-    fn to_bytes(&self) -> Vec<u8> {
+impl MixIdentityPrivateKey {
+    pub fn to_bytes(&self) -> Vec<u8> {
         self.0.to_bytes()
     }
 
-    fn from_bytes(b: &[u8]) -> Self {
-        Self(encryption::x25519::PrivateKey::from_bytes(b))
+    pub fn from_bytes(b: &[u8]) -> Self {
+        Self(encryption::PrivateKey::from_bytes(b))
     }
 }
 
 // TODO: this will be implemented differently by using the proper trait
-impl DummyMixIdentityPrivateKey {
+impl MixIdentityPrivateKey {
     pub fn as_scalar(self) -> Scalar {
         let encryption_key = self.0;
         encryption_key.0
     }
 }
 
-impl PemStorable for DummyMixIdentityPrivateKey {
+impl PemStorable for MixIdentityPrivateKey {
     fn pem_type(&self) -> String {
         format!("DUMMY KEY BASED ON {}", self.0.pem_type())
     }

@@ -1,21 +1,20 @@
-use crypto::identity::MixnetIdentityKeyPair;
 use healthcheck::HealthChecker;
 use log::*;
 use std::time::Duration;
 use topology::NymTopology;
 
-pub struct HealthCheckRunner<T: MixnetIdentityKeyPair> {
+pub struct HealthCheckRunner {
     directory_server: String,
-    health_checker: HealthChecker<T>,
+    health_checker: HealthChecker,
     interval: f64,
 }
 
-impl<T: MixnetIdentityKeyPair + Send + Sync + 'static> HealthCheckRunner<T> {
+impl HealthCheckRunner {
     pub fn new(
         directory_server: String,
         interval: f64,
-        health_checker: HealthChecker<T>,
-    ) -> HealthCheckRunner<T> {
+        health_checker: HealthChecker,
+    ) -> HealthCheckRunner {
         HealthCheckRunner {
             directory_server,
             health_checker,

@@ -1,5 +1,5 @@
 use crate::pathfinder::PathFinder;
-use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
+use crypto::identity::MixIdentityKeyPair;
 use crypto::PemStorable;
 use pem::{encode, parse, Pem};
 use std::fs::File;
@@ -8,7 +8,7 @@ use std::io::prelude::*;
 use std::path::PathBuf;
 
 #[allow(dead_code)]
-pub fn read_mix_encryption_keypair_from_disk(_id: String) -> crypto::encryption::x25519::KeyPair {
+pub fn read_mix_encryption_keypair_from_disk(_id: String) -> crypto::encryption::KeyPair {
     unimplemented!()
 }
 
@@ -27,11 +27,11 @@ impl PemStore {
         }
     }
 
-    pub fn read_identity<IDPair: MixnetIdentityKeyPair>(&self) -> io::Result<IDPair> {
+    pub fn read_identity(&self) -> io::Result<MixIdentityKeyPair> {
         let private_pem = self.read_pem_file(self.private_mix_key.clone())?;
         let public_pem = self.read_pem_file(self.public_mix_key.clone())?;
 
-        let key_pair = IDPair::from_bytes(&private_pem.contents, &public_pem.contents);
+        let key_pair = MixIdentityKeyPair::from_bytes(&private_pem.contents, &public_pem.contents);
 
         if key_pair.private_key().pem_type() != private_pem.tag {
             return Err(io::Error::new(
@@ -59,10 +59,7 @@ impl PemStore {
     // This should be refactored and made more generic for when we have other kinds of
     // KeyPairs that we want to persist (e.g. validator keypairs, or keys for
     // signing vs encryption). However, for the moment, it does the job.
-    pub fn write_identity<IDPair: MixnetIdentityKeyPair>(
-        &self,
-        key_pair: IDPair,
-    ) -> io::Result<()> {
+    pub fn write_identity(&self, key_pair: MixIdentityKeyPair) -> io::Result<()> {
         std::fs::create_dir_all(self.config_dir.clone())?;
 
         let private_key = key_pair.private_key();

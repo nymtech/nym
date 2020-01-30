@@ -1,5 +1,5 @@
 use crate::provider::ClientLedger;
-use crypto::identity::DummyMixIdentityPublicKey;
+use crypto::identity::MixIdentityPublicKey;
 use directory_client::presence::providers::MixProviderPresence;
 use directory_client::requests::presence_providers_post::PresenceMixProviderPoster;
 use directory_client::DirectoryClient;
@@ -22,7 +22,7 @@ impl Notifier {
         directory_server_address: String,
         client_listener: SocketAddr,
         mixnet_listener: SocketAddr,
-        pub_key: DummyMixIdentityPublicKey,
+        pub_key: MixIdentityPublicKey,
         client_ledger: Arc<FMutex<ClientLedger>>,
     ) -> Notifier {
         let directory_config = directory_client::Config {

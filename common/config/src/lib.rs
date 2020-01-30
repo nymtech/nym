@@ -7,6 +7,8 @@ use std::{fs, io};
 pub trait NymConfig: Default + Serialize + DeserializeOwned {
     fn template() -> &'static str;
 
+    fn config_file_name() -> String;
+
     fn default_root_directory() -> PathBuf;
 
     // default, most probable, implementations; can be easily overridden where required
@@ -28,7 +30,7 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
         let templated_config = reg.render_template(Self::template(), self).unwrap();
 
         fs::write(
-            custom_location.unwrap_or(self.config_directory().join("config.toml")),
+            custom_location.unwrap_or(self.config_directory().join(Self::config_file_name())),
             templated_config,
         )
     }

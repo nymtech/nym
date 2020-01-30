@@ -1,8 +1,8 @@
 use crate::config::Config;
-use config::NymConfig;
 use pemstore::pathfinder::PathFinder;
 use std::path::PathBuf;
 
+#[derive(Debug)]
 pub struct ClientPathfinder {
     pub config_dir: PathBuf,
     pub private_mix_key: PathBuf,

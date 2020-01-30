@@ -1,6 +1,3 @@
-use crate::encryption::{
-    MixnetEncryptionKeyPair, MixnetEncryptionPrivateKey, MixnetEncryptionPublicKey,
-};
 use crate::{encryption, PemStorable};
 use bs58;
 use curve25519_dalek::scalar::Scalar;
@@ -16,7 +13,7 @@ pub struct MixIdentityKeyPair {
 
 impl MixIdentityKeyPair {
     pub fn new() -> Self {
-        let keypair = encryption::x25519::KeyPair::new();
+        let keypair = encryption::KeyPair::new();
         MixIdentityKeyPair {
             private_key: MixIdentityPrivateKey(keypair.private_key),
             public_key: MixIdentityPublicKey(keypair.public_key),
@@ -40,7 +37,7 @@ impl MixIdentityKeyPair {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct MixIdentityPublicKey(encryption::x25519::PublicKey);
+pub struct MixIdentityPublicKey(encryption::PublicKey);
 
 impl MixIdentityPublicKey {
     pub fn derive_address(&self) -> DestinationAddressBytes {
@@ -56,7 +53,7 @@ impl MixIdentityPublicKey {
     }
 
     pub fn from_bytes(b: &[u8]) -> Self {
-        Self(encryption::x25519::PublicKey::from_bytes(b))
+        Self(encryption::PublicKey::from_bytes(b))
     }
 
     pub fn to_base58_string(&self) -> String {
@@ -76,12 +73,12 @@ impl PemStorable for MixIdentityPublicKey {
 
 // COPY IS DERIVED ONLY TEMPORARILY UNTIL https://github.com/nymtech/nym/issues/47 is fixed
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct MixIdentityPrivateKey(pub encryption::x25519::PrivateKey);
+pub struct MixIdentityPrivateKey(pub encryption::PrivateKey);
 
 impl<'a> From<&'a MixIdentityPrivateKey> for MixIdentityPublicKey {
     fn from(pk: &'a MixIdentityPrivateKey) -> Self {
         let private_ref = &pk.0;
-        let public: encryption::x25519::PublicKey = private_ref.into();
+        let public: encryption::PublicKey = private_ref.into();
         MixIdentityPublicKey(public)
     }
 }
@@ -92,7 +89,7 @@ impl MixIdentityPrivateKey {
     }
 
     pub fn from_bytes(b: &[u8]) -> Self {
-        Self(encryption::x25519::PrivateKey::from_bytes(b))
+        Self(encryption::PrivateKey::from_bytes(b))
     }
 }
 

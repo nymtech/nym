@@ -8,7 +8,7 @@ use std::io::prelude::*;
 use std::path::PathBuf;
 
 #[allow(dead_code)]
-pub fn read_mix_encryption_keypair_from_disk(_id: String) -> crypto::encryption::x25519::KeyPair {
+pub fn read_mix_encryption_keypair_from_disk(_id: String) -> crypto::encryption::KeyPair {
     unimplemented!()
 }
 
@@ -31,8 +31,7 @@ impl PemStore {
         let private_pem = self.read_pem_file(self.private_mix_key.clone())?;
         let public_pem = self.read_pem_file(self.public_mix_key.clone())?;
 
-        let key_pair =
-            MixIdentityKeyPair::from_bytes(&private_pem.contents, &public_pem.contents);
+        let key_pair = MixIdentityKeyPair::from_bytes(&private_pem.contents, &public_pem.contents);
 
         if key_pair.private_key().pem_type() != private_pem.tag {
             return Err(io::Error::new(

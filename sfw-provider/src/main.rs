@@ -1,6 +1,5 @@
 use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use crypto::identity::MixIdentityKeyPair;
 use log::error;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;

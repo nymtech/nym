@@ -242,17 +242,20 @@ impl MixNode {
     }
 
     pub fn start(&self, config: node::Config) -> Result<(), Box<dyn std::error::Error>> {
-        // Create the runtime, probably later move it to MixNode itself?
-        let mut rt = Runtime::new()?;
-
-        let (received_tx, received_rx) = mpsc::channel(1024);
-        let (sent_tx, sent_rx) = mpsc::channel(1024);
-
+        // Set up config and public key for this node
         let directory_cfg = directory_client::Config {
             base_url: self.directory_server.clone(),
         };
         let pub_key_str = bs58::encode(&self.public_key.to_bytes().to_vec()).into_string();
 
+        // Set up channels
+        let (received_tx, received_rx) = mpsc::channel(1024);
+        let (sent_tx, sent_rx) = mpsc::channel(1024);
+
+        // Create the runtime, probably later move it to MixNode itself?
+        let mut rt = Runtime::new()?;
+
+        // Spawn Tokio tasks as necessary for node functionality
         rt.spawn({
             let presence_notifier = presence::Notifier::new(&config);
             presence_notifier.run()

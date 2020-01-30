@@ -2,9 +2,8 @@ use crate::network::tendermint;
 use crate::services::mixmining::health_check_runner;
 use crypto::identity::MixIdentityKeyPair;
 use healthcheck::HealthChecker;
+use serde::Deserialize;
 use tokio::runtime::Runtime;
-
-use serde_derive::Deserialize;
 
 #[derive(Deserialize, Debug)]
 pub struct Config {

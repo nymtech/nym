@@ -13,15 +13,15 @@ pub struct Config {
 }
 
 // allow for a generic validator
-pub struct Validator<IDPair: MixnetIdentityKeyPair> {
+pub struct Validator {
     #[allow(dead_code)]
-    identity_keypair: IDPair,
-    health_check_runner: health_check_runner::HealthCheckRunner<IDPair>,
+    identity_keypair: DummyMixIdentityKeyPair,
+    health_check_runner: health_check_runner::HealthCheckRunner,
     tendermint_abci: tendermint::Abci,
 }
 
 // but for time being, since it's a dummy one, have it use dummy keys
-impl Validator<DummyMixIdentityKeyPair> {
+impl Validator {
     pub fn new(config: Config) -> Self {
         let dummy_keypair = DummyMixIdentityKeyPair::new();
         let hc = HealthChecker::new(

@@ -24,7 +24,7 @@ pub struct Validator {
 impl Validator {
     pub fn new(config: Config) -> Self {
         let dummy_keypair = MixIdentityKeyPair::new();
-        let hc = HealthChecker::new(
+        let health_checker = HealthChecker::new(
             config.health_check.resolution_timeout,
             config.health_check.num_test_packets,
             dummy_keypair.clone(),
@@ -33,7 +33,7 @@ impl Validator {
         let health_check_runner = health_check_runner::HealthCheckRunner::new(
             config.health_check.directory_server.clone(),
             config.health_check.interval,
-            hc,
+            health_checker,
         );
 
         Validator {

@@ -1,3 +1,5 @@
+use crate::config::Config;
+use config::NymConfig;
 use pemstore::pathfinder::PathFinder;
 use std::path::PathBuf;
 
@@ -17,6 +19,14 @@ impl ClientPathfinder {
             config_dir,
             private_mix_key,
             public_mix_key,
+        }
+    }
+
+    pub fn new_from_config(config: &Config) -> Self {
+        ClientPathfinder {
+            config_dir: config.get_config_file_save_location(),
+            private_mix_key: config.get_private_identity_key_file(),
+            public_mix_key: config.get_public_identity_key_file(),
         }
     }
 }

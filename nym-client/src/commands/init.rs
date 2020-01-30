@@ -1,5 +1,6 @@
 use crate::config::persistance::pathfinder::ClientPathfinder;
 use clap::ArgMatches;
+use config::NymConfig;
 use crypto::identity::MixIdentityKeyPair;
 use pemstore::pemstore::PemStore;
 
@@ -7,12 +8,21 @@ pub fn execute(matches: &ArgMatches) {
     println!("Initialising client...");
 
     let id = matches.value_of("id").unwrap().to_string(); // required for now
-    let pathfinder = ClientPathfinder::new(id);
+    let mut config = crate::config::Config::new(id);
 
-    println!("Writing keypairs to {:?}...", pathfinder.config_dir);
-    let mix_keys = MixIdentityKeyPair::new();
+    if let Some(provider_id) = matches.value_of("provider") {
+        config = config.with_provider_id(provider_id.to_string());
+    }
+
+    let mix_identity_keys = MixIdentityKeyPair::new();
+    let pathfinder = ClientPathfinder::new_from_config(&config);
+
     let pem_store = PemStore::new(pathfinder);
-    pem_store.write_identity(mix_keys).unwrap();
+    pem_store.write_identity(mix_identity_keys).unwrap();
+    println!("Saved mixnet identity keypair");
 
+    let config_save_location = config.get_config_file_save_location();
+    config.save_to_file(None).unwrap();
+    println!("Saved configuration file to {:?}", config_save_location);
     println!("Client configuration completed.\n\n\n")
 }

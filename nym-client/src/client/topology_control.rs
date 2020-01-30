@@ -1,5 +1,5 @@
 use crate::built_info;
-use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
+use crypto::identity::MixIdentityKeyPair;
 use healthcheck::HealthChecker;
 use log::{error, info, trace, warn};
 use std::sync::Arc;
@@ -12,16 +12,10 @@ const NODE_HEALTH_THRESHOLD: f64 = 0.0;
 // auxiliary type for ease of use
 pub type TopologyInnerRef<T> = Arc<FRwLock<Inner<T>>>;
 
-pub(crate) struct TopologyControl<T, IDPair, Priv, Pub>
-where
-    T: NymTopology,
-    IDPair: MixnetIdentityKeyPair<Priv, Pub>,
-    Priv: MixnetIdentityPrivateKey,
-    Pub: MixnetIdentityPublicKey,
-{
+pub(crate) struct TopologyControl<T: NymTopology> {
     directory_server: String,
     inner: Arc<FRwLock<Inner<T>>>,
-    health_checker: HealthChecker<IDPair, Priv, Pub>,
+    health_checker: HealthChecker,
     refresh_rate: f64,
 }
 
@@ -31,17 +25,11 @@ enum TopologyError {
     NoValidPathsError,
 }
 
-impl<T, IDPair, Priv, Pub> TopologyControl<T, IDPair, Priv, Pub>
-where
-    T: NymTopology,
-    IDPair: MixnetIdentityKeyPair<Priv, Pub>,
-    Priv: MixnetIdentityPrivateKey,
-    Pub: MixnetIdentityPublicKey,
-{
+impl<T: NymTopology> TopologyControl<T> {
     pub(crate) async fn new(
         directory_server: String,
         refresh_rate: f64,
-        identity_keypair: IDPair,
+        identity_keypair: MixIdentityKeyPair,
     ) -> Self {
         // this is a temporary solution as the healthcheck will eventually be moved to validators
         let health_checker = healthcheck::HealthChecker::new(5.0, 2, identity_keypair);

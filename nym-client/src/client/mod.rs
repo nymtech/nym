@@ -3,7 +3,7 @@ use crate::client::received_buffer::ReceivedMessagesBuffer;
 use crate::client::topology_control::TopologyInnerRef;
 use crate::sockets::tcp;
 use crate::sockets::ws;
-use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
+use crypto::identity::MixIdentityKeyPair;
 use directory_client::presence::Topology;
 use futures::channel::mpsc;
 use futures::join;
@@ -11,7 +11,6 @@ use log::*;
 use serde::{Deserialize, Serialize};
 use sfw_provider_requests::AuthToken;
 use sphinx::route::Destination;
-use std::marker::PhantomData;
 use std::net::SocketAddr;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
@@ -40,13 +39,8 @@ pub enum SocketType {
     None,
 }
 
-pub struct NymClient<IDPair, Priv, Pub>
-where
-    IDPair: MixnetIdentityKeyPair<Priv, Pub> + Send + Sync,
-    Priv: MixnetIdentityPrivateKey + Send + Sync,
-    Pub: MixnetIdentityPublicKey + Send + Sync,
-{
-    keypair: IDPair,
+pub struct NymClient {
+    keypair: MixIdentityKeyPair,
 
     // to be used by "send" function or socket, etc
     pub input_tx: mpsc::UnboundedSender<InputMessage>,
@@ -56,22 +50,14 @@ where
     directory: String,
     auth_token: Option<AuthToken>,
     socket_type: SocketType,
-
-    _phantom_private: PhantomData<Priv>,
-    _phantom_public: PhantomData<Pub>,
 }
 
 #[derive(Debug)]
 pub struct InputMessage(pub Destination, pub Vec<u8>);
 
-impl<IDPair: 'static, Priv: 'static, Pub: 'static> NymClient<IDPair, Priv, Pub>
-where
-    IDPair: MixnetIdentityKeyPair<Priv, Pub> + Send + Sync,
-    Priv: MixnetIdentityPrivateKey + Send + Sync,
-    Pub: MixnetIdentityPublicKey + Send + Sync,
-{
+impl NymClient {
     pub fn new(
-        keypair: IDPair,
+        keypair: MixIdentityKeyPair,
         socket_listening_address: SocketAddr,
         directory: String,
         auth_token: Option<AuthToken>,
@@ -87,8 +73,6 @@ where
             directory,
             auth_token,
             socket_type,
-            _phantom_private: PhantomData,
-            _phantom_public: PhantomData,
         }
     }
 
@@ -128,15 +112,14 @@ where
         let self_address = self.keypair.public_key().derive_address();
 
         // generate same type of keys we have as our identity
-        let healthcheck_keys = IDPair::new();
+        let healthcheck_keys = MixIdentityKeyPair::new();
 
         // TODO: when we switch to our graph topology, we need to remember to change 'Topology' type
-        let topology_controller =
-            rt.block_on(topology_control::TopologyControl::<Topology, _, _, _>::new(
-                self.directory.clone(),
-                TOPOLOGY_REFRESH_RATE,
-                healthcheck_keys,
-            ));
+        let topology_controller = rt.block_on(topology_control::TopologyControl::<Topology>::new(
+            self.directory.clone(),
+            TOPOLOGY_REFRESH_RATE,
+            healthcheck_keys,
+        ));
 
         let provider_client_listener_address =
             rt.block_on(self.get_provider_socket_address(topology_controller.get_inner_ref()));

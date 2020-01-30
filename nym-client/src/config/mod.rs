@@ -146,15 +146,11 @@ impl Client {
     }
 
     fn default_private_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory()
-            .join(id)
-            .join("private_identity.pem")
+        Config::default_data_directory(Some(id)).join("private_identity.pem")
     }
 
     fn default_public_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory()
-            .join(id)
-            .join("public_identity.pem")
+        Config::default_data_directory(Some(id)).join("public_identity.pem")
     }
 }
 

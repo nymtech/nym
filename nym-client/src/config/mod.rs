@@ -83,6 +83,18 @@ impl Config {
         self.client.provider_id = id;
         self
     }
+
+    pub fn get_private_identity_key_file(&self) -> PathBuf {
+        self.client.private_identity_key_file.clone()
+    }
+
+    pub fn get_public_identity_key_file(&self) -> PathBuf {
+        self.client.public_identity_key_file.clone()
+    }
+
+    pub fn get_config_file_save_location(&self) -> PathBuf {
+        self.config_directory().join(Self::config_file_name())
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

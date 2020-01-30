@@ -1379,7 +1379,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "0.4.0-rc.1"
+version = "0.4.1"
 dependencies = [
  "addressing",
  "bs58",
@@ -1411,7 +1411,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "0.4.0-rc.1"
+version = "0.4.1"
 dependencies = [
  "addressing",
  "bs58",
@@ -1429,7 +1429,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sfw-provider"
-version = "0.4.0-rc.1"
+version = "0.4.1"
 dependencies = [
  "bs58",
  "built",
@@ -1453,13 +1453,14 @@ dependencies = [
 
 [[package]]
 name = "nym-validator"
-version = "0.4.0-rc.1"
+version = "0.4.1"
 dependencies = [
  "abci",
  "built",
  "byteorder",
  "clap",
  "crypto",
+ "directory-client",
  "dotenv",
  "futures 0.3.1",
  "healthcheck",
@@ -1469,6 +1470,7 @@ dependencies = [
  "serde_derive",
  "tokio 0.2.10",
  "toml",
+ "topology",
 ]
 
 [[package]]

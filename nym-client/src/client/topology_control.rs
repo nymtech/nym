@@ -1,5 +1,5 @@
 use crate::built_info;
-use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
+use crypto::identity::MixnetIdentityKeyPair;
 use healthcheck::HealthChecker;
 use log::{error, info, trace, warn};
 use std::sync::Arc;
@@ -12,16 +12,14 @@ const NODE_HEALTH_THRESHOLD: f64 = 0.0;
 // auxiliary type for ease of use
 pub type TopologyInnerRef<T> = Arc<FRwLock<Inner<T>>>;
 
-pub(crate) struct TopologyControl<T, IDPair, Priv, Pub>
+pub(crate) struct TopologyControl<T, IDPair>
 where
     T: NymTopology,
-    IDPair: MixnetIdentityKeyPair<Priv, Pub>,
-    Priv: MixnetIdentityPrivateKey,
-    Pub: MixnetIdentityPublicKey,
+    IDPair: MixnetIdentityKeyPair,
 {
     directory_server: String,
     inner: Arc<FRwLock<Inner<T>>>,
-    health_checker: HealthChecker<IDPair, Priv, Pub>,
+    health_checker: HealthChecker<IDPair>,
     refresh_rate: f64,
 }
 
@@ -31,29 +29,18 @@ enum TopologyError {
     NoValidPathsError,
 }
 
-impl<T, IDPair, Priv, Pub> TopologyControl<T, IDPair, Priv, Pub>
+impl<T, IDPair> TopologyControl<T, IDPair>
 where
     T: NymTopology,
-    IDPair: MixnetIdentityKeyPair<Priv, Pub>,
-    Priv: MixnetIdentityPrivateKey,
-    Pub: MixnetIdentityPublicKey,
+    IDPair: MixnetIdentityKeyPair,
 {
     pub(crate) async fn new(
         directory_server: String,
         refresh_rate: f64,
         identity_keypair: IDPair,
     ) -> Self {
-        // topology control run a healthcheck to determine healthy-ish nodes:
         // this is a temporary solution as the healthcheck will eventually be moved to validators
-
-        let healthcheck_config = healthcheck::config::HealthCheck {
-            directory_server: directory_server.clone(),
-            // those are literally irrelevant when running single check
-            interval: 100000.0,
-            resolution_timeout: 5.0,
-            num_test_packets: 2,
-        };
-        let health_checker = healthcheck::HealthChecker::new(healthcheck_config, identity_keypair);
+        let health_checker = healthcheck::HealthChecker::new(5.0, 2, identity_keypair);
 
         let mut topology_control = TopologyControl {
             directory_server,
@@ -79,8 +66,16 @@ where
 
     async fn get_current_compatible_topology(&self) -> Result<T, TopologyError> {
         let full_topology = T::new(self.directory_server.clone());
+        let version_filtered_topology = full_topology.filter_node_versions(
+            built_info::PKG_VERSION,
+            built_info::PKG_VERSION,
+            built_info::PKG_VERSION,
+        );
 
-        let healthcheck_result = self.health_checker.do_check().await;
+        let healthcheck_result = self
+            .health_checker
+            .do_check(&version_filtered_topology)
+            .await;
         let healthcheck_scores = match healthcheck_result {
             Err(err) => {
                 error!("Error while performing the healthcheck: {:?}", err);
@@ -89,21 +84,15 @@ where
             Ok(scores) => scores,
         };
 
-        let healthy_topology =
-            healthcheck_scores.filter_topology_by_score(&full_topology, NODE_HEALTH_THRESHOLD);
-
-        let versioned_healthy_topology = healthy_topology.filter_node_versions(
-            built_info::PKG_VERSION,
-            built_info::PKG_VERSION,
-            built_info::PKG_VERSION,
-        );
+        let healthy_topology = healthcheck_scores
+            .filter_topology_by_score(&version_filtered_topology, NODE_HEALTH_THRESHOLD);
 
         // make sure you can still send a packet through the network:
-        if !versioned_healthy_topology.can_construct_path_through() {
+        if !healthy_topology.can_construct_path_through() {
             return Err(TopologyError::NoValidPathsError);
         }
 
-        Ok(versioned_healthy_topology)
+        Ok(healthy_topology)
     }
 
     pub(crate) fn get_inner_ref(&self) -> Arc<FRwLock<Inner<T>>> {

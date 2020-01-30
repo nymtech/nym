@@ -3,14 +3,13 @@ use crate::client::received_buffer::ReceivedMessagesBuffer;
 use crate::client::topology_control::TopologyInnerRef;
 use crate::sockets::tcp;
 use crate::sockets::ws;
-use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
+use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPublicKey};
 use directory_client::presence::Topology;
 use futures::channel::mpsc;
 use futures::join;
 use log::*;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::Destination;
-use std::marker::PhantomData;
 use std::net::SocketAddr;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
@@ -37,11 +36,9 @@ pub enum SocketType {
     None,
 }
 
-pub struct NymClient<IDPair, Priv, Pub>
+pub struct NymClient<IDPair>
 where
-    IDPair: MixnetIdentityKeyPair<Priv, Pub> + Send + Sync,
-    Priv: MixnetIdentityPrivateKey + Send + Sync,
-    Pub: MixnetIdentityPublicKey + Send + Sync,
+    IDPair: MixnetIdentityKeyPair + Send + Sync,
 {
     keypair: IDPair,
 
@@ -53,19 +50,14 @@ where
     directory: String,
     auth_token: Option<AuthToken>,
     socket_type: SocketType,
-
-    _phantom_private: PhantomData<Priv>,
-    _phantom_public: PhantomData<Pub>,
 }
 
 #[derive(Debug)]
 pub struct InputMessage(pub Destination, pub Vec<u8>);
 
-impl<IDPair: 'static, Priv: 'static, Pub: 'static> NymClient<IDPair, Priv, Pub>
+impl<IDPair> NymClient<IDPair>
 where
-    IDPair: MixnetIdentityKeyPair<Priv, Pub> + Send + Sync,
-    Priv: MixnetIdentityPrivateKey + Send + Sync,
-    Pub: MixnetIdentityPublicKey + Send + Sync,
+    IDPair: 'static + MixnetIdentityKeyPair + Send + Sync,
 {
     pub fn new(
         keypair: IDPair,
@@ -84,8 +76,6 @@ where
             directory,
             auth_token,
             socket_type,
-            _phantom_private: PhantomData,
-            _phantom_public: PhantomData,
         }
     }
 
@@ -129,7 +119,7 @@ where
 
         // TODO: when we switch to our graph topology, we need to remember to change 'Topology' type
         let topology_controller =
-            rt.block_on(topology_control::TopologyControl::<Topology, _, _, _>::new(
+            rt.block_on(topology_control::TopologyControl::<Topology, _>::new(
                 self.directory.clone(),
                 TOPOLOGY_REFRESH_RATE,
                 healthcheck_keys,

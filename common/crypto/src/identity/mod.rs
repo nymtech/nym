@@ -6,14 +6,13 @@ use bs58;
 use curve25519_dalek::scalar::Scalar;
 use sphinx::route::DestinationAddressBytes;
 
-pub trait MixnetIdentityKeyPair<Priv, Pub>: Clone
-where
-    Priv: MixnetIdentityPrivateKey,
-    Pub: MixnetIdentityPublicKey,
-{
+pub trait MixnetIdentityKeyPair: Clone {
+    type PublicKeyMaterial: MixnetIdentityPublicKey;
+    type PrivateKeyMaterial: MixnetIdentityPrivateKey;
+
     fn new() -> Self;
-    fn private_key(&self) -> &Priv;
-    fn public_key(&self) -> &Pub;
+    fn private_key(&self) -> &Self::PrivateKeyMaterial;
+    fn public_key(&self) -> &Self::PublicKeyMaterial;
     fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self;
 
     // TODO: signing related methods
@@ -56,9 +55,10 @@ pub struct DummyMixIdentityKeyPair {
     pub public_key: DummyMixIdentityPublicKey,
 }
 
-impl MixnetIdentityKeyPair<DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey>
-    for DummyMixIdentityKeyPair
-{
+impl MixnetIdentityKeyPair for DummyMixIdentityKeyPair {
+    type PublicKeyMaterial = DummyMixIdentityPublicKey;
+    type PrivateKeyMaterial = DummyMixIdentityPrivateKey;
+
     fn new() -> Self {
         let keypair = encryption::x25519::KeyPair::new();
         DummyMixIdentityKeyPair {

@@ -6,6 +6,7 @@ use std::process;
 use toml;
 
 mod network;
+mod services;
 mod validator;
 
 fn main() {

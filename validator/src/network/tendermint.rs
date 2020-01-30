@@ -21,8 +21,8 @@ impl Abci {
         Abci { count: 0 }
     }
 
-    pub async fn run(self) {
-        abci::run_local(self);
+    pub fn run(self) {
+        tokio::spawn(async { abci::run_local(self) })
     }
 }
 

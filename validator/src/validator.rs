@@ -1,8 +1,6 @@
 use crate::network::tendermint;
-use crypto::identity::{
-    DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey,
-    MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey,
-};
+use crate::services::mixmining::health_check_runner;
+use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair};
 use healthcheck::HealthChecker;
 use tokio::runtime::Runtime;
 
@@ -15,39 +13,41 @@ pub struct Config {
 }
 
 // allow for a generic validator
-pub struct Validator<IDPair, Priv, Pub>
-where
-    IDPair: MixnetIdentityKeyPair<Priv, Pub>,
-    Priv: MixnetIdentityPrivateKey,
-    Pub: MixnetIdentityPublicKey,
-{
-    tendermint_abci: tendermint::Abci,
-    health_check: HealthChecker<IDPair, Priv, Pub>,
+pub struct Validator<IDPair: MixnetIdentityKeyPair> {
+    config: Config,
     #[allow(dead_code)]
     identity_keypair: IDPair,
+    health_check_runner: health_check_runner::HealthCheckRunner<IDPair>,
+    tendermint_abci: tendermint::Abci,
 }
 
 // but for time being, since it's a dummy one, have it use dummy keys
-impl Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey> {
+impl Validator<DummyMixIdentityKeyPair> {
     pub fn new(config: Config) -> Self {
         let dummy_keypair = DummyMixIdentityKeyPair::new();
+        let hc = HealthChecker::new(
+            config.health_check.resolution_timeout,
+            config.health_check.num_test_packets,
+            dummy_keypair.clone(),
+        );
+
+        let health_check_runner = health_check_runner::HealthCheckRunner::new(
+            config.health_check.directory_server.clone(),
+            config.health_check.interval,
+            hc,
+        );
 
         Validator {
-            tendermint_abci: tendermint::Abci::new(),
-            health_check: HealthChecker::new(config.health_check, dummy_keypair.clone()),
             identity_keypair: dummy_keypair,
+            health_check_runner,
+            config,
+            tendermint_abci: tendermint::Abci::new(),
         }
     }
 
     pub fn start(self) {
         let mut rt = Runtime::new().unwrap();
-
-        let abci_future = self.tendermint_abci.run();
-        let health_check_future = self.health_check.run();
-
-        rt.spawn(abci_future);
-
-        let health_check_res = rt.block_on(health_check_future);
-        assert!(health_check_res.is_ok()); // panic if health checker failed
+        rt.spawn(self.health_check_runner.run());
+        rt.block_on(self.tendermint_abci.run());
     }
 }

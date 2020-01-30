@@ -1,5 +1,4 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
-use log::*;
 use std::process;
 
 mod mix_peer;
@@ -58,7 +57,7 @@ fn main() {
         .get_matches();
 
     if let Err(e) = execute(arg_matches) {
-        error!("{}", e);
+        println!("{}", e);
         process::exit(1);
     }
 }

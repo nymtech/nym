@@ -61,8 +61,6 @@ impl PemStore {
     // KeyPairs that we want to persist (e.g. validator keypairs, or keys for
     // signing vs encryption). However, for the moment, it does the job.
     pub fn write_identity(&self, key_pair: MixIdentityKeyPair) -> io::Result<()> {
-        std::fs::create_dir_all(self.config_dir.clone())?;
-
         let private_key = key_pair.private_key();
         let public_key = key_pair.public_key();
         self.write_pem_file(

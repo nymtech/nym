@@ -1,8 +1,5 @@
 use crate::validator::config::Config;
-use crypto::identity::{
-    DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey,
-    MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey,
-};
+use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair};
 use directory_client::presence::Topology;
 use healthcheck::HealthChecker;
 use log::{debug, error, info};
@@ -13,20 +10,15 @@ use topology::NymTopology;
 pub mod config;
 
 // allow for a generic validator
-pub struct Validator<IDPair, Priv, Pub>
-where
-    IDPair: MixnetIdentityKeyPair<Priv, Pub>,
-    Priv: MixnetIdentityPrivateKey,
-    Pub: MixnetIdentityPublicKey,
-{
+pub struct Validator<IDPair: MixnetIdentityKeyPair> {
     config: Config,
     #[allow(dead_code)]
     identity_keypair: IDPair,
-    heath_check: HealthChecker<IDPair, Priv, Pub>,
+    heath_check: HealthChecker<IDPair>,
 }
 
 // but for time being, since it's a dummy one, have it use dummy keys
-impl Validator<DummyMixIdentityKeyPair, DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey> {
+impl Validator<DummyMixIdentityKeyPair> {
     pub fn new(config: Config) -> Self {
         debug!("validator new");
 

@@ -1,6 +1,7 @@
 use crate::pathfinder::PathFinder;
 use crypto::identity::MixIdentityKeyPair;
 use crypto::PemStorable;
+use log::info;
 use pem::{encode, parse, Pem};
 use std::fs::File;
 use std::io;
@@ -69,11 +70,13 @@ impl PemStore {
             private_key.to_bytes(),
             private_key.pem_type(),
         )?;
+        info!("Written private key to {:?}", self.private_mix_key.clone());
         self.write_pem_file(
             self.public_mix_key.clone(),
             public_key.to_bytes(),
             public_key.pem_type(),
         )?;
+        info!("Written public key to {:?}", self.public_mix_key.clone());
         Ok(())
     }
 

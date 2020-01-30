@@ -39,6 +39,24 @@ pub enum SocketType {
     None,
 }
 
+impl From<String> for SocketType {
+    fn from(v: String) -> Self {
+        Self::from(v.as_ref())
+    }
+}
+
+impl From<&str> for SocketType {
+    fn from(v: &str) -> Self {
+        let mut upper = v.to_string();
+        upper.make_ascii_uppercase();
+        match upper.as_ref() {
+            "TCP" => SocketType::TCP,
+            "WEBSOCKET" => SocketType::WebSocket,
+            _ => SocketType::None,
+        }
+    }
+}
+
 pub struct NymClient {
     keypair: MixIdentityKeyPair,
 

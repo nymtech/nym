@@ -33,6 +33,8 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
         // it's whoever is implementing the trait responsibility to make sure you can execute your own template on your data
         let templated_config = reg.render_template(Self::template(), self).unwrap();
 
+        // make sure the whole directory structure actually exists
+        fs::create_dir_all(custom_location.clone().unwrap_or(self.config_directory()))?;
         fs::write(
             custom_location.unwrap_or(self.config_directory().join(Self::config_file_name())),
             templated_config,

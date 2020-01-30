@@ -1,6 +1,6 @@
 use crate::network::tendermint;
 use crate::services::mixmining::health_check_runner;
-use crypto::identity::{DummyMixIdentityKeyPair, MixnetIdentityKeyPair};
+use crypto::identity::MixIdentityKeyPair;
 use healthcheck::HealthChecker;
 use tokio::runtime::Runtime;
 
@@ -15,7 +15,7 @@ pub struct Config {
 // allow for a generic validator
 pub struct Validator {
     #[allow(dead_code)]
-    identity_keypair: DummyMixIdentityKeyPair,
+    identity_keypair: MixIdentityKeyPair,
     health_check_runner: health_check_runner::HealthCheckRunner,
     tendermint_abci: tendermint::Abci,
 }
@@ -23,7 +23,7 @@ pub struct Validator {
 // but for time being, since it's a dummy one, have it use dummy keys
 impl Validator {
     pub fn new(config: Config) -> Self {
-        let dummy_keypair = DummyMixIdentityKeyPair::new();
+        let dummy_keypair = MixIdentityKeyPair::new();
         let hc = HealthChecker::new(
             config.health_check.resolution_timeout,
             config.health_check.num_test_packets,

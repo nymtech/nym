@@ -1,5 +1,5 @@
 use crate::result::HealthCheckResult;
-use crypto::identity::MixnetIdentityKeyPair;
+use crypto::identity::MixIdentityKeyPair;
 use log::trace;
 use std::fmt::{Error, Formatter};
 use std::time::Duration;
@@ -33,17 +33,17 @@ impl From<topology::NymTopologyError> for HealthCheckerError {
     }
 }
 
-pub struct HealthChecker<IDPair: MixnetIdentityKeyPair> {
+pub struct HealthChecker {
     num_test_packets: usize,
     resolution_timeout: Duration,
-    identity_keypair: IDPair,
+    identity_keypair: MixIdentityKeyPair,
 }
 
-impl<IDPair: MixnetIdentityKeyPair> HealthChecker<IDPair> {
+impl HealthChecker {
     pub fn new(
         resolution_timeout_f64: f64,
         num_test_packets: usize,
-        identity_keypair: IDPair,
+        identity_keypair: MixIdentityKeyPair,
     ) -> Self {
         HealthChecker {
             resolution_timeout: Duration::from_secs_f64(resolution_timeout_f64),

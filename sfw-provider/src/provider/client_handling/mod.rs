@@ -1,6 +1,6 @@
 use crate::provider::storage::{ClientStorage, StoreError};
 use crate::provider::ClientLedger;
-use crypto::identity::{DummyMixIdentityPrivateKey, MixnetIdentityPrivateKey};
+use crypto::identity::MixIdentityPrivateKey;
 use futures::lock::Mutex as FMutex;
 use hmac::{Hmac, Mac};
 use log::*;
@@ -54,14 +54,14 @@ impl From<io::Error> for ClientProcessingError {
 pub(crate) struct ClientProcessingData {
     store_dir: PathBuf,
     registered_clients_ledger: Arc<FMutex<ClientLedger>>,
-    secret_key: DummyMixIdentityPrivateKey,
+    secret_key: MixIdentityPrivateKey,
 }
 
 impl ClientProcessingData {
     pub(crate) fn new(
         store_dir: PathBuf,
         registered_clients_ledger: Arc<FMutex<ClientLedger>>,
-        secret_key: DummyMixIdentityPrivateKey,
+        secret_key: MixIdentityPrivateKey,
     ) -> Self {
         ClientProcessingData {
             store_dir,
@@ -153,7 +153,7 @@ impl ClientRequestProcessor {
         std::fs::create_dir_all(full_store_dir)
     }
 
-    fn generate_new_auth_token(data: Vec<u8>, key: DummyMixIdentityPrivateKey) -> AuthToken {
+    fn generate_new_auth_token(data: Vec<u8>, key: MixIdentityPrivateKey) -> AuthToken {
         // also note that `new_varkey` doesn't even have an execution branch returning an error
         let mut auth_token_raw = HmacSha256::new_varkey(&key.to_bytes())
             .expect("HMAC should be able take key of any size");
@@ -249,7 +249,7 @@ mod generating_new_auth_token {
     fn for_the_same_input_generates_the_same_auth_token() {
         let data1 = vec![1u8; 55];
         let data2 = vec![1u8; 55];
-        let key = DummyMixIdentityPrivateKey::from_bytes(&[1u8; 32]);
+        let key = MixIdentityPrivateKey::from_bytes(&[1u8; 32]);
         let token1 = ClientRequestProcessor::generate_new_auth_token(data1, key);
         let token2 = ClientRequestProcessor::generate_new_auth_token(data2, key);
         assert_eq!(token1, token2);
@@ -259,14 +259,14 @@ mod generating_new_auth_token {
     fn for_different_inputs_generates_different_auth_tokens() {
         let data1 = vec![1u8; 55];
         let data2 = vec![2u8; 55];
-        let key = DummyMixIdentityPrivateKey::from_bytes(&[1u8; 32]);
+        let key = MixIdentityPrivateKey::from_bytes(&[1u8; 32]);
         let token1 = ClientRequestProcessor::generate_new_auth_token(data1, key);
         let token2 = ClientRequestProcessor::generate_new_auth_token(data2, key);
         assert_ne!(token1, token2);
 
         let data1 = vec![1u8; 50];
         let data2 = vec![2u8; 55];
-        let key = DummyMixIdentityPrivateKey::from_bytes(&[1u8; 32]);
+        let key = MixIdentityPrivateKey::from_bytes(&[1u8; 32]);
         let token1 = ClientRequestProcessor::generate_new_auth_token(data1, key);
         let token2 = ClientRequestProcessor::generate_new_auth_token(data2, key);
         assert_ne!(token1, token2);

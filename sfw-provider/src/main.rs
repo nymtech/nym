@@ -1,6 +1,6 @@
 use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches, SubCommand};
-use crypto::identity::MixnetIdentityKeyPair;
+use crypto::identity::MixIdentityKeyPair;
 use log::error;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
@@ -121,7 +121,7 @@ fn new_config(matches: &ArgMatches) -> provider::Config {
         print_binding_warning(client_host);
     }
 
-    let key_pair = crypto::identity::DummyMixIdentityKeyPair::new(); // TODO: persist this so keypairs don't change every restart
+    let key_pair = crypto::identity::MixIdentityKeyPair::new(); // TODO: persist this so keypairs don't change every restart
     let store_dir = PathBuf::from(
         matches
             .value_of("storeDir")

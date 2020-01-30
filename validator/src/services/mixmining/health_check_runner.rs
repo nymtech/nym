@@ -1,4 +1,3 @@
-use crypto::identity::DummyMixIdentityKeyPair;
 use healthcheck::HealthChecker;
 use log::*;
 use std::time::Duration;
@@ -6,7 +5,7 @@ use topology::NymTopology;
 
 pub struct HealthCheckRunner {
     directory_server: String,
-    health_checker: HealthChecker<DummyMixIdentityKeyPair>,
+    health_checker: HealthChecker,
     interval: f64,
 }
 
@@ -14,7 +13,7 @@ impl HealthCheckRunner {
     pub fn new(
         directory_server: String,
         interval: f64,
-        health_checker: HealthChecker<DummyMixIdentityKeyPair>,
+        health_checker: HealthChecker,
     ) -> HealthCheckRunner {
         HealthCheckRunner {
             directory_server,

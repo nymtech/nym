@@ -1,7 +1,7 @@
 use crate::provider::client_handling::{ClientProcessingData, ClientRequestProcessor};
 use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
 use crate::provider::storage::ClientStorage;
-use crypto::identity::{DummyMixIdentityPrivateKey, DummyMixIdentityPublicKey};
+use crypto::identity::{MixIdentityPrivateKey, MixIdentityPublicKey};
 use directory_client::presence::providers::MixProviderClient;
 use futures::io::Error;
 use futures::lock::Mutex as FMutex;
@@ -29,8 +29,8 @@ pub struct Config {
     pub client_socket_address: SocketAddr,
     pub directory_server: String,
     pub mix_socket_address: SocketAddr,
-    pub public_key: DummyMixIdentityPublicKey,
-    pub secret_key: DummyMixIdentityPrivateKey,
+    pub public_key: MixIdentityPublicKey,
+    pub secret_key: MixIdentityPrivateKey,
     pub store_dir: PathBuf,
 }
 
@@ -102,8 +102,8 @@ pub struct ServiceProvider {
     directory_server: String,
     mix_network_address: SocketAddr,
     client_network_address: SocketAddr,
-    public_key: DummyMixIdentityPublicKey,
-    secret_key: DummyMixIdentityPrivateKey,
+    public_key: MixIdentityPublicKey,
+    secret_key: MixIdentityPrivateKey,
     store_dir: PathBuf,
     registered_clients_ledger: ClientLedger,
 }
@@ -236,7 +236,7 @@ impl ServiceProvider {
 
     async fn start_mixnet_listening(
         address: SocketAddr,
-        secret_key: DummyMixIdentityPrivateKey,
+        secret_key: MixIdentityPrivateKey,
         store_dir: PathBuf,
     ) -> Result<(), ProviderError> {
         let mut listener = tokio::net::TcpListener::bind(address).await?;
@@ -258,7 +258,7 @@ impl ServiceProvider {
         address: SocketAddr,
         store_dir: PathBuf,
         client_ledger: Arc<FMutex<ClientLedger>>,
-        secret_key: DummyMixIdentityPrivateKey,
+        secret_key: MixIdentityPrivateKey,
     ) -> Result<(), ProviderError> {
         let mut listener = tokio::net::TcpListener::bind(address).await?;
         let processing_data =

@@ -28,7 +28,7 @@ directory-client = { path = "../common/clients/directory-client" }
 sfw-provider-requests = { path = "./sfw-provider-requests" }
 
 ## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="8424f4b0933b4a7f64ae828b2edefc5ba43a9e79" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="5862939c52e4dd76f836856a01787faec32152b4" }
 
 [build-dependencies]
 built = "0.3.2"

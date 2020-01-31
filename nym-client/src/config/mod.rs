@@ -1,4 +1,3 @@
-use crate::client::SocketType;
 use crate::config::template::config_template;
 use config::NymConfig;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -16,6 +15,26 @@ const DEFAULT_FETCH_MESSAGES_DELAY: u64 = 1000;
 const DEFAULT_TOPOLOGY_REFRESH_RATE: u64 = 10_000;
 
 const DEFAULT_LISTENING_PORT: u16 = 9001;
+
+#[derive(Debug, Deserialize, PartialEq, Serialize, Clone, Copy)]
+#[serde(deny_unknown_fields)]
+pub enum SocketType {
+    TCP,
+    WebSocket,
+    None,
+}
+
+impl SocketType {
+    pub fn from_string<S: Into<String>>(val: S) -> Self {
+        let mut upper = val.into();
+        upper.make_ascii_uppercase();
+        match upper.as_ref() {
+            "TCP" => SocketType::TCP,
+            "WEBSOCKET" | "WS" => SocketType::WebSocket,
+            _ => SocketType::None,
+        }
+    }
+}
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]

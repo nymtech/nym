@@ -2,7 +2,7 @@ use crate::client::mix_traffic::MixTrafficController;
 use crate::client::received_buffer::ReceivedMessagesBuffer;
 use crate::client::topology_control::TopologyInnerRef;
 use crate::config::persistance::pathfinder::ClientPathfinder;
-use crate::config::Config;
+use crate::config::{Config, SocketType};
 use crate::sockets::tcp;
 use crate::sockets::ws;
 use crypto::identity::MixIdentityKeyPair;
@@ -11,7 +11,6 @@ use futures::channel::mpsc;
 use futures::join;
 use log::*;
 use pemstore::pemstore::PemStore;
-use serde::{Deserialize, Serialize};
 use sphinx::route::Destination;
 use std::net::SocketAddr;
 use tokio::runtime::Runtime;
@@ -23,32 +22,6 @@ mod provider_poller;
 mod real_traffic_stream;
 pub mod received_buffer;
 pub mod topology_control;
-
-// TODO: all of those constants should probably be moved to config file
-const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
-// seconds
-const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 0.5;
-//  seconds;
-
-#[derive(Debug, Deserialize, PartialEq, Serialize, Clone, Copy)]
-#[serde(deny_unknown_fields)]
-pub enum SocketType {
-    TCP,
-    WebSocket,
-    None,
-}
-
-impl SocketType {
-    pub fn from_string<S: Into<String>>(val: S) -> Self {
-        let mut upper = val.into();
-        upper.make_ascii_uppercase();
-        match upper.as_ref() {
-            "TCP" => SocketType::TCP,
-            "WEBSOCKET" | "WS" => SocketType::WebSocket,
-            _ => SocketType::None,
-        }
-    }
-}
 
 pub struct NymClient {
     config: Config,

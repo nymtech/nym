@@ -82,8 +82,8 @@ impl ProviderClient {
     }
 
     pub async fn retrieve_messages(&self) -> Result<Vec<Vec<u8>>, ProviderClientError> {
-        let auth_token = match self.auth_token {
-            Some(token) => token,
+        let auth_token = match self.auth_token.as_ref() {
+            Some(token) => token.clone(),
             None => {
                 return Err(ProviderClientError::EmptyAuthTokenError);
             }

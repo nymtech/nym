@@ -107,7 +107,7 @@ impl ClientRequestProcessor {
         // Wait for https://github.com/nymtech/nym-sfw-provider/issues/19 to resolve.
         let unlocked_ledger = processing_data.registered_clients_ledger.lock().await;
 
-        if unlocked_ledger.has_token(req.auth_token) {
+        if unlocked_ledger.has_token(&req.auth_token) {
             // drop the mutex so that we could do IO without blocking others wanting to get the lock
             drop(unlocked_ledger);
             let retrieved_messages = ClientStorage::retrieve_client_files(
@@ -134,8 +134,8 @@ impl ClientRequestProcessor {
             req.destination_address.to_vec(),
             processing_data.secret_key,
         );
-        if !unlocked_ledger.has_token(auth_token) {
-            unlocked_ledger.insert_token(auth_token, req.destination_address);
+        if !unlocked_ledger.has_token(&auth_token) {
+            unlocked_ledger.insert_token(auth_token.clone(), req.destination_address);
             ClientRequestProcessor::create_storage_dir(
                 req.destination_address,
                 processing_data.store_dir.as_path(),
@@ -160,7 +160,7 @@ impl ClientRequestProcessor {
         auth_token_raw.input(&data);
         let mut auth_token = [0u8; 32];
         auth_token.copy_from_slice(&auth_token_raw.result().code().to_vec());
-        auth_token
+        AuthToken(auth_token)
     }
 }
 

@@ -80,7 +80,7 @@ impl ProviderRequest for PullRequest {
             .to_vec()
             .into_iter()
             .chain(self.destination_address.iter().cloned())
-            .chain(self.auth_token.iter().cloned())
+            .chain(self.auth_token.0.iter().cloned())
             .collect()
     }
 
@@ -102,7 +102,7 @@ impl ProviderRequest for PullRequest {
         auth_token.copy_from_slice(&bytes[34..]);
 
         Ok(PullRequest {
-            auth_token,
+            auth_token: AuthToken(auth_token),
             destination_address,
         })
     }
@@ -165,12 +165,12 @@ mod creating_pull_request {
             0, 1, 2,
         ];
         let auth_token = [1u8; 32];
-        let pull_request = PullRequest::new(address, auth_token);
+        let pull_request = PullRequest::new(address, AuthToken(auth_token));
         let bytes = pull_request.to_bytes();
 
         let recovered = PullRequest::from_bytes(&bytes).unwrap();
         assert_eq!(address, recovered.destination_address);
-        assert_eq!(auth_token, recovered.auth_token);
+        assert_eq!(AuthToken(auth_token), recovered.auth_token);
     }
 
     #[test]
@@ -180,14 +180,14 @@ mod creating_pull_request {
             0, 1, 2,
         ];
         let auth_token = [1u8; 32];
-        let pull_request = PullRequest::new(address, auth_token);
+        let pull_request = PullRequest::new(address, AuthToken(auth_token));
         let bytes = pull_request.to_bytes();
 
         let recovered = ProviderRequests::from_bytes(&bytes).unwrap();
         match recovered {
             ProviderRequests::PullMessages(req) => {
                 assert_eq!(address, req.destination_address);
-                assert_eq!(auth_token, req.auth_token);
+                assert_eq!(AuthToken(auth_token), req.auth_token);
             }
             _ => panic!("expected to recover pull request!"),
         }

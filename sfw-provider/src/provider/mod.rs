@@ -72,8 +72,8 @@ impl ClientLedger {
         Arc::new(FMutex::new(self))
     }
 
-    fn has_token(&self, auth_token: AuthToken) -> bool {
-        return self.0.contains_key(&auth_token);
+    fn has_token(&self, auth_token: &AuthToken) -> bool {
+        return self.0.contains_key(auth_token);
     }
 
     fn insert_token(

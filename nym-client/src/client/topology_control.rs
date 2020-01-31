@@ -16,7 +16,7 @@ pub(crate) struct TopologyControl<T: NymTopology> {
     directory_server: String,
     inner: Arc<FRwLock<Inner<T>>>,
     health_checker: HealthChecker,
-    refresh_rate: f64,
+    refresh_rate: u64,
 }
 
 #[derive(Debug)]
@@ -28,7 +28,7 @@ enum TopologyError {
 impl<T: NymTopology> TopologyControl<T> {
     pub(crate) async fn new(
         directory_server: String,
-        refresh_rate: f64,
+        refresh_rate: u64,
         identity_keypair: MixIdentityKeyPair,
     ) -> Self {
         // this is a temporary solution as the healthcheck will eventually be moved to validators
@@ -99,7 +99,7 @@ impl<T: NymTopology> TopologyControl<T> {
 
     pub(crate) async fn run_refresher(mut self) {
         info!("Starting topology refresher");
-        let delay_duration = Duration::from_secs_f64(self.refresh_rate);
+        let delay_duration = Duration::from_millis(self.refresh_rate);
         loop {
             trace!("Refreshing the topology");
             let new_topology_res = self.get_current_compatible_topology().await;

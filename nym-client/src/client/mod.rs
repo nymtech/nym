@@ -51,7 +51,7 @@ impl From<&str> for SocketType {
         upper.make_ascii_uppercase();
         match upper.as_ref() {
             "TCP" => SocketType::TCP,
-            "WEBSOCKET" => SocketType::WebSocket,
+            "WEBSOCKET" | "WS" => SocketType::WebSocket,
             _ => SocketType::None,
         }
     }

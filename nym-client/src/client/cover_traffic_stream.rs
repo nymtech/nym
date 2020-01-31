@@ -1,22 +1,21 @@
 use crate::client::mix_traffic::MixMessage;
 use crate::client::topology_control::TopologyInnerRef;
-use crate::client::LOOP_COVER_AVERAGE_DELAY;
 use futures::channel::mpsc;
 use log::{error, info, trace, warn};
 use sphinx::route::Destination;
-use std::time::Duration;
+use std::time;
 use topology::NymTopology;
 
 pub(crate) async fn start_loop_cover_traffic_stream<T: NymTopology>(
     tx: mpsc::UnboundedSender<MixMessage>,
     our_info: Destination,
     topology_ctrl_ref: TopologyInnerRef<T>,
+    average_delay_duration: time::Duration,
 ) {
     info!("Starting loop cover traffic stream");
     loop {
         trace!("next cover message!");
-        let delay = mix_client::poisson::sample(LOOP_COVER_AVERAGE_DELAY);
-        let delay_duration = Duration::from_secs_f64(delay);
+        let delay_duration = mix_client::poisson::sample_from_duration(average_delay_duration);
         tokio::time::delay_for(delay_duration).await;
 
         let read_lock = topology_ctrl_ref.read().await;

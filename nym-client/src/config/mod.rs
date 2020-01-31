@@ -1,7 +1,7 @@
 use crate::client::SocketType;
 use crate::config::template::config_template;
 use config::NymConfig;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::path::PathBuf;
 
 pub mod persistance;
@@ -167,6 +167,18 @@ impl Config {
     }
 }
 
+fn de_option_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    if s.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(s))
+    }
+}
+
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Client {
@@ -188,6 +200,7 @@ pub struct Client {
 
     /// A provider specific, optional, base58 stringified authentication token used for
     /// communication with particular provider.
+    #[serde(deserialize_with = "de_option_string")]
     provider_authtoken: Option<String>,
 
     /// nym_home_directory specifies absolute path to the home nym Clients directory.

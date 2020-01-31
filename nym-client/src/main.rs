@@ -128,14 +128,6 @@ fn execute(matches: ArgMatches) {
             println!("{}", banner());
             commands::run::execute(m);
         }
-        ("tcpsocket", Some(m)) => {
-            println!("{}", banner());
-            commands::tcpsocket::execute(m);
-        }
-        ("websocket", Some(m)) => {
-            println!("{}", banner());
-            commands::websocket::execute(m);
-        }
         _ => {
             println!("{}", usage());
         }

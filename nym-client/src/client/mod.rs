@@ -1,6 +1,8 @@
 use crate::client::mix_traffic::MixTrafficController;
 use crate::client::received_buffer::ReceivedMessagesBuffer;
 use crate::client::topology_control::TopologyInnerRef;
+use crate::config::persistance::pathfinder::ClientPathfinder;
+use crate::config::Config;
 use crate::sockets::tcp;
 use crate::sockets::ws;
 use crypto::identity::MixIdentityKeyPair;
@@ -8,6 +10,7 @@ use directory_client::presence::Topology;
 use futures::channel::mpsc;
 use futures::join;
 use log::*;
+use pemstore::pemstore::PemStore;
 use serde::{Deserialize, Serialize};
 use sfw_provider_requests::AuthToken;
 use sphinx::route::Destination;
@@ -31,7 +34,7 @@ const FETCH_MESSAGES_DELAY: f64 = 1.0; // seconds;
 
 const TOPOLOGY_REFRESH_RATE: f64 = 10.0; // seconds
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize, Clone, Copy)]
 #[serde(deny_unknown_fields)]
 pub enum SocketType {
     TCP,
@@ -52,39 +55,40 @@ impl SocketType {
 }
 
 pub struct NymClient {
-    keypair: MixIdentityKeyPair,
+    config: Config,
+    identity_keypair: MixIdentityKeyPair,
 
     // to be used by "send" function or socket, etc
     pub input_tx: mpsc::UnboundedSender<InputMessage>,
-
+    // the other end of the above channel
     input_rx: mpsc::UnboundedReceiver<InputMessage>,
-    socket_listening_address: SocketAddr,
-    directory: String,
-    auth_token: Option<AuthToken>,
-    socket_type: SocketType,
 }
 
 #[derive(Debug)]
 pub struct InputMessage(pub Destination, pub Vec<u8>);
 
 impl NymClient {
-    pub fn new(
-        keypair: MixIdentityKeyPair,
-        socket_listening_address: SocketAddr,
-        directory: String,
-        auth_token: Option<AuthToken>,
-        socket_type: SocketType,
-    ) -> Self {
+    fn load_identity_keys(config_file: &Config) -> MixIdentityKeyPair {
+        let identity_keypair = PemStore::new(ClientPathfinder::new_from_config(&config_file))
+            .read_identity()
+            .expect("Failed to read stored identity key files");
+
+        println!(
+            "Public key: {}",
+            identity_keypair.public_key.to_base58_string()
+        );
+        identity_keypair
+    }
+
+    pub fn new(config: Config) -> Self {
+        let identity_keypair = Self::load_identity_keys(&config);
         let (input_tx, input_rx) = mpsc::unbounded::<InputMessage>();
 
         NymClient {
-            keypair,
+            config,
+            identity_keypair,
             input_tx,
             input_rx,
-            socket_listening_address,
-            directory,
-            auth_token,
-            socket_type,
         }
     }
 
@@ -121,26 +125,29 @@ impl NymClient {
         let (received_messages_buffer_output_tx, received_messages_buffer_output_rx) =
             mpsc::unbounded();
 
-        let self_address = self.keypair.public_key().derive_address();
+        let self_address = self.identity_keypair.public_key().derive_address();
 
         // generate same type of keys we have as our identity
         let healthcheck_keys = MixIdentityKeyPair::new();
 
         // TODO: when we switch to our graph topology, we need to remember to change 'Topology' type
         let topology_controller = rt.block_on(topology_control::TopologyControl::<Topology>::new(
-            self.directory.clone(),
-            TOPOLOGY_REFRESH_RATE,
+            self.config.get_directory_server(),
+            self.config.get_topology_refresh_rate(),
             healthcheck_keys,
         ));
 
         let provider_client_listener_address =
             rt.block_on(self.get_provider_socket_address(topology_controller.get_inner_ref()));
 
+        // this is temporary until rest of the code compiles so I could work on this
+        let temp_auth_token = None;
+
         let mut provider_poller = provider_poller::ProviderPoller::new(
             poller_input_tx,
             provider_client_listener_address,
             self_address,
-            self.auth_token,
+            temp_auth_token,
         );
 
         // registration
@@ -192,12 +199,10 @@ impl NymClient {
         // the received messages are sent to ReceivedMessagesBuffer to be available to rest of the system
         let provider_polling_future = rt.spawn(provider_poller.start_provider_polling());
 
-        // a temporary workaround for starting socket listener of specified type
-        // in the future the actual socket handler should start THIS client instead
-        match self.socket_type {
+        match self.config.get_socket_type() {
             SocketType::WebSocket => {
                 rt.spawn(ws::start_websocket(
-                    self.socket_listening_address,
+                    self.config.get_listening_port(),
                     self.input_tx,
                     received_messages_buffer_output_tx,
                     self_address,
@@ -206,7 +211,7 @@ impl NymClient {
             }
             SocketType::TCP => {
                 rt.spawn(tcp::start_tcpsocket(
-                    self.socket_listening_address,
+                    self.config.get_listening_port(),
                     self.input_tx,
                     received_messages_buffer_output_tx,
                     self_address,

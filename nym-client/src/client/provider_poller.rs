@@ -1,4 +1,3 @@
-use crate::client::FETCH_MESSAGES_DELAY;
 use futures::channel::mpsc;
 use log::{debug, error, info, trace, warn};
 use provider_client::ProviderClientError;
@@ -8,6 +7,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 pub(crate) struct ProviderPoller {
+    average_polling_delay_millis: u64,
     provider_client: provider_client::ProviderClient,
     poller_tx: mpsc::UnboundedSender<Vec<Vec<u8>>>,
 }
@@ -18,6 +18,7 @@ impl ProviderPoller {
         provider_client_listener_address: SocketAddr,
         client_address: DestinationAddressBytes,
         auth_token: Option<AuthToken>,
+        average_polling_delay_millis: u64,
     ) -> Self {
         ProviderPoller {
             provider_client: provider_client::ProviderClient::new(
@@ -26,6 +27,7 @@ impl ProviderPoller {
                 auth_token,
             ),
             poller_tx,
+            average_polling_delay_millis,
         }
     }
 
@@ -55,8 +57,8 @@ impl ProviderPoller {
         let loop_message = &mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD.to_vec();
         let dummy_message = &sfw_provider_requests::DUMMY_MESSAGE_CONTENT.to_vec();
 
-        let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
-        let extended_delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY * 10.0);
+        let delay_duration = Duration::from_millis(self.average_polling_delay_millis);
+        let extended_delay_duration = Duration::from_millis(self.average_polling_delay_millis * 10);
 
         loop {
             debug!("Polling provider...");

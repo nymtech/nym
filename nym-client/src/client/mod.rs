@@ -12,7 +12,6 @@ use futures::join;
 use log::*;
 use pemstore::pemstore::PemStore;
 use serde::{Deserialize, Serialize};
-use sfw_provider_requests::AuthToken;
 use sphinx::route::Destination;
 use std::net::SocketAddr;
 use tokio::runtime::Runtime;
@@ -30,9 +29,6 @@ const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
 // seconds
 const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 0.5;
 //  seconds;
-const FETCH_MESSAGES_DELAY: f64 = 1.0; // seconds;
-
-const TOPOLOGY_REFRESH_RATE: f64 = 10.0; // seconds
 
 #[derive(Debug, Deserialize, PartialEq, Serialize, Clone, Copy)]
 #[serde(deny_unknown_fields)]
@@ -148,6 +144,7 @@ impl NymClient {
             provider_client_listener_address,
             self_address,
             temp_auth_token,
+            self.config.get_fetch_message_delay(),
         );
 
         // registration

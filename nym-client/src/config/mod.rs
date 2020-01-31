@@ -3,6 +3,7 @@ use crate::config::template::config_template;
 use config::NymConfig;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::path::PathBuf;
+use std::time;
 
 pub mod persistance;
 mod template;
@@ -142,28 +143,28 @@ impl Config {
     }
 
     // Debug getters
-    pub fn get_average_packet_delay(&self) -> u64 {
-        self.debug.average_packet_delay
+    pub fn get_average_packet_delay(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.average_packet_delay)
     }
 
-    pub fn get_loop_cover_traffic_average_delay(&self) -> u64 {
-        self.debug.loop_cover_traffic_average_delay
+    pub fn get_loop_cover_traffic_average_delay(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.loop_cover_traffic_average_delay)
     }
 
-    pub fn get_fetch_message_delay(&self) -> u64 {
-        self.debug.fetch_message_delay
+    pub fn get_fetch_message_delay(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.fetch_message_delay)
     }
 
-    pub fn get_message_sending_average_delay(&self) -> u64 {
-        self.debug.message_sending_average_delay
+    pub fn get_message_sending_average_delay(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.message_sending_average_delay)
     }
 
     pub fn get_rate_compliant_cover_messages_disabled(&self) -> bool {
         self.debug.rate_compliant_cover_messages_disabled
     }
 
-    pub fn get_topology_refresh_rate(&self) -> u64 {
-        self.debug.topology_refresh_rate
+    pub fn get_topology_refresh_rate(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.topology_refresh_rate)
     }
 }
 

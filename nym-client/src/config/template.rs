@@ -66,18 +66,18 @@ listening_port = {{ socket.listening_port }}
 # sent packet is going to be delayed at any given mix node.
 # So for a packet going through three mix nodes, on average, it will take three times this value
 # until the packet reaches its destination.
-# The provided value is interpreted as seconds.
+# The provided value is interpreted as milliseconds.
 average_packet_delay = {{ debug.average_packet_delay }}
 
 # The parameter of Poisson distribution determining how long, on average,
 # it is going to take for another loop cover traffic message to be sent.
 # If set to a negative value, the loop cover traffic stream will be disabled.
-# The provided value is interpreted as seconds.
+# The provided value is interpreted as milliseconds.
 loop_cover_traffic_average_delay = {{ debug.loop_cover_traffic_average_delay }}
 
 # The uniform delay every which clients are querying the providers for received packets.
 # If set to a negative value, client will never try to fetch their messages.
-# The provided value is interpreted as seconds.
+# The provided value is interpreted as milliseconds.
 fetch_message_delay = {{ debug.fetch_message_delay }}
 
 # The parameter of Poisson distribution determining how long, on average,
@@ -85,7 +85,7 @@ fetch_message_delay = {{ debug.fetch_message_delay }}
 # If no real packets are available and cover traffic is enabled,
 # a loop cover message is sent instead in order to preserve the rate.
 # If set to a negative value, client will never try to send real traffic data.
-# The provided value is interpreted as seconds.
+# The provided value is interpreted as milliseconds.
 message_sending_average_delay = {{ debug.message_sending_average_delay }}
 
 # Whether loop cover messages should be sent to respect message_sending_rate.
@@ -98,8 +98,8 @@ rate_compliant_cover_messages_disabled = {{ debug.rate_compliant_cover_messages_
 # to try to obtain a compatible network topology to send sphinx packets through.
 # If set to a negative value, client will never try to refresh its topology,
 # meaning it will always try to use whatever it obtained on startup.
-# The provided value is interpreted as seconds.
+# The provided value is interpreted as milliseconds.
 topology_refresh_rate = {{ debug.topology_refresh_rate }}
 
-    "#
+"#
 }

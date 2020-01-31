@@ -3,6 +3,7 @@ use crypto::identity::MixIdentityKeyPair;
 use healthcheck::HealthChecker;
 use log::{error, info, trace, warn};
 use std::sync::Arc;
+use std::time;
 use std::time::Duration;
 use tokio::sync::RwLock as FRwLock;
 use topology::NymTopology;
@@ -16,7 +17,7 @@ pub(crate) struct TopologyControl<T: NymTopology> {
     directory_server: String,
     inner: Arc<FRwLock<Inner<T>>>,
     health_checker: HealthChecker,
-    refresh_rate: u64,
+    refresh_rate: time::Duration,
 }
 
 #[derive(Debug)]
@@ -28,7 +29,7 @@ enum TopologyError {
 impl<T: NymTopology> TopologyControl<T> {
     pub(crate) async fn new(
         directory_server: String,
-        refresh_rate: u64,
+        refresh_rate: time::Duration,
         identity_keypair: MixIdentityKeyPair,
     ) -> Self {
         // this is a temporary solution as the healthcheck will eventually be moved to validators
@@ -99,7 +100,6 @@ impl<T: NymTopology> TopologyControl<T> {
 
     pub(crate) async fn run_refresher(mut self) {
         info!("Starting topology refresher");
-        let delay_duration = Duration::from_millis(self.refresh_rate);
         loop {
             trace!("Refreshing the topology");
             let new_topology_res = self.get_current_compatible_topology().await;
@@ -113,7 +113,7 @@ impl<T: NymTopology> TopologyControl<T> {
             };
 
             self.update_global_topology(new_topology).await;
-            tokio::time::delay_for(delay_duration).await;
+            tokio::time::delay_for(self.refresh_rate).await;
         }
     }
 }

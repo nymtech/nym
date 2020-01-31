@@ -64,11 +64,12 @@ impl NymConfig for Config {
 }
 
 impl Config {
-    pub fn new(id: String) -> Self {
+    pub fn new<S: Into<String>>(id: S) -> Self {
         Config::default().with_id(id)
     }
 
-    pub fn with_id(mut self, id: String) -> Self {
+    pub fn with_id<S: Into<String>>(mut self, id: S) -> Self {
+        let id = id.into();
         if self.client.private_identity_key_file.as_os_str().is_empty() {
             self.client.private_identity_key_file =
                 self::Client::default_private_identity_key_file(&id);
@@ -81,18 +82,18 @@ impl Config {
         self
     }
 
-    pub fn with_provider_id(mut self, id: String) -> Self {
-        self.client.provider_id = id;
+    pub fn with_provider_id<S: Into<String>>(mut self, id: S) -> Self {
+        self.client.provider_id = id.into();
         self
     }
 
-    pub fn with_provider_auth_token(mut self, token: String) -> Self {
-        self.client.provider_authtoken = Some(token);
+    pub fn with_provider_auth_token<S: Into<String>>(mut self, token: S) -> Self {
+        self.client.provider_authtoken = Some(token.into());
         self
     }
 
-    pub fn with_custom_directory(mut self, directory_server: String) -> Self {
-        self.client.directory_server = directory_server;
+    pub fn with_custom_directory<S: Into<String>>(mut self, directory_server: S) -> Self {
+        self.client.directory_server = directory_server.into();
         self
     }
 

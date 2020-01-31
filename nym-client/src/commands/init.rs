@@ -7,11 +7,11 @@ use pemstore::pemstore::PemStore;
 pub fn execute(matches: &ArgMatches) {
     println!("Initialising client...");
 
-    let id = matches.value_of("id").unwrap().to_string(); // required for now
+    let id = matches.value_of("id").unwrap(); // required for now
     let mut config = crate::config::Config::new(id);
 
     if let Some(provider_id) = matches.value_of("provider") {
-        config = config.with_provider_id(provider_id.to_string());
+        config = config.with_provider_id(provider_id);
     }
 
     let mix_identity_keys = MixIdentityKeyPair::new();

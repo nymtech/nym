@@ -15,11 +15,11 @@ pub fn execute(matches: &ArgMatches) {
             .expect("Failed to load config file");
 
     if let Some(directory) = matches.value_of("directory") {
-        config_file = config_file.with_custom_directory(directory.to_string());
+        config_file = config_file.with_custom_directory(directory);
     }
 
     if let Some(provider_id) = matches.value_of("provider") {
-        config_file = config_file.with_provider_id(provider_id.to_string());
+        config_file = config_file.with_provider_id(provider_id);
     }
 
     if let Some(socket_type) = matches.value_of("socket-type") {

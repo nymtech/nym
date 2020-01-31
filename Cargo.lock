@@ -2164,6 +2164,7 @@ dependencies = [
 name = "sfw-provider-requests"
 version = "0.1.0"
 dependencies = [
+ "bs58",
  "sphinx",
 ]
 

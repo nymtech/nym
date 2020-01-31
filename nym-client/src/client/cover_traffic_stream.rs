@@ -10,12 +10,14 @@ pub(crate) async fn start_loop_cover_traffic_stream<T: NymTopology>(
     tx: mpsc::UnboundedSender<MixMessage>,
     our_info: Destination,
     topology_ctrl_ref: TopologyInnerRef<T>,
-    average_delay_duration: time::Duration,
+    average_cover_message_delay_duration: time::Duration,
+    average_packet_delay_duration: time::Duration,
 ) {
     info!("Starting loop cover traffic stream");
     loop {
         trace!("next cover message!");
-        let delay_duration = mix_client::poisson::sample_from_duration(average_delay_duration);
+        let delay_duration =
+            mix_client::poisson::sample_from_duration(average_cover_message_delay_duration);
         tokio::time::delay_for(delay_duration).await;
 
         let read_lock = topology_ctrl_ref.read().await;
@@ -31,6 +33,7 @@ pub(crate) async fn start_loop_cover_traffic_stream<T: NymTopology>(
             our_info.address,
             our_info.identifier,
             topology,
+            average_packet_delay_duration,
         ) {
             Ok(message) => message,
             Err(err) => {

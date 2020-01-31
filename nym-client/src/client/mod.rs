@@ -145,6 +145,7 @@ impl NymClient {
                 Destination::new(self_address, Default::default()),
                 topology_controller.get_inner_ref(),
                 self.config.get_loop_cover_traffic_average_delay(),
+                self.config.get_average_packet_delay(),
             ));
 
         // cloning arguments required by OutQueueControl; required due to move

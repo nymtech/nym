@@ -106,6 +106,7 @@ impl<T: NymTopology> OutQueueControl<T> {
                     self.our_info.address,
                     self.our_info.identifier,
                     topology,
+                    self.average_packet_delay,
                 ),
                 StreamMessage::Real(real_message) => mix_client::packet::encapsulate_message(
                     real_message.0,

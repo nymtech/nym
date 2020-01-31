@@ -3,10 +3,10 @@ use addressing::AddressTypeError;
 use sphinx::route::{Destination, DestinationAddressBytes, SURBIdentifier};
 use sphinx::SphinxPacket;
 use std::net::SocketAddr;
+use std::time;
 use topology::{NymTopology, NymTopologyError};
 
 pub const LOOP_COVER_MESSAGE_PAYLOAD: &[u8] = b"The cake is a lie!";
-pub const LOOP_COVER_MESSAGE_AVERAGE_DELAY: f64 = 2.0;
 
 #[derive(Debug)]
 pub enum SphinxPacketEncapsulationError {
@@ -43,6 +43,7 @@ pub fn loop_cover_message<T: NymTopology>(
     our_address: DestinationAddressBytes,
     surb_id: SURBIdentifier,
     topology: &T,
+    average_delay_duration: time::Duration,
 ) -> Result<(SocketAddr, SphinxPacket), SphinxPacketEncapsulationError> {
     let destination = Destination::new(our_address, surb_id);
 
@@ -50,7 +51,7 @@ pub fn loop_cover_message<T: NymTopology>(
         destination,
         LOOP_COVER_MESSAGE_PAYLOAD.to_vec(),
         topology,
-        LOOP_COVER_MESSAGE_AVERAGE_DELAY,
+        average_delay_duration,
     )
 }
 
@@ -58,7 +59,7 @@ pub fn encapsulate_message<T: NymTopology>(
     recipient: Destination,
     message: Vec<u8>,
     topology: &T,
-    average_delay: f64,
+    average_delay_duration: time::Duration,
 ) -> Result<(SocketAddr, SphinxPacket), SphinxPacketEncapsulationError> {
     let mut providers = topology.providers();
     if providers.len() == 0 {
@@ -69,7 +70,8 @@ pub fn encapsulate_message<T: NymTopology>(
 
     let route = topology.route_to(provider)?;
 
-    let delays = sphinx::header::delays::generate(route.len(), average_delay);
+    let delays =
+        sphinx::header::delays::generate_from_average_duration(route.len(), average_delay_duration);
 
     // build the packet
     let packet = sphinx::SphinxPacket::new(message, &route[..], &recipient, &delays)?;

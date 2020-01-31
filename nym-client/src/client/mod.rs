@@ -144,11 +144,14 @@ impl NymClient {
                 mix_tx.clone(),
                 Destination::new(self_address, Default::default()),
                 topology_controller.get_inner_ref(),
+                self.config.get_loop_cover_traffic_average_delay(),
             ));
 
         // cloning arguments required by OutQueueControl; required due to move
         let input_rx = self.input_rx;
         let topology_ref = topology_controller.get_inner_ref();
+        let average_packet_delay = self.config.get_average_packet_delay();
+        let message_sending_average_delay = self.config.get_message_sending_average_delay();
 
         // future constantly pumping traffic at some specified average rate
         // if a real message is available on 'input_rx' that might have been received from say
@@ -160,6 +163,8 @@ impl NymClient {
                 input_rx,
                 Destination::new(self_address, Default::default()),
                 topology_ref,
+                average_packet_delay,
+                message_sending_average_delay,
             )
             .run_out_queue_control()
             .await

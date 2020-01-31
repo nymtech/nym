@@ -27,7 +27,7 @@ public_identity_key_file = "{{ client.public_identity_key_file }}"
 # ID of the provider from which the client should be fetching messages.
 provider_id = "{{ client.provider_id }}"
 
-# A provider specific, optional, stringified authentication token used for 
+# A provider specific, optional, base58 stringified authentication token used for 
 # communication with particular provider.
 provider_authtoken = "{{ client.provider_authtoken }}"
     

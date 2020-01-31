@@ -28,52 +28,21 @@ fn main() {
                     .help("Id of the provider we have preference to connect to. If left empty, a random provider will be chosen.")
                     .takes_value(true)
                 )
-        )
-        .subcommand(
-            SubCommand::with_name("tcpsocket")
-                .about("Run Nym client that listens for bytes on a TCP socket")
-                .arg(
-                    Arg::with_name("port")
-                        .short("p")
-                        .long("port")
-                        .help("Port for TCP socket to listen on")
-                        .takes_value(true)
-                        .required(true),
+                .arg(Arg::with_name("directory")
+                     .long("directory")
+                     .help("Address of the directory server the client is getting topology from")
+                     .takes_value(true),
                 )
-                .arg(
-                    Arg::with_name("directory")
-                        .long("directory")
-                        .help("Address of the directory server the client is getting topology from")
-                        .takes_value(true),
-                )
-                .arg(Arg::with_name("id")
-                    .long("id")
-                    .help("Id of the nym-mixnet-client we want to run.")
+                .arg(Arg::with_name("socket-type")
+                    .long("socket-type")
+                    .help("Type of socket to use (TCP, WebSocket or None) in all subsequent runs")
                     .takes_value(true)
-                    .required(true)
                 )
-        )
-        .subcommand(
-            SubCommand::with_name("websocket")
-                .about("Run Nym client that listens on a websocket")
-                .arg(
-                    Arg::with_name("port")
-                        .short("p")
-                        .long("port")
-                        .help("Port for websocket to listen on")
-                        .takes_value(true)
-                )
-                .arg(
-                    Arg::with_name("directory")
-                        .long("directory")
-                        .help("Address of the directory server the client is getting topology from")
-                        .takes_value(true),
-                )
-                .arg(Arg::with_name("id")
-                    .long("id")
-                    .help("Id of the nym-mixnet-client we want to run.")
+                .arg(Arg::with_name("port")
+                    .short("p")
+                    .long("port")
+                    .help("Port for the socket (if applicable) to listen on in all subsequent runs")
                     .takes_value(true)
-                    .required(true)
                 )
         )
         .subcommand(
@@ -92,9 +61,9 @@ fn main() {
                     .takes_value(true)
                 )
                 .arg(Arg::with_name("directory")
-                     .long("directory")
-                     .help("Address of the directory server the client is getting topology from")
-                     .takes_value(true),
+                         .long("directory")
+                         .help("Address of the directory server the client is getting topology from")
+                         .takes_value(true),
                 )
                 .arg(Arg::with_name("provider")
                     .long("provider")

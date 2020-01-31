@@ -331,7 +331,7 @@ mod client_config {
 
     #[test]
     fn after_saving_default_config_the_loaded_one_is_identical() {
-        let temp_location = std::env::temp_dir().join("config.toml");
+        let temp_location = tempfile::tempdir().unwrap().path().join("config.toml");
         let default_config = Config::default().with_id("foomp".to_string());
         default_config
             .save_to_file(Some(temp_location.clone()))

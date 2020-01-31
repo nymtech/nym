@@ -1433,6 +1433,7 @@ dependencies = [
  "serde_json",
  "sfw-provider-requests",
  "sphinx",
+ "tempfile",
  "tokio 0.2.10",
  "tokio-tungstenite",
  "topology",

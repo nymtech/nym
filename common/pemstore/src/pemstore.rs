@@ -86,6 +86,10 @@ impl PemStore {
     }
 
     fn write_pem_file(&self, filepath: PathBuf, data: Vec<u8>, tag: String) -> io::Result<()> {
+        // ensure the whole directory structure exists
+        if let Some(parent_dir) = filepath.parent() {
+            std::fs::create_dir_all(parent_dir)?;
+        }
         let pem = Pem {
             tag,
             contents: data,

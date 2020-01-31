@@ -68,6 +68,7 @@ impl Config {
         Config::default().with_id(id)
     }
 
+    // builder methods
     pub fn with_id<S: Into<String>>(mut self, id: S) -> Self {
         let id = id.into();
         if self.client.private_identity_key_file.as_os_str().is_empty() {
@@ -107,6 +108,11 @@ impl Config {
         self
     }
 
+    // getters
+    pub fn get_config_file_save_location(&self) -> PathBuf {
+        self.config_directory().join(Self::config_file_name())
+    }
+
     pub fn get_private_identity_key_file(&self) -> PathBuf {
         self.client.private_identity_key_file.clone()
     }
@@ -115,8 +121,49 @@ impl Config {
         self.client.public_identity_key_file.clone()
     }
 
-    pub fn get_config_file_save_location(&self) -> PathBuf {
-        self.config_directory().join(Self::config_file_name())
+    pub fn get_directory_server(&self) -> String {
+        self.client.directory_server.clone()
+    }
+
+    pub fn get_provider_id(&self) -> String {
+        self.client.provider_id.clone()
+    }
+
+    pub fn get_provider_auth_token(&self) -> Option<String> {
+        self.client.provider_authtoken.clone()
+    }
+
+    pub fn get_socket_type(&self) -> SocketType {
+        self.socket.socket_type
+    }
+
+    pub fn get_listening_port(&self) -> u16 {
+        self.socket.listening_port
+    }
+
+    // Debug getters
+    pub fn get_average_packet_delay(&self) -> u64 {
+        self.debug.average_packet_delay
+    }
+
+    pub fn get_loop_cover_traffic_average_delay(&self) -> u64 {
+        self.debug.loop_cover_traffic_average_delay
+    }
+
+    pub fn get_fetch_message_delay(&self) -> u64 {
+        self.debug.fetch_message_delay
+    }
+
+    pub fn get_message_sending_average_delay(&self) -> u64 {
+        self.debug.message_sending_average_delay
+    }
+
+    pub fn get_rate_compliant_cover_messages_disabled(&self) -> bool {
+        self.debug.rate_compliant_cover_messages_disabled
+    }
+
+    pub fn get_topology_refresh_rate(&self) -> u64 {
+        self.debug.topology_refresh_rate
     }
 }
 
@@ -139,7 +186,7 @@ pub struct Client {
     /// If initially omitted, a random provider will be chosen from the available topology.
     provider_id: String,
 
-    /// A provider specific, optional, stringified authentication token used for
+    /// A provider specific, optional, base58 stringified authentication token used for
     /// communication with particular provider.
     provider_authtoken: Option<String>,
 
@@ -249,6 +296,7 @@ pub struct Debug {
     /// meaning it will always try to use whatever it obtained on startup.
     /// The provided value is interpreted as milliseconds.
     topology_refresh_rate: u64,
+    // topology resolution timeout
 }
 
 impl Default for Debug {

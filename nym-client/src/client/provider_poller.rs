@@ -4,10 +4,10 @@ use provider_client::ProviderClientError;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use std::net::SocketAddr;
-use std::time::Duration;
+use std::time;
 
 pub(crate) struct ProviderPoller {
-    average_polling_delay_millis: u64,
+    polling_rate: time::Duration,
     provider_client: provider_client::ProviderClient,
     poller_tx: mpsc::UnboundedSender<Vec<Vec<u8>>>,
 }
@@ -18,7 +18,7 @@ impl ProviderPoller {
         provider_client_listener_address: SocketAddr,
         client_address: DestinationAddressBytes,
         auth_token: Option<AuthToken>,
-        average_polling_delay_millis: u64,
+        polling_rate: time::Duration,
     ) -> Self {
         ProviderPoller {
             provider_client: provider_client::ProviderClient::new(
@@ -27,7 +27,7 @@ impl ProviderPoller {
                 auth_token,
             ),
             poller_tx,
-            average_polling_delay_millis,
+            polling_rate,
         }
     }
 
@@ -57,8 +57,7 @@ impl ProviderPoller {
         let loop_message = &mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD.to_vec();
         let dummy_message = &sfw_provider_requests::DUMMY_MESSAGE_CONTENT.to_vec();
 
-        let delay_duration = Duration::from_millis(self.average_polling_delay_millis);
-        let extended_delay_duration = Duration::from_millis(self.average_polling_delay_millis * 10);
+        let extended_delay_duration = self.polling_rate * 10;
 
         loop {
             debug!("Polling provider...");
@@ -84,7 +83,7 @@ impl ProviderPoller {
             // in either case there's no recovery and we can only panic
             self.poller_tx.unbounded_send(good_messages).unwrap();
 
-            tokio::time::delay_for(delay_duration).await;
+            tokio::time::delay_for(self.polling_rate).await;
         }
     }
 }

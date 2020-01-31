@@ -23,7 +23,7 @@ pub fn execute(matches: &ArgMatches) {
     }
 
     if let Some(socket_type) = matches.value_of("socket-type") {
-        config_file = config_file.with_socket(socket_type.into());
+        config_file = config_file.with_socket(SocketType::from_string(socket_type));
     }
 
     if let Some(port) = matches.value_of("port").map(|port| port.parse::<u16>()) {

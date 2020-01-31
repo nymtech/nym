@@ -86,6 +86,11 @@ impl Config {
         self
     }
 
+    pub fn with_provider_auth_token(mut self, token: String) -> Self {
+        self.client.provider_authtoken = Some(token);
+        self
+    }
+
     pub fn with_custom_directory(mut self, directory_server: String) -> Self {
         self.client.directory_server = directory_server;
         self
@@ -133,6 +138,10 @@ pub struct Client {
     /// If initially omitted, a random provider will be chosen from the available topology.
     provider_id: String,
 
+    /// A provider specific, optional, stringified authentication token used for
+    /// communication with particular provider.
+    provider_authtoken: Option<String>,
+
     /// nym_home_directory specifies absolute path to the home nym Clients directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
@@ -147,6 +156,7 @@ impl Default for Client {
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             provider_id: "".to_string(),
+            provider_authtoken: None,
             nym_root_directory: Config::default_root_directory(),
         }
     }
@@ -265,7 +275,7 @@ mod client_config {
             .save_to_file(Some(temp_location.clone()))
             .unwrap();
 
-        let loaded_config = Config::load_from_file(Some(temp_location)).unwrap();
+        let loaded_config = Config::load_from_file(Some(temp_location), None).unwrap();
 
         assert_eq!(default_config, loaded_config);
     }

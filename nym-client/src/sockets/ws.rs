@@ -387,12 +387,13 @@ async fn accept_connection<T: 'static + NymTopology>(
 }
 
 pub async fn start_websocket<T: 'static + NymTopology>(
-    address: SocketAddr,
+    listening_port: u16,
     message_tx: mpsc::UnboundedSender<InputMessage>,
     received_messages_query_tx: mpsc::UnboundedSender<BufferResponse>,
     self_address: DestinationAddressBytes,
     topology: TopologyInnerRef<T>,
 ) -> Result<(), WebSocketError> {
+    let address = SocketAddr::new("127.0.0.1".parse().unwrap(), listening_port);
     let mut listener = tokio::net::TcpListener::bind(address).await?;
 
     while let Ok((stream, _)) = listener.accept().await {

@@ -1,11 +1,9 @@
-use crate::client::{NymClient, SocketType};
+use crate::client::NymClient;
 use crate::config::persistance::pathfinder::ClientPathfinder;
-use crate::config::Config;
+use crate::config::{Config, SocketType};
 use clap::ArgMatches;
 use config::NymConfig;
-use crypto::identity::MixIdentityKeyPair;
 use pemstore::pemstore::PemStore;
-use std::net::ToSocketAddrs;
 
 pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
@@ -28,37 +26,22 @@ pub fn execute(matches: &ArgMatches) {
 
     if let Some(port) = matches.value_of("port").map(|port| port.parse::<u16>()) {
         if let Err(err) = port {
+            // if port was overridden, it must be parsable
             panic!("Invalid port value provided - {:?}", err);
         }
         config_file = config_file.with_port(port.unwrap());
     }
 
-    println!("Going to use the following config: {:#?}", config_file);
+    let identity_keypair = PemStore::new(ClientPathfinder::new_from_config(&config_file))
+        .read_identity()
+        .expect("Failed to read stored identity key files");
 
-    //
-    //    let socket_address = ("127.0.0.1", port)
-    //        .to_socket_addrs()
-    //        .expect("Failed to combine host and port")
-    //        .next()
-    //        .expect("Failed to extract the socket address from the iterator");
-    //
-    //    // TODO: currently we know we are reading the 'DummyMixIdentityKeyPair', but how to properly assert the type?
-    //    let keypair: MixIdentityKeyPair = PemStore::new(ClientPathfinder::new(id))
-    //        .read_identity()
-    //        .unwrap();
-    //
-    //    // TODO: reading auth_token from disk (if exists);
-    //
-    //    println!("Public key: {}", keypair.public_key.to_base58_string());
-    //
-    //    let auth_token = None;
-    //    let client = NymClient::new(
-    //        keypair,
-    //        socket_address,
-    //        directory_server,
-    //        auth_token,
-    //        SocketType::WebSocket,
-    //    );
+    println!(
+        "Public key: {}",
+        identity_keypair.public_key.to_base58_string()
+    );
+
+    let client = NymClient::new(config_file);
     //
     //    client.start().unwrap();
 }

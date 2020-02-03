@@ -22,7 +22,9 @@ tokio = { version = "0.2", features = ["full"] }
 ## internal
 addressing = {path = "../common/addressing" }
 config = {path = "../common/config"}
+crypto = {path = "../common/crypto"}
 directory-client = { path = "../common/clients/directory-client" }
+pemstore = {path = "../common/pemstore"}
 
 ## will be moved to proper dependencies once released
 sphinx = { git = "https://github.com/nymtech/sphinx", rev="5862939c52e4dd76f836856a01787faec32152b4" }

@@ -1,7 +1,10 @@
 use crate::config::template::config_template;
 use config::NymConfig;
-use serde::{Deserialize, Deserializer, Serialize};
+use log::*;
+use serde::{Deserialize, Serialize};
+use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
+use std::str::FromStr;
 
 mod template;
 
@@ -52,8 +55,8 @@ impl NymConfig for Config {
 }
 
 impl Config {
-    pub fn new<S: Into<String>>(id: S) -> Self {
-        Config::default().with_id(id)
+    pub fn new<S: Into<String>>(id: S, layer: usize) -> Self {
+        Config::default().with_id(id).with_layer(layer)
     }
 
     // builder methods
@@ -73,6 +76,86 @@ impl Config {
                 self::MixNode::default_public_identity_key_file(&id);
         }
         self.mixnode.id = id;
+        self
+    }
+
+    pub fn with_layer(mut self, layer: usize) -> Self {
+        self.mixnode.layer = layer;
+        self
+    }
+
+    pub fn with_custom_directory<S: Into<String>>(mut self, directory_server: S) -> Self {
+        self.mixnode.directory_server = directory_server.into();
+        self
+    }
+
+    pub fn with_listening_host<S: Into<String>>(mut self, host: S) -> Self {
+        // see if the provided `host` is just an ip address or ip:port
+        let host = host.into();
+
+        // is it ip:port?
+        match SocketAddr::from_str(host.as_ref()) {
+            Ok(socket_addr) => {
+                self.mixnode.listening_address = socket_addr;
+                self
+            }
+            // try just for ip
+            Err(_) => match IpAddr::from_str(host.as_ref()) {
+                Ok(ip_addr) => {
+                    self.mixnode.listening_address.set_ip(ip_addr);
+                    self
+                }
+                Err(_) => {
+                    error!(
+                        "failed to make any changes to config - invalid host {}",
+                        host
+                    );
+                    self
+                }
+            },
+        }
+    }
+
+    pub fn with_listening_port(mut self, port: u16) -> Self {
+        self.mixnode.listening_address.set_port(port);
+        self
+    }
+
+    pub fn with_announce_host<S: Into<String>>(mut self, host: S) -> Self {
+        // this is slightly more complicated as we store announce information as String,
+        // since it might not necessarily be a valid SocketAddr (say `nymtech.net:8080` is a valid
+        // announce address, yet invalid SocketAddr`
+
+        // first lets see if we received host:port or just host part of an address
+        let host = host.into();
+        let split_host: Vec<_> = host.split(':').collect();
+        match split_host.len() {
+            1 => {
+                // we provided only 'host' part so we are going to reuse existing port
+                self.mixnode.announce_address =
+                    format!("{}:{}", host, self.mixnode.listening_address.port());
+                self
+            }
+            2 => {
+                // we provided 'host:port' so just put the whole thing there
+                self.mixnode.announce_address = host;
+                self
+            }
+            _ => {
+                // we provided something completely invalid, so don't try to parse it
+                error!(
+                    "failed to make any changes to config - invalid announce host {}",
+                    host
+                );
+                self
+            }
+        }
+    }
+
+    pub fn with_announce_port(mut self, port: u16) -> Self {
+        let current_host: Vec<_> = self.mixnode.announce_address.split(':').collect();
+        debug_assert_eq!(current_host.len(), 2);
+        self.mixnode.announce_address = format!("{}:{}", current_host[0], port);
         self
     }
 
@@ -102,6 +185,20 @@ pub struct MixNode {
 
     /// URL to the directory server.
     directory_server: String,
+
+    /// Layer of this particular mixnode determining its position in the network.
+    layer: usize,
+
+    /// Socket address to which this mixnode will bind to and will be listening for packets.
+    listening_address: SocketAddr,
+
+    /// Optional address announced to the directory server for the clients to connect to.
+    /// It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
+    /// later on by using name resolvable with a DNS query, such as `nymtech.net:8080`.
+    /// Additionally a custom port can be provided, so both `nymtech.net:8080` and `nymtech.net`
+    /// are valid announce addresses, while the later will default to whatever port is used for
+    /// `listening_address`.
+    announce_address: String,
 
     /// Path to file containing private identity key.
     private_identity_key_file: PathBuf,
@@ -138,6 +235,9 @@ impl Default for MixNode {
         MixNode {
             id: "".to_string(),
             directory_server: Self::default_directory_server(),
+            layer: 0,
+            listening_address: "0.0.0.0:1789".parse().unwrap(),
+            announce_address: "127.0.0.1789".to_string(),
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             nym_root_directory: Config::default_root_directory(),

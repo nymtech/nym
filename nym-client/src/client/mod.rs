@@ -38,15 +38,9 @@ pub struct InputMessage(pub Destination, pub Vec<u8>);
 
 impl NymClient {
     fn load_identity_keys(config_file: &Config) -> MixIdentityKeyPair {
-        let identity_keypair = PemStore::new(ClientPathfinder::new_from_config(&config_file))
+        PemStore::new(ClientPathfinder::new_from_config(&config_file))
             .read_identity()
-            .expect("Failed to read stored identity key files");
-
-        println!(
-            "Public key: {}",
-            identity_keypair.public_key.to_base58_string()
-        );
-        identity_keypair
+            .expect("Failed to read stored identity key files")
     }
 
     pub fn new(config: Config) -> Self {

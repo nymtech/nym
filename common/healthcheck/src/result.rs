@@ -144,7 +144,7 @@ impl HealthCheckResult {
             }
         }
 
-        info!(
+        debug!(
             "waiting {:?} for pending requests to resolve",
             resolution_timeout
         );

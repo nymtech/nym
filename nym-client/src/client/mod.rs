@@ -94,6 +94,7 @@ impl NymClient {
         // generate same type of keys we have as our identity
         let healthcheck_keys = MixIdentityKeyPair::new();
 
+        info!("Trying to obtain initial compatible network topology before starting up rest of modules");
         // TODO: when we switch to our graph topology, we need to remember to change 'Topology' type
         let topology_controller = rt.block_on(topology_control::TopologyControl::<Topology>::new(
             self.config.get_directory_server(),
@@ -117,7 +118,7 @@ impl NymClient {
 
         // registration
         if let Err(err) = rt.block_on(provider_poller.perform_initial_registration()) {
-            panic!("Failed to perform initial registration: {:?}", err);
+            panic!("Failed to perform initial provider registration: {:?}", err);
         };
 
         // setup all of futures for the components running on the client

@@ -45,7 +45,7 @@ impl ProviderPoller {
 
             self.provider_client.update_token(auth_token)
         } else {
-            warn!("did not perform registration - we were already registered")
+            warn!("did not perform provider registration - we were already registered")
         }
 
         Ok(())

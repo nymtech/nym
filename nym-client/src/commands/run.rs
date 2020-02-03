@@ -1,7 +1,7 @@
 use crate::client::NymClient;
 use crate::commands::overwrite_config;
 use crate::config::persistance::pathfinder::ClientPathfinder;
-use crate::config::{Config, SocketType};
+use crate::config::Config;
 use clap::ArgMatches;
 use config::NymConfig;
 use pemstore::pemstore::PemStore;
@@ -20,7 +20,7 @@ pub fn execute(matches: &ArgMatches) {
         .expect("Failed to read stored identity key files");
 
     println!(
-        "Public key: {}",
+        "Public identity key: {}\nFor time being, it is identical to address",
         identity_keypair.public_key.to_base58_string()
     );
 

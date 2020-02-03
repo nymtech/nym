@@ -27,6 +27,7 @@ fn main() {
 
 fn execute(matches: ArgMatches) {
     match matches.subcommand() {
+        ("init", Some(m)) => commands::init::execute(m),
         ("run", Some(m)) => node::runner::start(m),
         _ => println!("{}", usage()),
     }

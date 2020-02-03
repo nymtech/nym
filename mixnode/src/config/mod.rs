@@ -75,6 +75,23 @@ impl Config {
         self.mixnode.id = id;
         self
     }
+
+    // getters
+    pub fn get_config_file_save_location(&self) -> PathBuf {
+        self.config_directory().join(Self::config_file_name())
+    }
+
+    pub fn get_private_identity_key_file(&self) -> PathBuf {
+        self.mixnode.private_identity_key_file.clone()
+    }
+
+    pub fn get_public_identity_key_file(&self) -> PathBuf {
+        self.mixnode.public_identity_key_file.clone()
+    }
+
+    pub fn get_directory_server(&self) -> String {
+        self.mixnode.directory_server.clone()
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

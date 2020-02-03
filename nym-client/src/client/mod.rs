@@ -11,6 +11,7 @@ use futures::channel::mpsc;
 use futures::join;
 use log::*;
 use pemstore::pemstore::PemStore;
+use sfw_provider_requests::AuthToken;
 use sphinx::route::Destination;
 use std::net::SocketAddr;
 use tokio::runtime::Runtime;
@@ -103,14 +104,14 @@ impl NymClient {
         let provider_client_listener_address =
             rt.block_on(self.get_provider_socket_address(topology_controller.get_inner_ref()));
 
-        // this is temporary until rest of the code compiles so I could work on this
-        let temp_auth_token = None;
-
         let mut provider_poller = provider_poller::ProviderPoller::new(
             poller_input_tx,
             provider_client_listener_address,
             self_address,
-            temp_auth_token,
+            self.config
+                .get_provider_auth_token()
+                .map(|str_token| AuthToken::try_from_base58_string(str_token).ok())
+                .unwrap_or(None),
             self.config.get_fetch_message_delay(),
         );
 

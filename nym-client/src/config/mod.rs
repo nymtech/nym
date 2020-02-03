@@ -13,6 +13,7 @@ const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: u64 = 500;
 const DEFAULT_AVERAGE_PACKET_DELAY: u64 = 200;
 const DEFAULT_FETCH_MESSAGES_DELAY: u64 = 1000;
 const DEFAULT_TOPOLOGY_REFRESH_RATE: u64 = 10_000;
+const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: u64 = 5_000;
 
 const DEFAULT_LISTENING_PORT: u16 = 9001;
 
@@ -329,7 +330,12 @@ pub struct Debug {
     /// meaning it will always try to use whatever it obtained on startup.
     /// The provided value is interpreted as milliseconds.
     topology_refresh_rate: u64,
-    // topology resolution timeout
+
+    /// During initial healthcheck, test packets are sent through every single possible network
+    /// path. This timeout determines waiting period until it is decided that the packet
+    /// did not reach its destination.
+    /// The provided value is interpreted as milliseconds.
+    topology_resolution_timeout: u64,
 }
 
 impl Default for Debug {
@@ -341,6 +347,7 @@ impl Default for Debug {
             message_sending_average_delay: DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
             rate_compliant_cover_messages_disabled: false,
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
+            topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
         }
     }
 }

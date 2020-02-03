@@ -318,9 +318,13 @@ async fn accept_connection<T: 'static + NymTopology>(
         .expect("connected streams should have a peer address");
     debug!("Peer address: {}", address);
 
-    let mut ws_stream = tokio_tungstenite::accept_async(stream)
-        .await
-        .expect("Error during the websocket handshake occurred");
+    let mut ws_stream = match tokio_tungstenite::accept_async(stream).await {
+        Ok(ws_stream) => ws_stream,
+        Err(e) => {
+            error!("Error during the websocket handshake occurred - {}", e);
+            return;
+        }
+    };
 
     // Create a channel for our stream, which other sockets will use to
     // send us messages. Then register our address with the stream to send

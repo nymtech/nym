@@ -336,6 +336,13 @@ pub struct Debug {
     /// did not reach its destination.
     /// The provided value is interpreted as milliseconds.
     topology_resolution_timeout: u64,
+
+    /// How many packets should be sent through each path during the healthcheck
+    number_of_healthcheck_test_packets: u64,
+
+    /// In the current healthcheck implementation, minimum percentage of packets node must have
+    /// received to be considered healthy
+    node_score_threshold: f64,
 }
 
 impl Default for Debug {

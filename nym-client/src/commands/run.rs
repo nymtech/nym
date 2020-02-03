@@ -1,5 +1,5 @@
 use crate::client::NymClient;
-use crate::commands::overwrite_config;
+use crate::commands::override_config;
 use crate::config::persistance::pathfinder::ClientPathfinder;
 use crate::config::Config;
 use clap::ArgMatches;
@@ -13,7 +13,7 @@ pub fn execute(matches: &ArgMatches) {
         Config::load_from_file(matches.value_of("config").map(|path| path.into()), Some(id))
             .expect("Failed to load config file");
 
-    config = overwrite_config(config, matches);
+    config = override_config(config, matches);
 
     let identity_keypair = PemStore::new(ClientPathfinder::new_from_config(&config))
         .read_identity()
@@ -25,6 +25,5 @@ pub fn execute(matches: &ArgMatches) {
     );
 
     let client = NymClient::new(config);
-    //
-    //    client.start().unwrap();
+    client.start().unwrap();
 }

@@ -351,6 +351,8 @@ mod client_config {
 
     #[test]
     fn after_saving_default_config_the_loaded_one_is_identical() {
+        // need to figure out how to do something similar but without touching the disk
+        // or the file system at all...
         let temp_location = tempfile::tempdir().unwrap().path().join("config.toml");
         let default_config = Config::default().with_id("foomp".to_string());
         default_config

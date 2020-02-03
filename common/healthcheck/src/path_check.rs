@@ -252,7 +252,7 @@ impl PathChecker {
         debug!("sending test packet to {}", first_node_address);
         match first_node_client.send(packet, first_node_address).await {
             Err(err) => {
-                info!("failed to send packet to {} - {}", first_node_address, err);
+                debug!("failed to send packet to {} - {}", first_node_address, err);
                 if self
                     .paths_status
                     .insert(path_identifier, PathStatus::Unhealthy)

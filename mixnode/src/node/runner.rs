@@ -1,4 +1,3 @@
-use crate::banner;
 use crate::node;
 use crate::node::MixNode;
 use clap::ArgMatches;

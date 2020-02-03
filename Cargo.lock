@@ -1448,13 +1448,17 @@ dependencies = [
  "bs58",
  "built",
  "clap",
+ "config",
  "curve25519-dalek",
  "directory-client",
+ "dirs",
  "dotenv",
  "futures 0.3.1",
  "log",
  "pretty_env_logger",
+ "serde",
  "sphinx",
+ "tempfile",
  "tokio 0.2.10",
 ]
 

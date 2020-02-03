@@ -11,14 +11,17 @@ edition = "2018"
 bs58 = "0.3.0"
 clap = "2.33.0"
 curve25519-dalek = "1.2.3"
+dirs = "2.0.2"
 dotenv = "0.15.0"
 futures = "0.3.1"
 log = "0.4"
 pretty_env_logger = "0.3"
+serde = { version = "1.0.104", features = ["derive"] }
 tokio = { version = "0.2", features = ["full"] }
 
 ## internal
 addressing = {path = "../common/addressing" }
+config = {path = "../common/config"}
 directory-client = { path = "../common/clients/directory-client" }
 
 ## will be moved to proper dependencies once released
@@ -26,3 +29,10 @@ sphinx = { git = "https://github.com/nymtech/sphinx", rev="5862939c52e4dd76f8368
 
 [build-dependencies]
 built = "0.3.2"
+
+[dev-dependencies]
+tempfile = "3.1.0"
+
+[features]
+qa = []
+local = []

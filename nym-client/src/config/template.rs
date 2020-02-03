@@ -101,7 +101,7 @@ rate_compliant_cover_messages_disabled = {{ debug.rate_compliant_cover_messages_
 # The provided value is interpreted as milliseconds.
 topology_refresh_rate = {{ debug.topology_refresh_rate }}
 
-# During initial healthcheck, test packets are sent through every single possible network
+# During topology refresh, test packets are sent through every single possible network
 # path. This timeout determines waiting period until it is decided that the packet
 # did not reach its destination.
 # The provided value is interpreted as milliseconds.

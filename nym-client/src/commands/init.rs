@@ -1,5 +1,5 @@
+use crate::commands::overwrite_config;
 use crate::config::persistance::pathfinder::ClientPathfinder;
-use crate::config::SocketType;
 use clap::ArgMatches;
 use config::NymConfig;
 use crypto::identity::MixIdentityKeyPair;
@@ -11,25 +11,7 @@ pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap(); // required for now
     let mut config = crate::config::Config::new(id);
 
-    if let Some(directory) = matches.value_of("directory") {
-        config = config.with_custom_directory(directory);
-    }
-
-    if let Some(provider_id) = matches.value_of("provider") {
-        config = config.with_provider_id(provider_id);
-    }
-
-    if let Some(socket_type) = matches.value_of("socket-type") {
-        config = config.with_socket(SocketType::from_string(socket_type));
-    }
-
-    if let Some(port) = matches.value_of("port").map(|port| port.parse::<u16>()) {
-        if let Err(err) = port {
-            // if port was overridden, it must be parsable
-            panic!("Invalid port value provided - {:?}", err);
-        }
-        config = config.with_port(port.unwrap());
-    }
+    config = overwrite_config(config, matches);
 
     let mix_identity_keys = MixIdentityKeyPair::new();
     let pathfinder = ClientPathfinder::new_from_config(&config);

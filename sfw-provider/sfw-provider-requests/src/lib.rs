@@ -37,6 +37,12 @@ impl AuthToken {
     }
 }
 
+impl Into<String> for AuthToken {
+    fn into(self) -> String {
+        self.to_base58_string()
+    }
+}
+
 #[cfg(test)]
 mod auth_token_conversion {
     use super::*;

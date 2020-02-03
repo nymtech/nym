@@ -41,12 +41,12 @@ pub struct HealthChecker {
 
 impl HealthChecker {
     pub fn new(
-        resolution_timeout_f64: f64,
+        resolution_timeout: Duration,
         num_test_packets: usize,
         identity_keypair: MixIdentityKeyPair,
     ) -> Self {
         HealthChecker {
-            resolution_timeout: Duration::from_secs_f64(resolution_timeout_f64),
+            resolution_timeout,
             num_test_packets,
             identity_keypair,
         }

@@ -110,8 +110,9 @@ topology_resolution_timeout = {{ debug.topology_resolution_timeout }}
 # How many packets should be sent through each path during the healthcheck
 number_of_healthcheck_test_packets = {{ debug.number_of_healthcheck_test_packets }}
 
-# In the current healthcheck implementation, minimum percentage of packets node must have
-# received to be considered healthy
+# In the current healthcheck implementation, threshold indicating percentage of packets 
+# node received during healthcheck. Node's score must be above that value to be 
+# considered healthy.
 node_score_threshold = {{ debug.node_score_threshold }}
     
 "#

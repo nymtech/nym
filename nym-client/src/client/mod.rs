@@ -96,10 +96,16 @@ impl NymClient {
 
         info!("Trying to obtain initial compatible network topology before starting up rest of modules");
         // TODO: when we switch to our graph topology, we need to remember to change 'Topology' type
-        let topology_controller = rt.block_on(topology_control::TopologyControl::<Topology>::new(
+        let topology_controller_config = topology_control::TopologyControlConfig::<Topology>::new(
             self.config.get_directory_server(),
             self.config.get_topology_refresh_rate(),
             healthcheck_keys,
+            self.config.get_topology_resolution_timeout(),
+            self.config.get_number_of_healthcheck_test_packets() as usize,
+        );
+
+        let topology_controller = rt.block_on(topology_control::TopologyControl::<Topology>::new(
+            topology_controller_config,
         ));
 
         let provider_client_listener_address =

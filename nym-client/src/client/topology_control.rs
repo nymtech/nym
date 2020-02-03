@@ -2,6 +2,7 @@ use crate::built_info;
 use crypto::identity::MixIdentityKeyPair;
 use healthcheck::HealthChecker;
 use log::{error, info, trace, warn};
+use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time;
 use tokio::sync::RwLock as FRwLock;
@@ -25,18 +26,50 @@ enum TopologyError {
     NoValidPathsError,
 }
 
-impl<T: NymTopology> TopologyControl<T> {
-    pub(crate) async fn new(
+pub(crate) struct TopologyControlConfig<T: NymTopology> {
+    directory_server: String,
+    refresh_rate: time::Duration,
+    identity_keypair: MixIdentityKeyPair,
+    resolution_timeout: time::Duration,
+    number_test_packets: usize,
+
+    // the only reason I put phantom data here is so that we would we able to infer type
+    // of TopologyControl directly from the provided config rather than having to
+    // specify it during TopologyControl::<type>::new() call
+    _topology_type_phantom: PhantomData<*const T>,
+}
+
+impl<T: NymTopology> TopologyControlConfig<T> {
+    pub(crate) fn new(
         directory_server: String,
         refresh_rate: time::Duration,
         identity_keypair: MixIdentityKeyPair,
+        resolution_timeout: time::Duration,
+        number_test_packets: usize,
     ) -> Self {
-        // this is a temporary solution as the healthcheck will eventually be moved to validators
-        let health_checker = healthcheck::HealthChecker::new(5.0, 2, identity_keypair);
-
-        let mut topology_control = TopologyControl {
+        TopologyControlConfig {
             directory_server,
             refresh_rate,
+            identity_keypair,
+            resolution_timeout,
+            number_test_packets,
+            _topology_type_phantom: PhantomData,
+        }
+    }
+}
+
+impl<T: NymTopology> TopologyControl<T> {
+    pub(crate) async fn new(cfg: TopologyControlConfig<T>) -> Self {
+        // this is a temporary solution as the healthcheck will eventually be moved to validators
+        let health_checker = healthcheck::HealthChecker::new(
+            cfg.resolution_timeout,
+            cfg.number_test_packets,
+            cfg.identity_keypair,
+        );
+
+        let mut topology_control = TopologyControl {
+            directory_server: cfg.directory_server,
+            refresh_rate: cfg.refresh_rate,
             inner: Arc::new(FRwLock::new(Inner::new(None))),
             health_checker,
         };

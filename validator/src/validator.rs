@@ -3,6 +3,7 @@ use crate::services::mixmining::health_check_runner;
 use crypto::identity::MixIdentityKeyPair;
 use healthcheck::HealthChecker;
 use serde::Deserialize;
+use std::time;
 use tokio::runtime::Runtime;
 
 #[derive(Deserialize, Debug)]
@@ -24,7 +25,7 @@ impl Validator {
     pub fn new(config: Config) -> Self {
         let dummy_keypair = MixIdentityKeyPair::new();
         let hc = HealthChecker::new(
-            config.health_check.resolution_timeout,
+            time::Duration::from_secs_f64(config.health_check.resolution_timeout),
             config.health_check.num_test_packets,
             dummy_keypair.clone(),
         );

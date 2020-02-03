@@ -1,7 +1,7 @@
 use crate::built_info;
 use crate::commands::override_config;
 use crate::config::persistance::pathfinder::ClientPathfinder;
-use clap::ArgMatches;
+use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::identity::MixIdentityKeyPair;
 use directory_client::presence::Topology;
@@ -10,6 +10,38 @@ use sfw_provider_requests::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use topology::provider::Node;
 use topology::NymTopology;
+
+pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
+    App::new("init")
+        .about("Initialise a Nym client. Do this first!")
+        .arg(Arg::with_name("id")
+            .long("id")
+            .help("Id of the nym-mixnet-client we want to create config for.")
+            .takes_value(true)
+            .required(true)
+        )
+        .arg(Arg::with_name("provider")
+            .long("provider")
+            .help("Id of the provider we have preference to connect to. If left empty, a random provider will be chosen.")
+            .takes_value(true)
+        )
+        .arg(Arg::with_name("directory")
+                 .long("directory")
+                 .help("Address of the directory server the client is getting topology from")
+                 .takes_value(true),
+        )
+        .arg(Arg::with_name("socket-type")
+            .long("socket-type")
+            .help("Type of socket to use (TCP, WebSocket or None) in all subsequent runs")
+            .takes_value(true)
+        )
+        .arg(Arg::with_name("port")
+            .short("p")
+            .long("port")
+            .help("Port for the socket (if applicable) to listen on in all subsequent runs")
+            .takes_value(true)
+        )
+}
 
 async fn try_provider_registrations(
     providers: Vec<Node>,

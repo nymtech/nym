@@ -14,7 +14,6 @@ fn print_binding_warning(address: &str) {
 }
 
 pub fn start(matches: &ArgMatches) {
-    println!("{}", banner());
     println!("Starting mixnode...");
 
     let config = new_config(matches);

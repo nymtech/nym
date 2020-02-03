@@ -13,6 +13,12 @@ pub(crate) fn config_template() -> &'static str {
 # Human readable ID of this particular mixnode.
 id = "{{ mixnode.id }}"
 
+# Layer of this particular mixnode determining its position in the network.
+layer = {{ mixnode.layer }}
+
+# Socket address to which this mixnode will bind to and will be listening for packets.
+listening_address = "{{ mixnode.listening_address }}"
+
 # URL to the directory server.
 directory_server = "{{ mixnode.directory_server }}"
 
@@ -24,7 +30,14 @@ public_identity_key_file = "{{ mixnode.public_identity_key_file }}"
 
 ##### additional mixnode config options #####
 
-    
+# Optional address announced to the directory server for the clients to connect to.
+# It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
+# later on by using name resolvable with a DNS query, such as `nymtech.net:8080`.
+# Additionally a custom port can be provided, so both `nymtech.net:8080` and `nymtech.net`
+# are valid announce addresses, while the later will default to whatever port is used for
+# `listening_address`.
+announce_address = "{{ mixnode.announce_address }}"
+
 ##### advanced configuration options #####
 
 # Absolute path to the home Nym Clients directory.

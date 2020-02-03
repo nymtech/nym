@@ -10,6 +10,8 @@ fn main() {
     dotenv::dotenv().ok();
     pretty_env_logger::init();
 
+    println!("{}", banner());
+
     let arg_matches = App::new("Nym Client")
         .version(built_info::PKG_VERSION)
         .author("Nymtech")
@@ -23,22 +25,14 @@ fn main() {
 
 fn execute(matches: ArgMatches) {
     match matches.subcommand() {
-        ("init", Some(m)) => {
-            println!("{}", banner());
-            commands::init::execute(m);
-        }
-        ("run", Some(m)) => {
-            println!("{}", banner());
-            commands::run::execute(m);
-        }
-        _ => {
-            println!("{}", usage());
-        }
+        ("init", Some(m)) => commands::init::execute(m),
+        ("run", Some(m)) => commands::run::execute(m),
+        _ => println!("{}", usage()),
     }
 }
 
-fn usage() -> String {
-    banner() + "usage: --help to see available options.\n\n"
+fn usage() -> &'static str {
+    "usage: --help to see available options.\n\n"
 }
 
 fn banner() -> String {

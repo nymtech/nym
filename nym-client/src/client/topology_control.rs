@@ -4,7 +4,6 @@ use healthcheck::HealthChecker;
 use log::{error, info, trace, warn};
 use std::sync::Arc;
 use std::time;
-use std::time::Duration;
 use tokio::sync::RwLock as FRwLock;
 use topology::NymTopology;
 

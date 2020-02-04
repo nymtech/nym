@@ -1,4 +1,4 @@
-use crate::PemStorable;
+use crate::PemStorableKey;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
 
@@ -57,7 +57,7 @@ impl PrivateKey {
     }
 }
 
-impl PemStorable for PrivateKey {
+impl PemStorableKey for PrivateKey {
     fn pem_type(&self) -> String {
         String::from("X25519 PRIVATE KEY")
     }
@@ -85,7 +85,7 @@ impl PublicKey {
     }
 }
 
-impl PemStorable for PublicKey {
+impl PemStorableKey for PublicKey {
     fn pem_type(&self) -> String {
         String::from("X25519 PUBLIC KEY")
     }

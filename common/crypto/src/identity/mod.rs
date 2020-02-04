@@ -1,4 +1,4 @@
-use crate::{encryption, PemStorable};
+use crate::{encryption, PemStorableKey};
 use bs58;
 use curve25519_dalek::scalar::Scalar;
 use sphinx::route::DestinationAddressBytes;
@@ -65,7 +65,7 @@ impl MixIdentityPublicKey {
     }
 }
 
-impl PemStorable for MixIdentityPublicKey {
+impl PemStorableKey for MixIdentityPublicKey {
     fn pem_type(&self) -> String {
         format!("DUMMY KEY BASED ON {}", self.0.pem_type())
     }
@@ -101,7 +101,7 @@ impl MixIdentityPrivateKey {
     }
 }
 
-impl PemStorable for MixIdentityPrivateKey {
+impl PemStorableKey for MixIdentityPrivateKey {
     fn pem_type(&self) -> String {
         format!("DUMMY KEY BASED ON {}", self.0.pem_type())
     }

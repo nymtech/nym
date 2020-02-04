@@ -56,7 +56,7 @@ impl NymConfig for Config {
 }
 
 impl Config {
-    pub fn new<S: Into<String>>(id: S, layer: usize) -> Self {
+    pub fn new<S: Into<String>>(id: S, layer: u64) -> Self {
         Config::default().with_id(id).with_layer(layer)
     }
 
@@ -75,7 +75,7 @@ impl Config {
         self
     }
 
-    pub fn with_layer(mut self, layer: usize) -> Self {
+    pub fn with_layer(mut self, layer: u64) -> Self {
         self.mixnode.layer = layer;
         self
     }
@@ -172,7 +172,7 @@ impl Config {
         self.mixnode.directory_server.clone()
     }
 
-    pub fn get_layer(&self) -> usize {
+    pub fn get_layer(&self) -> u64 {
         self.mixnode.layer
     }
 
@@ -195,7 +195,7 @@ pub struct MixNode {
     directory_server: String,
 
     /// Layer of this particular mixnode determining its position in the network.
-    layer: usize,
+    layer: u64,
 
     /// Socket address to which this mixnode will bind to and will be listening for packets.
     listening_address: SocketAddr,

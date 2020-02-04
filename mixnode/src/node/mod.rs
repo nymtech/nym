@@ -248,6 +248,7 @@ impl MixNode {
             self.config.get_announce_address(),
             self.sphinx_keypair.public_key().to_base58_string(),
             self.config.get_layer(),
+            self.config.get_presence_sending_delay(),
         );
         rt.spawn({
             let presence_notifier = presence::Notifier::new(notifier_config);
@@ -272,6 +273,7 @@ impl MixNode {
             metrics,
             directory_cfg,
             self.sphinx_keypair.public_key().to_base58_string(),
+            self.config.get_metrics_sending_delay(),
         ));
 
         // Spawn the root task

@@ -5,12 +5,18 @@ use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::time;
 
 pub mod persistance;
 mod template;
 
 // 'MIXNODE'
 const DEFAULT_LISTENING_PORT: u16 = 1789;
+
+// 'DEBUG'
+// where applicable, the below are defined in milliseconds
+const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 3000;
+const DEFAULT_METRICS_SENDING_DELAY: u64 = 3000;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -179,11 +185,16 @@ impl Config {
         self.debug.presence_directory_server.clone()
     }
 
+    pub fn get_presence_sending_delay(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.presence_sending_delay)
+    }
 
     pub fn get_metrics_directory_server(&self) -> String {
         self.debug.metrics_directory_server.clone()
     }
 
+    pub fn get_metrics_sending_delay(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.metrics_sending_delay)
     }
 
     pub fn get_layer(&self) -> u64 {
@@ -274,9 +285,15 @@ pub struct Debug {
     /// Directory server to which the server will be reporting their presence data.
     presence_directory_server: String,
 
+    /// Delay between each subsequent presence data being sent.
+    presence_sending_delay: u64,
 
     /// Directory server to which the server will be reporting their metrics data.
     metrics_directory_server: String,
+
+    /// Delay between each subsequent metrics data being sent.
+    metrics_sending_delay: u64,
+}
 
 impl Debug {
     fn default_directory_server() -> String {
@@ -288,11 +305,15 @@ impl Debug {
         "https://directory.nymtech.net".to_string()
     }
 }
+
 impl Default for Debug {
     fn default() -> Self {
         Debug {
             presence_directory_server: Self::default_directory_server(),
+            presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
             metrics_directory_server: Self::default_directory_server(),
+            metrics_sending_delay: DEFAULT_METRICS_SENDING_DELAY,
+        }
     }
 }
 

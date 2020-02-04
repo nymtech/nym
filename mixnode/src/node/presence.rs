@@ -3,13 +3,12 @@ use directory_client::presence::mixnodes::MixNodePresence;
 use directory_client::requests::presence_mixnodes_post::PresenceMixNodesPoster;
 use directory_client::DirectoryClient;
 use log::{debug, error};
-use std::time;
 use std::time::Duration;
 
 pub struct Notifier {
     pub net_client: directory_client::Client,
     presence: MixNodePresence,
-    sending_delay: time::Duration,
+    sending_delay: Duration,
 }
 
 pub struct NotifierConfig {
@@ -17,7 +16,7 @@ pub struct NotifierConfig {
     announce_host: String,
     pub_key_string: String,
     layer: u64,
-    sending_delay: time::Duration,
+    sending_delay: Duration,
 }
 
 impl NotifierConfig {
@@ -26,7 +25,7 @@ impl NotifierConfig {
         announce_host: String,
         pub_key_string: String,
         layer: u64,
-        sending_delay: time::Duration,
+        sending_delay: Duration,
     ) -> Self {
         NotifierConfig {
             directory_server,
@@ -68,7 +67,7 @@ impl Notifier {
     pub async fn run(self) {
         loop {
             self.notify();
-            tokio::time::delay_for(self.sending_delay).await;
+            tokio::delay_for(self.sending_delay).await;
         }
     }
 }

@@ -1,17 +1,13 @@
 use crate::pathfinder::PathFinder;
 use crypto::identity::MixIdentityKeyPair;
-use crypto::PemStorable;
+use crypto::PemStorableKey;
+use crypto::{encryption, PemStorableKeyPair};
 use log::info;
 use pem::{encode, parse, Pem};
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 use std::path::PathBuf;
-
-#[allow(dead_code)]
-pub fn read_mix_encryption_keypair_from_disk(_id: String) -> crypto::encryption::KeyPair {
-    unimplemented!()
-}
 
 pub struct PemStore {
     config_dir: PathBuf,
@@ -28,11 +24,11 @@ impl PemStore {
         }
     }
 
-    pub fn read_identity(&self) -> io::Result<MixIdentityKeyPair> {
+    pub fn read_keypair<T: PemStorableKeyPair>(&self) -> io::Result<T> {
         let private_pem = self.read_pem_file(self.private_mix_key_file.clone())?;
         let public_pem = self.read_pem_file(self.public_mix_key_file.clone())?;
 
-        let key_pair = MixIdentityKeyPair::from_bytes(&private_pem.contents, &public_pem.contents);
+        let key_pair = T::from_bytes(&private_pem.contents, &public_pem.contents);
 
         if key_pair.private_key().pem_type() != private_pem.tag {
             return Err(io::Error::new(
@@ -51,16 +47,22 @@ impl PemStore {
         Ok(key_pair)
     }
 
+    pub fn read_encryption(&self) -> io::Result<encryption::KeyPair> {
+        self.read_keypair()
+    }
+
+    pub fn read_identity(&self) -> io::Result<MixIdentityKeyPair> {
+        self.read_keypair()
+    }
+
     fn read_pem_file(&self, filepath: PathBuf) -> io::Result<Pem> {
         let mut pem_bytes = File::open(filepath)?;
         let mut buf = Vec::new();
         pem_bytes.read_to_end(&mut buf)?;
         parse(&buf).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     }
-    // This should be refactored and made more generic for when we have other kinds of
-    // KeyPairs that we want to persist (e.g. validator keypairs, or keys for
-    // signing vs encryption). However, for the moment, it does the job.
-    pub fn write_identity(&self, key_pair: MixIdentityKeyPair) -> io::Result<()> {
+
+    fn write_keypair(&self, key_pair: impl PemStorableKeyPair) -> io::Result<()> {
         let private_key = key_pair.private_key();
         let public_key = key_pair.public_key();
 
@@ -83,6 +85,17 @@ impl PemStore {
             self.public_mix_key_file.clone()
         );
         Ok(())
+    }
+
+    // This should be refactored and made more generic for when we have other kinds of
+    // KeyPairs that we want to persist (e.g. validator keypairs, or keys for
+    // signing vs encryption). However, for the moment, it does the job.
+    pub fn write_identity(&self, key_pair: MixIdentityKeyPair) -> io::Result<()> {
+        self.write_keypair(key_pair)
+    }
+
+    pub fn write_encryption_keys(&self, key_pair: encryption::KeyPair) -> io::Result<()> {
+        self.write_keypair(key_pair)
     }
 
     fn write_pem_file(&self, filepath: PathBuf, data: Vec<u8>, tag: String) -> io::Result<()> {

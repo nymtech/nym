@@ -1,5 +1,10 @@
+use crate::commands::override_config;
+use crate::config::persistance::pathfinder::MixNodePathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
+use crypto::encryption;
+use crypto::identity::MixIdentityKeyPair;
+use pemstore::pemstore::PemStore;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
@@ -52,44 +57,24 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
 }
 
 pub fn execute(matches: &ArgMatches) {
-    println!("Initialising mixnode...");
-
     let id = matches.value_of("id").unwrap();
+    println!("Initialising mixnode {}...", id);
+
     let layer = matches.value_of("layer").unwrap().parse().unwrap();
     let mut config = crate::config::Config::new(id, layer);
 
-    // overriding config defaults here
+    config = override_config(config, matches);
 
-    if let Some(host) = matches.value_of("host") {
-        config = config.with_listening_host(host);
-    }
+    // TODO: which one should be used?
+    let sphinx_keys = encryption::KeyPair::new();
+    //    let alternative_keypair = MixIdentityKeyPair::new();
 
-    if let Some(port) = matches.value_of("port").map(|port| port.parse::<u16>()) {
-        if let Err(err) = port {
-            // if port was overridden, it must be parsable
-            panic!("Invalid port value provided - {:?}", err);
-        }
-        config = config.with_listening_port(port.unwrap());
-    }
-
-    if let Some(directory) = matches.value_of("directory") {
-        config = config.with_custom_directory(directory);
-    }
-
-    if let Some(announce_host) = matches.value_of("announce-host") {
-        config = config.with_announce_host(announce_host);
-    }
-
-    if let Some(announce_port) = matches
-        .value_of("announce-port")
-        .map(|port| port.parse::<u16>())
-    {
-        if let Err(err) = announce_port {
-            // if port was overridden, it must be parsable
-            panic!("Invalid port value provided - {:?}", err);
-        }
-        config = config.with_announce_port(announce_port.unwrap());
-    }
+    let pathfinder = MixNodePathfinder::new_from_config(&config);
+    let pem_store = PemStore::new(pathfinder);
+    pem_store
+        .write_encryption_keys(sphinx_keys)
+        .expect("Failed to save sphinx keys");
+    println!("Saved mixnet sphinx keypair");
 
     let config_save_location = config.get_config_file_save_location();
     config

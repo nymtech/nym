@@ -23,10 +23,10 @@ listening_address = "{{ mixnode.listening_address }}"
 directory_server = "{{ mixnode.directory_server }}"
 
 # Path to file containing private identity key.
-private_identity_key_file = "{{ mixnode.private_identity_key_file }}"
+private_sphinx_key_file = "{{ mixnode.private_sphinx_key_file }}"
 
-# Path to file containing public identity key.
-public_identity_key_file = "{{ mixnode.public_identity_key_file }}"
+# Path to file containing public sphinx key.
+public_sphinx_key_file = "{{ mixnode.public_sphinx_key_file }}"
 
 ##### additional mixnode config options #####
 

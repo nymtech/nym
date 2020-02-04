@@ -6,6 +6,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
 
+pub mod persistance;
 mod template;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -62,18 +63,13 @@ impl Config {
     // builder methods
     pub fn with_id<S: Into<String>>(mut self, id: S) -> Self {
         let id = id.into();
-        if self
-            .mixnode
-            .private_identity_key_file
-            .as_os_str()
-            .is_empty()
-        {
-            self.mixnode.private_identity_key_file =
-                self::MixNode::default_private_identity_key_file(&id);
+        if self.mixnode.private_sphinx_key_file.as_os_str().is_empty() {
+            self.mixnode.private_sphinx_key_file =
+                self::MixNode::default_private_sphinx_key_file(&id);
         }
-        if self.mixnode.public_identity_key_file.as_os_str().is_empty() {
-            self.mixnode.public_identity_key_file =
-                self::MixNode::default_public_identity_key_file(&id);
+        if self.mixnode.public_sphinx_key_file.as_os_str().is_empty() {
+            self.mixnode.public_sphinx_key_file =
+                self::MixNode::default_public_sphinx_key_file(&id);
         }
         self.mixnode.id = id;
         self
@@ -164,16 +160,24 @@ impl Config {
         self.config_directory().join(Self::config_file_name())
     }
 
-    pub fn get_private_identity_key_file(&self) -> PathBuf {
-        self.mixnode.private_identity_key_file.clone()
+    pub fn get_private_sphinx_key_file(&self) -> PathBuf {
+        self.mixnode.private_sphinx_key_file.clone()
     }
 
-    pub fn get_public_identity_key_file(&self) -> PathBuf {
-        self.mixnode.public_identity_key_file.clone()
+    pub fn get_public_sphinx_key_file(&self) -> PathBuf {
+        self.mixnode.public_sphinx_key_file.clone()
     }
 
     pub fn get_directory_server(&self) -> String {
         self.mixnode.directory_server.clone()
+    }
+
+    pub fn get_listening_address(&self) -> SocketAddr {
+        self.mixnode.listening_address
+    }
+
+    pub fn get_announce_address(&self) -> String {
+        self.mixnode.announce_address.clone()
     }
 }
 
@@ -200,11 +204,11 @@ pub struct MixNode {
     /// `listening_address`.
     announce_address: String,
 
-    /// Path to file containing private identity key.
-    private_identity_key_file: PathBuf,
+    /// Path to file containing private sphinx key.
+    private_sphinx_key_file: PathBuf,
 
-    /// Path to file containing public identity key.
-    public_identity_key_file: PathBuf,
+    /// Path to file containing public sphinx key.
+    public_sphinx_key_file: PathBuf,
 
     /// nym_home_directory specifies absolute path to the home nym MixNodes directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
@@ -221,12 +225,12 @@ impl MixNode {
         "https://directory.nymtech.net".to_string()
     }
 
-    fn default_private_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("private_identity.pem")
+    fn default_private_sphinx_key_file(id: &str) -> PathBuf {
+        Config::default_data_directory(Some(id)).join("private_sphinx.pem")
     }
 
-    fn default_public_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("public_identity.pem")
+    fn default_public_sphinx_key_file(id: &str) -> PathBuf {
+        Config::default_data_directory(Some(id)).join("public_sphinx.pem")
     }
 }
 
@@ -238,8 +242,8 @@ impl Default for MixNode {
             layer: 0,
             listening_address: "0.0.0.0:1789".parse().unwrap(),
             announce_address: "127.0.0.1789".to_string(),
-            private_identity_key_file: Default::default(),
-            public_identity_key_file: Default::default(),
+            private_sphinx_key_file: Default::default(),
+            public_sphinx_key_file: Default::default(),
             nym_root_directory: Config::default_root_directory(),
         }
     }

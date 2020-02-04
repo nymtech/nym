@@ -72,6 +72,10 @@ impl PrivateKey {
         let key = Scalar::from_canonical_bytes(bytes).unwrap();
         Self(key)
     }
+
+    pub fn inner(&self) -> Scalar {
+        self.0
+    }
 }
 
 impl PemStorableKey for PrivateKey {
@@ -103,6 +107,10 @@ impl PublicKey {
         bytes.copy_from_slice(&b[..]);
         let key = MontgomeryPoint(bytes);
         Self(key)
+    }
+
+    pub fn inner(&self) -> MontgomeryPoint {
+        self.0
     }
 
     pub fn to_base58_string(&self) -> String {

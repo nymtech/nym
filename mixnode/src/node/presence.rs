@@ -67,7 +67,7 @@ impl Notifier {
     pub async fn run(self) {
         loop {
             self.notify();
-            tokio::delay_for(self.sending_delay).await;
+            tokio::time::delay_for(self.sending_delay).await;
         }
     }
 }

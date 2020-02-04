@@ -53,15 +53,6 @@ pub fn execute(matches: &ArgMatches) {
 
     config = override_config(config, matches);
 
-    let identity_keypair = PemStore::new(ClientPathfinder::new_from_config(&config))
-        .read_identity()
-        .expect("Failed to read stored identity key files");
-
-    println!(
-        "Public identity key: {}\nFor time being, it is identical to address",
-        identity_keypair.public_key.to_base58_string()
-    );
-
     let client = NymClient::new(config);
     client.start().unwrap();
 }

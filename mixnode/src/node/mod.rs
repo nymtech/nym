@@ -1,12 +1,16 @@
+use crate::config::persistance::pathfinder::MixNodePathfinder;
+use crate::config::Config;
 use crate::mix_peer::MixPeer;
 use crate::node;
 use crate::node::metrics::MetricsReporter;
+use crypto::encryption;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::SinkExt;
 use log::*;
+use pemstore::pemstore::PemStore;
 use sphinx::header::delays::Delay as SphinxDelay;
 use sphinx::{ProcessedPacket, SphinxPacket};
 use std::net::SocketAddr;
@@ -17,22 +21,6 @@ use tokio::runtime::Runtime;
 
 mod metrics;
 mod presence;
-
-pub struct Config {
-    pub announce_address: String,
-    pub directory_server: String,
-    pub layer: usize,
-    pub public_key: MontgomeryPoint,
-    pub secret_key: Scalar,
-    pub socket_address: SocketAddr,
-}
-
-impl Config {
-    pub fn public_key_string(&self) -> String {
-        let key_bytes = self.public_key.to_bytes().to_vec();
-        bs58::encode(&key_bytes).into_string()
-    }
-}
 
 #[derive(Debug)]
 pub enum MixProcessingError {
@@ -178,22 +166,28 @@ impl PacketProcessor {
 
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
-    directory_server: String,
-    network_address: SocketAddr,
-    public_key: MontgomeryPoint,
-    secret_key: Scalar,
-    // TODO: use it later to enforce forward travel
-    //    layer: usize,
+    config: Config,
+    sphinx_keypair: encryption::KeyPair,
 }
 
 impl MixNode {
-    pub fn new(config: &Config) -> Self {
+    fn load_sphinx_keys(config_file: &Config) -> encryption::KeyPair {
+        let sphinx_keypair = PemStore::new(MixNodePathfinder::new_from_config(&config_file))
+            .read_encryption()
+            .expect("Failed to read stored sphinx key files");
+        println!(
+            "Public encryption key: {}\nFor time being, it is identical to identity keys",
+            sphinx_keypair.public_key().to_base58_string()
+        );
+        sphinx_keypair
+    }
+
+    pub fn new(config: Config) -> Self {
+        let sphinx_keypair = Self::load_sphinx_keys(&config);
+
         MixNode {
-            directory_server: config.directory_server.clone(),
-            network_address: config.socket_address,
-            secret_key: config.secret_key,
-            public_key: config.public_key,
-            //            layer: config.layer,
+            config,
+            sphinx_keypair,
         }
     }
 
@@ -240,12 +234,11 @@ impl MixNode {
         }
     }
 
-    pub fn start(&self, config: node::Config) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
         // Set up config and public key for this node
         let directory_cfg = directory_client::Config {
-            base_url: self.directory_server.clone(),
+            base_url: self.config.get_directory_server(),
         };
-        let pub_key_str = bs58::encode(&self.public_key.to_bytes().to_vec()).into_string();
 
         // Set up channels
         let (received_tx, received_rx) = mpsc::channel(1024);
@@ -255,8 +248,14 @@ impl MixNode {
         let mut rt = Runtime::new()?;
 
         // Spawn Tokio tasks as necessary for node functionality
+        let tmp_notifier_config = presence::NotifierConfig {
+            directory_server: self.config.get_directory_server(),
+            host: self.config.get_announce_address(),
+            pub_key: self.sphinx_keypair.public_key().to_base58_string(),
+            layer: self.config.get_layer(),
+        };
         rt.spawn({
-            let presence_notifier = presence::Notifier::new(&config);
+            let presence_notifier = presence::Notifier::new(tmp_notifier_config);
             presence_notifier.run()
         });
 
@@ -272,14 +271,19 @@ impl MixNode {
         rt.spawn(MetricsReporter::run_metrics_sender(
             metrics,
             directory_cfg,
-            pub_key_str,
+            self.sphinx_keypair.public_key().to_base58_string(),
         ));
 
         // Spawn the root task
         rt.block_on(async {
-            let mut listener = tokio::net::TcpListener::bind(self.network_address).await?;
-            let processing_data =
-                ProcessingData::new(self.secret_key, received_tx, sent_tx).add_arc_mutex();
+            let mut listener =
+                tokio::net::TcpListener::bind(self.config.get_listening_address()).await?;
+            let processing_data = ProcessingData::new(
+                self.sphinx_keypair.private_key().inner(),
+                received_tx,
+                sent_tx,
+            )
+            .add_arc_mutex();
 
             loop {
                 let (socket, _) = listener.accept().await?;

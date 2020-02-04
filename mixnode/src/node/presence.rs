@@ -10,16 +10,24 @@ pub struct Notifier {
     presence: MixNodePresence,
 }
 
+pub struct NotifierConfig {
+    // TEMPORARLY PUBLIC
+    pub directory_server: String,
+    pub host: String,
+    pub pub_key: String,
+    pub layer: u64,
+}
+
 impl Notifier {
-    pub fn new(node_config: &node::Config) -> Notifier {
-        let config = directory_client::Config {
-            base_url: node_config.directory_server.clone(),
+    pub fn new(config: NotifierConfig) -> Notifier {
+        let directory_client_cfg = directory_client::Config {
+            base_url: config.directory_server,
         };
-        let net_client = directory_client::Client::new(config);
+        let net_client = directory_client::Client::new(directory_client_cfg);
         let presence = MixNodePresence {
-            host: node_config.announce_address.clone(),
-            pub_key: node_config.public_key_string(),
-            layer: node_config.layer as u64,
+            host: config.host,
+            pub_key: config.pub_key,
+            layer: config.layer,
             last_seen: 0,
             version: env!("CARGO_PKG_VERSION").to_string(),
         };

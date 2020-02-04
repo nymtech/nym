@@ -93,15 +93,6 @@ pub fn execute(matches: &ArgMatches) {
         show_binding_warning(listening_ip_string);
     }
 
-    let sphinx_keypair = PemStore::new(MixNodePathfinder::new_from_config(&config))
-        .read_encryption()
-        .expect("Failed to read stored identity key files");
-
-    println!(
-        "Public encryption key: {}\nFor time being, it is identical to identity keys",
-        sphinx_keypair.public_key().to_base58_string()
-    );
-
     println!("Directory server: {}", config.get_directory_server());
     println!(
         "Listening for incoming packets on {}",
@@ -112,15 +103,6 @@ pub fn execute(matches: &ArgMatches) {
         config.get_announce_address()
     );
 
-    let old_dummy_config = node::Config {
-        announce_address: config.get_announce_address(),
-        directory_server: config.get_directory_server(),
-        layer: config.get_layer(),
-        public_key: sphinx_keypair.public_key().0,
-        secret_key: sphinx_keypair.private_key().0,
-        socket_address: config.get_listening_address(),
-    };
-
-    let mix = MixNode::new(&old_dummy_config);
-    mix.start(old_dummy_config).unwrap();
+    let mix = MixNode::new(config);
+    mix.start().unwrap();
 }

@@ -17,7 +17,6 @@ use tokio::runtime::Runtime;
 
 mod metrics;
 mod presence;
-pub mod runner;
 
 pub struct Config {
     pub announce_address: String,

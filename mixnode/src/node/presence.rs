@@ -1,4 +1,4 @@
-use crate::node;
+use crate::built_info;
 use directory_client::presence::mixnodes::MixNodePresence;
 use directory_client::requests::presence_mixnodes_post::PresenceMixNodesPoster;
 use directory_client::DirectoryClient;
@@ -11,11 +11,26 @@ pub struct Notifier {
 }
 
 pub struct NotifierConfig {
-    // TEMPORARLY PUBLIC
-    pub directory_server: String,
-    pub host: String,
-    pub pub_key: String,
-    pub layer: u64,
+    directory_server: String,
+    announce_host: String,
+    pub_key_string: String,
+    layer: u64,
+}
+
+impl NotifierConfig {
+    pub fn new(
+        directory_server: String,
+        announce_host: String,
+        pub_key_string: String,
+        layer: u64,
+    ) -> Self {
+        NotifierConfig {
+            directory_server,
+            announce_host,
+            pub_key_string,
+            layer,
+        }
+    }
 }
 
 impl Notifier {
@@ -25,11 +40,11 @@ impl Notifier {
         };
         let net_client = directory_client::Client::new(directory_client_cfg);
         let presence = MixNodePresence {
-            host: config.host,
-            pub_key: config.pub_key,
+            host: config.announce_host,
+            pub_key: config.pub_key_string,
             layer: config.layer,
             last_seen: 0,
-            version: env!("CARGO_PKG_VERSION").to_string(),
+            version: built_info::PKG_VERSION.to_string(),
         };
         Notifier {
             net_client,

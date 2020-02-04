@@ -248,14 +248,14 @@ impl MixNode {
         let mut rt = Runtime::new()?;
 
         // Spawn Tokio tasks as necessary for node functionality
-        let tmp_notifier_config = presence::NotifierConfig {
-            directory_server: self.config.get_directory_server(),
-            host: self.config.get_announce_address(),
-            pub_key: self.sphinx_keypair.public_key().to_base58_string(),
-            layer: self.config.get_layer(),
-        };
+        let notifier_config = presence::NotifierConfig::new(
+            self.config.get_directory_server(),
+            self.config.get_announce_address(),
+            self.sphinx_keypair.public_key().to_base58_string(),
+            self.config.get_layer(),
+        );
         rt.spawn({
-            let presence_notifier = presence::Notifier::new(tmp_notifier_config);
+            let presence_notifier = presence::Notifier::new(notifier_config);
             presence_notifier.run()
         });
 

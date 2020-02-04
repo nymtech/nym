@@ -104,6 +104,14 @@ impl PublicKey {
         let key = MontgomeryPoint(bytes);
         Self(key)
     }
+
+    pub fn to_base58_string(&self) -> String {
+        bs58::encode(&self.to_bytes()).into_string()
+    }
+
+    pub fn from_base58_string(val: String) -> Self {
+        Self::from_bytes(&bs58::decode(&val).into_vec().unwrap())
+    }
 }
 
 impl PemStorableKey for PublicKey {

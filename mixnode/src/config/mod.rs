@@ -9,6 +9,9 @@ use std::str::FromStr;
 pub mod persistance;
 mod template;
 
+// 'MIXNODE'
+const DEFAULT_LISTENING_PORT: u16 = 1789;
+
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
@@ -244,8 +247,10 @@ impl Default for MixNode {
             id: "".to_string(),
             directory_server: Self::default_directory_server(),
             layer: 0,
-            listening_address: "0.0.0.0:1789".parse().unwrap(),
-            announce_address: "127.0.0.1789".to_string(),
+            listening_address: format!("0.0.0.0:{}", DEFAULT_LISTENING_PORT)
+                .parse()
+                .unwrap(),
+            announce_address: format!("127.0.0.1:{}", DEFAULT_LISTENING_PORT),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
             nym_root_directory: Config::default_root_directory(),

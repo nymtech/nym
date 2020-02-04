@@ -172,6 +172,10 @@ impl Config {
         self.mixnode.directory_server.clone()
     }
 
+    pub fn get_layer(&self) -> usize {
+        self.mixnode.layer
+    }
+
     pub fn get_listening_address(&self) -> SocketAddr {
         self.mixnode.listening_address
     }

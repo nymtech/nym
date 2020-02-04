@@ -20,12 +20,12 @@ mod presence;
 pub mod runner;
 
 pub struct Config {
-    announce_address: String,
-    directory_server: String,
-    layer: usize,
-    public_key: MontgomeryPoint,
-    secret_key: Scalar,
-    socket_address: SocketAddr,
+    pub announce_address: String,
+    pub directory_server: String,
+    pub layer: usize,
+    pub public_key: MontgomeryPoint,
+    pub secret_key: Scalar,
+    pub socket_address: SocketAddr,
 }
 
 impl Config {

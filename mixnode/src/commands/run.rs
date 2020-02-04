@@ -73,6 +73,10 @@ fn show_binding_warning(address: String) {
     println!("\n##### WARNING #####\n");
 }
 
+fn special_addresses() -> Vec<&'static str> {
+    vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
+}
+
 pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
 
@@ -85,10 +89,7 @@ pub fn execute(matches: &ArgMatches) {
     config = override_config(config, matches);
 
     let listening_ip_string = config.get_listening_address().ip().to_string();
-    if listening_ip_string == "localhost"
-        || listening_ip_string == "127.0.0.1"
-        || listening_ip_string == "0.0.0.0"
-    {
+    if special_addresses().contains(&listening_ip_string.as_ref()) {
         show_binding_warning(listening_ip_string);
     }
 

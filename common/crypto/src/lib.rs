@@ -7,3 +7,11 @@ pub mod identity;
 pub trait PemStorableKey {
     fn pem_type(&self) -> String;
 }
+
+pub trait PemStorableKeyPair {
+    type PrivatePemKey: PemStorableKey;
+    type PublicPemKey: PemStorableKey;
+
+    fn private_pem_key(&self) -> &Self::PrivatePemKey;
+    fn public_pem_key(&self) -> &Self::PublicPemKey;
+}

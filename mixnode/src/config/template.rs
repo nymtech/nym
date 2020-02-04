@@ -19,9 +19,6 @@ layer = {{ mixnode.layer }}
 # Socket address to which this mixnode will bind to and will be listening for packets.
 listening_address = "{{ mixnode.listening_address }}"
 
-# URL to the directory server.
-directory_server = "{{ mixnode.directory_server }}"
-
 # Path to file containing private identity key.
 private_sphinx_key_file = "{{ mixnode.private_sphinx_key_file }}"
 
@@ -57,5 +54,17 @@ nym_root_directory = "{{ mixnode.nym_root_directory }}"
 
 [debug]
 
+# Directory server to which the server will be reporting their presence data.
+presence_directory_server = "{{ debug.presence_directory_server}}"
+
+# Delay between each subsequent presence data being sent.
+presence_sending_delay = {{ debug.presence_sending_delay }}
+
+# Directory server to which the server will be reporting their metrics data.
+metrics_directory_server = "{{ debug.metrics_directory_server }}"
+
+# Delay between each subsequent metrics data being sent.
+metrics_sending_delay = {{ debug.metrics_sending_delay }}
+    
 "#
 }

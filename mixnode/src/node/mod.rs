@@ -235,11 +235,6 @@ impl MixNode {
     }
 
     pub fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
-        // Set up config and public key for this node
-        let directory_cfg = directory_client::Config {
-            base_url: self.config.get_directory_server(),
-        };
-
         // Set up channels
         let (received_tx, received_rx) = mpsc::channel(1024);
         let (sent_tx, sent_rx) = mpsc::channel(1024);
@@ -249,7 +244,7 @@ impl MixNode {
 
         // Spawn Tokio tasks as necessary for node functionality
         let notifier_config = presence::NotifierConfig::new(
-            self.config.get_directory_server(),
+            self.config.get_presence_directory_server(),
             self.config.get_announce_address(),
             self.sphinx_keypair.public_key().to_base58_string(),
             self.config.get_layer(),
@@ -268,6 +263,11 @@ impl MixNode {
             metrics.clone(),
             sent_rx,
         ));
+
+        let directory_cfg = directory_client::Config {
+            base_url: self.config.get_metrics_directory_server(),
+        };
+
         rt.spawn(MetricsReporter::run_metrics_sender(
             metrics,
             directory_cfg,

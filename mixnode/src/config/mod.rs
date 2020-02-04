@@ -83,8 +83,12 @@ impl Config {
         self
     }
 
+    // if you want to use distinct servers for metrics and presence
+    // you need to do so in the config.toml file.
     pub fn with_custom_directory<S: Into<String>>(mut self, directory_server: S) -> Self {
-        self.mixnode.directory_server = directory_server.into();
+        let directory_server_string = directory_server.into();
+        self.debug.presence_directory_server = directory_server_string.clone();
+        self.debug.metrics_directory_server = directory_server_string;
         self
     }
 
@@ -171,8 +175,15 @@ impl Config {
         self.mixnode.public_sphinx_key_file.clone()
     }
 
-    pub fn get_directory_server(&self) -> String {
-        self.mixnode.directory_server.clone()
+    pub fn get_presence_directory_server(&self) -> String {
+        self.debug.presence_directory_server.clone()
+    }
+
+
+    pub fn get_metrics_directory_server(&self) -> String {
+        self.debug.metrics_directory_server.clone()
+    }
+
     }
 
     pub fn get_layer(&self) -> u64 {
@@ -193,9 +204,6 @@ impl Config {
 pub struct MixNode {
     /// ID specifies the human readable ID of this particular mixnode.
     id: String,
-
-    /// URL to the directory server.
-    directory_server: String,
 
     /// Layer of this particular mixnode determining its position in the network.
     layer: u64,
@@ -223,15 +231,6 @@ pub struct MixNode {
 }
 
 impl MixNode {
-    fn default_directory_server() -> String {
-        #[cfg(feature = "qa")]
-        return "https://qa-directory.nymtech.net".to_string();
-        #[cfg(feature = "local")]
-        return "http://localhost:8080".to_string();
-
-        "https://directory.nymtech.net".to_string()
-    }
-
     fn default_private_sphinx_key_file(id: &str) -> PathBuf {
         Config::default_data_directory(Some(id)).join("private_sphinx.pem")
     }
@@ -245,7 +244,6 @@ impl Default for MixNode {
     fn default() -> Self {
         MixNode {
             id: "".to_string(),
-            directory_server: Self::default_directory_server(),
             layer: 0,
             listening_address: format!("0.0.0.0:{}", DEFAULT_LISTENING_PORT)
                 .parse()
@@ -270,11 +268,31 @@ impl Default for Logging {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Debug {}
+pub struct Debug {
+    // The idea of additional 'directory servers' is to let mixes report their presence
+    // and metrics to separate places
+    /// Directory server to which the server will be reporting their presence data.
+    presence_directory_server: String,
 
+
+    /// Directory server to which the server will be reporting their metrics data.
+    metrics_directory_server: String,
+
+impl Debug {
+    fn default_directory_server() -> String {
+        #[cfg(feature = "qa")]
+        return "https://qa-directory.nymtech.net".to_string();
+        #[cfg(feature = "local")]
+        return "http://localhost:8080".to_string();
+
+        "https://directory.nymtech.net".to_string()
+    }
+}
 impl Default for Debug {
     fn default() -> Self {
-        Debug {}
+        Debug {
+            presence_directory_server: Self::default_directory_server(),
+            metrics_directory_server: Self::default_directory_server(),
     }
 }
 

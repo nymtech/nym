@@ -93,7 +93,15 @@ pub fn execute(matches: &ArgMatches) {
         show_binding_warning(listening_ip_string);
     }
 
-    println!("Directory server: {}", config.get_directory_server());
+    println!(
+        "Directory server [presence]: {}",
+        config.get_presence_directory_server()
+    );
+    println!(
+        "Directory server [metrics]: {}",
+        config.get_metrics_directory_server()
+    );
+
     println!(
         "Listening for incoming packets on {}",
         config.get_listening_address()

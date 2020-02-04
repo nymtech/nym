@@ -40,12 +40,16 @@ impl PemStorableKeyPair for MixIdentityKeyPair {
     type PrivatePemKey = MixIdentityPrivateKey;
     type PublicPemKey = MixIdentityPublicKey;
 
-    fn private_pem_key(&self) -> &Self::PrivatePemKey {
+    fn private_key(&self) -> &Self::PrivatePemKey {
         self.private_key()
     }
 
-    fn public_pem_key(&self) -> &Self::PublicPemKey {
+    fn public_key(&self) -> &Self::PublicPemKey {
         self.public_key()
+    }
+
+    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self {
+        Self::from_bytes(priv_bytes, pub_bytes)
     }
 }
 
@@ -82,6 +86,10 @@ impl PemStorableKey for MixIdentityPublicKey {
     fn pem_type(&self) -> String {
         format!("DUMMY KEY BASED ON {}", self.0.pem_type())
     }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_bytes()
+    }
 }
 
 // COPY IS DERIVED ONLY TEMPORARILY UNTIL https://github.com/nymtech/nym/issues/47 is fixed
@@ -117,5 +125,9 @@ impl MixIdentityPrivateKey {
 impl PemStorableKey for MixIdentityPrivateKey {
     fn pem_type(&self) -> String {
         format!("DUMMY KEY BASED ON {}", self.0.pem_type())
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_bytes()
     }
 }

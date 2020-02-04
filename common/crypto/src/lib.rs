@@ -1,17 +1,22 @@
 pub mod encryption;
 pub mod identity;
 
-// TODO: this trait will need to be moved elsewhere, probably to some 'persistence' crate
-// but since it will need to be used by all identities, it's not really appropriate if it lived in nym-client
+// TODO: ideally those trait should be moved to 'pemstore' crate, however, that would cause
+// circular dependency. The best solution would be to remove dependency on 'crypto' from
+// pemstore by using either dynamic dispatch or generics - perhaps this should be done
+// at some point during one of refactors.
 
 pub trait PemStorableKey {
     fn pem_type(&self) -> String;
+    fn to_bytes(&self) -> Vec<u8>;
 }
 
 pub trait PemStorableKeyPair {
     type PrivatePemKey: PemStorableKey;
     type PublicPemKey: PemStorableKey;
 
-    fn private_pem_key(&self) -> &Self::PrivatePemKey;
-    fn public_pem_key(&self) -> &Self::PublicPemKey;
+    fn private_key(&self) -> &Self::PrivatePemKey;
+    fn public_key(&self) -> &Self::PublicPemKey;
+
+    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self;
 }

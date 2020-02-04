@@ -43,12 +43,16 @@ impl PemStorableKeyPair for KeyPair {
     type PrivatePemKey = PrivateKey;
     type PublicPemKey = PublicKey;
 
-    fn private_pem_key(&self) -> &Self::PrivatePemKey {
+    fn private_key(&self) -> &Self::PrivatePemKey {
         self.private_key()
     }
 
-    fn public_pem_key(&self) -> &Self::PublicPemKey {
+    fn public_key(&self) -> &Self::PublicPemKey {
         self.public_key()
+    }
+
+    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self {
+        Self::from_bytes(priv_bytes, pub_bytes)
     }
 }
 
@@ -73,6 +77,10 @@ impl PrivateKey {
 impl PemStorableKey for PrivateKey {
     fn pem_type(&self) -> String {
         String::from("X25519 PRIVATE KEY")
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_bytes()
     }
 }
 
@@ -101,5 +109,9 @@ impl PublicKey {
 impl PemStorableKey for PublicKey {
     fn pem_type(&self) -> String {
         String::from("X25519 PUBLIC KEY")
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_bytes()
     }
 }

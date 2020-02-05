@@ -43,26 +43,26 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("announce-mix-host")
-                .long("announce-mix-host")
+            Arg::with_name("mix-announce-host")
+                .long("mix-announce-host")
                 .help("The host that will be reported to the directory server")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("announce-mix-port")
-                .long("announce-mix-port")
+            Arg::with_name("mix-announce-port")
+                .long("mix-announce-port")
                 .help("The port that will be reported to the directory server")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("announce-clients-host")
-                .long("announce-clients-host")
+            Arg::with_name("clients-announce-host")
+                .long("clients-announce-host")
                 .help("The host that will be reported to the directory server")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("announce-clients-port")
-                .long("announce-clients-port")
+            Arg::with_name("clients-announce-port")
+                .long("clients-announce-port")
                 .help("The port that will be reported to the directory server")
                 .takes_value(true),
         )

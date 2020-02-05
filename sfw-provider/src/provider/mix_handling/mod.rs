@@ -1,4 +1,5 @@
 use crate::provider::storage::StoreData;
+use crypto::encryption;
 use crypto::identity::MixIdentityPrivateKey;
 use log::{error, warn};
 use sphinx::{ProcessedPacket, SphinxPacket};
@@ -37,12 +38,12 @@ impl From<std::io::Error> for MixProcessingError {
 // ProcessingData defines all data required to correctly unwrap sphinx packets
 #[derive(Debug, Clone)]
 pub(crate) struct MixProcessingData {
-    secret_key: MixIdentityPrivateKey,
+    secret_key: encryption::PrivateKey,
     pub(crate) store_dir: PathBuf,
 }
 
 impl MixProcessingData {
-    pub(crate) fn new(secret_key: MixIdentityPrivateKey, store_dir: PathBuf) -> Self {
+    pub(crate) fn new(secret_key: encryption::PrivateKey, store_dir: PathBuf) -> Self {
         MixProcessingData {
             secret_key,
             store_dir,
@@ -70,7 +71,7 @@ impl MixPacketProcessor {
             }
         };
         let (client_address, client_surb_id, payload) =
-            match packet.process(read_processing_data.secret_key.as_scalar()) {
+            match packet.process(read_processing_data.secret_key.inner()) {
                 Ok(ProcessedPacket::ProcessedPacketFinalHop(client_address, surb_id, payload)) => {
                     (client_address, surb_id, payload)
                 }

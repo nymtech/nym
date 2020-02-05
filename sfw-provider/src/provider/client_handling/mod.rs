@@ -1,5 +1,6 @@
 use crate::provider::storage::{ClientStorage, StoreError};
 use crate::provider::ClientLedger;
+use crypto::encryption;
 use crypto::identity::MixIdentityPrivateKey;
 use futures::lock::Mutex as FMutex;
 use hmac::{Hmac, Mac};
@@ -54,14 +55,14 @@ impl From<io::Error> for ClientProcessingError {
 pub(crate) struct ClientProcessingData {
     store_dir: PathBuf,
     registered_clients_ledger: Arc<FMutex<ClientLedger>>,
-    secret_key: MixIdentityPrivateKey,
+    secret_key: encryption::PrivateKey,
 }
 
 impl ClientProcessingData {
     pub(crate) fn new(
         store_dir: PathBuf,
         registered_clients_ledger: Arc<FMutex<ClientLedger>>,
-        secret_key: MixIdentityPrivateKey,
+        secret_key: encryption::PrivateKey,
     ) -> Self {
         ClientProcessingData {
             store_dir,
@@ -132,7 +133,7 @@ impl ClientRequestProcessor {
 
         let auth_token = ClientRequestProcessor::generate_new_auth_token(
             req.destination_address.to_vec(),
-            processing_data.secret_key,
+            &processing_data.secret_key,
         );
         if !unlocked_ledger.has_token(&auth_token) {
             unlocked_ledger.insert_token(auth_token.clone(), req.destination_address);
@@ -153,7 +154,7 @@ impl ClientRequestProcessor {
         std::fs::create_dir_all(full_store_dir)
     }
 
-    fn generate_new_auth_token(data: Vec<u8>, key: MixIdentityPrivateKey) -> AuthToken {
+    fn generate_new_auth_token(data: Vec<u8>, key: &encryption::PrivateKey) -> AuthToken {
         // also note that `new_varkey` doesn't even have an execution branch returning an error
         let mut auth_token_raw = HmacSha256::new_varkey(&key.to_bytes())
             .expect("HMAC should be able take key of any size");

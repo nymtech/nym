@@ -161,24 +161,6 @@ pub fn execute(matches: &ArgMatches) {
         config.get_clients_ledger_path()
     );
 
-    // key will be loaded directly provider in just a moment
-    let key_pair = ServiceProvider::load_sphinx_keys(&config);
-
-    // stupid temporary hack
-    let private_bytes = key_pair.private_key().to_bytes();
-    let public_bytes = key_pair.public_key().to_bytes();
-
-    let old_startup_config = provider::Config {
-        client_socket_address: config.get_clients_listening_address(),
-        directory_server: config.get_presence_directory_server(),
-        mix_socket_address: config.get_mix_listening_address(),
-        // identity keys are wrapper for encryption keys so this temporary hack will work to just make it compile once
-        public_key: MixIdentityPublicKey::from_bytes(public_bytes.as_ref()),
-        secret_key: MixIdentityPrivateKey::from_bytes(private_bytes.as_ref()),
-        store_dir: Default::default(),
-    };
-
-    let provider = ServiceProvider::new(old_startup_config);
-
+    let provider = ServiceProvider::new(config);
     provider.start().unwrap()
 }

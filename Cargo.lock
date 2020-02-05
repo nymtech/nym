@@ -1512,7 +1512,6 @@ dependencies = [
  "serde",
  "tempfile",
  "tokio 0.2.10",
- "toml",
  "topology",
 ]
 

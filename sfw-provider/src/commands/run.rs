@@ -30,7 +30,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .long("mix-host")
                 .help("The custom host on which the service provider will be running for receiving sphinx packets")
                 .takes_value(true)
-                .required(true),
         )
         .arg(
             Arg::with_name("mix-port")
@@ -43,7 +42,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .long("clients-host")
                 .help("The custom host on which the service provider will be running for receiving clients sfw-provider-requests")
                 .takes_value(true)
-                .required(true),
         )
         .arg(
             Arg::with_name("clients-port")

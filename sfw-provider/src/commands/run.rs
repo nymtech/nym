@@ -111,7 +111,7 @@ fn special_addresses() -> Vec<&'static str> {
 pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
 
-    println!("Starting mixnode {}...", id);
+    println!("Starting sfw-provider {}...", id);
 
     let mut config =
         Config::load_from_file(matches.value_of("config").map(|path| path.into()), Some(id))

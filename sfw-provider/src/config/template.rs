@@ -26,6 +26,7 @@ nym_root_directory = "{{ provider.nym_root_directory }}"
 
 ##### Mixnet endpoint config options #####
 
+[mixnet_endpoint]
 # Socket address to which this service provider will bind to
 # and will be listening for sphinx packets coming from the mixnet.
 listening_address = "{{ mixnet_endpoint.listening_address }}"
@@ -41,6 +42,7 @@ announce_address = "{{ mixnet_endpoint.announce_address }}"
 
 #### Clients endpoint config options #####
 
+[clients_endpoint]
 # Socket address to which this service provider will bind to
 # and will be listening for sphinx packets coming from the mixnet.
 listening_address = "{{ clients_endpoint.listening_address }}"
@@ -58,7 +60,7 @@ inboxes_directory = "{{ clients_endpoint.inboxes_directory }}"
 
 # [TODO: implement its storage] Full path to a file containing mapping of
 # client addresses to their access tokens.
-ledger_path = {{ clients_endpoint.ledger_path }}"
+ledger_path = "{{ clients_endpoint.ledger_path }}"
 
 
 ##### logging configuration options #####

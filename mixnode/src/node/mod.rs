@@ -4,8 +4,6 @@ use crate::mix_peer::MixPeer;
 use crate::node;
 use crate::node::metrics::MetricsReporter;
 use crypto::encryption;
-use curve25519_dalek::montgomery::MontgomeryPoint;
-use curve25519_dalek::scalar::Scalar;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::SinkExt;
@@ -65,14 +63,14 @@ impl ForwardingData {
 
 // ProcessingData defines all data required to correctly unwrap sphinx packets
 struct ProcessingData {
-    secret_key: Scalar,
+    secret_key: encryption::PrivateKey,
     received_metrics_tx: mpsc::Sender<()>,
     sent_metrics_tx: mpsc::Sender<String>,
 }
 
 impl ProcessingData {
     fn new(
-        secret_key: Scalar,
+        secret_key: encryption::PrivateKey,
         received_metrics_tx: mpsc::Sender<()>,
         sent_metrics_tx: mpsc::Sender<String>,
     ) -> Self {
@@ -108,7 +106,7 @@ impl PacketProcessor {
 
         let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
         let (next_packet, next_hop_address, delay) =
-            match packet.process(processing_data.secret_key) {
+            match packet.process(processing_data.secret_key.inner()) {
                 Ok(ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay)) => {
                     (packet, address, delay)
                 }
@@ -280,12 +278,9 @@ impl MixNode {
         rt.block_on(async {
             let mut listener =
                 tokio::net::TcpListener::bind(self.config.get_listening_address()).await?;
-            let processing_data = ProcessingData::new(
-                self.sphinx_keypair.private_key().inner(),
-                received_tx,
-                sent_tx,
-            )
-            .add_arc_mutex();
+            let processing_data =
+                ProcessingData::new(*self.sphinx_keypair.private_key(), received_tx, sent_tx)
+                    .add_arc_mutex();
 
             loop {
                 let (socket, _) = listener.accept().await?;

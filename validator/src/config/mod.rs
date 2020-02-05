@@ -9,8 +9,15 @@ use std::time;
 
 mod template;
 
-// 'DEBUG'
 // where applicable, the below are defined in milliseconds
+
+// 'MIXMINING'
+const DEFAULT_MIX_MINING_DELAY: u64 = 10_000;
+const DEFAULT_MIX_MINING_RESOLUTION_TIMEOUT: u64 = 5_000;
+
+const DEFAULT_NUMBER_OF_MIX_MINING_TEST_PACKETS: u64 = 2;
+
+// 'DEBUG'
 const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 3000;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -64,6 +71,15 @@ impl NymConfig for Config {
 }
 
 impl Config {
+    fn default_directory_server() -> String {
+        #[cfg(feature = "qa")]
+            return "https://qa-directory.nymtech.net".to_string();
+        #[cfg(feature = "local")]
+            return "http://localhost:8080".to_string();
+
+        "https://directory.nymtech.net".to_string()
+    }
+    
     pub fn new<S: Into<String>>(id: S) -> Self {
         Config::default().with_id(id)
     }
@@ -81,12 +97,37 @@ impl Config {
     pub fn with_custom_directory<S: Into<String>>(mut self, directory_server: S) -> Self {
         let directory_server_string = directory_server.into();
         self.debug.presence_directory_server = directory_server_string.clone();
+        self.mix_mining.directory_server = directory_server_string;
         self
     }
 
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
+    }
+    
+    pub fn get_mix_mining_directory_server(&self) -> String {
+        self.mix_mining.directory_server.clone()
+    }
+    
+    pub fn get_presence_directory_server(&self) -> String {
+        self.debug.presence_directory_server.clone()
+    }
+    
+    pub fn get_presence_sending_delay(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.presence_sending_delay)
+    }
+    
+    pub fn get_mix_mining_run_delay(&self) -> time::Duration {
+        time::Duration::from_millis(self.mix_mining.run_delay)
+    }
+    
+    pub fn get_mix_mining_resolution_timeout(&self) -> time::Duration {
+        time::Duration::from_millis(self.mix_mining.resolution_timeout)
+    }
+    
+    pub fn get_mix_mining_number_of_test_packets(&self) -> u64 {   
+        self.mix_mining.number_of_test_packets
     }
 }
 
@@ -114,11 +155,32 @@ impl Default for Validator {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct MixMining {}
+pub struct MixMining {
+    /// Directory server from which the validator will obtain initial topology.
+    directory_server: String,
+
+    /// The uniform delay every which validator are running their mix-mining procedure.
+    /// The provided value is interpreted as milliseconds.
+    run_delay: u64,
+
+    /// During the mix-mining process, test packets are sent through various network
+    /// paths. This timeout determines waiting period until it is decided that the packet
+    /// did not reach its destination.
+    /// The provided value is interpreted as milliseconds.
+    resolution_timeout: u64,
+
+    /// How many packets should be sent through each path during the mix-mining procedure.
+    number_of_test_packets: u64,
+}
 
 impl Default for MixMining {
     fn default() -> Self {
-        MixMining {}
+        MixMining {
+            directory_server: Config::default_directory_server(),
+            run_delay: DEFAULT_MIX_MINING_DELAY,
+            resolution_timeout: DEFAULT_MIX_MINING_RESOLUTION_TIMEOUT,
+            number_of_test_packets: DEFAULT_NUMBER_OF_MIX_MINING_TEST_PACKETS,
+        }
     }
 }
 
@@ -153,20 +215,13 @@ pub struct Debug {
 }
 
 impl Debug {
-    fn default_directory_server() -> String {
-        #[cfg(feature = "qa")]
-        return "https://qa-directory.nymtech.net".to_string();
-        #[cfg(feature = "local")]
-        return "http://localhost:8080".to_string();
 
-        "https://directory.nymtech.net".to_string()
-    }
 }
 
 impl Default for Debug {
     fn default() -> Self {
         Debug {
-            presence_directory_server: Self::default_directory_server(),
+            presence_directory_server: Config::default_directory_server(),
             presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
         }
     }

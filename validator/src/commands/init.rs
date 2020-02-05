@@ -8,7 +8,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         .arg(
             Arg::with_name("id")
                 .long("id")
-                .help("Id of the nym-mixnode we want to create config for.")
+                .help("Id of the nym-validator we want to create config for.")
                 .takes_value(true)
                 .required(true),
         )

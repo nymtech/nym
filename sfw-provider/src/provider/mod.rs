@@ -1,11 +1,14 @@
+use crate::config::persistance::pathfinder::ProviderPathfinder;
 use crate::provider::client_handling::{ClientProcessingData, ClientRequestProcessor};
 use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
 use crate::provider::storage::ClientStorage;
+use crypto::encryption;
 use crypto::identity::{MixIdentityPrivateKey, MixIdentityPublicKey};
 use directory_client::presence::providers::MixProviderClient;
 use futures::io::Error;
 use futures::lock::Mutex as FMutex;
 use log::*;
+use pemstore::pemstore::PemStore;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use std::collections::HashMap;
@@ -274,6 +277,18 @@ impl ServiceProvider {
                     .await
             });
         }
+    }
+
+    // TODO: make private and change config import path
+    pub fn load_sphinx_keys(config_file: &crate::config::Config) -> encryption::KeyPair {
+        let sphinx_keypair = PemStore::new(ProviderPathfinder::new_from_config(&config_file))
+            .read_encryption()
+            .expect("Failed to read stored sphinx key files");
+        println!(
+            "Public encryption key: {}\nFor time being, it is identical to identity keys",
+            sphinx_keypair.public_key().to_base58_string()
+        );
+        sphinx_keypair
     }
 
     // Note: this now consumes the provider

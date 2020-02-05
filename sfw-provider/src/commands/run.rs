@@ -22,7 +22,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         .arg(
             Arg::with_name("config")
                 .long("config")
-                .help("Custom path to the nym-mixnet-client configuration file")
+                .help("Custom path to the nym-provider configuration file")
                 .takes_value(true),
         )
         .arg(

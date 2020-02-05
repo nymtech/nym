@@ -2,10 +2,11 @@ use crate::validator::Config;
 use crate::validator::Validator;
 use clap::{App, Arg, ArgMatches, SubCommand};
 use log::*;
-use std::process;
 use toml;
 
 pub mod built_info;
+mod commands;
+mod config;
 mod network;
 mod services;
 mod validator;
@@ -18,6 +19,7 @@ fn main() {
         .version(built_info::PKG_VERSION)
         .author("Nymtech")
         .about("Implementation of Nym Validator")
+        .subcommand(commands::init::command_args())
         .subcommand(
             SubCommand::with_name("run")
                 .about("Starts the validator")
@@ -31,10 +33,7 @@ fn main() {
         )
         .get_matches();
 
-    if let Err(e) = execute(arg_matches) {
-        error!("{:?}", e);
-        process::exit(1);
-    }
+    execute(arg_matches);
 }
 
 fn run(matches: &ArgMatches) {
@@ -52,11 +51,11 @@ fn parse_config(matches: &ArgMatches) -> Config {
     toml::from_str(&config_content).unwrap()
 }
 
-
-fn execute(matches: ArgMatches) -> Result<(), String> {
+fn execute(matches: ArgMatches) {
     match matches.subcommand() {
-        ("run", Some(m)) => Ok(run(m)),
-        _ => Err(usage()),
+        ("init", Some(m)) => commands::init::execute(m),
+        ("run", Some(m)) => run(m),
+        _ => println!("{}", usage()),
     }
 }
 

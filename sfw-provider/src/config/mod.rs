@@ -387,7 +387,7 @@ pub struct ClientsEndpoint {
     /// Path to the directory with clients inboxes containing messages stored for them.
     inboxes_directory: PathBuf,
 
-    /// [TODO: implement its storage] Full path to a aile containing mapping of
+    /// [TODO: implement its storage] Full path to a file containing mapping of
     /// client addresses to their access tokens.
     ledger_path: PathBuf,
 }

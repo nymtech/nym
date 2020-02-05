@@ -1,8 +1,4 @@
-use crate::validator::Config;
-use crate::validator::Validator;
-use clap::{App, Arg, ArgMatches, SubCommand};
-use log::*;
-use toml;
+use clap::{App, ArgMatches};
 
 pub mod built_info;
 mod commands;

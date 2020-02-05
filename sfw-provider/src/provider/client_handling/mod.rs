@@ -250,9 +250,9 @@ mod generating_new_auth_token {
     fn for_the_same_input_generates_the_same_auth_token() {
         let data1 = vec![1u8; 55];
         let data2 = vec![1u8; 55];
-        let key = MixIdentityPrivateKey::from_bytes(&[1u8; 32]);
-        let token1 = ClientRequestProcessor::generate_new_auth_token(data1, key);
-        let token2 = ClientRequestProcessor::generate_new_auth_token(data2, key);
+        let key = encryption::PrivateKey::from_bytes(&[1u8; 32]);
+        let token1 = ClientRequestProcessor::generate_new_auth_token(data1, &key);
+        let token2 = ClientRequestProcessor::generate_new_auth_token(data2, &key);
         assert_eq!(token1, token2);
     }
 
@@ -260,16 +260,16 @@ mod generating_new_auth_token {
     fn for_different_inputs_generates_different_auth_tokens() {
         let data1 = vec![1u8; 55];
         let data2 = vec![2u8; 55];
-        let key = MixIdentityPrivateKey::from_bytes(&[1u8; 32]);
-        let token1 = ClientRequestProcessor::generate_new_auth_token(data1, key);
-        let token2 = ClientRequestProcessor::generate_new_auth_token(data2, key);
+        let key = encryption::PrivateKey::from_bytes(&[1u8; 32]);
+        let token1 = ClientRequestProcessor::generate_new_auth_token(data1, &key);
+        let token2 = ClientRequestProcessor::generate_new_auth_token(data2, &key);
         assert_ne!(token1, token2);
 
         let data1 = vec![1u8; 50];
         let data2 = vec![2u8; 55];
-        let key = MixIdentityPrivateKey::from_bytes(&[1u8; 32]);
-        let token1 = ClientRequestProcessor::generate_new_auth_token(data1, key);
-        let token2 = ClientRequestProcessor::generate_new_auth_token(data2, key);
+        let key = encryption::PrivateKey::from_bytes(&[1u8; 32]);
+        let token1 = ClientRequestProcessor::generate_new_auth_token(data1, &key);
+        let token2 = ClientRequestProcessor::generate_new_auth_token(data2, &key);
         assert_ne!(token1, token2);
     }
 }

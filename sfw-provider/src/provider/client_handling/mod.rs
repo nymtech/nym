@@ -56,6 +56,7 @@ pub(crate) struct ClientProcessingData {
     store_dir: PathBuf,
     registered_clients_ledger: Arc<FMutex<ClientLedger>>,
     secret_key: encryption::PrivateKey,
+    message_retrieval_limit: u16,
 }
 
 impl ClientProcessingData {
@@ -63,11 +64,13 @@ impl ClientProcessingData {
         store_dir: PathBuf,
         registered_clients_ledger: Arc<FMutex<ClientLedger>>,
         secret_key: encryption::PrivateKey,
+        message_retrieval_limit: u16,
     ) -> Self {
         ClientProcessingData {
             store_dir,
             registered_clients_ledger,
             secret_key,
+            message_retrieval_limit,
         }
     }
 
@@ -114,6 +117,7 @@ impl ClientRequestProcessor {
             let retrieved_messages = ClientStorage::retrieve_client_files(
                 req.destination_address,
                 processing_data.store_dir.as_path(),
+                processing_data.message_retrieval_limit,
             )?;
             Ok(PullResponse::new(retrieved_messages))
         } else {

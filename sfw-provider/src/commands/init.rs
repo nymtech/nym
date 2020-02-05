@@ -3,7 +3,6 @@ use crate::config::persistance::pathfinder::ProviderPathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::encryption;
-use crypto::identity::MixIdentityKeyPair;
 use pemstore::pemstore::PemStore;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {

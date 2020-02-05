@@ -25,10 +25,6 @@ mod mix_handling;
 pub mod presence;
 mod storage;
 
-// TODO: if we ever create config file, this should go there
-const STORED_MESSAGE_FILENAME_LENGTH: usize = 16;
-const MESSAGE_RETRIEVAL_LIMIT: usize = 5;
-
 #[derive(Debug)]
 pub enum ProviderError {
     TcpListenerBindingError,
@@ -238,9 +234,12 @@ impl ServiceProvider {
         address: SocketAddr,
         secret_key: encryption::PrivateKey,
         store_dir: PathBuf,
+        new_messages_filename_length: u16,
     ) -> Result<(), ProviderError> {
         let mut listener = tokio::net::TcpListener::bind(address).await?;
-        let processing_data = MixProcessingData::new(secret_key, store_dir).add_arc_rwlock();
+        let processing_data =
+            MixProcessingData::new(secret_key, store_dir, new_messages_filename_length)
+                .add_arc_rwlock();
 
         loop {
             let (socket, _) = listener.accept().await?;
@@ -259,10 +258,16 @@ impl ServiceProvider {
         store_dir: PathBuf,
         client_ledger: Arc<FMutex<ClientLedger>>,
         secret_key: encryption::PrivateKey,
+        message_retrieval_limit: u16,
     ) -> Result<(), ProviderError> {
         let mut listener = tokio::net::TcpListener::bind(address).await?;
-        let processing_data =
-            ClientProcessingData::new(store_dir, client_ledger, secret_key).add_arc();
+        let processing_data = ClientProcessingData::new(
+            store_dir,
+            client_ledger,
+            secret_key,
+            message_retrieval_limit,
+        )
+        .add_arc();
 
         loop {
             let (socket, _) = listener.accept().await?;
@@ -303,12 +308,14 @@ impl ServiceProvider {
             self.config.get_mix_listening_address(),
             *self.sphinx_keypair.private_key(),
             self.config.get_clients_inboxes_dir(),
+            self.config.get_stored_messages_filename_length(),
         ));
         let client_future = rt.spawn(ServiceProvider::start_client_listening(
             self.config.get_clients_listening_address(),
             self.config.get_clients_inboxes_dir(),
             thread_shareable_ledger,
             *self.sphinx_keypair.private_key(),
+            self.config.get_message_retrieval_limit(),
         ));
         // Spawn the root task
         rt.block_on(async {

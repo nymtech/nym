@@ -40,13 +40,19 @@ impl From<std::io::Error> for MixProcessingError {
 pub(crate) struct MixProcessingData {
     secret_key: encryption::PrivateKey,
     pub(crate) store_dir: PathBuf,
+    new_messages_filename_length: u16,
 }
 
 impl MixProcessingData {
-    pub(crate) fn new(secret_key: encryption::PrivateKey, store_dir: PathBuf) -> Self {
+    pub(crate) fn new(
+        secret_key: encryption::PrivateKey,
+        store_dir: PathBuf,
+        new_messages_filename_length: u16,
+    ) -> Self {
         MixProcessingData {
             secret_key,
             store_dir,
+            new_messages_filename_length,
         }
     }
 
@@ -91,6 +97,11 @@ impl MixPacketProcessor {
             return Err(MixProcessingError::NonMatchingRecipient);
         }
 
-        Ok(StoreData::new(client_address, client_surb_id, message))
+        Ok(StoreData::new(
+            client_address,
+            client_surb_id,
+            message,
+            read_processing_data.new_messages_filename_length,
+        ))
     }
 }

@@ -13,7 +13,7 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
         .arg(
             Arg::with_name("id")
                 .long("id")
-                .help("Id of the nym-mixnode we want to create config for.")
+                .help("Id of the nym-mixnode we want to run")
                 .takes_value(true)
                 .required(true),
         )

@@ -5,6 +5,7 @@ use log::*;
 use std::process;
 use toml;
 
+pub mod built_info;
 mod network;
 mod services;
 mod validator;
@@ -51,10 +52,6 @@ fn parse_config(matches: &ArgMatches) -> Config {
     toml::from_str(&config_content).unwrap()
 }
 
-pub mod built_info {
-    // The file has been placed there by the build script.
-    include!(concat!(env!("OUT_DIR"), "/built.rs"));
-}
 
 fn execute(matches: ArgMatches) -> Result<(), String> {
     match matches.subcommand() {

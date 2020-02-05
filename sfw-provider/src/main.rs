@@ -15,6 +15,7 @@ fn main() {
         .version(built_info::PKG_VERSION)
         .author("Nymtech")
         .about("Implementation of the Loopix-based Service Provider")
+        .subcommand(commands::init::command_args())
         .subcommand(commands::run::command_args())
         .get_matches();
 
@@ -23,6 +24,7 @@ fn main() {
 
 fn execute(matches: ArgMatches) {
     match matches.subcommand() {
+        ("init", Some(m)) => commands::init::execute(m),
         ("run", Some(m)) => commands::run::execute(m),
         _ => println!("{}", usage()),
     }

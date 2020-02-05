@@ -248,6 +248,16 @@ impl Config {
         self
     }
 
+    pub fn with_custom_clients_inboxes<S: Into<String>>(mut self, inboxes_dir: S) -> Self {
+        self.clients_endpoint.inboxes_directory = PathBuf::from(inboxes_dir.into());
+        self
+    }
+
+    pub fn with_custom_clients_ledger<S: Into<String>>(mut self, ledger_path: S) -> Self {
+        self.clients_endpoint.ledger_path = PathBuf::from(ledger_path.into());
+        self
+    }
+
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
@@ -283,6 +293,14 @@ impl Config {
 
     pub fn get_clients_announce_address(&self) -> String {
         self.clients_endpoint.announce_address.clone()
+    }
+
+    pub fn get_clients_inboxes_dir(&self) -> PathBuf {
+        self.clients_endpoint.inboxes_directory.clone()
+    }
+
+    pub fn get_clients_ledger_path(&self) -> PathBuf {
+        self.clients_endpoint.ledger_path.clone()
     }
 }
 

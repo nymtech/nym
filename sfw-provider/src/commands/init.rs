@@ -30,16 +30,16 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("client-host")
-                .long("client-host")
-                .help("The custom host on which the service provider will be running for receiving client sfw-provider-requests")
+            Arg::with_name("clients-host")
+                .long("clients-host")
+                .help("The custom host on which the service provider will be running for receiving clients sfw-provider-requests")
                 .takes_value(true)
                 .required(true),
         )
         .arg(
-            Arg::with_name("client-port")
-                .long("client-port")
-                .help("The port on which the service provider will be listening for client sfw-provider-requests")
+            Arg::with_name("clients-port")
+                .long("clients-port")
+                .help("The port on which the service provider will be listening for clients sfw-provider-requests")
                 .takes_value(true)
         )
         .arg(

@@ -307,7 +307,7 @@ impl Config {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Provider {
-    /// ID specifies the human readable ID of this particular mixnode.
+    /// ID specifies the human readable ID of this particular provider.
     id: String,
 
     /// Path to file containing private sphinx key.
@@ -456,7 +456,7 @@ impl Default for Debug {
 }
 
 #[cfg(test)]
-mod mixnode_config {
+mod provider_config {
     use super::*;
 
     #[test]

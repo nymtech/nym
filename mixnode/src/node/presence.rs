@@ -5,12 +5,6 @@ use directory_client::DirectoryClient;
 use log::{debug, error};
 use std::time::Duration;
 
-pub struct Notifier {
-    pub net_client: directory_client::Client,
-    presence: MixNodePresence,
-    sending_delay: Duration,
-}
-
 pub struct NotifierConfig {
     directory_server: String,
     announce_host: String,
@@ -35,6 +29,12 @@ impl NotifierConfig {
             sending_delay,
         }
     }
+}
+
+pub struct Notifier {
+    net_client: directory_client::Client,
+    presence: MixNodePresence,
+    sending_delay: Duration,
 }
 
 impl Notifier {

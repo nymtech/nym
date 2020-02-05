@@ -82,5 +82,13 @@ presence_directory_server = "{{ debug.presence_directory_server}}"
 # Delay between each subsequent presence data being sent.
 presence_sending_delay = {{ debug.presence_sending_delay }}
 
+# Length of filenames for new client messages.
+stored_messages_filename_length = {{ debug.stored_messages_filename_length }}
+
+# number of messages client gets on each request
+# if there are no real messages, dummy ones are create to always return  
+# `message_retrieval_limit` total messages
+message_retrieval_limit = {{ debug.message_retrieval_limit }}
+
 "#
 }

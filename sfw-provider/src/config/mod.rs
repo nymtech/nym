@@ -17,6 +17,9 @@ const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
 // where applicable, the below are defined in milliseconds
 const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 3000;
 
+const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
+const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: u16 = 5;
+
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
@@ -302,6 +305,14 @@ impl Config {
     pub fn get_clients_ledger_path(&self) -> PathBuf {
         self.clients_endpoint.ledger_path.clone()
     }
+
+    pub fn get_message_retrieval_limit(&self) -> u16 {
+        self.debug.message_retrieval_limit
+    }
+
+    pub fn get_stored_messages_filename_length(&self) -> u16 {
+        self.debug.stored_messages_filename_length
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -433,6 +444,14 @@ pub struct Debug {
 
     /// Delay between each subsequent presence data being sent.
     presence_sending_delay: u64,
+
+    /// Length of filenames for new client messages.
+    stored_messages_filename_length: u16,
+
+    /// number of messages client gets on each request
+    /// if there are no real messages, dummy ones are create to always return  
+    /// `message_retrieval_limit` total messages
+    message_retrieval_limit: u16,
 }
 
 impl Debug {
@@ -451,6 +470,8 @@ impl Default for Debug {
         Debug {
             presence_directory_server: Self::default_directory_server(),
             presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
+            stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
+            message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
         }
     }
 }

@@ -1,7 +1,7 @@
 use crate::path_check::{PathChecker, PathStatus};
 use crate::score::NodeScore;
 use crypto::identity::MixIdentityKeyPair;
-use log::{debug, error, info, warn};
+use log::{debug, error, warn};
 use rand_os::rand_core::RngCore;
 use sphinx::route::NodeAddressBytes;
 use std::collections::HashMap;

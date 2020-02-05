@@ -1,10 +1,7 @@
 use crate::config::template::config_template;
 use config::NymConfig;
-use log::*;
 use serde::{Deserialize, Serialize};
-use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::time;
 
 mod template;
@@ -73,13 +70,13 @@ impl NymConfig for Config {
 impl Config {
     fn default_directory_server() -> String {
         #[cfg(feature = "qa")]
-            return "https://qa-directory.nymtech.net".to_string();
+        return "https://qa-directory.nymtech.net".to_string();
         #[cfg(feature = "local")]
-            return "http://localhost:8080".to_string();
+        return "http://localhost:8080".to_string();
 
         "https://directory.nymtech.net".to_string()
     }
-    
+
     pub fn new<S: Into<String>>(id: S) -> Self {
         Config::default().with_id(id)
     }
@@ -105,28 +102,31 @@ impl Config {
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
     }
-    
+
     pub fn get_mix_mining_directory_server(&self) -> String {
         self.mix_mining.directory_server.clone()
     }
-    
+
+    // dead_code until validator actually sends the presence data
+    #[allow(dead_code)]
     pub fn get_presence_directory_server(&self) -> String {
         self.debug.presence_directory_server.clone()
     }
-    
+
+    #[allow(dead_code)]
     pub fn get_presence_sending_delay(&self) -> time::Duration {
         time::Duration::from_millis(self.debug.presence_sending_delay)
     }
-    
+
     pub fn get_mix_mining_run_delay(&self) -> time::Duration {
         time::Duration::from_millis(self.mix_mining.run_delay)
     }
-    
+
     pub fn get_mix_mining_resolution_timeout(&self) -> time::Duration {
         time::Duration::from_millis(self.mix_mining.resolution_timeout)
     }
-    
-    pub fn get_mix_mining_number_of_test_packets(&self) -> u64 {   
+
+    pub fn get_mix_mining_number_of_test_packets(&self) -> u64 {
         self.mix_mining.number_of_test_packets
     }
 }
@@ -214,9 +214,7 @@ pub struct Debug {
     presence_sending_delay: u64,
 }
 
-impl Debug {
-
-}
+impl Debug {}
 
 impl Default for Debug {
     fn default() -> Self {

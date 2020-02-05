@@ -10,18 +10,6 @@ pub struct ProviderPathfinder {
 }
 
 impl ProviderPathfinder {
-    pub fn new(id: String) -> Self {
-        let os_config_dir = dirs::config_dir().unwrap(); // grabs the OS default config dir
-        let config_dir = os_config_dir.join("nym").join("mixnodes").join(id);
-        let private_sphinx_key = config_dir.join("private.pem");
-        let public_sphinx_key = config_dir.join("public.pem");
-        ProviderPathfinder {
-            config_dir,
-            private_sphinx_key,
-            public_sphinx_key,
-        }
-    }
-
     pub fn new_from_config(config: &Config) -> Self {
         ProviderPathfinder {
             config_dir: config.get_config_file_save_location(),

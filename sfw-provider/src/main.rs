@@ -1,4 +1,4 @@
-use clap::{App, ArgMatches, SubCommand};
+use clap::{App, ArgMatches};
 
 pub mod built_info;
 mod commands;

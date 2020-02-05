@@ -1,7 +1,6 @@
 use crate::provider::storage::{ClientStorage, StoreError};
 use crate::provider::ClientLedger;
 use crypto::encryption;
-use crypto::identity::MixIdentityPrivateKey;
 use futures::lock::Mutex as FMutex;
 use hmac::{Hmac, Mac};
 use log::*;

@@ -1,12 +1,8 @@
 use crate::commands::override_config;
 use crate::config::Config;
-use crate::provider;
 use crate::provider::ServiceProvider;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::identity::{MixIdentityPrivateKey, MixIdentityPublicKey};
-use std::net::ToSocketAddrs;
-use std::path::PathBuf;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("run")

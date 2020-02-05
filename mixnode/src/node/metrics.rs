@@ -9,8 +9,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-const METRICS_INTERVAL: u64 = 3;
-
 #[derive(Debug)]
 pub struct MetricsReporter {
     received: u64,

@@ -1,11 +1,8 @@
 use crate::commands::override_config;
-use crate::config::persistance::pathfinder::MixNodePathfinder;
 use crate::config::Config;
-use crate::node;
 use crate::node::MixNode;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use pemstore::pemstore::PemStore;
 
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("run")

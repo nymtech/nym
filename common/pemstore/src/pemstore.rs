@@ -10,6 +10,7 @@ use std::io::prelude::*;
 use std::path::PathBuf;
 
 pub struct PemStore {
+    #[allow(dead_code)]
     config_dir: PathBuf,
     private_mix_key_file: PathBuf,
     public_mix_key_file: PathBuf,

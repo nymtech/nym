@@ -1,6 +1,4 @@
 use clap::{App, ArgMatches};
-use log::*;
-use std::process;
 
 pub mod built_info;
 mod commands;

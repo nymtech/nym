@@ -1,6 +1,5 @@
 use crate::provider::storage::StoreData;
 use crypto::encryption;
-use crypto::identity::MixIdentityPrivateKey;
 use log::{error, warn};
 use sphinx::{ProcessedPacket, SphinxPacket};
 use std::path::PathBuf;

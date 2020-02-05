@@ -1,7 +1,6 @@
 use crate::config::persistance::pathfinder::MixNodePathfinder;
 use crate::config::Config;
 use crate::mix_peer::MixPeer;
-use crate::node;
 use crate::node::metrics::MetricsReporter;
 use crypto::encryption;
 use futures::channel::mpsc;
@@ -11,7 +10,6 @@ use log::*;
 use pemstore::pemstore::PemStore;
 use sphinx::header::delays::Delay as SphinxDelay;
 use sphinx::{ProcessedPacket, SphinxPacket};
-use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::prelude::*;

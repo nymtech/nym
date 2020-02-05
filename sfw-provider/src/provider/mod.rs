@@ -4,7 +4,7 @@ use crate::provider::client_handling::{ClientProcessingData, ClientRequestProces
 use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
 use crate::provider::storage::ClientStorage;
 use crypto::encryption;
-use crypto::identity::{MixIdentityPrivateKey, MixIdentityPublicKey};
+use crypto::identity::MixIdentityPublicKey;
 use directory_client::presence::providers::MixProviderClient;
 use futures::io::Error;
 use futures::lock::Mutex as FMutex;

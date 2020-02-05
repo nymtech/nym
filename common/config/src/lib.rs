@@ -1,7 +1,7 @@
 use handlebars::Handlebars;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::{fs, io};
 
 pub trait NymConfig: Default + Serialize + DeserializeOwned {

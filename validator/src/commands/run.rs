@@ -24,7 +24,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         .arg(
             Arg::with_name("directory")
                 .long("directory")
-                .help("Address of the directory server the validator is sending presence to")
+                .help("Address of the directory server the validator is sending presence to and uses for mix mining")
                 .takes_value(true),
         )
 }

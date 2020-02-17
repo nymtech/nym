@@ -29,6 +29,7 @@ tungstenite = "0.9.2"
 
 ## internal
 addressing = {path = "../common/addressing" }
+config = {path = "../common/config"}
 crypto = {path = "../common/crypto"}
 directory-client = { path = "../common/clients/directory-client" }
 healthcheck = { path = "../common/healthcheck" }
@@ -39,7 +40,7 @@ sfw-provider-requests = { path = "../sfw-provider/sfw-provider-requests" }
 topology = {path = "../common/topology" }
 
 ## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="8424f4b0933b4a7f64ae828b2edefc5ba43a9e79" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="5862939c52e4dd76f836856a01787faec32152b4" }
 # sphinx = { path = "../../sphinx"}
 
 # putting this explicitly below everything and most likely, the next time we look into it, it will already have a proper release
@@ -47,3 +48,10 @@ tokio-tungstenite = { git = "https://github.com/snapview/tokio-tungstenite", rev
 
 [build-dependencies]
 built = "0.3.2"
+
+[dev-dependencies]
+tempfile = "3.1.0"
+
+[features]
+qa = []
+local = []

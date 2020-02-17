@@ -1,41 +1,62 @@
+use crate::built_info;
 use crate::provider::ClientLedger;
-use crypto::identity::MixIdentityPublicKey;
 use directory_client::presence::providers::MixProviderPresence;
 use directory_client::requests::presence_providers_post::PresenceMixProviderPoster;
 use directory_client::DirectoryClient;
 use futures::lock::Mutex as FMutex;
 use log::{debug, error};
-use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
+pub struct NotifierConfig {
+    directory_server: String,
+    mix_announce_host: String,
+    clients_announce_host: String,
+    pub_key_string: String,
+    sending_delay: Duration,
+}
+
+impl NotifierConfig {
+    pub fn new(
+        directory_server: String,
+        mix_announce_host: String,
+        clients_announce_host: String,
+        pub_key_string: String,
+        sending_delay: Duration,
+    ) -> Self {
+        NotifierConfig {
+            directory_server,
+            mix_announce_host,
+            clients_announce_host,
+            pub_key_string,
+            sending_delay,
+        }
+    }
+}
+
 pub struct Notifier {
-    pub net_client: directory_client::Client,
+    net_client: directory_client::Client,
     client_ledger: Arc<FMutex<ClientLedger>>,
+    sending_delay: Duration,
     client_listener: String,
     mixnet_listener: String,
-    pub_key: String,
+    pub_key_string: String,
 }
 
 impl Notifier {
-    pub fn new(
-        directory_server_address: String,
-        client_listener: SocketAddr,
-        mixnet_listener: SocketAddr,
-        pub_key: MixIdentityPublicKey,
-        client_ledger: Arc<FMutex<ClientLedger>>,
-    ) -> Notifier {
-        let directory_config = directory_client::Config {
-            base_url: directory_server_address,
+    pub fn new(config: NotifierConfig, client_ledger: Arc<FMutex<ClientLedger>>) -> Notifier {
+        let directory_client_cfg = directory_client::Config {
+            base_url: config.directory_server,
         };
-        let net_client = directory_client::Client::new(directory_config);
+        let net_client = directory_client::Client::new(directory_client_cfg);
 
         Notifier {
-            net_client,
-            client_listener: client_listener.to_string(),
-            mixnet_listener: mixnet_listener.to_string(),
-            pub_key: pub_key.to_base58_string(),
             client_ledger,
+            net_client,
+            client_listener: config.clients_announce_host,
+            mixnet_listener: config.mix_announce_host,
+            pub_key_string: config.pub_key_string,
+            sending_delay: config.sending_delay,
         }
     }
 
@@ -45,10 +66,10 @@ impl Notifier {
         MixProviderPresence {
             client_listener: self.client_listener.clone(),
             mixnet_listener: self.mixnet_listener.clone(),
-            pub_key: self.pub_key.clone(),
+            pub_key: self.pub_key_string.clone(),
             registered_clients: unlocked_ledger.current_clients(),
             last_seen: 0,
-            version: env!("CARGO_PKG_VERSION").to_string(),
+            version: built_info::PKG_VERSION.to_string(),
         }
     }
 
@@ -63,8 +84,7 @@ impl Notifier {
         loop {
             let presence = self.make_presence().await;
             self.notify(presence);
-            let delay_duration = Duration::from_secs(5);
-            tokio::time::delay_for(delay_duration).await;
+            tokio::time::delay_for(self.sending_delay).await;
         }
     }
 }

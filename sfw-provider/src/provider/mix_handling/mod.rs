@@ -1,5 +1,5 @@
 use crate::provider::storage::StoreData;
-use crypto::identity::MixIdentityPrivateKey;
+use crypto::encryption;
 use log::{error, warn};
 use sphinx::{ProcessedPacket, SphinxPacket};
 use std::path::PathBuf;
@@ -37,15 +37,21 @@ impl From<std::io::Error> for MixProcessingError {
 // ProcessingData defines all data required to correctly unwrap sphinx packets
 #[derive(Debug, Clone)]
 pub(crate) struct MixProcessingData {
-    secret_key: MixIdentityPrivateKey,
+    secret_key: encryption::PrivateKey,
     pub(crate) store_dir: PathBuf,
+    new_messages_filename_length: u16,
 }
 
 impl MixProcessingData {
-    pub(crate) fn new(secret_key: MixIdentityPrivateKey, store_dir: PathBuf) -> Self {
+    pub(crate) fn new(
+        secret_key: encryption::PrivateKey,
+        store_dir: PathBuf,
+        new_messages_filename_length: u16,
+    ) -> Self {
         MixProcessingData {
             secret_key,
             store_dir,
+            new_messages_filename_length,
         }
     }
 
@@ -70,7 +76,7 @@ impl MixPacketProcessor {
             }
         };
         let (client_address, client_surb_id, payload) =
-            match packet.process(read_processing_data.secret_key.as_scalar()) {
+            match packet.process(read_processing_data.secret_key.inner()) {
                 Ok(ProcessedPacket::ProcessedPacketFinalHop(client_address, surb_id, payload)) => {
                     (client_address, surb_id, payload)
                 }
@@ -90,6 +96,11 @@ impl MixPacketProcessor {
             return Err(MixProcessingError::NonMatchingRecipient);
         }
 
-        Ok(StoreData::new(client_address, client_surb_id, message))
+        Ok(StoreData::new(
+            client_address,
+            client_surb_id,
+            message,
+            read_processing_data.new_messages_filename_length,
+        ))
     }
 }

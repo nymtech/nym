@@ -9,8 +9,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-const METRICS_INTERVAL: u64 = 3;
-
 #[derive(Debug)]
 pub struct MetricsReporter {
     received: u64,
@@ -74,11 +72,11 @@ impl MetricsReporter {
         metrics: Arc<Mutex<MetricsReporter>>,
         cfg: directory_client::Config,
         pub_key_str: String,
+        sending_delay: Duration,
     ) {
-        let delay_duration = Duration::from_secs(METRICS_INTERVAL);
         let directory_client = directory_client::Client::new(cfg);
         loop {
-            tokio::time::delay_for(delay_duration).await;
+            tokio::time::delay_for(sending_delay).await;
             let (received, sent) =
                 MetricsReporter::acquire_and_reset_metrics(metrics.clone()).await;
 

@@ -1,6 +1,8 @@
 use crate::client::mix_traffic::MixTrafficController;
 use crate::client::received_buffer::ReceivedMessagesBuffer;
 use crate::client::topology_control::TopologyInnerRef;
+use crate::config::persistance::pathfinder::ClientPathfinder;
+use crate::config::{Config, SocketType};
 use crate::sockets::tcp;
 use crate::sockets::ws;
 use crypto::identity::MixIdentityKeyPair;
@@ -8,6 +10,7 @@ use directory_client::presence::Topology;
 use futures::channel::mpsc;
 use futures::join;
 use log::*;
+use pemstore::pemstore::PemStore;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::Destination;
 use std::net::SocketAddr;
@@ -21,55 +24,40 @@ mod real_traffic_stream;
 pub mod received_buffer;
 pub mod topology_control;
 
-// TODO: all of those constants should probably be moved to config file
-const LOOP_COVER_AVERAGE_DELAY: f64 = 0.5;
-// seconds
-const MESSAGE_SENDING_AVERAGE_DELAY: f64 = 0.5;
-//  seconds;
-const FETCH_MESSAGES_DELAY: f64 = 1.0; // seconds;
-
-const TOPOLOGY_REFRESH_RATE: f64 = 10.0; // seconds
-
-pub enum SocketType {
-    TCP,
-    WebSocket,
-    None,
-}
-
 pub struct NymClient {
-    keypair: MixIdentityKeyPair,
+    config: Config,
+    identity_keypair: MixIdentityKeyPair,
 
     // to be used by "send" function or socket, etc
     pub input_tx: mpsc::UnboundedSender<InputMessage>,
-
+    // the other end of the above channel
     input_rx: mpsc::UnboundedReceiver<InputMessage>,
-    socket_listening_address: SocketAddr,
-    directory: String,
-    auth_token: Option<AuthToken>,
-    socket_type: SocketType,
 }
 
 #[derive(Debug)]
 pub struct InputMessage(pub Destination, pub Vec<u8>);
 
 impl NymClient {
-    pub fn new(
-        keypair: MixIdentityKeyPair,
-        socket_listening_address: SocketAddr,
-        directory: String,
-        auth_token: Option<AuthToken>,
-        socket_type: SocketType,
-    ) -> Self {
+    fn load_identity_keys(config_file: &Config) -> MixIdentityKeyPair {
+        let identity_keypair = PemStore::new(ClientPathfinder::new_from_config(&config_file))
+            .read_identity()
+            .expect("Failed to read stored identity key files");
+        println!(
+            "Public identity key: {}\nFor time being, it is identical to address",
+            identity_keypair.public_key.to_base58_string()
+        );
+        identity_keypair
+    }
+
+    pub fn new(config: Config) -> Self {
+        let identity_keypair = Self::load_identity_keys(&config);
         let (input_tx, input_rx) = mpsc::unbounded::<InputMessage>();
 
         NymClient {
-            keypair,
+            config,
+            identity_keypair,
             input_tx,
             input_rx,
-            socket_listening_address,
-            directory,
-            auth_token,
-            socket_type,
         }
     }
 
@@ -106,16 +94,23 @@ impl NymClient {
         let (received_messages_buffer_output_tx, received_messages_buffer_output_rx) =
             mpsc::unbounded();
 
-        let self_address = self.keypair.public_key().derive_address();
+        let self_address = self.identity_keypair.public_key().derive_address();
 
         // generate same type of keys we have as our identity
         let healthcheck_keys = MixIdentityKeyPair::new();
 
+        info!("Trying to obtain initial compatible network topology before starting up rest of modules");
         // TODO: when we switch to our graph topology, we need to remember to change 'Topology' type
-        let topology_controller = rt.block_on(topology_control::TopologyControl::<Topology>::new(
-            self.directory.clone(),
-            TOPOLOGY_REFRESH_RATE,
+        let topology_controller_config = topology_control::TopologyControlConfig::<Topology>::new(
+            self.config.get_directory_server(),
+            self.config.get_topology_refresh_rate(),
             healthcheck_keys,
+            self.config.get_topology_resolution_timeout(),
+            self.config.get_number_of_healthcheck_test_packets() as usize,
+        );
+
+        let topology_controller = rt.block_on(topology_control::TopologyControl::<Topology>::new(
+            topology_controller_config,
         ));
 
         let provider_client_listener_address =
@@ -125,12 +120,16 @@ impl NymClient {
             poller_input_tx,
             provider_client_listener_address,
             self_address,
-            self.auth_token,
+            self.config
+                .get_provider_auth_token()
+                .map(|str_token| AuthToken::try_from_base58_string(str_token).ok())
+                .unwrap_or(None),
+            self.config.get_fetch_message_delay(),
         );
 
         // registration
         if let Err(err) = rt.block_on(provider_poller.perform_initial_registration()) {
-            panic!("Failed to perform initial registration: {:?}", err);
+            panic!("Failed to perform initial provider registration: {:?}", err);
         };
 
         // setup all of futures for the components running on the client
@@ -152,11 +151,15 @@ impl NymClient {
                 mix_tx.clone(),
                 Destination::new(self_address, Default::default()),
                 topology_controller.get_inner_ref(),
+                self.config.get_loop_cover_traffic_average_delay(),
+                self.config.get_average_packet_delay(),
             ));
 
         // cloning arguments required by OutQueueControl; required due to move
         let input_rx = self.input_rx;
         let topology_ref = topology_controller.get_inner_ref();
+        let average_packet_delay = self.config.get_average_packet_delay();
+        let message_sending_average_delay = self.config.get_message_sending_average_delay();
 
         // future constantly pumping traffic at some specified average rate
         // if a real message is available on 'input_rx' that might have been received from say
@@ -168,6 +171,8 @@ impl NymClient {
                 input_rx,
                 Destination::new(self_address, Default::default()),
                 topology_ref,
+                average_packet_delay,
+                message_sending_average_delay,
             )
             .run_out_queue_control()
             .await
@@ -177,12 +182,10 @@ impl NymClient {
         // the received messages are sent to ReceivedMessagesBuffer to be available to rest of the system
         let provider_polling_future = rt.spawn(provider_poller.start_provider_polling());
 
-        // a temporary workaround for starting socket listener of specified type
-        // in the future the actual socket handler should start THIS client instead
-        match self.socket_type {
+        match self.config.get_socket_type() {
             SocketType::WebSocket => {
                 rt.spawn(ws::start_websocket(
-                    self.socket_listening_address,
+                    self.config.get_listening_port(),
                     self.input_tx,
                     received_messages_buffer_output_tx,
                     self_address,
@@ -191,7 +194,7 @@ impl NymClient {
             }
             SocketType::TCP => {
                 rt.spawn(tcp::start_tcpsocket(
-                    self.socket_listening_address,
+                    self.config.get_listening_port(),
                     self.input_tx,
                     received_messages_buffer_output_tx,
                     self_address,

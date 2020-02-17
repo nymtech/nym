@@ -1,4 +1,3 @@
-use crate::provider::{MESSAGE_RETRIEVAL_LIMIT, STORED_MESSAGE_FILENAME_LENGTH};
 use log::*;
 use rand::Rng;
 use sfw_provider_requests::DUMMY_MESSAGE_CONTENT;
@@ -26,6 +25,7 @@ pub struct StoreData {
     #[allow(dead_code)]
     client_surb_id: SURBIdentifier,
     message: Vec<u8>,
+    filename_length: u16,
 }
 
 impl StoreData {
@@ -33,11 +33,13 @@ impl StoreData {
         client_address: DestinationAddressBytes,
         client_surb_id: SURBIdentifier,
         message: Vec<u8>,
+        filename_length: u16,
     ) -> Self {
         StoreData {
             client_address,
             client_surb_id,
             message,
+            filename_length,
         }
     }
 }
@@ -47,10 +49,10 @@ pub struct ClientStorage(());
 
 // TODO: change it to some generic implementation to inject fs
 impl ClientStorage {
-    pub(crate) fn generate_random_file_name() -> String {
+    pub(crate) fn generate_random_file_name(length: usize) -> String {
         rand::thread_rng()
             .sample_iter(&rand::distributions::Alphanumeric)
-            .take(STORED_MESSAGE_FILENAME_LENGTH)
+            .take(length)
             .collect::<String>()
     }
 
@@ -62,7 +64,9 @@ impl ClientStorage {
     pub fn store_processed_data(store_data: StoreData, store_dir: &Path) -> io::Result<()> {
         let client_dir_name = bs58::encode(store_data.client_address).into_string();
         let full_store_dir = store_dir.join(client_dir_name);
-        let full_store_path = full_store_dir.join(ClientStorage::generate_random_file_name());
+        let full_store_path = full_store_dir.join(ClientStorage::generate_random_file_name(
+            store_data.filename_length as usize,
+        ));
         debug!(
             "going to store: {:?} in file: {:?}",
             store_data.message, full_store_path
@@ -80,6 +84,7 @@ impl ClientStorage {
     pub fn retrieve_client_files(
         client_address: DestinationAddressBytes,
         store_dir: &Path,
+        message_retrieval_limit: u16,
     ) -> Result<Vec<Vec<u8>>, StoreError> {
         let client_dir_name = bs58::encode(client_address).into_string();
         let full_store_dir = store_dir.join(client_dir_name);
@@ -99,7 +104,7 @@ impl ClientStorage {
                 content
             }) // TODO: THIS MAP IS UNSAFE (BOTH FOR READING AND DELETING)!! - in the case where there are multiple requests from the same client being processed in parallel
             .chain(std::iter::repeat(ClientStorage::dummy_message()))
-            .take(MESSAGE_RETRIEVAL_LIMIT)
+            .take(message_retrieval_limit as usize)
             .collect();
 
         Ok(msgs)

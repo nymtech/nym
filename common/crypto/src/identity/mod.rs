@@ -1,4 +1,4 @@
-use crate::{encryption, PemStorable};
+use crate::{encryption, PemStorableKey, PemStorableKeyPair};
 use bs58;
 use curve25519_dalek::scalar::Scalar;
 use sphinx::route::DestinationAddressBytes;
@@ -36,6 +36,23 @@ impl MixIdentityKeyPair {
     }
 }
 
+impl PemStorableKeyPair for MixIdentityKeyPair {
+    type PrivatePemKey = MixIdentityPrivateKey;
+    type PublicPemKey = MixIdentityPublicKey;
+
+    fn private_key(&self) -> &Self::PrivatePemKey {
+        self.private_key()
+    }
+
+    fn public_key(&self) -> &Self::PublicPemKey {
+        self.public_key()
+    }
+
+    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self {
+        Self::from_bytes(priv_bytes, pub_bytes)
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct MixIdentityPublicKey(encryption::PublicKey);
 
@@ -65,9 +82,13 @@ impl MixIdentityPublicKey {
     }
 }
 
-impl PemStorable for MixIdentityPublicKey {
+impl PemStorableKey for MixIdentityPublicKey {
     fn pem_type(&self) -> String {
         format!("DUMMY KEY BASED ON {}", self.0.pem_type())
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_bytes()
     }
 }
 
@@ -101,8 +122,12 @@ impl MixIdentityPrivateKey {
     }
 }
 
-impl PemStorable for MixIdentityPrivateKey {
+impl PemStorableKey for MixIdentityPrivateKey {
     fn pem_type(&self) -> String {
         format!("DUMMY KEY BASED ON {}", self.0.pem_type())
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_bytes()
     }
 }

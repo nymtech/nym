@@ -6,13 +6,13 @@ use topology::NymTopology;
 pub struct HealthCheckRunner {
     directory_server: String,
     health_checker: HealthChecker,
-    interval: f64,
+    interval: Duration,
 }
 
 impl HealthCheckRunner {
     pub fn new(
         directory_server: String,
-        interval: f64,
+        interval: Duration,
         health_checker: HealthChecker,
     ) -> HealthCheckRunner {
         HealthCheckRunner {
@@ -23,8 +23,7 @@ impl HealthCheckRunner {
     }
 
     pub async fn run(self) {
-        let healthcheck_interval = Duration::from_secs_f64(self.interval);
-        debug!("healthcheck will run every {:?}", healthcheck_interval);
+        debug!("healthcheck will run every {:?}", self.interval);
         loop {
             let full_topology =
                 directory_client::presence::Topology::new(self.directory_server.clone());
@@ -41,7 +40,7 @@ impl HealthCheckRunner {
                 Ok(health) => info!("current network health: \n{}", health),
                 Err(err) => error!("failed to perform healthcheck - {:?}", err),
             };
-            tokio::time::delay_for(healthcheck_interval).await;
+            tokio::time::delay_for(self.interval).await;
         }
     }
 }

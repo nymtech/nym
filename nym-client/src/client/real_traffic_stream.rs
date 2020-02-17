@@ -1,6 +1,6 @@
 use crate::client::mix_traffic::MixMessage;
 use crate::client::topology_control::TopologyInnerRef;
-use crate::client::{InputMessage, MESSAGE_SENDING_AVERAGE_DELAY};
+use crate::client::InputMessage;
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
@@ -11,11 +11,10 @@ use std::time::Duration;
 use tokio::time;
 use topology::NymTopology;
 
-// have a rather low value for test sake
-const AVERAGE_PACKET_DELAY: f64 = 0.1;
-
 pub(crate) struct OutQueueControl<T: NymTopology> {
-    delay: time::Delay,
+    average_packet_delay: Duration,
+    average_message_sending_delay: Duration,
+    next_delay: time::Delay,
     mix_tx: mpsc::UnboundedSender<MixMessage>,
     input_rx: mpsc::UnboundedReceiver<InputMessage>,
     our_info: Destination,
@@ -32,21 +31,20 @@ impl<T: NymTopology> Stream for OutQueueControl<T> {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // it is not yet time to return a message
-        if Pin::new(&mut self.delay).poll(cx).is_pending() {
+        if Pin::new(&mut self.next_delay).poll(cx).is_pending() {
             return Poll::Pending;
         };
 
         // we know it's time to send a message, so let's prepare delay for the next one
         // Get the `now` by looking at the current `delay` deadline
-        let now = self.delay.deadline();
-
+        let now = self.next_delay.deadline();
         let next_poisson_delay =
-            Duration::from_secs_f64(mix_client::poisson::sample(MESSAGE_SENDING_AVERAGE_DELAY));
+            mix_client::poisson::sample_from_duration(self.average_message_sending_delay);
 
         // The next interval value is `next_poisson_delay` after the one that just
         // yielded.
         let next = now + next_poisson_delay;
-        self.delay.reset(next);
+        self.next_delay.reset(next);
 
         // decide what kind of message to send
         match Pin::new(&mut self.input_rx).poll_next(cx) {
@@ -69,10 +67,13 @@ impl<T: NymTopology> OutQueueControl<T> {
         input_rx: mpsc::UnboundedReceiver<InputMessage>,
         our_info: Destination,
         topology: TopologyInnerRef<T>,
+        average_packet_delay: Duration,
+        average_message_sending_delay: Duration,
     ) -> Self {
-        let initial_delay = time::delay_for(Duration::from_secs_f64(MESSAGE_SENDING_AVERAGE_DELAY));
         OutQueueControl {
-            delay: initial_delay,
+            average_packet_delay,
+            average_message_sending_delay,
+            next_delay: time::delay_for(Default::default()),
             mix_tx,
             input_rx,
             our_info,
@@ -81,6 +82,11 @@ impl<T: NymTopology> OutQueueControl<T> {
     }
 
     pub(crate) async fn run_out_queue_control(mut self) {
+        // we should set initial delay only when we actually start the stream
+        self.next_delay = time::delay_for(mix_client::poisson::sample_from_duration(
+            self.average_message_sending_delay,
+        ));
+
         info!("starting out queue controller");
         while let Some(next_message) = self.next().await {
             trace!("created new message");
@@ -100,12 +106,13 @@ impl<T: NymTopology> OutQueueControl<T> {
                     self.our_info.address,
                     self.our_info.identifier,
                     topology,
+                    self.average_packet_delay,
                 ),
                 StreamMessage::Real(real_message) => mix_client::packet::encapsulate_message(
                     real_message.0,
                     real_message.1,
                     topology,
-                    AVERAGE_PACKET_DELAY,
+                    self.average_packet_delay,
                 ),
             };
 

@@ -109,7 +109,7 @@ impl ProviderResponse for PullResponse {
 
 impl ProviderResponse for RegisterResponse {
     fn to_bytes(&self) -> Vec<u8> {
-        self.auth_token.to_vec()
+        self.auth_token.0.to_vec()
     }
 
     fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderResponseError> {
@@ -117,7 +117,9 @@ impl ProviderResponse for RegisterResponse {
             32 => {
                 let mut auth_token = [0u8; 32];
                 auth_token.copy_from_slice(&bytes[..32]);
-                Ok(RegisterResponse { auth_token })
+                Ok(RegisterResponse {
+                    auth_token: AuthToken(auth_token),
+                })
             }
             _ => Err(ProviderResponseError::UnmarshalErrorInvalidLength),
         }

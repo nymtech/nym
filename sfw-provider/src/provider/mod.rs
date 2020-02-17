@@ -1,11 +1,14 @@
+use crate::config::persistance::pathfinder::ProviderPathfinder;
+use crate::config::Config;
 use crate::provider::client_handling::{ClientProcessingData, ClientRequestProcessor};
 use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};
 use crate::provider::storage::ClientStorage;
-use crypto::identity::{MixIdentityPrivateKey, MixIdentityPublicKey};
+use crypto::encryption;
 use directory_client::presence::providers::MixProviderClient;
 use futures::io::Error;
 use futures::lock::Mutex as FMutex;
 use log::*;
+use pemstore::pemstore::PemStore;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use std::collections::HashMap;
@@ -20,19 +23,6 @@ mod client_handling;
 mod mix_handling;
 pub mod presence;
 mod storage;
-
-// TODO: if we ever create config file, this should go there
-const STORED_MESSAGE_FILENAME_LENGTH: usize = 16;
-const MESSAGE_RETRIEVAL_LIMIT: usize = 5;
-
-pub struct Config {
-    pub client_socket_address: SocketAddr,
-    pub directory_server: String,
-    pub mix_socket_address: SocketAddr,
-    pub public_key: MixIdentityPublicKey,
-    pub secret_key: MixIdentityPrivateKey,
-    pub store_dir: PathBuf,
-}
 
 #[derive(Debug)]
 pub enum ProviderError {
@@ -72,8 +62,8 @@ impl ClientLedger {
         Arc::new(FMutex::new(self))
     }
 
-    fn has_token(&self, auth_token: AuthToken) -> bool {
-        return self.0.contains_key(&auth_token);
+    fn has_token(&self, auth_token: &AuthToken) -> bool {
+        return self.0.contains_key(auth_token);
     }
 
     fn insert_token(
@@ -99,27 +89,32 @@ impl ClientLedger {
 }
 
 pub struct ServiceProvider {
-    directory_server: String,
-    mix_network_address: SocketAddr,
-    client_network_address: SocketAddr,
-    public_key: MixIdentityPublicKey,
-    secret_key: MixIdentityPrivateKey,
-    store_dir: PathBuf,
+    config: Config,
+    sphinx_keypair: encryption::KeyPair,
     registered_clients_ledger: ClientLedger,
 }
 
 impl ServiceProvider {
     pub fn new(config: Config) -> Self {
+        let sphinx_keypair = Self::load_sphinx_keys(&config);
+
         ServiceProvider {
-            mix_network_address: config.mix_socket_address,
-            client_network_address: config.client_socket_address,
-            secret_key: config.secret_key,
-            public_key: config.public_key,
-            store_dir: PathBuf::from(config.store_dir.clone()),
+            config,
+            sphinx_keypair,
             // TODO: load initial ledger from file
             registered_clients_ledger: ClientLedger::new(),
-            directory_server: config.directory_server.clone(),
         }
+    }
+
+    fn load_sphinx_keys(config_file: &Config) -> encryption::KeyPair {
+        let sphinx_keypair = PemStore::new(ProviderPathfinder::new_from_config(&config_file))
+            .read_encryption()
+            .expect("Failed to read stored sphinx key files");
+        println!(
+            "Public encryption key: {}\nFor time being, it is identical to identity keys",
+            sphinx_keypair.public_key().to_base58_string()
+        );
+        sphinx_keypair
     }
 
     async fn process_mixnet_socket_connection(
@@ -236,11 +231,14 @@ impl ServiceProvider {
 
     async fn start_mixnet_listening(
         address: SocketAddr,
-        secret_key: MixIdentityPrivateKey,
+        secret_key: encryption::PrivateKey,
         store_dir: PathBuf,
+        new_messages_filename_length: u16,
     ) -> Result<(), ProviderError> {
         let mut listener = tokio::net::TcpListener::bind(address).await?;
-        let processing_data = MixProcessingData::new(secret_key, store_dir).add_arc_rwlock();
+        let processing_data =
+            MixProcessingData::new(secret_key, store_dir, new_messages_filename_length)
+                .add_arc_rwlock();
 
         loop {
             let (socket, _) = listener.accept().await?;
@@ -258,11 +256,17 @@ impl ServiceProvider {
         address: SocketAddr,
         store_dir: PathBuf,
         client_ledger: Arc<FMutex<ClientLedger>>,
-        secret_key: MixIdentityPrivateKey,
+        secret_key: encryption::PrivateKey,
+        message_retrieval_limit: u16,
     ) -> Result<(), ProviderError> {
         let mut listener = tokio::net::TcpListener::bind(address).await?;
-        let processing_data =
-            ClientProcessingData::new(store_dir, client_ledger, secret_key).add_arc();
+        let processing_data = ClientProcessingData::new(
+            store_dir,
+            client_ledger,
+            secret_key,
+            message_retrieval_limit,
+        )
+        .add_arc();
 
         loop {
             let (socket, _) = listener.accept().await?;
@@ -276,7 +280,6 @@ impl ServiceProvider {
         }
     }
 
-    // Note: this now consumes the provider
     pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
         // Create the runtime, probably later move it to Provider struct itself?
         // TODO: figure out the difference between Runtime and Handle
@@ -286,25 +289,32 @@ impl ServiceProvider {
         let initial_client_ledger = self.registered_clients_ledger;
         let thread_shareable_ledger = initial_client_ledger.add_arc_futures_mutex();
 
-        let presence_notifier = presence::Notifier::new(
-            self.directory_server,
-            self.client_network_address.clone(),
-            self.mix_network_address.clone(),
-            self.public_key,
-            thread_shareable_ledger.clone(),
+        let notifier_config = presence::NotifierConfig::new(
+            self.config.get_presence_directory_server(),
+            self.config.get_mix_announce_address(),
+            self.config.get_clients_announce_address(),
+            self.sphinx_keypair.public_key().to_base58_string(),
+            self.config.get_presence_sending_delay(),
         );
 
-        let presence_future = rt.spawn(presence_notifier.run());
+        let presence_future = rt.spawn({
+            let presence_notifier =
+                presence::Notifier::new(notifier_config, thread_shareable_ledger.clone());
+            presence_notifier.run()
+        });
+
         let mix_future = rt.spawn(ServiceProvider::start_mixnet_listening(
-            self.mix_network_address,
-            self.secret_key.clone(),
-            self.store_dir.clone(),
+            self.config.get_mix_listening_address(),
+            *self.sphinx_keypair.private_key(),
+            self.config.get_clients_inboxes_dir(),
+            self.config.get_stored_messages_filename_length(),
         ));
         let client_future = rt.spawn(ServiceProvider::start_client_listening(
-            self.client_network_address,
-            self.store_dir.clone(),
+            self.config.get_clients_listening_address(),
+            self.config.get_clients_inboxes_dir(),
             thread_shareable_ledger,
-            self.secret_key,
+            *self.sphinx_keypair.private_key(),
+            self.config.get_message_retrieval_limit(),
         ));
         // Spawn the root task
         rt.block_on(async {

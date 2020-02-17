@@ -1,4 +1,4 @@
-use crate::PemStorable;
+use crate::{PemStorableKey, PemStorableKeyPair};
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
 
@@ -39,6 +39,23 @@ impl KeyPair {
     }
 }
 
+impl PemStorableKeyPair for KeyPair {
+    type PrivatePemKey = PrivateKey;
+    type PublicPemKey = PublicKey;
+
+    fn private_key(&self) -> &Self::PrivatePemKey {
+        self.private_key()
+    }
+
+    fn public_key(&self) -> &Self::PublicPemKey {
+        self.public_key()
+    }
+
+    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self {
+        Self::from_bytes(priv_bytes, pub_bytes)
+    }
+}
+
 // COPY IS DERIVED ONLY TEMPORARILY UNTIL https://github.com/nymtech/nym/issues/47 is fixed
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct PrivateKey(pub Scalar);
@@ -55,11 +72,19 @@ impl PrivateKey {
         let key = Scalar::from_canonical_bytes(bytes).unwrap();
         Self(key)
     }
+
+    pub fn inner(&self) -> Scalar {
+        self.0
+    }
 }
 
-impl PemStorable for PrivateKey {
+impl PemStorableKey for PrivateKey {
     fn pem_type(&self) -> String {
         String::from("X25519 PRIVATE KEY")
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_bytes()
     }
 }
 
@@ -83,10 +108,26 @@ impl PublicKey {
         let key = MontgomeryPoint(bytes);
         Self(key)
     }
+
+    pub fn inner(&self) -> MontgomeryPoint {
+        self.0
+    }
+
+    pub fn to_base58_string(&self) -> String {
+        bs58::encode(&self.to_bytes()).into_string()
+    }
+
+    pub fn from_base58_string(val: String) -> Self {
+        Self::from_bytes(&bs58::decode(&val).into_vec().unwrap())
+    }
 }
 
-impl PemStorable for PublicKey {
+impl PemStorableKey for PublicKey {
     fn pem_type(&self) -> String {
         String::from("X25519 PUBLIC KEY")
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_bytes()
     }
 }

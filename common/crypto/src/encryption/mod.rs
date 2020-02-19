@@ -39,6 +39,12 @@ impl KeyPair {
     }
 }
 
+impl Default for KeyPair {
+    fn default() -> Self {
+        KeyPair::new()
+    }
+}
+
 impl PemStorableKeyPair for KeyPair {
     type PrivatePemKey = PrivateKey;
     type PublicPemKey = PublicKey;

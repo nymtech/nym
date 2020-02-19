@@ -29,11 +29,10 @@ impl NymTopology for Topology {
         };
         let directory = Client::new(directory_config);
 
-        let topology = directory
+        directory
             .presence_topology
             .get()
-            .expect("Failed to retrieve network topology.");
-        topology
+            .expect("Failed to retrieve network topology.")
     }
 
     fn new_from_nodes(

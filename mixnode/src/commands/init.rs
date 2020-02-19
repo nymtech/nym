@@ -64,10 +64,7 @@ pub fn execute(matches: &ArgMatches) {
 
     config = override_config(config, matches);
 
-    // TODO: which one should be used?
     let sphinx_keys = encryption::KeyPair::new();
-    //    let alternative_keypair = MixIdentityKeyPair::new();
-
     let pathfinder = MixNodePathfinder::new_from_config(&config);
     let pem_store = PemStore::new(pathfinder);
     pem_store

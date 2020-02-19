@@ -46,19 +46,19 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
         }?;
 
         fs::write(
-            custom_location.unwrap_or(self.config_directory().join(Self::config_file_name())),
+            custom_location
+                .unwrap_or_else(|| self.config_directory().join(Self::config_file_name())),
             templated_config,
         )
     }
 
     fn load_from_file(custom_location: Option<PathBuf>, id: Option<&str>) -> io::Result<Self> {
         let config_contents = fs::read_to_string(
-            custom_location.unwrap_or(Self::default_config_directory(id).join("config.toml")),
+            custom_location
+                .unwrap_or_else(|| Self::default_config_directory(id).join("config.toml")),
         )?;
 
-        let parsing_result = toml::from_str(&config_contents)
-            .map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err));
-
-        parsing_result
+        toml::from_str(&config_contents)
+            .map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
     }
 }

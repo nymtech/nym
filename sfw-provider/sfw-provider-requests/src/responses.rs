@@ -72,7 +72,7 @@ impl ProviderResponse for PullResponse {
             return Err(ProviderResponseError::UnmarshalErrorInvalidLength);
         }
 
-        let mut bytes_copy = bytes.clone();
+        let mut bytes_copy = bytes;
         let num_msgs = read_be_u16(&mut bytes_copy);
 
         // can we read all lengths of messages?

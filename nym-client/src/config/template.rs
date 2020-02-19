@@ -71,12 +71,10 @@ average_packet_delay = {{ debug.average_packet_delay }}
 
 # The parameter of Poisson distribution determining how long, on average,
 # it is going to take for another loop cover traffic message to be sent.
-# If set to a negative value, the loop cover traffic stream will be disabled.
 # The provided value is interpreted as milliseconds.
 loop_cover_traffic_average_delay = {{ debug.loop_cover_traffic_average_delay }}
 
 # The uniform delay every which clients are querying the providers for received packets.
-# If set to a negative value, client will never try to fetch their messages.
 # The provided value is interpreted as milliseconds.
 fetch_message_delay = {{ debug.fetch_message_delay }}
 
@@ -84,7 +82,6 @@ fetch_message_delay = {{ debug.fetch_message_delay }}
 # it is going to take another 'real traffic stream' message to be sent.
 # If no real packets are available and cover traffic is enabled,
 # a loop cover message is sent instead in order to preserve the rate.
-# If set to a negative value, client will never try to send real traffic data.
 # The provided value is interpreted as milliseconds.
 message_sending_average_delay = {{ debug.message_sending_average_delay }}
 
@@ -96,8 +93,6 @@ rate_compliant_cover_messages_disabled = {{ debug.rate_compliant_cover_messages_
 
 # The uniform delay every which clients are querying the directory server
 # to try to obtain a compatible network topology to send sphinx packets through.
-# If set to a negative value, client will never try to refresh its topology,
-# meaning it will always try to use whatever it obtained on startup.
 # The provided value is interpreted as milliseconds.
 topology_refresh_rate = {{ debug.topology_refresh_rate }}
 

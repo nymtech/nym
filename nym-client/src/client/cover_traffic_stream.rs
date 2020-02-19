@@ -16,8 +16,7 @@ pub(crate) async fn start_loop_cover_traffic_stream<T: NymTopology>(
     info!("Starting loop cover traffic stream");
     loop {
         trace!("next cover message!");
-        let delay_duration =
-            mix_client::poisson::sample_from_duration(average_cover_message_delay_duration);
+        let delay_duration = mix_client::poisson::sample(average_cover_message_delay_duration);
         tokio::time::delay_for(delay_duration).await;
 
         let read_lock = topology_ctrl_ref.read().await;

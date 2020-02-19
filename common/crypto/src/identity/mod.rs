@@ -36,6 +36,12 @@ impl MixIdentityKeyPair {
     }
 }
 
+impl Default for MixIdentityKeyPair {
+    fn default() -> Self {
+        MixIdentityKeyPair::new()
+    }
+}
+
 impl PemStorableKeyPair for MixIdentityKeyPair {
     type PrivatePemKey = MixIdentityPrivateKey;
     type PublicPemKey = MixIdentityPublicKey;

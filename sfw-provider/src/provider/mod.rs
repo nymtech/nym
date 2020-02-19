@@ -63,7 +63,7 @@ impl ClientLedger {
     }
 
     fn has_token(&self, auth_token: &AuthToken) -> bool {
-        return self.0.contains_key(auth_token);
+        self.0.contains_key(auth_token)
     }
 
     fn insert_token(
@@ -155,7 +155,6 @@ impl ServiceProvider {
                     )
                     .unwrap_or_else(|e| {
                         error!("failed to store processed sphinx message; err = {:?}", e);
-                        return;
                     });
                 }
                 Err(e) => {

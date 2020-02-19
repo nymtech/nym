@@ -194,8 +194,7 @@ impl ClientRequest {
                     "message too long. Sent {} bytes, but the maximum is {}",
                     message_bytes.len(),
                     sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH
-                )
-                .to_string(),
+                ),
             };
         }
 

@@ -37,6 +37,7 @@ pub(crate) struct NodeScore {
 
 impl Ord for NodeScore {
     // order by: version, layer, sent, received, pubkey; ignore addresses
+    #[allow(clippy::comparison_chain)]
     fn cmp(&self, other: &Self) -> Ordering {
         if self.typ > other.typ {
             return Ordering::Greater;

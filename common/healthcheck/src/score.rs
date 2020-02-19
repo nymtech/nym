@@ -110,7 +110,7 @@ impl NodeScore {
             pub_key: NodeAddressBytes::from_base58_string(node.pub_key),
             addresses: vec![node.mixnet_listener, node.client_listener],
             version: node.version,
-            layer: format!("provider"),
+            layer: "provider".to_string(),
             packets_sent: 0,
             packets_received: 0,
         }

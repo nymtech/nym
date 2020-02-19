@@ -16,7 +16,7 @@ impl std::fmt::Display for HealthCheckResult {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         write!(f, "NETWORK HEALTH\n==============\n")?;
         for score in self.0.iter() {
-            write!(f, "{}\n", score)?
+            writeln!(f, "{}", score)?
         }
         Ok(())
     }
@@ -34,12 +34,8 @@ impl HealthCheckResult {
 
         let health = mixes
             .into_iter()
-            .map(|node| NodeScore::from_mixnode(node))
-            .chain(
-                providers
-                    .into_iter()
-                    .map(|node| NodeScore::from_provider(node)),
-            )
+            .map(NodeScore::from_mixnode)
+            .chain(providers.into_iter().map(NodeScore::from_provider))
             .collect();
 
         HealthCheckResult(health)

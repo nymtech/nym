@@ -125,7 +125,7 @@ impl ClientRequest {
             Err(e) => {
                 warn!("Failed to fetch client messages - {:?}", e);
                 return ServerResponse::Error {
-                    message: format!("Server failed to receive messages").to_string(),
+                    message: "Server failed to receive messages".to_string(),
                 };
             }
         };
@@ -275,7 +275,7 @@ async fn accept_connection<T: 'static + NymTopology>(
                     topology: topology.clone(),
                     msg_input: msg_input.clone(),
                     msg_query: msg_query.clone(),
-                    self_address: self_address.clone(),
+                    self_address,
                 };
                 match handle_connection(&buf[..n], request_handling_data).await {
                     Ok(res) => res,

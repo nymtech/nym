@@ -239,7 +239,7 @@ impl ClientRequest {
             Err(e) => {
                 warn!("Failed to fetch client messages - {:?}", e);
                 return ServerResponse::Error {
-                    message: format!("Server failed to receive messages").to_string(),
+                    message: "Server failed to receive messages".to_string(),
                 };
             }
         };
@@ -353,10 +353,7 @@ async fn accept_connection<T: 'static + NymTopology>(
             }
         };
 
-        let mut should_close = false;
-        if message.is_close() {
-            should_close = true;
-        }
+        let should_close = message.is_close();
 
         if let Err(err) = msg_tx.unbounded_send(message) {
             error!(

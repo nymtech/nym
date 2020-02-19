@@ -62,7 +62,7 @@ pub fn encapsulate_message<T: NymTopology>(
     average_delay: time::Duration,
 ) -> Result<(SocketAddr, SphinxPacket), SphinxPacketEncapsulationError> {
     let mut providers = topology.providers();
-    if providers.len() == 0 {
+    if providers.is_empty() {
         return Err(SphinxPacketEncapsulationError::NoValidProvidersError);
     }
     // unwrap is fine here as we asserted there is at least single provider

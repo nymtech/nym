@@ -73,7 +73,7 @@ impl PathChecker {
 
     // iteration is used to distinguish packets sent through the same path (as the healthcheck
     // may try to send say 10 packets through given path)
-    fn unique_path_key(path: &Vec<SphinxNode>, check_id: [u8; 16], iteration: u8) -> Vec<u8> {
+    fn unique_path_key(path: &[SphinxNode], check_id: [u8; 16], iteration: u8) -> Vec<u8> {
         check_id
             .iter()
             .cloned()
@@ -173,8 +173,8 @@ impl PathChecker {
         self.update_path_statuses(provider_messages);
     }
 
-    pub(crate) async fn send_test_packet(&mut self, path: &Vec<SphinxNode>, iteration: u8) {
-        if path.len() == 0 {
+    pub(crate) async fn send_test_packet(&mut self, path: &[SphinxNode], iteration: u8) {
+        if path.is_empty() {
             warn!("trying to send test packet through an empty path!");
             return;
         }
@@ -221,7 +221,7 @@ impl PathChecker {
         let first_node_client = self
             .layer_one_clients
             .entry(first_node_key)
-            .or_insert(Some(mix_client::MixClient::new()));
+            .or_insert_with(|| Some(mix_client::MixClient::new()));
 
         if first_node_client.is_none() {
             debug!("we can ignore this path as layer one mix is inaccessible");

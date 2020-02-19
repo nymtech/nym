@@ -12,9 +12,9 @@ use sphinx::route::{Destination, DestinationAddressBytes};
 use std::convert::TryFrom;
 use std::io;
 use std::net::SocketAddr;
+use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
+use tokio_tungstenite::tungstenite::protocol::{CloseFrame, Message};
 use topology::NymTopology;
-use tungstenite::protocol::frame::coding::CloseCode;
-use tungstenite::protocol::{CloseFrame, Message};
 
 struct Connection<T: NymTopology> {
     address: SocketAddr,
@@ -395,6 +395,7 @@ pub async fn start_websocket<T: 'static + NymTopology>(
     topology: TopologyInnerRef<T>,
 ) -> Result<(), WebSocketError> {
     let address = SocketAddr::new("127.0.0.1".parse().unwrap(), listening_port);
+    info!("Starting websocket listener at {:?}", address);
     let mut listener = tokio::net::TcpListener::bind(address).await?;
 
     while let Ok((stream, _)) = listener.accept().await {

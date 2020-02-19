@@ -43,7 +43,7 @@ pub fn loop_cover_message<T: NymTopology>(
     our_address: DestinationAddressBytes,
     surb_id: SURBIdentifier,
     topology: &T,
-    average_delay_duration: time::Duration,
+    average_delay: time::Duration,
 ) -> Result<(SocketAddr, SphinxPacket), SphinxPacketEncapsulationError> {
     let destination = Destination::new(our_address, surb_id);
 
@@ -51,7 +51,7 @@ pub fn loop_cover_message<T: NymTopology>(
         destination,
         LOOP_COVER_MESSAGE_PAYLOAD.to_vec(),
         topology,
-        average_delay_duration,
+        average_delay,
     )
 }
 
@@ -59,7 +59,7 @@ pub fn encapsulate_message<T: NymTopology>(
     recipient: Destination,
     message: Vec<u8>,
     topology: &T,
-    average_delay_duration: time::Duration,
+    average_delay: time::Duration,
 ) -> Result<(SocketAddr, SphinxPacket), SphinxPacketEncapsulationError> {
     let mut providers = topology.providers();
     if providers.len() == 0 {
@@ -70,8 +70,7 @@ pub fn encapsulate_message<T: NymTopology>(
 
     let route = topology.route_to(provider)?;
 
-    let delays =
-        sphinx::header::delays::generate_from_average_duration(route.len(), average_delay_duration);
+    let delays = sphinx::header::delays::generate_from_average_duration(route.len(), average_delay);
 
     // build the packet
     let packet = sphinx::SphinxPacket::new(message, &route[..], &recipient, &delays)?;

@@ -101,8 +101,7 @@ impl ClientRequest {
                     "too long message. Sent {} bytes while the maximum is {}",
                     msg.len(),
                     sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH
-                )
-                .to_string(),
+                ),
             };
         }
         let dummy_surb = [0; 16];

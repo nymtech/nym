@@ -12,9 +12,9 @@ use sphinx::route::{Destination, DestinationAddressBytes};
 use std::convert::TryFrom;
 use std::io;
 use std::net::SocketAddr;
+use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
+use tokio_tungstenite::tungstenite::protocol::{CloseFrame, Message};
 use topology::NymTopology;
-use tungstenite::protocol::frame::coding::CloseCode;
-use tungstenite::protocol::{CloseFrame, Message};
 
 struct Connection<T: NymTopology> {
     address: SocketAddr,

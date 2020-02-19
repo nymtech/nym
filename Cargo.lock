@@ -878,7 +878,7 @@ dependencies = [
  "bytes 0.4.12",
  "fnv",
  "futures 0.1.29",
- "http",
+ "http 0.1.21",
  "indexmap",
  "log",
  "slab",
@@ -964,6 +964,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "http"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b708cc7f06493459026f53b9a61a7a121a5d1ec6238dee58ea4941132b30156b"
+dependencies = [
+ "bytes 0.5.4",
+ "fnv",
+ "itoa",
+]
+
+[[package]]
 name = "http-body"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -971,7 +982,7 @@ checksum = "6741c859c1b2463a423a1dbce98d418e6c3c3fc720fb0d45528657320920292d"
 dependencies = [
  "bytes 0.4.12",
  "futures 0.1.29",
- "http",
+ "http 0.1.21",
  "tokio-buf",
 ]
 
@@ -1000,7 +1011,7 @@ dependencies = [
  "futures 0.1.29",
  "futures-cpupool",
  "h2",
- "http",
+ "http 0.1.21",
  "http-body",
  "httparse",
  "iovec",
@@ -1066,11 +1077,11 @@ dependencies = [
 
 [[package]]
 name = "input_buffer"
-version = "0.2.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e1b822cc844905551931d6f81608ed5f50a79c1078a4e2b4d42dbc7c1eedfbf"
+checksum = "19a8a95243d5a0398cae618ec29477c6e3cb631152be5c19481f80bc71559754"
 dependencies = [
- "bytes 0.4.12",
+ "bytes 0.5.4",
 ]
 
 [[package]]
@@ -1437,7 +1448,6 @@ dependencies = [
  "tokio 0.2.10",
  "tokio-tungstenite",
  "topology",
- "tungstenite",
 ]
 
 [[package]]
@@ -2024,7 +2034,7 @@ dependencies = [
  "encoding_rs",
  "flate2",
  "futures 0.1.29",
- "http",
+ "http 0.1.21",
  "hyper",
  "hyper-tls",
  "log",
@@ -2562,8 +2572,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-tungstenite"
-version = "0.10.0"
-source = "git+https://github.com/snapview/tokio-tungstenite?rev=308d9680c0e59dd1e8651659a775c05df937934e#308d9680c0e59dd1e8651659a775c05df937934e"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8b8fe88007ebc363512449868d7da4389c9400072a3f666f212c7280082882a"
 dependencies = [
  "futures 0.3.1",
  "log",
@@ -2613,18 +2624,17 @@ dependencies = [
 
 [[package]]
 name = "tungstenite"
-version = "0.9.2"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a0c2bd5aeb7dcd2bb32e472c8872759308495e5eccc942e929a513cd8d36110"
+checksum = "cfea31758bf674f990918962e8e5f07071a3161bd7c4138ed23e416e1ac4264e"
 dependencies = [
  "base64 0.11.0",
  "byteorder",
- "bytes 0.4.12",
- "http",
+ "bytes 0.5.4",
+ "http 0.2.0",
  "httparse",
  "input_buffer",
  "log",
- "native-tls",
  "rand 0.7.3",
  "sha-1",
  "url 2.1.1",

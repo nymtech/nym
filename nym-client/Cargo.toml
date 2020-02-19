@@ -25,7 +25,7 @@ reqwest = "0.9.22"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0.44"
 tokio = { version = "0.2", features = ["full"] }
-tungstenite = "0.9.2"
+tokio-tungstenite = "0.10.1"
 
 ## internal
 addressing = {path = "../common/addressing" }
@@ -42,9 +42,6 @@ topology = {path = "../common/topology" }
 ## will be moved to proper dependencies once released
 sphinx = { git = "https://github.com/nymtech/sphinx", rev="5862939c52e4dd76f836856a01787faec32152b4" }
 # sphinx = { path = "../../sphinx"}
-
-# putting this explicitly below everything and most likely, the next time we look into it, it will already have a proper release
-tokio-tungstenite = { git = "https://github.com/snapview/tokio-tungstenite", rev="308d9680c0e59dd1e8651659a775c05df937934e" }
 
 [build-dependencies]
 built = "0.3.2"

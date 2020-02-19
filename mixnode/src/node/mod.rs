@@ -135,7 +135,7 @@ impl PacketProcessor {
 
         if forwarding_data
             .sent_metrics_tx
-            .send(forwarding_data.recipient.to_string())
+            .send(forwarding_data.recipient.stringify())
             .await
             .is_err()
         {

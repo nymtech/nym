@@ -34,13 +34,12 @@ impl MixPeer {
     }
 
     pub async fn send(&self, bytes: Vec<u8>) -> Result<(), Box<dyn Error>> {
-        let next_hop_address = self.connection.clone();
-        let mut stream = tokio::net::TcpStream::connect(next_hop_address).await?;
+        let mut stream = tokio::net::TcpStream::connect(self.connection).await?;
         stream.write_all(&bytes).await?;
         Ok(())
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn stringify(&self) -> String {
         self.connection.to_string()
     }
 }

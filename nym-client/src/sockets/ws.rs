@@ -398,6 +398,7 @@ pub async fn start_websocket<T: 'static + NymTopology>(
     topology: TopologyInnerRef<T>,
 ) -> Result<(), WebSocketError> {
     let address = SocketAddr::new("127.0.0.1".parse().unwrap(), listening_port);
+    info!("Starting websocket listener at {:?}", address);
     let mut listener = tokio::net::TcpListener::bind(address).await?;
 
     while let Ok((stream, _)) = listener.accept().await {

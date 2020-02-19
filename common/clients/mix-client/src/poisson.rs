@@ -1,7 +1,7 @@
 use rand_distr::{Distribution, Exp};
 use std::time;
 
-pub fn sample_from_duration(average_duration: time::Duration) -> time::Duration {
+pub fn sample(average_duration: time::Duration) -> time::Duration {
     // this is our internal code used by our traffic streams
     // the error is only thrown if average delay is less than 0, which will never happen
     // so call to unwrap is perfectly safe here

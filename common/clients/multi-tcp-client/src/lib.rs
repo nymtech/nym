@@ -71,17 +71,41 @@ impl AsyncWrite for ConnectionWriter {
     }
 }
 
+pub struct Config {
+    initial_endpoints: Vec<SocketAddr>,
+    initial_reconnection_backoff: Duration,
+    maximum_reconnection_backoff: Duration,
+}
+
+impl Config {
+    pub fn new(
+        initial_endpoints: Vec<SocketAddr>,
+        initial_reconnection_backoff: Duration,
+        maximum_reconnection_backoff: Duration,
+    ) -> Self {
+        Config {
+            initial_endpoints,
+            initial_reconnection_backoff,
+            maximum_reconnection_backoff,
+        }
+    }
+}
+
 pub struct Client {
     connections_writers: HashMap<SocketAddr, ConnectionWriter>,
 }
 
 impl Client {
-    pub async fn new(endpoints: Vec<SocketAddr>) -> Client {
+    pub async fn new(config: Config) -> Client {
         let mut connections_writers = HashMap::new();
-        for endpoint in endpoints {
+        for endpoint in config.initial_endpoints {
             connections_writers.insert(
                 endpoint,
-                ConnectionWriter::new(tokio::net::TcpStream::connect(endpoint).await.unwrap()),
+                ConnectionWriter::new(
+                    tokio::net::TcpStream::connect(endpoint).await.unwrap(),
+                    config.initial_reconnection_backoff,
+                    config.maximum_reconnection_backoff,
+                ),
             );
         }
 
@@ -178,12 +202,15 @@ mod tests {
     fn server_receives_all_sent_messages_when_up() {
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         let addr = "127.0.0.1:5000".parse().unwrap();
+        let reconnection_backoff = Duration::from_secs(2);
+        let client_config =
+            Config::new(vec![addr], reconnection_backoff, 10 * reconnection_backoff);
 
         let messages_to_send = vec![b"foomp1", b"foomp2"];
         let finished_dummy_server_future =
             rt.spawn(DummyServer::new().listen_until(addr, CLOSE_MESSAGE.as_ref()));
 
-        let mut c = rt.block_on(Client::new(vec![addr]));
+        let mut c = rt.block_on(Client::new(client_config));
 
         for msg in &messages_to_send {
             rt.block_on(c.send(addr, *msg)).unwrap();

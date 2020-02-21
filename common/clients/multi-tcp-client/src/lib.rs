@@ -5,15 +5,29 @@ use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::str;
+use std::time::Duration;
 use tokio::prelude::*;
 
 struct ConnectionWriter {
     connection: tokio::net::TcpStream,
+
+    reconnection_backoff: Duration,
+    maximum_reconnection_backoff: Duration,
+    current_reconnection_backoff: Duration,
 }
 
 impl ConnectionWriter {
-    fn new(conn: tokio::net::TcpStream) -> Self {
-        ConnectionWriter { connection: conn }
+    fn new(
+        connection: tokio::net::TcpStream,
+        initial_reconnection_backoff: Duration,
+        maximum_reconnection_backoff: Duration,
+    ) -> Self {
+        ConnectionWriter {
+            connection,
+            reconnection_backoff: initial_reconnection_backoff,
+            maximum_reconnection_backoff,
+            current_reconnection_backoff: initial_reconnection_backoff,
+        }
     }
 }
 

@@ -25,8 +25,35 @@ impl ConnectionWriter {
         ConnectionWriter {
             connection,
             reconnection_backoff: initial_reconnection_backoff,
+
+struct ConnectionReconnector {
+    address: SocketAddr,
+    connection: Pin<Box<dyn Future<Output = io::Result<tokio::net::TcpStream>>>>,
+
+    current_retry_attempt: u32,
+    maximum_retry_attempts: u32,
+
+    current_backoff_delay: tokio::time::Delay,
+    maximum_reconnection_backoff: Duration,
+
+    reconnection_backoff: Duration,
+}
+
+impl ConnectionReconnector {
+    fn new(
+        address: SocketAddr,
+        maximum_retry_attempts: u32,
+        reconnection_backoff: Duration,
+        maximum_reconnection_backoff: Duration,
+    ) -> Self {
+        ConnectionReconnector {
+            address,
+            connection: Box::pin(tokio::net::TcpStream::connect(address)),
+            current_backoff_delay: tokio::time::delay_for(Duration::new(0, 0)), // if we can re-establish connection on first try without any backoff that's perfect
+            current_retry_attempt: 0,
             maximum_reconnection_backoff,
-            current_reconnection_backoff: initial_reconnection_backoff,
+            maximum_retry_attempts,
+            reconnection_backoff,
         }
     }
 }
@@ -36,6 +63,48 @@ impl Drop for ConnectionWriter {
         // try to cleanly shutdown connection on going out of scope
         if let Err(e) = self.connection.shutdown(std::net::Shutdown::Both) {
             eprintln!("Failed to cleanly shutdown the connection - {:?}", e);
+impl Future for ConnectionReconnector {
+    type Output = io::Result<tokio::net::TcpStream>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        // see if we are still in exponential backoff
+        if Pin::new(&mut self.current_backoff_delay)
+            .poll(cx)
+            .is_pending()
+        {
+            return Poll::Pending;
+        };
+
+        // see if we managed to resolve the connection yet
+        match Pin::new(&mut self.connection).poll(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Err(e)) => {
+                warn!(
+                    "we failed to re-establish connection to {} - {:?}",
+                    self.address, e
+                );
+                self.current_retry_attempt += 1;
+
+                // check if we reached our limit
+                if self.current_retry_attempt == self.maximum_retry_attempts {
+                    return Poll::Ready(Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        "Reached maximum number of retry attempts",
+                    )));
+                }
+
+                // we failed to re-establish connection - continue exponential backoff
+                let next_delay = std::cmp::min(
+                    self.maximum_reconnection_backoff,
+                    2_u32.pow(self.current_retry_attempt) * self.reconnection_backoff,
+                );
+
+                self.current_backoff_delay
+                    .reset(tokio::time::Instant::now() + next_delay);
+
+                Poll::Pending
+            }
+            Poll::Ready(Ok(conn)) => Poll::Ready(Ok(conn)),
         }
     }
 }

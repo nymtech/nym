@@ -1,4 +1,5 @@
 use crate::connection_manager::ConnectionManager;
+use log::*;
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
@@ -53,7 +54,6 @@ impl Client {
     }
 
     pub async fn send(&mut self, address: SocketAddr, message: &[u8]) -> io::Result<()> {
-        println!("sending {:?}", str::from_utf8(message));
         if !self.connections_managers.contains_key(&address) {
             return Err(io::Error::new(
                 io::ErrorKind::AddrNotAvailable,
@@ -96,24 +96,22 @@ mod tests {
             self.received_buf.clone()
         }
 
+        // this is only used in tests so slightly higher logging levels are fine
         async fn listen_until(mut self, addr: SocketAddr, close_message: &[u8]) -> Self {
             let mut listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-            println!("started");
-
             let (mut socket, _) = listener.accept().await.unwrap();
-            println!("connected");
             loop {
                 let mut buf = [0u8; 1024];
                 match socket.read(&mut buf).await {
                     Ok(n) if n == 0 => {
-                        println!("Remote connection closed");
+                        info!("Remote connection closed");
                         return self;
                     }
                     Ok(n) => {
-                        println!("received ({}) - {:?}", n, str::from_utf8(buf[..n].as_ref()));
+                        info!("received ({}) - {:?}", n, str::from_utf8(buf[..n].as_ref()));
 
                         if buf[..n].as_ref() == close_message {
-                            println!("closing...");
+                            info!("closing...");
                             socket.shutdown(std::net::Shutdown::Both).unwrap();
                             return self;
                         } else {

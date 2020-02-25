@@ -68,7 +68,7 @@ impl ConnectionManager {
                 Poll::Ready(conn) => conn,
             };
 
-            println!("We managed to reconnect!");
+            debug!("Managed to reconnect to {}!", self.address);
             self.state = ConnectionState::Writing(ConnectionWriter::new(new_connection));
         }
 
@@ -80,7 +80,7 @@ impl ConnectionManager {
                 // TODO: is this true? can we fail to write to a connection while it still remains open and valid?
                 Ok(res) => Ok(res),
                 Err(e) => {
-                    println!("Creating connection reconnector!");
+                    trace!("Creating connection reconnector!");
                     self.state = ConnectionState::Reconnecting(ConnectionReconnector::new(
                         self.address,
                         self.reconnection_backoff,

@@ -1,11 +1,8 @@
 use crate::connection_manager::ConnectionManager;
-use log::*;
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
-use std::str;
 use std::time::Duration;
-use tokio::prelude::*; // this import is actually required for socket.read() call
 
 mod connection_manager;
 
@@ -77,7 +74,10 @@ impl<'a> Client<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use log::*;
+    use std::str;
     use std::{env, time};
+    use tokio::prelude::*;
 
     const CLOSE_MESSAGE: [u8; 3] = [0, 0, 0];
 

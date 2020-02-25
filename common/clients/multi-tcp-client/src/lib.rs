@@ -1,222 +1,83 @@
-use futures::task::{Context, Poll};
-use futures::{AsyncWrite, AsyncWriteExt};
+use crate::connection_manager::ConnectionManager;
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
-use std::pin::Pin;
 use std::str;
 use std::time::Duration;
-use tokio::prelude::*;
+use tokio::prelude::*; // this import is actually required for socket.read() call
 
-struct ConnectionWriter {
-    connection: tokio::net::TcpStream,
-
-    reconnection_backoff: Duration,
-    maximum_reconnection_backoff: Duration,
-    current_reconnection_backoff: Duration,
-}
-
-impl ConnectionWriter {
-    fn new(
-        connection: tokio::net::TcpStream,
-        initial_reconnection_backoff: Duration,
-        maximum_reconnection_backoff: Duration,
-    ) -> Self {
-        ConnectionWriter {
-            connection,
-            reconnection_backoff: initial_reconnection_backoff,
-
-struct ConnectionReconnector {
-    address: SocketAddr,
-    connection: Pin<Box<dyn Future<Output = io::Result<tokio::net::TcpStream>>>>,
-
-    current_retry_attempt: u32,
-    maximum_retry_attempts: u32,
-
-    current_backoff_delay: tokio::time::Delay,
-    maximum_reconnection_backoff: Duration,
-
-    reconnection_backoff: Duration,
-}
-
-impl ConnectionReconnector {
-    fn new(
-        address: SocketAddr,
-        maximum_retry_attempts: u32,
-        reconnection_backoff: Duration,
-        maximum_reconnection_backoff: Duration,
-    ) -> Self {
-        ConnectionReconnector {
-            address,
-            connection: Box::pin(tokio::net::TcpStream::connect(address)),
-            current_backoff_delay: tokio::time::delay_for(Duration::new(0, 0)), // if we can re-establish connection on first try without any backoff that's perfect
-            current_retry_attempt: 0,
-            maximum_reconnection_backoff,
-            maximum_retry_attempts,
-            reconnection_backoff,
-        }
-    }
-}
-
-impl Drop for ConnectionWriter {
-    fn drop(&mut self) {
-        // try to cleanly shutdown connection on going out of scope
-        if let Err(e) = self.connection.shutdown(std::net::Shutdown::Both) {
-            eprintln!("Failed to cleanly shutdown the connection - {:?}", e);
-impl Future for ConnectionReconnector {
-    type Output = io::Result<tokio::net::TcpStream>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        // see if we are still in exponential backoff
-        if Pin::new(&mut self.current_backoff_delay)
-            .poll(cx)
-            .is_pending()
-        {
-            return Poll::Pending;
-        };
-
-        // see if we managed to resolve the connection yet
-        match Pin::new(&mut self.connection).poll(cx) {
-            Poll::Pending => Poll::Pending,
-            Poll::Ready(Err(e)) => {
-                warn!(
-                    "we failed to re-establish connection to {} - {:?}",
-                    self.address, e
-                );
-                self.current_retry_attempt += 1;
-
-                // check if we reached our limit
-                if self.current_retry_attempt == self.maximum_retry_attempts {
-                    return Poll::Ready(Err(io::Error::new(
-                        io::ErrorKind::Other,
-                        "Reached maximum number of retry attempts",
-                    )));
-                }
-
-                // we failed to re-establish connection - continue exponential backoff
-                let next_delay = std::cmp::min(
-                    self.maximum_reconnection_backoff,
-                    2_u32.pow(self.current_retry_attempt) * self.reconnection_backoff,
-                );
-
-                self.current_backoff_delay
-                    .reset(tokio::time::Instant::now() + next_delay);
-
-                Poll::Pending
-            }
-            Poll::Ready(Ok(conn)) => Poll::Ready(Ok(conn)),
-        }
-    }
-}
-
-impl AsyncWrite for ConnectionWriter {
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
-    ) -> Poll<io::Result<usize>> {
-        use tokio::io::AsyncWrite;
-
-        let mut read_buf = [0; 1];
-        match Pin::new(&mut self.connection).poll_read(cx, &mut read_buf) {
-            // at least try the obvious check if connection is definitely down
-            // can't do more than that
-            Poll::Ready(Ok(n)) if n == 0 => Poll::Ready(Err(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                "trying to write to closed connection",
-            ))),
-            _ => Pin::new(&mut self.connection).poll_write(cx, buf),
-        }
-    }
-
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        use tokio::io::AsyncWrite;
-        Pin::new(&mut self.connection).poll_flush(cx)
-    }
-
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        use tokio::io::AsyncWrite;
-        Pin::new(&mut self.connection).poll_shutdown(cx)
-    }
-}
+mod connection_manager;
 
 pub struct Config {
     initial_endpoints: Vec<SocketAddr>,
-    initial_reconnection_backoff: Duration,
+    reconnection_backoff: Duration,
     maximum_reconnection_backoff: Duration,
 }
 
 impl Config {
     pub fn new(
         initial_endpoints: Vec<SocketAddr>,
-        initial_reconnection_backoff: Duration,
+        reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
     ) -> Self {
         Config {
             initial_endpoints,
-            initial_reconnection_backoff,
+            reconnection_backoff,
             maximum_reconnection_backoff,
         }
     }
 }
 
 pub struct Client {
-    connections_writers: HashMap<SocketAddr, ConnectionWriter>,
+    connections_managers: HashMap<SocketAddr, ConnectionManager>,
 }
 
 impl Client {
     pub async fn new(config: Config) -> Client {
-        let mut connections_writers = HashMap::new();
+        let mut connections_managers = HashMap::new();
         for endpoint in config.initial_endpoints {
-            connections_writers.insert(
+            connections_managers.insert(
                 endpoint,
-                ConnectionWriter::new(
-                    tokio::net::TcpStream::connect(endpoint).await.unwrap(),
-                    config.initial_reconnection_backoff,
+                ConnectionManager::new(
+                    endpoint,
+                    config.reconnection_backoff,
                     config.maximum_reconnection_backoff,
-                ),
+                )
+                .await,
             );
         }
 
         Client {
-            connections_writers,
+            connections_managers,
         }
     }
 
     pub async fn send(&mut self, address: SocketAddr, message: &[u8]) -> io::Result<()> {
         println!("sending {:?}", str::from_utf8(message));
-        if !self.connections_writers.contains_key(&address) {
+        if !self.connections_managers.contains_key(&address) {
             return Err(io::Error::new(
                 io::ErrorKind::AddrNotAvailable,
-                "address not in the list",
+                "address not in the list - dynamic connections not yet supported",
             ));
         }
+
+        // let (tx, rx) = oneshot::channel();
 
         // to optimize later by using channels and separate tokio tasks for each connection handler
         // because right now say we want to write to addresses A and B -
         // We have to wait until we're done dealing with A before we can do anything with B
-        if let Err(e) = self
-            .connections_writers
+        self.connections_managers
             .get_mut(&address)
             .unwrap()
-            .write_all(&message)
+            .send(&message)
             .await
-        {
-            println!(
-                "Failed to write to socket - {:?}. Presumably we need to reconnect!",
-                e
-            );
-            // TODO: reconnection
-        }
-
-        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time;
+    use std::{env, time};
 
     const CLOSE_MESSAGE: [u8; 3] = [0, 0, 0];
 
@@ -268,7 +129,71 @@ mod tests {
     }
 
     #[test]
+    fn client_reconnects_to_server_after_it_went_down() {
+        let num_test_threads = env::var("RUST_TEST_THREADS").expect("Number of test threads must be set to 1 to prevent tests interacting with themselves! (RUST_TEST_THREADS=1)");
+        assert_eq!(num_test_threads, "1", "Number of test threads must be set to 1 to prevent tests interacting with themselves! (RUST_TEST_THREADS=1)");
+
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let addr = "127.0.0.1:5000".parse().unwrap();
+        let reconnection_backoff = Duration::from_secs(1);
+        let client_config =
+            Config::new(vec![addr], reconnection_backoff, 10 * reconnection_backoff);
+
+        let messages_to_send = vec![b"foomp1", b"foomp2"];
+        let finished_dummy_server_future =
+            rt.spawn(DummyServer::new().listen_until(addr, CLOSE_MESSAGE.as_ref()));
+
+        let mut c = rt.block_on(Client::new(client_config));
+
+        for msg in &messages_to_send {
+            rt.block_on(c.send(addr, *msg)).unwrap();
+            rt.block_on(
+                async move { tokio::time::delay_for(time::Duration::from_millis(50)).await },
+            );
+        }
+
+        // kill server
+        rt.block_on(c.send(addr, CLOSE_MESSAGE.as_ref())).unwrap();
+        rt.block_on(async move { tokio::time::delay_for(time::Duration::from_millis(50)).await });
+
+        // try to send - go into reconnection
+        let post_kill_message = b"new foomp";
+
+        // we are trying to send to killed server
+        assert!(rt.block_on(c.send(addr, post_kill_message)).is_err());
+        // the server future should have already been resolved
+        let received_messages = rt
+            .block_on(finished_dummy_server_future)
+            .unwrap()
+            .get_received();
+
+        assert_eq!(received_messages, messages_to_send);
+
+        let new_server_future =
+            rt.spawn(DummyServer::new().listen_until(addr, CLOSE_MESSAGE.as_ref()));
+
+        // keep sending after we leave reconnection backoff and reconnect
+        loop {
+            if rt.block_on(c.send(addr, post_kill_message)).is_ok() {
+                break;
+            }
+            rt.block_on(
+                async move { tokio::time::delay_for(time::Duration::from_millis(50)).await },
+            );
+        }
+        rt.block_on(async move { tokio::time::delay_for(time::Duration::from_millis(50)).await });
+
+        // kill the server to ensure it actually got the message
+        rt.block_on(c.send(addr, CLOSE_MESSAGE.as_ref())).unwrap();
+        let new_received_messages = rt.block_on(new_server_future).unwrap().get_received();
+        assert_eq!(post_kill_message.to_vec(), new_received_messages[0]);
+    }
+
+    #[test]
     fn server_receives_all_sent_messages_when_up() {
+        let num_test_threads = env::var("RUST_TEST_THREADS").expect("Number of test threads must be set to 1 to prevent tests interacting with themselves! (RUST_TEST_THREADS=1)");
+        assert_eq!(num_test_threads, "1", "Number of test threads must be set to 1 to prevent tests interacting with themselves! (RUST_TEST_THREADS=1)");
+
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         let addr = "127.0.0.1:5000".parse().unwrap();
         let reconnection_backoff = Duration::from_secs(2);

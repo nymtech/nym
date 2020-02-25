@@ -1,3 +1,4 @@
+use futures::future::LocalBoxFuture;
 use log::*;
 use std::future::Future;
 use std::io;
@@ -6,9 +7,9 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-pub(crate) struct ConnectionReconnector {
+pub(crate) struct ConnectionReconnector<'a> {
     address: SocketAddr,
-    connection: Pin<Box<dyn Future<Output = io::Result<tokio::net::TcpStream>>>>,
+    connection: LocalBoxFuture<'a, io::Result<tokio::net::TcpStream>>,
 
     current_retry_attempt: u32,
 
@@ -18,7 +19,7 @@ pub(crate) struct ConnectionReconnector {
     reconnection_backoff: Duration,
 }
 
-impl ConnectionReconnector {
+impl<'a> ConnectionReconnector<'a> {
     pub(crate) fn new(
         address: SocketAddr,
         reconnection_backoff: Duration,
@@ -26,7 +27,7 @@ impl ConnectionReconnector {
     ) -> Self {
         ConnectionReconnector {
             address,
-            connection: Box::pin(tokio::net::TcpStream::connect(address)),
+            connection: tokio::net::TcpStream::connect(address).boxed_local(),
             current_backoff_delay: tokio::time::delay_for(Duration::new(0, 0)), // if we can re-establish connection on first try without any backoff that's perfect
             current_retry_attempt: 0,
             maximum_reconnection_backoff,
@@ -35,7 +36,7 @@ impl ConnectionReconnector {
     }
 }
 
-impl Future for ConnectionReconnector {
+impl<'a> Future for ConnectionReconnector<'a> {
     type Output = tokio::net::TcpStream;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -66,7 +67,7 @@ impl Future for ConnectionReconnector {
                 self.current_backoff_delay
                     .reset(tokio::time::Instant::now() + next_delay);
 
-                self.connection = Box::pin(tokio::net::TcpStream::connect(self.address));
+                self.connection = tokio::net::TcpStream::connect(self.address).boxed_local();
 
                 Poll::Pending
             }

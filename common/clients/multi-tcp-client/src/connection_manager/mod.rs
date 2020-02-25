@@ -10,26 +10,26 @@ use std::time::Duration;
 mod reconnector;
 mod writer;
 
-enum ConnectionState {
+enum ConnectionState<'a> {
     Writing(ConnectionWriter),
-    Reconnecting(ConnectionReconnector),
+    Reconnecting(ConnectionReconnector<'a>),
 }
 
-pub(crate) struct ConnectionManager {
+pub(crate) struct ConnectionManager<'a> {
     address: SocketAddr,
 
     maximum_reconnection_backoff: Duration,
     reconnection_backoff: Duration,
 
-    state: ConnectionState,
+    state: ConnectionState<'a>,
 }
 
-impl ConnectionManager {
+impl<'a> ConnectionManager<'a> {
     pub(crate) async fn new(
         address: SocketAddr,
         reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
-    ) -> Self {
+    ) -> ConnectionManager<'a> {
         // based on initial connection we will either have a writer or a reconnector
         let state = match tokio::net::TcpStream::connect(address).await {
             Ok(conn) => ConnectionState::Writing(ConnectionWriter::new(conn)),

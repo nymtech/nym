@@ -29,12 +29,12 @@ impl Config {
     }
 }
 
-pub struct Client {
-    connections_managers: HashMap<SocketAddr, ConnectionManager>,
+pub struct Client<'a> {
+    connections_managers: HashMap<SocketAddr, ConnectionManager<'a>>,
 }
 
-impl Client {
-    pub async fn new(config: Config) -> Client {
+impl<'a> Client<'a> {
+    pub async fn new(config: Config) -> Client<'a> {
         let mut connections_managers = HashMap::new();
         for endpoint in config.initial_endpoints {
             connections_managers.insert(

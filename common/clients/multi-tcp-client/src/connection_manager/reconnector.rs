@@ -1,4 +1,5 @@
 use futures::future::LocalBoxFuture;
+use futures::FutureExt;
 use log::*;
 use std::future::Future;
 use std::io;
@@ -24,7 +25,7 @@ impl<'a> ConnectionReconnector<'a> {
         address: SocketAddr,
         reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
-    ) -> Self {
+    ) -> ConnectionReconnector<'a> {
         ConnectionReconnector {
             address,
             connection: tokio::net::TcpStream::connect(address).boxed_local(),

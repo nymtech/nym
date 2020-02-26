@@ -108,6 +108,5 @@ pub fn execute(matches: &ArgMatches) {
         config.get_announce_address()
     );
 
-    let mix = MixNode::new(config);
-    mix.start().unwrap();
+    MixNode::new(config).run();
 }

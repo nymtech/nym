@@ -18,6 +18,6 @@ addressing = {path = "../../addressing"}
 topology = {path = "../../topology"}
 
 ## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="5862939c52e4dd76f836856a01787faec32152b4" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="e5d91f87a6a9dbfc192a029e834b39a42768e9ce" }
 # sphinx = { path = "../../../../sphinx"}
 

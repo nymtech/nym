@@ -98,8 +98,7 @@ impl PemStorableKey for MixIdentityPublicKey {
     }
 }
 
-// COPY IS DERIVED ONLY TEMPORARILY UNTIL https://github.com/nymtech/nym/issues/47 is fixed
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct MixIdentityPrivateKey(pub encryption::PrivateKey);
 
 impl<'a> From<&'a MixIdentityPrivateKey> for MixIdentityPublicKey {

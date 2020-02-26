@@ -62,8 +62,7 @@ impl PemStorableKeyPair for KeyPair {
     }
 }
 
-// COPY IS DERIVED ONLY TEMPORARILY UNTIL https://github.com/nymtech/nym/issues/47 is fixed
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct PrivateKey(pub Scalar);
 
 impl PrivateKey {

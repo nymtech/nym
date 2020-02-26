@@ -2,10 +2,10 @@ use crate::built_info;
 use directory_client::presence::mixnodes::MixNodePresence;
 use directory_client::requests::presence_mixnodes_post::PresenceMixNodesPoster;
 use directory_client::DirectoryClient;
-use futures::task::SpawnExt;
 use log::{debug, error};
 use std::time::Duration;
 use tokio::runtime::Handle;
+use tokio::task::JoinHandle;
 
 pub struct NotifierConfig {
     directory_server: String,
@@ -59,21 +59,19 @@ impl Notifier {
         }
     }
 
-    pub fn notify(&self) {
+    fn notify(&self) {
         match self.net_client.presence_mix_nodes_post.post(&self.presence) {
             Err(err) => error!("failed to send presence - {:?}", err),
             Ok(_) => debug!("sent presence information"),
         }
     }
 
-    pub async fn run(&self) {
-        loop {
-            self.notify();
-            tokio::time::delay_for(self.sending_delay).await;
-        }
-    }
-
-    pub fn start(self, handle: &Handle) {
-        handle.spawn(async move { self.run() });
+    pub fn start(self, handle: &Handle) -> JoinHandle<()> {
+        handle.spawn(async move {
+            loop {
+                self.notify();
+                tokio::time::delay_for(self.sending_delay).await;
+            }
+        })
     }
 }

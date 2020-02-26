@@ -67,7 +67,7 @@ impl MixPacketProcessor {
         packet_data: &[u8],
         processing_data: &RwLock<MixProcessingData>,
     ) -> Result<StoreData, MixProcessingError> {
-        let packet = SphinxPacket::from_bytes(packet_data.to_vec())?;
+        let packet = SphinxPacket::from_bytes(packet_data)?;
         let read_processing_data = match processing_data.read() {
             Ok(guard) => guard,
             Err(e) => {

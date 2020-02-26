@@ -304,7 +304,7 @@ impl ServiceProvider {
 
         let mix_future = rt.spawn(ServiceProvider::start_mixnet_listening(
             self.config.get_mix_listening_address(),
-            *self.sphinx_keypair.private_key(),
+            self.sphinx_keypair.private_key().clone(), // CLONE IS DONE TEMPORARILY UNTIL PROVIDER IS REFACTORED THE MIXNODE STYLE
             self.config.get_clients_inboxes_dir(),
             self.config.get_stored_messages_filename_length(),
         ));
@@ -312,7 +312,7 @@ impl ServiceProvider {
             self.config.get_clients_listening_address(),
             self.config.get_clients_inboxes_dir(),
             thread_shareable_ledger,
-            *self.sphinx_keypair.private_key(),
+            self.sphinx_keypair.private_key().clone(), // CLONE IS DONE TEMPORARILY UNTIL PROVIDER IS REFACTORED THE MIXNODE STYLE
             self.config.get_message_retrieval_limit(),
         ));
         // Spawn the root task

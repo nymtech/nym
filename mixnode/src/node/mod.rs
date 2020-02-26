@@ -239,6 +239,7 @@ impl MixNode {
         let mut rt = Runtime::new()?;
 
         // Spawn Tokio tasks as necessary for node functionality
+    pub fn start_presence_notifier(&self) {
         let notifier_config = presence::NotifierConfig::new(
             self.config.get_presence_directory_server(),
             self.config.get_announce_address(),
@@ -246,10 +247,8 @@ impl MixNode {
             self.config.get_layer(),
             self.config.get_presence_sending_delay(),
         );
-        rt.spawn({
-            let presence_notifier = presence::Notifier::new(notifier_config);
-            presence_notifier.run()
-        });
+        presence::Notifier::new(notifier_config).start(self.runtime.handle())
+    }
 
         let metrics = MetricsReporter::new().add_arc_mutex();
         rt.spawn(MetricsReporter::run_received_metrics_control(

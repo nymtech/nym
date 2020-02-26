@@ -2,8 +2,10 @@ use crate::built_info;
 use directory_client::presence::mixnodes::MixNodePresence;
 use directory_client::requests::presence_mixnodes_post::PresenceMixNodesPoster;
 use directory_client::DirectoryClient;
+use futures::task::SpawnExt;
 use log::{debug, error};
 use std::time::Duration;
+use tokio::runtime::Handle;
 
 pub struct NotifierConfig {
     directory_server: String,
@@ -64,10 +66,14 @@ impl Notifier {
         }
     }
 
-    pub async fn run(self) {
+    pub async fn run(&self) {
         loop {
             self.notify();
             tokio::time::delay_for(self.sending_delay).await;
         }
+    }
+
+    pub fn start(self, handle: &Handle) {
+        handle.spawn(async move { self.run() });
     }
 }

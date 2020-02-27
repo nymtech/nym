@@ -1,6 +1,6 @@
 use crate::built_info;
 use crate::commands::override_config;
-use crate::config::persistance::pathfinder::ClientPathfinder;
+use crate::config::persistence::pathfinder::ClientPathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::identity::MixIdentityKeyPair;

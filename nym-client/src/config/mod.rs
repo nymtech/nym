@@ -4,7 +4,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::path::PathBuf;
 use std::time;
 
-pub mod persistance;
+pub mod persistence;
 mod template;
 
 // 'CLIENT'

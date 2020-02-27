@@ -1,5 +1,5 @@
 use crate::commands::override_config;
-use crate::config::persistance::pathfinder::MixNodePathfinder;
+use crate::config::persistence::pathfinder::MixNodePathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::encryption;

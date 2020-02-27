@@ -1,7 +1,7 @@
 use crate::client::mix_traffic::MixTrafficController;
 use crate::client::received_buffer::ReceivedMessagesBuffer;
 use crate::client::topology_control::TopologyInnerRef;
-use crate::config::persistance::pathfinder::ClientPathfinder;
+use crate::config::persistence::pathfinder::ClientPathfinder;
 use crate::config::{Config, SocketType};
 use crate::sockets::tcp;
 use crate::sockets::ws;

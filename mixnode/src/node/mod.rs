@@ -1,4 +1,4 @@
-use crate::config::persistance::pathfinder::MixNodePathfinder;
+use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
 use crate::node::packet_processing::PacketProcessor;
 use crypto::encryption;

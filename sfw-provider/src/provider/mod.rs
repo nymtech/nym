@@ -1,4 +1,4 @@
-use crate::config::persistance::pathfinder::ProviderPathfinder;
+use crate::config::persistence::pathfinder::ProviderPathfinder;
 use crate::config::Config;
 use crate::provider::client_handling::{ClientProcessingData, ClientRequestProcessor};
 use crate::provider::mix_handling::{MixPacketProcessor, MixProcessingData};

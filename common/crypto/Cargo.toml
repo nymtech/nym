@@ -15,4 +15,4 @@ rand = "0.7.2"
 rand_os = "0.1"
 
 ## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="e5d91f87a6a9dbfc192a029e834b39a42768e9ce" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="4e51ed38a5de6fcb454c8903f1fe5e6b52720c77" }

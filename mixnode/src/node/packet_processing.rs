@@ -8,7 +8,6 @@ use sphinx::{ProcessedPacket, SphinxPacket};
 use std::net::SocketAddr;
 use std::ops::Deref;
 use std::sync::Arc;
-use std::time::Duration;
 
 #[derive(Debug)]
 pub enum MixProcessingError {
@@ -20,6 +19,7 @@ pub enum MixProcessingError {
 
 pub enum MixProcessingResult {
     ForwardHop(SocketAddr, Vec<u8>),
+    #[allow(dead_code)]
     LoopMessage,
 }
 

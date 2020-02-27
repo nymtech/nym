@@ -3,7 +3,6 @@ use clap::{App, ArgMatches};
 pub mod built_info;
 mod commands;
 mod config;
-mod mix_peer;
 mod node;
 
 fn main() {

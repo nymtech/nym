@@ -11,12 +11,12 @@ pub(crate) struct PacketForwarder<'a> {
     conn_rx: mpsc::UnboundedReceiver<(SocketAddr, Vec<u8>)>,
 }
 
-impl<'a: 'static> PacketForwarder<'a> {
+impl PacketForwarder<'static> {
     pub(crate) async fn new(
         initial_endpoints: Vec<SocketAddr>,
         initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
-    ) -> PacketForwarder<'a> {
+    ) -> PacketForwarder<'static> {
         let tcp_client_config = multi_tcp_client::Config::new(
             initial_endpoints,
             initial_reconnection_backoff,

@@ -1,4 +1,5 @@
 use crate::connection_manager::ConnectionManager;
+use log::*;
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
@@ -28,16 +29,18 @@ impl Config {
 
 pub struct Client<'a> {
     connections_managers: HashMap<SocketAddr, ConnectionManager<'a>>,
+    maximum_reconnection_backoff: Duration,
+    reconnection_backoff: Duration,
 }
 
 impl<'a> Client<'a> {
     pub async fn new(config: Config) -> Client<'a> {
         let mut connections_managers = HashMap::new();
-        for endpoint in config.initial_endpoints {
+        for initial_endpoint in config.initial_endpoints {
             connections_managers.insert(
-                endpoint,
+                initial_endpoint,
                 ConnectionManager::new(
-                    endpoint,
+                    initial_endpoint,
                     config.reconnection_backoff,
                     config.maximum_reconnection_backoff,
                 )
@@ -47,18 +50,29 @@ impl<'a> Client<'a> {
 
         Client {
             connections_managers,
+            reconnection_backoff: config.maximum_reconnection_backoff,
+            maximum_reconnection_backoff: config.reconnection_backoff,
         }
     }
 
     pub async fn send(&mut self, address: SocketAddr, message: &[u8]) -> io::Result<()> {
         if !self.connections_managers.contains_key(&address) {
-            return Err(io::Error::new(
-                io::ErrorKind::AddrNotAvailable,
-                "address not in the list - dynamic connections not yet supported",
-            ));
-        }
+            info!(
+                "There is no existing connection to {:?} - it will be established now",
+                address
+            );
 
-        // let (tx, rx) = oneshot::channel();
+            // TODO: now we're blocking to establish TCP connection this need to be changed
+            // so that other connections could progress
+            let new_manager = ConnectionManager::new(
+                address,
+                self.reconnection_backoff,
+                self.maximum_reconnection_backoff,
+            )
+            .await;
+
+            self.connections_managers.insert(address, new_manager);
+        }
 
         // to optimize later by using channels and separate tokio tasks for each connection handler
         // because right now say we want to write to addresses A and B -
@@ -74,7 +88,6 @@ impl<'a> Client<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use log::*;
     use std::str;
     use std::{env, time};
     use tokio::prelude::*;

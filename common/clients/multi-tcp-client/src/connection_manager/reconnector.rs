@@ -1,4 +1,4 @@
-use futures::future::LocalBoxFuture;
+use futures::future::BoxFuture;
 use futures::FutureExt;
 use log::*;
 use std::future::Future;
@@ -10,7 +10,7 @@ use std::time::Duration;
 
 pub(crate) struct ConnectionReconnector<'a> {
     address: SocketAddr,
-    connection: LocalBoxFuture<'a, io::Result<tokio::net::TcpStream>>,
+    connection: BoxFuture<'a, io::Result<tokio::net::TcpStream>>,
 
     current_retry_attempt: u32,
 
@@ -28,7 +28,7 @@ impl<'a> ConnectionReconnector<'a> {
     ) -> ConnectionReconnector<'a> {
         ConnectionReconnector {
             address,
-            connection: tokio::net::TcpStream::connect(address).boxed_local(),
+            connection: tokio::net::TcpStream::connect(address).boxed(),
             current_backoff_delay: tokio::time::delay_for(Duration::new(0, 0)), // if we can re-establish connection on first try without any backoff that's perfect
             current_retry_attempt: 0,
             maximum_reconnection_backoff,
@@ -68,7 +68,7 @@ impl<'a> Future for ConnectionReconnector<'a> {
                 self.current_backoff_delay
                     .reset(tokio::time::Instant::now() + next_delay);
 
-                self.connection = tokio::net::TcpStream::connect(self.address).boxed_local();
+                self.connection = tokio::net::TcpStream::connect(self.address).boxed();
 
                 Poll::Pending
             }

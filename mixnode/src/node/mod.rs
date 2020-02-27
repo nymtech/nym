@@ -86,13 +86,9 @@ impl MixNode {
 
     pub fn start_packet_forwarder(&mut self) -> mpsc::UnboundedSender<(SocketAddr, Vec<u8>)> {
         info!("Starting packet forwarder...");
-        // only temporary for test sake, will be replaced with dynamic list extremely soon
-        let initial_addresses = vec![
-            "127.0.0.1:4000".parse().unwrap(),
-            "127.0.0.1:5000".parse().unwrap(),
-            "127.0.0.1:5001".parse().unwrap(),
-            "127.0.0.1:5002".parse().unwrap(),
-        ];
+
+        // this can later be replaced with topology information
+        let initial_addresses = vec![];
         self.runtime
             .block_on(packet_forwarding::PacketForwarder::new(
                 initial_addresses,

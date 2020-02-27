@@ -17,6 +17,8 @@ const DEFAULT_LISTENING_PORT: u16 = 1789;
 // where applicable, the below are defined in milliseconds
 const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 3000;
 const DEFAULT_METRICS_SENDING_DELAY: u64 = 3000;
+const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: u64 = 10_000; // 10s
+const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: u64 = 300_000; // 5min
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -208,6 +210,14 @@ impl Config {
     pub fn get_announce_address(&self) -> String {
         self.mixnode.announce_address.clone()
     }
+
+    pub fn get_packet_forwarding_initial_backoff(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.packet_forwarding_initial_backoff)
+    }
+
+    pub fn get_packet_forwarding_maximum_backoff(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.packet_forwarding_maximum_backoff)
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -286,13 +296,25 @@ pub struct Debug {
     presence_directory_server: String,
 
     /// Delay between each subsequent presence data being sent.
+    /// The provided value is interpreted as milliseconds.
     presence_sending_delay: u64,
 
     /// Directory server to which the server will be reporting their metrics data.
     metrics_directory_server: String,
 
     /// Delay between each subsequent metrics data being sent.
+    /// The provided value is interpreted as milliseconds.
     metrics_sending_delay: u64,
+
+    /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
+    /// forwarding sphinx packets.
+    /// The provided value is interpreted as milliseconds.
+    packet_forwarding_initial_backoff: u64,
+
+    /// Maximum value of an exponential backoff to reconnect to dropped TCP connection when
+    /// forwarding sphinx packets.
+    /// The provided value is interpreted as milliseconds.
+    packet_forwarding_maximum_backoff: u64,
 }
 
 impl Debug {
@@ -313,6 +335,8 @@ impl Default for Debug {
             presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
             metrics_directory_server: Self::default_directory_server(),
             metrics_sending_delay: DEFAULT_METRICS_SENDING_DELAY,
+            packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
+            packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
         }
     }
 }

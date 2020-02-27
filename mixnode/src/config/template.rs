@@ -58,13 +58,24 @@ nym_root_directory = "{{ mixnode.nym_root_directory }}"
 presence_directory_server = "{{ debug.presence_directory_server}}"
 
 # Delay between each subsequent presence data being sent.
+# The provided value is interpreted as milliseconds.
 presence_sending_delay = {{ debug.presence_sending_delay }}
 
 # Directory server to which the server will be reporting their metrics data.
 metrics_directory_server = "{{ debug.metrics_directory_server }}"
 
 # Delay between each subsequent metrics data being sent.
+# The provided value is interpreted as milliseconds.
 metrics_sending_delay = {{ debug.metrics_sending_delay }}
-    
+
+# Initial value of an exponential backoff to reconnect to dropped TCP connection when
+# forwarding sphinx packets.
+# The provided value is interpreted as milliseconds.
+packet_forwarding_initial_backoff = {{ debug.packet_forwarding_initial_backoff }}
+
+# Maximum value of an exponential backoff to reconnect to dropped TCP connection when
+# forwarding sphinx packets.
+# The provided value is interpreted as milliseconds.
+packet_forwarding_maximum_backoff = {{ debug.packet_forwarding_maximum_backoff }}    
 "#
 }

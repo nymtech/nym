@@ -5,10 +5,10 @@ use log::*;
 use sphinx::header::delays::Delay as SphinxDelay;
 use sphinx::route::NodeAddressBytes;
 use sphinx::{ProcessedPacket, SphinxPacket};
+use std::net::SocketAddr;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
-use std::net::SocketAddr;
 
 #[derive(Debug)]
 pub enum MixProcessingError {
@@ -40,7 +40,6 @@ impl From<addressing::AddressTypeError> for MixProcessingError {
     }
 }
 
-
 // PacketProcessor contains all data required to correctly unwrap and forward sphinx packets
 #[derive(Clone)]
 pub struct PacketProcessor {
@@ -58,7 +57,7 @@ impl PacketProcessor {
             metrics_reporter,
         }
     }
-    
+
     pub(crate) fn report_sent(&self, addr: SocketAddr) {
         self.metrics_reporter.report_sent(addr.to_string())
     }
@@ -72,13 +71,13 @@ impl PacketProcessor {
         let next_hop_address =
             addressing::socket_address_from_encoded_bytes(forward_address.to_bytes())?;
 
-        // TODO: change the calls after merge on sphinx PR
-        let delay_duration = Duration::from_nanos(delay.get_value());
-        
         // Delay packet for as long as required
-        tokio::time::delay_for(delay_duration).await;
+        tokio::time::delay_for(delay.to_duration()).await;
 
-        Ok(MixProcessingResult::ForwardHop(next_hop_address, packet.to_bytes()))
+        Ok(MixProcessingResult::ForwardHop(
+            next_hop_address,
+            packet.to_bytes(),
+        ))
     }
 
     pub(crate) async fn process_sphinx_packet(

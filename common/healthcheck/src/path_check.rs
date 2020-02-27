@@ -238,7 +238,7 @@ impl PathChecker {
         // we already checked for 'None' case
         let first_node_client = first_node_client.as_ref().unwrap();
 
-        let delays: Vec<_> = path.iter().map(|_| Delay::new(0)).collect();
+        let delays: Vec<_> = path.iter().map(|_| Delay::new_from_nanos(0)).collect();
 
         // all of the data used to create the packet was created by us
         let packet = sphinx::SphinxPacket::new(

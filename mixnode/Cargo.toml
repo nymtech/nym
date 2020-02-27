@@ -24,6 +24,7 @@ addressing = {path = "../common/addressing" }
 config = {path = "../common/config"}
 crypto = {path = "../common/crypto"}
 directory-client = { path = "../common/clients/directory-client" }
+multi-tcp-client = { path = "../common/clients/multi-tcp-client" }
 pemstore = {path = "../common/pemstore"}
 
 ## will be moved to proper dependencies once released

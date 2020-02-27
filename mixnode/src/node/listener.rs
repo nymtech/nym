@@ -9,11 +9,11 @@ use tokio::task::JoinHandle;
 
 async fn process_received_packet(
     packet_data: [u8; sphinx::PACKET_SIZE],
-    processing_data: PacketProcessor,
+    packet_processor: PacketProcessor,
     forwarding_channel: mpsc::UnboundedSender<(SocketAddr, Vec<u8>)>,
 ) {
     // all processing incl. delay was done, the only thing left is to forward it
-    match processing_data.process_sphinx_packet(packet_data).await {
+    match packet_processor.process_sphinx_packet(packet_data).await {
         Err(e) => debug!("We failed to process received sphinx packet - {:?}", e),
         Ok(res) => match res {
             MixProcessingResult::ForwardHop(hop_address, hop_data) => {
@@ -25,7 +25,7 @@ async fn process_received_packet(
                 forwarding_channel
                     .unbounded_send((hop_address, hop_data))
                     .unwrap();
-                processing_data.report_sent(hop_address);
+                packet_processor.report_sent(hop_address);
             }
             MixProcessingResult::LoopMessage => {
                 warn!("Somehow processed a loop cover message that we haven't implemented yet!")

@@ -14,12 +14,12 @@ pub(crate) struct PacketForwarder<'a> {
 impl<'a: 'static> PacketForwarder<'a> {
     pub(crate) async fn new(
         initial_endpoints: Vec<SocketAddr>,
-        reconnection_backoff: Duration,
+        initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
     ) -> PacketForwarder<'a> {
         let tcp_client_config = multi_tcp_client::Config::new(
             initial_endpoints,
-            reconnection_backoff,
+            initial_reconnection_backoff,
             maximum_reconnection_backoff,
         );
 

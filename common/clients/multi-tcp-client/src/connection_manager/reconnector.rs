@@ -17,13 +17,13 @@ pub(crate) struct ConnectionReconnector<'a> {
     current_backoff_delay: tokio::time::Delay,
     maximum_reconnection_backoff: Duration,
 
-    reconnection_backoff: Duration,
+    initial_reconnection_backoff: Duration,
 }
 
 impl<'a> ConnectionReconnector<'a> {
     pub(crate) fn new(
         address: SocketAddr,
-        reconnection_backoff: Duration,
+        initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
     ) -> ConnectionReconnector<'a> {
         ConnectionReconnector {
@@ -32,7 +32,7 @@ impl<'a> ConnectionReconnector<'a> {
             current_backoff_delay: tokio::time::delay_for(Duration::new(0, 0)), // if we can re-establish connection on first try without any backoff that's perfect
             current_retry_attempt: 0,
             maximum_reconnection_backoff,
-            reconnection_backoff,
+            initial_reconnection_backoff,
         }
     }
 }
@@ -62,7 +62,7 @@ impl<'a> Future for ConnectionReconnector<'a> {
                 // we failed to re-establish connection - continue exponential backoff
                 let next_delay = std::cmp::min(
                     self.maximum_reconnection_backoff,
-                    2_u32.pow(self.current_retry_attempt) * self.reconnection_backoff,
+                    2_u32.pow(self.current_retry_attempt) * self.initial_reconnection_backoff,
                 );
 
                 self.current_backoff_delay

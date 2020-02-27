@@ -9,19 +9,19 @@ mod connection_manager;
 
 pub struct Config {
     initial_endpoints: Vec<SocketAddr>,
-    reconnection_backoff: Duration,
+    initial_reconnection_backoff: Duration,
     maximum_reconnection_backoff: Duration,
 }
 
 impl Config {
     pub fn new(
         initial_endpoints: Vec<SocketAddr>,
-        reconnection_backoff: Duration,
+        initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
     ) -> Self {
         Config {
             initial_endpoints,
-            reconnection_backoff,
+            initial_reconnection_backoff,
             maximum_reconnection_backoff,
         }
     }
@@ -30,7 +30,7 @@ impl Config {
 pub struct Client<'a> {
     connections_managers: HashMap<SocketAddr, ConnectionManager<'a>>,
     maximum_reconnection_backoff: Duration,
-    reconnection_backoff: Duration,
+    initial_reconnection_backoff: Duration,
 }
 
 impl<'a> Client<'a> {
@@ -41,7 +41,7 @@ impl<'a> Client<'a> {
                 initial_endpoint,
                 ConnectionManager::new(
                     initial_endpoint,
-                    config.reconnection_backoff,
+                    config.initial_reconnection_backoff,
                     config.maximum_reconnection_backoff,
                 )
                 .await,
@@ -50,8 +50,8 @@ impl<'a> Client<'a> {
 
         Client {
             connections_managers,
-            reconnection_backoff: config.maximum_reconnection_backoff,
-            maximum_reconnection_backoff: config.reconnection_backoff,
+            initial_reconnection_backoff: config.maximum_reconnection_backoff,
+            maximum_reconnection_backoff: config.initial_reconnection_backoff,
         }
     }
 
@@ -66,7 +66,7 @@ impl<'a> Client<'a> {
             // so that other connections could progress
             let new_manager = ConnectionManager::new(
                 address,
-                self.reconnection_backoff,
+                self.initial_reconnection_backoff,
                 self.maximum_reconnection_backoff,
             )
             .await;

@@ -1475,6 +1475,7 @@ dependencies = [
  "dotenv",
  "futures 0.3.1",
  "log",
+ "multi-tcp-client",
  "pemstore",
  "pretty_env_logger",
  "serde",

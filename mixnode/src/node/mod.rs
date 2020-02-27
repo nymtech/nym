@@ -2,12 +2,15 @@ use crate::config::persistance::pathfinder::MixNodePathfinder;
 use crate::config::Config;
 use crate::node::packet_processing::PacketProcessor;
 use crypto::encryption;
+use futures::channel::mpsc;
 use log::*;
 use pemstore::pemstore::PemStore;
+use std::net::SocketAddr;
 use tokio::runtime::Runtime;
 
 mod listener;
 mod metrics;
+mod packet_forwarding;
 pub(crate) mod packet_processing;
 mod presence;
 
@@ -41,6 +44,7 @@ impl MixNode {
     }
 
     pub fn start_presence_notifier(&self) {
+        info!("Starting presence notifier...");
         let notifier_config = presence::NotifierConfig::new(
             self.config.get_presence_directory_server(),
             self.config.get_announce_address(),
@@ -52,6 +56,7 @@ impl MixNode {
     }
 
     pub fn start_metrics_reporter(&self) -> metrics::MetricsReporter {
+        info!("Starting metrics reporter...");
         metrics::MetricsController::new(
             self.config.get_metrics_directory_server(),
             self.sphinx_keypair.public_key().to_base58_string(),
@@ -60,7 +65,12 @@ impl MixNode {
         .start(self.runtime.handle())
     }
 
-    pub fn start_socket_listener(&self, metrics_reporter: metrics::MetricsReporter) {
+    pub fn start_socket_listener(
+        &self,
+        metrics_reporter: metrics::MetricsReporter,
+        forwarding_channel: mpsc::UnboundedSender<(SocketAddr, Vec<u8>)>,
+    ) {
+        info!("Starting socket listener...");
         // this is the only location where our private key is going to be copied
         // it will be held in memory owned by `MixNode` and inside an Arc of `PacketProcessor`
         let packet_processor =
@@ -70,13 +80,33 @@ impl MixNode {
             self.runtime.handle(),
             self.config.get_listening_address(),
             packet_processor,
+            forwarding_channel,
         );
     }
 
+    pub fn start_packet_forwarder(&mut self) -> mpsc::UnboundedSender<(SocketAddr, Vec<u8>)> {
+        info!("Starting packet forwarder...");
+        // only temporary for test sake, will be replaced with dynamic list extremely soon
+        let initial_addresses = vec![
+            "127.0.0.1:4000".parse().unwrap(),
+            "127.0.0.1:5000".parse().unwrap(),
+            "127.0.0.1:5001".parse().unwrap(),
+            "127.0.0.1:5002".parse().unwrap(),
+        ];
+        self.runtime
+            .block_on(packet_forwarding::PacketForwarder::new(
+                initial_addresses,
+                self.config.get_packet_forwarding_initial_backoff(),
+                self.config.get_packet_forwarding_maximum_backoff(),
+            ))
+            .start(self.runtime.handle())
+    }
+
     pub fn run(&mut self) {
-        self.start_presence_notifier();
+        let forwarding_channel = self.start_packet_forwarder();
         let metrics_reporter = self.start_metrics_reporter();
-        self.start_socket_listener(metrics_reporter);
+        self.start_socket_listener(metrics_reporter, forwarding_channel);
+        self.start_presence_notifier();
 
         if let Err(e) = self.runtime.block_on(tokio::signal::ctrl_c()) {
             error!(

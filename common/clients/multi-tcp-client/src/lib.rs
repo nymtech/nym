@@ -113,7 +113,7 @@ mod tests {
         }
 
         // this is only used in tests so slightly higher logging levels are fine
-        async fn listen_until(mut self, addr: SocketAddr, close_message: &[u8]) -> Self {
+        async fn listen_until(mut self, close_message: &[u8]) -> Self {
             let (mut socket, _) = self.listener.accept().await.unwrap();
             loop {
                 let mut buf = [0u8; SERVER_MSG_LEN];
@@ -152,8 +152,7 @@ mod tests {
         let messages_to_send = vec![[1u8; SERVER_MSG_LEN], [2; SERVER_MSG_LEN]];
 
         let dummy_server = rt.block_on(DummyServer::new(addr));
-        let finished_dummy_server_future =
-            rt.spawn(dummy_server.listen_until(addr, &CLOSE_MESSAGE));
+        let finished_dummy_server_future = rt.spawn(dummy_server.listen_until(&CLOSE_MESSAGE));
 
         let mut c = rt.block_on(Client::new(client_config));
 
@@ -177,7 +176,7 @@ mod tests {
         assert!(rt.block_on(c.send(addr, &post_kill_message)).is_err());
 
         let new_dummy_server = rt.block_on(DummyServer::new(addr));
-        let new_server_future = rt.spawn(new_dummy_server.listen_until(addr, &CLOSE_MESSAGE));
+        let new_server_future = rt.spawn(new_dummy_server.listen_until(&CLOSE_MESSAGE));
 
         // keep sending after we leave reconnection backoff and reconnect
         loop {
@@ -206,8 +205,7 @@ mod tests {
         let messages_to_send = vec![[1u8; SERVER_MSG_LEN], [2; SERVER_MSG_LEN]];
 
         let dummy_server = rt.block_on(DummyServer::new(addr));
-        let finished_dummy_server_future =
-            rt.spawn(dummy_server.listen_until(addr, &CLOSE_MESSAGE));
+        let finished_dummy_server_future = rt.spawn(dummy_server.listen_until(&CLOSE_MESSAGE));
 
         let mut c = rt.block_on(Client::new(client_config));
 

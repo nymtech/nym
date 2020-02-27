@@ -7,8 +7,6 @@ jobs:
   allow_failures:
     - rust: nightly
   fast_finish: true
-env:
-  - RUST_TEST_THREADS=1
 before_script:
   - rustup component add rustfmt
 script:

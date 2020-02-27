@@ -89,19 +89,22 @@ impl<'a> Client<'a> {
 mod tests {
     use super::*;
     use std::str;
-    use std::{env, time};
+    use std::time;
     use tokio::prelude::*;
 
-    const CLOSE_MESSAGE: [u8; 3] = [0, 0, 0];
+    const SERVER_MSG_LEN: usize = 16;
+    const CLOSE_MESSAGE: [u8; SERVER_MSG_LEN] = [0; SERVER_MSG_LEN];
 
     struct DummyServer {
         received_buf: Vec<Vec<u8>>,
+        listener: tokio::net::TcpListener,
     }
 
     impl DummyServer {
-        fn new() -> Self {
+        async fn new(address: SocketAddr) -> Self {
             DummyServer {
                 received_buf: Vec::new(),
+                listener: tokio::net::TcpListener::bind(address).await.unwrap(),
             }
         }
 
@@ -111,10 +114,9 @@ mod tests {
 
         // this is only used in tests so slightly higher logging levels are fine
         async fn listen_until(mut self, addr: SocketAddr, close_message: &[u8]) -> Self {
-            let mut listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-            let (mut socket, _) = listener.accept().await.unwrap();
+            let (mut socket, _) = self.listener.accept().await.unwrap();
             loop {
-                let mut buf = [0u8; 1024];
+                let mut buf = [0u8; SERVER_MSG_LEN];
                 match socket.read(&mut buf).await {
                     Ok(n) if n == 0 => {
                         info!("Remote connection closed");
@@ -141,38 +143,26 @@ mod tests {
 
     #[test]
     fn client_reconnects_to_server_after_it_went_down() {
-        let num_test_threads = env::var("RUST_TEST_THREADS").expect("Number of test threads must be set to 1 to prevent tests interacting with themselves! (RUST_TEST_THREADS=1)");
-        assert_eq!(num_test_threads, "1", "Number of test threads must be set to 1 to prevent tests interacting with themselves! (RUST_TEST_THREADS=1)");
-
         let mut rt = tokio::runtime::Runtime::new().unwrap();
-        let addr = "127.0.0.1:5000".parse().unwrap();
+        let addr = "127.0.0.1:6000".parse().unwrap();
         let reconnection_backoff = Duration::from_secs(1);
         let client_config =
             Config::new(vec![addr], reconnection_backoff, 10 * reconnection_backoff);
 
-        let messages_to_send = vec![b"foomp1", b"foomp2"];
+        let messages_to_send = vec![[1u8; SERVER_MSG_LEN], [2; SERVER_MSG_LEN]];
+
+        let dummy_server = rt.block_on(DummyServer::new(addr));
         let finished_dummy_server_future =
-            rt.spawn(DummyServer::new().listen_until(addr, CLOSE_MESSAGE.as_ref()));
+            rt.spawn(dummy_server.listen_until(addr, &CLOSE_MESSAGE));
 
         let mut c = rt.block_on(Client::new(client_config));
 
         for msg in &messages_to_send {
-            rt.block_on(c.send(addr, *msg)).unwrap();
-            rt.block_on(
-                async move { tokio::time::delay_for(time::Duration::from_millis(50)).await },
-            );
+            rt.block_on(c.send(addr, msg)).unwrap();
         }
 
         // kill server
-        rt.block_on(c.send(addr, CLOSE_MESSAGE.as_ref())).unwrap();
-        rt.block_on(async move { tokio::time::delay_for(time::Duration::from_millis(50)).await });
-
-        // try to send - go into reconnection
-        let post_kill_message = b"new foomp";
-
-        // we are trying to send to killed server
-        assert!(rt.block_on(c.send(addr, post_kill_message)).is_err());
-        // the server future should have already been resolved
+        rt.block_on(c.send(addr, &CLOSE_MESSAGE)).unwrap();
         let received_messages = rt
             .block_on(finished_dummy_server_future)
             .unwrap()
@@ -180,51 +170,52 @@ mod tests {
 
         assert_eq!(received_messages, messages_to_send);
 
-        let new_server_future =
-            rt.spawn(DummyServer::new().listen_until(addr, CLOSE_MESSAGE.as_ref()));
+        // try to send - go into reconnection
+        let post_kill_message = [3u8; SERVER_MSG_LEN];
+
+        // we are trying to send to killed server
+        assert!(rt.block_on(c.send(addr, &post_kill_message)).is_err());
+
+        let new_dummy_server = rt.block_on(DummyServer::new(addr));
+        let new_server_future = rt.spawn(new_dummy_server.listen_until(addr, &CLOSE_MESSAGE));
 
         // keep sending after we leave reconnection backoff and reconnect
         loop {
-            if rt.block_on(c.send(addr, post_kill_message)).is_ok() {
+            if rt.block_on(c.send(addr, &post_kill_message)).is_ok() {
                 break;
             }
             rt.block_on(
                 async move { tokio::time::delay_for(time::Duration::from_millis(50)).await },
             );
         }
-        rt.block_on(async move { tokio::time::delay_for(time::Duration::from_millis(50)).await });
 
         // kill the server to ensure it actually got the message
-        rt.block_on(c.send(addr, CLOSE_MESSAGE.as_ref())).unwrap();
+        rt.block_on(c.send(addr, &CLOSE_MESSAGE)).unwrap();
         let new_received_messages = rt.block_on(new_server_future).unwrap().get_received();
         assert_eq!(post_kill_message.to_vec(), new_received_messages[0]);
     }
 
     #[test]
     fn server_receives_all_sent_messages_when_up() {
-        let num_test_threads = env::var("RUST_TEST_THREADS").expect("Number of test threads must be set to 1 to prevent tests interacting with themselves! (RUST_TEST_THREADS=1)");
-        assert_eq!(num_test_threads, "1", "Number of test threads must be set to 1 to prevent tests interacting with themselves! (RUST_TEST_THREADS=1)");
-
         let mut rt = tokio::runtime::Runtime::new().unwrap();
-        let addr = "127.0.0.1:5000".parse().unwrap();
+        let addr = "127.0.0.1:6001".parse().unwrap();
         let reconnection_backoff = Duration::from_secs(2);
         let client_config =
             Config::new(vec![addr], reconnection_backoff, 10 * reconnection_backoff);
 
-        let messages_to_send = vec![b"foomp1", b"foomp2"];
+        let messages_to_send = vec![[1u8; SERVER_MSG_LEN], [2; SERVER_MSG_LEN]];
+
+        let dummy_server = rt.block_on(DummyServer::new(addr));
         let finished_dummy_server_future =
-            rt.spawn(DummyServer::new().listen_until(addr, CLOSE_MESSAGE.as_ref()));
+            rt.spawn(dummy_server.listen_until(addr, &CLOSE_MESSAGE));
 
         let mut c = rt.block_on(Client::new(client_config));
 
         for msg in &messages_to_send {
-            rt.block_on(c.send(addr, *msg)).unwrap();
-            rt.block_on(
-                async move { tokio::time::delay_for(time::Duration::from_millis(50)).await },
-            );
+            rt.block_on(c.send(addr, msg)).unwrap();
         }
 
-        rt.block_on(c.send(addr, CLOSE_MESSAGE.as_ref())).unwrap();
+        rt.block_on(c.send(addr, &CLOSE_MESSAGE)).unwrap();
 
         // the server future should have already been resolved
         let received_messages = rt

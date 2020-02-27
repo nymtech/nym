@@ -57,7 +57,6 @@ impl<'a> ConnectionManager<'a> {
     pub(crate) async fn send(&mut self, msg: &[u8]) -> io::Result<()> {
         if let ConnectionState::Reconnecting(conn_reconnector) = &mut self.state {
             // do a single poll rather than await for future to completely resolve
-            // TODO: if we call poll ourselves here, will the Waker still call it itself later on?
             let new_connection = match futures::poll!(conn_reconnector) {
                 Poll::Pending => {
                     return Err(io::Error::new(

@@ -1,4 +1,5 @@
 use crate::node::metrics;
+use addressing::AddressTypeError;
 use crypto::encryption;
 use log::*;
 use sphinx::header::delays::Delay as SphinxDelay;
@@ -6,6 +7,8 @@ use sphinx::route::NodeAddressBytes;
 use sphinx::{ProcessedPacket, SphinxPacket};
 use std::ops::Deref;
 use std::sync::Arc;
+use std::time::Duration;
+use std::net::SocketAddr;
 
 #[derive(Debug)]
 pub enum MixProcessingError {
@@ -13,6 +16,11 @@ pub enum MixProcessingError {
     ReceivedFinalHopError,
     SphinxProcessingError,
     InvalidHopAddress,
+}
+
+pub enum MixProcessingResult {
+    ForwardHop(SocketAddr, Vec<u8>),
+    LoopMessage,
 }
 
 impl From<sphinx::ProcessingError> for MixProcessingError {
@@ -24,30 +32,14 @@ impl From<sphinx::ProcessingError> for MixProcessingError {
     }
 }
 
-//
-// struct ForwardingData {
-//     packet: SphinxPacket,
-//     delay: SphinxDelay,
-//     recipient: MixPeer,
-//     sent_metrics_tx: mpsc::Sender<String>,
-// }
-//
-// // TODO: this will need to be changed if MixPeer will live longer than our Forwarding Data
-// impl ForwardingData {
-//     fn new(
-//         packet: SphinxPacket,
-//         delay: SphinxDelay,
-//         recipient: MixPeer,
-//         sent_metrics_tx: mpsc::Sender<String>,
-//     ) -> Self {
-//         ForwardingData {
-//             packet,
-//             delay,
-//             recipient,
-//             sent_metrics_tx,
-//         }
-//     }
-// }
+impl From<addressing::AddressTypeError> for MixProcessingError {
+    fn from(_: AddressTypeError) -> Self {
+        use MixProcessingError::*;
+
+        InvalidHopAddress
+    }
+}
+
 
 // PacketProcessor contains all data required to correctly unwrap and forward sphinx packets
 #[derive(Clone)]
@@ -66,64 +58,33 @@ impl PacketProcessor {
             metrics_reporter,
         }
     }
+    
+    pub(crate) fn report_sent(&self, addr: SocketAddr) {
+        self.metrics_reporter.report_sent(addr.to_string())
+    }
 
-    // async fn wait_and_forward(mut forwarding_data: ForwardingData) {
-    //     let delay_duration = Duration::from_nanos(forwarding_data.delay.get_value());
-    //     tokio::time::delay_for(delay_duration).await;
-    //
-    //     if forwarding_data
-    //         .sent_metrics_tx
-    //         .send(forwarding_data.recipient.stringify())
-    //         .await
-    //         .is_err()
-    //     {
-    //         error!("failed to send metrics data to the controller - the underlying thread probably died!");
-    //         std::process::exit(1);
-    //     }
-    //
-    //     trace!("RECIPIENT: {:?}", forwarding_data.recipient);
-    //     match forwarding_data
-    //         .recipient
-    //         .send(forwarding_data.packet.to_bytes())
-    //         .await
-    //     {
-    //         Ok(()) => (),
-    //         Err(e) => {
-    //             warn!(
-    //                 "failed to write bytes to next mix peer. err = {:?}",
-    //                 e.to_string()
-    //             );
-    //         }
-    //     }
-    // }
-
-    fn process_forward_hop(
+    async fn process_forward_hop(
         &self,
         packet: SphinxPacket,
         forward_address: NodeAddressBytes,
         delay: SphinxDelay,
-    ) -> Result<(), MixProcessingError> {
-        unimplemented!()
-        // let next_mix = match MixPeer::new(next_hop_address) {
-        //     Ok(next_mix) => next_mix,
-        //     Err(_) => return Err(MixProcessingError::InvalidHopAddress),
-        // };
-        //
-        // let fwd_data = ForwardingData::new(
-        //     next_packet,
-        //     delay,
-        //     next_mix,
-        //     processing_data.sent_metrics_tx.clone(),
-        // );
-        // Ok(fwd_data)
+    ) -> Result<MixProcessingResult, MixProcessingError> {
+        let next_hop_address =
+            addressing::socket_address_from_encoded_bytes(forward_address.to_bytes())?;
 
-        // TODO: do forwarding here?
+        // TODO: change the calls after merge on sphinx PR
+        let delay_duration = Duration::from_nanos(delay.get_value());
+        
+        // Delay packet for as long as required
+        tokio::time::delay_for(delay_duration).await;
+
+        Ok(MixProcessingResult::ForwardHop(next_hop_address, packet.to_bytes()))
     }
 
-    pub(crate) fn process_sphinx_packet(
+    pub(crate) async fn process_sphinx_packet(
         &self,
         raw_packet_data: [u8; sphinx::PACKET_SIZE],
-    ) -> Result<(), MixProcessingError> {
+    ) -> Result<MixProcessingResult, MixProcessingError> {
         // we received something resembling a sphinx packet, report it!
         self.metrics_reporter.report_received();
 
@@ -131,7 +92,7 @@ impl PacketProcessor {
 
         match packet.process(self.secret_key.deref().inner()) {
             Ok(ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay)) => {
-                self.process_forward_hop(packet, address, delay)
+                self.process_forward_hop(packet, address, delay).await
             }
             Ok(ProcessedPacket::ProcessedPacketFinalHop(_, _, _)) => {
                 warn!("Received a loop cover message that we haven't implemented yet!");
@@ -144,3 +105,6 @@ impl PacketProcessor {
         }
     }
 }
+
+// TODO: the test that definitely needs to be written is as follows:
+// we are stuck trying to write to mix A, can we still forward just fine to mix B?

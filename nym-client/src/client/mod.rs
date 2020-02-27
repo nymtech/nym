@@ -69,7 +69,7 @@ impl NymClient {
         topology_ctrl_ref.read().await.topology.as_ref().unwrap()
             .providers()
             .first()
-            .expect("Could not get a provider from the initial network topology, are you using the right directory server?")
+            .expect("Could not get a compatible provider from the initial network topology, are you using the right directory server?")
             .client_listener
     }
 

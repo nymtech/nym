@@ -1,0 +1,60 @@
+use directory_client::presence::providers::MixProviderClient;
+use futures::lock::Mutex;
+use sfw_provider_requests::AuthToken;
+use sphinx::route::DestinationAddressBytes;
+use std::collections::HashMap;
+use std::io;
+use std::path::PathBuf;
+use std::sync::Arc;
+
+#[derive(Debug, Clone)]
+// Note: you should NEVER create more than a single instance of this using 'new()'.
+// You should always use .clone() to create additional instances
+pub struct ClientLedger {
+    inner: Arc<Mutex<ClientLedgerInner>>,
+}
+
+impl ClientLedger {
+    pub(crate) fn new() -> Self {
+        ClientLedger {
+            inner: Arc::new(Mutex::new(ClientLedgerInner(HashMap::new()))),
+        }
+    }
+
+    async fn has_token(&self, auth_token: &AuthToken) -> bool {
+        self.inner.lock().await.0.contains_key(auth_token)
+    }
+
+    pub(crate) async fn insert_token(
+        &mut self,
+        auth_token: AuthToken,
+        client_address: DestinationAddressBytes,
+    ) -> Option<DestinationAddressBytes> {
+        self.inner.lock().await.0.insert(auth_token, client_address)
+    }
+
+    pub(crate) async fn current_clients(&self) -> Vec<MixProviderClient> {
+        self.inner
+            .lock()
+            .await
+            .0
+            .iter()
+            .map(|(_, v)| bs58::encode(v).into_string())
+            .map(|pub_key| MixProviderClient { pub_key })
+            .collect()
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn load(_file: PathBuf) -> Self {
+        // TODO: actual loading,
+        // temporarily just create a new one
+        Self::new()
+    }
+
+    #[allow(dead_code)]
+    pub(crate) async fn save(&self, _file: PathBuf) -> io::Result<()> {
+        unimplemented!()
+    }
+}
+
+struct ClientLedgerInner(HashMap<AuthToken, DestinationAddressBytes>);

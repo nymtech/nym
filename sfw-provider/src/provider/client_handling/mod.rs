@@ -1,5 +1,5 @@
+use crate::provider::client_handling::ledger::ClientLedger;
 use crate::provider::storage::{ClientStorage, StoreError};
-use crate::provider::ClientLedger;
 use crypto::encryption;
 use futures::lock::Mutex as FMutex;
 use hmac::{Hmac, Mac};
@@ -15,6 +15,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 type HmacSha256 = Hmac<Sha256>;
+
+pub(crate) mod ledger;
+pub(crate) mod listener;
+pub(crate) mod request_processing;
 
 #[derive(Debug)]
 pub enum ClientProcessingError {
@@ -81,91 +85,91 @@ impl ClientProcessingData {
 pub(crate) struct ClientRequestProcessor;
 
 impl ClientRequestProcessor {
-    pub(crate) async fn process_client_request(
-        data: &[u8],
-        processing_data: Arc<ClientProcessingData>,
-    ) -> Result<Vec<u8>, ClientProcessingError> {
-        let client_request = ProviderRequests::from_bytes(&data)?;
-        trace!("Received the following request: {:?}", client_request);
-        match client_request {
-            ProviderRequests::Register(req) => Ok(ClientRequestProcessor::register_new_client(
-                req,
-                processing_data,
-            )
-            .await?
-            .to_bytes()),
-            ProviderRequests::PullMessages(req) => Ok(
-                ClientRequestProcessor::process_pull_messages_request(req, processing_data)
-                    .await?
-                    .to_bytes(),
-            ),
-        }
-    }
-
-    async fn process_pull_messages_request(
-        req: PullRequest,
-        processing_data: Arc<ClientProcessingData>,
-    ) -> Result<PullResponse, ClientProcessingError> {
-        // TODO: this lock is completely unnecessary as we're only reading the data.
-        // Wait for https://github.com/nymtech/nym-sfw-provider/issues/19 to resolve.
-        let unlocked_ledger = processing_data.registered_clients_ledger.lock().await;
-
-        if unlocked_ledger.has_token(&req.auth_token) {
-            // drop the mutex so that we could do IO without blocking others wanting to get the lock
-            drop(unlocked_ledger);
-            let retrieved_messages = ClientStorage::retrieve_client_files(
-                req.destination_address,
-                processing_data.store_dir.as_path(),
-                processing_data.message_retrieval_limit,
-            )?;
-            Ok(PullResponse::new(retrieved_messages))
-        } else {
-            Err(ClientProcessingError::WrongToken)
-        }
-    }
-
-    async fn register_new_client(
-        req: RegisterRequest,
-        processing_data: Arc<ClientProcessingData>,
-    ) -> Result<RegisterResponse, ClientProcessingError> {
-        debug!(
-            "Processing register new client request: {:?}",
-            req.destination_address
-        );
-        let mut unlocked_ledger = processing_data.registered_clients_ledger.lock().await;
-
-        let auth_token = ClientRequestProcessor::generate_new_auth_token(
-            req.destination_address.to_vec(),
-            &processing_data.secret_key,
-        );
-        if !unlocked_ledger.has_token(&auth_token) {
-            unlocked_ledger.insert_token(auth_token.clone(), req.destination_address);
-            ClientRequestProcessor::create_storage_dir(
-                req.destination_address,
-                processing_data.store_dir.as_path(),
-            )?;
-        }
-        Ok(RegisterResponse::new(auth_token))
-    }
-
-    fn create_storage_dir(
-        client_address: sphinx::route::DestinationAddressBytes,
-        store_dir: &Path,
-    ) -> io::Result<()> {
-        let client_dir_name = bs58::encode(client_address).into_string();
-        let full_store_dir = store_dir.join(client_dir_name);
-        std::fs::create_dir_all(full_store_dir)
-    }
-
-    fn generate_new_auth_token(data: Vec<u8>, key: &encryption::PrivateKey) -> AuthToken {
-        // also note that `new_varkey` doesn't even have an execution branch returning an error
-        let mut auth_token_raw = HmacSha256::new_varkey(&key.to_bytes())
-            .expect("HMAC should be able take key of any size");
-        auth_token_raw.input(&data);
-        let mut auth_token = [0u8; 32];
-        auth_token.copy_from_slice(&auth_token_raw.result().code().to_vec());
-        AuthToken(auth_token)
-    }
+    // pub(crate) async fn process_client_request(
+    //     data: &[u8],
+    //     processing_data: Arc<ClientProcessingData>,
+    // ) -> Result<Vec<u8>, ClientProcessingError> {
+    //     let client_request = ProviderRequests::from_bytes(&data)?;
+    //     trace!("Received the following request: {:?}", client_request);
+    //     match client_request {
+    //         ProviderRequests::Register(req) => Ok(ClientRequestProcessor::register_new_client(
+    //             req,
+    //             processing_data,
+    //         )
+    //         .await?
+    //         .to_bytes()),
+    //         ProviderRequests::PullMessages(req) => Ok(
+    //             ClientRequestProcessor::process_pull_messages_request(req, processing_data)
+    //                 .await?
+    //                 .to_bytes(),
+    //         ),
+    //     }
+    // }
+    //
+    // async fn process_pull_messages_request(
+    //     req: PullRequest,
+    //     processing_data: Arc<ClientProcessingData>,
+    // ) -> Result<PullResponse, ClientProcessingError> {
+    //     // TODO: this lock is completely unnecessary as we're only reading the data.
+    //     // Wait for https://github.com/nymtech/nym-sfw-provider/issues/19 to resolve.
+    //     let unlocked_ledger = processing_data.registered_clients_ledger.lock().await;
+    //
+    //     if unlocked_ledger.has_token(&req.auth_token) {
+    //         // drop the mutex so that we could do IO without blocking others wanting to get the lock
+    //         drop(unlocked_ledger);
+    //         let retrieved_messages = ClientStorage::retrieve_client_files(
+    //             req.destination_address,
+    //             processing_data.store_dir.as_path(),
+    //             processing_data.message_retrieval_limit,
+    //         )?;
+    //         Ok(PullResponse::new(retrieved_messages))
+    //     } else {
+    //         Err(ClientProcessingError::WrongToken)
+    //     }
+    // }
+    //
+    // async fn register_new_client(
+    //     req: RegisterRequest,
+    //     processing_data: Arc<ClientProcessingData>,
+    // ) -> Result<RegisterResponse, ClientProcessingError> {
+    //     debug!(
+    //         "Processing register new client request: {:?}",
+    //         req.destination_address
+    //     );
+    //     let mut unlocked_ledger = processing_data.registered_clients_ledger.lock().await;
+    //
+    //     let auth_token = ClientRequestProcessor::generate_new_auth_token(
+    //         req.destination_address.to_vec(),
+    //         &processing_data.secret_key,
+    //     );
+    //     if !unlocked_ledger.has_token(&auth_token) {
+    //         unlocked_ledger.insert_token(auth_token.clone(), req.destination_address);
+    //         ClientRequestProcessor::create_storage_dir(
+    //             req.destination_address,
+    //             processing_data.store_dir.as_path(),
+    //         )?;
+    //     }
+    //     Ok(RegisterResponse::new(auth_token))
+    // }
+    //
+    // fn create_storage_dir(
+    //     client_address: sphinx::route::DestinationAddressBytes,
+    //     store_dir: &Path,
+    // ) -> io::Result<()> {
+    //     let client_dir_name = bs58::encode(client_address).into_string();
+    //     let full_store_dir = store_dir.join(client_dir_name);
+    //     std::fs::create_dir_all(full_store_dir)
+    // }
+    //
+    // fn generate_new_auth_token(data: Vec<u8>, key: &encryption::PrivateKey) -> AuthToken {
+    //     // also note that `new_varkey` doesn't even have an execution branch returning an error
+    //     let mut auth_token_raw = HmacSha256::new_varkey(&key.to_bytes())
+    //         .expect("HMAC should be able take key of any size");
+    //     auth_token_raw.input(&data);
+    //     let mut auth_token = [0u8; 32];
+    //     auth_token.copy_from_slice(&auth_token_raw.result().code().to_vec());
+    //     AuthToken(auth_token)
+    // }
 }
 
 #[cfg(test)]

@@ -50,6 +50,9 @@ impl StoreData {
 }
 
 // TODO: replace with proper database...
+// Note: you should NEVER create more than a single instance of this using 'new()'.
+// You should always use .clone() to create additional instances
+#[derive(Clone, Debug)]
 pub struct ClientStorage {
     inner: Arc<Mutex<ClientStorageInner>>,
 }

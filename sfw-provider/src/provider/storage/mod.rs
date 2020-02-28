@@ -74,8 +74,7 @@ impl ClientStorage {
     pub(crate) async fn store_processed_data(&self, store_data: StoreData) -> io::Result<()> {
         let inner_data = self.inner.lock().await;
 
-        // TODO: to replace with store_data.to_b58_string() once PR on sphinx is merged
-        let client_dir_name = bs58::encode(store_data.client_address).into_string();
+        let client_dir_name = client_address.to_base58_string();
         let full_store_dir = inner_data.main_store_path_dir.join(client_dir_name);
         let full_store_path = full_store_dir.join(Self::generate_random_file_name(
             inner_data.filename_length as usize,
@@ -97,8 +96,7 @@ impl ClientStorage {
     ) -> io::Result<Vec<ClientFile>> {
         let inner_data = self.inner.lock().await;
 
-        // TODO: to replace with store_data.to_b58_string() once PR on sphinx is merged
-        let client_dir_name = bs58::encode(client_address).into_string();
+        let client_dir_name = client_address.to_base58_string();
         let full_store_dir = inner_data.main_store_path_dir.join(client_dir_name);
 
         trace!("going to lookup: {:?}!", full_store_dir);

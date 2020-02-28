@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time;
 
-pub mod persistance;
+pub mod persistence;
 mod template;
 
 // 'PROVIDER'

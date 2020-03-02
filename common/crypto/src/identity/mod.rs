@@ -68,7 +68,7 @@ impl MixIdentityPublicKey {
         let public_key_bytes = self.to_bytes();
         temporary_address.copy_from_slice(&public_key_bytes[..]);
 
-        temporary_address
+        DestinationAddressBytes::from_bytes(temporary_address)
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

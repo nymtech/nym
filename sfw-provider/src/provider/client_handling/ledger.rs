@@ -21,16 +21,16 @@ impl ClientLedger {
         }
     }
 
-    pub(crate) async fn has_token(&self, auth_token: &AuthToken) -> bool {
-        self.inner.lock().await.0.contains_key(auth_token)
+    pub(crate) async fn has_client(&self, client_address: &DestinationAddressBytes) -> bool {
+        self.inner.lock().await.0.contains_key(client_address)
     }
 
     pub(crate) async fn insert_token(
         &mut self,
         auth_token: AuthToken,
         client_address: DestinationAddressBytes,
-    ) -> Option<DestinationAddressBytes> {
-        self.inner.lock().await.0.insert(auth_token, client_address)
+    ) -> Option<AuthToken> {
+        self.inner.lock().await.0.insert(client_address, auth_token)
     }
 
     pub(crate) async fn current_clients(&self) -> Vec<MixProviderClient> {
@@ -38,8 +38,8 @@ impl ClientLedger {
             .lock()
             .await
             .0
-            .iter()
-            .map(|(_, v)| v.to_base58_string())
+            .keys()
+            .map(|client_address| client_address.to_base58_string())
             .map(|pub_key| MixProviderClient { pub_key })
             .collect()
     }
@@ -57,4 +57,4 @@ impl ClientLedger {
     }
 }
 
-struct ClientLedgerInner(HashMap<AuthToken, DestinationAddressBytes>);
+struct ClientLedgerInner(HashMap<DestinationAddressBytes, AuthToken>);

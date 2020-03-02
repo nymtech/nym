@@ -39,7 +39,7 @@ impl ClientLedger {
             .await
             .0
             .iter()
-            .map(|(_, v)| bs58::encode(v).into_string())
+            .map(|(_, v)| v.to_base58_string())
             .map(|pub_key| MixProviderClient { pub_key })
             .collect()
     }

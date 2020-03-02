@@ -21,7 +21,7 @@ impl ClientLedger {
         }
     }
 
-    async fn has_token(&self, auth_token: &AuthToken) -> bool {
+    pub(crate) async fn has_token(&self, auth_token: &AuthToken) -> bool {
         self.inner.lock().await.0.contains_key(auth_token)
     }
 

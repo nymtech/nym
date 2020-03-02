@@ -67,6 +67,16 @@ pub struct ClientStorageInner {
 
 // TODO: change it to some generic implementation to inject fs (or even better - proper database)
 impl ClientStorage {
+    pub(crate) fn new(message_limit: usize, filename_len: u16, main_store_dir: PathBuf) -> Self {
+        ClientStorage {
+            inner: Arc::new(Mutex::new(ClientStorageInner {
+                message_retrieval_limit: message_limit,
+                filename_length: filename_len,
+                main_store_path_dir: main_store_dir,
+            })),
+        }
+    }
+
     pub(crate) fn generate_random_file_name(length: usize) -> String {
         rand::thread_rng()
             .sample_iter(&rand::distributions::Alphanumeric)

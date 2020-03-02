@@ -31,7 +31,7 @@ pemstore = {path = "../common/pemstore"}
 sfw-provider-requests = { path = "./sfw-provider-requests" }
 
 ## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="fde6f0523e5bd8e02e5bba0936be266271efb7cc" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="23f9c89b257ee0936e70afd682e9ed6a62e89eee" }
 
 [build-dependencies]
 built = "0.3.2"

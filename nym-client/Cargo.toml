@@ -40,7 +40,7 @@ sfw-provider-requests = { path = "../sfw-provider/sfw-provider-requests" }
 topology = {path = "../common/topology" }
 
 ## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="fde6f0523e5bd8e02e5bba0936be266271efb7cc" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="23f9c89b257ee0936e70afd682e9ed6a62e89eee" }
 # sphinx = { path = "../../sphinx"}
 
 [build-dependencies]

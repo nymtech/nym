@@ -25,11 +25,15 @@ impl ClientLedger {
         self.inner.lock().await.0.contains_key(client_address)
     }
 
-    pub(crate) async fn retrieve_token(
+    pub(crate) async fn verify_token(
         &self,
+        auth_token: &AuthToken,
         client_address: &DestinationAddressBytes,
-    ) -> Option<&AuthToken> {
-        self.inner.lock().await.0.get(client_address)
+    ) -> bool {
+        match self.inner.lock().await.0.get(client_address) {
+            None => false,
+            Some(expected_token) => expected_token == auth_token,
+        }
     }
 
     pub(crate) async fn insert_token(

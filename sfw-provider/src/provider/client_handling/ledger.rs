@@ -33,6 +33,13 @@ impl ClientLedger {
         self.inner.lock().await.0.insert(client_address, auth_token)
     }
 
+    pub(crate) async fn remove_token(
+        &mut self,
+        client_address: &DestinationAddressBytes,
+    ) -> Option<AuthToken> {
+        self.inner.lock().await.0.remove(client_address)
+    }
+
     pub(crate) async fn current_clients(&self) -> Vec<MixProviderClient> {
         self.inner
             .lock()

@@ -25,6 +25,13 @@ impl ClientLedger {
         self.inner.lock().await.0.contains_key(client_address)
     }
 
+    pub(crate) async fn retrieve_token(
+        &self,
+        client_address: &DestinationAddressBytes,
+    ) -> Option<&AuthToken> {
+        self.inner.lock().await.0.get(client_address)
+    }
+
     pub(crate) async fn insert_token(
         &mut self,
         auth_token: AuthToken,

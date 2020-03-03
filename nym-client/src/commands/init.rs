@@ -49,8 +49,11 @@ async fn try_provider_registrations(
 ) -> Option<(String, AuthToken)> {
     // since the order of providers is non-deterministic we can just try to get a first 'working' provider
     for provider in providers {
-        let provider_client =
-            provider_client::ProviderClient::new(provider.client_listener, our_address, None);
+        let provider_client = provider_client::ProviderClient::new(
+            provider.client_listener,
+            our_address.clone(),
+            None,
+        );
         let auth_token = provider_client.register().await;
         if let Ok(token) = auth_token {
             return Some((provider.pub_key, token));

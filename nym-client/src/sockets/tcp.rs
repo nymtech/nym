@@ -84,7 +84,7 @@ fn parse_send_request(data: &[u8]) -> Result<ClientRequest, TCPSocketError> {
 
     Ok(ClientRequest::Send {
         message,
-        recipient_address,
+        recipient_address: DestinationAddressBytes::from_bytes(recipient_address),
     })
 }
 
@@ -153,7 +153,7 @@ impl ClientRequest {
 
     async fn handle_own_details(self_address_bytes: DestinationAddressBytes) -> ServerResponse {
         ServerResponse::OwnDetails {
-            address: self_address_bytes.to_vec(),
+            address: self_address_bytes.to_bytes().to_vec(),
         }
     }
 }
@@ -274,7 +274,7 @@ async fn accept_connection<T: 'static + NymTopology>(
                     topology: topology.clone(),
                     msg_input: msg_input.clone(),
                     msg_query: msg_query.clone(),
-                    self_address,
+                    self_address: self_address.clone(),
                 };
                 match handle_connection(&buf[..n], request_handling_data).await {
                     Ok(res) => res,
@@ -313,7 +313,7 @@ pub async fn start_tcpsocket<T: 'static + NymTopology>(
             stream,
             message_tx.clone(),
             received_messages_query_tx.clone(),
-            self_address,
+            self_address.clone(),
             topology.clone(),
         ));
     }

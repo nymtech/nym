@@ -37,7 +37,8 @@ impl PathChecker {
         let address = identity_keys.public_key().derive_address();
 
         for provider in providers {
-            let mut provider_client = ProviderClient::new(provider.client_listener, address, None);
+            let mut provider_client =
+                ProviderClient::new(provider.client_listener, address.clone(), None);
             let insertion_result = match provider_client.register().await {
                 Ok(token) => {
                     debug!("registered at provider {}", provider.pub_key);

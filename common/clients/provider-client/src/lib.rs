@@ -89,7 +89,7 @@ impl ProviderClient {
             }
         };
 
-        let pull_request = PullRequest::new(self.our_address, auth_token);
+        let pull_request = PullRequest::new(self.our_address.clone(), auth_token);
         let bytes = pull_request.to_bytes();
 
         let response = self.send_request(bytes).await?;
@@ -103,7 +103,7 @@ impl ProviderClient {
             return Err(ProviderClientError::ClientAlreadyRegisteredError);
         }
 
-        let register_request = RegisterRequest::new(self.our_address);
+        let register_request = RegisterRequest::new(self.our_address.clone());
         let bytes = register_request.to_bytes();
 
         let response = self.send_request(bytes).await?;

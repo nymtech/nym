@@ -102,7 +102,7 @@ impl<T: NymTopology> OutQueueControl<T> {
 
             let next_packet = match next_message {
                 StreamMessage::Cover => mix_client::packet::loop_cover_message(
-                    self.our_info.address,
+                    self.our_info.address.clone(),
                     self.our_info.identifier,
                     topology,
                     self.average_packet_delay,

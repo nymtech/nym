@@ -21,10 +21,6 @@ impl ClientLedger {
         }
     }
 
-    pub(crate) async fn has_client(&self, client_address: &DestinationAddressBytes) -> bool {
-        self.inner.lock().await.0.contains_key(client_address)
-    }
-
     pub(crate) async fn verify_token(
         &self,
         auth_token: &AuthToken,

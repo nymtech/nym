@@ -11,12 +11,14 @@ use tokio::fs;
 use tokio::fs::File;
 use tokio::prelude::*;
 
-const DUMMY_MESSAGE: ClientFile = ClientFile {
-    content: DUMMY_MESSAGE_CONTENT.to_vec(),
-    path: Default::default(),
-};
+fn dummy_message() -> ClientFile {
+    ClientFile {
+        content: DUMMY_MESSAGE_CONTENT.to_vec(),
+        path: Default::default(),
+    }
+}
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ClientFile {
     content: Vec<u8>,
     path: PathBuf,
@@ -25,6 +27,10 @@ pub struct ClientFile {
 impl ClientFile {
     fn new(content: Vec<u8>, path: PathBuf) -> Self {
         ClientFile { content, path }
+    }
+
+    pub(crate) fn into_tuple(self) -> (Vec<u8>, PathBuf) {
+        (self.content, self.path)
     }
 }
 
@@ -77,6 +83,21 @@ impl ClientStorage {
         }
     }
 
+    // TODO: does this method really require locking?
+    // The worst that can happen is client sending 2 requests: to pull messages and register
+    // if register does not lock, then under specific timing pull messages will fail,
+    // but can simply be retried with no issues
+    pub(crate) async fn create_storage_dir(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> io::Result<()> {
+        let inner_data = self.inner.lock().await;
+
+        let client_dir_name = client_address.to_base58_string();
+        let full_store_dir = inner_data.main_store_path_dir.join(client_dir_name);
+        fs::create_dir_all(full_store_dir).await
+    }
+
     pub(crate) fn generate_random_file_name(length: usize) -> String {
         rand::thread_rng()
             .sample_iter(&rand::distributions::Alphanumeric)
@@ -87,7 +108,7 @@ impl ClientStorage {
     pub(crate) async fn store_processed_data(&self, store_data: StoreData) -> io::Result<()> {
         let inner_data = self.inner.lock().await;
 
-        let client_dir_name = client_address.to_base58_string();
+        let client_dir_name = store_data.client_address.to_base58_string();
         let full_store_dir = inner_data.main_store_path_dir.join(client_dir_name);
         let full_store_path = full_store_dir.join(Self::generate_random_file_name(
             inner_data.filename_length as usize,
@@ -121,7 +142,7 @@ impl ClientStorage {
         }
 
         let mut msgs = Vec::new();
-        let read_dir = fs::read_dir(full_store_dir).await?;
+        let mut read_dir = fs::read_dir(full_store_dir).await?;
 
         while let Some(dir_entry) = read_dir.next().await {
             if let Ok(dir_entry) = dir_entry {
@@ -139,11 +160,13 @@ impl ClientStorage {
             }
         }
 
+        let dummy_message = dummy_message();
+
         // make sure we always return as many messages as we need
         if msgs.len() != inner_data.message_retrieval_limit as usize {
             msgs = msgs
                 .into_iter()
-                .chain(std::iter::repeat(DUMMY_MESSAGE))
+                .chain(std::iter::repeat(dummy_message))
                 .take(inner_data.message_retrieval_limit)
                 .collect();
         }
@@ -175,14 +198,18 @@ impl ClientStorage {
         is_file
     }
 
-    fn delete_files(&self, files: Vec<ClientFile>) -> io::Result<()> {
-        unimplemented!()
-    }
+    pub(crate) async fn delete_files(&self, file_paths: Vec<PathBuf>) -> io::Result<()> {
+        let dummy_message = dummy_message();
+        let _guard = self.inner.lock().await;
 
-    // TODO: This should only be called AFTER we sent the reply. Because if client's connection failed after sending request
-    // the messages would be deleted but he wouldn't have received them
-    fn delete_file(&self, path: PathBuf) -> io::Result<()> {
-        trace!("Here {:?} will be deleted!", path);
-        std::fs::remove_file(path) // another argument for db layer -> remove_file is NOT guaranteed to immediately get rid of the file
+        for file_path in file_paths {
+            if file_path == dummy_message.path {
+                continue;
+            }
+            if let Err(e) = fs::remove_file(file_path).await {
+                error!("Failed to delete client message! - {:?}", e)
+            }
+        }
+        Ok(())
     }
 }

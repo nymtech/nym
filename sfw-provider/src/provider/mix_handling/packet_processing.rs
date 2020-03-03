@@ -1,7 +1,10 @@
 use crate::provider::storage::{ClientStorage, StoreData};
 use crypto::encryption;
+use log::*;
+use sphinx::payload::Payload;
 use sphinx::route::{DestinationAddressBytes, SURBIdentifier};
 use sphinx::{ProcessedPacket, SphinxPacket};
+use std::io;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -11,7 +14,7 @@ pub enum MixProcessingError {
     NonMatchingRecipient,
     InvalidPayload,
     SphinxProcessingError,
-    InvalidHopAddress,
+    IOError(String),
 }
 
 pub enum MixProcessingResult {
@@ -26,6 +29,14 @@ impl From<sphinx::ProcessingError> for MixProcessingError {
         use MixProcessingError::*;
 
         SphinxProcessingError
+    }
+}
+
+impl From<io::Error> for MixProcessingError {
+    fn from(e: io::Error) -> Self {
+        use MixProcessingError::*;
+
+        IOError(e.to_string())
     }
 }
 

@@ -119,7 +119,7 @@ impl NymClient {
         let mut provider_poller = provider_poller::ProviderPoller::new(
             poller_input_tx,
             provider_client_listener_address,
-            self_address,
+            self_address.clone(),
             self.config
                 .get_provider_auth_token()
                 .map(|str_token| AuthToken::try_from_base58_string(str_token).ok())
@@ -149,7 +149,7 @@ impl NymClient {
         let loop_cover_traffic_future =
             rt.spawn(cover_traffic_stream::start_loop_cover_traffic_stream(
                 mix_tx.clone(),
-                Destination::new(self_address, Default::default()),
+                Destination::new(self_address.clone(), Default::default()),
                 topology_controller.get_inner_ref(),
                 self.config.get_loop_cover_traffic_average_delay(),
                 self.config.get_average_packet_delay(),
@@ -160,7 +160,7 @@ impl NymClient {
         let topology_ref = topology_controller.get_inner_ref();
         let average_packet_delay = self.config.get_average_packet_delay();
         let message_sending_average_delay = self.config.get_message_sending_average_delay();
-
+        let self_address_clone = self_address.clone();
         // future constantly pumping traffic at some specified average rate
         // if a real message is available on 'input_rx' that might have been received from say
         // the websocket, the real message is used, otherwise a loop cover message is generated
@@ -169,7 +169,7 @@ impl NymClient {
             real_traffic_stream::OutQueueControl::new(
                 mix_tx,
                 input_rx,
-                Destination::new(self_address, Default::default()),
+                Destination::new(self_address_clone, Default::default()),
                 topology_ref,
                 average_packet_delay,
                 message_sending_average_delay,

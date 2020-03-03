@@ -3,10 +3,10 @@ use crate::provider::ClientLedger;
 use directory_client::presence::providers::MixProviderPresence;
 use directory_client::requests::presence_providers_post::PresenceMixProviderPoster;
 use directory_client::DirectoryClient;
-use futures::lock::Mutex as FMutex;
 use log::{debug, error};
-use std::sync::Arc;
 use std::time::Duration;
+use tokio::runtime::Handle;
+use tokio::task::JoinHandle;
 
 pub struct NotifierConfig {
     directory_server: String,
@@ -36,7 +36,7 @@ impl NotifierConfig {
 
 pub struct Notifier {
     net_client: directory_client::Client,
-    client_ledger: Arc<FMutex<ClientLedger>>,
+    client_ledger: ClientLedger,
     sending_delay: Duration,
     client_listener: String,
     mixnet_listener: String,
@@ -44,7 +44,7 @@ pub struct Notifier {
 }
 
 impl Notifier {
-    pub fn new(config: NotifierConfig, client_ledger: Arc<FMutex<ClientLedger>>) -> Notifier {
+    pub fn new(config: NotifierConfig, client_ledger: ClientLedger) -> Notifier {
         let directory_client_cfg = directory_client::Config {
             base_url: config.directory_server,
         };
@@ -61,13 +61,11 @@ impl Notifier {
     }
 
     async fn make_presence(&self) -> MixProviderPresence {
-        let unlocked_ledger = self.client_ledger.lock().await;
-
         MixProviderPresence {
             client_listener: self.client_listener.clone(),
             mixnet_listener: self.mixnet_listener.clone(),
             pub_key: self.pub_key_string.clone(),
-            registered_clients: unlocked_ledger.current_clients(),
+            registered_clients: self.client_ledger.current_clients().await,
             last_seen: 0,
             version: built_info::PKG_VERSION.to_string(),
         }
@@ -80,11 +78,13 @@ impl Notifier {
         }
     }
 
-    pub async fn run(self) {
-        loop {
-            let presence = self.make_presence().await;
-            self.notify(presence);
-            tokio::time::delay_for(self.sending_delay).await;
-        }
+    pub fn start(self, handle: &Handle) -> JoinHandle<()> {
+        handle.spawn(async move {
+            loop {
+                let presence = self.make_presence().await;
+                self.notify(presence);
+                tokio::time::delay_for(self.sending_delay).await;
+            }
+        })
     }
 }

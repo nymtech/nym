@@ -157,6 +157,5 @@ pub fn execute(matches: &ArgMatches) {
         config.get_clients_ledger_path()
     );
 
-    let provider = ServiceProvider::new(config);
-    provider.start().unwrap()
+    ServiceProvider::new(config).run();
 }

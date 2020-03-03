@@ -50,7 +50,9 @@ impl<T: NymTopology> Connection<T> {
             }
             ClientRequest::Fetch => ClientRequest::handle_fetch(self.msg_query.clone()).await,
             ClientRequest::GetClients => ClientRequest::handle_get_clients(&self.topology).await,
-            ClientRequest::OwnDetails => ClientRequest::handle_own_details(self.self_address).await,
+            ClientRequest::OwnDetails => {
+                ClientRequest::handle_own_details(self.self_address.clone()).await
+            }
         }
     }
 
@@ -218,7 +220,10 @@ impl ClientRequest {
 
         let dummy_surb = [0; 16];
 
-        let input_msg = InputMessage(Destination::new(address, dummy_surb), message_bytes);
+        let input_msg = InputMessage(
+            Destination::new(DestinationAddressBytes::from_bytes(address), dummy_surb),
+            message_bytes,
+        );
         input_tx.send(input_msg).await.unwrap();
 
         ServerResponse::Send
@@ -279,7 +284,7 @@ impl ClientRequest {
     }
 
     async fn handle_own_details(self_address_bytes: DestinationAddressBytes) -> ServerResponse {
-        let self_address = bs58::encode(&self_address_bytes).into_string();
+        let self_address = self_address_bytes.to_base58_string();
         ServerResponse::OwnDetails {
             address: self_address,
         }
@@ -404,7 +409,7 @@ pub async fn start_websocket<T: 'static + NymTopology>(
             stream,
             message_tx.clone(),
             received_messages_query_tx.clone(),
-            self_address,
+            self_address.clone(),
             topology.clone(),
         ));
     }

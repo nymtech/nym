@@ -26,6 +26,10 @@ pub struct RegisterResponse {
     pub auth_token: AuthToken,
 }
 
+pub struct ErrorResponse {
+    pub message: String,
+}
+
 impl PullResponse {
     pub fn new(messages: Vec<Vec<u8>>) -> Self {
         PullResponse { messages }
@@ -35,6 +39,14 @@ impl PullResponse {
 impl RegisterResponse {
     pub fn new(auth_token: AuthToken) -> Self {
         RegisterResponse { auth_token }
+    }
+}
+
+impl ErrorResponse {
+    pub fn new<S: Into<String>>(message: S) -> Self {
+        ErrorResponse {
+            message: message.into(),
+        }
     }
 }
 
@@ -122,6 +134,19 @@ impl ProviderResponse for RegisterResponse {
                 })
             }
             _ => Err(ProviderResponseError::UnmarshalErrorInvalidLength),
+        }
+    }
+}
+
+impl ProviderResponse for ErrorResponse {
+    fn to_bytes(&self) -> Vec<u8> {
+        self.message.clone().into_bytes()
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderResponseError> {
+        match String::from_utf8(bytes.to_vec()) {
+            Err(_) => Err(ProviderResponseError::UnmarshalError),
+            Ok(message) => Ok(ErrorResponse { message }),
         }
     }
 }

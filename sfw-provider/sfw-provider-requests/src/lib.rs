@@ -6,7 +6,7 @@ pub const DUMMY_MESSAGE_CONTENT: &[u8] =
 
 // To be renamed to 'AuthToken' once it is safe to replace it
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct AuthToken(pub [u8; 32]);
+pub struct AuthToken([u8; 32]);
 
 #[derive(Debug)]
 pub enum AuthTokenConversionError {
@@ -15,6 +15,18 @@ pub enum AuthTokenConversionError {
 }
 
 impl AuthToken {
+    pub fn from_bytes(bytes: [u8; 32]) -> Self {
+        AuthToken(bytes)
+    }
+
+    pub fn to_bytes(&self) -> [u8; 32] {
+        self.0
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
     pub fn try_from_base58_string<S: Into<String>>(
         val: S,
     ) -> Result<Self, AuthTokenConversionError> {

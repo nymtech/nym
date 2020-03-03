@@ -29,7 +29,7 @@ pub(crate) async fn start_loop_cover_traffic_stream<T: NymTopology>(
         };
 
         let cover_message = match mix_client::packet::loop_cover_message(
-            our_info.address,
+            our_info.address.clone(),
             our_info.identifier,
             topology,
             average_packet_delay_duration,

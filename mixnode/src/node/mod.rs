@@ -43,7 +43,7 @@ impl MixNode {
         }
     }
 
-    pub fn start_presence_notifier(&self) {
+    fn start_presence_notifier(&self) {
         info!("Starting presence notifier...");
         let notifier_config = presence::NotifierConfig::new(
             self.config.get_presence_directory_server(),
@@ -55,7 +55,7 @@ impl MixNode {
         presence::Notifier::new(notifier_config).start(self.runtime.handle());
     }
 
-    pub fn start_metrics_reporter(&self) -> metrics::MetricsReporter {
+    fn start_metrics_reporter(&self) -> metrics::MetricsReporter {
         info!("Starting metrics reporter...");
         metrics::MetricsController::new(
             self.config.get_metrics_directory_server(),
@@ -65,7 +65,7 @@ impl MixNode {
         .start(self.runtime.handle())
     }
 
-    pub fn start_socket_listener(
+    fn start_socket_listener(
         &self,
         metrics_reporter: metrics::MetricsReporter,
         forwarding_channel: mpsc::UnboundedSender<(SocketAddr, Vec<u8>)>,
@@ -84,7 +84,7 @@ impl MixNode {
         );
     }
 
-    pub fn start_packet_forwarder(&mut self) -> mpsc::UnboundedSender<(SocketAddr, Vec<u8>)> {
+    fn start_packet_forwarder(&mut self) -> mpsc::UnboundedSender<(SocketAddr, Vec<u8>)> {
         info!("Starting packet forwarder...");
 
         // this can later be replaced with topology information

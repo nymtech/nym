@@ -17,6 +17,8 @@ pub(crate) enum MetricEvent {
 }
 
 #[derive(Debug, Clone)]
+// Note: you should NEVER create more than a single instance of this using 'new()'.
+// You should always use .clone() to create additional instances
 struct MixMetrics {
     inner: Arc<Mutex<MixMetricsInner>>,
 }

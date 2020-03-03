@@ -16,4 +16,4 @@ serde = { version = "1.0.104", features = ["derive"] }
 topology = {path = "../../topology"}
 
 [dev-dependencies]
-mockito = "0.22.0"
+mockito = "0.23.0"

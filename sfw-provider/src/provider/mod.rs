@@ -1,6 +1,7 @@
 use crate::config::persistance::pathfinder::ProviderPathfinder;
 use crate::config::Config;
 use crate::provider::client_handling::ledger::ClientLedger;
+use crate::provider::storage::ClientStorage;
 use crypto::encryption;
 use log::*;
 use pemstore::pemstore::PemStore;
@@ -10,32 +11,6 @@ mod client_handling;
 mod mix_handling;
 pub mod presence;
 mod storage;
-
-// #[derive(Debug)]
-// pub enum ProviderError {
-//     TcpListenerBindingError,
-//     TcpListenerConnectionError,
-//     TcpListenerUnexpectedEof,
-//
-//     TcpListenerUnknownError,
-// }
-//
-// impl From<io::Error> for ProviderError {
-//     fn from(err: Error) -> Self {
-//         use ProviderError::*;
-//         match err.kind() {
-//             io::ErrorKind::ConnectionRefused => TcpListenerConnectionError,
-//             io::ErrorKind::ConnectionReset => TcpListenerConnectionError,
-//             io::ErrorKind::ConnectionAborted => TcpListenerConnectionError,
-//             io::ErrorKind::NotConnected => TcpListenerConnectionError,
-//
-//             io::ErrorKind::AddrInUse => TcpListenerBindingError,
-//             io::ErrorKind::AddrNotAvailable => TcpListenerBindingError,
-//             io::ErrorKind::UnexpectedEof => TcpListenerUnexpectedEof,
-//             _ => TcpListenerUnknownError,
-//         }
-//     }
-// }
 
 pub struct ServiceProvider {
     runtime: Runtime,
@@ -80,10 +55,11 @@ impl ServiceProvider {
             .start(self.runtime.handle());
     }
 
-    fn start_mix_socket_listener(&self) {
-        info!("Starting client socket listener...");
+    fn start_mix_socket_listener(&self, client_storage: ClientStorage) {
+        info!("Starting mix socket listener...");
         let packet_processor = mix_handling::packet_processing::PacketProcessor::new(
             self.sphinx_keypair.private_key().clone(),
+            client_storage,
         );
 
         mix_handling::listener::run_mix_socket_listener(
@@ -93,23 +69,36 @@ impl ServiceProvider {
         );
     }
 
-    fn start_client_socket_listener(&self) {
-        info!("Starting mix socket listener...");
+    fn start_client_socket_listener(&self, client_storage: ClientStorage) {
+        info!("Starting client socket listener...");
         let packet_processor = client_handling::request_processing::RequestProcessor::new(
             self.sphinx_keypair.private_key().clone(),
+            client_storage,
+            self.registered_clients_ledger.clone(),
         );
 
         client_handling::listener::run_client_socket_listener(
             self.runtime.handle(),
-            self.config.get_mix_listening_address(),
+            self.config.get_clients_listening_address(),
             packet_processor,
         );
     }
 
     pub fn run(&mut self) {
+        // A possible future optimisation, depending on bottlenecks and resource usage:
+        // considering, presumably, there will be more mix packets received than client requests:
+        // create 2 separate runtimes - one with bigger threadpool dedicated solely for
+        // the mix handling and the other one for the rest of tasks
+
+        let client_storage = ClientStorage::new(
+            self.config.get_message_retrieval_limit() as usize,
+            self.config.get_stored_messages_filename_length(),
+            self.config.get_clients_inboxes_dir(),
+        );
+
         self.start_presence_notifier();
-        self.start_mix_socket_listener();
-        self.start_client_socket_listener();
+        self.start_mix_socket_listener(client_storage.clone());
+        self.start_client_socket_listener(client_storage);
 
         if let Err(e) = self.runtime.block_on(tokio::signal::ctrl_c()) {
             error!(

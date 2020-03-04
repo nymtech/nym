@@ -1,38 +1,90 @@
-use crate::client::mix_traffic::MixMessage;
-use crate::client::topology_control::TopologyInnerRef;
-use futures::channel::mpsc;
-use log::{error, info, trace, warn};
+use crate::client::mix_traffic::{MixMessage, MixMessageSender};
+use crate::client::topology_control::TopologyAccessor;
+use futures::task::{Context, Poll};
+use futures::{Stream, StreamExt};
+use log::*;
 use sphinx::route::Destination;
-use std::time;
+use std::pin::Pin;
+use std::time::Duration;
+use tokio::runtime::Handle;
+use tokio::task::JoinHandle;
+use tokio::time;
 use topology::NymTopology;
 
-pub(crate) async fn start_loop_cover_traffic_stream<T: NymTopology>(
-    tx: mpsc::UnboundedSender<MixMessage>,
+pub(crate) struct LoopCoverTrafficStream<T: NymTopology> {
+    average_packet_delay: Duration,
+    average_cover_message_sending_delay: Duration,
+    next_delay: time::Delay,
+    mix_tx: MixMessageSender,
     our_info: Destination,
-    topology_ctrl_ref: TopologyInnerRef<T>,
-    average_cover_message_delay_duration: time::Duration,
-    average_packet_delay_duration: time::Duration,
-) {
-    info!("Starting loop cover traffic stream");
-    loop {
-        trace!("next cover message!");
-        let delay_duration = mix_client::poisson::sample(average_cover_message_delay_duration);
-        tokio::time::delay_for(delay_duration).await;
+    topology_access: TopologyAccessor<T>,
+}
 
-        let read_lock = topology_ctrl_ref.read().await;
-        let topology = match read_lock.topology.as_ref() {
+impl<T: NymTopology> Stream for LoopCoverTrafficStream<T> {
+    // Item is only used to indicate we should create a new message rather than actual cover message
+    // reason being to not introduce unnecessary complexity by having to keep state of topology
+    // mutex when trying to acquire it. So right now the Stream trait serves as a glorified timer.
+    // Perhaps this should be changed in the future.
+    type Item = ();
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        // it is not yet time to return a message
+        if Pin::new(&mut self.next_delay).poll(cx).is_pending() {
+            return Poll::Pending;
+        };
+
+        // we know it's time to send a message, so let's prepare delay for the next one
+        // Get the `now` by looking at the current `delay` deadline
+        let now = self.next_delay.deadline();
+        let next_poisson_delay = mix_client::poisson::sample(self.average_message_sending_delay);
+
+        // The next interval value is `next_poisson_delay` after the one that just
+        // yielded.
+        let next = now + next_poisson_delay;
+        self.next_delay.reset(next);
+
+        Poll::Ready(Some(()))
+    }
+}
+
+impl<T: NymTopology> LoopCoverTrafficStream<T> {
+    fn new(
+        mix_tx: MixMessageSender,
+        our_info: Destination,
+        mut topology_access: TopologyAccessor<T>,
+        average_cover_message_sending_delay: time::Duration,
+        average_packet_delay: time::Duration,
+    ) -> Self {
+        LoopCoverTrafficStream {
+            average_packet_delay,
+            average_cover_message_sending_delay,
+            next_delay: time::delay_for(Default::default()),
+            mix_tx,
+            our_info,
+            topology_access,
+        }
+    }
+
+    async fn on_new_message(&mut self) {
+        trace!("next cover message!");
+        let topology = match self
+            .topology_access
+            .get_exclusive_topology_reference()
+            .await
+            .as_ref()
+        {
             None => {
                 warn!("No valid topology detected - won't send any loop cover message this time");
-                continue;
+                return;
             }
             Some(topology) => topology,
         };
 
         let cover_message = match mix_client::packet::loop_cover_message(
-            our_info.address.clone(),
-            our_info.identifier,
+            self.our_info.address.clone(),
+            self.our_info.identifier,
             topology,
-            average_packet_delay_duration,
+            self.average_packet_delay,
         ) {
             Ok(message) => message,
             Err(err) => {
@@ -40,7 +92,7 @@ pub(crate) async fn start_loop_cover_traffic_stream<T: NymTopology>(
                     "Somehow we managed to create an invalid cover message - {:?}",
                     err
                 );
-                continue;
+                return;
             }
         };
 
@@ -48,7 +100,25 @@ pub(crate) async fn start_loop_cover_traffic_stream<T: NymTopology>(
         // - we run out of memory
         // - the receiver channel is closed
         // in either case there's no recovery and we can only panic
-        tx.unbounded_send(MixMessage::new(cover_message.0, cover_message.1))
+        self.mix_tx
+            .unbounded_send(MixMessage::new(cover_message.0, cover_message.1))
             .unwrap();
+    }
+
+    async fn run(&mut self) {
+        // we should set initial delay only when we actually start the stream
+        self.next_delay = time::delay_for(mix_client::poisson::sample(
+            self.average_cover_message_sending_delay,
+        ));
+
+        while let Some(_) = self.next().await {
+            self.on_new_message().await;
+        }
+    }
+
+    pub(crate) fn start(mut self, handle: &Handle) -> JoinHandle<()> {
+        handle.spawn(async move {
+            self.run().await;
+        })
     }
 }

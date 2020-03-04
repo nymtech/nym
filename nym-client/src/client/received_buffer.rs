@@ -104,7 +104,7 @@ pub(crate) struct ReceivedMessagesBufferController {
 }
 
 impl ReceivedMessagesBufferController {
-    fn new(
+    pub(crate) fn new(
         query_receiver: ReceivedBufferRequestReceiver,
         poller_receiver: PolledMessagesReceiver,
     ) -> Self {
@@ -116,7 +116,7 @@ impl ReceivedMessagesBufferController {
         }
     }
 
-    fn start(mut self, handle: &Handle) {
+    pub(crate) fn start(mut self, handle: &Handle) {
         // TODO: should we do anything with JoinHandle(s) returned by start methods?
         self.messsage_receiver.start(handle);
         self.request_receiver.start(handle);

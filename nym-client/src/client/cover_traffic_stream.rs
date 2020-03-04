@@ -48,7 +48,7 @@ impl<T: NymTopology> Stream for LoopCoverTrafficStream<T> {
 }
 
 impl<T: NymTopology> LoopCoverTrafficStream<T> {
-    fn new(
+    pub(crate) fn new(
         mix_tx: MixMessageSender,
         our_info: Destination,
         mut topology_access: TopologyAccessor<T>,

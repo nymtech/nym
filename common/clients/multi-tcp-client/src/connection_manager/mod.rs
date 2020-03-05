@@ -77,7 +77,7 @@ impl<'a> ConnectionManager<'a> {
             return match conn_writer.write_all(msg).await {
                 // if we failed to write to connection we should reconnect
                 // TODO: is this true? can we fail to write to a connection while it still remains open and valid?
-                Ok(res) => Ok(res),
+                Ok(_) => Ok(()),
                 Err(e) => {
                     trace!("Creating connection reconnector!");
                     self.state = ConnectionState::Reconnecting(ConnectionReconnector::new(

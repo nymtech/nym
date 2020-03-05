@@ -85,27 +85,26 @@ impl RequestProcessor {
         );
 
         let auth_token = self.generate_new_auth_token(req.destination_address.clone());
-        if let Some(_) = self
+        if self
             .client_ledger
             .insert_token(auth_token.clone(), req.destination_address.clone())
             .await
+            .is_some()
         {
             info!(
                 "Client {:?} was already registered before!",
                 req.destination_address.to_base58_string()
             )
-        } else {
-            if let Err(e) = self
-                .client_storage
-                .create_storage_dir(req.destination_address.clone())
-                .await
-            {
-                error!("We failed to create inbox directory for the client -{:?}\nReverting issued token...", e);
-                // we must revert our changes if this operation failed
-                self.client_ledger
-                    .remove_token(&req.destination_address)
-                    .await;
-            }
+        } else if let Err(e) = self
+            .client_storage
+            .create_storage_dir(req.destination_address.clone())
+            .await
+        {
+            error!("We failed to create inbox directory for the client -{:?}\nReverting issued token...", e);
+            // we must revert our changes if this operation failed
+            self.client_ledger
+                .remove_token(&req.destination_address)
+                .await;
         }
 
         Ok(ClientProcessingResult::RegisterResponse(auth_token))

@@ -121,8 +121,8 @@ impl MixIdentityPrivateKey {
 
 // TODO: this will be implemented differently by using the proper trait
 impl MixIdentityPrivateKey {
-    pub fn as_scalar(self) -> Scalar {
-        let encryption_key = self.0;
+    pub fn as_scalar(&self) -> Scalar {
+        let encryption_key = &self.0;
         encryption_key.0
     }
 }

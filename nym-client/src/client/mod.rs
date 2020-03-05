@@ -83,7 +83,7 @@ impl NymClient {
             .providers()
             .iter()
             .find(|provider| provider.pub_key == provider_id)
-            .expect(format!("Could not find provider with id {:?} - are you sure it is still online? Perhaps try to run `nym-client init` again to obtain a new provider", provider_id).as_ref())
+            .unwrap_or_else( || panic!("Could not find provider with id {:?} - are you sure it is still online? Perhaps try to run `nym-client init` again to obtain a new provider", provider_id))
             .client_listener
     }
 

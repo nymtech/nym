@@ -55,7 +55,7 @@ async fn process_socket_connection(
 
                 // we must be able to handle multiple packets from same connection independently
                 tokio::spawn(process_received_packet(
-                    buf.clone(),
+                    buf,
                     // note: processing_data is relatively cheap (and safe) to clone -
                     // it contains arc to private key and metrics reporter (which is just
                     // a single mpsc unbounded sender)

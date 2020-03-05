@@ -109,6 +109,15 @@ number_of_healthcheck_test_packets = {{ debug.number_of_healthcheck_test_packets
 # node received during healthcheck. Node's score must be above that value to be 
 # considered healthy.
 node_score_threshold = {{ debug.node_score_threshold }}
-    
+
+# Initial value of an exponential backoff to reconnect to dropped TCP connection when
+# forwarding sphinx packets.
+# The provided value is interpreted as milliseconds.
+packet_forwarding_initial_backoff = {{ debug.packet_forwarding_initial_backoff }}
+
+# Maximum value of an exponential backoff to reconnect to dropped TCP connection when
+# forwarding sphinx packets.
+# The provided value is interpreted as milliseconds.
+packet_forwarding_maximum_backoff = {{ debug.packet_forwarding_maximum_backoff }}    
 "#
 }

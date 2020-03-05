@@ -18,6 +18,8 @@ const DEFAULT_AVERAGE_PACKET_DELAY: u64 = 200;
 const DEFAULT_FETCH_MESSAGES_DELAY: u64 = 1000;
 const DEFAULT_TOPOLOGY_REFRESH_RATE: u64 = 10_000;
 const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: u64 = 5_000;
+const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: u64 = 10_000; // 10s
+const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: u64 = 300_000; // 5min
 
 const DEFAULT_NUMBER_OF_HEALTHCHECK_TEST_PACKETS: u64 = 2;
 const DEFAULT_NODE_SCORE_THRESHOLD: f64 = 0.0;
@@ -203,6 +205,14 @@ impl Config {
     pub fn get_node_score_threshold(&self) -> f64 {
         self.debug.node_score_threshold
     }
+
+    pub fn get_packet_forwarding_initial_backoff(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.packet_forwarding_initial_backoff)
+    }
+
+    pub fn get_packet_forwarding_maximum_backoff(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.packet_forwarding_maximum_backoff)
+    }
 }
 
 fn de_option_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
@@ -356,6 +366,16 @@ pub struct Debug {
     /// node received during healthcheck. Node's score must be above that value to be
     /// considered healthy.
     node_score_threshold: f64,
+
+    /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
+    /// forwarding sphinx packets.
+    /// The provided value is interpreted as milliseconds.
+    packet_forwarding_initial_backoff: u64,
+
+    /// Maximum value of an exponential backoff to reconnect to dropped TCP connection when
+    /// forwarding sphinx packets.
+    /// The provided value is interpreted as milliseconds.
+    packet_forwarding_maximum_backoff: u64,
 }
 
 impl Default for Debug {
@@ -370,6 +390,8 @@ impl Default for Debug {
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             number_of_healthcheck_test_packets: DEFAULT_NUMBER_OF_HEALTHCHECK_TEST_PACKETS,
             node_score_threshold: DEFAULT_NODE_SCORE_THRESHOLD,
+            packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
+            packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
         }
     }
 }

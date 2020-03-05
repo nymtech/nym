@@ -79,7 +79,7 @@ impl NymClient {
         provider_id: String,
         mut topology_accessor: TopologyAccessor<T>,
     ) -> SocketAddr {
-        topology_accessor.get_current_topology().await.as_ref().expect("The current network topoloy is empty - are you using correct directory server?")
+        topology_accessor.get_current_topology_clone().await.as_ref().expect("The current network topoloy is empty - are you using correct directory server?")
             .providers()
             .iter()
             .find(|provider| provider.pub_key == provider_id)

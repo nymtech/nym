@@ -41,10 +41,27 @@ impl<T: NymTopology> TopologyAccessor<T> {
         self.inner.lock().await.update(new_topology);
     }
 
-    pub(crate) async fn get_current_topology(&mut self) -> Option<T> {
+    pub(crate) async fn get_current_topology_clone(&mut self) -> Option<T> {
         // TODO: considering topology is gotten quite frequently, the clone call might be rather
         // expensive in the grand scheme of things...
         self.inner.lock().await.0.clone()
+    }
+
+    // this is a rather temporary solution as each client will have an associated provider
+    // currently that is not implemented yet and there only exists one provider in the network
+    pub(crate) async fn random_route(&mut self) -> Option<Vec<sphinx::route::Node>> {
+        match &self.inner.lock().await.0 {
+            None => None,
+            Some(ref topology) => {
+                let mut providers = topology.providers();
+                if providers.is_empty() {
+                    return None;
+                }
+                // unwrap is fine here as we asserted there is at least single provider
+                let provider = providers.pop().unwrap().into();
+                topology.route_to(provider).ok()
+            }
+        }
     }
 }
 

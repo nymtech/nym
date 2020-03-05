@@ -68,18 +68,18 @@ impl<T: 'static + NymTopology> LoopCoverTrafficStream<T> {
 
     async fn on_new_message(&mut self) {
         trace!("next cover message!");
-        let topology = match self.topology_access.get_current_topology().await {
+        let route = match self.topology_access.random_route().await {
             None => {
                 warn!("No valid topology detected - won't send any loop cover message this time");
                 return;
             }
-            Some(topology) => topology,
+            Some(route) => route,
         };
 
-        let cover_message = match mix_client::packet::loop_cover_message(
+        let cover_message = match mix_client::packet::loop_cover_message_route(
             self.our_info.address.clone(),
             self.our_info.identifier,
-            &topology,
+            route,
             self.average_packet_delay,
         ) {
             Ok(message) => message,

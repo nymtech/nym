@@ -39,6 +39,7 @@ impl From<AddressTypeError> for SphinxPacketEncapsulationError {
     }
 }
 
+#[deprecated(note = "please use loop_cover_message_route instead")]
 pub fn loop_cover_message<T: NymTopology>(
     our_address: DestinationAddressBytes,
     surb_id: SURBIdentifier,
@@ -55,6 +56,23 @@ pub fn loop_cover_message<T: NymTopology>(
     )
 }
 
+pub fn loop_cover_message_route(
+    our_address: DestinationAddressBytes,
+    surb_id: SURBIdentifier,
+    route: Vec<sphinx::route::Node>,
+    average_delay: time::Duration,
+) -> Result<(SocketAddr, SphinxPacket), SphinxPacketEncapsulationError> {
+    let destination = Destination::new(our_address, surb_id);
+
+    encapsulate_message_route(
+        destination,
+        LOOP_COVER_MESSAGE_PAYLOAD.to_vec(),
+        route,
+        average_delay,
+    )
+}
+
+#[deprecated(note = "please use encapsulate_message_route instead")]
 pub fn encapsulate_message<T: NymTopology>(
     recipient: Destination,
     message: Vec<u8>,
@@ -76,6 +94,23 @@ pub fn encapsulate_message<T: NymTopology>(
     let packet = sphinx::SphinxPacket::new(message, &route[..], &recipient, &delays)?;
 
     // we know the mix route must be valid otherwise we would have already returned an error
+    let first_node_address =
+        addressing::socket_address_from_encoded_bytes(route.first().unwrap().address.to_bytes())?;
+
+    Ok((first_node_address, packet))
+}
+
+pub fn encapsulate_message_route(
+    recipient: Destination,
+    message: Vec<u8>,
+    route: Vec<sphinx::route::Node>,
+    average_delay: time::Duration,
+) -> Result<(SocketAddr, SphinxPacket), SphinxPacketEncapsulationError> {
+    let delays = sphinx::header::delays::generate_from_average_duration(route.len(), average_delay);
+
+    // build the packet
+    let packet = sphinx::SphinxPacket::new(message, &route[..], &recipient, &delays)?;
+
     let first_node_address =
         addressing::socket_address_from_encoded_bytes(route.first().unwrap().address.to_bytes())?;
 

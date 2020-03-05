@@ -84,27 +84,27 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
 
     async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
-        let topology = match self.topology_access.get_current_topology().await {
+        let route = match self.topology_access.random_route().await {
             None => {
                 warn!("No valid topology detected - won't send any real or loop message this time");
                 // TODO: this creates a potential problem: we can lose real messages if we were
                 // unable to get topology, perhaps we should store them in some buffer?
                 return;
             }
-            Some(topology) => topology,
+            Some(route) => route,
         };
 
         let next_packet = match next_message {
-            StreamMessage::Cover => mix_client::packet::loop_cover_message(
+            StreamMessage::Cover => mix_client::packet::loop_cover_message_route(
                 self.our_info.address.clone(),
                 self.our_info.identifier,
-                &topology,
+                route,
                 self.average_packet_delay,
             ),
-            StreamMessage::Real(real_message) => mix_client::packet::encapsulate_message(
+            StreamMessage::Real(real_message) => mix_client::packet::encapsulate_message_route(
                 real_message.0,
                 real_message.1,
-                &topology,
+                route,
                 self.average_packet_delay,
             ),
         };

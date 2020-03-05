@@ -274,7 +274,7 @@ impl ClientRequest {
     async fn handle_get_clients<T: NymTopology>(
         mut topology_accessor: TopologyAccessor<T>,
     ) -> ServerResponse {
-        match topology_accessor.get_current_topology().await {
+        match topology_accessor.get_current_topology_clone().await {
             Some(topology) => {
                 let clients = topology
                     .providers()

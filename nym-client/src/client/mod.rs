@@ -26,11 +26,11 @@ mod cover_traffic_stream;
 mod mix_traffic;
 mod provider_poller;
 mod real_traffic_stream;
-pub mod received_buffer;
-pub mod topology_control;
+pub(crate) mod received_buffer;
+pub(crate) mod topology_control;
 
-pub type InputMessageSender = mpsc::UnboundedSender<InputMessage>;
-pub type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
+pub(crate) type InputMessageSender = mpsc::UnboundedSender<InputMessage>;
+pub(crate) type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
 
 pub struct NymClient {
     runtime: Runtime,
@@ -38,11 +38,12 @@ pub struct NymClient {
     identity_keypair: MixIdentityKeyPair,
 
     // to be used by "send" function or socket, etc
-    pub input_tx: Option<InputMessageSender>,
+    input_tx: Option<InputMessageSender>,
 }
 
 #[derive(Debug)]
-pub struct InputMessage(pub Destination, pub Vec<u8>);
+// TODO: make fields private
+pub(crate) struct InputMessage(pub Destination, pub Vec<u8>);
 
 impl NymClient {
     fn load_identity_keys(config_file: &Config) -> MixIdentityKeyPair {
@@ -253,7 +254,14 @@ impl NymClient {
     }
 
     /// EXPERIMENTAL DIRECT RUST API
-    pub fn send_message(&self) {}
+    /// It's entirely untested and there are absolutely no guarantees about it
+    pub fn send_message(&self, destination: Destination, message: Vec<u8>) {
+        self.input_tx
+            .as_ref()
+            .unwrap()
+            .unbounded_send(InputMessage(destination, message))
+            .unwrap()
+    }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
     pub fn run_forever(&mut self) {

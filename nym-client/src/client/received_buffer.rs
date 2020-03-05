@@ -38,7 +38,7 @@ impl ReceivedMessagesBuffer {
 
     async fn acquire_and_empty(&mut self) -> Vec<Vec<u8>> {
         trace!("Emptying the buffer and returning all messages");
-        let mutex_guard = self.inner.lock().await;
+        let mut mutex_guard = self.inner.lock().await;
         std::mem::replace(&mut mutex_guard.messages, Vec::new())
     }
 }
@@ -116,7 +116,7 @@ impl ReceivedMessagesBufferController {
         }
     }
 
-    pub(crate) fn start(mut self, handle: &Handle) {
+    pub(crate) fn start(self, handle: &Handle) {
         // TODO: should we do anything with JoinHandle(s) returned by start methods?
         self.messsage_receiver.start(handle);
         self.request_receiver.start(handle);

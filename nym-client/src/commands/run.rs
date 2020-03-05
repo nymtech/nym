@@ -50,7 +50,5 @@ pub fn execute(matches: &ArgMatches) {
             .expect("Failed to load config file");
 
     config = override_config(config, matches);
-
-    let client = NymClient::new(config);
-    client.start().unwrap();
+    NymClient::new(config).run_forever();
 }

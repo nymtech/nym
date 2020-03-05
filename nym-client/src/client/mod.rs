@@ -1,14 +1,19 @@
-use crate::client::mix_traffic::MixTrafficController;
-use crate::client::received_buffer::ReceivedMessagesBuffer;
-use crate::client::topology_control::TopologyInnerRef;
+use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
+use crate::client::mix_traffic::{MixMessageReceiver, MixMessageSender, MixTrafficController};
+use crate::client::provider_poller::{PolledMessagesReceiver, PolledMessagesSender};
+use crate::client::received_buffer::{
+    ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
+};
+use crate::client::topology_control::{
+    TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
+};
 use crate::config::persistence::pathfinder::ClientPathfinder;
 use crate::config::{Config, SocketType};
 use crate::sockets::tcp;
 use crate::sockets::ws;
 use crypto::identity::MixIdentityKeyPair;
-use directory_client::presence::Topology;
+use directory_client::presence;
 use futures::channel::mpsc;
-use futures::join;
 use log::*;
 use pemstore::pemstore::PemStore;
 use sfw_provider_requests::AuthToken;
@@ -24,14 +29,16 @@ mod real_traffic_stream;
 pub mod received_buffer;
 pub mod topology_control;
 
+pub type InputMessageSender = mpsc::UnboundedSender<InputMessage>;
+pub type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
+
 pub struct NymClient {
+    runtime: Runtime,
     config: Config,
     identity_keypair: MixIdentityKeyPair,
 
     // to be used by "send" function or socket, etc
-    pub input_tx: mpsc::UnboundedSender<InputMessage>,
-    // the other end of the above channel
-    input_rx: mpsc::UnboundedReceiver<InputMessage>,
+    pub input_tx: Option<InputMessageSender>,
 }
 
 #[derive(Debug)]
@@ -51,32 +58,220 @@ impl NymClient {
 
     pub fn new(config: Config) -> Self {
         let identity_keypair = Self::load_identity_keys(&config);
-        let (input_tx, input_rx) = mpsc::unbounded::<InputMessage>();
 
         NymClient {
+            runtime: Runtime::new().unwrap(),
             config,
             identity_keypair,
-            input_tx,
-            input_rx,
+            input_tx: None,
         }
     }
 
+    pub fn as_mix_destination(&self) -> Destination {
+        Destination::new(
+            self.identity_keypair.public_key().derive_address(),
+            // TODO: what with SURBs?
+            Default::default(),
+        )
+    }
+
     async fn get_provider_socket_address<T: NymTopology>(
-        &self,
-        topology_ctrl_ref: TopologyInnerRef<T>,
+        provider_id: String,
+        mut topology_accessor: TopologyAccessor<T>,
     ) -> SocketAddr {
-        // this is temporary and assumes there exists only a single provider.
-        topology_ctrl_ref.read().await.topology.as_ref().unwrap()
+        topology_accessor.get_current_topology().await.as_ref().expect("The current network topoloy is empty - are you using correct directory server?")
             .providers()
-            .first()
-            .expect("Could not get a compatible provider from the initial network topology, are you using the right directory server?")
+            .iter()
+            .find(|provider| provider.pub_key == provider_id)
+            .expect(format!("Could not find provider with id {:?} - are you sure it is still online? Perhaps try to run `nym-client init` again to obtain a new provider", provider_id).as_ref())
             .client_listener
     }
 
-    pub fn start(self) -> Result<(), Box<dyn std::error::Error>> {
-        info!("Starting nym client");
-        let mut rt = Runtime::new()?;
+    // future constantly pumping loop cover traffic at some specified average rate
+    // the pumped traffic goes to the MixTrafficController
+    fn start_cover_traffic_stream<T: 'static + NymTopology>(
+        &self,
+        topology_accessor: TopologyAccessor<T>,
+        mix_tx: MixMessageSender,
+    ) {
+        info!("Starting loop cover traffic stream...");
+        // we need to explicitly enter runtime due to "next_delay: time::delay_for(Default::default())"
+        // set in the constructor which HAS TO be called within context of a tokio runtime
+        self.runtime
+            .enter(|| {
+                LoopCoverTrafficStream::new(
+                    mix_tx,
+                    self.as_mix_destination(),
+                    topology_accessor,
+                    self.config.get_loop_cover_traffic_average_delay(),
+                    self.config.get_average_packet_delay(),
+                )
+            })
+            .start(self.runtime.handle());
+    }
 
+    fn start_real_traffic_stream<T: 'static + NymTopology>(
+        &self,
+        topology_accessor: TopologyAccessor<T>,
+        mix_tx: MixMessageSender,
+        input_rx: InputMessageReceiver,
+    ) {
+        info!("Starting real traffic stream...");
+        // we need to explicitly enter runtime due to "next_delay: time::delay_for(Default::default())"
+        // set in the constructor which HAS TO be called within context of a tokio runtime
+        self.runtime
+            .enter(|| {
+                real_traffic_stream::OutQueueControl::new(
+                    mix_tx,
+                    input_rx,
+                    self.as_mix_destination(),
+                    topology_accessor,
+                    self.config.get_average_packet_delay(),
+                    self.config.get_message_sending_average_delay(),
+                )
+            })
+            .start(self.runtime.handle());
+    }
+
+    // buffer controlling all messages fetched from provider
+    // required so that other components would be able to use them (say the websocket)
+    fn start_received_messages_buffer_controller(
+        &self,
+        query_receiver: ReceivedBufferRequestReceiver,
+        poller_receiver: PolledMessagesReceiver,
+    ) {
+        info!("Starting 'received messages buffer controller'...");
+        ReceivedMessagesBufferController::new(query_receiver, poller_receiver)
+            .start(self.runtime.handle())
+    }
+
+    // future constantly trying to fetch any received messages from the provider
+    // the received messages are sent to ReceivedMessagesBuffer to be available to rest of the system
+    fn start_provider_poller<T: NymTopology>(
+        &mut self,
+        topology_accessor: TopologyAccessor<T>,
+        poller_input_tx: PolledMessagesSender,
+    ) {
+        info!("Starting provider poller...");
+        // we already have our provider written in the config
+        let provider_id = self.config.get_provider_id();
+
+        let provider_client_listener_address = self.runtime.block_on(
+            Self::get_provider_socket_address(provider_id, topology_accessor),
+        );
+
+        let mut provider_poller = provider_poller::ProviderPoller::new(
+            poller_input_tx,
+            provider_client_listener_address,
+            self.identity_keypair.public_key().derive_address(),
+            self.config
+                .get_provider_auth_token()
+                .map(|str_token| AuthToken::try_from_base58_string(str_token).ok())
+                .unwrap_or(None),
+            self.config.get_fetch_message_delay(),
+        );
+
+        if !provider_poller.is_registered() {
+            info!("Trying to perform initial provider registration...");
+            self.runtime
+                .block_on(provider_poller.perform_initial_registration())
+                .expect("Failed to perform initial provider registration");
+        }
+        provider_poller.start(self.runtime.handle());
+    }
+
+    // future responsible for periodically polling directory server and updating
+    // the current global view of topology
+    fn start_topology_refresher<T: 'static + NymTopology>(
+        &mut self,
+        topology_accessor: TopologyAccessor<T>,
+    ) {
+        let healthcheck_keys = MixIdentityKeyPair::new();
+
+        let topology_refresher_config = TopologyRefresherConfig::new(
+            self.config.get_directory_server(),
+            self.config.get_topology_refresh_rate(),
+            healthcheck_keys,
+            self.config.get_topology_resolution_timeout(),
+            self.config.get_number_of_healthcheck_test_packets() as usize,
+            self.config.get_node_score_threshold(),
+        );
+        let mut topology_refresher =
+            TopologyRefresher::new(topology_refresher_config, topology_accessor);
+        // before returning, block entire runtime to refresh the current network view so that any
+        // components depending on topology would see a non-empty view
+        info!("Obtaining initial network topology...");
+        self.runtime.block_on(topology_refresher.refresh());
+        info!("Starting topology refresher...");
+        topology_refresher.start(self.runtime.handle());
+    }
+
+    // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
+    fn start_mix_traffic_controller(&mut self, mix_rx: MixMessageReceiver) {
+        info!("Starting mix trafic controller...");
+        // TODO: possible optimisation: set the initial endpoints to all known mixes from layer 1
+        let initial_mix_endpoints = Vec::new();
+        self.runtime
+            .block_on(MixTrafficController::new(
+                initial_mix_endpoints,
+                self.config.get_packet_forwarding_initial_backoff(),
+                self.config.get_packet_forwarding_maximum_backoff(),
+                mix_rx,
+            ))
+            .start(self.runtime.handle());
+    }
+
+    fn start_socket_listener<T: 'static + NymTopology>(
+        &self,
+        topology_accessor: TopologyAccessor<T>,
+        received_messages_buffer_output_tx: ReceivedBufferRequestSender,
+        input_tx: InputMessageSender,
+    ) {
+        match self.config.get_socket_type() {
+            SocketType::WebSocket => {
+                ws::start_websocket(
+                    self.runtime.handle(),
+                    self.config.get_listening_port(),
+                    input_tx,
+                    received_messages_buffer_output_tx,
+                    self.identity_keypair.public_key().derive_address(),
+                    topology_accessor,
+                );
+            }
+            SocketType::TCP => {
+                tcp::start_tcpsocket(
+                    self.runtime.handle(),
+                    self.config.get_listening_port(),
+                    input_tx,
+                    received_messages_buffer_output_tx,
+                    self.identity_keypair.public_key().derive_address(),
+                    topology_accessor,
+                );
+            }
+            SocketType::None => (),
+        }
+    }
+
+    /// EXPERIMENTAL DIRECT RUST API
+    pub fn send_message(&self) {}
+
+    /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
+    pub fn run_forever(&mut self) {
+        self.start();
+        if let Err(e) = self.runtime.block_on(tokio::signal::ctrl_c()) {
+            error!(
+                "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
+                e
+            );
+        }
+
+        println!(
+            "Received SIGINT - the mixnode will terminate now (threads are not YET nicely stopped)"
+        );
+    }
+
+    pub fn start(&mut self) {
+        info!("Starting nym client");
         // channels for inter-component communication
 
         // mix_tx is the transmitter for any component generating sphinx packets that are to be sent to the mixnet
@@ -94,142 +289,27 @@ impl NymClient {
         let (received_messages_buffer_output_tx, received_messages_buffer_output_rx) =
             mpsc::unbounded();
 
-        let self_address = self.identity_keypair.public_key().derive_address();
+        // channels responsible for controlling real messages
+        let (input_tx, input_rx) = mpsc::unbounded::<InputMessage>();
 
-        // generate same type of keys we have as our identity
-        let healthcheck_keys = MixIdentityKeyPair::new();
-
-        info!("Trying to obtain initial compatible network topology before starting up rest of modules");
-        // TODO: when we switch to our graph topology, we need to remember to change 'Topology' type
-        let topology_controller_config = topology_control::TopologyControlConfig::<Topology>::new(
-            self.config.get_directory_server(),
-            self.config.get_topology_refresh_rate(),
-            healthcheck_keys,
-            self.config.get_topology_resolution_timeout(),
-            self.config.get_number_of_healthcheck_test_packets() as usize,
+        // TODO: when we switch to our graph topology, we need to remember to change 'presence::Topology' type
+        let shared_topology_accessor = TopologyAccessor::<presence::Topology>::new();
+        // the components are started in very specific order. Unless you know what you are doing,
+        // do not change that.
+        self.start_topology_refresher(shared_topology_accessor.clone());
+        self.start_received_messages_buffer_controller(
+            received_messages_buffer_output_rx,
+            poller_input_rx,
         );
-
-        let topology_controller = rt.block_on(topology_control::TopologyControl::<Topology>::new(
-            topology_controller_config,
-        ));
-
-        let provider_client_listener_address =
-            rt.block_on(self.get_provider_socket_address(topology_controller.get_inner_ref()));
-
-        let mut provider_poller = provider_poller::ProviderPoller::new(
-            poller_input_tx,
-            provider_client_listener_address,
-            self_address.clone(),
-            self.config
-                .get_provider_auth_token()
-                .map(|str_token| AuthToken::try_from_base58_string(str_token).ok())
-                .unwrap_or(None),
-            self.config.get_fetch_message_delay(),
+        self.start_provider_poller(shared_topology_accessor.clone(), poller_input_tx);
+        self.start_mix_traffic_controller(mix_rx);
+        self.start_cover_traffic_stream(shared_topology_accessor.clone(), mix_tx.clone());
+        self.start_real_traffic_stream(shared_topology_accessor.clone(), mix_tx, input_rx);
+        self.start_socket_listener(
+            shared_topology_accessor,
+            received_messages_buffer_output_tx,
+            input_tx.clone(),
         );
-
-        // registration
-        if let Err(err) = rt.block_on(provider_poller.perform_initial_registration()) {
-            panic!("Failed to perform initial provider registration: {:?}", err);
-        };
-
-        // setup all of futures for the components running on the client
-
-        // buffer controlling all messages fetched from provider
-        // required so that other components would be able to use them (say the websocket)
-        let received_messages_buffer_controllers_future = rt.spawn(
-            ReceivedMessagesBuffer::new()
-                .start_controllers(poller_input_rx, received_messages_buffer_output_rx),
-        );
-
-        // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
-        let mix_traffic_future = rt.spawn(MixTrafficController::run(mix_rx));
-
-        // future constantly pumping loop cover traffic at some specified average rate
-        // the pumped traffic goes to the MixTrafficController
-        let loop_cover_traffic_future =
-            rt.spawn(cover_traffic_stream::start_loop_cover_traffic_stream(
-                mix_tx.clone(),
-                Destination::new(self_address.clone(), Default::default()),
-                topology_controller.get_inner_ref(),
-                self.config.get_loop_cover_traffic_average_delay(),
-                self.config.get_average_packet_delay(),
-            ));
-
-        // cloning arguments required by OutQueueControl; required due to move
-        let input_rx = self.input_rx;
-        let topology_ref = topology_controller.get_inner_ref();
-        let average_packet_delay = self.config.get_average_packet_delay();
-        let message_sending_average_delay = self.config.get_message_sending_average_delay();
-        let self_address_clone = self_address.clone();
-        // future constantly pumping traffic at some specified average rate
-        // if a real message is available on 'input_rx' that might have been received from say
-        // the websocket, the real message is used, otherwise a loop cover message is generated
-        // the pumped traffic goes to the MixTrafficController
-        let out_queue_control_future = rt.spawn(async move {
-            real_traffic_stream::OutQueueControl::new(
-                mix_tx,
-                input_rx,
-                Destination::new(self_address_clone, Default::default()),
-                topology_ref,
-                average_packet_delay,
-                message_sending_average_delay,
-            )
-            .run_out_queue_control()
-            .await
-        });
-
-        // future constantly trying to fetch any received messages from the provider
-        // the received messages are sent to ReceivedMessagesBuffer to be available to rest of the system
-        let provider_polling_future = rt.spawn(provider_poller.start_provider_polling());
-
-        match self.config.get_socket_type() {
-            SocketType::WebSocket => {
-                rt.spawn(ws::start_websocket(
-                    self.config.get_listening_port(),
-                    self.input_tx,
-                    received_messages_buffer_output_tx,
-                    self_address,
-                    topology_controller.get_inner_ref(),
-                ));
-            }
-            SocketType::TCP => {
-                rt.spawn(tcp::start_tcpsocket(
-                    self.config.get_listening_port(),
-                    self.input_tx,
-                    received_messages_buffer_output_tx,
-                    self_address,
-                    topology_controller.get_inner_ref(),
-                ));
-            }
-            SocketType::None => (),
-        }
-
-        // future responsible for periodically polling directory server and updating
-        // the current global view of topology
-        let topology_refresher_future = rt.spawn(topology_controller.run_refresher());
-
-        rt.block_on(async {
-            let future_results = join!(
-                received_messages_buffer_controllers_future,
-                mix_traffic_future,
-                loop_cover_traffic_future,
-                out_queue_control_future,
-                provider_polling_future,
-                topology_refresher_future,
-            );
-
-            assert!(
-                future_results.0.is_ok()
-                    && future_results.1.is_ok()
-                    && future_results.2.is_ok()
-                    && future_results.3.is_ok()
-                    && future_results.4.is_ok()
-                    && future_results.5.is_ok()
-            );
-        });
-
-        // this line in theory should never be reached as the runtime should be permanently blocked on traffic senders
-        error!("The client went kaput...");
-        Ok(())
+        self.input_tx = Some(input_tx);
     }
 }

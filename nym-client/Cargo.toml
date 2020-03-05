@@ -34,6 +34,7 @@ crypto = {path = "../common/crypto"}
 directory-client = { path = "../common/clients/directory-client" }
 healthcheck = { path = "../common/healthcheck" }
 mix-client = { path = "../common/clients/mix-client" }
+multi-tcp-client = { path = "../common/clients/multi-tcp-client" }
 pemstore = {path = "../common/pemstore"}
 provider-client = { path = "../common/clients/provider-client" }
 sfw-provider-requests = { path = "../sfw-provider/sfw-provider-requests" }

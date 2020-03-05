@@ -1,7 +1,7 @@
 use crate::client::mix_traffic::{MixMessage, MixMessageSender};
 use crate::client::topology_control::TopologyAccessor;
 use futures::task::{Context, Poll};
-use futures::{Stream, StreamExt};
+use futures::{Future, Stream, StreamExt};
 use log::*;
 use sphinx::route::Destination;
 use std::pin::Pin;
@@ -27,7 +27,7 @@ impl<T: NymTopology> Stream for LoopCoverTrafficStream<T> {
     // Perhaps this should be changed in the future.
     type Item = ();
 
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // it is not yet time to return a message
         if Pin::new(&mut self.next_delay).poll(cx).is_pending() {
             return Poll::Pending;
@@ -36,7 +36,8 @@ impl<T: NymTopology> Stream for LoopCoverTrafficStream<T> {
         // we know it's time to send a message, so let's prepare delay for the next one
         // Get the `now` by looking at the current `delay` deadline
         let now = self.next_delay.deadline();
-        let next_poisson_delay = mix_client::poisson::sample(self.average_message_sending_delay);
+        let next_poisson_delay =
+            mix_client::poisson::sample(self.average_cover_message_sending_delay);
 
         // The next interval value is `next_poisson_delay` after the one that just
         // yielded.
@@ -47,11 +48,11 @@ impl<T: NymTopology> Stream for LoopCoverTrafficStream<T> {
     }
 }
 
-impl<T: NymTopology> LoopCoverTrafficStream<T> {
+impl<T: 'static + NymTopology> LoopCoverTrafficStream<T> {
     pub(crate) fn new(
         mix_tx: MixMessageSender,
         our_info: Destination,
-        mut topology_access: TopologyAccessor<T>,
+        topology_access: TopologyAccessor<T>,
         average_cover_message_sending_delay: time::Duration,
         average_packet_delay: time::Duration,
     ) -> Self {
@@ -67,12 +68,7 @@ impl<T: NymTopology> LoopCoverTrafficStream<T> {
 
     async fn on_new_message(&mut self) {
         trace!("next cover message!");
-        let topology = match self
-            .topology_access
-            .get_exclusive_topology_reference()
-            .await
-            .as_ref()
-        {
+        let topology = match self.topology_access.get_current_topology().await {
             None => {
                 warn!("No valid topology detected - won't send any loop cover message this time");
                 return;
@@ -83,7 +79,7 @@ impl<T: NymTopology> LoopCoverTrafficStream<T> {
         let cover_message = match mix_client::packet::loop_cover_message(
             self.our_info.address.clone(),
             self.our_info.identifier,
-            topology,
+            &topology,
             self.average_packet_delay,
         ) {
             Ok(message) => message,

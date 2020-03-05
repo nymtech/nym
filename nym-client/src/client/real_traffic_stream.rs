@@ -1,5 +1,5 @@
 use crate::client::mix_traffic::MixMessage;
-use crate::client::topology_control::TopologyInnerRef;
+use crate::client::topology_control::TopologyAccessor;
 use crate::client::InputMessage;
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
@@ -8,6 +8,8 @@ use log::{error, info, trace, warn};
 use sphinx::route::Destination;
 use std::pin::Pin;
 use std::time::Duration;
+use tokio::runtime::Handle;
+use tokio::task::JoinHandle;
 use tokio::time;
 use topology::NymTopology;
 
@@ -18,7 +20,7 @@ pub(crate) struct OutQueueControl<T: NymTopology> {
     mix_tx: mpsc::UnboundedSender<MixMessage>,
     input_rx: mpsc::UnboundedReceiver<InputMessage>,
     our_info: Destination,
-    topology_ctrl_ref: TopologyInnerRef<T>,
+    topology_access: TopologyAccessor<T>,
 }
 
 pub(crate) enum StreamMessage {
@@ -60,12 +62,12 @@ impl<T: NymTopology> Stream for OutQueueControl<T> {
     }
 }
 
-impl<T: NymTopology> OutQueueControl<T> {
+impl<T: 'static + NymTopology> OutQueueControl<T> {
     pub(crate) fn new(
         mix_tx: mpsc::UnboundedSender<MixMessage>,
         input_rx: mpsc::UnboundedReceiver<InputMessage>,
         our_info: Destination,
-        topology: TopologyInnerRef<T>,
+        topology_access: TopologyAccessor<T>,
         average_packet_delay: Duration,
         average_message_sending_delay: Duration,
     ) -> Self {
@@ -76,8 +78,55 @@ impl<T: NymTopology> OutQueueControl<T> {
             mix_tx,
             input_rx,
             our_info,
-            topology_ctrl_ref: topology,
+            topology_access,
         }
+    }
+
+    async fn on_message(&mut self, next_message: StreamMessage) {
+        trace!("created new message");
+        let topology = match self.topology_access.get_current_topology().await {
+            None => {
+                warn!("No valid topology detected - won't send any real or loop message this time");
+                // TODO: this creates a potential problem: we can lose real messages if we were
+                // unable to get topology, perhaps we should store them in some buffer?
+                return;
+            }
+            Some(topology) => topology,
+        };
+
+        let next_packet = match next_message {
+            StreamMessage::Cover => mix_client::packet::loop_cover_message(
+                self.our_info.address.clone(),
+                self.our_info.identifier,
+                &topology,
+                self.average_packet_delay,
+            ),
+            StreamMessage::Real(real_message) => mix_client::packet::encapsulate_message(
+                real_message.0,
+                real_message.1,
+                &topology,
+                self.average_packet_delay,
+            ),
+        };
+
+        let next_packet = match next_packet {
+            Ok(message) => message,
+            Err(err) => {
+                error!(
+                    "Somehow we managed to create an invalid traffic message - {:?}",
+                    err
+                );
+                return;
+            }
+        };
+
+        // if this one fails, there's no retrying because it means that either:
+        // - we run out of memory
+        // - the receiver channel is closed
+        // in either case there's no recovery and we can only panic
+        self.mix_tx
+            .unbounded_send(MixMessage::new(next_packet.0, next_packet.1))
+            .unwrap();
     }
 
     pub(crate) async fn run_out_queue_control(mut self) {
@@ -88,51 +137,11 @@ impl<T: NymTopology> OutQueueControl<T> {
 
         info!("starting out queue controller");
         while let Some(next_message) = self.next().await {
-            trace!("created new message");
-            let read_lock = self.topology_ctrl_ref.read().await;
-            let topology = match read_lock.topology.as_ref() {
-                None => {
-                    warn!(
-                        "No valid topology detected - won't send any loop cover message this time"
-                    );
-                    continue;
-                }
-                Some(topology) => topology,
-            };
-
-            let next_packet = match next_message {
-                StreamMessage::Cover => mix_client::packet::loop_cover_message(
-                    self.our_info.address.clone(),
-                    self.our_info.identifier,
-                    topology,
-                    self.average_packet_delay,
-                ),
-                StreamMessage::Real(real_message) => mix_client::packet::encapsulate_message(
-                    real_message.0,
-                    real_message.1,
-                    topology,
-                    self.average_packet_delay,
-                ),
-            };
-
-            let next_packet = match next_packet {
-                Ok(message) => message,
-                Err(err) => {
-                    error!(
-                        "Somehow we managed to create an invalid traffic message - {:?}",
-                        err
-                    );
-                    continue;
-                }
-            };
-
-            // if this one fails, there's no retrying because it means that either:
-            // - we run out of memory
-            // - the receiver channel is closed
-            // in either case there's no recovery and we can only panic
-            self.mix_tx
-                .unbounded_send(MixMessage::new(next_packet.0, next_packet.1))
-                .unwrap();
+            self.on_message(next_message).await;
         }
+    }
+
+    pub(crate) fn start(self, handle: &Handle) -> JoinHandle<()> {
+        handle.spawn(async move { self.run_out_queue_control().await })
     }
 }

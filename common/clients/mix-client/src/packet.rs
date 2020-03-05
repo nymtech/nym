@@ -48,6 +48,7 @@ pub fn loop_cover_message<T: NymTopology>(
 ) -> Result<(SocketAddr, SphinxPacket), SphinxPacketEncapsulationError> {
     let destination = Destination::new(our_address, surb_id);
 
+    #[allow(deprecated)]
     encapsulate_message(
         destination,
         LOOP_COVER_MESSAGE_PAYLOAD.to_vec(),

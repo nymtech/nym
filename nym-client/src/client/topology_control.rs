@@ -41,9 +41,8 @@ impl<T: NymTopology> TopologyAccessor<T> {
         self.inner.lock().await.update(new_topology);
     }
 
+    // Unless you absolutely need the entire topology, use `random_route` instead
     pub(crate) async fn get_current_topology_clone(&mut self) -> Option<T> {
-        // TODO: considering topology is gotten quite frequently, the clone call might be rather
-        // expensive in the grand scheme of things...
         self.inner.lock().await.0.clone()
     }
 

@@ -258,7 +258,7 @@ impl NymClient {
     pub fn send_message(&self, destination: Destination, message: Vec<u8>) {
         self.input_tx
             .as_ref()
-            .unwrap()
+            .expect("start method was not called before!")
             .unbounded_send(InputMessage(destination, message))
             .unwrap()
     }

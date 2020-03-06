@@ -11,5 +11,5 @@ before_script:
   - rustup component add rustfmt
 script:
   - cargo build
-  - cargo test
+  - cargo test -- --test-threads=1
   - cargo fmt -- --check

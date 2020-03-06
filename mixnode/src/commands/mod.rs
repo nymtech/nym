@@ -5,8 +5,10 @@ pub mod init;
 pub mod run;
 
 pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
+    let mut was_host_overridden = false;
     if let Some(host) = matches.value_of("host") {
         config = config.with_listening_host(host);
+        was_host_overridden = true;
     }
 
     if let Some(port) = matches.value_of("port").map(|port| port.parse::<u16>()) {
@@ -23,6 +25,9 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
 
     if let Some(announce_host) = matches.value_of("announce-host") {
         config = config.with_announce_host(announce_host);
+    } else if was_host_overridden {
+        // make sure our 'announce-host' always defaults to 'host'
+        config = config.announce_host_from_listening_host()
     }
 
     if let Some(announce_port) = matches

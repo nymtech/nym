@@ -163,6 +163,11 @@ impl Config {
         }
     }
 
+    pub fn announce_host_from_listening_host(mut self) -> Self {
+        self.mixnode.announce_address = self.mixnode.listening_address.to_string();
+        self
+    }
+
     pub fn with_announce_port(mut self, port: u16) -> Self {
         let current_host: Vec<_> = self.mixnode.announce_address.split(':').collect();
         debug_assert_eq!(current_host.len(), 2);

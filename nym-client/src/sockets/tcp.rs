@@ -1,5 +1,5 @@
-use crate::client::received_buffer::BufferResponse;
-use crate::client::topology_control::TopologyInnerRef;
+use crate::client::received_buffer::ReceivedBufferResponse;
+use crate::client::topology_control::TopologyAccessor;
 use crate::client::InputMessage;
 use futures::channel::{mpsc, oneshot};
 use futures::future::FutureExt;
@@ -11,6 +11,8 @@ use std::convert::TryFrom;
 use std::io;
 use std::net::SocketAddr;
 use tokio::prelude::*;
+use tokio::runtime::Handle;
+use tokio::task::JoinHandle;
 use topology::NymTopology;
 
 const SEND_REQUEST_PREFIX: u8 = 1;
@@ -110,7 +112,9 @@ impl ClientRequest {
         ServerResponse::Send
     }
 
-    async fn handle_fetch(mut msg_query: mpsc::UnboundedSender<BufferResponse>) -> ServerResponse {
+    async fn handle_fetch(
+        mut msg_query: mpsc::UnboundedSender<ReceivedBufferResponse>,
+    ) -> ServerResponse {
         trace!("handle_fetch called");
         let (res_tx, res_rx) = oneshot::channel();
         if msg_query.send(res_tx).await.is_err() {
@@ -133,9 +137,10 @@ impl ClientRequest {
         ServerResponse::Fetch { messages }
     }
 
-    async fn handle_get_clients<T: NymTopology>(topology: &TopologyInnerRef<T>) -> ServerResponse {
-        let topology_data = &topology.read().await.topology;
-        match topology_data {
+    async fn handle_get_clients<T: NymTopology>(
+        mut topology_accessor: TopologyAccessor<T>,
+    ) -> ServerResponse {
+        match topology_accessor.get_current_topology_clone().await {
             Some(topology) => {
                 let clients = topology
                     .providers()
@@ -228,7 +233,7 @@ async fn handle_connection<T: NymTopology>(
         }
         ClientRequest::Fetch => ClientRequest::handle_fetch(request_handling_data.msg_query).await,
         ClientRequest::GetClients => {
-            ClientRequest::handle_get_clients(&request_handling_data.topology).await
+            ClientRequest::handle_get_clients(request_handling_data.topology_accessor).await
         }
         ClientRequest::OwnDetails => {
             ClientRequest::handle_own_details(request_handling_data.self_address).await
@@ -240,17 +245,17 @@ async fn handle_connection<T: NymTopology>(
 
 struct RequestHandlingData<T: NymTopology> {
     msg_input: mpsc::UnboundedSender<InputMessage>,
-    msg_query: mpsc::UnboundedSender<BufferResponse>,
+    msg_query: mpsc::UnboundedSender<ReceivedBufferResponse>,
     self_address: DestinationAddressBytes,
-    topology: TopologyInnerRef<T>,
+    topology_accessor: TopologyAccessor<T>,
 }
 
 async fn accept_connection<T: 'static + NymTopology>(
     mut socket: tokio::net::TcpStream,
     msg_input: mpsc::UnboundedSender<InputMessage>,
-    msg_query: mpsc::UnboundedSender<BufferResponse>,
+    msg_query: mpsc::UnboundedSender<ReceivedBufferResponse>,
     self_address: DestinationAddressBytes,
-    topology: TopologyInnerRef<T>,
+    topology_accessor: TopologyAccessor<T>,
 ) {
     let address = socket
         .peer_addr()
@@ -271,7 +276,7 @@ async fn accept_connection<T: 'static + NymTopology>(
             }
             Ok(n) => {
                 let request_handling_data = RequestHandlingData {
-                    topology: topology.clone(),
+                    topology_accessor: topology_accessor.clone(),
                     msg_input: msg_input.clone(),
                     msg_query: msg_query.clone(),
                     self_address: self_address.clone(),
@@ -295,16 +300,16 @@ async fn accept_connection<T: 'static + NymTopology>(
     }
 }
 
-pub async fn start_tcpsocket<T: 'static + NymTopology>(
+pub(crate) async fn run_tcpsocket<T: 'static + NymTopology>(
     listening_port: u16,
     message_tx: mpsc::UnboundedSender<InputMessage>,
-    received_messages_query_tx: mpsc::UnboundedSender<BufferResponse>,
+    received_messages_query_tx: mpsc::UnboundedSender<ReceivedBufferResponse>,
     self_address: DestinationAddressBytes,
-    topology: TopologyInnerRef<T>,
-) -> Result<(), TCPSocketError> {
+    topology_accessor: TopologyAccessor<T>,
+) {
     let address = SocketAddr::new("127.0.0.1".parse().unwrap(), listening_port);
     info!("Starting tcp socket listener at {:?}", address);
-    let mut listener = tokio::net::TcpListener::bind(address).await?;
+    let mut listener = tokio::net::TcpListener::bind(address).await.unwrap();
 
     while let Ok((stream, _)) = listener.accept().await {
         // it's fine to be cloning the channel on all new connection, because in principle
@@ -314,10 +319,27 @@ pub async fn start_tcpsocket<T: 'static + NymTopology>(
             message_tx.clone(),
             received_messages_query_tx.clone(),
             self_address.clone(),
-            topology.clone(),
+            topology_accessor.clone(),
         ));
     }
+}
 
-    error!("The tcpsocket went kaput...");
-    Ok(())
+pub(crate) fn start_tcpsocket<T: 'static + NymTopology>(
+    handle: &Handle,
+    listening_port: u16,
+    message_tx: mpsc::UnboundedSender<InputMessage>,
+    received_messages_query_tx: mpsc::UnboundedSender<ReceivedBufferResponse>,
+    self_address: DestinationAddressBytes,
+    topology_accessor: TopologyAccessor<T>,
+) -> JoinHandle<()> {
+    handle.spawn(async move {
+        run_tcpsocket(
+            listening_port,
+            message_tx,
+            received_messages_query_tx,
+            self_address,
+            topology_accessor,
+        )
+        .await;
+    })
 }

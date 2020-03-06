@@ -1464,6 +1464,7 @@ dependencies = [
  "healthcheck",
  "log",
  "mix-client",
+ "multi-tcp-client",
  "pem",
  "pemstore",
  "pretty_env_logger",

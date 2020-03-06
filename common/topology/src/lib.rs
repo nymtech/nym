@@ -10,7 +10,9 @@ mod filter;
 pub mod mix;
 pub mod provider;
 
-pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync {
+// TODO: Figure out why 'Clone' was required to have 'TopologyAccessor<T>' working
+// even though it only contains an Arc
+pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
     fn new(directory_server: String) -> Self;
     fn new_from_nodes(
         mix_nodes: Vec<mix::Node>,

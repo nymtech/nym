@@ -37,7 +37,7 @@ async fn process_request(
                     .map(|c| c.into_tuple())
                     .unzip();
                 let response_bytes = PullResponse::new(messages).to_bytes();
-                if let Ok(_) = socket.write_all(&response_bytes).await {
+                if socket.write_all(&response_bytes).await.is_ok() {
                     // only delete stored messages if we managed to actually send the response
                     if let Err(e) = request_processor.delete_sent_messages(paths).await {
                         error!("Somehow failed to delete stored messages! - {:?}", e);

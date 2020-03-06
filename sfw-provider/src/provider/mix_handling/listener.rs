@@ -42,10 +42,7 @@ async fn process_socket_connection(
                 }
 
                 // we must be able to handle multiple packets from same connection independently
-                tokio::spawn(process_received_packet(
-                    buf.clone(),
-                    packet_processor.clone(),
-                ))
+                tokio::spawn(process_received_packet(buf, packet_processor.clone()))
             }
             Err(e) => {
                 warn!(

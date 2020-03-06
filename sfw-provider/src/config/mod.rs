@@ -171,6 +171,11 @@ impl Config {
         }
     }
 
+    pub fn mix_announce_host_from_listening_host(mut self) -> Self {
+        self.mixnet_endpoint.announce_address = self.mixnet_endpoint.listening_address.to_string();
+        self
+    }
+
     pub fn with_mix_announce_port(mut self, port: u16) -> Self {
         let current_host: Vec<_> = self.mixnet_endpoint.announce_address.split(':').collect();
         debug_assert_eq!(current_host.len(), 2);
@@ -203,6 +208,12 @@ impl Config {
                 }
             },
         }
+    }
+
+    pub fn clients_announce_host_from_listening_host(mut self) -> Self {
+        self.clients_endpoint.announce_address =
+            self.clients_endpoint.listening_address.to_string();
+        self
     }
 
     pub fn with_clients_listening_port(mut self, port: u16) -> Self {

@@ -51,7 +51,7 @@ impl NymClient {
             .read_identity()
             .expect("Failed to read stored identity key files");
         println!(
-            "Public identity key: {}\nFor time being, it is identical to address",
+            "Public identity key: {}\n",
             identity_keypair.public_key.to_base58_string()
         );
         identity_keypair

@@ -88,11 +88,12 @@ impl PacketProcessor {
                 Err(MixProcessingError::ReceivedForwardHopError)
             }
             Ok(ProcessedPacket::ProcessedPacketFinalHop(client_address, surb_id, payload)) => {
+                warn!("About to process final hop. If you see this we made it past the Failed to unwrap error");
                 self.process_final_hop(client_address, surb_id, payload)
                     .await
             }
             Err(e) => {
-                warn!("Failed to unwrap Sphinx packet: {:?}", e);
+                error!("Failed to unwrap Sphinx packet: {:?}", e);
                 Err(MixProcessingError::SphinxProcessingError)
             }
         }

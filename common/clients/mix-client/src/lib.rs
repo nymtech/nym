@@ -9,6 +9,7 @@ pub mod poisson;
 pub struct MixClient {}
 
 impl MixClient {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> MixClient {
         MixClient {}
     }

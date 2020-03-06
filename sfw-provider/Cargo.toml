@@ -1,7 +1,7 @@
 [package]
 build = "build.rs"
 name = "nym-sfw-provider"
-version = "0.4.1"
+version = "0.5.0-rc.1"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
@@ -11,6 +11,7 @@ edition = "2018"
 bs58 = "0.3.0"
 clap = "2.33.0"
 curve25519-dalek = "1.2.3"
+dirs = "2.0.2"
 dotenv = "0.15.0"
 futures = "0.3.1"
 log = "0.4"
@@ -24,11 +25,20 @@ hmac = "0.7.1"
 
 ## internal
 crypto = {path = "../common/crypto"}
+config = {path = "../common/config"}
 directory-client = { path = "../common/clients/directory-client" }
+pemstore = {path = "../common/pemstore"}
 sfw-provider-requests = { path = "./sfw-provider-requests" }
 
 ## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="8424f4b0933b4a7f64ae828b2edefc5ba43a9e79" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="23f9c89b257ee0936e70afd682e9ed6a62e89eee" }
 
 [build-dependencies]
 built = "0.3.2"
+
+[dev-dependencies]
+tempfile = "3.1.0"
+
+[features]
+qa = []
+local = []

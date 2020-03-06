@@ -54,7 +54,7 @@ impl DirectoryClient for Client {
         let presence_mix_nodes_post: PresenceMixNodesPost =
             PresenceMixNodesPost::new(config.base_url.clone());
         let presence_providers_post: PresenceProvidersPost =
-            PresenceProvidersPost::new(config.base_url.clone());
+            PresenceProvidersPost::new(config.base_url);
         Client {
             health_check,
             metrics_mixes,

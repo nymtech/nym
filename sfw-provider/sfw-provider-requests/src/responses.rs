@@ -26,6 +26,10 @@ pub struct RegisterResponse {
     pub auth_token: AuthToken,
 }
 
+pub struct ErrorResponse {
+    pub message: String,
+}
+
 impl PullResponse {
     pub fn new(messages: Vec<Vec<u8>>) -> Self {
         PullResponse { messages }
@@ -35,6 +39,14 @@ impl PullResponse {
 impl RegisterResponse {
     pub fn new(auth_token: AuthToken) -> Self {
         RegisterResponse { auth_token }
+    }
+}
+
+impl ErrorResponse {
+    pub fn new<S: Into<String>>(message: S) -> Self {
+        ErrorResponse {
+            message: message.into(),
+        }
     }
 }
 
@@ -72,7 +84,7 @@ impl ProviderResponse for PullResponse {
             return Err(ProviderResponseError::UnmarshalErrorInvalidLength);
         }
 
-        let mut bytes_copy = bytes.clone();
+        let mut bytes_copy = bytes;
         let num_msgs = read_be_u16(&mut bytes_copy);
 
         // can we read all lengths of messages?
@@ -109,7 +121,7 @@ impl ProviderResponse for PullResponse {
 
 impl ProviderResponse for RegisterResponse {
     fn to_bytes(&self) -> Vec<u8> {
-        self.auth_token.to_vec()
+        self.auth_token.0.to_vec()
     }
 
     fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderResponseError> {
@@ -117,9 +129,24 @@ impl ProviderResponse for RegisterResponse {
             32 => {
                 let mut auth_token = [0u8; 32];
                 auth_token.copy_from_slice(&bytes[..32]);
-                Ok(RegisterResponse { auth_token })
+                Ok(RegisterResponse {
+                    auth_token: AuthToken(auth_token),
+                })
             }
             _ => Err(ProviderResponseError::UnmarshalErrorInvalidLength),
+        }
+    }
+}
+
+impl ProviderResponse for ErrorResponse {
+    fn to_bytes(&self) -> Vec<u8> {
+        self.message.clone().into_bytes()
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self, ProviderResponseError> {
+        match String::from_utf8(bytes.to_vec()) {
+            Err(_) => Err(ProviderResponseError::UnmarshalError),
+            Ok(message) => Ok(ErrorResponse { message }),
         }
     }
 }

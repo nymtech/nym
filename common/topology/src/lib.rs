@@ -10,7 +10,9 @@ mod filter;
 pub mod mix;
 pub mod provider;
 
-pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync {
+// TODO: Figure out why 'Clone' was required to have 'TopologyAccessor<T>' working
+// even though it only contains an Arc
+pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
     fn new(directory_server: String) -> Self;
     fn new_from_nodes(
         mix_nodes: Vec<mix::Node>,
@@ -30,7 +32,7 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync {
             }
             highest_layer = max(highest_layer, mix.layer);
 
-            let layer_nodes = layered_topology.entry(mix.layer).or_insert(Vec::new());
+            let layer_nodes = layered_topology.entry(mix.layer).or_insert_with(Vec::new);
             layer_nodes.push(mix);
         }
 
@@ -40,12 +42,12 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync {
             if !layered_topology.contains_key(&layer) {
                 missing_layers.push(layer);
             }
-            if layered_topology[&layer].len() == 0 {
+            if layered_topology[&layer].is_empty() {
                 missing_layers.push(layer);
             }
         }
 
-        if missing_layers.len() > 0 {
+        if !missing_layers.is_empty() {
             return Err(NymTopologyError::MissingLayerError(missing_layers));
         }
 
@@ -112,10 +114,7 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync {
     }
 
     fn can_construct_path_through(&self) -> bool {
-        match self.make_layered_topology() {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        self.make_layered_topology().is_ok()
     }
 }
 

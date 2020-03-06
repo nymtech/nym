@@ -1,10 +1,7 @@
 use crate::result::HealthCheckResult;
-use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
-use directory_client::requests::presence_topology_get::PresenceTopologyGetRequester;
-use directory_client::DirectoryClient;
-use log::{debug, error, info, trace};
+use crypto::identity::MixIdentityKeyPair;
+use log::trace;
 use std::fmt::{Error, Formatter};
-use std::marker::PhantomData;
 use std::time::Duration;
 use topology::{NymTopology, NymTopologyError};
 
@@ -36,38 +33,22 @@ impl From<topology::NymTopologyError> for HealthCheckerError {
     }
 }
 
-pub struct HealthChecker<IDPair, Priv, Pub>
-where
-    IDPair: MixnetIdentityKeyPair<Priv, Pub>,
-    Priv: MixnetIdentityPrivateKey,
-    Pub: MixnetIdentityPublicKey,
-{
+pub struct HealthChecker {
     num_test_packets: usize,
     resolution_timeout: Duration,
-    identity_keypair: IDPair,
-
-    _phantom_private: PhantomData<Priv>,
-    _phantom_public: PhantomData<Pub>,
+    identity_keypair: MixIdentityKeyPair,
 }
 
-impl<IDPair, Priv, Pub> HealthChecker<IDPair, Priv, Pub>
-where
-    IDPair: crypto::identity::MixnetIdentityKeyPair<Priv, Pub>,
-    Priv: crypto::identity::MixnetIdentityPrivateKey,
-    Pub: crypto::identity::MixnetIdentityPublicKey,
-{
+impl HealthChecker {
     pub fn new(
-        resolution_timeout_f64: f64,
+        resolution_timeout: Duration,
         num_test_packets: usize,
-        identity_keypair: IDPair,
+        identity_keypair: MixIdentityKeyPair,
     ) -> Self {
         HealthChecker {
-            resolution_timeout: Duration::from_secs_f64(resolution_timeout_f64),
+            resolution_timeout,
             num_test_packets,
             identity_keypair,
-
-            _phantom_private: PhantomData,
-            _phantom_public: PhantomData,
         }
     }
 

@@ -3,10 +3,10 @@ use addressing::AddressTypeError;
 use sphinx::route::{Destination, DestinationAddressBytes, SURBIdentifier};
 use sphinx::SphinxPacket;
 use std::net::SocketAddr;
+use std::time;
 use topology::{NymTopology, NymTopologyError};
 
 pub const LOOP_COVER_MESSAGE_PAYLOAD: &[u8] = b"The cake is a lie!";
-pub const LOOP_COVER_MESSAGE_AVERAGE_DELAY: f64 = 2.0;
 
 #[derive(Debug)]
 pub enum SphinxPacketEncapsulationError {
@@ -39,29 +39,49 @@ impl From<AddressTypeError> for SphinxPacketEncapsulationError {
     }
 }
 
+#[deprecated(note = "please use loop_cover_message_route instead")]
 pub fn loop_cover_message<T: NymTopology>(
     our_address: DestinationAddressBytes,
     surb_id: SURBIdentifier,
     topology: &T,
+    average_delay: time::Duration,
 ) -> Result<(SocketAddr, SphinxPacket), SphinxPacketEncapsulationError> {
     let destination = Destination::new(our_address, surb_id);
 
+    #[allow(deprecated)]
     encapsulate_message(
         destination,
         LOOP_COVER_MESSAGE_PAYLOAD.to_vec(),
         topology,
-        LOOP_COVER_MESSAGE_AVERAGE_DELAY,
+        average_delay,
     )
 }
 
+pub fn loop_cover_message_route(
+    our_address: DestinationAddressBytes,
+    surb_id: SURBIdentifier,
+    route: Vec<sphinx::route::Node>,
+    average_delay: time::Duration,
+) -> Result<(SocketAddr, SphinxPacket), SphinxPacketEncapsulationError> {
+    let destination = Destination::new(our_address, surb_id);
+
+    encapsulate_message_route(
+        destination,
+        LOOP_COVER_MESSAGE_PAYLOAD.to_vec(),
+        route,
+        average_delay,
+    )
+}
+
+#[deprecated(note = "please use encapsulate_message_route instead")]
 pub fn encapsulate_message<T: NymTopology>(
     recipient: Destination,
     message: Vec<u8>,
     topology: &T,
-    average_delay: f64,
+    average_delay: time::Duration,
 ) -> Result<(SocketAddr, SphinxPacket), SphinxPacketEncapsulationError> {
     let mut providers = topology.providers();
-    if providers.len() == 0 {
+    if providers.is_empty() {
         return Err(SphinxPacketEncapsulationError::NoValidProvidersError);
     }
     // unwrap is fine here as we asserted there is at least single provider
@@ -69,12 +89,29 @@ pub fn encapsulate_message<T: NymTopology>(
 
     let route = topology.route_to(provider)?;
 
-    let delays = sphinx::header::delays::generate(route.len(), average_delay);
+    let delays = sphinx::header::delays::generate_from_average_duration(route.len(), average_delay);
 
     // build the packet
     let packet = sphinx::SphinxPacket::new(message, &route[..], &recipient, &delays)?;
 
     // we know the mix route must be valid otherwise we would have already returned an error
+    let first_node_address =
+        addressing::socket_address_from_encoded_bytes(route.first().unwrap().address.to_bytes())?;
+
+    Ok((first_node_address, packet))
+}
+
+pub fn encapsulate_message_route(
+    recipient: Destination,
+    message: Vec<u8>,
+    route: Vec<sphinx::route::Node>,
+    average_delay: time::Duration,
+) -> Result<(SocketAddr, SphinxPacket), SphinxPacketEncapsulationError> {
+    let delays = sphinx::header::delays::generate_from_average_duration(route.len(), average_delay);
+
+    // build the packet
+    let packet = sphinx::SphinxPacket::new(message, &route[..], &recipient, &delays)?;
+
     let first_node_address =
         addressing::socket_address_from_encoded_bytes(route.first().unwrap().address.to_bytes())?;
 

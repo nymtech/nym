@@ -1,4 +1,4 @@
-use crypto::identity::{MixnetIdentityKeyPair, MixnetIdentityPrivateKey, MixnetIdentityPublicKey};
+use crypto::identity::MixIdentityKeyPair;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use mix_client::MixClient;
@@ -27,22 +27,18 @@ pub(crate) struct PathChecker {
 }
 
 impl PathChecker {
-    pub(crate) async fn new<IDPair, Priv, Pub>(
+    pub(crate) async fn new(
         providers: Vec<provider::Node>,
-        identity_keys: &IDPair,
+        identity_keys: &MixIdentityKeyPair,
         check_id: [u8; 16],
-    ) -> Self
-    where
-        IDPair: MixnetIdentityKeyPair<Priv, Pub>,
-        Priv: MixnetIdentityPrivateKey,
-        Pub: MixnetIdentityPublicKey,
-    {
+    ) -> Self {
         let mut provider_clients = HashMap::new();
 
         let address = identity_keys.public_key().derive_address();
 
         for provider in providers {
-            let mut provider_client = ProviderClient::new(provider.client_listener, address, None);
+            let mut provider_client =
+                ProviderClient::new(provider.client_listener, address.clone(), None);
             let insertion_result = match provider_client.register().await {
                 Ok(token) => {
                     debug!("registered at provider {}", provider.pub_key);
@@ -78,7 +74,7 @@ impl PathChecker {
 
     // iteration is used to distinguish packets sent through the same path (as the healthcheck
     // may try to send say 10 packets through given path)
-    fn unique_path_key(path: &Vec<SphinxNode>, check_id: [u8; 16], iteration: u8) -> Vec<u8> {
+    fn unique_path_key(path: &[SphinxNode], check_id: [u8; 16], iteration: u8) -> Vec<u8> {
         check_id
             .iter()
             .cloned()
@@ -178,8 +174,8 @@ impl PathChecker {
         self.update_path_statuses(provider_messages);
     }
 
-    pub(crate) async fn send_test_packet(&mut self, path: &Vec<SphinxNode>, iteration: u8) {
-        if path.len() == 0 {
+    pub(crate) async fn send_test_packet(&mut self, path: &[SphinxNode], iteration: u8) {
+        if path.is_empty() {
             warn!("trying to send test packet through an empty path!");
             return;
         }
@@ -226,7 +222,7 @@ impl PathChecker {
         let first_node_client = self
             .layer_one_clients
             .entry(first_node_key)
-            .or_insert(Some(mix_client::MixClient::new()));
+            .or_insert_with(|| Some(mix_client::MixClient::new()));
 
         if first_node_client.is_none() {
             debug!("we can ignore this path as layer one mix is inaccessible");
@@ -243,7 +239,7 @@ impl PathChecker {
         // we already checked for 'None' case
         let first_node_client = first_node_client.as_ref().unwrap();
 
-        let delays: Vec<_> = path.iter().map(|_| Delay::new(0)).collect();
+        let delays: Vec<_> = path.iter().map(|_| Delay::new_from_nanos(0)).collect();
 
         // all of the data used to create the packet was created by us
         let packet = sphinx::SphinxPacket::new(
@@ -257,7 +253,7 @@ impl PathChecker {
         debug!("sending test packet to {}", first_node_address);
         match first_node_client.send(packet, first_node_address).await {
             Err(err) => {
-                info!("failed to send packet to {} - {}", first_node_address, err);
+                debug!("failed to send packet to {} - {}", first_node_address, err);
                 if self
                     .paths_status
                     .insert(path_identifier, PathStatus::Unhealthy)

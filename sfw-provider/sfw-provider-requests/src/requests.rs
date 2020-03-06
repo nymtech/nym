@@ -79,8 +79,8 @@ impl ProviderRequest for PullRequest {
         Self::get_prefix()
             .to_vec()
             .into_iter()
-            .chain(self.destination_address.iter().cloned())
-            .chain(self.auth_token.iter().cloned())
+            .chain(self.destination_address.to_bytes().iter().cloned())
+            .chain(self.auth_token.0.iter().cloned())
             .collect()
     }
 
@@ -102,8 +102,8 @@ impl ProviderRequest for PullRequest {
         auth_token.copy_from_slice(&bytes[34..]);
 
         Ok(PullRequest {
-            auth_token,
-            destination_address,
+            auth_token: AuthToken::from_bytes(auth_token),
+            destination_address: DestinationAddressBytes::from_bytes(destination_address),
         })
     }
 }
@@ -130,7 +130,7 @@ impl ProviderRequest for RegisterRequest {
         Self::get_prefix()
             .to_vec()
             .into_iter()
-            .chain(self.destination_address.iter().cloned())
+            .chain(self.destination_address.to_bytes().iter().cloned())
             .collect()
     }
 
@@ -149,7 +149,7 @@ impl ProviderRequest for RegisterRequest {
         destination_address.copy_from_slice(&bytes[2..]);
 
         Ok(RegisterRequest {
-            destination_address,
+            destination_address: DestinationAddressBytes::from_bytes(destination_address),
         })
     }
 }
@@ -160,34 +160,34 @@ mod creating_pull_request {
 
     #[test]
     fn it_is_possible_to_recover_it_from_bytes() {
-        let address = [
+        let address = DestinationAddressBytes::from_bytes([
             1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
             0, 1, 2,
-        ];
+        ]);
         let auth_token = [1u8; 32];
-        let pull_request = PullRequest::new(address, auth_token);
+        let pull_request = PullRequest::new(address.clone(), AuthToken(auth_token));
         let bytes = pull_request.to_bytes();
 
         let recovered = PullRequest::from_bytes(&bytes).unwrap();
         assert_eq!(address, recovered.destination_address);
-        assert_eq!(auth_token, recovered.auth_token);
+        assert_eq!(AuthToken(auth_token), recovered.auth_token);
     }
 
     #[test]
     fn it_is_possible_to_recover_it_from_bytes_with_enum_wrapper() {
-        let address = [
+        let address = DestinationAddressBytes::from_bytes([
             1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
             0, 1, 2,
-        ];
+        ]);
         let auth_token = [1u8; 32];
-        let pull_request = PullRequest::new(address, auth_token);
+        let pull_request = PullRequest::new(address.clone(), AuthToken(auth_token));
         let bytes = pull_request.to_bytes();
 
         let recovered = ProviderRequests::from_bytes(&bytes).unwrap();
         match recovered {
             ProviderRequests::PullMessages(req) => {
                 assert_eq!(address, req.destination_address);
-                assert_eq!(auth_token, req.auth_token);
+                assert_eq!(AuthToken(auth_token), req.auth_token);
             }
             _ => panic!("expected to recover pull request!"),
         }
@@ -200,11 +200,11 @@ mod creating_register_request {
 
     #[test]
     fn it_is_possible_to_recover_it_from_bytes() {
-        let address = [
+        let address = DestinationAddressBytes::from_bytes([
             1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
             0, 1, 2,
-        ];
-        let register_request = RegisterRequest::new(address);
+        ]);
+        let register_request = RegisterRequest::new(address.clone());
         let bytes = register_request.to_bytes();
 
         let recovered = RegisterRequest::from_bytes(&bytes).unwrap();
@@ -213,11 +213,11 @@ mod creating_register_request {
 
     #[test]
     fn it_is_possible_to_recover_it_from_bytes_with_enum_wrapper() {
-        let address = [
+        let address = DestinationAddressBytes::from_bytes([
             1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
             0, 1, 2,
-        ];
-        let register_request = RegisterRequest::new(address);
+        ]);
+        let register_request = RegisterRequest::new(address.clone());
         let bytes = register_request.to_bytes();
 
         let recovered = ProviderRequests::from_bytes(&bytes).unwrap();

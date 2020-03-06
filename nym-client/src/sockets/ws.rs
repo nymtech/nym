@@ -1,5 +1,5 @@
-use crate::client::received_buffer::BufferResponse;
-use crate::client::topology_control::TopologyInnerRef;
+use crate::client::received_buffer::ReceivedBufferResponse;
+use crate::client::topology_control::TopologyAccessor;
 use crate::client::InputMessage;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use futures::channel::{mpsc, oneshot};
@@ -12,17 +12,19 @@ use sphinx::route::{Destination, DestinationAddressBytes};
 use std::convert::TryFrom;
 use std::io;
 use std::net::SocketAddr;
+use tokio::runtime::Handle;
+use tokio::task::JoinHandle;
+use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
+use tokio_tungstenite::tungstenite::protocol::{CloseFrame, Message};
 use topology::NymTopology;
-use tungstenite::protocol::frame::coding::CloseCode;
-use tungstenite::protocol::{CloseFrame, Message};
 
 struct Connection<T: NymTopology> {
     address: SocketAddr,
     msg_input: mpsc::UnboundedSender<InputMessage>,
-    msg_query: mpsc::UnboundedSender<BufferResponse>,
+    msg_query: mpsc::UnboundedSender<ReceivedBufferResponse>,
     rx: UnboundedReceiver<Message>,
     self_address: DestinationAddressBytes,
-    topology: TopologyInnerRef<T>,
+    topology_accessor: TopologyAccessor<T>,
     tx: UnboundedSender<Message>,
 }
 
@@ -49,8 +51,12 @@ impl<T: NymTopology> Connection<T> {
                 ClientRequest::handle_send(message, recipient_address, self.msg_input.clone()).await
             }
             ClientRequest::Fetch => ClientRequest::handle_fetch(self.msg_query.clone()).await,
-            ClientRequest::GetClients => ClientRequest::handle_get_clients(&self.topology).await,
-            ClientRequest::OwnDetails => ClientRequest::handle_own_details(self.self_address).await,
+            ClientRequest::GetClients => {
+                ClientRequest::handle_get_clients(self.topology_accessor.clone()).await
+            }
+            ClientRequest::OwnDetails => {
+                ClientRequest::handle_own_details(self.self_address.clone()).await
+            }
         }
     }
 
@@ -194,8 +200,7 @@ impl ClientRequest {
                     "message too long. Sent {} bytes, but the maximum is {}",
                     message_bytes.len(),
                     sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH
-                )
-                .to_string(),
+                ),
             };
         }
 
@@ -219,13 +224,18 @@ impl ClientRequest {
 
         let dummy_surb = [0; 16];
 
-        let input_msg = InputMessage(Destination::new(address, dummy_surb), message_bytes);
+        let input_msg = InputMessage(
+            Destination::new(DestinationAddressBytes::from_bytes(address), dummy_surb),
+            message_bytes,
+        );
         input_tx.send(input_msg).await.unwrap();
 
         ServerResponse::Send
     }
 
-    async fn handle_fetch(mut msg_query: mpsc::UnboundedSender<BufferResponse>) -> ServerResponse {
+    async fn handle_fetch(
+        mut msg_query: mpsc::UnboundedSender<ReceivedBufferResponse>,
+    ) -> ServerResponse {
         let (res_tx, res_rx) = oneshot::channel();
         if msg_query.send(res_tx).await.is_err() {
             warn!("Failed to handle_fetch. msg_query.send() is an error.");
@@ -239,7 +249,7 @@ impl ClientRequest {
             Err(e) => {
                 warn!("Failed to fetch client messages - {:?}", e);
                 return ServerResponse::Error {
-                    message: format!("Server failed to receive messages").to_string(),
+                    message: "Server failed to receive messages".to_string(),
                 };
             }
         };
@@ -261,9 +271,10 @@ impl ClientRequest {
         ServerResponse::Fetch { messages }
     }
 
-    async fn handle_get_clients<T: NymTopology>(topology: &TopologyInnerRef<T>) -> ServerResponse {
-        let topology_data = &topology.read().await.topology;
-        match topology_data {
+    async fn handle_get_clients<T: NymTopology>(
+        mut topology_accessor: TopologyAccessor<T>,
+    ) -> ServerResponse {
+        match topology_accessor.get_current_topology_clone().await {
             Some(topology) => {
                 let clients = topology
                     .providers()
@@ -280,7 +291,7 @@ impl ClientRequest {
     }
 
     async fn handle_own_details(self_address_bytes: DestinationAddressBytes) -> ServerResponse {
-        let self_address = bs58::encode(&self_address_bytes).into_string();
+        let self_address = self_address_bytes.to_base58_string();
         ServerResponse::OwnDetails {
             address: self_address,
         }
@@ -309,18 +320,22 @@ impl Into<Message> for ServerResponse {
 async fn accept_connection<T: 'static + NymTopology>(
     stream: tokio::net::TcpStream,
     msg_input: mpsc::UnboundedSender<InputMessage>,
-    msg_query: mpsc::UnboundedSender<BufferResponse>,
+    msg_query: mpsc::UnboundedSender<ReceivedBufferResponse>,
     self_address: DestinationAddressBytes,
-    topology: TopologyInnerRef<T>,
+    topology_accessor: TopologyAccessor<T>,
 ) {
     let address = stream
         .peer_addr()
         .expect("connected streams should have a peer address");
     debug!("Peer address: {}", address);
 
-    let mut ws_stream = tokio_tungstenite::accept_async(stream)
-        .await
-        .expect("Error during the websocket handshake occurred");
+    let mut ws_stream = match tokio_tungstenite::accept_async(stream).await {
+        Ok(ws_stream) => ws_stream,
+        Err(e) => {
+            error!("Error during the websocket handshake occurred - {}", e);
+            return;
+        }
+    };
 
     // Create a channel for our stream, which other sockets will use to
     // send us messages. Then register our address with the stream to send
@@ -331,7 +346,7 @@ async fn accept_connection<T: 'static + NymTopology>(
         address,
         rx: msg_rx,
         tx: response_tx,
-        topology,
+        topology_accessor,
         msg_input,
         msg_query,
         self_address,
@@ -349,10 +364,7 @@ async fn accept_connection<T: 'static + NymTopology>(
             }
         };
 
-        let mut should_close = false;
-        if message.is_close() {
-            should_close = true;
-        }
+        let should_close = message.is_close();
 
         if let Err(err) = msg_tx.unbounded_send(message) {
             error!(
@@ -386,14 +398,16 @@ async fn accept_connection<T: 'static + NymTopology>(
     }
 }
 
-pub async fn start_websocket<T: 'static + NymTopology>(
-    address: SocketAddr,
+pub(crate) async fn run_websocket<T: 'static + NymTopology>(
+    listening_port: u16,
     message_tx: mpsc::UnboundedSender<InputMessage>,
-    received_messages_query_tx: mpsc::UnboundedSender<BufferResponse>,
+    received_messages_query_tx: mpsc::UnboundedSender<ReceivedBufferResponse>,
     self_address: DestinationAddressBytes,
-    topology: TopologyInnerRef<T>,
-) -> Result<(), WebSocketError> {
-    let mut listener = tokio::net::TcpListener::bind(address).await?;
+    topology_accessor: TopologyAccessor<T>,
+) {
+    let address = SocketAddr::new("127.0.0.1".parse().unwrap(), listening_port);
+    info!("Starting websocket listener at {:?}", address);
+    let mut listener = tokio::net::TcpListener::bind(address).await.unwrap();
 
     while let Ok((stream, _)) = listener.accept().await {
         // it's fine to be cloning the channel on all new connection, because in principle
@@ -402,11 +416,28 @@ pub async fn start_websocket<T: 'static + NymTopology>(
             stream,
             message_tx.clone(),
             received_messages_query_tx.clone(),
-            self_address,
-            topology.clone(),
+            self_address.clone(),
+            topology_accessor.clone(),
         ));
     }
+}
 
-    error!("The websocket went kaput...");
-    Ok(())
+pub(crate) fn start_websocket<T: 'static + NymTopology>(
+    handle: &Handle,
+    listening_port: u16,
+    message_tx: mpsc::UnboundedSender<InputMessage>,
+    received_messages_query_tx: mpsc::UnboundedSender<ReceivedBufferResponse>,
+    self_address: DestinationAddressBytes,
+    topology_accessor: TopologyAccessor<T>,
+) -> JoinHandle<()> {
+    handle.spawn(async move {
+        run_websocket(
+            listening_port,
+            message_tx,
+            received_messages_query_tx,
+            self_address,
+            topology_accessor,
+        )
+        .await;
+    })
 }

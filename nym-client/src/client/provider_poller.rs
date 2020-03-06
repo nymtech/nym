@@ -1,13 +1,18 @@
-use crate::client::FETCH_MESSAGES_DELAY;
 use futures::channel::mpsc;
-use log::{debug, error, info, trace, warn};
+use log::*;
 use provider_client::ProviderClientError;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use std::net::SocketAddr;
-use std::time::Duration;
+use std::time;
+use tokio::runtime::Handle;
+use tokio::task::JoinHandle;
+
+pub(crate) type PolledMessagesSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
+pub(crate) type PolledMessagesReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
 
 pub(crate) struct ProviderPoller {
+    polling_rate: time::Duration,
     provider_client: provider_client::ProviderClient,
     poller_tx: mpsc::UnboundedSender<Vec<Vec<u8>>>,
 }
@@ -18,6 +23,7 @@ impl ProviderPoller {
         provider_client_listener_address: SocketAddr,
         client_address: DestinationAddressBytes,
         auth_token: Option<AuthToken>,
+        polling_rate: time::Duration,
     ) -> Self {
         ProviderPoller {
             provider_client: provider_client::ProviderClient::new(
@@ -26,14 +32,19 @@ impl ProviderPoller {
                 auth_token,
             ),
             poller_tx,
+            polling_rate,
         }
+    }
+
+    pub(crate) fn is_registered(&self) -> bool {
+        self.provider_client.is_registered()
     }
 
     // This method is only temporary until registration is moved to `client init`
     pub(crate) async fn perform_initial_registration(&mut self) -> Result<(), ProviderClientError> {
         debug!("performing initial provider registration");
 
-        if !self.provider_client.is_registered() {
+        if !self.is_registered() {
             let auth_token = match self.provider_client.register().await {
                 // in this particular case we can ignore this error
                 Err(ProviderClientError::ClientAlreadyRegisteredError) => return Ok(()),
@@ -43,20 +54,17 @@ impl ProviderPoller {
 
             self.provider_client.update_token(auth_token)
         } else {
-            warn!("did not perform registration - we were already registered")
+            warn!("did not perform provider registration - we were already registered")
         }
 
         Ok(())
     }
 
     pub(crate) async fn start_provider_polling(self) {
-        info!("Starting provider poller");
-
         let loop_message = &mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD.to_vec();
         let dummy_message = &sfw_provider_requests::DUMMY_MESSAGE_CONTENT.to_vec();
 
-        let delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY);
-        let extended_delay_duration = Duration::from_secs_f64(FETCH_MESSAGES_DELAY * 10.0);
+        let extended_delay_duration = self.polling_rate * 10;
 
         loop {
             debug!("Polling provider...");
@@ -82,7 +90,11 @@ impl ProviderPoller {
             // in either case there's no recovery and we can only panic
             self.poller_tx.unbounded_send(good_messages).unwrap();
 
-            tokio::time::delay_for(delay_duration).await;
+            tokio::time::delay_for(self.polling_rate).await;
         }
+    }
+
+    pub(crate) fn start(self, handle: &Handle) -> JoinHandle<()> {
+        handle.spawn(async move { self.start_provider_polling().await })
     }
 }

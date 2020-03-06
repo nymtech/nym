@@ -1,5 +1,51 @@
 # Changelog
 
+## [Unreleased](https://github.com/nymtech/nym/tree/HEAD)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.4.1...HEAD)
+
+**Closed issues:**
+
+- COMPILE: Could not compile project using Cargo [\#118](https://github.com/nymtech/nym/issues/118)
+- Wherever unbounded mpsc channel is used, prefer unbounded\_send\(\) over send\(\).await [\#90](https://github.com/nymtech/nym/issues/90)
+- Add a `Send` method in nym-client [\#81](https://github.com/nymtech/nym/issues/81)
+- Start on Tendermint integration [\#79](https://github.com/nymtech/nym/issues/79)
+- Ditch DummyKeyPair [\#75](https://github.com/nymtech/nym/issues/75)
+- Replace args with proper config files [\#69](https://github.com/nymtech/nym/issues/69)
+- Fix incorrectly used Arcs [\#47](https://github.com/nymtech/nym/issues/47)
+- nym-mixnode mandatory host option [\#26](https://github.com/nymtech/nym/issues/26)
+- Create config struct for mixnode \(possibly also for client\) [\#21](https://github.com/nymtech/nym/issues/21)
+- Reuse TCP socket connection between client and mixnodes [\#20](https://github.com/nymtech/nym/issues/20)
+- Once implementation is available, wherever appropriate, replace `futures::lock::Mutex` with `futures::lock::RwLock` [\#9](https://github.com/nymtech/nym/issues/9)
+- Check if RwLock on MixProcessingData is still needed [\#8](https://github.com/nymtech/nym/issues/8)
+- Reuse TCP socket connection between mixnodes and providers [\#3](https://github.com/nymtech/nym/issues/3)
+- Persistent socket connection with other mixes [\#2](https://github.com/nymtech/nym/issues/2)
+
+**Merged pull requests:**
+
+- Feature/client refactoring [\#128](https://github.com/nymtech/nym/pull/128) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/provider refactoring [\#125](https://github.com/nymtech/nym/pull/125) ([jstuczyn](https://github.com/jstuczyn))
+- all: fixing mis-spelling [\#123](https://github.com/nymtech/nym/pull/123) ([futurechimp](https://github.com/futurechimp))
+- Feature/further clippy fixes [\#121](https://github.com/nymtech/nym/pull/121) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/tokio tungstenite dependency fix [\#120](https://github.com/nymtech/nym/pull/120) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/config files cleanup [\#119](https://github.com/nymtech/nym/pull/119) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/config files [\#117](https://github.com/nymtech/nym/pull/117) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/un genericize keys [\#111](https://github.com/nymtech/nym/pull/111) ([futurechimp](https://github.com/futurechimp))
+- Feature/abci [\#110](https://github.com/nymtech/nym/pull/110) ([futurechimp](https://github.com/futurechimp))
+- Simplified the use of generics on identity keypair by using output types [\#109](https://github.com/nymtech/nym/pull/109) ([jstuczyn](https://github.com/jstuczyn))
+
+## [v0.4.1](https://github.com/nymtech/nym/tree/v0.4.1) (2020-01-29)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.4.0...v0.4.1)
+
+**Closed issues:**
+
+- Change healthcheck to run on provided topology rather than pull one itself [\#95](https://github.com/nymtech/nym/issues/95)
+
+**Merged pull requests:**
+
+- Bugfix/healthcheck on provided topology [\#108](https://github.com/nymtech/nym/pull/108) ([jstuczyn](https://github.com/jstuczyn))
+
 ## [v0.4.0](https://github.com/nymtech/nym/tree/v0.4.0) (2020-01-28)
 
 [Full Changelog](https://github.com/nymtech/nym/compare/v0.4.0-rc.2...v0.4.0)

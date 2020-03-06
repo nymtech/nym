@@ -33,8 +33,8 @@ pub(crate) type InputMessageSender = mpsc::UnboundedSender<InputMessage>;
 pub(crate) type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
 
 pub struct NymClient {
-    runtime: Runtime,
     config: Config,
+    runtime: Runtime,
     identity_keypair: MixIdentityKeyPair,
 
     // to be used by "send" function or socket, etc
@@ -201,7 +201,10 @@ impl NymClient {
             TopologyRefresher::new(topology_refresher_config, topology_accessor);
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
-        info!("Obtaining initial network topology...");
+        info!(
+            "Obtaining initial network topology from {}",
+            self.config.get_directory_server()
+        );
         self.runtime.block_on(topology_refresher.refresh());
         info!("Starting topology refresher...");
         topology_refresher.start(self.runtime.handle());

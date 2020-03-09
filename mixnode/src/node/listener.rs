@@ -49,10 +49,10 @@ async fn process_socket_connection(
             }
             Ok(n) => {
                 if n != sphinx::PACKET_SIZE {
-                    warn!("read data of different length than expected sphinx packet size - {} (expected {})", n, sphinx::PACKET_SIZE);
+                    error!("read data of different length than expected sphinx packet size - {} (expected {})", n, sphinx::PACKET_SIZE);
                     continue;
                 }
-
+                warn!("About to process packet. If you see this, we made it past the Sphinx size error");
                 // we must be able to handle multiple packets from same connection independently
                 tokio::spawn(process_received_packet(
                     buf,
@@ -64,7 +64,7 @@ async fn process_socket_connection(
                 ))
             }
             Err(e) => {
-                warn!(
+                error!(
                     "failed to read from socket. Closing the connection; err = {:?}",
                     e
                 );

@@ -1,7 +1,0 @@
-[healthcheck]
-
-#directory-server = "http://localhost:8080"
-directory-server = "https://directory.nymtech.net"
-interval = 10.0
-test-packets-per-node = 2 # in seconds
-resolution-timeout = 5 # in seconds

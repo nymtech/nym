@@ -308,7 +308,7 @@ pub(crate) async fn run_tcpsocket<T: 'static + NymTopology>(
     topology_accessor: TopologyAccessor<T>,
 ) {
     let address = SocketAddr::new("127.0.0.1".parse().unwrap(), listening_port);
-    info!("Starting tcp socket listener at {:?}", address);
+    info!("Starting tcp socket listener at {}", address.to_string());
     let mut listener = tokio::net::TcpListener::bind(address).await.unwrap();
 
     while let Ok((stream, _)) = listener.accept().await {

@@ -69,8 +69,11 @@ impl Notifier {
     pub fn start(self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move {
             loop {
+                // set the deadline in the future
+                let sending_delay = tokio::time::delay_for(self.sending_delay);
                 self.notify();
-                tokio::time::delay_for(self.sending_delay).await;
+                // wait for however much is left
+                sending_delay.await;
             }
         })
     }

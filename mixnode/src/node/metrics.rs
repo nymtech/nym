@@ -114,7 +114,8 @@ impl MetricsSender {
     fn start(mut self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move {
             loop {
-                tokio::time::delay_for(self.sending_delay).await;
+                // set the deadline in the future
+                let sending_delay = tokio::time::delay_for(self.sending_delay);
                 let (received, sent) = self.metrics.acquire_and_reset_metrics().await;
 
                 match self.directory_client.metrics_post.post(&MixMetric {
@@ -125,6 +126,9 @@ impl MetricsSender {
                     Err(err) => error!("failed to send metrics - {:?}", err),
                     Ok(_) => debug!("sent metrics information"),
                 }
+
+                // wait for however much is left
+                sending_delay.await;
             }
         })
     }

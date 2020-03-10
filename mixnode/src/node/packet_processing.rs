@@ -91,7 +91,6 @@ impl PacketProcessor {
 
         match packet.process(self.secret_key.deref().inner()) {
             Ok(ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay)) => {
-                warn!("Returning a process packet. We're good.");
                 self.process_forward_hop(packet, address, delay).await
             }
             Ok(ProcessedPacket::ProcessedPacketFinalHop(_, _, _)) => {
@@ -99,7 +98,7 @@ impl PacketProcessor {
                 Err(MixProcessingError::ReceivedFinalHopError)
             }
             Err(e) => {
-                error!("Failed to unwrap Sphinx packet: {:?}", e);
+                warn!("Failed to unwrap Sphinx packet: {:?}", e);
                 Err(MixProcessingError::SphinxProcessingError)
             }
         }

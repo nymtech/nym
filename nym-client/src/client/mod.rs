@@ -9,8 +9,7 @@ use crate::client::topology_control::{
 };
 use crate::config::persistence::pathfinder::ClientPathfinder;
 use crate::config::{Config, SocketType};
-use crate::sockets::tcp;
-use crate::sockets::ws;
+use crate::sockets::{tcp, websocket};
 use crypto::identity::MixIdentityKeyPair;
 use directory_client::presence;
 use futures::channel::mpsc;
@@ -80,7 +79,7 @@ impl NymClient {
         provider_id: String,
         mut topology_accessor: TopologyAccessor<T>,
     ) -> SocketAddr {
-        topology_accessor.get_current_topology_clone().await.as_ref().expect("The current network topoloy is empty - are you using correct directory server?")
+        topology_accessor.get_current_topology_clone().await.as_ref().expect("The current network topology is empty - are you using correct directory server?")
             .providers()
             .iter()
             .find(|provider| provider.pub_key == provider_id)
@@ -233,7 +232,7 @@ impl NymClient {
     ) {
         match self.config.get_socket_type() {
             SocketType::WebSocket => {
-                ws::start_websocket(
+                websocket::listener::run(
                     self.runtime.handle(),
                     self.config.get_listening_port(),
                     input_tx,

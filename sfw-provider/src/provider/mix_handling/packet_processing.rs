@@ -1,6 +1,7 @@
 use crate::provider::storage::{ClientStorage, StoreData};
 use crypto::encryption;
 use log::*;
+use mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD;
 use sphinx::payload::Payload;
 use sphinx::route::{DestinationAddressBytes, SURBIdentifier};
 use sphinx::{ProcessedPacket, SphinxPacket};
@@ -68,6 +69,15 @@ impl PacketProcessor {
             .ok_or_else(|| MixProcessingError::InvalidPayload)?;
         if client_address != payload_destination {
             return Err(MixProcessingError::NonMatchingRecipient);
+        }
+
+        // we are temporarily ignoring and not storing obvious loop cover traffic messages to
+        // not cause our sfw-provider to run out of disk space too quickly.
+        // Eventually this is going to get removed and be replaced by a quota system described in:
+        // https://github.com/nymtech/nym/issues/137
+        if message == LOOP_COVER_MESSAGE_PAYLOAD {
+            debug!("Received a loop cover message - not going to store it");
+            return Ok(MixProcessingResult::FinalHop);
         }
 
         let store_data = StoreData::new(client_address, surb_id, message);

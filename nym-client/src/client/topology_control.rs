@@ -9,7 +9,7 @@ use std::time::Duration;
 use tokio::runtime::Handle;
 // use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
-use topology::NymTopology;
+use topology::{provider, NymTopology};
 
 struct TopologyAccessorInner<T: NymTopology>(Option<T>);
 
@@ -44,6 +44,21 @@ impl<T: NymTopology> TopologyAccessor<T> {
     // Unless you absolutely need the entire topology, use `random_route` instead
     pub(crate) async fn get_current_topology_clone(&mut self) -> Option<T> {
         self.inner.lock().await.0.clone()
+    }
+
+    pub(crate) async fn get_all_clients(&mut self) -> Option<Vec<provider::Client>> {
+        // TODO: this will need to be modified to instead return pairs (provider, client)
+        match &self.inner.lock().await.0 {
+            None => None,
+            Some(ref topology) => Some(
+                topology
+                    .providers()
+                    .iter()
+                    .flat_map(|provider| provider.registered_clients.iter())
+                    .cloned()
+                    .collect::<Vec<_>>(),
+            ),
+        }
     }
 
     // this is a rather temporary solution as each client will have an associated provider

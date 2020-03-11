@@ -8,7 +8,18 @@ mod sockets;
 
 fn main() {
     dotenv::dotenv().ok();
-    pretty_env_logger::init();
+
+    let mut log_builder = pretty_env_logger::formatted_timed_builder();
+    if let Ok(s) = ::std::env::var("RUST_LOG") {
+        log_builder.parse_filters(&s);
+    }
+    log_builder
+        .filter_module("hyper", log::LevelFilter::Warn)
+        .filter_module("tokio_reactor", log::LevelFilter::Warn)
+        .filter_module("reqwest", log::LevelFilter::Warn)
+        .filter_module("mio", log::LevelFilter::Warn)
+        .filter_module("want", log::LevelFilter::Warn)
+        .init();
 
     println!("{}", banner());
 

@@ -1521,6 +1521,7 @@ dependencies = [
  "futures 0.3.4",
  "hmac",
  "log",
+ "mix-client",
  "pemstore",
  "pretty_env_logger",
  "rand 0.7.3",

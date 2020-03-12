@@ -212,11 +212,8 @@ impl NymClient {
     // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
     fn start_mix_traffic_controller(&mut self, mix_rx: MixMessageReceiver) {
         info!("Starting mix trafic controller...");
-        // TODO: possible optimisation: set the initial endpoints to all known mixes from layer 1
-        let initial_mix_endpoints = Vec::new();
         self.runtime
             .block_on(MixTrafficController::new(
-                initial_mix_endpoints,
                 self.config.get_packet_forwarding_initial_backoff(),
                 self.config.get_packet_forwarding_maximum_backoff(),
                 mix_rx,

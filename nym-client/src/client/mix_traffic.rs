@@ -18,45 +18,33 @@ impl MixMessage {
 }
 
 // TODO: put our TCP client here
-pub(crate) struct MixTrafficController<'a> {
-    tcp_client: multi_tcp_client::Client<'a>,
+pub(crate) struct MixTrafficController {
+    tcp_client: multi_tcp_client::Client,
     mix_rx: MixMessageReceiver,
 }
 
-impl MixTrafficController<'static> {
+impl MixTrafficController {
     pub(crate) async fn new(
-        initial_endpoints: Vec<SocketAddr>,
         initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
         mix_rx: MixMessageReceiver,
     ) -> Self {
         let tcp_client_config = multi_tcp_client::Config::new(
-            initial_endpoints,
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
         );
 
         MixTrafficController {
-            tcp_client: multi_tcp_client::Client::new(tcp_client_config).await,
+            tcp_client: multi_tcp_client::Client::start_new(tcp_client_config).await,
             mix_rx,
         }
     }
 
     async fn on_message(&mut self, mix_message: MixMessage) {
         debug!("Got a mix_message for {:?}", mix_message.0);
-        match self
-            .tcp_client
-            .send(mix_message.0, &mix_message.1.to_bytes())
-            .await
-        {
-            Ok(_) => trace!("sent a mix message"),
-            // TODO: should there be some kind of threshold of failed messages
-            // that if reached, the application blows?
-            Err(e) => error!(
-                "We failed to send the packet to {} - {:?}",
-                mix_message.0, e
-            ),
-        };
+        self.tcp_client
+            .send(mix_message.0, mix_message.1.to_bytes())
+            .await;
     }
 
     pub(crate) async fn run(&mut self) {

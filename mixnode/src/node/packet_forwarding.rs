@@ -1,24 +1,21 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::*;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::runtime::Handle;
 
-pub(crate) struct PacketForwarder<'a> {
-    tcp_client: multi_tcp_client::Client<'a>,
+pub(crate) struct PacketForwarder {
+    tcp_client: multi_tcp_client::Client,
     conn_tx: mpsc::UnboundedSender<(SocketAddr, Vec<u8>)>,
     conn_rx: mpsc::UnboundedReceiver<(SocketAddr, Vec<u8>)>,
 }
 
-impl PacketForwarder<'static> {
+impl PacketForwarder {
     pub(crate) async fn new(
-        initial_endpoints: Vec<SocketAddr>,
         initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
-    ) -> PacketForwarder<'static> {
+    ) -> PacketForwarder {
         let tcp_client_config = multi_tcp_client::Config::new(
-            initial_endpoints,
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
         );
@@ -26,7 +23,7 @@ impl PacketForwarder<'static> {
         let (conn_tx, conn_rx) = mpsc::unbounded();
 
         PacketForwarder {
-            tcp_client: multi_tcp_client::Client::new(tcp_client_config).await,
+            tcp_client: multi_tcp_client::Client::start_new(tcp_client_config).await,
             conn_tx,
             conn_rx,
         }
@@ -37,10 +34,7 @@ impl PacketForwarder<'static> {
         let sender_channel = self.conn_tx.clone();
         handle.spawn(async move {
             while let Some((address, packet)) = self.conn_rx.next().await {
-                match self.tcp_client.send(address, &packet).await {
-                    Err(e) => warn!("Failed to forward packet to {:?} - {:?}", address, e),
-                    Ok(_) => trace!("Forwarded packet to {:?}", address),
-                }
+                self.tcp_client.send(address, packet).await;
             }
         });
         sender_channel

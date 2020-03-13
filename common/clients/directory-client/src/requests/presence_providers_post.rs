@@ -76,6 +76,7 @@ mod metrics_get_request {
 
         pub fn new_presence() -> MixProviderPresence {
             MixProviderPresence {
+                location: "foomp".to_string(),
                 client_listener: "foo.com".to_string(),
                 mixnet_listener: "foo.com".to_string(),
                 pub_key: "abc".to_string(),

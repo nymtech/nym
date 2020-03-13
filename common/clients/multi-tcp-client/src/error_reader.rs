@@ -14,6 +14,12 @@ pub(crate) struct ConnectionErrorReader {
     error_rx: ConnectionErrorReceiver,
 }
 
+// TODO: do some benchmarking and reconsider changing 'global' ConnectionErrorReader to requests
+// of (Message, ReturnOneShotChannel): (Vec<u8>, oneshot::Sender<io::Result<Vec<u8>>)
+// this way callee would always get response to his specific request directly as well as any errors.
+// and if he doesn't care about it, he could simply close channel immediately.
+// Alternatively change the signature to (Vec<u8>, Option<oneshot::Sender<io::Result<Vec<u8>>>),
+// so in the case of a 'None', the sender won't even attempt writing errors or responses received
 impl ConnectionErrorReader {
     pub(crate) fn new(error_rx: ConnectionErrorReceiver) -> Self {
         ConnectionErrorReader { error_rx }

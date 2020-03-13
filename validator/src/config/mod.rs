@@ -98,9 +98,19 @@ impl Config {
         self
     }
 
+    pub fn with_location<S: Into<String>>(mut self, location: S) -> Self {
+        self.validator.location = location.into();
+        self
+    }
+
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
+    }
+
+    #[allow(dead_code)]
+    pub fn get_location(&self) -> String {
+        self.validator.location.clone()
     }
 
     pub fn get_mix_mining_directory_server(&self) -> String {
@@ -137,17 +147,28 @@ pub struct Validator {
     /// ID specifies the human readable ID of this particular validator.
     id: String,
 
+    /// Completely optional value specifying geographical location of this particular node.
+    /// Currently it's used entirely for debug purposes, as there are no mechanisms implemented
+    /// to verify correctness of the information provided. However, feel free to fill in
+    /// this field with as much accuracy as you wish to share.
+    location: String,
+
     /// nym_home_directory specifies absolute path to the home nym MixNodes directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
 }
 
-impl Validator {}
+impl Validator {
+    fn default_location() -> String {
+        "unknown".into()
+    }
+}
 
 impl Default for Validator {
     fn default() -> Self {
         Validator {
             id: "".to_string(),
+            location: Self::default_location(),
             nym_root_directory: Config::default_root_directory(),
         }
     }

@@ -82,7 +82,6 @@ impl<'a> ConnectionManager<'static> {
     }
 
     async fn handle_new_message(&mut self, msg: Vec<u8>) {
-        info!("sending to {:?}", self.address);
         if let ConnectionState::Reconnecting(conn_reconnector) = &mut self.state {
             // do a single poll rather than await for future to completely resolve
             let new_connection = match futures::poll!(conn_reconnector) {
@@ -101,7 +100,7 @@ impl<'a> ConnectionManager<'static> {
                 Poll::Ready(conn) => conn,
             };
 
-            info!("Managed to reconnect to {}!", self.address);
+            debug!("Managed to reconnect to {}!", self.address);
             self.state = ConnectionState::Writing(ConnectionWriter::new(new_connection));
         }
 
@@ -109,7 +108,7 @@ impl<'a> ConnectionManager<'static> {
         // transitioning from reconnecting
         if let ConnectionState::Writing(conn_writer) = &mut self.state {
             if let Err(e) = conn_writer.write_all(msg.as_ref()).await {
-                info!("Creating connection reconnector!");
+                debug!("Creating connection reconnector!");
                 self.state = ConnectionState::Reconnecting(ConnectionReconnector::new(
                     self.address,
                     self.reconnection_backoff,

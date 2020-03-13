@@ -4,6 +4,7 @@ use topology::provider;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MixProviderPresence {
+    pub location: String,
     pub client_listener: String,
     pub mixnet_listener: String,
     pub pub_key: String,
@@ -15,6 +16,7 @@ pub struct MixProviderPresence {
 impl Into<topology::provider::Node> for MixProviderPresence {
     fn into(self) -> topology::provider::Node {
         topology::provider::Node {
+            location: self.location,
             client_listener: self.client_listener.parse().unwrap(),
             mixnet_listener: self.mixnet_listener.parse().unwrap(),
             pub_key: self.pub_key,
@@ -32,6 +34,7 @@ impl Into<topology::provider::Node> for MixProviderPresence {
 impl From<topology::provider::Node> for MixProviderPresence {
     fn from(mpn: provider::Node) -> Self {
         MixProviderPresence {
+            location: mpn.location,
             client_listener: mpn.client_listener.to_string(),
             mixnet_listener: mpn.mixnet_listener.to_string(),
             pub_key: mpn.pub_key,

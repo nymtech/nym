@@ -48,6 +48,10 @@ impl Validator {
         let mut rt = Runtime::new().unwrap();
         rt.spawn(self.health_check_runner.run());
         rt.spawn(self.rest_api.run());
-        rt.block_on(self.tendermint_abci.run());
+        rt.spawn(self.tendermint_abci.run());
+        println!("Validator startup complete."); // TODO: Not immensely important to me right now, but why doesn't this get hit?
+        rt.block_on(blocker());
     }
 }
+
+pub async fn blocker() {}

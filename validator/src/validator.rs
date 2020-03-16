@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::network::rest;
 use crate::network::tendermint;
 use crate::services::mixmining::health_check_runner;
 use crypto::identity::MixIdentityKeyPair;
@@ -12,6 +13,7 @@ pub struct Validator {
     //    encryption::KeyPair (like 'nym-mixnode' or 'sfw-provider')
     health_check_runner: health_check_runner::HealthCheckRunner,
     tendermint_abci: tendermint::Abci,
+    rest_api: rest::Api,
 }
 
 // but for time being, since it's a dummy one, have it use dummy keys
@@ -30,8 +32,11 @@ impl Validator {
             hc,
         );
 
+        let rest_api = rest::Api::new();
+
         Validator {
             health_check_runner,
+            rest_api,
 
             // perhaps you might want to pass &config to the constructor
             // there to get the config.tendermint (assuming you create appropriate fields + getters)
@@ -42,6 +47,7 @@ impl Validator {
     pub fn start(self) {
         let mut rt = Runtime::new().unwrap();
         rt.spawn(self.health_check_runner.run());
+        rt.spawn(self.rest_api.run());
         rt.block_on(self.tendermint_abci.run());
     }
 }

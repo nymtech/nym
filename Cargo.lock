@@ -1641,6 +1641,8 @@ dependencies = [
  "pretty_env_logger",
  "router",
  "serde",
+ "serde_derive",
+ "serde_json",
  "tempfile",
  "tokio 0.2.12",
  "topology",

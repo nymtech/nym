@@ -11,7 +11,7 @@ pub(crate) struct PacketForwarder {
 }
 
 impl PacketForwarder {
-    pub(crate) async fn new(
+    pub(crate) fn new(
         initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
     ) -> PacketForwarder {
@@ -23,7 +23,7 @@ impl PacketForwarder {
         let (conn_tx, conn_rx) = mpsc::unbounded();
 
         PacketForwarder {
-            tcp_client: multi_tcp_client::Client::start_new(tcp_client_config).await,
+            tcp_client: multi_tcp_client::Client::new(tcp_client_config),
             conn_tx,
             conn_rx,
         }
@@ -34,7 +34,9 @@ impl PacketForwarder {
         let sender_channel = self.conn_tx.clone();
         handle.spawn(async move {
             while let Some((address, packet)) = self.conn_rx.next().await {
-                self.tcp_client.send(address, packet).await;
+                // as a mix node we don't care about responses, we just want to fire packets
+                // as quickly as possible
+                self.tcp_client.send(address, packet, false).await.unwrap(); // if we're not waiting for response, we MUST get an Ok
             }
         });
         sender_channel

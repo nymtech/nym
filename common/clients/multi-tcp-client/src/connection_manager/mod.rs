@@ -1,7 +1,6 @@
 use crate::connection_manager::reconnector::ConnectionReconnector;
 use crate::connection_manager::writer::ConnectionWriter;
-use crate::error_reader::ConnectionErrorSender;
-use futures::channel::mpsc;
+use futures::channel::{mpsc, oneshot};
 use futures::task::Poll;
 use futures::{AsyncWriteExt, StreamExt};
 use log::*;
@@ -13,8 +12,10 @@ use tokio::runtime::Handle;
 mod reconnector;
 mod writer;
 
-pub(crate) type ConnectionManagerSender = mpsc::UnboundedSender<Vec<u8>>;
-type ConnectionManagerReceiver = mpsc::UnboundedReceiver<Vec<u8>>;
+pub(crate) type ResponseSender = Option<oneshot::Sender<io::Result<()>>>;
+
+pub(crate) type ConnectionManagerSender = mpsc::UnboundedSender<(Vec<u8>, ResponseSender)>;
+type ConnectionManagerReceiver = mpsc::UnboundedReceiver<(Vec<u8>, ResponseSender)>;
 
 enum ConnectionState<'a> {
     Writing(ConnectionWriter),
@@ -25,7 +26,6 @@ pub(crate) struct ConnectionManager<'a> {
     conn_tx: ConnectionManagerSender,
     conn_rx: ConnectionManagerReceiver,
 
-    errors_tx: ConnectionErrorSender,
     address: SocketAddr,
 
     maximum_reconnection_backoff: Duration,
@@ -39,7 +39,6 @@ impl<'a> ConnectionManager<'static> {
         address: SocketAddr,
         reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
-        errors_tx: ConnectionErrorSender,
     ) -> ConnectionManager<'a> {
         let (conn_tx, conn_rx) = mpsc::unbounded();
 
@@ -62,7 +61,6 @@ impl<'a> ConnectionManager<'static> {
         ConnectionManager {
             conn_tx,
             conn_rx,
-            errors_tx,
             address,
             maximum_reconnection_backoff,
             reconnection_backoff,
@@ -75,27 +73,30 @@ impl<'a> ConnectionManager<'static> {
         let sender_clone = self.conn_tx.clone();
         handle.spawn(async move {
             while let Some(msg) = self.conn_rx.next().await {
-                self.handle_new_message(msg).await;
+                let (msg_content, res_ch) = msg;
+                let res = self.handle_new_message(msg_content).await;
+                if let Some(res_ch) = res_ch {
+                    if let Err(e) = res_ch.send(res) {
+                        error!(
+                            "failed to send response on the channel to the caller! - {:?}",
+                            e
+                        );
+                    }
+                }
             }
         });
         sender_clone
     }
 
-    async fn handle_new_message(&mut self, msg: Vec<u8>) {
+    async fn handle_new_message(&mut self, msg: Vec<u8>) -> io::Result<()> {
         if let ConnectionState::Reconnecting(conn_reconnector) = &mut self.state {
             // do a single poll rather than await for future to completely resolve
             let new_connection = match futures::poll!(conn_reconnector) {
                 Poll::Pending => {
-                    self.errors_tx
-                        .unbounded_send((
-                            self.address,
-                            Err(io::Error::new(
-                                io::ErrorKind::BrokenPipe,
-                                "connection is broken - reconnection is in progress",
-                            )),
-                        ))
-                        .unwrap();
-                    return;
+                    return Err(io::Error::new(
+                        io::ErrorKind::BrokenPipe,
+                        "connection is broken - reconnection is in progress",
+                    ))
                 }
                 Poll::Ready(conn) => conn,
             };
@@ -107,17 +108,25 @@ impl<'a> ConnectionManager<'static> {
         // we must be in writing state if we are here, either by being here from beginning or just
         // transitioning from reconnecting
         if let ConnectionState::Writing(conn_writer) = &mut self.state {
-            if let Err(e) = conn_writer.write_all(msg.as_ref()).await {
-                debug!("Creating connection reconnector!");
-                self.state = ConnectionState::Reconnecting(ConnectionReconnector::new(
-                    self.address,
-                    self.reconnection_backoff,
-                    self.maximum_reconnection_backoff,
-                ));
-                self.errors_tx
-                    .unbounded_send((self.address, Err(e)))
-                    .unwrap();
-            }
+            return match conn_writer.write_all(msg.as_ref()).await {
+                // if we failed to write to connection we should reconnect
+                // TODO: is this true? can we fail to write to a connection while it still remains open and valid?
+
+                // TODO: change connection writer to somehow also poll for responses and
+                // change return type of this method from io::Result<> to io::Result<Vec<u8>>
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    trace!("Creating connection reconnector!");
+                    self.state = ConnectionState::Reconnecting(ConnectionReconnector::new(
+                        self.address,
+                        self.reconnection_backoff,
+                        self.maximum_reconnection_backoff,
+                    ));
+                    Err(e)
+                }
+            };
         };
+
+        unreachable!();
     }
 }

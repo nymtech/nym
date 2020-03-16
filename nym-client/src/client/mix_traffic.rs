@@ -24,7 +24,7 @@ pub(crate) struct MixTrafficController {
 }
 
 impl MixTrafficController {
-    pub(crate) async fn new(
+    pub(crate) fn new(
         initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
         mix_rx: MixMessageReceiver,
@@ -35,7 +35,7 @@ impl MixTrafficController {
         );
 
         MixTrafficController {
-            tcp_client: multi_tcp_client::Client::start_new(tcp_client_config).await,
+            tcp_client: multi_tcp_client::Client::new(tcp_client_config),
             mix_rx,
         }
     }
@@ -43,8 +43,10 @@ impl MixTrafficController {
     async fn on_message(&mut self, mix_message: MixMessage) {
         debug!("Got a mix_message for {:?}", mix_message.0);
         self.tcp_client
-            .send(mix_message.0, mix_message.1.to_bytes())
-            .await;
+            // TODO: possibly we might want to get an actual result here at some point
+            .send(mix_message.0, mix_message.1.to_bytes(), false)
+            .await
+            .unwrap(); // if we're not waiting for response, we MUST get an Ok
     }
 
     pub(crate) async fn run(&mut self) {

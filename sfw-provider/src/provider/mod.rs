@@ -45,6 +45,7 @@ impl ServiceProvider {
     fn start_presence_notifier(&self) {
         info!("Starting presence notifier...");
         let notifier_config = presence::NotifierConfig::new(
+            self.config.get_location(),
             self.config.get_presence_directory_server(),
             self.config.get_mix_announce_address(),
             self.config.get_clients_announce_address(),

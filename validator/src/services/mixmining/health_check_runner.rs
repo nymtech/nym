@@ -23,6 +23,7 @@ impl HealthCheckRunner {
     }
 
     pub async fn run(self) {
+        println!("* starting periodic network healthcheck");
         debug!("healthcheck will run every {:?}", self.interval);
         loop {
             let full_topology =

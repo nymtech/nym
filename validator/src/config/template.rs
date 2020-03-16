@@ -11,19 +11,19 @@ pub(crate) fn config_template() -> &'static str {
 
 [validator]
 # Human readable ID of this particular validator.
-id = "{{ validator.id }}"
+id = '{{ validator.id }}'
 
 # Completely optional value specifying geographical location of this particular node.
 # Currently it's used entirely for debug purposes, as there are no mechanisms implemented
 # to verify correctness of the information provided. However, feel free to fill in
 # this field with as much accuracy as you wish to share.
-location = "{{ validator.location }}"
+location = '{{ validator.location }}'
 
 ##### advanced configuration options #####
 
 # nym_home_directory specifies absolute path to the home nym validators directory.
 # It is expected to use default value and hence .toml file should not redefine this field.
-nym_root_directory = "{{ validator.nym_root_directory }}"
+nym_root_directory = '{{ validator.nym_root_directory }}'
 
 
 ##### mix mining config options #####
@@ -31,7 +31,7 @@ nym_root_directory = "{{ validator.nym_root_directory }}"
 [mix_mining]
 
 # Directory server from which the validator will obtain initial topology.
-directory_server = "{{ mix_mining.directory_server }}"
+directory_server = '{{ mix_mining.directory_server }}'
 
 # The uniform delay every which validator are running their mix-mining procedure.
 # The provided value is interpreted as milliseconds.
@@ -67,7 +67,7 @@ number_of_test_packets = {{ mix_mining.number_of_test_packets }}
 [debug]
 
 # Directory server to which the server will be reporting their presence data.
-presence_directory_server = "{{ debug.presence_directory_server }}"
+presence_directory_server = '{{ debug.presence_directory_server }}'
 
 # Delay between each subsequent presence data being sent.
 presence_sending_delay = {{ debug.presence_sending_delay }}

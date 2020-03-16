@@ -91,6 +91,11 @@ impl Config {
         self
     }
 
+    pub fn with_location<S: Into<String>>(mut self, location: S) -> Self {
+        self.mixnode.location = location.into();
+        self
+    }
+
     // if you want to use distinct servers for metrics and presence
     // you need to do so in the config.toml file.
     pub fn with_custom_directory<S: Into<String>>(mut self, directory_server: S) -> Self {
@@ -180,6 +185,10 @@ impl Config {
         self.config_directory().join(Self::config_file_name())
     }
 
+    pub fn get_location(&self) -> String {
+        self.mixnode.location.clone()
+    }
+
     pub fn get_private_sphinx_key_file(&self) -> PathBuf {
         self.mixnode.private_sphinx_key_file.clone()
     }
@@ -231,6 +240,12 @@ pub struct MixNode {
     /// ID specifies the human readable ID of this particular mixnode.
     id: String,
 
+    /// Completely optional value specifying geographical location of this particular node.
+    /// Currently it's used entirely for debug purposes, as there are no mechanisms implemented
+    /// to verify correctness of the information provided. However, feel free to fill in
+    /// this field with as much accuracy as you wish to share.
+    location: String,
+
     /// Layer of this particular mixnode determining its position in the network.
     layer: u64,
 
@@ -264,12 +279,17 @@ impl MixNode {
     fn default_public_sphinx_key_file(id: &str) -> PathBuf {
         Config::default_data_directory(Some(id)).join("public_sphinx.pem")
     }
+
+    fn default_location() -> String {
+        "unknown".into()
+    }
 }
 
 impl Default for MixNode {
     fn default() -> Self {
         MixNode {
             id: "".to_string(),
+            location: Self::default_location(),
             layer: 0,
             listening_address: format!("0.0.0.0:{}", DEFAULT_LISTENING_PORT)
                 .parse()

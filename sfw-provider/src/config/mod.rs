@@ -108,6 +108,11 @@ impl Config {
         self
     }
 
+    pub fn with_location<S: Into<String>>(mut self, location: S) -> Self {
+        self.provider.location = location.into();
+        self
+    }
+
     pub fn with_mix_listening_host<S: Into<String>>(mut self, host: S) -> Self {
         // see if the provided `host` is just an ip address or ip:port
         let host = host.into();
@@ -277,6 +282,10 @@ impl Config {
         self.config_directory().join(Self::config_file_name())
     }
 
+    pub fn get_location(&self) -> String {
+        self.provider.location.clone()
+    }
+
     pub fn get_private_sphinx_key_file(&self) -> PathBuf {
         self.provider.private_sphinx_key_file.clone()
     }
@@ -332,6 +341,12 @@ pub struct Provider {
     /// ID specifies the human readable ID of this particular provider.
     id: String,
 
+    /// Completely optional value specifying geographical location of this particular provider.
+    /// Currently it's used entirely for debug purposes, as there are no mechanisms implemented
+    /// to verify correctness of the information provided. However, feel free to fill in
+    /// this field with as much accuracy as you wish to share.
+    location: String,
+
     /// Path to file containing private sphinx key.
     private_sphinx_key_file: PathBuf,
 
@@ -351,12 +366,17 @@ impl Provider {
     fn default_public_sphinx_key_file(id: &str) -> PathBuf {
         Config::default_data_directory(Some(id)).join("public_sphinx.pem")
     }
+
+    fn default_location() -> String {
+        "unknown".into()
+    }
 }
 
 impl Default for Provider {
     fn default() -> Self {
         Provider {
             id: "".to_string(),
+            location: Self::default_location(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
             nym_root_directory: Config::default_root_directory(),

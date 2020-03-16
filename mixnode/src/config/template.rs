@@ -13,6 +13,12 @@ pub(crate) fn config_template() -> &'static str {
 # Human readable ID of this particular mixnode.
 id = "{{ mixnode.id }}"
 
+# Completely optional value specifying geographical location of this particular node.
+# Currently it's used entirely for debug purposes, as there are no mechanisms implemented
+# to verify correctness of the information provided. However, feel free to fill in
+# this field with as much accuracy as you wish to share.
+location = "{{ mixnode.location }}"
+    
 # Layer of this particular mixnode determining its position in the network.
 layer = {{ mixnode.layer }}
 

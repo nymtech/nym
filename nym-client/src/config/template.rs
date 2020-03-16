@@ -11,30 +11,30 @@ pub(crate) fn config_template() -> &'static str {
 
 [client]
 # Human readable ID of this particular client.
-id = "{{ client.id }}"
+id = '{{ client.id }}'
 
 # URL to the directory server.
-directory_server = "{{ client.directory_server }}"
+directory_server = '{{ client.directory_server }}'
 
 # Path to file containing private identity key.
-private_identity_key_file = "{{ client.private_identity_key_file }}"
+private_identity_key_file = '{{ client.private_identity_key_file }}'
 
 # Path to file containing public identity key.
-public_identity_key_file = "{{ client.public_identity_key_file }}"
+public_identity_key_file = '{{ client.public_identity_key_file }}'
 
 ##### additional client config options #####
 
 # ID of the provider from which the client should be fetching messages.
-provider_id = "{{ client.provider_id }}"
+provider_id = '{{ client.provider_id }}'
 
 # A provider specific, optional, base58 stringified authentication token used for 
 # communication with particular provider.
-provider_authtoken = "{{ client.provider_authtoken }}"
+provider_authtoken = '{{ client.provider_authtoken }}'
     
 ##### advanced configuration options #####
 
 # Absolute path to the home Nym Clients directory.
-nym_root_directory = "{{ client.nym_root_directory }}"
+nym_root_directory = '{{ client.nym_root_directory }}'
 
 
 ##### socket config options #####
@@ -42,7 +42,7 @@ nym_root_directory = "{{ client.nym_root_directory }}"
 [socket]
 
 # allowed values are 'TCP', 'WebSocket' or 'None'
-socket_type = "{{ socket.socket_type }}"
+socket_type = '{{ socket.socket_type }}'
 
 # if applicable (for the case of 'TCP' or 'WebSocket'), the port on which the client
 # will be listening for incoming requests

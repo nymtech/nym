@@ -11,19 +11,19 @@ pub(crate) fn config_template() -> &'static str {
 
 [mixnode]
 # Human readable ID of this particular mixnode.
-id = "{{ mixnode.id }}"
+id = '{{ mixnode.id }}'
 
 # Layer of this particular mixnode determining its position in the network.
 layer = {{ mixnode.layer }}
 
 # Socket address to which this mixnode will bind to and will be listening for packets.
-listening_address = "{{ mixnode.listening_address }}"
+listening_address = '{{ mixnode.listening_address }}'
 
 # Path to file containing private identity key.
-private_sphinx_key_file = "{{ mixnode.private_sphinx_key_file }}"
+private_sphinx_key_file = '{{ mixnode.private_sphinx_key_file }}'
 
 # Path to file containing public sphinx key.
-public_sphinx_key_file = "{{ mixnode.public_sphinx_key_file }}"
+public_sphinx_key_file = '{{ mixnode.public_sphinx_key_file }}'
 
 ##### additional mixnode config options #####
 
@@ -33,12 +33,12 @@ public_sphinx_key_file = "{{ mixnode.public_sphinx_key_file }}"
 # Additionally a custom port can be provided, so both `nymtech.net:8080` and `nymtech.net`
 # are valid announce addresses, while the later will default to whatever port is used for
 # `listening_address`.
-announce_address = "{{ mixnode.announce_address }}"
+announce_address = '{{ mixnode.announce_address }}'
 
 ##### advanced configuration options #####
 
 # Absolute path to the home Nym Clients directory.
-nym_root_directory = "{{ mixnode.nym_root_directory }}"
+nym_root_directory = '{{ mixnode.nym_root_directory }}'
 
 
 ##### logging configuration options #####
@@ -55,14 +55,14 @@ nym_root_directory = "{{ mixnode.nym_root_directory }}"
 [debug]
 
 # Directory server to which the server will be reporting their presence data.
-presence_directory_server = "{{ debug.presence_directory_server}}"
+presence_directory_server = '{{ debug.presence_directory_server}}"
 
 # Delay between each subsequent presence data being sent.
 # The provided value is interpreted as milliseconds.
 presence_sending_delay = {{ debug.presence_sending_delay }}
 
 # Directory server to which the server will be reporting their metrics data.
-metrics_directory_server = "{{ debug.metrics_directory_server }}"
+metrics_directory_server = '{{ debug.metrics_directory_server }}'
 
 # Delay between each subsequent metrics data being sent.
 # The provided value is interpreted as milliseconds.

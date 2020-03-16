@@ -6,7 +6,6 @@ use crypto::identity::MixIdentityKeyPair;
 use healthcheck::HealthChecker;
 use tokio::runtime::Runtime;
 
-// allow for a generic validator
 pub struct Validator {
     // when you re-introduce keys, check which ones you want:
     //    MixIdentityKeyPair (like 'nym-client' ) <- probably that one (after maybe renaming to just identity::KeyPair)
@@ -16,7 +15,6 @@ pub struct Validator {
     rest_api: rest::Api,
 }
 
-// but for time being, since it's a dummy one, have it use dummy keys
 impl Validator {
     pub fn new(config: Config) -> Self {
         let dummy_healthcheck_keypair = MixIdentityKeyPair::new();
@@ -44,14 +42,15 @@ impl Validator {
         }
     }
 
+    // TODO: Fix Tendermint startup here, see https://github.com/nymtech/nym/issues/147
     pub fn start(self) {
         let mut rt = Runtime::new().unwrap();
         rt.spawn(self.health_check_runner.run());
         rt.spawn(self.rest_api.run());
         rt.spawn(self.tendermint_abci.run());
-        println!("Validator startup complete."); // TODO: Not immensely important to me right now, but why doesn't this get hit?
+        println!("Validator startup complete.");
         rt.block_on(blocker());
     }
 }
 
-pub async fn blocker() {}
+pub async fn blocker() {} // once Tendermint unblocks us, make this block forever.

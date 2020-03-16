@@ -1639,6 +1639,7 @@ dependencies = [
  "iron",
  "log 0.4.8",
  "pretty_env_logger",
+ "router",
  "serde",
  "tempfile",
  "tokio 0.2.12",
@@ -2247,6 +2248,23 @@ dependencies = [
  "url 1.7.2",
  "uuid",
  "winreg",
+]
+
+[[package]]
+name = "route-recognizer"
+version = "0.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ea509065eb0b3c446acdd0102f0d46567dc30902dc0be91d6552035d92b0f4f8"
+
+[[package]]
+name = "router"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc63b6f3b8895b0d04e816b2b1aa58fdba2d5acca3cbb8f0ab8e017347d57397"
+dependencies = [
+ "iron",
+ "route-recognizer",
+ "url 1.7.2",
 ]
 
 [[package]]

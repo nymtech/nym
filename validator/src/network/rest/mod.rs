@@ -9,8 +9,10 @@ impl Api {
     }
 
     pub async fn run(self) {
+        let port = 3000;
+        println!("* starting REST API on localhost:{}", port);
         Iron::new(|_: &mut Request| Ok(Response::with((status::Ok, "Hello World!"))))
-            .http("localhost:3000")
+            .http(format!("localhost:{}", port))
             .unwrap();
     }
 }

@@ -17,7 +17,7 @@ id = '{{ validator.id }}'
 # Currently it's used entirely for debug purposes, as there are no mechanisms implemented
 # to verify correctness of the information provided. However, feel free to fill in
 # this field with as much accuracy as you wish to share.
-location = "{{ validator.location }}"
+location = '{{ validator.location }}'
 
 ##### advanced configuration options #####
 

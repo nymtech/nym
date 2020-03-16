@@ -13,6 +13,12 @@ pub(crate) fn config_template() -> &'static str {
 # Human readable ID of this particular service provider.
 id = '{{ provider.id }}'
 
+# Completely optional value specifying geographical location of this particular node.
+# Currently it's used entirely for debug purposes, as there are no mechanisms implemented
+# to verify correctness of the information provided. However, feel free to fill in
+# this field with as much accuracy as you wish to share.
+location = "{{ provider.location }}"
+
 # Path to file containing private sphinx key.
 private_sphinx_key_file = '{{ provider.private_sphinx_key_file }}'
 

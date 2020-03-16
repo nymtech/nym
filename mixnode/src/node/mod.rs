@@ -46,6 +46,7 @@ impl MixNode {
     fn start_presence_notifier(&self) {
         info!("Starting presence notifier...");
         let notifier_config = presence::NotifierConfig::new(
+            self.config.get_location(),
             self.config.get_presence_directory_server(),
             self.config.get_announce_address(),
             self.sphinx_keypair.public_key().to_base58_string(),

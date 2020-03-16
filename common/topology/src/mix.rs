@@ -5,6 +5,7 @@ use std::net::SocketAddr;
 
 #[derive(Debug, Clone)]
 pub struct Node {
+    pub location: String,
     pub host: SocketAddr,
     pub pub_key: String,
     pub layer: u64,

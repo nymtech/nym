@@ -48,6 +48,8 @@ impl Validator {
         rt.spawn(self.health_check_runner.run());
         rt.spawn(self.rest_api.run());
         rt.spawn(self.tendermint_abci.run());
+
+        // TODO: this message is going to come out of order (if at all), as spawns are async
         println!("Validator startup complete.");
         rt.block_on(blocker());
     }

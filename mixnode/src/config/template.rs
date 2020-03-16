@@ -61,7 +61,7 @@ nym_root_directory = '{{ mixnode.nym_root_directory }}'
 [debug]
 
 # Directory server to which the server will be reporting their presence data.
-presence_directory_server = '{{ debug.presence_directory_server}}"
+presence_directory_server = '{{ debug.presence_directory_server}}'
 
 # Delay between each subsequent presence data being sent.
 # The provided value is interpreted as milliseconds.

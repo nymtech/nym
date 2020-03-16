@@ -1,6 +1,7 @@
 use iron::prelude::*;
 use router::Router;
 
+mod models;
 mod routes;
 
 pub struct Api {}

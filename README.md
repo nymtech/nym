@@ -4,10 +4,10 @@ This repository contains the full Nym platform, written in Rust.
 
 The platform is composed of multiple Rust crates. Top-level executable binary crates include:
 
-* mixnode - shuffles [Sphinx](https://github.com/nymtech/sphinx) packets together to provide privacy against network-level attackers.
+* nym-mixnode - shuffles [Sphinx](https://github.com/nymtech/sphinx) packets together to provide privacy against network-level attackers.
 * nym-client - an executable which you can build into your own applications. Use it for interacting with Nym nodes.
-* sfw-provider - a store-and-forward service provider. The provider acts sort of like a mailbox for mixnet messages.
-* validator - currently just starting development. Handles consensus ordering of transactions, mixmining, and coconut credential generation and validation. 
+* nym-sfw-provider - a store-and-forward service provider. The provider acts sort of like a mailbox for mixnet messages.
+* nym-validator - currently just starting development. Handles consensus ordering of transactions, mixmining, and coconut credential generation and validation. 
 
 [![Build Status](https://travis-ci.com/nymtech/nym.svg?branch=develop)](https://travis-ci.com/nymtech/nym)
 

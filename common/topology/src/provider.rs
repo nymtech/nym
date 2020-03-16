@@ -10,6 +10,7 @@ pub struct Client {
 
 #[derive(Debug, Clone)]
 pub struct Node {
+    pub location: String,
     pub client_listener: SocketAddr,
     pub mixnet_listener: SocketAddr,
     pub pub_key: String,

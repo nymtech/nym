@@ -83,5 +83,9 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.with_custom_clients_ledger(clients_ledger);
     }
 
+    if let Some(location) = matches.value_of("location") {
+        config = config.with_location(location);
+    }
+
     config
 }

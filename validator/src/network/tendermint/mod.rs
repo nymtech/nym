@@ -22,6 +22,7 @@ impl Abci {
     }
 
     pub async fn run(self) {
+        println!("* starting Tendermint abci");
         abci::run_local(self);
     }
 }

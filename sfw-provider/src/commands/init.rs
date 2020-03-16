@@ -16,6 +16,12 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .required(true),
         )
         .arg(
+            Arg::with_name("location")
+                .long("location")
+                .help("Optional geographical location of this provider")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("mix-host")
                 .long("mix-host")
                 .help("The custom host on which the service provider will be running for receiving sphinx packets")

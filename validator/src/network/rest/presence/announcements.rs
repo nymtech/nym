@@ -1,21 +1,25 @@
 use super::*;
-use chrono::NaiveDateTime;
+use crate::services::mixmining;
 use iron::status;
 
-/// POST a new presence::Announcement
-pub fn post(req: &mut Request) -> IronResult<Response> {
-    Ok(Response::with(status::Created))
-}
+use params::{Params, Value};
 
-/// A presence::Announcement received from a node asks for entry into the system.
-/// It's not really a "presence" insofar as other means (e.g. health-checks,
-/// mixmining, staking etc) are used to determine actual presence, and whether
-/// the node is doing the work it should be doing. A presence::Announcement is
-/// a node saying "hey, I exist, and am ready to participate, but you need to
-/// figure out if I should be made active by the system."
-struct Announcement {
-    host: String,
-    public_key: String,
-    node_type: String,
-    seen_at: NaiveDateTime,
+pub fn post(req: &mut Request) -> IronResult<Response> {
+    // the part where we check if the worst possible handler code can work.
+    let db = mixmining::db::MixminingDb::new();
+    let service = mixmining::Service::new(db);
+    let m = mixmining::Mixnode {
+        public_key: "foo".to_string(),
+        stake: 6,
+    };
+    service.add(m);
+
+    // the actual params handling part.
+    let map = req.get_ref::<Params>().unwrap();
+    match map.find(&["user", "name"]) {
+        Some(&Value::String(ref name)) if name == "Marie" => {
+            Ok(Response::with((status::Ok, "Welcome back, Marie!")))
+        }
+        _ => Ok(Response::with(status::NotFound)),
+    }
 }

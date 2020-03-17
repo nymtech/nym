@@ -1,4 +1,5 @@
 use iron::prelude::*;
+use presence::announcements;
 use router::Router;
 
 mod presence;
@@ -14,20 +15,16 @@ impl Api {
         let port = 3000;
         println!("* starting REST API on localhost:{}", port);
 
-        let router = self.setup_routes();
-        Iron::new(router)
-            .http(format!("localhost:{}", port))
-            .unwrap();
-    }
-
-    pub fn setup_routes(&self) -> Router {
         let mut router = Router::new();
         router.get("/topology", presence::topology::get, "topology_get");
         router.post(
             "/presence/announcements",
-            presence::announcements::post,
+            announcements::post,
             "presence_announcements_post",
         );
-        router
+
+        Iron::new(router)
+            .http(format!("localhost:{}", port))
+            .unwrap();
     }
 }

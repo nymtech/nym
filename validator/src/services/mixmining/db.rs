@@ -1,4 +1,4 @@
-use super::staking::Mixnode;
+use super::Mixnode;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct MixminingDb {

@@ -1646,6 +1646,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nymsphinx"
+version = "0.1.0"
+dependencies = [
+ "rand 0.7.3",
+ "sphinx",
+]
+
+[[package]]
 name = "opaque-debug"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

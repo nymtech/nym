@@ -2,6 +2,7 @@ use super::*;
 use iron::status;
 use serde::{Deserialize, Serialize};
 
+/// Retrieve the current Nym network topology via HTTP
 pub fn get(_req: &mut Request) -> IronResult<Response> {
     let topology = Topology {
         mix_nodes: Vec::<MixNode>::new(),
@@ -12,7 +13,7 @@ pub fn get(_req: &mut Request) -> IronResult<Response> {
     Ok(Response::with((status::Ok, response)))
 }
 
-// Topology shows us the current state of the overall Nym network
+/// Topology shows us the current state of the overall Nym network
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Topology {
     pub validators: Vec<Validator>,

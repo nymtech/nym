@@ -1,6 +1,7 @@
 use iron::prelude::*;
 use router::Router;
 
+mod announce;
 mod models;
 mod routes;
 

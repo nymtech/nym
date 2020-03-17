@@ -1,10 +1,7 @@
 use iron::prelude::*;
-use iron::status;
 use router::Router;
 
-mod announce;
-mod models;
-mod routes;
+mod presence;
 
 pub struct Api {}
 
@@ -25,7 +22,12 @@ impl Api {
 
     pub fn setup_routes(&self) -> Router {
         let mut router = Router::new();
-        router.get("/topology", routes::topology::get, "topology_get");
+        router.get("/topology", presence::topology::get, "topology_get");
+        router.post(
+            "/presence/announcements",
+            presence::announcements::post,
+            "presence_announcements_post",
+        );
         router
     }
 }

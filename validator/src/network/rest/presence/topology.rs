@@ -1,4 +1,16 @@
+use super::*;
+use iron::status;
 use serde::{Deserialize, Serialize};
+
+pub fn get(_req: &mut Request) -> IronResult<Response> {
+    let topology = Topology {
+        mix_nodes: Vec::<MixNode>::new(),
+        service_providers: Vec::<ServiceProvider>::new(),
+        validators: Vec::<Validator>::new(),
+    };
+    let response = serde_json::to_string_pretty(&topology).unwrap();
+    Ok(Response::with((status::Ok, response)))
+}
 
 // Topology shows us the current state of the overall Nym network
 #[derive(Serialize, Deserialize, Debug)]

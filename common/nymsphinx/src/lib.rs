@@ -23,11 +23,11 @@ impl NymSphinxPacket {
         }
     }
 
-    fn fragmented_max_len() -> usize {
+    fn fragmented_payload_max_len() -> usize {
         sphinx::constants::PAYLOAD_SIZE - NymSphinxHeader::fragmented_len()
     }
 
-    fn unfragmented_max_len() -> usize {
+    fn unfragmented_payload_max_len() -> usize {
         sphinx::constants::PAYLOAD_SIZE - NymSphinxHeader::unfragmented_len()
     }
 }
@@ -80,26 +80,30 @@ impl NymSphinxHeader {
 }
 
 fn prepare_payloads(message: &[u8]) -> Vec<NymSphinxPacket> {
-    if message.len() <= NymSphinxPacket::unfragmented_max_len() {
+    if message.len() <= NymSphinxPacket::unfragmented_payload_max_len() {
         // no need to fragment it
         vec![NymSphinxPacket::new_unfragmented(message)]
     } else {
         let mut rng = thread_rng();
-        let fragmentation_id = rng.gen::<i32>().abs();
-        let num_fragments =
-            (message.len() as f64 / NymSphinxPacket::fragmented_max_len() as f64).ceil() as usize;
+        // Technically this method of generating fragmentation_id is not perfectly uniform,
+        // as 0 has lower probability of being chosen compared to any other value.
+        // But is it really an issue considering this doesn't need to be cryptographically secure?
+        let fragmentation_id = rng.gen::<i32>().abs(); // as u32; // this guarantees the number fits in 31 bits
+        let num_fragments = (message.len() as f64
+            / NymSphinxPacket::fragmented_payload_max_len() as f64)
+            .ceil() as usize;
 
         if num_fragments > u8::max_value() as usize {
             panic!("todo implement behaviour for this case")
         }
 
         let mut packets = Vec::with_capacity(num_fragments);
-        let fsize = NymSphinxPacket::fragmented_max_len();
+        let fsize = NymSphinxPacket::fragmented_payload_max_len();
         for i in 0..num_fragments {
             let lb = i * fsize;
             let ub = if i == (num_fragments - 1) {
                 // final fragment
-                i * fsize + message.len() % NymSphinxPacket::fragmented_max_len()
+                i * fsize + message.len() % NymSphinxPacket::fragmented_payload_max_len()
             } else {
                 (i + 1) * fsize
             };
@@ -133,7 +137,7 @@ mod preparing_payload {
     fn correctly_works_for_messages_shorter_than_unfragmented_length() {
         let mut rng = thread_rng();
 
-        let mlen = NymSphinxPacket::unfragmented_max_len() - 20;
+        let mlen = NymSphinxPacket::unfragmented_payload_max_len() - 20;
         let mut message = vec![0u8; mlen];
 
         // use random message content to make sure we wouldn't end up in edge case due to say all
@@ -150,7 +154,7 @@ mod preparing_payload {
     fn correctly_works_for_messages_longer_than_unfragmented_length() {
         let mut rng = thread_rng();
 
-        let mlen = NymSphinxPacket::fragmented_max_len() * 15 + 531;
+        let mlen = NymSphinxPacket::fragmented_payload_max_len() * 15 + 531;
         let mut message = vec![0u8; mlen];
 
         rng.fill_bytes(&mut message);
@@ -166,17 +170,17 @@ mod preparing_payload {
                 assert_eq!(fragments[i].payload.len(), 531);
                 assert_eq!(
                     fragments[i].payload,
-                    &message[i * NymSphinxPacket::fragmented_max_len()..]
+                    &message[i * NymSphinxPacket::fragmented_payload_max_len()..]
                 );
             } else {
                 assert_eq!(
                     fragments[i].payload.len(),
-                    NymSphinxPacket::fragmented_max_len(),
+                    NymSphinxPacket::fragmented_payload_max_len(),
                 );
                 assert_eq!(
                     fragments[i].payload,
-                    &message[i * NymSphinxPacket::fragmented_max_len()
-                        ..(i + 1) * NymSphinxPacket::fragmented_max_len()]
+                    &message[i * NymSphinxPacket::fragmented_payload_max_len()
+                        ..(i + 1) * NymSphinxPacket::fragmented_payload_max_len()]
                 );
                 assert_eq!(fragments[i].header.id, fragments[i + 1].header.id)
             }

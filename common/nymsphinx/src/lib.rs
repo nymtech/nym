@@ -285,9 +285,60 @@ pub fn split_and_encapsulate_message<T: NymTopology>(
     Ok(encapsulated_sphinx_packets)
 }
 
-//struct MessageReconstructor {
-//    buffer: Vec<String>,
-//}
+type ReconstructionBuffer = Vec<Option<NymSphinxPacket>>;
+
+pub struct MessageReconstructor {
+    // TODO: some cleaner thread that if message is incomplete and we haven't received any fragments
+    // in X time, we assume they were lost and message can't be restored
+    reconstructed_messages: HashMap<i32, ReconstructionBuffer>,
+}
+
+impl MessageReconstructor {
+    fn new() -> Self {
+        MessageReconstructor {
+            reconstructed_messages: HashMap::new(),
+        }
+    }
+
+    fn is_message_fully_received(&self, id: i32) -> bool {
+        self.reconstructed_messages
+            .get(&id)
+            .map(|buf| !buf.contains(&None))
+            .unwrap_or_else(|| false)
+    }
+
+    pub fn new_fragment(&mut self, frag_data: Vec<u8>) -> Option<Vec<u8>> {
+        let fragment = NymSphinxPacket::try_from_bytes(&frag_data).ok()?;
+
+        let msg_id = fragment.header.id;
+        let message_len = fragment.header.total_fragments as usize;
+        let frag_index = fragment.header.current_fragment as usize - 1;
+
+        let buf = self
+            .reconstructed_messages
+            .entry(msg_id)
+            .or_insert(Vec::with_capacity(message_len));
+        buf.resize(message_len, None);
+
+        if buf[frag_index].is_some() {
+            // TODO: how to behave in this case?
+            panic!("We already received this fragment before!");
+        }
+        buf[frag_index] = Some(fragment);
+
+        if self.is_message_fully_received(msg_id) {
+            let received_buffer = self.reconstructed_messages.remove(&msg_id).unwrap();
+            let original_message: Vec<_> = received_buffer
+                .into_iter()
+                .map(|frag| frag.unwrap())
+                .flat_map(|frag| frag.payload.into_iter())
+                .collect();
+            Some(original_message)
+        } else {
+            None
+        }
+    }
+}
 
 #[cfg(test)]
 mod nym_sphinx_packet {

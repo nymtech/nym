@@ -49,6 +49,7 @@ struct NymSphinxHeader {
 
 impl NymSphinxHeader {
     fn new_fragmented(id: i32, total_fragments: u8, current_fragment: u8) -> Self {
+        assert!(id >= 0);
         NymSphinxHeader {
             is_fragmented: true,
             id,

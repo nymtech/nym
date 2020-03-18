@@ -44,8 +44,6 @@ impl From<AddressTypeError> for NymSphinxError {
     }
 }
 
-//<R: Rng>(rng: &mut R)
-
 impl NymSphinxPacket {
     fn new_fragmented(message: &[u8], id: i32, total_fragments: u8, current_fragment: u8) -> Self {
         assert!(id >= 0);
@@ -295,7 +293,7 @@ pub struct MessageReconstructor {
 }
 
 impl MessageReconstructor {
-    fn new() -> Self {
+    pub fn new() -> Self {
         MessageReconstructor {
             reconstructed_messages: HashMap::new(),
         }

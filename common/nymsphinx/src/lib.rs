@@ -214,8 +214,8 @@ fn prepare_payloads(message: &[u8]) -> Vec<NymSphinxPacket> {
         for i in 0..num_fragments {
             let lb = i * fsize;
             let ub = if i == (num_fragments - 1) {
-                // final fragment
-                i * fsize + message.len() % NymSphinxPacket::fragmented_payload_max_len()
+                // final fragment - read until the end
+                message.len()
             } else {
                 (i + 1) * fsize
             };

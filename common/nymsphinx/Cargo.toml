@@ -9,6 +9,12 @@ edition = "2018"
 [dependencies]
 rand = "0.7.3"
 
+# TODO: eventually move this functionality to this crate and remove `addressing` completely
+addressing = {path = "../addressing" }
+
+topology = {path = "../topology" }
+
+
 ## will be moved to proper dependencies once released
 sphinx = { git = "https://github.com/nymtech/sphinx", rev="23f9c89b257ee0936e70afd682e9ed6a62e89eee" }
 

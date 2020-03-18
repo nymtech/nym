@@ -1649,8 +1649,10 @@ dependencies = [
 name = "nymsphinx"
 version = "0.1.0"
 dependencies = [
+ "addressing",
  "rand 0.7.3",
  "sphinx",
+ "topology",
 ]
 
 [[package]]

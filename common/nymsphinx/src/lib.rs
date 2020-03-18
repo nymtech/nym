@@ -1,5 +1,14 @@
+use addressing::AddressTypeError;
 use rand::{thread_rng, Rng};
+use sphinx::route::{Destination, Node};
 use std::convert::TryInto;
+use std::net::SocketAddr;
+use std::time;
+use topology::{NymTopology, NymTopologyError};
+
+// max 255 fragments, each having max size of max sphinx packet size minus fragmented header overhead
+pub const MAX_MESSAGE_LENGTH: usize =
+    u8::max_value() as usize * (sphinx::constants::PAYLOAD_SIZE - 6);
 
 #[derive(PartialEq, Clone, Debug)]
 struct NymSphinxPacket {
@@ -8,11 +17,30 @@ struct NymSphinxPacket {
 }
 
 #[derive(PartialEq, Debug)]
-enum NymSphinxError {
+pub enum NymSphinxError {
+    TooBigMessageToSplit,
+    NoValidProvidersError,
+    NoValidRoutesAvailableError,
+    InvalidTopologyError,
     TooShortMessage,
     TooLongPayload,
     TooShortPayload,
     UnexpectedFragmentCount,
+}
+
+impl From<topology::NymTopologyError> for NymSphinxError {
+    fn from(_: NymTopologyError) -> Self {
+        use NymSphinxError::*;
+        NoValidRoutesAvailableError
+    }
+}
+
+// this will later be completely removed as `addressing` is moved into this crate
+impl From<AddressTypeError> for NymSphinxError {
+    fn from(_: AddressTypeError) -> Self {
+        use NymSphinxError::*;
+        InvalidTopologyError
+    }
 }
 
 //<R: Rng>(rng: &mut R)
@@ -203,9 +231,58 @@ fn prepare_payloads(message: &[u8]) -> Vec<NymSphinxPacket> {
     }
 }
 
-// allow each messsage to be at most 2^8 payload sizes (is this enough?)
-pub fn split_and_encapsulate_message(message: &[u8]) -> Vec<Vec<u8>> {
-    unimplemented!()
+// the user of this library can either prepare payloads for sphinx packets that he needs to
+// encapsulate themselves by creating headers.
+// or alternatively provide network topology and get bytes ready to be sent over the network
+
+pub fn split_and_prepare_payloads(message: &[u8]) -> Result<Vec<Vec<u8>>, NymSphinxError> {
+    if message.len() > MAX_MESSAGE_LENGTH {
+        // TODO: perhaps to make messages arbitrary long, for last header include fragmentation id of next part
+        return Err(NymSphinxError::TooBigMessageToSplit);
+    }
+
+    let fragmented_messages = prepare_payloads(message);
+    Ok(fragmented_messages
+        .into_iter()
+        .map(|frag| frag.into_bytes())
+        .collect())
+}
+
+pub fn split_and_encapsulate_message<T: NymTopology>(
+    message: &[u8],
+    // TODO: in the future this will require also a specific provider of this particular recipient
+    recipient: Destination,
+    average_delay: time::Duration,
+    topology: &T,
+) -> Result<Vec<(SocketAddr, Vec<u8>)>, NymSphinxError> {
+    if message.len() > MAX_MESSAGE_LENGTH {
+        return Err(NymSphinxError::TooBigMessageToSplit);
+    }
+
+    let fragmented_messages = prepare_payloads(message);
+
+    let mut providers = topology.providers();
+    if providers.is_empty() {
+        return Err(NymSphinxError::NoValidProvidersError);
+    }
+    let provider: Node = providers.pop().unwrap().into();
+
+    let mut encapsulated_sphinx_packets = Vec::new();
+    for fragment in fragmented_messages {
+        let route = topology.route_to(provider.clone())?;
+        let delays =
+            sphinx::header::delays::generate_from_average_duration(route.len(), average_delay);
+        let packet =
+            sphinx::SphinxPacket::new(fragment.into_bytes(), &route[..], &recipient, &delays)
+                .unwrap(); // this cannot fail unless there's an underlying bug which we must find and fix anyway
+        let first_node_address = addressing::socket_address_from_encoded_bytes(
+            route.first().unwrap().address.to_bytes(),
+        )?;
+
+        encapsulated_sphinx_packets.push((first_node_address, packet.to_bytes()));
+    }
+
+    Ok(encapsulated_sphinx_packets)
 }
 
 //struct MessageReconstructor {

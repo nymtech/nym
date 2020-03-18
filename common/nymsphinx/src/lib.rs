@@ -9,6 +9,7 @@ struct NymSphinxPacket {
 
 impl NymSphinxPacket {
     fn new_fragmented(message: &[u8], id: i32, total_fragments: u8, current_fragment: u8) -> Self {
+        assert!(id >= 0);
         NymSphinxPacket {
             header: NymSphinxHeader::new_fragmented(id, total_fragments, current_fragment),
             payload: message.to_vec(),

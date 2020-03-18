@@ -1,6 +1,7 @@
 use addressing::AddressTypeError;
 use rand::{thread_rng, Rng};
 use sphinx::route::{Destination, Node};
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::net::SocketAddr;
 use std::time;
@@ -547,6 +548,190 @@ mod preparing_payload {
                         ..(i + 1) * NymSphinxPacket::fragmented_payload_max_len()]
                 );
                 assert_eq!(fragments[i].header.id, fragments[i + 1].header.id)
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod message_reconstruction {
+    use super::*;
+    use rand::seq::SliceRandom;
+    use rand::RngCore;
+
+    #[test]
+    fn it_reconstructs_unfragmented_message() {
+        let mut rng = thread_rng();
+
+        let mlen = NymSphinxPacket::unfragmented_payload_max_len() - 20;
+        let mut message = vec![0u8; mlen];
+        rng.fill_bytes(&mut message);
+
+        let fragment = split_and_prepare_payloads(&message).unwrap();
+        assert_eq!(fragment.len(), 1);
+
+        let mut message_reconstructor = MessageReconstructor::new();
+        assert_eq!(
+            message_reconstructor
+                .new_fragment(fragment[0].clone())
+                .unwrap(),
+            message
+        )
+    }
+
+    #[test]
+    fn it_reconstructs_unfragmented_message_of_max_length() {
+        let mut rng = thread_rng();
+
+        let mlen = NymSphinxPacket::unfragmented_payload_max_len();
+        let mut message = vec![0u8; mlen];
+        rng.fill_bytes(&mut message);
+
+        let fragment = split_and_prepare_payloads(&message).unwrap();
+        assert_eq!(fragment.len(), 1);
+
+        let mut message_reconstructor = MessageReconstructor::new();
+        assert_eq!(
+            message_reconstructor
+                .new_fragment(fragment[0].clone())
+                .unwrap(),
+            message
+        )
+    }
+
+    #[test]
+    fn it_reconstructs_fragmented_message_in_order_of_2_max_lenghts() {
+        let mut rng = thread_rng();
+
+        let mlen = NymSphinxPacket::fragmented_payload_max_len() * 2;
+        let mut message = vec![0u8; mlen];
+        rng.fill_bytes(&mut message);
+
+        let fragments = split_and_prepare_payloads(&message).unwrap();
+        assert_eq!(fragments.len(), 2);
+
+        let mut message_reconstructor = MessageReconstructor::new();
+        assert!(message_reconstructor
+            .new_fragment(fragments[0].clone())
+            .is_none());
+        assert_eq!(
+            message_reconstructor
+                .new_fragment(fragments[1].clone())
+                .unwrap(),
+            message
+        )
+    }
+
+    #[test]
+    fn it_reconstructs_fragmented_message_in_order_of_with_non_max_tail() {
+        let mut rng = thread_rng();
+
+        let mlen = NymSphinxPacket::fragmented_payload_max_len() * 2 - 42;
+        let mut message = vec![0u8; mlen];
+        rng.fill_bytes(&mut message);
+
+        let fragments = split_and_prepare_payloads(&message).unwrap();
+        assert_eq!(fragments.len(), 2);
+
+        let mut message_reconstructor = MessageReconstructor::new();
+        assert!(message_reconstructor
+            .new_fragment(fragments[0].clone())
+            .is_none());
+        assert_eq!(
+            message_reconstructor
+                .new_fragment(fragments[1].clone())
+                .unwrap(),
+            message
+        )
+    }
+
+    #[test]
+    fn it_reconstructs_fragmented_message_in_order_of_30_fragments() {
+        let mut rng = thread_rng();
+
+        let mlen = NymSphinxPacket::fragmented_payload_max_len() * 30;
+        let mut message = vec![0u8; mlen];
+        rng.fill_bytes(&mut message);
+
+        let fragments = split_and_prepare_payloads(&message).unwrap();
+        assert_eq!(fragments.len(), 30);
+
+        let mut message_reconstructor = MessageReconstructor::new();
+        for i in 0..29 {
+            assert!(message_reconstructor
+                .new_fragment(fragments[i].clone())
+                .is_none());
+        }
+
+        assert_eq!(
+            message_reconstructor
+                .new_fragment(fragments[29].clone())
+                .unwrap(),
+            message
+        )
+    }
+
+    #[test]
+    fn it_reconstructs_fragmented_message_not_in_order_of_30_fragments() {
+        let mut rng = thread_rng();
+
+        let mlen = NymSphinxPacket::fragmented_payload_max_len() * 30;
+        let mut message = vec![0u8; mlen];
+        rng.fill_bytes(&mut message);
+
+        let mut fragments = split_and_prepare_payloads(&message).unwrap();
+        assert_eq!(fragments.len(), 30);
+
+        // shuffle the fragments
+        fragments.shuffle(&mut rng);
+
+        let mut message_reconstructor = MessageReconstructor::new();
+        for i in 0..29 {
+            assert!(message_reconstructor
+                .new_fragment(fragments[i].clone())
+                .is_none());
+        }
+
+        assert_eq!(
+            message_reconstructor
+                .new_fragment(fragments[29].clone())
+                .unwrap(),
+            message
+        )
+    }
+
+    #[test]
+    fn it_reconstructs_two_different_fragmented_messages_not_in_order_of_30_fragments_each() {
+        let mut rng = thread_rng();
+
+        let mlen = NymSphinxPacket::fragmented_payload_max_len() * 30;
+        let mut message1 = vec![0u8; mlen];
+        rng.fill_bytes(&mut message1);
+        let mut message2 = vec![0u8; mlen];
+        rng.fill_bytes(&mut message2);
+        // introduce dummy way to identify the messages
+        message1[0] = 1;
+        message2[0] = 2;
+
+        let mut fragments1 = split_and_prepare_payloads(&message1).unwrap();
+        assert_eq!(fragments1.len(), 30);
+        let mut fragments2 = split_and_prepare_payloads(&message2).unwrap();
+        assert_eq!(fragments2.len(), 30);
+
+        // combine and shuffle fragments
+        fragments1.append(fragments2.as_mut());
+        fragments1.shuffle(&mut rng);
+        let fragments = fragments1;
+        assert_eq!(fragments.len(), 60);
+
+        let mut message_reconstructor = MessageReconstructor::new();
+        for fragment in fragments {
+            if let Some(msg) = message_reconstructor.new_fragment(fragment) {
+                match msg[0] {
+                    1 => assert_eq!(msg, message1),
+                    2 => assert_eq!(msg, message2),
+                    _ => panic!("Unknown message!"),
+                }
             }
         }
     }

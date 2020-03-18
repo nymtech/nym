@@ -160,8 +160,8 @@ impl NymSphinxHeader {
             is_fragmented: false,
             // The below fields are meaningless if the message is not fragmented
             id: Default::default(),
-            total_fragments: Default::default(),
-            current_fragment: Default::default(),
+            total_fragments: 1,
+            current_fragment: 1,
         }
     }
 

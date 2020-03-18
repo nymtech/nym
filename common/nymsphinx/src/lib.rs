@@ -8,7 +8,7 @@ use topology::{NymTopology, NymTopologyError};
 
 // max 255 fragments, each having max size of max sphinx packet size minus fragmented header overhead
 pub const MAX_MESSAGE_LENGTH: usize =
-    u8::max_value() as usize * (sphinx::constants::PAYLOAD_SIZE - 6);
+    u8::max_value() as usize * (sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH - 6);
 
 #[derive(PartialEq, Clone, Debug)]
 struct NymSphinxPacket {
@@ -62,11 +62,11 @@ impl NymSphinxPacket {
     }
 
     fn fragmented_payload_max_len() -> usize {
-        sphinx::constants::PAYLOAD_SIZE - NymSphinxHeader::fragmented_len()
+        sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH - NymSphinxHeader::fragmented_len()
     }
 
     fn unfragmented_payload_max_len() -> usize {
-        sphinx::constants::PAYLOAD_SIZE - NymSphinxHeader::unfragmented_len()
+        sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH - NymSphinxHeader::unfragmented_len()
     }
 
     fn into_bytes(self) -> Vec<u8> {

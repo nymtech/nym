@@ -1,8 +1,18 @@
 use rand::{thread_rng, Rng};
+use std::convert::TryInto;
 
+#[derive(PartialEq, Clone, Debug)]
 struct NymSphinxPacket {
     header: NymSphinxHeader,
     payload: Vec<u8>,
+}
+
+#[derive(PartialEq, Debug)]
+enum NymSphinxError {
+    TooShortMessage,
+    TooLongPayload,
+    TooShortPayload,
+    UnexpectedFragmentCount,
 }
 
 //<R: Rng>(rng: &mut R)
@@ -30,12 +40,71 @@ impl NymSphinxPacket {
     fn unfragmented_payload_max_len() -> usize {
         sphinx::constants::PAYLOAD_SIZE - NymSphinxHeader::unfragmented_len()
     }
+
+    fn into_bytes(self) -> Vec<u8> {
+        self.header
+            .to_bytes()
+            .into_iter()
+            .chain(self.payload.into_iter())
+            .collect()
+    }
+
+    fn try_from_bytes(b: &[u8]) -> Result<Self, NymSphinxError> {
+        // check if it's fragmented - if it was - the whole first byte is set to 0
+        // otherwise first bit is set to 1
+        if b.is_empty() {
+            return Err(NymSphinxError::TooShortMessage);
+        }
+        if b[0] == 0 {
+            if b.len()
+                > NymSphinxPacket::unfragmented_payload_max_len()
+                    + NymSphinxHeader::unfragmented_len()
+            {
+                return Err(NymSphinxError::TooLongPayload);
+            }
+            Ok(NymSphinxPacket {
+                header: NymSphinxHeader::new_unfragmented(),
+                payload: b[NymSphinxHeader::unfragmented_len()..].to_vec(),
+            })
+        } else {
+            if b.len() < NymSphinxHeader::fragmented_len() {
+                return Err(NymSphinxError::TooShortMessage);
+            }
+            if b.len()
+                > NymSphinxPacket::fragmented_payload_max_len() + NymSphinxHeader::fragmented_len()
+            {
+                return Err(NymSphinxError::TooLongPayload);
+            }
+
+            let frag_id = i32::from_be_bytes(b[0..4].try_into().unwrap());
+            // sanity check for the fragmentation flag
+            assert!(((frag_id >> 31) & 1) != 0);
+
+            let id = frag_id & !(1 << 31);
+            let total_fragments = b[4];
+            let current_fragment = b[5];
+
+            if total_fragments != current_fragment
+                && b.len()
+                    != NymSphinxPacket::fragmented_payload_max_len()
+                        + NymSphinxHeader::fragmented_len()
+            {
+                return Err(NymSphinxError::TooShortPayload);
+            }
+
+            Ok(NymSphinxPacket {
+                header: NymSphinxHeader::new_fragmented(id, total_fragments, current_fragment),
+                payload: b[NymSphinxHeader::fragmented_len()..].to_vec(),
+            })
+        }
+    }
 }
 
 // The header is represented as follows:
 // IF || 31 bit ID
 // TF || CF
 // note that if IF is not set, then the remaining bytes in the header are used as payload
+#[derive(PartialEq, Clone, Debug)]
 struct NymSphinxHeader {
     is_fragmented: bool,
     // id is a value in the 0, I32_MAX range
@@ -65,6 +134,21 @@ impl NymSphinxHeader {
             id: Default::default(),
             total_fragments: Default::default(),
             current_fragment: Default::default(),
+        }
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        if self.is_fragmented {
+            let frag_id = self.id | (1 << 31);
+            let frag_id_bytes = frag_id.to_be_bytes();
+            frag_id_bytes
+                .iter()
+                .cloned()
+                .chain(std::iter::once(self.total_fragments))
+                .chain(std::iter::once(self.current_fragment))
+                .collect()
+        } else {
+            [0].to_vec()
         }
     }
 
@@ -124,8 +208,160 @@ pub fn split_and_encapsulate_message(message: &[u8]) -> Vec<Vec<u8>> {
     unimplemented!()
 }
 
-struct MessageReconstructor {
-    buffer: Vec<String>,
+//struct MessageReconstructor {
+//    buffer: Vec<String>,
+//}
+
+#[cfg(test)]
+mod nym_sphinx_packet {
+    use super::*;
+    use rand::RngCore;
+
+    #[test]
+    fn can_be_converted_to_and_from_bytes_for_unfragmented_payload() {
+        let mut rng = thread_rng();
+
+        let mlen = NymSphinxPacket::unfragmented_payload_max_len() - 20;
+        let mut valid_message = vec![0u8; mlen];
+        rng.fill_bytes(&mut valid_message);
+
+        let valid_unfragmented_packet = NymSphinxPacket {
+            header: NymSphinxHeader::new_unfragmented(),
+            payload: valid_message,
+        };
+        let packet_bytes = valid_unfragmented_packet.clone().into_bytes();
+        assert_eq!(
+            valid_unfragmented_packet,
+            NymSphinxPacket::try_from_bytes(&packet_bytes).unwrap()
+        );
+
+        let empty_unfragmented_packet = NymSphinxPacket {
+            header: NymSphinxHeader::new_unfragmented(),
+            payload: Vec::new(),
+        };
+        let packet_bytes = empty_unfragmented_packet.clone().into_bytes();
+        assert_eq!(
+            empty_unfragmented_packet,
+            NymSphinxPacket::try_from_bytes(&packet_bytes).unwrap()
+        );
+
+        let mut full_message = vec![0u8; NymSphinxPacket::fragmented_payload_max_len()];
+        rng.fill_bytes(&mut full_message);
+
+        let full_unfragmented_packet = NymSphinxPacket {
+            header: NymSphinxHeader::new_unfragmented(),
+            payload: full_message,
+        };
+        let packet_bytes = full_unfragmented_packet.clone().into_bytes();
+        assert_eq!(
+            full_unfragmented_packet,
+            NymSphinxPacket::try_from_bytes(&packet_bytes).unwrap()
+        );
+    }
+
+    #[test]
+    fn conversion_from_bytes_fails_for_too_long_unfragmented_payload() {
+        let mut rng = thread_rng();
+
+        let mlen = NymSphinxPacket::unfragmented_payload_max_len() + 1;
+        let mut message = vec![0u8; mlen];
+        rng.fill_bytes(&mut message);
+
+        let packet = NymSphinxPacket {
+            header: NymSphinxHeader::new_unfragmented(),
+            payload: message,
+        };
+
+        let packet_bytes = packet.into_bytes();
+        assert_eq!(
+            NymSphinxPacket::try_from_bytes(&packet_bytes),
+            Err(NymSphinxError::TooLongPayload)
+        );
+    }
+
+    #[test]
+    fn can_be_converted_to_and_from_bytes_for_fragmented_payload() {
+        let mut rng = thread_rng();
+
+        let mut msg = vec![0u8; NymSphinxPacket::fragmented_payload_max_len()];
+        rng.fill_bytes(&mut msg);
+
+        let non_last_packet = NymSphinxPacket {
+            header: NymSphinxHeader::new_fragmented(12345, 10, 5),
+            payload: msg,
+        };
+        let packet_bytes = non_last_packet.clone().into_bytes();
+        assert_eq!(
+            non_last_packet,
+            NymSphinxPacket::try_from_bytes(&packet_bytes).unwrap()
+        );
+
+        let mut msg = vec![0u8; NymSphinxPacket::fragmented_payload_max_len()];
+        rng.fill_bytes(&mut msg);
+
+        let last_full_packet = NymSphinxPacket {
+            header: NymSphinxHeader::new_fragmented(12345, 10, 10),
+            payload: msg,
+        };
+        let packet_bytes = last_full_packet.clone().into_bytes();
+        assert_eq!(
+            last_full_packet,
+            NymSphinxPacket::try_from_bytes(&packet_bytes).unwrap()
+        );
+
+        let mut msg = vec![0u8; NymSphinxPacket::fragmented_payload_max_len() - 20];
+        rng.fill_bytes(&mut msg);
+
+        let last_non_full_packet = NymSphinxPacket {
+            header: NymSphinxHeader::new_fragmented(12345, 10, 10),
+            payload: msg,
+        };
+        let packet_bytes = last_non_full_packet.clone().into_bytes();
+        assert_eq!(
+            last_non_full_packet,
+            NymSphinxPacket::try_from_bytes(&packet_bytes).unwrap()
+        );
+    }
+
+    #[test]
+    fn conversion_from_bytes_fails_for_too_long_fragmented_payload() {
+        let mut rng = thread_rng();
+
+        let mlen = NymSphinxPacket::fragmented_payload_max_len() + 1;
+        let mut message = vec![0u8; mlen];
+        rng.fill_bytes(&mut message);
+
+        let packet = NymSphinxPacket {
+            header: NymSphinxHeader::new_fragmented(12345, 10, 5),
+            payload: message,
+        };
+
+        let packet_bytes = packet.into_bytes();
+        assert_eq!(
+            NymSphinxPacket::try_from_bytes(&packet_bytes),
+            Err(NymSphinxError::TooLongPayload)
+        );
+    }
+
+    #[test]
+    fn conversion_from_bytes_fails_for_too_short_fragmented_payload_if_not_last() {
+        let mut rng = thread_rng();
+
+        let mlen = NymSphinxPacket::fragmented_payload_max_len() - 1;
+        let mut message = vec![0u8; mlen];
+        rng.fill_bytes(&mut message);
+
+        let packet = NymSphinxPacket {
+            header: NymSphinxHeader::new_fragmented(12345, 10, 5),
+            payload: message,
+        };
+
+        let packet_bytes = packet.into_bytes();
+        assert_eq!(
+            NymSphinxPacket::try_from_bytes(&packet_bytes),
+            Err(NymSphinxError::TooShortPayload)
+        );
+    }
 }
 
 #[cfg(test)]

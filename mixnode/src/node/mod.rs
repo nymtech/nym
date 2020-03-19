@@ -87,11 +87,14 @@ impl MixNode {
 
     fn start_packet_forwarder(&mut self) -> mpsc::UnboundedSender<(SocketAddr, Vec<u8>)> {
         info!("Starting packet forwarder...");
-        packet_forwarding::PacketForwarder::new(
-            self.config.get_packet_forwarding_initial_backoff(),
-            self.config.get_packet_forwarding_maximum_backoff(),
-        )
-        .start(self.runtime.handle())
+        self.runtime
+            .enter(|| {
+                packet_forwarding::PacketForwarder::new(
+                    self.config.get_packet_forwarding_initial_backoff(),
+                    self.config.get_packet_forwarding_maximum_backoff(),
+                )
+            })
+            .start(self.runtime.handle())
     }
 
     pub fn run(&mut self) {

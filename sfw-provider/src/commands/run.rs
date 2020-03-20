@@ -158,10 +158,6 @@ pub fn execute(matches: &ArgMatches) {
         "Inboxes directory is: {:?}",
         config.get_clients_inboxes_dir()
     );
-    println!(
-        "[UNIMPLEMENTED] Registered client ledger is: {:?}",
-        config.get_clients_ledger_path()
-    );
 
     ServiceProvider::new(config).run();
 }

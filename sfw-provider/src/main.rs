@@ -30,7 +30,7 @@ fn execute(matches: ArgMatches) {
 }
 
 fn usage() -> String {
-    banner() + "usage: --help to see available options.\n\n"
+    String::from("usage: --help to see available options.\n\n")
 }
 
 fn banner() -> String {

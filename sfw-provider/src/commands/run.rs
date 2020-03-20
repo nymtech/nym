@@ -96,14 +96,14 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
 }
 
 fn show_binding_warning(address: String) {
-    println!("\n##### WARNING #####");
+    println!("\n##### NOTE #####");
     println!(
         "\nYou are trying to bind to {} - you might not be accessible to other nodes\n\
          You can ignore this warning if you're running setup on a local network \n\
          or have set a custom 'announce-host'",
         address
     );
-    println!("\n##### WARNING #####\n");
+    println!("\n\n");
 }
 
 fn special_addresses() -> Vec<&'static str> {

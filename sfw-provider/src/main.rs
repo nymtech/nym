@@ -29,8 +29,8 @@ fn execute(matches: ArgMatches) {
     }
 }
 
-fn usage() -> String {
-    String::from("usage: --help to see available options.\n\n")
+fn usage() -> &'static str {
+    "usage: --help to see available options.\n\n"
 }
 
 fn banner() -> String {

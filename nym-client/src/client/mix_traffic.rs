@@ -17,7 +17,6 @@ impl MixMessage {
     }
 }
 
-// TODO: put our TCP client here
 pub(crate) struct MixTrafficController {
     tcp_client: multi_tcp_client::Client,
     mix_rx: MixMessageReceiver,

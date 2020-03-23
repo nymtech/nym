@@ -1,6 +1,6 @@
 ## The Nym Privacy Platform
 
-This repository contains the full Nym platform, written in Rust.
+This repository contains the full Nym platform.
 
 The platform is composed of multiple Rust crates. Top-level executable binary crates include:
 

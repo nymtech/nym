@@ -25,7 +25,7 @@ impl ServiceProvider {
             .read_encryption()
             .expect("Failed to read stored sphinx key files");
         println!(
-            "Public encryption key: {}\nFor time being, it is identical to identity keys",
+            "Public key: {}\n",
             sphinx_keypair.public_key().to_base58_string()
         );
         sphinx_keypair
@@ -45,6 +45,7 @@ impl ServiceProvider {
     fn start_presence_notifier(&self) {
         info!("Starting presence notifier...");
         let notifier_config = presence::NotifierConfig::new(
+            self.config.get_location(),
             self.config.get_presence_directory_server(),
             self.config.get_mix_announce_address(),
             self.config.get_clients_announce_address(),

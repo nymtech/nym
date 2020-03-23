@@ -15,8 +15,8 @@ const DEFAULT_LISTENING_PORT: u16 = 1789;
 
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
-const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 3000;
-const DEFAULT_METRICS_SENDING_DELAY: u64 = 3000;
+const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 1500;
+const DEFAULT_METRICS_SENDING_DELAY: u64 = 1000;
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: u64 = 10_000; // 10s
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: u64 = 300_000; // 5min
 
@@ -88,6 +88,11 @@ impl Config {
 
     pub fn with_layer(mut self, layer: u64) -> Self {
         self.mixnode.layer = layer;
+        self
+    }
+
+    pub fn with_location<S: Into<String>>(mut self, location: S) -> Self {
+        self.mixnode.location = location.into();
         self
     }
 
@@ -163,6 +168,11 @@ impl Config {
         }
     }
 
+    pub fn announce_host_from_listening_host(mut self) -> Self {
+        self.mixnode.announce_address = self.mixnode.listening_address.to_string();
+        self
+    }
+
     pub fn with_announce_port(mut self, port: u16) -> Self {
         let current_host: Vec<_> = self.mixnode.announce_address.split(':').collect();
         debug_assert_eq!(current_host.len(), 2);
@@ -173,6 +183,10 @@ impl Config {
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
+    }
+
+    pub fn get_location(&self) -> String {
+        self.mixnode.location.clone()
     }
 
     pub fn get_private_sphinx_key_file(&self) -> PathBuf {
@@ -226,6 +240,12 @@ pub struct MixNode {
     /// ID specifies the human readable ID of this particular mixnode.
     id: String,
 
+    /// Completely optional value specifying geographical location of this particular node.
+    /// Currently it's used entirely for debug purposes, as there are no mechanisms implemented
+    /// to verify correctness of the information provided. However, feel free to fill in
+    /// this field with as much accuracy as you wish to share.
+    location: String,
+
     /// Layer of this particular mixnode determining its position in the network.
     layer: u64,
 
@@ -259,12 +279,17 @@ impl MixNode {
     fn default_public_sphinx_key_file(id: &str) -> PathBuf {
         Config::default_data_directory(Some(id)).join("public_sphinx.pem")
     }
+
+    fn default_location() -> String {
+        "unknown".into()
+    }
 }
 
 impl Default for MixNode {
     fn default() -> Self {
         MixNode {
             id: "".to_string(),
+            location: Self::default_location(),
             layer: 0,
             listening_address: format!("0.0.0.0:{}", DEFAULT_LISTENING_PORT)
                 .parse()

@@ -16,6 +16,12 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .required(true),
         )
         .arg(
+            Arg::with_name("location")
+                .long("location")
+                .help("Optional geographical location of this node")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("layer")
                 .long("layer")
                 .help("The mixnet layer of this particular node")
@@ -25,7 +31,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         .arg(
             Arg::with_name("host")
                 .long("host")
-                .help("The custom host on which the mixnode will be running")
+                .help("The host on which the mixnode will be running")
                 .takes_value(true)
                 .required(true),
         )
@@ -38,13 +44,13 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         .arg(
             Arg::with_name("announce-host")
                 .long("announce-host")
-                .help("The host that will be reported to the directory server")
+                .help("The custom host that will be reported to the directory server")
                 .takes_value(true),
         )
         .arg(
             Arg::with_name("announce-port")
                 .long("announce-port")
-                .help("The port that will be reported to the directory server")
+                .help("The custom port that will be reported to the directory server")
                 .takes_value(true),
         )
         .arg(

@@ -9,8 +9,7 @@ use crate::client::topology_control::{
 };
 use crate::config::persistence::pathfinder::ClientPathfinder;
 use crate::config::{Config, SocketType};
-use crate::sockets::tcp;
-use crate::sockets::ws;
+use crate::sockets::{tcp, websocket};
 use crypto::identity::MixIdentityKeyPair;
 use directory_client::presence;
 use futures::channel::mpsc;
@@ -33,8 +32,8 @@ pub(crate) type InputMessageSender = mpsc::UnboundedSender<InputMessage>;
 pub(crate) type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
 
 pub struct NymClient {
-    runtime: Runtime,
     config: Config,
+    runtime: Runtime,
     identity_keypair: MixIdentityKeyPair,
 
     // to be used by "send" function or socket, etc
@@ -80,7 +79,7 @@ impl NymClient {
         provider_id: String,
         mut topology_accessor: TopologyAccessor<T>,
     ) -> SocketAddr {
-        topology_accessor.get_current_topology_clone().await.as_ref().expect("The current network topoloy is empty - are you using correct directory server?")
+        topology_accessor.get_current_topology_clone().await.as_ref().expect("The current network topology is empty - are you using correct directory server?")
             .providers()
             .iter()
             .find(|provider| provider.pub_key == provider_id)
@@ -201,7 +200,10 @@ impl NymClient {
             TopologyRefresher::new(topology_refresher_config, topology_accessor);
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
-        info!("Obtaining initial network topology...");
+        info!(
+            "Obtaining initial network topology from {}",
+            self.config.get_directory_server()
+        );
         self.runtime.block_on(topology_refresher.refresh());
         info!("Starting topology refresher...");
         topology_refresher.start(self.runtime.handle());
@@ -210,15 +212,14 @@ impl NymClient {
     // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
     fn start_mix_traffic_controller(&mut self, mix_rx: MixMessageReceiver) {
         info!("Starting mix trafic controller...");
-        // TODO: possible optimisation: set the initial endpoints to all known mixes from layer 1
-        let initial_mix_endpoints = Vec::new();
         self.runtime
-            .block_on(MixTrafficController::new(
-                initial_mix_endpoints,
-                self.config.get_packet_forwarding_initial_backoff(),
-                self.config.get_packet_forwarding_maximum_backoff(),
-                mix_rx,
-            ))
+            .enter(|| {
+                MixTrafficController::new(
+                    self.config.get_packet_forwarding_initial_backoff(),
+                    self.config.get_packet_forwarding_maximum_backoff(),
+                    mix_rx,
+                )
+            })
             .start(self.runtime.handle());
     }
 
@@ -230,7 +231,7 @@ impl NymClient {
     ) {
         match self.config.get_socket_type() {
             SocketType::WebSocket => {
-                ws::start_websocket(
+                websocket::listener::run(
                     self.runtime.handle(),
                     self.config.get_listening_port(),
                     input_tx,

@@ -27,7 +27,7 @@ impl MixNode {
             .read_encryption()
             .expect("Failed to read stored sphinx key files");
         println!(
-            "Public encryption key: {}\nFor time being, it is identical to identity keys",
+            "Public key: {}\n",
             sphinx_keypair.public_key().to_base58_string()
         );
         sphinx_keypair
@@ -46,6 +46,7 @@ impl MixNode {
     fn start_presence_notifier(&self) {
         info!("Starting presence notifier...");
         let notifier_config = presence::NotifierConfig::new(
+            self.config.get_location(),
             self.config.get_presence_directory_server(),
             self.config.get_announce_address(),
             self.sphinx_keypair.public_key().to_base58_string(),
@@ -86,15 +87,13 @@ impl MixNode {
 
     fn start_packet_forwarder(&mut self) -> mpsc::UnboundedSender<(SocketAddr, Vec<u8>)> {
         info!("Starting packet forwarder...");
-
-        // this can later be replaced with topology information
-        let initial_addresses = vec![];
         self.runtime
-            .block_on(packet_forwarding::PacketForwarder::new(
-                initial_addresses,
-                self.config.get_packet_forwarding_initial_backoff(),
-                self.config.get_packet_forwarding_maximum_backoff(),
-            ))
+            .enter(|| {
+                packet_forwarding::PacketForwarder::new(
+                    self.config.get_packet_forwarding_initial_backoff(),
+                    self.config.get_packet_forwarding_maximum_backoff(),
+                )
+            })
             .start(self.runtime.handle())
     }
 

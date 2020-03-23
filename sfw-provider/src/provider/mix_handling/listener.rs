@@ -29,7 +29,7 @@ async fn process_socket_connection(
 ) {
     let mut buf = [0u8; sphinx::PACKET_SIZE];
     loop {
-        match socket.read(&mut buf).await {
+        match socket.read_exact(&mut buf).await {
             // socket closed
             Ok(n) if n == 0 => {
                 trace!("Remote connection closed.");

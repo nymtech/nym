@@ -77,6 +77,7 @@ mod metrics_get_request {
 
         pub fn new_presence() -> MixNodePresence {
             MixNodePresence {
+                location: "foomp".to_string(),
                 host: "foo.com".to_string(),
                 pub_key: "abc".to_string(),
                 layer: 1,

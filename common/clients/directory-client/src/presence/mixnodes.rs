@@ -7,6 +7,7 @@ use topology::mix;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MixNodePresence {
+    pub location: String,
     pub host: String,
     pub pub_key: String,
     pub layer: u64,
@@ -27,6 +28,7 @@ impl TryInto<topology::mix::Node> for MixNodePresence {
         }
 
         Ok(topology::mix::Node {
+            location: self.location,
             host: resolved_hostname.unwrap(),
             pub_key: self.pub_key,
             layer: self.layer,
@@ -39,6 +41,7 @@ impl TryInto<topology::mix::Node> for MixNodePresence {
 impl From<topology::mix::Node> for MixNodePresence {
     fn from(mn: mix::Node) -> Self {
         MixNodePresence {
+            location: mn.location,
             host: mn.host.to_string(),
             pub_key: mn.pub_key,
             layer: mn.layer,

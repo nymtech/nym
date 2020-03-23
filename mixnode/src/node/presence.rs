@@ -8,6 +8,7 @@ use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 pub struct NotifierConfig {
+    location: String,
     directory_server: String,
     announce_host: String,
     pub_key_string: String,
@@ -17,6 +18,7 @@ pub struct NotifierConfig {
 
 impl NotifierConfig {
     pub fn new(
+        location: String,
         directory_server: String,
         announce_host: String,
         pub_key_string: String,
@@ -24,6 +26,7 @@ impl NotifierConfig {
         sending_delay: Duration,
     ) -> Self {
         NotifierConfig {
+            location,
             directory_server,
             announce_host,
             pub_key_string,
@@ -46,6 +49,7 @@ impl Notifier {
         };
         let net_client = directory_client::Client::new(directory_client_cfg);
         let presence = MixNodePresence {
+            location: config.location,
             host: config.announce_host,
             pub_key: config.pub_key_string,
             layer: config.layer,
@@ -69,8 +73,11 @@ impl Notifier {
     pub fn start(self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move {
             loop {
+                // set the deadline in the future
+                let sending_delay = tokio::time::delay_for(self.sending_delay);
                 self.notify();
-                tokio::time::delay_for(self.sending_delay).await;
+                // wait for however much is left
+                sending_delay.await;
             }
         })
     }

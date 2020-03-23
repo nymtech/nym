@@ -16,6 +16,12 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
         )
         // the rest of arguments are optional, they are used to override settings in config file
         .arg(
+            Arg::with_name("location")
+                .long("location")
+                .help("Optional geographical location of this node")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("config")
                 .long("config")
                 .help("Custom path to the nym-mixnode configuration file")
@@ -60,14 +66,14 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
 }
 
 fn show_binding_warning(address: String) {
-    println!("\n##### WARNING #####");
+    println!("\n##### NOTE #####");
     println!(
         "\nYou are trying to bind to {} - you might not be accessible to other nodes\n\
-         You can ignore this warning if you're running setup on a local network \n\
+         You can ignore this note if you're running setup on a local network \n\
          or have set a custom 'announce-host'",
         address
     );
-    println!("\n##### WARNING #####\n");
+    println!("\n\n");
 }
 
 fn special_addresses() -> Vec<&'static str> {

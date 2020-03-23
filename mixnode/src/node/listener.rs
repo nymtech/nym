@@ -41,7 +41,7 @@ async fn process_socket_connection(
 ) {
     let mut buf = [0u8; sphinx::PACKET_SIZE];
     loop {
-        match socket.read(&mut buf).await {
+        match socket.read_exact(&mut buf).await {
             // socket closed
             Ok(n) if n == 0 => {
                 trace!("Remote connection closed.");
@@ -52,7 +52,6 @@ async fn process_socket_connection(
                     warn!("read data of different length than expected sphinx packet size - {} (expected {})", n, sphinx::PACKET_SIZE);
                     continue;
                 }
-
                 // we must be able to handle multiple packets from same connection independently
                 tokio::spawn(process_received_packet(
                     buf,

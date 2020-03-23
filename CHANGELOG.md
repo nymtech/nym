@@ -1,8 +1,16 @@
 # Changelog
 
-## [v0.5.0](https://github.com/nymtech/nym/tree/v0.5.0) (2020-03-23)
+## [Unreleased](https://github.com/nymtech/nym/tree/HEAD)
 
-[Full Changelog](https://github.com/nymtech/nym/compare/v0.5.0-rc.1...v0.5.0)
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.5.0-rc.1...HEAD)
+
+1. Introduced proper configuration options for mixnodes, clients and providers. Everything is initialised with the `init` command that creates a saved config.toml file. To run the binary you now use `nym-<binary-name> run`, for example `nym-mixnode run`. Each flag can be overwritten at any stage with the following priority: run flags, data in config.toml and finally init flags.
+2. Made mixnet TCP connections persistent. When sending a Sphinx packet, it should no longer go through the lengthy process of establishing a TCP connection only to immediately tear it down after sending a single packet. This significantly boosts throughput. 
+3. A lot of work on code clean up and refactoring including some performance fixes.
+4. Client now determines its default nym-sfw-provider at startup and should always try to connect to the same one. Note: we still can't reliably run more than a single provider on the network.
+5. Logging messages now have timestamps and when running at more aggressive log mode (like debug or even trace) we should no longer be overwhelmed with messages from external crates.
+6. Initial compatibility with Windows. Please let us know if you have problems.
+7. More work on validator, including initial Tendermint integration in Rust, and the start of the mixmining system.
 
 **Closed issues:**
 

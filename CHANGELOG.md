@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased](https://github.com/nymtech/nym/tree/HEAD)
+## [v0.5.0](https://github.com/nymtech/nym/tree/HEAD)
 
 [Full Changelog](https://github.com/nymtech/nym/compare/v0.5.0-rc.1...HEAD)
 

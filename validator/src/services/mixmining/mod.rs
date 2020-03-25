@@ -47,7 +47,7 @@ impl Service {
         // retrieve the given Mixnode from the database and update its stake
     }
 
-    /// For now, we have no notion of capacity. Return the top 6 mixnodes, ordered by stake.
+    /// For now, we have no notion of measuring capacity. For now just use capacity().
     fn active_mixnodes(&self) -> Vec<Mixnode> {
         Vec::<Mixnode>::new()
         // hit the database

@@ -10,7 +10,7 @@ pub struct Service {
 
 /// The mixmining::Service provides logic for updating and slashing mixnode
 /// stake, retrieving lists of mixnodes based on stake, and adding/removing
-/// mixnodes from the active set. It monitors mixnodes and rewards or stakeslashes
+/// mixnodes from the active set. It monitors mixnodes and rewards or slashes
 /// based on the observed quality of service provided by a given mixnode.
 ///
 /// Mixing and staking interact in interesting ways. Mixnodes first need to announce

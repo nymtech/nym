@@ -19,7 +19,8 @@ struct Announcement {
     location: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MixNode {
     host: String,
     public_key: String,

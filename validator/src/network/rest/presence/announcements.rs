@@ -8,20 +8,14 @@ pub fn post(req: &mut Request) -> IronResult<Response> {
     let db = mixmining::db::MixminingDb::new();
     let service = mixmining::Service::new(db);
 
-    let maybe_mixnode = match req.get::<Struct<mixmining::Mixnode>>() {
-        Ok(Some(mixnode)) => Ok(mixnode),
-        Ok(None) => Err("JSON parsing error"),
-        Err(_) => Err("JSON parsing error"),
-    };
+    let json_parse = req.get::<Struct<mixmining::Mixnode>>();
 
-    if maybe_mixnode.is_ok() {
-        let mixnode = maybe_mixnode.unwrap();
+    if json_parse.is_ok() {
+        let mixnode = json_parse.unwrap().expect("No JSON supplied");
         service.add(mixnode);
         Ok(Response::with(status::Created))
     } else {
-        Ok(Response::with((
-            status::BadRequest,
-            maybe_mixnode.unwrap_err(),
-        )))
+        let error = json_parse.unwrap_err();
+        Ok(Response::with((status::BadRequest, error.detail)))
     }
 }

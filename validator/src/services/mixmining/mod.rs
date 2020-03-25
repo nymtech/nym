@@ -1,4 +1,5 @@
 use db::MixminingDb;
+use serde::{Deserialize, Serialize};
 
 pub mod db;
 pub mod health_check_runner;
@@ -76,7 +77,7 @@ impl Service {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Mixnode {
     pub public_key: String,
     pub stake: u64,

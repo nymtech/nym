@@ -31,8 +31,8 @@ impl Validator {
             hc,
         );
 
-        let db = mixmining::db::MixminingDb::new();
-        let mixmining_service = mixmining::Service::new(db);
+        let mixmining_db = mixmining::db::MixminingDb::new();
+        let mixmining_service = mixmining::Service::new(mixmining_db);
 
         let rest_api = rest::Api::new(mixmining_service);
 

@@ -27,7 +27,7 @@ impl MixNode {
             .read_encryption()
             .expect("Failed to read stored sphinx key files");
         println!(
-            "Public encryption key: {}\nFor time being, it is identical to identity keys",
+            "Public key: {}\n",
             sphinx_keypair.public_key().to_base58_string()
         );
         sphinx_keypair
@@ -87,11 +87,14 @@ impl MixNode {
 
     fn start_packet_forwarder(&mut self) -> mpsc::UnboundedSender<(SocketAddr, Vec<u8>)> {
         info!("Starting packet forwarder...");
-        packet_forwarding::PacketForwarder::new(
-            self.config.get_packet_forwarding_initial_backoff(),
-            self.config.get_packet_forwarding_maximum_backoff(),
-        )
-        .start(self.runtime.handle())
+        self.runtime
+            .enter(|| {
+                packet_forwarding::PacketForwarder::new(
+                    self.config.get_packet_forwarding_initial_backoff(),
+                    self.config.get_packet_forwarding_maximum_backoff(),
+                )
+            })
+            .start(self.runtime.handle())
     }
 
     pub fn run(&mut self) {

@@ -16,6 +16,7 @@ struct Announcement {
     public_key: String,
     node_type: String,
     seen_at: NaiveDateTime,
+    location: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

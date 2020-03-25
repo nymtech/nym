@@ -8,9 +8,10 @@ pub struct Service {
     db: MixminingDb,
 }
 
-/// The mixmining::StakeService provides logic for updating and slashing mixnode
+/// The mixmining::Service provides logic for updating and slashing mixnode
 /// stake, retrieving lists of mixnodes based on stake, and adding/removing
-/// mixnodes from the active set.
+/// mixnodes from the active set. It monitors mixnodes and rewards or stakeslashes
+/// based on the observed quality of service provided by a given mixnode.
 ///
 /// Mixing and staking interact in interesting ways. Mixnodes first need to announce
 /// their presence to the validators. The validators will then proceed to do a
@@ -39,6 +40,7 @@ impl Service {
     pub fn add(&self, mixnode: Mixnode) {
         println!("Add hit, mixnode: {:?}", mixnode);
     }
+    /*
 
     /// Update (or create) a given mixnode stake, identified by the mixnode's public key
     fn update(&self, public_key: &str, amount: u64) {
@@ -51,16 +53,22 @@ impl Service {
         // hit the database
     }
 
+    /// A fake capacity, so we can take the top n mixnodes based on stake
+    fn capacity(&self) -> u32 {
+        6
+    }
+
     /// Remove a mixnode from the active set in a way that does not impact its stake.
-    /// The mixnode has done its job well and requested to leave, so it can be removed
-    ///  at the end of an epoch.
+    /// In a more built-out system, this method would mean:
+    /// "mixnode x has done its job well and requested to leave, so it can be removed
+    ///  at the end of an epoch."
     fn remove(&self, public_key: &str) {
         // free locked up stake back to originating stakeholder
         // remove the mixnode from the database
     }
 
-    // Add the given amount of stake to the given Mixnode. Presumably it has done
-    // its job well.
+    /// Add the given amount of stake to the given Mixnode. Presumably it has done
+    /// its job well.
     fn reward(&self, public_key: &str, amount: u64) {}
 
     /// Slash a mixnode's stake based on bad performance or detected malign intent.
@@ -75,6 +83,7 @@ impl Service {
         // call slash (the method, not the guitarist)
         // remove the mixnode from the database
     }
+    */
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

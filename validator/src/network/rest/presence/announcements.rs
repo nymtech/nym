@@ -1,8 +1,8 @@
 use super::*;
 use crate::services::mixmining;
 use bodyparser::Struct;
-use iron::middleware::Handler;
 use iron::status;
+use iron::Handler;
 
 pub struct Create {
     service: mixmining::Service,

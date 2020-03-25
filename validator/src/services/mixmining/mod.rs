@@ -78,6 +78,7 @@ impl Service {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Mixnode {
     pub public_key: String,
     pub stake: u64,

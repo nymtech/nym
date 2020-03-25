@@ -18,13 +18,13 @@ impl Api {
         let port = 3000;
         println!("* starting REST API on localhost:{}", port);
 
-        let create_announcement = announcements::Create::new(self.mixmining_service);
+        let mixnode_announcement = announcements::MixnodeHandler::new(self.mixmining_service);
 
         let mut router = Router::new();
         router.get("/topology", presence::topology::get, "topology_get");
         router.post(
             "/presence/announcements",
-            create_announcement,
+            mixnode_announcement,
             "presence_announcements_post",
         );
 

@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::network::rest;
 use crate::network::tendermint;
+use crate::services::mixmining;
 use crate::services::mixmining::health_check_runner;
 use crypto::identity::MixIdentityKeyPair;
 use healthcheck::HealthChecker;
@@ -30,7 +31,10 @@ impl Validator {
             hc,
         );
 
-        let rest_api = rest::Api::new();
+        let db = mixmining::db::MixminingDb::new();
+        let mixmining_service = mixmining::Service::new(db);
+
+        let rest_api = rest::Api::new(mixmining_service);
 
         Validator {
             health_check_runner,
@@ -49,7 +53,7 @@ impl Validator {
         rt.spawn(self.rest_api.run());
         rt.spawn(self.tendermint_abci.run());
 
-        // TODO: this message is going to come out of order (if at all), as spawns are async
+        // TODO: this message is going to come out of order (if at all), as spawns are async, see issue above
         println!("Validator startup complete.");
         rt.block_on(blocker());
     }

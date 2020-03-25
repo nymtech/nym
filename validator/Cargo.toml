@@ -14,7 +14,6 @@ clap = "2.33.0"
 chrono = { version = "0.4.11", features = ["serde"] }
 diesel = { version = "1.4.3", features = ["sqlite"] }
 dirs = "2.0.2"
-# Read notes https://crates.io/crates/dotenv - tl;dr: don't use in production, set environmental variables properly.
 dotenv = "0.15.0"
 futures = "0.3.1"
 iron = "0.6.1"

@@ -19,7 +19,9 @@ impl Handler for Create {
         let json_parse = req.get::<Struct<mixmining::Mixnode>>();
 
         if json_parse.is_ok() {
-            let mixnode = json_parse.unwrap().expect("No JSON supplied");
+            let mixnode = json_parse
+                .unwrap()
+                .expect("Unexpected JSON parsing problem");
             self.service.add(mixnode);
             Ok(Response::with(status::Created))
         } else {

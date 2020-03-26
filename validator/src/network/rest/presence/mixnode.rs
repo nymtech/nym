@@ -4,17 +4,17 @@ use bodyparser::Struct;
 use iron::status;
 use iron::Handler;
 
-pub struct MixnodeHandler {
+pub struct CreatePresence {
     service: mixmining::Service,
 }
 
-impl MixnodeHandler {
-    pub fn new(service: mixmining::Service) -> MixnodeHandler {
-        MixnodeHandler { service }
+impl CreatePresence {
+    pub fn new(service: mixmining::Service) -> CreatePresence {
+        CreatePresence { service }
     }
 }
 
-impl Handler for MixnodeHandler {
+impl Handler for CreatePresence {
     fn handle(&self, req: &mut Request) -> IronResult<Response> {
         let json_parse = req.get::<Struct<mixmining::Mixnode>>();
 

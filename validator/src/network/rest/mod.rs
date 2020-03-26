@@ -1,6 +1,6 @@
 use crate::services::mixmining;
 use iron::prelude::*;
-use presence::announcements;
+use presence::mixnode;
 use router::Router;
 
 mod presence;
@@ -31,7 +31,7 @@ impl Api {
         let mut router = Router::new();
 
         // set up handlers
-        let create_mixnode_presence = announcements::MixnodeHandler::new(self.mixmining_service);
+        let create_mixnode_presence = mixnode::CreatePresence::new(self.mixmining_service);
 
         // tie routes to handlers
         router.get("/topology", presence::topology::get, "topology_get");

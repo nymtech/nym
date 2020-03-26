@@ -5,20 +5,6 @@ use serde::{Deserialize, Serialize};
 pub mod announcements;
 pub mod topology;
 
-/// A presence::Announcement received from a node asks for entry into the system.
-/// It's not really a "presence" insofar as other means (e.g. health-checks,
-/// mixmining, staking etc) are used to determine actual presence, and whether
-/// the node is doing the work it should be doing. A presence::Announcement is
-/// a node saying "hey, I exist, and am ready to participate, but you need to
-/// figure out if I should be made active by the system."
-struct Announcement {
-    host: String,
-    public_key: String,
-    node_type: String,
-    seen_at: NaiveDateTime,
-    location: String,
-}
-
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Mixnode {

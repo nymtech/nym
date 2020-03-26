@@ -35,7 +35,10 @@ mod test_presence_conversions_for_mixmining_service {
         assert_eq!(result.host, presence_mixnode.host);
         assert_eq!(result.public_key, presence_mixnode.public_key);
         assert_eq!(result.location, presence_mixnode.location);
-        assert_eq!(result.version, presence_mixnode.version);
         assert_eq!(result.stake, 0);
+        assert_eq!(result.version, presence_mixnode.version);
+        // I'm not going to test the last_seen timestamp as I can't be bothered
+        // setting up a fake clock right now.
+        // The behaviour is: it should set time to SystemTime::now().
     }
 }

@@ -14,22 +14,33 @@ impl Api {
         Api { mixmining_service }
     }
 
+    /// Run the REST API.
     pub async fn run(self) {
-        let port = 3000;
-        println!("* starting REST API on localhost:{}", port);
+        let port = 3000; // TODO: make this configurable
+        let address = format!("localhost:{}", port);
+        println!("* starting REST API on {}", address);
 
-        let mixnode_announcement = announcements::MixnodeHandler::new(self.mixmining_service);
+        let router = self.setup_router();
 
+        Iron::new(router).http(address).unwrap();
+    }
+
+    /// Tie together URL route paths with handler functions.
+    fn setup_router(self) -> Router {
+        // define a Router to hold our routes
         let mut router = Router::new();
+
+        // set up handlers
+        let create_mixnode_presence = announcements::MixnodeHandler::new(self.mixmining_service);
+
+        // tie routes to handlers
         router.get("/topology", presence::topology::get, "topology_get");
         router.post(
-            "/presence/announcements",
-            mixnode_announcement,
-            "presence_announcements_post",
+            "/presence/mixnodes",
+            create_mixnode_presence,
+            "presence_mixnodes_post",
         );
 
-        Iron::new(router)
-            .http(format!("localhost:{}", port))
-            .unwrap();
+        router
     }
 }

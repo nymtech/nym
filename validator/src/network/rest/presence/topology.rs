@@ -1,3 +1,4 @@
+use super::models::*;
 use super::*;
 use iron::status;
 

@@ -1,5 +1,6 @@
 use super::*;
-use crate::services::mixmining;
+use crate::network::rest::presence::models::Mixnode as PresenceMixnode;
+use crate::services::mixmining::Mixnode as ServiceMixnode;
 use bodyparser::Struct;
 use iron::status;
 use iron::Handler;
@@ -16,13 +17,13 @@ impl CreatePresence {
 
 impl Handler for CreatePresence {
     fn handle(&self, req: &mut Request) -> IronResult<Response> {
-        let json_parse = req.get::<Struct<mixmining::Mixnode>>();
+        let json_parse = req.get::<Struct<PresenceMixnode>>();
 
         if json_parse.is_ok() {
             let mixnode = json_parse
                 .unwrap()
                 .expect("Unexpected JSON parsing problem");
-            self.service.add(mixnode);
+            self.service.add(mixnode.into());
             Ok(Response::with(status::Created))
         } else {
             let error = json_parse.unwrap_err();

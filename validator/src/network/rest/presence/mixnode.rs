@@ -1,6 +1,5 @@
 use super::*;
 use crate::network::rest::presence::models::Mixnode as PresenceMixnode;
-use crate::services::mixmining::Mixnode as ServiceMixnode;
 use bodyparser::Struct;
 use iron::status;
 use iron::Handler;

@@ -13,21 +13,22 @@ pub struct Service {
 /// mixnodes from the active set. It monitors mixnodes and rewards or slashes
 /// based on the observed quality of service provided by a given mixnode.
 ///
-/// Mixing and staking interact in interesting ways. Mixnodes first need to announce
-/// their presence to the validators. The validators will then proceed to do a
-/// health check on them.
+/// Mixing and staking interact. Mixnodes first need to announce
+/// their presence to the validators.
 ///
-/// Once a Mixnode passes its health check, it goes into the stack of available
-/// mixnodes. However, it's not necessarily going to start actively mixing traffic.
-/// That depends on how much stake is riding on it: we depend on the wisdom of
-/// stakers to put their money on trustworthy mixnodes.
+/// The mixnode then goes into the stack of available mixnodes.
 ///
-/// The active set of mixnodes will be able to expand or contract based on capacity
-/// (not yet implemented). For now, we simply take the top N nodes available,
-/// ordered by node stake.
+/// However, it's not necessarily going to start actively mixing traffic.
+/// That depends on how much stake is riding on it, and how much capacity the
+/// network requires right now. We depend on the wisdom of stakers to put their
+/// money on trustworthy mixnodes.
+///
+/// The active set of mixnodes will be able to expand or contract based on capacity.
+/// For now, we simply take the top <capacity> nodes available, ordered by
+/// <node.stake desc>.
 ///
 /// A lot is going to need to change here. Commented code is here mainly to
-/// quickly sketch out the guts of the staking service. This is not the basis
+/// quickly sketch out the guts of the mixmining and staking service. This is not the basis
 /// of our real staking system quite yet - it's a way to start getting the system
 /// to function with all the different node types to start talking to each other,
 /// and will be dramatically reworked over the next few months.
@@ -36,9 +37,8 @@ impl Service {
         Service { db }
     }
     // Add a mixnode so that it becomes part of the possible mixnode set.
-    // Presumably it's passed health check.
     pub fn add(&self, mixnode: Mixnode) {
-        println!("Add hit, mixnode: {:?}", mixnode);
+        println!("Adding mixnode: {:?}", mixnode);
     }
     /*
 

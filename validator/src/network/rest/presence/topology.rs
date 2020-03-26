@@ -4,7 +4,7 @@ use iron::status;
 /// Retrieve the current Nym network topology via HTTP
 pub fn get(_req: &mut Request) -> IronResult<Response> {
     let topology = Topology {
-        mix_nodes: Vec::<MixNode>::new(),
+        mix_nodes: Vec::<Mixnode>::new(),
         service_providers: Vec::<ServiceProvider>::new(),
         validators: Vec::<Validator>::new(),
     };

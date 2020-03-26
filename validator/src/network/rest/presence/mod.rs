@@ -21,7 +21,7 @@ struct Announcement {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MixNode {
+pub struct Mixnode {
     host: String,
     public_key: String,
     version: String,
@@ -41,7 +41,7 @@ pub struct ServiceProvider {
 /// Topology shows us the current state of the overall Nym network
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Topology {
-    pub mix_nodes: Vec<MixNode>,
+    pub mix_nodes: Vec<Mixnode>,
     pub service_providers: Vec<ServiceProvider>,
     pub validators: Vec<Validator>,
 }

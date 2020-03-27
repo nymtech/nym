@@ -44,6 +44,20 @@ pub const TWO_WAY_LINKED_SET_PAYLOAD_LENGTH: usize = MAX_UNLINKED_SET_PAYLOAD_LE
 /// Set2: [f1 {id = 54321, previous_id = 12345}, f2 {id = 54321}, ... f45 {id = 54321}]
 pub(crate) type FragmentSet = Vec<Fragment>;
 
+/// Generate a pseudo-random id for a `FragmentSet`.
+/// Its value is restricted to (0, i32::max_value()].
+/// Note that it *excludes* 0, but *includes* i32::max_value().
+/// This particular range allows for the id to be represented using 31bits, rather than
+/// the full length of 32 while still providing more than enough variability to
+/// distinguish different `FragmentSet`s.
+/// The extra bit, as explained in `Fragment` definition is used to represents additional information,
+/// indicating how further bytes should be parsed.
+/// This approach saves whole byte per `Fragment`, which while may seem insignificant and
+/// introduces extra complexity, quickly adds up when faced with sphinx packet encapsulation for longer
+/// messages.
+/// Finally, the reason 0 id is not allowed is to explicitly distinguish it from unfragmented
+/// `Fragment`s thus allowing for some additional optimizations by letting it skip
+/// certain procedures when reconstructing.
 fn generate_set_id<R: Rng>(rng: &mut R) -> i32 {
     let potential_id = rng.gen::<i32>().abs();
     // make sure id is always non-zero, as we do not want to accidentally have weird

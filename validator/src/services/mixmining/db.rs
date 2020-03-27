@@ -4,14 +4,16 @@ use super::Mixnode;
 /// stake assigned to them.
 #[derive(Clone, Debug, PartialEq)]
 pub struct MixminingDb {
-    pub mixnodes: Box<Vec<Mixnode>>,
+    pub mixnodes: Vec<Mixnode>,
+    pub capacity: u32,
 }
 
 impl MixminingDb {
     pub fn new() -> MixminingDb {
-        let mut mixnodes = Vec::<Mixnode>::new();
+        let mixnodes = Vec::<Mixnode>::new();
         MixminingDb {
-            mixnodes: Box::new(mixnodes),
+            capacity: 0,
+            mixnodes,
         }
     }
 }

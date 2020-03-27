@@ -40,6 +40,16 @@ impl Service {
     pub fn add(&self, mixnode: Mixnode) {
         println!("Adding mixnode: {:?}", mixnode);
     }
+
+    pub fn set_capacity(mut self, capacity: u32) {
+        self.db.capacity = capacity;
+    }
+
+    /// A fake capacity, so we can take the top n mixnodes based on stake
+    fn capacity(&self) -> u32 {
+        6
+    }
+
     /*
 
     /// Update (or create) a given mixnode stake, identified by the mixnode's public key
@@ -53,10 +63,6 @@ impl Service {
         // hit the database
     }
 
-    /// A fake capacity, so we can take the top n mixnodes based on stake
-    fn capacity(&self) -> u32 {
-        6
-    }
 
     /// Remove a mixnode from the active set in a way that does not impact its stake.
     /// In a more built-out system, this method would mean:
@@ -106,5 +112,21 @@ mod test_constructor {
         let service = Service::new(db.clone());
 
         assert_eq!(db, service.db);
+    }
+}
+
+#[cfg(test)]
+mod test_setting_capacity {
+    use super::*;
+
+    #[test]
+    fn setting_capacity_sends_correct_value_to_datastore() {
+        let mock_db = db::MixminingDb::new();
+        let mut service = Service::new(mock_db);
+        let cap = 3;
+
+        service.set_capacity(cap);
+
+        assert_eq!(3, service.db.capacity);
     }
 }

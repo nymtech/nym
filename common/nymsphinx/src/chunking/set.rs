@@ -5,27 +5,40 @@ use crate::chunking::fragment::{
 };
 use rand::Rng;
 
-// max 255 fragments, each having max size
+/// In the simplest case of message being divided into a single set, the set has the upper bound
+/// on its payload length of the maximum number of `Fragment`s multiplied by their maximum,
+/// fragmented, length.
 pub const MAX_UNLINKED_SET_PAYLOAD_LENGTH: usize =
     u8::max_value() as usize * UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN;
 
-// one header (either head or tail) is changed into linked
+/// If the set is being linked to another one, by either being the very first set, or the very last,
+/// one of its `Fragment`s must be changed from "unlinked" into "linked" to compensate for a tiny
+/// bit extra data overhead: id of the other set.
+/// Note that the "MAX" prefix only applies to if the set is the last one as it does not have
+/// a lower bound on its length. If the set is one way linked and a first one, it *must have*
+/// this exact payload length instead.
 pub const MAX_ONE_WAY_LINKED_SET_PAYLOAD_LENGTH: usize = MAX_UNLINKED_SET_PAYLOAD_LENGTH
     - (LINKED_FRAGMENTED_HEADER_LEN - UNLINKED_FRAGMENTED_HEADER_LEN);
 
-// two headers (head and tail) are changed into linked
-// note that there is no maximum, if it's two-way linked, it means it MUST BE full length
+/// If the set is being linked two others sets by being stuck in the middle of divided message,
+/// two of its `Fragment`s (first and final one) must be changed from
+/// "unlinked" into "linked" to compensate for data overhead.
+/// Note that this constant no longer has a "MAX" prefix, this is because each set being stuck
+/// between different sets, *must* have this exact payload length.
 pub const TWO_WAY_LINKED_SET_PAYLOAD_LENGTH: usize = MAX_UNLINKED_SET_PAYLOAD_LENGTH
     - 2 * (LINKED_FRAGMENTED_HEADER_LEN - UNLINKED_FRAGMENTED_HEADER_LEN);
 
 /// `FragmentSet` is an ordered collection of 1 to 255 `Fragment`s, each with the same ID
 /// that can be used to produce original message, assuming no linking took place.
 ///
-/// Otherwise, if set linking took place, then first or last `Fragment` from the `FragmentSet` is used to
-/// determine preceding or succeeding other `FragmentSet` that should be used in tandem
-/// to reconstruct original message.
+/// Otherwise, if set linking took place, then first or last `Fragment` from the `FragmentSet`
+/// is used to determine preceding or succeeding other `FragmentSet`
+/// that should be used in tandem to reconstruct original message. The linking reconstruction
+/// is a recursive process as a message could have been divided into an arbitrary number of
+/// `FragmentSet`s with no upper bound at all.
 ///
-/// For example if a message was divided into 300 Fragments, the structures might look as follows:
+/// For example if a message was divided into 300 `Fragment`s (i.e. 2 `FragmentSet`s,
+/// the structures might look as follows:
 ///
 /// Set1: [f1 {id = 12345}, f2 {id = 12345},  ... f255 {id = 12345, next_id = 54321}]
 /// Set2: [f1 {id = 54321, previous_id = 12345}, f2 {id = 54321}, ... f45 {id = 54321}]

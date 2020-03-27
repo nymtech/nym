@@ -1650,6 +1650,7 @@ name = "nymsphinx"
 version = "0.1.0"
 dependencies = [
  "addressing",
+ "log 0.4.8",
  "rand 0.7.3",
  "sphinx",
  "topology",

@@ -2,18 +2,19 @@ use std::convert::TryInto;
 
 use crate::chunking::ChunkingError;
 
+pub const MAXIMUM_FRAGMENT_LENGTH: usize = sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH;
+
 // if it's unfragmented, we only need a single bit to represent the fragmentation flag.
 // however, we operate on bytes hence we need a full byte for it
 pub const UNFRAGMENTED_HEADER_LEN: usize = 1;
 pub const UNLINKED_FRAGMENTED_HEADER_LEN: usize = 7;
 pub const LINKED_FRAGMENTED_HEADER_LEN: usize = 10;
 
-pub const UNFRAGMENTED_PAYLOAD_MAX_LEN: usize =
-    sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH - UNFRAGMENTED_HEADER_LEN;
+pub const UNFRAGMENTED_PAYLOAD_MAX_LEN: usize = MAXIMUM_FRAGMENT_LENGTH - UNFRAGMENTED_HEADER_LEN;
 pub const UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN: usize =
-    sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH - UNLINKED_FRAGMENTED_HEADER_LEN;
+    MAXIMUM_FRAGMENT_LENGTH - UNLINKED_FRAGMENTED_HEADER_LEN;
 pub const LINKED_FRAGMENTED_PAYLOAD_MAX_LEN: usize =
-    sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH - LINKED_FRAGMENTED_HEADER_LEN;
+    MAXIMUM_FRAGMENT_LENGTH - LINKED_FRAGMENTED_HEADER_LEN;
 
 #[derive(PartialEq, Clone, Debug)]
 pub(crate) struct Fragment {
@@ -22,7 +23,7 @@ pub(crate) struct Fragment {
 }
 
 impl Fragment {
-    fn try_new_fragmented(
+    pub(crate) fn try_new_fragmented(
         payload: &[u8],
         id: i32,
         total_fragments: u8,
@@ -30,26 +31,63 @@ impl Fragment {
         previous_fragments_set_id: Option<i32>,
         next_fragments_set_id: Option<i32>,
     ) -> Result<Self, ChunkingError> {
+        let header = FragmentHeader::try_new_fragmented(
+            id,
+            total_fragments,
+            current_fragment,
+            previous_fragments_set_id,
+            next_fragments_set_id,
+        )?;
+
+        // checks for whether it's a valid combination of being linked, number of fragments,
+        // etc. are happening when creating header
+
+        // check for whether payload has expected length, which depend on whether fragment is linked
+        // and if it's the only one or the last one in the set (then lower bound is removed)
+        if previous_fragments_set_id.is_some() {
+            if total_fragments > 1 {
+                if payload.len() != LINKED_FRAGMENTED_PAYLOAD_MAX_LEN {
+                    return Err(ChunkingError::InvalidPayloadLengthError);
+                }
+            } else {
+                if payload.len() > LINKED_FRAGMENTED_PAYLOAD_MAX_LEN {
+                    return Err(ChunkingError::InvalidPayloadLengthError);
+                }
+            }
+        } else if next_fragments_set_id.is_some() {
+            if payload.len() != LINKED_FRAGMENTED_PAYLOAD_MAX_LEN {
+                return Err(ChunkingError::InvalidPayloadLengthError);
+            }
+        } else {
+            if total_fragments != current_fragment {
+                if payload.len() != UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN {
+                    return Err(ChunkingError::InvalidPayloadLengthError);
+                }
+            } else {
+                if payload.len() > UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN {
+                    return Err(ChunkingError::InvalidPayloadLengthError);
+                }
+            }
+        }
+
         Ok(Fragment {
-            header: FragmentHeader::try_new_fragmented(
-                id,
-                total_fragments,
-                current_fragment,
-                previous_fragments_set_id,
-                next_fragments_set_id,
-            )?,
+            header,
             payload: payload.to_vec(),
         })
     }
 
-    fn new_unfragmented(payload: &[u8]) -> Self {
-        Fragment {
-            header: FragmentHeader::new_unfragmented(),
-            payload: payload.to_vec(),
+    pub(crate) fn try_new_unfragmented(payload: &[u8]) -> Result<Self, ChunkingError> {
+        if payload.len() > UNFRAGMENTED_PAYLOAD_MAX_LEN {
+            Err(ChunkingError::InvalidPayloadLengthError)
+        } else {
+            Ok(Fragment {
+                header: FragmentHeader::new_unfragmented(),
+                payload: payload.to_vec(),
+            })
         }
     }
 
-    fn into_bytes(self) -> Vec<u8> {
+    pub(crate) fn into_bytes(self) -> Vec<u8> {
         self.header
             .to_bytes()
             .into_iter()
@@ -57,7 +95,31 @@ impl Fragment {
             .collect()
     }
 
-    fn try_from_bytes(b: &[u8]) -> Result<Self, ChunkingError> {
+    pub(crate) fn id(&self) -> i32 {
+        self.header.id
+    }
+
+    pub(crate) fn total_fragments(&self) -> u8 {
+        self.header.total_fragments
+    }
+
+    pub(crate) fn current_fragment(&self) -> u8 {
+        self.header.current_fragment
+    }
+
+    pub(crate) fn previous_fragments_set_id(&self) -> Option<i32> {
+        self.header.previous_fragments_set_id
+    }
+
+    pub(crate) fn next_fragments_set_id(&self) -> Option<i32> {
+        self.header.next_fragments_set_id
+    }
+
+    pub(crate) fn extract_payload(self) -> Vec<u8> {
+        self.payload
+    }
+
+    pub(crate) fn try_from_bytes(b: &[u8]) -> Result<Self, ChunkingError> {
         let (header, n) = FragmentHeader::try_from_bytes(b)?;
 
         // determine what's our expected payload size bound and whether the message fits in this
@@ -142,7 +204,7 @@ impl FragmentHeader {
         previous_fragments_set_id: Option<i32>,
         next_fragments_set_id: Option<i32>,
     ) -> Result<Self, ChunkingError> {
-        if id < 0 {
+        if id <= 0 {
             return Err(ChunkingError::MalformedHeaderError);
         }
         if total_fragments < current_fragment {
@@ -155,12 +217,12 @@ impl FragmentHeader {
             return Err(ChunkingError::MalformedHeaderError);
         }
         if let Some(pfid) = previous_fragments_set_id {
-            if pfid < 0 || current_fragment != 1 || pfid == id {
+            if pfid <= 0 || current_fragment != 1 || pfid == id {
                 return Err(ChunkingError::MalformedHeaderError);
             }
         }
         if let Some(nfid) = next_fragments_set_id {
-            if nfid < 0 || current_fragment != total_fragments || nfid == id {
+            if nfid <= 0 || current_fragment != total_fragments || nfid == id {
                 return Err(ChunkingError::MalformedHeaderError);
             }
         }
@@ -568,6 +630,148 @@ mod fragment {
             Err(ChunkingError::MalformedFragmentData)
         );
     }
+
+    #[test]
+    fn unfragmented_fragment_can_be_created_with_payload_of_valid_length() {
+        let payload = [1u8; UNFRAGMENTED_PAYLOAD_MAX_LEN];
+        assert!(Fragment::try_new_unfragmented(&payload).is_ok());
+
+        let payload = [1u8; UNFRAGMENTED_PAYLOAD_MAX_LEN - 1];
+        assert!(Fragment::try_new_unfragmented(&payload).is_ok());
+
+        let payload = [1u8; UNFRAGMENTED_PAYLOAD_MAX_LEN - 20];
+        assert!(Fragment::try_new_unfragmented(&payload).is_ok());
+    }
+
+    #[test]
+    fn unfragmented_fragment_returns_error_when_created_with_payload_of_invalid_length() {
+        let payload = [1u8; UNFRAGMENTED_PAYLOAD_MAX_LEN + 1];
+        assert!(Fragment::try_new_unfragmented(&payload).is_err());
+
+        let payload = [1u8; UNFRAGMENTED_PAYLOAD_MAX_LEN + 20];
+        assert!(Fragment::try_new_unfragmented(&payload).is_err());
+    }
+
+    #[test]
+    fn unlinked_fragment_can_be_created_with_payload_of_valid_length() {
+        let id = 12345;
+        let full_payload = [1u8; UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN];
+        let non_full_payload = [1u8; UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 1];
+        let non_full_payload2 = [1u8; UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 20];
+
+        assert!(Fragment::try_new_fragmented(&full_payload, id, 10, 1, None, None).is_ok());
+        assert!(Fragment::try_new_fragmented(&full_payload, id, 10, 5, None, None).is_ok());
+        assert!(Fragment::try_new_fragmented(&full_payload, id, 10, 10, None, None).is_ok());
+        assert!(Fragment::try_new_fragmented(&full_payload, id, 1, 1, None, None).is_ok());
+
+        assert!(Fragment::try_new_fragmented(&non_full_payload, id, 10, 10, None, None).is_ok());
+        assert!(Fragment::try_new_fragmented(&non_full_payload, id, 1, 1, None, None).is_ok());
+
+        assert!(Fragment::try_new_fragmented(&non_full_payload2, id, 10, 10, None, None).is_ok());
+        assert!(Fragment::try_new_fragmented(&non_full_payload2, id, 1, 1, None, None).is_ok());
+    }
+
+    #[test]
+    fn unlinked_fragment_returns_error_when_created_with_payload_of_invalid_length() {
+        let id = 12345;
+        let non_full_payload = [1u8; UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 1];
+        let non_full_payload2 = [1u8; UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 20];
+        let too_much_payload = [1u8; UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN + 1];
+
+        assert!(Fragment::try_new_fragmented(&non_full_payload, id, 10, 1, None, None).is_err());
+        assert!(Fragment::try_new_fragmented(&non_full_payload, id, 10, 5, None, None).is_err());
+
+        assert!(Fragment::try_new_fragmented(&too_much_payload, id, 10, 1, None, None).is_err());
+        assert!(Fragment::try_new_fragmented(&too_much_payload, id, 10, 5, None, None).is_err());
+        assert!(Fragment::try_new_fragmented(&too_much_payload, id, 1, 1, None, None).is_err());
+
+        assert!(Fragment::try_new_fragmented(&non_full_payload2, id, 10, 1, None, None).is_err());
+        assert!(Fragment::try_new_fragmented(&non_full_payload2, id, 10, 5, None, None).is_err());
+    }
+
+    #[test]
+    fn linked_fragment_can_be_created_with_payload_of_valid_length() {
+        let id = 12345;
+        let link_id = 1234;
+        let full_payload = [1u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN];
+        let non_full_payload = [1u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 1];
+        let non_full_payload2 = [1u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 20];
+
+        assert!(
+            Fragment::try_new_fragmented(&full_payload, id, 10, 1, Some(link_id), None).is_ok()
+        );
+        assert!(Fragment::try_new_fragmented(&full_payload, id, 1, 1, Some(link_id), None).is_ok());
+        assert!(
+            Fragment::try_new_fragmented(&non_full_payload, id, 1, 1, Some(link_id), None).is_ok()
+        );
+        assert!(
+            Fragment::try_new_fragmented(&non_full_payload2, id, 1, 1, Some(link_id), None).is_ok()
+        );
+
+        assert!(Fragment::try_new_fragmented(
+            &full_payload,
+            id,
+            u8::max_value(),
+            u8::max_value(),
+            None,
+            Some(link_id)
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn linked_fragment_returns_error_when_created_with_payload_of_invalid_length() {
+        let id = 12345;
+        let link_id = 1234;
+        let non_full_payload = [1u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 1];
+        let non_full_payload2 = [1u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 20];
+        let too_much_payload = [1u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN + 1];
+
+        assert!(
+            Fragment::try_new_fragmented(&non_full_payload, id, 10, 1, Some(link_id), None)
+                .is_err()
+        );
+        assert!(
+            Fragment::try_new_fragmented(&non_full_payload2, id, 10, 1, Some(link_id), None)
+                .is_err()
+        );
+        assert!(
+            Fragment::try_new_fragmented(&too_much_payload, id, 10, 1, Some(link_id), None)
+                .is_err()
+        );
+        assert!(
+            Fragment::try_new_fragmented(&too_much_payload, id, 1, 1, Some(link_id), None).is_err()
+        );
+
+        assert!(Fragment::try_new_fragmented(
+            &non_full_payload,
+            id,
+            u8::max_value(),
+            u8::max_value(),
+            None,
+            Some(link_id)
+        )
+        .is_err());
+        assert!(Fragment::try_new_fragmented(
+            &non_full_payload2,
+            id,
+            u8::max_value(),
+            u8::max_value(),
+            None,
+            Some(link_id)
+        )
+        .is_err());
+
+        assert!(Fragment::try_new_fragmented(
+            &too_much_payload,
+            id,
+            u8::max_value(),
+            u8::max_value(),
+            None,
+            Some(link_id)
+        )
+        .is_err());
+    }
 }
 
 #[cfg(test)]
@@ -721,8 +925,17 @@ mod fragment_header {
         }
 
         #[test]
-        fn creation_of_header_does_not_fail_for_zero_id() {
-            assert!(FragmentHeader::try_new_fragmented(0, 10, 5, None, None).is_ok());
+        fn fragmented_header_cannot_be_created_with_zero_id() {
+            assert!(FragmentHeader::try_new_fragmented(0, 10, 5, None, None).is_err());
+            assert!(FragmentHeader::try_new_fragmented(12345, 10, 5, Some(0), None).is_err());
+            assert!(FragmentHeader::try_new_fragmented(
+                12345,
+                u8::max_value(),
+                u8::max_value(),
+                None,
+                Some(0)
+            )
+            .is_err());
         }
 
         #[test]

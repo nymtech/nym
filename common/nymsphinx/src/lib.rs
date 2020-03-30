@@ -1,5 +1,4 @@
 pub mod chunking;
-pub mod reconstruction;
 
 // Future consideration: currently in a lot of places, the payloads have randomised content
 // which is not a perfect testing strategy as it might not detect some edge cases I never would

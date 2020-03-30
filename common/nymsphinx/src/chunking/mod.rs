@@ -6,6 +6,7 @@ use std::time;
 use topology::{NymTopology, NymTopologyError};
 
 pub mod fragment;
+pub mod reconstruction;
 pub mod set;
 
 /// The idea behind the process of chunking is to incur as little data overhead as possible due

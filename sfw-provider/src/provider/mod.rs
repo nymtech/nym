@@ -25,7 +25,7 @@ impl ServiceProvider {
             .read_encryption()
             .expect("Failed to read stored sphinx key files");
         println!(
-            "Public encryption key: {}\nFor time being, it is identical to identity keys",
+            "Public key: {}\n",
             sphinx_keypair.public_key().to_base58_string()
         );
         sphinx_keypair

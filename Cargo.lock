@@ -1552,6 +1552,7 @@ dependencies = [
  "log 0.4.8",
  "mix-client",
  "multi-tcp-client",
+ "nymsphinx",
  "pem",
  "pemstore",
  "pretty_env_logger",

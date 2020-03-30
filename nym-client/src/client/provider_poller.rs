@@ -78,6 +78,10 @@ impl ProviderPoller {
                 Ok(messages) => messages,
             };
 
+            // todo: this will probably need to be updated at some point due to changed structure
+            // of nym-sphinx messages sent. However, for time being this is still compatible.
+            // Basically it is more of a personal note of if client keeps getting errors and is
+            // not getting messages, look at this filter here.
             let good_messages = messages
                 .into_iter()
                 .filter(|message| message != loop_message && message != dummy_message)

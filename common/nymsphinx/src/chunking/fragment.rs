@@ -1,21 +1,46 @@
+use crate::chunking::ChunkingError;
 use std::convert::TryInto;
 
-use crate::chunking::ChunkingError;
-
+/// The entire marshaled `Fragment` can never be longer than the maximum length of the plaintext
+/// data we can put into a Sphinx packet.
 pub const MAXIMUM_FRAGMENT_LENGTH: usize = sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH;
 
-// if it's unfragmented, we only need a single bit to represent the fragmentation flag.
-// however, we operate on bytes hence we need a full byte for it
+/// The minimum data overhead required for message fitting into a single `Fragment`. The single byte
+/// used to literally indicate "this message is not fragmented".
 pub const UNFRAGMENTED_HEADER_LEN: usize = 1;
+
+/// When the underlying message has to be split into multiple Fragments, but still manages to fit
+/// into a single `FragmentSet`, each `FragmentHeader` needs to hold additional information to allow
+/// for correct message reconstruction: 4 bytes for set id, 1 byte to represent total number
+/// of fragments in the set, 1 byte to represent position of the current fragment in the set
+/// and finally an extra byte to indicate the fragment has no links to other sets.
 pub const UNLINKED_FRAGMENTED_HEADER_LEN: usize = 7;
+
+/// Logically almost identical to `UNLINKED_FRAGMENTED_HEADER_LEN`, however, the extra three
+/// bytes are due to changing the final byte that used to indicate the `Fragment` is not linked
+/// into 4 byte id of either previous or the next set.
+/// Note that the linked headers can potentially be used only for very first and very last
+/// `Fragment` in a `FragmentSet`.
 pub const LINKED_FRAGMENTED_HEADER_LEN: usize = 10;
 
+/// Maximum size of payload of each fragment is always the maximum amount of plaintext data
+/// we can put into a sphinx packet minus length of respective fragment header.
 pub const UNFRAGMENTED_PAYLOAD_MAX_LEN: usize = MAXIMUM_FRAGMENT_LENGTH - UNFRAGMENTED_HEADER_LEN;
+
+/// Maximum size of payload of each fragment is always the maximum amount of plaintext data
+/// we can put into a sphinx packet minus length of respective fragment header.
 pub const UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN: usize =
     MAXIMUM_FRAGMENT_LENGTH - UNLINKED_FRAGMENTED_HEADER_LEN;
+
+/// Maximum size of payload of each fragment is always the maximum amount of plaintext data
+/// we can put into a sphinx packet minus length of respective fragment header.
 pub const LINKED_FRAGMENTED_PAYLOAD_MAX_LEN: usize =
     MAXIMUM_FRAGMENT_LENGTH - LINKED_FRAGMENTED_HEADER_LEN;
 
+/// The basic unit of division of underlying bytes message sent through the mix network.
+/// Each `Fragment` after being marshaled is guaranteed to fit into a single sphinx packet.
+/// The `Fragment` itself consists of part, or whole of, message to be sent as well as additional
+/// header used to reconstruct the message after being received.
 #[derive(PartialEq, Clone, Debug)]
 pub(crate) struct Fragment {
     header: FragmentHeader,
@@ -23,6 +48,9 @@ pub(crate) struct Fragment {
 }
 
 impl Fragment {
+    /// Tries to encapsulate provided payload slice and metadata into a `Fragment`.
+    /// It can fail if payload would not fully fit in a single `Fragment` or some of the metadata
+    /// is malformed or self-contradictory, for example if current_fragment > total_fragments.
     pub(crate) fn try_new_fragmented(
         payload: &[u8],
         id: i32,
@@ -38,9 +66,6 @@ impl Fragment {
             previous_fragments_set_id,
             next_fragments_set_id,
         )?;
-
-        // checks for whether it's a valid combination of being linked, number of fragments,
-        // etc. are happening when creating header
 
         // check for whether payload has expected length, which depend on whether fragment is linked
         // and if it's the only one or the last one in the set (then lower bound is removed)
@@ -76,6 +101,8 @@ impl Fragment {
         })
     }
 
+    /// The most efficient way of representing underlying message incurring the least data overhead
+    /// for as long as the message can fit into a single, unfragmented, `Fragment`.
     pub(crate) fn try_new_unfragmented(payload: &[u8]) -> Result<Self, ChunkingError> {
         if payload.len() > UNFRAGMENTED_PAYLOAD_MAX_LEN {
             Err(ChunkingError::InvalidPayloadLengthError)
@@ -87,6 +114,7 @@ impl Fragment {
         }
     }
 
+    /// Convert this `Fragment` into vector of bytes which can be put into a sphinx packet.
     pub(crate) fn into_bytes(self) -> Vec<u8> {
         self.header
             .to_bytes()
@@ -95,30 +123,41 @@ impl Fragment {
             .collect()
     }
 
+    /// Extracts id of this `Fragment`.
     pub(crate) fn id(&self) -> i32 {
         self.header.id
     }
 
+    /// Extracts total number of fragments associated with this particular `Fragment` (belonging to
+    /// the same `FragmentSet`).
     pub(crate) fn total_fragments(&self) -> u8 {
         self.header.total_fragments
     }
 
+    /// Extracts position of this `Fragment` in a `FragmentSet`.
     pub(crate) fn current_fragment(&self) -> u8 {
         self.header.current_fragment
     }
 
+    /// Extracts information regarding id of pre-linked `FragmentSet`
     pub(crate) fn previous_fragments_set_id(&self) -> Option<i32> {
         self.header.previous_fragments_set_id
     }
 
+    /// Extracts information regarding id of post-linked `FragmentSet`
     pub(crate) fn next_fragments_set_id(&self) -> Option<i32> {
         self.header.next_fragments_set_id
     }
 
+    /// Consumes `Self` to obtain payload (i.e. part of original message) associated with this
+    /// `Fragment`.
     pub(crate) fn extract_payload(self) -> Vec<u8> {
         self.payload
     }
 
+    /// Tries to recover `Fragment` from slice of bytes extracted from received sphinx packet.
+    /// It can fail if payload would not fully fit in a single `Fragment` or some of the metadata
+    /// is malformed or self-contradictory, for example if current_fragment > total_fragments.
     pub(crate) fn try_from_bytes(b: &[u8]) -> Result<Self, ChunkingError> {
         let (header, n) = FragmentHeader::try_from_bytes(b)?;
 
@@ -152,23 +191,31 @@ impl Fragment {
     }
 }
 
-/// The generic FragmentHeader is represented as follows:
+/// In order to be able to re-assemble fragmented message sent through a mix-network, some
+/// metadata is attached alongside the actual message payload. The idea is to include as little
+/// of that data as possible due to computationally very costly process of sphinx encapsulation.
+///
+/// The generic `FragmentHeader` is represented as follows:
 /// IF flag || 31 bit ID || TotalFragments || CurrentFragment || LID flag || 31 bit Linked ID
-/// note that LID is a valid flag only for first and last fragment in given set.
+/// note that LID is a valid flag only for first and
+/// last fragment (if TotalFragments == CurrentFragment == 255) in given set.
 ///
-/// further note that if IF is not set, then the remaining bytes in the header are used as payload
-/// and also note that if LID is not set, then the Linked ID bytes in the header are used as payload
+/// further note that if IF (isFragmented) is not set,
+/// then the remaining bytes of the header are used as payload and also note that if LID is not set,
+/// then the Linked ID bytes in the header are used as payload.
 ///
-/// Hence the 3 marshalled alternatives are possible:
-/// Single byte representing fragment that is the only one in the set:
+/// Hence after marshaling `FragmentHeader` into bytes,
+/// the following three alternatives are possible:
+///
+/// Single byte representing that the `Fragment` is the only one into which the message was split.
 /// '0'byte
 ///
-/// 7 byte long sequence representing one of multiple fragments in the set.
+/// 7 byte long sequence representing that this `Fragment` is one of multiple ones in the set.
 /// However, the set is not linked to any other sets:
 /// '1'bit || 31-bit ID || 1-byte TF || 1 byte CF || '0'byte
 ///
 /// 10 byte sequence representing first (or last) fragment in the set,
-/// where the set is linked to either preceding data (TF == 1) or proceeding data (TF == CF)
+/// where the set is linked to either preceding data (TF == 1) or proceeding data (TF == CF == 255)
 /// '1'bit || 31-bit ID || 1-byte TF || 1 byte CF || '1'bit || 31-bit LID
 ///
 /// And hence for messages smaller than sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH,
@@ -177,26 +224,43 @@ impl Fragment {
 /// to avoid set division (which happens if message has to be fragmented into more than 255 fragments)
 /// there is 7 bytes of overhead inside each sphinx packet sent
 /// and finally for the longest messages, without upper bound, there is usually also only 7 bytes
-/// of overhead apart from first and last fragments in each set that have 10 bytes of overhead instead.
+/// of overhead apart from first and last fragments in each set that instead have 10 bytes of overhead.
 #[derive(PartialEq, Clone, Debug)]
 pub(crate) struct FragmentHeader {
+    /// Flag used to indicate whether this `Fragment` is the only one into which original
+    /// message was split.
+    /// If so, rest of the fields are meaningless as they are set to their default values
+    /// the whole time and serve no purpose when marshaling or unmarshaling a `FragmentHeader`
     is_fragmented: bool,
-    // id is a value in the 0, I32_MAX range
+
+    /// ID associated with `FragmentSet` to which this particular `Fragment` belongs.
+    /// Its value is restricted to (0, i32::max_value()].
+    /// Note that it *excludes* 0, but *includes* i32::max_value().
+    /// This allows the field to be represented using 31 bits.
     id: i32,
-    // since payload is always fragmented into packets of constant length
-    // (apart from possibly the last one), there's no need to use offsets like ipv4/ipv6.
-    // just enumerate the fragments.
+
+    /// Total number of `Fragment`s in `FragmentSet` used to be able to determine if entire
+    /// set was fully received as well as to perform bound checks.
     total_fragments: u8,
+
+    /// Since message is always fragmented into payloads of constant lengths
+    /// (apart from possibly the last one), there's no need to use offsets like ipv4/ipv6
+    /// and we can just simply enumerate the fragments to later reconstruct the message.
     current_fragment: u8,
 
-    // only valid for if current_fragment == 1
+    /// Optional ID of previous `FragmentSet` into which the original message was split.
+    /// Note, this option is only valid of `current_fragment == 1`
     previous_fragments_set_id: Option<i32>,
 
-    // only valid if total_fragments == current_fragment == u8::max_value()
+    /// Optional ID of next `FragmentSet` into which the original message was split.
+    /// Note, this option is only valid of `current_fragment == total_fragments == u8::max_value()`
     next_fragments_set_id: Option<i32>,
 }
 
 impl FragmentHeader {
+    /// Tries to create a new `FragmentHeader` using provided metadata. Bunch of logical
+    /// checks are performed to see if the data is not self-contradictory,
+    /// for example if current_fragment > total_fragments.
     fn try_new_fragmented(
         id: i32,
         total_fragments: u8,
@@ -237,6 +301,8 @@ impl FragmentHeader {
         })
     }
 
+    /// When unfragmented header is created, no checks need to happen as there is no variability
+    /// in the values of its fields. All of them always have the same, default, values.
     fn new_unfragmented() -> Self {
         FragmentHeader {
             is_fragmented: false,
@@ -248,8 +314,9 @@ impl FragmentHeader {
         }
     }
 
-    /// `try_from_bytes` tries to recover `FragmentHeader` from bytes.
-    /// If successful, returns `Self` and number of bytes used.
+    /// Tries to recover `FragmentHeader` from slice of bytes extracted from received sphinx packet.
+    /// If successful, returns `Self` and number of bytes used, as those can differ based on the
+    /// type of header (unfragmented, unlinked, linked).
     fn try_from_bytes(b: &[u8]) -> Result<(Self, usize), ChunkingError> {
         if b.is_empty() {
             return Err(ChunkingError::TooShortFragmentData);
@@ -320,22 +387,18 @@ impl FragmentHeader {
         }
     }
 
-    fn is_fragmented(&self) -> bool {
-        self.is_fragmented
-    }
-
+    /// Helper method to determine if this `FragmentHeader` is used to represent a linked `Fragment`.
     fn is_linked(&self) -> bool {
         self.previous_fragments_set_id.is_some() || self.next_fragments_set_id.is_some()
     }
 
-    fn is_first(&self) -> bool {
-        self.current_fragment == 1
-    }
-
+    /// Helper method to determine if this `FragmentHeader` is used to represent a `Fragment` that
+    /// is a final one in some `FragmentSet`.
     fn is_final(&self) -> bool {
         self.total_fragments == self.current_fragment
     }
 
+    /// Marshal this `FragmentHeader` into vector of bytes which can be put into a sphinx packet.
     fn to_bytes(&self) -> Vec<u8> {
         if self.is_fragmented {
             let frag_id = self.id | (1 << 31);

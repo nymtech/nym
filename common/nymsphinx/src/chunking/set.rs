@@ -69,22 +69,26 @@ fn generate_set_id<R: Rng>(rng: &mut R) -> i32 {
     }
 }
 
+/// The simplest case of splitting underlying message - when it fits into a single
+/// `Fragment` thus requiring no linking or even a set id.
+/// For obvious reasons the most efficient approach.
 fn prepare_unfragmented_set(message: &[u8]) -> FragmentSet {
     vec![Fragment::try_new_unfragmented(&message).unwrap()]
 }
 
+/// Splits underlying message into multiple `Fragment`s while all of them fit in a single
+/// `Set` (number of `Fragment`s <= 255)
 fn prepare_unlinked_fragmented_set(message: &[u8], id: i32) -> FragmentSet {
     let pre_casted_frags =
         (message.len() as f64 / UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN as f64).ceil() as usize;
-    if pre_casted_frags > u8::max_value() as usize {
-        panic!("message would produce too many fragments!")
-    };
+
+    debug_assert!(pre_casted_frags <= u8::max_value() as usize);
     let num_fragments = pre_casted_frags as u8;
 
     let mut fragments = Vec::with_capacity(num_fragments as usize);
 
     for i in 1..(pre_casted_frags + 1) {
-        // we can't use u8 directly here as upper (NON-INCLUSIVE, so i would always fit) bound could be u8::max_value() + 1
+        // we can't use u8 directly here as upper (NON-INCLUSIVE, so it would always fit) bound could be u8::max_value() + 1
         let lb = (i as usize - 1) * UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN;
         let ub = usize::min(
             message.len(),
@@ -99,6 +103,10 @@ fn prepare_unlinked_fragmented_set(message: &[u8], id: i32) -> FragmentSet {
     fragments
 }
 
+/// Similarly to `prepare_unlinked_fragmented_set`, splits part of underlying message into
+/// multiple `Fragment`s. The byte slice of the message *must* fit into a single linked set, however,
+/// the whole message itself is still longer than a single `Set` (number of `Fragment`s > 255).
+/// During the process of splitting message, this function is called multiple times.
 fn prepare_linked_fragment_set(
     message: &[u8],
     id: i32,
@@ -158,6 +166,7 @@ fn prepare_linked_fragment_set(
     fragments
 }
 
+/// Based on total message length, determines the number of sets into which it is going to be split.
 fn total_number_of_sets(message_len: usize) -> usize {
     if message_len <= MAX_UNLINKED_SET_PAYLOAD_LENGTH {
         1
@@ -172,6 +181,8 @@ fn total_number_of_sets(message_len: usize) -> usize {
     }
 }
 
+/// Given part of the underlying message as well id of the set as well as its potential linked sets,
+/// correctly delegates to appropriate set constructor.
 fn prepare_fragment_set(
     message: &[u8],
     id: i32,
@@ -189,6 +200,7 @@ fn prepare_fragment_set(
     }
 }
 
+/// Entry point for splitting whole message into possibly multiple `Set`s.
 pub(crate) fn split_into_sets(message: &[u8]) -> Vec<FragmentSet> {
     use rand::thread_rng;
 

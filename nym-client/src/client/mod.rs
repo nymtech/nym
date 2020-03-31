@@ -153,7 +153,7 @@ impl NymClient {
             panic!(
                 "The current network topology seem to be insufficient to route any packets through\
              - check if enough nodes and a sfw-provider are online"
-        );
+            );
         }
 
         // TODO: a slightly more graceful termination here
@@ -271,12 +271,12 @@ impl NymClient {
             let destination_copy =
                 Destination::new(destination.address.clone(), destination.identifier);
             let input_msg = InputMessage(destination_copy, message_fragment);
-        self.input_tx
-            .as_ref()
-            .expect("start method was not called before!")
+            self.input_tx
+                .as_ref()
+                .expect("start method was not called before!")
                 .unbounded_send(input_msg)
-            .unwrap()
-    }
+                .unwrap()
+        }
     }
 
     /// EXPERIMENTAL DIRECT RUST API

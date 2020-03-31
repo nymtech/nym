@@ -253,13 +253,40 @@ impl NymClient {
     }
 
     /// EXPERIMENTAL DIRECT RUST API
-    /// It's entirely untested and there are absolutely no guarantees about it
-    pub fn send_message(&self, destination: Destination, message: Vec<u8>) {
+    /// It's untested and there are absolutely no guarantees about it (but seems to have worked
+    /// well enough in local tests)
+    pub fn send_message(&mut self, destination: Destination, message: Vec<u8>) {
+        let split_message = split_and_prepare_payloads(&message);
+        debug!(
+            "Splitting message into {:?} fragments!",
+            split_message.len()
+        );
+        for message_fragment in split_message {
+            // temporary until Clone is derived on `Destination`:
+            // https://github.com/nymtech/sphinx/pull/50
+            let destination_copy =
+                Destination::new(destination.address.clone(), destination.identifier);
+            let input_msg = InputMessage(destination_copy, message_fragment);
         self.input_tx
             .as_ref()
             .expect("start method was not called before!")
-            .unbounded_send(InputMessage(destination, message))
+                .unbounded_send(input_msg)
             .unwrap()
+    }
+    }
+
+    /// EXPERIMENTAL DIRECT RUST API
+    /// It's untested and there are absolutely no guarantees about it (but seems to have worked
+    /// well enough in local tests)
+    pub async fn check_for_messages_async(&self) -> Vec<Vec<u8>> {
+        let (res_tx, res_rx) = oneshot::channel();
+        self.receive_tx
+            .as_ref()
+            .expect("start method was not called before!")
+            .unbounded_send(res_tx)
+            .unwrap();
+
+        res_rx.await.unwrap()
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)

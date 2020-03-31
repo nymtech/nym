@@ -144,9 +144,13 @@ impl NymClient {
         // we already have our provider written in the config
         let provider_id = self.config.get_provider_id();
 
-        let provider_client_listener_address = self.runtime.block_on(
-            Self::get_provider_socket_address(provider_id, topology_accessor),
+        // TODO: a slightly more graceful termination here
+        if !self.runtime.block_on(topology_accessor.is_routable()) {
+            panic!(
+                "The current network topology seem to be insufficient to route any packets through\
+             - check if enough nodes and a sfw-provider are online"
         );
+        }
 
         // TODO: a slightly more graceful termination here
         let provider_client_listener_address = self.runtime.block_on(

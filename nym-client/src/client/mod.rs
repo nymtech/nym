@@ -38,6 +38,9 @@ pub struct NymClient {
 
     // to be used by "send" function or socket, etc
     input_tx: Option<InputMessageSender>,
+
+    // to be used by "receive" function or socket, etc
+    receive_tx: Option<ReceivedBufferRequestSender>,
 }
 
 #[derive(Debug)]
@@ -64,6 +67,7 @@ impl NymClient {
             config,
             identity_keypair,
             input_tx: None,
+            receive_tx: None,
         }
     }
 
@@ -341,9 +345,10 @@ impl NymClient {
         self.start_real_traffic_stream(shared_topology_accessor.clone(), mix_tx, input_rx);
         self.start_socket_listener(
             shared_topology_accessor,
-            received_messages_buffer_output_tx,
+            received_messages_buffer_output_tx.clone(),
             input_tx.clone(),
         );
         self.input_tx = Some(input_tx);
+        self.receive_tx = Some(received_messages_buffer_output_tx)
     }
 }

@@ -41,13 +41,13 @@ impl Service {
         println!("Adding mixnode: {:?}", mixnode);
     }
 
-    pub fn set_capacity(mut self, capacity: u32) {
+    pub fn set_capacity(&mut self, capacity: u32) {
         self.db.capacity = capacity;
     }
 
     /// A fake capacity, so we can take the top n mixnodes based on stake
     fn capacity(&self) -> u32 {
-        6
+        self.db.capacity
     }
 
     /*
@@ -116,7 +116,7 @@ mod test_constructor {
 }
 
 #[cfg(test)]
-mod test_setting_capacity {
+mod test_capacity {
     use super::*;
 
     #[test]
@@ -128,5 +128,13 @@ mod test_setting_capacity {
         service.set_capacity(cap);
 
         assert_eq!(3, service.db.capacity);
+    }
+
+    #[test]
+    fn test_getting_capacity() {
+        let mut mock_db = db::MixminingDb::new();
+        mock_db.capacity = 3;
+        let service = Service::new(mock_db);
+        assert_eq!(3, service.capacity());
     }
 }

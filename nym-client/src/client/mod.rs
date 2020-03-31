@@ -12,12 +12,12 @@ use crate::config::{Config, SocketType};
 use crate::sockets::{tcp, websocket};
 use crypto::identity::MixIdentityKeyPair;
 use directory_client::presence;
-use futures::channel::mpsc;
+use futures::channel::{mpsc, oneshot};
 use log::*;
+use nymsphinx::chunking::split_and_prepare_payloads;
 use pemstore::pemstore::PemStore;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::Destination;
-use std::net::SocketAddr;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 

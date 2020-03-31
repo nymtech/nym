@@ -35,12 +35,15 @@ impl ReceivedMessagesBuffer {
     }
 
     async fn add_reconstructed_messages(&mut self, msgs: Vec<Vec<u8>>) {
+        debug!("Adding {:?} new messages to the buffer!", msgs.len());
         trace!("Adding new messages to the buffer! {:?}", msgs);
         self.inner.lock().await.messages.extend(msgs)
     }
 
     async fn add_new_message_fragments(&mut self, msgs: Vec<Vec<u8>>) {
+        debug!("Adding {:?} new message fragments to the buffer!", msgs.len());
         trace!("Adding new message fragments to the buffer! {:?}", msgs);
+
         let mut completed_messages = Vec::new();
         let mut inner_guard = self.inner.lock().await;
         for msg_fragment in msgs {

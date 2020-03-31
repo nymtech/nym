@@ -127,7 +127,7 @@ impl ReconstructionBuffer {
 
 /// High level public structure used to buffer all received data `Fragment`s and eventually
 /// returning original messages that they encapsulate.
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Default, PartialEq, Debug, Clone)]
 pub struct MessageReconstructor {
     // TODO: some cleaner thread/routine that if message is incomplete and
     // we haven't received any fragments in X time, we assume they
@@ -143,9 +143,7 @@ pub struct MessageReconstructor {
 impl MessageReconstructor {
     /// Creates an empty `MessageReconstructor`.
     pub fn new() -> Self {
-        MessageReconstructor {
-            reconstructed_sets: HashMap::new(),
-        }
+        Default::default()
     }
 
     /// Given fully received set of given `id`, if it has any post-linked sets, recursively
@@ -247,13 +245,11 @@ impl MessageReconstructor {
         let set_id_sequence: Vec<_> =
             std::iter::successors(Some(starting_id), |&id| self.next_linked_set_id(id)).collect();
 
-        let original_message = set_id_sequence
+        set_id_sequence
             .iter()
             .map(|&id| self.extract_set_payload(id))
             .flat_map(|payload| payload.into_iter())
-            .collect();
-
-        original_message
+            .collect()
     }
 
     /// Given raw `Fragment` data, tries to decode it and add into an appropriate `ReconstructionBuffer`.
@@ -274,7 +270,7 @@ impl MessageReconstructor {
         let buf = self
             .reconstructed_sets
             .entry(set_id)
-            .or_insert(ReconstructionBuffer::new(set_len));
+            .or_insert_with(|| ReconstructionBuffer::new(set_len));
 
         buf.insert_fragment(fragment);
         if self.is_message_fully_received(set_id) {

@@ -62,7 +62,7 @@ impl From<AddressTypeError> for ChunkingError {
         InvalidTopologyError
     }
 }
-
+ 
 // the user of this library can either prepare payloads for sphinx packets that he needs to
 // encapsulate themselves by creating [sphinx] headers.
 // or alternatively provide network topology and get bytes ready to be sent over the network

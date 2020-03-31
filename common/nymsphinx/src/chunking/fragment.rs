@@ -347,9 +347,8 @@ impl FragmentHeader {
             let mut previous_fragments_set_id = None;
             let mut next_fragments_set_id = None;
 
-            let mut read_bytes = 7;
             // check if the linking id flag might be set
-            if b[6] != 0 {
+            let read_bytes = if b[6] != 0 {
                 // there's linking ID supposedly attached, make sure we have enough bytes to parse
                 if b.len() < LINKED_FRAGMENTED_HEADER_LEN {
                     return Err(ChunkingError::TooShortFragmentData);
@@ -371,8 +370,11 @@ impl FragmentHeader {
                 } else {
                     return Err(ChunkingError::MalformedHeaderError);
                 }
-                read_bytes = 10;
-            }
+
+                10
+            } else {
+                7
+            };
 
             Ok((
                 Self::try_new_fragmented(

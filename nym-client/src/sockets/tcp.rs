@@ -95,7 +95,7 @@ impl ClientRequest {
     async fn handle_send(
         msg: Vec<u8>,
         recipient_address: DestinationAddressBytes,
-        mut input_tx: mpsc::UnboundedSender<InputMessage>,
+        input_tx: mpsc::UnboundedSender<InputMessage>,
     ) -> ServerResponse {
         trace!("sending to: {:?}, msg: {:?}", recipient_address, msg);
         let dummy_surb = [0; 16];

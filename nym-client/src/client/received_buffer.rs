@@ -41,7 +41,10 @@ impl ReceivedMessagesBuffer {
     }
 
     async fn add_new_message_fragments(&mut self, msgs: Vec<Vec<u8>>) {
-        debug!("Adding {:?} new message fragments to the buffer!", msgs.len());
+        debug!(
+            "Adding {:?} new message fragments to the buffer!",
+            msgs.len()
+        );
         trace!("Adding new message fragments to the buffer! {:?}", msgs);
 
         let mut completed_messages = Vec::new();

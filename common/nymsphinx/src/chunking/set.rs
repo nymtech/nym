@@ -372,8 +372,6 @@ mod tests {
             let two_element_set = prepare_unlinked_fragmented_set(&two_element_set_payload, id);
             assert_eq!(2, two_element_set.len());
             verify_unlinked_set_payload(two_element_set, &two_element_set_payload);
-            // keep dropping data for finished tests to not accidentally overflow the stack
-            drop(two_element_set_payload);
 
             let mut forty_two_element_set_payload =
                 [0u8; 41 * UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN + 42];
@@ -382,7 +380,6 @@ mod tests {
                 prepare_unlinked_fragmented_set(&forty_two_element_set_payload, id);
             assert_eq!(42, forty_two_element_set.len());
             verify_unlinked_set_payload(forty_two_element_set, &forty_two_element_set_payload);
-            drop(forty_two_element_set_payload);
 
             let mut max_fragments_set_payload =
                 [0u8; MAX_UNLINKED_SET_PAYLOAD_LENGTH - UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN + 1]; // last fragment should have a single byte of data
@@ -390,14 +387,12 @@ mod tests {
             let max_fragment_set = prepare_unlinked_fragmented_set(&max_fragments_set_payload, id);
             assert_eq!(u8::max_value() as usize, max_fragment_set.len());
             verify_unlinked_set_payload(max_fragment_set, &max_fragments_set_payload);
-            drop(max_fragments_set_payload);
 
             let mut full_set_payload = [0u8; MAX_UNLINKED_SET_PAYLOAD_LENGTH];
             rng.fill_bytes(&mut full_set_payload);
             let full_fragment_set = prepare_unlinked_fragmented_set(&full_set_payload, id);
             assert_eq!(u8::max_value() as usize, full_fragment_set.len());
             verify_unlinked_set_payload(full_fragment_set, &full_set_payload);
-            drop(full_set_payload);
         }
 
         #[test]
@@ -424,8 +419,6 @@ mod tests {
                 prepare_linked_fragment_set(&two_element_set_payload, id, Some(link_id), None);
             assert_eq!(2, two_element_set.len());
             verify_pre_linked_set_payload(two_element_set, &two_element_set_payload);
-            // keep dropping data for finished tests to not accidentally overflow the stack
-            drop(two_element_set_payload);
 
             let mut forty_two_element_set_payload = [0u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN
                 + 40 * UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN
@@ -439,7 +432,6 @@ mod tests {
             );
             assert_eq!(42, forty_two_element_set.len());
             verify_pre_linked_set_payload(forty_two_element_set, &forty_two_element_set_payload);
-            drop(forty_two_element_set_payload);
 
             let mut max_fragments_set_payload =
                 [0u8; MAX_UNLINKED_SET_PAYLOAD_LENGTH - LINKED_FRAGMENTED_PAYLOAD_MAX_LEN + 1]; // last fragment should have a single byte of data
@@ -449,7 +441,6 @@ mod tests {
                 prepare_linked_fragment_set(&max_fragments_set_payload, id, Some(link_id), None);
             assert_eq!(u8::max_value() as usize, max_fragment_set.len());
             verify_pre_linked_set_payload(max_fragment_set, &max_fragments_set_payload);
-            drop(max_fragments_set_payload);
 
             let mut full_set_payload = [0u8; MAX_ONE_WAY_LINKED_SET_PAYLOAD_LENGTH];
             rng.fill_bytes(&mut full_set_payload);
@@ -457,7 +448,6 @@ mod tests {
                 prepare_linked_fragment_set(&full_set_payload, id, Some(link_id), None);
             assert_eq!(u8::max_value() as usize, full_fragment_set.len());
             verify_pre_linked_set_payload(full_fragment_set, &full_set_payload);
-            drop(full_set_payload);
         }
 
         #[test]
@@ -484,8 +474,6 @@ mod tests {
                 prepare_linked_fragment_set(&full_set_payload, id, None, Some(link_id));
             assert_eq!(u8::max_value() as usize, full_fragment_set.len());
             verify_post_linked_set_payload(full_fragment_set, &full_set_payload);
-
-            drop(full_set_payload);
         }
 
         #[test]
@@ -529,8 +517,6 @@ mod tests {
             );
             assert_eq!(u8::max_value() as usize, full_fragment_set.len());
             verify_two_way_linked_set_payload(full_fragment_set, &full_set_payload);
-
-            drop(full_set_payload);
         }
 
         #[test]

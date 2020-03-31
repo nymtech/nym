@@ -266,11 +266,7 @@ impl NymClient {
             split_message.len()
         );
         for message_fragment in split_message {
-            // temporary until Clone is derived on `Destination`:
-            // https://github.com/nymtech/sphinx/pull/50
-            let destination_copy =
-                Destination::new(destination.address.clone(), destination.identifier);
-            let input_msg = InputMessage(destination_copy, message_fragment);
+            let input_msg = InputMessage(destination.clone(), message_fragment);
             self.input_tx
                 .as_ref()
                 .expect("start method was not called before!")

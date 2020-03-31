@@ -9,7 +9,7 @@ pub struct CreatePresence {
 }
 
 impl CreatePresence {
-    pub fn new(service: mixmining::Service) -> CreatePresence {
+    pub fn new(service: &mixmining::Service) -> CreatePresence {
         CreatePresence { service }
     }
 }

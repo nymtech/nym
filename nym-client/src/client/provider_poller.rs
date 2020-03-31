@@ -82,7 +82,7 @@ impl ProviderPoller {
             // of nym-sphinx messages sent. However, for time being this is still compatible.
             // Basically it is more of a personal note of if client keeps getting errors and is
             // not getting messages, look at this filter here.
-            let good_messages = messages
+            let good_messages: Vec<_> = messages
                 .into_iter()
                 .filter(|message| message != loop_message && message != dummy_message)
                 .collect();
@@ -92,7 +92,9 @@ impl ProviderPoller {
             // - we run out of memory
             // - the receiver channel is closed
             // in either case there's no recovery and we can only panic
-            self.poller_tx.unbounded_send(good_messages).unwrap();
+            if !good_messages.is_empty() {
+                self.poller_tx.unbounded_send(good_messages).unwrap();
+            }
 
             tokio::time::delay_for(self.polling_rate).await;
         }

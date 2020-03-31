@@ -8,6 +8,7 @@ use std::time;
 use std::time::Duration;
 use tokio::runtime::Handle;
 // use tokio::sync::RwLock;
+use std::net::SocketAddr;
 use tokio::task::JoinHandle;
 use topology::{provider, NymTopology};
 
@@ -39,6 +40,25 @@ impl<T: NymTopology> TopologyAccessor<T> {
 
     async fn update_global_topology(&mut self, new_topology: Option<T>) {
         self.inner.lock().await.update(new_topology);
+    }
+
+    pub(crate) async fn get_provider_socket_addr(&mut self, id: &str) -> Option<SocketAddr> {
+        match &self.inner.lock().await.0 {
+            None => None,
+            Some(ref topology) => topology
+                .providers()
+                .iter()
+                .find(|provider| provider.pub_key == id)
+                .map(|provider| provider.client_listener),
+        }
+    }
+
+    // only used by the client at startup to get a slightly more reasonable error message
+    pub(crate) async fn is_routable(&self) -> bool {
+        match &self.inner.lock().await.0 {
+            None => false,
+            Some(ref topology) => topology.can_construct_path_through(),
+        }
     }
 
     // Unless you absolutely need the entire topology, use `random_route` instead

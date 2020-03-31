@@ -75,18 +75,6 @@ impl NymClient {
         )
     }
 
-    async fn get_provider_socket_address<T: NymTopology>(
-        provider_id: String,
-        mut topology_accessor: TopologyAccessor<T>,
-    ) -> SocketAddr {
-        topology_accessor.get_current_topology_clone().await.as_ref().expect("The current network topology is empty - are you using correct directory server?")
-            .providers()
-            .iter()
-            .find(|provider| provider.pub_key == provider_id)
-            .unwrap_or_else( || panic!("Could not find provider with id {:?} - are you sure it is still online? Perhaps try to run `nym-client init` again to obtain a new provider", provider_id))
-            .client_listener
-    }
-
     // future constantly pumping loop cover traffic at some specified average rate
     // the pumped traffic goes to the MixTrafficController
     fn start_cover_traffic_stream<T: 'static + NymTopology>(
@@ -149,7 +137,7 @@ impl NymClient {
     // the received messages are sent to ReceivedMessagesBuffer to be available to rest of the system
     fn start_provider_poller<T: NymTopology>(
         &mut self,
-        topology_accessor: TopologyAccessor<T>,
+        mut topology_accessor: TopologyAccessor<T>,
         poller_input_tx: PolledMessagesSender,
     ) {
         info!("Starting provider poller...");
@@ -159,6 +147,12 @@ impl NymClient {
         let provider_client_listener_address = self.runtime.block_on(
             Self::get_provider_socket_address(provider_id, topology_accessor),
         );
+
+        // TODO: a slightly more graceful termination here
+        let provider_client_listener_address = self.runtime.block_on(
+            topology_accessor.get_provider_socket_addr(&provider_id)
+        ).unwrap_or_else(|| panic!("Could not find provider with id {:?}. It does not seem to be present in the current network topology.\
+        Are you sure it is still online? Perhaps try to run `nym-client init` again to obtain a new provider", provider_id));
 
         let mut provider_poller = provider_poller::ProviderPoller::new(
             poller_input_tx,

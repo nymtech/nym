@@ -21,7 +21,7 @@ tokio = { version = "0.2", features = ["full"] }
 addressing = {path = "../addressing" }
 crypto = { path = "../crypto" }
 directory-client = { path = "../clients/directory-client" }
-mix-client = { path = "../clients/mix-client" }
+multi-tcp-client = { path = "../clients/multi-tcp-client" }
 provider-client = { path = "../clients/provider-client" }
 sfw-provider-requests = { path = "../../sfw-provider/sfw-provider-requests" }
 topology = {path = "../topology" }

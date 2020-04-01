@@ -937,7 +937,7 @@ dependencies = [
  "futures 0.3.4",
  "itertools",
  "log 0.4.8",
- "mix-client",
+ "multi-tcp-client",
  "pretty_env_logger",
  "provider-client",
  "rand 0.7.3",

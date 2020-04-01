@@ -153,7 +153,7 @@ impl std::fmt::Display for NodeScore {
         let stringified_key = self.pub_key.to_base58_string();
         write!(
             f,
-            "({})\t{}/{}\t({}%)\t|| {}\tv{} <{}> - {}",
+            "({})\t\t{}/{}\t({:.2}%) \t|| {}\tv{} <{}> - {}",
             self.typ,
             self.packets_received,
             self.packets_sent,

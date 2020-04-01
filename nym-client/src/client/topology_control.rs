@@ -183,6 +183,8 @@ impl<T: 'static + NymTopology> TopologyRefresher<T> {
             Ok(scores) => scores,
         };
 
+        debug!("{}", healthcheck_scores);
+
         let healthy_topology = healthcheck_scores
             .filter_topology_by_score(&version_filtered_topology, self.node_score_threshold);
 

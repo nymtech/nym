@@ -66,7 +66,7 @@ impl Client {
         wait_for_response: bool,
     ) -> io::Result<()> {
         if !self.connections_managers.contains_key(&address) {
-            info!(
+            debug!(
                 "There is no existing connection to {:?} - it will be established now",
                 address
             );

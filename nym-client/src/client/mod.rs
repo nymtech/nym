@@ -345,6 +345,8 @@ impl NymClient {
             input_tx.clone(),
         );
         self.input_tx = Some(input_tx);
-        self.receive_tx = Some(received_messages_buffer_output_tx)
+        self.receive_tx = Some(received_messages_buffer_output_tx);
+
+        info!("Client startup finished!");
     }
 }

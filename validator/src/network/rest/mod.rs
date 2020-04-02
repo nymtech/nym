@@ -32,8 +32,8 @@ impl Api {
         let mut router = Router::new();
 
         // set up handlers
-        let create_mixnode_presence = mixnode::CreatePresence::new(&self.mixmining_service);
-        let get_topology = topology::GetTopology::new(&self.mixmining_service);
+        let create_mixnode_presence = mixnode::CreatePresence::new(self.mixmining_service);
+        let get_topology = topology::GetTopology::new(self.mixmining_service);
 
         // tie routes to handlers
         router.get("/topology", get_topology, "topology_get");

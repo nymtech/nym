@@ -19,7 +19,7 @@ pub struct GetTopology {
 }
 
 impl GetTopology {
-    pub fn new(service: &mixmining::Service) -> GetTopology {
+    pub fn new(service: mixmining::Service) -> GetTopology {
         GetTopology { service }
     }
 }

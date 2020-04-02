@@ -104,11 +104,11 @@ pub struct Mixnode {
 }
 
 #[cfg(test)]
-mod test_constructor {
+mod constructor {
     use super::*;
 
     #[test]
-    fn test_constructor_sets_database() {
+    fn sets_database() {
         let db = db::MixminingDb::new();
         let service = Service::new(db.clone());
 
@@ -117,14 +117,13 @@ mod test_constructor {
 }
 
 #[cfg(test)]
-mod test_capacity {
+mod capacity {
     use super::*;
 
     #[test]
     fn setting_capacity_sends_correct_value_to_datastore() {
         let mock_db = db::MixminingDb::new();
         let mut service = Service::new(mock_db);
-        let cap = 3;
 
         service.set_capacity(3);
 
@@ -132,7 +131,7 @@ mod test_capacity {
     }
 
     #[test]
-    fn test_getting_capacity() {
+    fn getting_capacity_works() {
         let mut mock_db = db::MixminingDb::new();
         mock_db.set_capacity(3);
         let service = Service::new(mock_db);

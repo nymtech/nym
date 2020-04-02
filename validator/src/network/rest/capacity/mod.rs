@@ -52,7 +52,7 @@ impl Get {
 }
 
 impl Handler for Get {
-    fn handle(&self, req: &mut Request) -> IronResult<Response> {
+    fn handle(&self, _: &mut Request) -> IronResult<Response> {
         let content_type = "application/json".parse::<Mime>().unwrap();
         let value = self.service.lock().unwrap().capacity();
         let c = Capacity { value };

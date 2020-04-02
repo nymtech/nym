@@ -29,7 +29,7 @@ impl MixminingDb {
         self.capacity = capacity;
     }
 
-    pub fn get_capacity(&self) -> u32 {
+    pub fn capacity(&self) -> u32 {
         self.capacity
     }
 }
@@ -41,14 +41,14 @@ mod capacity {
     #[test]
     fn starts_at_6() {
         let db = MixminingDb::new();
-        assert_eq!(6, db.get_capacity());
+        assert_eq!(6, db.capacity());
     }
 
     #[test]
     fn setting_and_getting_work() {
         let mut db = MixminingDb::new();
         db.set_capacity(1);
-        assert_eq!(1, db.get_capacity());
+        assert_eq!(1, db.capacity());
     }
 }
 

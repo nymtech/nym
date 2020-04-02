@@ -1,6 +1,7 @@
 use crate::connection_manager::reconnector::ConnectionReconnector;
 use crate::connection_manager::writer::ConnectionWriter;
 use futures::channel::{mpsc, oneshot};
+use futures::future::{abortable, AbortHandle};
 use futures::task::Poll;
 use futures::{AsyncWriteExt, StreamExt};
 use log::*;
@@ -32,6 +33,12 @@ pub(crate) struct ConnectionManager<'a> {
     reconnection_backoff: Duration,
 
     state: ConnectionState<'a>,
+}
+
+impl<'a> Drop for ConnectionManager<'a> {
+    fn drop(&mut self) {
+        debug!("Connection manager to {:?} is being dropped", self.address)
+    }
 }
 
 impl<'a> ConnectionManager<'static> {
@@ -68,24 +75,29 @@ impl<'a> ConnectionManager<'static> {
         }
     }
 
-    /// consumes Self and returns channel for communication
-    pub(crate) fn start(mut self, handle: &Handle) -> ConnectionManagerSender {
-        let sender_clone = self.conn_tx.clone();
-        handle.spawn(async move {
-            while let Some(msg) = self.conn_rx.next().await {
-                let (msg_content, res_ch) = msg;
-                let res = self.handle_new_message(msg_content).await;
-                if let Some(res_ch) = res_ch {
-                    if let Err(e) = res_ch.send(res) {
-                        error!(
-                            "failed to send response on the channel to the caller! - {:?}",
-                            e
-                        );
-                    }
+    async fn run(mut self) {
+        while let Some(msg) = self.conn_rx.next().await {
+            let (msg_content, res_ch) = msg;
+            let res = self.handle_new_message(msg_content).await;
+            if let Some(res_ch) = res_ch {
+                if let Err(e) = res_ch.send(res) {
+                    error!(
+                        "failed to send response on the channel to the caller! - {:?}",
+                        e
+                    );
                 }
             }
-        });
-        sender_clone
+        }
+    }
+
+    /// consumes Self and returns channel for communication as well as an `AbortHandle`
+    pub(crate) fn start_abortable(self, handle: &Handle) -> (ConnectionManagerSender, AbortHandle) {
+        let sender_clone = self.conn_tx.clone();
+        let (abort_fut, abort_handle) = abortable(self.run());
+
+        handle.spawn(async move { abort_fut.await });
+
+        (sender_clone, abort_handle)
     }
 
     async fn handle_new_message(&mut self, msg: Vec<u8>) -> io::Result<()> {

@@ -65,10 +65,16 @@ async fn process_socket_connection(
             // plus realistically it wouldn't really introduce any speed up
             Ok(n) => process_request(&mut socket, &buf[0..n], &mut request_processor).await,
             Err(e) => {
-                warn!(
-                    "failed to read from socket. Closing the connection; err = {:?}",
-                    e
-                );
+                if e.kind() == io::ErrorKind::UnexpectedEof {
+                    debug!("Read buffer was not fully filled. Most likely the client ({:?}) closed the connection.\
+                    Also closing the connection on this end.", socket.peer_addr())
+                } else {
+                    warn!(
+                        "failed to read from socket (source: {:?}). Closing the connection; err = {:?}",
+                        socket.peer_addr(),
+                        e
+                    );
+                }
                 return;
             }
         };

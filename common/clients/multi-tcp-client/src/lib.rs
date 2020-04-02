@@ -1,5 +1,6 @@
 use crate::connection_manager::{ConnectionManager, ConnectionManagerSender};
 use futures::channel::oneshot;
+use futures::future::AbortHandle;
 use log::*;
 use std::collections::HashMap;
 use std::io;
@@ -31,6 +32,7 @@ pub struct Client {
     connections_managers: HashMap<SocketAddr, ConnectionManagerSender>,
     maximum_reconnection_backoff: Duration,
     initial_reconnection_backoff: Duration,
+    connection_managers_abort_handles: Vec<AbortHandle>,
 }
 
 impl Client {
@@ -43,17 +45,24 @@ impl Client {
             connections_managers: HashMap::new(),
             initial_reconnection_backoff: config.maximum_reconnection_backoff,
             maximum_reconnection_backoff: config.initial_reconnection_backoff,
+            connection_managers_abort_handles: Vec::new(),
         }
     }
 
-    async fn start_new_connection_manager(&self, address: SocketAddr) -> ConnectionManagerSender {
-        ConnectionManager::new(
+    async fn start_new_connection_manager(
+        &mut self,
+        address: SocketAddr,
+    ) -> ConnectionManagerSender {
+        let (sender, abort_handle) = ConnectionManager::new(
             address,
             self.initial_reconnection_backoff,
             self.maximum_reconnection_backoff,
         )
         .await
-        .start(&self.runtime_handle)
+        .start_abortable(&self.runtime_handle);
+
+        self.connection_managers_abort_handles.push(abort_handle);
+        sender
     }
 
     // if wait_for_response is set to true, we will get information about any possible IO errors
@@ -85,6 +94,14 @@ impl Client {
         } else {
             manager.unbounded_send((message, None)).unwrap();
             Ok(())
+        }
+    }
+}
+
+impl Drop for Client {
+    fn drop(&mut self) {
+        for abort_handle in &self.connection_managers_abort_handles {
+            abort_handle.abort()
         }
     }
 }

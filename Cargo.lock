@@ -1591,6 +1591,7 @@ dependencies = [
  "sphinx",
  "tempfile",
  "tokio 0.2.12",
+ "topology",
 ]
 
 [[package]]
@@ -1620,6 +1621,7 @@ dependencies = [
  "sphinx",
  "tempfile",
  "tokio 0.2.12",
+ "topology",
 ]
 
 [[package]]

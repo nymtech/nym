@@ -29,6 +29,7 @@ config = {path = "../common/config"}
 directory-client = { path = "../common/clients/directory-client" }
 pemstore = {path = "../common/pemstore"}
 sfw-provider-requests = { path = "./sfw-provider-requests" }
+topology = {path = "../common/topology"}
 
 # this dependency is due to requiring to know content of loop message. however, mix-client module itself
 # is going to be removed or renamed at some point as it no longer servers its purpose of sending traffic to mix network

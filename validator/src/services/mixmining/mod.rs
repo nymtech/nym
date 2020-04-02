@@ -36,17 +36,18 @@ impl Service {
     pub fn new(db: MixminingDb) -> Service {
         Service { db }
     }
+
     // Add a mixnode so that it becomes part of the possible mixnode set.
     pub fn add(&self, mixnode: Mixnode) {
         println!("Adding mixnode: {:?}", mixnode);
     }
 
-    pub fn set_capacity(&mut self, capacity: u32) {
+    pub fn set_capacity(&mut self, capacity: usize) {
         self.db.set_capacity(capacity);
     }
 
     /// A fake capacity, so we can take the top n mixnodes based on stake
-    fn capacity(&self) -> u32 {
+    pub fn capacity(&self) -> usize {
         self.db.capacity()
     }
 

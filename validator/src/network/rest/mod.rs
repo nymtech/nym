@@ -5,7 +5,9 @@ use presence::topology;
 use router::Router;
 use std::sync::{Arc, Mutex};
 
+mod capacity;
 mod presence;
+mod stakes;
 
 pub struct Api {
     mixmining_service: Arc<Mutex<mixmining::Service>>,
@@ -36,15 +38,19 @@ impl Api {
         let mut router = Router::new();
 
         // set up handlers
-        let create_mixnode_presence =
+        let capacity_update = capacity::Update::new(Arc::clone(&self.mixmining_service));
+        let capacity_get = capacity::Get::new(Arc::clone(&self.mixmining_service));
+        let presence_mixnode_create =
             mixnode::CreatePresence::new(Arc::clone(&self.mixmining_service));
-        let get_topology = topology::GetTopology::new(Arc::clone(&self.mixmining_service));
+        let topology_get = topology::GetTopology::new(Arc::clone(&self.mixmining_service));
 
         // tie routes to handlers
-        router.get("/topology", get_topology, "topology_get");
+        router.get("/capacity", capacity_get, "capacity_get");
+        router.post("/capacity", capacity_update, "capacity_update");
+        router.get("/topology", topology_get, "topology_get");
         router.post(
             "/presence/mixnodes",
-            create_mixnode_presence,
+            presence_mixnode_create,
             "presence_mixnodes_post",
         );
 

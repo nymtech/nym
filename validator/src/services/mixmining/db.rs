@@ -5,7 +5,7 @@ use super::Mixnode;
 #[derive(Clone, Debug, PartialEq)]
 pub struct MixminingDb {
     mixnodes: Vec<Mixnode>,
-    capacity: u32,
+    capacity: usize,
 }
 
 impl MixminingDb {
@@ -25,11 +25,11 @@ impl MixminingDb {
         &self.mixnodes
     }
 
-    pub fn set_capacity(&mut self, capacity: u32) {
+    pub fn set_capacity(&mut self, capacity: usize) {
         self.capacity = capacity;
     }
 
-    pub fn capacity(&self) -> u32 {
+    pub fn capacity(&self) -> usize {
         self.capacity
     }
 }

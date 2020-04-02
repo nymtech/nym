@@ -15,17 +15,17 @@ pub fn get(_req: &mut Request) -> IronResult<Response> {
 }
 
 pub struct GetTopology {
-    service: mixmining::Service,
+    service: Arc<Mutex<mixmining::Service>>,
 }
 
 impl GetTopology {
-    pub fn new(service: mixmining::Service) -> GetTopology {
+    pub fn new(service: Arc<Mutex<mixmining::Service>>) -> GetTopology {
         GetTopology { service }
     }
 }
 
 impl Handler for GetTopology {
-    fn handle(&self, req: &mut Request) -> IronResult<Response> {
+    fn handle(&self, _req: &mut Request) -> IronResult<Response> {
         println!("Getting topology!...");
         Ok(Response::with(status::Ok))
     }

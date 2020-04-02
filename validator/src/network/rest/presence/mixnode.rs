@@ -5,11 +5,11 @@ use iron::status;
 use iron::Handler;
 
 pub struct CreatePresence {
-    service: mixmining::Service,
+    service: Arc<Mutex<mixmining::Service>>,
 }
 
 impl CreatePresence {
-    pub fn new(service: mixmining::Service) -> CreatePresence {
+    pub fn new(service: Arc<Mutex<mixmining::Service>>) -> CreatePresence {
         CreatePresence { service }
     }
 }
@@ -22,7 +22,7 @@ impl Handler for CreatePresence {
             let mixnode = json_parse
                 .unwrap()
                 .expect("Unexpected JSON parsing problem");
-            self.service.add(mixnode.into());
+            self.service.lock().unwrap().add(mixnode.into());
             Ok(Response::with(status::Created))
         } else {
             let error = json_parse.unwrap_err();

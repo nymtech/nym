@@ -28,7 +28,6 @@ tokio = { version = "0.2", features = ["full"] }
 tokio-tungstenite = "0.10.1"
 
 ## internal
-addressing = {path = "../common/addressing" }
 config = {path = "../common/config"}
 crypto = {path = "../common/crypto"}
 directory-client = { path = "../common/clients/directory-client" }

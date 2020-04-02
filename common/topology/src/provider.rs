@@ -1,6 +1,7 @@
 use crate::filter;
+use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
 use sphinx::route::Node as SphinxNode;
-use sphinx::route::NodeAddressBytes;
+use std::convert::TryInto;
 use std::net::SocketAddr;
 
 #[derive(Debug, Clone)]
@@ -35,10 +36,12 @@ impl filter::Versioned for Node {
 
 impl Into<SphinxNode> for Node {
     fn into(self) -> SphinxNode {
-        let address_bytes = addressing::encoded_bytes_from_socket_address(self.mixnet_listener);
+        let node_address_bytes = NymNodeRoutingAddress::from(self.mixnet_listener)
+            .try_into()
+            .unwrap();
         let key_bytes = self.get_pub_key_bytes();
         let key = sphinx::key::new(key_bytes);
 
-        SphinxNode::new(NodeAddressBytes::from_bytes(address_bytes), key)
+        SphinxNode::new(node_address_bytes, key)
     }
 }

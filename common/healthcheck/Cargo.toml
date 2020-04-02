@@ -18,10 +18,10 @@ serde_derive = "1.0.104"
 tokio = { version = "0.2", features = ["full"] }
 
 ## internal
-addressing = {path = "../addressing" }
 crypto = { path = "../crypto" }
 directory-client = { path = "../clients/directory-client" }
 multi-tcp-client = { path = "../clients/multi-tcp-client" }
+nymsphinx = {path = "../nymsphinx" }
 provider-client = { path = "../clients/provider-client" }
 sfw-provider-requests = { path = "../../sfw-provider/sfw-provider-requests" }
 topology = {path = "../topology" }

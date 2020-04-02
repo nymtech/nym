@@ -15,7 +15,7 @@ rand = "0.7.2"
 serde = { version = "1.0.104", features = ["derive"] }
 
 ## internal
-addressing = {path = "../addressing"}
+nymsphinx = {path = "../nymsphinx"}
 version-checker = {path = "../version-checker" }
 
 ## will be moved to proper dependencies once released

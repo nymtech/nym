@@ -1,10 +1,11 @@
 use crate::node::metrics;
-use addressing::AddressTypeError;
 use crypto::encryption;
 use log::*;
+use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use sphinx::header::delays::Delay as SphinxDelay;
 use sphinx::route::NodeAddressBytes;
 use sphinx::{ProcessedPacket, SphinxPacket};
+use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -32,8 +33,8 @@ impl From<sphinx::ProcessingError> for MixProcessingError {
     }
 }
 
-impl From<addressing::AddressTypeError> for MixProcessingError {
-    fn from(_: AddressTypeError) -> Self {
+impl From<NymNodeRoutingAddressError> for MixProcessingError {
+    fn from(_: NymNodeRoutingAddressError) -> Self {
         use MixProcessingError::*;
 
         InvalidHopAddress
@@ -68,8 +69,7 @@ impl PacketProcessor {
         forward_address: NodeAddressBytes,
         delay: SphinxDelay,
     ) -> Result<MixProcessingResult, MixProcessingError> {
-        let next_hop_address =
-            addressing::socket_address_from_encoded_bytes(forward_address.to_bytes())?;
+        let next_hop_address: SocketAddr = NymNodeRoutingAddress::try_from(forward_address)?.into();
 
         // Delay packet for as long as required
         tokio::time::delay_for(delay.to_duration()).await;

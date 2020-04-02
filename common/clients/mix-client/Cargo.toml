@@ -14,7 +14,7 @@ rand_distr = "0.2.2"
 tokio = { version = "0.2", features = ["full"] }
 
 ## internal
-addressing = {path = "../../addressing"}
+nymsphinx = {path = "../../nymsphinx"}
 topology = {path = "../../topology"}
 
 ## will be moved to proper dependencies once released

@@ -29,10 +29,9 @@ impl Config {
 
 pub struct Client {
     runtime_handle: Handle,
-    connections_managers: HashMap<SocketAddr, ConnectionManagerSender>,
+    connections_managers: HashMap<SocketAddr, (ConnectionManagerSender, AbortHandle)>,
     maximum_reconnection_backoff: Duration,
     initial_reconnection_backoff: Duration,
-    connection_managers_abort_handles: Vec<AbortHandle>,
 }
 
 impl Client {
@@ -45,14 +44,13 @@ impl Client {
             connections_managers: HashMap::new(),
             initial_reconnection_backoff: config.maximum_reconnection_backoff,
             maximum_reconnection_backoff: config.initial_reconnection_backoff,
-            connection_managers_abort_handles: Vec::new(),
         }
     }
 
     async fn start_new_connection_manager(
         &mut self,
         address: SocketAddr,
-    ) -> ConnectionManagerSender {
+    ) -> (ConnectionManagerSender, AbortHandle) {
         let (sender, abort_handle) = ConnectionManager::new(
             address,
             self.initial_reconnection_backoff,
@@ -61,8 +59,7 @@ impl Client {
         .await
         .start_abortable(&self.runtime_handle);
 
-        self.connection_managers_abort_handles.push(abort_handle);
-        sender
+        (sender, abort_handle)
     }
 
     // if wait_for_response is set to true, we will get information about any possible IO errors
@@ -80,19 +77,20 @@ impl Client {
                 address
             );
 
-            let new_manager_sender = self.start_new_connection_manager(address).await;
+            let (new_manager_sender, abort_handle) =
+                self.start_new_connection_manager(address).await;
             self.connections_managers
-                .insert(address, new_manager_sender);
+                .insert(address, (new_manager_sender, abort_handle));
         }
 
         let manager = self.connections_managers.get_mut(&address).unwrap();
 
         if wait_for_response {
             let (res_tx, res_rx) = oneshot::channel();
-            manager.unbounded_send((message, Some(res_tx))).unwrap();
+            manager.0.unbounded_send((message, Some(res_tx))).unwrap();
             res_rx.await.unwrap()
         } else {
-            manager.unbounded_send((message, None)).unwrap();
+            manager.0.unbounded_send((message, None)).unwrap();
             Ok(())
         }
     }
@@ -100,7 +98,7 @@ impl Client {
 
 impl Drop for Client {
     fn drop(&mut self) {
-        for abort_handle in &self.connection_managers_abort_handles {
+        for (_, abort_handle) in self.connections_managers.values() {
             abort_handle.abort()
         }
     }

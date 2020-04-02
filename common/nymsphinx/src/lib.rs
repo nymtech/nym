@@ -1,5 +1,5 @@
-pub mod chunking;
 pub mod addressing;
+pub mod chunking;
 
 // Future consideration: currently in a lot of places, the payloads have randomised content
 // which is not a perfect testing strategy as it might not detect some edge cases I never would

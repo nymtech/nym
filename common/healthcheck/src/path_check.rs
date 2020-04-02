@@ -183,7 +183,7 @@ impl PathChecker {
             return;
         }
 
-        debug!("Checking path: {:?} ({})", path, iteration);
+        trace!("Checking path: {:?} ({})", path, iteration);
         let path_identifier = PathChecker::unique_path_key(path, self.check_id, iteration);
 
         // check if there is even any point in sending the packet

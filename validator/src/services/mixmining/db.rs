@@ -5,7 +5,7 @@ use super::Mixnode;
 #[derive(Clone, Debug, PartialEq)]
 pub struct MixminingDb {
     mixnodes: Vec<Mixnode>,
-    pub capacity: u32,
+    capacity: u32,
 }
 
 impl MixminingDb {

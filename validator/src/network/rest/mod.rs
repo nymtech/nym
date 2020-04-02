@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 mod capacity;
 mod presence;
-mod stakes;
+mod staking;
 
 pub struct Api {
     mixmining_service: Arc<Mutex<mixmining::Service>>,

@@ -23,7 +23,7 @@ pub struct ServiceProvider {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Topology {
-    pub mix_nodes: Vec<Mixnode>,
+    pub mixnodes: Vec<Mixnode>,
     pub service_providers: Vec<ServiceProvider>,
     pub validators: Vec<Validator>,
 }

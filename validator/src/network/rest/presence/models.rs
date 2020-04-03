@@ -9,7 +9,7 @@ pub struct Mixnode {
     pub location: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceProvider {
     host: String,
@@ -20,7 +20,7 @@ pub struct ServiceProvider {
 }
 
 /// Topology shows us the current state of the overall Nym network
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Topology {
     pub mixnodes: Vec<Mixnode>,
@@ -28,7 +28,7 @@ pub struct Topology {
     pub validators: Vec<Validator>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Validator {
     host: String,

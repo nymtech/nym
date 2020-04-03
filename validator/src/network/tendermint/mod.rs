@@ -57,12 +57,12 @@ impl abci::Application for Abci {
 
     fn commit(&mut self, _req: &RequestCommit) -> ResponseCommit {
         // Create the response
-        let mut resp = ResponseCommit::new();
+        let mut response = ResponseCommit::new();
         // Convert count to bits
         let mut buf = [0; 8];
         BigEndian::write_u64(&mut buf, self.count);
         // Set data so last state is included in the block
-        resp.set_data(buf.to_vec());
-        resp
+        response.set_data(buf.to_vec());
+        response
     }
 }

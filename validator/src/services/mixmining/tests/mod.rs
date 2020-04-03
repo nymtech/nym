@@ -1,8 +1,6 @@
-use super::Mixnode;
-
 #[cfg(test)]
-pub fn fake_mixnode(location: &str) -> Mixnode {
-    Mixnode {
+pub fn fake_mixnode(location: &str) -> super::Mixnode {
+    super::Mixnode {
         host: String::from("foo.com"),
         last_seen: 123,
         location: String::from(location),

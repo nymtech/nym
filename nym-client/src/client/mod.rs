@@ -12,12 +12,12 @@ use crate::config::{Config, SocketType};
 use crate::sockets::{tcp, websocket};
 use crypto::identity::MixIdentityKeyPair;
 use directory_client::presence;
-use futures::channel::mpsc;
+use futures::channel::{mpsc, oneshot};
 use log::*;
+use nymsphinx::chunking::split_and_prepare_payloads;
 use pemstore::pemstore::PemStore;
 use sfw_provider_requests::AuthToken;
 use sphinx::route::Destination;
-use std::net::SocketAddr;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
@@ -38,6 +38,9 @@ pub struct NymClient {
 
     // to be used by "send" function or socket, etc
     input_tx: Option<InputMessageSender>,
+
+    // to be used by "receive" function or socket, etc
+    receive_tx: Option<ReceivedBufferRequestSender>,
 }
 
 #[derive(Debug)]
@@ -64,6 +67,7 @@ impl NymClient {
             config,
             identity_keypair,
             input_tx: None,
+            receive_tx: None,
         }
     }
 
@@ -73,18 +77,6 @@ impl NymClient {
             // TODO: what with SURBs?
             Default::default(),
         )
-    }
-
-    async fn get_provider_socket_address<T: NymTopology>(
-        provider_id: String,
-        mut topology_accessor: TopologyAccessor<T>,
-    ) -> SocketAddr {
-        topology_accessor.get_current_topology_clone().await.as_ref().expect("The current network topology is empty - are you using correct directory server?")
-            .providers()
-            .iter()
-            .find(|provider| provider.pub_key == provider_id)
-            .unwrap_or_else( || panic!("Could not find provider with id {:?} - are you sure it is still online? Perhaps try to run `nym-client init` again to obtain a new provider", provider_id))
-            .client_listener
     }
 
     // future constantly pumping loop cover traffic at some specified average rate
@@ -149,16 +141,26 @@ impl NymClient {
     // the received messages are sent to ReceivedMessagesBuffer to be available to rest of the system
     fn start_provider_poller<T: NymTopology>(
         &mut self,
-        topology_accessor: TopologyAccessor<T>,
+        mut topology_accessor: TopologyAccessor<T>,
         poller_input_tx: PolledMessagesSender,
     ) {
         info!("Starting provider poller...");
         // we already have our provider written in the config
         let provider_id = self.config.get_provider_id();
 
+        // TODO: a slightly more graceful termination here
+        if !self.runtime.block_on(topology_accessor.is_routable()) {
+            panic!(
+                "The current network topology seem to be insufficient to route any packets through\
+             - check if enough nodes and a sfw-provider are online"
+            );
+        }
+
+        // TODO: a slightly more graceful termination here
         let provider_client_listener_address = self.runtime.block_on(
-            Self::get_provider_socket_address(provider_id, topology_accessor),
-        );
+            topology_accessor.get_provider_socket_addr(&provider_id)
+        ).unwrap_or_else(|| panic!("Could not find provider with id {:?}. It does not seem to be present in the current network topology.\
+        Are you sure it is still online? Perhaps try to run `nym-client init` again to obtain a new provider", provider_id));
 
         let mut provider_poller = provider_poller::ProviderPoller::new(
             poller_input_tx,
@@ -255,13 +257,36 @@ impl NymClient {
     }
 
     /// EXPERIMENTAL DIRECT RUST API
-    /// It's entirely untested and there are absolutely no guarantees about it
-    pub fn send_message(&self, destination: Destination, message: Vec<u8>) {
-        self.input_tx
+    /// It's untested and there are absolutely no guarantees about it (but seems to have worked
+    /// well enough in local tests)
+    pub fn send_message(&mut self, destination: Destination, message: Vec<u8>) {
+        let split_message = split_and_prepare_payloads(&message);
+        debug!(
+            "Splitting message into {:?} fragments!",
+            split_message.len()
+        );
+        for message_fragment in split_message {
+            let input_msg = InputMessage(destination.clone(), message_fragment);
+            self.input_tx
+                .as_ref()
+                .expect("start method was not called before!")
+                .unbounded_send(input_msg)
+                .unwrap()
+        }
+    }
+
+    /// EXPERIMENTAL DIRECT RUST API
+    /// It's untested and there are absolutely no guarantees about it (but seems to have worked
+    /// well enough in local tests)
+    pub async fn check_for_messages_async(&self) -> Vec<Vec<u8>> {
+        let (res_tx, res_rx) = oneshot::channel();
+        self.receive_tx
             .as_ref()
             .expect("start method was not called before!")
-            .unbounded_send(InputMessage(destination, message))
-            .unwrap()
+            .unbounded_send(res_tx)
+            .unwrap();
+
+        res_rx.await.unwrap()
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
@@ -275,7 +300,7 @@ impl NymClient {
         }
 
         println!(
-            "Received SIGINT - the mixnode will terminate now (threads are not YET nicely stopped)"
+            "Received SIGINT - the client will terminate now (threads are not YET nicely stopped)"
         );
     }
 
@@ -316,9 +341,12 @@ impl NymClient {
         self.start_real_traffic_stream(shared_topology_accessor.clone(), mix_tx, input_rx);
         self.start_socket_listener(
             shared_topology_accessor,
-            received_messages_buffer_output_tx,
+            received_messages_buffer_output_tx.clone(),
             input_tx.clone(),
         );
         self.input_tx = Some(input_tx);
+        self.receive_tx = Some(received_messages_buffer_output_tx);
+
+        info!("Client startup finished!");
     }
 }

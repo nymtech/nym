@@ -972,7 +972,7 @@ dependencies = [
  "futures 0.3.4",
  "itertools",
  "log 0.4.8",
- "mix-client",
+ "multi-tcp-client",
  "pretty_env_logger",
  "provider-client",
  "rand 0.7.3",
@@ -1597,6 +1597,7 @@ dependencies = [
  "log 0.4.8",
  "mix-client",
  "multi-tcp-client",
+ "nymsphinx",
  "pem",
  "pemstore",
  "pretty_env_logger",
@@ -1635,6 +1636,7 @@ dependencies = [
  "sphinx",
  "tempfile",
  "tokio 0.2.12",
+ "topology",
 ]
 
 [[package]]
@@ -1664,6 +1666,7 @@ dependencies = [
  "sphinx",
  "tempfile",
  "tokio 0.2.12",
+ "topology",
 ]
 
 [[package]]
@@ -1691,6 +1694,17 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio 0.2.12",
+ "topology",
+]
+
+[[package]]
+name = "nymsphinx"
+version = "0.1.0"
+dependencies = [
+ "addressing",
+ "log 0.4.8",
+ "rand 0.7.3",
+ "sphinx",
  "topology",
 ]
 
@@ -2554,7 +2568,7 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=23f9c89b257ee0936e70afd682e9ed6a62e89eee#23f9c89b257ee0936e70afd682e9ed6a62e89eee"
+source = "git+https://github.com/nymtech/sphinx?rev=44d8f2aece5049eaa4fe84b7948758ce82b4b80d#44d8f2aece5049eaa4fe84b7948758ce82b4b80d"
 dependencies = [
  "aes-ctr",
  "arrayref",

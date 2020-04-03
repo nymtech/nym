@@ -1,5 +1,6 @@
 use crate::connection_manager::{ConnectionManager, ConnectionManagerSender};
 use futures::channel::oneshot;
+use futures::future::AbortHandle;
 use log::*;
 use std::collections::HashMap;
 use std::io;
@@ -28,7 +29,7 @@ impl Config {
 
 pub struct Client {
     runtime_handle: Handle,
-    connections_managers: HashMap<SocketAddr, ConnectionManagerSender>,
+    connections_managers: HashMap<SocketAddr, (ConnectionManagerSender, AbortHandle)>,
     maximum_reconnection_backoff: Duration,
     initial_reconnection_backoff: Duration,
 }
@@ -46,14 +47,19 @@ impl Client {
         }
     }
 
-    async fn start_new_connection_manager(&self, address: SocketAddr) -> ConnectionManagerSender {
-        ConnectionManager::new(
+    async fn start_new_connection_manager(
+        &mut self,
+        address: SocketAddr,
+    ) -> (ConnectionManagerSender, AbortHandle) {
+        let (sender, abort_handle) = ConnectionManager::new(
             address,
             self.initial_reconnection_backoff,
             self.maximum_reconnection_backoff,
         )
         .await
-        .start(&self.runtime_handle)
+        .start_abortable(&self.runtime_handle);
+
+        (sender, abort_handle)
     }
 
     // if wait_for_response is set to true, we will get information about any possible IO errors
@@ -66,25 +72,34 @@ impl Client {
         wait_for_response: bool,
     ) -> io::Result<()> {
         if !self.connections_managers.contains_key(&address) {
-            info!(
+            debug!(
                 "There is no existing connection to {:?} - it will be established now",
                 address
             );
 
-            let new_manager_sender = self.start_new_connection_manager(address).await;
+            let (new_manager_sender, abort_handle) =
+                self.start_new_connection_manager(address).await;
             self.connections_managers
-                .insert(address, new_manager_sender);
+                .insert(address, (new_manager_sender, abort_handle));
         }
 
         let manager = self.connections_managers.get_mut(&address).unwrap();
 
         if wait_for_response {
             let (res_tx, res_rx) = oneshot::channel();
-            manager.unbounded_send((message, Some(res_tx))).unwrap();
+            manager.0.unbounded_send((message, Some(res_tx))).unwrap();
             res_rx.await.unwrap()
         } else {
-            manager.unbounded_send((message, None)).unwrap();
+            manager.0.unbounded_send((message, None)).unwrap();
             Ok(())
+        }
+    }
+}
+
+impl Drop for Client {
+    fn drop(&mut self) {
+        for (_, abort_handle) in self.connections_managers.values() {
+            abort_handle.abort()
         }
     }
 }

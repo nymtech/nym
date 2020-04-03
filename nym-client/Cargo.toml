@@ -35,13 +35,14 @@ directory-client = { path = "../common/clients/directory-client" }
 healthcheck = { path = "../common/healthcheck" }
 mix-client = { path = "../common/clients/mix-client" }
 multi-tcp-client = { path = "../common/clients/multi-tcp-client" }
+nymsphinx = { path = "../common/nymsphinx" }
 pemstore = {path = "../common/pemstore"}
 provider-client = { path = "../common/clients/provider-client" }
 sfw-provider-requests = { path = "../sfw-provider/sfw-provider-requests" }
 topology = {path = "../common/topology" }
 
 ## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="23f9c89b257ee0936e70afd682e9ed6a62e89eee" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="44d8f2aece5049eaa4fe84b7948758ce82b4b80d" }
 # sphinx = { path = "../../sphinx"}
 
 [build-dependencies]

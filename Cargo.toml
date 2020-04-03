@@ -13,6 +13,7 @@ members = [
     "common/config",
     "common/crypto",
     "common/healthcheck",
+    "common/nymsphinx",
     "common/pemstore",
     "common/topology",
     "mixnode",

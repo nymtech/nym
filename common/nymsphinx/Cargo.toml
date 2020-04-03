@@ -1,19 +1,21 @@
 [package]
-name = "provider-client"
+name = "nymsphinx"
 version = "0.1.0"
-authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
+authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-futures = "0.3.1"
 log = "0.4.8"
-pretty_env_logger = "0.3"
-tokio = { version = "0.2", features = ["full"] }
+rand = "0.7.3"
 
-## internal
-sfw-provider-requests = { path = "../../../sfw-provider/sfw-provider-requests" }
+# TODO: eventually move this functionality to this crate and remove `addressing` completely
+addressing = {path = "../addressing" }
+
+topology = {path = "../topology" }
+
 
 ## will be moved to proper dependencies once released
 sphinx = { git = "https://github.com/nymtech/sphinx", rev="44d8f2aece5049eaa4fe84b7948758ce82b4b80d" }
+

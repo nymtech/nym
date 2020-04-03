@@ -2,11 +2,13 @@ use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
 use crate::node::packet_processing::PacketProcessor;
 use crypto::encryption;
+use directory_client::presence::Topology;
 use futures::channel::mpsc;
 use log::*;
 use pemstore::pemstore::PemStore;
 use std::net::SocketAddr;
 use tokio::runtime::Runtime;
+use topology::NymTopology;
 
 mod listener;
 mod metrics;
@@ -97,7 +99,24 @@ impl MixNode {
             .start(self.runtime.handle())
     }
 
+    fn check_if_same_ip_node_exists(&self) -> Option<String> {
+        // TODO: once we change to graph topology this here will need to be updated!
+        let topology = Topology::new(self.config.get_presence_directory_server());
+        let existing_mixes_presence = topology.mix_nodes;
+        existing_mixes_presence
+            .iter()
+            .find(|node| node.host == self.config.get_announce_address())
+            .map(|node| node.pub_key.clone())
+    }
+
     pub fn run(&mut self) {
+        if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists() {
+            error!(
+                "Our announce-host is identical to one of existing nodes! (its key is {:?}",
+                duplicate_node_key
+            );
+            return;
+        }
         let forwarding_channel = self.start_packet_forwarder();
         let metrics_reporter = self.start_metrics_reporter();
         self.start_socket_listener(metrics_reporter, forwarding_channel);

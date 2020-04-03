@@ -1,8 +1,10 @@
 use db::MixminingDb;
-use serde::{Deserialize, Serialize};
+use models::*;
 
 pub mod db;
 pub mod health_check_runner;
+pub mod models;
+mod tests;
 
 pub struct Service {
     db: MixminingDb,
@@ -38,8 +40,15 @@ impl Service {
     }
 
     // Add a mixnode so that it becomes part of the possible mixnode set.
-    pub fn add(&self, mixnode: Mixnode) {
-        println!("Adding mixnode: {:?}", mixnode);
+    pub fn add(&mut self, mixnode: Mixnode) {
+        self.db.add(mixnode);
+    }
+
+    pub fn topology(&self) -> Topology {
+        let mixnodes = self.db.get_mixnodes();
+        let service_providers: Vec<ServiceProvider> = vec![];
+        let validators: Vec<Validator> = vec![];
+        Topology::new(mixnodes.to_vec(), service_providers, validators)
     }
 
     pub fn set_capacity(&mut self, capacity: usize) {
@@ -93,14 +102,28 @@ impl Service {
     */
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Mixnode {
-    pub host: String,
-    pub public_key: String,
-    pub last_seen: u64,
-    pub location: String,
-    pub stake: u64,
-    pub version: String,
+#[cfg(test)]
+mod mixnodes {
+    use super::*;
+
+    #[test]
+    fn adding_and_retrieving_works() {
+        let mock_db = MixminingDb::new();
+        let mut service = Service::new(mock_db);
+        let node1 = tests::fake_mixnode("London, UK");
+
+        service.add(node1.clone());
+        let nodes = service.topology().mixnodes;
+        assert_eq!(1, nodes.len());
+        assert_eq!(node1.clone(), nodes[0]);
+        let node2 = tests::fake_mixnode("Neuchatel");
+
+        service.add(node2.clone());
+        let nodes = service.topology().mixnodes;
+        assert_eq!(2, nodes.len());
+        assert_eq!(node1.clone(), nodes[0]);
+        assert_eq!(node2.clone(), nodes[1]);
+    }
 }
 
 #[cfg(test)]

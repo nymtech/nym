@@ -21,7 +21,7 @@ impl MixminingDb {
         self.mixnodes.push(mixnode);
     }
 
-    pub fn list(&self) -> &Vec<Mixnode> {
+    pub fn get_mixnodes(&self) -> &Vec<Mixnode> {
         &self.mixnodes
     }
 
@@ -63,7 +63,7 @@ mod adding_and_retrieving_mixnodes {
 
         db.add(node.clone());
 
-        assert_eq!(&node, db.list().first().unwrap());
+        assert_eq!(&node, db.get_mixnodes().first().unwrap());
     }
 
     #[test]
@@ -75,8 +75,8 @@ mod adding_and_retrieving_mixnodes {
         db.add(node1.clone());
         db.add(node2.clone());
 
-        assert_eq!(node1, db.list()[0]);
-        assert_eq!(node2, db.list()[1]);
+        assert_eq!(node1, db.get_mixnodes()[0]);
+        assert_eq!(node2, db.get_mixnodes()[1]);
     }
 
     #[test]
@@ -89,7 +89,7 @@ mod adding_and_retrieving_mixnodes {
     fn calling_list_when_empty_returns_empty_vec() {
         let db = MixminingDb::new();
         let empty: Vec<Mixnode> = vec![];
-        assert_eq!(&empty, db.list());
+        assert_eq!(&empty, db.get_mixnodes());
     }
 
     fn fake_mixnode(location: &str) -> Mixnode {

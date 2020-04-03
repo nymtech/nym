@@ -1,10 +1,13 @@
 use crypto::identity::MixIdentityKeyPair;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
+use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
 use provider_client::{ProviderClient, ProviderClientError};
 use sphinx::header::delays::Delay;
 use sphinx::route::{Destination, Node as SphinxNode};
 use std::collections::HashMap;
+use std::convert::TryFrom;
+use std::net::SocketAddr;
 use std::time::Duration;
 use topology::provider;
 
@@ -217,9 +220,10 @@ impl PathChecker {
             .expect("We checked the path to contain at least one entry");
 
         // we generated the bytes data so unwrap is fine
-        let first_node_address =
-            addressing::socket_address_from_encoded_bytes(layer_one_mix.address.to_bytes())
-                .unwrap();
+        let first_node_address: SocketAddr =
+            NymNodeRoutingAddress::try_from(layer_one_mix.address.clone())
+                .unwrap()
+                .into();
 
         let delays: Vec<_> = path.iter().map(|_| Delay::new_from_nanos(0)).collect();
 

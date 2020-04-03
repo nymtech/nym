@@ -1,7 +1,7 @@
-use addressing;
-use addressing::AddressTypeError;
+use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use sphinx::route::{Destination, DestinationAddressBytes, SURBIdentifier};
 use sphinx::SphinxPacket;
+use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::time;
 use topology::{NymTopology, NymTopologyError};
@@ -32,8 +32,8 @@ impl From<sphinx::header::SphinxUnwrapError> for SphinxPacketEncapsulationError 
     }
 }
 
-impl From<AddressTypeError> for SphinxPacketEncapsulationError {
-    fn from(_: AddressTypeError) -> Self {
+impl From<NymNodeRoutingAddressError> for SphinxPacketEncapsulationError {
+    fn from(_: NymNodeRoutingAddressError) -> Self {
         use SphinxPacketEncapsulationError::*;
         InvalidFirstMixAddress
     }
@@ -96,9 +96,9 @@ pub fn encapsulate_message<T: NymTopology>(
 
     // we know the mix route must be valid otherwise we would have already returned an error
     let first_node_address =
-        addressing::socket_address_from_encoded_bytes(route.first().unwrap().address.to_bytes())?;
+        NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone())?;
 
-    Ok((first_node_address, packet))
+    Ok((first_node_address.into(), packet))
 }
 
 pub fn encapsulate_message_route(
@@ -113,7 +113,7 @@ pub fn encapsulate_message_route(
     let packet = sphinx::SphinxPacket::new(message, &route[..], &recipient, &delays)?;
 
     let first_node_address =
-        addressing::socket_address_from_encoded_bytes(route.first().unwrap().address.to_bytes())?;
+        NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone())?;
 
-    Ok((first_node_address, packet))
+    Ok((first_node_address.into(), packet))
 }

@@ -1,3 +1,4 @@
+pub mod addressing;
 pub mod chunking;
 
 // Future consideration: currently in a lot of places, the payloads have randomised content

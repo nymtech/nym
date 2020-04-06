@@ -64,6 +64,7 @@ impl MixNode {
             self.config.get_metrics_directory_server(),
             self.sphinx_keypair.public_key().to_base58_string(),
             self.config.get_metrics_sending_delay(),
+            self.config.get_metrics_running_stats_logging_delay(),
         )
         .start(self.runtime.handle())
     }

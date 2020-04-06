@@ -103,6 +103,7 @@ impl MetricsSender {
         directory_server: String,
         pub_key_str: String,
         sending_delay: Duration,
+        running_logging_delay: Duration,
     ) -> Self {
         MetricsSender {
             metrics,
@@ -111,7 +112,7 @@ impl MetricsSender {
             )),
             pub_key_str,
             sending_delay,
-            metrics_informer: MetricsInformer::new(),
+            metrics_informer: MetricsInformer::new(running_logging_delay),
         }
     }
 
@@ -139,15 +140,24 @@ impl MetricsSender {
     }
 }
 
-#[derive(Default)]
 struct MetricsInformer {
     total_received: u64,
     sent_map: SentMetricsMap,
+
+    running_stats_logging_delay: Duration,
+    last_reported_stats: SystemTime,
 }
 
 impl MetricsInformer {
-    fn new() -> Self {
-        Default::default()
+    fn new(running_stats_logging_delay: Duration) -> Self {
+        MetricsInformer {
+            total_received: 0,
+            sent_map: HashMap::new(),
+            running_stats_logging_delay,
+            last_reported_stats: SystemTime::now(),
+        }
+    }
+
     }
 
     fn update_runnings_stats(&mut self, pre_reset_received: u64, pre_reset_sent: &SentMetricsMap) {

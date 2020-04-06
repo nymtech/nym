@@ -62,7 +62,9 @@ impl<'a> Future for ConnectionReconnector<'a> {
                 // we failed to re-establish connection - continue exponential backoff
                 let next_delay = std::cmp::min(
                     self.maximum_reconnection_backoff,
-                    2_u32.pow(self.current_retry_attempt) * self.initial_reconnection_backoff,
+                    self.initial_reconnection_backoff
+                        .checked_mul(2_u32.pow(self.current_retry_attempt))
+                        .unwrap_or_else(|| self.maximum_reconnection_backoff),
                 );
 
                 self.current_backoff_delay

@@ -123,7 +123,10 @@ impl MetricsSender {
                 let sending_delay = tokio::time::delay_for(self.sending_delay);
                 let (received, sent) = self.metrics.acquire_and_reset_metrics().await;
 
-                self.metrics_informer.log_stats(received, &sent);
+                self.metrics_informer.update_running_stats(received, &sent);
+                self.metrics_informer.log_report_stats(received, &sent);
+                self.metrics_informer.try_log_running_stats();
+
                 match self.directory_client.metrics_post.post(&MixMetric {
                     pub_key: self.pub_key_str.clone(),
                     received,
@@ -162,9 +165,13 @@ impl MetricsInformer {
         self.last_reported_stats + self.running_stats_logging_delay < SystemTime::now()
     }
 
+    fn try_log_running_stats(&mut self) {
+        if self.should_log_running_stats() {
+            self.log_running_stats()
+        }
     }
 
-    fn update_runnings_stats(&mut self, pre_reset_received: u64, pre_reset_sent: &SentMetricsMap) {
+    fn update_running_stats(&mut self, pre_reset_received: u64, pre_reset_sent: &SentMetricsMap) {
         self.total_received += pre_reset_received;
 
         for (mix, count) in pre_reset_sent.iter() {
@@ -187,7 +194,7 @@ impl MetricsInformer {
         );
     }
 
-    fn log_running_stats(&self) {
+    fn log_running_stats(&mut self) {
         info!(
             "Since startup mixed {} packets!",
             self.sent_map.values().sum::<u64>()
@@ -197,13 +204,7 @@ impl MetricsInformer {
             "Since startup sent packets to the following: \n{:#?}",
             self.sent_map
         );
-    }
-
-    fn log_stats(&mut self, pre_reset_received: u64, pre_reset_sent: &SentMetricsMap) {
-        self.update_runnings_stats(pre_reset_received, pre_reset_sent);
-
-        self.log_report_stats(pre_reset_received, pre_reset_sent);
-        self.log_running_stats()
+        self.last_reported_stats = SystemTime::now();
     }
 }
 

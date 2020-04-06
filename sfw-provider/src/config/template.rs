@@ -75,26 +75,5 @@ ledger_path = '{{ clients_endpoint.ledger_path }}'
 
 # TODO
 
-
-##### debug configuration options #####
-# The following options should not be modified unless you know EXACTLY what you are doing
-# as if set incorrectly, they may impact your anonymity.
-
-[debug]
-
-# Directory server to which the server will be reporting their presence data.
-presence_directory_server = '{{ debug.presence_directory_server}}'
-
-# Delay between each subsequent presence data being sent.
-presence_sending_delay = {{ debug.presence_sending_delay }}
-
-# Length of filenames for new client messages.
-stored_messages_filename_length = {{ debug.stored_messages_filename_length }}
-
-# number of messages client gets on each request
-# if there are no real messages, dummy ones are create to always return  
-# `message_retrieval_limit` total messages
-message_retrieval_limit = {{ debug.message_retrieval_limit }}
-
 "#
 }

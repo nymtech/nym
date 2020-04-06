@@ -67,6 +67,9 @@ impl<'a> Future for ConnectionReconnector<'a> {
                         .unwrap_or_else(|| self.maximum_reconnection_backoff),
                 );
 
+                let new_delay_instant = tokio::time::Instant::now().checked_add(next_delay).unwrap_or_else(|| panic!("You seem to have an error in your config file, your maximum reconnenction backoff is {:?} !", self.maximum_reconnection_backoff));
+                self.current_backoff_delay.reset(new_delay_instant);
+
                 self.current_backoff_delay
                     .reset(tokio::time::Instant::now() + next_delay);
 

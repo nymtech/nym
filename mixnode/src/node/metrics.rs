@@ -158,6 +158,10 @@ impl MetricsInformer {
         }
     }
 
+    fn should_log_running_stats(&self) -> bool {
+        self.last_reported_stats + self.running_stats_logging_delay < SystemTime::now()
+    }
+
     }
 
     fn update_runnings_stats(&mut self, pre_reset_received: u64, pre_reset_sent: &SentMetricsMap) {

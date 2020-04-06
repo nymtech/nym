@@ -11,6 +11,8 @@ use std::time::Duration;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
+type SentMetricsMap = HashMap<String, u64>;
+
 pub(crate) enum MetricEvent {
     Sent(String),
     Received,
@@ -25,7 +27,7 @@ struct MixMetrics {
 
 struct MixMetricsInner {
     received: u64,
-    sent: HashMap<String, u64>,
+    sent: SentMetricsMap,
 }
 
 impl MixMetrics {
@@ -49,7 +51,7 @@ impl MixMetrics {
         *receiver_count += 1;
     }
 
-    async fn acquire_and_reset_metrics(&mut self) -> (u64, HashMap<String, u64>) {
+    async fn acquire_and_reset_metrics(&mut self) -> (u64, SentMetricsMap) {
         let mut unlocked = self.inner.lock().await;
         let received = unlocked.received;
 

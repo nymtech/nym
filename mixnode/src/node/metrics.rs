@@ -158,10 +158,7 @@ impl MetricsInformer {
         }
     }
 
-    fn log_stats(&mut self, pre_reset_received: u64, pre_reset_sent: &SentMetricsMap) {
-        self.update_runnings_stats(pre_reset_received, pre_reset_sent);
-
-        // current stats
+    fn log_report_stats(&self, pre_reset_received: u64, pre_reset_sent: &SentMetricsMap) {
         info!(
             "Since last metrics report mixed {} packets!",
             pre_reset_received
@@ -174,8 +171,9 @@ impl MetricsInformer {
             "Since last metrics report sent packets to the following: \n{:#?}",
             pre_reset_sent
         );
+    }
 
-        // running stats
+    fn log_running_stats(&self) {
         info!(
             "Since startup mixed {} packets!",
             self.sent_map.values().sum::<u64>()
@@ -185,6 +183,13 @@ impl MetricsInformer {
             "Since startup sent packets to the following: \n{:#?}",
             self.sent_map
         );
+    }
+
+    fn log_stats(&mut self, pre_reset_received: u64, pre_reset_sent: &SentMetricsMap) {
+        self.update_runnings_stats(pre_reset_received, pre_reset_sent);
+
+        self.log_report_stats(pre_reset_received, pre_reset_sent);
+        self.log_running_stats()
     }
 }
 

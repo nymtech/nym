@@ -318,7 +318,7 @@ impl Default for Logging {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(default, deny_unknown_fields)]
 pub struct Debug {
     // The idea of additional 'directory servers' is to let mixes report their presence
     // and metrics to separate places

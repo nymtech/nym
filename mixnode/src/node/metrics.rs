@@ -7,7 +7,7 @@ use futures::StreamExt;
 use log::*;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
@@ -247,6 +247,7 @@ impl MetricsController {
         directory_server: String,
         pub_key_str: String,
         sending_delay: Duration,
+        running_stats_logging_delay: Duration,
     ) -> Self {
         let (metrics_tx, metrics_rx) = mpsc::unbounded();
         let shared_metrics = MixMetrics::new();
@@ -257,6 +258,7 @@ impl MetricsController {
                 directory_server,
                 pub_key_str,
                 sending_delay,
+                running_stats_logging_delay,
             ),
             receiver: MetricsReceiver::new(shared_metrics, metrics_rx),
             reporter: MetricsReporter::new(metrics_tx),

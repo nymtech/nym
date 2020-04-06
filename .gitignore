@@ -6,5 +6,5 @@
 target
 .env
 /.vscode/settings.json
-/validator/.vscode/settings.json
+validator/.vscode
 sample-configs/validator-config.toml

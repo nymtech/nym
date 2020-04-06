@@ -4,7 +4,7 @@ use directory_client::DirectoryClient;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
-use log::{debug, error};
+use log::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -94,6 +94,7 @@ struct MetricsSender {
     directory_client: directory_client::Client,
     pub_key_str: String,
     sending_delay: Duration,
+    metrics_informer: MetricsInformer,
 }
 
 impl MetricsSender {
@@ -110,6 +111,7 @@ impl MetricsSender {
             )),
             pub_key_str,
             sending_delay,
+            metrics_informer: MetricsInformer::new(),
         }
     }
 
@@ -120,6 +122,7 @@ impl MetricsSender {
                 let sending_delay = tokio::time::delay_for(self.sending_delay);
                 let (received, sent) = self.metrics.acquire_and_reset_metrics().await;
 
+                self.metrics_informer.log_stats(received, &sent);
                 match self.directory_client.metrics_post.post(&MixMetric {
                     pub_key: self.pub_key_str.clone(),
                     received,
@@ -133,6 +136,55 @@ impl MetricsSender {
                 sending_delay.await;
             }
         })
+    }
+}
+
+#[derive(Default)]
+struct MetricsInformer {
+    total_received: u64,
+    sent_map: SentMetricsMap,
+}
+
+impl MetricsInformer {
+    fn new() -> Self {
+        Default::default()
+    }
+
+    fn update_runnings_stats(&mut self, pre_reset_received: u64, pre_reset_sent: &SentMetricsMap) {
+        self.total_received += pre_reset_received;
+
+        for (mix, count) in pre_reset_sent.iter() {
+            *self.sent_map.entry(mix.clone()).or_insert(0) += *count;
+        }
+    }
+
+    fn log_stats(&mut self, pre_reset_received: u64, pre_reset_sent: &SentMetricsMap) {
+        self.update_runnings_stats(pre_reset_received, pre_reset_sent);
+
+        // current stats
+        info!(
+            "Since last metrics report mixed {} packets!",
+            pre_reset_received
+        );
+        debug!(
+            "Since last metrics report received {} packets",
+            pre_reset_sent.values().sum::<u64>()
+        );
+        trace!(
+            "Since last metrics report sent packets to the following: \n{:#?}",
+            pre_reset_sent
+        );
+
+        // running stats
+        info!(
+            "Since startup mixed {} packets!",
+            self.sent_map.values().sum::<u64>()
+        );
+        debug!("Since startup received {} packets", self.total_received);
+        trace!(
+            "Since startup sent packets to the following: \n{:#?}",
+            self.sent_map
+        );
     }
 }
 

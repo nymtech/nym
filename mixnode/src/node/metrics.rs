@@ -159,7 +159,7 @@ impl MetricsInformer {
     }
 
     fn log_report_stats(&self, pre_reset_received: u64, pre_reset_sent: &SentMetricsMap) {
-        info!(
+        debug!(
             "Since last metrics report mixed {} packets!",
             pre_reset_received
         );

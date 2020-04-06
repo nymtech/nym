@@ -226,7 +226,7 @@ impl Default for Logging {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(default, deny_unknown_fields)]
 pub struct Debug {
     /// Directory server to which the server will be reporting their presence data.
     presence_directory_server: String,

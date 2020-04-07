@@ -46,14 +46,12 @@ impl<'a> ConnectionManager<'static> {
         address: SocketAddr,
         reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
+        connection_timeout: Duration,
     ) -> ConnectionManager<'a> {
         let (conn_tx, conn_rx) = mpsc::unbounded();
 
-        let connection_timeout_duration = Duration::from_millis(1_500);
-
         // the blocking call here is fine as initially we want to wait the timeout interval (at most) anyway:
-        let tcp_stream_res =
-            std::net::TcpStream::connect_timeout(&address, connection_timeout_duration);
+        let tcp_stream_res = std::net::TcpStream::connect_timeout(&address, connection_timeout);
 
         let initial_state = match tcp_stream_res {
             Ok(stream) => {
@@ -62,7 +60,7 @@ impl<'a> ConnectionManager<'static> {
                 ConnectionState::Writing(ConnectionWriter::new(tokio_stream))
             }
             Err(e) => {
-                warn!("failed to establish initial connection to {} within {:?} ({}). Going into reconnection mode", address, connection_timeout_duration, e);
+                warn!("failed to establish initial connection to {} within {:?} ({}). Going into reconnection mode", address, connection_timeout, e);
                 ConnectionState::Reconnecting(ConnectionReconnector::new(
                     address,
                     reconnection_backoff,

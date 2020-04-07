@@ -1527,7 +1527,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "0.6.0"
+version = "0.7.0-dev"
 dependencies = [
  "bs58",
  "built",
@@ -1561,7 +1561,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "0.6.0"
+version = "0.7.0-dev"
 dependencies = [
  "bs58",
  "built",
@@ -1587,7 +1587,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sfw-provider"
-version = "0.6.0"
+version = "0.7.0-dev"
 dependencies = [
  "bs58",
  "built",
@@ -1617,7 +1617,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator"
-version = "0.6.0"
+version = "0.7.0-dev"
 dependencies = [
  "abci",
  "built",

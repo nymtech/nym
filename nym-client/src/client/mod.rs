@@ -219,6 +219,7 @@ impl NymClient {
                 MixTrafficController::new(
                     self.config.get_packet_forwarding_initial_backoff(),
                     self.config.get_packet_forwarding_maximum_backoff(),
+                    self.config.get_initial_connection_timeout(),
                     mix_rx,
                 )
             })

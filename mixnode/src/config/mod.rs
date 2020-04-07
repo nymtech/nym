@@ -20,6 +20,7 @@ const DEFAULT_METRICS_SENDING_DELAY: u64 = 1000;
 const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: u64 = 60_000; // 1min
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: u64 = 10_000; // 10s
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: u64 = 300_000; // 5min
+const DEFAULT_INITIAL_CONNECTION_TIMEOUT: u64 = 1_500; // 1.5s
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -237,6 +238,10 @@ impl Config {
     pub fn get_packet_forwarding_maximum_backoff(&self) -> time::Duration {
         time::Duration::from_millis(self.debug.packet_forwarding_maximum_backoff)
     }
+
+    pub fn get_initial_connection_timeout(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.initial_connection_timeout)
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -349,6 +354,10 @@ pub struct Debug {
     /// forwarding sphinx packets.
     /// The provided value is interpreted as milliseconds.
     packet_forwarding_maximum_backoff: u64,
+
+    /// Timeout for establishing initial connection when trying to forward a sphinx packet.
+    /// The provider value is interpreted as milliseconds.
+    initial_connection_timeout: u64,
 }
 
 impl Debug {
@@ -372,6 +381,7 @@ impl Default for Debug {
             metrics_running_stats_logging_delay: DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY,
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
+            initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
         }
     }
 }

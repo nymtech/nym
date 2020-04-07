@@ -17,8 +17,10 @@ const DEFAULT_LISTENING_PORT: u16 = 1789;
 // where applicable, the below are defined in milliseconds
 const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 1500;
 const DEFAULT_METRICS_SENDING_DELAY: u64 = 1000;
+const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: u64 = 60_000; // 1min
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: u64 = 10_000; // 10s
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: u64 = 300_000; // 5min
+const DEFAULT_INITIAL_CONNECTION_TIMEOUT: u64 = 1_500; // 1.5s
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -213,6 +215,10 @@ impl Config {
         time::Duration::from_millis(self.debug.metrics_sending_delay)
     }
 
+    pub fn get_metrics_running_stats_logging_delay(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.metrics_running_stats_logging_delay)
+    }
+
     pub fn get_layer(&self) -> u64 {
         self.mixnode.layer
     }
@@ -231,6 +237,10 @@ impl Config {
 
     pub fn get_packet_forwarding_maximum_backoff(&self) -> time::Duration {
         time::Duration::from_millis(self.debug.packet_forwarding_maximum_backoff)
+    }
+
+    pub fn get_initial_connection_timeout(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.initial_connection_timeout)
     }
 }
 
@@ -313,7 +323,7 @@ impl Default for Logging {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(default, deny_unknown_fields)]
 pub struct Debug {
     // The idea of additional 'directory servers' is to let mixes report their presence
     // and metrics to separate places
@@ -331,6 +341,10 @@ pub struct Debug {
     /// The provided value is interpreted as milliseconds.
     metrics_sending_delay: u64,
 
+    /// Delay between each subsequent running metrics statistics being logged.
+    /// The provided value is interpreted as milliseconds.
+    metrics_running_stats_logging_delay: u64,
+
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
     /// The provided value is interpreted as milliseconds.
@@ -340,6 +354,10 @@ pub struct Debug {
     /// forwarding sphinx packets.
     /// The provided value is interpreted as milliseconds.
     packet_forwarding_maximum_backoff: u64,
+
+    /// Timeout for establishing initial connection when trying to forward a sphinx packet.
+    /// The provider value is interpreted as milliseconds.
+    initial_connection_timeout: u64,
 }
 
 impl Debug {
@@ -360,8 +378,10 @@ impl Default for Debug {
             presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
             metrics_directory_server: Self::default_directory_server(),
             metrics_sending_delay: DEFAULT_METRICS_SENDING_DELAY,
+            metrics_running_stats_logging_delay: DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY,
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
+            initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
         }
     }
 }

@@ -1,6 +1,7 @@
 use crate::connection_manager::reconnector::ConnectionReconnector;
 use crate::connection_manager::writer::ConnectionWriter;
 use futures::channel::{mpsc, oneshot};
+use futures::future::{abortable, AbortHandle};
 use futures::task::Poll;
 use futures::{AsyncWriteExt, StreamExt};
 use log::*;
@@ -34,22 +35,32 @@ pub(crate) struct ConnectionManager<'a> {
     state: ConnectionState<'a>,
 }
 
+impl<'a> Drop for ConnectionManager<'a> {
+    fn drop(&mut self) {
+        debug!("Connection manager to {:?} is being dropped", self.address)
+    }
+}
+
 impl<'a> ConnectionManager<'static> {
     pub(crate) async fn new(
         address: SocketAddr,
         reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
+        connection_timeout: Duration,
     ) -> ConnectionManager<'a> {
         let (conn_tx, conn_rx) = mpsc::unbounded();
 
-        // based on initial connection we will either have a writer or a reconnector
-        let state = match tokio::net::TcpStream::connect(address).await {
-            Ok(conn) => ConnectionState::Writing(ConnectionWriter::new(conn)),
+        // the blocking call here is fine as initially we want to wait the timeout interval (at most) anyway:
+        let tcp_stream_res = std::net::TcpStream::connect_timeout(&address, connection_timeout);
+
+        let initial_state = match tcp_stream_res {
+            Ok(stream) => {
+                let tokio_stream = tokio::net::TcpStream::from_std(stream).unwrap();
+                debug!("managed to establish initial connection to {}", address);
+                ConnectionState::Writing(ConnectionWriter::new(tokio_stream))
+            }
             Err(e) => {
-                warn!(
-                    "failed to establish initial connection to {} ({}). Going into reconnection mode",
-                    address, e
-                );
+                warn!("failed to establish initial connection to {} within {:?} ({}). Going into reconnection mode", address, connection_timeout, e);
                 ConnectionState::Reconnecting(ConnectionReconnector::new(
                     address,
                     reconnection_backoff,
@@ -64,28 +75,33 @@ impl<'a> ConnectionManager<'static> {
             address,
             maximum_reconnection_backoff,
             reconnection_backoff,
-            state,
+            state: initial_state,
         }
     }
 
-    /// consumes Self and returns channel for communication
-    pub(crate) fn start(mut self, handle: &Handle) -> ConnectionManagerSender {
-        let sender_clone = self.conn_tx.clone();
-        handle.spawn(async move {
-            while let Some(msg) = self.conn_rx.next().await {
-                let (msg_content, res_ch) = msg;
-                let res = self.handle_new_message(msg_content).await;
-                if let Some(res_ch) = res_ch {
-                    if let Err(e) = res_ch.send(res) {
-                        error!(
-                            "failed to send response on the channel to the caller! - {:?}",
-                            e
-                        );
-                    }
+    async fn run(mut self) {
+        while let Some(msg) = self.conn_rx.next().await {
+            let (msg_content, res_ch) = msg;
+            let res = self.handle_new_message(msg_content).await;
+            if let Some(res_ch) = res_ch {
+                if let Err(e) = res_ch.send(res) {
+                    error!(
+                        "failed to send response on the channel to the caller! - {:?}",
+                        e
+                    );
                 }
             }
-        });
-        sender_clone
+        }
+    }
+
+    /// consumes Self and returns channel for communication as well as an `AbortHandle`
+    pub(crate) fn start_abortable(self, handle: &Handle) -> (ConnectionManagerSender, AbortHandle) {
+        let sender_clone = self.conn_tx.clone();
+        let (abort_fut, abort_handle) = abortable(self.run());
+
+        handle.spawn(async move { abort_fut.await });
+
+        (sender_clone, abort_handle)
     }
 
     async fn handle_new_message(&mut self, msg: Vec<u8>) -> io::Result<()> {

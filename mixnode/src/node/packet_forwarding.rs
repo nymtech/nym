@@ -14,10 +14,12 @@ impl PacketForwarder {
     pub(crate) fn new(
         initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
+        initial_connection_timeout: Duration,
     ) -> PacketForwarder {
         let tcp_client_config = multi_tcp_client::Config::new(
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
+            initial_connection_timeout,
         );
 
         let (conn_tx, conn_rx) = mpsc::unbounded();

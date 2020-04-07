@@ -60,13 +60,25 @@ impl<'a> Future for ConnectionReconnector<'a> {
                 self.current_retry_attempt += 1;
 
                 // we failed to re-establish connection - continue exponential backoff
+
+                // according to https://github.com/tokio-rs/tokio/issues/1953 there's an undocumented
+                // limit of tokio delay of about 2 years.
+                // let's ensure our delay is always on a sane side of being maximum 1 day.
+                let maximum_sane_delay = Duration::from_secs(24 * 60 * 60);
+
                 let next_delay = std::cmp::min(
-                    self.maximum_reconnection_backoff,
-                    2_u32.pow(self.current_retry_attempt) * self.initial_reconnection_backoff,
+                    maximum_sane_delay,
+                    self.initial_reconnection_backoff
+                        .checked_mul(2_u32.pow(self.current_retry_attempt))
+                        .unwrap_or_else(|| self.maximum_reconnection_backoff),
                 );
 
-                self.current_backoff_delay
-                    .reset(tokio::time::Instant::now() + next_delay);
+                let now = self.current_backoff_delay.deadline();
+                // this can't overflow now because next_delay is limited to one day...
+                // ... well, unless you've been running the system for couple of decades without
+                // any restarts....
+                let next = now + next_delay;
+                self.current_backoff_delay.reset(next);
 
                 self.connection = tokio::net::TcpStream::connect(self.address).boxed();
 

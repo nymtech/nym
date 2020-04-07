@@ -1,7 +1,7 @@
 [package]
 build = "build.rs"
 name = "nym-mixnode"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
@@ -20,15 +20,16 @@ serde = { version = "1.0.104", features = ["derive"] }
 tokio = { version = "0.2", features = ["full"] }
 
 ## internal
-addressing = {path = "../common/addressing" }
 config = {path = "../common/config"}
 crypto = {path = "../common/crypto"}
 directory-client = { path = "../common/clients/directory-client" }
 multi-tcp-client = { path = "../common/clients/multi-tcp-client" }
+nymsphinx = {path = "../common/nymsphinx" }
 pemstore = {path = "../common/pemstore"}
+topology = {path = "../common/topology"}
 
 ## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="23f9c89b257ee0936e70afd682e9ed6a62e89eee" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="44d8f2aece5049eaa4fe84b7948758ce82b4b80d" }
 
 [build-dependencies]
 built = "0.3.2"

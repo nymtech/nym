@@ -3,9 +3,11 @@ use crate::config::Config;
 use crate::provider::client_handling::ledger::ClientLedger;
 use crate::provider::storage::ClientStorage;
 use crypto::encryption;
+use directory_client::presence::Topology;
 use log::*;
 use pemstore::pemstore::PemStore;
 use tokio::runtime::Runtime;
+use topology::NymTopology;
 
 mod client_handling;
 mod mix_handling;
@@ -85,11 +87,33 @@ impl ServiceProvider {
         );
     }
 
+    fn check_if_same_ip_provider_exists(&self) -> Option<String> {
+        // TODO: once we change to graph topology this here will need to be updated!
+        let topology = Topology::new(self.config.get_presence_directory_server());
+        let existing_providers_presence = topology.mix_provider_nodes;
+        existing_providers_presence
+            .iter()
+            .find(|node| {
+                node.mixnet_listener == self.config.get_mix_announce_address()
+                    || node.client_listener == self.config.get_clients_announce_address()
+            })
+            .map(|node| node.pub_key.clone())
+    }
+
     pub fn run(&mut self) {
         // A possible future optimisation, depending on bottlenecks and resource usage:
         // considering, presumably, there will be more mix packets received than client requests:
         // create 2 separate runtimes - one with bigger threadpool dedicated solely for
         // the mix handling and the other one for the rest of tasks
+        info!("Starting nym sfw-provider");
+
+        if let Some(duplicate_provider_key) = self.check_if_same_ip_provider_exists() {
+            error!(
+                "Our announce-host is identical to one of existing nodes! (its key is {:?}",
+                duplicate_provider_key
+            );
+            return;
+        }
 
         let client_storage = ClientStorage::new(
             self.config.get_message_retrieval_limit() as usize,
@@ -100,6 +124,8 @@ impl ServiceProvider {
         self.start_presence_notifier();
         self.start_mix_socket_listener(client_storage.clone());
         self.start_client_socket_listener(client_storage);
+
+        info!("Finished nym sfw-provider startup procedure - it should now be able to receive mix and client traffic!");
 
         if let Err(e) = self.runtime.block_on(tokio::signal::ctrl_c()) {
             error!(

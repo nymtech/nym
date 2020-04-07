@@ -1,11 +1,14 @@
 use crypto::identity::MixIdentityKeyPair;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
-use mix_client::MixClient;
+use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
 use provider_client::{ProviderClient, ProviderClientError};
 use sphinx::header::delays::Delay;
 use sphinx::route::{Destination, Node as SphinxNode};
 use std::collections::HashMap;
+use std::convert::TryFrom;
+use std::net::SocketAddr;
+use std::time::Duration;
 use topology::provider;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -17,10 +20,7 @@ pub enum PathStatus {
 
 pub(crate) struct PathChecker {
     provider_clients: HashMap<[u8; 32], Option<ProviderClient>>,
-    // currently this is an overkill as MixClient is extremely cheap to create,
-    // however, once we introduce persistent connection between client and layer one mixes,
-    // this will be extremely helpful to have
-    layer_one_clients: HashMap<[u8; 32], Option<MixClient>>,
+    mixnet_client: multi_tcp_client::Client,
     paths_status: HashMap<Vec<u8>, PathStatus>,
     our_destination: Destination,
     check_id: [u8; 16],
@@ -30,6 +30,7 @@ impl PathChecker {
     pub(crate) async fn new(
         providers: Vec<provider::Node>,
         identity_keys: &MixIdentityKeyPair,
+        connection_timeout: Duration,
         check_id: [u8; 16],
     ) -> Self {
         let mut provider_clients = HashMap::new();
@@ -41,12 +42,12 @@ impl PathChecker {
                 ProviderClient::new(provider.client_listener, address.clone(), None);
             let insertion_result = match provider_client.register().await {
                 Ok(token) => {
-                    debug!("registered at provider {}", provider.pub_key);
+                    debug!("[Healthcheck] registered at provider {}", provider.pub_key);
                     provider_client.update_token(token);
                     provider_clients.insert(provider.get_pub_key_bytes(), Some(provider_client))
                 }
                 Err(ProviderClientError::ClientAlreadyRegisteredError) => {
-                    info!("We were already registered");
+                    info!("[Healthcheck] We were already registered");
                     provider_clients.insert(provider.get_pub_key_bytes(), Some(provider_client))
                 }
                 Err(err) => {
@@ -63,9 +64,16 @@ impl PathChecker {
             }
         }
 
+        // there's no reconnection allowed - if it fails, then it fails.
+        let mixnet_client_config = multi_tcp_client::Config::new(
+            Duration::from_secs(1_000_000_000),
+            Duration::from_secs(1_000_000_000),
+            connection_timeout,
+        );
+
         PathChecker {
             provider_clients,
-            layer_one_clients: HashMap::new(),
+            mixnet_client: multi_tcp_client::Client::new(mixnet_client_config),
             our_destination: Destination::new(address, Default::default()),
             paths_status: HashMap::new(),
             check_id,
@@ -180,7 +188,7 @@ impl PathChecker {
             return;
         }
 
-        debug!("Checking path: {:?} ({})", path, iteration);
+        trace!("Checking path: {:?} ({})", path, iteration);
         let path_identifier = PathChecker::unique_path_key(path, self.check_id, iteration);
 
         // check if there is even any point in sending the packet
@@ -212,32 +220,12 @@ impl PathChecker {
         let layer_one_mix = path
             .first()
             .expect("We checked the path to contain at least one entry");
-        let first_node_key = layer_one_mix.pub_key.to_bytes();
 
         // we generated the bytes data so unwrap is fine
-        let first_node_address =
-            addressing::socket_address_from_encoded_bytes(layer_one_mix.address.to_bytes())
-                .unwrap();
-
-        let first_node_client = self
-            .layer_one_clients
-            .entry(first_node_key)
-            .or_insert_with(|| Some(mix_client::MixClient::new()));
-
-        if first_node_client.is_none() {
-            debug!("we can ignore this path as layer one mix is inaccessible");
-            if self
-                .paths_status
-                .insert(path_identifier, PathStatus::Unhealthy)
-                .is_some()
-            {
-                panic!("Overwriting path checks!")
-            }
-            return;
-        }
-
-        // we already checked for 'None' case
-        let first_node_client = first_node_client.as_ref().unwrap();
+        let first_node_address: SocketAddr =
+            NymNodeRoutingAddress::try_from(layer_one_mix.address.clone())
+                .unwrap()
+                .into();
 
         let delays: Vec<_> = path.iter().map(|_| Delay::new_from_nanos(0)).collect();
 
@@ -251,7 +239,12 @@ impl PathChecker {
         .unwrap();
 
         debug!("sending test packet to {}", first_node_address);
-        match first_node_client.send(packet, first_node_address).await {
+
+        match self
+            .mixnet_client
+            .send(first_node_address, packet.to_bytes(), true)
+            .await
+        {
             Err(err) => {
                 debug!("failed to send packet to {} - {}", first_node_address, err);
                 if self

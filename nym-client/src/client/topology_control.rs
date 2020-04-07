@@ -8,6 +8,7 @@ use std::time;
 use std::time::Duration;
 use tokio::runtime::Handle;
 // use tokio::sync::RwLock;
+use std::net::SocketAddr;
 use tokio::task::JoinHandle;
 use topology::{provider, NymTopology};
 
@@ -39,6 +40,25 @@ impl<T: NymTopology> TopologyAccessor<T> {
 
     async fn update_global_topology(&mut self, new_topology: Option<T>) {
         self.inner.lock().await.update(new_topology);
+    }
+
+    pub(crate) async fn get_provider_socket_addr(&mut self, id: &str) -> Option<SocketAddr> {
+        match &self.inner.lock().await.0 {
+            None => None,
+            Some(ref topology) => topology
+                .providers()
+                .iter()
+                .find(|provider| provider.pub_key == id)
+                .map(|provider| provider.client_listener),
+        }
+    }
+
+    // only used by the client at startup to get a slightly more reasonable error message
+    pub(crate) async fn is_routable(&self) -> bool {
+        match &self.inner.lock().await.0 {
+            None => false,
+            Some(ref topology) => topology.can_construct_path_through(),
+        }
     }
 
     // Unless you absolutely need the entire topology, use `random_route` instead
@@ -90,6 +110,7 @@ pub(crate) struct TopologyRefresherConfig {
     refresh_rate: time::Duration,
     identity_keypair: MixIdentityKeyPair,
     resolution_timeout: time::Duration,
+    connection_timeout: time::Duration,
     number_test_packets: usize,
     node_score_threshold: f64,
 }
@@ -100,6 +121,7 @@ impl TopologyRefresherConfig {
         refresh_rate: time::Duration,
         identity_keypair: MixIdentityKeyPair,
         resolution_timeout: time::Duration,
+        connection_timeout: time::Duration,
         number_test_packets: usize,
         node_score_threshold: f64,
     ) -> Self {
@@ -108,6 +130,7 @@ impl TopologyRefresherConfig {
             refresh_rate,
             identity_keypair,
             resolution_timeout,
+            connection_timeout,
             number_test_packets,
             node_score_threshold,
         }
@@ -130,6 +153,7 @@ impl<T: 'static + NymTopology> TopologyRefresher<T> {
         // this is a temporary solution as the healthcheck will eventually be moved to validators
         let health_checker = healthcheck::HealthChecker::new(
             cfg.resolution_timeout,
+            cfg.connection_timeout,
             cfg.number_test_packets,
             cfg.identity_keypair,
         );
@@ -162,6 +186,8 @@ impl<T: 'static + NymTopology> TopologyRefresher<T> {
             }
             Ok(scores) => scores,
         };
+
+        debug!("{}", healthcheck_scores);
 
         let healthy_topology = healthcheck_scores
             .filter_topology_by_score(&version_filtered_topology, self.node_score_threshold);

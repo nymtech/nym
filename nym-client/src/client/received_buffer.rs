@@ -3,6 +3,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::lock::Mutex;
 use futures::StreamExt;
 use log::*;
+use nymsphinx::chunking::reconstruction::MessageReconstructor;
 use std::sync::Arc;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
@@ -13,6 +14,7 @@ pub(crate) type ReceivedBufferRequestReceiver = mpsc::UnboundedReceiver<Received
 
 struct ReceivedMessagesBufferInner {
     messages: Vec<Vec<u8>>,
+    message_reconstructor: MessageReconstructor,
 }
 
 #[derive(Debug, Clone)]
@@ -27,13 +29,38 @@ impl ReceivedMessagesBuffer {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
                 messages: Vec::new(),
+                message_reconstructor: MessageReconstructor::new(),
             })),
         }
     }
 
-    async fn add_new_messages(&mut self, msgs: Vec<Vec<u8>>) {
+    async fn add_reconstructed_messages(&mut self, msgs: Vec<Vec<u8>>) {
+        debug!("Adding {:?} new messages to the buffer!", msgs.len());
         trace!("Adding new messages to the buffer! {:?}", msgs);
         self.inner.lock().await.messages.extend(msgs)
+    }
+
+    async fn add_new_message_fragments(&mut self, msgs: Vec<Vec<u8>>) {
+        debug!(
+            "Adding {:?} new message fragments to the buffer!",
+            msgs.len()
+        );
+        trace!("Adding new message fragments to the buffer! {:?}", msgs);
+
+        let mut completed_messages = Vec::new();
+        let mut inner_guard = self.inner.lock().await;
+        for msg_fragment in msgs {
+            if let Some(reconstructed_message) =
+                inner_guard.message_reconstructor.new_fragment(msg_fragment)
+            {
+                completed_messages.push(reconstructed_message);
+            }
+        }
+        // make sure to drop the lock to not deadlock
+        drop(inner_guard);
+        if !completed_messages.is_empty() {
+            self.add_reconstructed_messages(completed_messages).await;
+        }
     }
 
     async fn acquire_and_empty(&mut self) -> Vec<Vec<u8>> {
@@ -67,7 +94,7 @@ impl RequestReceiver {
                     error!(
                         "Failed to send the messages to the requester. Adding them back to the buffer"
                     );
-                    self.received_buffer.add_new_messages(failed_messages).await;
+                    self.received_buffer.add_reconstructed_messages(failed_messages).await;
                 }
             }
         })
@@ -92,7 +119,9 @@ impl MessageReceiver {
     fn start(mut self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move {
             while let Some(new_messages) = self.poller_receiver.next().await {
-                self.received_buffer.add_new_messages(new_messages).await;
+                self.received_buffer
+                    .add_new_message_fragments(new_messages)
+                    .await;
             }
         })
     }

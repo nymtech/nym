@@ -127,6 +127,9 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
         self.mix_tx
             .unbounded_send(MixMessage::new(next_packet.0, next_packet.1))
             .unwrap();
+        // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
+        // the UnboundedReceiver [of mix_rx] will not get a chance to read anything
+        tokio::task::yield_now().await;
     }
 
     pub(crate) async fn run_out_queue_control(mut self) {

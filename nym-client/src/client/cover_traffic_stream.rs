@@ -99,6 +99,9 @@ impl<T: 'static + NymTopology> LoopCoverTrafficStream<T> {
         self.mix_tx
             .unbounded_send(MixMessage::new(cover_message.0, cover_message.1))
             .unwrap();
+        // JS: due to identical logical structure to OutQueueControl::on_message(), this is also
+        // presumably required to prevent bugs in the future. Exact reason is still unknown to me.
+        tokio::task::yield_now().await;
     }
 
     async fn run(&mut self) {

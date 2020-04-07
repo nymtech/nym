@@ -6,6 +6,7 @@ use futures::future::FutureExt;
 use futures::io::Error;
 use futures::SinkExt;
 use log::*;
+use nymsphinx::chunking::split_and_prepare_payloads;
 use sphinx::route::{Destination, DestinationAddressBytes};
 use std::convert::TryFrom;
 use std::io;
@@ -94,21 +95,21 @@ impl ClientRequest {
     async fn handle_send(
         msg: Vec<u8>,
         recipient_address: DestinationAddressBytes,
-        mut input_tx: mpsc::UnboundedSender<InputMessage>,
+        input_tx: mpsc::UnboundedSender<InputMessage>,
     ) -> ServerResponse {
         trace!("sending to: {:?}, msg: {:?}", recipient_address, msg);
-        if msg.len() > sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH {
-            return ServerResponse::Error {
-                message: format!(
-                    "too long message. Sent {} bytes while the maximum is {}",
-                    msg.len(),
-                    sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH
-                ),
-            };
-        }
         let dummy_surb = [0; 16];
-        let input_msg = InputMessage(Destination::new(recipient_address, dummy_surb), msg);
-        input_tx.send(input_msg).await.unwrap();
+
+        // in case the message is too long and needs to be split into multiple packets:
+        let split_message = split_and_prepare_payloads(&msg);
+        for message_fragment in split_message {
+            let input_msg = InputMessage(
+                Destination::new(recipient_address.clone(), dummy_surb),
+                message_fragment,
+            );
+            input_tx.unbounded_send(input_msg).unwrap();
+        }
+
         ServerResponse::Send
     }
 

@@ -36,6 +36,8 @@ async fn process_socket_connection(
                 return;
             }
             Ok(n) => {
+                // If I understand it correctly, this if should never be executed as if `read_exact`
+                // does not fill buffer, it will throw UnexpectedEof?
                 if n != sphinx::PACKET_SIZE {
                     warn!("read data of different length than expected sphinx packet size - {} (expected {})", n, sphinx::PACKET_SIZE);
                     continue;
@@ -45,10 +47,16 @@ async fn process_socket_connection(
                 tokio::spawn(process_received_packet(buf, packet_processor.clone()))
             }
             Err(e) => {
-                warn!(
-                    "failed to read from socket. Closing the connection; err = {:?}",
-                    e
-                );
+                if e.kind() == io::ErrorKind::UnexpectedEof {
+                    debug!("Read buffer was not fully filled. Most likely the client ({:?}) closed the connection.\
+                    Also closing the connection on this end.", socket.peer_addr())
+                } else {
+                    warn!(
+                        "failed to read from socket (source: {:?}). Closing the connection; err = {:?}",
+                        socket.peer_addr(),
+                        e
+                    );
+                }
                 return;
             }
         };

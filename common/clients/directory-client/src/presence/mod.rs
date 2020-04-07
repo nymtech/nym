@@ -86,7 +86,7 @@ mod converting_mixnode_presence_into_topology_mixnode {
             version: "".to_string(),
         };
 
-        let result: Result<mix::Node, std::io::Error> = mix_presence.try_into();
+        let _result: Result<mix::Node, std::io::Error> = mix_presence.try_into();
         // assert!(result.is_err()) // This fails only for me. Why?
         // ¯\_(ツ)_/¯ - works on my machine (and travis)
     }

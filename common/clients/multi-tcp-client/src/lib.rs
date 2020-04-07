@@ -1,5 +1,6 @@
 use crate::connection_manager::{ConnectionManager, ConnectionManagerSender};
 use futures::channel::oneshot;
+use futures::future::AbortHandle;
 use log::*;
 use std::collections::HashMap;
 use std::io;
@@ -12,25 +13,29 @@ mod connection_manager;
 pub struct Config {
     initial_reconnection_backoff: Duration,
     maximum_reconnection_backoff: Duration,
+    initial_connection_timeout: Duration,
 }
 
 impl Config {
     pub fn new(
         initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
+        initial_connection_timeout: Duration,
     ) -> Self {
         Config {
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
+            initial_connection_timeout,
         }
     }
 }
 
 pub struct Client {
     runtime_handle: Handle,
-    connections_managers: HashMap<SocketAddr, ConnectionManagerSender>,
+    connections_managers: HashMap<SocketAddr, (ConnectionManagerSender, AbortHandle)>,
     maximum_reconnection_backoff: Duration,
     initial_reconnection_backoff: Duration,
+    initial_connection_timeout: Duration,
 }
 
 impl Client {
@@ -43,17 +48,24 @@ impl Client {
             connections_managers: HashMap::new(),
             initial_reconnection_backoff: config.maximum_reconnection_backoff,
             maximum_reconnection_backoff: config.initial_reconnection_backoff,
+            initial_connection_timeout: config.initial_connection_timeout,
         }
     }
 
-    async fn start_new_connection_manager(&self, address: SocketAddr) -> ConnectionManagerSender {
-        ConnectionManager::new(
+    async fn start_new_connection_manager(
+        &mut self,
+        address: SocketAddr,
+    ) -> (ConnectionManagerSender, AbortHandle) {
+        let (sender, abort_handle) = ConnectionManager::new(
             address,
             self.initial_reconnection_backoff,
             self.maximum_reconnection_backoff,
+            self.initial_connection_timeout,
         )
         .await
-        .start(&self.runtime_handle)
+        .start_abortable(&self.runtime_handle);
+
+        (sender, abort_handle)
     }
 
     // if wait_for_response is set to true, we will get information about any possible IO errors
@@ -66,25 +78,34 @@ impl Client {
         wait_for_response: bool,
     ) -> io::Result<()> {
         if !self.connections_managers.contains_key(&address) {
-            info!(
+            debug!(
                 "There is no existing connection to {:?} - it will be established now",
                 address
             );
 
-            let new_manager_sender = self.start_new_connection_manager(address).await;
+            let (new_manager_sender, abort_handle) =
+                self.start_new_connection_manager(address).await;
             self.connections_managers
-                .insert(address, new_manager_sender);
+                .insert(address, (new_manager_sender, abort_handle));
         }
 
         let manager = self.connections_managers.get_mut(&address).unwrap();
 
         if wait_for_response {
             let (res_tx, res_rx) = oneshot::channel();
-            manager.unbounded_send((message, Some(res_tx))).unwrap();
+            manager.0.unbounded_send((message, Some(res_tx))).unwrap();
             res_rx.await.unwrap()
         } else {
-            manager.unbounded_send((message, None)).unwrap();
+            manager.0.unbounded_send((message, None)).unwrap();
             Ok(())
+        }
+    }
+}
+
+impl Drop for Client {
+    fn drop(&mut self) {
+        for (_, abort_handle) in self.connections_managers.values() {
+            abort_handle.abort()
         }
     }
 }
@@ -150,7 +171,8 @@ mod tests {
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         let addr = "127.0.0.1:6000".parse().unwrap();
         let reconnection_backoff = Duration::from_secs(1);
-        let client_config = Config::new(reconnection_backoff, 10 * reconnection_backoff);
+        let timeout = Duration::from_secs(1);
+        let client_config = Config::new(reconnection_backoff, 10 * reconnection_backoff, timeout);
 
         let messages_to_send = vec![[1u8; SERVER_MSG_LEN].to_vec(), [2; SERVER_MSG_LEN].to_vec()];
 
@@ -209,7 +231,8 @@ mod tests {
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         let addr = "127.0.0.1:6001".parse().unwrap();
         let reconnection_backoff = Duration::from_secs(2);
-        let client_config = Config::new(reconnection_backoff, 10 * reconnection_backoff);
+        let timeout = Duration::from_secs(1);
+        let client_config = Config::new(reconnection_backoff, 10 * reconnection_backoff, timeout);
 
         let messages_to_send = vec![[1u8; SERVER_MSG_LEN].to_vec(), [2; SERVER_MSG_LEN].to_vec()];
 

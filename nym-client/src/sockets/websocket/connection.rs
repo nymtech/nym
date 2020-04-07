@@ -5,6 +5,7 @@ use crate::sockets::websocket::types::{ClientRequest, ServerResponse};
 use futures::channel::oneshot;
 use futures::{SinkExt, StreamExt};
 use log::*;
+use nymsphinx::chunking::split_and_prepare_payloads;
 use sphinx::route::{Destination, DestinationAddressBytes};
 use std::convert::TryFrom;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
@@ -71,23 +72,21 @@ impl<T: NymTopology> Connection<T> {
 
     fn handle_text_send(&self, msg: String, recipient_address: String) -> ServerResponse {
         let message_bytes = msg.into_bytes();
-        if message_bytes.len() > sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH {
-            return ServerResponse::Error {
-                message: format!(
-                    "message too long. Sent {} bytes, but the maximum is {}",
-                    message_bytes.len(),
-                    sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH
-                ),
-            };
-        }
 
         // TODO: the below can panic if recipient_address is malformed, but it should be
         // resolved when refactoring sphinx code to make `from_base58_string` return a Result
         let address = DestinationAddressBytes::from_base58_string(recipient_address);
         let dummy_surb = [0; 16];
 
-        let input_msg = InputMessage(Destination::new(address, dummy_surb), message_bytes);
-        self.msg_input.unbounded_send(input_msg).unwrap();
+        // in case the message is too long and needs to be split into multiple packets:
+        let split_message = split_and_prepare_payloads(&message_bytes);
+        for message_fragment in split_message {
+            let input_msg = InputMessage(
+                Destination::new(address.clone(), dummy_surb),
+                message_fragment,
+            );
+            self.msg_input.unbounded_send(input_msg).unwrap();
+        }
 
         ServerResponse::Send
     }

@@ -1,8 +1,83 @@
 # Changelog
 
-## [Unreleased](https://github.com/nymtech/nym/tree/HEAD)
+## [v0.6.0](https://github.com/nymtech/nym/tree/HEAD)
 
-[Full Changelog](https://github.com/nymtech/nym/compare/v0.4.1...HEAD)
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.5.0...HEAD)
+
+This  release fixes bugs in v0.5.0. All testnet node operators are advised to upgrade from v0.5.0.
+
+* fixed premature EOFs on socket connections by using the new multi-TCP client
+* fixed a bug causing client and mixnode connection hangs for misconfigured nodes
+* by default 'Debug' section of saved configs is now empty and default values are used unless explicitly overridden
+* introduced packet chunking allowing clients to send messages of arbitrary length. Note that packet retransmission is not implemented yet, so for longer messages, you might not get anything
+* mixnodes now periodically log stats regarding number of packets mixed
+* fixed possible client hang ups when sending high rates of traffic 
+* preventing mixes from starting with same announce-host as an existing node
+* fixed overflow multiplication if connection backoff was set to a high value
+
+
+**Closed issues:**
+
+- Periodic activity summary [\#172](https://github.com/nymtech/nym/issues/172)
+- Move contents of 'common/addressing' into 'common/nymsphinx' [\#161](https://github.com/nymtech/nym/issues/161)
+- Make builds simpler for node operators [\#114](https://github.com/nymtech/nym/issues/114)
+- Chunking in `nym-client` \(receive\) [\#83](https://github.com/nymtech/nym/issues/83)
+- Chunking in `nym-client` \(send\) [\#82](https://github.com/nymtech/nym/issues/82)
+
+**Merged pull requests:**
+
+- Feature/tcp client connection timeout [\#176](https://github.com/nymtech/nym/pull/176) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/mixing stats logging [\#175](https://github.com/nymtech/nym/pull/175) ([jstuczyn](https://github.com/jstuczyn))
+- Preventing multiplication overflow for reconnection backoff [\#174](https://github.com/nymtech/nym/pull/174) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/non mandatory debug config [\#173](https://github.com/nymtech/nym/pull/173) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/addressing move [\#169](https://github.com/nymtech/nym/pull/169) ([jstuczyn](https://github.com/jstuczyn))
+- Checking if any other node is already announcing the same host [\#168](https://github.com/nymtech/nym/pull/168) ([jstuczyn](https://github.com/jstuczyn))
+- Bugfix/closing tcp client connections on drop [\#167](https://github.com/nymtech/nym/pull/167) ([jstuczyn](https://github.com/jstuczyn))
+- Yielding tokio task upon creating loop/real traffic message [\#166](https://github.com/nymtech/nym/pull/166) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/minor healthchecker improvements [\#165](https://github.com/nymtech/nym/pull/165) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/packet chunking [\#158](https://github.com/nymtech/nym/pull/158) ([jstuczyn](https://github.com/jstuczyn))
+
+## [v0.5.0](https://github.com/nymtech/nym/tree/v0.5.0) (2020-03-23)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.5.0-rc.1...v0.5.0)
+
+1. Introduced proper configuration options for mixnodes, clients and providers. Everything is initialised with the `init` command that creates a saved config.toml file. To run the binary you now use `nym-<binary-name> run`, for example `nym-mixnode run`. Each flag can be overwritten at any stage with the following priority: run flags, data in config.toml and finally init flags.
+2. Made mixnet TCP connections persistent. When sending a Sphinx packet, it should no longer go through the lengthy process of establishing a TCP connection only to immediately tear it down after sending a single packet. This significantly boosts throughput. 
+3. A lot of work on code clean up and refactoring including some performance fixes.
+4. Client now determines its default nym-sfw-provider at startup and should always try to connect to the same one. Note: we still can't reliably run more than a single provider on the network.
+5. Logging messages now have timestamps and when running at more aggressive log mode (like debug or even trace) we should no longer be overwhelmed with messages from external crates.
+6. Initial compatibility with Windows. Please let us know if you have problems.
+7. More work on validator, including initial Tendermint integration in Rust, and the start of the mixmining system.
+
+**Closed issues:**
+
+- Introduce timestamps to log messages [\#124](https://github.com/nymtech/nym/issues/124)
+
+**Merged pull requests:**
+
+- removing spooky startup warning message [\#155](https://github.com/nymtech/nym/pull/155) ([futurechimp](https://github.com/futurechimp))
+- Some more startup fixes [\#154](https://github.com/nymtech/nym/pull/154) ([futurechimp](https://github.com/futurechimp))
+- Entering runtime context when creating mix traffic controller [\#153](https://github.com/nymtech/nym/pull/153) ([jstuczyn](https://github.com/jstuczyn))
+- Friendlification of startup messages [\#151](https://github.com/nymtech/nym/pull/151) ([futurechimp](https://github.com/futurechimp))
+- Entering runtime context when creating packet forwarder [\#150](https://github.com/nymtech/nym/pull/150) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/add topology to validator [\#149](https://github.com/nymtech/nym/pull/149) ([futurechimp](https://github.com/futurechimp))
+- Making code work on windows machines [\#148](https://github.com/nymtech/nym/pull/148) ([jstuczyn](https://github.com/jstuczyn))
+- validator: adding HTTP interface [\#146](https://github.com/nymtech/nym/pull/146) ([futurechimp](https://github.com/futurechimp))
+- Extracting the log setup [\#145](https://github.com/nymtech/nym/pull/145) ([futurechimp](https://github.com/futurechimp))
+- Feature/optional location in configs [\#144](https://github.com/nymtech/nym/pull/144) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/concurrent connection managers [\#142](https://github.com/nymtech/nym/pull/142) ([jstuczyn](https://github.com/jstuczyn))
+- Defaulting for global 'Info' logging level if not set in .env [\#140](https://github.com/nymtech/nym/pull/140) ([jstuczyn](https://github.com/jstuczyn))
+- Provider not storing loop cover messages [\#139](https://github.com/nymtech/nym/pull/139) ([jstuczyn](https://github.com/jstuczyn))
+- Using log builder to include timestamps + filters [\#138](https://github.com/nymtech/nym/pull/138) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/client ws refactoring [\#134](https://github.com/nymtech/nym/pull/134) ([jstuczyn](https://github.com/jstuczyn))
+- Bugfix/metrics presence delay fix [\#133](https://github.com/nymtech/nym/pull/133) ([jstuczyn](https://github.com/jstuczyn))
+- Removed outdated and redundant sample-configs [\#131](https://github.com/nymtech/nym/pull/131) ([jstuczyn](https://github.com/jstuczyn))
+- If not overridden, 'announce-host' should default to 'host' [\#130](https://github.com/nymtech/nym/pull/130) ([jstuczyn](https://github.com/jstuczyn))
+- Nice to know who we're talking to at startup... [\#129](https://github.com/nymtech/nym/pull/129) ([futurechimp](https://github.com/futurechimp))
+
+## [v0.5.0-rc.1](https://github.com/nymtech/nym/tree/v0.5.0-rc.1) (2020-03-06)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.4.1...v0.5.0-rc.1)
 
 **Closed issues:**
 
@@ -48,13 +123,17 @@
 
 ## [v0.4.0](https://github.com/nymtech/nym/tree/v0.4.0) (2020-01-28)
 
-[Full Changelog](https://github.com/nymtech/nym/compare/v0.4.0-rc.2...v0.4.0)
+[Full Changelog](https://github.com/nymtech/nym/compare/0.4.0-rc.2...v0.4.0)
 
 Nym 0.4.0 Platform
 
 In this release, we're taking a lot more care with version numbers, so that we can ensure upgrade compatibility for mixnodes, providers, clients, and validators more easily. 
 
 This release also integrates a health-checker and network topology refresh into the Nym client, so that the client can intelligently choose paths which route around any non-functional or incompatible nodes. 
+
+## [0.4.0-rc.2](https://github.com/nymtech/nym/tree/0.4.0-rc.2) (2020-01-28)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.4.0-rc.2...0.4.0-rc.2)
 
 ## [v0.4.0-rc.2](https://github.com/nymtech/nym/tree/v0.4.0-rc.2) (2020-01-28)
 

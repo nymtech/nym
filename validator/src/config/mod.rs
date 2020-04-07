@@ -11,6 +11,7 @@ mod template;
 // 'MIXMINING'
 const DEFAULT_MIX_MINING_DELAY: u64 = 10_000;
 const DEFAULT_MIX_MINING_RESOLUTION_TIMEOUT: u64 = 5_000;
+const DEFAULT_MIX_MINING_CONNECTION_TIMEOUT: u64 = 1_500;
 
 const DEFAULT_NUMBER_OF_MIX_MINING_TEST_PACKETS: u64 = 2;
 
@@ -139,6 +140,10 @@ impl Config {
     pub fn get_mix_mining_number_of_test_packets(&self) -> u64 {
         self.mix_mining.number_of_test_packets
     }
+
+    pub fn get_healthcheck_connection_timeout(&self) -> time::Duration {
+        time::Duration::from_millis(self.mix_mining.connection_timeout)
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -190,6 +195,10 @@ pub struct MixMining {
     /// The provided value is interpreted as milliseconds.
     resolution_timeout: u64,
 
+    /// Timeout for trying to establish connection to node endpoints.
+    /// The provided value is interpreted as milliseconds.
+    connection_timeout: u64,
+
     /// How many packets should be sent through each path during the mix-mining procedure.
     number_of_test_packets: u64,
 }
@@ -201,6 +210,7 @@ impl Default for MixMining {
             run_delay: DEFAULT_MIX_MINING_DELAY,
             resolution_timeout: DEFAULT_MIX_MINING_RESOLUTION_TIMEOUT,
             number_of_test_packets: DEFAULT_NUMBER_OF_MIX_MINING_TEST_PACKETS,
+            connection_timeout: DEFAULT_MIX_MINING_CONNECTION_TIMEOUT,
         }
     }
 }

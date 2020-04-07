@@ -20,6 +20,7 @@ impl Validator {
         let dummy_healthcheck_keypair = MixIdentityKeyPair::new();
         let hc = HealthChecker::new(
             config.get_mix_mining_resolution_timeout(),
+            config.get_healthcheck_connection_timeout(),
             config.get_mix_mining_number_of_test_packets() as usize,
             dummy_healthcheck_keypair,
         );

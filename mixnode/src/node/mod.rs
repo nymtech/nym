@@ -95,6 +95,7 @@ impl MixNode {
                 packet_forwarding::PacketForwarder::new(
                     self.config.get_packet_forwarding_initial_backoff(),
                     self.config.get_packet_forwarding_maximum_backoff(),
+                    self.config.get_initial_connection_timeout(),
                 )
             })
             .start(self.runtime.handle())

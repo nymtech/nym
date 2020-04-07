@@ -102,6 +102,7 @@ impl HealthCheckResult {
         topology: &T,
         iterations: usize,
         resolution_timeout: Duration,
+        connection_timeout: Duration,
         identity_keys: &MixIdentityKeyPair,
     ) -> Self {
         // currently healthchecker supports only up to 255 iterations - if we somehow
@@ -127,7 +128,8 @@ impl HealthCheckResult {
 
         let providers = topology.providers();
 
-        let mut path_checker = PathChecker::new(providers, identity_keys, check_id).await;
+        let mut path_checker =
+            PathChecker::new(providers, identity_keys, connection_timeout, check_id).await;
         for i in 0..iterations {
             debug!("running healthcheck iteration {} / {}", i + 1, iterations);
             for path in &all_paths {

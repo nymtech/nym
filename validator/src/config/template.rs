@@ -43,6 +43,10 @@ run_delay = {{ mix_mining.run_delay }}
 # The provided value is interpreted as milliseconds.
 resolution_timeout = {{ mix_mining.resolution_timeout }}
 
+# Timeout for trying to establish connection to node endpoints.
+# The provided value is interpreted as milliseconds.
+connection_timeout =  {{ mix_mining.connection_timeout }}
+    
 # How many packets should be sent through each path during the mix-mining procedure.
 number_of_test_packets = {{ mix_mining.number_of_test_packets }}
 

@@ -64,6 +64,7 @@ impl MixNode {
             self.config.get_metrics_directory_server(),
             self.sphinx_keypair.public_key().to_base58_string(),
             self.config.get_metrics_sending_delay(),
+            self.config.get_metrics_running_stats_logging_delay(),
         )
         .start(self.runtime.handle())
     }
@@ -110,6 +111,8 @@ impl MixNode {
     }
 
     pub fn run(&mut self) {
+        info!("Starting nym mixnode");
+
         if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists() {
             error!(
                 "Our announce-host is identical to one of existing nodes! (its key is {:?}",
@@ -121,6 +124,8 @@ impl MixNode {
         let metrics_reporter = self.start_metrics_reporter();
         self.start_socket_listener(metrics_reporter, forwarding_channel);
         self.start_presence_notifier();
+
+        info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
 
         if let Err(e) = self.runtime.block_on(tokio::signal::ctrl_c()) {
             error!(

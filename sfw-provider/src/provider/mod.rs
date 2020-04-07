@@ -105,6 +105,7 @@ impl ServiceProvider {
         // considering, presumably, there will be more mix packets received than client requests:
         // create 2 separate runtimes - one with bigger threadpool dedicated solely for
         // the mix handling and the other one for the rest of tasks
+        info!("Starting nym sfw-provider");
 
         if let Some(duplicate_provider_key) = self.check_if_same_ip_provider_exists() {
             error!(
@@ -123,6 +124,8 @@ impl ServiceProvider {
         self.start_presence_notifier();
         self.start_mix_socket_listener(client_storage.clone());
         self.start_client_socket_listener(client_storage);
+
+        info!("Finished nym sfw-provider startup procedure - it should now be able to receive mix and client traffic!");
 
         if let Err(e) = self.runtime.block_on(tokio::signal::ctrl_c()) {
             error!(

@@ -195,6 +195,7 @@ impl NymClient {
             self.config.get_topology_refresh_rate(),
             healthcheck_keys,
             self.config.get_topology_resolution_timeout(),
+            self.config.get_healthcheck_connection_timeout(),
             self.config.get_number_of_healthcheck_test_packets() as usize,
             self.config.get_node_score_threshold(),
         );

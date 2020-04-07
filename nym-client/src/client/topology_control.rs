@@ -110,6 +110,7 @@ pub(crate) struct TopologyRefresherConfig {
     refresh_rate: time::Duration,
     identity_keypair: MixIdentityKeyPair,
     resolution_timeout: time::Duration,
+    connection_timeout: time::Duration,
     number_test_packets: usize,
     node_score_threshold: f64,
 }
@@ -120,6 +121,7 @@ impl TopologyRefresherConfig {
         refresh_rate: time::Duration,
         identity_keypair: MixIdentityKeyPair,
         resolution_timeout: time::Duration,
+        connection_timeout: time::Duration,
         number_test_packets: usize,
         node_score_threshold: f64,
     ) -> Self {
@@ -128,6 +130,7 @@ impl TopologyRefresherConfig {
             refresh_rate,
             identity_keypair,
             resolution_timeout,
+            connection_timeout,
             number_test_packets,
             node_score_threshold,
         }
@@ -150,6 +153,7 @@ impl<T: 'static + NymTopology> TopologyRefresher<T> {
         // this is a temporary solution as the healthcheck will eventually be moved to validators
         let health_checker = healthcheck::HealthChecker::new(
             cfg.resolution_timeout,
+            cfg.connection_timeout,
             cfg.number_test_packets,
             cfg.identity_keypair,
         );

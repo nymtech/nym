@@ -36,17 +36,20 @@ impl From<topology::NymTopologyError> for HealthCheckerError {
 pub struct HealthChecker {
     num_test_packets: usize,
     resolution_timeout: Duration,
+    connection_timeout: Duration,
     identity_keypair: MixIdentityKeyPair,
 }
 
 impl HealthChecker {
     pub fn new(
         resolution_timeout: Duration,
+        connection_timeout: Duration,
         num_test_packets: usize,
         identity_keypair: MixIdentityKeyPair,
     ) -> Self {
         HealthChecker {
             resolution_timeout,
+            connection_timeout,
             num_test_packets,
             identity_keypair,
         }
@@ -62,6 +65,7 @@ impl HealthChecker {
             current_topology,
             self.num_test_packets,
             self.resolution_timeout,
+            self.connection_timeout,
             &self.identity_keypair,
         )
         .await;

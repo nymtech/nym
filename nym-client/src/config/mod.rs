@@ -21,6 +21,7 @@ const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: u64 = 5_000;
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: u64 = 10_000; // 10s
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: u64 = 300_000; // 5min
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: u64 = 1_500; // 1.5s
+const DEFAULT_HEALTHCHECK_CONNECTION_TIMEOUT: u64 = DEFAULT_INITIAL_CONNECTION_TIMEOUT;
 
 const DEFAULT_NUMBER_OF_HEALTHCHECK_TEST_PACKETS: u64 = 2;
 const DEFAULT_NODE_SCORE_THRESHOLD: f64 = 0.0;
@@ -218,6 +219,10 @@ impl Config {
     pub fn get_initial_connection_timeout(&self) -> time::Duration {
         time::Duration::from_millis(self.debug.initial_connection_timeout)
     }
+
+    pub fn get_healthcheck_connection_timeout(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.healthcheck_connection_timeout)
+    }
 }
 
 fn de_option_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
@@ -385,6 +390,11 @@ pub struct Debug {
     /// Timeout for establishing initial connection when trying to forward a sphinx packet.
     /// The provider value is interpreted as milliseconds.
     initial_connection_timeout: u64,
+
+    /// Timeout for establishing initial connection when trying to forward a sphinx packet
+    /// during healthcheck.
+    /// The provider value is interpreted as milliseconds.
+    healthcheck_connection_timeout: u64,
 }
 
 impl Default for Debug {
@@ -402,6 +412,7 @@ impl Default for Debug {
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
+            healthcheck_connection_timeout: DEFAULT_HEALTHCHECK_CONNECTION_TIMEOUT,
         }
     }
 }

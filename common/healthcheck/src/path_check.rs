@@ -30,6 +30,7 @@ impl PathChecker {
     pub(crate) async fn new(
         providers: Vec<provider::Node>,
         identity_keys: &MixIdentityKeyPair,
+        connection_timeout: Duration,
         check_id: [u8; 16],
     ) -> Self {
         let mut provider_clients = HashMap::new();
@@ -67,6 +68,7 @@ impl PathChecker {
         let mixnet_client_config = multi_tcp_client::Config::new(
             Duration::from_secs(1_000_000_000),
             Duration::from_secs(1_000_000_000),
+            connection_timeout,
         );
 
         PathChecker {

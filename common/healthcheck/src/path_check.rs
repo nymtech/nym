@@ -65,8 +65,8 @@ impl PathChecker {
 
         // there's no reconnection allowed - if it fails, then it fails.
         let mixnet_client_config = multi_tcp_client::Config::new(
-            Duration::from_secs(u64::max_value()),
-            Duration::from_secs(u64::max_value()),
+            Duration::from_secs(1_000_000_000),
+            Duration::from_secs(1_000_000_000),
         );
 
         PathChecker {

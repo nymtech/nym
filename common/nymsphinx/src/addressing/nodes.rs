@@ -31,7 +31,7 @@ pub enum NymNodeRoutingAddressError {
 /// Current representation of Node routing information used in Nym system.
 /// At this point of time it is a simple `SocketAddr`.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct NymNodeRoutingAddress(SocketAddr);
+pub struct NymNodeRoutingAddress(pub SocketAddr);
 
 impl NymNodeRoutingAddress {
     /// Minimum number of bytes that need to be available to represent self.
@@ -158,6 +158,7 @@ mod tests {
 
     #[test]
     fn nym_node_routing_address_can_be_converted_to_and_from_bytes_for_v4_address() {
+        // HERE!!!!
         let address = NymNodeRoutingAddress(SocketAddr::new(IpAddr::from([1, 2, 3, 4]), 42));
         let address_bytes = address.as_bytes();
         assert_eq!(

@@ -2615,6 +2615,7 @@ name = "sphinx-wasm"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "nymsphinx",
  "sphinx 0.1.0",
  "wasm-bindgen",
  "wasm-bindgen-test",

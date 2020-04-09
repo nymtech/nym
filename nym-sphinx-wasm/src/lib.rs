@@ -11,14 +11,17 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use sphinx::crypto;
 use sphinx::header::delays;
 use sphinx::route::{Destination, Node};
 use sphinx::route::{DestinationAddressBytes, NodeAddressBytes};
 use sphinx::SphinxPacket;
+use std::convert::{From, Into, TryFrom, TryInto};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::time::Duration;
 
-use wasm_bindgen::prelude::*;
+// use wasm_bindgen::prelude::*;
 
 mod utils;
 
@@ -36,15 +39,15 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 ///
 /// The `wasm-pack build` command will cause this to output JS bindings and a
 /// wasm executable in the `pkg/` directory.
-#[wasm_bindgen]
+// #[wasm_bindgen]
 pub fn create_sphinx_packet() -> Vec<u8> {
     utils::set_panic_hook(); // nicer js errors.
+    let address1 = NymNodeRoutingAddress(SocketAddr::new(IpAddr::from([216, 211, 110, 161]), 1789));
+    let address_bytes1: NodeAddressBytes = address1.try_into().unwrap();
+    // let address_bytes1 = NodeAddressBytes::try_from(address1);
 
     let (_, node1_pk) = crypto::keygen();
-    let node1 = Node::new(
-        NodeAddressBytes::from_bytes([5u8; NODE_ADDRESS_LENGTH]),
-        node1_pk,
-    );
+    let node1 = Node::new(address_bytes1, node1_pk);
     let (_, node2_pk) = crypto::keygen();
     let node2 = Node::new(
         NodeAddressBytes::from_bytes([4u8; NODE_ADDRESS_LENGTH]),

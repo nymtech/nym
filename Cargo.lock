@@ -521,7 +521,7 @@ dependencies = [
  "pretty_env_logger",
  "rand 0.7.3",
  "rand_os",
- "sphinx 0.1.0 (git+https://github.com/nymtech/sphinx?rev=44d8f2aece5049eaa4fe84b7948758ce82b4b80d)",
+ "sphinx",
 ]
 
 [[package]]
@@ -966,7 +966,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "sfw-provider-requests",
- "sphinx 0.1.0 (git+https://github.com/nymtech/sphinx?rev=44d8f2aece5049eaa4fe84b7948758ce82b4b80d)",
+ "sphinx",
  "tokio 0.2.12",
  "topology",
 ]
@@ -1473,7 +1473,7 @@ dependencies = [
  "pretty_env_logger",
  "rand 0.7.3",
  "rand_distr",
- "sphinx 0.1.0 (git+https://github.com/nymtech/sphinx?rev=44d8f2aece5049eaa4fe84b7948758ce82b4b80d)",
+ "sphinx",
  "tokio 0.2.12",
  "topology",
 ]
@@ -1596,7 +1596,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sfw-provider-requests",
- "sphinx 0.1.0 (git+https://github.com/nymtech/sphinx?rev=44d8f2aece5049eaa4fe84b7948758ce82b4b80d)",
+ "sphinx",
  "tempfile",
  "tokio 0.2.12",
  "tokio-tungstenite",
@@ -1623,7 +1623,7 @@ dependencies = [
  "pemstore",
  "pretty_env_logger",
  "serde",
- "sphinx 0.1.0 (git+https://github.com/nymtech/sphinx?rev=44d8f2aece5049eaa4fe84b7948758ce82b4b80d)",
+ "sphinx",
  "tempfile",
  "tokio 0.2.12",
  "topology",
@@ -1653,7 +1653,7 @@ dependencies = [
  "serde_json",
  "sfw-provider-requests",
  "sha2",
- "sphinx 0.1.0 (git+https://github.com/nymtech/sphinx?rev=44d8f2aece5049eaa4fe84b7948758ce82b4b80d)",
+ "sphinx",
  "tempfile",
  "tokio 0.2.12",
  "topology",
@@ -1691,7 +1691,7 @@ version = "0.1.0"
 dependencies = [
  "log 0.4.8",
  "rand 0.7.3",
- "sphinx 0.1.0 (git+https://github.com/nymtech/sphinx?rev=44d8f2aece5049eaa4fe84b7948758ce82b4b80d)",
+ "sphinx",
 ]
 
 [[package]]
@@ -2032,7 +2032,7 @@ dependencies = [
  "log 0.4.8",
  "pretty_env_logger",
  "sfw-provider-requests",
- "sphinx 0.1.0 (git+https://github.com/nymtech/sphinx?rev=44d8f2aece5049eaa4fe84b7948758ce82b4b80d)",
+ "sphinx",
  "tokio 0.2.12",
 ]
 
@@ -2489,7 +2489,7 @@ name = "sfw-provider-requests"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "sphinx 0.1.0 (git+https://github.com/nymtech/sphinx?rev=44d8f2aece5049eaa4fe84b7948758ce82b4b80d)",
+ "sphinx",
 ]
 
 [[package]]
@@ -2539,6 +2539,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
 
 [[package]]
+name = "slice_as_array"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64c963ee59ddedb5ab95dc2cd97c48b4a292572a52c5636fbbabdb9985bfe4c3"
+
+[[package]]
 name = "smallvec"
 version = "0.6.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2568,7 +2574,7 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=44d8f2aece5049eaa4fe84b7948758ce82b4b80d#44d8f2aece5049eaa4fe84b7948758ce82b4b80d"
+source = "git+https://github.com/nymtech/sphinx?rev=5ccf41f6e55e10e9879206f2fc2dfeba6cf35c8c#5ccf41f6e55e10e9879206f2fc2dfeba6cf35c8c"
 dependencies = [
  "aes-ctr",
  "arrayref",
@@ -2576,28 +2582,6 @@ dependencies = [
  "bs58",
  "byteorder",
  "chacha",
- "curve25519-dalek 1.2.3",
- "hkdf",
- "hmac",
- "lioness",
- "log 0.4.8",
- "rand 0.7.3",
- "rand_distr",
- "rand_os",
- "sha2",
-]
-
-[[package]]
-name = "sphinx"
-version = "0.1.0"
-dependencies = [
- "aes-ctr",
- "arrayref",
- "blake2",
- "bs58",
- "byteorder",
- "chacha",
- "console_error_panic_hook",
  "curve25519-dalek 2.0.0",
  "hkdf",
  "hmac",
@@ -2607,7 +2591,6 @@ dependencies = [
  "rand_core 0.5.1",
  "rand_distr",
  "sha2",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -2615,8 +2598,11 @@ name = "sphinx-wasm"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "crypto",
+ "curve25519-dalek 2.0.0",
  "nymsphinx",
- "sphinx 0.1.0",
+ "slice_as_array",
+ "sphinx",
  "wasm-bindgen",
  "wasm-bindgen-test",
  "wee_alloc",
@@ -2957,7 +2943,7 @@ dependencies = [
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
- "sphinx 0.1.0 (git+https://github.com/nymtech/sphinx?rev=44d8f2aece5049eaa4fe84b7948758ce82b4b80d)",
+ "sphinx",
  "version-checker",
 ]
 

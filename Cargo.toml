@@ -17,6 +17,7 @@ members = [
     "common/topology",
     "mixnode",
     "nym-client",
+    "nym-sphinx-wasm",
     "sfw-provider",
     "sfw-provider/sfw-provider-requests",
     "validator",

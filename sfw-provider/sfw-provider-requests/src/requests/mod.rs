@@ -1,10 +1,13 @@
 use crate::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
+use crate::requests::serialization::{RequestDeserializer, RequestSerializer};
 use sphinx::constants::DESTINATION_ADDRESS_LENGTH;
 use sphinx::route::DestinationAddressBytes;
 use std::convert::TryFrom;
 use std::io;
 use std::io::Error;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+
+pub(crate) mod serialization;
 
 #[derive(Debug)]
 pub enum ProviderRequestError {
@@ -99,60 +102,6 @@ impl<'a, R: AsyncRead + Unpin> TokioAsyncRequestReader<'a, R> {
     }
 }
 
-pub struct RequestDeserializer<'a> {
-    kind: RequestKind,
-    data: &'a [u8],
-}
-
-impl<'a> RequestDeserializer<'a> {
-    // perform initial parsing
-    pub fn new(raw_bytes: &'a [u8]) -> Result<Self, ProviderRequestError> {
-        if raw_bytes.len() < 1 + 4 {
-            Err(ProviderRequestError::UnmarshalErrorInvalidLength)
-        } else {
-            let data_len =
-                u32::from_be_bytes([raw_bytes[0], raw_bytes[1], raw_bytes[2], raw_bytes[3]]);
-            let kind = RequestKind::try_from(raw_bytes[4])?;
-            let data = &raw_bytes[4..];
-
-            if data.len() != data_len as usize {
-                Err(ProviderRequestError::UnmarshalErrorInvalidLength)
-            } else {
-                Ok(RequestDeserializer { kind, data })
-            }
-        }
-    }
-
-    pub fn new_with_len(len: u32, raw_bytes: &'a [u8]) -> Result<Self, ProviderRequestError> {
-        if raw_bytes.len() != len as usize {
-            Err(ProviderRequestError::UnmarshalErrorInvalidLength)
-        } else {
-            let kind = RequestKind::try_from(raw_bytes[0])?;
-            let data = &raw_bytes[1..];
-            Ok(RequestDeserializer { kind, data })
-        }
-    }
-
-    pub fn get_kind(&self) -> RequestKind {
-        self.kind
-    }
-
-    pub fn get_data(&self) -> &'a [u8] {
-        self.data
-    }
-
-    pub fn try_to_parse(self) -> Result<ProviderRequest, ProviderRequestError> {
-        match self.get_kind() {
-            RequestKind::Pull => Ok(ProviderRequest::Pull(PullRequest::try_from_bytes(
-                self.data,
-            )?)),
-            RequestKind::Register => Ok(ProviderRequest::Register(
-                RegisterRequest::try_from_bytes(self.data)?,
-            )),
-        }
-    }
-}
-
 // Ideally I would have used futures::AsyncWrite for even more generic approach, but unfortunately
 // tokio::io::AsyncWrite differs from futures::AsyncWrite
 pub struct TokioAsyncRequestWriter<'a, W: AsyncWrite + Unpin> {
@@ -167,33 +116,6 @@ impl<'a, W: AsyncWrite + Unpin> TokioAsyncRequestWriter<'a, W> {
     pub async fn try_write_request(&mut self, res: ProviderRequest) -> io::Result<()> {
         let res_bytes = RequestSerializer::new(res).into_bytes();
         self.writer.write_all(&res_bytes).await
-    }
-}
-
-pub struct RequestSerializer {
-    req: ProviderRequest,
-}
-
-impl RequestSerializer {
-    pub fn new(req: ProviderRequest) -> Self {
-        RequestSerializer { req }
-    }
-
-    /// Serialized requests in general have the following structure:
-    /// follows: 4 byte len (be u32) || 1-byte kind prefix || request-specific data
-    pub fn into_bytes(self) -> Vec<u8> {
-        let (kind, req_bytes) = match self.req {
-            ProviderRequest::Pull(req) => (req.get_kind(), req.to_bytes()),
-            ProviderRequest::Register(req) => (req.get_kind(), req.to_bytes()),
-        };
-        let req_len = req_bytes.len() as u32 + 1; // 1 is to accommodate for 'kind'
-        let req_len_bytes = req_len.to_be_bytes();
-        req_len_bytes
-            .iter()
-            .cloned()
-            .chain(std::iter::once(kind as u8))
-            .chain(req_bytes.into_iter())
-            .collect()
     }
 }
 

@@ -6,7 +6,7 @@ use config::NymConfig;
 use crypto::identity::MixIdentityKeyPair;
 use directory_client::presence::Topology;
 use pemstore::pemstore::PemStore;
-use sfw_provider_requests::AuthToken;
+use sfw_provider_requests::auth_token::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use topology::provider::Node;
 use topology::NymTopology;
@@ -49,7 +49,7 @@ async fn try_provider_registrations(
 ) -> Option<(String, AuthToken)> {
     // since the order of providers is non-deterministic we can just try to get a first 'working' provider
     for provider in providers {
-        let provider_client = provider_client::ProviderClient::new(
+        let mut provider_client = provider_client::ProviderClient::new(
             provider.client_listener,
             our_address.clone(),
             None,

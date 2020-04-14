@@ -1,7 +1,7 @@
 use futures::channel::mpsc;
 use log::*;
 use provider_client::ProviderClientError;
-use sfw_provider_requests::AuthToken;
+use sfw_provider_requests::auth_token::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use std::net::SocketAddr;
 use std::time;
@@ -60,7 +60,7 @@ impl ProviderPoller {
         Ok(())
     }
 
-    pub(crate) async fn start_provider_polling(self) {
+    pub(crate) async fn start_provider_polling(&mut self) {
         let loop_message = &mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD.to_vec();
         let dummy_message = &sfw_provider_requests::DUMMY_MESSAGE_CONTENT.to_vec();
 
@@ -100,7 +100,7 @@ impl ProviderPoller {
         }
     }
 
-    pub(crate) fn start(self, handle: &Handle) -> JoinHandle<()> {
+    pub(crate) fn start(mut self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move { self.start_provider_polling().await })
     }
 }

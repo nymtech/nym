@@ -16,7 +16,7 @@ use futures::channel::{mpsc, oneshot};
 use log::*;
 use nymsphinx::chunking::split_and_prepare_payloads;
 use pemstore::pemstore::PemStore;
-use sfw_provider_requests::AuthToken;
+use sfw_provider_requests::auth_token::AuthToken;
 use sphinx::route::Destination;
 use tokio::runtime::Runtime;
 use topology::NymTopology;

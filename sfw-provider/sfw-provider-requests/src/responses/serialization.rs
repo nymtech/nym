@@ -74,7 +74,7 @@ impl ResponseSerializer {
     }
 
     /// Serialized responses in general have the following structure:
-    /// follows: 4 byte len (be u32) || 1-byte kind prefix || response-specific data
+    /// 4 byte len (be u32) || 1-byte kind prefix || response-specific data
     pub fn into_bytes(self) -> Vec<u8> {
         let (kind, res_bytes) = match self.res {
             ProviderResponse::Failure(res) => (res.get_kind(), res.to_bytes()),

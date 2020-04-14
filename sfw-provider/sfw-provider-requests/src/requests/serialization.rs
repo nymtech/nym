@@ -16,7 +16,7 @@ impl RequestSerializer {
     }
 
     /// Serialized requests in general have the following structure:
-    /// follows: 4 byte len (be u32) || 1-byte kind prefix || request-specific data
+    /// 4 byte len (be u32) || 1-byte kind prefix || request-specific data
     pub fn into_bytes(self) -> Vec<u8> {
         let (kind, req_bytes) = match self.req {
             ProviderRequest::Pull(req) => (req.get_kind(), req.to_bytes()),

@@ -1,13 +1,11 @@
 use futures::io::Error;
-use futures::AsyncReadExt;
 use log::*;
 use sfw_provider_requests::auth_token::AuthToken;
 use sfw_provider_requests::requests::{
-    ProviderRequest, PullRequest, RegisterRequest, TokioAsyncRequestWriter,
+    async_io::TokioAsyncRequestWriter, ProviderRequest, PullRequest, RegisterRequest,
 };
 use sfw_provider_requests::responses::{
-    ProviderResponse, ProviderResponseError, PullResponse, RegisterResponse,
-    TokioAsyncResponseReader,
+    async_io::TokioAsyncResponseReader, ProviderResponse, ProviderResponseError,
 };
 use sphinx::route::DestinationAddressBytes;
 use std::net::SocketAddr;

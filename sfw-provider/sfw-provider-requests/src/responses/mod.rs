@@ -1,11 +1,10 @@
 use crate::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
-use crate::responses::serialization::{ResponseDeserializer, ResponseSerializer};
 use std::convert::{TryFrom, TryInto};
 use std::io;
 use std::io::Error;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-pub(crate) mod serialization;
+pub mod async_io;
+pub mod serialization;
 
 #[derive(Debug)]
 pub enum ProviderResponseError {
@@ -22,18 +21,6 @@ pub enum ProviderResponseError {
 impl From<io::Error> for ProviderResponseError {
     fn from(e: Error) -> Self {
         ProviderResponseError::IOError(e)
-    }
-}
-
-impl<'a, R: AsyncRead + Unpin> Drop for TokioAsyncResponseReader<'a, R> {
-    fn drop(&mut self) {
-        println!("response reader drop");
-    }
-}
-
-impl<'a, R: AsyncWrite + Unpin> Drop for TokioAsyncResponseWriter<'a, R> {
-    fn drop(&mut self) {
-        println!("response writer drop");
     }
 }
 
@@ -63,59 +50,6 @@ pub enum ProviderResponse {
     Failure(FailureResponse),
     Pull(PullResponse),
     Register(RegisterResponse),
-}
-
-// Ideally I would have used futures::AsyncRead for even more generic approach, but unfortunately
-// tokio::io::AsyncRead differs from futures::AsyncRead
-pub struct TokioAsyncResponseReader<'a, R: AsyncRead + Unpin> {
-    max_allowed_len: usize,
-    reader: &'a mut R,
-}
-
-impl<'a, R: AsyncRead + Unpin> TokioAsyncResponseReader<'a, R> {
-    pub fn new(reader: &'a mut R, max_allowed_len: usize) -> Self {
-        TokioAsyncResponseReader {
-            reader,
-            max_allowed_len,
-        }
-    }
-
-    pub async fn try_read_response(&mut self) -> Result<ProviderResponse, ProviderResponseError> {
-        let res_len = self.reader.read_u32().await?;
-        if res_len == 0 {
-            return Err(ProviderResponseError::RemoteConnectionClosed);
-        }
-        if res_len as usize > self.max_allowed_len {
-            // TODO: should reader be drained?
-            return Err(ProviderResponseError::TooLongResponseError);
-        }
-
-        let mut res_buf = Vec::with_capacity(res_len as usize);
-        let mut chunk = self.reader.take(res_len as u64);
-
-        if let Err(_) = chunk.read_to_end(&mut res_buf).await {
-            return Err(ProviderResponseError::TooShortResponseError);
-        };
-
-        ResponseDeserializer::new_with_len(res_len, &res_buf)?.try_to_parse()
-    }
-}
-
-// Ideally I would have used futures::AsyncWrite for even more generic approach, but unfortunately
-// tokio::io::AsyncWrite differs from futures::AsyncWrite
-pub struct TokioAsyncResponseWriter<'a, W: AsyncWrite + Unpin> {
-    writer: &'a mut W,
-}
-
-impl<'a, W: AsyncWrite + Unpin> TokioAsyncResponseWriter<'a, W> {
-    pub fn new(writer: &'a mut W) -> Self {
-        TokioAsyncResponseWriter { writer }
-    }
-
-    pub async fn try_write_response(&mut self, res: ProviderResponse) -> io::Result<()> {
-        let res_bytes = ResponseSerializer::new(res).into_bytes();
-        self.writer.write_all(&res_bytes).await
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

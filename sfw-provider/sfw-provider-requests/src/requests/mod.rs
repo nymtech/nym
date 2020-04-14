@@ -57,6 +57,12 @@ pub struct PullRequest {
     pub destination_address: sphinx::route::DestinationAddressBytes,
 }
 
+impl Into<ProviderRequest> for PullRequest {
+    fn into(self) -> ProviderRequest {
+        ProviderRequest::Pull(self)
+    }
+}
+
 impl PullRequest {
     pub fn new(
         destination_address: sphinx::route::DestinationAddressBytes,
@@ -102,6 +108,12 @@ impl PullRequest {
 #[derive(Debug, Clone, PartialEq)]
 pub struct RegisterRequest {
     pub destination_address: DestinationAddressBytes,
+}
+
+impl Into<ProviderRequest> for RegisterRequest {
+    fn into(self) -> ProviderRequest {
+        ProviderRequest::Register(self)
+    }
 }
 
 impl RegisterRequest {

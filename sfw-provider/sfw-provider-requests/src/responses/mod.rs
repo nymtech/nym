@@ -57,6 +57,12 @@ pub struct PullResponse {
     messages: Vec<Vec<u8>>,
 }
 
+impl Into<ProviderResponse> for PullResponse {
+    fn into(self) -> ProviderResponse {
+        ProviderResponse::Pull(self)
+    }
+}
+
 impl PullResponse {
     pub fn new(messages: Vec<Vec<u8>>) -> Self {
         PullResponse { messages }
@@ -143,6 +149,12 @@ pub struct RegisterResponse {
     auth_token: AuthToken,
 }
 
+impl Into<ProviderResponse> for RegisterResponse {
+    fn into(self) -> ProviderResponse {
+        ProviderResponse::Register(self)
+    }
+}
+
 impl RegisterResponse {
     pub fn new(auth_token: AuthToken) -> Self {
         RegisterResponse { auth_token }
@@ -176,6 +188,12 @@ impl RegisterResponse {
 #[derive(Debug, Clone, PartialEq)]
 pub struct FailureResponse {
     message: String,
+}
+
+impl Into<ProviderResponse> for FailureResponse {
+    fn into(self) -> ProviderResponse {
+        ProviderResponse::Failure(self)
+    }
 }
 
 impl FailureResponse {

@@ -138,17 +138,51 @@ impl RegisterRequest {
 }
 
 #[cfg(test)]
-mod creating_pull_request {
+mod request_kind {
     use super::*;
 
     #[test]
-    fn it_is_possible_to_recover_it_from_bytes() {
+    fn try_from_u8_is_defined_for_all_variants() {
+        // it is crucial this match statement is never removed as it ensures at compilation
+        // time that new variants of RequestKind weren't added; the actual code is not as
+        // important
+        let dummy_kind = RequestKind::Register;
+        match dummy_kind {
+            RequestKind::Register | RequestKind::Pull => (),
+        };
+
+        assert_eq!(
+            RequestKind::try_from(RequestKind::Register as u8).unwrap(),
+            RequestKind::Register
+        );
+        assert_eq!(
+            RequestKind::try_from(RequestKind::Pull as u8).unwrap(),
+            RequestKind::Pull
+        );
+    }
+}
+
+#[cfg(test)]
+mod pull_request {
+    use super::*;
+
+    #[test]
+    fn returns_correct_kind() {
+        let pull_request = PullRequest::new(
+            DestinationAddressBytes::from_bytes(Default::default()),
+            AuthToken::from_bytes(Default::default()),
+        );
+        assert_eq!(pull_request.get_kind(), RequestKind::Pull)
+    }
+
+    #[test]
+    fn can_be_converted_to_and_from_bytes() {
         let address = DestinationAddressBytes::from_bytes([
             1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
             0, 1, 2,
         ]);
-        let auth_token = [1u8; AUTH_TOKEN_SIZE];
-        let pull_request = PullRequest::new(address.clone(), AuthToken::from_bytes(auth_token));
+        let auth_token = AuthToken::from_bytes([1u8; AUTH_TOKEN_SIZE]);
+        let pull_request = PullRequest::new(address, auth_token);
         let bytes = pull_request.to_bytes();
 
         let recovered = PullRequest::try_from_bytes(&bytes).unwrap();
@@ -157,16 +191,23 @@ mod creating_pull_request {
 }
 
 #[cfg(test)]
-mod creating_register_request {
+mod register_request {
     use super::*;
 
     #[test]
-    fn it_is_possible_to_recover_it_from_bytes() {
+    fn returns_correct_kind() {
+        let register_request =
+            RegisterRequest::new(DestinationAddressBytes::from_bytes(Default::default()));
+        assert_eq!(register_request.get_kind(), RequestKind::Register)
+    }
+
+    #[test]
+    fn can_be_converted_to_and_from_bytes() {
         let address = DestinationAddressBytes::from_bytes([
             1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
             0, 1, 2,
         ]);
-        let register_request = RegisterRequest::new(address.clone());
+        let register_request = RegisterRequest::new(address);
         let bytes = register_request.to_bytes();
 
         let recovered = RegisterRequest::try_from_bytes(&bytes).unwrap();

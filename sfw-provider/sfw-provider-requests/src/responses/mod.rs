@@ -37,7 +37,7 @@ impl TryFrom<u8> for ResponseKind {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            _ if value == (ResponseKind::Failure as u8) => Ok(Self::Register),
+            _ if value == (ResponseKind::Failure as u8) => Ok(Self::Failure),
             _ if value == (ResponseKind::Pull as u8) => Ok(Self::Pull),
             _ if value == (ResponseKind::Register as u8) => Ok(Self::Register),
             _ => Err(Self::Error::UnmarshalErrorInvalidKind),
@@ -75,7 +75,14 @@ impl PullResponse {
     // num_msgs || len1 || len2 || ... || msg1 || msg2 || ...
     pub fn to_bytes(&self) -> Vec<u8> {
         let num_msgs = self.messages.len() as u16;
-        let msgs_lens: Vec<u16> = self.messages.iter().map(|msg| msg.len() as u16).collect();
+        let msgs_lens: Vec<u16> = self
+            .messages
+            .iter()
+            .map(|msg| {
+                assert!(msg.len() <= u16::max_value() as usize);
+                msg.len() as u16
+            })
+            .collect();
 
         num_msgs
             .to_be_bytes()
@@ -205,11 +212,46 @@ fn read_be_u16(input: &mut &[u8]) -> u16 {
 }
 
 #[cfg(test)]
-mod creating_pull_response {
+mod response_kind {
     use super::*;
 
     #[test]
-    fn it_is_possible_to_recover_it_from_bytes() {
+    fn try_from_u8_is_defined_for_all_variants() {
+        // it is crucial this match statement is never removed as it ensures at compilation
+        // time that new variants of ResponseKind weren't added; the actual code is not as
+        // important
+        let dummy_kind = ResponseKind::Register;
+        match dummy_kind {
+            ResponseKind::Register | ResponseKind::Pull | ResponseKind::Failure => (),
+        };
+
+        assert_eq!(
+            ResponseKind::try_from(ResponseKind::Register as u8).unwrap(),
+            ResponseKind::Register
+        );
+        assert_eq!(
+            ResponseKind::try_from(ResponseKind::Pull as u8).unwrap(),
+            ResponseKind::Pull
+        );
+        assert_eq!(
+            ResponseKind::try_from(ResponseKind::Failure as u8).unwrap(),
+            ResponseKind::Failure
+        );
+    }
+}
+
+#[cfg(test)]
+mod pull_response {
+    use super::*;
+
+    #[test]
+    fn returns_correct_kind() {
+        let pull_response = PullResponse::new(Default::default());
+        assert_eq!(pull_response.get_kind(), ResponseKind::Pull)
+    }
+
+    #[test]
+    fn can_be_converted_to_and_from_bytes() {
         let msg1 = vec![1, 2, 3, 4, 5];
         let msg2 = vec![];
         let msg3 = vec![
@@ -222,10 +264,63 @@ mod creating_pull_response {
         let msg4 = vec![1, 2, 3, 4, 5, 6, 7];
 
         let msgs = vec![msg1, msg2, msg3, msg4];
-        let pull_response = PullResponse::new(msgs.clone());
+        let pull_response = PullResponse::new(msgs);
         let bytes = pull_response.to_bytes();
 
         let recovered = PullResponse::try_from_bytes(&bytes).unwrap();
-        assert_eq!(msgs, recovered.messages);
+        assert_eq!(recovered, pull_response);
+    }
+
+    #[test]
+    #[should_panic]
+    fn panics_if_message_is_longer_than_u16_max_when_converted_to_bytes() {
+        let msg = [1u8; u16::max_value() as usize + 1].to_vec();
+
+        let pull_response = PullResponse::new(vec![msg]);
+        pull_response.to_bytes();
+    }
+}
+
+#[cfg(test)]
+mod register_response {
+    use super::*;
+
+    #[test]
+    fn returns_correct_kind() {
+        let register_response = RegisterResponse::new(AuthToken::from_bytes(Default::default()));
+        assert_eq!(register_response.get_kind(), ResponseKind::Register)
+    }
+
+    #[test]
+    fn can_be_converted_to_and_from_bytes() {
+        let address = AuthToken::from_bytes([
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+            0, 1, 2,
+        ]);
+        let register_response = RegisterResponse::new(address);
+        let bytes = register_response.to_bytes();
+
+        let recovered = RegisterResponse::try_from_bytes(&bytes).unwrap();
+        assert_eq!(recovered, register_response);
+    }
+}
+
+#[cfg(test)]
+mod failure_response {
+    use super::*;
+
+    #[test]
+    fn returns_correct_kind() {
+        let failure_response = FailureResponse::new("hello nym");
+        assert_eq!(failure_response.get_kind(), ResponseKind::Failure)
+    }
+
+    #[test]
+    fn can_be_converted_to_and_from_bytes() {
+        let failure_response = FailureResponse::new("hello nym");
+        let bytes = failure_response.to_bytes();
+
+        let recovered = FailureResponse::try_from_bytes(&bytes).unwrap();
+        assert_eq!(recovered, failure_response);
     }
 }

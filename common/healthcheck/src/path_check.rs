@@ -11,6 +11,8 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use topology::provider;
 
+pub(crate) type CheckId = [u8; 16];
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum PathStatus {
     Healthy,
@@ -23,7 +25,7 @@ pub(crate) struct PathChecker {
     mixnet_client: multi_tcp_client::Client,
     paths_status: HashMap<Vec<u8>, PathStatus>,
     our_destination: Destination,
-    check_id: [u8; 16],
+    check_id: CheckId,
 }
 
 impl PathChecker {
@@ -31,7 +33,7 @@ impl PathChecker {
         providers: Vec<provider::Node>,
         identity_keys: &MixIdentityKeyPair,
         connection_timeout: Duration,
-        check_id: [u8; 16],
+        check_id: CheckId,
     ) -> Self {
         let mut provider_clients = HashMap::new();
 
@@ -40,6 +42,9 @@ impl PathChecker {
         for provider in providers {
             let mut provider_client =
                 ProviderClient::new(provider.client_listener, address.clone(), None);
+            // TODO: we might be sending unnecessary register requests since after first healthcheck,
+            // we are registered for any subsequent ones (since our address did not change)
+
             let insertion_result = match provider_client.register().await {
                 Ok(token) => {
                     debug!("[Healthcheck] registered at provider {}", provider.pub_key);
@@ -82,7 +87,7 @@ impl PathChecker {
 
     // iteration is used to distinguish packets sent through the same path (as the healthcheck
     // may try to send say 10 packets through given path)
-    fn unique_path_key(path: &[SphinxNode], check_id: [u8; 16], iteration: u8) -> Vec<u8> {
+    fn unique_path_key(path: &[SphinxNode], check_id: CheckId, iteration: u8) -> Vec<u8> {
         check_id
             .iter()
             .cloned()
@@ -133,8 +138,8 @@ impl PathChecker {
 
     // pull messages from given provider until there are no more 'real' messages
     async fn resolve_pending_provider_checks(
-        &self,
-        provider_client: &ProviderClient,
+        provider_client: &mut ProviderClient,
+        check_id: CheckId,
     ) -> Vec<Vec<u8>> {
         // keep getting messages until we encounter the dummy message
         let mut provider_messages = Vec::new();
@@ -151,7 +156,7 @@ impl PathChecker {
                         if msg == sfw_provider_requests::DUMMY_MESSAGE_CONTENT {
                             // finish iterating the loop as the messages might not be ordered
                             should_stop = true;
-                        } else if msg[..16] != self.check_id {
+                        } else if msg[..16] != check_id {
                             warn!("received response from previous healthcheck")
                         } else {
                             provider_messages.push(msg);
@@ -169,14 +174,15 @@ impl PathChecker {
     pub(crate) async fn resolve_pending_checks(&mut self) {
         // not sure how to nicely put it into an iterator due to it being async calls
         let mut provider_messages = Vec::new();
-        for provider_client in self.provider_clients.values() {
+        for provider_client in self.provider_clients.values_mut() {
             // if it was none all associated paths were already marked as unhealthy
             let pc = match provider_client {
                 Some(pc) => pc,
                 None => continue,
             };
 
-            provider_messages.extend(self.resolve_pending_provider_checks(pc).await);
+            provider_messages
+                .extend(Self::resolve_pending_provider_checks(pc, self.check_id).await);
         }
 
         self.update_path_statuses(provider_messages);

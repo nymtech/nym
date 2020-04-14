@@ -15,6 +15,7 @@ members = [
     "common/nymsphinx",
     "common/pemstore",
     "common/topology",
+    "gateway",
     "mixnode",
     "nym-client",
     "nym-sphinx-wasm",

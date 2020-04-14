@@ -842,6 +842,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "gateway"
+version = "0.1.0"
+dependencies = [
+ "futures-channel",
+ "futures-util",
+ "multi-tcp-client",
+ "tokio 0.2.16",
+ "tokio-tungstenite",
+ "tungstenite",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

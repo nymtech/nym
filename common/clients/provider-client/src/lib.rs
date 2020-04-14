@@ -1,13 +1,16 @@
 use futures::io::Error;
+use futures::AsyncReadExt;
 use log::*;
-use sfw_provider_requests::requests::{ProviderRequest, PullRequest, RegisterRequest};
+use sfw_provider_requests::auth_token::AuthToken;
+use sfw_provider_requests::requests::{
+    ProviderRequest, PullRequest, RegisterRequest, TokioAsyncRequestWriter,
+};
 use sfw_provider_requests::responses::{
     ProviderResponse, ProviderResponseError, PullResponse, RegisterResponse,
+    TokioAsyncResponseReader,
 };
-use sfw_provider_requests::AuthToken;
 use sphinx::route::DestinationAddressBytes;
-use std::net::{Shutdown, SocketAddr};
-use std::time::Duration;
+use std::net::SocketAddr;
 use tokio::prelude::*;
 
 #[derive(Debug)]
@@ -36,6 +39,12 @@ impl From<ProviderResponseError> for ProviderClientError {
             ProviderResponseError::MarshalError => InvalidRequestError,
             ProviderResponseError::UnmarshalError => InvalidResponseError,
             ProviderResponseError::UnmarshalErrorInvalidLength => InvalidResponseLengthError,
+            ProviderResponseError::UnmarshalErrorInvalidKind => InvalidResponseLengthError,
+
+            ProviderResponseError::TooLongResponseError => InvalidResponseError,
+            ProviderResponseError::TooShortResponseError => InvalidResponseError,
+            ProviderResponseError::IOError(_) => NetworkError,
+            ProviderResponseError::RemoteConnectionClosed => NetworkError,
         }
     }
 }
@@ -44,7 +53,10 @@ pub struct ProviderClient {
     provider_network_address: SocketAddr,
     our_address: DestinationAddressBytes,
     auth_token: Option<AuthToken>,
+    connection: Option<tokio::net::TcpStream>,
 }
+
+const MAX_RESPONSE_SIZE: usize = 1_000_000_000;
 
 impl ProviderClient {
     pub fn new(
@@ -56,6 +68,23 @@ impl ProviderClient {
             provider_network_address,
             our_address,
             auth_token,
+            // establish connection when it's necessary (mainly to not break current code
+            // as then 'new' would need to be called within async context)
+            connection: None,
+        }
+    }
+
+    async fn check_connection(&mut self) -> bool {
+        if self.connection.is_some() {
+            true
+        } else {
+            // TODO: possibly also introduce timeouts here?
+            // However, at this point it's slightly less important as we are in full control
+            // of providers.
+            self.connection = tokio::net::TcpStream::connect(self.provider_network_address)
+                .await
+                .ok();
+            self.connection.is_some()
         }
     }
 
@@ -63,25 +92,30 @@ impl ProviderClient {
         self.auth_token = Some(auth_token)
     }
 
-    pub async fn send_request(&self, bytes: Vec<u8>) -> Result<Vec<u8>, ProviderClientError> {
-        let mut socket = tokio::net::TcpStream::connect(self.provider_network_address).await?;
-
-        socket.set_keepalive(Some(Duration::from_secs(2)))?;
-        socket.write_all(&bytes[..]).await?;
-        if let Err(e) = socket.shutdown(Shutdown::Write) {
-            warn!("failed to close write part of the socket; err = {:?}", e)
+    pub async fn send_request(
+        &mut self,
+        request: ProviderRequest,
+    ) -> Result<ProviderResponse, ProviderClientError> {
+        if !self.check_connection().await {
+            return Err(ProviderClientError::NetworkError);
         }
 
-        let mut response = Vec::new();
-        socket.read_to_end(&mut response).await?;
-        if let Err(e) = socket.shutdown(Shutdown::Read) {
-            debug!("failed to close read part of the socket; err = {:?}. It was probably already closed by the provider", e)
+        let socket = self.connection.as_mut().unwrap();
+        let (mut socket_reader, mut socket_writer) = socket.split();
+
+        let mut request_writer = TokioAsyncRequestWriter::new(&mut socket_writer);
+        let mut response_reader =
+            TokioAsyncResponseReader::new(&mut socket_reader, MAX_RESPONSE_SIZE);
+
+        if let Err(e) = request_writer.try_write_request(request).await {
+            debug!("Failed to write the request - {:?}", e);
+            return Err(e.into());
         }
 
-        Ok(response)
+        Ok(response_reader.try_read_response().await?)
     }
 
-    pub async fn retrieve_messages(&self) -> Result<Vec<Vec<u8>>, ProviderClientError> {
+    pub async fn retrieve_messages(&mut self) -> Result<Vec<Vec<u8>>, ProviderClientError> {
         let auth_token = match self.auth_token.as_ref() {
             Some(token) => token.clone(),
             None => {
@@ -89,27 +123,45 @@ impl ProviderClient {
             }
         };
 
-        let pull_request = PullRequest::new(self.our_address.clone(), auth_token);
-        let bytes = pull_request.to_bytes();
-
-        let response = self.send_request(bytes).await?;
-
-        let parsed_response = PullResponse::from_bytes(&response)?;
-        Ok(parsed_response.messages)
+        let pull_request =
+            ProviderRequest::Pull(PullRequest::new(self.our_address.clone(), auth_token));
+        match self.send_request(pull_request).await? {
+            ProviderResponse::Pull(res) => Ok(res.extract_messages()),
+            ProviderResponse::Failure(res) => {
+                error!(
+                    "We failed to get our request processed - {:?}",
+                    res.get_message()
+                );
+                Err(ProviderClientError::InvalidResponseError)
+            }
+            _ => {
+                error!("Received response of unexpected type!");
+                Err(ProviderClientError::InvalidResponseError)
+            }
+        }
     }
 
-    pub async fn register(&self) -> Result<AuthToken, ProviderClientError> {
+    pub async fn register(&mut self) -> Result<AuthToken, ProviderClientError> {
         if self.auth_token.is_some() {
             return Err(ProviderClientError::ClientAlreadyRegisteredError);
         }
 
-        let register_request = RegisterRequest::new(self.our_address.clone());
-        let bytes = register_request.to_bytes();
-
-        let response = self.send_request(bytes).await?;
-        let parsed_response = RegisterResponse::from_bytes(&response)?;
-
-        Ok(parsed_response.auth_token)
+        let register_request =
+            ProviderRequest::Register(RegisterRequest::new(self.our_address.clone()));
+        match self.send_request(register_request).await? {
+            ProviderResponse::Register(res) => Ok(res.get_token()),
+            ProviderResponse::Failure(res) => {
+                error!(
+                    "We failed to get our request processed - {:?}",
+                    res.get_message()
+                );
+                Err(ProviderClientError::InvalidResponseError)
+            }
+            _ => {
+                error!("Received response of unexpected type!");
+                Err(ProviderClientError::InvalidResponseError)
+            }
+        }
     }
 
     pub fn is_registered(&self) -> bool {

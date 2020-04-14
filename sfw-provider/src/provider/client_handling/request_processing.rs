@@ -3,10 +3,8 @@ use crate::provider::storage::{ClientFile, ClientStorage};
 use crypto::encryption;
 use hmac::{Hmac, Mac};
 use log::*;
-use sfw_provider_requests::requests::{
-    ProviderRequestError, ProviderRequests, PullRequest, RegisterRequest,
-};
-use sfw_provider_requests::AuthToken;
+use sfw_provider_requests::auth_token::AuthToken;
+use sfw_provider_requests::requests::*;
 use sha2::Sha256;
 use sphinx::route::DestinationAddressBytes;
 use std::io;
@@ -65,13 +63,11 @@ impl RequestProcessor {
 
     pub(crate) async fn process_client_request(
         &mut self,
-        request_bytes: &[u8],
+        client_request: ProviderRequest,
     ) -> Result<ClientProcessingResult, ClientProcessingError> {
-        let client_request = ProviderRequests::from_bytes(request_bytes)?;
-        debug!("Received the following request: {:?}", client_request);
         match client_request {
-            ProviderRequests::Register(req) => self.process_register_request(req).await,
-            ProviderRequests::PullMessages(req) => self.process_pull_request(req).await,
+            ProviderRequest::Register(req) => self.process_register_request(req).await,
+            ProviderRequest::Pull(req) => self.process_pull_request(req).await,
         }
     }
 
@@ -126,6 +122,7 @@ impl RequestProcessor {
         &self,
         req: PullRequest,
     ) -> Result<ClientProcessingResult, ClientProcessingError> {
+        println!("pull request for {:?}", req.destination_address);
         if self
             .client_ledger
             .verify_token(&req.auth_token, &req.destination_address)
@@ -135,10 +132,10 @@ impl RequestProcessor {
                 .client_storage
                 .retrieve_client_files(req.destination_address)
                 .await?;
-            return Ok(ClientProcessingResult::PullResponse(retrieved_messages));
+            Ok(ClientProcessingResult::PullResponse(retrieved_messages))
+        } else {
+            Err(ClientProcessingError::InvalidToken)
         }
-
-        Err(ClientProcessingError::InvalidToken)
     }
 
     pub(crate) async fn delete_sent_messages(&self, file_paths: Vec<PathBuf>) -> io::Result<()> {

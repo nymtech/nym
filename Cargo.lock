@@ -2421,7 +2421,9 @@ name = "sfw-provider-requests"
 version = "0.1.0"
 dependencies = [
  "bs58",
+ "bytes 0.5.4",
  "sphinx",
+ "tokio 0.2.12",
 ]
 
 [[package]]

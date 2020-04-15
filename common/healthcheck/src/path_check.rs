@@ -1,3 +1,4 @@
+use crate::MAX_PROVIDER_RESPONSE_SIZE;
 use crypto::identity::MixIdentityKeyPair;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
@@ -40,8 +41,12 @@ impl PathChecker {
         let address = identity_keys.public_key().derive_address();
 
         for provider in providers {
-            let mut provider_client =
-                ProviderClient::new(provider.client_listener, address.clone(), None);
+            let mut provider_client = ProviderClient::new(
+                provider.client_listener,
+                address.clone(),
+                None,
+                MAX_PROVIDER_RESPONSE_SIZE,
+            );
             // TODO: we might be sending unnecessary register requests since after first healthcheck,
             // we are registered for any subsequent ones (since our address did not change)
 

@@ -26,6 +26,9 @@ const DEFAULT_HEALTHCHECK_CONNECTION_TIMEOUT: u64 = DEFAULT_INITIAL_CONNECTION_T
 const DEFAULT_NUMBER_OF_HEALTHCHECK_TEST_PACKETS: u64 = 2;
 const DEFAULT_NODE_SCORE_THRESHOLD: f64 = 0.0;
 
+// for time being treat it as if there was no limit
+const DEFAULT_MAX_RESPONSE_SIZE: u32 = u32::max_value();
+
 #[derive(Debug, Deserialize, PartialEq, Serialize, Clone, Copy)]
 #[serde(deny_unknown_fields)]
 pub enum SocketType {
@@ -223,6 +226,10 @@ impl Config {
     pub fn get_healthcheck_connection_timeout(&self) -> time::Duration {
         time::Duration::from_millis(self.debug.healthcheck_connection_timeout)
     }
+
+    pub fn get_max_response_size(&self) -> usize {
+        self.debug.max_response_size as usize
+    }
 }
 
 fn de_option_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
@@ -395,6 +402,11 @@ pub struct Debug {
     /// during healthcheck.
     /// The provider value is interpreted as milliseconds.
     healthcheck_connection_timeout: u64,
+
+    /// Maximum allowed length for sfw-provider responses received.
+    /// Anything declaring bigger size than that will be regarded as an error and
+    /// is going to be rejected.
+    max_response_size: u32,
 }
 
 impl Default for Debug {
@@ -413,6 +425,7 @@ impl Default for Debug {
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             healthcheck_connection_timeout: DEFAULT_HEALTHCHECK_CONNECTION_TIMEOUT,
+            max_response_size: DEFAULT_MAX_RESPONSE_SIZE
         }
     }
 }

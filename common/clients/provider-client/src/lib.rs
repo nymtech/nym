@@ -52,20 +52,21 @@ pub struct ProviderClient {
     our_address: DestinationAddressBytes,
     auth_token: Option<AuthToken>,
     connection: Option<tokio::net::TcpStream>,
+    max_response_size: usize,
 }
-
-const MAX_RESPONSE_SIZE: usize = 1_000_000_000;
 
 impl ProviderClient {
     pub fn new(
         provider_network_address: SocketAddr,
         our_address: DestinationAddressBytes,
         auth_token: Option<AuthToken>,
+        max_response_size: usize,
     ) -> Self {
         ProviderClient {
             provider_network_address,
             our_address,
             auth_token,
+            max_response_size,
             // establish connection when it's necessary (mainly to not break current code
             // as then 'new' would need to be called within async context)
             connection: None,
@@ -107,7 +108,7 @@ impl ProviderClient {
 
         let mut request_writer = TokioAsyncRequestWriter::new(&mut socket_writer);
         let mut response_reader =
-            TokioAsyncResponseReader::new(&mut socket_reader, MAX_RESPONSE_SIZE);
+            TokioAsyncResponseReader::new(&mut socket_reader, self.max_response_size);
 
         if let Err(e) = request_writer.try_write_request(request).await {
             debug!("Failed to write the request - {:?}", e);

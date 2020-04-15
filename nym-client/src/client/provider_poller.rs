@@ -24,12 +24,14 @@ impl ProviderPoller {
         client_address: DestinationAddressBytes,
         auth_token: Option<AuthToken>,
         polling_rate: time::Duration,
+        max_response_size: usize,
     ) -> Self {
         ProviderPoller {
             provider_client: provider_client::ProviderClient::new(
                 provider_client_listener_address,
                 client_address,
                 auth_token,
+                max_response_size,
             ),
             poller_tx,
             polling_rate,

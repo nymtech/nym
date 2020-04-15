@@ -171,6 +171,7 @@ impl NymClient {
                 .map(|str_token| AuthToken::try_from_base58_string(str_token).ok())
                 .unwrap_or(None),
             self.config.get_fetch_message_delay(),
+            self.config.get_max_response_size(),
         );
 
         if !provider_poller.is_registered() {

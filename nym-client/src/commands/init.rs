@@ -47,12 +47,16 @@ async fn try_provider_registrations(
     providers: Vec<Node>,
     our_address: DestinationAddressBytes,
 ) -> Option<(String, AuthToken)> {
+    // we don't expect the response to be longer than AUTH_TOKEN_SIZE, but allow for more bytes
+    // in case there was an error message
+    let max_response_len = 16 * 1024;
     // since the order of providers is non-deterministic we can just try to get a first 'working' provider
     for provider in providers {
         let mut provider_client = provider_client::ProviderClient::new(
             provider.client_listener,
             our_address.clone(),
             None,
+            max_response_len,
         );
         let auth_token = provider_client.register().await;
         if let Ok(token) = auth_token {

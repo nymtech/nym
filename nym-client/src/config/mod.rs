@@ -439,7 +439,7 @@ impl Default for Debug {
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             healthcheck_connection_timeout: DEFAULT_HEALTHCHECK_CONNECTION_TIMEOUT,
-            max_response_size: DEFAULT_MAX_RESPONSE_SIZE
+            max_response_size: DEFAULT_MAX_RESPONSE_SIZE,
         }
     }
 }

@@ -12,3 +12,7 @@ bytes = "0.5"
 byteorder = "1"
 tokio = { version = "0.2", features = ["io-util"] }
 sphinx = { git = "https://github.com/nymtech/sphinx", rev="44d8f2aece5049eaa4fe84b7948758ce82b4b80d" }
+
+[dev-dependencies]
+tokio = { version = "0.2", features = ["rt-threaded", "time"] }
+tokio-test = "0.2"

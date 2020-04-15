@@ -39,7 +39,7 @@ var sequenceNum = 0;
 //     var message = {
 //         type: "send",
 //         message: "FOOMP " + sequenceNum,
-//         recipient_address: "B5D5wfetpXZ6qSQ7y8Cyi6mHttS3doiwDdvuaxin2NWC"
+//         recipient_address: "2ub7f2s5en4Pn2nhY69uyWqGSMLZwhtPASjePq4gLxQs"
 //     }
 //     connection.send(JSON.stringify(message));
 //     display("Sent message: " + message.message + " to " + message.recipient_address);
@@ -50,7 +50,7 @@ window.setInterval(function () {
     var message = {
         type: "fetch",
     }
-    displayFetch("fetching...");
+    // displayFetch("fetching...");
     connection.send(JSON.stringify(message));
     sequenceNum += 1;
 }, 1000);

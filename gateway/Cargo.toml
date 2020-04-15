@@ -7,9 +7,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+dotenv = "0.15.0"
 futures-channel = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["async-await", "sink", "std"] }
+log = "0.4"
 multi-tcp-client = { path = "../common/clients/multi-tcp-client" }
+pretty_env_logger = "0.3"
 tokio = { version = "0.2", features = ["full"] }
 tokio-tungstenite = "0.10.1"
 

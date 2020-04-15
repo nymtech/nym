@@ -78,6 +78,7 @@ impl ServiceProvider {
             self.sphinx_keypair.private_key().clone(),
             client_storage,
             self.registered_clients_ledger.clone(),
+            self.config.get_max_request_size(),
         );
 
         client_handling::listener::run_client_socket_listener(

@@ -46,6 +46,7 @@ pub struct RequestProcessor {
     secret_key: Arc<encryption::PrivateKey>,
     client_storage: ClientStorage,
     client_ledger: ClientLedger,
+    max_request_size: usize,
 }
 
 impl RequestProcessor {
@@ -53,12 +54,18 @@ impl RequestProcessor {
         secret_key: encryption::PrivateKey,
         client_storage: ClientStorage,
         client_ledger: ClientLedger,
+        max_request_size: usize,
     ) -> Self {
         RequestProcessor {
             secret_key: Arc::new(secret_key),
             client_storage,
             client_ledger,
+            max_request_size,
         }
+    }
+
+    pub(crate) fn max_request_size(&self) -> usize {
+        self.max_request_size
     }
 
     pub(crate) async fn process_client_request(
@@ -157,6 +164,7 @@ mod generating_new_auth_token {
             secret_key: Arc::new(key),
             client_storage: ClientStorage::new(3, 16, Default::default()),
             client_ledger: ClientLedger::new(),
+            max_request_size: 42,
         };
 
         let token1 = request_processor.generate_new_auth_token(client_address1);
@@ -175,12 +183,14 @@ mod generating_new_auth_token {
             secret_key: Arc::new(key1),
             client_storage: ClientStorage::new(3, 16, Default::default()),
             client_ledger: ClientLedger::new(),
+            max_request_size: 42,
         };
 
         let request_processor2 = RequestProcessor {
             secret_key: Arc::new(key2),
             client_storage: ClientStorage::new(3, 16, Default::default()),
             client_ledger: ClientLedger::new(),
+            max_request_size: 42,
         };
 
         let token1 = request_processor1.generate_new_auth_token(client_address1.clone());

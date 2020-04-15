@@ -52,9 +52,6 @@ async fn process_request<'a>(
     }
 }
 
-// TODO: temporary proof of concept. will later be moved into config
-const MAX_REQUEST_SIZE: usize = 4_096;
-
 async fn process_socket_connection(
     mut socket: tokio::net::TcpStream,
     mut request_processor: RequestProcessor,
@@ -65,7 +62,8 @@ async fn process_socket_connection(
     //        let mut socket_writer = tokio::io::BufWriter::new(socket_writer);
     //        let mut socket_reader = tokio::io::BufReader::new(socket_reader);
 
-    let mut request_reader = TokioAsyncRequestReader::new(&mut socket_reader, MAX_REQUEST_SIZE);
+    let mut request_reader =
+        TokioAsyncRequestReader::new(&mut socket_reader, request_processor.max_request_size());
     let mut response_writer = TokioAsyncResponseWriter::new(&mut socket_writer);
 
     loop {
@@ -91,6 +89,10 @@ async fn process_socket_connection(
                 // let's leave it like this for time being and see if we need to decrease
                 // logging level and / or close the connection
                 warn!("the received request was invalid - {:?}", e);
+                // should the connection be closed here? invalid request might imply
+                // the subsequent requests in the reader buffer might not be aligned anymore
+                // however, that might not necessarily be the case
+                return;
             }
             // in here we do not really want to process multiple requests from the same
             // client concurrently as then we might end up with really weird race conditions

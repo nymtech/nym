@@ -61,6 +61,10 @@ async fn process_socket_connection(
 ) {
     let peer_addr = socket.peer_addr();
     let (mut socket_reader, mut socket_writer) = socket.split();
+    // TODO: benchmark and determine if below should be done:
+    //        let mut socket_writer = tokio::io::BufWriter::new(socket_writer);
+    //        let mut socket_reader = tokio::io::BufReader::new(socket_reader);
+
     let mut request_reader = TokioAsyncRequestReader::new(&mut socket_reader, MAX_REQUEST_SIZE);
     let mut response_writer = TokioAsyncResponseWriter::new(&mut socket_writer);
 

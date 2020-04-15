@@ -101,6 +101,10 @@ impl ProviderClient {
         let socket = self.connection.as_mut().unwrap();
         let (mut socket_reader, mut socket_writer) = socket.split();
 
+        // TODO: benchmark and determine if below should be done:
+        //        let mut socket_writer = tokio::io::BufWriter::new(socket_writer);
+        //        let mut socket_reader = tokio::io::BufReader::new(socket_reader);
+
         let mut request_writer = TokioAsyncRequestWriter::new(&mut socket_writer);
         let mut response_reader =
             TokioAsyncResponseReader::new(&mut socket_reader, MAX_RESPONSE_SIZE);

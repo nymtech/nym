@@ -110,7 +110,7 @@ impl PullResponse {
         }
 
         let mut bytes_copy = bytes;
-        let num_msgs = read_be_u16(&mut bytes_copy);
+        let num_msgs = extract_be_u16(&mut bytes_copy);
 
         // can we read all lengths of messages?
         if bytes_copy.len() < (num_msgs * 2) as usize {
@@ -118,7 +118,7 @@ impl PullResponse {
         }
 
         let msgs_lens: Vec<_> = (0..num_msgs)
-            .map(|_| read_be_u16(&mut bytes_copy))
+            .map(|_| extract_be_u16(&mut bytes_copy))
             .collect();
 
         let required_remaining_len = msgs_lens
@@ -223,7 +223,8 @@ impl FailureResponse {
     }
 }
 
-fn read_be_u16(input: &mut &[u8]) -> u16 {
+/// Takes first 2 bytes of slice, REMOVES THEM and reads it as u16
+fn extract_be_u16(input: &mut &[u8]) -> u16 {
     let (int_bytes, rest) = input.split_at(std::mem::size_of::<u16>());
     *input = rest;
     u16::from_be_bytes(int_bytes.try_into().unwrap())

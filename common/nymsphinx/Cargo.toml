@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 log = "0.4.8"
-rand = "0.7.3"
+rand = {version = "0.7.3", features = ["wasm-bindgen"]}
 
 ## will be moved to proper dependencies once released
 sphinx = { git = "https://github.com/nymtech/sphinx", rev="5ccf41f6e55e10e9879206f2fc2dfeba6cf35c8c" }

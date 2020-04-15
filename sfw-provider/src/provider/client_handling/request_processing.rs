@@ -129,7 +129,6 @@ impl RequestProcessor {
         &self,
         req: PullRequest,
     ) -> Result<ClientProcessingResult, ClientProcessingError> {
-        println!("pull request for {:?}", req.destination_address);
         if self
             .client_ledger
             .verify_token(&req.auth_token, &req.destination_address)

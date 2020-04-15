@@ -6,18 +6,6 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 // TODO: way down the line, mostly for learning purposes, combine this with responses::async_io
 // via procedural macros
 
-impl<'a, R: AsyncRead + Unpin> Drop for TokioAsyncRequestReader<'a, R> {
-    fn drop(&mut self) {
-        println!("request reader drop");
-    }
-}
-
-impl<'a, R: AsyncWrite + Unpin> Drop for TokioAsyncRequestWriter<'a, R> {
-    fn drop(&mut self) {
-        println!("request writer drop");
-    }
-}
-
 // Ideally I would have used futures::AsyncRead for even more generic approach, but unfortunately
 // tokio::io::AsyncRead differs from futures::AsyncRead
 pub struct TokioAsyncRequestReader<'a, R: AsyncRead + Unpin> {

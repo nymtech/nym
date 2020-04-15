@@ -12,6 +12,7 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 curve25519-dalek = "2.0.0"
+serde_json = "1.0.40"
 slice_as_array = "1.1.0"
 wasm-bindgen = "0.2"
 

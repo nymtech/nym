@@ -17,10 +17,8 @@ use crate::provider::storage::{ClientFile, ClientStorage};
 use crypto::encryption;
 use hmac::{Hmac, Mac};
 use log::*;
-use sfw_provider_requests::requests::{
-    ProviderRequestError, ProviderRequests, PullRequest, RegisterRequest,
-};
-use sfw_provider_requests::AuthToken;
+use sfw_provider_requests::auth_token::AuthToken;
+use sfw_provider_requests::requests::*;
 use sha2::Sha256;
 use sphinx::route::DestinationAddressBytes;
 use std::io;
@@ -62,6 +60,7 @@ pub struct RequestProcessor {
     secret_key: Arc<encryption::PrivateKey>,
     client_storage: ClientStorage,
     client_ledger: ClientLedger,
+    max_request_size: usize,
 }
 
 impl RequestProcessor {
@@ -69,23 +68,27 @@ impl RequestProcessor {
         secret_key: encryption::PrivateKey,
         client_storage: ClientStorage,
         client_ledger: ClientLedger,
+        max_request_size: usize,
     ) -> Self {
         RequestProcessor {
             secret_key: Arc::new(secret_key),
             client_storage,
             client_ledger,
+            max_request_size,
         }
+    }
+
+    pub(crate) fn max_request_size(&self) -> usize {
+        self.max_request_size
     }
 
     pub(crate) async fn process_client_request(
         &mut self,
-        request_bytes: &[u8],
+        client_request: ProviderRequest,
     ) -> Result<ClientProcessingResult, ClientProcessingError> {
-        let client_request = ProviderRequests::from_bytes(request_bytes)?;
-        debug!("Received the following request: {:?}", client_request);
         match client_request {
-            ProviderRequests::Register(req) => self.process_register_request(req).await,
-            ProviderRequests::PullMessages(req) => self.process_pull_request(req).await,
+            ProviderRequest::Register(req) => self.process_register_request(req).await,
+            ProviderRequest::Pull(req) => self.process_pull_request(req).await,
         }
     }
 
@@ -149,10 +152,10 @@ impl RequestProcessor {
                 .client_storage
                 .retrieve_client_files(req.destination_address)
                 .await?;
-            return Ok(ClientProcessingResult::PullResponse(retrieved_messages));
+            Ok(ClientProcessingResult::PullResponse(retrieved_messages))
+        } else {
+            Err(ClientProcessingError::InvalidToken)
         }
-
-        Err(ClientProcessingError::InvalidToken)
     }
 
     pub(crate) async fn delete_sent_messages(&self, file_paths: Vec<PathBuf>) -> io::Result<()> {
@@ -174,6 +177,7 @@ mod generating_new_auth_token {
             secret_key: Arc::new(key),
             client_storage: ClientStorage::new(3, 16, Default::default()),
             client_ledger: ClientLedger::new(),
+            max_request_size: 42,
         };
 
         let token1 = request_processor.generate_new_auth_token(client_address1);
@@ -192,12 +196,14 @@ mod generating_new_auth_token {
             secret_key: Arc::new(key1),
             client_storage: ClientStorage::new(3, 16, Default::default()),
             client_ledger: ClientLedger::new(),
+            max_request_size: 42,
         };
 
         let request_processor2 = RequestProcessor {
             secret_key: Arc::new(key2),
             client_storage: ClientStorage::new(3, 16, Default::default()),
             client_ledger: ClientLedger::new(),
+            max_request_size: 42,
         };
 
         let token1 = request_processor1.generate_new_auth_token(client_address1.clone());

@@ -30,7 +30,7 @@ use futures::channel::{mpsc, oneshot};
 use log::*;
 use nymsphinx::chunking::split_and_prepare_payloads;
 use pemstore::pemstore::PemStore;
-use sfw_provider_requests::AuthToken;
+use sfw_provider_requests::auth_token::AuthToken;
 use sphinx::route::Destination;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
@@ -185,6 +185,7 @@ impl NymClient {
                 .map(|str_token| AuthToken::try_from_base58_string(str_token).ok())
                 .unwrap_or(None),
             self.config.get_fetch_message_delay(),
+            self.config.get_max_response_size(),
         );
 
         if !provider_poller.is_registered() {

@@ -17,7 +17,7 @@ wasm-bindgen = "0.2"
 
 
 # internal
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="5ccf41f6e55e10e9879206f2fc2dfeba6cf35c8c" }
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="298c7fda6a577daf6d9bb955fa52c2bffecf6926" }
 crypto = { path = "../common/crypto" }
 nymsphinx = { path = "../common/nymsphinx" }
 

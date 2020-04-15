@@ -871,6 +871,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "wasi",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -2527,7 +2528,7 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=5ccf41f6e55e10e9879206f2fc2dfeba6cf35c8c#5ccf41f6e55e10e9879206f2fc2dfeba6cf35c8c"
+source = "git+https://github.com/nymtech/sphinx?rev=298c7fda6a577daf6d9bb955fa52c2bffecf6926#298c7fda6a577daf6d9bb955fa52c2bffecf6926"
 dependencies = [
  "aes-ctr",
  "arrayref",

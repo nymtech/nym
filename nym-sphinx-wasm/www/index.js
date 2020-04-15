@@ -41,7 +41,6 @@ async function main() {
     const topology = await getTopology();
     const mixnodes = topology.mixNodes;
     const provider = topology.mixProviderNodes[0];
-    print("mixnodes", mixnodes);
 
     // Construct a route so we can get wasm to build us a Sphinx packet
     let nodes = [];
@@ -50,11 +49,9 @@ async function main() {
         nodes.push(n);
     });
     let route = new Route(nodes);
-    print("route", route);
 
     // Create the packet
-    let packet = wasm.create_sphinx_packet(JSON.stringify(route), "foo", "HNNFMsVFknDNFv2TdUstVqKb3hUpajfyPfAA5ZwDPzdK");
-    console.log(packet);
+    let packet = wasm.create_sphinx_packet(JSON.stringify(route), "THIS IS THE MESSAGE", "2ub7f2s5en4Pn2nhY69uyWqGSMLZwhtPASjePq4gLxQs");
 
     // Set up a websocket connection to the gateway node
     var port = "1793" // gateway websocket listens on 1793 by default, change if yours is different
@@ -62,11 +59,13 @@ async function main() {
 
     connectWebsocket(url).then(function (server) {
         server.send("hello gateway");
+        console.log(packet);
+        server.send(packet);
     }).catch(function (err) {
         console.log("Websocket ERROR: " + err);
     })
 }
-///
+// Let's get started!
 main();
 
 // utility functions below here, nothing too interesting...

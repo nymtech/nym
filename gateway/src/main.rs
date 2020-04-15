@@ -12,68 +12,89 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{env, io::Error as IoError, net::SocketAddr};
-
-use futures_channel::mpsc::unbounded;
-use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
-
+use futures_util::{SinkExt, StreamExt};
+use log::*;
+use std::io;
+use std::net::SocketAddr;
+use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
-// use tungstenite::protocol::Message;
+use tokio_tungstenite::{accept_async, tungstenite::Error};
+use tungstenite::Message;
+use tungstenite::Result;
 
-async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
-    println!("Incoming TCP connection from: {}", addr);
-
-    let ws_stream = tokio_tungstenite::accept_async(raw_stream)
-        .await
-        .expect("Error during the websocket handshake occurred");
-    println!("WebSocket connection established: {}", addr);
-
-    let (_sender, receiver) = unbounded();
-
-    let (outgoing, incoming) = ws_stream.split();
-
-    let broadcast_incoming = incoming.try_for_each(|msg| {
-        println!(
-            "Received a message from {}: {}",
-            addr,
-            msg.to_text().unwrap()
-        );
-        // let message =
-
-        // let config = multi_tcp_client::Config::new(
-        //     Duration::from_millis(200),
-        //     Duration::from_secs(86400),
-        //     Duration::from_secs(2),
-        // );
-        // let client = multi_tcp_client::Client::new(config);
-        // client.send(address: SocketAddr, message: Vec<u8>, false);
-
-        future::ok(())
-    });
-
-    let receive_from_others = receiver.map(Ok).forward(outgoing);
-
-    pin_mut!(broadcast_incoming, receive_from_others);
-    future::select(broadcast_incoming, receive_from_others).await;
-
-    println!("{} disconnected", &addr);
+async fn accept_connection(peer: SocketAddr, stream: TcpStream) {
+    if let Err(e) = handle_connection(peer, stream).await {
+        match e {
+            Error::ConnectionClosed | Error::Protocol(_) | Error::Utf8 => (),
+            err => error!("Error processing connection: {}", err),
+        }
+    }
 }
 
-#[tokio::main]
-async fn main() -> Result<(), IoError> {
-    let addr = env::args()
-        .nth(1)
-        .unwrap_or_else(|| "127.0.0.1:1793".to_string());
+async fn handle_connection(peer: SocketAddr, stream: TcpStream) -> Result<()> {
+    let mut ws_stream = accept_async(stream).await.expect("Failed to accept");
 
-    // Create the event loop and TCP listener we'll accept connections on.
-    let try_socket = TcpListener::bind(&addr).await;
-    let mut listener = try_socket.expect("Failed to bind");
-    println!("Listening on: {}", addr);
+    info!("New WebSocket connection: {}", peer);
 
-    // Let's spawn the handling of each connection in a separate task.
-    while let Ok((stream, addr)) = listener.accept().await {
-        tokio::spawn(handle_connection(stream, addr));
+    while let Some(msg) = ws_stream.next().await {
+        let msg = msg?;
+        if msg.is_text() {
+            info!("Got text message: {}", msg);
+            let response = Message::Text("Text on this socket is ignored".to_owned());
+            ws_stream.send(response).await?;
+        }
+        if msg.is_binary() {
+            info!("Got binary message: {}", msg);
+            send(msg.into_data()).await;
+        }
     }
 
     Ok(())
+}
+
+async fn send(packet: Vec<u8>) -> io::Result<()> {
+    let config = multi_tcp_client::Config::new(
+        Duration::from_millis(200),
+        Duration::from_secs(86400),
+        Duration::from_secs(2),
+    );
+    let mut client = multi_tcp_client::Client::new(config);
+    let address: SocketAddr = "127.0.0.1:9980".parse().unwrap();
+    client.send(address, packet, false).await
+}
+
+#[tokio::main]
+async fn main() {
+    dotenv::dotenv().ok();
+    setup_logging();
+    let addr = "127.0.0.1:1793";
+    let mut listener = TcpListener::bind(&addr).await.expect("Can't listen");
+    info!("Listening on: {}", addr);
+
+    while let Ok((stream, _)) = listener.accept().await {
+        let peer = stream
+            .peer_addr()
+            .expect("connected streams should have a peer address");
+        info!("Peer address: {}", peer);
+
+        tokio::spawn(accept_connection(peer, stream));
+    }
+}
+
+fn setup_logging() {
+    let mut log_builder = pretty_env_logger::formatted_timed_builder();
+    if let Ok(s) = ::std::env::var("RUST_LOG") {
+        log_builder.parse_filters(&s);
+    } else {
+        // default to 'Info'
+        log_builder.filter(None, log::LevelFilter::Info);
+    }
+
+    log_builder
+        .filter_module("hyper", log::LevelFilter::Warn)
+        .filter_module("tokio_reactor", log::LevelFilter::Warn)
+        .filter_module("reqwest", log::LevelFilter::Warn)
+        .filter_module("mio", log::LevelFilter::Warn)
+        .filter_module("want", log::LevelFilter::Warn)
+        .init();
 }

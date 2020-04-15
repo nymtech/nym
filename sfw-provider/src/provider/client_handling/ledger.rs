@@ -14,7 +14,7 @@
 
 use directory_client::presence::providers::MixProviderClient;
 use futures::lock::Mutex;
-use sfw_provider_requests::AuthToken;
+use sfw_provider_requests::auth_token::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use std::collections::HashMap;
 use std::io;

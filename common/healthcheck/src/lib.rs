@@ -19,6 +19,9 @@ use std::fmt::{Error, Formatter};
 use std::time::Duration;
 use topology::{NymTopology, NymTopologyError};
 
+// basically no limit
+pub(crate) const MAX_PROVIDER_RESPONSE_SIZE: usize = 1024 * 1024;
+
 pub mod config;
 mod path_check;
 mod result;

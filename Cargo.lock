@@ -2443,7 +2443,11 @@ name = "sfw-provider-requests"
 version = "0.1.0"
 dependencies = [
  "bs58",
+ "byteorder",
+ "bytes 0.5.4",
  "sphinx",
+ "tokio 0.2.16",
+ "tokio-test",
 ]
 
 [[package]]
@@ -2836,6 +2840,17 @@ dependencies = [
  "mio",
  "tokio-io",
  "tokio-reactor",
+]
+
+[[package]]
+name = "tokio-test"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09cf9705471976fa5fc6817d3fbc9c4ff9696a6647af0e5c1870c81ca7445b05"
+dependencies = [
+ "bytes 0.5.4",
+ "futures-core",
+ "tokio 0.2.16",
 ]
 
 [[package]]

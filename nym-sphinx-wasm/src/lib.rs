@@ -69,7 +69,6 @@ pub fn create_sphinx_packet(rout: String, msg: &str, destination: &str) -> Vec<u
     let dest_bytes = DestinationAddressBytes::from_base58_string(destination.to_owned());
     let dest = Destination::new(dest_bytes, [4u8; IDENTIFIER_LENGTH]);
 
-    // let mut message = msg.as_bytes().to_vec();
     let mut message = nymsphinx::chunking::split_and_prepare_payloads(&msg.as_bytes());
     let sphinx_packet =
         match SphinxPacket::new(message.pop().unwrap(), &route, &dest, &delays).unwrap() {

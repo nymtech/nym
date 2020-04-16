@@ -50,6 +50,9 @@ pub struct NodeData {
 ///
 /// The `wasm-pack build` command will cause this to output JS bindings and a
 /// wasm executable in the `pkg/` directory.
+///
+/// Message chunking is currently not implemented. If the message exceeds the
+/// capacity of a single Sphinx packet, the extra information will be discarded.
 #[wasm_bindgen]
 pub fn create_sphinx_packet(rout: String, msg: &str, destination: &str) -> Vec<u8> {
     utils::set_panic_hook(); // nicer js errors.

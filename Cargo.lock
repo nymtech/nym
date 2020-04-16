@@ -851,6 +851,7 @@ dependencies = [
  "futures-util",
  "log 0.4.8",
  "multi-tcp-client",
+ "nymsphinx",
  "pretty_env_logger",
  "tokio 0.2.16",
  "tokio-tungstenite",

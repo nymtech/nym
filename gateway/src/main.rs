@@ -15,6 +15,8 @@
 use futures::lock::Mutex;
 use futures_util::{SinkExt, StreamExt};
 use log::*;
+use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
+use nymsphinx::addressing::nodes::NODE_ADDRESS_LENGTH;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;

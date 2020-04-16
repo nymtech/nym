@@ -46,11 +46,6 @@ async fn handle_connection(
 
     while let Some(msg) = ws_stream.next().await {
         let msg = msg?;
-        if msg.is_text() {
-            info!("Got text message: {}", msg);
-            let response = Message::Text("Text on this socket is ignored".to_owned());
-            ws_stream.send(response).await?;
-        }
         if msg.is_binary() {
             info!("Got binary message: {}", msg);
             let address: SocketAddr = "127.0.0.1:9980".parse().unwrap();

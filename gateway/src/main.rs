@@ -47,14 +47,24 @@ async fn handle_connection(
     while let Some(msg) = ws_stream.next().await {
         let msg = msg?;
         if msg.is_binary() {
-            info!("Got binary message: {}", msg);
-            let address: SocketAddr = "127.0.0.1:9980".parse().unwrap();
-            let mut client = client_ref.lock().await;
-            client.send(address, msg.into_data(), false).await.unwrap();
+            forward_to_mixnode(msg.into_data(), client_ref.clone()).await;
         }
     }
-
     Ok(())
+}
+
+async fn forward_to_mixnode(mut payload: Vec<u8>, client_ref: Arc<Mutex<MultiClient>>) {
+    info!("Got binary blob");
+    let mut address_buffer = [0; NODE_ADDRESS_LENGTH];
+    let packet = payload.split_off(NODE_ADDRESS_LENGTH);
+    address_buffer.copy_from_slice(payload.as_slice());
+    let address = NymNodeRoutingAddress::try_from_bytes(&address_buffer)
+        .unwrap()
+        .into();
+    info!("Address: {}", address);
+
+    let mut client = client_ref.lock().await;
+    client.send(address, packet, false).await.unwrap();
 }
 
 #[tokio::main]

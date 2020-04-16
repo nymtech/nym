@@ -15,6 +15,7 @@
 use futures::lock::Mutex;
 use futures_util::{SinkExt, StreamExt};
 use log::*;
+use multi_tcp_client::Client as MultiClient;
 use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx::addressing::nodes::NODE_ADDRESS_LENGTH;
 use std::net::SocketAddr;
@@ -25,11 +26,7 @@ use tokio_tungstenite::{accept_async, tungstenite::Error};
 use tungstenite::Message;
 use tungstenite::Result;
 
-async fn accept_connection(
-    peer: SocketAddr,
-    stream: TcpStream,
-    client: Arc<Mutex<multi_tcp_client::Client>>,
-) {
+async fn accept_connection(peer: SocketAddr, stream: TcpStream, client: Arc<Mutex<MultiClient>>) {
     if let Err(e) = handle_connection(peer, stream, client).await {
         match e {
             Error::ConnectionClosed | Error::Protocol(_) | Error::Utf8 => (),
@@ -41,7 +38,7 @@ async fn accept_connection(
 async fn handle_connection(
     peer: SocketAddr,
     stream: TcpStream,
-    client_ref: Arc<Mutex<multi_tcp_client::Client>>,
+    client_ref: Arc<Mutex<MultiClient>>,
 ) -> Result<()> {
     let mut ws_stream = accept_async(stream).await.expect("Failed to accept");
 

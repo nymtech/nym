@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 dotenv = "0.15.0"
+futures = "0.3"
 futures-channel = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["async-await", "sink", "std"] }
 log = "0.4"

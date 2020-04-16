@@ -846,6 +846,7 @@ name = "gateway"
 version = "0.1.0"
 dependencies = [
  "dotenv",
+ "futures 0.3.4",
  "futures-channel",
  "futures-util",
  "log 0.4.8",

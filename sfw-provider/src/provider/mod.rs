@@ -115,6 +115,11 @@ impl ServiceProvider {
             .map(|node| node.pub_key.clone())
     }
 
+    fn check_if_other_providers_exist(&self) -> bool {
+        let topology = Topology::new(self.config.get_presence_directory_server());
+        !topology.mix_provider_nodes.is_empty()
+    }
+
     pub fn run(&mut self) {
         // A possible future optimisation, depending on bottlenecks and resource usage:
         // considering, presumably, there will be more mix packets received than client requests:
@@ -126,6 +131,15 @@ impl ServiceProvider {
             error!(
                 "Our announce-host is identical to one of existing nodes! (its key is {:?}",
                 duplicate_provider_key
+            );
+            return;
+        }
+
+        if self.check_if_other_providers_exist() {
+            error!(
+                "There is already a provider running on the network. \
+            Right now multiple providers on the same network are unsupported. \
+            Please do NOT start your own."
             );
             return;
         }

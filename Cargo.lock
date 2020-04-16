@@ -2563,7 +2563,6 @@ dependencies = [
  "curve25519-dalek",
  "nymsphinx",
  "serde",
- "serde_derive",
  "serde_json",
  "slice_as_array",
  "sphinx",

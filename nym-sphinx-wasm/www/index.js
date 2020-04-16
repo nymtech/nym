@@ -48,10 +48,12 @@ async function main() {
         let n = new NodeData(node.host, node.pubKey);
         nodes.push(n);
     });
+    let p = new NodeData(provider.mixnetListener, provider.pubKey)
+    nodes.push(p);
     let route = new Route(nodes);
 
     // Create the packet
-    let packet = wasm.create_sphinx_packet(JSON.stringify(route), "THIS IS THE MESSAGE", "2ub7f2s5en4Pn2nhY69uyWqGSMLZwhtPASjePq4gLxQs");
+    let packet = wasm.create_sphinx_packet(JSON.stringify(route), "THIS IS THE MESSAGE", "C2fdNoUybRuGrVYUM6QRejiELPQCohGbxjhKpU4UZ4ci");
 
     // Set up a websocket connection to the gateway node
     var port = "1793" // gateway websocket listens on 1793 by default, change if yours is different

@@ -89,7 +89,7 @@ fn payload(sphinx_packet: SphinxPacket, route: Vec<Node>) -> Vec<u8> {
     bytes
 }
 
-/// Attempts to creqte a Sphinx route, which is a `Vec<sphinx::Node>`, from a
+/// Attempts to create a Sphinx route, which is a `Vec<sphinx::Node>`, from a
 /// JSON string.
 ///
 /// # Panics

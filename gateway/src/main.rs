@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use futures::lock::Mutex;
 use futures_util::{SinkExt, StreamExt};
 use log::*;
-use std::sync::{Arc};
-use futures::lock::Mutex;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::{accept_async, tungstenite::Error};
 use tungstenite::Message;
 use tungstenite::Result;
 
-async fn accept_connection(peer: SocketAddr, stream: TcpStream, client: Arc<Mutex<multi_tcp_client::Client>>) {
-    
+async fn accept_connection(
+    peer: SocketAddr,
+    stream: TcpStream,
+    client: Arc<Mutex<multi_tcp_client::Client>>,
+) {
     if let Err(e) = handle_connection(peer, stream, client).await {
         match e {
             Error::ConnectionClosed | Error::Protocol(_) | Error::Utf8 => (),
@@ -33,7 +36,11 @@ async fn accept_connection(peer: SocketAddr, stream: TcpStream, client: Arc<Mute
     }
 }
 
-async fn handle_connection(peer: SocketAddr, stream: TcpStream, client: Arc<Mutex<multi_tcp_client::Client>>) -> Result<()> {
+async fn handle_connection(
+    peer: SocketAddr,
+    stream: TcpStream,
+    client_ref: Arc<Mutex<multi_tcp_client::Client>>,
+) -> Result<()> {
     let mut ws_stream = accept_async(stream).await.expect("Failed to accept");
 
     info!("New WebSocket connection: {}", peer);
@@ -48,15 +55,13 @@ async fn handle_connection(peer: SocketAddr, stream: TcpStream, client: Arc<Mute
         if msg.is_binary() {
             info!("Got binary message: {}", msg);
             let address: SocketAddr = "127.0.0.1:9980".parse().unwrap();
-            let mut foomp = client.lock().await;
-            foomp.send(address, msg.into_data(), false).await.unwrap();
+            let mut client = client_ref.lock().await;
+            client.send(address, msg.into_data(), false).await.unwrap();
         }
     }
 
     Ok(())
 }
-
-
 
 #[tokio::main]
 async fn main() {
@@ -66,7 +71,7 @@ async fn main() {
     let mut listener = TcpListener::bind(&addr).await.expect("Can't listen");
     info!("Listening on: {}", addr);
 
-    let client = setup_client();
+    let client_ref = setup_client();
 
     while let Ok((stream, _)) = listener.accept().await {
         let peer = stream
@@ -74,12 +79,12 @@ async fn main() {
             .expect("connected streams should have a peer address");
         info!("Peer address: {}", peer);
 
-        tokio::spawn(accept_connection(peer, stream, client.clone()));
+        tokio::spawn(accept_connection(peer, stream, client_ref.clone()));
     }
 }
 
 fn setup_client() -> Arc<Mutex<multi_tcp_client::Client>> {
-        let config = multi_tcp_client::Config::new(
+    let config = multi_tcp_client::Config::new(
         Duration::from_millis(200),
         Duration::from_secs(86400),
         Duration::from_secs(2),

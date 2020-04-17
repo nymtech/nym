@@ -48,7 +48,7 @@ async fn main() {
             .expect("connected streams should have a peer address");
         info!("Peer address: {}", peer);
 
-        tokio::spawn(accept_connection(peer, stream, client_ref.clone()));
+        tokio::spawn(accept_connection(peer, stream, Arc::clone(&client_ref)));
     }
 }
 

@@ -35,7 +35,7 @@ pub async fn handle_connection(
     while let Some(msg) = ws_stream.next().await {
         let msg = msg?;
         if msg.is_binary() {
-            mixnet_client::forward_to_mixnode(msg.into_data(), client_ref.clone()).await;
+            mixnet_client::forward_to_mixnode(msg.into_data(), Arc::clone(&client_ref)).await;
         }
     }
     Ok(())

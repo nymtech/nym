@@ -49,7 +49,10 @@ impl ServiceProvider {
 
     pub fn new(config: Config) -> Self {
         let sphinx_keypair = Self::load_sphinx_keys(&config);
-        let registered_clients_ledger = ClientLedger::load(config.get_clients_ledger_path());
+        let registered_clients_ledger = match ClientLedger::load(config.get_clients_ledger_path()) {
+            Err(e) => panic!(format!("Failed to load the ledger - {:?}", e)),
+            Ok(ledger) => ledger,
+        };
         ServiceProvider {
             runtime: Runtime::new().unwrap(),
             config,

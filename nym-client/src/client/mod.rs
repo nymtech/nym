@@ -229,7 +229,7 @@ impl NymClient {
 
     // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
     fn start_mix_traffic_controller(&mut self, mix_rx: MixMessageReceiver) {
-        info!("Starting mix trafic controller...");
+        info!("Starting mix traffic controller...");
         self.runtime
             .enter(|| {
                 MixTrafficController::new(

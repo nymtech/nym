@@ -1,3 +1,5 @@
+import _ from 'lodash';
+
 async function main() {
     display("Initialising...");
 

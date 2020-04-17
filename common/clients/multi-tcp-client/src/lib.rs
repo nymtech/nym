@@ -1,3 +1,17 @@
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::connection_manager::{ConnectionManager, ConnectionManagerSender};
 use futures::channel::oneshot;
 use futures::future::AbortHandle;
@@ -13,16 +27,19 @@ mod connection_manager;
 pub struct Config {
     initial_reconnection_backoff: Duration,
     maximum_reconnection_backoff: Duration,
+    initial_connection_timeout: Duration,
 }
 
 impl Config {
     pub fn new(
         initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
+        initial_connection_timeout: Duration,
     ) -> Self {
         Config {
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
+            initial_connection_timeout,
         }
     }
 }
@@ -32,6 +49,7 @@ pub struct Client {
     connections_managers: HashMap<SocketAddr, (ConnectionManagerSender, AbortHandle)>,
     maximum_reconnection_backoff: Duration,
     initial_reconnection_backoff: Duration,
+    initial_connection_timeout: Duration,
 }
 
 impl Client {
@@ -44,6 +62,7 @@ impl Client {
             connections_managers: HashMap::new(),
             initial_reconnection_backoff: config.maximum_reconnection_backoff,
             maximum_reconnection_backoff: config.initial_reconnection_backoff,
+            initial_connection_timeout: config.initial_connection_timeout,
         }
     }
 
@@ -55,6 +74,7 @@ impl Client {
             address,
             self.initial_reconnection_backoff,
             self.maximum_reconnection_backoff,
+            self.initial_connection_timeout,
         )
         .await
         .start_abortable(&self.runtime_handle);
@@ -165,7 +185,8 @@ mod tests {
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         let addr = "127.0.0.1:6000".parse().unwrap();
         let reconnection_backoff = Duration::from_secs(1);
-        let client_config = Config::new(reconnection_backoff, 10 * reconnection_backoff);
+        let timeout = Duration::from_secs(1);
+        let client_config = Config::new(reconnection_backoff, 10 * reconnection_backoff, timeout);
 
         let messages_to_send = vec![[1u8; SERVER_MSG_LEN].to_vec(), [2; SERVER_MSG_LEN].to_vec()];
 
@@ -224,7 +245,8 @@ mod tests {
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         let addr = "127.0.0.1:6001".parse().unwrap();
         let reconnection_backoff = Duration::from_secs(2);
-        let client_config = Config::new(reconnection_backoff, 10 * reconnection_backoff);
+        let timeout = Duration::from_secs(1);
+        let client_config = Config::new(reconnection_backoff, 10 * reconnection_backoff, timeout);
 
         let messages_to_send = vec![[1u8; SERVER_MSG_LEN].to_vec(), [2; SERVER_MSG_LEN].to_vec()];
 

@@ -1,3 +1,17 @@
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 pub(crate) fn config_template() -> &'static str {
     // While using normal toml marshalling would have been way simpler with less overhead,
     // I think it's useful to have comments attached to the saved config file to explain behaviour of
@@ -74,27 +88,6 @@ ledger_path = '{{ clients_endpoint.ledger_path }}'
 [logging]
 
 # TODO
-
-
-##### debug configuration options #####
-# The following options should not be modified unless you know EXACTLY what you are doing
-# as if set incorrectly, they may impact your anonymity.
-
-[debug]
-
-# Directory server to which the server will be reporting their presence data.
-presence_directory_server = '{{ debug.presence_directory_server}}'
-
-# Delay between each subsequent presence data being sent.
-presence_sending_delay = {{ debug.presence_sending_delay }}
-
-# Length of filenames for new client messages.
-stored_messages_filename_length = {{ debug.stored_messages_filename_length }}
-
-# number of messages client gets on each request
-# if there are no real messages, dummy ones are create to always return  
-# `message_retrieval_limit` total messages
-message_retrieval_limit = {{ debug.message_retrieval_limit }}
 
 "#
 }

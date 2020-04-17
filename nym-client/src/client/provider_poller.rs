@@ -1,7 +1,21 @@
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use futures::channel::mpsc;
 use log::*;
 use provider_client::ProviderClientError;
-use sfw_provider_requests::AuthToken;
+use sfw_provider_requests::auth_token::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use std::net::SocketAddr;
 use std::time;
@@ -24,12 +38,14 @@ impl ProviderPoller {
         client_address: DestinationAddressBytes,
         auth_token: Option<AuthToken>,
         polling_rate: time::Duration,
+        max_response_size: usize,
     ) -> Self {
         ProviderPoller {
             provider_client: provider_client::ProviderClient::new(
                 provider_client_listener_address,
                 client_address,
                 auth_token,
+                max_response_size,
             ),
             poller_tx,
             polling_rate,
@@ -60,7 +76,7 @@ impl ProviderPoller {
         Ok(())
     }
 
-    pub(crate) async fn start_provider_polling(self) {
+    pub(crate) async fn start_provider_polling(&mut self) {
         let loop_message = &mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD.to_vec();
         let dummy_message = &sfw_provider_requests::DUMMY_MESSAGE_CONTENT.to_vec();
 
@@ -100,7 +116,7 @@ impl ProviderPoller {
         }
     }
 
-    pub(crate) fn start(self, handle: &Handle) -> JoinHandle<()> {
+    pub(crate) fn start(mut self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move { self.start_provider_polling().await })
     }
 }

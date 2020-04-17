@@ -1,3 +1,17 @@
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::connection_manager::reconnector::ConnectionReconnector;
 use crate::connection_manager::writer::ConnectionWriter;
 use futures::channel::{mpsc, oneshot};
@@ -46,17 +60,21 @@ impl<'a> ConnectionManager<'static> {
         address: SocketAddr,
         reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
+        connection_timeout: Duration,
     ) -> ConnectionManager<'a> {
         let (conn_tx, conn_rx) = mpsc::unbounded();
 
-        // based on initial connection we will either have a writer or a reconnector
-        let state = match tokio::net::TcpStream::connect(address).await {
-            Ok(conn) => ConnectionState::Writing(ConnectionWriter::new(conn)),
+        // the blocking call here is fine as initially we want to wait the timeout interval (at most) anyway:
+        let tcp_stream_res = std::net::TcpStream::connect_timeout(&address, connection_timeout);
+
+        let initial_state = match tcp_stream_res {
+            Ok(stream) => {
+                let tokio_stream = tokio::net::TcpStream::from_std(stream).unwrap();
+                debug!("managed to establish initial connection to {}", address);
+                ConnectionState::Writing(ConnectionWriter::new(tokio_stream))
+            }
             Err(e) => {
-                warn!(
-                    "failed to establish initial connection to {} ({}). Going into reconnection mode",
-                    address, e
-                );
+                warn!("failed to establish initial connection to {} within {:?} ({}). Going into reconnection mode", address, connection_timeout, e);
                 ConnectionState::Reconnecting(ConnectionReconnector::new(
                     address,
                     reconnection_backoff,
@@ -71,7 +89,7 @@ impl<'a> ConnectionManager<'static> {
             address,
             maximum_reconnection_backoff,
             reconnection_backoff,
-            state,
+            state: initial_state,
         }
     }
 

@@ -1,3 +1,17 @@
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::built_info;
 use crypto::identity::MixIdentityKeyPair;
 use futures::lock::Mutex;
@@ -110,6 +124,7 @@ pub(crate) struct TopologyRefresherConfig {
     refresh_rate: time::Duration,
     identity_keypair: MixIdentityKeyPair,
     resolution_timeout: time::Duration,
+    connection_timeout: time::Duration,
     number_test_packets: usize,
     node_score_threshold: f64,
 }
@@ -120,6 +135,7 @@ impl TopologyRefresherConfig {
         refresh_rate: time::Duration,
         identity_keypair: MixIdentityKeyPair,
         resolution_timeout: time::Duration,
+        connection_timeout: time::Duration,
         number_test_packets: usize,
         node_score_threshold: f64,
     ) -> Self {
@@ -128,6 +144,7 @@ impl TopologyRefresherConfig {
             refresh_rate,
             identity_keypair,
             resolution_timeout,
+            connection_timeout,
             number_test_packets,
             node_score_threshold,
         }
@@ -150,6 +167,7 @@ impl<T: 'static + NymTopology> TopologyRefresher<T> {
         // this is a temporary solution as the healthcheck will eventually be moved to validators
         let health_checker = healthcheck::HealthChecker::new(
             cfg.resolution_timeout,
+            cfg.connection_timeout,
             cfg.number_test_packets,
             cfg.identity_keypair,
         );

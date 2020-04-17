@@ -1,3 +1,17 @@
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
 use crate::client::mix_traffic::{MixMessageReceiver, MixMessageSender, MixTrafficController};
 use crate::client::provider_poller::{PolledMessagesReceiver, PolledMessagesSender};
@@ -16,7 +30,7 @@ use futures::channel::{mpsc, oneshot};
 use log::*;
 use nymsphinx::chunking::split_and_prepare_payloads;
 use pemstore::pemstore::PemStore;
-use sfw_provider_requests::AuthToken;
+use sfw_provider_requests::auth_token::AuthToken;
 use sphinx::route::Destination;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
@@ -171,6 +185,7 @@ impl NymClient {
                 .map(|str_token| AuthToken::try_from_base58_string(str_token).ok())
                 .unwrap_or(None),
             self.config.get_fetch_message_delay(),
+            self.config.get_max_response_size(),
         );
 
         if !provider_poller.is_registered() {
@@ -195,6 +210,7 @@ impl NymClient {
             self.config.get_topology_refresh_rate(),
             healthcheck_keys,
             self.config.get_topology_resolution_timeout(),
+            self.config.get_healthcheck_connection_timeout(),
             self.config.get_number_of_healthcheck_test_packets() as usize,
             self.config.get_node_score_threshold(),
         );
@@ -219,6 +235,7 @@ impl NymClient {
                 MixTrafficController::new(
                     self.config.get_packet_forwarding_initial_backoff(),
                     self.config.get_packet_forwarding_maximum_backoff(),
+                    self.config.get_initial_connection_timeout(),
                     mix_rx,
                 )
             })

@@ -1,15 +1,31 @@
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use directory_client::metrics::MixMetric;
 use directory_client::requests::metrics_mixes_post::MetricsMixPoster;
 use directory_client::DirectoryClient;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
-use log::{debug, error};
+use log::*;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
+
+type SentMetricsMap = HashMap<String, u64>;
 
 pub(crate) enum MetricEvent {
     Sent(String),
@@ -25,7 +41,7 @@ struct MixMetrics {
 
 struct MixMetricsInner {
     received: u64,
-    sent: HashMap<String, u64>,
+    sent: SentMetricsMap,
 }
 
 impl MixMetrics {
@@ -49,7 +65,7 @@ impl MixMetrics {
         *receiver_count += 1;
     }
 
-    async fn acquire_and_reset_metrics(&mut self) -> (u64, HashMap<String, u64>) {
+    async fn acquire_and_reset_metrics(&mut self) -> (u64, SentMetricsMap) {
         let mut unlocked = self.inner.lock().await;
         let received = unlocked.received;
 
@@ -92,6 +108,7 @@ struct MetricsSender {
     directory_client: directory_client::Client,
     pub_key_str: String,
     sending_delay: Duration,
+    metrics_informer: MetricsInformer,
 }
 
 impl MetricsSender {
@@ -100,6 +117,7 @@ impl MetricsSender {
         directory_server: String,
         pub_key_str: String,
         sending_delay: Duration,
+        running_logging_delay: Duration,
     ) -> Self {
         MetricsSender {
             metrics,
@@ -108,6 +126,7 @@ impl MetricsSender {
             )),
             pub_key_str,
             sending_delay,
+            metrics_informer: MetricsInformer::new(running_logging_delay),
         }
     }
 
@@ -117,6 +136,10 @@ impl MetricsSender {
                 // set the deadline in the future
                 let sending_delay = tokio::time::delay_for(self.sending_delay);
                 let (received, sent) = self.metrics.acquire_and_reset_metrics().await;
+
+                self.metrics_informer.update_running_stats(received, &sent);
+                self.metrics_informer.log_report_stats(received, &sent);
+                self.metrics_informer.try_log_running_stats();
 
                 match self.directory_client.metrics_post.post(&MixMetric {
                     pub_key: self.pub_key_str.clone(),
@@ -131,6 +154,71 @@ impl MetricsSender {
                 sending_delay.await;
             }
         })
+    }
+}
+
+struct MetricsInformer {
+    total_received: u64,
+    sent_map: SentMetricsMap,
+
+    running_stats_logging_delay: Duration,
+    last_reported_stats: SystemTime,
+}
+
+impl MetricsInformer {
+    fn new(running_stats_logging_delay: Duration) -> Self {
+        MetricsInformer {
+            total_received: 0,
+            sent_map: HashMap::new(),
+            running_stats_logging_delay,
+            last_reported_stats: SystemTime::now(),
+        }
+    }
+
+    fn should_log_running_stats(&self) -> bool {
+        self.last_reported_stats + self.running_stats_logging_delay < SystemTime::now()
+    }
+
+    fn try_log_running_stats(&mut self) {
+        if self.should_log_running_stats() {
+            self.log_running_stats()
+        }
+    }
+
+    fn update_running_stats(&mut self, pre_reset_received: u64, pre_reset_sent: &SentMetricsMap) {
+        self.total_received += pre_reset_received;
+
+        for (mix, count) in pre_reset_sent.iter() {
+            *self.sent_map.entry(mix.clone()).or_insert(0) += *count;
+        }
+    }
+
+    fn log_report_stats(&self, pre_reset_received: u64, pre_reset_sent: &SentMetricsMap) {
+        debug!(
+            "Since last metrics report mixed {} packets!",
+            pre_reset_received
+        );
+        debug!(
+            "Since last metrics report received {} packets",
+            pre_reset_sent.values().sum::<u64>()
+        );
+        trace!(
+            "Since last metrics report sent packets to the following: \n{:#?}",
+            pre_reset_sent
+        );
+    }
+
+    fn log_running_stats(&mut self) {
+        info!(
+            "Since startup mixed {} packets!",
+            self.sent_map.values().sum::<u64>()
+        );
+        debug!("Since startup received {} packets", self.total_received);
+        trace!(
+            "Since startup sent packets to the following: \n{:#?}",
+            self.sent_map
+        );
+        self.last_reported_stats = SystemTime::now();
     }
 }
 
@@ -173,6 +261,7 @@ impl MetricsController {
         directory_server: String,
         pub_key_str: String,
         sending_delay: Duration,
+        running_stats_logging_delay: Duration,
     ) -> Self {
         let (metrics_tx, metrics_rx) = mpsc::unbounded();
         let shared_metrics = MixMetrics::new();
@@ -183,6 +272,7 @@ impl MetricsController {
                 directory_server,
                 pub_key_str,
                 sending_delay,
+                running_stats_logging_delay,
             ),
             receiver: MetricsReceiver::new(shared_metrics, metrics_rx),
             reporter: MetricsReporter::new(metrics_tx),

@@ -1,3 +1,17 @@
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::config::template::config_template;
 use config::NymConfig;
 use log::*;
@@ -19,6 +33,7 @@ const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 1500;
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: u16 = 5;
+const DEFAULT_MAX_REQUEST_SIZE: u32 = 16 * 1024;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -333,6 +348,10 @@ impl Config {
     pub fn get_stored_messages_filename_length(&self) -> u16 {
         self.debug.stored_messages_filename_length
     }
+
+    pub fn get_max_request_size(&self) -> usize {
+        self.debug.max_request_size as usize
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -468,7 +487,7 @@ impl Default for Logging {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(default, deny_unknown_fields)]
 pub struct Debug {
     /// Directory server to which the server will be reporting their presence data.
     presence_directory_server: String,
@@ -479,10 +498,15 @@ pub struct Debug {
     /// Length of filenames for new client messages.
     stored_messages_filename_length: u16,
 
-    /// number of messages client gets on each request
+    /// Number of messages client gets on each request
     /// if there are no real messages, dummy ones are create to always return  
     /// `message_retrieval_limit` total messages
     message_retrieval_limit: u16,
+
+    /// Maximum allowed length for requests received.
+    /// Anything declaring bigger size than that will be regarded as an error and
+    /// is going to be rejected.
+    max_request_size: u32,
 }
 
 impl Debug {
@@ -503,6 +527,7 @@ impl Default for Debug {
             presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
             stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+            max_request_size: DEFAULT_MAX_REQUEST_SIZE,
         }
     }
 }

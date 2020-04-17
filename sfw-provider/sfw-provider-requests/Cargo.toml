@@ -1,11 +1,18 @@
 [package]
 name = "sfw-provider-requests"
 version = "0.1.0"
-authors = ["Jedrzej Stuczynski <jedrzej.stuczynski@gmail.com>"]
+authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bs58 = "0.3.0"
+bs58 = "0.3"
+bytes = "0.5"
+byteorder = "1"
+tokio = { version = "0.2", features = ["io-util"] }
 sphinx = { git = "https://github.com/nymtech/sphinx", rev="44d8f2aece5049eaa4fe84b7948758ce82b4b80d" }
+
+[dev-dependencies]
+tokio = { version = "0.2", features = ["rt-threaded", "time"] }
+tokio-test = "0.2"

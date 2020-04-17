@@ -18,14 +18,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "addressing"
-version = "0.1.0"
-dependencies = [
- "log 0.4.8",
- "pretty_env_logger",
-]
-
-[[package]]
 name = "adler32"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -966,13 +958,13 @@ dependencies = [
 name = "healthcheck"
 version = "0.1.0"
 dependencies = [
- "addressing",
  "crypto",
  "directory-client",
  "futures 0.3.4",
  "itertools",
  "log 0.4.8",
  "multi-tcp-client",
+ "nymsphinx",
  "pretty_env_logger",
  "provider-client",
  "rand 0.7.3",
@@ -1477,8 +1469,8 @@ dependencies = [
 name = "mix-client"
 version = "0.1.0"
 dependencies = [
- "addressing",
  "log 0.4.8",
+ "nymsphinx",
  "pretty_env_logger",
  "rand 0.7.3",
  "rand_distr",
@@ -1580,9 +1572,8 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "0.5.0"
+version = "0.7.0-dev"
 dependencies = [
- "addressing",
  "bs58",
  "built",
  "clap",
@@ -1615,9 +1606,8 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "0.5.0"
+version = "0.7.0-dev"
 dependencies = [
- "addressing",
  "bs58",
  "built",
  "clap",
@@ -1630,6 +1620,7 @@ dependencies = [
  "futures 0.3.4",
  "log 0.4.8",
  "multi-tcp-client",
+ "nymsphinx",
  "pemstore",
  "pretty_env_logger",
  "serde",
@@ -1641,7 +1632,7 @@ dependencies = [
 
 [[package]]
 name = "nym-sfw-provider"
-version = "0.5.0"
+version = "0.7.0-dev"
 dependencies = [
  "bs58",
  "built",
@@ -1671,7 +1662,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator"
-version = "0.5.0"
+version = "0.7.0-dev"
 dependencies = [
  "abci",
  "bodyparser",
@@ -1701,11 +1692,9 @@ dependencies = [
 name = "nymsphinx"
 version = "0.1.0"
 dependencies = [
- "addressing",
  "log 0.4.8",
  "rand 0.7.3",
  "sphinx",
- "topology",
 ]
 
 [[package]]
@@ -2489,7 +2478,11 @@ name = "sfw-provider-requests"
 version = "0.1.0"
 dependencies = [
  "bs58",
+ "byteorder",
+ "bytes 0.5.4",
  "sphinx",
+ "tokio 0.2.12",
+ "tokio-test",
 ]
 
 [[package]]
@@ -2861,6 +2854,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-test"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09cf9705471976fa5fc6817d3fbc9c4ff9696a6647af0e5c1870c81ca7445b05"
+dependencies = [
+ "bytes 0.5.4",
+ "futures-core",
+ "tokio 0.2.12",
+]
+
+[[package]]
 name = "tokio-threadpool"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2915,10 +2919,10 @@ dependencies = [
 name = "topology"
 version = "0.1.0"
 dependencies = [
- "addressing",
  "bs58",
  "itertools",
  "log 0.4.8",
+ "nymsphinx",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",

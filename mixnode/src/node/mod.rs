@@ -1,3 +1,17 @@
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
 use crate::node::packet_processing::PacketProcessor;
@@ -64,6 +78,7 @@ impl MixNode {
             self.config.get_metrics_directory_server(),
             self.sphinx_keypair.public_key().to_base58_string(),
             self.config.get_metrics_sending_delay(),
+            self.config.get_metrics_running_stats_logging_delay(),
         )
         .start(self.runtime.handle())
     }
@@ -94,6 +109,7 @@ impl MixNode {
                 packet_forwarding::PacketForwarder::new(
                     self.config.get_packet_forwarding_initial_backoff(),
                     self.config.get_packet_forwarding_maximum_backoff(),
+                    self.config.get_initial_connection_timeout(),
                 )
             })
             .start(self.runtime.handle())
@@ -110,6 +126,8 @@ impl MixNode {
     }
 
     pub fn run(&mut self) {
+        info!("Starting nym mixnode");
+
         if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists() {
             error!(
                 "Our announce-host is identical to one of existing nodes! (its key is {:?}",
@@ -121,6 +139,8 @@ impl MixNode {
         let metrics_reporter = self.start_metrics_reporter();
         self.start_socket_listener(metrics_reporter, forwarding_channel);
         self.start_presence_notifier();
+
+        info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
 
         if let Err(e) = self.runtime.block_on(tokio::signal::ctrl_c()) {
             error!(

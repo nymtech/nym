@@ -1,6 +1,21 @@
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::filter;
+use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
 use sphinx::route::Node as SphinxNode;
-use sphinx::route::NodeAddressBytes;
+use std::convert::TryInto;
 use std::net::SocketAddr;
 
 #[derive(Debug, Clone)]
@@ -35,10 +50,12 @@ impl filter::Versioned for Node {
 
 impl Into<SphinxNode> for Node {
     fn into(self) -> SphinxNode {
-        let address_bytes = addressing::encoded_bytes_from_socket_address(self.mixnet_listener);
+        let node_address_bytes = NymNodeRoutingAddress::from(self.mixnet_listener)
+            .try_into()
+            .unwrap();
         let key_bytes = self.get_pub_key_bytes();
         let key = sphinx::key::new(key_bytes);
 
-        SphinxNode::new(NodeAddressBytes::from_bytes(address_bytes), key)
+        SphinxNode::new(node_address_bytes, key)
     }
 }

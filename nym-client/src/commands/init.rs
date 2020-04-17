@@ -1,3 +1,17 @@
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::built_info;
 use crate::commands::override_config;
 use crate::config::persistence::pathfinder::ClientPathfinder;
@@ -6,7 +20,7 @@ use config::NymConfig;
 use crypto::identity::MixIdentityKeyPair;
 use directory_client::presence::Topology;
 use pemstore::pemstore::PemStore;
-use sfw_provider_requests::AuthToken;
+use sfw_provider_requests::auth_token::AuthToken;
 use sphinx::route::DestinationAddressBytes;
 use topology::provider::Node;
 use topology::NymTopology;
@@ -47,12 +61,16 @@ async fn try_provider_registrations(
     providers: Vec<Node>,
     our_address: DestinationAddressBytes,
 ) -> Option<(String, AuthToken)> {
+    // we don't expect the response to be longer than AUTH_TOKEN_SIZE, but allow for more bytes
+    // in case there was an error message
+    let max_response_len = 16 * 1024;
     // since the order of providers is non-deterministic we can just try to get a first 'working' provider
     for provider in providers {
-        let provider_client = provider_client::ProviderClient::new(
+        let mut provider_client = provider_client::ProviderClient::new(
             provider.client_listener,
             our_address.clone(),
             None,
+            max_response_len,
         );
         let auth_token = provider_client.register().await;
         if let Ok(token) = auth_token {

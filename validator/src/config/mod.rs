@@ -1,3 +1,17 @@
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::config::template::config_template;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
@@ -11,6 +25,7 @@ mod template;
 // 'MIXMINING'
 const DEFAULT_MIX_MINING_DELAY: u64 = 10_000;
 const DEFAULT_MIX_MINING_RESOLUTION_TIMEOUT: u64 = 5_000;
+const DEFAULT_MIX_MINING_CONNECTION_TIMEOUT: u64 = 1_500;
 
 const DEFAULT_NUMBER_OF_MIX_MINING_TEST_PACKETS: u64 = 2;
 
@@ -139,6 +154,10 @@ impl Config {
     pub fn get_mix_mining_number_of_test_packets(&self) -> u64 {
         self.mix_mining.number_of_test_packets
     }
+
+    pub fn get_healthcheck_connection_timeout(&self) -> time::Duration {
+        time::Duration::from_millis(self.mix_mining.connection_timeout)
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -190,6 +209,10 @@ pub struct MixMining {
     /// The provided value is interpreted as milliseconds.
     resolution_timeout: u64,
 
+    /// Timeout for trying to establish connection to node endpoints.
+    /// The provided value is interpreted as milliseconds.
+    connection_timeout: u64,
+
     /// How many packets should be sent through each path during the mix-mining procedure.
     number_of_test_packets: u64,
 }
@@ -201,6 +224,7 @@ impl Default for MixMining {
             run_delay: DEFAULT_MIX_MINING_DELAY,
             resolution_timeout: DEFAULT_MIX_MINING_RESOLUTION_TIMEOUT,
             number_of_test_packets: DEFAULT_NUMBER_OF_MIX_MINING_TEST_PACKETS,
+            connection_timeout: DEFAULT_MIX_MINING_CONNECTION_TIMEOUT,
         }
     }
 }
@@ -226,7 +250,7 @@ impl Default for Logging {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(default, deny_unknown_fields)]
 pub struct Debug {
     /// Directory server to which the server will be reporting their presence data.
     presence_directory_server: String,

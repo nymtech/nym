@@ -1,12 +1,32 @@
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use crate::MAX_PROVIDER_RESPONSE_SIZE;
 use crypto::identity::MixIdentityKeyPair;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
+use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
 use provider_client::{ProviderClient, ProviderClientError};
 use sphinx::header::delays::Delay;
 use sphinx::route::{Destination, Node as SphinxNode};
 use std::collections::HashMap;
+use std::convert::TryFrom;
+use std::net::SocketAddr;
 use std::time::Duration;
 use topology::provider;
+
+pub(crate) type CheckId = [u8; 16];
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum PathStatus {
@@ -20,22 +40,30 @@ pub(crate) struct PathChecker {
     mixnet_client: multi_tcp_client::Client,
     paths_status: HashMap<Vec<u8>, PathStatus>,
     our_destination: Destination,
-    check_id: [u8; 16],
+    check_id: CheckId,
 }
 
 impl PathChecker {
     pub(crate) async fn new(
         providers: Vec<provider::Node>,
         identity_keys: &MixIdentityKeyPair,
-        check_id: [u8; 16],
+        connection_timeout: Duration,
+        check_id: CheckId,
     ) -> Self {
         let mut provider_clients = HashMap::new();
 
         let address = identity_keys.public_key().derive_address();
 
         for provider in providers {
-            let mut provider_client =
-                ProviderClient::new(provider.client_listener, address.clone(), None);
+            let mut provider_client = ProviderClient::new(
+                provider.client_listener,
+                address.clone(),
+                None,
+                MAX_PROVIDER_RESPONSE_SIZE,
+            );
+            // TODO: we might be sending unnecessary register requests since after first healthcheck,
+            // we are registered for any subsequent ones (since our address did not change)
+
             let insertion_result = match provider_client.register().await {
                 Ok(token) => {
                     debug!("[Healthcheck] registered at provider {}", provider.pub_key);
@@ -62,8 +90,9 @@ impl PathChecker {
 
         // there's no reconnection allowed - if it fails, then it fails.
         let mixnet_client_config = multi_tcp_client::Config::new(
-            Duration::from_secs(u64::max_value()),
-            Duration::from_secs(u64::max_value()),
+            Duration::from_secs(1_000_000_000),
+            Duration::from_secs(1_000_000_000),
+            connection_timeout,
         );
 
         PathChecker {
@@ -77,7 +106,7 @@ impl PathChecker {
 
     // iteration is used to distinguish packets sent through the same path (as the healthcheck
     // may try to send say 10 packets through given path)
-    fn unique_path_key(path: &[SphinxNode], check_id: [u8; 16], iteration: u8) -> Vec<u8> {
+    fn unique_path_key(path: &[SphinxNode], check_id: CheckId, iteration: u8) -> Vec<u8> {
         check_id
             .iter()
             .cloned()
@@ -128,8 +157,8 @@ impl PathChecker {
 
     // pull messages from given provider until there are no more 'real' messages
     async fn resolve_pending_provider_checks(
-        &self,
-        provider_client: &ProviderClient,
+        provider_client: &mut ProviderClient,
+        check_id: CheckId,
     ) -> Vec<Vec<u8>> {
         // keep getting messages until we encounter the dummy message
         let mut provider_messages = Vec::new();
@@ -146,7 +175,7 @@ impl PathChecker {
                         if msg == sfw_provider_requests::DUMMY_MESSAGE_CONTENT {
                             // finish iterating the loop as the messages might not be ordered
                             should_stop = true;
-                        } else if msg[..16] != self.check_id {
+                        } else if msg[..16] != check_id {
                             warn!("received response from previous healthcheck")
                         } else {
                             provider_messages.push(msg);
@@ -164,14 +193,15 @@ impl PathChecker {
     pub(crate) async fn resolve_pending_checks(&mut self) {
         // not sure how to nicely put it into an iterator due to it being async calls
         let mut provider_messages = Vec::new();
-        for provider_client in self.provider_clients.values() {
+        for provider_client in self.provider_clients.values_mut() {
             // if it was none all associated paths were already marked as unhealthy
             let pc = match provider_client {
                 Some(pc) => pc,
                 None => continue,
             };
 
-            provider_messages.extend(self.resolve_pending_provider_checks(pc).await);
+            provider_messages
+                .extend(Self::resolve_pending_provider_checks(pc, self.check_id).await);
         }
 
         self.update_path_statuses(provider_messages);
@@ -217,9 +247,10 @@ impl PathChecker {
             .expect("We checked the path to contain at least one entry");
 
         // we generated the bytes data so unwrap is fine
-        let first_node_address =
-            addressing::socket_address_from_encoded_bytes(layer_one_mix.address.to_bytes())
-                .unwrap();
+        let first_node_address: SocketAddr =
+            NymNodeRoutingAddress::try_from(layer_one_mix.address.clone())
+                .unwrap()
+                .into();
 
         let delays: Vec<_> = path.iter().map(|_| Delay::new_from_nanos(0)).collect();
 

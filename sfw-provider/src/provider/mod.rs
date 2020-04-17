@@ -1,3 +1,17 @@
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::config::persistence::pathfinder::ProviderPathfinder;
 use crate::config::Config;
 use crate::provider::client_handling::ledger::ClientLedger;
@@ -78,6 +92,7 @@ impl ServiceProvider {
             self.sphinx_keypair.private_key().clone(),
             client_storage,
             self.registered_clients_ledger.clone(),
+            self.config.get_max_request_size(),
         );
 
         client_handling::listener::run_client_socket_listener(
@@ -105,6 +120,7 @@ impl ServiceProvider {
         // considering, presumably, there will be more mix packets received than client requests:
         // create 2 separate runtimes - one with bigger threadpool dedicated solely for
         // the mix handling and the other one for the rest of tasks
+        info!("Starting nym sfw-provider");
 
         if let Some(duplicate_provider_key) = self.check_if_same_ip_provider_exists() {
             error!(
@@ -123,6 +139,8 @@ impl ServiceProvider {
         self.start_presence_notifier();
         self.start_mix_socket_listener(client_storage.clone());
         self.start_client_socket_listener(client_storage);
+
+        info!("Finished nym sfw-provider startup procedure - it should now be able to receive mix and client traffic!");
 
         if let Err(e) = self.runtime.block_on(tokio::signal::ctrl_c()) {
             error!(

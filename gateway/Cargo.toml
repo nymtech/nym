@@ -1,0 +1,26 @@
+[package]
+name = "gateway"
+version = "0.1.0"
+authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dotenv = "0.15.0"
+futures = "0.3"
+futures-channel = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["async-await", "sink", "std"] }
+log = "0.4"
+multi-tcp-client = { path = "../common/clients/multi-tcp-client" }
+pretty_env_logger = "0.3"
+tokio = { version = "0.2", features = ["full"] }
+tokio-tungstenite = "0.10.1"
+
+# internal
+nymsphinx = { path = "../common/nymsphinx" }
+
+
+[dependencies.tungstenite]
+version = "0.10.0"
+default-features = false

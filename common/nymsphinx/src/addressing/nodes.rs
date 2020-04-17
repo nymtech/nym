@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use sphinx::constants::NODE_ADDRESS_LENGTH;
+pub use sphinx::constants::NODE_ADDRESS_LENGTH;
 use sphinx::route::NodeAddressBytes;
 use std::convert::{TryFrom, TryInto};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};

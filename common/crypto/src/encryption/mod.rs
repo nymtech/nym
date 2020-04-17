@@ -15,6 +15,7 @@
 use crate::{PemStorableKey, PemStorableKeyPair};
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
+use rand_core::OsRng;
 
 // TODO: ensure this is a proper name for this considering we are not implementing entire DH here
 
@@ -27,7 +28,7 @@ pub struct KeyPair {
 
 impl KeyPair {
     pub fn new() -> Self {
-        let mut rng = rand_os::OsRng::new().unwrap();
+        let mut rng = OsRng;
         let private_key_value = Scalar::random(&mut rng);
         let public_key_value = CURVE_GENERATOR * private_key_value;
 

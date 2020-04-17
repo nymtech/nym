@@ -14,6 +14,7 @@
 
 use futures::channel::mpsc;
 use futures::StreamExt;
+use log::*;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::runtime::Handle;
@@ -50,6 +51,7 @@ impl PacketForwarder {
         let sender_channel = self.conn_tx.clone();
         handle.spawn(async move {
             while let Some((address, packet)) = self.conn_rx.next().await {
+                trace!("Going to forward packet to {:?}", address);
                 // as a mix node we don't care about responses, we just want to fire packets
                 // as quickly as possible
                 self.tcp_client.send(address, packet, false).await.unwrap(); // if we're not waiting for response, we MUST get an Ok

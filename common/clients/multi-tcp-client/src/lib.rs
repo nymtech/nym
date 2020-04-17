@@ -91,6 +91,7 @@ impl Client {
         message: Vec<u8>,
         wait_for_response: bool,
     ) -> io::Result<()> {
+        trace!("Sending packet to {:?}", address);
         if !self.connections_managers.contains_key(&address) {
             debug!(
                 "There is no existing connection to {:?} - it will be established now",

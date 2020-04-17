@@ -4,6 +4,7 @@
   "description": "Connect to a local Nym client, send and retrieve from the Nym network. ",
   "private": true,
   "scripts": {
+    "build": "webpack",
     "start": "webpack-dev-server"
   },
   "keywords": [

@@ -16,12 +16,12 @@ use crate::built_info;
 use directory_client::presence::mixnodes::MixNodePresence;
 use directory_client::requests::presence_mixnodes_post::PresenceMixNodesPoster;
 use directory_client::DirectoryClient;
-use log::{debug, error};
+use log::{error, trace};
 use std::time::Duration;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
-pub struct NotifierConfig {
+pub(crate) struct NotifierConfig {
     location: String,
     directory_server: String,
     announce_host: String,
@@ -31,7 +31,7 @@ pub struct NotifierConfig {
 }
 
 impl NotifierConfig {
-    pub fn new(
+    pub(crate) fn new(
         location: String,
         directory_server: String,
         announce_host: String,
@@ -50,14 +50,14 @@ impl NotifierConfig {
     }
 }
 
-pub struct Notifier {
+pub(crate) struct Notifier {
     net_client: directory_client::Client,
     presence: MixNodePresence,
     sending_delay: Duration,
 }
 
 impl Notifier {
-    pub fn new(config: NotifierConfig) -> Notifier {
+    pub(crate) fn new(config: NotifierConfig) -> Notifier {
         let directory_client_cfg = directory_client::Config {
             base_url: config.directory_server,
         };
@@ -80,7 +80,7 @@ impl Notifier {
     fn notify(&self) {
         match self.net_client.presence_mix_nodes_post.post(&self.presence) {
             Err(err) => error!("failed to send presence - {:?}", err),
-            Ok(_) => debug!("sent presence information"),
+            Ok(_) => trace!("sent presence information"),
         }
     }
 

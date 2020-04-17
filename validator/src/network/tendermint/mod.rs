@@ -46,18 +46,18 @@ impl abci::Application for Abci {
     fn check_tx(&mut self, req: &RequestCheckTx) -> ResponseCheckTx {
         // Get the Tx [u8] and convert to u64
         let c = convert_tx(req.get_tx());
-        let mut resp = ResponseCheckTx::new();
+        let mut response = ResponseCheckTx::new();
 
         // Validation logic
         if c != self.count + 1 {
-            resp.set_code(1);
-            resp.set_log(String::from("Count must be incremental!"));
-            return resp;
+            response.set_code(1);
+            response.set_log(String::from("Count must be incremental!"));
+            return response;
         }
 
         // Update state to keep state correct for next check_tx call
         self.count = c;
-        resp
+        response
     }
 
     fn deliver_tx(&mut self, req: &RequestDeliverTx) -> ResponseDeliverTx {
@@ -71,12 +71,12 @@ impl abci::Application for Abci {
 
     fn commit(&mut self, _req: &RequestCommit) -> ResponseCommit {
         // Create the response
-        let mut resp = ResponseCommit::new();
+        let mut response = ResponseCommit::new();
         // Convert count to bits
         let mut buf = [0; 8];
         BigEndian::write_u64(&mut buf, self.count);
         // Set data so last state is included in the block
-        resp.set_data(buf.to_vec());
-        resp
+        response.set_data(buf.to_vec());
+        response
     }
 }

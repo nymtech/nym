@@ -459,7 +459,7 @@ impl ClientsEndpoint {
     }
 
     fn default_ledger_path(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("client_ledger.dat")
+        Config::default_data_directory(Some(id)).join("client_ledger.sled")
     }
 }
 

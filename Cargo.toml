@@ -1,5 +1,6 @@
 [profile.release]
 panic = "abort"
+opt-level = "s"
 
 [workspace]
 

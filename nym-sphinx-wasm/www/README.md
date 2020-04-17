@@ -5,8 +5,10 @@ This example application demonstrates how to use WebAssembly to create Sphinx pa
 ## 🚴 Usage
 
 ```
-npm run start # fires up a web page at http://localhost:8001, check your dev console for output.
+npm run start # fires up a web page at http://localhost:8001
 ```
+
+Check your dev console for output.
 
 ### Rebuild after Rust source changes
 

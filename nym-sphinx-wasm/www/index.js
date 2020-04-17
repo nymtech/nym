@@ -30,7 +30,7 @@ class NodeData {
 }
 
 async function getTopology() {
-    let topologyURL = 'http://127.0.0.1:8080/api/presence/topology';
+    let topologyURL = 'http://127.0.0.1:8080/api/presence/topology'; // TODO change this DAVE!!!!
     let response = await makeRequest('get', topologyURL);
     let topology = JSON.parse(response);
     return topology;

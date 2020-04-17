@@ -1,69 +1,21 @@
-<div align="center">
+## Nym Sphinx in WebAssembly
 
-  <h1><code>wasm-pack-template</code></h1>
+This is a Rust crate which is set up to automatically cross-compile the contents of `lib.rs` to WebAssembly (aka wasm).
 
-  <strong>A template for kick starting a Rust and WebAssembly project using <a href="https://github.com/rustwasm/wasm-pack">wasm-pack</a>.</strong>
+Wasm is pretty close to bare metal. Browser-based or server-side JavaScript (or other wasm-using environments) can use the wasm output from this crate to create Sphinx packets at much higher speeds than would be possible using (interpreted) JavaScript. This helps browser-based and mobile applications get stronger privacy, in a way that wasn't previously possible.
 
-  <p>
-    <a href="https://travis-ci.org/rustwasm/wasm-pack-template"><img src="https://img.shields.io/travis/rustwasm/wasm-pack-template.svg?style=flat-square" alt="Build Status" /></a>
-  </p>
+### Compiling
 
-  <h3>
-    <a href="https://rustwasm.github.io/docs/wasm-pack/tutorials/npm-browser-packages/index.html">Tutorial</a>
-    <span> | </span>
-    <a href="https://discordapp.com/channels/442252698964721669/443151097398296587">Chat</a>
-  </h3>
+First, make sure you've got all the [Rust wasm toolchain](https://rustwasm.github.io/book/game-of-life/setup.html) installed. Cross-compilation sounds scary but the Rust crew have enabled a remarkably simple setup.
 
-  <sub>Built with 🦀🕸 by <a href="https://rustwasm.github.io/">The Rust and WebAssembly Working Group</a></sub>
-</div>
+### Using it as a JavaScripter  
 
-## About
+See our docs TODO.
 
-[**📚 Read this template tutorial! 📚**][template-docs]
+### Demo
 
-This template is designed for compiling Rust libraries into WebAssembly and
-publishing the resulting package to NPM.
+There's a demo web application in the `www` folder. To run it, first make sure you've got a recent `npm` installed, then follow the instructions in its README. 
 
-Be sure to check out [other `wasm-pack` tutorials online][tutorials] for other
-templates and usages of `wasm-pack`.
+### Developing
 
-[tutorials]: https://rustwasm.github.io/docs/wasm-pack/tutorials/index.html
-[template-docs]: https://rustwasm.github.io/docs/wasm-pack/tutorials/npm-browser-packages/index.html
-
-## 🚴 Usage
-
-### 🐑 Use `cargo generate` to Clone this Template
-
-[Learn more about `cargo generate` here.](https://github.com/ashleygwilliams/cargo-generate)
-
-```
-cargo generate --git https://github.com/rustwasm/wasm-pack-template.git --name my-project
-cd my-project
-```
-
-### 🛠️ Build with `wasm-pack build`
-
-```
-wasm-pack build
-```
-
-### 🔬 Test in Headless Browsers with `wasm-pack test`
-
-```
-wasm-pack test --headless --firefox
-```
-
-### 🎁 Publish to NPM with `wasm-pack publish`
-
-```
-wasm-pack publish
-```
-
-## 🔋 Batteries Included
-
-* [`wasm-bindgen`](https://github.com/rustwasm/wasm-bindgen) for communicating
-  between WebAssembly and JavaScript.
-* [`console_error_panic_hook`](https://github.com/rustwasm/console_error_panic_hook)
-  for logging panic messages to the developer console.
-* [`wee_alloc`](https://github.com/rustwasm/wee_alloc), an allocator optimized
-  for small code size.
+Whenever you change your Rust, run `wasm-pack build` to update the built was artefact in the `pkg` directory.

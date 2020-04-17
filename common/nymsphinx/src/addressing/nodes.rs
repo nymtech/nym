@@ -158,7 +158,6 @@ mod tests {
 
     #[test]
     fn nym_node_routing_address_can_be_converted_to_and_from_bytes_for_v4_address() {
-        // HERE!!!!
         let address = NymNodeRoutingAddress(SocketAddr::new(IpAddr::from([1, 2, 3, 4]), 42));
         let address_bytes = address.as_bytes();
         assert_eq!(

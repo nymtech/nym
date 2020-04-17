@@ -62,7 +62,7 @@ pub struct Notifier {
 }
 
 impl Notifier {
-    pub fn new(config: NotifierConfig, client_ledger: ClientLedger) -> Notifier {
+    pub(crate) fn new(config: NotifierConfig, client_ledger: ClientLedger) -> Notifier {
         let directory_client_cfg = directory_client::Config {
             base_url: config.directory_server,
         };

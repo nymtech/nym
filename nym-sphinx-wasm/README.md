@@ -10,7 +10,7 @@ First, make sure you've got all the [Rust wasm toolchain](https://rustwasm.githu
 
 ### Using it as a JavaScripter  
 
-See our docs TODO.
+See our [docs](https://nymtech.net/docs).
 
 ### Demo
 

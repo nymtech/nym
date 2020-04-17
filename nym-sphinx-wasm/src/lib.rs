@@ -81,12 +81,13 @@ pub fn create_sphinx_packet(raw_route: &str, msg: &str, destination: &str) -> Ve
 /// address bytes of the first mix inside the packet, so that the gateway can
 /// forward the packet to it.
 fn payload(sphinx_packet: SphinxPacket, route: Vec<Node>) -> Vec<u8> {
-    let mut packet = sphinx_packet.to_bytes();
-    let mut first_mix_address = route.first().unwrap().clone().address.to_bytes().to_vec();
-    let mut bytes: Vec<u8> = vec![];
-    bytes.append(&mut first_mix_address);
-    bytes.append(&mut packet);
-    bytes
+    let packet = sphinx_packet.to_bytes();
+    let first_mix_address = route.first().unwrap().clone().address.to_bytes().to_vec();
+
+    first_mix_address
+        .into_iter()
+        .chain(packet.into_iter())
+        .collect()
 }
 
 /// Attempts to create a Sphinx route, which is a `Vec<sphinx::Node>`, from a

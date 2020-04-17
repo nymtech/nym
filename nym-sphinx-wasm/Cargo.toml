@@ -38,15 +38,3 @@ wee_alloc = { version = "0.4.2", optional = true }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.2"
-
-# This gets ignored right now, and there is a compiler warning generated:
-# "warning: profiles for the non root package will be ignored, specify profiles 
-# at the workspace root"
-#
-# I'm OK with that for the moment, I don't want to put it in the root Cargo file
-# as I'm unclear what effect it'll have and I'm still experimenting with wasm. 
-# But it's good that we are reminded to do something about it before any 
-# production release.
-[profile.release] 
-# Tell `rustc` to optimize for small code size.
-opt-level = "s"

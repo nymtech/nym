@@ -62,7 +62,7 @@ pub struct Notifier {
 }
 
 impl Notifier {
-    pub fn new(config: NotifierConfig, client_ledger: ClientLedger) -> Notifier {
+    pub(crate) fn new(config: NotifierConfig, client_ledger: ClientLedger) -> Notifier {
         let directory_client_cfg = directory_client::Config {
             base_url: config.directory_server,
         };
@@ -85,7 +85,7 @@ impl Notifier {
             client_listener: self.client_listener.clone(),
             mixnet_listener: self.mixnet_listener.clone(),
             pub_key: self.pub_key_string.clone(),
-            registered_clients: self.client_ledger.current_clients().await,
+            registered_clients: self.client_ledger.current_clients().unwrap(),
             last_seen: 0,
             version: built_info::PKG_VERSION.to_string(),
         }

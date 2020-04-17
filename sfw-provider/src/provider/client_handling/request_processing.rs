@@ -105,7 +105,7 @@ impl RequestProcessor {
         if self
             .client_ledger
             .insert_token(auth_token.clone(), req.destination_address.clone())
-            .await
+            .unwrap()
             .is_some()
         {
             info!(
@@ -121,7 +121,7 @@ impl RequestProcessor {
             // we must revert our changes if this operation failed
             self.client_ledger
                 .remove_token(&req.destination_address)
-                .await;
+                .unwrap();
         }
 
         Ok(ClientProcessingResult::RegisterResponse(auth_token))
@@ -143,10 +143,14 @@ impl RequestProcessor {
         &self,
         req: PullRequest,
     ) -> Result<ClientProcessingResult, ClientProcessingError> {
+        debug!(
+            "Processing a pull request from {:?}",
+            req.destination_address.to_base58_string()
+        );
         if self
             .client_ledger
             .verify_token(&req.auth_token, &req.destination_address)
-            .await
+            .unwrap()
         {
             let retrieved_messages = self
                 .client_storage
@@ -176,7 +180,7 @@ mod generating_new_auth_token {
         let request_processor = RequestProcessor {
             secret_key: Arc::new(key),
             client_storage: ClientStorage::new(3, 16, Default::default()),
-            client_ledger: ClientLedger::new(),
+            client_ledger: ClientLedger::create_temporary(),
             max_request_size: 42,
         };
 
@@ -195,14 +199,14 @@ mod generating_new_auth_token {
         let request_processor1 = RequestProcessor {
             secret_key: Arc::new(key1),
             client_storage: ClientStorage::new(3, 16, Default::default()),
-            client_ledger: ClientLedger::new(),
+            client_ledger: ClientLedger::create_temporary(),
             max_request_size: 42,
         };
 
         let request_processor2 = RequestProcessor {
             secret_key: Arc::new(key2),
             client_storage: ClientStorage::new(3, 16, Default::default()),
-            client_ledger: ClientLedger::new(),
+            client_ledger: ClientLedger::create_temporary(),
             max_request_size: 42,
         };
 

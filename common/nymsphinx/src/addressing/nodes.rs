@@ -31,7 +31,7 @@ pub enum NymNodeRoutingAddressError {
 /// Current representation of Node routing information used in Nym system.
 /// At this point of time it is a simple `SocketAddr`.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct NymNodeRoutingAddress(pub SocketAddr);
+pub struct NymNodeRoutingAddress(SocketAddr);
 
 impl NymNodeRoutingAddress {
     /// Minimum number of bytes that need to be available to represent self.

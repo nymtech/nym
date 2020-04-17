@@ -132,8 +132,8 @@ impl TryFrom<NodeData> for Node {
     type Error = ();
 
     fn try_from(node_data: NodeData) -> Result<Self, Self::Error> {
-        let parsed: SocketAddr = node_data.address.parse().unwrap();
-        let address: NodeAddressBytes = NymNodeRoutingAddress(parsed).try_into().unwrap();
+        let addr: SocketAddr = node_data.address.parse().unwrap();
+        let address: NodeAddressBytes = NymNodeRoutingAddress::from(addr).try_into().unwrap();
 
         let pub_key = public_key_from(&node_data.public_key);
 

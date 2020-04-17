@@ -232,8 +232,8 @@ impl<T: 'static + NymTopology> TopologyRefresher<T> {
     pub(crate) fn start(mut self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move {
             loop {
-                self.refresh().await;
                 tokio::time::delay_for(self.refresh_rate).await;
+                self.refresh().await;
             }
         })
     }

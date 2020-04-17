@@ -13,76 +13,151 @@
 // limitations under the License.
 
 use directory_client::presence::providers::MixProviderClient;
-use futures::lock::Mutex;
-use sfw_provider_requests::auth_token::AuthToken;
+use log::*;
+use sfw_provider_requests::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
+use sphinx::constants::DESTINATION_ADDRESS_LENGTH;
 use sphinx::route::DestinationAddressBytes;
-use std::collections::HashMap;
-use std::io;
 use std::path::PathBuf;
-use std::sync::Arc;
+
+#[derive(Debug)]
+pub(crate) enum ClientLedgerError {
+    DbReadError(sled::Error),
+    DbWriteError(sled::Error),
+    DbOpenError(sled::Error),
+}
 
 #[derive(Debug, Clone)]
 // Note: you should NEVER create more than a single instance of this using 'new()'.
 // You should always use .clone() to create additional instances
-pub struct ClientLedger {
-    inner: Arc<Mutex<ClientLedgerInner>>,
+pub(crate) struct ClientLedger {
+    db: sled::Db,
 }
 
 impl ClientLedger {
-    pub(crate) fn new() -> Self {
-        ClientLedger {
-            inner: Arc::new(Mutex::new(ClientLedgerInner(HashMap::new()))),
-        }
+    pub(crate) fn load(file: PathBuf) -> Result<Self, ClientLedgerError> {
+        let db = match sled::open(file) {
+            Err(e) => return Err(ClientLedgerError::DbOpenError(e)),
+            Ok(db) => db,
+        };
+
+        let ledger = ClientLedger { db };
+
+        ledger.db.iter().keys().for_each(|key| {
+            println!(
+                "key: {:?}",
+                ledger
+                    .read_destination_address_bytes(key.unwrap())
+                    .to_base58_string()
+            );
+        });
+
+        Ok(ledger)
     }
 
-    pub(crate) async fn verify_token(
+    fn read_auth_token(&self, raw_token: sled::IVec) -> AuthToken {
+        let token_bytes_ref = raw_token.as_ref();
+        // if this fails it means we have some database corruption and we
+        // absolutely can't continue
+        if token_bytes_ref.len() != AUTH_TOKEN_SIZE {
+            error!("CLIENT LEDGER DATA CORRUPTION - TOKEN HAS INVALID LENGTH");
+            panic!("CLIENT LEDGER DATA CORRUPTION - TOKEN HAS INVALID LENGTH");
+        }
+
+        let mut token_bytes = [0u8; AUTH_TOKEN_SIZE];
+        token_bytes.copy_from_slice(token_bytes_ref);
+        AuthToken::from_bytes(token_bytes)
+    }
+
+    fn read_destination_address_bytes(
+        &self,
+        raw_destination: sled::IVec,
+    ) -> DestinationAddressBytes {
+        let destination_ref = raw_destination.as_ref();
+        // if this fails it means we have some database corruption and we
+        // absolutely can't continue
+        if destination_ref.len() != DESTINATION_ADDRESS_LENGTH {
+            error!("CLIENT LEDGER DATA CORRUPTION - CLIENT ADDRESS HAS INVALID LENGTH");
+            panic!("CLIENT LEDGER DATA CORRUPTION - CLIENT ADDRESS HAS INVALID LENGTH");
+        }
+
+        let mut destination_bytes = [0u8; DESTINATION_ADDRESS_LENGTH];
+        destination_bytes.copy_from_slice(destination_ref);
+        DestinationAddressBytes::from_bytes(destination_bytes)
+    }
+
+    pub(crate) fn verify_token(
         &self,
         auth_token: &AuthToken,
         client_address: &DestinationAddressBytes,
-    ) -> bool {
-        match self.inner.lock().await.0.get(client_address) {
-            None => false,
-            Some(expected_token) => expected_token == auth_token,
+    ) -> Result<bool, ClientLedgerError> {
+        match self.db.get(&client_address.to_bytes()) {
+            Err(e) => Err(ClientLedgerError::DbReadError(e)),
+            Ok(token) => match token {
+                Some(token_ivec) => Ok(&self.read_auth_token(token_ivec) == auth_token),
+                None => Ok(false),
+            },
         }
     }
 
-    pub(crate) async fn insert_token(
+    pub(crate) fn insert_token(
         &mut self,
         auth_token: AuthToken,
         client_address: DestinationAddressBytes,
-    ) -> Option<AuthToken> {
-        self.inner.lock().await.0.insert(client_address, auth_token)
+    ) -> Result<Option<AuthToken>, ClientLedgerError> {
+        let insertion_result = match self
+            .db
+            .insert(&client_address.to_bytes(), &auth_token.to_bytes())
+        {
+            Err(e) => Err(ClientLedgerError::DbWriteError(e)),
+            Ok(existing_token) => {
+                Ok(existing_token.map(|existing_token| self.read_auth_token(existing_token)))
+            }
+        };
+
+        // registration doesn't happen that often so might as well flush it to the disk to be sure
+        self.db.flush().unwrap();
+        insertion_result
     }
 
-    pub(crate) async fn remove_token(
+    pub(crate) fn remove_token(
         &mut self,
         client_address: &DestinationAddressBytes,
-    ) -> Option<AuthToken> {
-        self.inner.lock().await.0.remove(client_address)
+    ) -> Result<Option<AuthToken>, ClientLedgerError> {
+        let removal_result = match self.db.remove(&client_address.to_bytes()) {
+            Err(e) => Err(ClientLedgerError::DbWriteError(e)),
+            Ok(existing_token) => {
+                Ok(existing_token.map(|existing_token| self.read_auth_token(existing_token)))
+            }
+        };
+
+        // removing of tokens happens extremely rarely, so flush is also fine here
+        self.db.flush().unwrap();
+        removal_result
     }
 
-    pub(crate) async fn current_clients(&self) -> Vec<MixProviderClient> {
-        self.inner
-            .lock()
-            .await
-            .0
-            .keys()
-            .map(|client_address| client_address.to_base58_string())
-            .map(|pub_key| MixProviderClient { pub_key })
-            .collect()
+    pub(crate) fn current_clients(&self) -> Result<Vec<MixProviderClient>, ClientLedgerError> {
+        let clients = self.db.iter().keys();
+
+        let mut client_vec = Vec::new();
+        for client in clients {
+            match client {
+                Err(e) => return Err(ClientLedgerError::DbWriteError(e)),
+                Ok(client_entry) => client_vec.push(MixProviderClient {
+                    pub_key: self
+                        .read_destination_address_bytes(client_entry)
+                        .to_base58_string(),
+                }),
+            }
+        }
+
+        Ok(client_vec)
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn load(_file: PathBuf) -> Self {
-        // TODO: actual loading,
-        // temporarily just create a new one
-        Self::new()
-    }
-
-    #[allow(dead_code)]
-    pub(crate) async fn save(&self, _file: PathBuf) -> io::Result<()> {
-        unimplemented!()
+    #[cfg(test)]
+    pub(crate) fn create_temporary() -> Self {
+        let cfg = sled::Config::new().temporary(true);
+        ClientLedger {
+            db: cfg.open().unwrap(),
+        }
     }
 }
-
-struct ClientLedgerInner(HashMap<DestinationAddressBytes, AuthToken>);

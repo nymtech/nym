@@ -143,6 +143,10 @@ impl RequestProcessor {
         &self,
         req: PullRequest,
     ) -> Result<ClientProcessingResult, ClientProcessingError> {
+        debug!(
+            "Processing a pull request from {:?}",
+            req.destination_address.to_base58_string()
+        );
         if self
             .client_ledger
             .verify_token(&req.auth_token, &req.destination_address)

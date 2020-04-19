@@ -6,5 +6,5 @@
 
 ```
 npm install 
-npm run start # starts a webserver on port 8888
+npm start # starts a webserver on port 8888
 ```

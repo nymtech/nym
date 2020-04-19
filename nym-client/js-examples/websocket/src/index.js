@@ -1,4 +1,7 @@
-import _ from 'lodash';
+import { MDCRipple } from '@material/ripple/index';
+const ripple = new MDCRipple(document.querySelector('.foo-button'));
+
+console.log('hello world');
 
 async function main() {
     display("Initialising...");

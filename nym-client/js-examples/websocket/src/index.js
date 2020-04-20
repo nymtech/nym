@@ -1,56 +1,78 @@
-// import { MDCRipple } from '@material/ripple/index';
-// const ripple = new MDCRipple(document.querySelector('.foo-button'));
-
-console.log('hello world from dave');
+var ourAddress;
 
 async function main() {
-    console.log("Hello world from main()");
-    display("Initialising...");
-
     var port = '9001' // client websocket listens on 9001 by default, change if yours is different
     var localClientUrl = "ws://127.0.0.1:" + port;
 
     var connection = await connectWebsocket(localClientUrl).then(function (c) {
         return c;
     }).catch(function (err) {
-        console.log("Websocket ERROR: " + err);
+        display("Websocket ERROR: " + err);
     })
 
     connection.onmessage = function (e) {
         handleMessage(e);
     };
-    var ownDetails = {
-        type: "ownDetails"
+
+    getOwnDetails(connection);
+
+    pollForMessages(connection);
+
+    const sendButton = document.querySelector('#send-button');
+    sendButton.onclick = function () {
+        sendMessageToMixnet(connection);
     }
-
-    connection.send(JSON.stringify(ownDetails));
 }
-
-console.log("before main");
-
-// Let's get this private party started!
-main();
-
-
-console.log("after main");
 
 function handleMessage(e) {
     let response = JSON.parse(e.data);
     if (response.type == "error") {
         display("Server responded with error: " + response.message);
     } else if (response.type == "fetch") {
-        display(response.messages);
+        if (response.messages.length > 0) {
+            display("Fetched messages: " + response.messages);
+        }
+    } else if (response.type == "ownDetails") {
+        display("Got response message. ownDetails: " + JSON.stringify(response));
+        ourAddress = response.address;
+        display(ourAddress);
     } else {
         display("response: " + JSON.stringify(response));
     }
 }
 
-function display(message) {
-    document.getElementById("output").innerHTML = message;
+function sendMessageToMixnet(connection) {
+    var sendText = document.getElementById("sendtext").value;
+    var message = {
+        type: "send",
+        message: sendText,
+        recipient_address: ourAddress
+    }
+    display("Sending message: " + message.message + " to " + message.recipient_address);
+    connection.send(JSON.stringify(message));
 }
 
-function print(name, obj) {
-    console.log(name + ": " + JSON.stringify(obj));
+function getOwnDetails(connection) {
+    var ownDetails = {
+        type: "ownDetails"
+    }
+
+    display("Sending a request for our own details...")
+
+    connection.send(JSON.stringify(ownDetails));
+}
+
+function pollForMessages(connection) {
+    setInterval(() => {
+        var message = {
+            type: "fetch"
+        }
+        connection.send(JSON.stringify(message));
+    }, 1000);
+}
+
+function display(message) {
+    document.getElementById("output").innerHTML += "<p>" + message + "</p >";
 }
 
 function connectWebsocket(url) {
@@ -66,39 +88,6 @@ function connectWebsocket(url) {
     });
 }
 
-
-    // setInterval(() => {
-    //     var message = {
-    //         type: "send",
-    //         message: "FOOMP " + sequenceNum,
-    //         recipient_address: "2ub7f2s5en4Pn2nhY69uyWqGSMLZwhtPASjePq4gLxQs"
-    //     }
-    //     connection.send(JSON.stringify(message));
-    //     display("Sent message: " + message.message + " to " + message.recipient_address);
-    //     sequenceNum += 1;
-    // }, 3000);
-
-
-// var sequenceNum = 0;
-
-// window.setInterval(function () {
-//     var message = {
-//         type: "send",
-//         message: "FOOMP " + sequenceNum,
-//         recipient_address: "2ub7f2s5en4Pn2nhY69uyWqGSMLZwhtPASjePq4gLxQs"
-//     }
-//     connection.send(JSON.stringify(message));
-//     display("Sent message: " + message.message + " to " + message.recipient_address);
-//     sequenceNum += 1;
-// }, 500);
-
-// window.setInterval(function () {
-//     var message = {
-//         type: "fetch",
-//     }
-//     // displayFetch("fetching...");
-//     connection.send(JSON.stringify(message));
-//     sequenceNum += 1;
-// }, 1000);
-
+// Start it!
+main();
 

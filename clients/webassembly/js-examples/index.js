@@ -30,23 +30,10 @@ class NodeData {
 async function main() {
     // Get the topology, then the mixnode and provider data
     const topology = await getTopology();
-    const mixnodes = topology.mixNodes;
-    const provider = topology.mixProviderNodes[0];
-
-    // Construct a route so we can get wasm to build us a Sphinx packet
-    let nodes = [];
-    mixnodes.forEach(node => {
-        let n = new NodeData(node.host, node.pubKey);
-        nodes.push(n);
-    });
-    let p = new NodeData(provider.mixnetListener, provider.pubKey)
-    nodes.push(p);
-    let route = new Route(nodes);
 
     // Set up a websocket connection to the gateway node
     var port = "1793" // gateway websocket listens on 1793 by default, change if yours is different
     var url = "ws://127.0.0.1:" + port;
-
     var connection = await connectWebsocket(url).then(function (c) {
         return c
     }).catch(function (err) {
@@ -56,12 +43,13 @@ async function main() {
     // Set up the send button
     const sendButton = document.querySelector('#send-button');
     sendButton.onclick = function () {
-        sendMessageToMixnet(connection, route);
+        sendMessageToMixnet(connection, topology);
     }
 }
 
 // Create a Sphinx packet and send it to the mixnet through the Gateway node. 
-function sendMessageToMixnet(connection, route) {
+function sendMessageToMixnet(connection, topology) {
+    let route = constructRoute(topology);
     var recipient = document.getElementById("recipient").value;
     var sendText = document.getElementById("sendtext").value;
     let packet = wasm.create_sphinx_packet(JSON.stringify(route), sendText, recipient);
@@ -75,6 +63,20 @@ async function getTopology() {
     let response = await http('get', topologyURL);
     let topology = JSON.parse(response);
     return topology;
+}
+
+function constructRoute(topology) {
+    const mixnodes = topology.mixNodes;
+    const provider = topology.mixProviderNodes[0];
+    // Construct a route so we can get wasm to build us a Sphinx packet
+    let nodes = [];
+    mixnodes.forEach(node => {
+        let n = new NodeData(node.host, node.pubKey);
+        nodes.push(n);
+    });
+    let p = new NodeData(provider.mixnetListener, provider.pubKey)
+    nodes.push(p);
+    return new Route(nodes);
 }
 
 // Let's get started!

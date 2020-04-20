@@ -1,6 +1,0 @@
-@use '@material/button/mdc-button';
-@use '@material/button';
-
-.foo-button {
-  @include button.container-fill-color(darksalmon);
-}

@@ -16,7 +16,7 @@
 use futures::lock::Mutex;
 use multi_tcp_client::Client as MultiClient;
 use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
-use nymsphinx::addressing::nodes::NODE_ADDRESS_LENGTH;
+use nymsphinx::NODE_ADDRESS_LENGTH;
 use std::sync::Arc;
 use std::time::Duration;
 

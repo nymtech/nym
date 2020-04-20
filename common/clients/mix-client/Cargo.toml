@@ -16,8 +16,3 @@ tokio = { version = "0.2", features = ["full"] }
 ## internal
 nymsphinx = {path = "../../nymsphinx"}
 topology = {path = "../../topology"}
-
-## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="298c7fda6a577daf6d9bb955fa52c2bffecf6926" }
-# sphinx = { path = "../../../../sphinx"}
-

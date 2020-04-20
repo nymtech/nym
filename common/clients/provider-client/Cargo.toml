@@ -13,7 +13,5 @@ pretty_env_logger = "0.3"
 tokio = { version = "0.2", features = ["full"] }
 
 ## internal
+nymsphinx = { path = "../../nymsphinx" }
 sfw-provider-requests = { path = "../../../sfw-provider/sfw-provider-requests" }
-
-## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="298c7fda6a577daf6d9bb955fa52c2bffecf6926" }

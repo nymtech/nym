@@ -25,21 +25,19 @@ sled = "0.31"
 hmac = "0.7.1"
 
 ## internal
-crypto = {path = "../common/crypto"}
-config = {path = "../common/config"}
+crypto = { path = "../common/crypto" }
+config = { path = "../common/config" }
 directory-client = { path = "../common/clients/directory-client" }
-pemstore = {path = "../common/pemstore"}
+nymsphinx = { path = "../common/nymsphinx" }
+pemstore = { path = "../common/pemstore" }
 sfw-provider-requests = { path = "./sfw-provider-requests" }
-topology = {path = "../common/topology"}
+topology = { path = "../common/topology"}
 
 # this dependency is due to requiring to know content of loop message. however, mix-client module itself
 # is going to be removed or renamed at some point as it no longer servers its purpose of sending traffic to mix network
 # and only provides utility functions
 mix-client = { path = "../common/clients/mix-client" }
 
-
-## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="298c7fda6a577daf6d9bb955fa52c2bffecf6926" }
 
 [build-dependencies]
 built = "0.3.2"

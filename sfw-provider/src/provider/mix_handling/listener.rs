@@ -21,7 +21,7 @@ use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 async fn process_received_packet(
-    packet_data: [u8; sphinx::PACKET_SIZE],
+    packet_data: [u8; nymsphinx::PACKET_SIZE],
     packet_processor: PacketProcessor,
 ) {
     match packet_processor.process_sphinx_packet(packet_data).await {
@@ -41,7 +41,7 @@ async fn process_socket_connection(
     mut socket: tokio::net::TcpStream,
     packet_processor: PacketProcessor,
 ) {
-    let mut buf = [0u8; sphinx::PACKET_SIZE];
+    let mut buf = [0u8; nymsphinx::PACKET_SIZE];
     loop {
         match socket.read_exact(&mut buf).await {
             // socket closed
@@ -52,8 +52,8 @@ async fn process_socket_connection(
             Ok(n) => {
                 // If I understand it correctly, this if should never be executed as if `read_exact`
                 // does not fill buffer, it will throw UnexpectedEof?
-                if n != sphinx::PACKET_SIZE {
-                    warn!("read data of different length than expected sphinx packet size - {} (expected {})", n, sphinx::PACKET_SIZE);
+                if n != nymsphinx::PACKET_SIZE {
+                    warn!("read data of different length than expected sphinx packet size - {} (expected {})", n, nymsphinx::PACKET_SIZE);
                     continue;
                 }
 

@@ -10,8 +10,8 @@ edition = "2018"
 bs58 = "0.3"
 bytes = "0.5"
 byteorder = "1"
+nymsphinx = { path = "../../common/nymsphinx" }
 tokio = { version = "0.2", features = ["io-util"] }
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="298c7fda6a577daf6d9bb955fa52c2bffecf6926" }
 
 [dev-dependencies]
 tokio = { version = "0.2", features = ["rt-threaded", "time"] }

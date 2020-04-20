@@ -102,7 +102,7 @@ mod request_serialization {
     use super::*;
     use crate::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
     use byteorder::{BigEndian, ByteOrder};
-    use sphinx::route::DestinationAddressBytes;
+    use nymsphinx::DestinationAddressBytes;
     use std::convert::TryInto;
 
     #[test]
@@ -160,7 +160,7 @@ mod request_deserialization {
     use super::*;
     use crate::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
     use byteorder::{BigEndian, ByteOrder};
-    use sphinx::route::DestinationAddressBytes;
+    use nymsphinx::DestinationAddressBytes;
 
     #[test]
     fn correctly_deserializes_pull_request() {

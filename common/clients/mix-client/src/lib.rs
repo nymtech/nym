@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use log::*;
-use sphinx::SphinxPacket;
+use nymsphinx::SphinxPacket;
 use std::net::SocketAddr;
 use tokio::prelude::*;
 

@@ -16,9 +16,7 @@ use crate::node::metrics;
 use crypto::encryption;
 use log::*;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
-use sphinx::header::delays::Delay as SphinxDelay;
-use sphinx::route::NodeAddressBytes;
-use sphinx::{ProcessedPacket, SphinxPacket};
+use nymsphinx::{Delay as SphinxDelay, NodeAddressBytes, ProcessedPacket, SphinxPacket};
 use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::ops::Deref;
@@ -38,9 +36,9 @@ pub enum MixProcessingResult {
     LoopMessage,
 }
 
-impl From<sphinx::ProcessingError> for MixProcessingError {
-    // for time being just have a single error instance for all possible results of sphinx::ProcessingError
-    fn from(_: sphinx::ProcessingError) -> Self {
+impl From<nymsphinx::ProcessingError> for MixProcessingError {
+    // for time being just have a single error instance for all possible results of nymsphinx::ProcessingError
+    fn from(_: nymsphinx::ProcessingError) -> Self {
         use MixProcessingError::*;
 
         SphinxRecoveryError
@@ -96,7 +94,7 @@ impl PacketProcessor {
 
     pub(crate) async fn process_sphinx_packet(
         &self,
-        raw_packet_data: [u8; sphinx::PACKET_SIZE],
+        raw_packet_data: [u8; nymsphinx::PACKET_SIZE],
     ) -> Result<MixProcessingResult, MixProcessingError> {
         // we received something resembling a sphinx packet, report it!
         self.metrics_reporter.report_received();

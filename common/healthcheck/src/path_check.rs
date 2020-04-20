@@ -17,9 +17,8 @@ use crypto::identity::MixIdentityKeyPair;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
+use nymsphinx::{Delay, Destination, Node as SphinxNode};
 use provider_client::{ProviderClient, ProviderClientError};
-use sphinx::header::delays::Delay;
-use sphinx::route::{Destination, Node as SphinxNode};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::net::SocketAddr;
@@ -255,7 +254,7 @@ impl PathChecker {
         let delays: Vec<_> = path.iter().map(|_| Delay::new_from_nanos(0)).collect();
 
         // all of the data used to create the packet was created by us
-        let packet = sphinx::SphinxPacket::new(
+        let packet = nymsphinx::SphinxPacket::new(
             path_identifier.clone(),
             &path[..],
             &self.our_destination,

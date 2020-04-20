@@ -20,7 +20,7 @@ use futures::channel::oneshot;
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::chunking::split_and_prepare_payloads;
-use sphinx::route::{Destination, DestinationAddressBytes};
+use nymsphinx::{Destination, DestinationAddressBytes};
 use std::convert::TryFrom;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use tokio_tungstenite::tungstenite::protocol::{CloseFrame, Message};

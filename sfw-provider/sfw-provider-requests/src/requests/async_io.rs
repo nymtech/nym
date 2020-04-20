@@ -77,7 +77,7 @@ mod request_writer {
     use super::*;
     use crate::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
     use crate::requests::{PullRequest, RegisterRequest};
-    use sphinx::route::DestinationAddressBytes;
+    use nymsphinx::DestinationAddressBytes;
 
     // TODO: what else to test here?
 
@@ -134,7 +134,7 @@ mod request_reader {
     use super::*;
     use crate::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
     use crate::requests::{PullRequest, RegisterRequest, RequestKind};
-    use sphinx::route::DestinationAddressBytes;
+    use nymsphinx::DestinationAddressBytes;
     use std::io::Cursor;
     use std::time;
 

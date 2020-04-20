@@ -26,8 +26,4 @@ provider-client = { path = "../clients/provider-client" }
 sfw-provider-requests = { path = "../../sfw-provider/sfw-provider-requests" }
 topology = {path = "../topology" }
 
-## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="298c7fda6a577daf6d9bb955fa52c2bffecf6926" }
-# sphinx = { path = "../../../sphinx"}
-
 [dev-dependencies]

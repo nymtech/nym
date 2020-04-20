@@ -14,6 +14,7 @@
 
 use futures::io::Error;
 use log::*;
+use nymsphinx::DestinationAddressBytes;
 use sfw_provider_requests::auth_token::AuthToken;
 use sfw_provider_requests::requests::{
     async_io::TokioAsyncRequestWriter, ProviderRequest, PullRequest, RegisterRequest,
@@ -21,7 +22,6 @@ use sfw_provider_requests::requests::{
 use sfw_provider_requests::responses::{
     async_io::TokioAsyncResponseReader, ProviderResponse, ProviderResponseError,
 };
-use sphinx::route::DestinationAddressBytes;
 use std::net::SocketAddr;
 use tokio::prelude::*;
 

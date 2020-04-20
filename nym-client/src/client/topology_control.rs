@@ -97,7 +97,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
 
     // this is a rather temporary solution as each client will have an associated provider
     // currently that is not implemented yet and there only exists one provider in the network
-    pub(crate) async fn random_route(&mut self) -> Option<Vec<sphinx::route::Node>> {
+    pub(crate) async fn random_route(&mut self) -> Option<Vec<nymsphinx::Node>> {
         match &self.inner.lock().await.0 {
             None => None,
             Some(ref topology) => {

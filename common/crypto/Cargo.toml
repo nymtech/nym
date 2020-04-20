@@ -14,5 +14,5 @@ pretty_env_logger = "0.3"
 rand = "0.7.2"
 rand_core = "0.5"
 
-## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="298c7fda6a577daf6d9bb955fa52c2bffecf6926" }
+# internal
+nymsphinx = { path = "../nymsphinx" }

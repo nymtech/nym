@@ -16,9 +16,7 @@ use crate::provider::storage::{ClientStorage, StoreData};
 use crypto::encryption;
 use log::*;
 use mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD;
-use sphinx::payload::Payload;
-use sphinx::route::{DestinationAddressBytes, SURBIdentifier};
-use sphinx::{ProcessedPacket, SphinxPacket};
+use nymsphinx::{DestinationAddressBytes, Payload, ProcessedPacket, SURBIdentifier, SphinxPacket};
 use std::io;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -38,9 +36,9 @@ pub enum MixProcessingResult {
     FinalHop,
 }
 
-impl From<sphinx::ProcessingError> for MixProcessingError {
-    // for time being just have a single error instance for all possible results of sphinx::ProcessingError
-    fn from(_: sphinx::ProcessingError) -> Self {
+impl From<nymsphinx::ProcessingError> for MixProcessingError {
+    // for time being just have a single error instance for all possible results of nymsphinx::ProcessingError
+    fn from(_: nymsphinx::ProcessingError) -> Self {
         use MixProcessingError::*;
 
         SphinxProcessingError
@@ -102,7 +100,7 @@ impl PacketProcessor {
 
     pub(crate) async fn process_sphinx_packet(
         &self,
-        raw_packet_data: [u8; sphinx::PACKET_SIZE],
+        raw_packet_data: [u8; nymsphinx::PACKET_SIZE],
     ) -> Result<MixProcessingResult, MixProcessingError> {
         let packet = SphinxPacket::from_bytes(&raw_packet_data)?;
 

@@ -15,7 +15,7 @@
 use crate::{encryption, PemStorableKey, PemStorableKeyPair};
 use bs58;
 use curve25519_dalek::scalar::Scalar;
-use sphinx::route::DestinationAddressBytes;
+use nymsphinx::DestinationAddressBytes;
 
 // for time being define a dummy identity using x25519 encryption keys (as we've done so far)
 // and replace it with proper keys, like ed25519 later on

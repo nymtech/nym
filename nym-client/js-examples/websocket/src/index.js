@@ -26,8 +26,8 @@ async function main() {
 }
 
 // Handle any messages that come back down the websocket. 
-function handleResponse(e) {
-    let response = JSON.parse(e.data);
+function handleResponse(resp) {
+    let response = JSON.parse(resp.data);
     if (response.type == "error") {
         displayJsonResponse("Server responded with error: " + response);
     } else if (response.type == "fetch") {

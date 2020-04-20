@@ -37,7 +37,7 @@ pub enum MixProcessingResult {
 }
 
 impl From<nymsphinx::ProcessingError> for MixProcessingError {
-    // for time being just have a single error instance for all possible results of sphinx::ProcessingError
+    // for time being just have a single error instance for all possible results of nymsphinx::ProcessingError
     fn from(_: nymsphinx::ProcessingError) -> Self {
         use MixProcessingError::*;
 

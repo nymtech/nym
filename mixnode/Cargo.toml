@@ -28,9 +28,6 @@ nymsphinx = {path = "../common/nymsphinx" }
 pemstore = {path = "../common/pemstore"}
 topology = {path = "../common/topology"}
 
-## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="298c7fda6a577daf6d9bb955fa52c2bffecf6926" }
-
 [build-dependencies]
 built = "0.3.2"
 

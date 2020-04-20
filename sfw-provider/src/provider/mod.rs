@@ -127,7 +127,7 @@ impl ServiceProvider {
 
         if let Some(duplicate_provider_key) = self.check_if_same_ip_provider_exists() {
             error!(
-                "Our announce-host is identical to one of existing nodes! (its key is {:?}",
+                "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
                 duplicate_provider_key
             );
             return;

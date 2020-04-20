@@ -130,7 +130,7 @@ impl MixNode {
 
         if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists() {
             error!(
-                "Our announce-host is identical to one of existing nodes! (its key is {:?}",
+                "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
                 duplicate_node_key
             );
             return;

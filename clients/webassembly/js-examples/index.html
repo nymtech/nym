@@ -1,11 +1,30 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>Hello wasm-pack!</title>
-  </head>
-  <body>
-    <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
-    <script src="./bootstrap.js"></script>
-  </body>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nym WebAssembly Demo</title>
+</head>
+
+<body>
+  <p>
+    <label for="fname">Recipient address: </label><input type="text" id="recipient" name="recipient"
+      value="HNka47Wji3LF23wGtU5oAFwoaM3tfbp2fBLGBPLcwUZ5">
+  </p>
+  <label for="fname">Text to send: </label><input type="text" id="sendtext" name="sendtext" value="Hello mixnet!">
+  <button id="send-button">Send</button>
+
+  <p>Send messages to the mixnet using the "send" button.</p>
+  <p><span style='color: blue;'>Sent</span> messages show in blue, <span style='color: green;'>received</span>
+    messages show in green.</p>
+
+  <hr>
+  <p>
+    <span id="output"></div>
+  </p>
+  <script src="./bootstrap.js"></script>
+
+</body>
+
 </html>

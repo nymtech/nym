@@ -14,8 +14,6 @@
 
 import * as wasm from "nym-sphinx-wasm";
 
-console.log("Retrieving topology...");
-
 class Route {
     constructor(nodes) {
         this.nodes = nodes;
@@ -27,13 +25,6 @@ class NodeData {
         this.address = address;
         this.public_key = public_key;
     }
-}
-
-async function getTopology() {
-    let topologyURL = 'http://127.0.0.1:8080/api/presence/topology'; // TODO change this DAVE!!!!
-    let response = await makeRequest('get', topologyURL);
-    let topology = JSON.parse(response);
-    return topology;
 }
 
 async function main() {
@@ -52,27 +43,54 @@ async function main() {
     nodes.push(p);
     let route = new Route(nodes);
 
-    // Create the packet
-    let packet = wasm.create_sphinx_packet(JSON.stringify(route), "THIS IS THE MESSAGE", "C2fdNoUybRuGrVYUM6QRejiELPQCohGbxjhKpU4UZ4ci");
-
     // Set up a websocket connection to the gateway node
     var port = "1793" // gateway websocket listens on 1793 by default, change if yours is different
     var url = "ws://127.0.0.1:" + port;
 
-    connectWebsocket(url).then(function (server) {
-        server.send("hello gateway");
-        console.log(packet);
-        server.send(packet);
+    var connection = await connectWebsocket(url).then(function (c) {
+        return c
     }).catch(function (err) {
         console.log("Websocket ERROR: " + err);
     })
+
+    // Set up the send button
+    const sendButton = document.querySelector('#send-button');
+    sendButton.onclick = function () {
+        sendMessageToMixnet(connection, route);
+    }
 }
+
+// Create a Sphinx packet and send it to the mixnet through the Gateway node. 
+function sendMessageToMixnet(connection, route) {
+    var recipient = document.getElementById("recipient").value;
+    var sendText = document.getElementById("sendtext").value;
+    let packet = wasm.create_sphinx_packet(JSON.stringify(route), sendText, recipient);
+    connection.send(packet);
+    display("Sent a Sphinx packet containing message: " + sendText);
+    displaySend(packet);
+}
+
+async function getTopology() {
+    let topologyURL = 'http://127.0.0.1:8080/api/presence/topology';
+    let response = await http('get', topologyURL);
+    let topology = JSON.parse(response);
+    return topology;
+}
+
 // Let's get started!
 main();
 
 // utility functions below here, nothing too interesting...
 
-function makeRequest(method, url) {
+function display(message) {
+    document.getElementById("output").innerHTML += "<p>" + message + "</p >";
+}
+
+function displaySend(message) {
+    document.getElementById("output").innerHTML += "<p style='color: blue; word-break: break-all;'>sent >>> " + message + "</p >";
+}
+
+function http(method, url) {
     return new Promise(function (resolve, reject) {
         let xhr = new XMLHttpRequest();
         xhr.open(method, url);
@@ -95,12 +113,6 @@ function makeRequest(method, url) {
         xhr.send();
     });
 }
-
-
-function print(name, obj) {
-    console.log(name + ": " + JSON.stringify(obj));
-}
-
 
 function connectWebsocket(url) {
     return new Promise(function (resolve, reject) {

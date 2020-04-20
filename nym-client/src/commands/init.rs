@@ -19,9 +19,9 @@ use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::identity::MixIdentityKeyPair;
 use directory_client::presence::Topology;
+use nymsphinx::DestinationAddressBytes;
 use pemstore::pemstore::PemStore;
 use sfw_provider_requests::auth_token::AuthToken;
-use sphinx::route::DestinationAddressBytes;
 use topology::provider::Node;
 use topology::NymTopology;
 

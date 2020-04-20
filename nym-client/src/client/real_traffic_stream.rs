@@ -19,7 +19,7 @@ use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::{error, info, trace, warn};
-use sphinx::route::Destination;
+use nymsphinx::Destination;
 use std::pin::Pin;
 use std::time::Duration;
 use tokio::runtime::Handle;

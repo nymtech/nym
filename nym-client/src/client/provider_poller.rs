@@ -14,9 +14,9 @@
 
 use futures::channel::mpsc;
 use log::*;
+use nymsphinx::DestinationAddressBytes;
 use provider_client::ProviderClientError;
 use sfw_provider_requests::auth_token::AuthToken;
-use sphinx::route::DestinationAddressBytes;
 use std::net::SocketAddr;
 use std::time;
 use tokio::runtime::Handle;

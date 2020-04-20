@@ -17,7 +17,7 @@ use crate::client::topology_control::TopologyAccessor;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
-use sphinx::route::Destination;
+use nymsphinx::Destination;
 use std::pin::Pin;
 use std::time::Duration;
 use tokio::runtime::Handle;

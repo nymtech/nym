@@ -17,7 +17,7 @@ use crate::client::topology_control::TopologyAccessor;
 use crate::client::InputMessageSender;
 use crate::sockets::websocket::connection::{Connection, ConnectionData};
 use log::*;
-use sphinx::route::DestinationAddressBytes;
+use nymsphinx::DestinationAddressBytes;
 use std::net::SocketAddr;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;

@@ -21,7 +21,7 @@ use futures::io::Error;
 use futures::SinkExt;
 use log::*;
 use nymsphinx::chunking::split_and_prepare_payloads;
-use sphinx::route::{Destination, DestinationAddressBytes};
+use nymsphinx::{Destination, DestinationAddressBytes};
 use std::convert::TryFrom;
 use std::io;
 use std::net::SocketAddr;

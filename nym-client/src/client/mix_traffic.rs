@@ -15,7 +15,7 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use sphinx::SphinxPacket;
+use nymsphinx::SphinxPacket;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::runtime::Handle;

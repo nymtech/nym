@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crypto::identity::MixIdentityPublicKey;
-use curve25519_dalek::montgomery::MontgomeryPoint;
 use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx::chunking::split_and_prepare_payloads;
 use nymsphinx::{
@@ -116,16 +115,6 @@ fn sphinx_route_from(raw_route: &str) -> Vec<Node> {
     sphinx_route
 }
 
-// Converts a base58 &str into a public key (MontgomeryPoint)
-//
-// A TryInto would be nice here but this crate doesn't own MontgomeryPoint.
-fn public_key_from(s: &str) -> MontgomeryPoint {
-    let src = MixIdentityPublicKey::from_base58_string(s.to_owned()).to_bytes();
-    let mut dest: [u8; 32] = [0; 32];
-    dest.copy_from_slice(&src);
-    MontgomeryPoint(dest)
-}
-
 impl TryFrom<NodeData> for Node {
     type Error = ();
 
@@ -133,7 +122,13 @@ impl TryFrom<NodeData> for Node {
         let addr: SocketAddr = node_data.address.parse().unwrap();
         let address: NodeAddressBytes = NymNodeRoutingAddress::from(addr).try_into().unwrap();
 
-        let pub_key = public_key_from(&node_data.public_key);
+        // this has to be temporarily moved out of separate function as we can't return private types
+        let pub_key = {
+            let src = MixIdentityPublicKey::from_base58_string(node_data.public_key).to_bytes();
+            let mut dest: [u8; 32] = [0; 32];
+            dest.copy_from_slice(&src);
+            nymsphinx::key::new(dest)
+        };
 
         Ok(Node { address, pub_key })
     }

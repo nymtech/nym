@@ -13,8 +13,7 @@
 // limitations under the License.
 
 use crate::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
-use sphinx::constants::DESTINATION_ADDRESS_LENGTH;
-use sphinx::route::DestinationAddressBytes;
+use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use std::convert::TryFrom;
 use std::io;
 use std::io::Error;
@@ -68,7 +67,7 @@ pub enum ProviderRequest {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PullRequest {
     pub auth_token: AuthToken,
-    pub destination_address: sphinx::route::DestinationAddressBytes,
+    pub destination_address: nymsphinx::DestinationAddressBytes,
 }
 
 impl Into<ProviderRequest> for PullRequest {
@@ -79,7 +78,7 @@ impl Into<ProviderRequest> for PullRequest {
 
 impl PullRequest {
     pub fn new(
-        destination_address: sphinx::route::DestinationAddressBytes,
+        destination_address: nymsphinx::DestinationAddressBytes,
         auth_token: AuthToken,
     ) -> Self {
         PullRequest {

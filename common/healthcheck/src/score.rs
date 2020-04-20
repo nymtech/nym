@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use log::error;
-use sphinx::route::NodeAddressBytes;
+use nymsphinx::NodeAddressBytes;
 use std::cmp::Ordering;
 use std::fmt::Error;
 use std::fmt::Formatter;

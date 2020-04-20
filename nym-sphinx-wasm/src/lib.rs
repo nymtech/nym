@@ -15,13 +15,12 @@ use crypto::identity::MixIdentityPublicKey;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx::chunking::split_and_prepare_payloads;
+use nymsphinx::{
+    delays, Destination, DestinationAddressBytes, Node, NodeAddressBytes, SphinxPacket,
+    IDENTIFIER_LENGTH,
+};
 use serde::{Deserialize, Serialize};
 use serde_json;
-use sphinx::header::delays;
-use sphinx::route::DestinationAddressBytes;
-use sphinx::route::NodeAddressBytes;
-use sphinx::route::{Destination, Node};
-use sphinx::SphinxPacket;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::net::SocketAddr;
@@ -29,8 +28,6 @@ use std::time::Duration;
 use wasm_bindgen::prelude::*;
 
 mod utils;
-
-const IDENTIFIER_LENGTH: usize = 16;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.

@@ -28,13 +28,14 @@ class NodeData {
 }
 
 async function main() {
+    var gatewayUrl = "ws://127.0.0.1:1793";
+    var directoryUrl = "http://127.0.0.1:8080/api/presence/topology";
+
     // Get the topology, then the mixnode and provider data
-    const topology = await getTopology();
+    const topology = await getTopology(directoryUrl);
 
     // Set up a websocket connection to the gateway node
-    var port = "1793" // gateway websocket listens on 1793 by default, change if yours is different
-    var url = "ws://127.0.0.1:" + port;
-    var connection = await connectWebsocket(url).then(function (c) {
+    var connection = await connectWebsocket(gatewayUrl).then(function (c) {
         return c
     }).catch(function (err) {
         console.log("Websocket ERROR: " + err);
@@ -58,17 +59,16 @@ function sendMessageToMixnet(connection, topology) {
     displaySend(packet);
 }
 
-async function getTopology() {
-    let topologyURL = 'http://127.0.0.1:8080/api/presence/topology';
-    let response = await http('get', topologyURL);
+async function getTopology(directoryUrl) {
+    let response = await http('get', directoryUrl);
     let topology = JSON.parse(response);
     return topology;
 }
 
+// Construct a route from the current network topology so we can get wasm to build us a Sphinx packet
 function constructRoute(topology) {
     const mixnodes = topology.mixNodes;
     const provider = topology.mixProviderNodes[0];
-    // Construct a route so we can get wasm to build us a Sphinx packet
     let nodes = [];
     mixnodes.forEach(node => {
         let n = new NodeData(node.host, node.pubKey);

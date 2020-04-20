@@ -21,3 +21,11 @@ pub mod chunking;
 // library like: https://github.com/rust-fuzz/afl.rs and use that instead for the inputs.
 
 // perhaps it might be useful down the line for interaction testing between client,mixes,etc?
+
+// re-exporting types and constants available in sphinx
+pub use sphinx::{
+    constants::{DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH},
+    header::{delays::Delay, ProcessedHeader, SphinxHeader},
+    route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes},
+    SphinxPacket,
+};

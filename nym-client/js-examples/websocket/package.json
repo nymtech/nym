@@ -25,5 +25,6 @@
   },
   "dependencies": {
     "core-js": "^3.6.5",
+    "html-webpack-plugin": "^4.2.0"
   }
 }

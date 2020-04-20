@@ -27,8 +27,8 @@ pub use sphinx::{
     constants::{
         DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, MAX_PATH_LENGTH, NODE_ADDRESS_LENGTH,
     },
-    header::{delays::Delay, ProcessedHeader, SphinxHeader},
-    route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes},
+    header::{delays, delays::Delay, ProcessedHeader, SphinxHeader, SphinxUnwrapError},
+    route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier},
     SphinxPacket,
 };
 

@@ -30,11 +30,9 @@ function handleMessage(e) {
         displayJsonResponse("Server responded with error: " + response);
     } else if (response.type == "fetch") {
         if (response.messages.length > 0) {
-            display("Fetched messages: ");
             displayJsonResponse(response);
         }
     } else if (response.type == "ownDetails") {
-        display("ownDetails response: ");
         displayJsonResponse(response);
         ourAddress = response.address;
         display("Our address is:  " + ourAddress + ", we will now send messages to ourself.");
@@ -48,7 +46,7 @@ function sendMessageToMixnet(connection) {
         message: sendText,
         recipient_address: ourAddress
     }
-    display("Sending message to mixnet:");
+
     displayJsonSend(message);
     connection.send(JSON.stringify(message));
 }
@@ -57,8 +55,6 @@ function sendOwnDetailsRequest(connection) {
     var ownDetails = {
         type: "ownDetails"
     }
-
-    display("Sending a request for our own details:")
     displayJsonSend(ownDetails);
     connection.send(JSON.stringify(ownDetails));
 }
@@ -77,11 +73,11 @@ function display(message) {
 }
 
 function displayJsonSend(message) {
-    document.getElementById("output").innerHTML += "<p style='color: blue;'>" + JSON.stringify(message) + "</p >";
+    document.getElementById("output").innerHTML += "<p style='color: blue;'>sent >>> " + JSON.stringify(message) + "</p >";
 }
 
 function displayJsonResponse(message) {
-    document.getElementById("output").innerHTML += "<p style='color: green;'>" + JSON.stringify(message) + "</p >";
+    document.getElementById("output").innerHTML += "<p style='color: green;'>received <<<" + JSON.stringify(message) + "</p >";
 }
 
 function connectWebsocket(url) {

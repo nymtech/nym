@@ -14,8 +14,8 @@
 
 use crate::filter::VersionFilterable;
 use itertools::Itertools;
+use nymsphinx::Node as SphinxNode;
 use rand::seq::IteratorRandom;
-use sphinx::route::Node as SphinxNode;
 use std::cmp::max;
 use std::collections::HashMap;
 
@@ -41,7 +41,7 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
         let mut highest_layer = 0;
         for mix in self.mix_nodes() {
             // we need to have extra space for provider
-            if mix.layer > sphinx::constants::MAX_PATH_LENGTH as u64 {
+            if mix.layer > nymsphinx::MAX_PATH_LENGTH as u64 {
                 return Err(NymTopologyError::InvalidMixLayerError);
             }
             highest_layer = max(highest_layer, mix.layer);

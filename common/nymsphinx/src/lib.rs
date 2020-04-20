@@ -24,8 +24,14 @@ pub mod chunking;
 
 // re-exporting types and constants available in sphinx
 pub use sphinx::{
-    constants::{DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH},
+    constants::{
+        DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, MAX_PATH_LENGTH, NODE_ADDRESS_LENGTH,
+    },
     header::{delays::Delay, ProcessedHeader, SphinxHeader},
     route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes},
     SphinxPacket,
 };
+
+// re-exporting this separately to remember to put special attention to below
+// modules/types/constants when refactoring sphinx crate itself
+pub use sphinx::key;

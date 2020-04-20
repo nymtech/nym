@@ -14,7 +14,7 @@
 
 use crate::filter;
 use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
-use sphinx::route::Node as SphinxNode;
+use nymsphinx::Node as SphinxNode;
 use std::convert::TryInto;
 use std::net::SocketAddr;
 
@@ -46,7 +46,7 @@ impl Into<SphinxNode> for Node {
     fn into(self) -> SphinxNode {
         let node_address_bytes = NymNodeRoutingAddress::from(self.host).try_into().unwrap();
         let key_bytes = self.get_pub_key_bytes();
-        let key = sphinx::key::new(key_bytes);
+        let key = nymsphinx::key::new(key_bytes);
 
         SphinxNode::new(node_address_bytes, key)
     }

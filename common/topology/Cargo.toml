@@ -17,7 +17,3 @@ serde = { version = "1.0.104", features = ["derive"] }
 ## internal
 nymsphinx = {path = "../nymsphinx"}
 version-checker = {path = "../version-checker" }
-
-## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="298c7fda6a577daf6d9bb955fa52c2bffecf6926" }
-# sphinx = { path = "../../../sphinx"}

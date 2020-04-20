@@ -14,7 +14,7 @@ async function main() {
         handleMessage(e);
     };
 
-    getOwnDetails(connection);
+    sendOwnDetailsRequest(connection);
 
     pollForMessages(connection);
 
@@ -27,17 +27,17 @@ async function main() {
 function handleMessage(e) {
     let response = JSON.parse(e.data);
     if (response.type == "error") {
-        display("Server responded with error: " + response.message);
+        displayJsonResponse("Server responded with error: " + response);
     } else if (response.type == "fetch") {
         if (response.messages.length > 0) {
-            display("Fetched messages: " + response.messages);
+            display("Fetched messages: ");
+            displayJsonResponse(response);
         }
     } else if (response.type == "ownDetails") {
-        display("Got response message. ownDetails: " + JSON.stringify(response));
+        display("ownDetails response: ");
+        displayJsonResponse(response);
         ourAddress = response.address;
-        display(ourAddress);
-    } else {
-        display("response: " + JSON.stringify(response));
+        display("Our address is:  " + ourAddress + ", we will now send messages to ourself.");
     }
 }
 
@@ -48,17 +48,18 @@ function sendMessageToMixnet(connection) {
         message: sendText,
         recipient_address: ourAddress
     }
-    display("Sending message: " + message.message + " to " + message.recipient_address);
+    display("Sending message to mixnet:");
+    displayJsonSend(message);
     connection.send(JSON.stringify(message));
 }
 
-function getOwnDetails(connection) {
+function sendOwnDetailsRequest(connection) {
     var ownDetails = {
         type: "ownDetails"
     }
 
-    display("Sending a request for our own details...")
-
+    display("Sending a request for our own details:")
+    displayJsonSend(ownDetails);
     connection.send(JSON.stringify(ownDetails));
 }
 
@@ -73,6 +74,14 @@ function pollForMessages(connection) {
 
 function display(message) {
     document.getElementById("output").innerHTML += "<p>" + message + "</p >";
+}
+
+function displayJsonSend(message) {
+    document.getElementById("output").innerHTML += "<p style='color: blue;'>" + JSON.stringify(message) + "</p >";
+}
+
+function displayJsonResponse(message) {
+    document.getElementById("output").innerHTML += "<p style='color: green;'>" + JSON.stringify(message) + "</p >";
 }
 
 function connectWebsocket(url) {
@@ -90,4 +99,3 @@ function connectWebsocket(url) {
 
 // Start it!
 main();
-

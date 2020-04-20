@@ -4,27 +4,29 @@ async function main() {
     var port = '9001' // client websocket listens on 9001 by default, change if yours is different
     var localClientUrl = "ws://127.0.0.1:" + port;
 
+    // Set up and handle websocket connection to our desktop client.
     var connection = await connectWebsocket(localClientUrl).then(function (c) {
         return c;
     }).catch(function (err) {
         display("Websocket ERROR: " + err);
     })
-
     connection.onmessage = function (e) {
-        handleMessage(e);
+        handleResponse(e);
     };
 
-    sendOwnDetailsRequest(connection);
 
+    sendOwnDetailsRequest(connection);
     pollForMessages(connection);
 
+    // Set up the send button
     const sendButton = document.querySelector('#send-button');
     sendButton.onclick = function () {
         sendMessageToMixnet(connection);
     }
 }
 
-function handleMessage(e) {
+// Handle any messages that come back down the websocket. 
+function handleResponse(e) {
     let response = JSON.parse(e.data);
     if (response.type == "error") {
         displayJsonResponse("Server responded with error: " + response);
@@ -39,6 +41,7 @@ function handleMessage(e) {
     }
 }
 
+// Send a message to the mixnet. 
 function sendMessageToMixnet(connection) {
     var sendText = document.getElementById("sendtext").value;
     var message = {
@@ -51,6 +54,11 @@ function sendMessageToMixnet(connection) {
     connection.send(JSON.stringify(message));
 }
 
+// Send a message to the mixnet client, asking what our own address is. 
+// In this simplistic demo, we'll just use our own address to send ourselves messages. 
+//
+// In a real application, you might want to ensure that somebody else got your
+// address so that they could send messages to you. 
 function sendOwnDetailsRequest(connection) {
     var ownDetails = {
         type: "ownDetails"
@@ -59,6 +67,8 @@ function sendOwnDetailsRequest(connection) {
     connection.send(JSON.stringify(ownDetails));
 }
 
+// Periodically poll for any messages waiting for us on the mixnet. This is
+// an annoying source of latency and will soon go away. 
 function pollForMessages(connection) {
     setInterval(() => {
         var message = {
@@ -80,6 +90,7 @@ function displayJsonResponse(message) {
     document.getElementById("output").innerHTML += "<p style='color: green;'>received <<<" + JSON.stringify(message) + "</p >";
 }
 
+// Connect to a websocket. 
 function connectWebsocket(url) {
     return new Promise(function (resolve, reject) {
         var server = new WebSocket(url);

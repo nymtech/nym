@@ -17,8 +17,8 @@ slice_as_array = "1.1.0"
 wasm-bindgen = "0.2"
 
 # internal
-crypto = { path = "../common/crypto" }
-nymsphinx = { path = "../common/nymsphinx" }
+crypto = { path = "../../common/crypto" }
+nymsphinx = { path = "../../common/nymsphinx" }
 
 
 # The `console_error_panic_hook` crate provides better debugging of panics by

@@ -28,7 +28,7 @@ tokio = { version = "0.2", features = ["full"] }
 ## internal
 crypto = {path = "../common/crypto"}
 config = {path = "../common/config"}
-directory-client = { path = "../common/clients/directory-client" }
+directory-client = { path = "../common/client-libs/directory-client" }
 healthcheck = {path = "../common/healthcheck" }
 topology = {path = "../common/topology"}
 

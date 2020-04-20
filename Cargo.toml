@@ -5,11 +5,13 @@ opt-level = "s"
 [workspace]
 
 members = [
-    "common/clients/directory-client",
-    "common/clients/mix-client",
-    "common/clients/multi-tcp-client",
-    "common/clients/provider-client",
-    "common/clients/validator-client",
+    "clients/desktop",
+    "clients/webassembly",
+    "common/client-libs/directory-client",
+    "common/client-libs/mix-client",
+    "common/client-libs/multi-tcp-client",
+    "common/client-libs/provider-client",
+    "common/client-libs/validator-client",
     "common/config",
     "common/crypto",
     "common/healthcheck",
@@ -18,8 +20,6 @@ members = [
     "common/topology",
     "gateway",
     "mixnode",
-    "nym-client",
-    "nym-sphinx-wasm",
     "sfw-provider",
     "sfw-provider/sfw-provider-requests",
     "validator",

@@ -19,10 +19,10 @@ tokio = { version = "0.2", features = ["full"] }
 
 ## internal
 crypto = { path = "../crypto" }
-directory-client = { path = "../clients/directory-client" }
-multi-tcp-client = { path = "../clients/multi-tcp-client" }
+directory-client = { path = "../client-libs/directory-client" }
+multi-tcp-client = { path = "../client-libs/multi-tcp-client" }
 nymsphinx = {path = "../nymsphinx" }
-provider-client = { path = "../clients/provider-client" }
+provider-client = { path = "../client-libs/provider-client" }
 sfw-provider-requests = { path = "../../sfw-provider/sfw-provider-requests" }
 topology = {path = "../topology" }
 

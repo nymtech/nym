@@ -15,9 +15,9 @@
 use futures::lock::Mutex;
 use futures::StreamExt;
 use log::*;
+use nymsphinx::{DestinationAddressBytes, SURBIdentifier};
 use rand::Rng;
 use sfw_provider_requests::DUMMY_MESSAGE_CONTENT;
-use sphinx::route::{DestinationAddressBytes, SURBIdentifier};
 use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;

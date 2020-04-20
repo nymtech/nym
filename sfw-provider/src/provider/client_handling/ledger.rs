@@ -14,9 +14,8 @@
 
 use directory_client::presence::providers::MixProviderClient;
 use log::*;
+use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use sfw_provider_requests::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
-use sphinx::constants::DESTINATION_ADDRESS_LENGTH;
-use sphinx::route::DestinationAddressBytes;
 use std::path::PathBuf;
 
 #[derive(Debug)]

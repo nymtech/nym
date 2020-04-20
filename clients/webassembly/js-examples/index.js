@@ -55,8 +55,8 @@ function sendMessageToMixnet(connection, topology) {
     var sendText = document.getElementById("sendtext").value;
     let packet = wasm.create_sphinx_packet(JSON.stringify(route), sendText, recipient);
     connection.send(packet);
-    display("Sent a Sphinx packet containing message: " + sendText);
     displaySend(packet);
+    display("Sent a Sphinx packet containing message: " + sendText);
 }
 
 async function getTopology(directoryUrl) {
@@ -85,11 +85,11 @@ main();
 // utility functions below here, nothing too interesting...
 
 function display(message) {
-    document.getElementById("output").innerHTML += "<p>" + message + "</p >";
+    document.getElementById("output").innerHTML = "<p>" + message + "</p >" + document.getElementById("output").innerHTML;
 }
 
 function displaySend(message) {
-    document.getElementById("output").innerHTML += "<p style='color: blue; word-break: break-all;'>sent >>> " + message + "</p >";
+    document.getElementById("output").innerHTML = "<p style='color: blue; word-break: break-all;'>sent >>> " + message + "</p >" + document.getElementById("output").innerHTML;
 }
 
 function http(method, url) {

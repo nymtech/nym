@@ -1,9 +1,10 @@
-import { MDCRipple } from '@material/ripple/index';
-const ripple = new MDCRipple(document.querySelector('.foo-button'));
+// import { MDCRipple } from '@material/ripple/index';
+// const ripple = new MDCRipple(document.querySelector('.foo-button'));
 
-console.log('hello world');
+console.log('hello world from dave');
 
 async function main() {
+    console.log("Hello world from main()");
     display("Initialising...");
 
     var port = '9001' // client websocket listens on 9001 by default, change if yours is different
@@ -25,8 +26,13 @@ async function main() {
     connection.send(JSON.stringify(ownDetails));
 }
 
+console.log("before main");
+
 // Let's get this private party started!
 main();
+
+
+console.log("after main");
 
 function handleMessage(e) {
     let response = JSON.parse(e.data);

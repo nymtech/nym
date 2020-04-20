@@ -34,10 +34,10 @@
     "webpack-dev-server": "^3.10.3"
   },
   "dependencies": {
-    "@material/button": "^5.1.0",
-    "@material/ripple": "^5.1.0",
+    "core-js": "^3.6.5",
     "html-webpack-plugin": "^4.2.0",
     "lodash": "^4.17.15",
-    "material-components-web": "^5.1.0"
+    "material-components-web": "^5.1.0",
+    "regenerator-runtime": "^0.13.5"
   }
 }

@@ -28,17 +28,17 @@ tokio = { version = "0.2", features = ["full"] }
 tokio-tungstenite = "0.10.1"
 
 ## internal
-config = {path = "../common/config"}
-crypto = {path = "../common/crypto"}
-directory-client = { path = "../common/clients/directory-client" }
-healthcheck = { path = "../common/healthcheck" }
-mix-client = { path = "../common/clients/mix-client" }
-multi-tcp-client = { path = "../common/clients/multi-tcp-client" }
-nymsphinx = { path = "../common/nymsphinx" }
-pemstore = {path = "../common/pemstore"}
-provider-client = { path = "../common/clients/provider-client" }
-sfw-provider-requests = { path = "../sfw-provider/sfw-provider-requests" }
-topology = {path = "../common/topology" }
+config = {path = "../../common/config"}
+crypto = {path = "../../common/crypto"}
+directory-client = { path = "../../common/client-libs/directory-client" }
+healthcheck = { path = "../../common/healthcheck" }
+mix-client = { path = "../../common/client-libs/mix-client" }
+multi-tcp-client = { path = "../../common/client-libs/multi-tcp-client" }
+nymsphinx = { path = "../../common/nymsphinx" }
+pemstore = {path = "../../common/pemstore"}
+provider-client = { path = "../../common/client-libs/provider-client" }
+sfw-provider-requests = { path = "../../sfw-provider/sfw-provider-requests" }
+topology = {path = "../../common/topology" }
 
 [build-dependencies]
 built = "0.3.2"

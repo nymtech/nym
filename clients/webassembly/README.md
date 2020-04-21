@@ -2,7 +2,7 @@
 
 This is a Rust crate which is set up to automatically cross-compile the contents of `lib.rs` to WebAssembly (aka wasm).
 
-Wasm is pretty close to bare metal. Browser-based or server-side JavaScript (or other wasm-using environments) can use the wasm output from this crate to create Sphinx packets at much higher speeds than would be possible using (interpreted) JavaScript. This helps browser-based and mobile applications get stronger privacy, in a way that wasn't previously possible.
+Wasm is pretty close to bare metal. Browser-based or server-side JavaScript (or other wasm-using environments) can use the wasm output from this crate to create Sphinx packets at much higher speeds than would be possible using (interpreted) JavaScript. This enables browser-based and mobile applications get stronger privacy, in a way that wasn't previously possible.
 
 ### Compiling
 

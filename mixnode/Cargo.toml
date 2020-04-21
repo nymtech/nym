@@ -22,8 +22,8 @@ tokio = { version = "0.2", features = ["full"] }
 ## internal
 config = {path = "../common/config"}
 crypto = {path = "../common/crypto"}
-directory-client = { path = "../common/clients/directory-client" }
-multi-tcp-client = { path = "../common/clients/multi-tcp-client" }
+directory-client = { path = "../common/client-libs/directory-client" }
+multi-tcp-client = { path = "../common/client-libs/multi-tcp-client" }
 nymsphinx = {path = "../common/nymsphinx" }
 pemstore = {path = "../common/pemstore"}
 topology = {path = "../common/topology"}

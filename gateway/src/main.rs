@@ -12,41 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use futures::lock::Mutex;
+use crate::client_handling::websocket::listener::Listener;
 use log::*;
-use multi_tcp_client::Client as MultiClient;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use tokio::net::{TcpListener, TcpStream};
-use tokio_tungstenite::tungstenite::Error;
 
-mod listener;
+mod client_handling;
 mod mixnet_client;
-
-async fn accept_connection(peer: SocketAddr, stream: TcpStream, client: Arc<Mutex<MultiClient>>) {
-    if let Err(e) = listener::handle_connection(peer, stream, client).await {
-        match e {
-            Error::ConnectionClosed | Error::Protocol(_) | Error::Utf8 => (),
-            err => error!("Error processing connection: {}", err),
-        }
-    }
-}
 
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
     setup_logging();
-    let addr = "127.0.0.1:1793";
-    let mut listener = TcpListener::bind(&addr).await.expect("Can't listen");
+    let addr = "127.0.0.1:1793".parse().unwrap();
     info!("Listening on: {}", addr);
 
-    let client_ref = mixnet_client::new();
-
-    while let Ok((stream, _)) = listener.accept().await {
-        let peer = stream
-            .peer_addr()
-            .expect("connected streams should have a peer address");
-        info!("Peer address: {}", peer);
+    let (dummy_clients_handler_tx, _) = futures::channel::mpsc::unbounded();
+    Listener::new(addr, dummy_clients_handler_tx).start();
 
         tokio::spawn(accept_connection(peer, stream, Arc::clone(&client_ref)));
     }

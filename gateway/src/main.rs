@@ -12,11 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client_handling::websocket::listener::Listener;
+use crate::client_handling::websocket;
+use crate::mixnet_handling::receiver::packet_processing::PacketProcessor;
+use crate::storage::ClientStorage;
 use log::*;
 
 mod client_handling;
 mod mixnet_client;
+mod mixnet_handling;
+pub(crate) mod storage;
 
 #[tokio::main]
 async fn main() {
@@ -26,7 +30,16 @@ async fn main() {
     info!("Listening on: {}", addr);
 
     let (dummy_clients_handler_tx, _) = futures::channel::mpsc::unbounded();
-    Listener::new(addr, dummy_clients_handler_tx).start();
+    let client_storage = ClientStorage::new(42, 42, "foomp".into());
+    let dummy_keypair = crypto::encryption::KeyPair::new();
+    let dummy_mix_packet_processor = PacketProcessor::new(
+        dummy_keypair.private_key().to_owned(),
+        dummy_clients_handler_tx.clone(),
+        client_storage,
+    );
+
+    websocket::Listener::new(addr, dummy_clients_handler_tx.clone()).start();
+    mixnet_handling::Listener::new(addr).start(dummy_mix_packet_processor);
 
     if let Err(e) = tokio::signal::ctrl_c().await {
         error!(

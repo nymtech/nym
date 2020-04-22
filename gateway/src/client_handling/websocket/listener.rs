@@ -52,7 +52,7 @@ impl Listener {
         }
     }
 
-    pub(crate) fn start(&'static mut self) -> JoinHandle<()> {
+    pub(crate) fn start(mut self) -> JoinHandle<()> {
         tokio::spawn(async move { self.run().await })
     }
 }

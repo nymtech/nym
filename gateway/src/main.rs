@@ -28,8 +28,16 @@ async fn main() {
     let (dummy_clients_handler_tx, _) = futures::channel::mpsc::unbounded();
     Listener::new(addr, dummy_clients_handler_tx).start();
 
-        tokio::spawn(accept_connection(peer, stream, Arc::clone(&client_ref)));
+    if let Err(e) = tokio::signal::ctrl_c().await {
+        error!(
+            "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
+            e
+        );
     }
+
+    println!(
+        "Received SIGINT - the provider will terminate now (threads are not YET nicely stopped)"
+    );
 }
 
 fn setup_logging() {

@@ -12,31 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::mixnet_client;
-use futures::lock::Mutex;
-use futures_util::StreamExt;
+use crate::client_handling::clients_handler::ClientsHandlerRequestSender;
+use crate::client_handling::websocket::connection_handler::Handle;
 use log::*;
-use multi_tcp_client::Client as MultiClient;
 use std::net::SocketAddr;
-use std::sync::Arc;
-use tokio::net::TcpStream;
-use tokio_tungstenite::accept_async;
-use tungstenite::Result;
+use tokio::task::JoinHandle;
 
-pub async fn handle_connection(
-    peer: SocketAddr,
-    stream: TcpStream,
-    client_ref: Arc<Mutex<MultiClient>>,
-) -> Result<()> {
-    let mut ws_stream = accept_async(stream).await.expect("Failed to accept");
+pub(crate) struct Listener {
+    address: SocketAddr,
+    clients_handler_sender: ClientsHandlerRequestSender,
+}
 
-    info!("New WebSocket connection: {}", peer);
-
-    while let Some(msg) = ws_stream.next().await {
-        let msg = msg?;
-        if msg.is_binary() {
-            mixnet_client::forward_to_mixnode(msg.into_data(), Arc::clone(&client_ref)).await;
+impl Listener {
+    pub(crate) fn new(
+        address: SocketAddr,
+        clients_handler_sender: ClientsHandlerRequestSender,
+    ) -> Self {
+        Listener {
+            address,
+            clients_handler_sender,
         }
     }
-    Ok(())
+
+    pub(crate) async fn run(&mut self) {
+        info!("Starting websocket listener at {}", self.address);
+        let mut tcp_listener = tokio::net::TcpListener::bind(self.address)
+            .await
+            .expect("Failed to start websocket listener");
+
+        loop {
+            match tcp_listener.accept().await {
+                Ok((socket, remote_addr)) => {
+                    trace!("received a socket connection from {}", remote_addr);
+                    let mut handle = Handle::new(socket, self.clients_handler_sender.clone());
+                    tokio::spawn(async move { handle.start_handling().await });
+                }
+                Err(e) => warn!("failed to get client: {:?}", e),
+            }
+        }
+    }
+
+    pub(crate) fn start(&'static mut self) -> JoinHandle<()> {
+        tokio::spawn(async move { self.run().await })
+    }
 }

@@ -1,3 +1,5 @@
+use crate::client_handling::ledger::ClientLedger;
+use crate::client_handling::websocket::message_receiver::MixMessageSender;
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
 use log::*;
@@ -5,9 +7,7 @@ use nymsphinx::DestinationAddressBytes;
 use std::collections::HashMap;
 use tokio::task::JoinHandle;
 
-type temp_websocket_channel = mpsc::UnboundedSender<()>;
 type temp_AuthToken = String;
-type temp_ledger = String;
 
 pub(crate) type ClientsHandlerRequestSender = mpsc::UnboundedSender<ClientsHandlerRequest>;
 pub(crate) type ClientsHandlerRequestReceiver = mpsc::UnboundedReceiver<ClientsHandlerRequest>;
@@ -19,12 +19,12 @@ pub(crate) enum ClientsHandlerRequest {
     // client
     Register(
         DestinationAddressBytes,
-        temp_websocket_channel,
+        MixMessageSender,
         ClientsHandlerResponseSender,
     ),
     Authenticate(
         temp_AuthToken,
-        temp_websocket_channel,
+        MixMessageSender,
         ClientsHandlerResponseSender,
     ),
 
@@ -35,12 +35,12 @@ pub(crate) enum ClientsHandlerRequest {
 pub(crate) enum ClientsHandlerResponse {
     Register(Option<temp_AuthToken>),
     Authenticate(bool),
-    IsOnline(Option<temp_websocket_channel>),
+    IsOnline(Option<MixMessageSender>),
 }
 
 pub(crate) struct ClientsHandler {
-    open_connections: HashMap<DestinationAddressBytes, temp_websocket_channel>, //    clients_ledger: unimplemented!(),
-    clients_ledger: temp_ledger,
+    open_connections: HashMap<DestinationAddressBytes, MixMessageSender>, //    clients_ledger: unimplemented!(),
+    clients_ledger: ClientLedger,
     request_receiver_channel: ClientsHandlerRequestReceiver,
 }
 
@@ -48,8 +48,8 @@ impl ClientsHandler {
     pub(crate) fn new(request_receiver_channel: ClientsHandlerRequestReceiver) -> Self {
         ClientsHandler {
             open_connections: HashMap::new(),
-            clients_ledger: "TEMPORARY".into(),
             request_receiver_channel,
+            clients_ledger: unimplemented!(),
         }
     }
 
@@ -59,7 +59,7 @@ impl ClientsHandler {
         }
     }
 
-    pub(crate) fn start(&'static mut self) -> JoinHandle<()> {
+    pub(crate) fn start(mut self) -> JoinHandle<()> {
         tokio::spawn(async move { self.run().await })
     }
 }

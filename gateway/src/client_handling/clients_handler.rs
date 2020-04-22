@@ -9,7 +9,7 @@ type temp_websocket_channel = mpsc::UnboundedSender<()>;
 type temp_AuthToken = String;
 type temp_ledger = String;
 
-pub(crate) type ClientsHandlerRequestSsender = mpsc::UnboundedSender<ClientsHandlerRequest>;
+pub(crate) type ClientsHandlerRequestSender = mpsc::UnboundedSender<ClientsHandlerRequest>;
 pub(crate) type ClientsHandlerRequestReceiver = mpsc::UnboundedReceiver<ClientsHandlerRequest>;
 
 pub(crate) type ClientsHandlerResponseSender = oneshot::Sender<ClientsHandlerResponse>;

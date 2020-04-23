@@ -14,19 +14,6 @@
 
 import * as wasm from "nym-sphinx-wasm";
 
-class Route {
-    constructor(nodes) {
-        this.nodes = nodes;
-    }
-}
-
-class NodeData {
-    constructor(address, public_key) {
-        this.address = address;
-        this.public_key = public_key;
-    }
-}
-
 async function main() {
     var gatewayUrl = "ws://127.0.0.1:1793";
     var directoryUrl = "http://127.0.0.1:8080/api/presence/topology";
@@ -50,10 +37,9 @@ async function main() {
 
 // Create a Sphinx packet and send it to the mixnet through the Gateway node. 
 function sendMessageToMixnet(connection, topology) {
-    let route = constructRoute(topology);
     var recipient = document.getElementById("recipient").value;
     var sendText = document.getElementById("sendtext").value;
-    let packet = wasm.create_sphinx_packet(JSON.stringify(route), sendText, recipient);
+    let packet = wasm.create_sphinx_packet(JSON.stringify(topology), sendText, recipient);
     connection.send(packet);
     displaySend(packet);
     display("Sent a Sphinx packet containing message: " + sendText);
@@ -63,20 +49,6 @@ async function getTopology(directoryUrl) {
     let response = await http('get', directoryUrl);
     let topology = JSON.parse(response);
     return topology;
-}
-
-// Construct a route from the current network topology so we can get wasm to build us a Sphinx packet
-function constructRoute(topology) {
-    const mixnodes = topology.mixNodes;
-    const provider = topology.mixProviderNodes[0];
-    let nodes = [];
-    mixnodes.forEach(node => {
-        let n = new NodeData(node.host, node.pubKey);
-        nodes.push(n);
-    });
-    let p = new NodeData(provider.mixnetListener, provider.pubKey)
-    nodes.push(p);
-    return new Route(nodes);
 }
 
 // Let's get started!

@@ -22,7 +22,7 @@ use futures::channel::oneshot;
 use futures::lock::Mutex;
 use log::*;
 use mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD;
-use nymsphinx::{DestinationAddressBytes, Payload, ProcessedPacket, SURBIdentifier, SphinxPacket};
+use nymsphinx::{DestinationAddressBytes, ProcessedPacket, SURBIdentifier, SphinxPacket};
 use std::collections::HashMap;
 use std::io;
 use std::ops::Deref;
@@ -73,7 +73,7 @@ pub struct PacketProcessor {
 
 impl PacketProcessor {
     pub(crate) fn new(
-        secret_key: encryption::PrivateKey,
+        secret_key: Arc<encryption::PrivateKey>,
         clients_handler_sender: ClientsHandlerRequestSender,
         client_store: ClientStorage,
     ) -> Self {
@@ -81,7 +81,7 @@ impl PacketProcessor {
             available_socket_senders_cache: Arc::new(Mutex::new(HashMap::new())),
             clients_handler_sender,
             client_store,
-            secret_key: Arc::new(secret_key),
+            secret_key,
         }
     }
 

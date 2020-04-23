@@ -902,6 +902,8 @@ dependencies = [
  "crypto",
  "dotenv",
  "futures 0.3.4",
+ "gateway-requests",
+ "hmac",
  "log 0.4.8",
  "mix-client",
  "multi-tcp-client",
@@ -909,10 +911,22 @@ dependencies = [
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
+ "sha2",
  "sled",
  "tokio 0.2.16",
  "tokio-tungstenite",
  "tungstenite",
+]
+
+[[package]]
+name = "gateway-requests"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "nymsphinx",
+ "serde",
+ "serde_json",
+ "tokio-tungstenite",
 ]
 
 [[package]]

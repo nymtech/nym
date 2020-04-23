@@ -10,4 +10,5 @@ edition = "2018"
 bs58 = "0.3"
 nymsphinx = { path = "../../common/nymsphinx" }
 serde = { version = "1.0.104", features = ["derive"] }
+serde_json = "1.0.44"
 tokio-tungstenite = "0.10.1"

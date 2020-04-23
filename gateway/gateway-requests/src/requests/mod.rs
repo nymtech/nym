@@ -14,6 +14,15 @@
 
 use crate::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
 use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
+use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::io;
 use std::io::Error;
+use tokio_tungstenite::tungstenite::protocol::Message;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) enum Request {
+    Send,
+    Register { address: String },
+    Authenticate { token: String },
+}

@@ -13,6 +13,16 @@
 // limitations under the License.
 
 use crate::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
+use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 use std::io;
 use std::io::Error;
+use tokio_tungstenite::tungstenite::protocol::Message;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) enum Response {
+    Send,
+    Register { token: String },
+    Authenticate { status: bool },
+    Error { message: String },
+}

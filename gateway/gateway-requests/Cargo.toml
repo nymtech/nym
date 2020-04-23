@@ -9,3 +9,5 @@ edition = "2018"
 [dependencies]
 bs58 = "0.3"
 nymsphinx = { path = "../../common/nymsphinx" }
+serde = { version = "1.0.104", features = ["derive"] }
+tokio-tungstenite = "0.10.1"

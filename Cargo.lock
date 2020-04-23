@@ -2678,10 +2678,13 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "crypto",
+ "log 0.4.8",
  "nymsphinx",
+ "rand 0.7.3",
  "serde",
  "serde_json",
  "slice_as_array",
+ "topology",
  "wasm-bindgen",
  "wasm-bindgen-test",
  "wee_alloc",

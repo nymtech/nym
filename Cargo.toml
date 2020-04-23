@@ -19,6 +19,7 @@ members = [
     "common/pemstore",
     "common/topology",
     "gateway",
+    "gateway/gateway-requests",
     "mixnode",
     "sfw-provider",
     "sfw-provider/sfw-provider-requests",

@@ -19,24 +19,14 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) enum Request {
     Send,
-    Register {
-        address: String
-    },
-    Authenticate {
-        token: String
-    },
+    Register { address: String },
+    Authenticate { token: String },
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) enum Response {
     Send,
-    Register {
-        token: String
-    },
-    Authenticate {
-        status: bool
-    },
-    Error {
-        message: String
-    },
+    Register { token: String },
+    Authenticate { status: bool },
+    Error { message: String },
 }

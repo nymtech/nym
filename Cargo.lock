@@ -899,14 +899,17 @@ dependencies = [
 name = "gateway"
 version = "0.1.0"
 dependencies = [
+ "crypto",
  "dotenv",
  "futures 0.3.4",
- "futures-channel",
- "futures-util",
  "log 0.4.8",
+ "mix-client",
  "multi-tcp-client",
  "nymsphinx",
  "pretty_env_logger",
+ "rand 0.7.3",
+ "serde",
+ "sled",
  "tokio 0.2.16",
  "tokio-tungstenite",
  "tungstenite",

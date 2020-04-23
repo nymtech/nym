@@ -12,44 +12,45 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use futures::lock::Mutex;
+use crate::client_handling::websocket;
+use crate::mixnet_handling::receiver::packet_processing::PacketProcessor;
+use crate::storage::ClientStorage;
 use log::*;
-use multi_tcp_client::Client as MultiClient;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use tokio::net::{TcpListener, TcpStream};
-use tokio_tungstenite::tungstenite::Error;
 
-mod listener;
+mod client_handling;
 mod mixnet_client;
-
-async fn accept_connection(peer: SocketAddr, stream: TcpStream, client: Arc<Mutex<MultiClient>>) {
-    if let Err(e) = listener::handle_connection(peer, stream, client).await {
-        match e {
-            Error::ConnectionClosed | Error::Protocol(_) | Error::Utf8 => (),
-            err => error!("Error processing connection: {}", err),
-        }
-    }
-}
+mod mixnet_handling;
+pub(crate) mod storage;
 
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
     setup_logging();
-    let addr = "127.0.0.1:1793";
-    let mut listener = TcpListener::bind(&addr).await.expect("Can't listen");
+    let addr = "127.0.0.1:1793".parse().unwrap();
     info!("Listening on: {}", addr);
 
-    let client_ref = mixnet_client::new();
+    let (dummy_clients_handler_tx, _) = futures::channel::mpsc::unbounded();
+    let client_storage = ClientStorage::new(42, 42, "foomp".into());
+    let dummy_keypair = crypto::encryption::KeyPair::new();
+    let dummy_mix_packet_processor = PacketProcessor::new(
+        dummy_keypair.private_key().to_owned(),
+        dummy_clients_handler_tx.clone(),
+        client_storage,
+    );
 
-    while let Ok((stream, _)) = listener.accept().await {
-        let peer = stream
-            .peer_addr()
-            .expect("connected streams should have a peer address");
-        info!("Peer address: {}", peer);
+    websocket::Listener::new(addr, dummy_clients_handler_tx.clone()).start();
+    mixnet_handling::Listener::new(addr).start(dummy_mix_packet_processor);
 
-        tokio::spawn(accept_connection(peer, stream, Arc::clone(&client_ref)));
+    if let Err(e) = tokio::signal::ctrl_c().await {
+        error!(
+            "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
+            e
+        );
     }
+
+    println!(
+        "Received SIGINT - the provider will terminate now (threads are not YET nicely stopped)"
+    );
 }
 
 fn setup_logging() {

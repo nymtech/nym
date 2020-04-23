@@ -14,18 +14,16 @@
 
 use futures::lock::Mutex;
 use futures::StreamExt;
+use gateway_requests::DUMMY_MESSAGE_CONTENT;
 use log::*;
-use nymsphinx::{DestinationAddressBytes, SURBIdentifier};
+use nymsphinx::DestinationAddressBytes;
 use rand::Rng;
-//use sfw_provider_requests::DUMMY_MESSAGE_CONTENT;
 use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs;
 use tokio::fs::File;
 use tokio::prelude::*;
-
-const DUMMY_MESSAGE_CONTENT: &'static [u8] = b"foomp";
 
 fn dummy_message() -> ClientFile {
     ClientFile {
@@ -131,7 +129,40 @@ impl ClientStorage {
         file.write_all(store_data.message.as_ref()).await
     }
 
-    pub(crate) async fn retrieve_client_files(
+    pub(crate) async fn retrieve_all_client_messages(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> io::Result<Vec<ClientFile>> {
+        let inner_data = self.inner.lock().await;
+
+        let client_dir_name = client_address.to_base58_string();
+        let full_store_dir = inner_data.main_store_path_dir.join(client_dir_name);
+
+        trace!("going to lookup: {:?}!", full_store_dir);
+        if !full_store_dir.exists() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "Target client does not exist",
+            ));
+        }
+
+        let mut msgs = Vec::new();
+        let mut read_dir = fs::read_dir(full_store_dir).await?;
+
+        while let Some(dir_entry) = read_dir.next().await {
+            if let Ok(dir_entry) = dir_entry {
+                if !Self::is_valid_file(&dir_entry).await {
+                    continue;
+                }
+                let client_file =
+                    ClientFile::new(fs::read(dir_entry.path()).await?, dir_entry.path());
+                msgs.push(client_file)
+            }
+        }
+        Ok(msgs)
+    }
+
+    pub(crate) async fn retrieve_client_files_with_constant_rate(
         &self,
         client_address: DestinationAddressBytes,
     ) -> io::Result<Vec<ClientFile>> {

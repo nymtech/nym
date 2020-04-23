@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::client_handling::clients_handler::ClientsHandler;
 use crate::client_handling::websocket;
 use crate::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::storage::ClientStorage;
 use log::*;
+use std::sync::Arc;
 
 mod client_handling;
 mod mixnet_client;
@@ -29,15 +31,17 @@ async fn main() {
     let addr = "127.0.0.1:1793".parse().unwrap();
     info!("Listening on: {}", addr);
 
-    let (dummy_clients_handler_tx, _) = futures::channel::mpsc::unbounded();
+    let (dummy_clients_handler_tx, dummy_clients_handler_rx) = futures::channel::mpsc::unbounded();
     let client_storage = ClientStorage::new(42, 42, "foomp".into());
     let dummy_keypair = crypto::encryption::KeyPair::new();
+    let arced_sk = Arc::new(dummy_keypair.private_key().to_owned());
     let dummy_mix_packet_processor = PacketProcessor::new(
-        dummy_keypair.private_key().to_owned(),
+        Arc::clone(&arced_sk),
         dummy_clients_handler_tx.clone(),
         client_storage,
     );
 
+    ClientsHandler::new(dummy_clients_handler_rx, arced_sk).start();
     websocket::Listener::new(addr, dummy_clients_handler_tx.clone()).start();
     mixnet_handling::Listener::new(addr).start(dummy_mix_packet_processor);
 

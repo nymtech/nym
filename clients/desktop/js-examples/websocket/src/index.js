@@ -8,7 +8,7 @@ async function main() {
     var connection = await connectWebsocket(localClientUrl).then(function (c) {
         return c;
     }).catch(function (err) {
-        display("Websocket ERROR: " + err);
+        display("Websocket connection error. Is the client running with <pre>--connection-type WebSocket</pre> on port " + port + "?");
     })
     connection.onmessage = function (e) {
         handleResponse(e);

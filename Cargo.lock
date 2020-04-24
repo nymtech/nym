@@ -896,29 +896,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gateway"
-version = "0.1.0"
-dependencies = [
- "crypto",
- "dotenv",
- "futures 0.3.4",
- "gateway-requests",
- "hmac",
- "log 0.4.8",
- "mix-client",
- "multi-tcp-client",
- "nymsphinx",
- "pretty_env_logger",
- "rand 0.7.3",
- "serde",
- "sha2",
- "sled",
- "tokio 0.2.16",
- "tokio-tungstenite",
- "tungstenite",
-]
-
-[[package]]
 name = "gateway-requests"
 version = "0.1.0"
 dependencies = [
@@ -1652,6 +1629,35 @@ dependencies = [
  "tokio 0.2.16",
  "tokio-tungstenite",
  "topology",
+]
+
+[[package]]
+name = "nym-gateway"
+version = "0.7.0-dev"
+dependencies = [
+ "built",
+ "clap",
+ "config",
+ "crypto",
+ "dirs",
+ "dotenv",
+ "futures 0.3.4",
+ "gateway-requests",
+ "hmac",
+ "log 0.4.8",
+ "mix-client",
+ "multi-tcp-client",
+ "nymsphinx",
+ "pemstore",
+ "pretty_env_logger",
+ "rand 0.7.3",
+ "serde",
+ "sha2",
+ "sled",
+ "tempfile",
+ "tokio 0.2.16",
+ "tokio-tungstenite",
+ "tungstenite",
 ]
 
 [[package]]

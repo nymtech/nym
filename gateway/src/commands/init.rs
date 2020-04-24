@@ -127,5 +127,5 @@ pub fn execute(matches: &ArgMatches) {
         .expect("Failed to save the config file");
     println!("Saved configuration file to {:?}", config_save_location);
 
-    println!("Service provider configuration completed.\n\n\n")
+    println!("Gateway configuration completed.\n\n\n")
 }

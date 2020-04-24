@@ -1,71 +1,79 @@
-use crate::client_handling::clients_handler::{ClientsHandlerRequest, ClientsHandlerRequestSender};
-use crate::client_handling::websocket::message_receiver::{MixMessageReceiver, MixMessageSender};
-use futures::channel::{mpsc, oneshot};
-use futures::SinkExt;
-use gateway_requests::auth_token::AuthToken;
-use gateway_requests::types::{ClientRequest, ServerResponse};
-use log::*;
-use nymsphinx::DestinationAddressBytes;
 use std::convert::TryFrom;
 use std::sync::Arc;
+
+use futures::{
+    channel::{mpsc, oneshot},
+    SinkExt, TryStream, TryStreamExt,
+};
+use log::*;
 use tokio::{prelude::*, stream::StreamExt, sync::Notify};
 use tokio_tungstenite::{
     tungstenite::{protocol::Message, Error as WsError},
     WebSocketStream,
 };
 
-// EXPERIMENT:
-struct MixMessagesHandle {
-    sender: MixMessageSender,
-    receiver: MixMessageReceiver,
+use gateway_requests::auth_token::AuthToken;
+use gateway_requests::types::{ClientRequest, ServerResponse};
+use nymsphinx::DestinationAddressBytes;
 
-    shutdown: Arc<Notify>,
-}
+use crate::client_handling::clients_handler::{
+    ClientsHandlerRequest, ClientsHandlerRequestSender, ClientsHandlerResponse,
+};
+use crate::client_handling::websocket::message_receiver::{MixMessageReceiver, MixMessageSender};
 
-impl MixMessagesHandle {
-    fn new(shutdown: Notify) -> Self {
-        let (sender, receiver) = mpsc::unbounded();
-        MixMessagesHandle {
-            sender,
-            receiver,
-            shutdown: Arc::new(Notify::new()),
-        }
-    }
-
-    fn shutdown(&self) {
-        self.shutdown.notify()
-    }
-
-    fn get_sender(&self) -> MixMessageSender {
-        self.sender.clone()
-    }
-
-    fn start_accepting(&self) {
-        let shutdown_signal = Arc::clone(&self.shutdown);
-
-        // note to the graceful pull request reviewer: this is by no means how we'd be handling
-        // proper shutdown signals, this is more of an experiment that happened to do exactly
-        // what I needed in here (basically to not leak memory)
-        tokio::spawn(async move {
-            tokio::select! {
-                            // TODO: solve borrow issue and figure out how to push result to socket
-            //                msg = self.receiver.next() => {
-            //
-            //                }
-
-                            _ = shutdown_signal.notified() => {
-                                info!("received shutdown notification")
-                            }
-                        }
-        });
-    }
-}
-
-// TODO: note for my future self to consider the following idea:
-// split the socket connection into sink and stream
-// stream will be for reading explicit requests
-// and sink for pumping responses AND mix traffic
-// but as byproduct this might (or might not) break the clean "SocketStream" enum here
+//
+//// EXPERIMENT:
+//struct MixMessagesHandle {
+//    sender: MixMessageSender,
+//    receiver: MixMessageReceiver,
+//
+//    shutdown: Arc<Notify>,
+//}
+//
+//impl MixMessagesHandle {
+//    fn new(shutdown: Notify) -> Self {
+//        let (sender, receiver) = mpsc::unbounded();
+//        MixMessagesHandle {
+//            sender,
+//            receiver,
+//            shutdown: Arc::new(Notify::new()),
+//        }
+//    }
+//
+//    fn shutdown(&self) {
+//        self.shutdown.notify()
+//    }
+//
+//    fn get_sender(&self) -> MixMessageSender {
+//        self.sender.clone()
+//    }
+//
+//    fn start_accepting(&self) {
+//        let shutdown_signal = Arc::clone(&self.shutdown);
+//
+//        // note to the graceful pull request reviewer: this is by no means how we'd be handling
+//        // proper shutdown signals, this is more of an experiment that happened to do exactly
+//        // what I needed in here (basically to not leak memory)
+//        tokio::spawn(async move {
+//            tokio::select! {
+//                            // TODO: solve borrow issue and figure out how to push result to socket
+//            //                msg = self.receiver.next() => {
+//            //
+//            //                }
+//
+//                            _ = shutdown_signal.notified() => {
+//                                info!("received shutdown notification")
+//                            }
+//                        }
+//        });
+//    }
+//}
+//
+//// TODO: note for my future self to consider the following idea:
+//// split the socket connection into sink and stream
+//// stream will be for reading explicit requests
+//// and sink for pumping responses AND mix traffic
+//// but as byproduct this might (or might not) break the clean "SocketStream" enum here
 
 enum SocketStream<S: AsyncRead + AsyncWrite + Unpin> {
     RawTCP(S),
@@ -75,7 +83,6 @@ enum SocketStream<S: AsyncRead + AsyncWrite + Unpin> {
 
 pub(crate) struct Handle<S: AsyncRead + AsyncWrite + Unpin> {
     address: Option<DestinationAddressBytes>,
-    authenticated: bool,
     clients_handler_sender: ClientsHandlerRequestSender,
     socket_connection: SocketStream<S>,
 }
@@ -89,7 +96,6 @@ where
     pub(crate) fn new(conn: S, clients_handler_sender: ClientsHandlerRequestSender) -> Self {
         Handle {
             address: None,
-            authenticated: false,
             clients_handler_sender,
             socket_connection: SocketStream::RawTCP(conn),
         }
@@ -127,6 +133,23 @@ where
         }
     }
 
+    async fn send_websocket_sphinx_packets(
+        &mut self,
+        packets: Vec<Vec<u8>>,
+    ) -> Result<(), WsError> {
+        let messages: Vec<Result<Message, WsError>> = packets
+            .into_iter()
+            .map(|packet| Ok(Message::Binary(packet)))
+            .collect();
+        let mut send_stream = futures::stream::iter(messages);
+        match self.socket_connection {
+            SocketStream::UpgradedWebSocket(ref mut ws_stream) => {
+                ws_stream.send_all(&mut send_stream).await
+            }
+            _ => panic!("impossible state - websocket handshake was somehow reverted"),
+        }
+    }
+
     fn disconnect(&self) {
         // if we never established what is the address of the client, its connection was never
         // announced hence we do not need to send 'disconnect' message
@@ -146,7 +169,12 @@ where
         unimplemented!()
     }
 
-    async fn handle_authenticate(&mut self, address: String, token: String) -> ServerResponse {
+    async fn handle_authenticate(
+        &mut self,
+        address: String,
+        token: String,
+        mix_sender: MixMessageSender,
+    ) -> ServerResponse {
         // TODO: https://github.com/nymtech/sphinx/issues/57 to resolve possible panics
         // because we do **NOT** trust whatever garbage client just sent.
         let address = DestinationAddressBytes::from_base58_string(address);
@@ -158,48 +186,72 @@ where
             }
         };
 
-        // TODO: how to deal with the mix sender channel?
+        let (res_sender, res_receiver) = oneshot::channel();
+        let clients_handler_request =
+            ClientsHandlerRequest::Authenticate(address.clone(), token, mix_sender, res_sender);
+        self.clients_handler_sender
+            .unbounded_send(clients_handler_request)
+            .unwrap(); // the receiver MUST BE alive
 
-        //        let (res_sender, res_receiver) = oneshot::channel();
-        //        let clients_handler_request =
-        //            ClientsHandlerRequest::Authenticate(address, token, res_sender);
-        //        self.clients_handler_sender
-        //            .unbounded_send(clients_handler_request)
-        //            .unwrap(); // the receiver MUST BE alive
-        //
-        //        let client_sender = match res_receiver.await.unwrap() {
-        //            ClientsHandlerResponse::IsOnline(client_sender) => client_sender,
-        //            _ => panic!("received response to wrong query!"), // again, this should NEVER happen
-        //        };
-
-        unimplemented!()
+        match res_receiver.await.unwrap() {
+            ClientsHandlerResponse::Authenticate(authenticated) => {
+                if authenticated {
+                    self.address = Some(address);
+                }
+                ServerResponse::Authenticate {
+                    status: authenticated,
+                }
+            }
+            ClientsHandlerResponse::Error(e) => {
+                error!("Authentication unexpectedly failed - {}", e);
+                ServerResponse::Error {
+                    message: "unexpected failure".into(),
+                }
+            }
+            _ => panic!("received response to wrong query!"), // this should NEVER happen
+        }
     }
 
-    async fn handle_register(&mut self, address: String) -> ServerResponse {
+    async fn handle_register(
+        &mut self,
+        address: String,
+        mix_sender: MixMessageSender,
+    ) -> ServerResponse {
         // TODO: https://github.com/nymtech/sphinx/issues/57 to resolve possible panics
         // because we do **NOT** trust whatever garbage client just sent.
         let address = DestinationAddressBytes::from_base58_string(address);
 
-        // TODO: how to deal with the mix sender channel?
+        let (res_sender, res_receiver) = oneshot::channel();
+        let clients_handler_request =
+            ClientsHandlerRequest::Register(address.clone(), mix_sender, res_sender);
+        self.clients_handler_sender
+            .unbounded_send(clients_handler_request)
+            .unwrap(); // the receiver MUST BE alive
 
-        unimplemented!()
+        match res_receiver.await.unwrap() {
+            // currently register can't fail (as in if all machines are working correctly and you
+            // send valid address, you will receive a valid token)
+            ClientsHandlerResponse::Register(token) => {
+                self.address = Some(address);
+                ServerResponse::Register {
+                    token: token.to_base58_string(),
+                }
+            }
+            ClientsHandlerResponse::Error(e) => {
+                error!("Authentication unexpectedly failed - {}", e);
+                ServerResponse::Error {
+                    message: "unexpected failure".into(),
+                }
+            }
+            _ => panic!("received response to wrong query!"), // this should NEVER happen
+        }
     }
 
     async fn handle_text(&mut self, text_msg: String) -> Message {
         trace!("Handling text message (presumably control message)");
 
-        match ClientRequest::try_from(text_msg) {
-            Err(e) => ServerResponse::Error {
-                message: format!("received invalid request. err: {:?}", e),
-            },
-            Ok(req) => match req {
-                ClientRequest::Authenticate { address, token } => {
-                    self.handle_authenticate(address, token).await
-                }
-                ClientRequest::Register { address } => self.handle_register(address).await,
-            },
-        }
-        .into()
+        error!("Currently there are no text messages besides 'Authenticate' and 'Register' and they were already dealt with!");
+        ServerResponse::new_error("invalid request").into()
     }
 
     async fn handle_request(&mut self, raw_request: Message) -> Option<Message> {
@@ -213,11 +265,8 @@ where
         }
     }
 
-    // TODO: FUTURE SELF, START HERE TOMORROW:
-    // change into "wait for authentication" and then listen for either client request
-    // or mix message channel message!
-    async fn listen_for_requests(&mut self) {
-        trace!("Started listening for incoming requests...");
+    async fn wait_for_initial_authentication(&mut self) -> Option<MixMessageReceiver> {
+        trace!("Started waiting for authenticate/register request...");
 
         while let Some(msg) = self.next_websocket_request().await {
             let msg = match msg {
@@ -232,13 +281,90 @@ where
                 break;
             }
 
-            if let Some(response) = self.handle_request(msg).await {
-                if let Err(err) = self.send_websocket_response(response).await {
-                    warn!(
-                        "Failed to send message over websocket: {}. Assuming the connection is dead.",
-                        err
-                    );
-                    break;
+            let (mix_sender, mix_receiver) = mpsc::unbounded();
+
+            // ONLY handle 'Authenticate' or 'Register' requests, ignore everything else
+            let response = match msg {
+                Message::Close(_) => break,
+                Message::Text(text_msg) => {
+                    if let Ok(request) = ClientRequest::try_from(text_msg) {
+                        match request {
+                            ClientRequest::Authenticate { address, token } => {
+                                self.handle_authenticate(address, token, mix_sender).await
+                            }
+                            ClientRequest::Register { address } => {
+                                self.handle_register(address, mix_sender).await
+                            }
+                        }
+                    } else {
+                        ServerResponse::new_error("malformed request")
+                    }
+                }
+                Message::Binary(_) => {
+                    // perhaps logging level should be reduced here, let's leave it for now and see what happens
+                    warn!("possibly received a sphinx packet without prior authentication. Request is going to be ignored");
+                    ServerResponse::new_error("binary request without prior authentication")
+                }
+
+                _ => continue,
+            };
+
+            let is_done = response.implies_successful_authentication();
+
+            if let Err(err) = self.send_websocket_response(response.into()).await {
+                warn!(
+                    "Failed to send message over websocket: {}. Assuming the connection is dead.",
+                    err
+                );
+                break;
+            }
+
+            // it means we successfully managed to perform authentication and announce our
+            // presence to ClientsHandler
+            if is_done {
+                return Some(mix_receiver);
+            }
+        }
+        None
+    }
+
+    async fn listen_for_requests(&mut self, mut mix_receiver: MixMessageReceiver) {
+        trace!("Started listening for ALL incoming requests...");
+
+        loop {
+            tokio::select! {
+                socket_msg = self.next_websocket_request() => {
+                    if socket_msg.is_none() {
+                        break;
+                    }
+                    let socket_msg = match socket_msg.unwrap() {
+                        Ok(socket_msg) => socket_msg,
+                        Err(err) => {
+                            error!("failed to obtain message from websocket stream! stopping connection handler: {}", err);
+                            break;
+                        }
+                    };
+
+                    if socket_msg.is_close() {
+                        break;
+                    }
+
+                    if let Some(response) = self.handle_request(socket_msg).await {
+                        if let Err(err) = self.send_websocket_response(response).await {
+                            warn!(
+                                "Failed to send message over websocket: {}. Assuming the connection is dead.",
+                                err
+                            );
+                            break;
+                        }
+                    }
+                },
+                mix_messages = mix_receiver.next() => {
+                    let mix_messages = mix_messages.expect("sender was unexpectedly closed! this shouldn't have ever happened!");
+                    if let Err(e) = self.send_websocket_sphinx_packets(mix_messages).await {
+                        warn!("failed to send sphinx packets back to the client, assuming the connection is dead");
+                        break;
+                    }
                 }
             }
         }
@@ -250,6 +376,12 @@ where
     pub(crate) async fn start_handling(&mut self) {
         self.perform_websocket_handshake().await;
         trace!("Managed to perform websocket handshake!");
-        self.listen_for_requests().await;
+        let mix_receiver = self.wait_for_initial_authentication().await;
+        trace!("Performed initial authentication");
+        match mix_receiver {
+            Some(receiver) => self.listen_for_requests(receiver).await,
+            None => trace!("But connection was closed during the process"),
+        }
+        trace!("The handler is done!");
     }
 }

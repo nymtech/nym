@@ -19,11 +19,15 @@ use futures::StreamExt;
 use log::*;
 use std::net::SocketAddr;
 use std::time::Duration;
+use tokio::task::JoinHandle;
+
+pub(crate) type OutboundMixMessageSender = mpsc::UnboundedSender<(SocketAddr, Vec<u8>)>;
+pub(crate) type OutboundMixMessageReceiver = mpsc::UnboundedReceiver<(SocketAddr, Vec<u8>)>;
 
 pub(crate) struct PacketForwarder {
     tcp_client: multi_tcp_client::Client,
-    conn_tx: mpsc::UnboundedSender<(SocketAddr, Vec<u8>)>,
-    conn_rx: mpsc::UnboundedReceiver<(SocketAddr, Vec<u8>)>,
+    conn_tx: OutboundMixMessageSender,
+    conn_rx: OutboundMixMessageReceiver,
 }
 
 impl PacketForwarder {
@@ -47,17 +51,20 @@ impl PacketForwarder {
         }
     }
 
-    pub(crate) fn start(mut self) -> mpsc::UnboundedSender<(SocketAddr, Vec<u8>)> {
+    pub(crate) fn start(mut self) -> (JoinHandle<()>, OutboundMixMessageSender) {
         // TODO: what to do with the lost JoinHandle - do we even care?
         let sender_channel = self.conn_tx.clone();
-        tokio::spawn(async move {
-            while let Some((address, packet)) = self.conn_rx.next().await {
-                trace!("Going to forward packet to {:?}", address);
-                // as a mix node we don't care about responses, we just want to fire packets
-                // as quickly as possible
-                self.tcp_client.send(address, packet, false).await.unwrap(); // if we're not waiting for response, we MUST get an Ok
-            }
-        });
-        sender_channel
+        (
+            tokio::spawn(async move {
+                while let Some((address, packet)) = self.conn_rx.next().await {
+                    trace!("Going to forward packet to {:?}", address);
+                    // as a mix node we don't care about responses, we just want to fire packets
+                    // as quickly as possible
+                    self.tcp_client.send(address, packet, false).await.unwrap();
+                    // if we're not waiting for response, we MUST get an Ok
+                }
+            }),
+            sender_channel,
+        )
     }
 }

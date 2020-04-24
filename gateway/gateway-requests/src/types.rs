@@ -12,13 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::types::BinaryRequest::ForwardSphinx;
+use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use std::net::SocketAddr;
 use tokio_tungstenite::tungstenite::protocol::Message;
+
+#[derive(Debug)]
+pub enum GatewayRequestsError {
+    IncorrectlyEncodedAddress,
+    RequestOfInvalidSize(usize, usize),
+}
+
+impl From<NymNodeRoutingAddressError> for GatewayRequestsError {
+    fn from(_: NymNodeRoutingAddressError) -> Self {
+        GatewayRequestsError::IncorrectlyEncodedAddress
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
-pub enum ClientRequest {
+pub enum ClientControlRequest {
     Authenticate { address: String, token: String },
     Register { address: String },
 }
@@ -30,6 +45,51 @@ pub enum ServerResponse {
     Register { token: String },
     Send { status: bool },
     Error { message: String },
+}
+
+pub enum BinaryRequest {
+    ForwardSphinx { address: SocketAddr, data: Vec<u8> },
+}
+
+impl BinaryRequest {
+    pub fn try_from_bytes(raw_req: &[u8]) -> Result<Self, GatewayRequestsError> {
+        // right now there's only a single option possible which significantly simplifies the logic
+        // if we decided to allow for more 'binary' messages, the API wouldn't need to change
+        let address = NymNodeRoutingAddress::try_from_bytes(&raw_req)?;
+        let offset = address.bytes_min_len();
+
+        if raw_req[offset..].len() != nymsphinx::PACKET_SIZE {
+            Err(GatewayRequestsError::RequestOfInvalidSize(
+                raw_req[offset..].len(),
+                nymsphinx::PACKET_SIZE,
+            ))
+        } else {
+            Ok(ForwardSphinx {
+                address: address.into(),
+                data: raw_req[offset..].into(),
+            })
+        }
+    }
+
+    pub fn into_bytes(self) -> Vec<u8> {
+        match self {
+            BinaryRequest::ForwardSphinx { address, data } => {
+                // TODO: using intermediate `NymNodeRoutingAddress` here is just temporary, because
+                // it happens to do exactly what we needed, but we don't really want to be
+                // dependant on what it does
+                let wrapped_address = NymNodeRoutingAddress::from(address);
+                wrapped_address
+                    .as_bytes()
+                    .into_iter()
+                    .chain(data.into_iter())
+                    .collect()
+            }
+        }
+    }
+
+    pub fn new_forward_request(address: SocketAddr, data: Vec<u8>) -> BinaryRequest {
+        BinaryRequest::ForwardSphinx { address, data }
+    }
 }
 
 impl ServerResponse {
@@ -55,7 +115,7 @@ impl ServerResponse {
     }
 }
 
-impl TryFrom<String> for ClientRequest {
+impl TryFrom<String> for ClientControlRequest {
     type Error = serde_json::Error;
 
     fn try_from(msg: String) -> Result<Self, Self::Error> {

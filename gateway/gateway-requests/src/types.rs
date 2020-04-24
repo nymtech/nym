@@ -14,12 +14,12 @@
 
 use crate::types::BinaryRequest::ForwardSphinx;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
-use serde::export::fmt::Error;
-use serde::export::Formatter;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
-use std::fmt;
-use std::net::SocketAddr;
+use std::{
+    convert::TryFrom,
+    fmt::{self, Error, Formatter},
+    net::SocketAddr,
+};
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 #[derive(Debug)]

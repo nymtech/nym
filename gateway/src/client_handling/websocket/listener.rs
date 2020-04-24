@@ -14,6 +14,7 @@
 
 use crate::client_handling::clients_handler::ClientsHandlerRequestSender;
 use crate::client_handling::websocket::connection_handler::Handle;
+use crate::mixnet_handling::sender::OutboundMixMessageSender;
 use log::*;
 use std::net::SocketAddr;
 use tokio::task::JoinHandle;
@@ -27,7 +28,11 @@ impl Listener {
         Listener { address }
     }
 
-    pub(crate) async fn run(&mut self, clients_handler_sender: ClientsHandlerRequestSender) {
+    pub(crate) async fn run(
+        &mut self,
+        clients_handler_sender: ClientsHandlerRequestSender,
+        outbound_mix_sender: OutboundMixMessageSender,
+    ) {
         info!("Starting websocket listener at {}", self.address);
         let mut tcp_listener = tokio::net::TcpListener::bind(self.address)
             .await
@@ -37,7 +42,11 @@ impl Listener {
             match tcp_listener.accept().await {
                 Ok((socket, remote_addr)) => {
                     trace!("received a socket connection from {}", remote_addr);
-                    let mut handle = Handle::new(socket, clients_handler_sender.clone());
+                    let mut handle = Handle::new(
+                        socket,
+                        clients_handler_sender.clone(),
+                        outbound_mix_sender.clone(),
+                    );
                     tokio::spawn(async move { handle.start_handling().await });
                 }
                 Err(e) => warn!("failed to get client: {:?}", e),
@@ -48,7 +57,8 @@ impl Listener {
     pub(crate) fn start(
         mut self,
         clients_handler_sender: ClientsHandlerRequestSender,
+        outbound_mix_sender: OutboundMixMessageSender,
     ) -> JoinHandle<()> {
-        tokio::spawn(async move { self.run(clients_handler_sender).await })
+        tokio::spawn(async move { self.run(clients_handler_sender, outbound_mix_sender).await })
     }
 }

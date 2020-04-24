@@ -1,12 +1,10 @@
-use std::convert::TryFrom;
-use std::sync::Arc;
-
 use futures::{
     channel::{mpsc, oneshot},
-    SinkExt, TryStream, TryStreamExt,
+    SinkExt,
 };
 use log::*;
-use tokio::{prelude::*, stream::StreamExt, sync::Notify};
+use std::convert::TryFrom;
+use tokio::{prelude::*, stream::StreamExt};
 use tokio_tungstenite::{
     tungstenite::{protocol::Message, Error as WsError},
     WebSocketStream,
@@ -20,55 +18,8 @@ use crate::client_handling::clients_handler::{
     ClientsHandlerRequest, ClientsHandlerRequestSender, ClientsHandlerResponse,
 };
 use crate::client_handling::websocket::message_receiver::{MixMessageReceiver, MixMessageSender};
+use crate::mixnet_handling::sender::OutboundMixMessageSender;
 
-//
-//// EXPERIMENT:
-//struct MixMessagesHandle {
-//    sender: MixMessageSender,
-//    receiver: MixMessageReceiver,
-//
-//    shutdown: Arc<Notify>,
-//}
-//
-//impl MixMessagesHandle {
-//    fn new(shutdown: Notify) -> Self {
-//        let (sender, receiver) = mpsc::unbounded();
-//        MixMessagesHandle {
-//            sender,
-//            receiver,
-//            shutdown: Arc::new(Notify::new()),
-//        }
-//    }
-//
-//    fn shutdown(&self) {
-//        self.shutdown.notify()
-//    }
-//
-//    fn get_sender(&self) -> MixMessageSender {
-//        self.sender.clone()
-//    }
-//
-//    fn start_accepting(&self) {
-//        let shutdown_signal = Arc::clone(&self.shutdown);
-//
-//        // note to the graceful pull request reviewer: this is by no means how we'd be handling
-//        // proper shutdown signals, this is more of an experiment that happened to do exactly
-//        // what I needed in here (basically to not leak memory)
-//        tokio::spawn(async move {
-//            tokio::select! {
-//                            // TODO: solve borrow issue and figure out how to push result to socket
-//            //                msg = self.receiver.next() => {
-//            //
-//            //                }
-//
-//                            _ = shutdown_signal.notified() => {
-//                                info!("received shutdown notification")
-//                            }
-//                        }
-//        });
-//    }
-//}
-//
 //// TODO: note for my future self to consider the following idea:
 //// split the socket connection into sink and stream
 //// stream will be for reading explicit requests
@@ -84,6 +35,7 @@ enum SocketStream<S: AsyncRead + AsyncWrite + Unpin> {
 pub(crate) struct Handle<S: AsyncRead + AsyncWrite + Unpin> {
     address: Option<DestinationAddressBytes>,
     clients_handler_sender: ClientsHandlerRequestSender,
+    outbound_mix_sender: OutboundMixMessageSender,
     socket_connection: SocketStream<S>,
 }
 
@@ -93,10 +45,15 @@ where
 {
     // for time being we assume handle is always constructed from raw socket.
     // if we decide we want to change it, that's not too difficult
-    pub(crate) fn new(conn: S, clients_handler_sender: ClientsHandlerRequestSender) -> Self {
+    pub(crate) fn new(
+        conn: S,
+        clients_handler_sender: ClientsHandlerRequestSender,
+        outbound_mix_sender: OutboundMixMessageSender,
+    ) -> Self {
         Handle {
             address: None,
             clients_handler_sender,
+            outbound_mix_sender,
             socket_connection: SocketStream::RawTCP(conn),
         }
     }

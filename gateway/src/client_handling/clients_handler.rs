@@ -1,17 +1,21 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use futures::channel::{mpsc, oneshot};
+use futures::StreamExt;
+use hmac::{Hmac, Mac};
+use log::*;
+use sha2::Sha256;
+use tokio::task::JoinHandle;
+
+use crypto::encryption;
+use gateway_requests::auth_token::AuthToken;
+use nymsphinx::DestinationAddressBytes;
+
 use crate::client_handling::ledger::ClientLedger;
 use crate::client_handling::websocket::message_receiver::MixMessageSender;
 use crate::storage::ClientStorage;
-use crypto::encryption;
-use futures::channel::{mpsc, oneshot};
-use futures::StreamExt;
-use gateway_requests::auth_token::AuthToken;
-use hmac::{Hmac, Mac};
-use log::*;
-use nymsphinx::DestinationAddressBytes;
-use sha2::Sha256;
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::task::JoinHandle;
+use std::path::PathBuf;
 
 pub(crate) type ClientsHandlerRequestSender = mpsc::UnboundedSender<ClientsHandlerRequest>;
 pub(crate) type ClientsHandlerRequestReceiver = mpsc::UnboundedReceiver<ClientsHandlerRequest>;
@@ -57,14 +61,15 @@ pub(crate) struct ClientsHandler {
 
 impl ClientsHandler {
     pub(crate) fn new(
-        request_receiver_channel: ClientsHandlerRequestReceiver,
         secret_key: Arc<encryption::PrivateKey>,
+        ledger_path: PathBuf,
+        clients_inbox_storage: ClientStorage,
     ) -> Self {
         ClientsHandler {
             secret_key,
             open_connections: HashMap::new(),
-            clients_ledger: unimplemented!(),
-            clients_inbox_storage: unimplemented!(),
+            clients_ledger: ClientLedger::load(ledger_path).unwrap(),
+            clients_inbox_storage,
         }
     }
 

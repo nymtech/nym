@@ -53,7 +53,6 @@ pub(crate) struct ClientsHandler {
     open_connections: HashMap<DestinationAddressBytes, MixMessageSender>,
     clients_ledger: ClientLedger,
     clients_inbox_storage: ClientStorage,
-    request_receiver_channel: ClientsHandlerRequestReceiver,
 }
 
 impl ClientsHandler {
@@ -64,7 +63,6 @@ impl ClientsHandler {
         ClientsHandler {
             secret_key,
             open_connections: HashMap::new(),
-            request_receiver_channel,
             clients_ledger: unimplemented!(),
             clients_inbox_storage: unimplemented!(),
         }
@@ -266,8 +264,8 @@ impl ClientsHandler {
             .unwrap();
     }
 
-    pub(crate) async fn run(&mut self) {
-        while let Some(request) = self.request_receiver_channel.next().await {
+    pub(crate) async fn run(&mut self, mut request_receiver_channel: ClientsHandlerRequestReceiver) {
+        while let Some(request) = request_receiver_channel.next().await {
             match request {
                 ClientsHandlerRequest::Register(address, comm_channel, res_channel) => {
                     self.handle_register_request(address, comm_channel, res_channel)
@@ -286,7 +284,8 @@ impl ClientsHandler {
         error!("Something bad has happened and we stopped listening for requests!");
     }
 
-    pub(crate) fn start(mut self) -> JoinHandle<()> {
-        tokio::spawn(async move { self.run().await })
+    pub(crate) fn start(mut self) -> (JoinHandle<()>, ClientsHandlerRequestSender) {
+        let (sender, receiver) = mpsc::unbounded(),
+        (tokio::spawn(async move { self.run(receiver).await }), sender)
     }
 }

@@ -14,8 +14,11 @@
 
 use crate::types::BinaryRequest::ForwardSphinx;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
+use serde::export::fmt::Error;
+use serde::export::Formatter;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use std::fmt;
 use std::net::SocketAddr;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
@@ -23,6 +26,22 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 pub enum GatewayRequestsError {
     IncorrectlyEncodedAddress,
     RequestOfInvalidSize(usize, usize),
+}
+
+// to use it as `std::error::Error`, and we don't want to just derive is because we want
+// the message to convey meanings of the usize tuple in RequestOfInvalidSize.
+impl fmt::Display for GatewayRequestsError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        use GatewayRequestsError::*;
+        match self {
+            IncorrectlyEncodedAddress => write!(f, "address field was incorrectly encoded"),
+            RequestOfInvalidSize(actual, expected) => write!(
+                f,
+                "received request had invalid size. (actual: {}, expected: {})",
+                actual, expected
+            ),
+        }
+    }
 }
 
 impl From<NymNodeRoutingAddressError> for GatewayRequestsError {

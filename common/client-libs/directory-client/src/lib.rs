@@ -58,17 +58,13 @@ pub struct Client {
 
 impl DirectoryClient for Client {
     fn new(config: Config) -> Client {
-        let health_check: HealthCheckRequest = HealthCheckRequest::new(config.base_url.clone());
-        let metrics_mixes: MetricsMixRequest = MetricsMixRequest::new(config.base_url.clone());
-        let metrics_post: MetricsMixPost = MetricsMixPost::new(config.base_url.clone());
-        let presence_topology: PresenceTopologyRequest =
-            PresenceTopologyRequest::new(config.base_url.clone());
-        let presence_coconodes_post: PresenceCocoNodesPost =
-            PresenceCocoNodesPost::new(config.base_url.clone());
-        let presence_mix_nodes_post: PresenceMixNodesPost =
-            PresenceMixNodesPost::new(config.base_url.clone());
-        let presence_providers_post: PresenceProvidersPost =
-            PresenceProvidersPost::new(config.base_url);
+        let health_check = HealthCheckRequest::new(config.base_url.clone());
+        let metrics_mixes = MetricsMixRequest::new(config.base_url.clone());
+        let metrics_post = MetricsMixPost::new(config.base_url.clone());
+        let presence_topology = PresenceTopologyRequest::new(config.base_url.clone());
+        let presence_coconodes_post = PresenceCocoNodesPost::new(config.base_url.clone());
+        let presence_mix_nodes_post = PresenceMixNodesPost::new(config.base_url.clone());
+        let presence_providers_post = PresenceProvidersPost::new(config.base_url);
         Client {
             health_check,
             metrics_mixes,

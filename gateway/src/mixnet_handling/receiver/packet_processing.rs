@@ -22,7 +22,7 @@ use futures::channel::oneshot;
 use futures::lock::Mutex;
 use log::*;
 use mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD;
-use nymsphinx::{DestinationAddressBytes, ProcessedPacket, SURBIdentifier, SphinxPacket};
+use nymsphinx::{DestinationAddressBytes, ProcessedPacket, SphinxPacket};
 use std::collections::HashMap;
 use std::io;
 use std::ops::Deref;
@@ -35,12 +35,6 @@ pub enum MixProcessingError {
     InvalidPayload,
     SphinxProcessingError,
     IOError(String),
-}
-
-pub enum MixProcessingResult {
-    #[allow(dead_code)]
-    ForwardHop,
-    FinalHop,
 }
 
 impl From<nymsphinx::ProcessingError> for MixProcessingError {
@@ -172,7 +166,7 @@ impl PacketProcessor {
                 warn!("Received a forward hop message - those are not implemented for providers");
                 Err(MixProcessingError::ReceivedForwardHopError)
             }
-            Ok(ProcessedPacket::ProcessedPacketFinalHop(client_address, surb_id, payload)) => {
+            Ok(ProcessedPacket::ProcessedPacketFinalHop(client_address, _surb_id, payload)) => {
                 // in our current design, we do not care about the 'surb_id' in the header
                 // as it will always be empty anyway
                 let (payload_destination, message) = payload

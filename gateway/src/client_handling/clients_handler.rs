@@ -12,30 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-
-use futures::channel::{mpsc, oneshot};
-use futures::StreamExt;
+use crate::client_handling::{ledger::ClientLedger, websocket::message_receiver::MixMessageSender};
+use crate::storage::ClientStorage;
+use crypto::encryption;
+use futures::{
+    channel::{mpsc, oneshot},
+    StreamExt,
+};
+use gateway_requests::auth_token::AuthToken;
 use hmac::{Hmac, Mac};
 use log::*;
-use sha2::Sha256;
-use tokio::task::JoinHandle;
-
-use crypto::encryption;
-use gateway_requests::auth_token::AuthToken;
 use nymsphinx::DestinationAddressBytes;
-
-use crate::client_handling::ledger::ClientLedger;
-use crate::client_handling::websocket::message_receiver::MixMessageSender;
-use crate::storage::ClientStorage;
+use sha2::Sha256;
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::task::JoinHandle;
 
 pub(crate) type ClientsHandlerRequestSender = mpsc::UnboundedSender<ClientsHandlerRequest>;
 pub(crate) type ClientsHandlerRequestReceiver = mpsc::UnboundedReceiver<ClientsHandlerRequest>;
 
 pub(crate) type ClientsHandlerResponseSender = oneshot::Sender<ClientsHandlerResponse>;
-pub(crate) type ClientsHandlerResponseReceiver = oneshot::Receiver<ClientsHandlerResponse>;
 
 #[derive(Debug)]
 pub(crate) enum ClientsHandlerRequest {
@@ -95,7 +92,7 @@ impl ClientsHandler {
     }
 
     // best effort sending error responses
-    fn send_error_response<E>(&self, err: E, mut res_channel: ClientsHandlerResponseSender)
+    fn send_error_response<E>(&self, err: E, res_channel: ClientsHandlerResponseSender)
     where
         E: Into<Box<dyn std::error::Error + Send + Sync>>,
     {
@@ -176,7 +173,7 @@ impl ClientsHandler {
         &mut self,
         address: DestinationAddressBytes,
         comm_channel: MixMessageSender,
-        mut res_channel: ClientsHandlerResponseSender,
+        res_channel: ClientsHandlerResponseSender,
     ) {
         debug!(
             "Processing register new client request: {:?}",
@@ -229,7 +226,7 @@ impl ClientsHandler {
         address: DestinationAddressBytes,
         token: AuthToken,
         comm_channel: MixMessageSender,
-        mut res_channel: ClientsHandlerResponseSender,
+        res_channel: ClientsHandlerResponseSender,
     ) {
         debug!(
             "Processing authenticate client request: {:?}",
@@ -266,7 +263,7 @@ impl ClientsHandler {
     fn handle_is_online_request(
         &self,
         address: DestinationAddressBytes,
-        mut res_channel: ClientsHandlerResponseSender,
+        res_channel: ClientsHandlerResponseSender,
     ) {
         debug!(
             "Processing is online request for: {:?}",

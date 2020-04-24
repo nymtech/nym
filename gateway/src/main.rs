@@ -23,7 +23,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 mod client_handling;
-mod mixnet_client;
 mod mixnet_handling;
 pub(crate) mod storage;
 

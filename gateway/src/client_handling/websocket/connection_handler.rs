@@ -11,7 +11,7 @@ use tokio_tungstenite::{
 };
 
 use gateway_requests::auth_token::AuthToken;
-use gateway_requests::types::{ClientRequest, ServerResponse};
+use gateway_requests::types::{BinaryRequest, ClientControlRequest, ServerResponse};
 use nymsphinx::DestinationAddressBytes;
 
 use crate::client_handling::clients_handler::{
@@ -120,10 +120,20 @@ where
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
         trace!("Handling binary message (presumably sphinx packet)");
 
-        // if it's binary, it MUST BE a sphinx packet. We can't look into it, but let's at least
-        // validate its size.
-        if bin_msg.len() != nymsphinx::PACKET_SIZE {}
-        unimplemented!()
+        match BinaryRequest::try_from_bytes(&bin_msg) {
+            Err(e) => ServerResponse::new_error(e.to_string()),
+            Ok(request) => match request {
+                // currently only a single type exists
+                BinaryRequest::ForwardSphinx { address, data } => {
+                    // we know data has correct size (but nothing else besides of it)
+                    self.outbound_mix_sender
+                        .unbounded_send((address, data))
+                        .unwrap();
+                    ServerResponse::Send { status: true }
+                }
+            },
+        }
+        .into()
     }
 
     async fn handle_authenticate(
@@ -204,7 +214,8 @@ where
         }
     }
 
-    async fn handle_text(&mut self, text_msg: String) -> Message {
+    // currently there are no valid control messages you can send after authentication
+    async fn handle_text(&mut self, _: String) -> Message {
         trace!("Handling text message (presumably control message)");
 
         error!("Currently there are no text messages besides 'Authenticate' and 'Register' and they were already dealt with!");
@@ -244,12 +255,12 @@ where
             let response = match msg {
                 Message::Close(_) => break,
                 Message::Text(text_msg) => {
-                    if let Ok(request) = ClientRequest::try_from(text_msg) {
+                    if let Ok(request) = ClientControlRequest::try_from(text_msg) {
                         match request {
-                            ClientRequest::Authenticate { address, token } => {
+                            ClientControlRequest::Authenticate { address, token } => {
                                 self.handle_authenticate(address, token, mix_sender).await
                             }
-                            ClientRequest::Register { address } => {
+                            ClientControlRequest::Register { address } => {
                                 self.handle_register(address, mix_sender).await
                             }
                         }
@@ -319,7 +330,7 @@ where
                 mix_messages = mix_receiver.next() => {
                     let mix_messages = mix_messages.expect("sender was unexpectedly closed! this shouldn't have ever happened!");
                     if let Err(e) = self.send_websocket_sphinx_packets(mix_messages).await {
-                        warn!("failed to send sphinx packets back to the client, assuming the connection is dead");
+                        warn!("failed to send sphinx packets back to the client - {:?}, assuming the connection is dead", e);
                         break;
                     }
                 }

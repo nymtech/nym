@@ -34,7 +34,24 @@ pub enum ServerResponse {
 
 impl ServerResponse {
     pub fn new_error<S: Into<String>>(msg: S) -> Self {
-        ServerResponse::Error {message: msg.into()}
+        ServerResponse::Error {
+            message: msg.into(),
+        }
+    }
+
+    pub fn is_error(&self) -> bool {
+        match self {
+            ServerResponse::Error { .. } => true,
+            _ => false,
+        }
+    }
+
+    pub fn implies_successful_authentication(&self) -> bool {
+        match self {
+            ServerResponse::Authenticate { status } => *status,
+            ServerResponse::Register { .. } => true,
+            _ => false,
+        }
     }
 }
 

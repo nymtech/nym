@@ -264,7 +264,10 @@ impl ClientsHandler {
             .unwrap();
     }
 
-    pub(crate) async fn run(&mut self, mut request_receiver_channel: ClientsHandlerRequestReceiver) {
+    pub(crate) async fn run(
+        &mut self,
+        mut request_receiver_channel: ClientsHandlerRequestReceiver,
+    ) {
         while let Some(request) = request_receiver_channel.next().await {
             match request {
                 ClientsHandlerRequest::Register(address, comm_channel, res_channel) => {
@@ -285,7 +288,10 @@ impl ClientsHandler {
     }
 
     pub(crate) fn start(mut self) -> (JoinHandle<()>, ClientsHandlerRequestSender) {
-        let (sender, receiver) = mpsc::unbounded(),
-        (tokio::spawn(async move { self.run(receiver).await }), sender)
+        let (sender, receiver) = mpsc::unbounded();
+        (
+            tokio::spawn(async move { self.run(receiver).await }),
+            sender,
+        )
     }
 }

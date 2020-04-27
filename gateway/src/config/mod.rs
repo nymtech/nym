@@ -29,7 +29,10 @@ const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
-const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 1500;
+const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 1500; // 1.5s
+const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: u64 = 10_000; // 10s
+const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: u64 = 300_000; // 5min
+const DEFAULT_INITIAL_CONNECTION_TIMEOUT: u64 = 1_500; // 1.5s
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: u16 = 5;
@@ -340,6 +343,18 @@ impl Config {
         self.clients_endpoint.ledger_path.clone()
     }
 
+    pub fn get_packet_forwarding_initial_backoff(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.packet_forwarding_initial_backoff)
+    }
+
+    pub fn get_packet_forwarding_maximum_backoff(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.packet_forwarding_maximum_backoff)
+    }
+
+    pub fn get_initial_connection_timeout(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.initial_connection_timeout)
+    }
+
     pub fn get_message_retrieval_limit(&self) -> u16 {
         self.debug.message_retrieval_limit
     }
@@ -487,6 +502,20 @@ pub struct Debug {
     /// Directory server to which the server will be reporting their presence data.
     presence_directory_server: String,
 
+    /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
+    /// forwarding sphinx packets.
+    /// The provided value is interpreted as milliseconds.
+    packet_forwarding_initial_backoff: u64,
+
+    /// Maximum value of an exponential backoff to reconnect to dropped TCP connection when
+    /// forwarding sphinx packets.
+    /// The provided value is interpreted as milliseconds.
+    packet_forwarding_maximum_backoff: u64,
+
+    /// Timeout for establishing initial connection when trying to forward a sphinx packet.
+    /// The provider value is interpreted as milliseconds.
+    initial_connection_timeout: u64,
+
     /// Delay between each subsequent presence data being sent.
     presence_sending_delay: u64,
 
@@ -514,6 +543,9 @@ impl Default for Debug {
     fn default() -> Self {
         Debug {
             presence_directory_server: Self::default_directory_server(),
+            packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
+            packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
+            initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
             stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,

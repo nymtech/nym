@@ -91,17 +91,12 @@ impl Gateway {
     }
 
     fn start_packet_forwarder(&self) -> OutboundMixMessageSender {
-        // TODO: put those into configs
-        let initial_reconnection_backoff = Duration::from_millis(10_000);
-        let maximum_reconnection_backoff = Duration::from_millis(300_000);
-        let initial_connection_timeout = Duration::from_millis(1500);
-
         info!("Starting mix packet forwarder...");
 
         let (_, forwarding_channel) = PacketForwarder::new(
-            initial_reconnection_backoff,
-            maximum_reconnection_backoff,
-            initial_connection_timeout,
+            self.config.get_packet_forwarding_initial_backoff(),
+            self.config.get_packet_forwarding_maximum_backoff(),
+            self.config.get_initial_connection_timeout(),
         )
         .start();
         forwarding_channel

@@ -183,11 +183,8 @@ impl<T: 'static + NymTopology> TopologyRefresher<T> {
 
     async fn get_current_compatible_topology(&self) -> Result<T, TopologyError> {
         let full_topology = T::new(self.directory_server.clone());
-        let version_filtered_topology = full_topology.filter_node_versions(
-            built_info::PKG_VERSION,
-            built_info::PKG_VERSION,
-            built_info::PKG_VERSION,
-        );
+        let version_filtered_topology =
+            full_topology.filter_system_version(built_info::PKG_VERSION);
 
         let healthcheck_result = self
             .health_checker

@@ -42,11 +42,8 @@ impl HealthCheckRunner {
         loop {
             let full_topology =
                 directory_client::presence::Topology::new(self.directory_server.clone());
-            let version_filtered_topology = full_topology.filter_node_versions(
-                crate::built_info::PKG_VERSION,
-                crate::built_info::PKG_VERSION,
-                crate::built_info::PKG_VERSION,
-            );
+            let version_filtered_topology =
+                full_topology.filter_system_version(crate::built_info::PKG_VERSION);
             match self
                 .health_checker
                 .do_check(&version_filtered_topology)

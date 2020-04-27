@@ -88,11 +88,7 @@ async fn choose_provider(
 ) -> (String, AuthToken) {
     // TODO: once we change to graph topology this here will need to be updated!
     let topology = Topology::new(directory_server.clone());
-    let version_filtered_topology = topology.filter_node_versions(
-        built_info::PKG_VERSION,
-        built_info::PKG_VERSION,
-        built_info::PKG_VERSION,
-    );
+    let version_filtered_topology = topology.filter_system_version(built_info::PKG_VERSION);
     // don't care about health of the networks as mixes can go up and down any time,
     // but DO care about providers
     let providers = version_filtered_topology.providers();

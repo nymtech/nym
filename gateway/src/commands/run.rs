@@ -19,6 +19,8 @@ use crate::node::Gateway;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::encryption;
+use directory_client::requests::presence_topology_get::PresenceTopologyGetRequester;
+use directory_client::DirectoryClient;
 use pemstore::pemstore::PemStore;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
@@ -139,20 +141,24 @@ fn load_sphinx_keys(config_file: &Config) -> encryption::KeyPair {
 }
 
 fn check_if_same_ip_gateway_exists(
+    directory_server: String,
     announced_mix_host: String,
     announced_clients_host: String,
 ) -> Option<String> {
-    unimplemented!()
-    //    // TODO: once we change to graph topology this here will need to be updated!
-    //    let topology = Topology::new(self.config.get_presence_directory_server());
-    //    let existing_gateways = topology.gateway_nodes;
-    //    existing_gateways
-    //        .iter()
-    //        .find(|node| {
-    //            node.mixnet_listener == announced_mix_host
-    //                || node.client_listener == announced_clients_host
-    //        })
-    //        .map(|node| node.pub_key.clone())
+    let directory_client_cfg = directory_client::Config::new(directory_server);
+    let topology = directory_client::Client::new(directory_client_cfg)
+        .presence_topology
+        .get()
+        .expect("Failed to retrieve network topology");
+
+    let existing_gateways = topology.gateway_nodes;
+    existing_gateways
+        .iter()
+        .find(|node| {
+            node.mixnet_listener == announced_mix_host
+                || node.client_listener == announced_clients_host
+        })
+        .map(|node| node.pub_key.clone())
 }
 
 pub fn execute(matches: &ArgMatches) {
@@ -166,16 +172,17 @@ pub fn execute(matches: &ArgMatches) {
 
     config = override_config(config, matches);
 
-    //    if let Some(duplicate_gateway_key) = check_if_same_ip_gateway_exists(
-    //        config.get_mix_announce_address(),
-    //        config.get_clients_announce_address(),
-    //    ) {
-    //        println!(
-    //            "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
-    //            duplicate_gateway_key
-    //        );
-    //        return;
-    //    }
+    if let Some(duplicate_gateway_key) = check_if_same_ip_gateway_exists(
+        config.get_presence_directory_server(),
+        config.get_mix_announce_address(),
+        config.get_clients_announce_address(),
+    ) {
+        println!(
+            "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
+            duplicate_gateway_key
+        );
+        return;
+    }
 
     let sphinx_keypair = load_sphinx_keys(&config);
 

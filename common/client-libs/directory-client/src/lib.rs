@@ -18,7 +18,7 @@ use crate::requests::metrics_mixes_post::{MetricsMixPoster, Request as MetricsMi
 use crate::requests::presence_coconodes_post::{
     PresenceCocoNodesPoster, Request as PresenceCocoNodesPost,
 };
-use crate::requests::presence_gateways_post:: {
+use crate::requests::presence_gateways_post::{
     PresenceGatewayPoster, Request as PresenceGatewayPost,
 };
 use crate::requests::presence_mixnodes_post::{

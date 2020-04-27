@@ -1,22 +1,25 @@
-use crate::client_handling::clients_handler::ClientsHandler;
-use crate::client_handling::ledger::ClientLedger;
-use crate::client_handling::websocket;
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::commands::override_config;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
 use crate::config::Config;
-use crate::mixnet_handling::receiver::packet_processing::PacketProcessor;
-use crate::mixnet_handling::sender::PacketForwarder;
-use crate::presence::NotifierConfig;
-use crate::storage::ClientStorage;
-use crate::{mixnet_handling, presence};
+use crate::node::Gateway;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::encryption;
-use log::*;
 use pemstore::pemstore::PemStore;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::Duration;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("run")
@@ -135,6 +138,23 @@ fn load_sphinx_keys(config_file: &Config) -> encryption::KeyPair {
     sphinx_keypair
 }
 
+fn check_if_same_ip_gateway_exists(
+    announced_mix_host: String,
+    announced_clients_host: String,
+) -> Option<String> {
+    unimplemented!()
+    //    // TODO: once we change to graph topology this here will need to be updated!
+    //    let topology = Topology::new(self.config.get_presence_directory_server());
+    //    let existing_gateways = topology.gateway_nodes;
+    //    existing_gateways
+    //        .iter()
+    //        .find(|node| {
+    //            node.mixnet_listener == announced_mix_host
+    //                || node.client_listener == announced_clients_host
+    //        })
+    //        .map(|node| node.pub_key.clone())
+}
+
 pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
 
@@ -146,6 +166,19 @@ pub fn execute(matches: &ArgMatches) {
 
     config = override_config(config, matches);
 
+    //    if let Some(duplicate_gateway_key) = check_if_same_ip_gateway_exists(
+    //        config.get_mix_announce_address(),
+    //        config.get_clients_announce_address(),
+    //    ) {
+    //        println!(
+    //            "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
+    //            duplicate_gateway_key
+    //        );
+    //        return;
+    //    }
+
+    let sphinx_keypair = load_sphinx_keys(&config);
+
     let mix_listening_ip_string = config.get_mix_listening_address().ip().to_string();
     if special_addresses().contains(&mix_listening_ip_string.as_ref()) {
         show_binding_warning(mix_listening_ip_string);
@@ -156,129 +189,38 @@ pub fn execute(matches: &ArgMatches) {
         show_binding_warning(clients_listening_ip_string);
     }
 
-    // TODO: define them in config
-    let initial_reconnection_backoff = Duration::from_millis(10_000);
-    let maximum_reconnection_backoff = Duration::from_millis(300_000);
-    let initial_connection_timeout = Duration::from_millis(1500);
+    println!(
+        "Directory server [presence]: {}",
+        config.get_presence_directory_server()
+    );
 
-    // very temporary will be moved into 'Gateway' struct within few next commits
-    // this is literally what #[tokio::main] is doing anyway (well, not 'literally', it's
-    // a bit of simplification from my side, but the end result is the same)
-    tokio::runtime::Runtime::new().unwrap().block_on(async {
-        let keypair = load_sphinx_keys(&config);
+    println!(
+        "Listening for incoming sphinx packets on {}",
+        config.get_mix_listening_address()
+    );
+    println!(
+        "Announcing the following socket address for sphinx packets: {}",
+        config.get_mix_announce_address()
+    );
 
-        let arced_sk = Arc::new(keypair.private_key().to_owned());
+    println!(
+        "Listening for incoming clients packets on {}",
+        config.get_clients_listening_address()
+    );
+    println!(
+        "Announcing the following socket address for clients packets: {}",
+        config.get_clients_announce_address()
+    );
 
-        // TODO: this should really be a proper DB, right now it will be most likely a bottleneck,
-        // due to possible frequent independent writes
-        let client_storage = ClientStorage::new(
-            config.get_message_retrieval_limit() as usize,
-            config.get_stored_messages_filename_length(),
-            config.get_clients_inboxes_dir(),
-        );
+    println!(
+        "Inboxes directory is: {:?}",
+        config.get_clients_inboxes_dir()
+    );
 
-        let (_, forwarding_channel) = PacketForwarder::new(
-            initial_reconnection_backoff,
-            maximum_reconnection_backoff,
-            initial_connection_timeout,
-        )
-        .start();
+    println!(
+        "Clients ledger is stored at: {:?}",
+        config.get_clients_ledger_path()
+    );
 
-        // literally for the time of a single commit as to see if presence is sent correctly
-        // then ledger will be moved into 'Gateway' struct
-        let clients_ledger = ClientLedger::load(config.get_clients_ledger_path()).unwrap();
-
-        let notifier_config = presence::NotifierConfig::new(
-            "foomplandia".parse().unwrap(),
-            config.get_presence_directory_server(),
-            config.get_mix_announce_address(),
-            config.get_clients_announce_address(),
-            keypair.public_key().to_base58_string(),
-            config.get_presence_sending_delay(),
-        );
-        presence::Notifier::new(notifier_config, clients_ledger.clone()).start();
-
-        let (_, clients_handler_sender) = ClientsHandler::new(
-            Arc::clone(&arced_sk),
-            clients_ledger,
-            client_storage.clone(),
-        )
-        .start();
-
-        let packet_processor =
-            PacketProcessor::new(arced_sk, clients_handler_sender.clone(), client_storage);
-
-        websocket::Listener::new(config.get_clients_listening_address())
-            .start(clients_handler_sender, forwarding_channel);
-        mixnet_handling::Listener::new(config.get_mix_listening_address()).start(packet_processor);
-
-        info!("All up and running!");
-
-        if let Err(e) = tokio::signal::ctrl_c().await {
-            error!(
-                "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
-                e
-            );
-        }
-
-        println!(
-            "Received SIGINT - the gateway will terminate now (threads are not YET nicely stopped)"
-        );
-    });
+    Gateway::new(config, sphinx_keypair).run();
 }
-
-//
-//#[tokio::main]
-//async fn main() {
-//    dotenv::dotenv().ok();
-//    setup_logging();
-//    // TODO: assume config is parsed here, keys are loaded, etc
-//    // ALL OF BELOW WILL BE DONE VIA CONFIG
-//    let keypair = crypto::encryption::KeyPair::new();
-//    let clients_addr = "127.0.0.1:9000".parse().unwrap();
-//    let mix_addr = "127.0.0.1:1789".parse().unwrap();
-//    let inbox_store_dir: PathBuf = "foomp".into();
-//    let ledger_path: PathBuf = "foomp2".into();
-//    let message_retrieval_limit = 1000;
-//    let filename_len = 16;
-//    let initial_reconnection_backoff = Duration::from_millis(10_000);
-//    let maximum_reconnection_backoff = Duration::from_millis(300_000);
-//    let initial_connection_timeout = Duration::from_millis(1500);
-//    // ALL OF ABOVE WILL HAVE BEEN DONE VIA CONFIG
-//
-//    let arced_sk = Arc::new(keypair.private_key().to_owned());
-//
-//    // TODO: this should really be a proper DB, right now it will be most likely a bottleneck,
-//    // due to possible frequent independent writes
-//    let client_storage = ClientStorage::new(message_retrieval_limit, filename_len, inbox_store_dir);
-//
-//    let (_, forwarding_channel) = PacketForwarder::new(
-//        initial_reconnection_backoff,
-//        maximum_reconnection_backoff,
-//        initial_connection_timeout,
-//    )
-//    .start();
-//
-//    let (_, clients_handler_sender) =
-//        ClientsHandler::new(Arc::clone(&arced_sk), ledger_path, client_storage.clone()).start();
-//
-//    let packet_processor =
-//        PacketProcessor::new(arced_sk, clients_handler_sender.clone(), client_storage);
-//
-//    websocket::Listener::new(clients_addr).start(clients_handler_sender, forwarding_channel);
-//    mixnet_handling::Listener::new(mix_addr).start(packet_processor);
-//
-//    info!("All up and running!");
-//
-//    if let Err(e) = tokio::signal::ctrl_c().await {
-//        error!(
-//            "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
-//            e
-//        );
-//    }
-//
-//    println!(
-//        "Received SIGINT - the gateway will terminate now (threads are not YET nicely stopped)"
-//    );
-//}
-//

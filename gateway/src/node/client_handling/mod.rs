@@ -12,21 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
-use tokio_tungstenite::tungstenite::protocol::Message;
-
-#[derive(Serialize, Deserialize, Debug)]
-pub(crate) enum Request {
-    Send,
-    Register { address: String },
-    Authenticate { token: String },
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub(crate) enum Response {
-    Send,
-    Register { token: String },
-    Authenticate { status: bool },
-    Error { message: String },
-}
+pub(crate) mod clients_handler;
+pub(crate) mod websocket;

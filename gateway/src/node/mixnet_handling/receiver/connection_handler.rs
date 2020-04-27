@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::mixnet_handling::receiver::packet_processing::PacketProcessor;
+use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use log::*;
 use std::net::SocketAddr;
 use tokio::{io::AsyncReadExt, prelude::*};

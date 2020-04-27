@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client_handling::clients_handler::{
+use crate::node::client_handling::clients_handler::{
     ClientsHandlerRequest, ClientsHandlerRequestSender, ClientsHandlerResponse,
 };
-use crate::client_handling::websocket::message_receiver::MixMessageSender;
-use crate::storage::{ClientStorage, StoreData};
+use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
+use crate::node::storage::inboxes::{ClientStorage, StoreData};
 use crypto::encryption;
 use futures::channel::oneshot;
 use futures::lock::Mutex;

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client_handling::clients_handler::ClientsHandlerRequestSender;
-use crate::client_handling::websocket::connection_handler::Handle;
-use crate::mixnet_handling::sender::OutboundMixMessageSender;
+use crate::node::mixnet_handling::receiver::{
+    connection_handler::Handle, packet_processing::PacketProcessor,
+};
 use log::*;
 use std::net::SocketAddr;
 use tokio::task::JoinHandle;
@@ -28,25 +28,17 @@ impl Listener {
         Listener { address }
     }
 
-    pub(crate) async fn run(
-        &mut self,
-        clients_handler_sender: ClientsHandlerRequestSender,
-        outbound_mix_sender: OutboundMixMessageSender,
-    ) {
-        info!("Starting websocket listener at {}", self.address);
+    pub(crate) async fn run(&mut self, packet_processor: PacketProcessor) {
+        info!("Starting mixnet listener at {}", self.address);
         let mut tcp_listener = tokio::net::TcpListener::bind(self.address)
             .await
-            .expect("Failed to start websocket listener");
+            .expect("Failed to start mixnet listener");
 
         loop {
             match tcp_listener.accept().await {
                 Ok((socket, remote_addr)) => {
                     trace!("received a socket connection from {}", remote_addr);
-                    let mut handle = Handle::new(
-                        socket,
-                        clients_handler_sender.clone(),
-                        outbound_mix_sender.clone(),
-                    );
+                    let mut handle = Handle::new(remote_addr, socket, packet_processor.clone());
                     tokio::spawn(async move { handle.start_handling().await });
                 }
                 Err(e) => warn!("failed to get client: {:?}", e),
@@ -54,11 +46,7 @@ impl Listener {
         }
     }
 
-    pub(crate) fn start(
-        mut self,
-        clients_handler_sender: ClientsHandlerRequestSender,
-        outbound_mix_sender: OutboundMixMessageSender,
-    ) -> JoinHandle<()> {
-        tokio::spawn(async move { self.run(clients_handler_sender, outbound_mix_sender).await })
+    pub(crate) fn start(mut self, packet_processor: PacketProcessor) -> JoinHandle<()> {
+        tokio::spawn(async move { self.run(packet_processor).await })
     }
 }

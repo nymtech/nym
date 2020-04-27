@@ -28,11 +28,13 @@ use gateway_requests::auth_token::AuthToken;
 use gateway_requests::types::{BinaryRequest, ClientControlRequest, ServerResponse};
 use nymsphinx::DestinationAddressBytes;
 
-use crate::client_handling::clients_handler::{
+use crate::node::client_handling::clients_handler::{
     ClientsHandlerRequest, ClientsHandlerRequestSender, ClientsHandlerResponse,
 };
-use crate::client_handling::websocket::message_receiver::{MixMessageReceiver, MixMessageSender};
-use crate::mixnet_handling::sender::OutboundMixMessageSender;
+use crate::node::client_handling::websocket::message_receiver::{
+    MixMessageReceiver, MixMessageSender,
+};
+use crate::node::mixnet_handling::sender::OutboundMixMessageSender;
 
 //// TODO: note for my future self to consider the following idea:
 //// split the socket connection into sink and stream

@@ -13,13 +13,12 @@
 // limitations under the License.
 
 use crate::built_info;
-use crate::client_handling::ledger::ClientLedger;
+use crate::node::storage::ClientLedger;
 use directory_client::presence::gateways::{GatewayClient, GatewayPresence};
 use directory_client::requests::presence_gateways_post::PresenceGatewayPoster;
 use directory_client::DirectoryClient;
 use log::{error, trace};
 use std::time::Duration;
-use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 pub(crate) struct NotifierConfig {

@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client_handling::{ledger::ClientLedger, websocket::message_receiver::MixMessageSender};
-use crate::storage::ClientStorage;
+use crate::node::{
+    client_handling::websocket::message_receiver::MixMessageSender,
+    storage::{inboxes::ClientStorage, ClientLedger},
+};
 use crypto::encryption;
 use futures::{
     channel::{mpsc, oneshot},
@@ -25,7 +27,6 @@ use log::*;
 use nymsphinx::DestinationAddressBytes;
 use sha2::Sha256;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
 
@@ -51,7 +52,6 @@ pub(crate) enum ClientsHandlerRequest {
     Disconnect(DestinationAddressBytes),
 
     // mix
-    //    EmptyInbox(DestinationAddressBytes),
     IsOnline(DestinationAddressBytes, ClientsHandlerResponseSender),
 }
 

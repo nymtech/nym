@@ -15,12 +15,9 @@
 use clap::{App, ArgMatches};
 
 pub mod built_info;
-mod client_handling;
 mod commands;
 mod config;
-mod mixnet_handling;
-mod presence;
-mod storage;
+mod node;
 
 fn main() {
     dotenv::dotenv().ok();

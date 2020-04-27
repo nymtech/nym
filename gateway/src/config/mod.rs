@@ -33,7 +33,6 @@ const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 1500;
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: u16 = 5;
-const DEFAULT_MAX_REQUEST_SIZE: u32 = 16 * 1024;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -348,10 +347,6 @@ impl Config {
     pub fn get_stored_messages_filename_length(&self) -> u16 {
         self.debug.stored_messages_filename_length
     }
-
-    pub fn get_max_request_size(&self) -> usize {
-        self.debug.max_request_size as usize
-    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -448,7 +443,7 @@ pub struct ClientsEndpoint {
     /// Path to the directory with clients inboxes containing messages stored for them.
     inboxes_directory: PathBuf,
 
-    /// [TODO: implement its storage] Full path to a file containing mapping of
+    /// Full path to a file containing mapping of
     /// client addresses to their access tokens.
     ledger_path: PathBuf,
 }
@@ -502,11 +497,6 @@ pub struct Debug {
     /// if there are no real messages, dummy ones are create to always return  
     /// `message_retrieval_limit` total messages
     message_retrieval_limit: u16,
-
-    /// Maximum allowed length for requests received.
-    /// Anything declaring bigger size than that will be regarded as an error and
-    /// is going to be rejected.
-    max_request_size: u32,
 }
 
 impl Debug {
@@ -527,7 +517,6 @@ impl Default for Debug {
             presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
             stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
-            max_request_size: DEFAULT_MAX_REQUEST_SIZE,
         }
     }
 }

@@ -25,6 +25,7 @@ tokio-tungstenite = "0.10.1"
 # internal
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
+directory-client = { path = "../common/client-libs/directory-client" }
 gateway-requests = { path = "gateway-requests" }
 multi-tcp-client = { path = "../common/client-libs/multi-tcp-client" }
 nymsphinx = { path = "../common/nymsphinx" }

@@ -1639,6 +1639,7 @@ dependencies = [
  "clap",
  "config",
  "crypto",
+ "directory-client",
  "dirs",
  "dotenv",
  "futures 0.3.4",

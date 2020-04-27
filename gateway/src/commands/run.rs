@@ -1,12 +1,14 @@
 use crate::client_handling::clients_handler::ClientsHandler;
+use crate::client_handling::ledger::ClientLedger;
 use crate::client_handling::websocket;
 use crate::commands::override_config;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
 use crate::config::Config;
-use crate::mixnet_handling;
 use crate::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::mixnet_handling::sender::PacketForwarder;
+use crate::presence::NotifierConfig;
 use crate::storage::ClientStorage;
+use crate::{mixnet_handling, presence};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::encryption;
@@ -182,9 +184,23 @@ pub fn execute(matches: &ArgMatches) {
         )
         .start();
 
+        // literally for the time of a single commit as to see if presence is sent correctly
+        // then ledger will be moved into 'Gateway' struct
+        let clients_ledger = ClientLedger::load(config.get_clients_ledger_path()).unwrap();
+
+        let notifier_config = presence::NotifierConfig::new(
+            "foomplandia".parse().unwrap(),
+            config.get_presence_directory_server(),
+            config.get_mix_announce_address(),
+            config.get_clients_announce_address(),
+            keypair.public_key().to_base58_string(),
+            config.get_presence_sending_delay(),
+        );
+        presence::Notifier::new(notifier_config, clients_ledger.clone()).start();
+
         let (_, clients_handler_sender) = ClientsHandler::new(
             Arc::clone(&arced_sk),
-            config.get_clients_ledger_path(),
+            clients_ledger,
             client_storage.clone(),
         )
         .start();

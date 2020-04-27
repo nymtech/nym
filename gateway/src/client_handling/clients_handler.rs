@@ -73,13 +73,13 @@ pub(crate) struct ClientsHandler {
 impl ClientsHandler {
     pub(crate) fn new(
         secret_key: Arc<encryption::PrivateKey>,
-        ledger_path: PathBuf,
+        clients_ledger: ClientLedger,
         clients_inbox_storage: ClientStorage,
     ) -> Self {
         ClientsHandler {
             secret_key,
             open_connections: HashMap::new(),
-            clients_ledger: ClientLedger::load(ledger_path).unwrap(),
+            clients_ledger,
             clients_inbox_storage,
         }
     }

@@ -18,10 +18,12 @@
 //use sfw_provider_requests::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
 //use std::path::PathBuf;
 
-use gateway_requests::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
-use log::*;
-use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use std::path::PathBuf;
+
+use log::*;
+
+use gateway_requests::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
+use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 
 #[derive(Debug)]
 pub(crate) enum ClientLedgerError {
@@ -139,23 +141,23 @@ impl ClientLedger {
         removal_result
     }
 
-    //    pub(crate) fn current_clients(&self) -> Result<Vec<MixProviderClient>, ClientLedgerError> {
-    //        let clients = self.db.iter().keys();
-    //
-    //        let mut client_vec = Vec::new();
-    //        for client in clients {
-    //            match client {
-    //                Err(e) => return Err(ClientLedgerError::DbWriteError(e)),
-    //                Ok(client_entry) => client_vec.push(MixProviderClient {
-    //                    pub_key: self
-    //                        .read_destination_address_bytes(client_entry)
-    //                        .to_base58_string(),
-    //                }),
-    //            }
-    //        }
-    //
-    //        Ok(client_vec)
-    //    }
+    pub(crate) fn current_clients(
+        &self,
+    ) -> Result<Vec<DestinationAddressBytes>, ClientLedgerError> {
+        let clients = self.db.iter().keys();
+
+        let mut client_vec = Vec::new();
+        for client in clients {
+            match client {
+                Err(e) => return Err(ClientLedgerError::DbWriteError(e)),
+                Ok(client_entry) => {
+                    client_vec.push(self.read_destination_address_bytes(client_entry))
+                }
+            }
+        }
+
+        Ok(client_vec)
+    }
 
     #[cfg(test)]
     pub(crate) fn create_temporary() -> Self {

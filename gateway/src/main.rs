@@ -19,7 +19,8 @@ mod client_handling;
 mod commands;
 mod config;
 mod mixnet_handling;
-pub(crate) mod storage;
+mod presence;
+mod storage;
 
 fn main() {
     dotenv::dotenv().ok();

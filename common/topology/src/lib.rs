@@ -21,6 +21,7 @@ use std::collections::HashMap;
 
 pub mod coco;
 mod filter;
+pub mod gateway;
 pub mod mix;
 pub mod provider;
 
@@ -32,9 +33,11 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
         mix_nodes: Vec<mix::Node>,
         mix_provider_nodes: Vec<provider::Node>,
         coco_nodes: Vec<coco::Node>,
+        gateway_nodes: Vec<gateway::Node>,
     ) -> Self;
     fn mix_nodes(&self) -> Vec<mix::Node>;
     fn providers(&self) -> Vec<provider::Node>;
+    fn gateways(&self) -> Vec<gateway::Node>;
     fn coco_nodes(&self) -> Vec<coco::Node>;
     fn make_layered_topology(&self) -> Result<HashMap<u64, Vec<mix::Node>>, NymTopologyError> {
         let mut layered_topology: HashMap<u64, Vec<mix::Node>> = HashMap::new();
@@ -94,14 +97,14 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
 
     fn all_paths(&self) -> Result<Vec<Vec<SphinxNode>>, NymTopologyError> {
         let mut layered_topology = self.make_layered_topology()?;
-        let providers = self.providers();
+        let gateways = self.gateways();
 
         let sorted_layers: Vec<Vec<SphinxNode>> = (1..=layered_topology.len() as u64)
             .map(|layer| layered_topology.remove(&layer).unwrap()) // get all nodes per layer
             .map(|layer_nodes| layer_nodes.into_iter().map(|node| node.into()).collect()) // convert them into 'proper' sphinx nodes
             .chain(std::iter::once(
-                providers.into_iter().map(|node| node.into()).collect(),
-            )) // append all providers to the end
+                gateways.into_iter().map(|node| node.into()).collect(),
+            )) // append all gateways to the end
             .collect();
 
         let all_paths = sorted_layers
@@ -112,19 +115,30 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
         Ok(all_paths)
     }
 
+    fn filter_system_version(&self, expected_version: &str) -> Self {
+        self.filter_node_versions(
+            expected_version,
+            expected_version,
+            expected_version,
+            expected_version,
+        )
+    }
+
     fn filter_node_versions(
         &self,
         expected_mix_version: &str,
         expected_provider_version: &str,
+        expected_gateway_version: &str,
         expected_coco_version: &str,
     ) -> Self {
         let mixes = self.mix_nodes().filter_by_version(expected_mix_version);
         let providers = self
             .providers()
             .filter_by_version(expected_provider_version);
+        let gateways = self.gateways().filter_by_version(expected_gateway_version);
         let cocos = self.coco_nodes().filter_by_version(expected_coco_version);
 
-        Self::new_from_nodes(mixes, providers, cocos)
+        Self::new_from_nodes(mixes, providers, cocos, gateways)
     }
 
     fn can_construct_path_through(&self) -> bool {

@@ -896,6 +896,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "gateway-client"
+version = "0.1.0"
+dependencies = [
+ "futures 0.3.4",
+ "gateway-requests",
+ "nymsphinx",
+ "tokio 0.2.16",
+ "tokio-tungstenite",
+]
+
+[[package]]
 name = "gateway-requests"
 version = "0.1.0"
 dependencies = [
@@ -1612,6 +1623,7 @@ dependencies = [
  "dirs",
  "dotenv",
  "futures 0.3.4",
+ "gateway-requests",
  "healthcheck",
  "log 0.4.8",
  "mix-client",

@@ -8,6 +8,7 @@ members = [
     "clients/desktop",
     "clients/webassembly",
     "common/client-libs/directory-client",
+    "common/client-libs/gateway-client",
     "common/client-libs/mix-client",
     "common/client-libs/multi-tcp-client",
     "common/client-libs/provider-client",

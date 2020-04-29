@@ -67,6 +67,17 @@ impl<T: NymTopology> TopologyAccessor<T> {
         }
     }
 
+    pub(crate) async fn get_gateway_socket_url(&mut self, id: &str) -> Option<String> {
+        match &self.inner.lock().await.0 {
+            None => None,
+            Some(ref topology) => topology
+                .gateways()
+                .iter()
+                .find(|gateway| gateway.pub_key == id)
+                .map(|gateway| gateway.client_listener.clone()),
+        }
+    }
+
     // only used by the client at startup to get a slightly more reasonable error message
     pub(crate) async fn is_routable(&self) -> bool {
         match &self.inner.lock().await.0 {

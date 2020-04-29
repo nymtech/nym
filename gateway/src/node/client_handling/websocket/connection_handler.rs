@@ -158,9 +158,13 @@ where
         token: String,
         mix_sender: MixMessageSender,
     ) -> ServerResponse {
-        // TODO: https://github.com/nymtech/sphinx/issues/57 to resolve possible panics
-        // because we do **NOT** trust whatever garbage client just sent.
-        let address = DestinationAddressBytes::from_base58_string(address);
+        let address = match DestinationAddressBytes::try_from_base58_string(address) {
+            Ok(address) => address,
+            Err(e) => {
+                trace!("failed to parse received DestinationAddress: {:?}", e);
+                return ServerResponse::new_error("malformed destination address").into();
+            }
+        };
         let token = match AuthToken::try_from_base58_string(token) {
             Ok(token) => token,
             Err(e) => {
@@ -200,9 +204,13 @@ where
         address: String,
         mix_sender: MixMessageSender,
     ) -> ServerResponse {
-        // TODO: https://github.com/nymtech/sphinx/issues/57 to resolve possible panics
-        // because we do **NOT** trust whatever garbage client just sent.
-        let address = DestinationAddressBytes::from_base58_string(address);
+        let address = match DestinationAddressBytes::try_from_base58_string(address) {
+            Ok(address) => address,
+            Err(e) => {
+                trace!("failed to parse received DestinationAddress: {:?}", e);
+                return ServerResponse::new_error("malformed destination address").into();
+            }
+        };
 
         let (res_sender, res_receiver) = oneshot::channel();
         let clients_handler_request =

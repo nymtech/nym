@@ -22,7 +22,7 @@ use futures::channel::oneshot;
 use futures::lock::Mutex;
 use log::*;
 use mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD;
-use nymsphinx::{DestinationAddressBytes, ProcessedPacket, SphinxPacket};
+use nymsphinx::{DestinationAddressBytes, Error as SphinxError, ProcessedPacket, SphinxPacket};
 use std::collections::HashMap;
 use std::io;
 use std::ops::Deref;
@@ -33,16 +33,16 @@ pub enum MixProcessingError {
     ReceivedForwardHopError,
     NonMatchingRecipient,
     InvalidPayload,
-    SphinxProcessingError,
+    SphinxProcessingError(SphinxError),
     IOError(String),
 }
 
-impl From<nymsphinx::ProcessingError> for MixProcessingError {
-    // for time being just have a single error instance for all possible results of nymsphinx::ProcessingError
-    fn from(_: nymsphinx::ProcessingError) -> Self {
+impl From<SphinxError> for MixProcessingError {
+    // for time being just have a single error instance for all possible results of SphinxError
+    fn from(err: SphinxError) -> Self {
         use MixProcessingError::*;
 
-        SphinxProcessingError
+        SphinxProcessingError(err)
     }
 }
 
@@ -179,7 +179,7 @@ impl PacketProcessor {
             }
             Err(e) => {
                 warn!("Failed to unwrap Sphinx packet: {:?}", e);
-                Err(MixProcessingError::SphinxProcessingError)
+                Err(MixProcessingError::SphinxProcessingError(e))
             }
         }
     }

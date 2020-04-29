@@ -27,10 +27,10 @@ pub use sphinx::{
     constants::{
         DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, MAX_PATH_LENGTH, NODE_ADDRESS_LENGTH,
     },
-    header::{delays, delays::Delay, ProcessedHeader, SphinxHeader, SphinxUnwrapError},
-    payload::{Payload, PayloadEncapsulationError},
+    header::{delays, delays::Delay, ProcessedHeader, SphinxHeader},
+    payload::Payload,
     route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier},
-    ProcessedPacket, ProcessingError, SphinxPacket, PACKET_SIZE,
+    Error, ProcessedPacket, Result, SphinxPacket, PACKET_SIZE,
 };
 
 // re-exporting this separately to remember to put special attention to below

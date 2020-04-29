@@ -62,10 +62,11 @@ pub fn create_sphinx_packet(topology_json: &str, msg: &str, destination: &str) -
 
     let average_delay = Duration::from_secs_f64(0.1);
     let delays = delays::generate_from_average_duration(route.len(), average_delay);
-    let dest_bytes = DestinationAddressBytes::from_base58_string(destination.to_owned());
+    let dest_bytes =
+        DestinationAddressBytes::try_from_base58_string(destination.to_owned()).unwrap();
     let dest = Destination::new(dest_bytes, [4u8; IDENTIFIER_LENGTH]);
     let message = split_and_prepare_payloads(&msg.as_bytes()).pop().unwrap();
-    let sphinx_packet = match SphinxPacket::new(message, &route, &dest, &delays).unwrap() {
+    let sphinx_packet = match SphinxPacket::new(message, &route, &dest, &delays, None).unwrap() {
         SphinxPacket { header, payload } => SphinxPacket { header, payload },
     };
 

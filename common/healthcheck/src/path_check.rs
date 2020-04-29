@@ -259,6 +259,7 @@ impl PathChecker {
             &path[..],
             &self.our_destination,
             &delays,
+            None,
         )
         .unwrap();
 

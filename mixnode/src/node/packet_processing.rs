@@ -16,7 +16,9 @@ use crate::node::metrics;
 use crypto::encryption;
 use log::*;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
-use nymsphinx::{Delay as SphinxDelay, NodeAddressBytes, ProcessedPacket, SphinxPacket};
+use nymsphinx::{
+    Delay as SphinxDelay, Error as SphinxError, NodeAddressBytes, ProcessedPacket, SphinxPacket,
+};
 use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::ops::Deref;
@@ -24,9 +26,8 @@ use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum MixProcessingError {
-    SphinxRecoveryError,
     ReceivedFinalHopError,
-    SphinxProcessingError,
+    SphinxProcessingError(SphinxError),
     InvalidHopAddress,
 }
 
@@ -36,12 +37,12 @@ pub enum MixProcessingResult {
     LoopMessage,
 }
 
-impl From<nymsphinx::ProcessingError> for MixProcessingError {
-    // for time being just have a single error instance for all possible results of nymsphinx::ProcessingError
-    fn from(_: nymsphinx::ProcessingError) -> Self {
+impl From<SphinxError> for MixProcessingError {
+    // for time being just have a single error instance for all possible results of SphinxError
+    fn from(err: SphinxError) -> Self {
         use MixProcessingError::*;
 
-        SphinxRecoveryError
+        SphinxProcessingError(err)
     }
 }
 
@@ -111,7 +112,7 @@ impl PacketProcessor {
             }
             Err(e) => {
                 warn!("Failed to unwrap Sphinx packet: {:?}", e);
-                Err(MixProcessingError::SphinxProcessingError)
+                Err(MixProcessingError::SphinxProcessingError(e))
             }
         }
     }

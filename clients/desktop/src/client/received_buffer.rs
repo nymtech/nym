@@ -17,6 +17,7 @@ use futures::lock::Mutex;
 use futures::StreamExt;
 use gateway_client::SphinxPacketReceiver;
 use log::*;
+use mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD;
 use nymsphinx::chunking::reconstruction::MessageReconstructor;
 use std::sync::Arc;
 use tokio::runtime::Handle;
@@ -64,6 +65,11 @@ impl ReceivedMessagesBuffer {
         let mut completed_messages = Vec::new();
         let mut inner_guard = self.inner.lock().await;
         for msg_fragment in msgs {
+            if msg_fragment == LOOP_COVER_MESSAGE_PAYLOAD {
+                trace!("The message was a loop cover message! Skipping it");
+                continue;
+            }
+
             if let Some(reconstructed_message) =
                 inner_guard.message_reconstructor.new_fragment(msg_fragment)
             {

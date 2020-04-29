@@ -274,10 +274,6 @@ impl MessageReconstructor {
         let fragment_res = Fragment::try_from_bytes(&fragment_data);
         if let Err(e) = fragment_res {
             warn!("failed to recover fragment data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
-            warn!(
-                "the string message: {:?}",
-                String::from_utf8(fragment_data).unwrap()
-            );
             return None;
         }
         let fragment = fragment_res.unwrap();

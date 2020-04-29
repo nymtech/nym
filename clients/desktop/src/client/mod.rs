@@ -167,12 +167,9 @@ impl NymClient {
         sphinx_packet_sender: SphinxPacketSender,
         gateway_address: url::Url,
     ) -> GatewayClient<'static, url::Url> {
-        // TODO: put into config
-        let gateway_response_timeout = Duration::from_millis(1500);
-
         let auth_token = self
             .config
-            .get_provider_auth_token()
+            .get_gateway_auth_token()
             .map(|str_token| AuthToken::try_from_base58_string(str_token).ok())
             .unwrap_or(None);
 
@@ -181,7 +178,7 @@ impl NymClient {
             self.as_mix_destination_address(),
             auth_token,
             sphinx_packet_sender,
-            gateway_response_timeout,
+            self.config.get_gateway_response_timeout(),
         );
 
         let auth_token = self.runtime.block_on(async {

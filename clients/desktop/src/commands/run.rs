@@ -38,9 +38,9 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                  .help("Address of the directory server the client is getting topology from")
                  .takes_value(true),
         )
-        .arg(Arg::with_name("provider")
-            .long("provider")
-            .help("Id of the provider we want to connect to. If overridden, it is user's responsibility to ensure prior registration happened")
+        .arg(Arg::with_name("gateway")
+            .long("gateway")
+            .help("Id of the gateway we want to connect to. If overridden, it is user's responsibility to ensure prior registration happened")
             .takes_value(true)
         )
         .arg(Arg::with_name("socket-type")

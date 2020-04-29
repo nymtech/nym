@@ -15,12 +15,12 @@
 use futures::channel::{mpsc, oneshot};
 use futures::lock::Mutex;
 use futures::StreamExt;
+use gateway_client::SphinxPacketReceiver;
 use log::*;
 use nymsphinx::chunking::reconstruction::MessageReconstructor;
 use std::sync::Arc;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
-use gateway_client::SphinxPacketReceiver;
 
 pub(crate) type ReceivedBufferResponse = oneshot::Sender<Vec<Vec<u8>>>;
 pub(crate) type ReceivedBufferRequestSender = mpsc::UnboundedSender<ReceivedBufferResponse>;

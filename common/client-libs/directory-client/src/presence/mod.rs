@@ -17,7 +17,6 @@ use crate::{Client, Config, DirectoryClient};
 use log::*;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
-use topology::gateway::Node;
 use topology::{coco, gateway, mix, provider, NymTopology};
 
 pub mod coconodes;

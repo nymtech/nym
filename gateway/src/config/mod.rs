@@ -233,8 +233,10 @@ impl Config {
     }
 
     pub fn clients_announce_host_from_listening_host(mut self) -> Self {
-        self.clients_endpoint.announce_address =
-            self.clients_endpoint.listening_address.to_string();
+        self.clients_endpoint.announce_address = format!(
+            "ws://{}",
+            self.clients_endpoint.listening_address.to_string()
+        );
         self
     }
 
@@ -259,11 +261,21 @@ impl Config {
                     host,
                     self.clients_endpoint.listening_address.port()
                 );
+                // make sure it has 'ws' prefix (by extension it also includes 'wss')
+                if !self.clients_endpoint.announce_address.starts_with("ws") {
+                    self.clients_endpoint.announce_address =
+                        format!("ws://{}", self.clients_endpoint.announce_address);
+                }
                 self
             }
             2 => {
                 // we provided 'host:port' so just put the whole thing there
                 self.clients_endpoint.announce_address = host;
+                // make sure it has 'ws' prefix (by extension it also includes 'wss')
+                if !self.clients_endpoint.announce_address.starts_with("ws") {
+                    self.clients_endpoint.announce_address =
+                        format!("ws://{}", self.clients_endpoint.announce_address);
+                }
                 self
             }
             _ => {
@@ -479,7 +491,7 @@ impl Default for ClientsEndpoint {
             listening_address: format!("0.0.0.0:{}", DEFAULT_CLIENT_LISTENING_PORT)
                 .parse()
                 .unwrap(),
-            announce_address: format!("127.0.0.1:{}", DEFAULT_CLIENT_LISTENING_PORT),
+            announce_address: format!("ws://127.0.0.1:{}", DEFAULT_CLIENT_LISTENING_PORT),
             inboxes_directory: Default::default(),
             ledger_path: Default::default(),
         }

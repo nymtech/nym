@@ -14,7 +14,7 @@
 
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
 use crate::client::mix_traffic::{MixMessageReceiver, MixMessageSender, MixTrafficController};
-use crate::client::provider_poller::{PolledMessagesReceiver, PolledMessagesSender};
+//use crate::client::provider_poller::{PolledMessagesReceiver, PolledMessagesSender};
 use crate::client::received_buffer::{
     ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
 };
@@ -29,15 +29,19 @@ use directory_client::presence;
 use futures::channel::{mpsc, oneshot};
 use log::*;
 use nymsphinx::chunking::split_and_prepare_payloads;
-use nymsphinx::Destination;
+use nymsphinx::{Destination, DestinationAddressBytes};
 use pemstore::pemstore::PemStore;
-use sfw_provider_requests::auth_token::AuthToken;
+//use sfw_provider_requests::auth_token::AuthToken;
+use gateway_client::{GatewayClient, SphinxPacketReceiver, SphinxPacketSender};
+use gateway_requests::auth_token::AuthToken;
+use std::net::SocketAddr;
+use std::time::Duration;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
 mod cover_traffic_stream;
 mod mix_traffic;
-mod provider_poller;
+//mod provider_poller;
 mod real_traffic_stream;
 pub(crate) mod received_buffer;
 pub(crate) mod topology_control;
@@ -85,12 +89,19 @@ impl NymClient {
         }
     }
 
+    #[deprecated(
+        note = "SURB_IDs are irrelevant in this system design and this method alongside everything using it, should be updated accordingly"
+    )]
     pub fn as_mix_destination(&self) -> Destination {
         Destination::new(
             self.identity_keypair.public_key().derive_address(),
             // TODO: what with SURBs?
             Default::default(),
         )
+    }
+
+    pub fn as_mix_destination_address(&self) -> DestinationAddressBytes {
+        self.identity_keypair.public_key.derive_address()
     }
 
     // future constantly pumping loop cover traffic at some specified average rate
@@ -144,58 +155,100 @@ impl NymClient {
     fn start_received_messages_buffer_controller(
         &self,
         query_receiver: ReceivedBufferRequestReceiver,
-        poller_receiver: PolledMessagesReceiver,
+        sphinx_receiver: SphinxPacketReceiver,
     ) {
         info!("Starting 'received messages buffer controller'...");
-        ReceivedMessagesBufferController::new(query_receiver, poller_receiver)
+        ReceivedMessagesBufferController::new(query_receiver, sphinx_receiver)
             .start(self.runtime.handle())
     }
 
-    // future constantly trying to fetch any received messages from the provider
-    // the received messages are sent to ReceivedMessagesBuffer to be available to rest of the system
-    fn start_provider_poller<T: NymTopology>(
+    fn start_gateway_client(
         &mut self,
-        mut topology_accessor: TopologyAccessor<T>,
-        poller_input_tx: PolledMessagesSender,
-    ) {
-        info!("Starting provider poller...");
-        // we already have our provider written in the config
-        let provider_id = self.config.get_provider_id();
+        sphinx_packet_sender: SphinxPacketSender,
+        gateway_address: url::Url,
+    ) -> GatewayClient<'static, url::Url> {
+        // TODO: put into config
+        let gateway_response_timeout = Duration::from_millis(1500);
 
-        // TODO: a slightly more graceful termination here
-        if !self.runtime.block_on(topology_accessor.is_routable()) {
-            panic!(
-                "The current network topology seem to be insufficient to route any packets through\
-             - check if enough nodes and a sfw-provider are online"
-            );
-        }
+        let auth_token = self
+            .config
+            .get_provider_auth_token()
+            .map(|str_token| AuthToken::try_from_base58_string(str_token).ok())
+            .unwrap_or(None);
 
-        // TODO: a slightly more graceful termination here
-        let provider_client_listener_address = self.runtime.block_on(
-            topology_accessor.get_provider_socket_addr(&provider_id)
-        ).unwrap_or_else(|| panic!("Could not find provider with id {:?}. It does not seem to be present in the current network topology.\
-        Are you sure it is still online? Perhaps try to run `nym-client init` again to obtain a new provider", provider_id));
-
-        let mut provider_poller = provider_poller::ProviderPoller::new(
-            poller_input_tx,
-            provider_client_listener_address,
-            self.identity_keypair.public_key().derive_address(),
-            self.config
-                .get_provider_auth_token()
-                .map(|str_token| AuthToken::try_from_base58_string(str_token).ok())
-                .unwrap_or(None),
-            self.config.get_fetch_message_delay(),
-            self.config.get_max_response_size(),
+        let mut gateway_client = GatewayClient::new(
+            gateway_address,
+            self.as_mix_destination_address(),
+            auth_token,
+            sphinx_packet_sender,
+            gateway_response_timeout,
         );
 
-        if !provider_poller.is_registered() {
-            info!("Trying to perform initial provider registration...");
-            self.runtime
-                .block_on(provider_poller.perform_initial_registration())
-                .expect("Failed to perform initial provider registration");
-        }
-        provider_poller.start(self.runtime.handle());
+        let auth_token = self.runtime.block_on(async {
+            gateway_client
+                .establish_connection()
+                .await
+                .expect("could not establish initial connection with the gateway");
+            gateway_client
+                .perform_initial_authentication()
+                .await
+                .expect("could not perform initial authentication with the gateway")
+        });
+
+        // TODO: if we didn't have an auth_token initially, save it to config or something?
+        info!(
+            "Performed initial authentication and our auth token is {:?}",
+            auth_token.to_base58_string()
+        );
+
+        gateway_client
     }
+
+    //    // future constantly trying to fetch any received messages from the provider
+    //    // the received messages are sent to ReceivedMessagesBuffer to be available to rest of the system
+    //    fn start_provider_poller<T: NymTopology>(
+    //        &mut self,
+    //        mut topology_accessor: TopologyAccessor<T>,
+    //        poller_input_tx: PolledMessagesSender,
+    //    ) {
+    //        info!("Starting provider poller...");
+    //        // we already have our provider written in the config
+    //        let provider_id = self.config.get_provider_id();
+    //
+    //        // TODO: a slightly more graceful termination here
+    //        if !self.runtime.block_on(topology_accessor.is_routable()) {
+    //            panic!(
+    //                "The current network topology seem to be insufficient to route any packets through\
+    //             - check if enough nodes and a sfw-provider are online"
+    //            );
+    //        }
+    //
+    //        // TODO: a slightly more graceful termination here
+    //        let provider_client_listener_address = self.runtime.block_on(
+    //            topology_accessor.get_provider_socket_addr(&provider_id)
+    //        ).unwrap_or_else(|| panic!("Could not find provider with id {:?}. It does not seem to be present in the current network topology.\
+    //        Are you sure it is still online? Perhaps try to run `nym-client init` again to obtain a new provider", provider_id));
+    //
+    //        let mut provider_poller = provider_poller::ProviderPoller::new(
+    //            poller_input_tx,
+    //            provider_client_listener_address,
+    //            self.identity_keypair.public_key().derive_address(),
+    //            self.config
+    //                .get_provider_auth_token()
+    //                .map(|str_token| AuthToken::try_from_base58_string(str_token).ok())
+    //                .unwrap_or(None),
+    //            self.config.get_fetch_message_delay(),
+    //            self.config.get_max_response_size(),
+    //        );
+    //
+    //        if !provider_poller.is_registered() {
+    //            info!("Trying to perform initial provider registration...");
+    //            self.runtime
+    //                .block_on(provider_poller.perform_initial_registration())
+    //                .expect("Failed to perform initial provider registration");
+    //        }
+    //        provider_poller.start(self.runtime.handle());
+    //    }
 
     // future responsible for periodically polling directory server and updating
     // the current global view of topology
@@ -228,18 +281,16 @@ impl NymClient {
     }
 
     // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
-    fn start_mix_traffic_controller(&mut self, mix_rx: MixMessageReceiver) {
+    // TODO: if we want to send control messages to gateway_client, this CAN'T take the ownership
+    // over it. Perhaps GatewayClient needs to be thread-shareable or have some channel for
+    // requests?
+    fn start_mix_traffic_controller(
+        &mut self,
+        mix_rx: MixMessageReceiver,
+        gateway_client: GatewayClient<'static, url::Url>,
+    ) {
         info!("Starting mix traffic controller...");
-        self.runtime
-            .enter(|| {
-                MixTrafficController::new(
-                    self.config.get_packet_forwarding_initial_backoff(),
-                    self.config.get_packet_forwarding_maximum_backoff(),
-                    self.config.get_initial_connection_timeout(),
-                    mix_rx,
-                )
-            })
-            .start(self.runtime.handle());
+        MixTrafficController::new(mix_rx, gateway_client).start(self.runtime.handle());
     }
 
     fn start_socket_listener<T: 'static + NymTopology>(
@@ -322,6 +373,9 @@ impl NymClient {
     }
 
     pub fn start(&mut self) {
+        // TODO: put into config, etc.
+        let gateway_url = url::Url::parse("ws://localhost:9000").unwrap();
+
         info!("Starting nym client");
         // channels for inter-component communication
 
@@ -330,9 +384,9 @@ impl NymClient {
         // mix_rx is the receiver used by MixTrafficController that sends the actual traffic
         let (mix_tx, mix_rx) = mpsc::unbounded();
 
-        // poller_input_tx is the transmitter of messages fetched from the provider - used by ProviderPoller
-        // poller_input_rx is the receiver for said messages - used by ReceivedMessagesBuffer
-        let (poller_input_tx, poller_input_rx) = mpsc::unbounded();
+        // sphinx_packet_tx is the transmitter of sphinx messages received from the gateway
+        // sphinx_packet_rx is the receiver for said messages - used by ReceivedMessagesBuffer
+        let (sphinx_packet_tx, sphinx_packet_rx) = mpsc::unbounded();
 
         // received_messages_buffer_output_tx is the transmitter for *REQUESTS* for messages contained in ReceivedMessagesBuffer - used by sockets
         // the requests contain a oneshot channel to send a reply on
@@ -350,10 +404,13 @@ impl NymClient {
         self.start_topology_refresher(shared_topology_accessor.clone());
         self.start_received_messages_buffer_controller(
             received_messages_buffer_output_rx,
-            poller_input_rx,
+            sphinx_packet_rx,
         );
-        self.start_provider_poller(shared_topology_accessor.clone(), poller_input_tx);
-        self.start_mix_traffic_controller(mix_rx);
+        //        self.start_provider_poller(shared_topology_accessor.clone(), sphinx_packet_tx);
+
+        let gateway_client = self.start_gateway_client(sphinx_packet_tx, gateway_url);
+
+        self.start_mix_traffic_controller(mix_rx, gateway_client);
         self.start_cover_traffic_stream(shared_topology_accessor.clone(), mix_tx.clone());
         self.start_real_traffic_stream(shared_topology_accessor.clone(), mix_tx, input_rx);
         self.start_socket_listener(

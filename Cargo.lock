@@ -1623,6 +1623,7 @@ dependencies = [
  "dirs",
  "dotenv",
  "futures 0.3.4",
+ "gateway-client",
  "gateway-requests",
  "healthcheck",
  "log 0.4.8",
@@ -1636,11 +1637,11 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "sfw-provider-requests",
  "tempfile",
  "tokio 0.2.16",
  "tokio-tungstenite",
  "topology",
+ "url 2.1.1",
 ]
 
 [[package]]

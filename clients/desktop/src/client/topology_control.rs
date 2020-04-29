@@ -101,12 +101,12 @@ impl<T: NymTopology> TopologyAccessor<T> {
         match &self.inner.lock().await.0 {
             None => None,
             Some(ref topology) => {
-                let mut providers = topology.providers();
-                if providers.is_empty() {
+                let mut gateways = topology.gateways();
+                if gateways.is_empty() {
                     return None;
                 }
                 // unwrap is fine here as we asserted there is at least single provider
-                let provider = providers.pop().unwrap().into();
+                let provider = gateways.pop().unwrap().into();
                 topology.route_to(provider).ok()
             }
         }
@@ -186,29 +186,32 @@ impl<T: 'static + NymTopology> TopologyRefresher<T> {
         let version_filtered_topology =
             full_topology.filter_system_version(built_info::PKG_VERSION);
 
-        let healthcheck_result = self
-            .health_checker
-            .do_check(&version_filtered_topology)
-            .await;
-        let healthcheck_scores = match healthcheck_result {
-            Err(err) => {
-                error!("Error while performing the healthcheck: {:?}", err);
-                return Err(TopologyError::HealthCheckError);
-            }
-            Ok(scores) => scores,
-        };
+        // healthcheck needs some adjustments to work with gateways so for time being just dont run it
+        return Ok(version_filtered_topology);
 
-        debug!("{}", healthcheck_scores);
-
-        let healthy_topology = healthcheck_scores
-            .filter_topology_by_score(&version_filtered_topology, self.node_score_threshold);
-
-        // make sure you can still send a packet through the network:
-        if !healthy_topology.can_construct_path_through() {
-            return Err(TopologyError::NoValidPathsError);
-        }
-
-        Ok(healthy_topology)
+        //        let healthcheck_result = self
+        //            .health_checker
+        //            .do_check(&version_filtered_topology)
+        //            .await;
+        //        let healthcheck_scores = match healthcheck_result {
+        //            Err(err) => {
+        //                error!("Error while performing the healthcheck: {:?}", err);
+        //                return Err(TopologyError::HealthCheckError);
+        //            }
+        //            Ok(scores) => scores,
+        //        };
+        //
+        //        debug!("{}", healthcheck_scores);
+        //
+        //        let healthy_topology = healthcheck_scores
+        //            .filter_topology_by_score(&version_filtered_topology, self.node_score_threshold);
+        //
+        //        // make sure you can still send a packet through the network:
+        //        if !healthy_topology.can_construct_path_through() {
+        //            return Err(TopologyError::NoValidPathsError);
+        //        }
+        //
+        //        Ok(healthy_topology)
     }
 
     pub(crate) async fn refresh(&mut self) {

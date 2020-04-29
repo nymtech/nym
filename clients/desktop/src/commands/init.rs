@@ -19,10 +19,13 @@ use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::identity::MixIdentityKeyPair;
 use directory_client::presence::Topology;
+use futures::channel::mpsc;
+use gateway_client::GatewayClient;
+use gateway_requests::AuthToken;
 use nymsphinx::DestinationAddressBytes;
 use pemstore::pemstore::PemStore;
-use sfw_provider_requests::auth_token::AuthToken;
-use topology::provider::Node;
+use std::time::Duration;
+use topology::gateway::Node;
 use topology::NymTopology;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
@@ -57,24 +60,51 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
 }
 
-async fn try_provider_registrations(
-    providers: Vec<Node>,
+//async fn try_provider_registrations(
+//    providers: Vec<Node>,
+//    our_address: DestinationAddressBytes,
+//) -> Option<(String, AuthToken)> {
+//    // we don't expect the response to be longer than AUTH_TOKEN_SIZE, but allow for more bytes
+//    // in case there was an error message
+//    let max_response_len = 16 * 1024;
+//    // since the order of providers is non-deterministic we can just try to get a first 'working' provider
+//    for provider in providers {
+//        let mut provider_client = provider_client::ProviderClient::new(
+//            provider.client_listener,
+//            our_address.clone(),
+//            None,
+//            max_response_len,
+//        );
+//        let auth_token = provider_client.register().await;
+//        if let Ok(token) = auth_token {
+//            return Some((provider.pub_key, token));
+//        }
+//    }
+//    None
+//}
+
+async fn try_gateway_registration(
+    gateways: Vec<Node>,
     our_address: DestinationAddressBytes,
 ) -> Option<(String, AuthToken)> {
-    // we don't expect the response to be longer than AUTH_TOKEN_SIZE, but allow for more bytes
-    // in case there was an error message
-    let max_response_len = 16 * 1024;
-    // since the order of providers is non-deterministic we can just try to get a first 'working' provider
-    for provider in providers {
-        let mut provider_client = provider_client::ProviderClient::new(
-            provider.client_listener,
+    // TODO: having to do something like this suggests that perhaps GatewayClient's constructor
+    // could be improved
+    let (sphinx_tx, _) = mpsc::unbounded();
+    let timeout = Duration::from_millis(1500);
+    for gateway in gateways {
+        let mut gateway_client = GatewayClient::new(
+            // TODO: can you construct urls this way?
+            url::Url::parse(format!("ws://{}", gateway.client_listener.to_string()).as_ref())
+                .unwrap(),
             our_address.clone(),
             None,
-            max_response_len,
+            sphinx_tx.clone(),
+            timeout,
         );
-        let auth_token = provider_client.register().await;
-        if let Ok(token) = auth_token {
-            return Some((provider.pub_key, token));
+        if let Ok(_) = gateway_client.establish_connection().await {
+            if let Ok(token) = gateway_client.register().await {
+                return Some((gateway.pub_key, token));
+            }
         }
     }
     None
@@ -82,7 +112,36 @@ async fn try_provider_registrations(
 
 // in the long run this will be provider specific and only really applicable to a
 // relatively small subset of all providers
-async fn choose_provider(
+//async fn choose_provider(
+//    directory_server: String,
+//    our_address: DestinationAddressBytes,
+//) -> (String, AuthToken) {
+//    // TODO: once we change to graph topology this here will need to be updated!
+//    let topology = Topology::new(directory_server.clone());
+//    let version_filtered_topology = topology.filter_system_version(built_info::PKG_VERSION);
+//    // don't care about health of the networks as mixes can go up and down any time,
+//    // but DO care about providers
+//    let providers = version_filtered_topology.providers();
+//
+//    // try to perform registration so that we wouldn't need to do it at startup
+//    // + at the same time we'll know if we can actually talk with that provider
+//    let registration_result = try_provider_registrations(providers, our_address).await;
+//    match registration_result {
+//        None => {
+//            // while technically there's no issue client-side, it will be impossible to execute
+//            // `nym-client run` as no provider is available so it might be best to not finalize
+//            // the init and rely on users trying to init another time?
+//            panic!(
+//                "Currently there are no valid providers available on the network ({}). \
+//                 Please try to run `init` again at later time or change your directory server",
+//                directory_server
+//            )
+//        }
+//        Some((provider_id, auth_token)) => (provider_id, auth_token),
+//    }
+//}
+
+async fn choose_gateway(
     directory_server: String,
     our_address: DestinationAddressBytes,
 ) -> (String, AuthToken) {
@@ -91,18 +150,18 @@ async fn choose_provider(
     let version_filtered_topology = topology.filter_system_version(built_info::PKG_VERSION);
     // don't care about health of the networks as mixes can go up and down any time,
     // but DO care about providers
-    let providers = version_filtered_topology.providers();
+    let gateways = version_filtered_topology.gateways();
 
     // try to perform registration so that we wouldn't need to do it at startup
     // + at the same time we'll know if we can actually talk with that provider
-    let registration_result = try_provider_registrations(providers, our_address).await;
+    let registration_result = try_gateway_registration(gateways, our_address).await;
     match registration_result {
         None => {
             // while technically there's no issue client-side, it will be impossible to execute
             // `nym-client run` as no provider is available so it might be best to not finalize
             // the init and rely on users trying to init another time?
             panic!(
-                "Currently there are no valid providers available on the network ({}). \
+                "Currently there are no valid gateways available on the network ({}). \
                  Please try to run `init` again at later time or change your directory server",
                 directory_server
             )
@@ -126,10 +185,12 @@ pub fn execute(matches: &ArgMatches) {
         let our_address = mix_identity_keys.public_key().derive_address();
         // TODO: is there perhaps a way to make it work without having to spawn entire runtime?
         let mut rt = tokio::runtime::Runtime::new().unwrap();
-        let (provider_id, auth_token) =
-            rt.block_on(choose_provider(config.get_directory_server(), our_address));
+        let (gateway_id, auth_token) =
+            rt.block_on(choose_gateway(config.get_directory_server(), our_address));
+
+        // TODO: this isn't really a provider, but gateway, yet another change to make
         config = config
-            .with_provider_id(provider_id)
+            .with_provider_id(gateway_id)
             .with_provider_auth_token(auth_token);
     }
 
@@ -146,6 +207,7 @@ pub fn execute(matches: &ArgMatches) {
         .expect("Failed to save the config file");
     println!("Saved configuration file to {:?}", config_save_location);
 
+    // TODO: again change provider -> gateway
     println!(
         "Unless overridden in all `nym-client run` we will be talking to the following provider: {}...",
         config.get_provider_id(),

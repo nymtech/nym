@@ -81,7 +81,7 @@ impl NymTopology for Topology {
             .collect()
     }
 
-    fn gateways(&self) -> Vec<Node> {
+    fn gateways(&self) -> Vec<gateway::Node> {
         self.gateway_nodes
             .iter()
             .map(|x| x.clone().into())

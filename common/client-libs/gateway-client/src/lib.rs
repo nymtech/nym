@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use futures::{channel::mpsc, future::LocalBoxFuture, FutureExt, SinkExt, StreamExt};
+use futures::{channel::mpsc, future::BoxFuture, FutureExt, SinkExt, StreamExt};
 use gateway_requests::auth_token::{AuthToken, AuthTokenConversionError};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
 use nymsphinx::DestinationAddressBytes;
@@ -48,8 +48,9 @@ msg read from conn.next().await:
     }
 */
 
-// to be moved to different crate perhaps? We'll see
-type SphinxPacketSender = mpsc::UnboundedSender<Vec<u8>>;
+// TODO: some batching mechanism to allow reading and sending more than a single packet through
+pub type SphinxPacketSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
+pub type SphinxPacketReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
 
 // type alias for not having to type the whole thing every single time
 type WsConn = WebSocketStream<TcpStream>;
@@ -64,6 +65,7 @@ pub enum GatewayClientError {
     MalformedResponse,
     NotAuthenticated,
     ConnectionInInvalidState,
+    AuthenticationFailure,
     Timeout,
 }
 
@@ -101,6 +103,7 @@ impl fmt::Display for GatewayClientError {
                 f,
                 "connection is in an invalid state - please send a bug report"
             ),
+            GatewayClientError::AuthenticationFailure => write!(f, "authentication failure"),
             GatewayClientError::GatewayError(err) => {
                 write!(f, "gateway returned an error response - {}", err)
             }
@@ -114,7 +117,7 @@ impl fmt::Display for GatewayClientError {
 enum SocketState<'a> {
     Available(WsConn),
     Delegated(
-        LocalBoxFuture<'a, Result<WsConn, GatewayClientError>>,
+        BoxFuture<'a, Result<WsConn, GatewayClientError>>,
         Arc<Notify>,
     ),
     NotConnected,
@@ -153,6 +156,12 @@ pub struct GatewayClient<'a, R: IntoClientRequest + Unpin + Clone> {
     connection: SocketState<'a>,
     sphinx_packet_sender: SphinxPacketSender,
     response_timeout_duration: Duration,
+}
+
+impl<'a, R: IntoClientRequest + Unpin + Clone> Drop for GatewayClient<'a, R> {
+    fn drop(&mut self) {
+        // TODO to fix forcibly closing connection
+    }
 }
 
 impl<'a, R> GatewayClient<'static, R>
@@ -220,7 +229,7 @@ where
                     };
                     match msg {
                         Message::Binary(bin_msg) => {
-                            self.sphinx_packet_sender.unbounded_send(bin_msg).unwrap()
+                            self.sphinx_packet_sender.unbounded_send(vec![bin_msg]).unwrap()
                         }
                         Message::Text(txt_msg) => {
                             res = Some(ServerResponse::try_from(txt_msg).map_err(|_| GatewayClientError::MalformedResponse));
@@ -307,6 +316,23 @@ where
         Ok(authenticated)
     }
 
+    // just a helper method to either call register or authenticate based on self.auth_token value
+    pub async fn perform_initial_authentication(
+        &mut self,
+    ) -> Result<AuthToken, GatewayClientError> {
+        if self.auth_token.is_some() {
+            self.authenticate(None).await?;
+        } else {
+            self.register().await?;
+        }
+        if self.authenticated {
+            // if we are authenticated it means we MUST have an associated auth_token
+            Ok(self.auth_token.clone().unwrap())
+        } else {
+            Err(GatewayClientError::AuthenticationFailure)
+        }
+    }
+
     pub async fn send_sphinx_packet(
         &mut self,
         address: SocketAddr,
@@ -385,7 +411,7 @@ where
                         };
                         match msg {
                             Message::Binary(bin_msg) => {
-                                sphinx_packet_sender.unbounded_send(bin_msg).unwrap()
+                                sphinx_packet_sender.unbounded_send(vec![bin_msg]).unwrap()
                             }
                             _ => (),
                         };

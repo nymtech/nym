@@ -80,5 +80,7 @@ fn setup_logging() {
         .filter_module("mio", log::LevelFilter::Warn)
         .filter_module("want", log::LevelFilter::Warn)
         .filter_module("sled", log::LevelFilter::Warn)
+        .filter_module("tungstenite", log::LevelFilter::Warn)
+        .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
         .init();
 }

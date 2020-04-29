@@ -56,6 +56,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
         self.inner.lock().await.update(new_topology);
     }
 
+    // not removed until healtchecker is not fully changed to use gateways instead of providers
     pub(crate) async fn get_provider_socket_addr(&mut self, id: &str) -> Option<SocketAddr> {
         match &self.inner.lock().await.0 {
             None => None,
@@ -79,6 +80,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
     }
 
     // only used by the client at startup to get a slightly more reasonable error message
+    // (currently displays as unused because healthchecker is disabled due to required changes)
     pub(crate) async fn is_routable(&self) -> bool {
         match &self.inner.lock().await.0 {
             None => false,

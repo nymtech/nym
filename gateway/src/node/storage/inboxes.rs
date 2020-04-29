@@ -73,6 +73,8 @@ pub struct ClientStorage {
 // even though the data inside is extremely cheap to copy, we have to have a single mutex,
 // so might as well store the data behind it
 pub struct ClientStorageInner {
+    // basically part of rate limiting which does not exist anymore
+    #[allow(dead_code)]
     message_retrieval_limit: usize,
     filename_length: u16,
     main_store_path_dir: PathBuf,
@@ -90,10 +92,6 @@ impl ClientStorage {
         }
     }
 
-    // TODO: does this method really require locking?
-    // The worst that can happen is client sending 2 requests: to pull messages and register
-    // if register does not lock, then under specific timing pull messages will fail,
-    // but can simply be retried with no issues
     pub(crate) async fn create_storage_dir(
         &self,
         client_address: DestinationAddressBytes,
@@ -159,56 +157,6 @@ impl ClientStorage {
                 msgs.push(client_file)
             }
         }
-        Ok(msgs)
-    }
-
-    pub(crate) async fn retrieve_client_files_with_constant_rate(
-        &self,
-        client_address: DestinationAddressBytes,
-    ) -> io::Result<Vec<ClientFile>> {
-        let inner_data = self.inner.lock().await;
-
-        let client_dir_name = client_address.to_base58_string();
-        let full_store_dir = inner_data.main_store_path_dir.join(client_dir_name);
-
-        trace!("going to lookup: {:?}!", full_store_dir);
-        if !full_store_dir.exists() {
-            return Err(io::Error::new(
-                io::ErrorKind::NotFound,
-                "Target client does not exist",
-            ));
-        }
-
-        let mut msgs = Vec::new();
-        let mut read_dir = fs::read_dir(full_store_dir).await?;
-
-        while let Some(dir_entry) = read_dir.next().await {
-            if let Ok(dir_entry) = dir_entry {
-                if !Self::is_valid_file(&dir_entry).await {
-                    continue;
-                }
-                // Do not delete the file itself here!
-                // Only do it after client has received it
-                let client_file =
-                    ClientFile::new(fs::read(dir_entry.path()).await?, dir_entry.path());
-                msgs.push(client_file)
-            }
-            if msgs.len() == inner_data.message_retrieval_limit {
-                break;
-            }
-        }
-
-        let dummy_message = dummy_message();
-
-        // make sure we always return as many messages as we need
-        if msgs.len() != inner_data.message_retrieval_limit as usize {
-            msgs = msgs
-                .into_iter()
-                .chain(std::iter::repeat(dummy_message))
-                .take(inner_data.message_retrieval_limit)
-                .collect();
-        }
-
         Ok(msgs)
     }
 

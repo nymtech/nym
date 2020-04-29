@@ -81,6 +81,8 @@ impl From<AuthTokenConversionError> for GatewayClientError {
     }
 }
 
+// better human readable representation of the error, mostly so that GatewayClientError
+// would implement std::error::Error
 impl fmt::Display for GatewayClientError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         match self {
@@ -114,6 +116,9 @@ impl fmt::Display for GatewayClientError {
 // we can either have the stream itself or an option to re-obtain it
 // by notifying the future owning it to finish the execution and awaiting the result
 // which should be almost immediate (or an invalid state which should never, ever happen)
+// TODO: perhaps restore the previous idea of Split(Stream, Sink) state to allow for
+// sending messages without waiting for any responses and having no effect on rate of
+// messages being pushed to us
 enum SocketState<'a> {
     Available(WsConn),
     Delegated(
@@ -160,7 +165,8 @@ pub struct GatewayClient<'a, R: IntoClientRequest + Unpin + Clone> {
 
 impl<'a, R: IntoClientRequest + Unpin + Clone> Drop for GatewayClient<'a, R> {
     fn drop(&mut self) {
-        // TODO to fix forcibly closing connection
+        // TODO to fix forcibly closing connection (although now that I think about it,
+        // I'm not sure this would do it, as to fix the said issue we'd need graceful shutdowns)
     }
 }
 
@@ -272,6 +278,15 @@ where
         response
     }
 
+    // next on TODO list:
+    // so that presumably we could increase our sending/receiving rate
+    async fn send_websocket_message_without_response(
+        &mut self,
+        msg: Message,
+    ) -> Result<(), GatewayClientError> {
+        unimplemented!()
+    }
+
     pub async fn register(&mut self) -> Result<AuthToken, GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
@@ -333,6 +348,7 @@ where
         }
     }
 
+    // TODO: make it optionally use `send_websocket_message_without_response`
     pub async fn send_sphinx_packet(
         &mut self,
         address: SocketAddr,
@@ -422,7 +438,9 @@ where
         };
 
         let spawned_boxed_task = tokio::spawn(sphinx_receiver_future)
-            .map(|join_handle| join_handle.expect("task must have not failed to finish execution!"))
+            .map(|join_handle| {
+                join_handle.expect("task must have not failed to finish its execution!")
+            })
             .boxed();
 
         self.connection = SocketState::Delegated(spawned_boxed_task, notify);

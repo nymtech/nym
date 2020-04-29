@@ -17,7 +17,6 @@ use crate::types::BinaryRequest::ForwardSphinx;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx::DestinationAddressBytes;
 use serde::{Deserialize, Serialize};
-use std::convert::TryInto;
 use std::{
     convert::TryFrom,
     fmt::{self, Error, Formatter},

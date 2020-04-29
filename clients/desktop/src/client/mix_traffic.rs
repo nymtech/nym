@@ -18,7 +18,6 @@ use gateway_client::GatewayClient;
 use log::*;
 use nymsphinx::SphinxPacket;
 use std::net::SocketAddr;
-use std::time::Duration;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 

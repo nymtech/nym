@@ -42,6 +42,8 @@ impl Listener {
             match tcp_listener.accept().await {
                 Ok((socket, remote_addr)) => {
                     trace!("received a socket connection from {}", remote_addr);
+                    // TODO: I think we need a mechanism for having a maximum number of connected
+                    // clients or spawned tokio tasks -> perhaps a worker system?
                     let mut handle = Handle::new(
                         socket,
                         clients_handler_sender.clone(),

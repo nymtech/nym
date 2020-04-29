@@ -52,7 +52,6 @@ impl PacketForwarder {
     }
 
     pub(crate) fn start(mut self) -> (JoinHandle<()>, OutboundMixMessageSender) {
-        // TODO: what to do with the lost JoinHandle - do we even care?
         let sender_channel = self.conn_tx.clone();
         (
             tokio::spawn(async move {

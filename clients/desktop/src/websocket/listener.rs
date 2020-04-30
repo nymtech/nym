@@ -15,7 +15,7 @@
 use crate::client::received_buffer::ReceivedBufferRequestSender;
 use crate::client::topology_control::TopologyAccessor;
 use crate::client::InputMessageSender;
-use crate::sockets::websocket::connection::{Connection, ConnectionData};
+use crate::websocket::connection::{Connection, ConnectionData};
 use log::*;
 use nymsphinx::DestinationAddressBytes;
 use std::net::SocketAddr;

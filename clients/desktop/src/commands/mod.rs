@@ -27,8 +27,8 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.with_gateway_id(gateway_id);
     }
 
-    if let Some(socket_type) = matches.value_of("socket-type") {
-        config = config.with_socket(SocketType::from_string(socket_type));
+    if matches.is_present("disable-socket") {
+        config = config.with_socket(SocketType::None);
     }
 
     if let Some(port) = matches.value_of("port").map(|port| port.parse::<u16>()) {

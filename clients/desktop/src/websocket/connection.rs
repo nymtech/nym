@@ -15,7 +15,7 @@
 use crate::client::received_buffer::ReceivedBufferRequestSender;
 use crate::client::topology_control::TopologyAccessor;
 use crate::client::{InputMessage, InputMessageSender};
-use crate::sockets::websocket::types::{ClientRequest, ServerResponse};
+use crate::websocket::types::{ClientRequest, ServerResponse};
 use futures::channel::oneshot;
 use futures::{SinkExt, StreamExt};
 use log::*;

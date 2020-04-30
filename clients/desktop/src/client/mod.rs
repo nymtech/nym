@@ -22,7 +22,6 @@ use crate::client::topology_control::{
 };
 use crate::config::persistence::pathfinder::ClientPathfinder;
 use crate::config::{Config, SocketType};
-use crate::sockets::{tcp, websocket};
 use crypto::identity::MixIdentityKeyPair;
 use directory_client::presence;
 use futures::channel::{mpsc, oneshot};
@@ -34,6 +33,7 @@ use nymsphinx::{Destination, DestinationAddressBytes};
 use pemstore::pemstore::PemStore;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
+use crate::websocket;
 
 mod cover_traffic_stream;
 mod mix_traffic;
@@ -270,16 +270,6 @@ impl NymClient {
         match self.config.get_socket_type() {
             SocketType::WebSocket => {
                 websocket::listener::run(
-                    self.runtime.handle(),
-                    self.config.get_listening_port(),
-                    input_tx,
-                    received_messages_buffer_output_tx,
-                    self.identity_keypair.public_key().derive_address(),
-                    topology_accessor,
-                );
-            }
-            SocketType::TCP => {
-                tcp::start_tcpsocket(
                     self.runtime.handle(),
                     self.config.get_listening_port(),
                     input_tx,

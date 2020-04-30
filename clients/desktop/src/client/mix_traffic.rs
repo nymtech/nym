@@ -57,13 +57,7 @@ impl<'a> MixTrafficController<'static> {
             .await
         {
             Err(e) => error!("Failed to send sphinx packet to the gateway! - {:?}", e),
-            Ok(was_successful) if !was_successful => {
-                warn!("Sent sphinx packet to the gateway but it failed to get processed!")
-            }
-            Ok(was_successful) if was_successful => {
-                trace!("Successfully forwarded sphinx packet to the gateway!")
-            }
-            Ok(_) => unreachable!("to shut up the compiler because all patterns ARE covered"),
+            Ok(_) => trace!("We *might* have managed to forward sphinx packet to the gateway!"),
         }
     }
 

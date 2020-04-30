@@ -22,7 +22,7 @@ pub mod persistence;
 mod template;
 
 // 'CLIENT'
-const DEFAULT_LISTENING_PORT: u16 = 9001;
+const DEFAULT_LISTENING_PORT: u16 = 1977;
 
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds

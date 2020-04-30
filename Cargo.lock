@@ -896,23 +896,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "gateway"
+name = "gateway-client"
 version = "0.1.0"
 dependencies = [
- "crypto",
- "dotenv",
  "futures 0.3.4",
- "log 0.4.8",
- "mix-client",
- "multi-tcp-client",
+ "gateway-requests",
  "nymsphinx",
- "pretty_env_logger",
- "rand 0.7.3",
- "serde",
- "sled",
  "tokio 0.2.16",
  "tokio-tungstenite",
- "tungstenite",
+]
+
+[[package]]
+name = "gateway-requests"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "nymsphinx",
+ "serde",
+ "serde_json",
+ "tokio-tungstenite",
 ]
 
 [[package]]
@@ -1621,6 +1623,8 @@ dependencies = [
  "dirs",
  "dotenv",
  "futures 0.3.4",
+ "gateway-client",
+ "gateway-requests",
  "healthcheck",
  "log 0.4.8",
  "mix-client",
@@ -1633,11 +1637,41 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "sfw-provider-requests",
  "tempfile",
  "tokio 0.2.16",
  "tokio-tungstenite",
  "topology",
+ "url 2.1.1",
+]
+
+[[package]]
+name = "nym-gateway"
+version = "0.7.0-dev"
+dependencies = [
+ "built",
+ "clap",
+ "config",
+ "crypto",
+ "directory-client",
+ "dirs",
+ "dotenv",
+ "futures 0.3.4",
+ "gateway-requests",
+ "hmac",
+ "log 0.4.8",
+ "mix-client",
+ "multi-tcp-client",
+ "nymsphinx",
+ "pemstore",
+ "pretty_env_logger",
+ "rand 0.7.3",
+ "serde",
+ "sha2",
+ "sled",
+ "tempfile",
+ "tokio 0.2.16",
+ "tokio-tungstenite",
+ "tungstenite",
 ]
 
 [[package]]
@@ -2653,7 +2687,7 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=298c7fda6a577daf6d9bb955fa52c2bffecf6926#298c7fda6a577daf6d9bb955fa52c2bffecf6926"
+source = "git+https://github.com/nymtech/sphinx?rev=72368ea048472823f7f9e78eed77a2c3d30a471f#72368ea048472823f7f9e78eed77a2c3d30a471f"
 dependencies = [
  "aes-ctr",
  "arrayref",

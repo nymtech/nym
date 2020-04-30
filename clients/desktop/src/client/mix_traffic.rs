@@ -14,10 +14,10 @@
 
 use futures::channel::mpsc;
 use futures::StreamExt;
+use gateway_client::GatewayClient;
 use log::*;
 use nymsphinx::SphinxPacket;
 use std::net::SocketAddr;
-use std::time::Duration;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
@@ -31,37 +31,40 @@ impl MixMessage {
     }
 }
 
-pub(crate) struct MixTrafficController {
-    tcp_client: multi_tcp_client::Client,
+pub(crate) struct MixTrafficController<'a> {
+    // TODO: most likely to be replaced by some higher level construct as
+    // later on gateway_client will need to be accessible by other entities
+    gateway_client: GatewayClient<'a, url::Url>,
     mix_rx: MixMessageReceiver,
 }
 
-impl MixTrafficController {
+impl<'a> MixTrafficController<'static> {
     pub(crate) fn new(
-        initial_reconnection_backoff: Duration,
-        maximum_reconnection_backoff: Duration,
-        initial_connection_timeout: Duration,
         mix_rx: MixMessageReceiver,
-    ) -> Self {
-        let tcp_client_config = multi_tcp_client::Config::new(
-            initial_reconnection_backoff,
-            maximum_reconnection_backoff,
-            initial_connection_timeout,
-        );
-
+        gateway_client: GatewayClient<'a, url::Url>,
+    ) -> MixTrafficController<'a> {
         MixTrafficController {
-            tcp_client: multi_tcp_client::Client::new(tcp_client_config),
+            gateway_client,
             mix_rx,
         }
     }
 
     async fn on_message(&mut self, mix_message: MixMessage) {
         debug!("Got a mix_message for {:?}", mix_message.0);
-        self.tcp_client
-            // TODO: possibly we might want to get an actual result here at some point
-            .send(mix_message.0, mix_message.1.to_bytes(), false)
+        match self
+            .gateway_client
+            .send_sphinx_packet(mix_message.0, mix_message.1.to_bytes())
             .await
-            .unwrap(); // if we're not waiting for response, we MUST get an Ok
+        {
+            Err(e) => error!("Failed to send sphinx packet to the gateway! - {:?}", e),
+            Ok(was_successful) if !was_successful => {
+                warn!("Sent sphinx packet to the gateway but it failed to get processed!")
+            }
+            Ok(was_successful) if was_successful => {
+                trace!("Successfully forwarded sphinx packet to the gateway!")
+            }
+            Ok(_) => unreachable!("to shut up the compiler because all patterns ARE covered"),
+        }
     }
 
     pub(crate) async fn run(&mut self) {

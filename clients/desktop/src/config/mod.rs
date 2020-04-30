@@ -29,19 +29,14 @@ const DEFAULT_LISTENING_PORT: u16 = 9001;
 const DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY: u64 = 1000; // 1s
 const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: u64 = 500; // 0.5s
 const DEFAULT_AVERAGE_PACKET_DELAY: u64 = 200; // 0.2s
-const DEFAULT_FETCH_MESSAGES_DELAY: u64 = 1000; // 1s
 const DEFAULT_TOPOLOGY_REFRESH_RATE: u64 = 30_000; // 30s
 const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: u64 = 5_000; // 5s
-const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: u64 = 10_000; // 10s
-const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: u64 = 300_000; // 5min
-const DEFAULT_INITIAL_CONNECTION_TIMEOUT: u64 = 1_500; // 1.5s
-const DEFAULT_HEALTHCHECK_CONNECTION_TIMEOUT: u64 = DEFAULT_INITIAL_CONNECTION_TIMEOUT;
+
+const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: u64 = 1_500; // 1.5s
+const DEFAULT_HEALTHCHECK_CONNECTION_TIMEOUT: u64 = 1_500; // 1.5s
 
 const DEFAULT_NUMBER_OF_HEALTHCHECK_TEST_PACKETS: u64 = 2;
 const DEFAULT_NODE_SCORE_THRESHOLD: f64 = 0.0;
-
-// for time being treat it as if there was no limit
-const DEFAULT_MAX_RESPONSE_SIZE: u32 = u32::max_value();
 
 #[derive(Debug, Deserialize, PartialEq, Serialize, Clone, Copy)]
 #[serde(deny_unknown_fields)]
@@ -130,13 +125,13 @@ impl Config {
         self
     }
 
-    pub fn with_provider_id<S: Into<String>>(mut self, id: S) -> Self {
-        self.client.provider_id = id.into();
+    pub fn with_gateway_id<S: Into<String>>(mut self, id: S) -> Self {
+        self.client.gateway_id = id.into();
         self
     }
 
-    pub fn with_provider_auth_token<S: Into<String>>(mut self, token: S) -> Self {
-        self.client.provider_authtoken = Some(token.into());
+    pub fn with_gateway_auth_token<S: Into<String>>(mut self, token: S) -> Self {
+        self.client.gateway_authtoken = Some(token.into());
         self
     }
 
@@ -172,12 +167,12 @@ impl Config {
         self.client.directory_server.clone()
     }
 
-    pub fn get_provider_id(&self) -> String {
-        self.client.provider_id.clone()
+    pub fn get_gateway_id(&self) -> String {
+        self.client.gateway_id.clone()
     }
 
-    pub fn get_provider_auth_token(&self) -> Option<String> {
-        self.client.provider_authtoken.clone()
+    pub fn get_gateway_auth_token(&self) -> Option<String> {
+        self.client.gateway_authtoken.clone()
     }
 
     pub fn get_socket_type(&self) -> SocketType {
@@ -197,16 +192,12 @@ impl Config {
         time::Duration::from_millis(self.debug.loop_cover_traffic_average_delay)
     }
 
-    pub fn get_fetch_message_delay(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.fetch_message_delay)
-    }
-
     pub fn get_message_sending_average_delay(&self) -> time::Duration {
         time::Duration::from_millis(self.debug.message_sending_average_delay)
     }
 
-    pub fn get_rate_compliant_cover_messages_disabled(&self) -> bool {
-        self.debug.rate_compliant_cover_messages_disabled
+    pub fn get_gateway_response_timeout(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.gateway_response_timeout)
     }
 
     pub fn get_topology_refresh_rate(&self) -> time::Duration {
@@ -225,24 +216,8 @@ impl Config {
         self.debug.node_score_threshold
     }
 
-    pub fn get_packet_forwarding_initial_backoff(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.packet_forwarding_initial_backoff)
-    }
-
-    pub fn get_packet_forwarding_maximum_backoff(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.packet_forwarding_maximum_backoff)
-    }
-
-    pub fn get_initial_connection_timeout(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.initial_connection_timeout)
-    }
-
     pub fn get_healthcheck_connection_timeout(&self) -> time::Duration {
         time::Duration::from_millis(self.debug.healthcheck_connection_timeout)
-    }
-
-    pub fn get_max_response_size(&self) -> usize {
-        self.debug.max_response_size as usize
     }
 }
 
@@ -273,14 +248,14 @@ pub struct Client {
     /// Path to file containing public identity key.
     public_identity_key_file: PathBuf,
 
-    /// provider_id specifies ID of the provider to which the client should send messages.
-    /// If initially omitted, a random provider will be chosen from the available topology.
-    provider_id: String,
+    /// gateway_id specifies ID of the gateway to which the client should send messages.
+    /// If initially omitted, a random gateway will be chosen from the available topology.
+    gateway_id: String,
 
-    /// A provider specific, optional, base58 stringified authentication token used for
-    /// communication with particular provider.
+    /// A gateway specific, optional, base58 stringified authentication token used for
+    /// communication with particular gateway.
     #[serde(deserialize_with = "de_option_string")]
-    provider_authtoken: Option<String>,
+    gateway_authtoken: Option<String>,
 
     /// nym_home_directory specifies absolute path to the home nym Clients directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
@@ -295,8 +270,8 @@ impl Default for Client {
             directory_server: Self::default_directory_server(),
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
-            provider_id: "".to_string(),
-            provider_authtoken: None,
+            gateway_id: "".to_string(),
+            gateway_authtoken: None,
             nym_root_directory: Config::default_root_directory(),
         }
     }
@@ -362,10 +337,6 @@ pub struct Debug {
     /// The provided value is interpreted as milliseconds.
     loop_cover_traffic_average_delay: u64,
 
-    /// The uniform delay every which clients are querying the providers for received packets.
-    /// The provided value is interpreted as milliseconds.
-    fetch_message_delay: u64,
-
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take another 'real traffic stream' message to be sent.
     /// If no real packets are available and cover traffic is enabled,
@@ -373,11 +344,10 @@ pub struct Debug {
     /// The provided value is interpreted as milliseconds.
     message_sending_average_delay: u64,
 
-    /// Whether loop cover messages should be sent to respect message_sending_rate.
-    /// In the case of it being disabled and not having enough real traffic
-    /// waiting to be sent the actual sending rate is going be lower than the desired value
-    /// thus decreasing the anonymity.
-    rate_compliant_cover_messages_disabled: bool,
+    /// How long we're willing to wait for a response to a message sent to the gateway,
+    /// before giving up on it.
+    /// The provided value is interpreted as milliseconds.
+    gateway_response_timeout: u64,
 
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
@@ -398,29 +368,10 @@ pub struct Debug {
     /// considered healthy.
     node_score_threshold: f64,
 
-    /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
-    /// forwarding sphinx packets.
-    /// The provided value is interpreted as milliseconds.
-    packet_forwarding_initial_backoff: u64,
-
-    /// Maximum value of an exponential backoff to reconnect to dropped TCP connection when
-    /// forwarding sphinx packets.
-    /// The provided value is interpreted as milliseconds.
-    packet_forwarding_maximum_backoff: u64,
-
-    /// Timeout for establishing initial connection when trying to forward a sphinx packet.
-    /// The provider value is interpreted as milliseconds.
-    initial_connection_timeout: u64,
-
     /// Timeout for establishing initial connection when trying to forward a sphinx packet
     /// during healthcheck.
-    /// The provider value is interpreted as milliseconds.
+    /// The provided value is interpreted as milliseconds.
     healthcheck_connection_timeout: u64,
-
-    /// Maximum allowed length for sfw-provider responses received.
-    /// Anything declaring bigger size than that will be regarded as an error and
-    /// is going to be rejected.
-    max_response_size: u32,
 }
 
 impl Default for Debug {
@@ -428,18 +379,13 @@ impl Default for Debug {
         Debug {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             loop_cover_traffic_average_delay: DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
-            fetch_message_delay: DEFAULT_FETCH_MESSAGES_DELAY,
             message_sending_average_delay: DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
-            rate_compliant_cover_messages_disabled: false,
+            gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             number_of_healthcheck_test_packets: DEFAULT_NUMBER_OF_HEALTHCHECK_TEST_PACKETS,
             node_score_threshold: DEFAULT_NODE_SCORE_THRESHOLD,
-            packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
-            packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
-            initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             healthcheck_connection_timeout: DEFAULT_HEALTHCHECK_CONNECTION_TIMEOUT,
-            max_response_size: DEFAULT_MAX_RESPONSE_SIZE,
         }
     }
 }

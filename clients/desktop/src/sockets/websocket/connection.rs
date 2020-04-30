@@ -87,9 +87,15 @@ impl<T: NymTopology> Connection<T> {
     fn handle_text_send(&self, msg: String, recipient_address: String) -> ServerResponse {
         let message_bytes = msg.into_bytes();
 
-        // TODO: the below can panic if recipient_address is malformed, but it should be
-        // resolved when refactoring sphinx code to make `from_base58_string` return a Result
-        let address = DestinationAddressBytes::from_base58_string(recipient_address);
+        let address = match DestinationAddressBytes::try_from_base58_string(recipient_address) {
+            Ok(address) => address,
+            Err(e) => {
+                trace!("failed to parse received DestinationAddress: {:?}", e);
+                return ServerResponse::Error {
+                    message: "malformed destination address".to_string(),
+                };
+            }
+        };
         let dummy_surb = [0; 16];
 
         // in case the message is too long and needs to be split into multiple packets:

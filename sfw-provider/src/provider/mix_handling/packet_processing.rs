@@ -16,7 +16,10 @@ use crate::provider::storage::{ClientStorage, StoreData};
 use crypto::encryption;
 use log::*;
 use mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD;
-use nymsphinx::{DestinationAddressBytes, Payload, ProcessedPacket, SURBIdentifier, SphinxPacket};
+use nymsphinx::{
+    DestinationAddressBytes, Error as SphinxError, Payload, ProcessedPacket, SURBIdentifier,
+    SphinxPacket,
+};
 use std::io;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -26,7 +29,7 @@ pub enum MixProcessingError {
     ReceivedForwardHopError,
     NonMatchingRecipient,
     InvalidPayload,
-    SphinxProcessingError,
+    SphinxProcessingError(SphinxError),
     IOError(String),
 }
 
@@ -36,12 +39,12 @@ pub enum MixProcessingResult {
     FinalHop,
 }
 
-impl From<nymsphinx::ProcessingError> for MixProcessingError {
-    // for time being just have a single error instance for all possible results of nymsphinx::ProcessingError
-    fn from(_: nymsphinx::ProcessingError) -> Self {
+impl From<SphinxError> for MixProcessingError {
+    // for time being just have a single error instance for all possible results of SphinxError
+    fn from(err: SphinxError) -> Self {
         use MixProcessingError::*;
 
-        SphinxProcessingError
+        SphinxProcessingError(err)
     }
 }
 
@@ -115,7 +118,7 @@ impl PacketProcessor {
             }
             Err(e) => {
                 warn!("Failed to unwrap Sphinx packet: {:?}", e);
-                Err(MixProcessingError::SphinxProcessingError)
+                Err(MixProcessingError::SphinxProcessingError(e))
             }
         }
     }

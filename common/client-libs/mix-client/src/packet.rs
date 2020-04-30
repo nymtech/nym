@@ -13,9 +13,7 @@
 // limitations under the License.
 
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
-use nymsphinx::{
-    delays, Destination, DestinationAddressBytes, SURBIdentifier, SphinxPacket, SphinxUnwrapError,
-};
+use nymsphinx::{delays, Destination, DestinationAddressBytes, SURBIdentifier, SphinxPacket};
 use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::time;
@@ -27,7 +25,7 @@ pub const LOOP_COVER_MESSAGE_PAYLOAD: &[u8] = b"The cake is a lie!";
 pub enum SphinxPacketEncapsulationError {
     NoValidProvidersError,
     InvalidTopologyError,
-    SphinxEncapsulationError(SphinxUnwrapError),
+    SphinxError(nymsphinx::Error),
     InvalidFirstMixAddress,
 }
 
@@ -38,12 +36,9 @@ impl From<topology::NymTopologyError> for SphinxPacketEncapsulationError {
     }
 }
 
-// it is correct error we're converting from, it just has an unfortunate name
-// related issue: https://github.com/nymtech/sphinx/issues/40
-impl From<SphinxUnwrapError> for SphinxPacketEncapsulationError {
-    fn from(err: SphinxUnwrapError) -> Self {
-        use SphinxPacketEncapsulationError::*;
-        SphinxEncapsulationError(err)
+impl From<nymsphinx::Error> for SphinxPacketEncapsulationError {
+    fn from(err: nymsphinx::Error) -> Self {
+        SphinxPacketEncapsulationError::SphinxError(err)
     }
 }
 
@@ -107,7 +102,7 @@ pub fn encapsulate_message<T: NymTopology>(
     let delays = delays::generate_from_average_duration(route.len(), average_delay);
 
     // build the packet
-    let packet = SphinxPacket::new(message, &route[..], &recipient, &delays)?;
+    let packet = SphinxPacket::new(message, &route[..], &recipient, &delays, None)?;
 
     // we know the mix route must be valid otherwise we would have already returned an error
     let first_node_address =
@@ -125,7 +120,7 @@ pub fn encapsulate_message_route(
     let delays = delays::generate_from_average_duration(route.len(), average_delay);
 
     // build the packet
-    let packet = SphinxPacket::new(message, &route[..], &recipient, &delays)?;
+    let packet = SphinxPacket::new(message, &route[..], &recipient, &delays, None)?;
 
     let first_node_address =
         NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone())?;

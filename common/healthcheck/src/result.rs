@@ -95,6 +95,21 @@ impl HealthCheckResult {
                 }
             })
             .collect();
+
+        let filtered_gateway_nodes = topology
+            .gateways()
+            .into_iter()
+            .filter(|node| {
+                match self.node_score(NodeAddressBytes::from_base58_string(node.pub_key.clone())) {
+                    None => {
+                        error!("Unknown node in topology - {:?}", node);
+                        false
+                    }
+                    Some(score) => score > score_threshold,
+                }
+            })
+            .collect();
+
         // coco nodes remain unchanged as no healthcheck is being run on them or time being
         let filtered_coco_nodes = topology.coco_nodes();
 
@@ -102,6 +117,7 @@ impl HealthCheckResult {
             filtered_mix_nodes,
             filtered_provider_nodes,
             filtered_coco_nodes,
+            filtered_gateway_nodes,
         )
     }
 

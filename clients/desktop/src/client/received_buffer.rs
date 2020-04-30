@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client::provider_poller::PolledMessagesReceiver;
 use futures::channel::{mpsc, oneshot};
 use futures::lock::Mutex;
 use futures::StreamExt;
+use gateway_client::SphinxPacketReceiver;
 use log::*;
+use mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD;
 use nymsphinx::chunking::reconstruction::MessageReconstructor;
 use std::sync::Arc;
 use tokio::runtime::Handle;
@@ -64,6 +65,11 @@ impl ReceivedMessagesBuffer {
         let mut completed_messages = Vec::new();
         let mut inner_guard = self.inner.lock().await;
         for msg_fragment in msgs {
+            if msg_fragment == LOOP_COVER_MESSAGE_PAYLOAD {
+                trace!("The message was a loop cover message! Skipping it");
+                continue;
+            }
+
             if let Some(reconstructed_message) =
                 inner_guard.message_reconstructor.new_fragment(msg_fragment)
             {
@@ -117,22 +123,22 @@ impl RequestReceiver {
 
 struct MessageReceiver {
     received_buffer: ReceivedMessagesBuffer,
-    poller_receiver: PolledMessagesReceiver,
+    sphinx_packet_receiver: SphinxPacketReceiver,
 }
 
 impl MessageReceiver {
     fn new(
         received_buffer: ReceivedMessagesBuffer,
-        poller_receiver: PolledMessagesReceiver,
+        sphinx_packet_receiver: SphinxPacketReceiver,
     ) -> Self {
         MessageReceiver {
             received_buffer,
-            poller_receiver,
+            sphinx_packet_receiver,
         }
     }
     fn start(mut self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move {
-            while let Some(new_messages) = self.poller_receiver.next().await {
+            while let Some(new_messages) = self.sphinx_packet_receiver.next().await {
                 self.received_buffer
                     .add_new_message_fragments(new_messages)
                     .await;
@@ -149,12 +155,15 @@ pub(crate) struct ReceivedMessagesBufferController {
 impl ReceivedMessagesBufferController {
     pub(crate) fn new(
         query_receiver: ReceivedBufferRequestReceiver,
-        poller_receiver: PolledMessagesReceiver,
+        sphinx_packet_receiver: SphinxPacketReceiver,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new();
 
         ReceivedMessagesBufferController {
-            messsage_receiver: MessageReceiver::new(received_buffer.clone(), poller_receiver),
+            messsage_receiver: MessageReceiver::new(
+                received_buffer.clone(),
+                sphinx_packet_receiver,
+            ),
             request_receiver: RequestReceiver::new(received_buffer, query_receiver),
         }
     }

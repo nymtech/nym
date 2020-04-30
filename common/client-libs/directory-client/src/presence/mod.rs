@@ -17,12 +17,10 @@ use crate::{Client, Config, DirectoryClient};
 use log::*;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
-use topology::coco;
-use topology::mix;
-use topology::provider;
-use topology::NymTopology;
+use topology::{coco, gateway, mix, provider, NymTopology};
 
 pub mod coconodes;
+pub mod gateways;
 pub mod mixnodes;
 pub mod providers;
 
@@ -33,9 +31,11 @@ pub struct Topology {
     pub coco_nodes: Vec<coconodes::CocoPresence>,
     pub mix_nodes: Vec<mixnodes::MixNodePresence>,
     pub mix_provider_nodes: Vec<providers::MixProviderPresence>,
+    pub gateway_nodes: Vec<gateways::GatewayPresence>,
 }
 
 impl NymTopology for Topology {
+    // TODO: this will need some changes to not imply having to make an HTTP request in constructor
     fn new(directory_server: String) -> Self {
         debug!("Using directory server: {:?}", directory_server);
         let directory_config = Config {
@@ -53,6 +53,7 @@ impl NymTopology for Topology {
         mix_nodes: Vec<mix::Node>,
         mix_provider_nodes: Vec<provider::Node>,
         coco_nodes: Vec<coco::Node>,
+        gateway_nodes: Vec<gateway::Node>,
     ) -> Self {
         Topology {
             coco_nodes: coco_nodes.into_iter().map(|node| node.into()).collect(),
@@ -61,6 +62,7 @@ impl NymTopology for Topology {
                 .into_iter()
                 .map(|node| node.into())
                 .collect(),
+            gateway_nodes: gateway_nodes.into_iter().map(|node| node.into()).collect(),
         }
     }
 
@@ -73,6 +75,13 @@ impl NymTopology for Topology {
 
     fn providers(&self) -> Vec<provider::Node> {
         self.mix_provider_nodes
+            .iter()
+            .map(|x| x.clone().into())
+            .collect()
+    }
+
+    fn gateways(&self) -> Vec<gateway::Node> {
+        self.gateway_nodes
             .iter()
             .map(|x| x.clone().into())
             .collect()

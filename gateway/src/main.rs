@@ -12,45 +12,56 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client_handling::websocket;
-use crate::mixnet_handling::receiver::packet_processing::PacketProcessor;
-use crate::storage::ClientStorage;
-use log::*;
+use clap::{App, ArgMatches};
 
-mod client_handling;
-mod mixnet_client;
-mod mixnet_handling;
-pub(crate) mod storage;
+pub mod built_info;
+mod commands;
+mod config;
+mod node;
 
-#[tokio::main]
-async fn main() {
+fn main() {
     dotenv::dotenv().ok();
     setup_logging();
-    let addr = "127.0.0.1:1793".parse().unwrap();
-    info!("Listening on: {}", addr);
+    println!("{}", banner());
 
-    let (dummy_clients_handler_tx, _) = futures::channel::mpsc::unbounded();
-    let client_storage = ClientStorage::new(42, 42, "foomp".into());
-    let dummy_keypair = crypto::encryption::KeyPair::new();
-    let dummy_mix_packet_processor = PacketProcessor::new(
-        dummy_keypair.private_key().to_owned(),
-        dummy_clients_handler_tx.clone(),
-        client_storage,
-    );
+    let arg_matches = App::new("Nym Mixnet Gateway")
+        .version(built_info::PKG_VERSION)
+        .author("Nymtech")
+        .about("Implementation of the Nym Mixnet Gateway")
+        .subcommand(commands::init::command_args())
+        .subcommand(commands::run::command_args())
+        .get_matches();
 
-    websocket::Listener::new(addr, dummy_clients_handler_tx.clone()).start();
-    mixnet_handling::Listener::new(addr).start(dummy_mix_packet_processor);
+    execute(arg_matches);
+}
 
-    if let Err(e) = tokio::signal::ctrl_c().await {
-        error!(
-            "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
-            e
-        );
+fn execute(matches: ArgMatches) {
+    match matches.subcommand() {
+        ("init", Some(m)) => commands::init::execute(m),
+        ("run", Some(m)) => commands::run::execute(m),
+        _ => println!("{}", usage()),
     }
+}
 
-    println!(
-        "Received SIGINT - the provider will terminate now (threads are not YET nicely stopped)"
-    );
+fn usage() -> &'static str {
+    "usage: --help to see available options.\n\n"
+}
+
+fn banner() -> String {
+    format!(
+        r#"
+
+      _ __  _   _ _ __ ___
+     | '_ \| | | | '_ \ _ \
+     | | | | |_| | | | | | |
+     |_| |_|\__, |_| |_| |_|
+            |___/
+
+             (gateway - version {:})
+
+    "#,
+        built_info::PKG_VERSION
+    )
 }
 
 fn setup_logging() {
@@ -68,5 +79,8 @@ fn setup_logging() {
         .filter_module("reqwest", log::LevelFilter::Warn)
         .filter_module("mio", log::LevelFilter::Warn)
         .filter_module("want", log::LevelFilter::Warn)
+        .filter_module("sled", log::LevelFilter::Warn)
+        .filter_module("tungstenite", log::LevelFilter::Warn)
+        .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
         .init();
 }

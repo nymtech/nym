@@ -24,7 +24,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         .arg(
             Arg::with_name("id")
                 .long("id")
-                .help("Id of the nym-mixnode we want to run")
+                .help("Id of the nym-provider we want to run")
                 .takes_value(true)
                 .required(true),
         )
@@ -98,7 +98,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         .arg(
             Arg::with_name("clients-ledger")
                 .long("clients-ledger")
-                .help("[UNIMPLEMENTED] Ledger file containing registered clients")
+                .help("Ledger file containing registered clients")
                 .takes_value(true)
         )
         .arg(

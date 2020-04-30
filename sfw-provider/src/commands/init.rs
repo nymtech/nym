@@ -94,7 +94,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         .arg(
             Arg::with_name("clients-ledger")
                 .long("clients-ledger")
-                .help("[UNIMPLEMENTED] Ledger file containing registered clients")
+                .help("Ledger file containing registered clients")
                 .takes_value(true)
         )
         .arg(

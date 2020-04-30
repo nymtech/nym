@@ -18,6 +18,9 @@ use crate::requests::metrics_mixes_post::{MetricsMixPoster, Request as MetricsMi
 use crate::requests::presence_coconodes_post::{
     PresenceCocoNodesPoster, Request as PresenceCocoNodesPost,
 };
+use crate::requests::presence_gateways_post::{
+    PresenceGatewayPoster, Request as PresenceGatewayPost,
+};
 use crate::requests::presence_mixnodes_post::{
     PresenceMixNodesPoster, Request as PresenceMixNodesPost,
 };
@@ -51,6 +54,7 @@ pub struct Client {
     pub metrics_mixes: MetricsMixRequest,
     pub metrics_post: MetricsMixPost,
     pub presence_coconodes_post: PresenceCocoNodesPost,
+    pub presence_gateway_post: PresenceGatewayPost,
     pub presence_mix_nodes_post: PresenceMixNodesPost,
     pub presence_providers_post: PresenceProvidersPost,
     pub presence_topology: PresenceTopologyRequest,
@@ -63,6 +67,7 @@ impl DirectoryClient for Client {
         let metrics_post = MetricsMixPost::new(config.base_url.clone());
         let presence_topology = PresenceTopologyRequest::new(config.base_url.clone());
         let presence_coconodes_post = PresenceCocoNodesPost::new(config.base_url.clone());
+        let presence_gateway_post = PresenceGatewayPost::new(config.base_url.clone());
         let presence_mix_nodes_post = PresenceMixNodesPost::new(config.base_url.clone());
         let presence_providers_post = PresenceProvidersPost::new(config.base_url);
         Client {
@@ -70,6 +75,7 @@ impl DirectoryClient for Client {
             metrics_mixes,
             metrics_post,
             presence_coconodes_post,
+            presence_gateway_post,
             presence_mix_nodes_post,
             presence_providers_post,
             presence_topology,

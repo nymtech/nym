@@ -1,0 +1,22 @@
+[package]
+name = "gateway-client"
+version = "0.1.0"
+authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# TODO: (for this and other crates), similarly to 'tokio', import only required "futures" modules rather than
+# the entire crate
+futures = "0.3"
+tokio = { version = "0.2", features = ["macros", "rt-core", "stream", "sync", "time"] }
+tokio-tungstenite = "0.10"
+
+# internal
+gateway-requests = { path = "../../../gateway/gateway-requests" }
+nymsphinx = { path = "../../nymsphinx" }
+
+[dev-dependencies]
+# for tests
+#url = "2.1"

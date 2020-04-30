@@ -38,12 +38,12 @@ public_identity_key_file = '{{ client.public_identity_key_file }}'
 
 ##### additional client config options #####
 
-# ID of the provider from which the client should be fetching messages.
-provider_id = '{{ client.provider_id }}'
+# ID of the gateway from which the client should be fetching messages.
+gateway_id = '{{ client.gateway_id }}'
 
-# A provider specific, optional, base58 stringified authentication token used for 
-# communication with particular provider.
-provider_authtoken = '{{ client.provider_authtoken }}'
+# A gateway specific, optional, base58 stringified authentication token used for 
+# communication with particular gateway.
+gateway_authtoken = '{{ client.gateway_authtoken }}'
     
 ##### advanced configuration options #####
 
@@ -78,7 +78,6 @@ listening_port = {{ socket.listening_port }}
 
 average_packet_delay = {{ debug.average_packet_delay }}
 loop_cover_traffic_average_delay = {{ debug.loop_cover_traffic_average_delay }}
-fetch_message_delay = {{ debug.fetch_message_delay }}
 message_sending_average_delay = {{ debug.message_sending_average_delay }}
 
 "#

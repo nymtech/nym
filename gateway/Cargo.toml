@@ -1,30 +1,52 @@
 [package]
-name = "gateway"
-version = "0.1.0"
-authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
+build = "build.rs"
+name = "nym-gateway"
+version = "0.7.0-dev"
+authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap = "2.33.0"
+dirs = "2.0.2"
 dotenv = "0.15.0"
 futures = "0.3"
+hmac = "0.7.1"
 log = "0.4"
 pretty_env_logger = "0.3"
 rand = "0.7.2"
 serde = { version = "1.0.104", features = ["derive"] }
-#serde_json = "1.0.44"
+sha2 = "0.8.1"
 sled = "0.31"
 tokio = { version = "0.2", features = ["full"] }
 tokio-tungstenite = "0.10.1"
 
 # internal
+config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
-mix-client = { path = "../common/client-libs/mix-client" } # to be removed very soon
+directory-client = { path = "../common/client-libs/directory-client" }
+gateway-requests = { path = "gateway-requests" }
 multi-tcp-client = { path = "../common/client-libs/multi-tcp-client" }
 nymsphinx = { path = "../common/nymsphinx" }
+pemstore = { path = "../common/pemstore" }
+
+# this dependency is due to requiring to know content of loop message. however, mix-client module itself
+# is going to be removed or renamed at some point as it no longer servers its purpose of sending traffic to mix network
+# and only provides utility functions
+mix-client = { path = "../common/client-libs/mix-client" }
 
 
 [dependencies.tungstenite]
 version = "0.10.0"
 default-features = false
+
+[build-dependencies]
+built = "0.3.2"
+
+[dev-dependencies]
+tempfile = "3.1.0"
+
+[features]
+qa = []
+local = []

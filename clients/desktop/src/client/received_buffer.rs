@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use futures::channel::{mpsc, oneshot};
+use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use gateway_client::SphinxPacketReceiver;
@@ -23,13 +23,19 @@ use std::sync::Arc;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
-pub(crate) type ReceivedBufferResponse = oneshot::Sender<Vec<Vec<u8>>>;
-pub(crate) type ReceivedBufferRequestSender = mpsc::UnboundedSender<ReceivedBufferResponse>;
-pub(crate) type ReceivedBufferRequestReceiver = mpsc::UnboundedReceiver<ReceivedBufferResponse>;
+// Buffer Requests to say "hey, send any reconstructed messages to this channel" 
+// or to say "hey, I'm going offline, don't send anything more to me. Just buffer them instead"
+pub(crate) type ReceivedBufferRequestSender = mpsc::UnboundedSender<ReceivedBufferMessage>;
+pub(crate) type ReceivedBufferRequestReceiver = mpsc::UnboundedReceiver<ReceivedBufferMessage>;
+
+// The channel set for the above
+pub(crate) type ReconstructeredMessagesSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
+pub(crate) type ReconstructeredMessagesReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
 
 struct ReceivedMessagesBufferInner {
     messages: Vec<Vec<u8>>,
     message_reconstructor: MessageReconstructor,
+    message_sender: Option<ReconstructeredMessagesSender>,
 }
 
 #[derive(Debug, Clone)]
@@ -45,7 +51,46 @@ impl ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
                 messages: Vec::new(),
                 message_reconstructor: MessageReconstructor::new(),
+                message_sender: None,
             })),
+        }
+    }
+
+    async fn disconnect_sender(&mut self) {
+        let guard = self.inner.lock().await;
+        if guard.message_sender.is_none() {
+            // in theory we could just ignore it, but that situation should have never happened
+            // in the first place, so this way we at least know we have an important bug to fix
+            panic!("trying to disconnect non-existent sender!")
+        }
+        guard.message_sender = None;
+    }
+
+    async fn connect_sender(&mut self, sender: ReconstructeredMessagesSender) {
+        let guard = self.inner.lock().await;
+        if guard.message_sender.is_some() {
+            // in theory we could just ignore it, but that situation should have never happened
+            // in the first place, so this way we at least know we have an important bug to fix
+            panic!("trying overwrite an existing sender!")
+        }
+
+        // while we're at it, also empty the buffer if we happened to receive anything while
+        // no sender was connected
+        let stored_messages = std::mem::replace(&mut guard.messages, Vec::new());
+        if !stored_messages.is_empty() {
+            if let Err(err) = sender.unbounded_send(stored_messages) {
+                error!(
+                    "The sender channel we just received is already invalidated - {:?}",
+                    err
+                );
+                // put the values back to the buffer
+                // the returned error has two fields: err: SendError and val: T,
+                // where val is the value that was failed to get sent;
+                // it's returned by the `into_inner` call
+                guard.messages = err.into_inner()
+            } else {
+                guard.message_sender = Some(sender);
+            }
         }
     }
 
@@ -76,18 +121,35 @@ impl ReceivedMessagesBuffer {
                 completed_messages.push(reconstructed_message);
             }
         }
-        // make sure to drop the lock to not deadlock
-        drop(inner_guard);
+
         if !completed_messages.is_empty() {
-            self.add_reconstructed_messages(completed_messages).await;
+            if let Some(sender) = inner_guard.message_sender {
+                trace!("Sending reconstructed messages to announced sender");
+                if let Err(err) = sender.unbounded_send(completed_messages) {
+                    warn!("The reconstructed message receiver went offline without explicit notification (relevant error: - {:?})", err);
+                    // make sure to drop the lock to not deadlock
+                    // (it is required by `add_reconstructed_messages`)
+                    drop(inner_guard);
+                    self.add_reconstructed_messages(err.into_inner());
+                }
+            } else {
+                // make sure to drop the lock to not deadlock
+                // (it is required by `add_reconstructed_messages`)
+                drop(inner_guard);
+                trace!("No sender available - buffering reconstructed messages");
+                self.add_reconstructed_messages(completed_messages).await;
+            }
         }
     }
+}
 
-    async fn acquire_and_empty(&mut self) -> Vec<Vec<u8>> {
-        trace!("Emptying the buffer and returning all messages");
-        let mut mutex_guard = self.inner.lock().await;
-        std::mem::replace(&mut mutex_guard.messages, Vec::new())
-    }
+pub(crate) enum ReceivedBufferMessage {
+    // Signals a websocket connection (or a native implementation) was established and we should stop buffering messages,
+    // and instead send them directly to the received channel
+    ReceiverAnnounce(ReconstructeredMessagesSender),
+
+    // Explicit signal that Receiver connection will no longer accept messages
+    ReceiverDisconnect,
 }
 
 struct RequestReceiver {
@@ -109,29 +171,30 @@ impl RequestReceiver {
     fn start(mut self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move {
             while let Some(request) = self.query_receiver.next().await {
-                let messages = self.received_buffer.acquire_and_empty().await;
-                if let Err(failed_messages) = request.send(messages) {
-                    error!(
-                        "Failed to send the messages to the requester. Adding them back to the buffer"
-                    );
-                    self.received_buffer.add_reconstructed_messages(failed_messages).await;
+                match request {
+                    ReceivedBufferMessage::ReceiverAnnounce(sender) => {
+                        self.received_buffer.connect_sender(sender).await
+                    }
+                    ReceivedBufferMessage::ReceiverDisconnect => {
+                        self.received_buffer.disconnect_sender().await
+                    }
                 }
             }
         })
     }
 }
 
-struct MessageReceiver {
+struct FragmentedMessageReceiver {
     received_buffer: ReceivedMessagesBuffer,
     sphinx_packet_receiver: SphinxPacketReceiver,
 }
 
-impl MessageReceiver {
+impl FragmentedMessageReceiver {
     fn new(
         received_buffer: ReceivedMessagesBuffer,
         sphinx_packet_receiver: SphinxPacketReceiver,
     ) -> Self {
-        MessageReceiver {
+        FragmentedMessageReceiver {
             received_buffer,
             sphinx_packet_receiver,
         }
@@ -148,7 +211,7 @@ impl MessageReceiver {
 }
 
 pub(crate) struct ReceivedMessagesBufferController {
-    messsage_receiver: MessageReceiver,
+    fragmented_messsage_receiver: FragmentedMessageReceiver,
     request_receiver: RequestReceiver,
 }
 
@@ -160,7 +223,7 @@ impl ReceivedMessagesBufferController {
         let received_buffer = ReceivedMessagesBuffer::new();
 
         ReceivedMessagesBufferController {
-            messsage_receiver: MessageReceiver::new(
+            fragmented_messsage_receiver: FragmentedMessageReceiver::new(
                 received_buffer.clone(),
                 sphinx_packet_receiver,
             ),
@@ -170,7 +233,7 @@ impl ReceivedMessagesBufferController {
 
     pub(crate) fn start(self, handle: &Handle) {
         // TODO: should we do anything with JoinHandle(s) returned by start methods?
-        self.messsage_receiver.start(handle);
+        self.fragmented_messsage_receiver.start(handle);
         self.request_receiver.start(handle);
     }
 }

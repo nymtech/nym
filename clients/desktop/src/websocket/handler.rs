@@ -147,10 +147,9 @@ impl<T: NymTopology> Handler<T> {
             }
             .into(),
             Ok(req) => match req {
-                ClientRequest::Send {
-                    message,
-                    recipient,
-                } => self.handle_text_send(message, recipient),
+                ClientRequest::Send { message, recipient } => {
+                    self.handle_text_send(message, recipient)
+                }
                 ClientRequest::GetClients => self.handle_text_get_clients().await,
                 ClientRequest::SelfAddress => self.handle_text_self_address(),
             }

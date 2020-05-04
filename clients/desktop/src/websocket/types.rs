@@ -12,20 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
-pub(crate) enum ClientRequest {
-    Send {
-        message: String,
-        recipient_address: String,
-    },
-    Fetch,
+pub enum ClientRequest {
+    Send { message: String, recipient: String },
     GetClients,
-    OwnDetails,
+    SelfAddress,
 }
 
 impl TryFrom<String> for ClientRequest {
@@ -36,14 +33,80 @@ impl TryFrom<String> for ClientRequest {
     }
 }
 
+impl Into<Message> for ClientRequest {
+    fn into(self) -> Message {
+        let str_req = serde_json::to_string(&self).unwrap();
+        Message::Text(str_req)
+    }
+}
+
+pub enum BinaryClientRequest {
+    Send {
+        recipient_address: DestinationAddressBytes,
+        data: Vec<u8>,
+    },
+}
+
+impl BinaryClientRequest {
+    // TODO: perhaps do it the proper way and introduce an error type
+    pub fn try_from_bytes(req: &[u8]) -> Option<Self> {
+        if req.len() < DESTINATION_ADDRESS_LENGTH {
+            return None;
+        }
+        let mut destination_bytes = [0u8; DESTINATION_ADDRESS_LENGTH];
+        destination_bytes.copy_from_slice(&req[..DESTINATION_ADDRESS_LENGTH]);
+        let address = DestinationAddressBytes::from_bytes(destination_bytes);
+        Some(BinaryClientRequest::Send {
+            recipient_address: address,
+            data: req[DESTINATION_ADDRESS_LENGTH..].to_vec(),
+        })
+    }
+
+    pub fn into_bytes(self) -> Vec<u8> {
+        match self {
+            Self::Send {
+                recipient_address,
+                data,
+            } => recipient_address
+                .to_bytes()
+                .iter()
+                .cloned()
+                .chain(data.into_iter())
+                .collect(),
+        }
+    }
+}
+
+impl Into<Message> for BinaryClientRequest {
+    fn into(self) -> Message {
+        Message::Binary(self.into_bytes())
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
-pub(crate) enum ServerResponse {
+pub enum ServerResponse {
     Send,
-    Fetch { messages: Vec<String> },
+    Received { messages: Vec<String> },
     GetClients { clients: Vec<String> },
-    OwnDetails { address: String },
+    SelfAddress { address: String },
     Error { message: String },
+}
+
+impl ServerResponse {
+    pub fn new_error<S: Into<String>>(msg: S) -> Self {
+        ServerResponse::Error {
+            message: msg.into(),
+        }
+    }
+}
+
+impl TryFrom<String> for ServerResponse {
+    type Error = serde_json::Error;
+
+    fn try_from(msg: String) -> Result<Self, <ServerResponse as TryFrom<String>>::Error> {
+        serde_json::from_str(&msg)
+    }
 }
 
 impl Into<Message> for ServerResponse {

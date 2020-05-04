@@ -23,7 +23,7 @@ use std::sync::Arc;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
-// Buffer Requests to say "hey, send any reconstructed messages to this channel" 
+// Buffer Requests to say "hey, send any reconstructed messages to this channel"
 // or to say "hey, I'm going offline, don't send anything more to me. Just buffer them instead"
 pub(crate) type ReceivedBufferRequestSender = mpsc::UnboundedSender<ReceivedBufferMessage>;
 pub(crate) type ReceivedBufferRequestReceiver = mpsc::UnboundedReceiver<ReceivedBufferMessage>;
@@ -57,7 +57,7 @@ impl ReceivedMessagesBuffer {
     }
 
     async fn disconnect_sender(&mut self) {
-        let guard = self.inner.lock().await;
+        let mut guard = self.inner.lock().await;
         if guard.message_sender.is_none() {
             // in theory we could just ignore it, but that situation should have never happened
             // in the first place, so this way we at least know we have an important bug to fix
@@ -67,7 +67,7 @@ impl ReceivedMessagesBuffer {
     }
 
     async fn connect_sender(&mut self, sender: ReconstructeredMessagesSender) {
-        let guard = self.inner.lock().await;
+        let mut guard = self.inner.lock().await;
         if guard.message_sender.is_some() {
             // in theory we could just ignore it, but that situation should have never happened
             // in the first place, so this way we at least know we have an important bug to fix
@@ -87,11 +87,11 @@ impl ReceivedMessagesBuffer {
                 // the returned error has two fields: err: SendError and val: T,
                 // where val is the value that was failed to get sent;
                 // it's returned by the `into_inner` call
-                guard.messages = err.into_inner()
-            } else {
-                guard.message_sender = Some(sender);
+                guard.messages = err.into_inner();
+                return;
             }
         }
+        guard.message_sender = Some(sender);
     }
 
     async fn add_reconstructed_messages(&mut self, msgs: Vec<Vec<u8>>) {
@@ -123,14 +123,15 @@ impl ReceivedMessagesBuffer {
         }
 
         if !completed_messages.is_empty() {
-            if let Some(sender) = inner_guard.message_sender {
+            if let Some(sender) = &inner_guard.message_sender {
                 trace!("Sending reconstructed messages to announced sender");
                 if let Err(err) = sender.unbounded_send(completed_messages) {
                     warn!("The reconstructed message receiver went offline without explicit notification (relevant error: - {:?})", err);
                     // make sure to drop the lock to not deadlock
                     // (it is required by `add_reconstructed_messages`)
+                    inner_guard.message_sender = None;
                     drop(inner_guard);
-                    self.add_reconstructed_messages(err.into_inner());
+                    self.add_reconstructed_messages(err.into_inner()).await;
                 }
             } else {
                 // make sure to drop the lock to not deadlock
@@ -173,7 +174,7 @@ impl RequestReceiver {
             while let Some(request) = self.query_receiver.next().await {
                 match request {
                     ReceivedBufferMessage::ReceiverAnnounce(sender) => {
-                        self.received_buffer.connect_sender(sender).await
+                        self.received_buffer.connect_sender(sender).await;
                     }
                     ReceivedBufferMessage::ReceiverDisconnect => {
                         self.received_buffer.disconnect_sender().await

@@ -22,7 +22,7 @@ pub mod persistence;
 mod template;
 
 // 'CLIENT'
-const DEFAULT_LISTENING_PORT: u16 = 9001;
+const DEFAULT_LISTENING_PORT: u16 = 1977;
 
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
@@ -41,7 +41,6 @@ const DEFAULT_NODE_SCORE_THRESHOLD: f64 = 0.0;
 #[derive(Debug, Deserialize, PartialEq, Serialize, Clone, Copy)]
 #[serde(deny_unknown_fields)]
 pub enum SocketType {
-    TCP,
     WebSocket,
     None,
 }
@@ -51,7 +50,6 @@ impl SocketType {
         let mut upper = val.into();
         upper.make_ascii_uppercase();
         match upper.as_ref() {
-            "TCP" => SocketType::TCP,
             "WEBSOCKET" | "WS" => SocketType::WebSocket,
             _ => SocketType::None,
         }
@@ -306,7 +304,7 @@ pub struct Socket {
 impl Default for Socket {
     fn default() -> Self {
         Socket {
-            socket_type: SocketType::None,
+            socket_type: SocketType::WebSocket,
             listening_port: DEFAULT_LISTENING_PORT,
         }
     }

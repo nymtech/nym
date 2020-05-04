@@ -12,5 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod tcp;
-pub mod websocket;
+pub(crate) mod handler;
+pub(crate) mod listener;
+pub(crate) mod types;
+
+pub(crate) use handler::Handler;
+pub(crate) use listener::Listener;
+
+pub use types::{BinaryClientRequest, ClientRequest, ServerResponse};

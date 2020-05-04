@@ -22,16 +22,17 @@ use crate::client::topology_control::{
 };
 use crate::config::persistence::pathfinder::ClientPathfinder;
 use crate::config::{Config, SocketType};
-use crate::sockets::{tcp, websocket};
+use crate::websocket;
 use crypto::identity::MixIdentityKeyPair;
 use directory_client::presence;
-use futures::channel::{mpsc, oneshot};
+use futures::channel::mpsc;
 use gateway_client::{GatewayClient, SphinxPacketReceiver, SphinxPacketSender};
 use gateway_requests::auth_token::AuthToken;
 use log::*;
 use nymsphinx::chunking::split_and_prepare_payloads;
 use nymsphinx::{Destination, DestinationAddressBytes};
 use pemstore::pemstore::PemStore;
+use received_buffer::{ReceivedBufferMessage, ReconstructeredMessagesReceiver};
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
@@ -53,11 +54,12 @@ pub struct NymClient {
     input_tx: Option<InputMessageSender>,
 
     // to be used by "receive" function or socket, etc
-    receive_tx: Option<ReceivedBufferRequestSender>,
+    receive_tx: Option<ReconstructeredMessagesReceiver>,
 }
 
 #[derive(Debug)]
 // TODO: make fields private
+// TODO2: make it take just destination address, because we don't care about SURBs (in this form)
 pub(crate) struct InputMessage(pub Destination, pub Vec<u8>);
 
 impl NymClient {
@@ -261,35 +263,23 @@ impl NymClient {
         MixTrafficController::new(mix_rx, gateway_client).start(self.runtime.handle());
     }
 
-    fn start_socket_listener<T: 'static + NymTopology>(
+    fn start_websocket_listener<T: 'static + NymTopology>(
         &self,
         topology_accessor: TopologyAccessor<T>,
-        received_messages_buffer_output_tx: ReceivedBufferRequestSender,
-        input_tx: InputMessageSender,
+        buffer_requester: ReceivedBufferRequestSender,
+        msg_input: InputMessageSender,
     ) {
-        match self.config.get_socket_type() {
-            SocketType::WebSocket => {
-                websocket::listener::run(
-                    self.runtime.handle(),
-                    self.config.get_listening_port(),
-                    input_tx,
-                    received_messages_buffer_output_tx,
-                    self.identity_keypair.public_key().derive_address(),
-                    topology_accessor,
-                );
-            }
-            SocketType::TCP => {
-                tcp::start_tcpsocket(
-                    self.runtime.handle(),
-                    self.config.get_listening_port(),
-                    input_tx,
-                    received_messages_buffer_output_tx,
-                    self.identity_keypair.public_key().derive_address(),
-                    topology_accessor,
-                );
-            }
-            SocketType::None => (),
-        }
+        info!("Starting 'websocket listener'...");
+
+        let websocket_handler = websocket::Handler::new(
+            msg_input,
+            buffer_requester,
+            self.as_mix_destination_address(),
+            topology_accessor,
+        );
+
+        websocket::Listener::new(self.config.get_listening_port())
+            .start(self.runtime.handle(), websocket_handler);
     }
 
     /// EXPERIMENTAL DIRECT RUST API
@@ -314,15 +304,17 @@ impl NymClient {
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub async fn check_for_messages_async(&self) -> Vec<Vec<u8>> {
-        let (res_tx, res_rx) = oneshot::channel();
-        self.receive_tx
-            .as_ref()
-            .expect("start method was not called before!")
-            .unbounded_send(res_tx)
-            .unwrap();
+    /// Note: it waits for the first occurence of messages being sent to ourselves. If you expect multiple
+    /// messages, you might have to call this function repeatedly.
+    pub async fn wait_for_messages(&mut self) -> Vec<Vec<u8>> {
+        use futures::StreamExt;
 
-        res_rx.await.unwrap()
+        self.receive_tx
+            .as_mut()
+            .expect("start method was not called before!")
+            .next()
+            .await
+            .expect("buffer controller seems to have somehow died!")
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
@@ -343,24 +335,24 @@ impl NymClient {
     pub fn start(&mut self) {
         info!("Starting nym client");
         // channels for inter-component communication
+        // TODO: make the channels be internally created by the relevant components
+        // rather than creating them here, so say for example the buffer controller would create the request channels
+        // and would allow anyone to clone the sender channel
 
-        // mix_tx is the transmitter for any component generating sphinx packets that are to be sent to the mixnet
+        // sphinx_message_sender is the transmitter for any component generating sphinx packets that are to be sent to the mixnet
         // they are used by cover traffic stream and real traffic stream
-        // mix_rx is the receiver used by MixTrafficController that sends the actual traffic
-        let (mix_tx, mix_rx) = mpsc::unbounded();
+        // sphinx_message_receiver is the receiver used by MixTrafficController that sends the actual traffic
+        let (sphinx_message_sender, sphinx_message_receiver) = mpsc::unbounded();
 
-        // sphinx_packet_tx is the transmitter of sphinx messages received from the gateway
-        // sphinx_packet_rx is the receiver for said messages - used by ReceivedMessagesBuffer
-        let (sphinx_packet_tx, sphinx_packet_rx) = mpsc::unbounded();
+        // unwrapped_sphinx_sender is the transmitter of [unwrapped] sphinx messages received from the gateway
+        // unwrapped_sphinx_receiver is the receiver for said messages - used by ReceivedMessagesBuffer
+        let (unwrapped_sphinx_sender, unwrapped_sphinx_receiver) = mpsc::unbounded();
 
-        // received_messages_buffer_output_tx is the transmitter for *REQUESTS* for messages contained in ReceivedMessagesBuffer - used by sockets
-        // the requests contain a oneshot channel to send a reply on
-        // received_messages_buffer_output_rx is the received for the said requests - used by ReceivedMessagesBuffer
-        let (received_messages_buffer_output_tx, received_messages_buffer_output_rx) =
-            mpsc::unbounded();
+        // used for annoucing connectiong or disconnection of a channel for pushing re-assembled messages to
+        let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
 
         // channels responsible for controlling real messages
-        let (input_tx, input_rx) = mpsc::unbounded::<InputMessage>();
+        let (input_sender, input_receiver) = mpsc::unbounded::<InputMessage>();
 
         // TODO: when we switch to our graph topology, we need to remember to change 'presence::Topology' type
         let shared_topology_accessor = TopologyAccessor::<presence::Topology>::new();
@@ -368,26 +360,49 @@ impl NymClient {
         // do not change that.
         self.start_topology_refresher(shared_topology_accessor.clone());
         self.start_received_messages_buffer_controller(
-            received_messages_buffer_output_rx,
-            sphinx_packet_rx,
+            received_buffer_request_receiver,
+            unwrapped_sphinx_receiver,
         );
 
         let gateway_url = self.runtime.block_on(Self::get_gateway_address(
             self.config.get_gateway_id(),
             shared_topology_accessor.clone(),
         ));
-        let gateway_client = self.start_gateway_client(sphinx_packet_tx, gateway_url);
+        let gateway_client = self.start_gateway_client(unwrapped_sphinx_sender, gateway_url);
 
-        self.start_mix_traffic_controller(mix_rx, gateway_client);
-        self.start_cover_traffic_stream(shared_topology_accessor.clone(), mix_tx.clone());
-        self.start_real_traffic_stream(shared_topology_accessor.clone(), mix_tx, input_rx);
-        self.start_socket_listener(
-            shared_topology_accessor,
-            received_messages_buffer_output_tx.clone(),
-            input_tx.clone(),
+        self.start_mix_traffic_controller(sphinx_message_receiver, gateway_client);
+        self.start_cover_traffic_stream(
+            shared_topology_accessor.clone(),
+            sphinx_message_sender.clone(),
         );
-        self.input_tx = Some(input_tx);
-        self.receive_tx = Some(received_messages_buffer_output_tx);
+        self.start_real_traffic_stream(
+            shared_topology_accessor.clone(),
+            sphinx_message_sender,
+            input_receiver,
+        );
+
+        match self.config.get_socket_type() {
+            SocketType::WebSocket => self.start_websocket_listener(
+                shared_topology_accessor,
+                received_buffer_request_sender,
+                input_sender.clone(),
+            ),
+            SocketType::None => {
+                // if we did not start the socket, it means we're running (supposedly) in the native mode
+                // and hence we should announce 'ourselves' to the buffer
+                let (reconstructed_sender, reconstructed_receiver) = mpsc::unbounded();
+
+                // tell the buffer to start sending stuff to us
+                received_buffer_request_sender
+                    .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
+                        reconstructed_sender,
+                    ))
+                    .expect("the buffer request failed!");
+
+                self.receive_tx = Some(reconstructed_receiver);
+                self.input_tx = Some(input_sender);
+            }
+        }
 
         info!("Client startup finished!");
     }

@@ -55,10 +55,10 @@ nym_root_directory = '{{ client.nym_root_directory }}'
 
 [socket]
 
-# allowed values are 'TCP', 'WebSocket' or 'None'
+# allowed values are 'WebSocket' or 'None'
 socket_type = '{{ socket.socket_type }}'
 
-# if applicable (for the case of 'TCP' or 'WebSocket'), the port on which the client
+# if applicable (for the case of 'WebSocket'), the port on which the client
 # will be listening for incoming requests
 listening_port = {{ socket.listening_port }}
 

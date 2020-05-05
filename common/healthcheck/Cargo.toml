@@ -22,8 +22,6 @@ crypto = { path = "../crypto" }
 directory-client = { path = "../client-libs/directory-client" }
 multi-tcp-client = { path = "../client-libs/multi-tcp-client" }
 nymsphinx = {path = "../nymsphinx" }
-provider-client = { path = "../client-libs/provider-client" }
-sfw-provider-requests = { path = "../../sfw-provider/sfw-provider-requests" }
 topology = {path = "../topology" }
 
 [dev-dependencies]

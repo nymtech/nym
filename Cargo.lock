@@ -996,12 +996,10 @@ dependencies = [
  "multi-tcp-client",
  "nymsphinx",
  "pretty_env_logger",
- "provider-client",
  "rand 0.7.3",
  "rand_os",
  "serde",
  "serde_derive",
- "sfw-provider-requests",
  "tokio 0.2.16",
  "topology",
 ]
@@ -1634,7 +1632,6 @@ dependencies = [
  "pem",
  "pemstore",
  "pretty_env_logger",
- "provider-client",
  "reqwest",
  "serde",
  "serde_json",
@@ -1695,37 +1692,6 @@ dependencies = [
  "pemstore",
  "pretty_env_logger",
  "serde",
- "tempfile",
- "tokio 0.2.16",
- "topology",
-]
-
-[[package]]
-name = "nym-sfw-provider"
-version = "0.7.0-dev"
-dependencies = [
- "bs58",
- "built",
- "clap",
- "config",
- "crypto",
- "curve25519-dalek",
- "directory-client",
- "dirs",
- "dotenv",
- "futures 0.3.4",
- "hmac",
- "log 0.4.8",
- "mix-client",
- "nymsphinx",
- "pemstore",
- "pretty_env_logger",
- "rand 0.7.3",
- "serde",
- "serde_json",
- "sfw-provider-requests",
- "sha2",
- "sled",
  "tempfile",
  "tokio 0.2.16",
  "topology",
@@ -2125,18 +2091,6 @@ checksum = "db5473ffa23d2ea3b9046764f1a22149791967aad946b6cbd99601e720afc4d0"
 dependencies = [
  "protobuf",
  "protobuf-codegen",
-]
-
-[[package]]
-name = "provider-client"
-version = "0.1.0"
-dependencies = [
- "futures 0.3.4",
- "log 0.4.8",
- "nymsphinx",
- "pretty_env_logger",
- "sfw-provider-requests",
- "tokio 0.2.16",
 ]
 
 [[package]]
@@ -2579,18 +2533,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sfw-provider-requests"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "byteorder",
- "bytes 0.5.4",
- "nymsphinx",
- "tokio 0.2.16",
- "tokio-test",
-]
-
-[[package]]
 name = "sha-1"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2996,17 +2938,6 @@ dependencies = [
  "mio",
  "tokio-io",
  "tokio-reactor",
-]
-
-[[package]]
-name = "tokio-test"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09cf9705471976fa5fc6817d3fbc9c4ff9696a6647af0e5c1870c81ca7445b05"
-dependencies = [
- "bytes 0.5.4",
- "futures-core",
- "tokio 0.2.16",
 ]
 
 [[package]]

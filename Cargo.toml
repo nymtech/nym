@@ -11,7 +11,6 @@ members = [
     "common/client-libs/gateway-client",
     "common/client-libs/mix-client",
     "common/client-libs/multi-tcp-client",
-    "common/client-libs/provider-client",
     "common/client-libs/validator-client",
     "common/config",
     "common/crypto",
@@ -22,7 +21,5 @@ members = [
     "gateway",
     "gateway/gateway-requests",
     "mixnode",
-    "sfw-provider",
-    "sfw-provider/sfw-provider-requests",
     "validator",
 ]

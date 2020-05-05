@@ -39,7 +39,6 @@ mix-client = { path = "../../common/client-libs/mix-client" }
 multi-tcp-client = { path = "../../common/client-libs/multi-tcp-client" }
 nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = {path = "../../common/pemstore"}
-provider-client = { path = "../../common/client-libs/provider-client" }
 topology = {path = "../../common/topology" }
 
 [build-dependencies]

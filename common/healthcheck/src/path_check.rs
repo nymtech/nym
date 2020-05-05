@@ -17,8 +17,8 @@ use crypto::identity::MixIdentityKeyPair;
 use itertools::Itertools;
 use log::{debug, error, info, trace, warn};
 use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
-use nymsphinx::{Delay, Destination, Node as SphinxNode};
-use provider_client::{ProviderClient, ProviderClientError};
+use nymsphinx::{Delay, Destination, DestinationAddressBytes, Node as SphinxNode};
+// use provider_client::{ProviderClient, ProviderClientError};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::net::SocketAddr;
@@ -26,6 +26,39 @@ use std::time::Duration;
 use topology::provider;
 
 pub(crate) type CheckId = [u8; 16];
+
+// JUST TO MAKE IT COMPILE, THIS WILL NEED TO BE REPLACED WITH GATEWAY
+struct ProviderClient {}
+
+struct AuthToken {}
+
+impl ProviderClient {
+    fn new(
+        _provider_network_address: SocketAddr,
+        _our_address: DestinationAddressBytes,
+        _auth_token: Option<AuthToken>,
+        _max_response_size: usize,
+    ) -> Self {
+        unimplemented!()
+    }
+    fn update_token(&mut self, _auth_token: AuthToken) {
+        unimplemented!()
+    }
+    async fn register(&mut self) -> Result<AuthToken, ProviderClientError> {
+        unimplemented!()
+    }
+    async fn retrieve_messages(&mut self) -> Result<Vec<Vec<u8>>, ProviderClientError> {
+        unimplemented!()
+    }
+}
+
+#[derive(Debug)]
+enum ProviderClientError {
+    #[allow(dead_code)]
+    ClientAlreadyRegisteredError,
+}
+
+const DUMMY_MESSAGE_CONTENT: &[u8] = b"THIS NEEDS TO BE REDONE AS IT DOESNT EXIST ANYMORE";
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum PathStatus {
@@ -72,13 +105,6 @@ impl PathChecker {
                 Err(ProviderClientError::ClientAlreadyRegisteredError) => {
                     info!("[Healthcheck] We were already registered");
                     provider_clients.insert(provider.get_pub_key_bytes(), Some(provider_client))
-                }
-                Err(err) => {
-                    warn!(
-                        "failed to register at provider {} - {:?}",
-                        provider.pub_key, err
-                    );
-                    provider_clients.insert(provider.get_pub_key_bytes(), None)
                 }
             };
 
@@ -171,7 +197,7 @@ impl PathChecker {
                     let mut should_stop = false;
                     for msg in messages.into_iter() {
                         trace!("received provider response: {:?}", msg);
-                        if msg == sfw_provider_requests::DUMMY_MESSAGE_CONTENT {
+                        if msg == DUMMY_MESSAGE_CONTENT {
                             // finish iterating the loop as the messages might not be ordered
                             should_stop = true;
                         } else if msg[..16] != check_id {

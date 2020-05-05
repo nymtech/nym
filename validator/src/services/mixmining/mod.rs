@@ -135,8 +135,8 @@ mod mixnodes {
         service.add(node2.clone());
         let nodes = service.topology().mixnodes;
         assert_eq!(2, nodes.len());
-        assert_eq!(node1.clone(), nodes[0]);
-        assert_eq!(node2.clone(), nodes[1]);
+        assert_eq!(node1, nodes[0]);
+        assert_eq!(node2, nodes[1]);
     }
 }
 

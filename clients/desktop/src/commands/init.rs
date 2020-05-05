@@ -75,7 +75,7 @@ async fn try_gateway_registration(
             sphinx_tx.clone(),
             timeout,
         );
-        if let Ok(_) = gateway_client.establish_connection().await {
+        if gateway_client.establish_connection().await.is_ok() {
             if let Ok(token) = gateway_client.register().await {
                 return Some((gateway.pub_key, token));
             }

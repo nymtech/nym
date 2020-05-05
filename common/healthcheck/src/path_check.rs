@@ -28,8 +28,7 @@ use topology::provider;
 pub(crate) type CheckId = [u8; 16];
 
 // JUST TO MAKE IT COMPILE, THIS WILL NEED TO BE REPLACED WITH GATEWAY
-struct ProviderClient {
-}
+struct ProviderClient {}
 
 struct AuthToken {}
 

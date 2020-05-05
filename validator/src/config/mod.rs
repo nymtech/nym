@@ -129,10 +129,6 @@ impl Config {
         self.validator.location.clone()
     }
 
-    pub fn get_mix_mining_directory_server(&self) -> String {
-        self.mix_mining.directory_server.clone()
-    }
-
     // dead_code until validator actually sends the presence data
     #[allow(dead_code)]
     pub fn get_presence_directory_server(&self) -> String {
@@ -142,22 +138,6 @@ impl Config {
     #[allow(dead_code)]
     pub fn get_presence_sending_delay(&self) -> time::Duration {
         time::Duration::from_millis(self.debug.presence_sending_delay)
-    }
-
-    pub fn get_mix_mining_run_delay(&self) -> time::Duration {
-        time::Duration::from_millis(self.mix_mining.run_delay)
-    }
-
-    pub fn get_mix_mining_resolution_timeout(&self) -> time::Duration {
-        time::Duration::from_millis(self.mix_mining.resolution_timeout)
-    }
-
-    pub fn get_mix_mining_number_of_test_packets(&self) -> u64 {
-        self.mix_mining.number_of_test_packets
-    }
-
-    pub fn get_healthcheck_connection_timeout(&self) -> time::Duration {
-        time::Duration::from_millis(self.mix_mining.connection_timeout)
     }
 }
 

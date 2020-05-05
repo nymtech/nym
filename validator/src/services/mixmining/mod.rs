@@ -16,7 +16,6 @@ use db::MixminingDb;
 use models::*;
 
 pub mod db;
-pub mod health_check_runner;
 pub mod models;
 mod tests;
 

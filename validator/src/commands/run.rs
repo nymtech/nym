@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::commands::override_config;
-use crate::config::Config;
+// Commenting config out temporarily, we'll undoubtedly need it back soon.
+// use crate::commands::override_config;
+// use crate::config::Config;
+// use config::NymConfig;
 use crate::validator::Validator;
 use clap::{App, Arg, ArgMatches};
-use config::NymConfig;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("run")
@@ -54,12 +55,12 @@ pub fn execute(matches: &ArgMatches) {
 
     println!("Starting validator {}...", id);
 
-    let mut config =
-        Config::load_from_file(matches.value_of("config").map(|path| path.into()), Some(id))
-            .expect("Failed to load config file");
+    // let mut config =
+    //     Config::load_from_file(matches.value_of("config").map(|path| path.into()), Some(id))
+    //         .expect("Failed to load config file");
 
-    config = override_config(config, matches);
+    // config = override_config(config, matches);
 
-    let validator = Validator::new(config);
+    let validator = Validator::new();
     validator.start()
 }

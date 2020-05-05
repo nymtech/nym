@@ -158,12 +158,4 @@ impl ClientLedger {
 
         Ok(client_vec)
     }
-
-    #[cfg(test)]
-    pub(crate) fn create_temporary() -> Self {
-        let cfg = sled::Config::new().temporary(true);
-        ClientLedger {
-            db: cfg.open().unwrap(),
-        }
-    }
 }

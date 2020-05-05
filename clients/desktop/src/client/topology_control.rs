@@ -13,9 +13,7 @@
 // limitations under the License.
 
 use crate::built_info;
-use crypto::identity::MixIdentityKeyPair;
 use futures::lock::Mutex;
-use healthcheck::HealthChecker;
 use log::*;
 use nymsphinx::DestinationAddressBytes;
 use std::sync::Arc;
@@ -23,7 +21,6 @@ use std::time;
 use std::time::Duration;
 use tokio::runtime::Handle;
 // use tokio::sync::RwLock;
-use std::net::SocketAddr;
 use tokio::task::JoinHandle;
 use topology::{provider, NymTopology};
 
@@ -57,18 +54,6 @@ impl<T: NymTopology> TopologyAccessor<T> {
         self.inner.lock().await.update(new_topology);
     }
 
-    // not removed until healtchecker is not fully changed to use gateways instead of providers
-    pub(crate) async fn get_provider_socket_addr(&self, id: &str) -> Option<SocketAddr> {
-        match &self.inner.lock().await.0 {
-            None => None,
-            Some(ref topology) => topology
-                .providers()
-                .iter()
-                .find(|provider| provider.pub_key == id)
-                .map(|provider| provider.client_listener),
-        }
-    }
-
     pub(crate) async fn get_gateway_socket_url(&self, id: &str) -> Option<String> {
         match &self.inner.lock().await.0 {
             None => None,
@@ -87,11 +72,6 @@ impl<T: NymTopology> TopologyAccessor<T> {
             None => false,
             Some(ref topology) => topology.can_construct_path_through(),
         }
-    }
-
-    // Unless you absolutely need the entire topology, use `random_route` instead
-    pub(crate) async fn get_current_topology_clone(&self) -> Option<T> {
-        self.inner.lock().await.0.clone()
     }
 
     pub(crate) async fn get_all_clients(&self) -> Option<Vec<provider::Client>> {
@@ -144,40 +124,16 @@ impl<T: NymTopology> TopologyAccessor<T> {
     }
 }
 
-#[derive(Debug)]
-enum TopologyError {
-    HealthCheckError,
-    NoValidPathsError,
-}
-
 pub(crate) struct TopologyRefresherConfig {
     directory_server: String,
     refresh_rate: time::Duration,
-    identity_keypair: MixIdentityKeyPair,
-    resolution_timeout: time::Duration,
-    connection_timeout: time::Duration,
-    number_test_packets: usize,
-    node_score_threshold: f64,
 }
 
 impl TopologyRefresherConfig {
-    pub(crate) fn new(
-        directory_server: String,
-        refresh_rate: time::Duration,
-        identity_keypair: MixIdentityKeyPair,
-        resolution_timeout: time::Duration,
-        connection_timeout: time::Duration,
-        number_test_packets: usize,
-        node_score_threshold: f64,
-    ) -> Self {
+    pub(crate) fn new(directory_server: String, refresh_rate: time::Duration) -> Self {
         TopologyRefresherConfig {
             directory_server,
             refresh_rate,
-            identity_keypair,
-            resolution_timeout,
-            connection_timeout,
-            number_test_packets,
-            node_score_threshold,
         }
     }
 }
@@ -185,9 +141,7 @@ impl TopologyRefresherConfig {
 pub(crate) struct TopologyRefresher<T: NymTopology> {
     directory_server: String,
     topology_accessor: TopologyAccessor<T>,
-    health_checker: HealthChecker,
     refresh_rate: Duration,
-    node_score_threshold: f64,
 }
 
 impl<T: 'static + NymTopology> TopologyRefresher<T> {
@@ -195,69 +149,31 @@ impl<T: 'static + NymTopology> TopologyRefresher<T> {
         cfg: TopologyRefresherConfig,
         topology_accessor: TopologyAccessor<T>,
     ) -> Self {
-        // this is a temporary solution as the healthcheck will eventually be moved to validators
-        let health_checker = healthcheck::HealthChecker::new(
-            cfg.resolution_timeout,
-            cfg.connection_timeout,
-            cfg.number_test_packets,
-            cfg.identity_keypair,
-        );
-
         TopologyRefresher {
             directory_server: cfg.directory_server,
             topology_accessor,
-            health_checker,
             refresh_rate: cfg.refresh_rate,
-            node_score_threshold: cfg.node_score_threshold,
         }
     }
 
-    async fn get_current_compatible_topology(&self) -> Result<T, TopologyError> {
+    async fn get_current_compatible_topology(&self) -> T {
         let full_topology = T::new(self.directory_server.clone());
-        let version_filtered_topology =
-            full_topology.filter_system_version(built_info::PKG_VERSION);
-
-        // healthcheck needs some adjustments to work with gateways so for time being just dont run it
-        return Ok(version_filtered_topology);
-
-        //        let healthcheck_result = self
-        //            .health_checker
-        //            .do_check(&version_filtered_topology)
-        //            .await;
-        //        let healthcheck_scores = match healthcheck_result {
-        //            Err(err) => {
-        //                error!("Error while performing the healthcheck: {:?}", err);
-        //                return Err(TopologyError::HealthCheckError);
-        //            }
-        //            Ok(scores) => scores,
-        //        };
-        //
-        //        debug!("{}", healthcheck_scores);
-        //
-        //        let healthy_topology = healthcheck_scores
-        //            .filter_topology_by_score(&version_filtered_topology, self.node_score_threshold);
-        //
-        //        // make sure you can still send a packet through the network:
-        //        if !healthy_topology.can_construct_path_through() {
-        //            return Err(TopologyError::NoValidPathsError);
-        //        }
-        //
-        //        Ok(healthy_topology)
+        // just filter by version and assume the validators will remove all bad behaving
+        // nodes with the staking
+        full_topology.filter_system_version(built_info::PKG_VERSION)
     }
 
     pub(crate) async fn refresh(&mut self) {
         trace!("Refreshing the topology");
-        let new_topology = match self.get_current_compatible_topology().await {
-            Ok(topology) => Some(topology),
-            Err(err) => {
-                warn!("the obtained topology seems to be invalid - {:?}, it will be impossible to send packets through", err);
-                None
-            }
-        };
+        let new_topology = Some(self.get_current_compatible_topology().await);
 
         self.topology_accessor
             .update_global_topology(new_topology)
             .await;
+    }
+
+    pub(crate) async fn is_topology_routable(&self) -> bool {
+        self.topology_accessor.is_routable().await
     }
 
     pub(crate) fn start(mut self, handle: &Handle) -> JoinHandle<()> {

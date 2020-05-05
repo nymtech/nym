@@ -97,7 +97,7 @@ pub fn encapsulate_message<T: NymTopology>(
     // unwrap is fine here as we asserted there is at least single provider
     let provider = providers.pop().unwrap().into();
 
-    let route = topology.route_to(provider)?;
+    let route = topology.random_route_to(provider)?;
 
     let delays = delays::generate_from_average_duration(route.len(), average_delay);
 

@@ -15,6 +15,7 @@
 use crate::built_info;
 use futures::lock::Mutex;
 use log::*;
+use nymsphinx::DestinationAddressBytes;
 use std::sync::Arc;
 use std::time;
 use std::time::Duration;
@@ -88,9 +89,26 @@ impl<T: NymTopology> TopologyAccessor<T> {
         }
     }
 
+    pub(crate) async fn random_route_to_client(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Option<Vec<nymsphinx::Node>> {
+        let b58_address = client_address.to_base58_string();
+        let guard = self.inner.lock().await;
+        let topology = guard.0.as_ref()?;
+
+        let gateway = topology
+            .gateways()
+            .iter()
+            .cloned()
+            .find(|gateway| gateway.has_client(b58_address.clone()))?;
+
+        topology.random_route_to(gateway.into()).ok()
+    }
+
     // this is a rather temporary solution as each client will have an associated provider
     // currently that is not implemented yet and there only exists one provider in the network
-    pub(crate) async fn random_route(&mut self) -> Option<Vec<nymsphinx::Node>> {
+    pub(crate) async fn random_route(&self) -> Option<Vec<nymsphinx::Node>> {
         match &self.inner.lock().await.0 {
             None => None,
             Some(ref topology) => {
@@ -100,7 +118,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
                 }
                 // unwrap is fine here as we asserted there is at least single provider
                 let provider = gateways.pop().unwrap().into();
-                topology.route_to(provider).ok()
+                topology.random_route_to(provider).ok()
             }
         }
     }

@@ -19,7 +19,7 @@ use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::{error, info, trace, warn};
-use nymsphinx::Destination;
+use nymsphinx::{Destination, DestinationAddressBytes};
 use std::pin::Pin;
 use std::time::Duration;
 use tokio::runtime::Handle;
@@ -96,31 +96,48 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
         }
     }
 
-    async fn on_message(&mut self, next_message: StreamMessage) {
-        trace!("created new message");
-        let route = match self.topology_access.random_route().await {
-            None => {
-                warn!("No valid topology detected - won't send any real or loop message this time");
-                // TODO: this creates a potential problem: we can lose real messages if we were
-                // unable to get topology, perhaps we should store them in some buffer?
-                return;
-            }
-            Some(route) => route,
+    async fn get_route(
+        &self,
+        client: Option<DestinationAddressBytes>,
+    ) -> Option<Vec<nymsphinx::Node>> {
+        let route = match client {
+            None => self.topology_access.random_route().await,
+            Some(client) => self.topology_access.random_route_to_client(client).await,
         };
 
+        route
+    }
+
+    async fn on_message(&mut self, next_message: StreamMessage) {
+        trace!("created new message");
+
         let next_packet = match next_message {
-            StreamMessage::Cover => mix_client::packet::loop_cover_message_route(
-                self.our_info.address.clone(),
-                self.our_info.identifier,
-                route,
-                self.average_packet_delay,
-            ),
-            StreamMessage::Real(real_message) => mix_client::packet::encapsulate_message_route(
-                real_message.0,
-                real_message.1,
-                route,
-                self.average_packet_delay,
-            ),
+            StreamMessage::Cover => {
+                let route = self.get_route(None).await;
+                if route.is_none() {
+                    warn!("No valid topology detected - won't send any real or loop message this time");
+                }
+                let route = route.unwrap();
+                mix_client::packet::loop_cover_message_route(
+                    self.our_info.address.clone(),
+                    self.our_info.identifier,
+                    route,
+                    self.average_packet_delay,
+                )
+            }
+            StreamMessage::Real(real_message) => {
+                let route = self.get_route(Some(real_message.0.address.clone())).await;
+                if route.is_none() {
+                    warn!("No valid topology detected - won't send any real or loop message this time");
+                }
+                let route = route.unwrap();
+                mix_client::packet::encapsulate_message_route(
+                    real_message.0,
+                    real_message.1,
+                    route,
+                    self.average_packet_delay,
+                )
+            }
         };
 
         let next_packet = match next_packet {
@@ -143,6 +160,9 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
             .unwrap();
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
         // the UnboundedReceiver [of mix_rx] will not get a chance to read anything
+        // JS2: Basically it was the case that with high enough rate, the stream had already a next value
+        // ready and hence was immediately re-scheduled causing other tasks to be starved;
+        // yield makes it go back the scheduling queue regardless of its value availability
         tokio::task::yield_now().await;
     }
 

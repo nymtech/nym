@@ -122,7 +122,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
             .iter()
             .cloned()
             .find(|gateway| gateway.has_client(b58_address.clone()))?;
-        
+
         topology.random_route_to(gateway.into()).ok()
     }
 

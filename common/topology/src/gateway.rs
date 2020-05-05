@@ -42,7 +42,10 @@ impl Node {
     }
 
     pub fn has_client(&self, client_pub_key: String) -> bool {
-        self.registered_clients.iter().find(|client| client.pub_key == client_pub_key).is_some()
+        self.registered_clients
+            .iter()
+            .find(|client| client.pub_key == client_pub_key)
+            .is_some()
     }
 }
 

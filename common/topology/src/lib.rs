@@ -87,7 +87,10 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
     }
 
     // Sets up a route to a specific provider
-    fn random_route_to(&self, provider_node: SphinxNode) -> Result<Vec<SphinxNode>, NymTopologyError> {
+    fn random_route_to(
+        &self,
+        provider_node: SphinxNode,
+    ) -> Result<Vec<SphinxNode>, NymTopologyError> {
         Ok(self
             .random_mix_route()?
             .into_iter()

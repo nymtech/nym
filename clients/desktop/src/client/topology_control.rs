@@ -54,7 +54,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
         self.inner.lock().await.update(new_topology);
     }
 
-    pub(crate) async fn get_gateway_socket_url(&mut self, id: &str) -> Option<String> {
+    pub(crate) async fn get_gateway_socket_url(&self, id: &str) -> Option<String> {
         match &self.inner.lock().await.0 {
             None => None,
             Some(ref topology) => topology
@@ -74,7 +74,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
         }
     }
 
-    pub(crate) async fn get_all_clients(&mut self) -> Option<Vec<provider::Client>> {
+    pub(crate) async fn get_all_clients(&self) -> Option<Vec<provider::Client>> {
         // TODO: this will need to be modified to instead return pairs (provider, client)
         match &self.inner.lock().await.0 {
             None => None,

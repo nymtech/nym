@@ -40,6 +40,13 @@ impl Node {
         bs58::decode(&self.pub_key).into(&mut key_bytes).unwrap();
         key_bytes
     }
+
+    pub fn has_client(&self, client_pub_key: String) -> bool {
+        self.registered_clients
+            .iter()
+            .find(|client| client.pub_key == client_pub_key)
+            .is_some()
+    }
 }
 
 impl filter::Versioned for Node {

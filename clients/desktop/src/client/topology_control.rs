@@ -17,6 +17,7 @@ use crypto::identity::MixIdentityKeyPair;
 use futures::lock::Mutex;
 use healthcheck::HealthChecker;
 use log::*;
+use nymsphinx::DestinationAddressBytes;
 use std::sync::Arc;
 use std::time;
 use std::time::Duration;
@@ -57,7 +58,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
     }
 
     // not removed until healtchecker is not fully changed to use gateways instead of providers
-    pub(crate) async fn get_provider_socket_addr(&mut self, id: &str) -> Option<SocketAddr> {
+    pub(crate) async fn get_provider_socket_addr(&self, id: &str) -> Option<SocketAddr> {
         match &self.inner.lock().await.0 {
             None => None,
             Some(ref topology) => topology
@@ -68,7 +69,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
         }
     }
 
-    pub(crate) async fn get_gateway_socket_url(&mut self, id: &str) -> Option<String> {
+    pub(crate) async fn get_gateway_socket_url(&self, id: &str) -> Option<String> {
         match &self.inner.lock().await.0 {
             None => None,
             Some(ref topology) => topology
@@ -89,11 +90,11 @@ impl<T: NymTopology> TopologyAccessor<T> {
     }
 
     // Unless you absolutely need the entire topology, use `random_route` instead
-    pub(crate) async fn get_current_topology_clone(&mut self) -> Option<T> {
+    pub(crate) async fn get_current_topology_clone(&self) -> Option<T> {
         self.inner.lock().await.0.clone()
     }
 
-    pub(crate) async fn get_all_clients(&mut self) -> Option<Vec<provider::Client>> {
+    pub(crate) async fn get_all_clients(&self) -> Option<Vec<provider::Client>> {
         // TODO: this will need to be modified to instead return pairs (provider, client)
         match &self.inner.lock().await.0 {
             None => None,
@@ -108,9 +109,26 @@ impl<T: NymTopology> TopologyAccessor<T> {
         }
     }
 
+    pub(crate) async fn random_route_to_client(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Option<Vec<nymsphinx::Node>> {
+        let b58_address = client_address.to_base58_string();
+        let guard = self.inner.lock().await;
+        let topology = guard.0.as_ref()?;
+
+        let gateway = topology
+            .gateways()
+            .iter()
+            .cloned()
+            .find(|gateway| gateway.has_client(b58_address.clone()))?;
+
+        topology.random_route_to(gateway.into()).ok()
+    }
+
     // this is a rather temporary solution as each client will have an associated provider
     // currently that is not implemented yet and there only exists one provider in the network
-    pub(crate) async fn random_route(&mut self) -> Option<Vec<nymsphinx::Node>> {
+    pub(crate) async fn random_route(&self) -> Option<Vec<nymsphinx::Node>> {
         match &self.inner.lock().await.0 {
             None => None,
             Some(ref topology) => {
@@ -120,7 +138,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
                 }
                 // unwrap is fine here as we asserted there is at least single provider
                 let provider = gateways.pop().unwrap().into();
-                topology.route_to(provider).ok()
+                topology.random_route_to(provider).ok()
             }
         }
     }

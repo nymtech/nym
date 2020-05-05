@@ -1626,7 +1626,6 @@ dependencies = [
  "futures 0.3.4",
  "gateway-client",
  "gateway-requests",
- "healthcheck",
  "log 0.4.8",
  "mix-client",
  "multi-tcp-client",

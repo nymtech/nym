@@ -206,16 +206,15 @@ impl NymClient {
         let gateway_address = topology_accessor
             .get_gateway_socket_url(&gateway_id)
             .await
-            .expect(
-                format!(
+            .unwrap_or_else(|| {
+                panic!(
                     "Could not find gateway with id {:?}.\
              It does not seem to be present in the current network topology.\
               Are you sure it is still online?\
                Perhaps try to run `nym-client init` again to obtain a new gateway",
                     gateway_id
                 )
-                .as_ref(),
-            );
+            });
 
         url::Url::parse(&gateway_address).expect("provided gateway address is invalid!")
     }
@@ -226,16 +225,9 @@ impl NymClient {
         &mut self,
         topology_accessor: TopologyAccessor<T>,
     ) {
-        let healthcheck_keys = MixIdentityKeyPair::new();
-
         let topology_refresher_config = TopologyRefresherConfig::new(
             self.config.get_directory_server(),
             self.config.get_topology_refresh_rate(),
-            healthcheck_keys,
-            self.config.get_topology_resolution_timeout(),
-            self.config.get_healthcheck_connection_timeout(),
-            self.config.get_number_of_healthcheck_test_packets() as usize,
-            self.config.get_node_score_threshold(),
         );
         let mut topology_refresher =
             TopologyRefresher::new(topology_refresher_config, topology_accessor);
@@ -246,6 +238,15 @@ impl NymClient {
             self.config.get_directory_server()
         );
         self.runtime.block_on(topology_refresher.refresh());
+
+        // TODO: a slightly more graceful termination here
+        if !self.runtime.block_on(topology_refresher.is_topology_routable()) {
+            panic!(
+                "The current network topology seem to be insufficient to route any packets through\
+                - check if enough nodes and a gateway are online"
+            );
+        }
+
         info!("Starting topology refresher...");
         topology_refresher.start(self.runtime.handle());
     }
@@ -385,7 +386,7 @@ impl NymClient {
             SocketType::WebSocket => self.start_websocket_listener(
                 shared_topology_accessor,
                 received_buffer_request_sender,
-                input_sender.clone(),
+                input_sender,
             ),
             SocketType::None => {
                 // if we did not start the socket, it means we're running (supposedly) in the native mode

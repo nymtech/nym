@@ -143,7 +143,7 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
 
     fn can_construct_path_through(&self) -> bool {
         !self.mix_nodes().is_empty()
-            && !self.providers().is_empty()
+            && !self.gateways().is_empty()
             && self.make_layered_topology().is_ok()
     }
 }

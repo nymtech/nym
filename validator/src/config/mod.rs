@@ -84,12 +84,13 @@ impl NymConfig for Config {
 
 impl Config {
     fn default_directory_server() -> String {
-        #[cfg(feature = "qa")]
-        return "https://qa-directory.nymtech.net".to_string();
-        #[cfg(feature = "local")]
-        return "http://localhost:8080".to_string();
-
-        "https://directory.nymtech.net".to_string()
+        if cfg!(feature = "qa") {
+            "https://qa-directory.nymtech.net".to_string()
+        } else if cfg!(feature = "local") {
+            "http://localhost:8080".to_string()
+        } else {
+            "https://directory.nymtech.net".to_string()
+        }
     }
 
     pub fn new<S: Into<String>>(id: S) -> Self {

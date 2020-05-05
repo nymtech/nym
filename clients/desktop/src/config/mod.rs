@@ -277,12 +277,13 @@ impl Default for Client {
 
 impl Client {
     fn default_directory_server() -> String {
-        #[cfg(feature = "qa")]
-        return "https://qa-directory.nymtech.net".to_string();
-        #[cfg(feature = "local")]
-        return "http://localhost:8080".to_string();
-
-        "https://directory.nymtech.net".to_string()
+        if cfg!(feature = "qa") {
+            "https://qa-directory.nymtech.net".to_string()
+        } else if cfg!(feature = "local") {
+            "http://localhost:8080".to_string()
+        } else {
+            "https://directory.nymtech.net".to_string()
+        }
     }
 
     fn default_private_identity_key_file(id: &str) -> PathBuf {

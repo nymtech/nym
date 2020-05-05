@@ -240,7 +240,10 @@ impl NymClient {
         self.runtime.block_on(topology_refresher.refresh());
 
         // TODO: a slightly more graceful termination here
-        if !self.runtime.block_on(topology_refresher.is_topology_routable()) {
+        if !self
+            .runtime
+            .block_on(topology_refresher.is_topology_routable())
+        {
             panic!(
                 "The current network topology seem to be insufficient to route any packets through\
                 - check if enough nodes and a gateway are online"

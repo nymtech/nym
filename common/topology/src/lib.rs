@@ -72,7 +72,7 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
     }
 
     // Tries to get a route through the mix network
-    fn mix_route(&self) -> Result<Vec<SphinxNode>, NymTopologyError> {
+    fn random_mix_route(&self) -> Result<Vec<SphinxNode>, NymTopologyError> {
         let mut layered_topology = self.make_layered_topology()?;
         let num_layers = layered_topology.len();
         let route = (1..=num_layers as u64)
@@ -87,9 +87,9 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
     }
 
     // Sets up a route to a specific provider
-    fn route_to(&self, provider_node: SphinxNode) -> Result<Vec<SphinxNode>, NymTopologyError> {
+    fn random_route_to(&self, provider_node: SphinxNode) -> Result<Vec<SphinxNode>, NymTopologyError> {
         Ok(self
-            .mix_route()?
+            .random_mix_route()?
             .into_iter()
             .chain(std::iter::once(provider_node))
             .collect())

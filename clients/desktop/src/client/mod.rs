@@ -200,7 +200,7 @@ impl NymClient {
 
     async fn get_gateway_address<T: NymTopology>(
         gateway_id: String,
-        mut topology_accessor: TopologyAccessor<T>,
+        topology_accessor: TopologyAccessor<T>,
     ) -> url::Url {
         // we already have our gateway written in the config
         let gateway_address = topology_accessor

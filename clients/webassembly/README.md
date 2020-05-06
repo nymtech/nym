@@ -14,8 +14,12 @@ See our [docs](https://nymtech.net/docs).
 
 ### Demo
 
-There's a demo web application in the `www` folder. To run it, first make sure you've got a recent `npm` installed, then follow the instructions in its README. 
+There's a demo web application in the `www` folder. To run it, first make sure you've got a recent `npm` installed, then follow the instructions in its README.
 
 ### Developing
 
 Whenever you change your Rust, run `wasm-pack build` to update the built was artefact in the `pkg` directory.
+
+# IMPORTANT!!
+
+You also need to manually copy `helpers.js` file into the `pkg` and add it to `package.json`. I'm 100% sure one of the hundreds JS packagers could do that for us, but I didn't feel like spending 10 hours figuring this one out.

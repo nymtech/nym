@@ -1628,6 +1628,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-client-wasm"
+version = "0.1.2"
+dependencies = [
+ "console_error_panic_hook",
+ "crypto",
+ "log 0.4.8",
+ "nymsphinx",
+ "rand 0.7.3",
+ "serde",
+ "serde_json",
+ "slice_as_array",
+ "topology",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+ "wee_alloc",
+]
+
+[[package]]
 name = "nym-gateway"
 version = "0.7.0-dev"
 dependencies = [
@@ -2632,24 +2650,6 @@ dependencies = [
  "rand_core 0.5.1",
  "rand_distr",
  "sha2",
-]
-
-[[package]]
-name = "sphinx-wasm"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook",
- "crypto",
- "log 0.4.8",
- "nymsphinx",
- "rand 0.7.3",
- "serde",
- "serde_json",
- "slice_as_array",
- "topology",
- "wasm-bindgen",
- "wasm-bindgen-test",
- "wee_alloc",
 ]
 
 [[package]]

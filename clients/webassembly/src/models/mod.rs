@@ -12,16 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use nymsphinx::DestinationAddressBytes;
 use nymsphinx::Node as SphinxNode;
 use rand::seq::IteratorRandom;
 use serde::{Deserialize, Serialize};
 use std::cmp::max;
 use std::collections::HashMap;
 use std::convert::TryInto;
-use topology::mix;
-use topology::provider;
+use topology::{gateway, mix, provider};
 
 pub mod coconodes;
+pub mod gateways;
+pub mod keys;
 pub mod mixnodes;
 pub mod providers;
 
@@ -32,6 +34,7 @@ pub struct Topology {
     pub coco_nodes: Vec<coconodes::CocoPresence>,
     pub mix_nodes: Vec<mixnodes::MixNodePresence>,
     pub mix_provider_nodes: Vec<providers::MixProviderPresence>,
+    pub gateway_nodes: Vec<gateways::GatewayPresence>,
 }
 
 impl Topology {
@@ -72,7 +75,7 @@ impl Topology {
     }
 
     // Tries to get a route through the mix network
-    fn mix_route(&self) -> Result<Vec<SphinxNode>, NymTopologyError> {
+    fn random_mix_route(&self) -> Result<Vec<SphinxNode>, NymTopologyError> {
         let mut layered_topology = self.make_layered_topology()?;
         let num_layers = layered_topology.len();
         let route = (1..=num_layers as u64)
@@ -87,11 +90,14 @@ impl Topology {
     }
 
     // Sets up a route to a specific provider
-    pub fn route_to(&self, provider_node: SphinxNode) -> Result<Vec<SphinxNode>, NymTopologyError> {
+    pub fn random_route_to(
+        &self,
+        gateway_node: SphinxNode,
+    ) -> Result<Vec<SphinxNode>, NymTopologyError> {
         Ok(self
-            .mix_route()?
+            .random_mix_route()?
             .into_iter()
-            .chain(std::iter::once(provider_node))
+            .chain(std::iter::once(gateway_node))
             .collect())
     }
 
@@ -107,6 +113,28 @@ impl Topology {
             .iter()
             .map(|x| x.clone().into())
             .collect()
+    }
+
+    pub fn gateways(&self) -> Vec<gateway::Node> {
+        self.gateway_nodes
+            .iter()
+            .map(|x| x.clone().into())
+            .collect()
+    }
+
+    pub(crate) fn random_route_to_client(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Option<Vec<SphinxNode>> {
+        let b58_address = client_address.to_base58_string();
+
+        let gateway = self
+            .gateways()
+            .iter()
+            .cloned()
+            .find(|gateway| gateway.has_client(b58_address.clone()))?;
+
+        self.random_route_to(gateway.into()).ok()
     }
 }
 

@@ -18,7 +18,7 @@ use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressE
 use nymsphinx::DestinationAddressBytes;
 use serde::{Deserialize, Serialize};
 use std::{
-    convert::TryFrom,
+    convert::{TryFrom, TryInto},
     fmt::{self, Error, Formatter},
     net::SocketAddr,
 };
@@ -88,6 +88,14 @@ impl TryFrom<String> for ClientControlRequest {
 
     fn try_from(msg: String) -> Result<Self, Self::Error> {
         serde_json::from_str(&msg)
+    }
+}
+
+impl TryInto<String> for ClientControlRequest {
+    type Error = serde_json::Error;
+
+    fn try_into(self) -> Result<String, Self::Error> {
+        serde_json::to_string(&self)
     }
 }
 

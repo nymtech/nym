@@ -122,7 +122,7 @@ function sleep(ms) {
 }
 
 function main() {
-    var gatewayUrl = "ws://127.0.0.1:1001";
+    var gatewayUrl = "ws://127.0.0.1:1997";
     var directoryUrl = "http://127.0.0.1:8080/api/presence/topology";
 
 

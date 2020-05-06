@@ -27,7 +27,7 @@
   },
   "homepage": "https://github.com/rustwasm/create-wasm-app#readme",
   "dependencies": {
-    "nym-sphinx-wasm": "file:../pkg"
+    "nym-client-wasm": "^0.1.2"
   },
   "devDependencies": {
     "hello-wasm-pack": "^0.1.0",

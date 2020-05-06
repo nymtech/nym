@@ -21,8 +21,10 @@ use crypto::encryption;
 use futures::channel::oneshot;
 use futures::lock::Mutex;
 use log::*;
-use mix_client::packet::LOOP_COVER_MESSAGE_PAYLOAD;
-use nymsphinx::{DestinationAddressBytes, Error as SphinxError, ProcessedPacket, SphinxPacket};
+use nymsphinx::{
+    utils::encapsulation::LOOP_COVER_MESSAGE_PAYLOAD, DestinationAddressBytes,
+    Error as SphinxError, ProcessedPacket, SphinxPacket,
+};
 use std::collections::HashMap;
 use std::io;
 use std::ops::Deref;

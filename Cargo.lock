@@ -1505,19 +1505,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mix-client"
-version = "0.1.0"
-dependencies = [
- "log 0.4.8",
- "nymsphinx",
- "pretty_env_logger",
- "rand 0.7.3",
- "rand_distr",
- "tokio 0.2.16",
- "topology",
-]
-
-[[package]]
 name = "mockito"
 version = "0.23.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1625,7 +1612,6 @@ dependencies = [
  "gateway-client",
  "gateway-requests",
  "log 0.4.8",
- "mix-client",
  "multi-tcp-client",
  "nymsphinx",
  "pem",
@@ -1656,7 +1642,6 @@ dependencies = [
  "gateway-requests",
  "hmac",
  "log 0.4.8",
- "mix-client",
  "multi-tcp-client",
  "nymsphinx",
  "pemstore",
@@ -1730,6 +1715,7 @@ version = "0.1.0"
 dependencies = [
  "log 0.4.8",
  "rand 0.7.3",
+ "rand_distr",
  "sphinx",
 ]
 

@@ -20,7 +20,6 @@ use crate::client::received_buffer::{
 use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
-use crate::config::persistence::pathfinder::ClientPathfinder;
 use crate::config::{Config, SocketType};
 use crate::websocket;
 use crypto::identity::MixIdentityKeyPair;
@@ -31,7 +30,6 @@ use gateway_requests::auth_token::AuthToken;
 use log::*;
 use nymsphinx::chunking::split_and_prepare_payloads;
 use nymsphinx::{Destination, DestinationAddressBytes};
-use pemstore::pemstore::PemStore;
 use received_buffer::{ReceivedBufferMessage, ReconstructeredMessagesReceiver};
 use tokio::runtime::Runtime;
 use topology::NymTopology;
@@ -63,20 +61,7 @@ pub struct NymClient {
 pub(crate) struct InputMessage(pub Destination, pub Vec<u8>);
 
 impl NymClient {
-    fn load_identity_keys(config_file: &Config) -> MixIdentityKeyPair {
-        let identity_keypair = PemStore::new(ClientPathfinder::new_from_config(&config_file))
-            .read_identity()
-            .expect("Failed to read stored identity key files");
-        println!(
-            "Public identity key: {}\n",
-            identity_keypair.public_key.to_base58_string()
-        );
-        identity_keypair
-    }
-
-    pub fn new(config: Config) -> Self {
-        let identity_keypair = Self::load_identity_keys(&config);
-
+    pub fn new(config: Config, identity_keypair: MixIdentityKeyPair) -> Self {
         NymClient {
             runtime: Runtime::new().unwrap(),
             config,

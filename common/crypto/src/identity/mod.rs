@@ -131,7 +131,7 @@ impl MixIdentityPrivateKey {
     pub fn from_bytes(b: &[u8]) -> Self {
         Self(encryption::PrivateKey::from_bytes(b))
     }
-    
+
     pub fn to_base58_string(&self) -> String {
         bs58::encode(&self.to_bytes()).into_string()
     }

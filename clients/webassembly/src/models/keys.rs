@@ -1,6 +1,6 @@
-use std::convert::{TryInto, TryFrom};
-use serde::{Deserialize, Serialize};
 use crypto::identity::MixIdentityKeyPair;
+use serde::{Deserialize, Serialize};
+use std::convert::{TryFrom, TryInto};
 use wasm_bindgen::prelude::*;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -35,5 +35,7 @@ pub fn keygen() -> String {
         private_key: keypair.private_key().to_base58_string(),
         public_key: keypair.public_key().to_base58_string(),
         address: address.to_base58_string(),
-    }.try_into().unwrap()
+    }
+    .try_into()
+    .unwrap()
 }

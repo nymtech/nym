@@ -18,7 +18,7 @@ use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressE
 use nymsphinx::DestinationAddressBytes;
 use serde::{Deserialize, Serialize};
 use std::{
-    convert::{TryInto, TryFrom},
+    convert::{TryFrom, TryInto},
     fmt::{self, Error, Formatter},
     net::SocketAddr,
 };

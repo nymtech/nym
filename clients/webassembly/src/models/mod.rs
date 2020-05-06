@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use nymsphinx::Node as SphinxNode;
 use nymsphinx::DestinationAddressBytes;
+use nymsphinx::Node as SphinxNode;
 use rand::seq::IteratorRandom;
 use serde::{Deserialize, Serialize};
 use std::cmp::max;
@@ -23,9 +23,9 @@ use topology::{gateway, mix, provider};
 
 pub mod coconodes;
 pub mod gateways;
+pub mod keys;
 pub mod mixnodes;
 pub mod providers;
-pub mod keys;
 
 // Topology shows us the current state of the overall Nym network
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -90,7 +90,10 @@ impl Topology {
     }
 
     // Sets up a route to a specific provider
-    pub fn random_route_to(&self, gateway_node: SphinxNode) -> Result<Vec<SphinxNode>, NymTopologyError> {
+    pub fn random_route_to(
+        &self,
+        gateway_node: SphinxNode,
+    ) -> Result<Vec<SphinxNode>, NymTopologyError> {
         Ok(self
             .random_mix_route()?
             .into_iter()

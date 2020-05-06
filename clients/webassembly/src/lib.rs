@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crypto::identity::{MixIdentityPublicKey};
+use crypto::identity::MixIdentityPublicKey;
 use models::Topology;
 use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx::Node as SphinxNode;

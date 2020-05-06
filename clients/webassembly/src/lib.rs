@@ -152,8 +152,9 @@ mod test_constructing_a_sphinx_packet {
         let mut payload = create_gateway_sphinx_packet(
             topology_fixture(),
             "foomp",
-            "AetTDvynUNB2N35rvCVDxkPR593Cx4PCe4QQKrMgm5RR",
+            "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq",
         );
+        // you don't really need 32 bytes here, but giving too much won't make it fail
         let mut address_buffer = [0; 32];
         let _ = payload.split_off(32);
         address_buffer.copy_from_slice(payload.as_slice());

@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::persistence::pathfinder::MixNodePathfinder;
 use crate::config::Config;
 use crate::node::packet_processing::PacketProcessor;
 use crypto::encryption;
 use directory_client::presence::Topology;
 use futures::channel::mpsc;
 use log::*;
-use pemstore::pemstore::PemStore;
 use std::net::SocketAddr;
 use tokio::runtime::Runtime;
 use topology::NymTopology;

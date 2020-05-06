@@ -20,7 +20,6 @@ use crate::client::received_buffer::{
 use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
-use crate::config::persistence::pathfinder::ClientPathfinder;
 use crate::config::{Config, SocketType};
 use crate::websocket;
 use crypto::identity::MixIdentityKeyPair;
@@ -31,7 +30,6 @@ use gateway_requests::auth_token::AuthToken;
 use log::*;
 use nymsphinx::chunking::split_and_prepare_payloads;
 use nymsphinx::{Destination, DestinationAddressBytes};
-use pemstore::pemstore::PemStore;
 use received_buffer::{ReceivedBufferMessage, ReconstructeredMessagesReceiver};
 use tokio::runtime::Runtime;
 use topology::NymTopology;

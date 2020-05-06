@@ -19,7 +19,10 @@ use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::{error, info, trace, warn};
-use nymsphinx::{Destination, DestinationAddressBytes};
+use nymsphinx::{
+    utils::{encapsulation, poisson},
+    Destination, DestinationAddressBytes,
+};
 use std::pin::Pin;
 use std::time::Duration;
 use tokio::runtime::Handle;
@@ -54,7 +57,7 @@ impl<T: NymTopology> Stream for OutQueueControl<T> {
         // we know it's time to send a message, so let's prepare delay for the next one
         // Get the `now` by looking at the current `delay` deadline
         let now = self.next_delay.deadline();
-        let next_poisson_delay = mix_client::poisson::sample(self.average_message_sending_delay);
+        let next_poisson_delay = poisson::sample(self.average_message_sending_delay);
 
         // The next interval value is `next_poisson_delay` after the one that just
         // yielded.
@@ -118,7 +121,7 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
                     warn!("No valid topology detected - won't send any real or loop message this time");
                 }
                 let route = route.unwrap();
-                mix_client::packet::loop_cover_message_route(
+                encapsulation::loop_cover_message_route(
                     self.our_info.address.clone(),
                     self.our_info.identifier,
                     route,
@@ -131,7 +134,7 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
                     warn!("No valid topology detected - won't send any real or loop message this time");
                 }
                 let route = route.unwrap();
-                mix_client::packet::encapsulate_message_route(
+                encapsulation::encapsulate_message_route(
                     real_message.0,
                     real_message.1,
                     route,
@@ -168,9 +171,7 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
 
     pub(crate) async fn run_out_queue_control(mut self) {
         // we should set initial delay only when we actually start the stream
-        self.next_delay = time::delay_for(mix_client::poisson::sample(
-            self.average_message_sending_delay,
-        ));
+        self.next_delay = time::delay_for(poisson::sample(self.average_message_sending_delay));
 
         info!("starting out queue controller");
         while let Some(next_message) = self.next().await {

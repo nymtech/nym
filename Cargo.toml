@@ -9,7 +9,6 @@ members = [
     "clients/webassembly",
     "common/client-libs/directory-client",
     "common/client-libs/gateway-client",
-    "common/client-libs/mix-client",
     "common/client-libs/multi-tcp-client",
     "common/client-libs/validator-client",
     "common/config",

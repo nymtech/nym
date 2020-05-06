@@ -17,7 +17,10 @@ use crate::client::topology_control::TopologyAccessor;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
-use nymsphinx::Destination;
+use nymsphinx::{
+    utils::{encapsulation, poisson},
+    Destination,
+};
 use std::pin::Pin;
 use std::time::Duration;
 use tokio::runtime::Handle;
@@ -50,8 +53,7 @@ impl<T: NymTopology> Stream for LoopCoverTrafficStream<T> {
         // we know it's time to send a message, so let's prepare delay for the next one
         // Get the `now` by looking at the current `delay` deadline
         let now = self.next_delay.deadline();
-        let next_poisson_delay =
-            mix_client::poisson::sample(self.average_cover_message_sending_delay);
+        let next_poisson_delay = poisson::sample(self.average_cover_message_sending_delay);
 
         // The next interval value is `next_poisson_delay` after the one that just
         // yielded.
@@ -90,7 +92,7 @@ impl<T: 'static + NymTopology> LoopCoverTrafficStream<T> {
             Some(route) => route,
         };
 
-        let cover_message = match mix_client::packet::loop_cover_message_route(
+        let cover_message = match encapsulation::loop_cover_message_route(
             self.our_info.address.clone(),
             self.our_info.identifier,
             route,
@@ -120,9 +122,8 @@ impl<T: 'static + NymTopology> LoopCoverTrafficStream<T> {
 
     async fn run(&mut self) {
         // we should set initial delay only when we actually start the stream
-        self.next_delay = time::delay_for(mix_client::poisson::sample(
-            self.average_cover_message_sending_delay,
-        ));
+        self.next_delay =
+            time::delay_for(poisson::sample(self.average_cover_message_sending_delay));
 
         while let Some(_) = self.next().await {
             self.on_new_message().await;

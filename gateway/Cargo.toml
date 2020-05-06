@@ -31,12 +31,6 @@ multi-tcp-client = { path = "../common/client-libs/multi-tcp-client" }
 nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
 
-# this dependency is due to requiring to know content of loop message. however, mix-client module itself
-# is going to be removed or renamed at some point as it no longer servers its purpose of sending traffic to mix network
-# and only provides utility functions
-mix-client = { path = "../common/client-libs/mix-client" }
-
-
 [dependencies.tungstenite]
 version = "0.10.0"
 default-features = false

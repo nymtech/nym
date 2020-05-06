@@ -38,20 +38,7 @@ pub struct MixNode {
 }
 
 impl MixNode {
-    fn load_sphinx_keys(config_file: &Config) -> encryption::KeyPair {
-        let sphinx_keypair = PemStore::new(MixNodePathfinder::new_from_config(&config_file))
-            .read_encryption()
-            .expect("Failed to read stored sphinx key files");
-        println!(
-            "Public key: {}\n",
-            sphinx_keypair.public_key().to_base58_string()
-        );
-        sphinx_keypair
-    }
-
-    pub fn new(config: Config) -> Self {
-        let sphinx_keypair = Self::load_sphinx_keys(&config);
-
+    pub fn new(config: Config, sphinx_keypair: encryption::KeyPair) -> Self {
         MixNode {
             runtime: Runtime::new().unwrap(),
             config,

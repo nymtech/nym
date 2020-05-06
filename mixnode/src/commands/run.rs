@@ -13,10 +13,12 @@
 // limitations under the License.
 
 use crate::commands::override_config;
-use crate::config::Config;
+use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
 use crate::node::MixNode;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
+use crypto::encryption;
+use pemstore::pemstore::PemStore;
 
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("run")
@@ -94,6 +96,17 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
+fn load_sphinx_keys(config_file: &Config) -> encryption::KeyPair {
+    let sphinx_keypair = PemStore::new(MixNodePathfinder::new_from_config(&config_file))
+        .read_encryption()
+        .expect("Failed to read stored sphinx key files");
+    println!(
+        "Public key: {}\n",
+        sphinx_keypair.public_key().to_base58_string()
+    );
+    sphinx_keypair
+}
+
 pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
 
@@ -104,6 +117,8 @@ pub fn execute(matches: &ArgMatches) {
             .expect("Failed to load config file");
 
     config = override_config(config, matches);
+
+    let sphinx_keypair = load_sphinx_keys(&config);
 
     let listening_ip_string = config.get_listening_address().ip().to_string();
     if special_addresses().contains(&listening_ip_string.as_ref()) {
@@ -128,5 +143,5 @@ pub fn execute(matches: &ArgMatches) {
         config.get_announce_address()
     );
 
-    MixNode::new(config).run();
+    MixNode::new(config, sphinx_keypair).run();
 }

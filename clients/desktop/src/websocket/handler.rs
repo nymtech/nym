@@ -15,7 +15,7 @@
 use super::types::{BinaryClientRequest, ClientRequest, ServerResponse};
 use crate::client::{
     received_buffer::{
-        ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructeredMessagesReceiver,
+        ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
     },
     topology_control::TopologyAccessor,
     InputMessage, InputMessageSender,
@@ -265,7 +265,7 @@ impl<T: NymTopology> Handler<T> {
         }
     }
 
-    async fn listen_for_requests(&mut self, mut msg_receiver: ReconstructeredMessagesReceiver) {
+    async fn listen_for_requests(&mut self, mut msg_receiver: ReconstructedMessagesReceiver) {
         loop {
             tokio::select! {
                 socket_msg = self.next_websocket_request() => {

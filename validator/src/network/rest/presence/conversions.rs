@@ -33,6 +33,7 @@ impl From<ServiceMixnode> for RestMixnode {
 }
 
 impl ServiceTopology {
+    #[cfg(test)] // un-testify this when you need it for real code, this kills warning
     pub fn from_rest_topology_with_timestamp(
         rest_topology: RestTopology,
         timestamp: Timestamp,

@@ -293,7 +293,7 @@ impl NymClient {
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    /// Note: it waits for the first occurence of messages being sent to ourselves. If you expect multiple
+    /// Note: it waits for the first occurrence of messages being sent to ourselves. If you expect multiple
     /// messages, you might have to call this function repeatedly.
     pub async fn wait_for_messages(&mut self) -> Vec<Vec<u8>> {
         use futures::StreamExt;
@@ -337,7 +337,7 @@ impl NymClient {
         // unwrapped_sphinx_receiver is the receiver for said messages - used by ReceivedMessagesBuffer
         let (unwrapped_sphinx_sender, unwrapped_sphinx_receiver) = mpsc::unbounded();
 
-        // used for annoucing connectiong or disconnection of a channel for pushing re-assembled messages to
+        // used for announcing connection or disconnection of a channel for pushing re-assembled messages to
         let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
 
         // channels responsible for controlling real messages

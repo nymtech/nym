@@ -12,7 +12,7 @@ Check your dev console for output.
 
 ### Rebuild after Rust source changes
 
-`./wasm-pack build` in the `nym-sphinx-wasm` directory (one up) will rebuild the wasm package if you make changes to the Rust source. That will be automatically picked up (and reloaded, if need be) by the npm dev server.
+`wasm-pack build` in the `clients/webassembly` directory will rebuild the wasm package if you make changes to the Rust source. That will be automatically picked up (and reloaded, if need be) by the npm dev server.
 
 ### How was this built? 
 

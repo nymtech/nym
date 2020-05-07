@@ -5,7 +5,8 @@ This example application demonstrates how to use WebAssembly to create Sphinx pa
 ## 🚴 Usage
 
 ```
-npm run start # fires up a web page at http://localhost:8001
+npm install         # set up dependencies
+npm run start       # starts a web server at http://localhost:8001
 ```
 
 Check your dev console for output.

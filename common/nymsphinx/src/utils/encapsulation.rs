@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
-use crate::{delays, Destination, DestinationAddressBytes, SURBIdentifier, SphinxPacket};
+use crate::{delays, Destination, DestinationAddressBytes, SphinxPacket};
 use crate::{Error as SphinxError, Node as SphinxNode};
 use std::convert::TryFrom;
 use std::net::SocketAddr;
@@ -44,14 +44,11 @@ impl From<NymNodeRoutingAddressError> for SphinxPacketEncapsulationError {
 
 pub fn loop_cover_message_route(
     our_address: DestinationAddressBytes,
-    surb_id: SURBIdentifier,
     route: Vec<SphinxNode>,
     average_delay: time::Duration,
 ) -> Result<(SocketAddr, SphinxPacket), SphinxPacketEncapsulationError> {
-    let destination = Destination::new(our_address, surb_id);
-
     encapsulate_message_route(
-        destination,
+        our_address,
         LOOP_COVER_MESSAGE_PAYLOAD.to_vec(),
         route,
         average_delay,
@@ -59,15 +56,18 @@ pub fn loop_cover_message_route(
 }
 
 pub fn encapsulate_message_route(
-    recipient: Destination,
+    recipient: DestinationAddressBytes,
     message: Vec<u8>,
     route: Vec<SphinxNode>,
     average_delay: time::Duration,
 ) -> Result<(SocketAddr, SphinxPacket), SphinxPacketEncapsulationError> {
+    // in our design we don't care about SURB_ID
+    let destination = Destination::new(recipient, Default::default());
+
     let delays = delays::generate_from_average_duration(route.len(), average_delay);
 
     // build the packet
-    let packet = SphinxPacket::new(message, &route[..], &recipient, &delays, None)?;
+    let packet = SphinxPacket::new(message, &route[..], &destination, &delays, None)?;
 
     let first_node_address =
         NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone())?;

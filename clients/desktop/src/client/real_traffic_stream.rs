@@ -21,7 +21,7 @@ use futures::{Future, Stream, StreamExt};
 use log::{error, info, trace, warn};
 use nymsphinx::{
     utils::{encapsulation, poisson},
-    Destination, DestinationAddressBytes,
+    DestinationAddressBytes,
 };
 use std::pin::Pin;
 use std::time::Duration;
@@ -36,7 +36,7 @@ pub(crate) struct OutQueueControl<T: NymTopology> {
     next_delay: time::Delay,
     mix_tx: mpsc::UnboundedSender<MixMessage>,
     input_rx: mpsc::UnboundedReceiver<InputMessage>,
-    our_info: Destination,
+    our_address: DestinationAddressBytes,
     topology_access: TopologyAccessor<T>,
 }
 
@@ -83,7 +83,7 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
     pub(crate) fn new(
         mix_tx: mpsc::UnboundedSender<MixMessage>,
         input_rx: mpsc::UnboundedReceiver<InputMessage>,
-        our_info: Destination,
+        our_address: DestinationAddressBytes,
         topology_access: TopologyAccessor<T>,
         average_packet_delay: Duration,
         average_message_sending_delay: Duration,
@@ -94,7 +94,7 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
             next_delay: time::delay_for(Default::default()),
             mix_tx,
             input_rx,
-            our_info,
+            our_address,
             topology_access,
         }
     }
@@ -103,12 +103,10 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
         &self,
         client: Option<DestinationAddressBytes>,
     ) -> Option<Vec<nymsphinx::Node>> {
-        let route = match client {
+        match client {
             None => self.topology_access.random_route().await,
             Some(client) => self.topology_access.random_route_to_client(client).await,
-        };
-
-        route
+        }
     }
 
     async fn on_message(&mut self, next_message: StreamMessage) {
@@ -122,21 +120,21 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
                 }
                 let route = route.unwrap();
                 encapsulation::loop_cover_message_route(
-                    self.our_info.address.clone(),
-                    self.our_info.identifier,
+                    self.our_address.clone(),
                     route,
                     self.average_packet_delay,
                 )
             }
             StreamMessage::Real(real_message) => {
-                let route = self.get_route(Some(real_message.0.address.clone())).await;
+                let (recipient, data) = real_message.detruct();
+                let route = self.get_route(Some(recipient.clone())).await;
                 if route.is_none() {
                     warn!("No valid topology detected - won't send any real or loop message this time");
                 }
                 let route = route.unwrap();
                 encapsulation::encapsulate_message_route(
-                    real_message.0,
-                    real_message.1,
+                    recipient,
+                    data,
                     route,
                     self.average_packet_delay,
                 )

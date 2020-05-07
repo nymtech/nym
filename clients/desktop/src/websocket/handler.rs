@@ -24,7 +24,7 @@ use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::chunking::split_and_prepare_payloads;
-use nymsphinx::{Destination, DestinationAddressBytes};
+use nymsphinx::DestinationAddressBytes;
 use std::convert::TryFrom;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
@@ -107,10 +107,7 @@ impl<T: NymTopology> Handler<T> {
         // in case the message is too long and needs to be split into multiple packets:
         let split_message = split_and_prepare_payloads(&message_bytes);
         for message_fragment in split_message {
-            let input_msg = InputMessage(
-                Destination::new(address.clone(), Default::default()),
-                message_fragment,
-            );
+            let input_msg = InputMessage::new(address.clone(), message_fragment);
             self.msg_input.unbounded_send(input_msg).unwrap();
         }
 
@@ -165,10 +162,7 @@ impl<T: NymTopology> Handler<T> {
         // in case the message is too long and needs to be split into multiple packets:
         let split_message = split_and_prepare_payloads(&data);
         for message_fragment in split_message {
-            let input_msg = InputMessage(
-                Destination::new(address.clone(), Default::default()),
-                message_fragment,
-            );
+            let input_msg = InputMessage::new(address.clone(), message_fragment);
             self.msg_input.unbounded_send(input_msg).unwrap();
         }
 

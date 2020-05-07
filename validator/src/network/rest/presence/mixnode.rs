@@ -1,8 +1,10 @@
 use super::*;
 use crate::network::rest::presence::models::Mixnode as PresenceMixnode;
+use crate::services::mixmining::models::Mixnode as ServiceMixnode;
 use bodyparser::Struct;
 use iron::status;
 use iron::Handler;
+use models::Timestamp;
 
 pub struct CreatePresence {
     service: Arc<Mutex<mixmining::Service>>,
@@ -22,7 +24,13 @@ impl Handler for CreatePresence {
             let mixnode = json_parse
                 .unwrap()
                 .expect("Unexpected JSON parsing problem");
-            self.service.lock().unwrap().add(mixnode.into());
+            self.service
+                .lock()
+                .unwrap()
+                .add(ServiceMixnode::from_rest_mixnode_with_timestamp(
+                    mixnode,
+                    Timestamp::default(),
+                ));
             Ok(Response::with(status::Created))
         } else {
             let error = json_parse.unwrap_err();

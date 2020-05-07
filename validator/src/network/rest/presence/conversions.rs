@@ -1,21 +1,22 @@
+use super::models::Timestamp;
 use crate::network::rest::presence::models::Mixnode as RestMixnode;
 use crate::network::rest::presence::models::Topology as RestTopology;
 use crate::services::mixmining::models::Mixnode as ServiceMixnode;
 use crate::services::mixmining::models::Topology as ServiceTopology;
 use std::convert::From;
-use std::time::{SystemTime, UNIX_EPOCH};
 
-impl From<RestMixnode> for ServiceMixnode {
-    fn from(value: RestMixnode) -> ServiceMixnode {
-        let now = SystemTime::now();
-        let timestamp = now.duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+impl ServiceMixnode {
+    pub fn from_rest_mixnode_with_timestamp(
+        rest_mix: RestMixnode,
+        timestamp: Timestamp,
+    ) -> ServiceMixnode {
         ServiceMixnode {
-            host: value.host,
-            last_seen: timestamp,
-            location: value.location,
-            public_key: value.public_key,
+            host: rest_mix.host,
+            last_seen: timestamp.into(),
+            location: rest_mix.location,
+            public_key: rest_mix.public_key,
             stake: 0,
-            version: value.version,
+            version: rest_mix.version,
         }
     }
 }
@@ -31,11 +32,16 @@ impl From<ServiceMixnode> for RestMixnode {
     }
 }
 
-impl From<RestTopology> for ServiceTopology {
-    fn from(value: RestTopology) -> ServiceTopology {
+impl ServiceTopology {
+    pub fn from_rest_topology_with_timestamp(
+        rest_topology: RestTopology,
+        timestamp: Timestamp,
+    ) -> ServiceTopology {
         let mut converted_mixnodes: Vec<ServiceMixnode> = Vec::new();
-        for mixnode in value.mixnodes {
-            converted_mixnodes.push(mixnode.into());
+        for mixnode in rest_topology.mixnodes {
+            converted_mixnodes.push(ServiceMixnode::from_rest_mixnode_with_timestamp(
+                mixnode, timestamp,
+            ));
         }
         ServiceTopology {
             mixnodes: converted_mixnodes.to_vec(),
@@ -86,7 +92,9 @@ mod test_presence_conversions_for_mixmining_service {
     #[test]
     fn test_building_service_mixnode_from_rest_mixnode() {
         let rest_mixnode = rest_mixnode_fixture();
-        let service_mixnode = ServiceMixnode::from(rest_mixnode.clone());
+        let timestamp = Timestamp::default();
+        let service_mixnode =
+            ServiceMixnode::from_rest_mixnode_with_timestamp(rest_mixnode.clone(), timestamp);
         assert_eq!(service_mixnode.host, rest_mixnode.host);
         assert_eq!(service_mixnode.public_key, rest_mixnode.public_key);
         assert_eq!(service_mixnode.location, rest_mixnode.location);
@@ -116,8 +124,11 @@ mod test_presence_conversions_for_mixmining_service {
             validators: vec![],
         };
 
-        let service_topology = ServiceTopology::from(rest_topology);
-        let service_mixnode = ServiceMixnode::from(rest_mixnode);
+        let timestamp = Timestamp::default();
+        let service_topology =
+            ServiceTopology::from_rest_topology_with_timestamp(rest_topology, timestamp);
+        let service_mixnode =
+            ServiceMixnode::from_rest_mixnode_with_timestamp(rest_mixnode, timestamp);
         assert_eq!(service_mixnode, service_topology.mixnodes[0]);
     }
 }

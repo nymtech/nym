@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,4 +37,30 @@ pub struct Validator {
     version: String,
     last_seen: u64,
     location: String,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord)]
+pub struct Timestamp(u64);
+
+impl Default for Timestamp {
+    fn default() -> Timestamp {
+        Timestamp(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as u64,
+        )
+    }
+}
+
+impl From<u64> for Timestamp {
+    fn from(v: u64) -> Timestamp {
+        Timestamp(v)
+    }
+}
+
+impl Into<u64> for Timestamp {
+    fn into(self) -> u64 {
+        self.0
+    }
 }

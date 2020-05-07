@@ -19,7 +19,7 @@ use futures::{Future, Stream, StreamExt};
 use log::*;
 use nymsphinx::{
     utils::{encapsulation, poisson},
-    Destination,
+    DestinationAddressBytes,
 };
 use std::pin::Pin;
 use std::time::Duration;
@@ -33,7 +33,7 @@ pub(crate) struct LoopCoverTrafficStream<T: NymTopology> {
     average_cover_message_sending_delay: Duration,
     next_delay: time::Delay,
     mix_tx: MixMessageSender,
-    our_info: Destination,
+    our_address: DestinationAddressBytes,
     topology_access: TopologyAccessor<T>,
 }
 
@@ -67,7 +67,7 @@ impl<T: NymTopology> Stream for LoopCoverTrafficStream<T> {
 impl<T: 'static + NymTopology> LoopCoverTrafficStream<T> {
     pub(crate) fn new(
         mix_tx: MixMessageSender,
-        our_info: Destination,
+        our_address: DestinationAddressBytes,
         topology_access: TopologyAccessor<T>,
         average_cover_message_sending_delay: time::Duration,
         average_packet_delay: time::Duration,
@@ -77,7 +77,7 @@ impl<T: 'static + NymTopology> LoopCoverTrafficStream<T> {
             average_cover_message_sending_delay,
             next_delay: time::delay_for(Default::default()),
             mix_tx,
-            our_info,
+            our_address,
             topology_access,
         }
     }
@@ -93,8 +93,7 @@ impl<T: 'static + NymTopology> LoopCoverTrafficStream<T> {
         };
 
         let cover_message = match encapsulation::loop_cover_message_route(
-            self.our_info.address.clone(),
-            self.our_info.identifier,
+            self.our_address.clone(),
             route,
             self.average_packet_delay,
         ) {

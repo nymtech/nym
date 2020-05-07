@@ -108,6 +108,10 @@ impl Topology {
             .collect()
     }
 
+    // it's intesting how compiler knows this function is unused even though it's public
+    // but it will be removed once our topology is refactored and the concept of "provider"
+    // goes away.
+    #[allow(dead_code)]
     pub fn providers(&self) -> Vec<provider::Node> {
         self.mix_provider_nodes
             .iter()

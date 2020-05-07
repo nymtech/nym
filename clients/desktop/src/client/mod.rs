@@ -31,6 +31,7 @@ use log::*;
 use nymsphinx::chunking::split_and_prepare_payloads;
 use nymsphinx::{Destination, DestinationAddressBytes};
 use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
+
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
@@ -56,9 +57,21 @@ pub struct NymClient {
 }
 
 #[derive(Debug)]
-// TODO: make fields private
-// TODO2: make it take just destination address, because we don't care about SURBs (in this form)
-pub(crate) struct InputMessage(pub Destination, pub Vec<u8>);
+pub(crate) struct InputMessage {
+    recipient: DestinationAddressBytes,
+    data: Vec<u8>,
+}
+
+impl InputMessage {
+    pub(crate) fn new(recipient: DestinationAddressBytes, data: Vec<u8>) -> Self {
+        InputMessage { recipient, data }
+    }
+
+    // I'm open to suggestions on how to rename this.
+    fn detruct(self) -> (DestinationAddressBytes, Vec<u8>) {
+        (self.recipient, self.data)
+    }
+}
 
 impl NymClient {
     pub fn new(config: Config, identity_keypair: MixIdentityKeyPair) -> Self {
@@ -69,17 +82,6 @@ impl NymClient {
             input_tx: None,
             receive_tx: None,
         }
-    }
-
-    #[deprecated(
-        note = "SURB_IDs are irrelevant in this system design and this method alongside everything using it, should be updated accordingly"
-    )]
-    pub fn as_mix_destination(&self) -> Destination {
-        Destination::new(
-            self.identity_keypair.public_key().derive_address(),
-            // TODO: what with SURBs?
-            Default::default(),
-        )
     }
 
     pub fn as_mix_destination_address(&self) -> DestinationAddressBytes {
@@ -100,7 +102,7 @@ impl NymClient {
             .enter(|| {
                 LoopCoverTrafficStream::new(
                     mix_tx,
-                    self.as_mix_destination(),
+                    self.as_mix_destination_address(),
                     topology_accessor,
                     self.config.get_loop_cover_traffic_average_delay(),
                     self.config.get_average_packet_delay(),
@@ -123,7 +125,7 @@ impl NymClient {
                 real_traffic_stream::OutQueueControl::new(
                     mix_tx,
                     input_rx,
-                    self.as_mix_destination(),
+                    self.as_mix_destination_address(),
                     topology_accessor,
                     self.config.get_average_packet_delay(),
                     self.config.get_message_sending_average_delay(),
@@ -274,14 +276,14 @@ impl NymClient {
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub fn send_message(&mut self, destination: Destination, message: Vec<u8>) {
+    pub fn send_message(&mut self, recipient: DestinationAddressBytes, message: Vec<u8>) {
         let split_message = split_and_prepare_payloads(&message);
         debug!(
             "Splitting message into {:?} fragments!",
             split_message.len()
         );
         for message_fragment in split_message {
-            let input_msg = InputMessage(destination.clone(), message_fragment);
+            let input_msg = InputMessage::new(recipient.clone(), message_fragment);
             self.input_tx
                 .as_ref()
                 .expect("start method was not called before!")

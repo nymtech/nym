@@ -8,6 +8,14 @@ export function makeAuthenticateRequest(address, token) {
     return JSON.stringify({ "type": "authenticate", "address": address, "token": token });
 }
 
+export async function getInitialGatewayAddress(directoryUrl) {
+    const topology = await getTopology(directoryUrl);
+    if (topology.gatewayNodes.length > 0) {
+        return topology.gatewayNodes[0].clientListener;
+    } 
+    return "";
+}
+
 // NOTE: this currently does not implement chunking and too long messages will cause a panic
 export function makeSendablePacket(topology, message, recipient) {
     return wasm.create_gateway_sphinx_packet(topology, message, recipient);

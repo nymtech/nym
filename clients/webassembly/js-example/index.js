@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import * as wasm from "nym-client-wasm";
-import { makeRegisterRequest, makeAuthenticateRequest, makeSendablePacket, getTopology } from "nym-client-wasm/helpers"
+import { makeRegisterRequest, makeAuthenticateRequest, makeSendablePacket, getTopology, getInitialGatewayAddress } from "nym-client-wasm/helpers"
 
 class GatewayConnection {
     constructor(gateway_url, ownAddress, registeredCallback) {
@@ -121,10 +121,14 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function main() {
-    var gatewayUrl = "ws://127.0.0.1:1977";
+async function main() {
     var directoryUrl = "http://127.0.0.1:8080/api/presence/topology";
 
+    const gatewayUrl = await getInitialGatewayAddress(directoryUrl);
+    if (gatewayUrl == "") {
+        alert("No gateways detected - cannot procede");
+        return;
+    }
 
     // NOTE: in an actual application, you should save those keys somewhere and only generate them a single time
     // then reuse them in subsequent runs

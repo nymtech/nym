@@ -18,6 +18,7 @@ use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::sender::{OutboundMixMessageSender, PacketForwarder};
 use crate::node::storage::{inboxes, ClientLedger};
 use crypto::encryption;
+use directory_client::DirectoryClient;
 use log::*;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -137,6 +138,26 @@ impl Gateway {
         );
     }
 
+    async fn check_if_same_ip_gateway_exists(&self) -> Option<String> {
+        let announced_mix_host = self.config.get_mix_announce_address();
+        let announced_clients_host = self.config.get_clients_announce_address();
+        let directory_client_cfg =
+            directory_client::Config::new(self.config.get_presence_directory_server());
+        let topology = directory_client::Client::new(directory_client_cfg)
+            .get_topology()
+            .await
+            .expect("Failed to retrieve network topology");
+
+        let existing_gateways = topology.gateway_nodes;
+        existing_gateways
+            .iter()
+            .find(|node| {
+                node.mixnet_listener == announced_mix_host
+                    || node.client_listener == announced_clients_host
+            })
+            .map(|node| node.pub_key.clone())
+    }
+
     // Rather than starting all futures with explicit `&Handle` argument, let's see how it works
     // out if we make it implicit using `tokio::spawn` inside Runtime context.
     // Basically more or less equivalent of using #[tokio::main] attribute.
@@ -145,6 +166,17 @@ impl Gateway {
         let mut runtime = Runtime::new().unwrap();
 
         runtime.block_on(async {
+
+            if let Some(duplicate_gateway_key) = self.check_if_same_ip_gateway_exists().await {
+                error!(
+                    "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
+                    duplicate_gateway_key
+                );
+                return;
+            }
+
+
+
             let mix_forwarding_channel = self.start_packet_forwarder();
             let clients_handler_sender = self.start_clients_handler();
 

@@ -29,7 +29,7 @@ use gateway_client::{GatewayClient, SphinxPacketReceiver, SphinxPacketSender};
 use gateway_requests::auth_token::AuthToken;
 use log::*;
 use nymsphinx::chunking::split_and_prepare_payloads;
-use nymsphinx::{Destination, DestinationAddressBytes};
+use nymsphinx::DestinationAddressBytes;
 use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
 
 use tokio::runtime::Runtime;

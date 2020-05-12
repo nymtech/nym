@@ -20,3 +20,26 @@ pub mod presence_gateways_post;
 pub mod presence_mixnodes_post;
 pub mod presence_providers_post;
 pub mod presence_topology_get;
+
+use serde::{de::DeserializeOwned, Serialize};
+
+pub(crate) trait DirectoryRequest {
+    fn url(&self) -> String;
+}
+
+pub(crate) trait DirectoryGetRequest: DirectoryRequest {
+    // perhaps the name of this is not the best because it's technically not a JSON,
+    // but something that can be deserialised from JSON.
+    // I'm open to all suggestions on how to rename it
+    type JSONResponse: DeserializeOwned;
+
+    fn new(base_url: &str) -> Self;
+}
+
+pub(crate) trait DirectoryPostRequest: DirectoryRequest {
+    // Similarly this, it's something that can be serialized into a JSON
+    type Payload: Serialize + ?Sized;
+
+    fn new(base_url: &str, payload: Self::Payload) -> Self;
+    fn json_payload(&self) -> &Self::Payload;
+}

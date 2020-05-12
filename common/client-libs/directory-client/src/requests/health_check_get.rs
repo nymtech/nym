@@ -12,49 +12,53 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use reqwest::Response;
+use super::{DirectoryGetRequest, DirectoryRequest};
+use serde::{Deserialize, Serialize};
+
+const PATH: &str = "/api/healthcheck";
+
+#[derive(Deserialize, Serialize)]
+pub struct HealthCheckResponse {
+    pub ok: bool,
+}
 
 pub struct Request {
     base_url: String,
     path: String,
 }
 
-pub trait HealthCheckRequester {
-    fn new(base_url: String) -> Self;
-    fn get(&self) -> Result<Response, reqwest::Error>;
+impl DirectoryRequest for Request {
+    fn url(&self) -> String {
+        format!("{}{}", self.base_url, self.path)
+    }
 }
 
-impl HealthCheckRequester for Request {
-    fn new(base_url: String) -> Self {
-        Request {
-            base_url,
-            path: "/api/healthcheck".to_string(),
-        }
-    }
+impl DirectoryGetRequest for Request {
+    type JSONResponse = HealthCheckResponse;
 
-    fn get(&self) -> Result<Response, reqwest::Error> {
-        let url = format!("{}{}", self.base_url, self.path);
-        reqwest::get(&url)
+    fn new(base_url: &str) -> Self {
+        Request {
+            base_url: base_url.to_string(),
+            path: PATH.to_string(),
+        }
     }
 }
 
 #[cfg(test)]
 mod healthcheck_requests {
-    use super::*;
-
-    #[cfg(test)]
+    use crate::client_test_fixture;
     use mockito::mock;
 
     #[cfg(test)]
     mod on_a_400_status {
         use super::*;
 
-        #[test]
-        #[should_panic]
-        fn it_returns_an_error() {
+        #[tokio::test]
+        async fn it_returns_an_error() {
             let _m = mock("GET", "/api/healthcheck").with_status(400).create();
-            let req = Request::new(mockito::server_url());
-            assert!(req.get().is_err());
+            let client = client_test_fixture(&mockito::server_url());
+            let res = client.get_healthcheck().await;
+            assert!(res.is_err());
             _m.assert();
         }
     }
@@ -63,11 +67,18 @@ mod healthcheck_requests {
     mod on_a_200 {
         use super::*;
 
-        #[test]
-        fn it_returns_a_response_with_200_status() {
-            let _m = mock("GET", "/api/healthcheck").with_status(200).create();
-            let req = Request::new(mockito::server_url());
-            assert!(req.get().is_ok());
+        #[tokio::test]
+        async fn it_returns_a_response_with_200_status() {
+            let json = r#"{
+                "ok": true
+            }"#;
+            let _m = mock("GET", "/api/healthcheck")
+                .with_status(200)
+                .with_body(json)
+                .create();
+            let client = client_test_fixture(&mockito::server_url());
+            let res = client.get_healthcheck().await;
+            assert!(res.unwrap().ok);
             _m.assert();
         }
     }

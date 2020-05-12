@@ -62,7 +62,10 @@ impl DirectoryClient for Client {
 }
 
 impl Client {
-    async fn post(&self, request: impl DirectoryPostRequest) -> reqwest::Result<reqwest::Response> {
+    async fn post<R: DirectoryPostRequest>(
+        &self,
+        request: R,
+    ) -> reqwest::Result<reqwest::Response> {
         self.reqwest_client
             .post(&request.url())
             .json(request.json_payload())

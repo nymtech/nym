@@ -12,54 +12,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::{DirectoryPostRequest, DirectoryRequest};
 use crate::presence::coconodes::CocoPresence;
-use reqwest::Response;
+
+const PATH: &str = "/api/presence/coconodes";
 
 pub struct Request {
     base_url: String,
     path: String,
+    payload: CocoPresence,
 }
 
-pub trait PresenceCocoNodesPoster {
-    fn new(base_url: String) -> Self;
-    fn post(&self, presence: &CocoPresence) -> Result<Response, reqwest::Error>;
+impl DirectoryRequest for Request {
+    fn url(&self) -> String {
+        format!("{}{}", self.base_url, self.path)
+    }
 }
 
-impl PresenceCocoNodesPoster for Request {
-    fn new(base_url: String) -> Self {
-        Request {
-            base_url,
-            path: "/api/presence/coconodes".to_string(),
-        }
+impl DirectoryPostRequest for Request {
+    type Payload = CocoPresence;
+    fn json_payload(&self) -> &CocoPresence {
+        &self.payload
     }
 
-    fn post(&self, presence: &CocoPresence) -> Result<Response, reqwest::Error> {
-        let url = format!("{}{}", self.base_url, self.path);
-        let client = reqwest::Client::new();
-        let p = client.post(&url).json(&presence).send()?;
-        Ok(p)
+    fn new(base_url: &str, payload: Self::Payload) -> Self {
+        Request {
+            base_url: base_url.to_string(),
+            path: PATH.to_string(),
+            payload,
+        }
     }
 }
 
 #[cfg(test)]
-mod metrics_get_request {
+mod presence_coconodes_post_request {
     use super::*;
-
-    #[cfg(test)]
+    use crate::client_test_fixture;
     use mockito::mock;
 
     #[cfg(test)]
     mod on_a_400_status {
         use super::*;
 
-        #[test]
-        fn it_returns_an_error() {
-            let _m = mock("POST", "/api/presence/coconodes")
-                .with_status(400)
-                .create();
-            let req = Request::new(mockito::server_url());
+        #[tokio::test]
+        async fn it_returns_an_error() {
+            let _m = mock("POST", PATH).with_status(400).create();
+            let client = client_test_fixture(&mockito::server_url());
             let presence = fixtures::new_presence();
-            let result = req.post(&presence);
+            let result = client.post_coconode_presence(presence).await;
             assert_eq!(400, result.unwrap().status());
             _m.assert();
         }
@@ -68,19 +68,16 @@ mod metrics_get_request {
     #[cfg(test)]
     mod on_a_200 {
         use super::*;
-        #[test]
-        fn it_returns_a_response_with_201() {
+        #[tokio::test]
+        async fn it_returns_a_response_with_201() {
             let json = r#"{
                           "ok": true
                       }"#;
-            let _m = mock("POST", "/api/presence/coconodes")
-                .with_status(201)
-                .with_body(json)
-                .create();
-            let req = Request::new(mockito::server_url());
+            let _m = mock("POST", PATH).with_status(201).with_body(json).create();
+            let client = client_test_fixture(&mockito::server_url());
             let presence = fixtures::new_presence();
-            let result = req.post(&presence);
-            assert_eq!(true, result.is_ok());
+            let result = client.post_coconode_presence(presence).await;
+            assert!(result.is_ok());
             _m.assert();
         }
     }

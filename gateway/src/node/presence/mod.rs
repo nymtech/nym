@@ -15,7 +15,6 @@
 use crate::built_info;
 use crate::node::storage::ClientLedger;
 use directory_client::presence::gateways::{GatewayClient, GatewayPresence};
-use directory_client::requests::presence_gateways_post::PresenceGatewayPoster;
 use directory_client::DirectoryClient;
 use log::{error, trace};
 use std::time::Duration;
@@ -98,8 +97,8 @@ impl Notifier {
         }
     }
 
-    pub(crate) fn notify(&self, presence: GatewayPresence) {
-        match self.net_client.presence_gateway_post.post(&presence) {
+    async fn notify(&self, presence: GatewayPresence) {
+        match self.net_client.post_gateway_presence(presence).await {
             Err(err) => error!("failed to send presence - {:?}", err),
             Ok(_) => trace!("sent presence information"),
         }
@@ -111,7 +110,7 @@ impl Notifier {
                 // set the deadline in the future
                 let sending_delay = tokio::time::delay_for(self.sending_delay);
                 let presence = self.make_presence().await;
-                self.notify(presence);
+                self.notify(presence).await;
                 // wait for however much is left
                 sending_delay.await;
             }

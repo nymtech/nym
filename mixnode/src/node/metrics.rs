@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use directory_client::metrics::MixMetric;
-use directory_client::requests::metrics_mixes_post::MetricsMixPoster;
 use directory_client::DirectoryClient;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
@@ -141,11 +140,15 @@ impl MetricsSender {
                 self.metrics_informer.log_report_stats(received, &sent);
                 self.metrics_informer.try_log_running_stats();
 
-                match self.directory_client.metrics_post.post(&MixMetric {
-                    pub_key: self.pub_key_str.clone(),
-                    received,
-                    sent,
-                }) {
+                match self
+                    .directory_client
+                    .post_mix_metrics(MixMetric {
+                        pub_key: self.pub_key_str.clone(),
+                        received,
+                        sent,
+                    })
+                    .await
+                {
                     Err(err) => error!("failed to send metrics - {:?}", err),
                     Ok(_) => debug!("sent metrics information"),
                 }

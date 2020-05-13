@@ -126,7 +126,7 @@ async function main() {
 
     const gatewayUrl = await getInitialGatewayAddress(directoryUrl);
     if (gatewayUrl == "") {
-        alert("No gateways detected - cannot procede");
+        alert("No gateways detected - cannot proceed");
         return;
     }
 

@@ -31,13 +31,13 @@ pub(crate) type ReceivedBufferRequestSender = mpsc::UnboundedSender<ReceivedBuff
 pub(crate) type ReceivedBufferRequestReceiver = mpsc::UnboundedReceiver<ReceivedBufferMessage>;
 
 // The channel set for the above
-pub(crate) type ReconstructeredMessagesSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
-pub(crate) type ReconstructeredMessagesReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
+pub(crate) type ReconstructedMessagesSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
+pub(crate) type ReconstructedMessagesReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
 
 struct ReceivedMessagesBufferInner {
     messages: Vec<Vec<u8>>,
     message_reconstructor: MessageReconstructor,
-    message_sender: Option<ReconstructeredMessagesSender>,
+    message_sender: Option<ReconstructedMessagesSender>,
 }
 
 #[derive(Debug, Clone)]
@@ -68,7 +68,7 @@ impl ReceivedMessagesBuffer {
         guard.message_sender = None;
     }
 
-    async fn connect_sender(&mut self, sender: ReconstructeredMessagesSender) {
+    async fn connect_sender(&mut self, sender: ReconstructedMessagesSender) {
         let mut guard = self.inner.lock().await;
         if guard.message_sender.is_some() {
             // in theory we could just ignore it, but that situation should have never happened
@@ -149,7 +149,7 @@ impl ReceivedMessagesBuffer {
 pub(crate) enum ReceivedBufferMessage {
     // Signals a websocket connection (or a native implementation) was established and we should stop buffering messages,
     // and instead send them directly to the received channel
-    ReceiverAnnounce(ReconstructeredMessagesSender),
+    ReceiverAnnounce(ReconstructedMessagesSender),
 
     // Explicit signal that Receiver connection will no longer accept messages
     ReceiverDisconnect,

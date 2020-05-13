@@ -12,24 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::requests::health_check_get::{HealthCheckRequester, Request as HealthCheckRequest};
-use crate::requests::metrics_mixes_get::{MetricsMixRequester, Request as MetricsMixRequest};
-use crate::requests::metrics_mixes_post::{MetricsMixPoster, Request as MetricsMixPost};
-use crate::requests::presence_coconodes_post::{
-    PresenceCocoNodesPoster, Request as PresenceCocoNodesPost,
+use crate::requests::health_check_get::Request as HealthCheckRequest;
+use crate::requests::metrics_mixes_get::Request as MetricsMixRequest;
+use crate::requests::metrics_mixes_post::Request as MetricsMixPost;
+use crate::requests::presence_coconodes_post::Request as PresenceCocoNodesPost;
+use crate::requests::presence_gateways_post::Request as PresenceGatewayPost;
+use crate::requests::presence_mixnodes_post::Request as PresenceMixNodesPost;
+use crate::requests::presence_providers_post::Request as PresenceProvidersPost;
+use crate::requests::presence_topology_get::Request as PresenceTopologyRequest;
+
+use metrics::{MixMetric, PersistedMixMetric};
+use presence::{
+    coconodes::CocoPresence, gateways::GatewayPresence, mixnodes::MixNodePresence,
+    providers::MixProviderPresence, Topology,
 };
-use crate::requests::presence_gateways_post::{
-    PresenceGatewayPoster, Request as PresenceGatewayPost,
-};
-use crate::requests::presence_mixnodes_post::{
-    PresenceMixNodesPoster, Request as PresenceMixNodesPost,
-};
-use crate::requests::presence_providers_post::{
-    PresenceMixProviderPoster, Request as PresenceProvidersPost,
-};
-use crate::requests::presence_topology_get::{
-    PresenceTopologyGetRequester, Request as PresenceTopologyRequest,
-};
+use requests::{health_check_get::HealthCheckResponse, DirectoryGetRequest, DirectoryPostRequest};
 
 pub mod metrics;
 pub mod presence;
@@ -50,35 +47,100 @@ pub trait DirectoryClient {
 }
 
 pub struct Client {
-    pub health_check: HealthCheckRequest,
-    pub metrics_mixes: MetricsMixRequest,
-    pub metrics_post: MetricsMixPost,
-    pub presence_coconodes_post: PresenceCocoNodesPost,
-    pub presence_gateway_post: PresenceGatewayPost,
-    pub presence_mix_nodes_post: PresenceMixNodesPost,
-    pub presence_providers_post: PresenceProvidersPost,
-    pub presence_topology: PresenceTopologyRequest,
+    base_url: String,
+    reqwest_client: reqwest::Client,
 }
 
 impl DirectoryClient for Client {
     fn new(config: Config) -> Client {
-        let health_check = HealthCheckRequest::new(config.base_url.clone());
-        let metrics_mixes = MetricsMixRequest::new(config.base_url.clone());
-        let metrics_post = MetricsMixPost::new(config.base_url.clone());
-        let presence_topology = PresenceTopologyRequest::new(config.base_url.clone());
-        let presence_coconodes_post = PresenceCocoNodesPost::new(config.base_url.clone());
-        let presence_gateway_post = PresenceGatewayPost::new(config.base_url.clone());
-        let presence_mix_nodes_post = PresenceMixNodesPost::new(config.base_url.clone());
-        let presence_providers_post = PresenceProvidersPost::new(config.base_url);
+        let reqwest_client = reqwest::Client::new();
         Client {
-            health_check,
-            metrics_mixes,
-            metrics_post,
-            presence_coconodes_post,
-            presence_gateway_post,
-            presence_mix_nodes_post,
-            presence_providers_post,
-            presence_topology,
+            base_url: config.base_url,
+            reqwest_client,
         }
+    }
+}
+
+impl Client {
+    async fn post<R: DirectoryPostRequest>(
+        &self,
+        request: R,
+    ) -> reqwest::Result<reqwest::Response> {
+        self.reqwest_client
+            .post(&request.url())
+            .json(request.json_payload())
+            .send()
+            .await
+    }
+
+    async fn get<R: DirectoryGetRequest>(&self, request: R) -> reqwest::Result<R::JSONResponse> {
+        self.reqwest_client
+            .get(&request.url())
+            .send()
+            .await?
+            .json()
+            .await
+    }
+
+    pub async fn get_healthcheck(&self) -> reqwest::Result<HealthCheckResponse> {
+        let req = HealthCheckRequest::new(&self.base_url);
+        self.get(req).await
+    }
+
+    pub async fn post_mix_metrics(&self, metrics: MixMetric) -> reqwest::Result<reqwest::Response> {
+        let req = MetricsMixPost::new(&self.base_url, metrics);
+        self.post(req).await
+    }
+
+    pub async fn get_mix_metrics(&self) -> reqwest::Result<Vec<PersistedMixMetric>> {
+        let req = MetricsMixRequest::new(&self.base_url);
+        self.get(req).await
+    }
+
+    pub async fn post_coconode_presence(
+        &self,
+        presence: CocoPresence,
+    ) -> reqwest::Result<reqwest::Response> {
+        let req = PresenceCocoNodesPost::new(&self.base_url, presence);
+        self.post(req).await
+    }
+
+    pub async fn post_gateway_presence(
+        &self,
+        presence: GatewayPresence,
+    ) -> reqwest::Result<reqwest::Response> {
+        let req = PresenceGatewayPost::new(&self.base_url, presence);
+        self.post(req).await
+    }
+
+    pub async fn post_mixnode_presence(
+        &self,
+        presence: MixNodePresence,
+    ) -> reqwest::Result<reqwest::Response> {
+        let req = PresenceMixNodesPost::new(&self.base_url, presence);
+        self.post(req).await
+    }
+
+    // this should be soft-deprecated as the whole concept of provider will
+    // be removed in the next topology rework
+    pub async fn post_provider_presence(
+        &self,
+        presence: MixProviderPresence,
+    ) -> reqwest::Result<reqwest::Response> {
+        let req = PresenceProvidersPost::new(&self.base_url, presence);
+        self.post(req).await
+    }
+
+    pub async fn get_topology(&self) -> reqwest::Result<Topology> {
+        let req = PresenceTopologyRequest::new(&self.base_url);
+        self.get(req).await
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn client_test_fixture(base_url: &str) -> Client {
+    Client {
+        base_url: base_url.to_string(),
+        reqwest_client: reqwest::Client::new(),
     }
 }

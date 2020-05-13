@@ -23,7 +23,7 @@ mod template;
 
 // 'CLIENT'
 const DEFAULT_LISTENING_PORT: u16 = 1977;
-
+const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
 const DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY: u64 = 1000; // 1s
@@ -249,7 +249,7 @@ impl Default for Client {
         // there must be explicit checks for whether id is not empty later
         Client {
             id: "".to_string(),
-            directory_server: Self::default_directory_server(),
+            directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             gateway_id: "".to_string(),
@@ -260,16 +260,6 @@ impl Default for Client {
 }
 
 impl Client {
-    fn default_directory_server() -> String {
-        if cfg!(feature = "qa") {
-            "https://qa-directory.nymtech.net".to_string()
-        } else if cfg!(feature = "local") {
-            "http://localhost:8080".to_string()
-        } else {
-            "https://directory.nymtech.net".to_string()
-        }
-    }
-
     fn default_private_identity_key_file(id: &str) -> PathBuf {
         Config::default_data_directory(Some(id)).join("private_identity.pem")
     }

@@ -14,7 +14,7 @@ See our [docs](https://nymtech.net/docs).
 
 ### Demo
 
-There's a demo web application in the `www` folder. To run it, first make sure you've got a recent `npm` installed, then follow the instructions in its README.
+There's a demo web application in the `js-example` folder. To run it, first make sure you've got a recent `npm` installed, then follow the instructions in its README.
 
 ### Developing
 

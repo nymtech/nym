@@ -14,7 +14,6 @@
 
 use crate::built_info;
 use directory_client::presence::mixnodes::MixNodePresence;
-use directory_client::requests::presence_mixnodes_post::PresenceMixNodesPoster;
 use directory_client::DirectoryClient;
 use log::{error, trace};
 use std::time::Duration;
@@ -77,8 +76,12 @@ impl Notifier {
         }
     }
 
-    fn notify(&self) {
-        match self.net_client.presence_mix_nodes_post.post(&self.presence) {
+    async fn notify(&self) {
+        match self
+            .net_client
+            .post_mixnode_presence(self.presence.clone())
+            .await
+        {
             Err(err) => error!("failed to send presence - {:?}", err),
             Ok(_) => trace!("sent presence information"),
         }
@@ -89,7 +92,7 @@ impl Notifier {
             loop {
                 // set the deadline in the future
                 let sending_delay = tokio::time::delay_for(self.sending_delay);
-                self.notify();
+                self.notify().await;
                 // wait for however much is left
                 sending_delay.await;
             }

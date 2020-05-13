@@ -12,73 +12,71 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::{DirectoryGetRequest, DirectoryRequest};
 use crate::presence::Topology;
+
+const PATH: &str = "/api/presence/topology";
 
 pub struct Request {
     base_url: String,
     path: String,
 }
 
-pub trait PresenceTopologyGetRequester {
-    fn new(base_url: String) -> Self;
-    fn get(&self) -> Result<Topology, reqwest::Error>;
+impl DirectoryRequest for Request {
+    fn url(&self) -> String {
+        format!("{}{}", self.base_url, self.path)
+    }
 }
 
-impl PresenceTopologyGetRequester for Request {
-    fn new(base_url: String) -> Self {
-        Request {
-            base_url,
-            path: "/api/presence/topology".to_string(),
-        }
-    }
+impl DirectoryGetRequest for Request {
+    type JSONResponse = Topology;
 
-    fn get(&self) -> Result<Topology, reqwest::Error> {
-        let url = format!("{}{}", self.base_url, self.path);
-        let topology: Topology = reqwest::get(&url)?.json()?;
-        Ok(topology)
+    fn new(base_url: &str) -> Self {
+        Request {
+            base_url: base_url.to_string(),
+            path: PATH.to_string(),
+        }
     }
 }
 
 #[cfg(test)]
 mod topology_requests {
     use super::*;
-    #[cfg(test)]
+    use crate::client_test_fixture;
     use mockito::mock;
+
     #[cfg(test)]
     mod on_a_400_status {
         use super::*;
-        #[test]
-        #[should_panic]
-        fn it_panics() {
-            let _m = mock("GET", "/api/presence/topology")
+        #[tokio::test]
+        async fn it_returns_an_error() {
+            let _m = mock("GET", PATH)
                 .with_status(400)
                 .with_body("bad body")
                 .create();
-            let req = Request::new(mockito::server_url());
-            req.get().unwrap();
+            let client = client_test_fixture(&mockito::server_url());
+            let result = client.get_topology().await;
+            assert!(result.is_err());
             _m.assert();
         }
     }
     #[cfg(test)]
     mod on_a_200 {
         use super::*;
-        #[test]
-        fn it_returns_a_response_with_200_status_and_a_correct_topology() {
+        #[tokio::test]
+        async fn it_returns_a_response_with_200_status_and_a_correct_topology() {
             let json = fixtures::topology_response_json();
-            let _m = mock("GET", "/api/presence/topology")
-                .with_status(200)
-                .with_body(json)
-                .create();
-            let req = Request::new(mockito::server_url());
-            let result = req.get();
-            assert!(result.is_ok());
+            let _m = mock("GET", PATH).with_status(200).with_body(json).create();
+            let client = client_test_fixture(&mockito::server_url());
+            let result = client.get_topology().await;
             assert_eq!(
-                1575915097085539300,
+                1_575_915_097_085_539_300,
                 result.unwrap().coco_nodes.first().unwrap().last_seen
             );
             _m.assert();
         }
     }
+
     #[cfg(test)]
     pub mod fixtures {
         #[cfg(test)]

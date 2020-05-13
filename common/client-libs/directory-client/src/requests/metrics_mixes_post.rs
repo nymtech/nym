@@ -12,52 +12,53 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::{DirectoryPostRequest, DirectoryRequest};
 use crate::metrics::MixMetric;
-use reqwest::Response;
+
+const PATH: &str = "/api/metrics/mixes";
 
 pub struct Request {
     base_url: String,
     path: String,
+    payload: MixMetric,
 }
 
-pub trait MetricsMixPoster {
-    fn new(base_url: String) -> Self;
-    fn post(&self, metric: &MixMetric) -> Result<Response, reqwest::Error>;
+impl DirectoryRequest for Request {
+    fn url(&self) -> String {
+        format!("{}{}", self.base_url, self.path)
+    }
 }
 
-impl MetricsMixPoster for Request {
-    fn new(base_url: String) -> Self {
-        Request {
-            base_url,
-            path: "/api/metrics/mixes".to_string(),
-        }
+impl DirectoryPostRequest for Request {
+    type Payload = MixMetric;
+    fn json_payload(&self) -> &MixMetric {
+        &self.payload
     }
 
-    fn post(&self, metric: &MixMetric) -> Result<Response, reqwest::Error> {
-        let url = format!("{}{}", self.base_url, self.path);
-        let client = reqwest::Client::new();
-        let mix_metric_vec = client.post(&url).json(&metric).send()?;
-        Ok(mix_metric_vec)
+    fn new(base_url: &str, payload: Self::Payload) -> Self {
+        Request {
+            base_url: base_url.to_string(),
+            path: PATH.to_string(),
+            payload,
+        }
     }
 }
 
 #[cfg(test)]
-mod metrics_get_request {
+mod metrics_post_request {
     use super::*;
-
-    #[cfg(test)]
+    use crate::client_test_fixture;
     use mockito::mock;
 
     #[cfg(test)]
     mod on_a_400_status {
         use super::*;
 
-        #[test]
-        fn it_returns_an_error() {
-            let _m = mock("POST", "/api/metrics/mixes").with_status(400).create();
-            let req = Request::new(mockito::server_url());
-            let metric = fixtures::new_metric();
-            let result = req.post(&metric);
+        #[tokio::test]
+        async fn it_returns_an_error() {
+            let _m = mock("POST", PATH).with_status(400).create();
+            let client = client_test_fixture(&mockito::server_url());
+            let result = client.post_mix_metrics(fixtures::new_metric()).await;
             assert_eq!(400, result.unwrap().status());
             _m.assert();
         }
@@ -66,17 +67,16 @@ mod metrics_get_request {
     #[cfg(test)]
     mod on_a_200 {
         use super::*;
-        #[test]
-        fn it_returns_a_response_with_200() {
+        #[tokio::test]
+        async fn it_returns_a_response_with_200() {
             let json = fixtures::mix_metrics_response_json();
             let _m = mock("POST", "/api/metrics/mixes")
                 .with_status(201)
                 .with_body(json)
                 .create();
-            let req = Request::new(mockito::server_url());
-            let metric = fixtures::new_metric();
-            let result = req.post(&metric);
-            assert_eq!(true, result.is_ok());
+            let client = client_test_fixture(&mockito::server_url());
+            let result = client.post_mix_metrics(fixtures::new_metric()).await;
+            assert!(result.is_ok());
             _m.assert();
         }
     }

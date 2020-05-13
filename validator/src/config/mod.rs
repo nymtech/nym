@@ -21,6 +21,7 @@ use std::time;
 mod template;
 
 // where applicable, the below are defined in milliseconds
+const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
 
 // 'MIXMINING'
 const DEFAULT_MIX_MINING_DELAY: u64 = 10_000;
@@ -83,16 +84,6 @@ impl NymConfig for Config {
 }
 
 impl Config {
-    fn default_directory_server() -> String {
-        if cfg!(feature = "qa") {
-            "https://qa-directory.nymtech.net".to_string()
-        } else if cfg!(feature = "local") {
-            "http://localhost:8080".to_string()
-        } else {
-            "https://directory.nymtech.net".to_string()
-        }
-    }
-
     pub fn new<S: Into<String>>(id: S) -> Self {
         Config::default().with_id(id)
     }
@@ -201,7 +192,7 @@ pub struct MixMining {
 impl Default for MixMining {
     fn default() -> Self {
         MixMining {
-            directory_server: Config::default_directory_server(),
+            directory_server: "https://directory.nymtech.net".to_string(),
             run_delay: DEFAULT_MIX_MINING_DELAY,
             resolution_timeout: DEFAULT_MIX_MINING_RESOLUTION_TIMEOUT,
             number_of_test_packets: DEFAULT_NUMBER_OF_MIX_MINING_TEST_PACKETS,
@@ -245,7 +236,7 @@ impl Debug {}
 impl Default for Debug {
     fn default() -> Self {
         Debug {
-            presence_directory_server: Config::default_directory_server(),
+            presence_directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
             presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
         }
     }

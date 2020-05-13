@@ -100,9 +100,11 @@ impl MixNode {
             .start(self.runtime.handle())
     }
 
-    fn check_if_same_ip_node_exists(&self) -> Option<String> {
+    fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
         // TODO: once we change to graph topology this here will need to be updated!
-        let topology = Topology::new(self.config.get_presence_directory_server());
+        let topology = self
+            .runtime
+            .block_on(Topology::new(self.config.get_presence_directory_server()));
         let existing_mixes_presence = topology.mix_nodes;
         existing_mixes_presence
             .iter()

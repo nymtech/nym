@@ -30,7 +30,8 @@ use gateway_requests::auth_token::AuthToken;
 use log::*;
 use nymsphinx::chunking::split_and_prepare_payloads;
 use nymsphinx::DestinationAddressBytes;
-use received_buffer::{ReceivedBufferMessage, ReconstructeredMessagesReceiver};
+use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
+
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
@@ -52,7 +53,7 @@ pub struct NymClient {
     input_tx: Option<InputMessageSender>,
 
     // to be used by "receive" function or socket, etc
-    receive_tx: Option<ReconstructeredMessagesReceiver>,
+    receive_tx: Option<ReconstructedMessagesReceiver>,
 }
 
 #[derive(Debug)]

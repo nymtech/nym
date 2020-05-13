@@ -1,6 +1,6 @@
 ## Nym Sphinx in WebAssembly
 
-This is a Rust crate which is set up to automatically cross-compile the contents of `lib.rs` to WebAssembly (aka wasm).
+This is a Rust crate which is set up to automatically cross-compile the contents of `src` to WebAssembly (aka wasm).
 
 Wasm is pretty close to bare metal. Browser-based or server-side JavaScript (or other wasm-using environments) can use the wasm output from this crate to create Sphinx packets at much higher speeds than would be possible using (interpreted) JavaScript. This enables browser-based and mobile applications get stronger privacy, in a way that wasn't previously possible.
 
@@ -18,7 +18,7 @@ There's a demo web application in the `js-example` folder. To run it, first make
 
 ### Developing
 
-Whenever you change your Rust, run `wasm-pack build` to update the built was artefact in the `pkg` directory.
+Whenever you change any Rust in the `src` directory, run `wasm-pack build` to update the built wasm artefact in the `pkg` directory.
 
 # IMPORTANT!!
 

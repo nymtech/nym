@@ -20,8 +20,8 @@ NUMMIXES=3
 function kill_old() {
     echo "Killing old testnet processes..."
     killall nym-mixnode
-    # killall nym-gateway
-    # killall nym-client
+    killall nym-gateway
+    killall nym-client
 }
 
 if [ $# -ne 1 ]; then
@@ -51,14 +51,6 @@ for (( j=0; j<$NUMMIXES; j++ )); do
     sleep 1
 done
 
-
-
-# # trap call ctrl_c()
-# trap ctrl_c SIGINT SIGTERM SIGTSTP
-# function ctrl_c() {
-#         printf "\n** Trapped SIGINT, SIGTERM and SIGTSTP\n"
-#         kill_old
-# }
 
 # just run forever (so we'd get all network warnings in this window and you wouldn't get confused when you started another process here)
 # also it seems that SIGINT is nicely passed to all processes so they kill themselves

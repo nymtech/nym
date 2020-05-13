@@ -121,7 +121,7 @@ impl Config {
     }
 
     pub fn with_custom_directory<S: Into<String>>(mut self, directory_server: S) -> Self {
-        self.debug.presence_directory_server = directory_server.into();
+        self.gateway.presence_directory_server = directory_server.into();
         self
     }
 
@@ -324,7 +324,7 @@ impl Config {
     }
 
     pub fn get_presence_directory_server(&self) -> String {
-        self.debug.presence_directory_server.clone()
+        self.gateway.presence_directory_server.clone()
     }
 
     pub fn get_presence_sending_delay(&self) -> time::Duration {
@@ -394,6 +394,9 @@ pub struct Gateway {
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
 
+    /// Directory server to which the server will be reporting their presence data.
+    presence_directory_server: String,
+
     /// nym_home_directory specifies absolute path to the home nym gateways directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
@@ -411,6 +414,16 @@ impl Gateway {
     fn default_location() -> String {
         "unknown".into()
     }
+
+    fn default_directory_server() -> String {
+        if cfg!(feature = "qa") {
+            "https://qa-directory.nymtech.net".to_string()
+        } else if cfg!(feature = "local") {
+            "http://localhost:8080".to_string()
+        } else {
+            "https://directory.nymtech.net".to_string()
+        }
+    }
 }
 
 impl Default for Gateway {
@@ -420,6 +433,7 @@ impl Default for Gateway {
             location: Self::default_location(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
+            presence_directory_server: Self::default_directory_server(),
             nym_root_directory: Config::default_root_directory(),
         }
     }
@@ -511,9 +525,6 @@ impl Default for Logging {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Debug {
-    /// Directory server to which the server will be reporting their presence data.
-    presence_directory_server: String,
-
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
     /// The provided value is interpreted as milliseconds.
@@ -540,22 +551,9 @@ pub struct Debug {
     message_retrieval_limit: u16,
 }
 
-impl Debug {
-    fn default_directory_server() -> String {
-        if cfg!(feature = "qa") {
-            "https://qa-directory.nymtech.net".to_string()
-        } else if cfg!(feature = "local") {
-            "http://localhost:8080".to_string()
-        } else {
-            "https://directory.nymtech.net".to_string()
-        }
-    }
-}
-
 impl Default for Debug {
     fn default() -> Self {
         Debug {
-            presence_directory_server: Self::default_directory_server(),
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,

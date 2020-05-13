@@ -39,6 +39,9 @@ private_sphinx_key_file = '{{ gateway.private_sphinx_key_file }}'
 # Path to file containing public sphinx key.
 public_sphinx_key_file = '{{ gateway.public_sphinx_key_file }}'
 
+# Directory server to which the server will be reporting their presence data.
+presence_directory_server = '{{ presence_directory_server }}'
+
 # nym_home_directory specifies absolute path to the home nym gateway directory.
 # It is expected to use default value and hence .toml file should not redefine this field.
 nym_root_directory = '{{ gateway.nym_root_directory }}'

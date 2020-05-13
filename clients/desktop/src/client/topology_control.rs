@@ -157,7 +157,7 @@ impl<T: 'static + NymTopology> TopologyRefresher<T> {
     }
 
     async fn get_current_compatible_topology(&self) -> T {
-        // note: this call makes it neccessary that `T::new()`does *not* have 'static lifetime
+        // note: this call makes it necessary that `T::new()`does *not* have 'static lifetime
         let full_topology = T::new(self.directory_server.clone()).await;
         // just filter by version and assume the validators will remove all bad behaving
         // nodes with the staking

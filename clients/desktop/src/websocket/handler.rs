@@ -309,9 +309,13 @@ impl<T: NymTopology> Handler<T> {
 
     // consume self to make sure `drop` is called after this is done
     pub(crate) async fn handle_connection(mut self, socket: TcpStream) {
-        let ws_stream = accept_async(socket)
-            .await
-            .expect("error while performing the websocket handshake");
+        let ws_stream = match accept_async(socket).await {
+            Ok(ws_stream) => ws_stream,
+            Err(err) => {
+                warn!("error while performing the websocket handshake - {:?}", err);
+                return;
+            }
+        };
         self.socket = Some(ws_stream);
 
         let (reconstructed_sender, reconstructed_receiver) = mpsc::unbounded();

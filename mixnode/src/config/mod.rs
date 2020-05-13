@@ -26,6 +26,7 @@ mod template;
 
 // 'MIXNODE'
 const DEFAULT_LISTENING_PORT: u16 = 1789;
+const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
 
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
@@ -116,8 +117,8 @@ impl Config {
     // you need to do so in the config.toml file.
     pub fn with_custom_directory<S: Into<String>>(mut self, directory_server: S) -> Self {
         let directory_server_string = directory_server.into();
-        self.debug.presence_directory_server = directory_server_string.clone();
-        self.debug.metrics_directory_server = directory_server_string;
+        self.mixnode.presence_directory_server = directory_server_string.clone();
+        self.mixnode.metrics_directory_server = directory_server_string;
         self
     }
 
@@ -214,7 +215,7 @@ impl Config {
     }
 
     pub fn get_presence_directory_server(&self) -> String {
-        self.debug.presence_directory_server.clone()
+        self.mixnode.presence_directory_server.clone()
     }
 
     pub fn get_presence_sending_delay(&self) -> time::Duration {
@@ -222,7 +223,7 @@ impl Config {
     }
 
     pub fn get_metrics_directory_server(&self) -> String {
-        self.debug.metrics_directory_server.clone()
+        self.mixnode.metrics_directory_server.clone()
     }
 
     pub fn get_metrics_sending_delay(&self) -> time::Duration {
@@ -290,6 +291,14 @@ pub struct MixNode {
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
 
+    // The idea of additional 'directory servers' is to let mixes report their presence
+    // and metrics to separate places
+    /// Directory server to which the server will be reporting their presence data.
+    presence_directory_server: String,
+
+    /// Directory server to which the server will be reporting their metrics data.
+    metrics_directory_server: String,
+
     /// nym_home_directory specifies absolute path to the home nym MixNodes directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
@@ -321,6 +330,8 @@ impl Default for MixNode {
             announce_address: format!("127.0.0.1:{}", DEFAULT_LISTENING_PORT),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
+            presence_directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
+            metrics_directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
             nym_root_directory: Config::default_root_directory(),
         }
     }
@@ -339,17 +350,9 @@ impl Default for Logging {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Debug {
-    // The idea of additional 'directory servers' is to let mixes report their presence
-    // and metrics to separate places
-    /// Directory server to which the server will be reporting their presence data.
-    presence_directory_server: String,
-
     /// Delay between each subsequent presence data being sent.
     /// The provided value is interpreted as milliseconds.
     presence_sending_delay: u64,
-
-    /// Directory server to which the server will be reporting their metrics data.
-    metrics_directory_server: String,
 
     /// Delay between each subsequent metrics data being sent.
     /// The provided value is interpreted as milliseconds.
@@ -374,24 +377,10 @@ pub struct Debug {
     initial_connection_timeout: u64,
 }
 
-impl Debug {
-    fn default_directory_server() -> String {
-        if cfg!(feature = "qa") {
-            "https://qa-directory.nymtech.net".to_string()
-        } else if cfg!(feature = "local") {
-            "http://localhost:8080".to_string()
-        } else {
-            "https://directory.nymtech.net".to_string()
-        }
-    }
-}
-
 impl Default for Debug {
     fn default() -> Self {
         Debug {
-            presence_directory_server: Self::default_directory_server(),
             presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
-            metrics_directory_server: Self::default_directory_server(),
             metrics_sending_delay: DEFAULT_METRICS_SENDING_DELAY,
             metrics_running_stats_logging_delay: DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY,
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,

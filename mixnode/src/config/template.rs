@@ -55,6 +55,12 @@ public_sphinx_key_file = '{{ mixnode.public_sphinx_key_file }}'
 # `listening_address`.
 announce_address = '{{ mixnode.announce_address }}'
 
+# Directory server to which the server will be reporting their presence data.
+presence_directory_server = '{{ mixnode.presence_directory_server }}'
+
+# Directory server to which the server will be reporting their metrics data.
+metrics_directory_server = '{{ mixnode.metrics_directory_server }}'
+
 ##### advanced configuration options #####
 
 # Absolute path to the home Nym Clients directory.

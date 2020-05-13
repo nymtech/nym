@@ -14,53 +14,52 @@
 #// See the License for the specific language governing permissions and
 #// limitations under the License.
 
+MAX_LAYERS=3
+NUMMIXES=3
 
-echo "Killing old testnet processes..."
+function kill_old() {
+    echo "Killing old testnet processes..."
+    killall nym-mixnode
+    # killall nym-gateway
+    # killall nym-client
+}
 
-killall nym-mixnode
-killall nym-sfw-provider
+if [ $# -ne 1 ]; then
+    echo "Expected a single argument to be passed - the directory server (that you should have independently started locally!)"
+    exit 1
+fi
+
+DIR=$1
 
 echo "Press CTRL-C to stop."
-echo "Make sure you have started nym-directory !"
 
-cargo build --manifest-path nym-client/Cargo.toml --features=local
-cargo build --manifest-path mixnode/Cargo.toml --features=local
-cargo build --manifest-path sfw-provider/Cargo.toml --features=local
+kill_old
+export RUST_LOG=warning
+# NOTE: If we wanted to suppress stdout and stderr, replace `&` with `> /dev/null 2>&1 &` in the `run`
 
-MAX_LAYERS=3
-NUMMIXES=${1:-3} # Set $NUMMIXES to default of 3, but allow the user to set other values if desired
-
-export RUST_LOG=error
-
-$PWD/target/debug/nym-sfw-provider init --id provider-local --clients-host 127.0.0.1 --mix-host 127.0.0.1 --mix-port 4000 --mix-announce-port 4000
-$PWD/target/debug/nym-sfw-provider run --id provider-local &
+cargo run --bin nym-gateway -- init --id gateway-local --mix-host 127.0.0.1:10000 --clients-host 127.0.0.1:10001 --directory $DIR
+cargo run --bin nym-gateway -- run --id gateway-local &
 
 sleep 1
 
-for (( j=0; j<$NUMMIXES; j++ ))
-
 # Note: to disable logging (or direct it to another output) modify the constant on top of mixnode or provider;
 # Will make it later either configurable by flags or config file.
-do
+for (( j=0; j<$NUMMIXES; j++ )); do
     let layer=j%MAX_LAYERS+1
-    $PWD/target/debug/nym-mixnode init --id mix-local$j --host 127.0.0.1 --port $((9980+$j)) --layer $layer --announce-host 127.0.0.1:$((9980+$j))
-    $PWD/target/debug/nym-mixnode run --id mix-local$j &
+    cargo run --bin nym-mixnode -- init --id mix-local$j --host 127.0.0.1 --port $((9980+$j)) --layer $layer --directory $DIR
+    cargo run --bin nym-mixnode -- run --id mix-local$j &
     sleep 1
 done
 
 
-# trap call ctrl_c()
-trap ctrl_c SIGINT SIGTERM SIGTSTP
-function ctrl_c() {
-        echo "** Trapped SIGINT, SIGTERM and SIGTSTP"
-        for (( j=0; j<$NUMMIXES; j++ ));
-        do
-            kill_port $((9980+$j))
-        done
-}
 
-function kill_port() {
-    PID=$(lsof -t -i:$1)
-    echo "$PID"
-    kill -TERM $PID || kill -KILL $PID
-}
+# # trap call ctrl_c()
+# trap ctrl_c SIGINT SIGTERM SIGTSTP
+# function ctrl_c() {
+#         printf "\n** Trapped SIGINT, SIGTERM and SIGTSTP\n"
+#         kill_old
+# }
+
+# just run forever (so we'd get all network warnings in this window and you wouldn't get confused when you started another process here)
+# also it seems that SIGINT is nicely passed to all processes so they kill themselves
+tail -f /dev/null

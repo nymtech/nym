@@ -27,6 +27,8 @@ mod template;
 // 'GATEWAY'
 const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
+const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
+
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
 const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 1500; // 1.5s
@@ -414,16 +416,6 @@ impl Gateway {
     fn default_location() -> String {
         "unknown".into()
     }
-
-    fn default_directory_server() -> String {
-        if cfg!(feature = "qa") {
-            "https://qa-directory.nymtech.net".to_string()
-        } else if cfg!(feature = "local") {
-            "http://localhost:8080".to_string()
-        } else {
-            "https://directory.nymtech.net".to_string()
-        }
-    }
 }
 
 impl Default for Gateway {
@@ -433,7 +425,7 @@ impl Default for Gateway {
             location: Self::default_location(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
-            presence_directory_server: Self::default_directory_server(),
+            presence_directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
             nym_root_directory: Config::default_root_directory(),
         }
     }

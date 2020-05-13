@@ -44,7 +44,3 @@ built = "0.3.2"
 
 [dev-dependencies]
 tempfile = "3.1.0"
-
-[features]
-qa = []
-local = []

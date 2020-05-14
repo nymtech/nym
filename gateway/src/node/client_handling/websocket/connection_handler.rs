@@ -74,19 +74,24 @@ where
         }
     }
 
-    async fn perform_websocket_handshake(&mut self) {
+    async fn perform_websocket_handshake(&mut self) -> Result<(), WsError> {
         self.socket_connection =
             match std::mem::replace(&mut self.socket_connection, SocketStream::Invalid) {
                 SocketStream::RawTCP(conn) => {
                     // TODO: perhaps in the future, rather than panic here (and uncleanly shut tcp stream)
                     // return a result with an error?
-                    let ws_stream = tokio_tungstenite::accept_async(conn)
-                        .await
-                        .expect("Failed to perform websocket handshake");
+                    let ws_stream = match tokio_tungstenite::accept_async(conn).await {
+                        Ok(ws_stream) => ws_stream,
+                        // note that socket will remain in `Invalid` state here, but that's
+                        // absolutely fine because due to returned error the handler
+                        // should terminate immediately
+                        Err(err) => return Err(err),
+                    };
                     SocketStream::UpgradedWebSocket(ws_stream)
                 }
                 other => other,
-            }
+            };
+        Ok(())
     }
 
     async fn next_websocket_request(&mut self) -> Option<Result<Message, WsError>> {
@@ -366,7 +371,13 @@ where
     }
 
     pub(crate) async fn start_handling(&mut self) {
-        self.perform_websocket_handshake().await;
+        if let Err(e) = self.perform_websocket_handshake().await {
+            warn!(
+                "Failed to complete WebSocket handshake - {:?}. Stopping the handler",
+                e
+            );
+            return;
+        }
         trace!("Managed to perform websocket handshake!");
         let mix_receiver = self.wait_for_initial_authentication().await;
         trace!("Performed initial authentication");

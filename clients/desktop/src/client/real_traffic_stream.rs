@@ -117,6 +117,7 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
                 let route = self.get_route(None).await;
                 if route.is_none() {
                     warn!("No valid topology detected - won't send any real or loop message this time");
+                    return;
                 }
                 let route = route.unwrap();
                 encapsulation::loop_cover_message_route(
@@ -130,6 +131,7 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
                 let route = self.get_route(Some(recipient.clone())).await;
                 if route.is_none() {
                     warn!("No valid topology detected - won't send any real or loop message this time");
+                    return;
                 }
                 let route = route.unwrap();
                 encapsulation::encapsulate_message_route(

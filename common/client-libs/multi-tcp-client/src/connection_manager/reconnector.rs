@@ -71,7 +71,6 @@ impl<'a> Future for ConnectionReconnector<'a> {
                     "we failed to re-establish connection to {} - {:?} (attempt {})",
                     self.address, e, self.current_retry_attempt
                 );
-                self.current_retry_attempt += 1;
 
                 // we failed to re-establish connection - continue exponential backoff
 
@@ -95,6 +94,7 @@ impl<'a> Future for ConnectionReconnector<'a> {
                 self.current_backoff_delay.reset(next);
 
                 self.connection = tokio::net::TcpStream::connect(self.address).boxed();
+                self.current_retry_attempt += 1;
 
                 Poll::Pending
             }

@@ -60,8 +60,8 @@ impl Client {
             runtime_handle: Handle::try_current()
                 .expect("The client MUST BE used within tokio runtime context"),
             connections_managers: HashMap::new(),
-            initial_reconnection_backoff: config.maximum_reconnection_backoff,
-            maximum_reconnection_backoff: config.initial_reconnection_backoff,
+            initial_reconnection_backoff: config.initial_reconnection_backoff,
+            maximum_reconnection_backoff: config.maximum_reconnection_backoff,
             initial_connection_timeout: config.initial_connection_timeout,
         }
     }

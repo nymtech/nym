@@ -57,6 +57,11 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .help("Port for the socket (if applicable) to listen on in all subsequent runs")
             .takes_value(true)
         )
+        .arg(Arg::with_name("fastmode")
+            .long("fastmode")
+            .hidden(true) // this will prevent this flag from being displayed in `--help`
+            .help("Mostly debug-related option to increase default traffic rate so that you would not need to modify config post init")
+        )
 }
 
 async fn try_gateway_registration(
@@ -120,6 +125,9 @@ pub fn execute(matches: &ArgMatches) {
     let mut config = crate::config::Config::new(id);
 
     config = override_config(config, matches);
+    if matches.is_present("fastmode") {
+        config = config.set_high_default_traffic_volume();
+    }
 
     let mix_identity_keys = MixIdentityKeyPair::new();
 

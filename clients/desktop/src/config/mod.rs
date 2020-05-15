@@ -144,6 +144,13 @@ impl Config {
         self
     }
 
+    pub fn set_high_default_traffic_volume(mut self) -> Self {
+        self.debug.average_packet_delay = 10;
+        self.debug.loop_cover_traffic_average_delay = 20; // 50 cover messages / s
+        self.debug.message_sending_average_delay = 5; // 200 "real" messages / s
+        self
+    }
+
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())

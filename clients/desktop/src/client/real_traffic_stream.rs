@@ -127,7 +127,7 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
                 )
             }
             StreamMessage::Real(real_message) => {
-                let (recipient, data) = real_message.detruct();
+                let (recipient, data) = real_message.destruct();
                 let route = self.get_route(Some(recipient.clone())).await;
                 if route.is_none() {
                     warn!("No valid topology detected - won't send any real or loop message this time");

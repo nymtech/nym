@@ -68,7 +68,7 @@ impl InputMessage {
     }
 
     // I'm open to suggestions on how to rename this.
-    fn detruct(self) -> (DestinationAddressBytes, Vec<u8>) {
+    fn destruct(self) -> (DestinationAddressBytes, Vec<u8>) {
         (self.recipient, self.data)
     }
 }

@@ -1,7 +1,7 @@
 var ourAddress;
 
 async function main() {
-    var port = '9001' // client websocket listens on 9001 by default, change if yours is different
+    var port = '1977' // client websocket listens on 1977 by default, change if yours is different
     var localClientUrl = "ws://127.0.0.1:" + port;
 
     // Set up and handle websocket connection to our desktop client.
@@ -14,9 +14,7 @@ async function main() {
         handleResponse(e);
     };
 
-
-    sendOwnDetailsRequest(connection);
-    pollForMessages(connection);
+    sendSelfAddressRequest(connection);
 
     // Set up the send button
     const sendButton = document.querySelector('#send-button');
@@ -27,18 +25,22 @@ async function main() {
 
 // Handle any messages that come back down the websocket. 
 function handleResponse(resp) {
-    let response = JSON.parse(resp.data);
-    if (response.type == "error") {
-        displayJsonResponse("Server responded with error: " + response);
-    } else if (response.type == "fetch") {
-        if (response.messages.length > 0) {
+    // hacky workaround for receiving pushed 'text' messages,
+    // basically we can either receive proper server responses, i.e. 'error', 'send', 'selfAddress'
+    // or actual messages, without any framing, so they do not have 'type' field
+    try {
+        let response = JSON.parse(resp.data);
+        if (response.type == "error") {
+            displayJsonResponse("Server responded with error: " + response.message);
+        } else if (response.type == "selfAddress") {
             displayJsonResponse(response);
+            ourAddress = response.address;
+            display("Our address is:  " + ourAddress + ", we will now send messages to ourself.");
         }
-    } else if (response.type == "ownDetails") {
-        displayJsonResponse(response);
-        ourAddress = response.address;
-        display("Our address is:  " + ourAddress + ", we will now send messages to ourself.");
+    } catch (_) {
+        displayJsonResponse(resp.data)
     }
+
 }
 
 // Send a message to the mixnet. 
@@ -47,7 +49,7 @@ function sendMessageToMixnet(connection) {
     var message = {
         type: "send",
         message: sendText,
-        recipient_address: ourAddress
+        recipient: ourAddress
     }
 
     displayJsonSend(message);
@@ -59,23 +61,12 @@ function sendMessageToMixnet(connection) {
 //
 // In a real application, you might want to ensure that somebody else got your
 // address so that they could send messages to you. 
-function sendOwnDetailsRequest(connection) {
-    var ownDetails = {
-        type: "ownDetails"
+function sendSelfAddressRequest(connection) {
+    var selfAddress = {
+        type: "selfAddress"
     }
-    displayJsonSend(ownDetails);
-    connection.send(JSON.stringify(ownDetails));
-}
-
-// Periodically poll for any messages waiting for us on the mixnet. This is
-// an annoying source of latency and will soon go away. 
-function pollForMessages(connection) {
-    setInterval(() => {
-        var message = {
-            type: "fetch"
-        }
-        connection.send(JSON.stringify(message));
-    }, 1000);
+    displayJsonSend(selfAddress);
+    connection.send(JSON.stringify(selfAddress));
 }
 
 function display(message) {

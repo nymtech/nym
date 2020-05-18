@@ -13,173 +13,144 @@
 // limitations under the License.
 
 import * as wasm from "nym-client-wasm";
-import { makeRegisterRequest, makeAuthenticateRequest, makeSendablePacket, getTopology, getInitialGatewayAddress } from "nym-client-wasm/helpers"
+import {
+    createSphinxPacket,
+    makeAuthenticateRequest,
+    makeRegisterRequest,
+    makeSendablePacket
+} from "nym-client-wasm/client"
 
-class GatewayConnection {
-    constructor(gateway_url, ownAddress, registeredCallback) {
-        const conn = new WebSocket(gateway_url);
+class GatewayClient {
 
-        // lovely bindings here we go!
-        this.onSocketMessage = this.onSocketMessage.bind(this);
-        this.handleBlobResponse = this.handleBlobResponse.bind(this);
-        this.handleRegisterResponse = this.handleRegisterResponse.bind(this);
-        this.handleAuthenticateResponse = this.handleAuthenticateResponse.bind(this);
-        this.handleErrorResponse = this.handleErrorResponse.bind(this);
-        this.handleSendConfirmation = this.handleSendConfirmation.bind(this);
-
-        conn.onclose = this.onSocketClose;
-        conn.onmessage = this.onSocketMessage;
-        conn.onerror = (ev) => console.error("Socket error: ", ev);
-        conn.onopen = this.onSocketOpen.bind(this);
-
-        this.ownAddress = ownAddress;
-        this.conn = conn;
-        this.registeredCallback = registeredCallback
+    constructor(directoryUrl, identity) {
+        this.connection = null;
+        this.directoryUrl = directoryUrl;
+        this.gatewayUrl = null;
+        this.identity = identity;
     }
 
-    closeConnection() {
-        this.conn.close();
+    get ownAddress() {
+        return this.identity.address;
     }
 
-    sendMessage(topology, message, recipient) {
-        let gatewaySphinxPacket = makeSendablePacket(topology, message, recipient);
-        this.conn.send(gatewaySphinxPacket)
+    async connect() {
+        await this.refreshTopology();
+        this.gatewayUrl = this.gatewayUrlFromTopology();
+        this.connection = await this.connectWebSocket(this.gatewayUrl);
     }
 
-    sendRegisterRequest() {
+    async register() {
         const registerReq = makeRegisterRequest(this.ownAddress);
-        this.conn.send(registerReq);
+        await this.connection.send(registerReq);
     }
 
-    sendAuthenticateRequest(token) {
-        const authenticateReq = makeAuthenticateRequest(this.ownAddress, token);
-        this.conn.send(authenticateReq);
+    /* Gets the current Nym network topology, to find out what nodes exist. 
+       Paths through the mix network are chosen by clients.   */
+    async refreshTopology() {
+        let response = await this.http('get', this.directoryUrl);
+        this.topology = JSON.parse(response);
     }
 
-    onSocketOpen() {
-        console.log("opened socket connection!")
-
-        // the first message you should send is either register or authenticate, otherwise your sphinx packets
-        // are not going to be accepted (nor you will receive any)
-        this.sendRegisterRequest()
-    }
-
-    onSocketClose(ev) {
-        console.log("The websocket was closed", ev);
-    }
-
-    handleSendConfirmation(additionalData) {
-        console.log("received send confirmation", additionalData);
-    }
-
-    handleRegisterResponse(additionalData) {
-        console.log("registered! - ", additionalData);
-        this.registeredCallback();
-    }
-
-    handleAuthenticateResponse(additionalData) {
-        console.log("authenticated! - ", additionalData);
-    }
-
-    handleErrorResponse(additionalData) {
-        console.error("received error response: ", additionalData)
-    }
-
-    handleBlobResponse(data) {
-        // note that the actual handling depends on the expected content, however,
-        // in this example we're just sending a text messages to ourselves and hence
-        // we can safely read it as text
-        let reader = new FileReader();
-
-        reader.onload = () => {
-            displayReceived(reader.result)
-        };
-
-        reader.readAsText(data);
-    }
-
-    onSocketMessage(ev) {
-        if (ev.data instanceof Blob) {
-            this.handleBlobResponse(ev.data)
+    gatewayUrlFromTopology() {
+        if (this.topology.gatewayNodes.length > 0) {
+            return this.topology.gatewayNodes[0].clientListener;
         } else {
-            const receivedData = JSON.parse(ev.data);
-            switch (receivedData.type) {
-                case "send": return this.handleSendConfirmation(receivedData);
-                case "register": return this.handleRegisterResponse(receivedData);
-                case "authenticate": return this.handleAuthenticateResponse(receivedData);
-                case "error": return this.handleErrorResponse(receivedData);
-            }
-
-            console.log("Received unknown response!");
-            console.log(receivedData);
+            throw "Unable to get Nym gateway address from " + directoryUrl + ", have you connected?";
         }
+    }
+
+    sendMessage(message, recipient) {
+        let sphinxPacket = wasm.create_sphinx_packet(JSON.stringify(this.topology), message, recipient);
+        this.connection.send(sphinxPacket);
+    }
+
+    /* Make an HTTP request */
+    http(method, url) {
+        return new Promise(function (resolve, reject) {
+            let xhr = new XMLHttpRequest();
+            xhr.open(method, url);
+            xhr.onload = function () {
+                if (this.status >= 200 && this.status < 300) {
+                    resolve(xhr.response);
+                } else {
+                    reject({
+                        status: this.status,
+                        statusText: xhr.statusText
+                    });
+                }
+            };
+            xhr.onerror = function () {
+                reject({
+                    status: this.status,
+                    statusText: xhr.statusText
+                });
+            };
+            xhr.send();
+        });
+    }
+
+    connectWebSocket(url) {
+        return new Promise(function (resolve, reject) {
+            var server = new WebSocket(url);
+            server.onopen = function () {
+                resolve(server);
+            };
+            server.onerror = function (err) {
+                reject(err);
+            };
+
+        });
+    }
+
+}
+
+class Identity {
+    constructor() {
+        this.identity = JSON.parse(wasm.keygen());
+        return this.identity;
     }
 }
 
+async function main() {
+    // let directory = "https://qa-directory.nymtech.net/api/presence/topology";
+    let directory = "http://localhost:8080/api/presence/topology";
+    let identity = new Identity(); // or load one from storage if you have one already
+    let gateway = new GatewayClient(directory, identity);
+    await gateway.connect(); // makes a websocket connection to the gateway
+    await gateway.register(); // registers your new identity, not needed if you've registered before
+
+    document.getElementById("sender").value = gateway.ownAddress;
+
+    const sendButton = document.querySelector('#send-button');
+    sendButton.onclick = function () {
+        sendMessageTo(gateway);
+    }
+}
+
+// Create a Sphinx packet and send it to the mixnet through the Gateway node. 
+function sendMessageTo(gateway) {
+    var message = document.getElementById("sendtext").value;
+    var recipient = document.getElementById("recipient").value;
+    gateway.sendMessage(message, recipient);
+    displaySend(message);
+}
+
+function displaySend(message) {
+    let timestamp = new Date().toISOString().substr(11, 12);
+    let out = "<p style='color: blue; word-break: break-all;'>" + timestamp + " <b>sent</b> >>> " + message + "</p >";
+    document.getElementById("output").innerHTML = out + document.getElementById("output").innerHTML;
+}
+
+function displayReceived(message) {
+    let timestamp = new Date().toISOString().substr(11, 12);
+    let out = "<p style='color: green; word-break: break-all;'>" + timestamp + " <b>received</b> >>> " + message + "</p >";
+    document.getElementById("output").innerHTML = out + document.getElementById("output").innerHTML;
+}
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function main() {
-    var directoryUrl = "http://127.0.0.1:8080/api/presence/topology";
-
-    const gatewayUrl = await getInitialGatewayAddress(directoryUrl);
-    if (gatewayUrl == "") {
-        alert("No gateways detected - cannot proceed");
-        return;
-    }
-
-    // NOTE: in an actual application, you should save those keys somewhere and only generate them a single time
-    // then reuse them in subsequent runs
-    const keypair_address = JSON.parse(wasm.keygen());
-    console.log("our keypair and address are: ", keypair_address);
-
-    document.getElementById("recipient").value = keypair_address.address
-    document.querySelector('#send-button').disabled = true;
-
-    // basically to ensure connection is established before we do anything else
-    // and more importantly to ensure we are registered so that we could send messages to ourselves
-    // (i.e. we exist in the topology we're about to pull
-    let registered_callback = async () => {
-        // this function is called immediately after we receive registration response
-        // however, gateways are sending their presence data every 1.5s, so it might take at most 1.5s before
-        // our address is present in the topology, so just wait that long
-        // (JS to DH: this is done so that we could have multiple gateways online even for the wasm client)
-        await sleep(1500);
-
-        // Get the topology, then the mixnode and provider data
-        const topology = await getTopology(directoryUrl);
-        // Set up the send button
-        const string_topology = JSON.stringify(topology);
-        const sendButton = document.querySelector('#send-button');
-        sendButton.disabled = false;
-        sendButton.onclick = function () {
-            sendMessageToMixnet(conn, string_topology);
-        }
-    }
-
-    // Set up a websocket connection to the gateway node
-    let conn = new GatewayConnection(gatewayUrl, keypair_address.address, registered_callback);
-}
-
-// Create a Sphinx packet and send it to the mixnet through the Gateway node. 
-function sendMessageToMixnet(connection, topology) {
-    var recipient = document.getElementById("recipient").value;
-    var sendText = document.getElementById("sendtext").value;
-    connection.sendMessage(topology, sendText, recipient);
-    displaySend(sendText);
-}
-
-function displaySend(message) {
-    let timestamp = new Date().toISOString().substr(11, 12);
-    document.getElementById("output").innerHTML = document.getElementById("output").innerHTML + "<p style='color: blue; word-break: break-all;'>" + timestamp + " <b>sent</b> >>> " + message + "</p >";
-}
-
-function displayReceived(message) {
-    let timestamp = new Date().toISOString().substr(11, 12);
-    document.getElementById("output").innerHTML = document.getElementById("output").innerHTML + "<p style='color: green; word-break: break-all;'>" + timestamp + " <b>received</b> >>> " + message + "</p >";
-}
 
 // Let's get started!
 main();

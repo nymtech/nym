@@ -8,25 +8,30 @@ export function makeAuthenticateRequest(address, token) {
     return JSON.stringify({ "type": "authenticate", "address": address, "token": token });
 }
 
+/* Gets the address of a Nym gateway to send the Sphinx packet to.
+
+   At present we choose the first gateway as the network should only be running
+   one. Later, we will implement multiple gateways. */
 export async function getInitialGatewayAddress(directoryUrl) {
     const topology = await getTopology(directoryUrl);
     if (topology.gatewayNodes.length > 0) {
         return topology.gatewayNodes[0].clientListener;
-    } 
-    return "";
+    }
+    throw "Unable to get Nym gateway address from " + directoryUrl;
 }
 
-// NOTE: this currently does not implement chunking and too long messages will cause a panic
-export function makeSendablePacket(topology, message, recipient) {
-    return wasm.create_gateway_sphinx_packet(topology, message, recipient);
+/* Creates a Sphinx packet ready to send to a Nym Gateway server. 
+
+NOTE: this currently does not implement chunking and messages over 1KB 
+will cause a panic. This will be fixed in a future version.
+*/
+export function createSphinxPacket(topology, message, recipient) {
+    return wasm.create_sphinx_packet(topology, message, recipient);
 }
 
-export async function getTopology(directoryUrl) {
-    let response = await http('get', directoryUrl);
-    let topology = JSON.parse(response);
-    return topology;
-}
 
+
+/* Make an HTTP request */
 function http(method, url) {
     return new Promise(function (resolve, reject) {
         let xhr = new XMLHttpRequest();

@@ -110,7 +110,7 @@ impl NodeScore {
     pub(crate) fn from_mixnode(node: mix::Node) -> Self {
         NodeScore {
             typ: NodeType::Mix,
-            pub_key: NodeAddressBytes::from_base58_string(node.pub_key),
+            pub_key: NodeAddressBytes::try_from_base58_string(node.pub_key).unwrap(),
             addresses: vec![node.host],
             version: node.version,
             layer: format!("layer {}", node.layer),
@@ -122,7 +122,7 @@ impl NodeScore {
     pub(crate) fn from_provider(node: provider::Node) -> Self {
         NodeScore {
             typ: NodeType::MixProvider,
-            pub_key: NodeAddressBytes::from_base58_string(node.pub_key),
+            pub_key: NodeAddressBytes::try_from_base58_string(node.pub_key).unwrap(), // just to make it compile - I think we should just retire the whole crate...
             addresses: vec![node.mixnet_listener, node.client_listener],
             version: node.version,
             layer: "provider".to_string(),

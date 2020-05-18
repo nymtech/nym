@@ -1,4 +1,3 @@
-
 import asyncio
 import base58
 import json
@@ -8,15 +7,18 @@ self_address_request = json.dumps({
     "type": "selfAddress"
 })
 
-
 async def send_file():
     uri = "ws://localhost:1977"
     async with websockets.connect(uri) as websocket:
         await websocket.send(self_address_request)
         self_address = json.loads(await websocket.recv())
         print("our address is: {}".format(self_address["address"]))
+        # we receive our address in string format of OUR_PUB_KEY @ OUR_GATE_PUB_KEY
+        # both keys are 32 bytes and we need to encode them as binary without the '@' sign
+        split_address = self_address["address"].split("@")
+        bin_payload = bytearray(base58.b58decode(split_address[0]))
+        bin_payload += base58.b58decode(split_address[1])
 
-        bin_payload = bytearray(base58.b58decode(self_address["address"]))
         with open("dummy_file", "rb") as input_file:
             read_data = input_file.read()
             bin_payload += read_data

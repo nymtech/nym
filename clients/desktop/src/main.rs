@@ -18,7 +18,7 @@ pub mod built_info;
 pub mod client;
 mod commands;
 pub mod config;
-pub(crate) mod websocket;
+pub mod websocket;
 
 fn main() {
     dotenv::dotenv().ok();

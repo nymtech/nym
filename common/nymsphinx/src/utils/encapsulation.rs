@@ -56,13 +56,13 @@ pub fn loop_cover_message_route(
 }
 
 pub fn encapsulate_message_route(
-    recipient: DestinationAddressBytes,
+    destination: DestinationAddressBytes,
     message: Vec<u8>,
     route: Vec<SphinxNode>,
     average_delay: time::Duration,
 ) -> Result<(SocketAddr, SphinxPacket), SphinxPacketEncapsulationError> {
     // in our design we don't care about SURB_ID
-    let destination = Destination::new(recipient, Default::default());
+    let destination = Destination::new(destination, Default::default());
 
     let delays = delays::generate_from_average_duration(route.len(), average_delay);
 

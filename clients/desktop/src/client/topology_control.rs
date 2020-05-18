@@ -15,12 +15,11 @@
 use crate::built_info;
 use futures::lock::Mutex;
 use log::*;
-use nymsphinx::DestinationAddressBytes;
+use nymsphinx::NodeAddressBytes;
 use std::sync::Arc;
 use std::time;
 use std::time::Duration;
 use tokio::runtime::Handle;
-// use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use topology::{provider, NymTopology};
 
@@ -89,11 +88,11 @@ impl<T: NymTopology> TopologyAccessor<T> {
         }
     }
 
-    pub(crate) async fn random_route_to_client(
+    pub(crate) async fn random_route_to_gateway(
         &self,
-        client_address: DestinationAddressBytes,
+        gateway: &NodeAddressBytes,
     ) -> Option<Vec<nymsphinx::Node>> {
-        let b58_address = client_address.to_base58_string();
+        let b58_address = gateway.to_base58_string();
         let guard = self.inner.lock().await;
         let topology = guard.0.as_ref()?;
 
@@ -101,27 +100,27 @@ impl<T: NymTopology> TopologyAccessor<T> {
             .gateways()
             .iter()
             .cloned()
-            .find(|gateway| gateway.has_client(b58_address.clone()))?;
+            .find(|gateway| gateway.pub_key == b58_address.clone())?;
 
-        topology.random_route_to(gateway.into()).ok()
+        topology.random_route_to_gateway(gateway.into()).ok()
     }
 
-    // this is a rather temporary solution as each client will have an associated provider
-    // currently that is not implemented yet and there only exists one provider in the network
-    pub(crate) async fn random_route(&self) -> Option<Vec<nymsphinx::Node>> {
-        match &self.inner.lock().await.0 {
-            None => None,
-            Some(ref topology) => {
-                let mut gateways = topology.gateways();
-                if gateways.is_empty() {
-                    return None;
-                }
-                // unwrap is fine here as we asserted there is at least single provider
-                let provider = gateways.pop().unwrap().into();
-                topology.random_route_to(provider).ok()
-            }
-        }
-    }
+    // // this is a rather temporary solution as each client will have an associated provider
+    // // currently that is not implemented yet and there only exists one provider in the network
+    // pub(crate) async fn random_route(&self) -> Option<Vec<nymsphinx::Node>> {
+    //     match &self.inner.lock().await.0 {
+    //         None => None,
+    //         Some(ref topology) => {
+    //             let mut gateways = topology.gateways();
+    //             if gateways.is_empty() {
+    //                 return None;
+    //             }
+    //             // unwrap is fine here as we asserted there is at least single provider
+    //             let provider = gateways.pop().unwrap().into();
+    //             topology.random_route_to_gateway(provider).ok()
+    //         }
+    //     }
+    // }
 }
 
 pub(crate) struct TopologyRefresherConfig {
@@ -157,7 +156,7 @@ impl<T: 'static + NymTopology> TopologyRefresher<T> {
     }
 
     async fn get_current_compatible_topology(&self) -> T {
-        // note: this call makes it neccessary that `T::new()`does *not* have 'static lifetime
+        // note: this call makes it necessary that `T::new()`does *not* have 'static lifetime
         let full_topology = T::new(self.directory_server.clone()).await;
         // just filter by version and assume the validators will remove all bad behaving
         // nodes with the staking

@@ -2749,7 +2749,7 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=72368ea048472823f7f9e78eed77a2c3d30a471f#72368ea048472823f7f9e78eed77a2c3d30a471f"
+source = "git+https://github.com/nymtech/sphinx?rev=fcd17932acbd21a76c42a4bf2a42b9f8668f7e1f#fcd17932acbd21a76c42a4bf2a42b9f8668f7e1f"
 dependencies = [
  "aes-ctr",
  "arrayref",

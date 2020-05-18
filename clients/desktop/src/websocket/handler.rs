@@ -14,17 +14,16 @@
 
 use super::types::{BinaryClientRequest, ClientRequest, ServerResponse};
 use crate::client::{
+    inbound_messages::{InputMessage, InputMessageSender, Recipient},
     received_buffer::{
         ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
     },
     topology_control::TopologyAccessor,
-    InputMessage, InputMessageSender,
 };
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::chunking::split_and_prepare_payloads;
-use nymsphinx::DestinationAddressBytes;
 use std::convert::TryFrom;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
@@ -48,7 +47,7 @@ impl Default for ReceivedResponseType {
 pub(crate) struct Handler<T: NymTopology> {
     msg_input: InputMessageSender,
     buffer_requester: ReceivedBufferRequestSender,
-    self_address: DestinationAddressBytes,
+    self_full_address: Recipient,
     topology_accessor: TopologyAccessor<T>,
     socket: Option<WebSocketStream<TcpStream>>,
     received_response_type: ReceivedResponseType,
@@ -60,7 +59,7 @@ impl<T: NymTopology> Clone for Handler<T> {
         Handler {
             msg_input: self.msg_input.clone(),
             buffer_requester: self.buffer_requester.clone(),
-            self_address: self.self_address.clone(),
+            self_full_address: self.self_full_address.clone(),
             topology_accessor: self.topology_accessor.clone(),
             socket: None,
             received_response_type: Default::default(),
@@ -80,34 +79,34 @@ impl<T: NymTopology> Handler<T> {
     pub(crate) fn new(
         msg_input: InputMessageSender,
         buffer_requester: ReceivedBufferRequestSender,
-        self_address: DestinationAddressBytes,
+        self_full_address: Recipient,
         topology_accessor: TopologyAccessor<T>,
     ) -> Self {
         Handler {
             msg_input,
             buffer_requester,
-            self_address,
+            self_full_address,
             topology_accessor,
             socket: None,
             received_response_type: Default::default(),
         }
     }
 
-    fn handle_text_send(&mut self, msg: String, recipient_address: String) -> ServerResponse {
+    fn handle_text_send(&mut self, msg: String, full_recipient_address: String) -> ServerResponse {
         let message_bytes = msg.into_bytes();
 
-        let address = match DestinationAddressBytes::try_from_base58_string(recipient_address) {
+        let recipient = match Recipient::try_from_string(full_recipient_address) {
             Ok(address) => address,
             Err(e) => {
-                trace!("failed to parse received DestinationAddress: {:?}", e);
-                return ServerResponse::new_error("malformed destination address");
+                trace!("failed to parse received Recipient: {:?}", e);
+                return ServerResponse::new_error("malformed recipient address");
             }
         };
 
         // in case the message is too long and needs to be split into multiple packets:
         let split_message = split_and_prepare_payloads(&message_bytes);
         for message_fragment in split_message {
-            let input_msg = InputMessage::new(address.clone(), message_fragment);
+            let input_msg = InputMessage::new(recipient.clone(), message_fragment);
             self.msg_input.unbounded_send(input_msg).unwrap();
         }
 
@@ -130,7 +129,7 @@ impl<T: NymTopology> Handler<T> {
 
     fn handle_text_self_address(&self) -> ServerResponse {
         ServerResponse::SelfAddress {
-            address: self.self_address.to_base58_string(),
+            address: self.self_full_address.to_string(),
         }
     }
 
@@ -154,15 +153,11 @@ impl<T: NymTopology> Handler<T> {
         }
     }
 
-    async fn handle_binary_send(
-        &mut self,
-        address: DestinationAddressBytes,
-        data: Vec<u8>,
-    ) -> ServerResponse {
+    async fn handle_binary_send(&mut self, recipient: Recipient, data: Vec<u8>) -> ServerResponse {
         // in case the message is too long and needs to be split into multiple packets:
         let split_message = split_and_prepare_payloads(&data);
         for message_fragment in split_message {
-            let input_msg = InputMessage::new(address.clone(), message_fragment);
+            let input_msg = InputMessage::new(recipient.clone(), message_fragment);
             self.msg_input.unbounded_send(input_msg).unwrap();
         }
 
@@ -182,10 +177,9 @@ impl<T: NymTopology> Handler<T> {
             return ServerResponse::new_error("invalid binary request").into();
         }
         match binary_request.unwrap() {
-            BinaryClientRequest::Send {
-                recipient_address,
-                data,
-            } => self.handle_binary_send(recipient_address, data).await,
+            BinaryClientRequest::Send { recipient, data } => {
+                self.handle_binary_send(recipient, data).await
+            }
         }
         .into()
     }
@@ -309,9 +303,13 @@ impl<T: NymTopology> Handler<T> {
 
     // consume self to make sure `drop` is called after this is done
     pub(crate) async fn handle_connection(mut self, socket: TcpStream) {
-        let ws_stream = accept_async(socket)
-            .await
-            .expect("error while performing the websocket handshake");
+        let ws_stream = match accept_async(socket).await {
+            Ok(ws_stream) => ws_stream,
+            Err(err) => {
+                warn!("error while performing the websocket handshake - {:?}", err);
+                return;
+            }
+        };
         self.socket = Some(ws_stream);
 
         let (reconstructed_sender, reconstructed_receiver) = mpsc::unbounded();

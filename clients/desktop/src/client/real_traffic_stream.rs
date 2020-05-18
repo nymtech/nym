@@ -12,17 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::client::inbound_messages::{InputMessage, Recipient};
 use crate::client::mix_traffic::MixMessage;
 use crate::client::topology_control::TopologyAccessor;
-use crate::client::InputMessage;
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::{error, info, trace, warn};
-use nymsphinx::{
-    utils::{encapsulation, poisson},
-    DestinationAddressBytes,
-};
+use nymsphinx::utils::{encapsulation, poisson};
 use std::pin::Pin;
 use std::time::Duration;
 use tokio::runtime::Handle;
@@ -36,7 +33,7 @@ pub(crate) struct OutQueueControl<T: NymTopology> {
     next_delay: time::Delay,
     mix_tx: mpsc::UnboundedSender<MixMessage>,
     input_rx: mpsc::UnboundedReceiver<InputMessage>,
-    our_address: DestinationAddressBytes,
+    our_full_destination: Recipient,
     topology_access: TopologyAccessor<T>,
 }
 
@@ -83,7 +80,7 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
     pub(crate) fn new(
         mix_tx: mpsc::UnboundedSender<MixMessage>,
         input_rx: mpsc::UnboundedReceiver<InputMessage>,
-        our_address: DestinationAddressBytes,
+        our_full_destination: Recipient,
         topology_access: TopologyAccessor<T>,
         average_packet_delay: Duration,
         average_message_sending_delay: Duration,
@@ -94,18 +91,24 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
             next_delay: time::delay_for(Default::default()),
             mix_tx,
             input_rx,
-            our_address,
+            our_full_destination,
             topology_access,
         }
     }
 
-    async fn get_route(
-        &self,
-        client: Option<DestinationAddressBytes>,
-    ) -> Option<Vec<nymsphinx::Node>> {
-        match client {
-            None => self.topology_access.random_route().await,
-            Some(client) => self.topology_access.random_route_to_client(client).await,
+    async fn get_route(&self, other_recipient: Option<&Recipient>) -> Option<Vec<nymsphinx::Node>> {
+        match other_recipient {
+            // we are sending to ourselves
+            None => {
+                self.topology_access
+                    .random_route_to_gateway(&self.our_full_destination.gateway())
+                    .await
+            }
+            Some(other_recipient) => {
+                self.topology_access
+                    .random_route_to_gateway(&other_recipient.gateway())
+                    .await
+            }
         }
     }
 
@@ -121,21 +124,21 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
                 }
                 let route = route.unwrap();
                 encapsulation::loop_cover_message_route(
-                    self.our_address.clone(),
+                    self.our_full_destination.destination().clone(),
                     route,
                     self.average_packet_delay,
                 )
             }
             StreamMessage::Real(real_message) => {
                 let (recipient, data) = real_message.destruct();
-                let route = self.get_route(Some(recipient.clone())).await;
+                let route = self.get_route(Some(&recipient)).await;
                 if route.is_none() {
                     warn!("No valid topology detected - won't send any real or loop message this time");
                     return;
                 }
                 let route = route.unwrap();
                 encapsulation::encapsulate_message_route(
-                    recipient,
+                    recipient.destination(),
                     data,
                     route,
                     self.average_packet_delay,

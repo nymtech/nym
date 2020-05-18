@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
+use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
 use crate::client::mix_traffic::{MixMessageReceiver, MixMessageSender, MixTrafficController};
 use crate::client::received_buffer::{
     ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
@@ -29,20 +30,22 @@ use gateway_client::{GatewayClient, SphinxPacketReceiver, SphinxPacketSender};
 use gateway_requests::auth_token::AuthToken;
 use log::*;
 use nymsphinx::chunking::split_and_prepare_payloads;
-use nymsphinx::DestinationAddressBytes;
+use nymsphinx::NodeAddressBytes;
 use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
-
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
 mod cover_traffic_stream;
+pub(crate) mod inbound_messages;
 mod mix_traffic;
 mod real_traffic_stream;
 pub(crate) mod received_buffer;
 pub(crate) mod topology_control;
 
-pub(crate) type InputMessageSender = mpsc::UnboundedSender<InputMessage>;
-pub(crate) type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
+// I'm not sure if that is the right place for it to live, but I could not find a better one...
+// (it definitely can't be in websocket, because it's not websocket specific; neither can it just
+// live in common/nymsphinx, as it's sphinx related at all, it's only for client-client communication)
+pub use inbound_messages::Recipient;
 
 pub struct NymClient {
     config: Config,
@@ -56,23 +59,6 @@ pub struct NymClient {
     receive_tx: Option<ReconstructedMessagesReceiver>,
 }
 
-#[derive(Debug)]
-pub(crate) struct InputMessage {
-    recipient: DestinationAddressBytes,
-    data: Vec<u8>,
-}
-
-impl InputMessage {
-    pub(crate) fn new(recipient: DestinationAddressBytes, data: Vec<u8>) -> Self {
-        InputMessage { recipient, data }
-    }
-
-    // I'm open to suggestions on how to rename this.
-    fn destruct(self) -> (DestinationAddressBytes, Vec<u8>) {
-        (self.recipient, self.data)
-    }
-}
-
 impl NymClient {
     pub fn new(config: Config, identity_keypair: MixIdentityKeyPair) -> Self {
         NymClient {
@@ -84,8 +70,13 @@ impl NymClient {
         }
     }
 
-    pub fn as_mix_destination_address(&self) -> DestinationAddressBytes {
-        self.identity_keypair.public_key.derive_address()
+    pub fn as_mix_recipient(&self) -> Recipient {
+        Recipient::new(
+            self.identity_keypair.public_key.derive_address(),
+            // TODO: below only works under assumption that gateway address == gateway id
+            // (which currently is true)
+            NodeAddressBytes::try_from_base58_string(self.config.get_gateway_id()).unwrap(),
+        )
     }
 
     // future constantly pumping loop cover traffic at some specified average rate
@@ -102,7 +93,7 @@ impl NymClient {
             .enter(|| {
                 LoopCoverTrafficStream::new(
                     mix_tx,
-                    self.as_mix_destination_address(),
+                    self.as_mix_recipient(),
                     topology_accessor,
                     self.config.get_loop_cover_traffic_average_delay(),
                     self.config.get_average_packet_delay(),
@@ -125,7 +116,7 @@ impl NymClient {
                 real_traffic_stream::OutQueueControl::new(
                     mix_tx,
                     input_rx,
-                    self.as_mix_destination_address(),
+                    self.as_mix_recipient(),
                     topology_accessor,
                     self.config.get_average_packet_delay(),
                     self.config.get_message_sending_average_delay(),
@@ -159,7 +150,7 @@ impl NymClient {
 
         let mut gateway_client = GatewayClient::new(
             gateway_address,
-            self.as_mix_destination_address(),
+            self.as_mix_recipient().destination(),
             auth_token,
             sphinx_packet_sender,
             self.config.get_gateway_response_timeout(),
@@ -185,6 +176,7 @@ impl NymClient {
         gateway_client
     }
 
+    // TODO: this information should be just put in the config on init...
     async fn get_gateway_address<T: NymTopology>(
         gateway_id: String,
         topology_accessor: TopologyAccessor<T>,
@@ -265,7 +257,7 @@ impl NymClient {
         let websocket_handler = websocket::Handler::new(
             msg_input,
             buffer_requester,
-            self.as_mix_destination_address(),
+            self.as_mix_recipient(),
             topology_accessor,
         );
 
@@ -276,7 +268,7 @@ impl NymClient {
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub fn send_message(&mut self, recipient: DestinationAddressBytes, message: Vec<u8>) {
+    pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>) {
         let split_message = split_and_prepare_payloads(&message);
         debug!(
             "Splitting message into {:?} fragments!",

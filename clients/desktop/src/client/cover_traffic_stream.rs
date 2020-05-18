@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::client::inbound_messages::Recipient;
 use crate::client::mix_traffic::{MixMessage, MixMessageSender};
 use crate::client::topology_control::TopologyAccessor;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
-use nymsphinx::{
-    utils::{encapsulation, poisson},
-    DestinationAddressBytes,
-};
+use nymsphinx::utils::{encapsulation, poisson};
 use std::pin::Pin;
 use std::time::Duration;
 use tokio::runtime::Handle;
@@ -33,7 +31,7 @@ pub(crate) struct LoopCoverTrafficStream<T: NymTopology> {
     average_cover_message_sending_delay: Duration,
     next_delay: time::Delay,
     mix_tx: MixMessageSender,
-    our_address: DestinationAddressBytes,
+    our_full_destination: Recipient,
     topology_access: TopologyAccessor<T>,
 }
 
@@ -67,7 +65,7 @@ impl<T: NymTopology> Stream for LoopCoverTrafficStream<T> {
 impl<T: 'static + NymTopology> LoopCoverTrafficStream<T> {
     pub(crate) fn new(
         mix_tx: MixMessageSender,
-        our_address: DestinationAddressBytes,
+        our_full_destination: Recipient,
         topology_access: TopologyAccessor<T>,
         average_cover_message_sending_delay: time::Duration,
         average_packet_delay: time::Duration,
@@ -77,14 +75,18 @@ impl<T: 'static + NymTopology> LoopCoverTrafficStream<T> {
             average_cover_message_sending_delay,
             next_delay: time::delay_for(Default::default()),
             mix_tx,
-            our_address,
+            our_full_destination,
             topology_access,
         }
     }
 
     async fn on_new_message(&mut self) {
         trace!("next cover message!");
-        let route = match self.topology_access.random_route().await {
+        let route = match self
+            .topology_access
+            .random_route_to_gateway(&self.our_full_destination.gateway())
+            .await
+        {
             None => {
                 warn!("No valid topology detected - won't send any loop cover message this time");
                 return;
@@ -93,7 +95,7 @@ impl<T: 'static + NymTopology> LoopCoverTrafficStream<T> {
         };
 
         let cover_message = match encapsulation::loop_cover_message_route(
-            self.our_address.clone(),
+            self.our_full_destination.destination().clone(),
             route,
             self.average_packet_delay,
         ) {

@@ -18,13 +18,6 @@ export class Client {
         this.identity = identity;
         this.topology = null;
         this.topologyEndpoint = directoryUrl + "/api/presence/topology";
-
-        // I think a cleaner alternative would be to just change the functions
-        // into arrow functions. However, for some peculiar reason 
-        // this can't be achieved by default because webpack server runs ES5
-        // and you need at least ES6 for this feature. You could still get this by wasting
-        // few hours by setting all loaders, babel plugins, etc and transpiling it...
-        this.onGatewayMessage = this.onGatewayMessage.bind(this);
     }
 
     async start() {
@@ -73,7 +66,7 @@ export class Client {
                 this.onGatewayConnectionError(event);
                 reject(event);
             };
-            conn.onmessage = this.onGatewayMessage;
+            conn.onmessage = (event) => this.onGatewayMessage(event);
             conn.onopen = (event) => {
                 this.onEstablishedGatewayConnection(event);
                 if (this._isRegistered()) {

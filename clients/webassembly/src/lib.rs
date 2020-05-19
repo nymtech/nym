@@ -55,9 +55,12 @@ pub struct NodeData {
 /// Message chunking is currently not implemented. If the message exceeds the
 /// capacity of a single Sphinx packet, the extra information will be discarded.
 #[wasm_bindgen]
-pub fn create_gateway_sphinx_packet(topology_json: &str, msg: &str, destination: &str) -> Vec<u8> {
+pub fn create_sphinx_packet(topology_json: &str, msg: &str, destination: &str) -> Vec<u8> {
     utils::set_panic_hook(); // nicer js errors.
 
+    if topology_json.len() == 0 {
+        panic!("WTF2?");
+    }
     let route = sphinx_route_to(topology_json, destination);
     let average_delay = Duration::from_secs_f64(0.1);
     let delays = delays::generate_from_average_duration(route.len(), average_delay);
@@ -72,16 +75,16 @@ pub fn create_gateway_sphinx_packet(topology_json: &str, msg: &str, destination:
     let message = msg.as_bytes().to_vec();
 
     let sphinx_packet = SphinxPacket::new(message, &route, &dest, &delays, None).unwrap();
-    gateway_payload(sphinx_packet, route)
+    payload(sphinx_packet, route)
 }
 
-/// Concatenate the first mix address bytes with the Sphinx packet.
+/// Concatenate the gateway address bytes with the Sphinx packet.
 ///
 /// The Nym gateway node has no idea what is inside the Sphinx packet, or where
 /// it should send a packet it receives. So we prepend the packet with the
 /// address bytes of the first mix inside the packet, so that the gateway can
 /// forward the packet to it.
-fn gateway_payload(sphinx_packet: SphinxPacket, route: Vec<SphinxNode>) -> Vec<u8> {
+fn payload(sphinx_packet: SphinxPacket, route: Vec<SphinxNode>) -> Vec<u8> {
     let packet = sphinx_packet.to_bytes();
     let first_node_address =
         NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone()).unwrap();
@@ -149,7 +152,7 @@ mod test_constructing_a_sphinx_packet {
 
     #[test]
     fn starts_with_a_mix_address() {
-        let mut payload = create_gateway_sphinx_packet(
+        let mut payload = create_sphinx_packet(
             topology_fixture(),
             "foomp",
             "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq",

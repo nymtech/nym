@@ -9,11 +9,15 @@
 
 <body>
   <p>
-    <label for="fname">Recipient address: </label><input type="text" id="recipient" name="recipient"
-      value="">
+    <label for="fname">Our address: </label><input disabled="true" size="40" type="text" id="sender" value="">
   </p>
-  <label for="fname">Text to send: </label><input type="text" id="sendtext" name="sendtext" value="Hello mixnet!">
-  <button id="send-button">Send</button>
+
+  <p>
+    <label for="fname">Recipient address: </label><input size="40" type="text" id="recipient" value="">
+  </p>
+  <label for="fname">Text to send: </label><input type="text" id="sendtext" value="Hello mixnet!">
+  <button id="send-button">Send</button><button id="refresh-button">Refresh</button>
+
 
   <p>Send messages to the mixnet using the "send" button.</p>
   <p><span style='color: blue;'>Sent</span> messages show in blue, <span style='color: green;'>received</span>

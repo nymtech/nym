@@ -39,6 +39,9 @@ pub struct Topology {
 
 impl Topology {
     pub fn new(json: &str) -> Self {
+        if json.len() == 0 {
+            panic!("WTF?");
+        }
         serde_json::from_str(json).unwrap()
     }
 

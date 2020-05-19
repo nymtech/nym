@@ -125,17 +125,16 @@ export class Client {
 
     onGatewayMessage(event) {
         if (event.data instanceof Blob) {
-            this.onBlobResponse(event)
+            this.onBlobResponse(event);
         } else {
             const receivedData = JSON.parse(event.data);
             switch (receivedData.type) {
                 case "send": return this.onSendConfirmation(event);
-                case "register": return this.onRegisterResponse(event);
                 case "authenticate": return this.onAuthenticateResponse(event);
                 case "error": return this.onErrorResponse(event);
+                case "register": return this.onRegisterResponse(event);
+                default: return this.onUnknownResponse(event);
             }
-
-            this.onUnknownResponse(event);
         }
     }
 

@@ -66,8 +66,11 @@ impl Recipient {
         }
     }
 
-    pub fn try_from_string(full_address: String) -> Result<Self, RecipientFormattingError> {
-        let split: Vec<_> = full_address.split('@').collect();
+    pub fn try_from_string<S: Into<String>>(
+        full_address: S,
+    ) -> Result<Self, RecipientFormattingError> {
+        let string_address = full_address.into();
+        let split: Vec<_> = string_address.split('@').collect();
         if split.len() != 2 {
             return Err(RecipientFormattingError);
         }

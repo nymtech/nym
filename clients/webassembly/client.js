@@ -1,4 +1,4 @@
-import * as wasm from "nym-client-wasm";
+import * as wasm from ".";
 
 export class Identity {
     // in the future this should allow for loading from local storage

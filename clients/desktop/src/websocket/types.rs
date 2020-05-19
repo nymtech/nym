@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
+use crate::client::inbound_messages::Recipient;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use tokio_tungstenite::tungstenite::protocol::Message;
@@ -41,34 +41,29 @@ impl Into<Message> for ClientRequest {
 }
 
 pub enum BinaryClientRequest {
-    Send {
-        recipient_address: DestinationAddressBytes,
-        data: Vec<u8>,
-    },
+    Send { recipient: Recipient, data: Vec<u8> },
 }
 
 impl BinaryClientRequest {
     // TODO: perhaps do it the proper way and introduce an error type
     pub fn try_from_bytes(req: &[u8]) -> Option<Self> {
-        if req.len() < DESTINATION_ADDRESS_LENGTH {
+        if req.len() < Recipient::LEN {
             return None;
         }
-        let mut destination_bytes = [0u8; DESTINATION_ADDRESS_LENGTH];
-        destination_bytes.copy_from_slice(&req[..DESTINATION_ADDRESS_LENGTH]);
-        let address = DestinationAddressBytes::from_bytes(destination_bytes);
+        let mut recipient_bytes = [0u8; Recipient::LEN];
+        recipient_bytes.copy_from_slice(&req[..Recipient::LEN]);
+        let recipient = Recipient::from_bytes(recipient_bytes);
+
         Some(BinaryClientRequest::Send {
-            recipient_address: address,
-            data: req[DESTINATION_ADDRESS_LENGTH..].to_vec(),
+            recipient,
+            data: req[Recipient::LEN..].to_vec(),
         })
     }
 
     pub fn into_bytes(self) -> Vec<u8> {
         match self {
-            Self::Send {
-                recipient_address,
-                data,
-            } => recipient_address
-                .to_bytes()
+            Self::Send { recipient, data } => recipient
+                .into_bytes()
                 .iter()
                 .cloned()
                 .chain(data.into_iter())

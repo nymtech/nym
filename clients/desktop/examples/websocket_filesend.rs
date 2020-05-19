@@ -1,9 +1,9 @@
-use bs58;
 use futures::{SinkExt, StreamExt};
+use nym_client::client::Recipient;
 use nym_client::websocket::{BinaryClientRequest, ClientRequest, ServerResponse};
-use nymsphinx::DestinationAddressBytes;
 use std::convert::TryFrom;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
+
 #[tokio::main]
 async fn main() {
     let uri = "ws://localhost:1977";
@@ -20,21 +20,16 @@ async fn main() {
         _ => panic!("received an unexpected response type!"),
     };
 
-    let self_address = match response {
-        ServerResponse::SelfAddress { address } => address,
+    let recipient = match response {
+        ServerResponse::SelfAddress { address } => Recipient::try_from_string(address).unwrap(),
         _ => panic!("received an unexpected response type!"),
     };
-    println!("our address is: {}", self_address.clone());
+    println!("our full address is: {}", recipient.to_string());
 
-    let mut address_bytes = [0; 32];
-    bs58::decode(self_address).into(&mut address_bytes).unwrap();
-
-    // this is equivalent to just sending bs58 decoding of the address, which is always 32 bytes
-    let decoded_address = DestinationAddressBytes::from_bytes(address_bytes);
     let read_data = std::fs::read("examples/dummy_file").unwrap();
 
     let send_request = BinaryClientRequest::Send {
-        recipient_address: decoded_address,
+        recipient,
         data: read_data,
     };
 

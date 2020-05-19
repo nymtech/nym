@@ -121,7 +121,7 @@ impl<'a> ConnectionManager<'static> {
     async fn handle_new_message(&mut self, msg: Vec<u8>) -> io::Result<()> {
         if let ConnectionState::Reconnecting(conn_reconnector) = &mut self.state {
             // do a single poll rather than await for future to completely resolve
-            let new_connection = match futures::poll!(conn_reconnector) {
+            let new_connection = match futures::poll(conn_reconnector).await {
                 Poll::Pending => {
                     return Err(io::Error::new(
                         io::ErrorKind::BrokenPipe,

@@ -6,6 +6,7 @@ import (
 	"github.com/btcsuite/btcutil/base58"
 	"github.com/gorilla/websocket"
 	"io/ioutil"
+	"strings"
 )
 
 func getSelfAddress(conn *websocket.Conn) string {
@@ -38,14 +39,19 @@ func main() {
 
 	selfAddress := getSelfAddress(conn)
 	fmt.Printf("our address is: %v\n", selfAddress)
-	decodedAddress := base58.Decode(selfAddress)
+
+    // we receive our address in string format of OUR_PUB_KEY @ OUR_GATE_PUB_KEY
+    // both keys are 32 bytes and we need to encode them as binary without the '@' sign
+    splitAddress := strings.Split(selfAddress, "@");
+	decodedDestination := base58.Decode(splitAddress[0])
+    decodedGateway := base58.Decode(splitAddress[1])
 
 	read_data, err := ioutil.ReadFile("dummy_file")
 	if err != nil {
 		panic(err)
 	}
 
-	payload := append(decodedAddress[:], read_data[:]...)
+	payload := append(decodedDestination[:], append(decodedGateway[:], read_data[:]...)...)
 	fmt.Printf("sending content of 'dummy file' over the mix network...\n")
 	if err = conn.WriteMessage(websocket.BinaryMessage, payload); err != nil {
 		panic(err)

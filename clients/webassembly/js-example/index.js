@@ -15,31 +15,32 @@
 import {
     Client,
     Identity
-} from "nym-client-wasm/client"
+} from "@nymproject/nym-client-wasm/client"
 
 async function main() {
+    // Set up identity and client
     let directory = "https://qa-directory.nymtech.net";
-    let identity = new Identity(); // or load one from storage if you have one already
+    let identity = new Identity();
+    let nymClient = new Client(directory, identity, null);
 
-    document.getElementById("sender").value = "loading...";
-
-    let nymClient = new Client(directory, identity, null); // provide your authToken if you've registered before
-    nymClient.onEstablishedGatewayConnection = (_) => document.getElementById("sender").value = nymClient.formatAsRecipient() // overwrite default behaviour with our implementation
-    nymClient.onParsedBlobResponse = displayReceived // overwrite default behaviour with our implementation
-    nymClient.onErrorResponse = (event) => alert("Received invalid gateway response", event.data)
-    await nymClient.start();
-
+    // Wire up events callbacks
+    nymClient.onConnect = (_) => displaySenderAddress(nymClient);
+    nymClient.onText = displayReceived;
+    nymClient.onErrorResponse = (event) => alert("Received invalid gateway response", event.data);
     const sendButton = document.querySelector('#send-button');
     sendButton.onclick = function () {
         sendMessageTo(nymClient);
     }
+
+    // Start the Nym client. Connects to a Nym gateway via websocket.
+    await nymClient.start();
 }
 
-// Create a Sphinx packet and send it to the mixnet through the Gateway node. 
-function sendMessageTo(client) {
-    var message = document.getElementById("sendtext").value;
+// Create a Sphinx packet and send it to the mixnet through the gateway node. 
+function sendMessageTo(nymClient) {
+    var message = document.getElementById("message").value;
     var recipient = document.getElementById("recipient").value;
-    client.sendMessage(message, recipient);
+    nymClient.sendMessage(message, recipient);
     displaySend(message);
 }
 
@@ -53,6 +54,10 @@ function displayReceived(message) {
     let timestamp = new Date().toISOString().substr(11, 12);
     let out = "<p style='color: green; word-break: break-all;'>" + timestamp + " <b>received</b> >>> " + message + "</p >";
     document.getElementById("output").innerHTML = out + document.getElementById("output").innerHTML;
+}
+
+function displaySenderAddress(nymClient) {
+    document.getElementById("sender").value = nymClient.formatAsRecipient();
 }
 
 

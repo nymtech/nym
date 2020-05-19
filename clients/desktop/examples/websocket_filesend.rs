@@ -1,6 +1,6 @@
 use futures::{SinkExt, StreamExt};
-use nym_client::client::Recipient;
 use nym_client::websocket::{BinaryClientRequest, ClientRequest, ServerResponse};
+use nymsphinx::addressing::clients::Recipient;
 use std::convert::TryFrom;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 

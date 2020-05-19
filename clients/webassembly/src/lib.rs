@@ -15,7 +15,7 @@ use crypto::identity::MixIdentityPublicKey;
 use models::Topology;
 use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx::Node as SphinxNode;
-use nymsphinx::{delays, Destination, DestinationAddressBytes, NodeAddressBytes, SphinxPacket};
+use nymsphinx::{delays, Destination, NodeAddressBytes, SphinxPacket};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::convert::TryInto;
@@ -27,6 +27,7 @@ mod models;
 mod utils;
 
 pub use models::keys::keygen;
+use nymsphinx::addressing::clients::Recipient;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -55,17 +56,14 @@ pub struct NodeData {
 /// Message chunking is currently not implemented. If the message exceeds the
 /// capacity of a single Sphinx packet, the extra information will be discarded.
 #[wasm_bindgen]
-pub fn create_sphinx_packet(topology_json: &str, msg: &str, destination: &str) -> Vec<u8> {
+pub fn create_sphinx_packet(topology_json: &str, msg: &str, recipient: &str) -> Vec<u8> {
     utils::set_panic_hook(); // nicer js errors.
 
-    if topology_json.len() == 0 {
-        panic!("WTF2?");
-    }
-    let route = sphinx_route_to(topology_json, destination);
+    let recipient = Recipient::try_from_string(recipient).unwrap();
+
+    let route = sphinx_route_to(topology_json, &recipient.gateway());
     let average_delay = Duration::from_secs_f64(0.1);
     let delays = delays::generate_from_average_duration(route.len(), average_delay);
-    let dest_bytes = DestinationAddressBytes::try_from_base58_string(destination).unwrap();
-    let dest = Destination::new(dest_bytes, Default::default());
 
     // TODO: once we are able to reconstruct split messages use this instead
     // let split_message = split_and_prepare_payloads(&msg.as_bytes());
@@ -74,7 +72,8 @@ pub fn create_sphinx_packet(topology_json: &str, msg: &str, destination: &str) -
 
     let message = msg.as_bytes().to_vec();
 
-    let sphinx_packet = SphinxPacket::new(message, &route, &dest, &delays, None).unwrap();
+    let destination = Destination::new(recipient.destination(), Default::default());
+    let sphinx_packet = SphinxPacket::new(message, &route, &destination, &delays, None).unwrap();
     payload(sphinx_packet, route)
 }
 
@@ -103,12 +102,11 @@ fn payload(sphinx_packet: SphinxPacket, route: Vec<SphinxNode>) -> Vec<u8> {
 ///
 /// This function panics if the supplied `raw_route` json string can't be
 /// extracted to a `JsonRoute`.
-fn sphinx_route_to(topology_json: &str, recipient: &str) -> Vec<SphinxNode> {
+fn sphinx_route_to(topology_json: &str, gateway_address: &NodeAddressBytes) -> Vec<SphinxNode> {
     let topology = Topology::new(topology_json);
-    let recipient_address = DestinationAddressBytes::try_from_base58_string(recipient).unwrap();
     let route = topology
-        .random_route_to_client(recipient_address)
-        .expect("invalid route produced - perhaps client has never registered?");
+        .random_route_to_gateway(gateway_address)
+        .expect("invalid route produced");
     assert_eq!(4, route.len());
     route
 }
@@ -174,7 +172,13 @@ mod building_a_topology_from_json {
     #[test]
     #[should_panic]
     fn panics_on_empty_string() {
-        sphinx_route_to("", "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq");
+        sphinx_route_to(
+            "",
+            &NodeAddressBytes::try_from_base58_string(
+                "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq",
+            )
+            .unwrap(),
+        );
     }
 
     #[test]
@@ -182,7 +186,10 @@ mod building_a_topology_from_json {
     fn panics_on_bad_json() {
         sphinx_route_to(
             "bad bad bad not json",
-            "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq",
+            &NodeAddressBytes::try_from_base58_string(
+                "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq",
+            )
+            .unwrap(),
         );
     }
 
@@ -192,7 +199,13 @@ mod building_a_topology_from_json {
         let mut topology: Topology = serde_json::from_str(topology_fixture()).unwrap();
         topology.mix_nodes = vec![];
         let json = serde_json::to_string(&topology).unwrap();
-        sphinx_route_to(&json, "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq");
+        sphinx_route_to(
+            &json,
+            &NodeAddressBytes::try_from_base58_string(
+                "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq",
+            )
+            .unwrap(),
+        );
     }
 
     #[test]
@@ -202,14 +215,23 @@ mod building_a_topology_from_json {
         let node = topology.mix_nodes.first().unwrap().clone();
         topology.mix_nodes = vec![node]; // 1 mixnode isn't enough. Panic!
         let json = serde_json::to_string(&topology).unwrap();
-        sphinx_route_to(&json, "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq");
+        sphinx_route_to(
+            &json,
+            &NodeAddressBytes::try_from_base58_string(
+                "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq",
+            )
+            .unwrap(),
+        );
     }
 
     #[test]
     fn test_works_on_happy_json() {
         let route = sphinx_route_to(
             topology_fixture(),
-            "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq",
+            &NodeAddressBytes::try_from_base58_string(
+                "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq",
+            )
+            .unwrap(),
         );
         assert_eq!(4, route.len());
     }

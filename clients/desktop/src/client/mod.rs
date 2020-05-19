@@ -29,6 +29,7 @@ use futures::channel::mpsc;
 use gateway_client::{GatewayClient, SphinxPacketReceiver, SphinxPacketSender};
 use gateway_requests::auth_token::AuthToken;
 use log::*;
+use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::chunking::split_and_prepare_payloads;
 use nymsphinx::NodeAddressBytes;
 use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
@@ -41,11 +42,6 @@ mod mix_traffic;
 mod real_traffic_stream;
 pub(crate) mod received_buffer;
 pub(crate) mod topology_control;
-
-// I'm not sure if that is the right place for it to live, but I could not find a better one...
-// (it definitely can't be in websocket, because it's not websocket specific; neither can it just
-// live in common/nymsphinx, as it's sphinx related at all, it's only for client-client communication)
-pub use inbound_messages::Recipient;
 
 pub struct NymClient {
     config: Config,

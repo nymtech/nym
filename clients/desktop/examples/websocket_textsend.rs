@@ -2,6 +2,7 @@ use futures::{SinkExt, StreamExt};
 use nym_client::websocket::{ClientRequest, ServerResponse};
 use std::convert::TryFrom;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
+
 #[tokio::main]
 async fn main() {
     let message = "Hello Nym!".to_string();

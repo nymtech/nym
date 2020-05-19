@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client::inbound_messages::Recipient;
 use crate::client::mix_traffic::{MixMessage, MixMessageSender};
 use crate::client::topology_control::TopologyAccessor;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
+use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::utils::{encapsulation, poisson};
 use std::pin::Pin;
 use std::time::Duration;

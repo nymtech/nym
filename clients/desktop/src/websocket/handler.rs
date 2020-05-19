@@ -14,7 +14,7 @@
 
 use super::types::{BinaryClientRequest, ClientRequest, ServerResponse};
 use crate::client::{
-    inbound_messages::{InputMessage, InputMessageSender, Recipient},
+    inbound_messages::{InputMessage, InputMessageSender},
     received_buffer::{
         ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
     },
@@ -23,6 +23,7 @@ use crate::client::{
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::*;
+use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::chunking::split_and_prepare_payloads;
 use std::convert::TryFrom;
 use tokio::net::TcpStream;

@@ -11,13 +11,16 @@ export class Identity {
 }
 
 export class Client {
-    // constructor(gateway_url, ownAddress, registeredCallback) {
     constructor(directoryUrl, identity, authToken) {
         this.authToken = authToken
         this.gateway = null; // {socketAddress, mixAddress, conn}
         this.identity = identity;
         this.topology = null;
         this.topologyEndpoint = directoryUrl + "/api/presence/topology";
+    }
+
+    formatAsRecipient() {
+        return `${this.identity.address}@${this.gateway.mixAddress}`
     }
 
     async start() {
@@ -205,7 +208,6 @@ export class Client {
         console.log("Default: parsed the following data", data);
     }
 }
-
 
 function makeRegisterRequest(address) {
     return JSON.stringify({ "type": "register", "address": address });

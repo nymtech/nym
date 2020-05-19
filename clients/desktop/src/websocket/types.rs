@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client::inbound_messages::Recipient;
+use nymsphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use tokio_tungstenite::tungstenite::protocol::Message;

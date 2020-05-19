@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use nymsphinx::DestinationAddressBytes;
 use nymsphinx::Node as SphinxNode;
+use nymsphinx::NodeAddressBytes;
 use rand::seq::IteratorRandom;
 use serde::{Deserialize, Serialize};
 use std::cmp::max;
@@ -27,6 +27,7 @@ pub mod keys;
 pub mod mixnodes;
 pub mod providers;
 
+// JS: can we just get rid of this? It's mostly just copied (and un-updated) code from NymTopology trait
 // Topology shows us the current state of the overall Nym network
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -39,8 +40,8 @@ pub struct Topology {
 
 impl Topology {
     pub fn new(json: &str) -> Self {
-        if json.len() == 0 {
-            panic!("WTF?");
+        if json.is_empty() {
+            panic!("empty json passed");
         }
         serde_json::from_str(json).unwrap()
     }
@@ -92,15 +93,23 @@ impl Topology {
         Ok(route)
     }
 
-    // Sets up a route to a specific provider
-    pub fn random_route_to(
+    // Sets up a route to a specific gateway
+    pub fn random_route_to_gateway(
         &self,
-        gateway_node: SphinxNode,
+        gateway_address: &NodeAddressBytes,
     ) -> Result<Vec<SphinxNode>, NymTopologyError> {
+        let b58_address = gateway_address.to_base58_string();
+        let gateway_node = self
+            .gateways()
+            .iter()
+            .cloned()
+            .find(|gateway| gateway.pub_key == b58_address.clone())
+            .ok_or_else(|| NymTopologyError::InvalidMixLayerError)?;
+
         Ok(self
             .random_mix_route()?
             .into_iter()
-            .chain(std::iter::once(gateway_node))
+            .chain(std::iter::once(gateway_node.into()))
             .collect())
     }
 
@@ -127,21 +136,6 @@ impl Topology {
             .iter()
             .map(|x| x.clone().into())
             .collect()
-    }
-
-    pub(crate) fn random_route_to_client(
-        &self,
-        client_address: DestinationAddressBytes,
-    ) -> Option<Vec<SphinxNode>> {
-        let b58_address = client_address.to_base58_string();
-
-        let gateway = self
-            .gateways()
-            .iter()
-            .cloned()
-            .find(|gateway| gateway.has_client(b58_address.clone()))?;
-
-        self.random_route_to(gateway.into()).ok()
     }
 }
 

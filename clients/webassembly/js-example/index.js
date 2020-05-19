@@ -17,17 +17,16 @@ import {
     Identity
 } from "nym-client-wasm/client"
 
-
 async function main() {
     let directory = "https://qa-directory.nymtech.net";
-    // let identity = new Identity(); // or load one from storage if you have one already
-    // because I'm about to make a new PR tomorrow, just hardcode it to not recreate client every single recompilation
-    let identity = { address: "7mVwY9uFRBBTW91dAWaDtuusSpzc16ZwANLSXxXVYT7M", privateKey: "H4cp7DFMsPXD4Qm7ZW3TgsJETr2CpJhxmBJohko7HrDE", publicKey: "7mVwY9uFRBBTW91dAWaDtuusSpzc16ZwANLSXxXVYT7M" }
+    let identity = new Identity(); // or load one from storage if you have one already
 
-    document.getElementById("sender").value = identity.address;
+    document.getElementById("sender").value = "loading...";
 
     let nymClient = new Client(directory, identity, null); // provide your authToken if you've registered before
+    nymClient.onEstablishedGatewayConnection = (_) => document.getElementById("sender").value = nymClient.formatAsRecipient() // overwrite default behaviour with our implementation
     nymClient.onParsedBlobResponse = displayReceived // overwrite default behaviour with our implementation
+    nymClient.onErrorResponse = (event) => alert("Received invalid gateway response", event.data)
     await nymClient.start();
 
     const sendButton = document.querySelector('#send-button');

@@ -153,7 +153,7 @@ mod test_constructing_a_sphinx_packet {
         let mut payload = create_sphinx_packet(
             topology_fixture(),
             "foomp",
-            "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq",
+            "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq@7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
         );
         // you don't really need 32 bytes here, but giving too much won't make it fail
         let mut address_buffer = [0; 32];
@@ -175,7 +175,7 @@ mod building_a_topology_from_json {
         sphinx_route_to(
             "",
             &NodeAddressBytes::try_from_base58_string(
-                "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq",
+                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
             )
             .unwrap(),
         );
@@ -187,7 +187,7 @@ mod building_a_topology_from_json {
         sphinx_route_to(
             "bad bad bad not json",
             &NodeAddressBytes::try_from_base58_string(
-                "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq",
+                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
             )
             .unwrap(),
         );
@@ -202,7 +202,7 @@ mod building_a_topology_from_json {
         sphinx_route_to(
             &json,
             &NodeAddressBytes::try_from_base58_string(
-                "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq",
+                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
             )
             .unwrap(),
         );
@@ -218,7 +218,7 @@ mod building_a_topology_from_json {
         sphinx_route_to(
             &json,
             &NodeAddressBytes::try_from_base58_string(
-                "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq",
+                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
             )
             .unwrap(),
         );
@@ -229,7 +229,7 @@ mod building_a_topology_from_json {
         let route = sphinx_route_to(
             topology_fixture(),
             &NodeAddressBytes::try_from_base58_string(
-                "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq",
+                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
             )
             .unwrap(),
         );

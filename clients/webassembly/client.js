@@ -37,7 +37,6 @@ export class Client {
     async updateTopology() {
         let response = await http('get', this.topologyEndpoint);
         let topology = JSON.parse(response); // make sure it's a valid json
-        console.log(topology);
         this.topology = topology;
         this.onUpdatedTopology();
         return topology;

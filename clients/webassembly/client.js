@@ -26,7 +26,7 @@ export class Client {
     async start() {
         await this.updateTopology();
         this._getInitialGateway();
-        await this.establishGatewayConnection();
+        await this.connect();
         // TODO: a way to somehow await for our authenticate response to be processed
     }
 
@@ -60,17 +60,17 @@ export class Client {
         }
     }
 
-    establishGatewayConnection() {
+    connect() {
         return new Promise((resolve, reject) => {
             const conn = new WebSocket(this.gateway.socketAddress);
-            conn.onclose = this.onGatewayConnectionClose;
+            conn.onclose = this.onConnectionClose;
             conn.onerror = (event) => {
-                this.onGatewayConnectionError(event);
+                this.onConnectionError(event);
                 reject(event);
             };
-            conn.onmessage = (event) => this.onGatewayMessage(event);
+            conn.onmessage = (event) => this.onMessage(event);
             conn.onopen = (event) => {
-                this.onEstablishedGatewayConnection(event);
+                this.onConnect(event);
                 if (this._isRegistered()) {
                     this.sendAuthenticateRequest();
                     resolve(); // TODO: we should wait for authenticateResponse...
@@ -110,15 +110,13 @@ export class Client {
             console.error("Binary messages are not yet supported");
             return
         }
-        // TODO: CURRENTLY WE ONLY ACCEPT "recipient", not recipient@gateway
-        // this will be changed in the very next PR
         console.log("send", this.topology)
         const sphinxPacket = wasm.create_sphinx_packet(JSON.stringify(this.topology), message, recipient);
         this.gateway.conn.send(sphinxPacket);
         this.onMessageSend();
     }
 
-    onGatewayMessage(event) {
+    onMessage(event) {
         if (event.data instanceof Blob) {
             this.onBlobResponse(event);
         } else {
@@ -139,15 +137,15 @@ export class Client {
         console.log("Default: Updated topology")
     }
 
-    onEstablishedGatewayConnection(event) {
+    onConnect(event) {
         console.log("Default: Established gateway connection", event);
     }
 
-    onGatewayConnectionClose(event) {
+    onConnectionClose(event) {
         console.log("Default: The the connection to gateway was closed", event);
     }
 
-    onGatewayConnectionError(event) {
+    onConnectionError(event) {
         console.error("Default: Gateway connection error: ", event);
     }
 
@@ -196,14 +194,14 @@ export class Client {
         let reader = new FileReader();
 
         reader.onload = () => {
-            this.onParsedBlobResponse(reader.result)
+            this.onText(reader.result)
         };
 
         reader.readAsText(event.data);
     }
 
-    // Alternatively you may use default implementation and get everything as a text
-    onParsedBlobResponse(data) {
+    // Alternatively you may use default implementation and treat everything as text
+    onText(data) {
         console.log("Default: parsed the following data", data);
     }
 }

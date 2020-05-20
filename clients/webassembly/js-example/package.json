@@ -20,12 +20,12 @@
     "rust",
     "webpack"
   ],
-  "author": "Ashley Williams <ashley666ashley@gmail.com>",
-  "license": "(MIT OR Apache-2.0)",
+  "author": "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
+  "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/rustwasm/create-wasm-app/issues"
+    "url": "https://github.com/nymtech/nym/issues"
   },
-  "homepage": "https://github.com/rustwasm/create-wasm-app#readme",
+  "homepage": "https://nymtech.net/docs",
   "devDependencies": {
     "copy-webpack-plugin": "^5.0.0",
     "hello-wasm-pack": "^0.1.0",
@@ -34,6 +34,6 @@
     "webpack-dev-server": "^3.11.0"
   },
   "dependencies": {
-    "nym-client-wasm": "file:../pkg"
+    "@nymproject/nym-client-wasm": "^0.7.2"
   }
 }

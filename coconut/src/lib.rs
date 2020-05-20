@@ -57,8 +57,3 @@ type G2Point = ();
         - U:        coconut::prove_credential(params, vk, credential, private_attributes) -> Theta
         - V:        coconut::blind_verify_credential(params, vk, credential, theta, public_attributes) OR vk.blind_verify_credential(params, credential, theta, public_attributes) -> bool
 */
-
-// only public:
-// keygen -> sign -> verify -> success
-
-// public + private:

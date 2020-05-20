@@ -2,7 +2,6 @@ use crate::{G1Point, G2Point};
 
 pub trait SomeRngTrait {}
 
-// pub struct Params<R: SomeRngTrait> {
 pub struct Params<R: SomeRngTrait> {
     group_order: (), // presumably Scalar?
     gen1: G1Point,

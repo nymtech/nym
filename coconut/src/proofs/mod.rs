@@ -1,7 +1,7 @@
+use crate::parameters::SomeRngTrait;
 use crate::scheme::issue_credential::Lambda;
 use crate::scheme::show_credential::Theta;
 use crate::{elgamal, Attribute, Credential, G1Point, Params, Result, Scalar, VerificationKey};
-use crate::parameters::SomeRngTrait;
 
 pub struct pi_S {
     challenge: Scalar,

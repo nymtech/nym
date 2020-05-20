@@ -7,6 +7,7 @@ opt-level = "s"
 members = [
     "clients/desktop",
     "clients/webassembly",
+    "coconut",
     "common/client-libs/directory-client",
     "common/client-libs/gateway-client",
     "common/client-libs/multi-tcp-client",

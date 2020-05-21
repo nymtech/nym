@@ -1697,7 +1697,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
-version = "0.7.2"
+version = "0.7.3"
 dependencies = [
  "console_error_panic_hook",
  "crypto",

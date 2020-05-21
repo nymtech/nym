@@ -136,7 +136,8 @@ export class Client {
      * NOTE: this currently does not implement chunking and messages over ~1KB
      * will cause a panic. This will be fixed in a future version.
      * 
-     * `message` may be either text or binary. 
+     * `message` must be text at the moment. Binary `Blob` and `ArrayBuffer`
+     * will be supported soon. 
      * 
      * @param {*} message 
      * @param {string} recipient 

@@ -15,29 +15,32 @@
 use crate::node::packet_processing::{MixProcessingResult, PacketProcessor};
 use futures::channel::mpsc;
 use log::*;
+use nymsphinx::framing::SphinxCodec;
+use nymsphinx::SphinxPacket;
 use std::io;
 use std::net::SocketAddr;
-use tokio::prelude::*;
 use tokio::runtime::Handle;
+use tokio::stream::StreamExt;
 use tokio::task::JoinHandle;
+use tokio_util::codec::Framed;
 
 async fn process_received_packet(
-    packet_data: [u8; nymsphinx::PACKET_SIZE],
+    sphinx_packet: SphinxPacket,
     packet_processor: PacketProcessor,
-    forwarding_channel: mpsc::UnboundedSender<(SocketAddr, Vec<u8>)>,
+    forwarding_channel: mpsc::UnboundedSender<(SocketAddr, SphinxPacket)>,
 ) {
     // all processing incl. delay was done, the only thing left is to forward it
-    match packet_processor.process_sphinx_packet(packet_data).await {
+    match packet_processor.process_sphinx_packet(sphinx_packet).await {
         Err(e) => debug!("We failed to process received sphinx packet - {:?}", e),
         Ok(res) => match res {
-            MixProcessingResult::ForwardHop(hop_address, hop_data) => {
+            MixProcessingResult::ForwardHop(hop_address, forward_packet) => {
                 // send our data to tcp client for forwarding. If forwarding fails, then it fails,
                 // it's not like we can do anything about it
                 //
                 // in unbounded_send() failed it means that the receiver channel was disconnected
                 // and hence something weird must have happened without a way of recovering
                 forwarding_channel
-                    .unbounded_send((hop_address, hop_data))
+                    .unbounded_send((hop_address, forward_packet))
                     .unwrap();
                 packet_processor.report_sent(hop_address);
             }
@@ -49,57 +52,40 @@ async fn process_received_packet(
 }
 
 async fn process_socket_connection(
-    mut socket: tokio::net::TcpStream,
+    socket: tokio::net::TcpStream,
     packet_processor: PacketProcessor,
-    forwarding_channel: mpsc::UnboundedSender<(SocketAddr, Vec<u8>)>,
+    forwarding_channel: mpsc::UnboundedSender<(SocketAddr, SphinxPacket)>,
 ) {
-    let mut buf = [0u8; nymsphinx::PACKET_SIZE];
-    loop {
-        match socket.read_exact(&mut buf).await {
-            // socket closed
-            Ok(n) if n == 0 => {
-                trace!("Remote connection closed.");
-                return;
-            }
-            Ok(n) => {
-                // If I understand it correctly, this if should never be executed as if `read_exact`
-                // does not fill buffer, it will throw UnexpectedEof?
-                if n != nymsphinx::PACKET_SIZE {
-                    warn!("read data of different length than expected sphinx packet size - {} (expected {})", n, nymsphinx::PACKET_SIZE);
-                    continue;
-                }
-                // we must be able to handle multiple packets from same connection independently
+    let mut framed = Framed::new(socket, SphinxCodec);
+    while let Some(sphinx_packet) = framed.next().await {
+        match sphinx_packet {
+            Ok(sphinx_packet) => {
+                // we *really* need a worker pool here, because if we receive too many packets,
+                // we will spawn too many tasks and starve CPU due to context switching.
+                // (because presumably tokio has some concept of context switching in its
+                // scheduler)
                 tokio::spawn(process_received_packet(
-                    buf,
-                    // note: processing_data is relatively cheap (and safe) to clone -
-                    // it contains arc to private key and metrics reporter (which is just
-                    // a single mpsc unbounded sender)
+                    sphinx_packet,
                     packet_processor.clone(),
                     forwarding_channel.clone(),
-                ))
+                ));
             }
-            Err(e) => {
-                if e.kind() == io::ErrorKind::UnexpectedEof {
-                    debug!("Read buffer was not fully filled. Most likely the client ({:?}) closed the connection.\
-                    Also closing the connection on this end.", socket.peer_addr())
-                } else {
-                    warn!(
-                        "failed to read from socket (source: {:?}). Closing the connection; err = {:?}",
-                        socket.peer_addr(),
-                        e
-                    );
-                }
-                return;
-            }
-        };
+            // I *think* that once `Err` branch is called, the very next frame will be a `None`.
+            // It would be *extremely* useful to verify that claim.
+            Err(err) => error!("The socket connection got corrupted with error: {:?}", err),
+        }
     }
+    info!(
+        "Closing connection from {:?}",
+        framed.into_inner().peer_addr()
+    );
 }
 
 pub(crate) fn run_socket_listener(
     handle: &Handle,
     addr: SocketAddr,
     packet_processor: PacketProcessor,
-    forwarding_channel: mpsc::UnboundedSender<(SocketAddr, Vec<u8>)>,
+    forwarding_channel: mpsc::UnboundedSender<(SocketAddr, SphinxPacket)>,
 ) -> JoinHandle<io::Result<()>> {
     let handle_clone = handle.clone();
     handle.spawn(async move {

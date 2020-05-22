@@ -1014,7 +1014,7 @@ dependencies = [
  "futures 0.3.4",
  "itertools",
  "log 0.4.8",
- "multi-tcp-client",
+ "mixnet-client",
  "nymsphinx",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -1573,6 +1573,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mixnet-client"
+version = "0.1.0"
+dependencies = [
+ "futures 0.3.4",
+ "log 0.4.8",
+ "nymsphinx",
+ "tokio 0.2.16",
+ "tokio-util",
+]
+
+[[package]]
 name = "mockito"
 version = "0.23.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1595,15 +1606,6 @@ name = "modifier"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "41f5c9112cb662acd3b204077e0de5bc66305fa8df65c8019d5adb10e9ab6e58"
-
-[[package]]
-name = "multi-tcp-client"
-version = "0.1.0"
-dependencies = [
- "futures 0.3.4",
- "log 0.4.8",
- "tokio 0.2.16",
-]
 
 [[package]]
 name = "native-tls"
@@ -1680,7 +1682,7 @@ dependencies = [
  "gateway-client",
  "gateway-requests",
  "log 0.4.8",
- "multi-tcp-client",
+ "mixnet-client",
  "nymsphinx",
  "pem",
  "pemstore",
@@ -1728,7 +1730,7 @@ dependencies = [
  "gateway-requests",
  "hmac",
  "log 0.4.8",
- "multi-tcp-client",
+ "mixnet-client",
  "nymsphinx",
  "pemstore",
  "pretty_env_logger",
@@ -1739,6 +1741,7 @@ dependencies = [
  "tempfile",
  "tokio 0.2.16",
  "tokio-tungstenite",
+ "tokio-util",
  "tungstenite",
 ]
 
@@ -1757,13 +1760,14 @@ dependencies = [
  "dotenv",
  "futures 0.3.4",
  "log 0.4.8",
- "multi-tcp-client",
+ "mixnet-client",
  "nymsphinx",
  "pemstore",
  "pretty_env_logger",
  "serde",
  "tempfile",
  "tokio 0.2.16",
+ "tokio-util",
  "topology",
 ]
 
@@ -1799,10 +1803,12 @@ dependencies = [
 name = "nymsphinx"
 version = "0.1.0"
 dependencies = [
+ "bytes 0.5.4",
  "log 0.4.8",
  "rand 0.7.3",
  "rand_distr",
  "sphinx",
+ "tokio-util",
 ]
 
 [[package]]

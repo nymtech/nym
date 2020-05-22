@@ -32,7 +32,7 @@ pub enum MixProcessingError {
 }
 
 pub enum MixProcessingResult {
-    ForwardHop(SocketAddr, Vec<u8>),
+    ForwardHop(SocketAddr, SphinxPacket),
     #[allow(dead_code)]
     LoopMessage,
 }
@@ -87,20 +87,15 @@ impl PacketProcessor {
         // Delay packet for as long as required
         tokio::time::delay_for(delay.to_duration()).await;
 
-        Ok(MixProcessingResult::ForwardHop(
-            next_hop_address,
-            packet.to_bytes(),
-        ))
+        Ok(MixProcessingResult::ForwardHop(next_hop_address, packet))
     }
 
     pub(crate) async fn process_sphinx_packet(
         &self,
-        raw_packet_data: [u8; nymsphinx::PACKET_SIZE],
+        packet: SphinxPacket,
     ) -> Result<MixProcessingResult, MixProcessingError> {
         // we received something resembling a sphinx packet, report it!
         self.metrics_reporter.report_received();
-
-        let packet = SphinxPacket::from_bytes(&raw_packet_data)?;
 
         match packet.process(self.secret_key.deref().inner()) {
             Ok(ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay)) => {

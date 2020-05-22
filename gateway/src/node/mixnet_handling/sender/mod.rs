@@ -17,15 +17,16 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
+use nymsphinx::SphinxPacket;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::task::JoinHandle;
 
-pub(crate) type OutboundMixMessageSender = mpsc::UnboundedSender<(SocketAddr, Vec<u8>)>;
-pub(crate) type OutboundMixMessageReceiver = mpsc::UnboundedReceiver<(SocketAddr, Vec<u8>)>;
+pub(crate) type OutboundMixMessageSender = mpsc::UnboundedSender<(SocketAddr, SphinxPacket)>;
+pub(crate) type OutboundMixMessageReceiver = mpsc::UnboundedReceiver<(SocketAddr, SphinxPacket)>;
 
 pub(crate) struct PacketForwarder {
-    tcp_client: multi_tcp_client::Client,
+    mixnet_client: mixnet_client::Client,
     conn_tx: OutboundMixMessageSender,
     conn_rx: OutboundMixMessageReceiver,
 }
@@ -36,7 +37,7 @@ impl PacketForwarder {
         maximum_reconnection_backoff: Duration,
         initial_connection_timeout: Duration,
     ) -> PacketForwarder {
-        let tcp_client_config = multi_tcp_client::Config::new(
+        let tcp_client_config = mixnet_client::Config::new(
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
             initial_connection_timeout,
@@ -45,7 +46,7 @@ impl PacketForwarder {
         let (conn_tx, conn_rx) = mpsc::unbounded();
 
         PacketForwarder {
-            tcp_client: multi_tcp_client::Client::new(tcp_client_config),
+            mixnet_client: mixnet_client::Client::new(tcp_client_config),
             conn_tx,
             conn_rx,
         }
@@ -59,7 +60,10 @@ impl PacketForwarder {
                     trace!("Going to forward packet to {:?}", address);
                     // as a mix node we don't care about responses, we just want to fire packets
                     // as quickly as possible
-                    self.tcp_client.send(address, packet, false).await.unwrap();
+                    self.mixnet_client
+                        .send(address, packet, false)
+                        .await
+                        .unwrap();
                     // if we're not waiting for response, we MUST get an Ok
                 }
             }),

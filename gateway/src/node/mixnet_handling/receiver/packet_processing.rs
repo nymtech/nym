@@ -159,10 +159,8 @@ impl PacketProcessor {
 
     pub(crate) fn unwrap_sphinx_packet(
         &self,
-        raw_packet_data: [u8; nymsphinx::PACKET_SIZE],
+        packet: SphinxPacket,
     ) -> Result<(DestinationAddressBytes, Vec<u8>), MixProcessingError> {
-        let packet = SphinxPacket::from_bytes(&raw_packet_data)?;
-
         match packet.process(self.secret_key.deref().inner()) {
             Ok(ProcessedPacket::ProcessedPacketForwardHop(_, _, _)) => {
                 warn!("Received a forward hop message - those are not implemented for providers");
@@ -188,9 +186,9 @@ impl PacketProcessor {
 
     pub(crate) async fn process_sphinx_packet(
         &mut self,
-        raw_packet_data: [u8; nymsphinx::PACKET_SIZE],
+        sphinx_packet: SphinxPacket,
     ) -> Result<(), MixProcessingError> {
-        let (client_address, plaintext) = self.unwrap_sphinx_packet(raw_packet_data)?;
+        let (client_address, plaintext) = self.unwrap_sphinx_packet(sphinx_packet)?;
 
         let client_sender = self
             .try_to_obtain_client_ws_message_sender(client_address.clone())

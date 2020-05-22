@@ -15,14 +15,15 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
+use nymsphinx::SphinxPacket;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::runtime::Handle;
 
 pub(crate) struct PacketForwarder {
-    tcp_client: multi_tcp_client::Client,
-    conn_tx: mpsc::UnboundedSender<(SocketAddr, Vec<u8>)>,
-    conn_rx: mpsc::UnboundedReceiver<(SocketAddr, Vec<u8>)>,
+    tcp_client: mixnet_client::Client,
+    conn_tx: mpsc::UnboundedSender<(SocketAddr, SphinxPacket)>,
+    conn_rx: mpsc::UnboundedReceiver<(SocketAddr, SphinxPacket)>,
 }
 
 impl PacketForwarder {
@@ -31,7 +32,7 @@ impl PacketForwarder {
         maximum_reconnection_backoff: Duration,
         initial_connection_timeout: Duration,
     ) -> PacketForwarder {
-        let tcp_client_config = multi_tcp_client::Config::new(
+        let tcp_client_config = mixnet_client::Config::new(
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
             initial_connection_timeout,
@@ -40,13 +41,16 @@ impl PacketForwarder {
         let (conn_tx, conn_rx) = mpsc::unbounded();
 
         PacketForwarder {
-            tcp_client: multi_tcp_client::Client::new(tcp_client_config),
+            tcp_client: mixnet_client::Client::new(tcp_client_config),
             conn_tx,
             conn_rx,
         }
     }
 
-    pub(crate) fn start(mut self, handle: &Handle) -> mpsc::UnboundedSender<(SocketAddr, Vec<u8>)> {
+    pub(crate) fn start(
+        mut self,
+        handle: &Handle,
+    ) -> mpsc::UnboundedSender<(SocketAddr, SphinxPacket)> {
         // TODO: what to do with the lost JoinHandle?
         let sender_channel = self.conn_tx.clone();
         handle.spawn(async move {

@@ -14,12 +14,16 @@
 
 use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use log::*;
+use nymsphinx::framing::SphinxCodec;
+use nymsphinx::SphinxPacket;
 use std::net::SocketAddr;
-use tokio::{io::AsyncReadExt, prelude::*};
+use tokio::prelude::*;
+use tokio::stream::StreamExt;
+use tokio_util::codec::Framed;
 
 pub(crate) struct Handle<S: AsyncRead + AsyncWrite + Unpin> {
     peer_address: SocketAddr,
-    socket_connection: S,
+    framed_connection: Framed<S, SphinxCodec>,
     packet_processor: PacketProcessor,
 }
 
@@ -34,62 +38,43 @@ where
         conn: S,
         packet_processor: PacketProcessor,
     ) -> Self {
+        // we expect only to receive sphinx packets on this socket, so let's frame it here
+        let framed = Framed::new(conn, SphinxCodec);
         Handle {
             peer_address,
-            socket_connection: conn,
+            framed_connection: framed,
             packet_processor,
         }
     }
 
     async fn process_received_packet(
-        packet_data: [u8; nymsphinx::PACKET_SIZE],
+        sphinx_packet: SphinxPacket,
         mut packet_processor: PacketProcessor,
     ) {
-        match packet_processor.process_sphinx_packet(packet_data).await {
+        match packet_processor.process_sphinx_packet(sphinx_packet).await {
             Ok(_) => trace!("successfully processed [and forwarded/stored] a final hop packet"),
             Err(e) => debug!("We failed to process received sphinx packet - {:?}", e),
         }
     }
 
     pub(crate) async fn start_handling(&mut self) {
-        let mut buf = [0u8; nymsphinx::PACKET_SIZE];
-        loop {
-            match self.socket_connection.read_exact(&mut buf).await {
-                // socket closed
-                Ok(n) if n == 0 => {
-                    trace!("Remote connection closed.");
-                    return;
-                }
-                Ok(n) => {
-                    // If I understand it correctly, this if should never be executed as if `read_exact`
-                    // does not fill buffer, it will throw UnexpectedEof?
-                    if n != nymsphinx::PACKET_SIZE {
-                        error!("read data of different length than expected sphinx packet size - {} (expected {})", n, nymsphinx::PACKET_SIZE);
-                        continue;
-                    }
-
-                    // we must be able to handle multiple packets from same connection independently
-                    // TODO: but WE NEED to have some worker pool so that we do not spawn too many
-                    // tasks
+        while let Some(sphinx_packet) = self.framed_connection.next().await {
+            match sphinx_packet {
+                Ok(sphinx_packet) => {
+                    // we *really* need a worker pool here, because if we receive too many packets,
+                    // we will spawn too many tasks and starve CPU due to context switching.
+                    // (because presumably tokio has some concept of context switching in its
+                    // scheduler)
                     tokio::spawn(Self::process_received_packet(
-                        buf,
+                        sphinx_packet,
                         self.packet_processor.clone(),
-                    ))
+                    ));
                 }
-                Err(e) => {
-                    if e.kind() == io::ErrorKind::UnexpectedEof {
-                        debug!("Read buffer was not fully filled. Most likely the client ({:?}) closed the connection.\
-                   Also closing the connection on this end.", self.peer_address)
-                    } else {
-                        warn!(
-                           "failed to read from socket (source: {:?}). Closing the connection; err = {:?}",
-                           self.peer_address,
-                           e
-                       );
-                    }
-                    return;
-                }
-            };
+                // I *think* that once `Err` branch is called, the very next frame will be a `None`.
+                // It would be *extremely* useful to verify that claim.
+                Err(err) => error!("The socket connection got corrupted with error: {:?}", err),
+            }
         }
+        info!("Closing connection from {:?}", self.peer_address);
     }
 }

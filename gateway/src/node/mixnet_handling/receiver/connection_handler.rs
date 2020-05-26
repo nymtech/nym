@@ -71,9 +71,12 @@ where
                     ));
                 }
                 Err(err) => {
-                    error!("The socket connection got corrupted with error: {:?}. Closing the socket", err)
-                    return
-                },
+                    error!(
+                        "The socket connection got corrupted with error: {:?}. Closing the socket",
+                        err
+                    );
+                    return;
+                }
             }
         }
         info!("Closing connection from {:?}", self.peer_address);

@@ -71,9 +71,12 @@ async fn process_socket_connection(
                 ));
             }
             Err(err) => {
-                error!("The socket connection got corrupted with error: {:?}. Closing the socket", err)
-                return
-            },
+                error!(
+                    "The socket connection got corrupted with error: {:?}. Closing the socket",
+                    err
+                );
+                return;
+            }
         }
     }
     info!(

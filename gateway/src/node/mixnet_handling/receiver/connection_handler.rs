@@ -70,9 +70,10 @@ where
                         self.packet_processor.clone(),
                     ));
                 }
-                // I *think* that once `Err` branch is called, the very next frame will be a `None`.
-                // It would be *extremely* useful to verify that claim.
-                Err(err) => error!("The socket connection got corrupted with error: {:?}", err),
+                Err(err) => {
+                    error!("The socket connection got corrupted with error: {:?}. Closing the socket", err)
+                    return
+                },
             }
         }
         info!("Closing connection from {:?}", self.peer_address);

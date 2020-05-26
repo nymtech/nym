@@ -136,7 +136,7 @@ export class Client {
      * NOTE: this currently does not implement chunking and messages over ~1KB
      * will cause a panic. This will be fixed in a future version.
      * 
-     * `message` must be text at the moment. Binary `Blob` and `ArrayBuffer`
+     * `message` must be a {string} at the moment. Binary `Blob` and `ArrayBuffer`
      * will be supported soon. 
      * 
      * @param {*} message 
@@ -152,7 +152,6 @@ export class Client {
             console.error("Binary messages are not yet supported");
             return
         }
-        console.log("send", this.topology)
         const sphinxPacket = wasm.create_sphinx_packet(JSON.stringify(this.topology), message, recipient);
         this.gateway.conn.send(sphinxPacket);
         this.onMessageSend();

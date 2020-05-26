@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::chunking::set::split_into_sets;
+use crate::packets::PacketSize;
 
 pub mod fragment;
 pub mod reconstruction;
@@ -55,6 +56,51 @@ pub enum ChunkingError {
     TooShortFragmentData,
     MalformedFragmentData,
     UnexpectedFragmentCount,
+}
+
+pub struct MessageChunker {
+    packet_size: PacketSize,
+    reply_surbs: bool,
+    surb_acks: bool,
+}
+
+impl MessageChunker {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    pub fn with_reply_surbs(mut self, reply_surbs: bool) -> Self {
+        self.reply_surbs = reply_surbs;
+        self
+    }
+
+    pub fn with_surb_acks(mut self, surb_acks: bool) -> Self {
+        self.surb_acks = surb_acks;
+        self
+    }
+
+    pub fn with_packet_size(mut self, packet_size: PacketSize) -> Self {
+        self.packet_size = packet_size;
+        self
+    }
+
+    pub fn finalize() -> Vec<Vec<u8>> {
+        todo!()
+    }
+
+    pub fn attach_surb_acks() {}
+
+    pub fn attach_reply_surbs() {}
+}
+
+impl Default for MessageChunker {
+    fn default() -> Self {
+        MessageChunker {
+            packet_size: Default::default(),
+            reply_surbs: false,
+            surb_acks: false,
+        }
+    }
 }
 
 /// Takes the entire message and splits it into bytes chunks that will fit into sphinx packets

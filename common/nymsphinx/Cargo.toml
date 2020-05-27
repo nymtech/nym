@@ -7,12 +7,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bytes = "0.5"
-log = "0.4.8"
 rand = {version = "0.7.3", features = ["wasm-bindgen"]}
 rand_distr = "0.2.2"
-tokio-util = { version = "0.3.1", features = ["codec"] }
 
-## will be moved to proper dependencies once released
-sphinx = { git = "https://github.com/nymtech/sphinx", rev="fcd17932acbd21a76c42a4bf2a42b9f8668f7e1f" }
+nymsphinx-acknowledgements = { path = "acknowledgements" }
+nymsphinx-addressing = { path = "addressing" }
+nymsphinx-chunking = { path = "chunking" }
+nymsphinx-framing = { path = "framing" }
+nymsphinx-types = { path = "types" }
 

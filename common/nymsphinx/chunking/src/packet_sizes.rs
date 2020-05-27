@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use nymsphinx_types::header::HEADER_SIZE;
 use std::convert::TryFrom;
 
 // it's up to the smart people to figure those values out : )
@@ -50,8 +51,12 @@ impl PacketSize {
             PacketSize::RegularPacket => REGULAR_PACKET_SIZE,
             PacketSize::ACKPacket => ACK_PACKET_SIZE,
             PacketSize::ExtendedPacket => EXTENDED_PACKET_SIZE,
-            PacketSize::PreSURBChanges => crate::PACKET_SIZE,
+            PacketSize::PreSURBChanges => nymsphinx_types::PACKET_SIZE,
         }
+    }
+
+    pub fn plaintext_size(&self) -> usize {
+        self.size() - HEADER_SIZE // once merged also remove PAYLOAD OVERHEAD
     }
 
     pub fn get_type(size: usize) -> std::result::Result<Self, InvalidPacketSize> {

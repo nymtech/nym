@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::chunking::ChunkingError;
+use crate::ChunkingError;
 use std::convert::TryInto;
 
 /// The entire marshaled `Fragment` can never be longer than the maximum length of the plaintext
 /// data we can put into a Sphinx packet.
-pub const MAXIMUM_FRAGMENT_LENGTH: usize = sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH;
+pub const MAXIMUM_FRAGMENT_LENGTH: usize = nymsphinx_types::constants::MAXIMUM_PLAINTEXT_LENGTH;
 
 /// The minimum data overhead required for message fitting into a single `Fragment`. The single byte
 /// used to literally indicate "this message is not fragmented".
@@ -50,6 +50,10 @@ pub const UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN: usize =
 /// we can put into a sphinx packet minus length of respective fragment header.
 pub const LINKED_FRAGMENTED_PAYLOAD_MAX_LEN: usize =
     MAXIMUM_FRAGMENT_LENGTH - LINKED_FRAGMENTED_HEADER_LEN;
+
+/// Identifier to uniquely identify a fragment. It represents 31bit ID of given `FragmentSet`
+/// and u8 position of the `Fragment` in the set.
+pub type FragmentIdentifier = (i32, u8);
 
 /// The basic unit of division of underlying bytes message sent through the mix network.
 /// Each `Fragment` after being marshaled is guaranteed to fit into a single sphinx packet.
@@ -115,6 +119,18 @@ impl Fragment {
         })
     }
 
+    pub(crate) fn unfragmented_payload_max_len(payload_size: usize) -> usize {
+        todo!()
+    }
+
+    pub(crate) fn unlinked_fragmented_payload_max_len(payload_size: usize) -> usize {
+        todo!()
+    }
+
+    pub(crate) fn linked_fragmented_payload_max_len(payload_size: usize) -> usize {
+        todo!()
+    }
+
     /// The most efficient way of representing underlying message incurring the least data overhead
     /// for as long as the message can fit into a single, unfragmented, `Fragment`.
     pub(crate) fn try_new_unfragmented(payload: &[u8]) -> Result<Self, ChunkingError> {
@@ -135,6 +151,11 @@ impl Fragment {
             .into_iter()
             .chain(self.payload.into_iter())
             .collect()
+    }
+
+    /// Derive identifier unique for this particular fragment
+    pub(crate) fn fragment_identifier(&self) -> FragmentIdentifier {
+        (self.header.id, self.header.current_fragment)
     }
 
     /// Extracts id of this `Fragment`.
@@ -449,9 +470,8 @@ impl FragmentHeader {
 
 #[cfg(test)]
 mod fragment {
-    use rand::{thread_rng, RngCore};
-
     use super::*;
+    use rand::{thread_rng, RngCore};
 
     #[test]
     fn can_be_converted_to_and_from_bytes_for_unfragmented_payload() {

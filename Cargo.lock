@@ -1803,12 +1803,50 @@ dependencies = [
 name = "nymsphinx"
 version = "0.1.0"
 dependencies = [
- "bytes 0.5.4",
- "log 0.4.8",
+ "nymsphinx-acknowledgements",
+ "nymsphinx-addressing",
+ "nymsphinx-chunking",
+ "nymsphinx-framing",
+ "nymsphinx-types",
  "rand 0.7.3",
  "rand_distr",
- "sphinx",
+]
+
+[[package]]
+name = "nymsphinx-acknowledgements"
+version = "0.1.0"
+
+[[package]]
+name = "nymsphinx-addressing"
+version = "0.1.0"
+dependencies = [
+ "nymsphinx-types",
+]
+
+[[package]]
+name = "nymsphinx-chunking"
+version = "0.1.0"
+dependencies = [
+ "log 0.4.8",
+ "nymsphinx-types",
+ "rand 0.7.3",
+]
+
+[[package]]
+name = "nymsphinx-framing"
+version = "0.1.0"
+dependencies = [
+ "bytes 0.5.4",
+ "nymsphinx-chunking",
+ "nymsphinx-types",
  "tokio-util",
+]
+
+[[package]]
+name = "nymsphinx-types"
+version = "0.1.0"
+dependencies = [
+ "sphinx",
 ]
 
 [[package]]

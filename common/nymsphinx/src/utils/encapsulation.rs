@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
-use crate::{delays, Destination, DestinationAddressBytes, SphinxPacket};
-use crate::{Error as SphinxError, Node as SphinxNode};
+use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
+use nymsphinx_types::{
+    delays, Destination, DestinationAddressBytes, Error as SphinxError, Node as SphinxNode,
+    SphinxPacket,
+};
 use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::time;

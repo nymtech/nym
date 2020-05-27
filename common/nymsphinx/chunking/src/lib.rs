@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::chunking::set::split_into_sets;
-use crate::packets::PacketSize;
+use crate::set::split_into_sets;
+use nymsphinx_types::SphinxPacket;
+use packet_sizes::PacketSize;
 
 pub mod fragment;
+pub mod packet_sizes;
 pub mod reconstruction;
 pub mod set;
 
@@ -69,6 +71,17 @@ impl MessageChunker {
         Default::default()
     }
 
+    fn available_plaintext_size(&self) -> usize {
+        let mut available_size = self.packet_size.plaintext_size();
+        if self.surb_acks {
+            available_size -= PacketSize::ACKPacket.size()
+        }
+        if self.reply_surbs {
+            // TODO
+        }
+        available_size
+    }
+
     pub fn with_reply_surbs(mut self, reply_surbs: bool) -> Self {
         self.reply_surbs = reply_surbs;
         self
@@ -91,6 +104,16 @@ impl MessageChunker {
     pub fn attach_surb_acks() {}
 
     pub fn attach_reply_surbs() {}
+
+    // // while we could have gotten around by not passing topology in the previous implementation,
+    // // it's really difficult to not do it here, as we need to construct the SURB-ACK and later the
+    // // reply-SURB. If we let it for the callee, it would have introduced a lot of extra complexity
+    // pub fn split_and_prepare_payloads<T: NymTopology>(
+    //     message: &[u8],
+    //     topology: &T,
+    // ) -> Vec<SphinxPacket> {
+    //     todo!()
+    // }
 }
 
 impl Default for MessageChunker {
@@ -98,7 +121,7 @@ impl Default for MessageChunker {
         MessageChunker {
             packet_size: Default::default(),
             reply_surbs: false,
-            surb_acks: false,
+            surb_acks: true,
         }
     }
 }
@@ -106,7 +129,12 @@ impl Default for MessageChunker {
 /// Takes the entire message and splits it into bytes chunks that will fit into sphinx packets
 /// directly. After receiving they can be combined using `reconstruction::MessageReconstructor`
 /// to obtain the original message back.
+/// `available_packet_space` defines how much space is available in each packet for the plaintext
+/// message. It will depend on, among other things, whether a SURB needs to be put there
+
+// pub fn split_and_prepare_payloads(message: &[u8], available_packet_space: usize) -> Vec<Vec<u8>> {
 pub fn split_and_prepare_payloads(message: &[u8]) -> Vec<Vec<u8>> {
+    // let fragmented_messages = split_into_sets(message, available_packet_space);
     let fragmented_messages = split_into_sets(message);
     fragmented_messages
         .into_iter()

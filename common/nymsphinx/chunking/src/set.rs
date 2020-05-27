@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::chunking::fragment::{
+use crate::fragment::{
     Fragment, LINKED_FRAGMENTED_HEADER_LEN, LINKED_FRAGMENTED_PAYLOAD_MAX_LEN,
     UNFRAGMENTED_PAYLOAD_MAX_LEN, UNLINKED_FRAGMENTED_HEADER_LEN,
     UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN,
@@ -215,6 +215,7 @@ fn prepare_fragment_set(
 }
 
 /// Entry point for splitting whole message into possibly multiple `Set`s.
+// pub(crate) fn split_into_sets(message: &[u8], available_packet_space: usize) -> Vec<FragmentSet> {
 pub(crate) fn split_into_sets(message: &[u8]) -> Vec<FragmentSet> {
     use rand::thread_rng;
 

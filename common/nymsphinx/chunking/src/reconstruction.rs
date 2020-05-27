@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::chunking::fragment::Fragment;
+use crate::fragment::Fragment;
 use log::*;
 use std::collections::HashMap;
 
@@ -298,9 +298,9 @@ impl MessageReconstructor {
 #[cfg(test)]
 mod reconstruction_buffer {
     use super::*;
-    use crate::chunking::fragment::UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN;
-    use crate::chunking::set::MAX_ONE_WAY_LINKED_SET_PAYLOAD_LENGTH;
-    use crate::chunking::split_and_prepare_payloads;
+    use crate::fragment::UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN;
+    use crate::set::MAX_ONE_WAY_LINKED_SET_PAYLOAD_LENGTH;
+    use crate::split_and_prepare_payloads;
 
     #[test]
     fn creating_new_instance_correctly_initialised_fragments_buffer() {
@@ -439,13 +439,13 @@ mod reconstruction_buffer {
 #[cfg(test)]
 mod message_reconstructor {
     use super::*;
-    use crate::chunking::fragment::{
+    use crate::fragment::{
         UNFRAGMENTED_PAYLOAD_MAX_LEN, UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN,
     };
-    use crate::chunking::set::{
+    use crate::set::{
         MAX_ONE_WAY_LINKED_SET_PAYLOAD_LENGTH, TWO_WAY_LINKED_SET_PAYLOAD_LENGTH,
     };
-    use crate::chunking::split_and_prepare_payloads;
+    use crate::split_and_prepare_payloads;
     use rand::{thread_rng, RngCore};
 
     #[test]
@@ -1003,17 +1003,17 @@ mod message_reconstructor {
 #[cfg(test)]
 mod message_reconstruction {
     use super::*;
-    use crate::chunking::split_and_prepare_payloads;
+    use crate::split_and_prepare_payloads;
     use rand::seq::SliceRandom;
     use rand::{thread_rng, RngCore};
 
     #[cfg(test)]
     mod single_set_split {
         use super::*;
-        use crate::chunking::fragment::{
+        use crate::fragment::{
             UNFRAGMENTED_PAYLOAD_MAX_LEN, UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN,
         };
-        use crate::chunking::set::MAX_UNLINKED_SET_PAYLOAD_LENGTH;
+        use crate::set::MAX_UNLINKED_SET_PAYLOAD_LENGTH;
 
         #[test]
         fn it_reconstructs_unfragmented_message() {
@@ -1224,7 +1224,7 @@ mod message_reconstruction {
     #[cfg(test)]
     mod multiple_sets_split {
         use super::*;
-        use crate::chunking::set::{
+        use crate::set::{
             MAX_ONE_WAY_LINKED_SET_PAYLOAD_LENGTH, TWO_WAY_LINKED_SET_PAYLOAD_LENGTH,
         };
 

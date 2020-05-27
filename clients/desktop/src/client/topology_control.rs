@@ -13,17 +13,32 @@
 // limitations under the License.
 
 use crate::built_info;
-use futures::lock::Mutex;
 use log::*;
 use nymsphinx::NodeAddressBytes;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time;
 use std::time::Duration;
 use tokio::runtime::Handle;
+use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::task::JoinHandle;
 use topology::{provider, NymTopology};
 
+// I'm extremely curious why compiler NEVER complained about lack of Debug here before
+#[derive(Debug)]
 struct TopologyAccessorInner<T: NymTopology>(Option<T>);
+
+// Since we got `Deref` here, it's crucial that `TopologyAccessorInner` NEVER
+// becomes public due to how much stuff it could potentially expose.
+// Any uses need to be very careful, because you might end up using something
+// you might not have expected.
+impl<T: NymTopology> Deref for TopologyAccessorInner<T> {
+    type Target = Option<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl<T: NymTopology> TopologyAccessorInner<T> {
     fn new() -> Self {
@@ -37,24 +52,32 @@ impl<T: NymTopology> TopologyAccessorInner<T> {
 
 #[derive(Clone, Debug)]
 pub(crate) struct TopologyAccessor<T: NymTopology> {
-    // TODO: this requires some actual benchmarking to determine if obtaining mutex is not going
-    // to cause some bottlenecking and whether perhaps RwLock would be better
-    inner: Arc<Mutex<TopologyAccessorInner<T>>>,
+    // `RwLock` *seems to* be the better approach for this as write access is only requested every
+    // few seconds, while reads are needed every single packet generated.
+    // However, proper benchmarks will be needed to determine if `RwLock` is indeed a better
+    // approach than a `Mutex`
+    inner: Arc<RwLock<TopologyAccessorInner<T>>>,
 }
 
 impl<T: NymTopology> TopologyAccessor<T> {
     pub(crate) fn new() -> Self {
         TopologyAccessor {
-            inner: Arc::new(Mutex::new(TopologyAccessorInner::new())),
+            inner: Arc::new(RwLock::new(TopologyAccessorInner::new())),
         }
     }
 
+    // TODO: I really don't like having `TopologyAccessorInner` in return type,
+    // but we can't return `T` because then we'd drop the read permit
+    async fn get_read_permit(&self) -> RwLockReadGuard<'_, TopologyAccessorInner<T>> {
+        self.inner.read().await
+    }
+
     async fn update_global_topology(&mut self, new_topology: Option<T>) {
-        self.inner.lock().await.update(new_topology);
+        self.inner.write().await.update(new_topology);
     }
 
     pub(crate) async fn get_gateway_socket_url(&self, id: &str) -> Option<String> {
-        match &self.inner.lock().await.0 {
+        match &self.inner.read().await.0 {
             None => None,
             Some(ref topology) => topology
                 .gateways()
@@ -67,7 +90,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
     // only used by the client at startup to get a slightly more reasonable error message
     // (currently displays as unused because healthchecker is disabled due to required changes)
     pub(crate) async fn is_routable(&self) -> bool {
-        match &self.inner.lock().await.0 {
+        match &self.inner.read().await.0 {
             None => false,
             Some(ref topology) => topology.can_construct_path_through(),
         }
@@ -75,7 +98,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
 
     pub(crate) async fn get_all_clients(&self) -> Option<Vec<provider::Client>> {
         // TODO: this will need to be modified to instead return pairs (provider, client)
-        match &self.inner.lock().await.0 {
+        match &self.inner.read().await.0 {
             None => None,
             Some(ref topology) => Some(
                 topology
@@ -93,7 +116,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
         gateway: &NodeAddressBytes,
     ) -> Option<Vec<nymsphinx::Node>> {
         let b58_address = gateway.to_base58_string();
-        let guard = self.inner.lock().await;
+        let guard = self.inner.read().await;
         let topology = guard.0.as_ref()?;
 
         let gateway = topology

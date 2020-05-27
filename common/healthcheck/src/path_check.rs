@@ -69,7 +69,7 @@ pub enum PathStatus {
 
 pub(crate) struct PathChecker {
     provider_clients: HashMap<[u8; 32], Option<ProviderClient>>,
-    mixnet_client: multi_tcp_client::Client,
+    mixnet_client: mixnet_client::Client,
     paths_status: HashMap<Vec<u8>, PathStatus>,
     our_destination: Destination,
     check_id: CheckId,
@@ -114,7 +114,7 @@ impl PathChecker {
         }
 
         // there's no reconnection allowed - if it fails, then it fails.
-        let mixnet_client_config = multi_tcp_client::Config::new(
+        let mixnet_client_config = mixnet_client::Config::new(
             Duration::from_secs(1_000_000_000),
             Duration::from_secs(1_000_000_000),
             connection_timeout,
@@ -122,7 +122,7 @@ impl PathChecker {
 
         PathChecker {
             provider_clients,
-            mixnet_client: multi_tcp_client::Client::new(mixnet_client_config),
+            mixnet_client: mixnet_client::Client::new(mixnet_client_config),
             our_destination: Destination::new(address, Default::default()),
             paths_status: HashMap::new(),
             check_id,
@@ -293,7 +293,7 @@ impl PathChecker {
 
         match self
             .mixnet_client
-            .send(first_node_address, packet.to_bytes(), true)
+            .send(first_node_address, packet, true)
             .await
         {
             Err(err) => {

@@ -20,6 +20,7 @@ serde = { version = "1.0.104", features = ["derive"] }
 sha2 = "0.8.1"
 sled = "0.31"
 tokio = { version = "0.2", features = ["full"] }
+tokio-util = { version = "0.3.1", features = ["codec"] }
 tokio-tungstenite = "0.10.1"
 
 # internal
@@ -27,7 +28,7 @@ config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
 directory-client = { path = "../common/client-libs/directory-client" }
 gateway-requests = { path = "gateway-requests" }
-multi-tcp-client = { path = "../common/client-libs/multi-tcp-client" }
+mixnet-client = { path = "../common/client-libs/mixnet-client" }
 nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
 

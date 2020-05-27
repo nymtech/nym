@@ -53,7 +53,7 @@ impl<'a> MixTrafficController<'static> {
         debug!("Got a mix_message for {:?}", mix_message.0);
         match self
             .gateway_client
-            .send_sphinx_packet(mix_message.0, mix_message.1.to_bytes())
+            .send_sphinx_packet(mix_message.0, mix_message.1)
             .await
         {
             Err(e) => error!("Failed to send sphinx packet to the gateway! - {:?}", e),

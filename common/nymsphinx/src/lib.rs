@@ -14,6 +14,8 @@
 
 pub mod addressing;
 pub mod chunking;
+pub mod framing;
+pub mod packets;
 pub mod utils;
 
 // Future consideration: currently in a lot of places, the payloads have randomised content
@@ -36,4 +38,5 @@ pub use sphinx::{
 
 // re-exporting this separately to remember to put special attention to below
 // modules/types/constants when refactoring sphinx crate itself
+// TODO: replace with sphinx::PublicKey once merged
 pub use sphinx::key;

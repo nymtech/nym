@@ -20,7 +20,7 @@ tokio = { version = "0.2", features = ["full"] }
 ## internal
 crypto = { path = "../crypto" }
 directory-client = { path = "../client-libs/directory-client" }
-multi-tcp-client = { path = "../client-libs/multi-tcp-client" }
+mixnet-client = { path = "../client-libs/mixnet-client" }
 nymsphinx = {path = "../nymsphinx" }
 topology = {path = "../topology" }
 

@@ -15,7 +15,7 @@
 use crate::auth_token::AuthToken;
 use crate::types::BinaryRequest::ForwardSphinx;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
-use nymsphinx::DestinationAddressBytes;
+use nymsphinx::{DestinationAddressBytes, SphinxPacket};
 use serde::{Deserialize, Serialize};
 use std::{
     convert::{TryFrom, TryInto},
@@ -28,6 +28,7 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 pub enum GatewayRequestsError {
     IncorrectlyEncodedAddress,
     RequestOfInvalidSize(usize, usize),
+    MalformedSphinxPacket,
 }
 
 // to use it as `std::error::Error`, and we don't want to just derive is because we want
@@ -42,6 +43,7 @@ impl fmt::Display for GatewayRequestsError {
                 "received request had invalid size. (actual: {}, expected: {})",
                 actual, expected
             ),
+            MalformedSphinxPacket => write!(f, "received sphinx packet was malformed"),
         }
     }
 }
@@ -149,7 +151,10 @@ impl TryFrom<String> for ServerResponse {
 }
 
 pub enum BinaryRequest {
-    ForwardSphinx { address: SocketAddr, data: Vec<u8> },
+    ForwardSphinx {
+        address: SocketAddr,
+        sphinx_packet: SphinxPacket,
+    },
 }
 
 impl BinaryRequest {
@@ -165,16 +170,24 @@ impl BinaryRequest {
                 nymsphinx::PACKET_SIZE,
             ))
         } else {
+            let sphinx_packet = match SphinxPacket::from_bytes(&raw_req[addr_offset..]) {
+                Ok(packet) => packet,
+                Err(_) => return Err(GatewayRequestsError::MalformedSphinxPacket),
+            };
+
             Ok(ForwardSphinx {
                 address: address.into(),
-                data: raw_req[addr_offset..].into(),
+                sphinx_packet,
             })
         }
     }
 
     pub fn into_bytes(self) -> Vec<u8> {
         match self {
-            BinaryRequest::ForwardSphinx { address, data } => {
+            BinaryRequest::ForwardSphinx {
+                address,
+                sphinx_packet,
+            } => {
                 // TODO: using intermediate `NymNodeRoutingAddress` here is just temporary, because
                 // it happens to do exactly what we needed, but we don't really want to be
                 // dependant on what it does
@@ -182,14 +195,17 @@ impl BinaryRequest {
                 wrapped_address
                     .as_bytes()
                     .into_iter()
-                    .chain(data.into_iter())
+                    .chain(sphinx_packet.to_bytes().into_iter())
                     .collect()
             }
         }
     }
 
-    pub fn new_forward_request(address: SocketAddr, data: Vec<u8>) -> BinaryRequest {
-        BinaryRequest::ForwardSphinx { address, data }
+    pub fn new_forward_request(address: SocketAddr, sphinx_packet: SphinxPacket) -> BinaryRequest {
+        BinaryRequest::ForwardSphinx {
+            address,
+            sphinx_packet,
+        }
     }
 }
 

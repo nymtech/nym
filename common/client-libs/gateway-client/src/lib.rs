@@ -17,7 +17,7 @@ use futures::{channel::mpsc, future::BoxFuture, FutureExt, SinkExt, StreamExt};
 use gateway_requests::auth_token::{AuthToken, AuthTokenConversionError};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
 use log::*;
-use nymsphinx::DestinationAddressBytes;
+use nymsphinx::{DestinationAddressBytes, SphinxPacket};
 use std::convert::TryFrom;
 use std::fmt::{self, Error, Formatter};
 use std::net::SocketAddr;
@@ -439,7 +439,7 @@ where
     pub async fn send_sphinx_packet(
         &mut self,
         address: SocketAddr,
-        packet: Vec<u8>,
+        packet: SphinxPacket,
     ) -> Result<(), GatewayClientError> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);

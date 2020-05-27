@@ -18,6 +18,7 @@ use crypto::encryption;
 use directory_client::presence::Topology;
 use futures::channel::mpsc;
 use log::*;
+use nymsphinx::SphinxPacket;
 use std::net::SocketAddr;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
@@ -71,7 +72,7 @@ impl MixNode {
     fn start_socket_listener(
         &self,
         metrics_reporter: metrics::MetricsReporter,
-        forwarding_channel: mpsc::UnboundedSender<(SocketAddr, Vec<u8>)>,
+        forwarding_channel: mpsc::UnboundedSender<(SocketAddr, SphinxPacket)>,
     ) {
         info!("Starting socket listener...");
         // this is the only location where our private key is going to be copied
@@ -87,7 +88,7 @@ impl MixNode {
         );
     }
 
-    fn start_packet_forwarder(&mut self) -> mpsc::UnboundedSender<(SocketAddr, Vec<u8>)> {
+    fn start_packet_forwarder(&mut self) -> mpsc::UnboundedSender<(SocketAddr, SphinxPacket)> {
         info!("Starting packet forwarder...");
         self.runtime
             .enter(|| {

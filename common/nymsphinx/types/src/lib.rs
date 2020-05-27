@@ -15,16 +15,13 @@
 // re-exporting types and constants available in sphinx
 pub use sphinx::{
     constants::{
-        self, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, MAXIMUM_PLAINTEXT_LENGTH,
-        MAX_PATH_LENGTH, NODE_ADDRESS_LENGTH,
+        self, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, MAX_PATH_LENGTH, NODE_ADDRESS_LENGTH,
     },
+    crypto::{public_key_from_bytes, PublicKey, SecretKey},
     header::{self, delays, delays::Delay, ProcessedHeader, SphinxHeader, HEADER_SIZE},
-    payload::Payload,
+    packet::builder::{self, DEFAULT_PAYLOAD_SIZE},
+    payload::{Payload, PAYLOAD_OVERHEAD_SIZE},
     route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier},
-    Error, ProcessedPacket, Result, SphinxPacket, PACKET_SIZE,
+    surb::{SURBMaterial, SURB},
+    Error, ProcessedPacket, Result, SphinxPacket,
 };
-
-// re-exporting this separately to remember to put special attention to below
-// modules/types/constants when refactoring sphinx crate itself
-// TODO: replace with sphinx::PublicKey once merged
-pub use sphinx::key;

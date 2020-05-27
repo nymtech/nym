@@ -17,7 +17,8 @@ use std::convert::TryInto;
 
 /// The entire marshaled `Fragment` can never be longer than the maximum length of the plaintext
 /// data we can put into a Sphinx packet.
-pub const MAXIMUM_FRAGMENT_LENGTH: usize = nymsphinx_types::constants::MAXIMUM_PLAINTEXT_LENGTH;
+pub const MAXIMUM_FRAGMENT_LENGTH: usize =
+    nymsphinx_types::DEFAULT_PAYLOAD_SIZE - nymsphinx_types::PAYLOAD_OVERHEAD_SIZE; // TEMP JUST TO COMPILE
 
 /// The minimum data overhead required for message fitting into a single `Fragment`. The single byte
 /// used to literally indicate "this message is not fragmented".

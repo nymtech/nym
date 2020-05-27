@@ -13,12 +13,13 @@
 // limitations under the License.
 
 use nymsphinx_types::header::HEADER_SIZE;
+use nymsphinx_types::PAYLOAD_OVERHEAD_SIZE;
 use std::convert::TryFrom;
 
 // it's up to the smart people to figure those values out : )
-const REGULAR_PACKET_SIZE: usize = 2 * 1024;
-const ACK_PACKET_SIZE: usize = 512;
-const EXTENDED_PACKET_SIZE: usize = 32 * 1024;
+const REGULAR_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 2 * 1024;
+const ACK_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 32;
+const EXTENDED_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 32 * 1024;
 
 pub struct InvalidPacketSize;
 
@@ -27,8 +28,6 @@ pub enum PacketSize {
     RegularPacket = 1,  // for example instant messaging use case
     ACKPacket = 2,      // for sending SURB-ACKs
     ExtendedPacket = 3, // for example for streaming fast and furious in uncompressed 10bit 4K HDR quality
-
-    PreSURBChanges = 0,
 }
 
 impl TryFrom<u8> for PacketSize {
@@ -39,7 +38,6 @@ impl TryFrom<u8> for PacketSize {
             _ if value == (PacketSize::RegularPacket as u8) => Ok(Self::RegularPacket),
             _ if value == (PacketSize::ACKPacket as u8) => Ok(Self::ACKPacket),
             _ if value == (PacketSize::ExtendedPacket as u8) => Ok(Self::ExtendedPacket),
-            _ if value == (PacketSize::PreSURBChanges as u8) => Ok(Self::PreSURBChanges),
             _ => Err(InvalidPacketSize),
         }
     }
@@ -51,12 +49,11 @@ impl PacketSize {
             PacketSize::RegularPacket => REGULAR_PACKET_SIZE,
             PacketSize::ACKPacket => ACK_PACKET_SIZE,
             PacketSize::ExtendedPacket => EXTENDED_PACKET_SIZE,
-            PacketSize::PreSURBChanges => nymsphinx_types::PACKET_SIZE,
         }
     }
 
     pub fn plaintext_size(&self) -> usize {
-        self.size() - HEADER_SIZE // once merged also remove PAYLOAD OVERHEAD
+        self.size() - HEADER_SIZE - PAYLOAD_OVERHEAD_SIZE
     }
 
     pub fn get_type(size: usize) -> std::result::Result<Self, InvalidPacketSize> {
@@ -66,8 +63,6 @@ impl PacketSize {
             Ok(PacketSize::ACKPacket)
         } else if PacketSize::ExtendedPacket.size() == size {
             Ok(PacketSize::ExtendedPacket)
-        } else if PacketSize::PreSURBChanges.size() == size {
-            Ok(PacketSize::PreSURBChanges)
         } else {
             Err(InvalidPacketSize)
         }

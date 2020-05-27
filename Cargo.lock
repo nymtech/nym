@@ -1830,6 +1830,7 @@ dependencies = [
  "log 0.4.8",
  "nymsphinx-types",
  "rand 0.7.3",
+ "topology",
 ]
 
 [[package]]
@@ -2793,7 +2794,7 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=fcd17932acbd21a76c42a4bf2a42b9f8668f7e1f#fcd17932acbd21a76c42a4bf2a42b9f8668f7e1f"
+source = "git+https://github.com/nymtech/sphinx?rev=6f652d5f9baab7ece1f31702b2a6b7bc754dfccf#6f652d5f9baab7ece1f31702b2a6b7bc754dfccf"
 dependencies = [
  "aes-ctr",
  "arrayref",
@@ -3168,7 +3169,8 @@ dependencies = [
  "futures 0.3.4",
  "itertools",
  "log 0.4.8",
- "nymsphinx",
+ "nymsphinx-addressing",
+ "nymsphinx-types",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",

@@ -159,46 +159,49 @@ pub enum BinaryRequest {
 
 impl BinaryRequest {
     pub fn try_from_bytes(raw_req: &[u8]) -> Result<Self, GatewayRequestsError> {
-        // right now there's only a single option possible which significantly simplifies the logic
-        // if we decided to allow for more 'binary' messages, the API wouldn't need to change
-        let address = NymNodeRoutingAddress::try_from_bytes(&raw_req)?;
-        let addr_offset = address.bytes_min_len();
-
-        if raw_req[addr_offset..].len() != nymsphinx::PACKET_SIZE {
-            Err(GatewayRequestsError::RequestOfInvalidSize(
-                raw_req[addr_offset..].len(),
-                nymsphinx::PACKET_SIZE,
-            ))
-        } else {
-            let sphinx_packet = match SphinxPacket::from_bytes(&raw_req[addr_offset..]) {
-                Ok(packet) => packet,
-                Err(_) => return Err(GatewayRequestsError::MalformedSphinxPacket),
-            };
-
-            Ok(ForwardSphinx {
-                address: address.into(),
-                sphinx_packet,
-            })
-        }
+        todo!("this will require a lot of changes due to ACKs")
+        // // right now there's only a single option possible which significantly simplifies the logic
+        // // if we decided to allow for more 'binary' messages, the API wouldn't need to change
+        // let address = NymNodeRoutingAddress::try_from_bytes(&raw_req)?;
+        // let addr_offset = address.bytes_min_len();
+        //
+        // if raw_req[addr_offset..].len() != nymsphinx::PACKET_SIZE {
+        //     Err(GatewayRequestsError::RequestOfInvalidSize(
+        //         raw_req[addr_offset..].len(),
+        //         nymsphinx::PACKET_SIZE,
+        //     ))
+        // } else {
+        //     let sphinx_packet = match SphinxPacket::from_bytes(&raw_req[addr_offset..]) {
+        //         Ok(packet) => packet,
+        //         Err(_) => return Err(GatewayRequestsError::MalformedSphinxPacket),
+        //     };
+        //
+        //     Ok(ForwardSphinx {
+        //         address: address.into(),
+        //         sphinx_packet,
+        //     })
+        // }
     }
 
     pub fn into_bytes(self) -> Vec<u8> {
-        match self {
-            BinaryRequest::ForwardSphinx {
-                address,
-                sphinx_packet,
-            } => {
-                // TODO: using intermediate `NymNodeRoutingAddress` here is just temporary, because
-                // it happens to do exactly what we needed, but we don't really want to be
-                // dependant on what it does
-                let wrapped_address = NymNodeRoutingAddress::from(address);
-                wrapped_address
-                    .as_bytes()
-                    .into_iter()
-                    .chain(sphinx_packet.to_bytes().into_iter())
-                    .collect()
-            }
-        }
+        todo!("this will require a lot of changes due to ACKs")
+        //
+        // match self {
+        //     BinaryRequest::ForwardSphinx {
+        //         address,
+        //         sphinx_packet,
+        //     } => {
+        //         // TODO: using intermediate `NymNodeRoutingAddress` here is just temporary, because
+        //         // it happens to do exactly what we needed, but we don't really want to be
+        //         // dependant on what it does
+        //         let wrapped_address = NymNodeRoutingAddress::from(address);
+        //         wrapped_address
+        //             .as_bytes()
+        //             .into_iter()
+        //             .chain(sphinx_packet.to_bytes().into_iter())
+        //             .collect()
+        //     }
+        // }
     }
 
     pub fn new_forward_request(address: SocketAddr, sphinx_packet: SphinxPacket) -> BinaryRequest {

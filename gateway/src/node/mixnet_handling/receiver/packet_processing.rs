@@ -169,9 +169,8 @@ impl PacketProcessor {
             Ok(ProcessedPacket::ProcessedPacketFinalHop(client_address, _surb_id, payload)) => {
                 // in our current design, we do not care about the 'surb_id' in the header
                 // as it will always be empty anyway
-                let (payload_destination, message) = payload
-                    .try_recover_destination_and_plaintext()
-                    .ok_or_else(|| MixProcessingError::InvalidPayload)?;
+                let (payload_destination, message) =
+                    payload.try_recover_destination_and_plaintext()?;
                 if client_address != payload_destination {
                     return Err(MixProcessingError::NonMatchingRecipient);
                 }

@@ -15,6 +15,7 @@
 use crate::set::split_into_sets;
 use nymsphinx_types::SphinxPacket;
 use packet_sizes::PacketSize;
+use topology::NymTopology;
 
 pub mod fragment;
 pub mod packet_sizes;
@@ -105,15 +106,15 @@ impl MessageChunker {
 
     pub fn attach_reply_surbs() {}
 
-    // // while we could have gotten around by not passing topology in the previous implementation,
-    // // it's really difficult to not do it here, as we need to construct the SURB-ACK and later the
-    // // reply-SURB. If we let it for the callee, it would have introduced a lot of extra complexity
-    // pub fn split_and_prepare_payloads<T: NymTopology>(
-    //     message: &[u8],
-    //     topology: &T,
-    // ) -> Vec<SphinxPacket> {
-    //     todo!()
-    // }
+    // while we could have gotten around by not passing topology in the previous implementation,
+    // it's really difficult to not do it here, as we need to construct the SURB-ACK and later the
+    // reply-SURB. If we let it for the callee, it would have introduced a lot of extra complexity
+    pub fn split_message<T: NymTopology>(
+        message: &[u8],
+        topology: &T, // TODO: see what happens if we change `&T` to just `T`
+    ) -> Vec<SphinxPacket> {
+        todo!()
+    }
 }
 
 impl Default for MessageChunker {

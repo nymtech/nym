@@ -69,7 +69,7 @@ pub fn encapsulate_message_route(
     let delays = delays::generate_from_average_duration(route.len(), average_delay);
 
     // build the packet
-    let packet = SphinxPacket::new(message, &route[..], &destination, &delays, None)?;
+    let packet = SphinxPacket::new(message, &route[..], &destination, &delays)?;
 
     let first_node_address =
         NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone())?;

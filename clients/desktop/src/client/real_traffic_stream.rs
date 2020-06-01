@@ -177,7 +177,7 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
         // we should set initial delay only when we actually start the stream
         self.next_delay = time::delay_for(poisson::sample(self.average_message_sending_delay));
 
-        info!("starting out queue controller");
+        info!("Starting out queue controller...");
         while let Some(next_message) = self.next().await {
             self.on_message(next_message).await;
         }

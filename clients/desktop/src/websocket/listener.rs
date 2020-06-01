@@ -106,7 +106,7 @@ impl Listener {
         handler: Handler<T>,
     ) -> JoinHandle<()> {
         info!(
-            "The websocket listener will try to run on {:?}",
+            "Running websocket on {:?}",
             self.address.to_string()
         );
 

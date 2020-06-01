@@ -5,7 +5,7 @@ opt-level = "s"
 [workspace]
 
 members = [
-    "clients/desktop",
+    "clients/native",
     "clients/webassembly",
     "common/client-libs/directory-client",
     "common/client-libs/gateway-client",

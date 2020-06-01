@@ -128,7 +128,7 @@ impl NymClient {
         query_receiver: ReceivedBufferRequestReceiver,
         sphinx_receiver: SphinxPacketReceiver,
     ) {
-        info!("Starting 'received messages buffer controller'...");
+        info!("Starting received messages buffer controller...");
         ReceivedMessagesBufferController::new(query_receiver, sphinx_receiver)
             .start(self.runtime.handle())
     }
@@ -165,7 +165,7 @@ impl NymClient {
 
         // TODO: if we didn't have an auth_token initially, save it to config or something?
         info!(
-            "Performed initial authentication and our auth token is {:?}",
+            "Performed initial authentication. Auth token is {:?}",
             auth_token.to_base58_string()
         );
 
@@ -248,7 +248,7 @@ impl NymClient {
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
     ) {
-        info!("Starting 'websocket listener'...");
+        info!("Starting websocket listener...");
 
         let websocket_handler = websocket::Handler::new(
             msg_input,

@@ -7,6 +7,7 @@ self_address_request = json.dumps({
     "type": "selfAddress"
 })
 
+
 async def send_file():
     uri = "ws://localhost:1977"
     async with websockets.connect(uri) as websocket:

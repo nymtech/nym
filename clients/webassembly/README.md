@@ -1,12 +1,12 @@
-## Nym Sphinx in WebAssembly
+# Nym Sphinx webassembly client
 
-## About
+Produces layer-encrypted Sphinx packets for use with Nym mixnets. 
 
-This is an npm package which allows JavaScript programmers (or anyone else who can use WebAssembly in their applications) to produce layer-encrypted [Sphinx](http://www0.cs.ucl.ac.uk/staff/G.Danezis/papers/sphinx-eprint.pdf) packets for use with [Nym](https://nymtech.net/docs) mixnets. It's written in Rust and compiled to WebAssembly.
-
-Sphinx packets are designed to ensure the privacy of information in transit, even when the adversary is able to monitor the network in its entirety. When used with a mixnet, both content (what you said) and metadata (who you said it to, when you said it) are protected.
+[Sphinx](http://www0.cs.ucl.ac.uk/staff/G.Danezis/papers/sphinx-eprint.pdf) packets ensure the privacy of information in transit, even when the adversary is able to monitor the network in its entirety. When used with a mixnet, both content (what you said) and metadata (who you said it to, when you said it) are protected.
 
 This helps browser-based and mobile applications get stronger privacy, in a way that wasn't previously possible.
+
+This client is part of the [Nym](https://nymtech.net/docs) project. It's written in Rust and compiled to WebAssembly.
 
 ## Security Status 
 

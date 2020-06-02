@@ -1667,7 +1667,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "0.7.0-dev"
+version = "0.7.0"
 dependencies = [
  "bs58",
  "built",
@@ -1717,7 +1717,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "0.7.0-dev"
+version = "0.7.0"
 dependencies = [
  "built",
  "clap",
@@ -1747,7 +1747,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "0.7.0-dev"
+version = "0.7.0"
 dependencies = [
  "bs58",
  "built",
@@ -1773,7 +1773,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator"
-version = "0.7.0-dev"
+version = "0.7.0"
 dependencies = [
  "abci",
  "bodyparser",

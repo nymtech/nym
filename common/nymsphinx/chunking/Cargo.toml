@@ -8,7 +8,12 @@ edition = "2018"
 
 [dependencies]
 log = "0.4.8"
+
+# TODO: needed?
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 
-nymsphinx-types = { path = "../types"}
+nymsphinx-acknowledgements = { path = "../acknowledgements" }
+nymsphinx-addressing = { path = "../addressing" }
+nymsphinx-params = { path = "../params" }
+nymsphinx-types = { path = "../types" }
 topology = { path = "../../topology" }

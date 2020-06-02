@@ -15,11 +15,6 @@
 use crate::ChunkingError;
 use std::convert::TryInto;
 
-/// The entire marshaled `Fragment` can never be longer than the maximum length of the plaintext
-/// data we can put into a Sphinx packet.
-pub const MAXIMUM_FRAGMENT_LENGTH: usize =
-    nymsphinx_types::DEFAULT_PAYLOAD_SIZE - nymsphinx_types::PAYLOAD_OVERHEAD_SIZE; // TEMP JUST TO COMPILE
-
 /// The minimum data overhead required for message fitting into a single `Fragment`. The single byte
 /// used to literally indicate "this message is not fragmented".
 pub const UNFRAGMENTED_HEADER_LEN: usize = 1;
@@ -40,28 +35,63 @@ pub const LINKED_FRAGMENTED_HEADER_LEN: usize = 10;
 
 /// Maximum size of payload of each fragment is always the maximum amount of plaintext data
 /// we can put into a sphinx packet minus length of respective fragment header.
-pub const UNFRAGMENTED_PAYLOAD_MAX_LEN: usize = MAXIMUM_FRAGMENT_LENGTH - UNFRAGMENTED_HEADER_LEN;
+pub const fn unfragmented_payload_max_len(max_plaintext_size: usize) -> usize {
+    max_plaintext_size - UNFRAGMENTED_HEADER_LEN
+}
 
 /// Maximum size of payload of each fragment is always the maximum amount of plaintext data
 /// we can put into a sphinx packet minus length of respective fragment header.
-pub const UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN: usize =
-    MAXIMUM_FRAGMENT_LENGTH - UNLINKED_FRAGMENTED_HEADER_LEN;
+pub const fn unlinked_fragmented_payload_max_len(max_plaintext_size: usize) -> usize {
+    max_plaintext_size - UNLINKED_FRAGMENTED_HEADER_LEN
+}
 
 /// Maximum size of payload of each fragment is always the maximum amount of plaintext data
 /// we can put into a sphinx packet minus length of respective fragment header.
-pub const LINKED_FRAGMENTED_PAYLOAD_MAX_LEN: usize =
-    MAXIMUM_FRAGMENT_LENGTH - LINKED_FRAGMENTED_HEADER_LEN;
+pub const fn linked_fragmented_payload_max_len(max_plaintext_size: usize) -> usize {
+    max_plaintext_size - LINKED_FRAGMENTED_HEADER_LEN
+}
 
 /// Identifier to uniquely identify a fragment. It represents 31bit ID of given `FragmentSet`
 /// and u8 position of the `Fragment` in the set.
-pub type FragmentIdentifier = (i32, u8);
+#[derive(Debug, Hash, Eq, PartialEq)]
+pub struct FragmentIdentifier {
+    set_id: i32,
+    fragment_position: u8,
+}
+
+impl FragmentIdentifier {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.set_id
+            .to_be_bytes()
+            .iter()
+            .cloned()
+            .chain(std::iter::once(self.fragment_position))
+            .collect()
+    }
+
+    pub fn try_from_bytes(b: &[u8]) -> Result<Self, ChunkingError> {
+        if b.len() != 5 {
+            return Err(ChunkingError::MalformedFragmentIdentifier);
+        }
+
+        let set_id = i32::from_be_bytes([b[0], b[1], b[2], b[3]]);
+        if set_id < 0 {
+            return Err(ChunkingError::MalformedFragmentIdentifier);
+        }
+
+        Ok(FragmentIdentifier {
+            set_id,
+            fragment_position: b[4],
+        })
+    }
+}
 
 /// The basic unit of division of underlying bytes message sent through the mix network.
 /// Each `Fragment` after being marshaled is guaranteed to fit into a single sphinx packet.
 /// The `Fragment` itself consists of part, or whole of, message to be sent as well as additional
 /// header used to reconstruct the message after being received.
 #[derive(PartialEq, Clone, Debug)]
-pub(crate) struct Fragment {
+pub struct Fragment {
     header: FragmentHeader,
     payload: Vec<u8>,
 }
@@ -77,6 +107,7 @@ impl Fragment {
         current_fragment: u8,
         previous_fragments_set_id: Option<i32>,
         next_fragments_set_id: Option<i32>,
+        max_plaintext_size: usize,
     ) -> Result<Self, ChunkingError> {
         let header = FragmentHeader::try_new_fragmented(
             id,
@@ -90,25 +121,25 @@ impl Fragment {
         // and if it's the only one or the last one in the set (then lower bound is removed)
         if previous_fragments_set_id.is_some() {
             if total_fragments > 1 {
-                if payload.len() != LINKED_FRAGMENTED_PAYLOAD_MAX_LEN {
+                if payload.len() != linked_fragmented_payload_max_len(max_plaintext_size) {
                     return Err(ChunkingError::InvalidPayloadLengthError);
                 }
             } else {
-                if payload.len() > LINKED_FRAGMENTED_PAYLOAD_MAX_LEN {
+                if payload.len() > linked_fragmented_payload_max_len(max_plaintext_size) {
                     return Err(ChunkingError::InvalidPayloadLengthError);
                 }
             }
         } else if next_fragments_set_id.is_some() {
-            if payload.len() != LINKED_FRAGMENTED_PAYLOAD_MAX_LEN {
+            if payload.len() != linked_fragmented_payload_max_len(max_plaintext_size) {
                 return Err(ChunkingError::InvalidPayloadLengthError);
             }
         } else {
             if total_fragments != current_fragment {
-                if payload.len() != UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN {
+                if payload.len() != unlinked_fragmented_payload_max_len(max_plaintext_size) {
                     return Err(ChunkingError::InvalidPayloadLengthError);
                 }
             } else {
-                if payload.len() > UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN {
+                if payload.len() > unlinked_fragmented_payload_max_len(max_plaintext_size) {
                     return Err(ChunkingError::InvalidPayloadLengthError);
                 }
             }
@@ -120,22 +151,13 @@ impl Fragment {
         })
     }
 
-    pub(crate) fn unfragmented_payload_max_len(payload_size: usize) -> usize {
-        todo!()
-    }
-
-    pub(crate) fn unlinked_fragmented_payload_max_len(payload_size: usize) -> usize {
-        todo!()
-    }
-
-    pub(crate) fn linked_fragmented_payload_max_len(payload_size: usize) -> usize {
-        todo!()
-    }
-
     /// The most efficient way of representing underlying message incurring the least data overhead
     /// for as long as the message can fit into a single, unfragmented, `Fragment`.
-    pub(crate) fn try_new_unfragmented(payload: &[u8]) -> Result<Self, ChunkingError> {
-        if payload.len() > UNFRAGMENTED_PAYLOAD_MAX_LEN {
+    pub(crate) fn try_new_unfragmented(
+        payload: &[u8],
+        max_plaintext_size: usize,
+    ) -> Result<Self, ChunkingError> {
+        if payload.len() > unfragmented_payload_max_len(max_plaintext_size) {
             Err(ChunkingError::InvalidPayloadLengthError)
         } else {
             Ok(Fragment {
@@ -155,8 +177,11 @@ impl Fragment {
     }
 
     /// Derive identifier unique for this particular fragment
-    pub(crate) fn fragment_identifier(&self) -> FragmentIdentifier {
-        (self.header.id, self.header.current_fragment)
+    pub fn fragment_identifier(&self) -> FragmentIdentifier {
+        FragmentIdentifier {
+            set_id: self.header.id,
+            fragment_position: self.header.current_fragment,
+        }
     }
 
     /// Extracts id of this `Fragment`.
@@ -185,7 +210,7 @@ impl Fragment {
         self.header.next_fragments_set_id
     }
 
-    /// Consumes `Self` to obtain payload (i.e. part of original message) associated with this
+    /// Consumes `self` to obtain payload (i.e. part of original message) associated with this
     /// `Fragment`.
     pub(crate) fn extract_payload(self) -> Vec<u8> {
         self.payload
@@ -197,28 +222,8 @@ impl Fragment {
     pub(crate) fn try_from_bytes(b: &[u8]) -> Result<Self, ChunkingError> {
         let (header, n) = FragmentHeader::try_from_bytes(b)?;
 
-        // determine what's our expected payload size bound and whether the message fits in this
-        let is_payload_in_range = if header.is_fragmented {
-            if header.is_linked() {
-                if header.is_final() {
-                    (b.len() - n) <= LINKED_FRAGMENTED_PAYLOAD_MAX_LEN
-                } else {
-                    (b.len() - n) == LINKED_FRAGMENTED_PAYLOAD_MAX_LEN
-                }
-            } else {
-                if header.is_final() {
-                    (b.len() - n) <= UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN
-                } else {
-                    (b.len() - n) == UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN
-                }
-            }
-        } else {
-            (b.len() - n) <= UNFRAGMENTED_PAYLOAD_MAX_LEN
-        };
-
-        if !is_payload_in_range {
-            return Err(ChunkingError::MalformedFragmentData);
-        }
+        // there's no sane way to decide if payload has correct range anymore as
+        // it's no longer fixed
 
         Ok(Fragment {
             header,
@@ -254,9 +259,9 @@ impl Fragment {
 /// where the set is linked to either preceding data (TF == 1) or proceeding data (TF == CF == 255)
 /// '1'bit || 31-bit ID || 1-byte TF || 1 byte CF || '1'bit || 31-bit LID
 ///
-/// And hence for messages smaller than sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH,
+/// And hence for messages smaller than `max_plaintext_size`,
 /// there is only a single byte of overhead;
-/// for messages larger than sphinx::constants::MAXIMUM_PLAINTEXT_LENGTH but small enough
+/// for messages larger than `max_plaintext_size` but small enough
 /// to avoid set division (which happens if message has to be fragmented into more than 255 fragments)
 /// there is 7 bytes of overhead inside each sphinx packet sent
 /// and finally for the longest messages, without upper bound, there is usually also only 7 bytes
@@ -472,13 +477,18 @@ impl FragmentHeader {
 #[cfg(test)]
 mod fragment {
     use super::*;
+    use nymsphinx_params::packet_sizes::PacketSize;
     use rand::{thread_rng, RngCore};
+
+    fn max_plaintext_size() -> usize {
+        PacketSize::default().plaintext_size() - PacketSize::ACKPacket.size()
+    }
 
     #[test]
     fn can_be_converted_to_and_from_bytes_for_unfragmented_payload() {
         let mut rng = thread_rng();
 
-        let mlen = UNFRAGMENTED_PAYLOAD_MAX_LEN - 20;
+        let mlen = unfragmented_payload_max_len(max_plaintext_size()) - 20;
         let mut valid_message = vec![0u8; mlen];
         rng.fill_bytes(&mut valid_message);
 
@@ -502,7 +512,7 @@ mod fragment {
             Fragment::try_from_bytes(&packet_bytes).unwrap()
         );
 
-        let mut full_message = vec![0u8; UNFRAGMENTED_PAYLOAD_MAX_LEN];
+        let mut full_message = vec![0u8; unfragmented_payload_max_len(max_plaintext_size())];
         rng.fill_bytes(&mut full_message);
 
         let full_unfragmented_packet = Fragment {
@@ -517,30 +527,10 @@ mod fragment {
     }
 
     #[test]
-    fn conversion_from_bytes_fails_for_too_long_unfragmented_payload() {
-        let mut rng = thread_rng();
-
-        let mlen = UNFRAGMENTED_PAYLOAD_MAX_LEN + 1;
-        let mut message = vec![0u8; mlen];
-        rng.fill_bytes(&mut message);
-
-        let packet = Fragment {
-            header: FragmentHeader::new_unfragmented(),
-            payload: message,
-        };
-
-        let packet_bytes = packet.into_bytes();
-        assert_eq!(
-            Fragment::try_from_bytes(&packet_bytes),
-            Err(ChunkingError::MalformedFragmentData)
-        );
-    }
-
-    #[test]
     fn can_be_converted_to_and_from_bytes_for_unlinked_fragmented_payload() {
         let mut rng = thread_rng();
 
-        let mut msg = vec![0u8; UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN];
+        let mut msg = vec![0u8; unlinked_fragmented_payload_max_len(max_plaintext_size())];
         rng.fill_bytes(&mut msg);
 
         let non_last_packet = Fragment {
@@ -553,7 +543,7 @@ mod fragment {
             Fragment::try_from_bytes(&packet_bytes).unwrap()
         );
 
-        let mut msg = vec![0u8; UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN];
+        let mut msg = vec![0u8; unlinked_fragmented_payload_max_len(max_plaintext_size())];
         rng.fill_bytes(&mut msg);
 
         let last_full_packet = Fragment {
@@ -566,7 +556,7 @@ mod fragment {
             Fragment::try_from_bytes(&packet_bytes).unwrap()
         );
 
-        let mut msg = vec![0u8; UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 20];
+        let mut msg = vec![0u8; unlinked_fragmented_payload_max_len(max_plaintext_size()) - 20];
         rng.fill_bytes(&mut msg);
 
         let last_non_full_packet = Fragment {
@@ -574,6 +564,7 @@ mod fragment {
             payload: msg,
         };
         let packet_bytes = last_non_full_packet.clone().into_bytes();
+
         assert_eq!(
             last_non_full_packet,
             Fragment::try_from_bytes(&packet_bytes).unwrap()
@@ -581,50 +572,10 @@ mod fragment {
     }
 
     #[test]
-    fn conversion_from_bytes_fails_for_too_long_unlinked_fragmented_payload() {
-        let mut rng = thread_rng();
-
-        let mlen = UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN + 1;
-        let mut message = vec![0u8; mlen];
-        rng.fill_bytes(&mut message);
-
-        let packet = Fragment {
-            header: FragmentHeader::try_new_fragmented(12345, 10, 5, None, None).unwrap(),
-            payload: message,
-        };
-
-        let packet_bytes = packet.into_bytes();
-        assert_eq!(
-            Fragment::try_from_bytes(&packet_bytes),
-            Err(ChunkingError::MalformedFragmentData)
-        );
-    }
-
-    #[test]
-    fn conversion_from_bytes_fails_for_too_short_fragmented_payload_if_not_last() {
-        let mut rng = thread_rng();
-
-        let mlen = UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 1;
-        let mut message = vec![0u8; mlen];
-        rng.fill_bytes(&mut message);
-
-        let packet = Fragment {
-            header: FragmentHeader::try_new_fragmented(12345, 10, 5, None, None).unwrap(),
-            payload: message,
-        };
-
-        let packet_bytes = packet.into_bytes();
-        assert_eq!(
-            Fragment::try_from_bytes(&packet_bytes),
-            Err(ChunkingError::MalformedFragmentData)
-        );
-    }
-
-    #[test]
     fn can_be_converted_to_and_from_bytes_for_pre_linked_fragmented_payload() {
         let mut rng = thread_rng();
 
-        let mut msg = vec![0u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN];
+        let mut msg = vec![0u8; linked_fragmented_payload_max_len(max_plaintext_size())];
         rng.fill_bytes(&mut msg);
 
         let fragment = Fragment {
@@ -634,7 +585,7 @@ mod fragment {
         let packet_bytes = fragment.clone().into_bytes();
         assert_eq!(fragment, Fragment::try_from_bytes(&packet_bytes).unwrap());
 
-        let mut msg = vec![0u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 20];
+        let mut msg = vec![0u8; linked_fragmented_payload_max_len(max_plaintext_size()) - 20];
         rng.fill_bytes(&mut msg);
 
         let fragment = Fragment {
@@ -642,34 +593,17 @@ mod fragment {
             payload: msg,
         };
         let packet_bytes = fragment.clone().into_bytes();
+        // TODO:
+        // TODO:
+        // packet_bytes len assertion
         assert_eq!(fragment, Fragment::try_from_bytes(&packet_bytes).unwrap());
-    }
-
-    #[test]
-    fn conversion_from_bytes_fails_for_too_long_pre_linked_fragmented_payload() {
-        let mut rng = thread_rng();
-
-        let mlen = LINKED_FRAGMENTED_PAYLOAD_MAX_LEN + 1;
-        let mut message = vec![0u8; mlen];
-        rng.fill_bytes(&mut message);
-
-        let packet = Fragment {
-            header: FragmentHeader::try_new_fragmented(12345, 10, 1, Some(1234), None).unwrap(),
-            payload: message,
-        };
-
-        let packet_bytes = packet.into_bytes();
-        assert_eq!(
-            Fragment::try_from_bytes(&packet_bytes),
-            Err(ChunkingError::MalformedFragmentData)
-        );
     }
 
     #[test]
     fn can_be_converted_to_and_from_bytes_for_post_linked_fragmented_payload() {
         let mut rng = thread_rng();
 
-        let mut msg = vec![0u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN];
+        let mut msg = vec![0u8; linked_fragmented_payload_max_len(max_plaintext_size())];
         rng.fill_bytes(&mut msg);
 
         let fragment = Fragment {
@@ -686,7 +620,7 @@ mod fragment {
         let packet_bytes = fragment.clone().into_bytes();
         assert_eq!(fragment, Fragment::try_from_bytes(&packet_bytes).unwrap());
 
-        let mut msg = vec![0u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 20];
+        let mut msg = vec![0u8; linked_fragmented_payload_max_len(max_plaintext_size()) - 20];
         rng.fill_bytes(&mut msg);
 
         let fragment = Fragment {
@@ -701,112 +635,261 @@ mod fragment {
             payload: msg,
         };
         let packet_bytes = fragment.clone().into_bytes();
+        // TODO:
+        // TODO:
+        // packet_bytes len assertion
+
         assert_eq!(fragment, Fragment::try_from_bytes(&packet_bytes).unwrap());
-    }
-
-    #[test]
-    fn conversion_from_bytes_fails_for_too_long_post_linked_fragmented_payload() {
-        let mut rng = thread_rng();
-
-        let mlen = LINKED_FRAGMENTED_PAYLOAD_MAX_LEN + 1;
-        let mut message = vec![0u8; mlen];
-        rng.fill_bytes(&mut message);
-
-        let packet = Fragment {
-            header: FragmentHeader::try_new_fragmented(
-                12345,
-                u8::max_value(),
-                u8::max_value(),
-                None,
-                Some(1234),
-            )
-            .unwrap(),
-            payload: message,
-        };
-
-        let packet_bytes = packet.into_bytes();
-        assert_eq!(
-            Fragment::try_from_bytes(&packet_bytes),
-            Err(ChunkingError::MalformedFragmentData)
-        );
     }
 
     #[test]
     fn unfragmented_fragment_can_be_created_with_payload_of_valid_length() {
-        let payload = [1u8; UNFRAGMENTED_PAYLOAD_MAX_LEN];
-        assert!(Fragment::try_new_unfragmented(&payload).is_ok());
+        let payload = vec![1u8; unfragmented_payload_max_len(max_plaintext_size())];
+        assert!(Fragment::try_new_unfragmented(&payload, max_plaintext_size()).is_ok());
 
-        let payload = [1u8; UNFRAGMENTED_PAYLOAD_MAX_LEN - 1];
-        assert!(Fragment::try_new_unfragmented(&payload).is_ok());
+        let payload = vec![1u8; unfragmented_payload_max_len(max_plaintext_size()) - 1];
+        assert!(Fragment::try_new_unfragmented(&payload, max_plaintext_size()).is_ok());
 
-        let payload = [1u8; UNFRAGMENTED_PAYLOAD_MAX_LEN - 20];
-        assert!(Fragment::try_new_unfragmented(&payload).is_ok());
+        let payload = vec![1u8; unfragmented_payload_max_len(max_plaintext_size()) - 20];
+        assert!(Fragment::try_new_unfragmented(&payload, max_plaintext_size()).is_ok());
     }
 
     #[test]
     fn unfragmented_fragment_returns_error_when_created_with_payload_of_invalid_length() {
-        let payload = [1u8; UNFRAGMENTED_PAYLOAD_MAX_LEN + 1];
-        assert!(Fragment::try_new_unfragmented(&payload).is_err());
+        let payload = vec![1u8; unfragmented_payload_max_len(max_plaintext_size()) + 1];
+        assert!(Fragment::try_new_unfragmented(&payload, max_plaintext_size()).is_err());
 
-        let payload = [1u8; UNFRAGMENTED_PAYLOAD_MAX_LEN + 20];
-        assert!(Fragment::try_new_unfragmented(&payload).is_err());
+        let payload = vec![1u8; unfragmented_payload_max_len(max_plaintext_size()) + 20];
+        assert!(Fragment::try_new_unfragmented(&payload, max_plaintext_size()).is_err());
     }
 
     #[test]
     fn unlinked_fragment_can_be_created_with_payload_of_valid_length() {
         let id = 12345;
-        let full_payload = [1u8; UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN];
-        let non_full_payload = [1u8; UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 1];
-        let non_full_payload2 = [1u8; UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 20];
+        let full_payload = vec![1u8; unlinked_fragmented_payload_max_len(max_plaintext_size())];
+        let non_full_payload =
+            vec![1u8; unlinked_fragmented_payload_max_len(max_plaintext_size()) - 1];
+        let non_full_payload2 =
+            vec![1u8; unlinked_fragmented_payload_max_len(max_plaintext_size()) - 20];
 
-        assert!(Fragment::try_new_fragmented(&full_payload, id, 10, 1, None, None).is_ok());
-        assert!(Fragment::try_new_fragmented(&full_payload, id, 10, 5, None, None).is_ok());
-        assert!(Fragment::try_new_fragmented(&full_payload, id, 10, 10, None, None).is_ok());
-        assert!(Fragment::try_new_fragmented(&full_payload, id, 1, 1, None, None).is_ok());
+        assert!(Fragment::try_new_fragmented(
+            &full_payload,
+            id,
+            10,
+            1,
+            None,
+            None,
+            max_plaintext_size()
+        )
+        .is_ok());
+        assert!(Fragment::try_new_fragmented(
+            &full_payload,
+            id,
+            10,
+            5,
+            None,
+            None,
+            max_plaintext_size()
+        )
+        .is_ok());
+        assert!(Fragment::try_new_fragmented(
+            &full_payload,
+            id,
+            10,
+            10,
+            None,
+            None,
+            max_plaintext_size()
+        )
+        .is_ok());
+        assert!(Fragment::try_new_fragmented(
+            &full_payload,
+            id,
+            1,
+            1,
+            None,
+            None,
+            max_plaintext_size()
+        )
+        .is_ok());
 
-        assert!(Fragment::try_new_fragmented(&non_full_payload, id, 10, 10, None, None).is_ok());
-        assert!(Fragment::try_new_fragmented(&non_full_payload, id, 1, 1, None, None).is_ok());
+        assert!(Fragment::try_new_fragmented(
+            &non_full_payload,
+            id,
+            10,
+            10,
+            None,
+            None,
+            max_plaintext_size()
+        )
+        .is_ok());
+        assert!(Fragment::try_new_fragmented(
+            &non_full_payload,
+            id,
+            1,
+            1,
+            None,
+            None,
+            max_plaintext_size()
+        )
+        .is_ok());
 
-        assert!(Fragment::try_new_fragmented(&non_full_payload2, id, 10, 10, None, None).is_ok());
-        assert!(Fragment::try_new_fragmented(&non_full_payload2, id, 1, 1, None, None).is_ok());
+        assert!(Fragment::try_new_fragmented(
+            &non_full_payload2,
+            id,
+            10,
+            10,
+            None,
+            None,
+            max_plaintext_size()
+        )
+        .is_ok());
+        assert!(Fragment::try_new_fragmented(
+            &non_full_payload2,
+            id,
+            1,
+            1,
+            None,
+            None,
+            max_plaintext_size()
+        )
+        .is_ok());
     }
 
     #[test]
     fn unlinked_fragment_returns_error_when_created_with_payload_of_invalid_length() {
         let id = 12345;
-        let non_full_payload = [1u8; UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 1];
-        let non_full_payload2 = [1u8; UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 20];
-        let too_much_payload = [1u8; UNLINKED_FRAGMENTED_PAYLOAD_MAX_LEN + 1];
+        let non_full_payload =
+            vec![1u8; unlinked_fragmented_payload_max_len(max_plaintext_size()) - 1];
+        let non_full_payload2 =
+            vec![1u8; unlinked_fragmented_payload_max_len(max_plaintext_size()) - 20];
+        let too_much_payload =
+            vec![1u8; unlinked_fragmented_payload_max_len(max_plaintext_size()) + 1];
 
-        assert!(Fragment::try_new_fragmented(&non_full_payload, id, 10, 1, None, None).is_err());
-        assert!(Fragment::try_new_fragmented(&non_full_payload, id, 10, 5, None, None).is_err());
+        assert!(Fragment::try_new_fragmented(
+            &non_full_payload,
+            id,
+            10,
+            1,
+            None,
+            None,
+            max_plaintext_size()
+        )
+        .is_err());
+        assert!(Fragment::try_new_fragmented(
+            &non_full_payload,
+            id,
+            10,
+            5,
+            None,
+            None,
+            max_plaintext_size()
+        )
+        .is_err());
 
-        assert!(Fragment::try_new_fragmented(&too_much_payload, id, 10, 1, None, None).is_err());
-        assert!(Fragment::try_new_fragmented(&too_much_payload, id, 10, 5, None, None).is_err());
-        assert!(Fragment::try_new_fragmented(&too_much_payload, id, 1, 1, None, None).is_err());
+        assert!(Fragment::try_new_fragmented(
+            &too_much_payload,
+            id,
+            10,
+            1,
+            None,
+            None,
+            max_plaintext_size()
+        )
+        .is_err());
+        assert!(Fragment::try_new_fragmented(
+            &too_much_payload,
+            id,
+            10,
+            5,
+            None,
+            None,
+            max_plaintext_size()
+        )
+        .is_err());
+        assert!(Fragment::try_new_fragmented(
+            &too_much_payload,
+            id,
+            1,
+            1,
+            None,
+            None,
+            max_plaintext_size()
+        )
+        .is_err());
 
-        assert!(Fragment::try_new_fragmented(&non_full_payload2, id, 10, 1, None, None).is_err());
-        assert!(Fragment::try_new_fragmented(&non_full_payload2, id, 10, 5, None, None).is_err());
+        assert!(Fragment::try_new_fragmented(
+            &non_full_payload2,
+            id,
+            10,
+            1,
+            None,
+            None,
+            max_plaintext_size()
+        )
+        .is_err());
+        assert!(Fragment::try_new_fragmented(
+            &non_full_payload2,
+            id,
+            10,
+            5,
+            None,
+            None,
+            max_plaintext_size()
+        )
+        .is_err());
     }
 
     #[test]
     fn linked_fragment_can_be_created_with_payload_of_valid_length() {
         let id = 12345;
         let link_id = 1234;
-        let full_payload = [1u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN];
-        let non_full_payload = [1u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 1];
-        let non_full_payload2 = [1u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 20];
+        let full_payload = vec![1u8; linked_fragmented_payload_max_len(max_plaintext_size())];
+        let non_full_payload =
+            vec![1u8; linked_fragmented_payload_max_len(max_plaintext_size()) - 1];
+        let non_full_payload2 =
+            vec![1u8; linked_fragmented_payload_max_len(max_plaintext_size()) - 20];
 
-        assert!(
-            Fragment::try_new_fragmented(&full_payload, id, 10, 1, Some(link_id), None).is_ok()
-        );
-        assert!(Fragment::try_new_fragmented(&full_payload, id, 1, 1, Some(link_id), None).is_ok());
-        assert!(
-            Fragment::try_new_fragmented(&non_full_payload, id, 1, 1, Some(link_id), None).is_ok()
-        );
-        assert!(
-            Fragment::try_new_fragmented(&non_full_payload2, id, 1, 1, Some(link_id), None).is_ok()
-        );
+        assert!(Fragment::try_new_fragmented(
+            &full_payload,
+            id,
+            10,
+            1,
+            Some(link_id),
+            None,
+            max_plaintext_size()
+        )
+        .is_ok());
+        assert!(Fragment::try_new_fragmented(
+            &full_payload,
+            id,
+            1,
+            1,
+            Some(link_id),
+            None,
+            max_plaintext_size()
+        )
+        .is_ok());
+        assert!(Fragment::try_new_fragmented(
+            &non_full_payload,
+            id,
+            1,
+            1,
+            Some(link_id),
+            None,
+            max_plaintext_size()
+        )
+        .is_ok());
+        assert!(Fragment::try_new_fragmented(
+            &non_full_payload2,
+            id,
+            1,
+            1,
+            Some(link_id),
+            None,
+            max_plaintext_size()
+        )
+        .is_ok());
 
         assert!(Fragment::try_new_fragmented(
             &full_payload,
@@ -814,7 +897,8 @@ mod fragment {
             u8::max_value(),
             u8::max_value(),
             None,
-            Some(link_id)
+            Some(link_id),
+            max_plaintext_size()
         )
         .is_ok());
     }
@@ -823,25 +907,53 @@ mod fragment {
     fn linked_fragment_returns_error_when_created_with_payload_of_invalid_length() {
         let id = 12345;
         let link_id = 1234;
-        let non_full_payload = [1u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 1];
-        let non_full_payload2 = [1u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN - 20];
-        let too_much_payload = [1u8; LINKED_FRAGMENTED_PAYLOAD_MAX_LEN + 1];
+        let non_full_payload =
+            vec![1u8; linked_fragmented_payload_max_len(max_plaintext_size()) - 1];
+        let non_full_payload2 =
+            vec![1u8; linked_fragmented_payload_max_len(max_plaintext_size()) - 20];
+        let too_much_payload =
+            vec![1u8; linked_fragmented_payload_max_len(max_plaintext_size()) + 1];
 
-        assert!(
-            Fragment::try_new_fragmented(&non_full_payload, id, 10, 1, Some(link_id), None)
-                .is_err()
-        );
-        assert!(
-            Fragment::try_new_fragmented(&non_full_payload2, id, 10, 1, Some(link_id), None)
-                .is_err()
-        );
-        assert!(
-            Fragment::try_new_fragmented(&too_much_payload, id, 10, 1, Some(link_id), None)
-                .is_err()
-        );
-        assert!(
-            Fragment::try_new_fragmented(&too_much_payload, id, 1, 1, Some(link_id), None).is_err()
-        );
+        assert!(Fragment::try_new_fragmented(
+            &non_full_payload,
+            id,
+            10,
+            1,
+            Some(link_id),
+            None,
+            max_plaintext_size()
+        )
+        .is_err());
+        assert!(Fragment::try_new_fragmented(
+            &non_full_payload2,
+            id,
+            10,
+            1,
+            Some(link_id),
+            None,
+            max_plaintext_size()
+        )
+        .is_err());
+        assert!(Fragment::try_new_fragmented(
+            &too_much_payload,
+            id,
+            10,
+            1,
+            Some(link_id),
+            None,
+            max_plaintext_size()
+        )
+        .is_err());
+        assert!(Fragment::try_new_fragmented(
+            &too_much_payload,
+            id,
+            1,
+            1,
+            Some(link_id),
+            None,
+            max_plaintext_size()
+        )
+        .is_err());
 
         assert!(Fragment::try_new_fragmented(
             &non_full_payload,
@@ -849,7 +961,8 @@ mod fragment {
             u8::max_value(),
             u8::max_value(),
             None,
-            Some(link_id)
+            Some(link_id),
+            max_plaintext_size()
         )
         .is_err());
         assert!(Fragment::try_new_fragmented(
@@ -858,7 +971,8 @@ mod fragment {
             u8::max_value(),
             u8::max_value(),
             None,
-            Some(link_id)
+            Some(link_id),
+            max_plaintext_size()
         )
         .is_err());
 
@@ -868,7 +982,8 @@ mod fragment {
             u8::max_value(),
             u8::max_value(),
             None,
-            Some(link_id)
+            Some(link_id),
+            max_plaintext_size()
         )
         .is_err());
     }

@@ -28,14 +28,9 @@ use topology::{provider, NymTopology};
 #[derive(Debug)]
 pub(super) struct TopologyAccessorInner<T: NymTopology>(Option<T>);
 
-// Since we got `Deref` here, it's crucial that `TopologyAccessorInner` NEVER
-// becomes public due to how much stuff it could potentially expose.
-// Any uses need to be very careful, because you might end up using something
-// you might not have expected.
-impl<T: NymTopology> Deref for TopologyAccessorInner<T> {
-    type Target = Option<T>;
-
-    fn deref(&self) -> &Self::Target {
+impl<T: NymTopology> TopologyAccessorInner<T> {
+    // `pub(super)` `deref` makes me feel better than `pub` `Deref` trait
+    pub(super) fn deref(&self) -> &Option<T> {
         &self.0
     }
 }

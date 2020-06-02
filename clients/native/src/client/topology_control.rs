@@ -113,37 +113,12 @@ impl<T: NymTopology> TopologyAccessor<T> {
 
     pub(crate) async fn random_route_to_gateway(
         &self,
-        gateway: &NodeAddressBytes,
+        gateway_address: &NodeAddressBytes,
     ) -> Option<Vec<nymsphinx::Node>> {
-        let b58_address = gateway.to_base58_string();
         let guard = self.inner.read().await;
         let topology = guard.0.as_ref()?;
-
-        let gateway = topology
-            .gateways()
-            .iter()
-            .cloned()
-            .find(|gateway| gateway.pub_key == b58_address.clone())?;
-
-        topology.random_route_to_gateway(gateway.into()).ok()
+        topology.random_route_to_gateway(gateway_address).ok()
     }
-
-    // // this is a rather temporary solution as each client will have an associated provider
-    // // currently that is not implemented yet and there only exists one provider in the network
-    // pub(crate) async fn random_route(&self) -> Option<Vec<nymsphinx::Node>> {
-    //     match &self.inner.lock().await.0 {
-    //         None => None,
-    //         Some(ref topology) => {
-    //             let mut gateways = topology.gateways();
-    //             if gateways.is_empty() {
-    //                 return None;
-    //             }
-    //             // unwrap is fine here as we asserted there is at least single provider
-    //             let provider = gateways.pop().unwrap().into();
-    //             topology.random_route_to_gateway(provider).ok()
-    //         }
-    //     }
-    // }
 }
 
 pub(crate) struct TopologyRefresherConfig {

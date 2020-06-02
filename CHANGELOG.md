@@ -1,8 +1,116 @@
 # Changelog
 
-## [v0.6.0](https://github.com/nymtech/nym/tree/HEAD)
+## [Unreleased](https://github.com/nymtech/nym/tree/HEAD)
 
-[Full Changelog](https://github.com/nymtech/nym/compare/v0.5.0...HEAD)
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.6.0...HEAD)
+
+The main features of this release are:
+
+* the addition of gateway nodes
+* the retiring of the store-and-forward providers in favour of gateway nodes
+* got rid of TCP connections for clients, everything now happens through websockets
+* a new [Nym webassembly client](https://www.npmjs.com/package/@nymproject/nym-client-wasm), making it possible interact with Nym easily in browser-based runtimes
+* reliability and performance improvements for mixnode networking
+* initial validator code running (little functionality yet though)
+
+See the [changelog](https://github.com/nymtech/nym/blob/develop/CHANGELOG.md) for detailed release notes. 
+
+**Implemented enhancements:**
+
+- Use tokio codecs for multi\_tcp\_client [\#207](https://github.com/nymtech/nym/issues/207)
+- Consider rewriting sfw\_provider\_requests using tokio Framed + Codec [\#181](https://github.com/nymtech/nym/issues/181)
+
+**Fixed bugs:**
+
+- Unexplained traffic increase in presence of unroutable node [\#232](https://github.com/nymtech/nym/issues/232)
+- Gateway won't send to restarted layer1 nodes [\#231](https://github.com/nymtech/nym/issues/231)
+
+**Closed issues:**
+
+- Move to userpubkey@gatewaypubkey addresses. [\#235](https://github.com/nymtech/nym/issues/235)
+- Get `start\_local\_network.sh` working with the js example [\#227](https://github.com/nymtech/nym/issues/227)
+- Fix indeterminate test failure [\#218](https://github.com/nymtech/nym/issues/218)
+- Remove 'fetch' mechanism from desktop client's client in favour of push [\#211](https://github.com/nymtech/nym/issues/211)
+- Mixnode - load Sphinx keys like Gateway [\#209](https://github.com/nymtech/nym/issues/209)
+- Publish NPM package for WebAssembly client [\#206](https://github.com/nymtech/nym/issues/206)
+- Change --sockettype option on desktop client [\#203](https://github.com/nymtech/nym/issues/203)
+- Remove TCP sockets from desktop client [\#202](https://github.com/nymtech/nym/issues/202)
+- Desktop client currently hard-codes first provider [\#198](https://github.com/nymtech/nym/issues/198)
+- Webassembly client currently hard-codes first provider [\#197](https://github.com/nymtech/nym/issues/197)
+- Add Rust-based route construction to wasm client [\#196](https://github.com/nymtech/nym/issues/196)
+- Remove fetch event [\#195](https://github.com/nymtech/nym/issues/195)
+- Control messages should all be JSON [\#194](https://github.com/nymtech/nym/issues/194)
+- Desktop Client should attach to gateway websocket [\#193](https://github.com/nymtech/nym/issues/193)
+- Merge gateway and provider nodes [\#192](https://github.com/nymtech/nym/issues/192)
+- Remove direct Sphinx dependencies [\#184](https://github.com/nymtech/nym/issues/184)
+- \[Windows\] Presence notification fill OS socket queue [\#170](https://github.com/nymtech/nym/issues/170)
+- Figure out connection hiccups between client and provider [\#162](https://github.com/nymtech/nym/issues/162)
+- Improve the healthchecker [\#160](https://github.com/nymtech/nym/issues/160)
+- Rethink client addressability [\#135](https://github.com/nymtech/nym/issues/135)
+- Give some love to the service provider client ledger [\#116](https://github.com/nymtech/nym/issues/116)
+- Start Gateway node type [\#80](https://github.com/nymtech/nym/issues/80)
+- Bring health-checker into validator mix-mining [\#78](https://github.com/nymtech/nym/issues/78)
+- Solidify TCPSocket on client [\#72](https://github.com/nymtech/nym/issues/72)
+- scripts: run\_local\_network.sh doesn't die nicely [\#45](https://github.com/nymtech/nym/issues/45)
+- WASM version of the Sphinx packet [\#19](https://github.com/nymtech/nym/issues/19)
+- Persistent socket connection \(TCP Socket with provider\) [\#18](https://github.com/nymtech/nym/issues/18)
+- Persistent socket connection \(Websocket with client\) [\#17](https://github.com/nymtech/nym/issues/17)
+- Persistent socket connection \(TCP Socket with client\) [\#13](https://github.com/nymtech/nym/issues/13)
+- Persistent socket connection \(Websocket with client\) [\#12](https://github.com/nymtech/nym/issues/12)
+- Persistently store ledger with registered clients and their auth tokens [\#6](https://github.com/nymtech/nym/issues/6)
+
+**Merged pull requests:**
+
+- renaming desktop to native client [\#251](https://github.com/nymtech/nym/pull/251) ([futurechimp](https://github.com/futurechimp))
+- Adding a pipenv dependencies file to the python client example [\#250](https://github.com/nymtech/nym/pull/250) ([futurechimp](https://github.com/futurechimp))
+- Cleaning up startup messages in native client [\#249](https://github.com/nymtech/nym/pull/249) ([futurechimp](https://github.com/futurechimp))
+- fixing up readme, bumping version number [\#246](https://github.com/nymtech/nym/pull/246) ([futurechimp](https://github.com/futurechimp))
+- Feature/sphinx socket packet encoder [\#245](https://github.com/nymtech/nym/pull/245) ([jstuczyn](https://github.com/jstuczyn))
+- Adding some documentation to the webassembly client [\#244](https://github.com/nymtech/nym/pull/244) ([futurechimp](https://github.com/futurechimp))
+- Simplified some names and used the published npm package [\#242](https://github.com/nymtech/nym/pull/242) ([futurechimp](https://github.com/futurechimp))
+- Feature/make andrew happy [\#241](https://github.com/nymtech/nym/pull/241) ([futurechimp](https://github.com/futurechimp))
+- Removed redundant console.log [\#240](https://github.com/nymtech/nym/pull/240) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/explicit gateway addressing [\#239](https://github.com/nymtech/nym/pull/239) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/clean up [\#238](https://github.com/nymtech/nym/pull/238) ([futurechimp](https://github.com/futurechimp))
+- Feature/addressing update [\#237](https://github.com/nymtech/nym/pull/237) ([jstuczyn](https://github.com/jstuczyn))
+- Added hidden init flag to increase default traffic volume [\#234](https://github.com/nymtech/nym/pull/234) ([jstuczyn](https://github.com/jstuczyn))
+- Bugfix/issue\#231 [\#233](https://github.com/nymtech/nym/pull/233) ([jstuczyn](https://github.com/jstuczyn))
+- Fixed unwrap on none value [\#230](https://github.com/nymtech/nym/pull/230) ([jstuczyn](https://github.com/jstuczyn))
+- Bugfix/gateway crash on incomplete ws handshake [\#229](https://github.com/nymtech/nym/pull/229) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/start local network improvements [\#228](https://github.com/nymtech/nym/pull/228) ([jstuczyn](https://github.com/jstuczyn))
+- Updated directory\_client reqwest to 0.10 [\#226](https://github.com/nymtech/nym/pull/226) ([jstuczyn](https://github.com/jstuczyn))
+- Updated js-example to get gateway from topology [\#225](https://github.com/nymtech/nym/pull/225) ([jstuczyn](https://github.com/jstuczyn))
+- Requiring explicit timestamp when converting from rest to service mix… [\#224](https://github.com/nymtech/nym/pull/224) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/minor docs fixes [\#223](https://github.com/nymtech/nym/pull/223) ([futurechimp](https://github.com/futurechimp))
+- Removed having to care about SURB\_ID [\#222](https://github.com/nymtech/nym/pull/222) ([jstuczyn](https://github.com/jstuczyn))
+- Moved relevant parts of old mix-client to nymsphinx [\#221](https://github.com/nymtech/nym/pull/221) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/load keys on run [\#220](https://github.com/nymtech/nym/pull/220) ([jstuczyn](https://github.com/jstuczyn))
+- Updated wasm code to work with new gateway and updated the example [\#219](https://github.com/nymtech/nym/pull/219) ([jstuczyn](https://github.com/jstuczyn))
+- validator: removing health checker [\#217](https://github.com/nymtech/nym/pull/217) ([futurechimp](https://github.com/futurechimp))
+- The great sfw-provider purge of 2020 [\#216](https://github.com/nymtech/nym/pull/216) ([jstuczyn](https://github.com/jstuczyn))
+- Fixed compilation warnings on unreachable code when compiling with fe… [\#215](https://github.com/nymtech/nym/pull/215) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/healthchecker removal [\#214](https://github.com/nymtech/nym/pull/214) ([jstuczyn](https://github.com/jstuczyn))
+- Bugfix/send to correct gateway [\#213](https://github.com/nymtech/nym/pull/213) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/client socket adjustments [\#212](https://github.com/nymtech/nym/pull/212) ([jstuczyn](https://github.com/jstuczyn))
+- Sending sphinx packet independent of the receiver task [\#210](https://github.com/nymtech/nym/pull/210) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/gateway provider merge [\#208](https://github.com/nymtech/nym/pull/208) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/route from topology [\#201](https://github.com/nymtech/nym/pull/201) ([futurechimp](https://github.com/futurechimp))
+- Intermediate gateway-heart surgery checkpoint [\#199](https://github.com/nymtech/nym/pull/199) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/wasm js demo [\#191](https://github.com/nymtech/nym/pull/191) ([futurechimp](https://github.com/futurechimp))
+- Feature/improve js example [\#190](https://github.com/nymtech/nym/pull/190) ([futurechimp](https://github.com/futurechimp))
+- Feature/limit direct sphinx dependency + remove direct curve25519 dependency from wasm client [\#189](https://github.com/nymtech/nym/pull/189) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/very minor refactoring [\#188](https://github.com/nymtech/nym/pull/188) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/persistent ledger [\#187](https://github.com/nymtech/nym/pull/187) ([jstuczyn](https://github.com/jstuczyn))
+- Optimising wasm build size, shaves about 10% size off our wasm output. [\#186](https://github.com/nymtech/nym/pull/186) ([futurechimp](https://github.com/futurechimp))
+- Ran `npm audit fix` on the wasm demo directory. [\#185](https://github.com/nymtech/nym/pull/185) ([futurechimp](https://github.com/futurechimp))
+- Feature/nym sphinx wasm [\#183](https://github.com/nymtech/nym/pull/183) ([futurechimp](https://github.com/futurechimp))
+- Improvements to sfw-provider - client communcation [\#180](https://github.com/nymtech/nym/pull/180) ([jstuczyn](https://github.com/jstuczyn))
+- Adding Apache 2 license headers to all files [\#178](https://github.com/nymtech/nym/pull/178) ([futurechimp](https://github.com/futurechimp))
+- Feature/service persistence [\#171](https://github.com/nymtech/nym/pull/171) ([futurechimp](https://github.com/futurechimp))
+
+## [v0.6.0](https://github.com/nymtech/nym/tree/v0.6.0) (2020-04-07)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.5.0...v0.6.0)
 
 This  release fixes bugs in v0.5.0. All testnet node operators are advised to upgrade from v0.5.0.
 

@@ -6,6 +6,7 @@ self_address_request = json.dumps({
     "type": "selfAddress"
 })
 
+
 async def send_text():
     message = "Hello Nym!"
 
@@ -28,6 +29,6 @@ async def send_text():
 
         print("waiting to receive a message from the mix network...")
         received_message = await websocket.recv()
-        print("received {} from the mix network!".format(received_message))
+        print("received '{}' from the mix network".format(received_message))
 
 asyncio.get_event_loop().run_until_complete(send_text())

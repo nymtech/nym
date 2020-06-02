@@ -105,10 +105,7 @@ impl Listener {
         rt_handle: &runtime::Handle,
         handler: Handler<T>,
     ) -> JoinHandle<()> {
-        info!(
-            "The websocket listener will try to run on {:?}",
-            self.address.to_string()
-        );
+        info!("Running websocket on {:?}", self.address.to_string());
 
         rt_handle.spawn(async move { self.run(handler).await })
     }

@@ -24,6 +24,7 @@ const EXTENDED_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 32 * 1
 pub struct InvalidPacketSize;
 
 #[repr(u8)]
+#[derive(Clone, Copy, Debug)]
 pub enum PacketSize {
     RegularPacket = 1,  // for example instant messaging use case
     ACKPacket = 2,      // for sending SURB-ACKs
@@ -54,6 +55,10 @@ impl PacketSize {
 
     pub fn plaintext_size(&self) -> usize {
         self.size() - HEADER_SIZE - PAYLOAD_OVERHEAD_SIZE
+    }
+
+    pub fn payload_size(&self) -> usize {
+        self.size() - HEADER_SIZE
     }
 
     pub fn get_type(size: usize) -> std::result::Result<Self, InvalidPacketSize> {

@@ -19,6 +19,7 @@ members = [
     "common/nymsphinx/addressing",
     "common/nymsphinx/chunking",
     "common/nymsphinx/framing",
+    "common/nymsphinx/params",
     "common/nymsphinx/types",
     "common/pemstore",
     "common/topology",

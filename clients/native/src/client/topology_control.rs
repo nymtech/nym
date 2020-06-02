@@ -26,7 +26,7 @@ use topology::{provider, NymTopology};
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before
 #[derive(Debug)]
-struct TopologyAccessorInner<T: NymTopology>(Option<T>);
+pub(super) struct TopologyAccessorInner<T: NymTopology>(Option<T>);
 
 // Since we got `Deref` here, it's crucial that `TopologyAccessorInner` NEVER
 // becomes public due to how much stuff it could potentially expose.
@@ -68,7 +68,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
 
     // TODO: I really don't like having `TopologyAccessorInner` in return type,
     // but we can't return `T` because then we'd drop the read permit
-    pub(crate) async fn get_read_permit(&self) -> RwLockReadGuard<'_, TopologyAccessorInner<T>> {
+    pub(super) async fn get_read_permit(&self) -> RwLockReadGuard<'_, TopologyAccessorInner<T>> {
         self.inner.read().await
     }
 

@@ -24,7 +24,6 @@ use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::chunking::split_and_prepare_payloads;
 use std::convert::TryFrom;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
@@ -105,7 +104,7 @@ impl<T: NymTopology> Handler<T> {
         };
 
         // in case the message is too long and needs to be split into multiple packets:
-        let split_message = split_and_prepare_payloads(&message_bytes);
+        let split_message: Vec<Vec<u8>> = todo!();
         for message_fragment in split_message {
             let input_msg = InputMessage::new(recipient.clone(), message_fragment);
             self.msg_input.unbounded_send(input_msg).unwrap();
@@ -156,7 +155,7 @@ impl<T: NymTopology> Handler<T> {
 
     async fn handle_binary_send(&mut self, recipient: Recipient, data: Vec<u8>) -> ServerResponse {
         // in case the message is too long and needs to be split into multiple packets:
-        let split_message = split_and_prepare_payloads(&data);
+        let split_message: Vec<Vec<u8>> = todo!();
         for message_fragment in split_message {
             let input_msg = InputMessage::new(recipient.clone(), message_fragment);
             self.msg_input.unbounded_send(input_msg).unwrap();

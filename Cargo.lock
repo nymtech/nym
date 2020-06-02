@@ -1667,7 +1667,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "0.7.0"
+version = "0.8.0-dev"
 dependencies = [
  "bs58",
  "built",
@@ -1687,6 +1687,7 @@ dependencies = [
  "pem",
  "pemstore",
  "pretty_env_logger",
+ "rand 0.7.3",
  "reqwest 0.9.24",
  "serde",
  "serde_json",
@@ -1717,7 +1718,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "0.7.0"
+version = "0.8.0-dev"
 dependencies = [
  "built",
  "clap",
@@ -1747,7 +1748,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "0.7.0"
+version = "0.8.0-dev"
 dependencies = [
  "bs58",
  "built",
@@ -1773,7 +1774,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator"
-version = "0.7.0"
+version = "0.8.0-dev"
 dependencies = [
  "abci",
  "bodyparser",

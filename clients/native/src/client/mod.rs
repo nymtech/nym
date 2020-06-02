@@ -30,12 +30,12 @@ use gateway_client::{GatewayClient, SphinxPacketReceiver, SphinxPacketSender};
 use gateway_requests::auth_token::AuthToken;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::chunking::split_and_prepare_payloads;
 use nymsphinx::NodeAddressBytes;
 use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
+mod acknowledgement_control;
 mod cover_traffic_stream;
 pub(crate) mod inbound_messages;
 mod mix_traffic;
@@ -265,7 +265,7 @@ impl NymClient {
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
     pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>) {
-        let split_message = split_and_prepare_payloads(&message);
+        let split_message: Vec<Vec<u8>> = todo!();
         debug!(
             "Splitting message into {:?} fragments!",
             split_message.len()

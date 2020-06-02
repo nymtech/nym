@@ -21,6 +21,7 @@ use futures::{Future, Stream, StreamExt};
 use log::{error, info, trace, warn};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::utils::{encapsulation, poisson};
+use nymsphinx::SphinxPacket;
 use std::pin::Pin;
 use std::time::Duration;
 use tokio::runtime::Handle;
@@ -37,6 +38,9 @@ pub(crate) struct OutQueueControl<T: NymTopology> {
     our_full_destination: Recipient,
     topology_access: TopologyAccessor<T>,
 }
+
+// Notify / oneshot<()> or mpsc<ID> ?
+pub(crate) type TodonameRealSphinxSender = mpsc::UnboundedSender<(SphinxPacket)>;
 
 pub(crate) enum StreamMessage {
     Cover,

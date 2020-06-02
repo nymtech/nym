@@ -81,8 +81,10 @@ impl<T: NymTopology> AcknowledgementController<OsRng, T> {
 
         // first we need to deref out of RwLockReadGuard
         // then we need to deref out of TopologyAccessorInner
+        // then we must take ref of option, i.e. Option<&T>
+        // and finally try to unwrap it to obtain &T
         // then after unwrapping topology, we need to take ref of (borrow) that.
-        let topology_ref = &(**topology_permit).unwrap_or_else(|| todo!());
+        let topology_ref = (**topology_permit).as_ref().unwrap_or_else(|| todo!());
 
         // see if it's possible to route the packet to both gateways
         if !topology_ref.can_construct_path_through()

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use nymsphinx_chunking::packet_sizes::{InvalidPacketSize, PacketSize};
 use bytes::{Buf, BufMut, BytesMut};
+use nymsphinx_params::packet_sizes::{InvalidPacketSize, PacketSize};
 use nymsphinx_types::SphinxPacket;
 use std::convert::TryFrom;
 use std::io;

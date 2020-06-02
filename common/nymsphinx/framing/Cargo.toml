@@ -11,4 +11,4 @@ bytes = "0.5"
 tokio-util = { version = "0.3.1", features = ["codec"] }
 
 nymsphinx-types = { path = "../types" }
-nymsphinx-chunking = { path = "../chunking" }
+nymsphinx-params = { path = "../params" }

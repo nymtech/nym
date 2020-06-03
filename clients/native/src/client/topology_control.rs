@@ -29,7 +29,7 @@ use topology::{provider, NymTopology};
 pub(super) struct TopologyAccessorInner<T: NymTopology>(Option<T>);
 
 impl<T: NymTopology> TopologyAccessorInner<T> {
-    // `pub(super)` `deref` makes me feel better than `pub` `Deref` trait
+    // `pub(super)` `deref` makes me feel better than `pub` `std::ops::Deref` trait
     pub(super) fn deref(&self) -> &Option<T> {
         &self.0
     }
@@ -54,6 +54,8 @@ pub(crate) struct TopologyAccessor<T: NymTopology> {
     inner: Arc<RwLock<TopologyAccessorInner<T>>>,
 }
 
+pub(super) type TopologyReadPermit<'a, T> = RwLockReadGuard<'a, TopologyAccessorInner<T>>;
+
 impl<T: NymTopology> TopologyAccessor<T> {
     pub(crate) fn new() -> Self {
         TopologyAccessor {
@@ -63,7 +65,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
 
     // TODO: I really don't like having `TopologyAccessorInner` in return type,
     // but we can't return `T` because then we'd drop the read permit
-    pub(super) async fn get_read_permit(&self) -> RwLockReadGuard<'_, TopologyAccessorInner<T>> {
+    pub(super) async fn get_read_permit(&self) -> TopologyReadPermit<'_, T> {
         self.inner.read().await
     }
 

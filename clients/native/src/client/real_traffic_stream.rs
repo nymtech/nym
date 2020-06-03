@@ -39,8 +39,8 @@ pub(crate) struct OutQueueControl<T: NymTopology> {
     topology_access: TopologyAccessor<T>,
 }
 
-// Notify / oneshot<()> or mpsc<ID> ?
-pub(crate) type TodonameRealSphinxSender = mpsc::UnboundedSender<(SphinxPacket)>;
+pub(crate) type RealSphinxSender = mpsc::UnboundedSender<SphinxPacket>;
+type RealSphinxReceiver = mpsc::UnboundedReceiver<SphinxPacket>;
 
 pub(crate) enum StreamMessage {
     Cover,
@@ -169,6 +169,8 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
         self.mix_tx
             .unbounded_send(MixMessage::new(next_packet.0, next_packet.1))
             .unwrap();
+        // TODO: if real, notify ack control that msg was sent (well, kinda was sent)
+
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
         // the UnboundedReceiver [of mix_rx] will not get a chance to read anything
         // JS2: Basically it was the case that with high enough rate, the stream had already a next value

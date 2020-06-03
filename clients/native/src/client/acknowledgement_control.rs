@@ -216,7 +216,7 @@ where
 
     async fn run(&mut self, mut input_receiver: InputMessageReceiver) {
         while let Some(input_msg) = input_receiver.next().await {
-            self.on_input_message(input_msg);
+            self.on_input_message(input_msg).await;
         }
         error!("TODO: error msg. Or maybe panic?")
     }
@@ -258,7 +258,7 @@ impl TMP_NAME_AcknowledgementReceiver {
 
     async fn listen_for_acknowledgements(&mut self, mut ack_receiver: AcknowledgementReceiver) {
         while let Some(ack) = ack_receiver.next().await {
-            self.on_ack(ack);
+            self.on_ack(ack).await;
         }
         error!("TODO: error msg. Or maybe panic?")
     }
@@ -328,7 +328,7 @@ where
 
     async fn run(&mut self, mut req_receiver: RetransmissionRequestReceiver) {
         while let Some(frag_id) = req_receiver.next().await {
-            self.on_retransmission_request(frag_id);
+            self.on_retransmission_request(frag_id).await;
         }
         error!("TODO: error msg. Or maybe panic?")
     }

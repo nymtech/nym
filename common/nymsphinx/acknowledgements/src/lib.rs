@@ -15,7 +15,7 @@
 pub mod identifier;
 pub mod surb_ack;
 
-pub use identifier::AckAes128Key;
+pub use identifier::{generate_key, AckAes128Key};
 
 // use crate::chunking::fragment::{Fragment, FragmentIdentifier};
 // use sphinx::SphinxPacket;

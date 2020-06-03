@@ -19,7 +19,7 @@ import {
 
 async function main() {
     // Set up identity and client
-    let directory = "https://qa-directory.nymtech.net";
+    let directory = "https://directory.nymtech.net";
     let identity = new Identity();
     let nymClient = new Client(directory, identity, null);
 

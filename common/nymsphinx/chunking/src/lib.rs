@@ -81,6 +81,7 @@ pub enum ChunkingError {
 }
 
 // Note: `Rng` implies `RngCore`
+#[derive(Debug, Clone)]
 pub struct MessageChunker<R: CryptoRng + Rng> {
     rng: R,
     ack_recipient: Recipient,

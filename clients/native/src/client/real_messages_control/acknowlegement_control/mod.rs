@@ -129,16 +129,19 @@ where
     sent_notification_listener: Option<SentNotificationListener>,
 }
 
-impl<T: 'static + NymTopology> AcknowledgementController<OsRng, T> {
+impl<R, T> AcknowledgementController<R, T>
+where
+    R: 'static + CryptoRng + Rng + Clone + Send,
+    T: 'static + NymTopology,
+{
     pub(crate) fn new(
+        mut rng: R,
         topology_access: TopologyAccessor<T>,
         ack_recipient: Recipient,
         average_packet_delay_duration: Duration,
         average_ack_delay_duration: Duration,
         connectors: AcknowledgementControllerConnectors,
     ) -> Self {
-        let mut rng = OsRng;
-
         // note for future-self: perhaps for key rotation we could replace it with Arc<AtomicCell<Key>> ?
         // actually same could be true for any keys we use
         let ack_key = Arc::new(acknowledgements::generate_key(&mut rng));

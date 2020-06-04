@@ -29,9 +29,9 @@
 #    exit
 # 9. Copy this file over to /etc/systemd/system/nym-mixnode.service.
 # 4. Enable the service so that it will autostart at boot-time:
-#    systemctl enable nym-mixnode
+#    sudo systemctl enable nym-mixnode
 # 3. Start the nym service:
-#    systemctl start nym-mixnode
+#    sudo systemctl start nym-mixnode
 
 [Unit]
 Description=nym mixnode service

@@ -35,10 +35,10 @@ use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
-mod acknowledgement_control;
 mod cover_traffic_stream;
 pub(crate) mod inbound_messages;
 mod mix_traffic;
+pub(crate) mod real_messages_control;
 mod real_traffic_stream;
 pub(crate) mod received_buffer;
 pub(crate) mod topology_control;

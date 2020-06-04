@@ -12,16 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client::real_messages_control::acknowlegement_control::{
-    try_get_valid_topology_ref, PendingAcksMap, RetransmissionRequestReceiver,
+use super::{try_get_valid_topology_ref, PendingAcksMap, RetransmissionRequestReceiver};
+use crate::client::{
+    real_messages_control::real_traffic_stream::RealSphinxSender,
+    topology_control::TopologyAccessor,
 };
-use crate::client::real_traffic_stream::RealSphinxSender;
-use crate::client::topology_control::TopologyAccessor;
 use futures::StreamExt;
 use log::*;
-use nymsphinx::acknowledgements::AckAes128Key;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::chunking::{fragment::FragmentIdentifier, MessageChunker};
+use nymsphinx::{
+    acknowledgements::AckAes128Key,
+    addressing::clients::Recipient,
+    chunking::{fragment::FragmentIdentifier, MessageChunker},
+};
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
 use topology::NymTopology;

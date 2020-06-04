@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client::real_messages_control::acknowlegement_control::{
-    PendingAcksMap, RetransmissionRequestSender, SentPacketNotificationReceiver,
-};
+use super::{PendingAcksMap, RetransmissionRequestSender, SentPacketNotificationReceiver};
 use futures::StreamExt;
 use log::*;
 use nymsphinx::chunking::fragment::FragmentIdentifier;

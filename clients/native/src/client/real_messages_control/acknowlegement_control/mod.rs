@@ -12,30 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client::inbound_messages::InputMessageReceiver;
-use crate::client::real_messages_control::acknowlegement_control::acknowledgement_listener::AcknowledgementListener;
-use crate::client::real_messages_control::acknowlegement_control::input_message_listener::InputMessageListener;
-use crate::client::real_messages_control::acknowlegement_control::retransmission_request_listener::RetransmissionRequestListener;
-use crate::client::real_messages_control::acknowlegement_control::sent_notification_listener::SentNotificationListener;
-use crate::client::real_traffic_stream::RealSphinxSender;
-use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
+use self::{
+    acknowledgement_listener::AcknowledgementListener,
+    input_message_listener::InputMessageListener,
+    retransmission_request_listener::RetransmissionRequestListener,
+    sent_notification_listener::SentNotificationListener,
+};
+use super::real_traffic_stream::RealSphinxSender;
+use crate::client::{
+    inbound_messages::InputMessageReceiver,
+    topology_control::{TopologyAccessor, TopologyReadPermit},
+};
 use futures::channel::mpsc;
 use log::*;
-use nymsphinx::acknowledgements;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::chunking::{
-    fragment::{Fragment, FragmentIdentifier},
-    MessageChunker,
+use nymsphinx::{
+    acknowledgements,
+    addressing::clients::Recipient,
+    chunking::{
+        fragment::{Fragment, FragmentIdentifier},
+        MessageChunker,
+    },
+    Delay,
 };
-use nymsphinx::Delay;
-use rand::{rngs::OsRng, CryptoRng, Rng};
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::runtime::Handle;
-use tokio::sync::Notify;
-use tokio::sync::RwLock;
-use tokio::task::JoinHandle;
+use rand::{CryptoRng, Rng};
+use std::{collections::HashMap, sync::Arc, time::Duration};
+use tokio::{
+    runtime::Handle,
+    sync::{Notify, RwLock},
+    task::JoinHandle,
+};
 use topology::NymTopology;
 
 mod acknowledgement_listener;

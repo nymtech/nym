@@ -19,10 +19,8 @@ use nymsphinx_acknowledgements::surb_ack::SURBAck;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_types::builder::SphinxPacketBuilder;
-use nymsphinx_types::{
-    delays, Delay, Destination, DestinationAddressBytes, NodeAddressBytes, SphinxPacket,
-};
-use rand::{rngs::OsRng, CryptoRng, Rng, RngCore};
+use nymsphinx_types::{delays, Delay, Destination, NodeAddressBytes, SphinxPacket};
+use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::time::Duration;
 use topology::{NymTopology, NymTopologyError};
 

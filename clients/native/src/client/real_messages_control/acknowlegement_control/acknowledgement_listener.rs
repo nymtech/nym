@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client::real_messages_control::acknowlegement_control::{
-    AcknowledgementReceiver, PendingAcksMap,
-};
+use super::{AcknowledgementReceiver, PendingAcksMap};
 use futures::StreamExt;
 use log::*;
-use nymsphinx::acknowledgements::{identifier::recover_identifier, AckAes128Key};
-use nymsphinx::chunking::fragment::FragmentIdentifier;
+use nymsphinx::{
+    acknowledgements::{identifier::recover_identifier, AckAes128Key},
+    chunking::fragment::FragmentIdentifier,
+};
 use std::sync::Arc;
 
 // responsible for cancelling retransmission timers and removed entries from the map

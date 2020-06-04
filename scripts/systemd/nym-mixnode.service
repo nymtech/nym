@@ -1,4 +1,4 @@
-# This is an example systemd service unit illustrates how to make a mixnode
+# This is an example systemd service unit illustrating how to make a mixnode
 # start and stop automatically on a Linux box which runs on systemd.
 # To determine if it is applicable to your system simply run "ps 1". If the
 # output mentions "systemd" then you're good to go.

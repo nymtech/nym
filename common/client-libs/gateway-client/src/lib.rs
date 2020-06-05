@@ -51,8 +51,11 @@ msg read from conn.next().await:
 */
 
 // TODO: some batching mechanism to allow reading and sending more than a single packet through
-pub type SphinxPacketSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
-pub type SphinxPacketReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
+pub type MixnetMessageSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
+pub type MixnetMessageReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
+
+pub type AcknowledgementSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
+pub type AcknowledgementReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
 
 // type alias for not having to type the whole thing every single time
 type WsConn = WebSocketStream<TcpStream>;
@@ -129,9 +132,9 @@ impl<'a> PartiallyDelegated<'a> {
     // TODO: this can be potentially bad as we have no direct restrictions of ensuring it's called
     // within tokio runtime. Perhaps we should use the "old" way of passing explicit
     // runtime handle to the constructor and using that instead?
-    fn split_and_listen_for_sphinx_packets(
+    fn split_and_listen_for_mixnet_messages(
         conn: WsConn,
-        sphinx_packet_sender: SphinxPacketSender,
+        mixnet_message_sender: MixnetMessageSender,
     ) -> Result<Self, GatewayClientError> {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
         // read control request responses.
@@ -140,7 +143,7 @@ impl<'a> PartiallyDelegated<'a> {
 
         let (sink, mut stream) = conn.split();
 
-        let sphinx_receiver_future = async move {
+        let mixnet_receiver_future = async move {
             let mut should_return = false;
             while !should_return {
                 tokio::select! {
@@ -158,10 +161,11 @@ impl<'a> PartiallyDelegated<'a> {
                             }
                         };
                         match msg {
+                        // TODO: match to determine if it's ack or message
                             Message::Binary(bin_msg) => {
                                 // TODO: some batching mechanism to allow reading and sending more than
                                 // one packet at the time, because the receiver can easily handle it
-                                sphinx_packet_sender.unbounded_send(vec![bin_msg]).unwrap()
+                                mixnet_message_sender.unbounded_send(vec![bin_msg]).unwrap()
                             },
                             // I think that in the future we should perhaps have some sequence number system, i.e.
                             // so each request/reponse pair can be easily identified, so that if messages are
@@ -176,7 +180,7 @@ impl<'a> PartiallyDelegated<'a> {
             Ok(stream)
         };
 
-        let spawned_boxed_task = tokio::spawn(sphinx_receiver_future)
+        let spawned_boxed_task = tokio::spawn(mixnet_receiver_future)
             .map(|join_handle| {
                 join_handle.expect("task must have not failed to finish its execution!")
             })
@@ -244,7 +248,8 @@ pub struct GatewayClient<'a, R: IntoClientRequest + Unpin + Clone> {
     our_address: DestinationAddressBytes,
     auth_token: Option<AuthToken>,
     connection: SocketState<'a>,
-    sphinx_packet_sender: SphinxPacketSender,
+    mixnet_message_sender: MixnetMessageSender,
+    ack_sender: AcknowledgementSender,
     response_timeout_duration: Duration,
 }
 
@@ -263,7 +268,8 @@ where
         gateway_address: R,
         our_address: DestinationAddressBytes,
         auth_token: Option<AuthToken>,
-        sphinx_packet_sender: SphinxPacketSender,
+        mixnet_message_sender: MixnetMessageSender,
+        ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
     ) -> Self {
         GatewayClient {
@@ -272,9 +278,18 @@ where
             our_address,
             auth_token,
             connection: SocketState::NotConnected,
-            sphinx_packet_sender,
+            mixnet_message_sender,
+            ack_sender,
             response_timeout_duration,
         }
+    }
+    // TODO: extra constructor for JUST init registration so that it would look something like:
+    pub fn new_init(
+        gateway_address: R,
+        our_address: DestinationAddressBytes,
+        response_timeout_duration: Duration,
+    ) -> Self {
+        todo!()
     }
 
     pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
@@ -320,7 +335,7 @@ where
                     };
                     match msg {
                         Message::Binary(bin_msg) => {
-                            self.sphinx_packet_sender.unbounded_send(vec![bin_msg]).unwrap()
+                            self.mixnet_message_sender.unbounded_send(vec![bin_msg]).unwrap()
                         }
                         Message::Text(txt_msg) => {
                             res = Some(ServerResponse::try_from(txt_msg).map_err(|_| GatewayClientError::MalformedResponse));
@@ -340,10 +355,10 @@ where
         &mut self,
         msg: Message,
     ) -> Result<ServerResponse, GatewayClientError> {
-        let mut should_restart_sphinx_listener = false;
+        let mut should_restart_mixnet_listener = false;
         if self.connection.is_partially_delegated() {
             self.recover_socket_connection().await?;
-            should_restart_sphinx_listener = true;
+            should_restart_mixnet_listener = true;
         }
 
         let conn = match self.connection {
@@ -354,8 +369,8 @@ where
         conn.send(msg).await?;
         let response = self.read_control_response().await;
 
-        if should_restart_sphinx_listener {
-            self.start_listening_for_sphinx_packets()?;
+        if should_restart_mixnet_listener {
+            self.start_listening_for_mixnet_messages()?;
         }
         response
     }
@@ -387,7 +402,7 @@ where
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             _ => unreachable!(),
         }?;
-        self.start_listening_for_sphinx_packets()?;
+        self.start_listening_for_mixnet_messages()?;
         Ok(token)
     }
 
@@ -414,7 +429,7 @@ where
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             _ => unreachable!(),
         }?;
-        self.start_listening_for_sphinx_packets()?;
+        self.start_listening_for_mixnet_messages()?;
         Ok(authenticated)
     }
 
@@ -468,7 +483,9 @@ where
         Ok(())
     }
 
-    fn start_listening_for_sphinx_packets(&mut self) -> Result<(), GatewayClientError> {
+    fn start_listening_for_mixnet_messages(&mut self) -> Result<(), GatewayClientError> {
+        unimplemented!("need extra logic to use 'ack_sender'");
+
         if self.connection.is_partially_delegated() {
             return Ok(());
         }
@@ -479,9 +496,9 @@ where
         let partially_delegated =
             match std::mem::replace(&mut self.connection, SocketState::Invalid) {
                 SocketState::Available(conn) => {
-                    PartiallyDelegated::split_and_listen_for_sphinx_packets(
+                    PartiallyDelegated::split_and_listen_for_mixnet_messages(
                         conn,
-                        self.sphinx_packet_sender.clone(),
+                        self.mixnet_message_sender.clone(),
                     )?
                 }
                 _ => unreachable!(),

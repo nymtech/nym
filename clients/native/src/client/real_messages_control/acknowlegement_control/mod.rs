@@ -18,12 +18,13 @@ use self::{
     retransmission_request_listener::RetransmissionRequestListener,
     sent_notification_listener::SentNotificationListener,
 };
-use super::real_traffic_stream::RealSphinxSender;
+use super::real_traffic_stream::RealMessageSender;
 use crate::client::{
     inbound_messages::InputMessageReceiver,
     topology_control::{TopologyAccessor, TopologyReadPermit},
 };
 use futures::channel::mpsc;
+use gateway_client::AcknowledgementReceiver;
 use log::*;
 use nymsphinx::{
     acknowledgements,
@@ -37,7 +38,6 @@ use nymsphinx::{
 use rand::{CryptoRng, Rng};
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{
-    runtime::Handle,
     sync::{Notify, RwLock},
     task::JoinHandle,
 };
@@ -48,13 +48,10 @@ mod input_message_listener;
 mod retransmission_request_listener;
 mod sent_notification_listener;
 
-pub(crate) type AcknowledgementSender = mpsc::UnboundedSender<Vec<u8>>;
-pub(crate) type AcknowledgementReceiver = mpsc::UnboundedReceiver<Vec<u8>>;
-
 type RetransmissionRequestSender = mpsc::UnboundedSender<FragmentIdentifier>;
 type RetransmissionRequestReceiver = mpsc::UnboundedReceiver<FragmentIdentifier>;
 
-pub(crate) type SentPacketNotificationSender = mpsc::UnboundedSender<FragmentIdentifier>;
+pub(super) type SentPacketNotificationSender = mpsc::UnboundedSender<FragmentIdentifier>;
 type SentPacketNotificationReceiver = mpsc::UnboundedReceiver<FragmentIdentifier>;
 
 type PendingAcksMap = Arc<RwLock<HashMap<FragmentIdentifier, PendingAcknowledgement>>>;
@@ -111,14 +108,30 @@ fn try_get_valid_topology_ref<'a, T: NymTopology>(
     }
 }
 
-pub(crate) struct AcknowledgementControllerConnectors {
-    real_sphinx_sender: RealSphinxSender,
+pub(super) struct AcknowledgementControllerConnectors {
+    real_message_sender: RealMessageSender,
     input_receiver: InputMessageReceiver,
     sent_notifier: SentPacketNotificationReceiver,
     ack_receiver: AcknowledgementReceiver,
 }
 
-pub(crate) struct AcknowledgementController<R, T>
+impl AcknowledgementControllerConnectors {
+    pub(super) fn new(
+        real_message_sender: RealMessageSender,
+        input_receiver: InputMessageReceiver,
+        sent_notifier: SentPacketNotificationReceiver,
+        ack_receiver: AcknowledgementReceiver,
+    ) -> Self {
+        AcknowledgementControllerConnectors {
+            real_message_sender,
+            input_receiver,
+            sent_notifier,
+            ack_receiver,
+        }
+    }
+}
+
+pub(super) struct AcknowledgementController<R, T>
 where
     R: CryptoRng + Rng,
     T: NymTopology,
@@ -134,7 +147,7 @@ where
     R: 'static + CryptoRng + Rng + Clone + Send,
     T: 'static + NymTopology,
 {
-    pub(crate) fn new(
+    pub(super) fn new(
         mut rng: R,
         topology_access: TopologyAccessor<T>,
         ack_recipient: Recipient,
@@ -165,7 +178,7 @@ where
             connectors.input_receiver,
             message_chunker.clone(),
             Arc::clone(&pending_acks),
-            connectors.real_sphinx_sender.clone(),
+            connectors.real_message_sender.clone(),
             topology_access.clone(),
         );
 
@@ -176,7 +189,7 @@ where
             ack_recipient,
             message_chunker,
             Arc::clone(&pending_acks),
-            connectors.real_sphinx_sender,
+            connectors.real_message_sender,
             retransmission_rx,
             topology_access,
         );
@@ -195,7 +208,7 @@ where
         }
     }
 
-    pub(crate) async fn run(&mut self) {
+    pub(super) async fn run(&mut self) {
         let mut acknowledgement_listener = self.acknowledgement_listener.take().unwrap();
         let mut input_message_listener = self.input_message_listener.take().unwrap();
         let mut retransmission_request_listener =
@@ -240,10 +253,8 @@ where
         self.sent_notification_listener = Some(sent_notification_fut.await.unwrap());
     }
 
-    // &Handle is only passed for consistency sake with other client modules, but I think
-    // when we get to refactoring, we should apply gateway approach and make it implicit
-    pub(crate) fn start(mut self, handle: &Handle) -> JoinHandle<Self> {
-        handle.spawn(async move {
+    pub(super) fn start(mut self) -> JoinHandle<Self> {
+        tokio::spawn(async move {
             self.run().await;
             self
         })

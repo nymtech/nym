@@ -53,7 +53,7 @@ pub const fn linked_fragmented_payload_max_len(max_plaintext_size: usize) -> usi
 
 /// Identifier to uniquely identify a fragment. It represents 31bit ID of given `FragmentSet`
 /// and u8 position of the `Fragment` in the set.
-#[derive(Debug, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub struct FragmentIdentifier {
     set_id: i32,
     fragment_position: u8,

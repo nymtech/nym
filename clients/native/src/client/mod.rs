@@ -15,6 +15,7 @@
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
 use crate::client::mix_traffic::{MixMessageReceiver, MixMessageSender, MixTrafficController};
+use crate::client::real_messages_control::RealMessagesController;
 use crate::client::received_buffer::{
     ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
 };
@@ -26,12 +27,16 @@ use crate::websocket;
 use crypto::identity::MixIdentityKeyPair;
 use directory_client::presence;
 use futures::channel::mpsc;
-use gateway_client::{GatewayClient, SphinxPacketReceiver, SphinxPacketSender};
+use gateway_client::{
+    AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
+    MixnetMessageSender,
+};
 use gateway_requests::auth_token::AuthToken;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::NodeAddressBytes;
 use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
+use std::time::Duration;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
@@ -39,7 +44,6 @@ mod cover_traffic_stream;
 pub(crate) mod inbound_messages;
 mod mix_traffic;
 pub(crate) mod real_messages_control;
-mod real_traffic_stream;
 pub(crate) mod received_buffer;
 pub(crate) mod topology_control;
 
@@ -98,24 +102,39 @@ impl NymClient {
             .start(self.runtime.handle());
     }
 
-    fn start_real_traffic_stream<T: 'static + NymTopology>(
+    fn start_real_traffic_controller<T: 'static + NymTopology>(
         &self,
         topology_accessor: TopologyAccessor<T>,
-        mix_tx: MixMessageSender,
-        input_rx: InputMessageReceiver,
+        ack_receiver: AcknowledgementReceiver,
+        input_receiver: InputMessageReceiver,
+        mix_sender: MixMessageSender,
     ) {
+        // TODO put them in config and actually use
+        let ack_wait_multiplier = 1.5;
+        let ack_wait_addition = Duration::from_millis(1500);
+        let average_ack_delay_duration = self.config.get_average_packet_delay();
+
+        let controller_config = real_messages_control::Config::new(
+            ack_wait_multiplier,
+            ack_wait_addition,
+            average_ack_delay_duration,
+            self.config.get_message_sending_average_delay(),
+            self.config.get_average_packet_delay(),
+            self.as_mix_recipient(),
+        );
+
         info!("Starting real traffic stream...");
         // we need to explicitly enter runtime due to "next_delay: time::delay_for(Default::default())"
-        // set in the constructor which HAS TO be called within context of a tokio runtime
+        // set in the constructor [of OutQueueControl] which HAS TO be called within context of a tokio runtime
+        // When refactoring this restriction should definitely be removed.
         self.runtime
             .enter(|| {
-                real_traffic_stream::OutQueueControl::new(
-                    mix_tx,
-                    input_rx,
-                    self.as_mix_recipient(),
+                RealMessagesController::new(
+                    controller_config,
+                    ack_receiver,
+                    input_receiver,
+                    mix_sender,
                     topology_accessor,
-                    self.config.get_average_packet_delay(),
-                    self.config.get_message_sending_average_delay(),
                 )
             })
             .start(self.runtime.handle());
@@ -126,7 +145,7 @@ impl NymClient {
     fn start_received_messages_buffer_controller(
         &self,
         query_receiver: ReceivedBufferRequestReceiver,
-        sphinx_receiver: SphinxPacketReceiver,
+        sphinx_receiver: MixnetMessageReceiver,
     ) {
         info!("Starting received messages buffer controller...");
         ReceivedMessagesBufferController::new(query_receiver, sphinx_receiver)
@@ -135,7 +154,8 @@ impl NymClient {
 
     fn start_gateway_client(
         &mut self,
-        sphinx_packet_sender: SphinxPacketSender,
+        mixnet_message_sender: MixnetMessageSender,
+        ack_sender: AcknowledgementSender,
         gateway_address: url::Url,
     ) -> GatewayClient<'static, url::Url> {
         let auth_token = self
@@ -148,7 +168,8 @@ impl NymClient {
             gateway_address,
             self.as_mix_recipient().destination(),
             auth_token,
-            sphinx_packet_sender,
+            mixnet_message_sender,
+            ack_sender,
             self.config.get_gateway_response_timeout(),
         );
 
@@ -323,15 +344,18 @@ impl NymClient {
         // sphinx_message_receiver is the receiver used by MixTrafficController that sends the actual traffic
         let (sphinx_message_sender, sphinx_message_receiver) = mpsc::unbounded();
 
-        // unwrapped_sphinx_sender is the transmitter of [unwrapped] sphinx messages received from the gateway
+        // unwrapped_sphinx_sender is the transmitter of mixnet messages received from the gateway
         // unwrapped_sphinx_receiver is the receiver for said messages - used by ReceivedMessagesBuffer
-        let (unwrapped_sphinx_sender, unwrapped_sphinx_receiver) = mpsc::unbounded();
+        let (mixnet_messages_sender, mixnet_messages_receiver) = mpsc::unbounded();
 
         // used for announcing connection or disconnection of a channel for pushing re-assembled messages to
         let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
 
         // channels responsible for controlling real messages
         let (input_sender, input_receiver) = mpsc::unbounded::<InputMessage>();
+
+        // channels responsible for controlling ack messages
+        let (ack_sender, ack_receiver) = mpsc::unbounded();
 
         // TODO: when we switch to our graph topology, we need to remember to change 'presence::Topology' type
         let shared_topology_accessor = TopologyAccessor::<presence::Topology>::new();
@@ -340,24 +364,27 @@ impl NymClient {
         self.start_topology_refresher(shared_topology_accessor.clone());
         self.start_received_messages_buffer_controller(
             received_buffer_request_receiver,
-            unwrapped_sphinx_receiver,
+            mixnet_messages_receiver,
         );
 
         let gateway_url = self.runtime.block_on(Self::get_gateway_address(
             self.config.get_gateway_id(),
             shared_topology_accessor.clone(),
         ));
-        let gateway_client = self.start_gateway_client(unwrapped_sphinx_sender, gateway_url);
+        let gateway_client =
+            self.start_gateway_client(mixnet_messages_sender, ack_sender, gateway_url);
 
         self.start_mix_traffic_controller(sphinx_message_receiver, gateway_client);
         self.start_cover_traffic_stream(
             shared_topology_accessor.clone(),
             sphinx_message_sender.clone(),
         );
-        self.start_real_traffic_stream(
+
+        self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
-            sphinx_message_sender,
+            ack_receiver,
             input_receiver,
+            sphinx_message_sender,
         );
 
         match self.config.get_socket_type() {

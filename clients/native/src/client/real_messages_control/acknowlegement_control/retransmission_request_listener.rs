@@ -14,7 +14,7 @@
 
 use super::{try_get_valid_topology_ref, PendingAcksMap, RetransmissionRequestReceiver};
 use crate::client::{
-    real_messages_control::real_traffic_stream::RealSphinxSender,
+    real_messages_control::real_traffic_stream::{RealMessage, RealMessageSender},
     topology_control::TopologyAccessor,
 };
 use futures::StreamExt;
@@ -38,7 +38,7 @@ where
     ack_recipient: Recipient,
     message_chunker: MessageChunker<R>,
     pending_acks: PendingAcksMap,
-    real_sphinx_sender: RealSphinxSender,
+    real_message_sender: RealMessageSender,
     request_receiver: RetransmissionRequestReceiver,
     topology_access: TopologyAccessor<T>,
 }
@@ -53,7 +53,7 @@ where
         ack_recipient: Recipient,
         message_chunker: MessageChunker<R>,
         pending_acks: PendingAcksMap,
-        real_sphinx_sender: RealSphinxSender,
+        real_message_sender: RealMessageSender,
         request_receiver: RetransmissionRequestReceiver,
         topology_access: TopologyAccessor<T>,
     ) -> Self {
@@ -62,7 +62,7 @@ where
             ack_recipient,
             message_chunker,
             pending_acks,
-            real_sphinx_sender,
+            real_message_sender,
             request_receiver,
             topology_access,
         }
@@ -78,6 +78,7 @@ where
 
         let packet_recipient = unreceived_ack_fragment.recipient.clone();
         let chunk_clone = unreceived_ack_fragment.message_chunk.clone();
+        let frag_id = unreceived_ack_fragment.message_chunk.fragment_identifier();
 
         // TODO: we need some proper benchmarking here to determine whether it could
         // be more efficient to just get write lock and keep it while doing sphinx computation,
@@ -94,12 +95,14 @@ where
         }
         let topology_ref = topology_ref_option.unwrap();
 
-        let (total_delay, packet) = self
+        let (total_delay, (first_hop, packet)) = self
             .message_chunker
             .prepare_chunk_for_sending(chunk_clone, topology_ref, &self.ack_key, &packet_recipient)
             .unwrap();
 
-        self.real_sphinx_sender.unbounded_send(packet).unwrap();
+        self.real_message_sender
+            .unbounded_send(RealMessage::new(first_hop, packet, frag_id))
+            .unwrap();
 
         self.pending_acks
             .write()

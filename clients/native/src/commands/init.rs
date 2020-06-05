@@ -71,6 +71,8 @@ async fn try_gateway_registration(
     // TODO: having to do something like this suggests that perhaps GatewayClient's constructor
     // could be improved
     let (sphinx_tx, _) = mpsc::unbounded();
+    let (ack_tx, _) = mpsc::unbounded();
+
     let timeout = Duration::from_millis(1500);
     for gateway in gateways {
         let mut gateway_client = GatewayClient::new(
@@ -78,6 +80,7 @@ async fn try_gateway_registration(
             our_address.clone(),
             None,
             sphinx_tx.clone(),
+            ack_tx.clone(),
             timeout,
         );
         if gateway_client.establish_connection().await.is_ok() {

@@ -15,7 +15,7 @@
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
-use gateway_client::SphinxPacketReceiver;
+use gateway_client::MixnetMessageReceiver;
 use log::*;
 use nymsphinx::{
     chunking::reconstruction::MessageReconstructor,
@@ -189,13 +189,13 @@ impl RequestReceiver {
 
 struct FragmentedMessageReceiver {
     received_buffer: ReceivedMessagesBuffer,
-    sphinx_packet_receiver: SphinxPacketReceiver,
+    sphinx_packet_receiver: MixnetMessageReceiver,
 }
 
 impl FragmentedMessageReceiver {
     fn new(
         received_buffer: ReceivedMessagesBuffer,
-        sphinx_packet_receiver: SphinxPacketReceiver,
+        sphinx_packet_receiver: MixnetMessageReceiver,
     ) -> Self {
         FragmentedMessageReceiver {
             received_buffer,
@@ -221,7 +221,7 @@ pub(crate) struct ReceivedMessagesBufferController {
 impl ReceivedMessagesBufferController {
     pub(crate) fn new(
         query_receiver: ReceivedBufferRequestReceiver,
-        sphinx_packet_receiver: SphinxPacketReceiver,
+        sphinx_packet_receiver: MixnetMessageReceiver,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new();
 

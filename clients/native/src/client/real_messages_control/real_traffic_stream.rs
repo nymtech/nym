@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client::inbound_messages::InputMessage;
-use crate::client::mix_traffic::MixMessage;
+use crate::client::mix_traffic::{MixMessage, MixMessageSender};
+use crate::client::real_messages_control::acknowlegement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
-use log::{error, info, trace, warn};
+use log::*;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::utils::{encapsulation, poisson};
 use nymsphinx::SphinxPacket;
+use std::net::SocketAddr;
 use std::pin::Pin;
 use std::time::Duration;
-use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 use tokio::time;
 use topology::NymTopology;
@@ -32,19 +33,42 @@ use topology::NymTopology;
 pub(crate) struct OutQueueControl<T: NymTopology> {
     average_packet_delay: Duration,
     average_message_sending_delay: Duration,
+    sent_notifier: SentPacketNotificationSender,
     next_delay: time::Delay,
-    mix_tx: mpsc::UnboundedSender<MixMessage>,
-    input_rx: mpsc::UnboundedReceiver<InputMessage>,
+    mix_tx: MixMessageSender,
+    real_receiver: RealMessageReceiver,
     our_full_destination: Recipient,
     topology_access: TopologyAccessor<T>,
 }
 
-pub(crate) type RealSphinxSender = mpsc::UnboundedSender<SphinxPacket>;
-type RealSphinxReceiver = mpsc::UnboundedReceiver<SphinxPacket>;
+pub(crate) struct RealMessage {
+    first_hop_address: SocketAddr,
+    packet: SphinxPacket,
+    fragment_id: FragmentIdentifier,
+}
+
+impl RealMessage {
+    pub(crate) fn new(
+        first_hop_address: SocketAddr,
+        packet: SphinxPacket,
+        fragment_id: FragmentIdentifier,
+    ) -> Self {
+        RealMessage {
+            first_hop_address,
+            packet,
+            fragment_id,
+        }
+    }
+}
+
+// messages are already prepared, etc. the real point of it is to forward it to mix_traffic
+// after sufficient delay
+pub(crate) type RealMessageSender = mpsc::UnboundedSender<RealMessage>;
+type RealMessageReceiver = mpsc::UnboundedReceiver<RealMessage>;
 
 pub(crate) enum StreamMessage {
     Cover,
-    Real(InputMessage),
+    Real(RealMessage),
 }
 
 impl<T: NymTopology> Stream for OutQueueControl<T> {
@@ -67,7 +91,7 @@ impl<T: NymTopology> Stream for OutQueueControl<T> {
         self.next_delay.reset(next);
 
         // decide what kind of message to send
-        match Pin::new(&mut self.input_rx).poll_next(cx) {
+        match Pin::new(&mut self.real_receiver).poll_next(cx) {
             // in the case our real message channel stream was closed, we should also indicate we are closed
             // (and whoever is using the stream should panic)
             Poll::Ready(None) => Poll::Ready(None),
@@ -83,19 +107,21 @@ impl<T: NymTopology> Stream for OutQueueControl<T> {
 
 impl<T: 'static + NymTopology> OutQueueControl<T> {
     pub(crate) fn new(
-        mix_tx: mpsc::UnboundedSender<MixMessage>,
-        input_rx: mpsc::UnboundedReceiver<InputMessage>,
-        our_full_destination: Recipient,
-        topology_access: TopologyAccessor<T>,
         average_packet_delay: Duration,
         average_message_sending_delay: Duration,
+        sent_notifier: SentPacketNotificationSender,
+        mix_tx: MixMessageSender,
+        real_receiver: RealMessageReceiver,
+        our_full_destination: Recipient,
+        topology_access: TopologyAccessor<T>,
     ) -> Self {
         OutQueueControl {
             average_packet_delay,
             average_message_sending_delay,
+            sent_notifier,
             next_delay: time::delay_for(Default::default()),
             mix_tx,
-            input_rx,
+            real_receiver,
             our_full_destination,
             topology_access,
         }
@@ -120,7 +146,7 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
     async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
 
-        let next_packet = match next_message {
+        let next_message = match next_message {
             StreamMessage::Cover => {
                 let route = self.get_route(None).await;
                 if route.is_none() {
@@ -128,37 +154,24 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
                     return;
                 }
                 let route = route.unwrap();
-                encapsulation::loop_cover_message_route(
+                // if after getting valid route, we fail to create cover message packet,
+                // there's a bug somewhere and we really should panic
+                let loop_message = encapsulation::loop_cover_message_route(
                     self.our_full_destination.destination().clone(),
                     route,
                     self.average_packet_delay,
                 )
+                .expect("We failed to create a loop cover message!");
+                MixMessage::new(loop_message.0, loop_message.1)
             }
             StreamMessage::Real(real_message) => {
-                let (recipient, data) = real_message.destruct();
-                let route = self.get_route(Some(&recipient)).await;
-                if route.is_none() {
-                    warn!("No valid topology detected - won't send any real or loop message this time");
-                    return;
-                }
-                let route = route.unwrap();
-                encapsulation::encapsulate_message_route(
-                    recipient.destination(),
-                    data,
-                    route,
-                    self.average_packet_delay,
-                )
-            }
-        };
-
-        let next_packet = match next_packet {
-            Ok(message) => message,
-            Err(err) => {
-                error!(
-                    "Somehow we managed to create an invalid traffic message - {:?}",
-                    err
-                );
-                return;
+                // well technically the message was not sent just yet, but now it's up to internal
+                // queues and client load rather than the required delay. So realistically we can treat
+                // whatever is about to happen as negligible additional delay.
+                self.sent_notifier
+                    .unbounded_send(real_message.fragment_id)
+                    .unwrap();
+                MixMessage::new(real_message.first_hop_address, real_message.packet)
             }
         };
 
@@ -166,10 +179,7 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
         // - we run out of memory
         // - the receiver channel is closed
         // in either case there's no recovery and we can only panic
-        self.mix_tx
-            .unbounded_send(MixMessage::new(next_packet.0, next_packet.1))
-            .unwrap();
-        // TODO: if real, notify ack control that msg was sent (well, kinda was sent)
+        self.mix_tx.unbounded_send(next_message).unwrap();
 
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
         // the UnboundedReceiver [of mix_rx] will not get a chance to read anything
@@ -179,7 +189,7 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
         tokio::task::yield_now().await;
     }
 
-    pub(crate) async fn run_out_queue_control(mut self) {
+    pub(crate) async fn run_out_queue_control(&mut self) {
         // we should set initial delay only when we actually start the stream
         self.next_delay = time::delay_for(poisson::sample(self.average_message_sending_delay));
 
@@ -189,7 +199,10 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
         }
     }
 
-    pub(crate) fn start(self, handle: &Handle) -> JoinHandle<()> {
-        handle.spawn(async move { self.run_out_queue_control().await })
+    pub(crate) fn start(mut self) -> JoinHandle<Self> {
+        tokio::spawn(async move {
+            self.run_out_queue_control().await;
+            self
+        })
     }
 }

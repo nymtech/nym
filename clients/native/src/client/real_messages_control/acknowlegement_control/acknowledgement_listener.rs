@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{AcknowledgementReceiver, PendingAcksMap};
+use super::PendingAcksMap;
 use futures::StreamExt;
+use gateway_client::AcknowledgementReceiver;
 use log::*;
 use nymsphinx::{
     acknowledgements::{identifier::recover_identifier, AckAes128Key},
@@ -70,8 +71,13 @@ impl AcknowledgementListener {
 
     pub(super) async fn run(&mut self) {
         debug!("Started AcknowledgementListener");
-        while let Some(ack) = self.ack_receiver.next().await {
-            self.on_ack(ack).await;
+        while let Some(acks) = self.ack_receiver.next().await {
+            // realistically we would only be getting one ack at the time, but if we managed to
+            // introduce batching in gateway client, this call should be improved to not re-acquire
+            // write permit on the map every loop iteration
+            for ack in acks {
+                self.on_ack(ack).await;
+            }
         }
         error!("TODO: error msg. Or maybe panic?")
     }

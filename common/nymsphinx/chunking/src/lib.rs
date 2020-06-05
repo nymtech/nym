@@ -17,10 +17,13 @@ use crate::set::split_into_sets;
 use nymsphinx_acknowledgements::identifier::AckAes128Key;
 use nymsphinx_acknowledgements::surb_ack::SURBAck;
 use nymsphinx_addressing::clients::Recipient;
+use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_types::builder::SphinxPacketBuilder;
-use nymsphinx_types::{delays, Delay, Destination, NodeAddressBytes, SphinxPacket};
+use nymsphinx_types::{delays, Delay, Destination, DestinationAddressBytes, SphinxPacket};
 use rand::{rngs::OsRng, CryptoRng, Rng};
+use std::convert::TryFrom;
+use std::net::SocketAddr;
 use std::time::Duration;
 use topology::{NymTopology, NymTopologyError};
 
@@ -160,7 +163,7 @@ impl<R: CryptoRng + Rng> MessageChunker<R> {
         topology: &T,
         ack_key: &AckAes128Key,
         packet_recipient: &Recipient,
-    ) -> Result<(Delay, SphinxPacket), NymTopologyError> {
+    ) -> Result<(Delay, (SocketAddr, SphinxPacket)), NymTopologyError> {
         let (ack_delay, surb_ack) = self
             .generate_surb_ack(&fragment.fragment_identifier(), topology, ack_key)?
             .prepare_for_sending();
@@ -188,7 +191,13 @@ impl<R: CryptoRng + Rng> MessageChunker<R> {
             .build_packet(packet_payload, &route, &destination, &delays)
             .unwrap();
 
-        Ok((delays.iter().sum::<Delay>() + ack_delay, packet))
+        let first_hop_address =
+            NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone()).unwrap();
+
+        Ok((
+            delays.iter().sum::<Delay>() + ack_delay,
+            (first_hop_address.into(), packet),
+        ))
     }
 
     fn generate_surb_ack<T>(

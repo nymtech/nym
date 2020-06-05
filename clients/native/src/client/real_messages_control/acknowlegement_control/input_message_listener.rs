@@ -15,7 +15,7 @@
 use super::{try_get_valid_topology_ref, PendingAcknowledgement, PendingAcksMap};
 use crate::client::{
     inbound_messages::{InputMessage, InputMessageReceiver},
-    real_messages_control::real_traffic_stream::RealSphinxSender,
+    real_messages_control::real_traffic_stream::{RealMessage, RealMessageSender},
     topology_control::TopologyAccessor,
 };
 use futures::StreamExt;
@@ -40,7 +40,7 @@ where
     input_receiver: InputMessageReceiver,
     message_chunker: MessageChunker<R>,
     pending_acks: PendingAcksMap,
-    real_sphinx_sender: RealSphinxSender,
+    real_message_sender: RealMessageSender,
     topology_access: TopologyAccessor<T>,
 }
 
@@ -55,7 +55,7 @@ where
         input_receiver: InputMessageReceiver,
         message_chunker: MessageChunker<R>,
         pending_acks: PendingAcksMap,
-        real_sphinx_sender: RealSphinxSender,
+        real_message_sender: RealMessageSender,
         topology_access: TopologyAccessor<T>,
     ) -> Self {
         InputMessageListener {
@@ -64,7 +64,7 @@ where
             input_receiver,
             message_chunker,
             pending_acks,
-            real_sphinx_sender,
+            real_message_sender,
             topology_access,
         }
     }
@@ -90,12 +90,14 @@ where
             // we need to clone it because we need to keep it in memory in case we had to retransmit
             // it. And then we'd need to recreate entire ACK again.
             let chunk_clone = message_chunk.clone();
-            let (total_delay, packet) = self
+            let (total_delay, (first_hop, packet)) = self
                 .message_chunker
                 .prepare_chunk_for_sending(chunk_clone, topology_ref, &self.ack_key, &recipient)
                 .unwrap();
 
-            self.real_sphinx_sender.unbounded_send(packet).unwrap();
+            self.real_message_sender
+                .unbounded_send(RealMessage::new(first_hop, packet, frag_id))
+                .unwrap();
 
             let pending_ack =
                 PendingAcknowledgement::new(message_chunk, total_delay, recipient.clone());

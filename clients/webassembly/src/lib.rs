@@ -149,6 +149,7 @@ mod test_constructing_a_sphinx_packet {
     // }
 
     #[test]
+    #[cfg_attr(feature = "offline-test", ignore)]
     fn starts_with_a_mix_address() {
         let mut payload = create_sphinx_packet(
             topology_fixture(),
@@ -225,6 +226,7 @@ mod building_a_topology_from_json {
     }
 
     #[test]
+    #[cfg_attr(feature = "offline-test", ignore)]
     fn test_works_on_happy_json() {
         let route = sphinx_route_to(
             topology_fixture(),

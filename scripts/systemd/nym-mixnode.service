@@ -10,28 +10,28 @@
 # However keep in mind that more often than not the defaults work very well.
 #
 # Directions of use (description and example command)
-# 1. Create a "nym" user and group (example for Debian):
-#    sudo useradd -U -m -s /sbin/nologin nym
-# 2. Start a new bash session with your nym user:
-#    sudo -u nym bash
-# 3. Change to the users home directory:
-#    cd
-# 4. Obtain the current mixnode binary from the nym release page and make it
-#    executable:
-#    curl -LO https://github.com/nymtech/nym/releases/download/v0.7.0/nym-mixnode_linux_x86_64
-#    chmod 755 nym-mixnode_linux_x86_64
-# 6. Initialize the mixnode config (this assumes a simple IPv4 setup):
-#    ./nym-mixnode_linux_x86_64 init --id iamboss -layer 2 --host $(curl -sS v4.icanhazip.com)
-# 7. Give it a try. The mixnode should run in the foreground until you
-#    terminate it with Ctrl-C:
-#    ./nym-mixnode_linux_x86_64 run --id iamboss
-# 8. Exit from your nym shell:
-#    exit
-# 9. Copy this file over to /etc/systemd/system/nym-mixnode.service.
-# 4. Enable the service so that it will autostart at boot-time:
-#    sudo systemctl enable nym-mixnode
-# 3. Start the nym service:
-#    sudo systemctl start nym-mixnode
+#  1. Create a "nym" user and group (example for Debian):
+#     sudo useradd -U -m -s /sbin/nologin nym
+#  2. Start a new bash session with your nym user:
+#     sudo -u nym bash
+#  3. Change to the users home directory:
+#     cd
+#  4. Obtain the current mixnode binary from the nym release page and make it
+#     executable:
+#     curl -LO https://github.com/nymtech/nym/releases/download/v0.7.0/nym-mixnode_linux_x86_64
+#     chmod 755 nym-mixnode_linux_x86_64
+#  5. Initialize the mixnode config (this assumes a simple IPv4 setup):
+#     ./nym-mixnode_linux_x86_64 init --id iamboss -layer 2 --host $(curl -sS v4.icanhazip.com)
+#  6. Give it a try. The mixnode should run in the foreground until you
+#     terminate it with Ctrl-C:
+#     ./nym-mixnode_linux_x86_64 run --id iamboss
+#  7. Exit from your nym shell:
+#     exit
+#  8. Copy this file over to /etc/systemd/system/nym-mixnode.service.
+#  9. Enable the service so that it will autostart at boot-time:
+#     sudo systemctl enable nym-mixnode
+# 10. Start the nym service:
+#     sudo systemctl start nym-mixnode
 
 [Unit]
 Description=nym mixnode service

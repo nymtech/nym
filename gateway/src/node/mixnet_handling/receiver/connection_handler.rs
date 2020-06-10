@@ -61,6 +61,7 @@ where
         while let Some(sphinx_packet) = self.framed_connection.next().await {
             match sphinx_packet {
                 Ok(sphinx_packet) => {
+                    // rather important TODO:
                     // we *really* need a worker pool here, because if we receive too many packets,
                     // we will spawn too many tasks and starve CPU due to context switching.
                     // (because presumably tokio has some concept of context switching in its

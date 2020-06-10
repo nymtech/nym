@@ -17,10 +17,8 @@ use futures::lock::Mutex;
 use futures::StreamExt;
 use gateway_client::MixnetMessageReceiver;
 use log::*;
-use nymsphinx::{
-    chunking::reconstruction::MessageReconstructor,
-    utils::encapsulation::LOOP_COVER_MESSAGE_PAYLOAD,
-};
+use nymsphinx::chunking::reconstruction::MessageReconstructor;
+use nymsphinx::cover::LOOP_COVER_MESSAGE_PAYLOAD;
 use std::sync::Arc;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;

@@ -9,11 +9,11 @@ edition = "2018"
 [dependencies]
 rand = {version = "0.7.3", features = ["wasm-bindgen"]}
 rand_distr = "0.2.2"
-tokio-util = { version = "0.3.1", features = ["codec"] }
 
 nymsphinx-acknowledgements = { path = "acknowledgements" }
 nymsphinx-addressing = { path = "addressing" }
 nymsphinx-chunking = { path = "chunking" }
+nymsphinx-cover = { path = "cover" }
 nymsphinx-framing = { path = "framing" }
 nymsphinx-params = { path = "params" }
 nymsphinx-types = { path = "types" }

@@ -18,6 +18,7 @@ pub mod utils;
 pub use nymsphinx_acknowledgements as acknowledgements;
 pub use nymsphinx_addressing as addressing;
 pub use nymsphinx_chunking as chunking;
+pub use nymsphinx_cover as cover;
 pub use nymsphinx_framing as framing;
 pub use nymsphinx_params as params;
 pub use nymsphinx_types::*;

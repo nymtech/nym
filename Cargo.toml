@@ -18,6 +18,7 @@ members = [
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",
     "common/nymsphinx/chunking",
+    "common/nymsphinx/cover",
     "common/nymsphinx/framing",
     "common/nymsphinx/params",
     "common/nymsphinx/types",

@@ -24,6 +24,8 @@ use std::time::Duration;
 // with poisson timer, there's no guarantee the message will be sent immediately, so we might
 // accidentally fire retransmission way quicker than we would have wanted.
 pub(super) struct SentNotificationListener {
+    ack_wait_multiplier: f64,
+    ack_wait_addition: Duration,
     sent_notifier: SentPacketNotificationReceiver,
     pending_acks: PendingAcksMap,
     retransmission_sender: RetransmissionRequestSender,
@@ -31,11 +33,15 @@ pub(super) struct SentNotificationListener {
 
 impl SentNotificationListener {
     pub(super) fn new(
+        ack_wait_multiplier: f64,
+        ack_wait_addition: Duration,
         sent_notifier: SentPacketNotificationReceiver,
         pending_acks: PendingAcksMap,
         retransmission_sender: RetransmissionRequestSender,
     ) -> Self {
         SentNotificationListener {
+            ack_wait_multiplier,
+            ack_wait_addition,
             sent_notifier,
             pending_acks,
             retransmission_sender,
@@ -64,9 +70,10 @@ impl SentNotificationListener {
         // TODO: read more about Arc::downgrade. it could be useful here
         let retransmission_cancel = Arc::clone(&pending_ack_data.retransmission_cancel);
 
-        // TODO: put the retransmission_timeout constants in config file
-        let retransmission_timeout =
-            tokio::time::delay_for(pending_ack_data.delay.to_duration() + Duration::from_secs(2));
+        let retransmission_timeout = tokio::time::delay_for(
+            (pending_ack_data.delay.clone() * self.ack_wait_multiplier).to_duration()
+                + self.ack_wait_addition,
+        );
 
         let retransmission_sender = self.retransmission_sender.clone();
         tokio::spawn(async move {

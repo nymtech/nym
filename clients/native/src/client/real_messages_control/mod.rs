@@ -27,8 +27,10 @@ use crate::client::{
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
+use nymsphinx::acknowledgements::identifier::AckAes128Key;
 use nymsphinx::addressing::clients::Recipient;
 use rand::{rngs::OsRng, CryptoRng, Rng};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
@@ -38,14 +40,12 @@ mod acknowlegement_control;
 mod real_traffic_stream;
 
 pub(crate) struct Config {
+    ack_wait_multiplier: f64,
+    ack_wait_addition: Duration,
     self_recipient: Recipient,
     average_packet_delay_duration: Duration,
     average_ack_delay_duration: Duration,
     average_message_sending_delay: Duration,
-
-    // TODO: use those two
-    ack_wait_multiplier: f64, // TODO: or u64?
-    ack_wait_addition: Duration,
 }
 
 impl Config {
@@ -73,10 +73,12 @@ where
     R: CryptoRng + Rng,
     T: NymTopology,
 {
-    out_queue_control: Option<OutQueueControl<T>>,
+    out_queue_control: Option<OutQueueControl<R, T>>,
     ack_control: Option<AcknowledgementController<R, T>>,
 }
 
+// obviously when we finally make shared rng that is on 'higher' level, this should become
+// generic `R`
 impl<T: 'static + NymTopology> RealMessagesController<OsRng, T> {
     pub(crate) fn new(
         config: Config,
@@ -90,16 +92,6 @@ impl<T: 'static + NymTopology> RealMessagesController<OsRng, T> {
         let (real_message_sender, real_message_receiver) = mpsc::unbounded();
         let (sent_notifier_tx, sent_notifier_rx) = mpsc::unbounded();
 
-        let out_queue_control = OutQueueControl::new(
-            config.average_packet_delay_duration.clone(),
-            config.average_message_sending_delay,
-            sent_notifier_tx,
-            mix_sender,
-            real_message_receiver,
-            config.self_recipient.clone(),
-            topology_access.clone(),
-        );
-
         let ack_controller_connectors = AcknowledgementControllerConnectors::new(
             real_message_sender,
             input_receiver,
@@ -109,17 +101,37 @@ impl<T: 'static + NymTopology> RealMessagesController<OsRng, T> {
 
         let ack_control = AcknowledgementController::new(
             rng,
-            topology_access,
-            config.self_recipient,
+            topology_access.clone(),
+            config.self_recipient.clone(),
             config.average_packet_delay_duration,
             config.average_ack_delay_duration,
+            config.ack_wait_multiplier,
+            config.ack_wait_addition,
             ack_controller_connectors,
+        );
+
+        let out_queue_control = OutQueueControl::new(
+            ack_control.ack_key(),
+            config.average_ack_delay_duration,
+            config.average_packet_delay_duration,
+            config.average_message_sending_delay,
+            sent_notifier_tx,
+            mix_sender,
+            real_message_receiver,
+            rng,
+            config.self_recipient,
+            topology_access,
         );
 
         RealMessagesController {
             out_queue_control: Some(out_queue_control),
             ack_control: Some(ack_control),
         }
+    }
+
+    // Note: this method can only be called before `run` is called
+    pub(super) fn ack_key(&self) -> Arc<AckAes128Key> {
+        self.ack_control.as_ref().unwrap().ack_key()
     }
 
     pub(super) async fn run(&mut self) {

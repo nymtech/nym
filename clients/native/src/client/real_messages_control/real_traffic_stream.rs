@@ -19,25 +19,59 @@ use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
+use nymsphinx::acknowledgements::identifier::AckAes128Key;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::chunking::fragment::FragmentIdentifier;
-use nymsphinx::utils::{encapsulation, poisson};
+use nymsphinx::cover::generate_loop_cover_packet;
+use nymsphinx::utils::sample_poisson_duration;
 use nymsphinx::SphinxPacket;
+use rand::{CryptoRng, Rng};
 use std::net::SocketAddr;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::time::Duration;
-use tokio::task::JoinHandle;
 use tokio::time;
 use topology::NymTopology;
 
-pub(crate) struct OutQueueControl<T: NymTopology> {
+pub(crate) struct OutQueueControl<R, T>
+where
+    R: CryptoRng + Rng,
+    T: NymTopology,
+{
+    /// Key used to encrypt and decrypt content of an ACK packet.
+    ack_key: Arc<AckAes128Key>,
+
+    /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
+    average_ack_delay: Duration,
+
+    /// Average delay a data packet is going to get delay at a single mixnode.
     average_packet_delay: Duration,
+
+    /// Average delay between sending subsequent packets.
     average_message_sending_delay: Duration,
+
+    /// Channel used for notifying of a real packet being sent out. Used to start up retransmission timer.
     sent_notifier: SentPacketNotificationSender,
+
+    /// Internal state, determined by `average_message_sending_delay`,
+    /// used to keep track of when a next packet should be sent out.
     next_delay: time::Delay,
+
+    /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
+    /// out to the network without any further delays.
     mix_tx: MixMessageSender,
+
+    /// Channel used for receiving real, prepared, messages that must be first sufficiently delayed
+    /// before being sent out into the network.
     real_receiver: RealMessageReceiver,
+
+    /// Represents full address of this client.
     our_full_destination: Recipient,
+
+    /// Instance of a cryptographically secure random number generator.
+    rng: R,
+
+    /// Accessor to the common instance of network topology.
     topology_access: TopologyAccessor<T>,
 }
 
@@ -71,7 +105,11 @@ pub(crate) enum StreamMessage {
     Real(RealMessage),
 }
 
-impl<T: NymTopology> Stream for OutQueueControl<T> {
+impl<R, T> Stream for OutQueueControl<R, T>
+where
+    R: CryptoRng + Rng + Unpin,
+    T: NymTopology, // this really confuses me, why T doesn't need to be Unpin?
+{
     type Item = StreamMessage;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -82,8 +120,9 @@ impl<T: NymTopology> Stream for OutQueueControl<T> {
 
         // we know it's time to send a message, so let's prepare delay for the next one
         // Get the `now` by looking at the current `delay` deadline
+        let avg_delay = self.average_message_sending_delay;
         let now = self.next_delay.deadline();
-        let next_poisson_delay = poisson::sample(self.average_message_sending_delay);
+        let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
 
         // The next interval value is `next_poisson_delay` after the one that just
         // yielded.
@@ -105,17 +144,26 @@ impl<T: NymTopology> Stream for OutQueueControl<T> {
     }
 }
 
-impl<T: 'static + NymTopology> OutQueueControl<T> {
+impl<R, T> OutQueueControl<R, T>
+where
+    R: CryptoRng + Rng + Unpin,
+    T: NymTopology,
+{
     pub(crate) fn new(
+        ack_key: Arc<AckAes128Key>,
+        average_ack_delay: Duration,
         average_packet_delay: Duration,
         average_message_sending_delay: Duration,
         sent_notifier: SentPacketNotificationSender,
         mix_tx: MixMessageSender,
         real_receiver: RealMessageReceiver,
+        rng: R,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor<T>,
     ) -> Self {
         OutQueueControl {
+            ack_key,
+            average_ack_delay,
             average_packet_delay,
             average_message_sending_delay,
             sent_notifier,
@@ -123,23 +171,8 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
             mix_tx,
             real_receiver,
             our_full_destination,
+            rng,
             topology_access,
-        }
-    }
-
-    async fn get_route(&self, other_recipient: Option<&Recipient>) -> Option<Vec<nymsphinx::Node>> {
-        match other_recipient {
-            // we are sending to ourselves
-            None => {
-                self.topology_access
-                    .random_route_to_gateway(&self.our_full_destination.gateway())
-                    .await
-            }
-            Some(other_recipient) => {
-                self.topology_access
-                    .random_route_to_gateway(&other_recipient.gateway())
-                    .await
-            }
         }
     }
 
@@ -148,21 +181,34 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
 
         let next_message = match next_message {
             StreamMessage::Cover => {
-                let route = self.get_route(None).await;
-                if route.is_none() {
-                    warn!("No valid topology detected - won't send any real or loop message this time");
+                // TODO for way down the line: in very rare cases (during topology update) we might have
+                // to wait a really tiny bit before actually obtaining the permit hence messing with our
+                // poisson delay, but is it really a problem?
+                let topology_permit = self.topology_access.get_read_permit().await;
+                // the ack is sent back to ourselves (and then ignored)
+                let topology_ref_option = topology_permit.try_get_valid_topology_ref(
+                    &self.our_full_destination,
+                    &self.our_full_destination,
+                );
+                if topology_ref_option.is_none() {
+                    warn!(
+                        "No valid topology detected - won't send any loop cover message this time"
+                    );
                     return;
                 }
-                let route = route.unwrap();
-                // if after getting valid route, we fail to create cover message packet,
-                // there's a bug somewhere and we really should panic
-                let loop_message = encapsulation::loop_cover_message_route(
-                    self.our_full_destination.destination().clone(),
-                    route,
+                let topology_ref = topology_ref_option.unwrap();
+
+                let cover_message = generate_loop_cover_packet(
+                    &mut self.rng,
+                    topology_ref,
+                    &*self.ack_key,
+                    &self.our_full_destination,
+                    self.average_ack_delay,
                     self.average_packet_delay,
                 )
-                .expect("We failed to create a loop cover message!");
-                MixMessage::new(loop_message.0, loop_message.1)
+                .expect("Somehow failed to generate a loop cover message with a valid topology");
+
+                MixMessage::new(cover_message.0, cover_message.1)
             }
             StreamMessage::Real(real_message) => {
                 // well technically the message was not sent just yet, but now it's up to internal
@@ -191,18 +237,14 @@ impl<T: 'static + NymTopology> OutQueueControl<T> {
 
     pub(crate) async fn run_out_queue_control(&mut self) {
         // we should set initial delay only when we actually start the stream
-        self.next_delay = time::delay_for(poisson::sample(self.average_message_sending_delay));
+        self.next_delay = time::delay_for(sample_poisson_duration(
+            &mut self.rng,
+            self.average_message_sending_delay,
+        ));
 
         info!("Starting out queue controller...");
         while let Some(next_message) = self.next().await {
             self.on_message(next_message).await;
         }
-    }
-
-    pub(crate) fn start(mut self) -> JoinHandle<Self> {
-        tokio::spawn(async move {
-            self.run_out_queue_control().await;
-            self
-        })
     }
 }

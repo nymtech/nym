@@ -103,12 +103,9 @@ impl<T: NymTopology> Handler<T> {
             }
         };
 
-        // in case the message is too long and needs to be split into multiple packets:
-        let split_message: Vec<Vec<u8>> = todo!();
-        for message_fragment in split_message {
-            let input_msg = InputMessage::new(recipient.clone(), message_fragment);
-            self.msg_input.unbounded_send(input_msg).unwrap();
-        }
+        // the ack control is now responsible for chunking, etc.
+        let input_msg = InputMessage::new(recipient, message_bytes);
+        self.msg_input.unbounded_send(input_msg).unwrap();
 
         self.received_response_type = ReceivedResponseType::Text;
 
@@ -154,12 +151,9 @@ impl<T: NymTopology> Handler<T> {
     }
 
     async fn handle_binary_send(&mut self, recipient: Recipient, data: Vec<u8>) -> ServerResponse {
-        // in case the message is too long and needs to be split into multiple packets:
-        let split_message: Vec<Vec<u8>> = todo!();
-        for message_fragment in split_message {
-            let input_msg = InputMessage::new(recipient.clone(), message_fragment);
-            self.msg_input.unbounded_send(input_msg).unwrap();
-        }
+        // the ack control is now responsible for chunking, etc.
+        let input_msg = InputMessage::new(recipient, data);
+        self.msg_input.unbounded_send(input_msg).unwrap();
 
         self.received_response_type = ReceivedResponseType::Binary;
         ServerResponse::Send

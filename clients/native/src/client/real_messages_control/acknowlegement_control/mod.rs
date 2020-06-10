@@ -19,15 +19,12 @@ use self::{
     sent_notification_listener::SentNotificationListener,
 };
 use super::real_traffic_stream::RealMessageSender;
-use crate::client::{
-    inbound_messages::InputMessageReceiver,
-    topology_control::{TopologyAccessor, TopologyReadPermit},
-};
+use crate::client::{inbound_messages::InputMessageReceiver, topology_control::TopologyAccessor};
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
 use nymsphinx::{
-    acknowledgements,
+    acknowledgements::{self, identifier::AckAes128Key},
     addressing::clients::Recipient,
     chunking::{
         fragment::{Fragment, FragmentIdentifier},
@@ -78,36 +75,6 @@ impl PendingAcknowledgement {
     }
 }
 
-// Using provided topology read permit, tries to get an immutable reference to the underlying
-// topology. For obvious reasons the lifetime of the topology reference is bound to the permit.
-fn try_get_valid_topology_ref<'a, T: NymTopology>(
-    ack_recipient: &Recipient,
-    packet_recipient: &Recipient,
-    topology_permit: &'a TopologyReadPermit<'_, T>,
-) -> Option<&'a T> {
-    // first we need to deref out of RwLockReadGuard
-    // then we need to deref out of TopologyAccessorInner
-    // then we must take ref of option, i.e. Option<&T>
-    // and finally try to unwrap it to obtain &T
-    let topology_ref_option = (*topology_permit.deref()).as_ref();
-
-    if topology_ref_option.is_none() {
-        return None;
-    }
-
-    let topology_ref = topology_ref_option.unwrap();
-
-    // see if it's possible to route the packet to both gateways
-    if !topology_ref.can_construct_path_through()
-        || !topology_ref.gateway_exists(&packet_recipient.gateway())
-        || !topology_ref.gateway_exists(&ack_recipient.gateway())
-    {
-        None
-    } else {
-        Some(topology_ref)
-    }
-}
-
 pub(super) struct AcknowledgementControllerConnectors {
     real_message_sender: RealMessageSender,
     input_receiver: InputMessageReceiver,
@@ -136,6 +103,7 @@ where
     R: CryptoRng + Rng,
     T: NymTopology,
 {
+    ack_key: Arc<AckAes128Key>,
     acknowledgement_listener: Option<AcknowledgementListener>,
     input_message_listener: Option<InputMessageListener<R, T>>,
     retransmission_request_listener: Option<RetransmissionRequestListener<R, T>>,
@@ -153,6 +121,8 @@ where
         ack_recipient: Recipient,
         average_packet_delay_duration: Duration,
         average_ack_delay_duration: Duration,
+        ack_wait_multiplier: f64,
+        ack_wait_addition: Duration,
         connectors: AcknowledgementControllerConnectors,
     ) -> Self {
         // note for future-self: perhaps for key rotation we could replace it with Arc<AtomicCell<Key>> ?
@@ -185,7 +155,7 @@ where
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 
         let retransmission_request_listener = RetransmissionRequestListener::new(
-            ack_key,
+            Arc::clone(&ack_key),
             ack_recipient,
             message_chunker,
             Arc::clone(&pending_acks),
@@ -195,17 +165,24 @@ where
         );
 
         let sent_notification_listener = SentNotificationListener::new(
+            ack_wait_multiplier,
+            ack_wait_addition,
             connectors.sent_notifier,
             pending_acks,
             retransmission_tx,
         );
 
         AcknowledgementController {
+            ack_key,
             acknowledgement_listener: Some(acknowledgement_listener),
             input_message_listener: Some(input_message_listener),
             retransmission_request_listener: Some(retransmission_request_listener),
             sent_notification_listener: Some(sent_notification_listener),
         }
+    }
+
+    pub(super) fn ack_key(&self) -> Arc<AckAes128Key> {
+        Arc::clone(&self.ack_key)
     }
 
     pub(super) async fn run(&mut self) {
@@ -253,6 +230,7 @@ where
         self.sent_notification_listener = Some(sent_notification_fut.await.unwrap());
     }
 
+    #[allow(dead_code)]
     pub(super) fn start(mut self) -> JoinHandle<Self> {
         tokio::spawn(async move {
             self.run().await;

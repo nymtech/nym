@@ -18,7 +18,7 @@ use gateway_client::AcknowledgementReceiver;
 use log::*;
 use nymsphinx::{
     acknowledgements::{identifier::recover_identifier, AckAes128Key},
-    chunking::fragment::FragmentIdentifier,
+    chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID},
 };
 use std::sync::Arc;
 
@@ -43,6 +43,7 @@ impl AcknowledgementListener {
     }
 
     async fn on_ack(&mut self, ack_content: Vec<u8>) {
+        debug!("Received an ack");
         let frag_id = match recover_identifier(&self.ack_key, &ack_content) {
             None => {
                 warn!("Received invalid ACK!"); // should we do anything else about that?
@@ -57,9 +58,10 @@ impl AcknowledgementListener {
             },
         };
 
-        // TODO: check if ack for cover message once cover messages include acks
-        // I guess they will probably have (0i32,0u8) because both of those values are invalid
-        // for normal fragments?
+        if frag_id == COVER_FRAG_ID {
+            trace!("Received an ack for a cover message - no need to do anything");
+            return;
+        }
 
         if let Some(pending_ack) = self.pending_acks.write().await.remove(&frag_id) {
             // cancel the retransmission future

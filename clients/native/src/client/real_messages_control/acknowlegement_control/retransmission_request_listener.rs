@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{try_get_valid_topology_ref, PendingAcksMap, RetransmissionRequestReceiver};
+use super::{PendingAcksMap, RetransmissionRequestReceiver};
 use crate::client::{
     real_messages_control::real_traffic_stream::{RealMessage, RealMessageSender},
     topology_control::TopologyAccessor,
@@ -85,9 +85,9 @@ where
         // but my gut feeling tells me we should re-acquire it.
         drop(pending_acks_map_read_guard);
 
-        let topology_permit = &self.topology_access.get_read_permit().await;
+        let topology_permit = self.topology_access.get_read_permit().await;
         let topology_ref_option =
-            try_get_valid_topology_ref(&self.ack_recipient, &packet_recipient, topology_permit);
+            topology_permit.try_get_valid_topology_ref(&self.ack_recipient, &packet_recipient);
         if topology_ref_option.is_none() {
             warn!("Could not retransmit the packet - the network topology is invalid");
             // TODO: perhaps put back into pending acks and reset the timer?
@@ -103,6 +103,10 @@ where
         self.real_message_sender
             .unbounded_send(RealMessage::new(first_hop, packet, frag_id))
             .unwrap();
+
+        // minor optimization to not hold the permit while we no longer need it and might have to block
+        // waiting for the write lock on `pending_acks`
+        drop(topology_permit);
 
         self.pending_acks
             .write()

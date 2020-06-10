@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{try_get_valid_topology_ref, PendingAcknowledgement, PendingAcksMap};
+use super::{PendingAcknowledgement, PendingAcksMap};
 use crate::client::{
     inbound_messages::{InputMessage, InputMessageReceiver},
     real_messages_control::real_traffic_stream::{RealMessage, RealMessageSender},
@@ -72,10 +72,10 @@ where
     async fn on_input_message(&mut self, msg: InputMessage) {
         let (recipient, content) = msg.destruct();
         let split_message = self.message_chunker.split_message(&content);
-        let topology_permit = &self.topology_access.get_read_permit().await;
+        let topology_permit = self.topology_access.get_read_permit().await;
 
         let topology_ref_option =
-            try_get_valid_topology_ref(&self.ack_recipient, &recipient, topology_permit);
+            topology_permit.try_get_valid_topology_ref(&self.ack_recipient, &recipient);
         if topology_ref_option.is_none() {
             warn!("Could not process the message - the network topology is invalid");
             return;

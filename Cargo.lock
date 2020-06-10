@@ -1807,12 +1807,12 @@ dependencies = [
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
  "nymsphinx-chunking",
+ "nymsphinx-cover",
  "nymsphinx-framing",
  "nymsphinx-params",
  "nymsphinx-types",
  "rand 0.7.3",
  "rand_distr",
- "tokio-util",
 ]
 
 [[package]]
@@ -1841,6 +1841,19 @@ dependencies = [
  "log 0.4.8",
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
+ "nymsphinx-params",
+ "nymsphinx-types",
+ "rand 0.7.3",
+ "topology",
+]
+
+[[package]]
+name = "nymsphinx-cover"
+version = "0.1.0"
+dependencies = [
+ "nymsphinx-acknowledgements",
+ "nymsphinx-addressing",
+ "nymsphinx-chunking",
  "nymsphinx-params",
  "nymsphinx-types",
  "rand 0.7.3",
@@ -2815,7 +2828,7 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=2db64b5f6972c2ac2a510ac567db9553d539af3a#2db64b5f6972c2ac2a510ac567db9553d539af3a"
+source = "git+https://github.com/nymtech/sphinx?rev=cd9f09b85de33c60030ba6d7fae613c42cbe1faf#cd9f09b85de33c60030ba6d7fae613c42cbe1faf"
 dependencies = [
  "aes-ctr",
  "arrayref",

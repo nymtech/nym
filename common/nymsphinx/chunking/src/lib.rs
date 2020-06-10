@@ -17,10 +17,10 @@ use crate::set::split_into_sets;
 use nymsphinx_acknowledgements::identifier::AckAes128Key;
 use nymsphinx_acknowledgements::surb_ack::SURBAck;
 use nymsphinx_addressing::clients::Recipient;
-use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
+use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_types::builder::SphinxPacketBuilder;
-use nymsphinx_types::{delays, Delay, Destination, DestinationAddressBytes, SphinxPacket};
+use nymsphinx_types::{delays, Delay, Destination, SphinxPacket};
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::net::SocketAddr;
@@ -108,6 +108,8 @@ impl MessageChunker<DefaultRng> {
 
     #[cfg(test)]
     pub(crate) fn test_fixture() -> Self {
+        use nymsphinx_types::{DestinationAddressBytes, NodeAddressBytes};
+
         let empty_address = [0u8; 32];
         let empty_recipient = Recipient::new(
             DestinationAddressBytes::from_bytes(empty_address),
@@ -135,7 +137,17 @@ impl<R: CryptoRng + Rng> MessageChunker<R> {
     }
 
     fn available_plaintext_size(&self) -> usize {
-        let available_size = self.packet_size.plaintext_size() - PacketSize::ACKPacket.size();
+        // we need to put first hop's destination alongside the actual ack
+        // TODO: a possible optimization way down the line: currently we're always assuming that
+        // the addresses will have `MAX_NODE_ADDRESS_UNPADDED_LEN`, i.e. be ipv6. In most cases
+        // they're actually going to be ipv4 hence wasting few bytes every packet.
+        // To fully utilise all available space, I guess first we'd need to generate routes for ACKs
+        // and only then perform the chunking with `available_plaintext_size` being called per chunk.
+        // However this will probably introduce bunch of complexity
+        // for relatively not a lot of gain, so it shouldn't be done just yet.
+        let available_size = self.packet_size.plaintext_size()
+            - PacketSize::ACKPacket.size()
+            - MAX_NODE_ADDRESS_UNPADDED_LEN;
         if self.reply_surbs {
             // TODO
             unimplemented!();
@@ -164,21 +176,15 @@ impl<R: CryptoRng + Rng> MessageChunker<R> {
         ack_key: &AckAes128Key,
         packet_recipient: &Recipient,
     ) -> Result<(Delay, (SocketAddr, SphinxPacket)), NymTopologyError> {
-        let (ack_delay, surb_ack) = self
+        let (ack_delay, surb_bytes) = self
             .generate_surb_ack(&fragment.fragment_identifier(), topology, ack_key)?
             .prepare_for_sending();
 
-        // to remove once this "works"
-        debug_assert_eq!(surb_ack.len(), PacketSize::ACKPacket.size());
-
-        // SURB_ACK || CHUNK_DATA
-        let packet_payload: Vec<_> = surb_ack
+        // SURB_FIRST_HOP || SURB_ACK || CHUNK_DATA
+        let packet_payload: Vec<_> = surb_bytes
             .into_iter()
             .chain(fragment.into_bytes().into_iter())
             .collect();
-
-        // to remove once this "works"
-        debug_assert!(packet_payload.len() <= self.packet_size.plaintext_size());
 
         let route = topology.random_route_to_gateway(&packet_recipient.gateway())?;
         let delays =

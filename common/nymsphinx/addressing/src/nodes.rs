@@ -21,6 +21,10 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 /// Currently, that routing information is an IP address, but in principle it can be anything
 /// for as long as it's going to fit in the field.
 
+/// MAX_UNPADDED_LEN represents maximum length an unpadded address could have.
+/// In this case it's an ipv6 socket address (with version prefix)
+pub const MAX_NODE_ADDRESS_UNPADDED_LEN: usize = 19;
+
 #[derive(Debug)]
 pub enum NymNodeRoutingAddressError {
     InsufficientNumberOfBytesAvailableError,
@@ -57,6 +61,23 @@ impl NymNodeRoutingAddress {
             .chain(port_bytes.iter().cloned())
             .chain(ip_octets_vec.iter().cloned())
             .collect()
+    }
+
+    /// Converts self into a vector of bytes optionally padded with zeroes to the `expected_len`.
+    /// Note this does not necessarily represent a NodeAddressBytes, unless
+    /// `expected_len` == NODE_ADDRESS_LENGTH
+    pub fn as_zero_padded_bytes(&self, expected_len: usize) -> Vec<u8> {
+        let self_bytes = self.as_bytes();
+        if self_bytes.len() >= expected_len {
+            // can't add padding
+            self_bytes
+        } else {
+            self_bytes
+                .into_iter()
+                .chain(std::iter::repeat(0))
+                .take(expected_len)
+                .collect()
+        }
     }
 
     /// Tries to recover `Self` from a bytes slice.
@@ -129,12 +150,7 @@ impl TryInto<NodeAddressBytes> for NymNodeRoutingAddress {
             return Err(NymNodeRoutingAddressError::InsufficientNumberOfBytesAvailableError);
         }
 
-        let unpadded_address = self.as_bytes();
-        let padded_address: Vec<_> = unpadded_address
-            .into_iter()
-            .chain(std::iter::repeat(0))
-            .take(NODE_ADDRESS_LENGTH)
-            .collect();
+        let padded_address = self.as_zero_padded_bytes(NODE_ADDRESS_LENGTH);
 
         let mut node_address_bytes = [0u8; 32];
         node_address_bytes.copy_from_slice(&padded_address);

@@ -12,14 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::error::GatewayClientError;
+use crate::packet_router::PacketRouter;
+pub use crate::packet_router::{
+    AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
+};
 use futures::stream::{SplitSink, SplitStream};
-use futures::{channel::mpsc, future::BoxFuture, FutureExt, SinkExt, StreamExt};
-use gateway_requests::auth_token::{AuthToken, AuthTokenConversionError};
+use futures::{future::BoxFuture, FutureExt, SinkExt, StreamExt};
+use gateway_requests::auth_token::AuthToken;
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
 use log::*;
 use nymsphinx::{DestinationAddressBytes, SphinxPacket};
 use std::convert::TryFrom;
-use std::fmt::{self, Error, Formatter};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -27,9 +31,12 @@ use tokio::net::TcpStream;
 use tokio::sync::Notify;
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::{client::IntoClientRequest, protocol::Message, Error as WsError},
+    tungstenite::{client::IntoClientRequest, protocol::Message},
     WebSocketStream,
 };
+
+pub mod error;
+pub mod packet_router;
 
 // TODO: combine the duplicate reading procedure, i.e.
 /*
@@ -51,72 +58,9 @@ msg read from conn.next().await:
 */
 
 // TODO: some batching mechanism to allow reading and sending more than a single packet through
-pub type MixnetMessageSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
-pub type MixnetMessageReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
-
-pub type AcknowledgementSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
-pub type AcknowledgementReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
 
 // type alias for not having to type the whole thing every single time
 type WsConn = WebSocketStream<TcpStream>;
-
-#[derive(Debug)]
-pub enum GatewayClientError {
-    ConnectionNotEstablished,
-    GatewayError(String),
-    NetworkError(WsError),
-    NoAuthTokenAvailable,
-    ConnectionAbruptlyClosed,
-    MalformedResponse,
-    NotAuthenticated,
-    ConnectionInInvalidState,
-    AuthenticationFailure,
-    Timeout,
-}
-
-impl From<WsError> for GatewayClientError {
-    fn from(err: WsError) -> Self {
-        GatewayClientError::NetworkError(err)
-    }
-}
-
-impl From<AuthTokenConversionError> for GatewayClientError {
-    fn from(_err: AuthTokenConversionError) -> Self {
-        GatewayClientError::MalformedResponse
-    }
-}
-
-// better human readable representation of the error, mostly so that GatewayClientError
-// would implement std::error::Error
-impl fmt::Display for GatewayClientError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        match self {
-            GatewayClientError::ConnectionNotEstablished => {
-                write!(f, "connection to the gateway is not established")
-            }
-            GatewayClientError::NoAuthTokenAvailable => {
-                write!(f, "no AuthToken was provided or obtained")
-            }
-            GatewayClientError::NotAuthenticated => write!(f, "client is not authenticated"),
-            GatewayClientError::NetworkError(err) => {
-                write!(f, "there was a network error - {}", err)
-            }
-            GatewayClientError::ConnectionAbruptlyClosed => {
-                write!(f, "connection was abruptly closed")
-            }
-            GatewayClientError::Timeout => write!(f, "timed out"),
-            GatewayClientError::MalformedResponse => write!(f, "received response was malformed"),
-            GatewayClientError::ConnectionInInvalidState => write!(
-                f,
-                "connection is in an invalid state - please send a bug report"
-            ),
-            GatewayClientError::AuthenticationFailure => write!(f, "authentication failure"),
-            GatewayClientError::GatewayError(err) => {
-                write!(f, "gateway returned an error response - {}", err)
-            }
-        }
-    }
-}
 
 // We have ownership over sink half of the connection, but the stream is owned
 // by some other task, however, we can notify it to get the stream back.
@@ -134,7 +78,7 @@ impl<'a> PartiallyDelegated<'a> {
     // runtime handle to the constructor and using that instead?
     fn split_and_listen_for_mixnet_messages(
         conn: WsConn,
-        mixnet_message_sender: MixnetMessageSender,
+        packet_router: PacketRouter,
     ) -> Result<Self, GatewayClientError> {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
         // read control request responses.
@@ -161,11 +105,10 @@ impl<'a> PartiallyDelegated<'a> {
                             }
                         };
                         match msg {
-                        // TODO: match to determine if it's ack or message
                             Message::Binary(bin_msg) => {
                                 // TODO: some batching mechanism to allow reading and sending more than
                                 // one packet at the time, because the receiver can easily handle it
-                                mixnet_message_sender.unbounded_send(vec![bin_msg]).unwrap()
+                                packet_router.route_received(vec![bin_msg])
                             },
                             // I think that in the future we should perhaps have some sequence number system, i.e.
                             // so each request/reponse pair can be easily identified, so that if messages are
@@ -248,8 +191,7 @@ pub struct GatewayClient<'a, R: IntoClientRequest + Unpin + Clone> {
     our_address: DestinationAddressBytes,
     auth_token: Option<AuthToken>,
     connection: SocketState<'a>,
-    mixnet_message_sender: MixnetMessageSender,
-    ack_sender: AcknowledgementSender,
+    packet_router: PacketRouter,
     response_timeout_duration: Duration,
 }
 
@@ -278,17 +220,20 @@ where
             our_address,
             auth_token,
             connection: SocketState::NotConnected,
-            mixnet_message_sender,
-            ack_sender,
+            packet_router: PacketRouter::new(ack_sender, mixnet_message_sender),
             response_timeout_duration,
         }
     }
     // TODO: extra constructor for JUST init registration so that it would look something like:
     pub fn new_init(
-        gateway_address: R,
-        our_address: DestinationAddressBytes,
-        response_timeout_duration: Duration,
+        _gateway_address: R,
+        _our_address: DestinationAddressBytes,
+        _response_timeout_duration: Duration,
     ) -> Self {
+        todo!()
+    }
+
+    pub fn register_without_listening(&self) -> Result<AuthToken, GatewayClientError> {
         todo!()
     }
 
@@ -335,7 +280,7 @@ where
                     };
                     match msg {
                         Message::Binary(bin_msg) => {
-                            self.mixnet_message_sender.unbounded_send(vec![bin_msg]).unwrap()
+                            self.packet_router.route_received(vec![bin_msg]);
                         }
                         Message::Text(txt_msg) => {
                             res = Some(ServerResponse::try_from(txt_msg).map_err(|_| GatewayClientError::MalformedResponse));
@@ -484,8 +429,6 @@ where
     }
 
     fn start_listening_for_mixnet_messages(&mut self) -> Result<(), GatewayClientError> {
-        unimplemented!("need extra logic to use 'ack_sender'");
-
         if self.connection.is_partially_delegated() {
             return Ok(());
         }
@@ -498,7 +441,7 @@ where
                 SocketState::Available(conn) => {
                     PartiallyDelegated::split_and_listen_for_mixnet_messages(
                         conn,
-                        self.mixnet_message_sender.clone(),
+                        self.packet_router.clone(),
                     )?
                 }
                 _ => unreachable!(),

@@ -14,7 +14,7 @@
 
 use crate::built_info;
 use log::*;
-use nymsphinx::NodeAddressBytes;
+use nymsphinx::addressing::clients::Recipient;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time;
@@ -26,11 +26,12 @@ use topology::{provider, NymTopology};
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before
 #[derive(Debug)]
-pub(super) struct TopologyAccessorInner<T: NymTopology>(Option<T>);
+struct TopologyAccessorInner<T: NymTopology>(Option<T>);
 
-impl<T: NymTopology> TopologyAccessorInner<T> {
-    // `pub(super)` `deref` makes me feel better than `pub` `std::ops::Deref` trait
-    pub(super) fn deref(&self) -> &Option<T> {
+impl<T: NymTopology> Deref for TopologyAccessorInner<T> {
+    type Target = Option<T>;
+
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
@@ -45,6 +46,52 @@ impl<T: NymTopology> TopologyAccessorInner<T> {
     }
 }
 
+pub(super) struct TopologyReadPermit<'a, T: NymTopology> {
+    permit: RwLockReadGuard<'a, TopologyAccessorInner<T>>,
+}
+
+impl<'a, T: NymTopology> TopologyReadPermit<'a, T> {
+    /// Using provided topology read permit, tries to get an immutable reference to the underlying
+    /// topology. For obvious reasons the lifetime of the topology reference is bound to the permit.
+    pub(super) fn try_get_valid_topology_ref(
+        &'a self,
+        ack_recipient: &Recipient,
+        packet_recipient: &Recipient,
+    ) -> Option<&'a T> {
+        // first we need to deref out of RwLockReadGuard
+        // then we need to deref out of TopologyAccessorInner
+        // then we must take ref of option, i.e. Option<&T>
+        // and finally try to unwrap it to obtain &T
+        let topology_ref_option = (*self.permit.deref()).as_ref();
+
+        if topology_ref_option.is_none() {
+            return None;
+        }
+
+        let topology_ref = topology_ref_option.unwrap();
+
+        // see if it's possible to route the packet to both gateways
+        if !topology_ref.can_construct_path_through()
+            || !topology_ref.gateway_exists(&packet_recipient.gateway())
+            || !topology_ref.gateway_exists(&ack_recipient.gateway())
+        {
+            None
+        } else {
+            Some(topology_ref)
+        }
+    }
+}
+
+impl<'a, T: NymTopology> From<RwLockReadGuard<'a, TopologyAccessorInner<T>>>
+    for TopologyReadPermit<'a, T>
+{
+    fn from(read_permit: RwLockReadGuard<'a, TopologyAccessorInner<T>>) -> Self {
+        TopologyReadPermit {
+            permit: read_permit,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct TopologyAccessor<T: NymTopology> {
     // `RwLock` *seems to* be the better approach for this as write access is only requested every
@@ -53,8 +100,6 @@ pub(crate) struct TopologyAccessor<T: NymTopology> {
     // approach than a `Mutex`
     inner: Arc<RwLock<TopologyAccessorInner<T>>>,
 }
-
-pub(super) type TopologyReadPermit<'a, T> = RwLockReadGuard<'a, TopologyAccessorInner<T>>;
 
 impl<T: NymTopology> TopologyAccessor<T> {
     pub(crate) fn new() -> Self {
@@ -66,7 +111,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
     // TODO: I really don't like having `TopologyAccessorInner` in return type,
     // but we can't return `T` because then we'd drop the read permit
     pub(super) async fn get_read_permit(&self) -> TopologyReadPermit<'_, T> {
-        self.inner.read().await
+        self.inner.read().await.into()
     }
 
     async fn update_global_topology(&mut self, new_topology: Option<T>) {
@@ -106,15 +151,6 @@ impl<T: NymTopology> TopologyAccessor<T> {
                     .collect::<Vec<_>>(),
             ),
         }
-    }
-
-    pub(crate) async fn random_route_to_gateway(
-        &self,
-        gateway_address: &NodeAddressBytes,
-    ) -> Option<Vec<nymsphinx::Node>> {
-        let guard = self.inner.read().await;
-        let topology = guard.0.as_ref()?;
-        topology.random_route_to_gateway(gateway_address).ok()
     }
 }
 

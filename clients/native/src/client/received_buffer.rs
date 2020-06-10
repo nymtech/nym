@@ -187,17 +187,17 @@ impl RequestReceiver {
 
 struct FragmentedMessageReceiver {
     received_buffer: ReceivedMessagesBuffer,
-    sphinx_packet_receiver: MixnetMessageReceiver,
+    mixnet_packet_receiver: MixnetMessageReceiver,
 }
 
 impl FragmentedMessageReceiver {
     fn new(
         received_buffer: ReceivedMessagesBuffer,
-        sphinx_packet_receiver: MixnetMessageReceiver,
+        mixnet_packet_receiver: MixnetMessageReceiver,
     ) -> Self {
         FragmentedMessageReceiver {
             received_buffer,
-            sphinx_packet_receiver,
+            mixnet_packet_receiver,
         }
     }
     fn start(mut self, handle: &Handle) -> JoinHandle<()> {
@@ -219,14 +219,14 @@ pub(crate) struct ReceivedMessagesBufferController {
 impl ReceivedMessagesBufferController {
     pub(crate) fn new(
         query_receiver: ReceivedBufferRequestReceiver,
-        sphinx_packet_receiver: MixnetMessageReceiver,
+        mixnet_packet_receiver: MixnetMessageReceiver,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new();
 
         ReceivedMessagesBufferController {
             fragmented_messsage_receiver: FragmentedMessageReceiver::new(
                 received_buffer.clone(),
-                sphinx_packet_receiver,
+                mixnet_packet_receiver,
             ),
             request_receiver: RequestReceiver::new(received_buffer, query_receiver),
         }

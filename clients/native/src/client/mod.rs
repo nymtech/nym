@@ -149,10 +149,10 @@ impl NymClient {
     fn start_received_messages_buffer_controller(
         &self,
         query_receiver: ReceivedBufferRequestReceiver,
-        sphinx_receiver: MixnetMessageReceiver,
+        mixnet_receiver: MixnetMessageReceiver,
     ) {
         info!("Starting received messages buffer controller...");
-        ReceivedMessagesBufferController::new(query_receiver, sphinx_receiver)
+        ReceivedMessagesBufferController::new(query_receiver, mixnet_receiver)
             .start(self.runtime.handle())
     }
 

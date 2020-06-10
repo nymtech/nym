@@ -22,11 +22,12 @@ use aes_ctr::{
     },
     Aes128Ctr,
 };
+use nymsphinx_params::packet_sizes::PacketSize;
 use rand::{CryptoRng, RngCore};
 
 // the 'U16' type is taken directly from the `Ctr128` for consistency sake
-type Aes128KeySize = U16;
-type Aes128NonceSize = U16;
+pub type Aes128KeySize = U16;
+pub type Aes128NonceSize = U16;
 
 pub type AckAes128Key = GenericArray<u8, Aes128KeySize>;
 type AckAes128IV = GenericArray<u8, Aes128NonceSize>;
@@ -48,9 +49,12 @@ pub fn prepare_identifier<R: RngCore + CryptoRng>(
     key: &AckAes128Key,
     marshaled_id: &[u8],
 ) -> Vec<u8> {
+    // TODO: should we have some length checks on the id?
+
     let iv = random_iv(rng);
     let mut cipher = Aes128Ctr::new(key, &iv);
     let mut output = marshaled_id.to_vec();
+
     cipher.apply_keystream(&mut output);
 
     iv.into_iter().chain(output.into_iter()).collect()
@@ -58,10 +62,11 @@ pub fn prepare_identifier<R: RngCore + CryptoRng>(
 
 pub fn recover_identifier(key: &AckAes128Key, iv_ciphertext: &[u8]) -> Option<Vec<u8>> {
     // first few bytes are expected to be the concatenated IV. It must be followed by at least 1 more
-    // byte that we wish to recover. But I think this will be ensured due to callee having control
-    // over data, if not, the signature of the function will have to be changed into
-    // Option<Vec<u8>> or Result<Vec<u8>, Error>
-    if iv_ciphertext.len() <= Aes128NonceSize::to_usize() {
+    // byte that we wish to recover, but it can be no longer from what we can physically store inside
+    // an ack
+    if iv_ciphertext.len() <= Aes128NonceSize::to_usize()
+        || iv_ciphertext.len() > PacketSize::ACKPacket.plaintext_size()
+    {
         return None;
     }
 
@@ -69,6 +74,7 @@ pub fn recover_identifier(key: &AckAes128Key, iv_ciphertext: &[u8]) -> Option<Ve
     let mut cipher = Aes128Ctr::new(key, &iv);
     let mut output = iv_ciphertext[Aes128NonceSize::to_usize()..].to_vec();
     cipher.apply_keystream(&mut output);
+
     Some(output)
 }
 
@@ -84,7 +90,7 @@ mod tests {
 
         let id1 = vec![42]; // single byte case
         let id2 = vec![1, 2, 3, 4, 5]; // 5byte we expect to use
-        let id3 = vec![42; 32]; // some reasonable upper bound id size we could use later on
+        let id3 = vec![42; 8]; // some reasonable upper bound id size we could use later on
 
         let iv_ciphertext1 = prepare_identifier(&mut rng, &key, &id1);
         let iv_ciphertext2 = prepare_identifier(&mut rng, &key, &id2);

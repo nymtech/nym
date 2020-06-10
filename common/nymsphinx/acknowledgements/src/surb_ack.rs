@@ -14,6 +14,7 @@
 
 use crate::identifier::{prepare_identifier, AckAes128Key};
 use nymsphinx_addressing::clients::Recipient;
+use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_types::builder::SphinxPacketBuilder;
 use nymsphinx_types::{
@@ -21,13 +22,22 @@ use nymsphinx_types::{
     Destination, SphinxPacket,
 };
 use rand::{CryptoRng, RngCore};
+use std::convert::TryFrom;
 use std::time;
 use topology::{NymTopology, NymTopologyError};
 
 #[allow(non_snake_case)]
 pub struct SURBAck {
     surb_ack_packet: SphinxPacket,
+    first_hop_address: NymNodeRoutingAddress,
     expected_total_delay: Delay,
+}
+
+#[derive(Debug)]
+pub enum SURBAckRecoveryError {
+    InvalidPacketSize,
+    InvalidAddress,
+    InvalidSphinxPacket,
 }
 
 impl SURBAck {
@@ -56,16 +66,55 @@ impl SURBAck {
             .unwrap();
 
         let expected_total_delay = delays.iter().sum();
+        let first_hop_address =
+            NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone()).unwrap();
 
         Ok(SURBAck {
             surb_ack_packet,
+            first_hop_address,
             expected_total_delay,
         })
     }
 
+    pub fn len() -> usize {
+        // TODO: this will be variable once/if we decide to introduce optimization described
+        // in common/nymsphinx/chunking/src/lib.rs:available_plaintext_size()
+        PacketSize::ACKPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN
+    }
+
     pub fn prepare_for_sending(self) -> (Delay, Vec<u8>) {
-        // TODO: once I make PR and change is merged, changed it to `into_bytes`
-        (self.expected_total_delay, self.surb_ack_packet.to_bytes())
+        // SURB_FIRST_HOP || SURB_ACK
+        let surb_bytes: Vec<_> = self
+            .first_hop_address
+            .as_zero_padded_bytes(MAX_NODE_ADDRESS_UNPADDED_LEN)
+            .into_iter()
+            .chain(self.surb_ack_packet.to_bytes().into_iter())
+            .collect();
+        (self.expected_total_delay, surb_bytes)
+    }
+
+    // partial reciprocal of `prepare_for_sending` performed by the gateway
+    pub fn try_recover_first_hop_packet(
+        b: &[u8],
+    ) -> Result<(NymNodeRoutingAddress, SphinxPacket), SURBAckRecoveryError> {
+        if b.len() != Self::len() {
+            Err(SURBAckRecoveryError::InvalidPacketSize)
+        } else {
+            let address = match NymNodeRoutingAddress::try_from_bytes(&b) {
+                Ok(address) => address,
+                Err(_) => return Err(SURBAckRecoveryError::InvalidAddress),
+            };
+
+            // TODO: this will be variable once/if we decide to introduce optimization described
+            // in common/nymsphinx/chunking/src/lib.rs:available_plaintext_size()
+            let address_offset = MAX_NODE_ADDRESS_UNPADDED_LEN;
+            let packet = match SphinxPacket::from_bytes(&b[address_offset..]) {
+                Ok(packet) => packet,
+                Err(_) => return Err(SURBAckRecoveryError::InvalidSphinxPacket),
+            };
+
+            Ok((address, packet))
+        }
     }
 }
 

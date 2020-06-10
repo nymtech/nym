@@ -51,6 +51,14 @@ pub const fn linked_fragmented_payload_max_len(max_plaintext_size: usize) -> usi
     max_plaintext_size - LINKED_FRAGMENTED_HEADER_LEN
 }
 
+// TODO: should this be defined in this module or in `cover`? I can see arguments for both options...
+/// A special `FragmentIdentifier` that is not valid in all cases unless if it's used in a loop
+/// cover message.
+pub const COVER_FRAG_ID: FragmentIdentifier = FragmentIdentifier {
+    set_id: 0,
+    fragment_position: 0,
+};
+
 /// Identifier to uniquely identify a fragment. It represents 31bit ID of given `FragmentSet`
 /// and u8 position of the `Fragment` in the set.
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
@@ -75,6 +83,7 @@ impl FragmentIdentifier {
         }
 
         let set_id = i32::from_be_bytes([b[0], b[1], b[2], b[3]]);
+        // set_id == 0 is valid for, and only for, COVER_FRAG_ID
         if set_id < 0 {
             return Err(ChunkingError::MalformedFragmentIdentifier);
         }
@@ -428,17 +437,6 @@ impl FragmentHeader {
                 read_bytes,
             ))
         }
-    }
-
-    /// Helper method to determine if this `FragmentHeader` is used to represent a linked `Fragment`.
-    fn is_linked(&self) -> bool {
-        self.previous_fragments_set_id.is_some() || self.next_fragments_set_id.is_some()
-    }
-
-    /// Helper method to determine if this `FragmentHeader` is used to represent a `Fragment` that
-    /// is a final one in some `FragmentSet`.
-    fn is_final(&self) -> bool {
-        self.total_fragments == self.current_fragment
     }
 
     /// Marshal this `FragmentHeader` into vector of bytes which can be put into a sphinx packet.

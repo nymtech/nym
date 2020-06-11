@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aes-ctr = "0.3.0"
+aes-ctr = "0.4.0"
 rand = {version = "0.7.3", features = ["wasm-bindgen"]}
 
 

@@ -83,7 +83,7 @@ where
         let topology_ref = topology_ref_option.unwrap();
 
         let mut pending_acks = Vec::with_capacity(split_message.len());
-
+        let mut real_messages = Vec::with_capacity(split_message.len());
         for message_chunk in split_message {
             // since the paths can be constructed, this CAN'T fail, if it does, there's a bug somewhere
             let frag_id = message_chunk.fragment_identifier();
@@ -95,9 +95,7 @@ where
                 .prepare_chunk_for_sending(chunk_clone, topology_ref, &self.ack_key, &recipient)
                 .unwrap();
 
-            self.real_message_sender
-                .unbounded_send(RealMessage::new(first_hop, packet, frag_id))
-                .unwrap();
+            real_messages.push(RealMessage::new(first_hop, packet, frag_id));
 
             let pending_ack =
                 PendingAcknowledgement::new(message_chunk, total_delay, recipient.clone());
@@ -105,11 +103,19 @@ where
             pending_acks.push((frag_id, pending_ack));
         }
 
+        // first insert pending_acks only then request fragments to be sent, otherwise you might get
+        // some very nasty (and time-consuming to figure out...) race condition.
         let mut pending_acks_map_write_guard = self.pending_acks.write().await;
         for (frag_id, pending_ack) in pending_acks.into_iter() {
             if let Some(_) = pending_acks_map_write_guard.insert(frag_id, pending_ack) {
                 panic!("Tried to insert duplicate pending ack")
             }
+        }
+
+        for real_message in real_messages {
+            self.real_message_sender
+                .unbounded_send(real_message)
+                .unwrap();
         }
     }
 

@@ -202,7 +202,7 @@ impl FragmentedMessageReceiver {
     }
     fn start(mut self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move {
-            while let Some(new_messages) = self.sphinx_packet_receiver.next().await {
+            while let Some(new_messages) = self.mixnet_packet_receiver.next().await {
                 self.received_buffer
                     .add_new_message_fragments(new_messages)
                     .await;

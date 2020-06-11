@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::fragment::Fragment;
+use crate::ChunkingError;
 use log::*;
 use std::collections::HashMap;
 
@@ -43,6 +44,10 @@ struct ReconstructionBuffer {
     /// everything in order the whole time, allowing for O(1) insertions and O(n) reconstruction.
     fragments: Vec<Option<Fragment>>,
 }
+
+/// Type alias representing fully reconstructed message - its original data and list of all
+/// set ids used for the reconstructions processed so that they could be used for replay prevention.
+pub type ReconstructedMessage = (Vec<u8>, Vec<i32>);
 
 impl ReconstructionBuffer {
     /// Initialises new instance of a `ReconstructionBuffer` with given size, i.e.
@@ -114,6 +119,8 @@ impl ReconstructionBuffer {
         let fragment_index = fragment.current_fragment() as usize - 1;
         if self.fragments[fragment_index].is_some() {
             // TODO: what to do in that case? give up on the message? overwrite it? panic?
+            // it *might* be due to lock ack-packet, but let's keep the `warn` level in case
+            // it could be somehow exploited
             warn!(
                 "duplicate fragment received! - frag - {} (set id: {})",
                 fragment.current_fragment(),
@@ -253,31 +260,26 @@ impl MessageReconstructor {
     /// Given id of *any* one of the sets into which message was divided,
     /// reconstruct the entire original message.
     /// Note, before you call this method, you *must* ensure all sets were fully received
-    fn reconstruct_message(&mut self, set_id: i32) -> Vec<u8> {
+    fn reconstruct_message(&mut self, set_id: i32) -> ReconstructedMessage {
         debug_assert!(self.is_message_fully_received(set_id));
         let starting_id = self.find_starting_set_id(set_id).unwrap();
         let set_id_sequence: Vec<_> =
             std::iter::successors(Some(starting_id), |&id| self.next_linked_set_id(id)).collect();
 
-        set_id_sequence
+        let message_content = set_id_sequence
             .iter()
             .map(|&id| self.extract_set_payload(id))
             .flat_map(|payload| payload.into_iter())
-            .collect()
+            .collect();
+
+        (message_content, set_id_sequence)
     }
 
-    /// Given raw `Fragment` data, tries to decode it and add into an appropriate `ReconstructionBuffer`.
+    /// Given recovered `Fragment`, tries to insert it into an appropriate `ReconstructionBuffer`.
     /// If a buffer does not exist, a new instance is created.
     /// If it was last remaining `Fragment` for the original message, the message is reconstructed
-    /// and returned alongside all (if applicable) set
-    pub fn new_fragment(&mut self, fragment_data: Vec<u8>) -> Option<Vec<u8>> {
-        let fragment_res = Fragment::try_from_bytes(&fragment_data);
-        if let Err(e) = fragment_res {
-            warn!("failed to recover fragment data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
-            return None;
-        }
-        let fragment = fragment_res.unwrap();
-
+    /// and returned alongside all (if applicable) set ids used in the message.
+    pub fn insert_new_fragment(&mut self, fragment: Fragment) -> Option<ReconstructedMessage> {
         let set_id = fragment.id();
         let set_len = fragment.total_fragments();
 
@@ -292,6 +294,11 @@ impl MessageReconstructor {
         } else {
             None
         }
+    }
+
+    /// Given raw `Fragment` data, tries to decode and return it.
+    pub fn recover_fragment(&self, fragment_data: Vec<u8>) -> Result<Fragment, ChunkingError> {
+        Fragment::try_from_bytes(&fragment_data)
     }
 }
 
@@ -549,12 +556,20 @@ mod message_reconstructor {
         // first set is fully inserted
         for i in 0..255 {
             assert!(reconstructor
-                .new_fragment(raw_fragments[i].clone())
-                .is_none());
+                .insert_new_fragment(
+                    reconstructor
+                        .recover_fragment(raw_fragments[i].clone())
+                        .unwrap()
+                )
+                .is_none())
         }
 
         assert!(reconstructor
-            .new_fragment(raw_fragments[255].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[255].clone())
+                    .unwrap()
+            )
             .is_none());
 
         let second_set_id = Fragment::try_from_bytes(&raw_fragments[255]).unwrap().id();
@@ -580,15 +595,27 @@ mod message_reconstructor {
             .collect();
         for i in 0..254 {
             assert!(reconstructor
-                .new_fragment(raw_fragments[i].clone())
+                .insert_new_fragment(
+                    reconstructor
+                        .recover_fragment(raw_fragments[i].clone())
+                        .unwrap()
+                )
                 .is_none());
         }
         // finish next set for good measure
         assert!(reconstructor
-            .new_fragment(raw_fragments[255].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[255].clone())
+                    .unwrap()
+            )
             .is_none());
         assert!(reconstructor
-            .new_fragment(raw_fragments[256].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[256].clone())
+                    .unwrap()
+            )
             .is_none());
 
         let first_set_id = Fragment::try_from_bytes(&raw_fragments[0]).unwrap().id();
@@ -616,15 +643,27 @@ mod message_reconstructor {
         // note that first set is not fully inserted
         for i in 0..254 {
             assert!(reconstructor
-                .new_fragment(raw_fragments[i].clone())
+                .insert_new_fragment(
+                    reconstructor
+                        .recover_fragment(raw_fragments[i].clone())
+                        .unwrap()
+                )
                 .is_none());
         }
 
         assert!(reconstructor
-            .new_fragment(raw_fragments[255].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[255].clone())
+                    .unwrap()
+            )
             .is_none());
         assert!(reconstructor
-            .new_fragment(raw_fragments[256].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[256].clone())
+                    .unwrap()
+            )
             .is_none());
 
         let second_set_id = Fragment::try_from_bytes(&raw_fragments[255]).unwrap().id();
@@ -650,13 +689,21 @@ mod message_reconstructor {
             .collect();
         for i in 0..255 {
             assert!(reconstructor
-                .new_fragment(raw_fragments[i].clone())
+                .insert_new_fragment(
+                    reconstructor
+                        .recover_fragment(raw_fragments[i].clone())
+                        .unwrap()
+                )
                 .is_none());
         }
 
         // notice that entirety of second set is not inserted
         assert!(reconstructor
-            .new_fragment(raw_fragments[255].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[255].clone())
+                    .unwrap()
+            )
             .is_none());
 
         let first_set_id = Fragment::try_from_bytes(&raw_fragments[0]).unwrap().id();
@@ -684,13 +731,21 @@ mod message_reconstructor {
             .collect();
         for i in 0..255 {
             assert!(reconstructor
-                .new_fragment(raw_fragments[i].clone())
+                .insert_new_fragment(
+                    reconstructor
+                        .recover_fragment(raw_fragments[i].clone())
+                        .unwrap()
+                )
                 .is_none());
         }
 
         // notice that entirety of second set is not inserted
         assert!(reconstructor
-            .new_fragment(raw_fragments[255].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[255].clone())
+                    .unwrap()
+            )
             .is_none());
 
         let first_set_id = Fragment::try_from_bytes(&raw_fragments[0]).unwrap().id();
@@ -719,12 +774,20 @@ mod message_reconstructor {
         // note that first set is not fully inserted
         for i in 0..254 {
             assert!(reconstructor
-                .new_fragment(raw_fragments[i].clone())
+                .insert_new_fragment(
+                    reconstructor
+                        .recover_fragment(raw_fragments[i].clone())
+                        .unwrap()
+                )
                 .is_none());
         }
 
         assert!(reconstructor
-            .new_fragment(raw_fragments[255].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[255].clone())
+                    .unwrap()
+            )
             .is_none());
 
         let second_set_id = Fragment::try_from_bytes(&raw_fragments[255]).unwrap().id();
@@ -752,13 +815,21 @@ mod message_reconstructor {
             .collect();
         for i in 0..(u8::max_value() as usize) * 2 {
             assert!(reconstructor
-                .new_fragment(raw_fragments[i].clone())
+                .insert_new_fragment(
+                    reconstructor
+                        .recover_fragment(raw_fragments[i].clone())
+                        .unwrap()
+                )
                 .is_none());
         }
 
         // notice that entirety of third set is not inserted
         assert!(reconstructor
-            .new_fragment(raw_fragments[(u8::max_value() as usize) * 2].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[(u8::max_value() as usize) * 2].clone())
+                    .unwrap()
+            )
             .is_none());
 
         let second_set_id = Fragment::try_from_bytes(&raw_fragments[300]).unwrap().id();
@@ -787,12 +858,20 @@ mod message_reconstructor {
         // note that first set is not fully inserted
         for i in 1..(u8::max_value() as usize) * 2 {
             assert!(reconstructor
-                .new_fragment(raw_fragments[i].clone())
+                .insert_new_fragment(
+                    reconstructor
+                        .recover_fragment(raw_fragments[i].clone())
+                        .unwrap()
+                )
                 .is_none());
         }
 
         assert!(reconstructor
-            .new_fragment(raw_fragments[(u8::max_value() as usize) * 2].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[(u8::max_value() as usize) * 2].clone())
+                    .unwrap()
+            )
             .is_none());
 
         let second_set_id = Fragment::try_from_bytes(&raw_fragments[300]).unwrap().id();
@@ -853,12 +932,20 @@ mod message_reconstructor {
         // note that first set is not fully inserted
         for i in 0..254 {
             assert!(reconstructor
-                .new_fragment(raw_fragments1[i].clone())
+                .insert_new_fragment(
+                    reconstructor
+                        .recover_fragment(raw_fragments1[i].clone())
+                        .unwrap()
+                )
                 .is_none());
         }
 
         assert!(reconstructor
-            .new_fragment(raw_fragments1[255].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments1[255].clone())
+                    .unwrap()
+            )
             .is_none());
 
         let second_set_id = Fragment::try_from_bytes(&raw_fragments1[255]).unwrap().id();
@@ -879,13 +966,21 @@ mod message_reconstructor {
 
         for i in 0..255 {
             assert!(reconstructor
-                .new_fragment(raw_fragments2[i].clone())
+                .insert_new_fragment(
+                    reconstructor
+                        .recover_fragment(raw_fragments2[i].clone())
+                        .unwrap()
+                )
                 .is_none());
         }
 
         // notice that entirety of second set is not inserted
         assert!(reconstructor
-            .new_fragment(raw_fragments2[255].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments2[255].clone())
+                    .unwrap()
+            )
             .is_none());
 
         let second_set_id = Fragment::try_from_bytes(&raw_fragments2[255]).unwrap().id();
@@ -911,13 +1006,21 @@ mod message_reconstructor {
             .collect();
         for i in 0..255 {
             assert!(reconstructor
-                .new_fragment(raw_fragments[i].clone())
+                .insert_new_fragment(
+                    reconstructor
+                        .recover_fragment(raw_fragments[i].clone())
+                        .unwrap()
+                )
                 .is_none());
         }
 
         // notice that entirety of second set is not inserted
         assert!(reconstructor
-            .new_fragment(raw_fragments[255].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[255].clone())
+                    .unwrap()
+            )
             .is_none());
 
         let first_set_id = Fragment::try_from_bytes(&raw_fragments[0]).unwrap().id();
@@ -986,10 +1089,18 @@ mod message_reconstructor {
             .map(|x| x.into_bytes())
             .collect();
         assert!(reconstructor
-            .new_fragment(raw_fragments[0].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[0].clone())
+                    .unwrap()
+            )
             .is_none());
         assert!(reconstructor
-            .new_fragment(raw_fragments[1].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[1].clone())
+                    .unwrap()
+            )
             .is_none());
 
         let id = Fragment::try_from_bytes(&raw_fragments[0]).unwrap().id();
@@ -1038,10 +1149,18 @@ mod message_reconstructor {
             .map(|x| x.into_bytes())
             .collect();
         assert!(reconstructor
-            .new_fragment(raw_fragments[0].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[0].clone())
+                    .unwrap()
+            )
             .is_none());
         assert!(reconstructor
-            .new_fragment(raw_fragments[1].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[1].clone())
+                    .unwrap()
+            )
             .is_none());
 
         let id = Fragment::try_from_bytes(&raw_fragments[0]).unwrap().id();
@@ -1090,10 +1209,18 @@ mod message_reconstructor {
             .map(|x| x.into_bytes())
             .collect();
         assert!(reconstructor
-            .new_fragment(raw_fragments[0].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[0].clone())
+                    .unwrap()
+            )
             .is_none());
         assert!(reconstructor
-            .new_fragment(raw_fragments[1].clone())
+            .insert_new_fragment(
+                reconstructor
+                    .recover_fragment(raw_fragments[1].clone())
+                    .unwrap()
+            )
             .is_none());
 
         let id = Fragment::try_from_bytes(&raw_fragments[0]).unwrap().id();
@@ -1162,10 +1289,13 @@ mod message_reconstructor {
 
         reconstructor.reconstructed_sets.insert(set_id, set_buf);
         let mut reconstructor_clone = reconstructor.clone();
+        let reconstructed_message = reconstructor_clone.reconstruct_message(set_id);
         assert_eq!(
             reconstructor.extract_set_payload(set_id),
-            reconstructor_clone.reconstruct_message(set_id)
+            reconstructed_message.0
         );
+        assert_eq!(reconstructed_message.1.len(), 1);
+        assert_eq!(reconstructed_message.1[0], set_id);
     }
 
     #[test]
@@ -1211,24 +1341,27 @@ mod message_reconstructor {
 
         let manually_combined_message = [extracted_set1, extracted_set2].concat();
 
+        let reconstructed_message1 = reconstructor_clone.reconstruct_message(set_id1);
+        let reconstructed_message2 = reconstructor_clone2.reconstruct_message(set_id2);
+
+        assert_eq!(reconstructed_message1.1.len(), 2);
+        assert_eq!(reconstructed_message1.1, vec![set_id1, set_id2]);
+
+        assert_eq!(reconstructed_message2.1.len(), 2);
+        assert_eq!(reconstructed_message2.1, vec![set_id1, set_id2]);
+
         // make sure we can use any id that is part of the message
-        assert_eq!(
-            reconstructor_clone.reconstruct_message(set_id1),
-            manually_combined_message
-        );
-        assert_eq!(
-            reconstructor_clone2.reconstruct_message(set_id2),
-            manually_combined_message
-        );
+        assert_eq!(reconstructed_message1.0, manually_combined_message);
+        assert_eq!(reconstructed_message2.0, manually_combined_message);
     }
 
     #[test]
     fn adding_invalid_fragment_does_not_change_reconstructor_state() {
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut empty_reconstructor = MessageReconstructor::new();
+        let empty_reconstructor = MessageReconstructor::new();
         assert!(empty_reconstructor
-            .new_fragment([24u8; 43].to_vec())
-            .is_none());
+            .recover_fragment([24u8; 43].to_vec())
+            .is_err());
         assert_eq!(empty_reconstructor, MessageReconstructor::new());
 
         let mut reconstructor_with_data = MessageReconstructor::new();
@@ -1242,12 +1375,16 @@ mod message_reconstructor {
             .into_iter()
             .map(|x| x.into_bytes())
             .collect();
-        reconstructor_with_data.new_fragment(fragments.pop().unwrap());
+        reconstructor_with_data.insert_new_fragment(
+            reconstructor_with_data
+                .recover_fragment(fragments.pop().unwrap())
+                .unwrap(),
+        );
         let reconstructor_clone = reconstructor_with_data.clone();
 
         assert!(empty_reconstructor
-            .new_fragment([24u8; 43].to_vec())
-            .is_none());
+            .recover_fragment([24u8; 43].to_vec())
+            .is_err());
         assert_eq!(reconstructor_with_data, reconstructor_clone);
     }
 }
@@ -1286,12 +1423,16 @@ mod message_reconstruction {
             assert_eq!(fragment.len(), 1);
 
             let mut message_reconstructor = MessageReconstructor::new();
-            assert_eq!(
-                message_reconstructor
-                    .new_fragment(fragment[0].clone())
-                    .unwrap(),
-                message
-            )
+            let reconstructed_message = message_reconstructor
+                .insert_new_fragment(
+                    message_reconstructor
+                        .recover_fragment(fragment[0].clone())
+                        .unwrap(),
+                )
+                .unwrap();
+
+            assert_eq!(reconstructed_message.0, message);
+            assert_eq!(reconstructed_message.1.len(), 1);
         }
 
         #[test]
@@ -1314,12 +1455,16 @@ mod message_reconstruction {
             assert_eq!(fragment.len(), 1);
 
             let mut message_reconstructor = MessageReconstructor::new();
-            assert_eq!(
-                message_reconstructor
-                    .new_fragment(fragment[0].clone())
-                    .unwrap(),
-                message
-            )
+            let reconstructed_message = message_reconstructor
+                .insert_new_fragment(
+                    message_reconstructor
+                        .recover_fragment(fragment[0].clone())
+                        .unwrap(),
+                )
+                .unwrap();
+
+            assert_eq!(reconstructed_message.0, message);
+            assert_eq!(reconstructed_message.1.len(), 1);
         }
 
         #[test]
@@ -1344,14 +1489,23 @@ mod message_reconstruction {
 
             let mut message_reconstructor = MessageReconstructor::new();
             assert!(message_reconstructor
-                .new_fragment(fragments[0].clone())
+                .insert_new_fragment(
+                    message_reconstructor
+                        .recover_fragment(fragments[0].clone())
+                        .unwrap()
+                )
                 .is_none());
-            assert_eq!(
-                message_reconstructor
-                    .new_fragment(fragments[1].clone())
-                    .unwrap(),
-                message
-            )
+
+            let reconstructed_message = message_reconstructor
+                .insert_new_fragment(
+                    message_reconstructor
+                        .recover_fragment(fragments[1].clone())
+                        .unwrap(),
+                )
+                .unwrap();
+
+            assert_eq!(reconstructed_message.0, message);
+            assert_eq!(reconstructed_message.1.len(), 1);
         }
 
         #[test]
@@ -1376,14 +1530,23 @@ mod message_reconstruction {
 
             let mut message_reconstructor = MessageReconstructor::new();
             assert!(message_reconstructor
-                .new_fragment(fragments[0].clone())
+                .insert_new_fragment(
+                    message_reconstructor
+                        .recover_fragment(fragments[0].clone())
+                        .unwrap()
+                )
                 .is_none());
-            assert_eq!(
-                message_reconstructor
-                    .new_fragment(fragments[1].clone())
-                    .unwrap(),
-                message
-            )
+
+            let reconstructed_message = message_reconstructor
+                .insert_new_fragment(
+                    message_reconstructor
+                        .recover_fragment(fragments[1].clone())
+                        .unwrap(),
+                )
+                .unwrap();
+
+            assert_eq!(reconstructed_message.0, message);
+            assert_eq!(reconstructed_message.1.len(), 1);
         }
 
         #[test]
@@ -1409,16 +1572,24 @@ mod message_reconstruction {
             let mut message_reconstructor = MessageReconstructor::new();
             for i in 0..29 {
                 assert!(message_reconstructor
-                    .new_fragment(fragments[i].clone())
+                    .insert_new_fragment(
+                        message_reconstructor
+                            .recover_fragment(fragments[i].clone())
+                            .unwrap()
+                    )
                     .is_none());
             }
 
-            assert_eq!(
-                message_reconstructor
-                    .new_fragment(fragments[29].clone())
-                    .unwrap(),
-                message
-            )
+            let reconstructed_message = message_reconstructor
+                .insert_new_fragment(
+                    message_reconstructor
+                        .recover_fragment(fragments[29].clone())
+                        .unwrap(),
+                )
+                .unwrap();
+
+            assert_eq!(reconstructed_message.0, message);
+            assert_eq!(reconstructed_message.1.len(), 1);
         }
 
         #[test]
@@ -1447,16 +1618,24 @@ mod message_reconstruction {
             let mut message_reconstructor = MessageReconstructor::new();
             for i in 0..29 {
                 assert!(message_reconstructor
-                    .new_fragment(fragments[i].clone())
+                    .insert_new_fragment(
+                        message_reconstructor
+                            .recover_fragment(fragments[i].clone())
+                            .unwrap()
+                    )
                     .is_none());
             }
 
-            assert_eq!(
-                message_reconstructor
-                    .new_fragment(fragments[29].clone())
-                    .unwrap(),
-                message
-            )
+            let reconstructed_message = message_reconstructor
+                .insert_new_fragment(
+                    message_reconstructor
+                        .recover_fragment(fragments[29].clone())
+                        .unwrap(),
+                )
+                .unwrap();
+
+            assert_eq!(reconstructed_message.0, message);
+            assert_eq!(reconstructed_message.1.len(), 1);
         }
 
         #[test]
@@ -1495,10 +1674,15 @@ mod message_reconstruction {
 
             let mut message_reconstructor = MessageReconstructor::new();
             for fragment in fragments {
-                if let Some(msg) = message_reconstructor.new_fragment(fragment.into_bytes()) {
-                    match msg[0] {
-                        1 => assert_eq!(msg, message1),
-                        2 => assert_eq!(msg, message2),
+                if let Some(reconstructed_msg) = message_reconstructor.insert_new_fragment(
+                    message_reconstructor
+                        .recover_fragment(fragment.into_bytes())
+                        .unwrap(),
+                ) {
+                    assert_eq!(reconstructed_msg.1.len(), 1);
+                    match reconstructed_msg.0[0] {
+                        1 => assert_eq!(reconstructed_msg.0, message1),
+                        2 => assert_eq!(reconstructed_msg.0, message2),
                         _ => panic!("Unknown message!"),
                     }
                 }
@@ -1539,10 +1723,15 @@ mod message_reconstruction {
 
             let mut message_reconstructor = MessageReconstructor::new();
             for fragment in fragments.into_iter() {
-                if let Some(msg) = message_reconstructor.new_fragment(fragment.into_bytes()) {
-                    match msg[0] {
-                        1 => assert_eq!(msg, message1),
-                        2 => assert_eq!(msg, message2),
+                if let Some(reconstructed_msg) = message_reconstructor.insert_new_fragment(
+                    message_reconstructor
+                        .recover_fragment(fragment.into_bytes())
+                        .unwrap(),
+                ) {
+                    assert_eq!(reconstructed_msg.1.len(), 1);
+                    match reconstructed_msg.0[0] {
+                        1 => assert_eq!(reconstructed_msg.0, message1),
+                        2 => assert_eq!(reconstructed_msg.0, message2),
                         _ => panic!("Unknown message!"),
                     }
                 }
@@ -1586,8 +1775,11 @@ mod message_reconstruction {
                         "Shouldn't have gone into another iteration if message was reconstructed!"
                     )
                 }
-                if let Some(msg) = message_reconstructor.new_fragment(fragment) {
-                    assert_eq!(msg, message);
+                if let Some(msg) = message_reconstructor
+                    .insert_new_fragment(message_reconstructor.recover_fragment(fragment).unwrap())
+                {
+                    assert_eq!(msg.0, message);
+                    assert_eq!(msg.1.len(), 2);
                     finished_reconstruction = true;
                 }
             }
@@ -1624,8 +1816,11 @@ mod message_reconstruction {
                         "Shouldn't have gone into another iteration if message was reconstructed!"
                     )
                 }
-                if let Some(msg) = message_reconstructor.new_fragment(fragment) {
-                    assert_eq!(msg, message);
+                if let Some(msg) = message_reconstructor
+                    .insert_new_fragment(message_reconstructor.recover_fragment(fragment).unwrap())
+                {
+                    assert_eq!(msg.0, message);
+                    assert_eq!(msg.1.len(), 4);
                     finished_reconstruction = true;
                 }
             }
@@ -1663,8 +1858,11 @@ mod message_reconstruction {
                         "Shouldn't have gone into another iteration if message was reconstructed!"
                     )
                 }
-                if let Some(msg) = message_reconstructor.new_fragment(fragment) {
-                    assert_eq!(msg, message);
+                if let Some(msg) = message_reconstructor
+                    .insert_new_fragment(message_reconstructor.recover_fragment(fragment).unwrap())
+                {
+                    assert_eq!(msg.0, message);
+                    assert_eq!(msg.1.len(), 4);
                     finished_reconstruction = true;
                 }
             }
@@ -1710,10 +1908,20 @@ mod message_reconstruction {
 
             let mut message_reconstructor = MessageReconstructor::new();
             for fragment in fragments.into_iter() {
-                if let Some(msg) = message_reconstructor.new_fragment(fragment.into_bytes()) {
-                    match msg[0] {
-                        1 => assert_eq!(msg, message1),
-                        2 => assert_eq!(msg, message2),
+                if let Some(msg) = message_reconstructor.insert_new_fragment(
+                    message_reconstructor
+                        .recover_fragment(fragment.into_bytes())
+                        .unwrap(),
+                ) {
+                    match msg.0[0] {
+                        1 => {
+                            assert_eq!(msg.0, message1);
+                            assert_eq!(msg.1.len(), 4);
+                        }
+                        2 => {
+                            assert_eq!(msg.0, message2);
+                            assert_eq!(msg.1.len(), 4);
+                        }
                         _ => panic!("Unknown message!"),
                     }
                 }

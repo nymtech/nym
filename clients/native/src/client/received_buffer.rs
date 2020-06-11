@@ -19,6 +19,7 @@ use gateway_client::MixnetMessageReceiver;
 use log::*;
 use nymsphinx::chunking::reconstruction::MessageReconstructor;
 use nymsphinx::cover::LOOP_COVER_MESSAGE_PAYLOAD;
+use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
@@ -36,6 +37,11 @@ struct ReceivedMessagesBufferInner {
     messages: Vec<Vec<u8>>,
     message_reconstructor: MessageReconstructor,
     message_sender: Option<ReconstructedMessagesSender>,
+
+    // TODO: this will get cleared upon re-running the client
+    // but perhaps it should be changed to include timestamps of when the message was reconstructed
+    // and every now and then remove ids older than X
+    recently_reconstructed: HashSet<i32>,
 }
 
 #[derive(Debug, Clone)]
@@ -52,6 +58,7 @@ impl ReceivedMessagesBuffer {
                 messages: Vec::new(),
                 message_reconstructor: MessageReconstructor::new(),
                 message_sender: None,
+                recently_reconstructed: HashSet::new(),
             })),
         }
     }
@@ -115,14 +122,44 @@ impl ReceivedMessagesBuffer {
                 continue;
             }
 
-            if let Some(reconstructed_message) =
-                inner_guard.message_reconstructor.new_fragment(msg_fragment)
+            let fragment = match inner_guard
+                .message_reconstructor
+                .recover_fragment(msg_fragment)
+            {
+                Err(e) => {
+                    warn!("failed to recover fragment data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
+                    continue;
+                }
+                Ok(frag) => frag,
+            };
+
+            if inner_guard.recently_reconstructed.contains(&fragment.id()) {
+                // for time being have it at high log level to notice it. Before I make PR I will
+                // lower it
+                warn!("Received a chunk of already re-assembled message! It probably got here because the ack got lost");
+                continue;
+            }
+
+            if let Some(reconstructed_message) = inner_guard
+                .message_reconstructor
+                .insert_new_fragment(fragment)
             {
                 completed_messages.push(reconstructed_message);
             }
         }
 
         if !completed_messages.is_empty() {
+            let (completed_messages, completed_messages_sets): (Vec<_>, Vec<_>) =
+                completed_messages.into_iter().unzip();
+            for completed_message_set_ids in completed_messages_sets {
+                // each message could have used multiple sets (if it was particularly long)
+                for set_id in completed_message_set_ids {
+                    if !inner_guard.recently_reconstructed.insert(set_id) {
+                        // or perhaps we should even panic at this point?
+                        error!("Reconstructed another message containing already used set id!")
+                    }
+                }
+            }
             if let Some(sender) = &inner_guard.message_sender {
                 trace!("Sending reconstructed messages to announced sender");
                 if let Err(err) = sender.unbounded_send(completed_messages) {

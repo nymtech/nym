@@ -24,6 +24,11 @@ use std::convert::TryInto;
 // need to use the tail byte to indicate lack of linking as it can be implied from the fragment
 // position.
 
+// TODO for later: with the removal of 'unfragmented' fragments, the first bit of each header
+// is completely useless, we should then think how to make the set_id become u32 instead of i32.
+// (the current limitation for making the seemingly trivial change is "linked id" which
+// has to have same amount of space available and right now it only has 31 bits available)
+
 /// When the underlying message has to be split into multiple Fragments, but still manages to fit
 /// into a single `FragmentSet`, each `FragmentHeader` needs to hold additional information to allow
 /// for correct message reconstruction: 4 bytes for set id, 1 byte to represent total number
@@ -65,18 +70,6 @@ pub struct FragmentIdentifier {
     set_id: i32,
     fragment_position: u8,
 }
-
-// TODO: change id to u32
-// TODO: change id to u32
-// TODO: change id to u32
-// TODO: change id to u32
-// TODO: change id to u32
-// TODO: change id to u32
-// TODO: change id to u32
-// TODO: change id to u32
-// TODO: change id to u32
-// TODO: change id to u32
-// TODO: change id to u32
 
 impl FragmentIdentifier {
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -189,28 +182,28 @@ impl Fragment {
     }
 
     /// Extracts id of this `Fragment`.
-    pub(crate) fn id(&self) -> i32 {
+    pub fn id(&self) -> i32 {
         self.header.id
     }
 
     /// Extracts total number of fragments associated with this particular `Fragment` (belonging to
     /// the same `FragmentSet`).
-    pub(crate) fn total_fragments(&self) -> u8 {
+    pub fn total_fragments(&self) -> u8 {
         self.header.total_fragments
     }
 
     /// Extracts position of this `Fragment` in a `FragmentSet`.
-    pub(crate) fn current_fragment(&self) -> u8 {
+    pub fn current_fragment(&self) -> u8 {
         self.header.current_fragment
     }
 
     /// Extracts information regarding id of pre-linked `FragmentSet`
-    pub(crate) fn previous_fragments_set_id(&self) -> Option<i32> {
+    pub fn previous_fragments_set_id(&self) -> Option<i32> {
         self.header.previous_fragments_set_id
     }
 
     /// Extracts information regarding id of post-linked `FragmentSet`
-    pub(crate) fn next_fragments_set_id(&self) -> Option<i32> {
+    pub fn next_fragments_set_id(&self) -> Option<i32> {
         self.header.next_fragments_set_id
     }
 
@@ -245,15 +238,11 @@ impl Fragment {
 /// note that LID is a valid flag only for first and
 /// last fragment (if TotalFragments == CurrentFragment == 255) in given set.
 ///
-/// further note that if IF (isFragmented) is not set,
-/// then the remaining bytes of the header are used as payload and also note that if LID is not set,
+/// further note if LID is not set,
 /// then the Linked ID bytes in the header are used as payload.
 ///
 /// Hence after marshaling `FragmentHeader` into bytes,
 /// the following three alternatives are possible:
-///
-/// Single byte representing that the `Fragment` is the only one into which the message was split.
-/// '0'byte
 ///
 /// 7 byte long sequence representing that this `Fragment` is one of multiple ones in the set.
 /// However, the set is not linked to any other sets:
@@ -263,12 +252,10 @@ impl Fragment {
 /// where the set is linked to either preceding data (TF == 1) or proceeding data (TF == CF == 255)
 /// '1'bit || 31-bit ID || 1-byte TF || 1 byte CF || '1'bit || 31-bit LID
 ///
-/// And hence for messages smaller than `max_plaintext_size`,
-/// there is only a single byte of overhead;
-/// for messages larger than `max_plaintext_size` but small enough
+/// And hence for messages larger than `max_plaintext_size` but small enough
 /// to avoid set division (which happens if message has to be fragmented into more than 255 fragments)
 /// there is 7 bytes of overhead inside each sphinx packet sent
-/// and finally for the longest messages, without upper bound, there is usually also only 7 bytes
+/// and for the longest messages, without upper bound, there is usually also only 7 bytes
 /// of overhead apart from first and last fragments in each set that instead have 10 bytes of overhead.
 #[derive(PartialEq, Clone, Debug)]
 pub(crate) struct FragmentHeader {

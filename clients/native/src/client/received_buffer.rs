@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use futures::channel::mpsc;
-use futures::lock::Mutex;
+use futures::lock::{Mutex, MutexGuard};
 use futures::StreamExt;
 use gateway_client::MixnetMessageReceiver;
 use log::*;
@@ -107,6 +107,49 @@ impl ReceivedMessagesBuffer {
         self.inner.lock().await.messages.extend(msgs)
     }
 
+    fn process_received_fragment(
+        mutex_guard: &mut MutexGuard<ReceivedMessagesBufferInner>,
+        raw_fragment: Vec<u8>,
+    ) -> Option<Vec<u8>> {
+        if raw_fragment == LOOP_COVER_MESSAGE_PAYLOAD {
+            trace!("The message was a loop cover message! Skipping it");
+            return None;
+        }
+
+        let fragment = match mutex_guard
+            .message_reconstructor
+            .recover_fragment(raw_fragment)
+        {
+            Err(e) => {
+                warn!("failed to recover fragment data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
+                return None;
+            }
+            Ok(frag) => frag,
+        };
+
+        if mutex_guard.recently_reconstructed.contains(&fragment.id()) {
+            // for time being have it at high log level to notice it. Before I make PR I will
+            // lower it
+            warn!("Received a chunk of already re-assembled message! It probably got here because the ack got lost");
+            return None;
+        }
+
+        if let Some(reconstructed_message) = mutex_guard
+            .message_reconstructor
+            .insert_new_fragment(fragment)
+        {
+            let (completed_message, message_sets) = reconstructed_message;
+            for set_id in message_sets {
+                if !mutex_guard.recently_reconstructed.insert(set_id) {
+                    // or perhaps we should even panic at this point?
+                    error!("Reconstructed another message containing already used set id!")
+                }
+            }
+            return Some(completed_message);
+        }
+        None
+    }
+
     async fn add_new_message_fragments(&mut self, msgs: Vec<Vec<u8>>) {
         debug!(
             "Adding {:?} new message fragments to the buffer!",
@@ -117,49 +160,14 @@ impl ReceivedMessagesBuffer {
         let mut completed_messages = Vec::new();
         let mut inner_guard = self.inner.lock().await;
         for msg_fragment in msgs {
-            if msg_fragment == LOOP_COVER_MESSAGE_PAYLOAD {
-                trace!("The message was a loop cover message! Skipping it");
-                continue;
-            }
-
-            let fragment = match inner_guard
-                .message_reconstructor
-                .recover_fragment(msg_fragment)
+            if let Some(completed_message) =
+                Self::process_received_fragment(&mut inner_guard, msg_fragment)
             {
-                Err(e) => {
-                    warn!("failed to recover fragment data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
-                    continue;
-                }
-                Ok(frag) => frag,
-            };
-
-            if inner_guard.recently_reconstructed.contains(&fragment.id()) {
-                // for time being have it at high log level to notice it. Before I make PR I will
-                // lower it
-                warn!("Received a chunk of already re-assembled message! It probably got here because the ack got lost");
-                continue;
-            }
-
-            if let Some(reconstructed_message) = inner_guard
-                .message_reconstructor
-                .insert_new_fragment(fragment)
-            {
-                completed_messages.push(reconstructed_message);
+                completed_messages.push(completed_message)
             }
         }
 
         if !completed_messages.is_empty() {
-            let (completed_messages, completed_messages_sets): (Vec<_>, Vec<_>) =
-                completed_messages.into_iter().unzip();
-            for completed_message_set_ids in completed_messages_sets {
-                // each message could have used multiple sets (if it was particularly long)
-                for set_id in completed_message_set_ids {
-                    if !inner_guard.recently_reconstructed.insert(set_id) {
-                        // or perhaps we should even panic at this point?
-                        error!("Reconstructed another message containing already used set id!")
-                    }
-                }
-            }
             if let Some(sender) = &inner_guard.message_sender {
                 trace!("Sending reconstructed messages to announced sender");
                 if let Err(err) = sender.unbounded_send(completed_messages) {

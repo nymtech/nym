@@ -257,7 +257,7 @@ impl FragmentedMessageReceiver {
 }
 
 pub(crate) struct ReceivedMessagesBufferController {
-    fragmented_messsage_receiver: FragmentedMessageReceiver,
+    fragmented_message_receiver: FragmentedMessageReceiver,
     request_receiver: RequestReceiver,
 }
 
@@ -269,7 +269,7 @@ impl ReceivedMessagesBufferController {
         let received_buffer = ReceivedMessagesBuffer::new();
 
         ReceivedMessagesBufferController {
-            fragmented_messsage_receiver: FragmentedMessageReceiver::new(
+            fragmented_message_receiver: FragmentedMessageReceiver::new(
                 received_buffer.clone(),
                 mixnet_packet_receiver,
             ),
@@ -279,7 +279,7 @@ impl ReceivedMessagesBufferController {
 
     pub(crate) fn start(self, handle: &Handle) {
         // TODO: should we do anything with JoinHandle(s) returned by start methods?
-        self.fragmented_messsage_receiver.start(handle);
+        self.fragmented_message_receiver.start(handle);
         self.request_receiver.start(handle);
     }
 }

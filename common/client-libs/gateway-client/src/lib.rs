@@ -224,17 +224,57 @@ where
             response_timeout_duration,
         }
     }
-    // TODO: extra constructor for JUST init registration so that it would look something like:
+
     pub fn new_init(
-        _gateway_address: R,
-        _our_address: DestinationAddressBytes,
-        _response_timeout_duration: Duration,
+        gateway_address: R,
+        our_address: DestinationAddressBytes,
+        response_timeout_duration: Duration,
     ) -> Self {
-        todo!()
+        use futures::channel::mpsc;
+
+        // note: this packet_router is completely invalid in normal circumstances, but "works"
+        // perfectly fine here, because it's not meant to be used
+        let (ack_tx, _) = mpsc::unbounded();
+        let (mix_tx, _) = mpsc::unbounded();
+        let packet_router = PacketRouter::new(ack_tx, mix_tx);
+
+        GatewayClient {
+            authenticated: false,
+            gateway_address,
+            our_address,
+            auth_token: None,
+            connection: SocketState::NotConnected,
+            packet_router,
+            response_timeout_duration,
+        }
+    }
+    
+    pub async fn register_without_listening(&mut self) -> Result<AuthToken, GatewayClientError> {
+        if !self.connection.is_established() {
+            self.establish_connection().await?;
+        }
+        let msg = ClientControlRequest::new_register(self.our_address.clone()).into();
+        let token = match self.send_websocket_message(msg).await? {
+            ServerResponse::Register { token } => {
+                self.authenticated = true;
+                Ok(AuthToken::try_from_base58_string(token)?)
+            }
+            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
+            _ => unreachable!(),
+        }?;
+        Ok(token)
     }
 
-    pub fn register_without_listening(&self) -> Result<AuthToken, GatewayClientError> {
-        todo!()
+    pub async fn close_connection(&mut self) -> Result<(), GatewayClientError>{
+        if self.connection.is_partially_delegated() {
+            self.recover_socket_connection().await?;
+        }
+        
+        match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
+            SocketState::Available(mut socket) => Ok(socket.close(None).await?),
+            SocketState::PartiallyDelegated(_) => unreachable!("this branch should have never been reached!"),
+            _ => Ok(()), // no need to do anything in those cases
+        }
     }
 
     pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {

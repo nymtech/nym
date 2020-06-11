@@ -19,7 +19,6 @@ use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::identity::MixIdentityKeyPair;
 use directory_client::presence::Topology;
-use futures::channel::mpsc;
 use gateway_client::GatewayClient;
 use gateway_requests::AuthToken;
 use nymsphinx::DestinationAddressBytes;
@@ -68,23 +67,18 @@ async fn try_gateway_registration(
     gateways: Vec<Node>,
     our_address: DestinationAddressBytes,
 ) -> Option<(String, AuthToken)> {
-    // TODO: having to do something like this suggests that perhaps GatewayClient's constructor
-    // could be improved
-    let (sphinx_tx, _) = mpsc::unbounded();
-    let (ack_tx, _) = mpsc::unbounded();
-
     let timeout = Duration::from_millis(1500);
     for gateway in gateways {
-        let mut gateway_client = GatewayClient::new(
+        let mut gateway_client = GatewayClient::new_init(
             url::Url::parse(&gateway.client_listener).unwrap(),
             our_address.clone(),
-            None,
-            sphinx_tx.clone(),
-            ack_tx.clone(),
             timeout,
         );
-        if gateway_client.establish_connection().await.is_ok() {
-            if let Ok(token) = gateway_client.register().await {
+        if let Ok(token) = gateway_client.register_without_listening().await {
+            if let Err(err) = gateway_client.close_connection().await {
+                eprintln!("Error while closing connection to the gateway! - {:?}", err);
+                continue;
+            } else {
                 return Some((gateway.pub_key, token));
             }
         }

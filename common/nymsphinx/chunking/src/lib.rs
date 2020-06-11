@@ -136,7 +136,7 @@ impl<R: CryptoRng + Rng> MessageChunker<R> {
         }
     }
 
-    fn available_plaintext_size(&self) -> usize {
+    pub fn available_plaintext_size(&self) -> usize {
         // we need to put first hop's destination alongside the actual ack
         // TODO: a possible optimization way down the line: currently we're always assuming that
         // the addresses will have `MAX_NODE_ADDRESS_UNPADDED_LEN`, i.e. be ipv6. In most cases

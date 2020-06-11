@@ -269,7 +269,7 @@ impl MessageReconstructor {
     /// Given raw `Fragment` data, tries to decode it and add into an appropriate `ReconstructionBuffer`.
     /// If a buffer does not exist, a new instance is created.
     /// If it was last remaining `Fragment` for the original message, the message is reconstructed
-    /// and returned.
+    /// and returned alongside all (if applicable) set
     pub fn new_fragment(&mut self, fragment_data: Vec<u8>) -> Option<Vec<u8>> {
         let fragment_res = Fragment::try_from_bytes(&fragment_data);
         if let Err(e) = fragment_res {
@@ -298,14 +298,9 @@ impl MessageReconstructor {
 #[cfg(test)]
 mod reconstruction_buffer {
     use super::*;
-    use crate::fragment::unlinked_fragmented_payload_max_len;
+    use crate::fragment::unlinked_fragment_payload_max_len;
     use crate::set::max_one_way_linked_set_payload_length;
     use crate::MessageChunker;
-    use nymsphinx_params::packet_sizes::PacketSize;
-
-    fn max_plaintext_size() -> usize {
-        PacketSize::default().plaintext_size() - PacketSize::ACKPacket.size()
-    }
 
     #[test]
     fn creating_new_instance_correctly_initialised_fragments_buffer() {
@@ -352,12 +347,17 @@ mod reconstruction_buffer {
         assert_eq!(message.to_vec(), buf.reconstruct_set_data());
 
         let mut buf = ReconstructionBuffer::new(3);
-        let message = vec![42u8; unlinked_fragmented_payload_max_len(max_plaintext_size()) * 3];
+        let message =
+            vec![
+                42u8;
+                unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size()) * 3
+            ];
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&message)
             .into_iter()
             .map(|x| x.into_bytes())
             .collect();
+        assert_eq!(raw_fragments.len(), 3);
 
         buf.insert_fragment(Fragment::try_from_bytes(&raw_fragments[0]).unwrap());
         buf.insert_fragment(Fragment::try_from_bytes(&raw_fragments[1]).unwrap());
@@ -367,7 +367,7 @@ mod reconstruction_buffer {
         // let mut buf = ReconstructionBuffer::new(u8::max_value());
         // let message = vec![
         //     42u8;
-        //     unlinked_fragmented_payload_max_len(max_plaintext_size())
+        //     unlinked_fragmented_payload_max_len(message_chunker.available_plaintext_size())
         //         * u8::max_value() as usize
         // ];
         // let raw_fragments: Vec<_> = message_chunker
@@ -390,8 +390,8 @@ mod reconstruction_buffer {
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&vec![
                 42u8;
-                unlinked_fragmented_payload_max_len(
-                    max_plaintext_size()
+                unlinked_fragment_payload_max_len(
+                    message_chunker.available_plaintext_size()
                 ) * 3
             ])
             .into_iter()
@@ -411,8 +411,8 @@ mod reconstruction_buffer {
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&vec![
                 42u8;
-                unlinked_fragmented_payload_max_len(
-                    max_plaintext_size()
+                unlinked_fragment_payload_max_len(
+                    message_chunker.available_plaintext_size()
                 ) * 3
             ])
             .into_iter()
@@ -430,7 +430,11 @@ mod reconstruction_buffer {
         let mut message_chunker = MessageChunker::test_fixture();
 
         let mut buf = ReconstructionBuffer::new(3);
-        let message = vec![42u8; unlinked_fragmented_payload_max_len(max_plaintext_size()) * 3];
+        let message =
+            vec![
+                42u8;
+                unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size()) * 3
+            ];
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&message)
             .into_iter()
@@ -448,7 +452,12 @@ mod reconstruction_buffer {
         assert!(buf.next_fragments_set_id.is_none());
 
         let mut buf = ReconstructionBuffer::new(255);
-        let message = vec![42u8; max_one_way_linked_set_payload_length(max_plaintext_size()) + 123];
+        let message = vec![
+            42u8;
+            max_one_way_linked_set_payload_length(
+                message_chunker.available_plaintext_size()
+            ) + 123
+        ];
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&message)
             .into_iter()
@@ -488,8 +497,8 @@ mod reconstruction_buffer {
         let raw_fragments1: Vec<_> = message_chunker
             .split_message(&vec![
                 42u8;
-                unlinked_fragmented_payload_max_len(
-                    max_plaintext_size()
+                unlinked_fragment_payload_max_len(
+                    message_chunker.available_plaintext_size()
                 ) * 3
             ])
             .into_iter()
@@ -498,8 +507,8 @@ mod reconstruction_buffer {
         let raw_fragments2: Vec<_> = message_chunker
             .split_message(&vec![
                 42u8;
-                unlinked_fragmented_payload_max_len(
-                    max_plaintext_size()
+                unlinked_fragment_payload_max_len(
+                    message_chunker.available_plaintext_size()
                 ) * 3
             ])
             .into_iter()
@@ -514,15 +523,10 @@ mod reconstruction_buffer {
 #[cfg(test)]
 mod message_reconstructor {
     use super::*;
-    use crate::fragment::{unfragmented_payload_max_len, unlinked_fragmented_payload_max_len};
+    use crate::fragment::unlinked_fragment_payload_max_len;
     use crate::set::{max_one_way_linked_set_payload_length, two_way_linked_set_payload_length};
     use crate::MessageChunker;
-    use nymsphinx_params::packet_sizes::PacketSize;
     use rand::{thread_rng, RngCore};
-
-    fn max_plaintext_size() -> usize {
-        PacketSize::default().plaintext_size() - PacketSize::ACKPacket.size()
-    }
 
     #[test]
     #[should_panic]
@@ -530,12 +534,13 @@ mod message_reconstructor {
         let mut message_chunker = MessageChunker::test_fixture();
         let mut reconstructor = MessageReconstructor::new();
 
-        let message = vec![
-            42u8;
-            max_one_way_linked_set_payload_length(max_plaintext_size())
-                + unlinked_fragmented_payload_max_len(max_plaintext_size())
-                + 123
-        ];
+        let message =
+            vec![
+                42u8;
+                max_one_way_linked_set_payload_length(message_chunker.available_plaintext_size())
+                    + unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size())
+                    + 123
+            ];
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&message)
             .into_iter()
@@ -562,7 +567,12 @@ mod message_reconstructor {
         let mut message_chunker = MessageChunker::test_fixture();
         let mut reconstructor = MessageReconstructor::new();
 
-        let message = vec![42u8; max_one_way_linked_set_payload_length(max_plaintext_size()) + 123];
+        let message = vec![
+            42u8;
+            max_one_way_linked_set_payload_length(
+                message_chunker.available_plaintext_size()
+            ) + 123
+        ];
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&message)
             .into_iter()
@@ -590,12 +600,13 @@ mod message_reconstructor {
         let mut message_chunker = MessageChunker::test_fixture();
         let mut reconstructor = MessageReconstructor::new();
 
-        let message = vec![
-            42u8;
-            max_one_way_linked_set_payload_length(max_plaintext_size())
-                + unlinked_fragmented_payload_max_len(max_plaintext_size())
-                + 123
-        ];
+        let message =
+            vec![
+                42u8;
+                max_one_way_linked_set_payload_length(message_chunker.available_plaintext_size())
+                    + unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size())
+                    + 123
+            ];
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&message)
             .into_iter()
@@ -625,12 +636,13 @@ mod message_reconstructor {
         let mut message_chunker = MessageChunker::test_fixture();
         let mut reconstructor = MessageReconstructor::new();
 
-        let message = vec![
-            42u8;
-            max_one_way_linked_set_payload_length(max_plaintext_size())
-                + unlinked_fragmented_payload_max_len(max_plaintext_size())
-                + 123
-        ];
+        let message =
+            vec![
+                42u8;
+                max_one_way_linked_set_payload_length(message_chunker.available_plaintext_size())
+                    + unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size())
+                    + 123
+            ];
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&message)
             .into_iter()
@@ -658,12 +670,13 @@ mod message_reconstructor {
         let mut message_chunker = MessageChunker::test_fixture();
         let mut reconstructor = MessageReconstructor::new();
 
-        let message = vec![
-            42u8;
-            max_one_way_linked_set_payload_length(max_plaintext_size())
-                + unlinked_fragmented_payload_max_len(max_plaintext_size())
-                + 123
-        ];
+        let message =
+            vec![
+                42u8;
+                max_one_way_linked_set_payload_length(message_chunker.available_plaintext_size())
+                    + unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size())
+                    + 123
+            ];
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&message)
             .into_iter()
@@ -691,7 +704,12 @@ mod message_reconstructor {
         let mut message_chunker = MessageChunker::test_fixture();
         let mut reconstructor = MessageReconstructor::new();
 
-        let message = vec![42u8; max_one_way_linked_set_payload_length(max_plaintext_size()) + 123];
+        let message = vec![
+            42u8;
+            max_one_way_linked_set_payload_length(
+                message_chunker.available_plaintext_size()
+            ) + 123
+        ];
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&message)
             .into_iter()
@@ -719,13 +737,14 @@ mod message_reconstructor {
         let mut message_chunker = MessageChunker::test_fixture();
         let mut reconstructor = MessageReconstructor::new();
 
-        let message = vec![
-            42u8;
-            max_one_way_linked_set_payload_length(max_plaintext_size())
-                + two_way_linked_set_payload_length(max_plaintext_size())
-                + unlinked_fragmented_payload_max_len(max_plaintext_size())
-                + 123
-        ];
+        let message =
+            vec![
+                42u8;
+                max_one_way_linked_set_payload_length(message_chunker.available_plaintext_size())
+                    + two_way_linked_set_payload_length(message_chunker.available_plaintext_size())
+                    + unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size())
+                    + 123
+            ];
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&message)
             .into_iter()
@@ -753,12 +772,13 @@ mod message_reconstructor {
         let mut message_chunker = MessageChunker::test_fixture();
         let mut reconstructor = MessageReconstructor::new();
 
-        let message = vec![
-            42u8;
-            max_one_way_linked_set_payload_length(max_plaintext_size())
-                + two_way_linked_set_payload_length(max_plaintext_size())
-                + 123
-        ];
+        let message =
+            vec![
+                42u8;
+                max_one_way_linked_set_payload_length(message_chunker.available_plaintext_size())
+                    + two_way_linked_set_payload_length(message_chunker.available_plaintext_size())
+                    + 123
+            ];
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&message)
             .into_iter()
@@ -818,8 +838,12 @@ mod message_reconstructor {
         let mut message_chunker = MessageChunker::test_fixture();
         let mut reconstructor = MessageReconstructor::new();
 
-        let message1 =
-            vec![42u8; max_one_way_linked_set_payload_length(max_plaintext_size()) + 123];
+        let message1 = vec![
+            42u8;
+            max_one_way_linked_set_payload_length(
+                message_chunker.available_plaintext_size()
+            ) + 123
+        ];
         let raw_fragments1: Vec<_> = message_chunker
             .split_message(&message1)
             .into_iter()
@@ -840,12 +864,13 @@ mod message_reconstructor {
         let second_set_id = Fragment::try_from_bytes(&raw_fragments1[255]).unwrap().id();
         assert!(reconstructor.find_starting_set_id(second_set_id).is_none());
 
-        let message2 = vec![
-            43u8;
-            max_one_way_linked_set_payload_length(max_plaintext_size())
-                + unlinked_fragmented_payload_max_len(max_plaintext_size())
-                + 123
-        ];
+        let message2 =
+            vec![
+                43u8;
+                max_one_way_linked_set_payload_length(message_chunker.available_plaintext_size())
+                    + unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size())
+                    + 123
+            ];
         let raw_fragments2: Vec<_> = message_chunker
             .split_message(&message2)
             .into_iter()
@@ -872,12 +897,13 @@ mod message_reconstructor {
         let mut message_chunker = MessageChunker::test_fixture();
         let mut reconstructor = MessageReconstructor::new();
 
-        let message = vec![
-            42u8;
-            max_one_way_linked_set_payload_length(max_plaintext_size())
-                + unlinked_fragmented_payload_max_len(max_plaintext_size())
-                + 123
-        ];
+        let message =
+            vec![
+                42u8;
+                max_one_way_linked_set_payload_length(message_chunker.available_plaintext_size())
+                    + unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size())
+                    + 123
+            ];
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&message)
             .into_iter()
@@ -949,7 +975,11 @@ mod message_reconstructor {
         let mut message_chunker = MessageChunker::test_fixture();
         let mut reconstructor = MessageReconstructor::new();
 
-        let message = vec![42u8; unlinked_fragmented_payload_max_len(max_plaintext_size()) * 3];
+        let message =
+            vec![
+                42u8;
+                unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size()) * 3
+            ];
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&message)
             .into_iter()
@@ -997,7 +1027,11 @@ mod message_reconstructor {
         let mut message_chunker = MessageChunker::test_fixture();
         let mut reconstructor = MessageReconstructor::new();
 
-        let message = vec![42u8; unlinked_fragmented_payload_max_len(max_plaintext_size()) * 3];
+        let message =
+            vec![
+                42u8;
+                unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size()) * 3
+            ];
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&message)
             .into_iter()
@@ -1045,7 +1079,11 @@ mod message_reconstructor {
         let mut message_chunker = MessageChunker::test_fixture();
         let mut reconstructor = MessageReconstructor::new();
 
-        let message = vec![42u8; unlinked_fragmented_payload_max_len(max_plaintext_size()) * 3];
+        let message =
+            vec![
+                42u8;
+                unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size()) * 3
+            ];
         let raw_fragments: Vec<_> = message_chunker
             .split_message(&message)
             .into_iter()
@@ -1069,7 +1107,11 @@ mod message_reconstructor {
         let mut set_buf = ReconstructionBuffer::new(3);
         let mut rng = thread_rng();
 
-        let mut message = vec![0u8; unlinked_fragmented_payload_max_len(max_plaintext_size()) * 3];
+        let mut message =
+            vec![
+                0u8;
+                unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size()) * 3
+            ];
         rng.fill_bytes(&mut message);
 
         let raw_fragments: Vec<_> = message_chunker
@@ -1100,7 +1142,11 @@ mod message_reconstructor {
         let mut set_buf = ReconstructionBuffer::new(3);
         let mut rng = thread_rng();
 
-        let mut message = vec![0u8; unlinked_fragmented_payload_max_len(max_plaintext_size()) * 3];
+        let mut message =
+            vec![
+                0u8;
+                unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size()) * 3
+            ];
         rng.fill_bytes(&mut message);
 
         let raw_fragments: Vec<_> = message_chunker
@@ -1126,7 +1172,6 @@ mod message_reconstructor {
     fn reconstructing_message_for_two_sets_is_equivalent_to_combining_results_of_extracting_set_payload(
     ) {
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut message_chunker = MessageChunker::test_fixture();
 
         // we're inserting this via the buffer approach as not to trigger immediate re-assembly
         let mut reconstructor = MessageReconstructor::new();
@@ -1134,8 +1179,12 @@ mod message_reconstructor {
         let mut set_buf2 = ReconstructionBuffer::new(1);
 
         let mut rng = thread_rng();
-        let mut message =
-            vec![42u8; max_one_way_linked_set_payload_length(max_plaintext_size()) + 123];
+        let mut message = vec![
+            42u8;
+            max_one_way_linked_set_payload_length(
+                message_chunker.available_plaintext_size()
+            ) + 123
+        ];
         rng.fill_bytes(&mut message);
 
         let raw_fragments: Vec<_> = message_chunker
@@ -1183,7 +1232,11 @@ mod message_reconstructor {
         assert_eq!(empty_reconstructor, MessageReconstructor::new());
 
         let mut reconstructor_with_data = MessageReconstructor::new();
-        let dummy_message = vec![24u8; unfragmented_payload_max_len(max_plaintext_size()) + 30];
+        let dummy_message =
+            vec![
+                24u8;
+                unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size()) + 30
+            ];
         let mut fragments: Vec<_> = message_chunker
             .split_message(&dummy_message)
             .into_iter()
@@ -1203,18 +1256,13 @@ mod message_reconstructor {
 mod message_reconstruction {
     use super::*;
     use crate::MessageChunker;
-    use nymsphinx_params::packet_sizes::PacketSize;
     use rand::seq::SliceRandom;
     use rand::{thread_rng, RngCore};
-
-    fn max_plaintext_size() -> usize {
-        PacketSize::default().plaintext_size() - PacketSize::ACKPacket.size()
-    }
 
     #[cfg(test)]
     mod single_set_split {
         use super::*;
-        use crate::fragment::{unfragmented_payload_max_len, unlinked_fragmented_payload_max_len};
+        use crate::fragment::unlinked_fragment_payload_max_len;
         use crate::set::max_unlinked_set_payload_length;
 
         #[test]
@@ -1222,7 +1270,12 @@ mod message_reconstruction {
             let mut message_chunker = MessageChunker::test_fixture();
             let mut rng = thread_rng();
 
-            let mut message = vec![0u8; unfragmented_payload_max_len(max_plaintext_size()) - 20];
+            let mut message = vec![
+                0u8;
+                unlinked_fragment_payload_max_len(
+                    message_chunker.available_plaintext_size()
+                ) - 20
+            ];
             rng.fill_bytes(&mut message);
 
             let fragment: Vec<_> = message_chunker
@@ -1246,7 +1299,11 @@ mod message_reconstruction {
             let mut message_chunker = MessageChunker::test_fixture();
             let mut rng = thread_rng();
 
-            let mut message = vec![0u8; unfragmented_payload_max_len(max_plaintext_size())];
+            let mut message =
+                vec![
+                    0u8;
+                    unlinked_fragment_payload_max_len(message_chunker.available_plaintext_size())
+                ];
             rng.fill_bytes(&mut message);
 
             let fragment: Vec<_> = message_chunker
@@ -1270,8 +1327,12 @@ mod message_reconstruction {
             let mut message_chunker = MessageChunker::test_fixture();
             let mut rng = thread_rng();
 
-            let mut message =
-                vec![0u8; 2 * unlinked_fragmented_payload_max_len(max_plaintext_size())];
+            let mut message = vec![
+                0u8;
+                2 * unlinked_fragment_payload_max_len(
+                    message_chunker.available_plaintext_size()
+                )
+            ];
             rng.fill_bytes(&mut message);
 
             let fragments: Vec<_> = message_chunker
@@ -1298,8 +1359,12 @@ mod message_reconstruction {
             let mut message_chunker = MessageChunker::test_fixture();
             let mut rng = thread_rng();
 
-            let mut message =
-                vec![0u8; 2 * unlinked_fragmented_payload_max_len(max_plaintext_size()) - 42];
+            let mut message = vec![
+                0u8;
+                2 * unlinked_fragment_payload_max_len(
+                    message_chunker.available_plaintext_size()
+                ) - 42
+            ];
             rng.fill_bytes(&mut message);
 
             let fragments: Vec<_> = message_chunker
@@ -1326,8 +1391,12 @@ mod message_reconstruction {
             let mut message_chunker = MessageChunker::test_fixture();
             let mut rng = thread_rng();
 
-            let mut message =
-                vec![0u8; 30 * unlinked_fragmented_payload_max_len(max_plaintext_size())];
+            let mut message = vec![
+                0u8;
+                30 * unlinked_fragment_payload_max_len(
+                    message_chunker.available_plaintext_size()
+                )
+            ];
             rng.fill_bytes(&mut message);
 
             let fragments: Vec<_> = message_chunker
@@ -1357,8 +1426,12 @@ mod message_reconstruction {
             let mut message_chunker = MessageChunker::test_fixture();
             let mut rng = thread_rng();
 
-            let mut message =
-                vec![0u8; 30 * unlinked_fragmented_payload_max_len(max_plaintext_size())];
+            let mut message = vec![
+                0u8;
+                30 * unlinked_fragment_payload_max_len(
+                    message_chunker.available_plaintext_size()
+                )
+            ];
             rng.fill_bytes(&mut message);
 
             let mut fragments: Vec<_> = message_chunker
@@ -1391,11 +1464,19 @@ mod message_reconstruction {
             let mut message_chunker = MessageChunker::test_fixture();
             let mut rng = thread_rng();
 
-            let mut message1 =
-                vec![0u8; 30 * unlinked_fragmented_payload_max_len(max_plaintext_size())];
+            let mut message1 = vec![
+                0u8;
+                30 * unlinked_fragment_payload_max_len(
+                    message_chunker.available_plaintext_size()
+                )
+            ];
             rng.fill_bytes(&mut message1);
-            let mut message2 =
-                vec![0u8; 30 * unlinked_fragmented_payload_max_len(max_plaintext_size())];
+            let mut message2 = vec![
+                0u8;
+                30 * unlinked_fragment_payload_max_len(
+                    message_chunker.available_plaintext_size()
+                )
+            ];
             rng.fill_bytes(&mut message2);
             // introduce dummy way to identify the messages
             message1[0] = 1;
@@ -1429,9 +1510,17 @@ mod message_reconstruction {
             let mut message_chunker = MessageChunker::test_fixture();
             let mut rng = thread_rng();
 
-            let mut message1 = vec![0u8; max_unlinked_set_payload_length(max_plaintext_size())];
+            let mut message1 =
+                vec![
+                    0u8;
+                    max_unlinked_set_payload_length(message_chunker.available_plaintext_size())
+                ];
             rng.fill_bytes(&mut message1);
-            let mut message2 = vec![0u8; max_unlinked_set_payload_length(max_plaintext_size())];
+            let mut message2 =
+                vec![
+                    0u8;
+                    max_unlinked_set_payload_length(message_chunker.available_plaintext_size())
+                ];
             rng.fill_bytes(&mut message2);
             // introduce dummy way to identify the messages
             message1[0] = 1;
@@ -1473,8 +1562,12 @@ mod message_reconstruction {
             let mut message_chunker = MessageChunker::test_fixture();
             let mut rng = thread_rng();
 
-            let mut message =
-                vec![0u8; max_one_way_linked_set_payload_length(max_plaintext_size()) + 12345];
+            let mut message = vec![
+                0u8;
+                max_one_way_linked_set_payload_length(
+                    message_chunker.available_plaintext_size()
+                ) + 12345
+            ];
             rng.fill_bytes(&mut message);
 
             let mut fragments: Vec<_> = message_chunker
@@ -1507,9 +1600,11 @@ mod message_reconstruction {
 
             let mut message = vec![
                 0u8;
-                2 * two_way_linked_set_payload_length(max_plaintext_size())
-                    + max_one_way_linked_set_payload_length(max_plaintext_size())
-                    + 12345
+                2 * two_way_linked_set_payload_length(
+                    message_chunker.available_plaintext_size()
+                ) + max_one_way_linked_set_payload_length(
+                    message_chunker.available_plaintext_size()
+                ) + 12345
             ];
             rng.fill_bytes(&mut message);
 
@@ -1541,12 +1636,14 @@ mod message_reconstruction {
             let mut message_chunker = MessageChunker::test_fixture();
             let mut rng = thread_rng();
 
-            let mut message =
-                vec![
-                    0u8;
-                    2 * two_way_linked_set_payload_length(max_plaintext_size())
-                        + 2 * max_one_way_linked_set_payload_length(max_plaintext_size())
-                ];
+            let mut message = vec![
+                0u8;
+                2 * two_way_linked_set_payload_length(
+                    message_chunker.available_plaintext_size()
+                ) + 2 * max_one_way_linked_set_payload_length(
+                    message_chunker.available_plaintext_size()
+                )
+            ];
             rng.fill_bytes(&mut message);
 
             let mut fragments: Vec<_> = message_chunker
@@ -1578,19 +1675,23 @@ mod message_reconstruction {
             let mut message_chunker = MessageChunker::test_fixture();
             let mut rng = thread_rng();
 
-            let mut message1 =
-                vec![
-                    0u8;
-                    2 * two_way_linked_set_payload_length(max_plaintext_size())
-                        + 2 * max_one_way_linked_set_payload_length(max_plaintext_size())
-                ];
+            let mut message1 = vec![
+                0u8;
+                2 * two_way_linked_set_payload_length(
+                    message_chunker.available_plaintext_size()
+                ) + 2 * max_one_way_linked_set_payload_length(
+                    message_chunker.available_plaintext_size()
+                )
+            ];
             rng.fill_bytes(&mut message1);
-            let mut message2 =
-                vec![
-                    0u8;
-                    2 * two_way_linked_set_payload_length(max_plaintext_size())
-                        + 2 * max_one_way_linked_set_payload_length(max_plaintext_size())
-                ];
+            let mut message2 = vec![
+                0u8;
+                2 * two_way_linked_set_payload_length(
+                    message_chunker.available_plaintext_size()
+                ) + 2 * max_one_way_linked_set_payload_length(
+                    message_chunker.available_plaintext_size()
+                )
+            ];
             rng.fill_bytes(&mut message2);
             // introduce dummy way to identify the messages
             message1[0] = 1;

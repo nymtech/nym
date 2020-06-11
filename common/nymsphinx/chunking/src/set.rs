@@ -13,9 +13,8 @@
 // limitations under the License.
 
 use crate::fragment::{
-    linked_fragmented_payload_max_len, unfragmented_payload_max_len,
-    unlinked_fragmented_payload_max_len, Fragment, LINKED_FRAGMENTED_HEADER_LEN,
-    UNLINKED_FRAGMENTED_HEADER_LEN,
+    linked_fragment_payload_max_len, unlinked_fragment_payload_max_len, Fragment,
+    LINKED_FRAGMENTED_HEADER_LEN, UNLINKED_FRAGMENTED_HEADER_LEN,
 };
 use rand::Rng;
 
@@ -23,7 +22,7 @@ use rand::Rng;
 /// on its payload length of the maximum number of `Fragment`s multiplied by their maximum,
 /// fragmented, length.
 pub const fn max_unlinked_set_payload_length(max_plaintext_size: usize) -> usize {
-    u8::max_value() as usize * unlinked_fragmented_payload_max_len(max_plaintext_size)
+    u8::max_value() as usize * unlinked_fragment_payload_max_len(max_plaintext_size)
 }
 
 /// If the set is being linked to another one, by either being the very first set, or the very last,
@@ -74,7 +73,7 @@ pub(crate) type FragmentSet = Vec<Fragment>;
 /// This approach saves whole byte per `Fragment`, which while may seem insignificant and
 /// introduces extra complexity, quickly adds up when faced with sphinx packet encapsulation for longer
 /// messages.
-/// Finally, the reason 0 id is not allowed is to explicitly distinguish it from unfragmented
+/// Finally, the reason 0 id is not allowed is to explicitly distinguish it from `COVER_FRAG_ID`
 /// `Fragment`s thus allowing for some additional optimizations by letting it skip
 /// certain procedures when reconstructing.
 fn generate_set_id<R: Rng>(rng: &mut R) -> i32 {
@@ -88,13 +87,6 @@ fn generate_set_id<R: Rng>(rng: &mut R) -> i32 {
     }
 }
 
-/// The simplest case of splitting underlying message - when it fits into a single
-/// `Fragment` thus requiring no linking or even a set id.
-/// For obvious reasons the most efficient approach.
-fn prepare_unfragmented_set(message: &[u8], max_plaintext_size: usize) -> FragmentSet {
-    vec![Fragment::try_new_unfragmented(&message, max_plaintext_size).unwrap()]
-}
-
 /// Splits underlying message into multiple `Fragment`s while all of them fit in a single
 /// `Set` (number of `Fragment`s <= 255)
 fn prepare_unlinked_fragmented_set(
@@ -103,7 +95,7 @@ fn prepare_unlinked_fragmented_set(
     max_plaintext_size: usize,
 ) -> FragmentSet {
     let pre_casted_frags = (message.len() as f64
-        / unlinked_fragmented_payload_max_len(max_plaintext_size) as f64)
+        / unlinked_fragment_payload_max_len(max_plaintext_size) as f64)
         .ceil() as usize;
 
     debug_assert!(pre_casted_frags <= u8::max_value() as usize);
@@ -113,13 +105,13 @@ fn prepare_unlinked_fragmented_set(
 
     for i in 1..(pre_casted_frags + 1) {
         // we can't use u8 directly here as upper (NON-INCLUSIVE, so it would always fit) bound could be u8::max_value() + 1
-        let lb = (i as usize - 1) * unlinked_fragmented_payload_max_len(max_plaintext_size);
+        let lb = (i as usize - 1) * unlinked_fragment_payload_max_len(max_plaintext_size);
         let ub = usize::min(
             message.len(),
-            i as usize * unlinked_fragmented_payload_max_len(max_plaintext_size),
+            i as usize * unlinked_fragment_payload_max_len(max_plaintext_size),
         );
         fragments.push(
-            Fragment::try_new_fragmented(
+            Fragment::try_new(
                 &message[lb..ub],
                 id,
                 num_fragments,
@@ -151,13 +143,13 @@ fn prepare_linked_fragment_set(
         u8::max_value() as usize
     } else {
         // we know this set is linked, if it's not post-linked then it MUST BE pre-linked
-        let tail_len = if message.len() >= linked_fragmented_payload_max_len(max_plaintext_size) {
-            message.len() - linked_fragmented_payload_max_len(max_plaintext_size)
+        let tail_len = if message.len() >= linked_fragment_payload_max_len(max_plaintext_size) {
+            message.len() - linked_fragment_payload_max_len(max_plaintext_size)
         } else {
             0
         };
         let pre_casted_frags = 1
-            + (tail_len as f64 / unlinked_fragmented_payload_max_len(max_plaintext_size) as f64)
+            + (tail_len as f64 / unlinked_fragment_payload_max_len(max_plaintext_size) as f64)
                 .ceil() as usize;
         if pre_casted_frags > u8::max_value() as usize {
             panic!("message would produce too many fragments!")
@@ -170,17 +162,17 @@ fn prepare_linked_fragment_set(
     let mut ub = if previous_link_id.is_some() {
         usize::min(
             message.len(),
-            linked_fragmented_payload_max_len(max_plaintext_size),
+            linked_fragment_payload_max_len(max_plaintext_size),
         )
     } else {
         // the set might be linked, but fragment itself is not (i.e. the set is linked at the tail)
-        unlinked_fragmented_payload_max_len(max_plaintext_size)
+        unlinked_fragment_payload_max_len(max_plaintext_size)
     };
 
     let mut fragments = Vec::with_capacity(num_frags_usize);
     for i in 1..(num_frags_usize + 1) {
         // we can't use u8 directly here as upper (NON-INCLUSIVE, so i would always fit) bound could be u8::max_value() + 1
-        let fragment = Fragment::try_new_fragmented(
+        let fragment = Fragment::try_new(
             &message[lb..ub],
             id,
             num_frags_usize as u8,
@@ -200,7 +192,7 @@ fn prepare_linked_fragment_set(
         lb = ub;
         ub = usize::min(
             message.len(),
-            ub + unlinked_fragmented_payload_max_len(max_plaintext_size),
+            ub + unlinked_fragment_payload_max_len(max_plaintext_size),
         );
     }
 
@@ -242,17 +234,14 @@ fn prepare_fragment_set(
             next_link_id,
             max_plaintext_size,
         )
-    } else if message.len() > unfragmented_payload_max_len(max_plaintext_size) {
+    } else {
         // the bounds on whether the message fits in an unlinked set should have been done by the callee
         // when determining ids of other sets
         prepare_unlinked_fragmented_set(message, id, max_plaintext_size)
-    } else {
-        prepare_unfragmented_set(message, max_plaintext_size)
     }
 }
 
 /// Entry point for splitting whole message into possibly multiple `Set`s.
-// pub(crate) fn split_into_sets(message: &[u8], available_packet_space: usize) -> Vec<FragmentSet> {
 pub(crate) fn split_into_sets<R: Rng>(
     rng: &mut R,
     message: &[u8],
@@ -328,10 +317,10 @@ mod tests {
         for i in (0..set.len()).rev() {
             assert_eq!(
                 set.pop().unwrap().extract_payload(),
-                payload[i * unlinked_fragmented_payload_max_len(max_plaintext_size())
+                payload[i * unlinked_fragment_payload_max_len(max_plaintext_size())
                     ..usize::min(
                         payload.len(),
-                        (i + 1) * unlinked_fragmented_payload_max_len(max_plaintext_size())
+                        (i + 1) * unlinked_fragment_payload_max_len(max_plaintext_size())
                     )]
                     .to_vec()
             )
@@ -343,13 +332,13 @@ mod tests {
             let lb = if i == 0 {
                 0
             } else {
-                (i - 1) * unlinked_fragmented_payload_max_len(max_plaintext_size())
-                    + linked_fragmented_payload_max_len(max_plaintext_size())
+                (i - 1) * unlinked_fragment_payload_max_len(max_plaintext_size())
+                    + linked_fragment_payload_max_len(max_plaintext_size())
             };
             let ub = usize::min(
                 payload.len(),
-                i * unlinked_fragmented_payload_max_len(max_plaintext_size())
-                    + linked_fragmented_payload_max_len(max_plaintext_size()),
+                i * unlinked_fragment_payload_max_len(max_plaintext_size())
+                    + linked_fragment_payload_max_len(max_plaintext_size()),
             );
 
             assert_eq!(
@@ -361,12 +350,12 @@ mod tests {
 
     fn verify_post_linked_set_payload(mut set: FragmentSet, payload: &[u8]) {
         for i in (0..set.len()).rev() {
-            let lb = i * unlinked_fragmented_payload_max_len(max_plaintext_size());
+            let lb = i * unlinked_fragment_payload_max_len(max_plaintext_size());
             let ub = if i == (u8::max_value() as usize - 1) {
-                i * unlinked_fragmented_payload_max_len(max_plaintext_size())
-                    + linked_fragmented_payload_max_len(max_plaintext_size())
+                i * unlinked_fragment_payload_max_len(max_plaintext_size())
+                    + linked_fragment_payload_max_len(max_plaintext_size())
             } else {
-                (i + 1) * unlinked_fragmented_payload_max_len(max_plaintext_size())
+                (i + 1) * unlinked_fragment_payload_max_len(max_plaintext_size())
             };
 
             assert_eq!(
@@ -381,15 +370,15 @@ mod tests {
             let lb = if i == 0 {
                 0
             } else {
-                (i - 1) * unlinked_fragmented_payload_max_len(max_plaintext_size())
-                    + linked_fragmented_payload_max_len(max_plaintext_size())
+                (i - 1) * unlinked_fragment_payload_max_len(max_plaintext_size())
+                    + linked_fragment_payload_max_len(max_plaintext_size())
             };
             let ub = if i == (u8::max_value() as usize - 1) {
-                (i - 1) * unlinked_fragmented_payload_max_len(max_plaintext_size())
-                    + 2 * linked_fragmented_payload_max_len(max_plaintext_size())
+                (i - 1) * unlinked_fragment_payload_max_len(max_plaintext_size())
+                    + 2 * linked_fragment_payload_max_len(max_plaintext_size())
             } else {
-                i * unlinked_fragmented_payload_max_len(max_plaintext_size())
-                    + linked_fragmented_payload_max_len(max_plaintext_size())
+                i * unlinked_fragment_payload_max_len(max_plaintext_size())
+                    + linked_fragment_payload_max_len(max_plaintext_size())
             };
 
             assert_eq!(
@@ -411,37 +400,6 @@ mod tests {
     }
 
     #[cfg(test)]
-    mod preparing_unfragmented_set {
-        use super::*;
-
-        #[test]
-        fn makes_set_with_single_unfragmented_element_for_valid_message_lengths() {
-            let mut set = prepare_unfragmented_set(&[1], max_plaintext_size());
-            assert_eq!(1, set.len());
-            assert_eq!(set.pop().unwrap().extract_payload(), [1].to_vec());
-
-            let mut set = prepare_unfragmented_set(
-                &vec![1u8; unfragmented_payload_max_len(max_plaintext_size())],
-                max_plaintext_size(),
-            );
-            assert_eq!(1, set.len());
-            assert_eq!(
-                set.pop().unwrap().extract_payload(),
-                vec![1u8; unfragmented_payload_max_len(max_plaintext_size())].to_vec()
-            );
-        }
-
-        #[test]
-        #[should_panic]
-        fn panics_for_too_long_payload() {
-            prepare_unfragmented_set(
-                &vec![1u8; unfragmented_payload_max_len(max_plaintext_size()) + 1],
-                max_plaintext_size(),
-            );
-        }
-    }
-
-    #[cfg(test)]
     mod preparing_unlinked_set {
         // remember this this is only called for a sole set with <= 255 fragments
         use super::*;
@@ -453,7 +411,7 @@ mod tests {
             let mut rng = thread_rng();
 
             let mut two_element_set_payload =
-                vec![0u8; unlinked_fragmented_payload_max_len(max_plaintext_size()) + 1];
+                vec![0u8; unlinked_fragment_payload_max_len(max_plaintext_size()) + 1];
             rng.fill_bytes(&mut two_element_set_payload);
             let two_element_set =
                 prepare_unlinked_fragmented_set(&two_element_set_payload, id, max_plaintext_size());
@@ -461,7 +419,7 @@ mod tests {
             verify_unlinked_set_payload(two_element_set, &two_element_set_payload);
 
             let mut forty_two_element_set_payload =
-                vec![0u8; 41 * unlinked_fragmented_payload_max_len(max_plaintext_size()) + 42];
+                vec![0u8; 41 * unlinked_fragment_payload_max_len(max_plaintext_size()) + 42];
             rng.fill_bytes(&mut forty_two_element_set_payload);
             let forty_two_element_set = prepare_unlinked_fragmented_set(
                 &forty_two_element_set_payload,
@@ -475,7 +433,7 @@ mod tests {
                 vec![
                     0u8;
                     max_unlinked_set_payload_length(max_plaintext_size())
-                        - unlinked_fragmented_payload_max_len(max_plaintext_size())
+                        - unlinked_fragment_payload_max_len(max_plaintext_size())
                         + 1
                 ]; // last fragment should have a single byte of data
             rng.fill_bytes(&mut max_fragments_set_payload);
@@ -519,7 +477,7 @@ mod tests {
             let mut rng = thread_rng();
 
             let mut two_element_set_payload =
-                vec![0u8; linked_fragmented_payload_max_len(max_plaintext_size()) + 1];
+                vec![0u8; linked_fragment_payload_max_len(max_plaintext_size()) + 1];
             rng.fill_bytes(&mut two_element_set_payload);
             let two_element_set = prepare_linked_fragment_set(
                 &two_element_set_payload,
@@ -534,8 +492,8 @@ mod tests {
             let mut forty_two_element_set_payload =
                 vec![
                     0u8;
-                    linked_fragmented_payload_max_len(max_plaintext_size())
-                        + 40 * unlinked_fragmented_payload_max_len(max_plaintext_size())
+                    linked_fragment_payload_max_len(max_plaintext_size())
+                        + 40 * unlinked_fragment_payload_max_len(max_plaintext_size())
                         + 42
                 ];
             rng.fill_bytes(&mut forty_two_element_set_payload);
@@ -553,7 +511,7 @@ mod tests {
                 vec![
                     0u8;
                     max_unlinked_set_payload_length(max_plaintext_size())
-                        - linked_fragmented_payload_max_len(max_plaintext_size())
+                        - linked_fragment_payload_max_len(max_plaintext_size())
                         + 1
                 ]; // last fragment should have a single byte of data
             rng.fill_bytes(&mut max_fragments_set_payload);
@@ -691,32 +649,6 @@ mod tests {
     mod splitting_into_sets {
         use super::*;
         use rand::{thread_rng, RngCore};
-
-        #[test]
-        fn correctly_creates_set_with_single_unfragmented_element_when_expected() {
-            let mut rng = thread_rng();
-            let tiny_message = [1, 2, 3, 4, 5];
-            let mut max_unfragmented_message =
-                vec![0u8; unfragmented_payload_max_len(max_plaintext_size())];
-            rng.fill_bytes(&mut max_unfragmented_message);
-
-            let mut sets = split_into_sets(&mut rng, &tiny_message, max_plaintext_size());
-            assert_eq!(1, sets.len());
-            assert_eq!(1, sets[0].len());
-            assert_eq!(
-                tiny_message.to_vec(),
-                sets.pop().unwrap().pop().unwrap().extract_payload()
-            );
-
-            let mut sets =
-                split_into_sets(&mut rng, &max_unfragmented_message, max_plaintext_size());
-            assert_eq!(1, sets.len());
-            assert_eq!(1, sets[0].len());
-            assert_eq!(
-                max_unfragmented_message.to_vec(),
-                sets.pop().unwrap().pop().unwrap().extract_payload()
-            );
-        }
 
         #[test]
         fn correctly_creates_single_fragmented_set_when_expected() {

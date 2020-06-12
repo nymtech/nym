@@ -248,7 +248,7 @@ where
             response_timeout_duration,
         }
     }
-    
+
     pub async fn register_without_listening(&mut self) -> Result<AuthToken, GatewayClientError> {
         if !self.connection.is_established() {
             self.establish_connection().await?;
@@ -265,14 +265,16 @@ where
         Ok(token)
     }
 
-    pub async fn close_connection(&mut self) -> Result<(), GatewayClientError>{
+    pub async fn close_connection(&mut self) -> Result<(), GatewayClientError> {
         if self.connection.is_partially_delegated() {
             self.recover_socket_connection().await?;
         }
-        
+
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
             SocketState::Available(mut socket) => Ok(socket.close(None).await?),
-            SocketState::PartiallyDelegated(_) => unreachable!("this branch should have never been reached!"),
+            SocketState::PartiallyDelegated(_) => {
+                unreachable!("this branch should have never been reached!")
+            }
             _ => Ok(()), // no need to do anything in those cases
         }
     }

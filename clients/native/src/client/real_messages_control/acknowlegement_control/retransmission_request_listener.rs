@@ -100,10 +100,6 @@ where
             .prepare_chunk_for_sending(chunk_clone, topology_ref, &self.ack_key, &packet_recipient)
             .unwrap();
 
-        self.real_message_sender
-            .unbounded_send(RealMessage::new(first_hop, packet, frag_id))
-            .unwrap();
-
         // minor optimization to not hold the permit while we no longer need it and might have to block
         // waiting for the write lock on `pending_acks`
         drop(topology_permit);
@@ -116,6 +112,10 @@ where
                 "on_retransmission_request: somehow we already received an ack for this packet?",
             )
             .update_delay(total_delay);
+
+        self.real_message_sender
+            .unbounded_send(RealMessage::new(first_hop, packet, frag_id))
+            .unwrap();
     }
 
     pub(super) async fn run(&mut self) {

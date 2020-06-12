@@ -117,11 +117,3 @@ impl SURBAck {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn surb_packet_has_correct_size() {}
-}

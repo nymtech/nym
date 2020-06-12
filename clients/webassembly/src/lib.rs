@@ -55,6 +55,7 @@ pub struct NodeData {
 ///
 /// Message chunking is currently not implemented. If the message exceeds the
 /// capacity of a single Sphinx packet, the extra information will be discarded.
+///
 #[wasm_bindgen]
 pub fn create_sphinx_packet(topology_json: &str, msg: &str, recipient: &str) -> Vec<u8> {
     utils::set_panic_hook(); // nicer js errors.

@@ -28,8 +28,6 @@ use std::sync::Arc;
 use topology::NymTopology;
 
 // responsible for splitting received message and initial sending attempt
-// possible future TODO: the fields are IDENTICAL to the ones in RetransmissionRequestListener
-// perhaps some code could be shared?
 pub(super) struct InputMessageListener<R, T>
 where
     R: CryptoRng + Rng,

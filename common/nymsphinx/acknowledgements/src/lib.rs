@@ -16,33 +16,3 @@ pub mod identifier;
 pub mod surb_ack;
 
 pub use identifier::{generate_key, AckAes128Key};
-
-// use crate::chunking::fragment::{Fragment, FragmentIdentifier};
-// use sphinx::SphinxPacket;
-// use std::collections::HashMap;
-// use std::time;
-//
-// pub type ReplySURB = SphinxPacket;
-//
-// // we need to keep entire payload to resend anyway
-// #[derive(Debug)]
-// pub struct Acknowledgement {
-//     expire: time::Instant,
-//     data: Fragment, // or maybe just raw Vec<u8>?
-//                     // new idea: change whole thing to a future?
-// }
-//
-// #[derive(Default, Debug)]
-// pub struct AcknowledgementReceiver {
-//     pending_acks: HashMap<FragmentIdentifier, Acknowledgement>,
-// }
-//
-// impl AcknowledgementReceiver {
-//     pub fn new() -> Self {
-//         Default::default()
-//     }
-//
-//     pub fn new_acknowledgement(&mut self) {}
-//
-//     fn resend_fragment(&mut self) {}
-// }

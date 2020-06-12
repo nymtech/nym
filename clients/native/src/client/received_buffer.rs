@@ -128,9 +128,7 @@ impl ReceivedMessagesBuffer {
         };
 
         if mutex_guard.recently_reconstructed.contains(&fragment.id()) {
-            // for time being have it at high log level to notice it. Before I make PR I will
-            // lower it
-            warn!("Received a chunk of already re-assembled message! It probably got here because the ack got lost");
+            debug!("Received a chunk of already re-assembled message ({:?})! It probably got here because the ack got lost", fragment.id());
             return None;
         }
 

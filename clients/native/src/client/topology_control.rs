@@ -108,8 +108,6 @@ impl<T: NymTopology> TopologyAccessor<T> {
         }
     }
 
-    // TODO: I really don't like having `TopologyAccessorInner` in return type,
-    // but we can't return `T` because then we'd drop the read permit
     pub(super) async fn get_read_permit(&self) -> TopologyReadPermit<'_, T> {
         self.inner.read().await.into()
     }

@@ -1,5 +1,6 @@
 import * as wasm from ".";
-
+import { version } from './package.json';
+import { major, minor, parse } from "semver";
 /**
  * A Nym identity, consisting of a public/private keypair and a Nym
  * gateway address.
@@ -50,6 +51,15 @@ export class Client {
     }
 
     /**
+     * Checks if given node is compatible with this client
+     */
+    isNodeVersionCompatible(node) {
+        const clientVersion = parse(version);
+        const mixVersion = parse(node.version);
+        return major(clientVersion) === major(mixVersion) && minor(clientVersion) === minor(mixVersion)
+    }
+
+    /**
      * Update the Nym network topology.
      * 
      * @returns an object containing the current Nym network topology
@@ -57,6 +67,8 @@ export class Client {
     async updateTopology() {
         let response = await http('get', this.topologyEndpoint);
         let topology = JSON.parse(response); // make sure it's a valid json
+        topology.mixNodes = topology.mixNodes.filter(this.isNodeVersionCompatible)
+        topology.gatewayNodes = topology.gatewayNodes.filter(this.isNodeVersionCompatible)
         this.topology = topology;
         this.onUpdatedTopology();
         return topology;

@@ -115,6 +115,7 @@ mod converting_mixnode_presence_into_topology_mixnode {
     }
 
     #[test]
+    #[cfg_attr(feature = "offline-test", ignore)]
     fn it_returns_resolved_ip_on_resolvable_hostname() {
         let resolvable_hostname = "nymtech.net:1234";
 

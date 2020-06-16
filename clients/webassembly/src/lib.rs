@@ -106,7 +106,7 @@ fn payload(sphinx_packet: SphinxPacket, route: Vec<SphinxNode>) -> Vec<u8> {
 fn sphinx_route_to(topology_json: &str, gateway_address: &NodeAddressBytes) -> Vec<SphinxNode> {
     let topology = Topology::new(topology_json);
     let route = topology
-        .random_route_to_gateway(gateway_address)
+        .random_route_to_gateway_by_address(gateway_address)
         .expect("invalid route produced");
     assert_eq!(4, route.len());
     route
@@ -198,8 +198,8 @@ mod building_a_topology_from_json {
     #[test]
     #[should_panic]
     fn panics_when_there_are_no_mixnodes() {
-        let mut topology: Topology = serde_json::from_str(topology_fixture()).unwrap();
-        topology.mix_nodes = vec![];
+        let mut topology = Topology::new(topology_fixture());
+        topology.set_mixnodes(vec![]);
         let json = serde_json::to_string(&topology).unwrap();
         sphinx_route_to(
             &json,
@@ -213,9 +213,9 @@ mod building_a_topology_from_json {
     #[test]
     #[should_panic]
     fn panics_when_there_are_not_enough_mixnodes() {
-        let mut topology: Topology = serde_json::from_str(topology_fixture()).unwrap();
-        let node = topology.mix_nodes.first().unwrap().clone();
-        topology.mix_nodes = vec![node]; // 1 mixnode isn't enough. Panic!
+        let mut topology = Topology::new(topology_fixture());
+        let node = topology.get_current_raw_mixnodes().first().unwrap().clone();
+        topology.set_mixnodes(vec![node]); // 1 mixnode isn't enough. Panic!
         let json = serde_json::to_string(&topology).unwrap();
         sphinx_route_to(
             &json,

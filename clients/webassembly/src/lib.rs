@@ -107,7 +107,7 @@ fn payload(sphinx_packet: SphinxPacket, route: Vec<SphinxNode>) -> Vec<u8> {
 fn sphinx_route_to(topology_json: &str, gateway_address: &NodeAddressBytes) -> Vec<SphinxNode> {
     let topology = Topology::new(topology_json);
     let route = topology
-        .random_route_to_gateway_by_address(gateway_address)
+        .random_route_to_gateway(gateway_address)
         .expect("invalid route produced");
     assert_eq!(4, route.len());
     route
@@ -227,11 +227,26 @@ mod building_a_topology_from_json {
         );
     }
 
+    // JS: why is this an "offline-test" feature? It makes no network requests?
     #[test]
     #[cfg_attr(feature = "offline-test", ignore)]
     fn test_works_on_happy_json() {
         let route = sphinx_route_to(
             topology_fixture(),
+            &NodeAddressBytes::try_from_base58_string(
+                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
+            )
+            .unwrap(),
+        );
+        assert_eq!(4, route.len());
+    }
+
+    #[test]
+    fn test_works_on_happy_json_when_serialized() {
+        let topology = Topology::new(topology_fixture());
+        let json = serde_json::to_string(&topology).unwrap();
+        let route = sphinx_route_to(
+            &json,
             &NodeAddressBytes::try_from_base58_string(
                 "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
             )

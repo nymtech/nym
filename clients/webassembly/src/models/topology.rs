@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use nymsphinx::NodeAddressBytes;
 use serde::Serializer;
 use topology::{coco, gateway, mix, provider, NymTopology};
 
@@ -39,21 +38,6 @@ impl Topology {
         Topology {
             inner: serde_json::from_str(json).unwrap(),
         }
-    }
-
-    pub(crate) fn random_route_to_gateway_by_address(
-        &self,
-        gateway: &NodeAddressBytes,
-    ) -> Option<Vec<nymsphinx::Node>> {
-        let b58_address = gateway.to_base58_string();
-
-        let gateway = self
-            .gateways()
-            .iter()
-            .cloned()
-            .find(|gateway| gateway.pub_key == b58_address.clone())?;
-
-        self.random_route_to_gateway(gateway.into()).ok()
     }
 
     #[cfg(test)]

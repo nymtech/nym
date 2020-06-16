@@ -18,7 +18,7 @@ use crate::config::persistence::pathfinder::ClientPathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::identity::MixIdentityKeyPair;
-use directory_client::presence::Topology;
+use directory_client::DirectoryClient;
 use gateway_client::GatewayClient;
 use gateway_requests::AuthToken;
 use nymsphinx::DestinationAddressBytes;
@@ -90,8 +90,10 @@ async fn choose_gateway(
     directory_server: String,
     our_address: DestinationAddressBytes,
 ) -> (String, AuthToken) {
-    // TODO: once we change to graph topology this here will need to be updated!
-    let topology = Topology::new(directory_server.clone()).await;
+    let directory_client_config = directory_client::Config::new(directory_server.clone());
+    let directory_client = directory_client::Client::new(directory_client_config);
+    let topology = directory_client.get_topology().await.unwrap();
+
     let version_filtered_topology = topology.filter_system_version(built_info::PKG_VERSION);
     // don't care about health of the networks as mixes can go up and down any time,
     // but DO care about gateways

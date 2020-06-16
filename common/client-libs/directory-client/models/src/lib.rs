@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod keys;
-pub mod topology;
+pub mod metrics;
+pub mod presence;

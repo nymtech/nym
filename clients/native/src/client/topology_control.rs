@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::built_info;
+use directory_client::DirectoryClient;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use std::ops::Deref;
@@ -167,34 +168,40 @@ impl TopologyRefresherConfig {
 }
 
 pub(crate) struct TopologyRefresher<T: NymTopology> {
-    directory_server: String,
+    directory_client: directory_client::Client,
     topology_accessor: TopologyAccessor<T>,
     refresh_rate: Duration,
 }
 
-impl<T: 'static + NymTopology> TopologyRefresher<T> {
-    pub(crate) fn new(
+// TODO: consider (or maybe not) restoring generic TopologyRefresher<T>
+impl TopologyRefresher<directory_client::Topology> {
+    pub(crate) fn new_directory_client(
         cfg: TopologyRefresherConfig,
-        topology_accessor: TopologyAccessor<T>,
+        topology_accessor: TopologyAccessor<directory_client::Topology>,
     ) -> Self {
+        let directory_client_config = directory_client::Config::new(cfg.directory_server);
+        let directory_client = directory_client::Client::new(directory_client_config);
+
         TopologyRefresher {
-            directory_server: cfg.directory_server,
+            directory_client,
             topology_accessor,
             refresh_rate: cfg.refresh_rate,
         }
     }
 
-    async fn get_current_compatible_topology(&self) -> T {
-        // note: this call makes it necessary that `T::new()`does *not* have 'static lifetime
-        let full_topology = T::new(self.directory_server.clone()).await;
-        // just filter by version and assume the validators will remove all bad behaving
-        // nodes with the staking
-        full_topology.filter_system_version(built_info::PKG_VERSION)
+    async fn get_current_compatible_topology(&self) -> Option<directory_client::Topology> {
+        match self.directory_client.get_topology().await {
+            Err(err) => {
+                error!("failed to get network topology! - {:?}", err);
+                None
+            }
+            Ok(topology) => Some(topology.filter_system_version(built_info::PKG_VERSION)),
+        }
     }
 
     pub(crate) async fn refresh(&mut self) {
         trace!("Refreshing the topology");
-        let new_topology = Some(self.get_current_compatible_topology().await);
+        let new_topology = self.get_current_compatible_topology().await;
 
         self.topology_accessor
             .update_global_topology(new_topology)

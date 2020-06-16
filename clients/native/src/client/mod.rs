@@ -25,7 +25,6 @@ use crate::client::topology_control::{
 use crate::config::{Config, SocketType};
 use crate::websocket;
 use crypto::identity::MixIdentityKeyPair;
-use directory_client::presence;
 use futures::channel::mpsc;
 use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
@@ -221,16 +220,16 @@ impl NymClient {
 
     // future responsible for periodically polling directory server and updating
     // the current global view of topology
-    fn start_topology_refresher<T: 'static + NymTopology>(
+    fn start_topology_refresher(
         &mut self,
-        topology_accessor: TopologyAccessor<T>,
+        topology_accessor: TopologyAccessor<directory_client::Topology>,
     ) {
         let topology_refresher_config = TopologyRefresherConfig::new(
             self.config.get_directory_server(),
             self.config.get_topology_refresh_rate(),
         );
         let mut topology_refresher =
-            TopologyRefresher::new(topology_refresher_config, topology_accessor);
+            TopologyRefresher::new_directory_client(topology_refresher_config, topology_accessor);
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
         info!(
@@ -354,9 +353,8 @@ impl NymClient {
 
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
+        let shared_topology_accessor = TopologyAccessor::<directory_client::Topology>::new();
 
-        // TODO: when we switch to our graph topology, we need to remember to change 'presence::Topology' type
-        let shared_topology_accessor = TopologyAccessor::<presence::Topology>::new();
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
         self.start_topology_refresher(shared_topology_accessor.clone());

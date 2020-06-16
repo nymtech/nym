@@ -8,6 +8,7 @@ members = [
     "clients/native",
     "clients/webassembly",
     "common/client-libs/directory-client",
+    "common/client-libs/directory-client/models",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",

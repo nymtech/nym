@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::filter::VersionFilterable;
-use futures::future::BoxFuture;
 use itertools::Itertools;
 use nymsphinx_types::{Node as SphinxNode, NodeAddressBytes};
 use rand::seq::IteratorRandom;
@@ -29,10 +28,6 @@ pub mod provider;
 // TODO: Figure out why 'Clone' was required to have 'TopologyAccessor<T>' working
 // even though it only contains an Arc
 pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
-    // this is just a temporary work-around to make current code work without having to
-    // do major topology rewrites now.
-    // This will be removed once topology is re-worked
-    fn new<'a>(directory_server: String) -> BoxFuture<'a, Self>;
     fn new_from_nodes(
         mix_nodes: Vec<mix::Node>,
         mix_provider_nodes: Vec<provider::Node>,

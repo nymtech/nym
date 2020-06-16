@@ -26,6 +26,7 @@ rand = "0.7.2"
 crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }
+directory-client-models = { path = "../../common/client-libs/directory-client/models" }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires

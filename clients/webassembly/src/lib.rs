@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crypto::identity::MixIdentityPublicKey;
-use models::Topology;
+use models::topology::Topology;
 use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx::Node as SphinxNode;
 use nymsphinx::{delays, Destination, NodeAddressBytes, SphinxPacket};
@@ -28,6 +28,7 @@ mod utils;
 
 pub use models::keys::keygen;
 use nymsphinx::addressing::clients::Recipient;
+use topology::NymTopology;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -198,8 +199,8 @@ mod building_a_topology_from_json {
     #[test]
     #[should_panic]
     fn panics_when_there_are_no_mixnodes() {
-        let mut topology: Topology = serde_json::from_str(topology_fixture()).unwrap();
-        topology.mix_nodes = vec![];
+        let mut topology = Topology::new(topology_fixture());
+        topology.set_mixnodes(vec![]);
         let json = serde_json::to_string(&topology).unwrap();
         sphinx_route_to(
             &json,
@@ -213,9 +214,9 @@ mod building_a_topology_from_json {
     #[test]
     #[should_panic]
     fn panics_when_there_are_not_enough_mixnodes() {
-        let mut topology: Topology = serde_json::from_str(topology_fixture()).unwrap();
-        let node = topology.mix_nodes.first().unwrap().clone();
-        topology.mix_nodes = vec![node]; // 1 mixnode isn't enough. Panic!
+        let mut topology = Topology::new(topology_fixture());
+        let node = topology.get_current_raw_mixnodes().first().unwrap().clone();
+        topology.set_mixnodes(vec![node]); // 1 mixnode isn't enough. Panic!
         let json = serde_json::to_string(&topology).unwrap();
         sphinx_route_to(
             &json,
@@ -226,11 +227,26 @@ mod building_a_topology_from_json {
         );
     }
 
+    // JS: why is this an "offline-test" feature? It makes no network requests?
     #[test]
     #[cfg_attr(feature = "offline-test", ignore)]
     fn test_works_on_happy_json() {
         let route = sphinx_route_to(
             topology_fixture(),
+            &NodeAddressBytes::try_from_base58_string(
+                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
+            )
+            .unwrap(),
+        );
+        assert_eq!(4, route.len());
+    }
+
+    #[test]
+    fn test_works_on_happy_json_when_serialized() {
+        let topology = Topology::new(topology_fixture());
+        let json = serde_json::to_string(&topology).unwrap();
+        let route = sphinx_route_to(
+            &json,
             &NodeAddressBytes::try_from_base58_string(
                 "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
             )

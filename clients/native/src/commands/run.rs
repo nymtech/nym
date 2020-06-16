@@ -63,7 +63,7 @@ fn load_identity_keys(config_file: &Config) -> MixIdentityKeyPair {
         .expect("Failed to read stored identity key files");
     println!(
         "Public identity key: {}\n",
-        identity_keypair.public_key.to_base58_string()
+        identity_keypair.public_key().to_base58_string()
     );
     identity_keypair
 }

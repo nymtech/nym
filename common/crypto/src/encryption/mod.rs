@@ -63,6 +63,7 @@ impl Default for KeyPair {
 impl PemStorableKeyPair for KeyPair {
     type PrivatePemKey = PrivateKey;
     type PublicPemKey = PublicKey;
+    type Error = std::io::Error; // rather tmp I'd guess
 
     fn private_key(&self) -> &Self::PrivatePemKey {
         self.private_key()
@@ -72,8 +73,8 @@ impl PemStorableKeyPair for KeyPair {
         self.public_key()
     }
 
-    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self {
-        Self::from_bytes(priv_bytes, pub_bytes)
+    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, std::io::Error> {
+        Ok(Self::from_bytes(priv_bytes, pub_bytes))
     }
 }
 

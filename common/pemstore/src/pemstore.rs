@@ -43,7 +43,10 @@ impl PemStore {
         let private_pem = self.read_pem_file(self.private_mix_key_file.clone())?;
         let public_pem = self.read_pem_file(self.public_mix_key_file.clone())?;
 
-        let key_pair = T::from_bytes(&private_pem.contents, &public_pem.contents);
+        let key_pair = match T::from_bytes(&private_pem.contents, &public_pem.contents) {
+            Ok(key_pair) => key_pair,
+            Err(err) => return Err(io::Error::new(io::ErrorKind::InvalidData, err.to_string())),
+        };
 
         if key_pair.private_key().pem_type() != private_pem.tag {
             return Err(io::Error::new(

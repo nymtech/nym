@@ -25,12 +25,13 @@ pub trait PemStorableKey {
     fn to_bytes(&self) -> Vec<u8>;
 }
 
-pub trait PemStorableKeyPair {
+pub trait PemStorableKeyPair: Sized {
     type PrivatePemKey: PemStorableKey;
     type PublicPemKey: PemStorableKey;
+    type Error: std::error::Error;
 
     fn private_key(&self) -> &Self::PrivatePemKey;
     fn public_key(&self) -> &Self::PublicPemKey;
 
-    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self;
+    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, Self::Error>;
 }

@@ -26,6 +26,7 @@ use wasm_bindgen::prelude::*;
 mod models;
 mod utils;
 
+use crypto::encryption;
 pub use models::keys::keygen;
 use nymsphinx::addressing::clients::Recipient;
 use topology::NymTopology;
@@ -122,7 +123,7 @@ impl TryFrom<NodeData> for SphinxNode {
 
         // this has to be temporarily moved out of separate function as we can't return private types
         let pub_key = {
-            let src = MixIdentityPublicKey::from_base58_string(node_data.public_key).to_bytes();
+            let src = encryption::PublicKey::from_base58_string(node_data.public_key).to_bytes();
             let mut dest: [u8; 32] = [0; 32];
             dest.copy_from_slice(&src);
             nymsphinx::public_key_from_bytes(dest)

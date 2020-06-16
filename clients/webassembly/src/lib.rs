@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crypto::identity::MixIdentityPublicKey;
-use models::Topology;
+use models::topology::Topology;
 use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx::Node as SphinxNode;
 use nymsphinx::{delays, Destination, NodeAddressBytes, SphinxPacket};
@@ -28,6 +28,7 @@ mod utils;
 
 pub use models::keys::keygen;
 use nymsphinx::addressing::clients::Recipient;
+use topology::NymTopology;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.

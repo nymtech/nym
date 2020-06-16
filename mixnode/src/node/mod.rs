@@ -15,13 +15,12 @@
 use crate::config::Config;
 use crate::node::packet_processing::PacketProcessor;
 use crypto::encryption;
-use directory_client::presence::Topology;
+use directory_client::DirectoryClient;
 use futures::channel::mpsc;
 use log::*;
 use nymsphinx::SphinxPacket;
 use std::net::SocketAddr;
 use tokio::runtime::Runtime;
-use topology::NymTopology;
 
 mod listener;
 mod metrics;
@@ -102,10 +101,13 @@ impl MixNode {
     }
 
     fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
-        // TODO: once we change to graph topology this here will need to be updated!
+        let directory_client_config =
+            directory_client::Config::new(self.config.get_presence_directory_server());
+        let directory_client = directory_client::Client::new(directory_client_config);
         let topology = self
             .runtime
-            .block_on(Topology::new(self.config.get_presence_directory_server()));
+            .block_on(directory_client.get_topology())
+            .ok()?;
         let existing_mixes_presence = topology.mix_nodes;
         existing_mixes_presence
             .iter()

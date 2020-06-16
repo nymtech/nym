@@ -582,6 +582,7 @@ dependencies = [
 name = "directory-client"
 version = "0.1.0"
 dependencies = [
+ "directory-client-models",
  "futures 0.3.4",
  "log 0.4.8",
  "mockito",
@@ -589,6 +590,13 @@ dependencies = [
  "reqwest 0.10.4",
  "serde",
  "tokio 0.2.16",
+]
+
+[[package]]
+name = "directory-client-models"
+version = "0.1.0"
+dependencies = [
+ "serde",
  "topology",
 ]
 
@@ -1699,10 +1707,11 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "console_error_panic_hook",
  "crypto",
+ "directory-client-models",
  "log 0.4.8",
  "nymsphinx",
  "rand 0.7.3",
@@ -3127,7 +3136,6 @@ name = "topology"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "futures 0.3.4",
  "itertools",
  "log 0.4.8",
  "nymsphinx",

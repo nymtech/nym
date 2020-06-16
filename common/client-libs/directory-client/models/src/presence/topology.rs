@@ -13,12 +13,10 @@
 // limitations under the License.
 
 use super::{coconodes, gateways, mixnodes, providers};
-use crate::{Client, Config, DirectoryClient};
-use futures::future::BoxFuture;
-use log::*;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use topology::{coco, gateway, mix, provider, NymTopology};
+
 // Topology shows us the current state of the overall Nym network
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,24 +28,6 @@ pub struct Topology {
 }
 
 impl NymTopology for Topology {
-    // TODO: this will need some changes to not imply having to make an HTTP request in constructor
-    // TODO2: and also be reworked/removed with the topology re-work
-    fn new<'a>(directory_server: String) -> BoxFuture<'a, Self> {
-        debug!("Using directory server: {:?}", directory_server);
-        let directory_config = Config {
-            base_url: directory_server,
-        };
-        let directory = Client::new(directory_config);
-        Box::pin({
-            async move {
-                directory
-                    .get_topology()
-                    .await
-                    .expect("Failed to retrieve network topology.")
-            }
-        })
-    }
-
     fn new_from_nodes(
         mix_nodes: Vec<mix::Node>,
         mix_provider_nodes: Vec<provider::Node>,

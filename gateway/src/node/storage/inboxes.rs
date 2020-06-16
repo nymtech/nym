@@ -118,9 +118,10 @@ impl ClientStorage {
         let full_store_path = full_store_dir.join(Self::generate_random_file_name(
             inner_data.filename_length as usize,
         ));
-        debug!(
+        trace!(
             "going to store: {:?} in file: {:?}",
-            store_data.message, full_store_path
+            store_data.message,
+            full_store_path
         );
 
         let mut file = File::create(full_store_path).await?;

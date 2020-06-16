@@ -13,17 +13,28 @@
 // limitations under the License.
 
 use crate::built_info;
-use futures::lock::Mutex;
 use log::*;
-use nymsphinx::NodeAddressBytes;
+use nymsphinx::addressing::clients::Recipient;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time;
 use std::time::Duration;
 use tokio::runtime::Handle;
+use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::task::JoinHandle;
 use topology::{provider, NymTopology};
 
+// I'm extremely curious why compiler NEVER complained about lack of Debug here before
+#[derive(Debug)]
 struct TopologyAccessorInner<T: NymTopology>(Option<T>);
+
+impl<T: NymTopology> Deref for TopologyAccessorInner<T> {
+    type Target = Option<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl<T: NymTopology> TopologyAccessorInner<T> {
     fn new() -> Self {
@@ -35,26 +46,78 @@ impl<T: NymTopology> TopologyAccessorInner<T> {
     }
 }
 
+pub(super) struct TopologyReadPermit<'a, T: NymTopology> {
+    permit: RwLockReadGuard<'a, TopologyAccessorInner<T>>,
+}
+
+impl<'a, T: NymTopology> TopologyReadPermit<'a, T> {
+    /// Using provided topology read permit, tries to get an immutable reference to the underlying
+    /// topology. For obvious reasons the lifetime of the topology reference is bound to the permit.
+    pub(super) fn try_get_valid_topology_ref(
+        &'a self,
+        ack_recipient: &Recipient,
+        packet_recipient: &Recipient,
+    ) -> Option<&'a T> {
+        // first we need to deref out of RwLockReadGuard
+        // then we need to deref out of TopologyAccessorInner
+        // then we must take ref of option, i.e. Option<&T>
+        // and finally try to unwrap it to obtain &T
+        let topology_ref_option = (*self.permit.deref()).as_ref();
+
+        if topology_ref_option.is_none() {
+            return None;
+        }
+
+        let topology_ref = topology_ref_option.unwrap();
+
+        // see if it's possible to route the packet to both gateways
+        if !topology_ref.can_construct_path_through()
+            || !topology_ref.gateway_exists(&packet_recipient.gateway())
+            || !topology_ref.gateway_exists(&ack_recipient.gateway())
+        {
+            None
+        } else {
+            Some(topology_ref)
+        }
+    }
+}
+
+impl<'a, T: NymTopology> From<RwLockReadGuard<'a, TopologyAccessorInner<T>>>
+    for TopologyReadPermit<'a, T>
+{
+    fn from(read_permit: RwLockReadGuard<'a, TopologyAccessorInner<T>>) -> Self {
+        TopologyReadPermit {
+            permit: read_permit,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct TopologyAccessor<T: NymTopology> {
-    // TODO: this requires some actual benchmarking to determine if obtaining mutex is not going
-    // to cause some bottlenecking and whether perhaps RwLock would be better
-    inner: Arc<Mutex<TopologyAccessorInner<T>>>,
+    // `RwLock` *seems to* be the better approach for this as write access is only requested every
+    // few seconds, while reads are needed every single packet generated.
+    // However, proper benchmarks will be needed to determine if `RwLock` is indeed a better
+    // approach than a `Mutex`
+    inner: Arc<RwLock<TopologyAccessorInner<T>>>,
 }
 
 impl<T: NymTopology> TopologyAccessor<T> {
     pub(crate) fn new() -> Self {
         TopologyAccessor {
-            inner: Arc::new(Mutex::new(TopologyAccessorInner::new())),
+            inner: Arc::new(RwLock::new(TopologyAccessorInner::new())),
         }
     }
 
+    pub(super) async fn get_read_permit(&self) -> TopologyReadPermit<'_, T> {
+        self.inner.read().await.into()
+    }
+
     async fn update_global_topology(&mut self, new_topology: Option<T>) {
-        self.inner.lock().await.update(new_topology);
+        self.inner.write().await.update(new_topology);
     }
 
     pub(crate) async fn get_gateway_socket_url(&self, id: &str) -> Option<String> {
-        match &self.inner.lock().await.0 {
+        match &self.inner.read().await.0 {
             None => None,
             Some(ref topology) => topology
                 .gateways()
@@ -67,7 +130,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
     // only used by the client at startup to get a slightly more reasonable error message
     // (currently displays as unused because healthchecker is disabled due to required changes)
     pub(crate) async fn is_routable(&self) -> bool {
-        match &self.inner.lock().await.0 {
+        match &self.inner.read().await.0 {
             None => false,
             Some(ref topology) => topology.can_construct_path_through(),
         }
@@ -75,7 +138,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
 
     pub(crate) async fn get_all_clients(&self) -> Option<Vec<provider::Client>> {
         // TODO: this will need to be modified to instead return pairs (provider, client)
-        match &self.inner.lock().await.0 {
+        match &self.inner.read().await.0 {
             None => None,
             Some(ref topology) => Some(
                 topology
@@ -87,40 +150,6 @@ impl<T: NymTopology> TopologyAccessor<T> {
             ),
         }
     }
-
-    pub(crate) async fn random_route_to_gateway(
-        &self,
-        gateway: &NodeAddressBytes,
-    ) -> Option<Vec<nymsphinx::Node>> {
-        let b58_address = gateway.to_base58_string();
-        let guard = self.inner.lock().await;
-        let topology = guard.0.as_ref()?;
-
-        let gateway = topology
-            .gateways()
-            .iter()
-            .cloned()
-            .find(|gateway| gateway.pub_key == b58_address.clone())?;
-
-        topology.random_route_to_gateway(gateway.into()).ok()
-    }
-
-    // // this is a rather temporary solution as each client will have an associated provider
-    // // currently that is not implemented yet and there only exists one provider in the network
-    // pub(crate) async fn random_route(&self) -> Option<Vec<nymsphinx::Node>> {
-    //     match &self.inner.lock().await.0 {
-    //         None => None,
-    //         Some(ref topology) => {
-    //             let mut gateways = topology.gateways();
-    //             if gateways.is_empty() {
-    //                 return None;
-    //             }
-    //             // unwrap is fine here as we asserted there is at least single provider
-    //             let provider = gateways.pop().unwrap().into();
-    //             topology.random_route_to_gateway(provider).ok()
-    //         }
-    //     }
-    // }
 }
 
 pub(crate) struct TopologyRefresherConfig {

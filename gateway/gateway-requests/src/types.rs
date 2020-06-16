@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::auth_token::AuthToken;
-use crate::types::BinaryRequest::ForwardSphinx;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
+use nymsphinx::params::packet_sizes::PacketSize;
 use nymsphinx::{DestinationAddressBytes, SphinxPacket};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -27,7 +27,7 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 #[derive(Debug)]
 pub enum GatewayRequestsError {
     IncorrectlyEncodedAddress,
-    RequestOfInvalidSize(usize, usize),
+    RequestOfInvalidSize(usize),
     MalformedSphinxPacket,
 }
 
@@ -38,10 +38,10 @@ impl fmt::Display for GatewayRequestsError {
         use GatewayRequestsError::*;
         match self {
             IncorrectlyEncodedAddress => write!(f, "address field was incorrectly encoded"),
-            RequestOfInvalidSize(actual, expected) => write!(
+            RequestOfInvalidSize(actual) => write!(
                 f,
-                "received request had invalid size. (actual: {}, expected: {})",
-                actual, expected
+                "received request had invalid size. (actual: {}, but expected one of: {} (ACK), {} (REGULAR), {} (EXTENDED))",
+                actual, PacketSize::ACKPacket.size(), PacketSize::RegularPacket.size(), PacketSize::ExtendedPacket.size()
             ),
             MalformedSphinxPacket => write!(f, "received sphinx packet was malformed"),
         }
@@ -164,18 +164,18 @@ impl BinaryRequest {
         let address = NymNodeRoutingAddress::try_from_bytes(&raw_req)?;
         let addr_offset = address.bytes_min_len();
 
-        if raw_req[addr_offset..].len() != nymsphinx::PACKET_SIZE {
-            Err(GatewayRequestsError::RequestOfInvalidSize(
-                raw_req[addr_offset..].len(),
-                nymsphinx::PACKET_SIZE,
-            ))
+        let packet_size = raw_req[addr_offset..].len();
+        if let Err(_) = PacketSize::get_type(packet_size) {
+            // TODO: should this allow AckPacket sizes?
+
+            Err(GatewayRequestsError::RequestOfInvalidSize(packet_size))
         } else {
             let sphinx_packet = match SphinxPacket::from_bytes(&raw_req[addr_offset..]) {
                 Ok(packet) => packet,
                 Err(_) => return Err(GatewayRequestsError::MalformedSphinxPacket),
             };
 
-            Ok(ForwardSphinx {
+            Ok(BinaryRequest::ForwardSphinx {
                 address: address.into(),
                 sphinx_packet,
             })
@@ -201,6 +201,7 @@ impl BinaryRequest {
         }
     }
 
+    // TODO: this will be encrypted, etc.
     pub fn new_forward_request(address: SocketAddr, sphinx_packet: SphinxPacket) -> BinaryRequest {
         BinaryRequest::ForwardSphinx {
             address,

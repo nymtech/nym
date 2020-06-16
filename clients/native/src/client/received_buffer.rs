@@ -13,14 +13,13 @@
 // limitations under the License.
 
 use futures::channel::mpsc;
-use futures::lock::Mutex;
+use futures::lock::{Mutex, MutexGuard};
 use futures::StreamExt;
-use gateway_client::SphinxPacketReceiver;
+use gateway_client::MixnetMessageReceiver;
 use log::*;
-use nymsphinx::{
-    chunking::reconstruction::MessageReconstructor,
-    utils::encapsulation::LOOP_COVER_MESSAGE_PAYLOAD,
-};
+use nymsphinx::chunking::reconstruction::MessageReconstructor;
+use nymsphinx::cover::LOOP_COVER_MESSAGE_PAYLOAD;
+use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
@@ -38,6 +37,11 @@ struct ReceivedMessagesBufferInner {
     messages: Vec<Vec<u8>>,
     message_reconstructor: MessageReconstructor,
     message_sender: Option<ReconstructedMessagesSender>,
+
+    // TODO: this will get cleared upon re-running the client
+    // but perhaps it should be changed to include timestamps of when the message was reconstructed
+    // and every now and then remove ids older than X
+    recently_reconstructed: HashSet<i32>,
 }
 
 #[derive(Debug, Clone)]
@@ -54,6 +58,7 @@ impl ReceivedMessagesBuffer {
                 messages: Vec::new(),
                 message_reconstructor: MessageReconstructor::new(),
                 message_sender: None,
+                recently_reconstructed: HashSet::new(),
             })),
         }
     }
@@ -102,6 +107,47 @@ impl ReceivedMessagesBuffer {
         self.inner.lock().await.messages.extend(msgs)
     }
 
+    fn process_received_fragment(
+        mutex_guard: &mut MutexGuard<ReceivedMessagesBufferInner>,
+        raw_fragment: Vec<u8>,
+    ) -> Option<Vec<u8>> {
+        if raw_fragment == LOOP_COVER_MESSAGE_PAYLOAD {
+            trace!("The message was a loop cover message! Skipping it");
+            return None;
+        }
+
+        let fragment = match mutex_guard
+            .message_reconstructor
+            .recover_fragment(raw_fragment)
+        {
+            Err(e) => {
+                warn!("failed to recover fragment data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
+                return None;
+            }
+            Ok(frag) => frag,
+        };
+
+        if mutex_guard.recently_reconstructed.contains(&fragment.id()) {
+            debug!("Received a chunk of already re-assembled message ({:?})! It probably got here because the ack got lost", fragment.id());
+            return None;
+        }
+
+        if let Some(reconstructed_message) = mutex_guard
+            .message_reconstructor
+            .insert_new_fragment(fragment)
+        {
+            let (completed_message, message_sets) = reconstructed_message;
+            for set_id in message_sets {
+                if !mutex_guard.recently_reconstructed.insert(set_id) {
+                    // or perhaps we should even panic at this point?
+                    error!("Reconstructed another message containing already used set id!")
+                }
+            }
+            return Some(completed_message);
+        }
+        None
+    }
+
     async fn add_new_message_fragments(&mut self, msgs: Vec<Vec<u8>>) {
         debug!(
             "Adding {:?} new message fragments to the buffer!",
@@ -112,15 +158,10 @@ impl ReceivedMessagesBuffer {
         let mut completed_messages = Vec::new();
         let mut inner_guard = self.inner.lock().await;
         for msg_fragment in msgs {
-            if msg_fragment == LOOP_COVER_MESSAGE_PAYLOAD {
-                trace!("The message was a loop cover message! Skipping it");
-                continue;
-            }
-
-            if let Some(reconstructed_message) =
-                inner_guard.message_reconstructor.new_fragment(msg_fragment)
+            if let Some(completed_message) =
+                Self::process_received_fragment(&mut inner_guard, msg_fragment)
             {
-                completed_messages.push(reconstructed_message);
+                completed_messages.push(completed_message)
             }
         }
 
@@ -189,22 +230,22 @@ impl RequestReceiver {
 
 struct FragmentedMessageReceiver {
     received_buffer: ReceivedMessagesBuffer,
-    sphinx_packet_receiver: SphinxPacketReceiver,
+    mixnet_packet_receiver: MixnetMessageReceiver,
 }
 
 impl FragmentedMessageReceiver {
     fn new(
         received_buffer: ReceivedMessagesBuffer,
-        sphinx_packet_receiver: SphinxPacketReceiver,
+        mixnet_packet_receiver: MixnetMessageReceiver,
     ) -> Self {
         FragmentedMessageReceiver {
             received_buffer,
-            sphinx_packet_receiver,
+            mixnet_packet_receiver,
         }
     }
     fn start(mut self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move {
-            while let Some(new_messages) = self.sphinx_packet_receiver.next().await {
+            while let Some(new_messages) = self.mixnet_packet_receiver.next().await {
                 self.received_buffer
                     .add_new_message_fragments(new_messages)
                     .await;
@@ -214,21 +255,21 @@ impl FragmentedMessageReceiver {
 }
 
 pub(crate) struct ReceivedMessagesBufferController {
-    fragmented_messsage_receiver: FragmentedMessageReceiver,
+    fragmented_message_receiver: FragmentedMessageReceiver,
     request_receiver: RequestReceiver,
 }
 
 impl ReceivedMessagesBufferController {
     pub(crate) fn new(
         query_receiver: ReceivedBufferRequestReceiver,
-        sphinx_packet_receiver: SphinxPacketReceiver,
+        mixnet_packet_receiver: MixnetMessageReceiver,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new();
 
         ReceivedMessagesBufferController {
-            fragmented_messsage_receiver: FragmentedMessageReceiver::new(
+            fragmented_message_receiver: FragmentedMessageReceiver::new(
                 received_buffer.clone(),
-                sphinx_packet_receiver,
+                mixnet_packet_receiver,
             ),
             request_receiver: RequestReceiver::new(received_buffer, query_receiver),
         }
@@ -236,7 +277,7 @@ impl ReceivedMessagesBufferController {
 
     pub(crate) fn start(self, handle: &Handle) {
         // TODO: should we do anything with JoinHandle(s) returned by start methods?
-        self.fragmented_messsage_receiver.start(handle);
+        self.fragmented_message_receiver.start(handle);
         self.request_receiver.start(handle);
     }
 }

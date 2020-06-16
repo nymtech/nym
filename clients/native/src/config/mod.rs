@@ -26,6 +26,8 @@ const DEFAULT_LISTENING_PORT: u16 = 1977;
 const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
+const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
+const DEFAULT_ACK_WAIT_ADDITION: u64 = 800;
 const DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY: u64 = 1000; // 1s
 const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: u64 = 500; // 0.5s
 const DEFAULT_AVERAGE_PACKET_DELAY: u64 = 200; // 0.2s
@@ -189,6 +191,18 @@ impl Config {
         time::Duration::from_millis(self.debug.average_packet_delay)
     }
 
+    pub fn get_average_ack_delay(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.average_ack_delay)
+    }
+
+    pub fn get_ack_wait_multiplier(&self) -> f64 {
+        self.debug.ack_wait_multiplier
+    }
+
+    pub fn get_ack_wait_addition(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.ack_wait_addition)
+    }
+
     pub fn get_loop_cover_traffic_average_delay(&self) -> time::Duration {
         time::Duration::from_millis(self.debug.loop_cover_traffic_average_delay)
     }
@@ -313,6 +327,24 @@ pub struct Debug {
     average_packet_delay: u64,
 
     /// The parameter of Poisson distribution determining how long, on average,
+    /// sent acknowledgement is going to be delayed at any given mix node.
+    /// So for an ack going through three mix nodes, on average, it will take three times this value
+    /// until the packet reaches its destination.
+    /// The provided value is interpreted as milliseconds.
+    average_ack_delay: u64,
+
+    /// Value multiplied with the expected round trip time of an acknowledgement packet before
+    /// it is assumed it was lost and retransmission of the data packet happens.
+    /// In an ideal network with 0 latency, this value would have been 1.
+    ack_wait_multiplier: f64,
+
+    /// Value added to the expected round trip time of an acknowledgement packet before
+    /// it is assumed it was lost and retransmission of the data packet happens.
+    /// In an ideal network with 0 latency, this value would have been 0.
+    /// The provided value is interpreted as milliseconds.
+    ack_wait_addition: u64,
+
+    /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take for another loop cover traffic message to be sent.
     /// The provided value is interpreted as milliseconds.
     loop_cover_traffic_average_delay: u64,
@@ -345,6 +377,9 @@ impl Default for Debug {
     fn default() -> Self {
         Debug {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
+            average_ack_delay: DEFAULT_AVERAGE_PACKET_DELAY,
+            ack_wait_multiplier: DEFAULT_ACK_WAIT_MULTIPLIER,
+            ack_wait_addition: DEFAULT_ACK_WAIT_ADDITION,
             loop_cover_traffic_average_delay: DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
             message_sending_average_delay: DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,

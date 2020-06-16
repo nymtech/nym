@@ -16,5 +16,6 @@ rand = "0.7.2"
 serde = { version = "1.0.104", features = ["derive"] }
 
 ## internal
-nymsphinx = {path = "../nymsphinx"}
+nymsphinx-addressing = {path = "../nymsphinx/addressing"}
+nymsphinx-types = {path = "../nymsphinx/types"}
 version-checker = {path = "../version-checker" }

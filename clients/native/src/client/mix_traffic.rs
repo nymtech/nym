@@ -31,11 +31,17 @@ impl MixMessage {
     }
 }
 
+const MAX_FAILURE_COUNT: usize = 100;
+
 pub(crate) struct MixTrafficController<'a> {
     // TODO: most likely to be replaced by some higher level construct as
     // later on gateway_client will need to be accessible by other entities
     gateway_client: GatewayClient<'a, url::Url>,
     mix_rx: MixMessageReceiver,
+
+    // TODO: this is temporary work-around.
+    // in long run `gateway_client` will be moved away from `MixTrafficController` anyway.
+    consecutive_gateway_failure_count: usize,
 }
 
 impl<'a> MixTrafficController<'static> {
@@ -46,6 +52,7 @@ impl<'a> MixTrafficController<'static> {
         MixTrafficController {
             gateway_client,
             mix_rx,
+            consecutive_gateway_failure_count: 0,
         }
     }
 
@@ -56,8 +63,18 @@ impl<'a> MixTrafficController<'static> {
             .send_sphinx_packet(mix_message.0, mix_message.1)
             .await
         {
-            Err(e) => error!("Failed to send sphinx packet to the gateway! - {:?}", e),
-            Ok(_) => trace!("We *might* have managed to forward sphinx packet to the gateway!"),
+            Err(e) => {
+                error!("Failed to send sphinx packet to the gateway! - {:?}", e);
+                self.consecutive_gateway_failure_count += 1;
+                if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
+                    // todo: in the future this should initiate a 'graceful' shutdown
+                    panic!("failed to send sphinx packet to the gateway {} times in a row - assuming the gateway is dead. Can't do anything about it yet :(", MAX_FAILURE_COUNT)
+                }
+            }
+            Ok(_) => {
+                trace!("We *might* have managed to forward sphinx packet to the gateway!");
+                self.consecutive_gateway_failure_count = 0;
+            }
         }
     }
 

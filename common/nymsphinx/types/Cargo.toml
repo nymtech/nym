@@ -1,0 +1,11 @@
+[package]
+name = "nymsphinx-types"
+version = "0.1.0"
+authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="cd9f09b85de33c60030ba6d7fae613c42cbe1faf" }
+#sphinx = { path = "../../../../sphinx"}

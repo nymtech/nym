@@ -1,0 +1,19 @@
+[package]
+name = "nymsphinx-acknowledgements"
+version = "0.1.0"
+authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+aes-ctr = "0.4.0"
+rand = {version = "0.7.3", features = ["wasm-bindgen"]}
+
+
+
+nymsphinx-addressing = { path = "../addressing" }
+nymsphinx-params = { path = "../params" }
+nymsphinx-types = { path = "../types" }
+
+topology = { path = "../../topology" }

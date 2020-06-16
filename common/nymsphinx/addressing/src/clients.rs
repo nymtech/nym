@@ -4,15 +4,15 @@
 // of a helper/utils structure, because before it reaches the gateway
 // it's already destructed).
 
-use crate::{
+use nymsphinx_types::{
     DestinationAddressBytes, NodeAddressBytes, DESTINATION_ADDRESS_LENGTH, NODE_ADDRESS_LENGTH,
 };
 
 #[derive(Debug)]
 pub struct RecipientFormattingError;
 
-impl From<crate::Error> for RecipientFormattingError {
-    fn from(_: crate::Error) -> Self {
+impl From<nymsphinx_types::Error> for RecipientFormattingError {
+    fn from(_: nymsphinx_types::Error) -> Self {
         Self
     }
 }

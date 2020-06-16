@@ -14,7 +14,7 @@
 
 use crate::filter::VersionFilterable;
 use itertools::Itertools;
-use nymsphinx::Node as SphinxNode;
+use nymsphinx_types::{Node as SphinxNode, NodeAddressBytes};
 use rand::seq::IteratorRandom;
 use std::cmp::max;
 use std::collections::HashMap;
@@ -43,7 +43,7 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
         let mut highest_layer = 0;
         for mix in self.mix_nodes() {
             // we need to have extra space for provider
-            if mix.layer > nymsphinx::MAX_PATH_LENGTH as u64 {
+            if mix.layer > nymsphinx_types::MAX_PATH_LENGTH as u64 {
                 return Err(NymTopologyError::InvalidMixLayerError);
             }
             highest_layer = max(highest_layer, mix.layer);
@@ -85,15 +85,31 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
         Ok(route)
     }
 
-    // Sets up a route to a specific gateway
+    fn gateway_exists(&self, gateway_address: &NodeAddressBytes) -> bool {
+        let b58_address = gateway_address.to_base58_string();
+        self.gateways()
+            .iter()
+            .find(|&gateway| gateway.pub_key == b58_address)
+            .is_some()
+    }
+
     fn random_route_to_gateway(
         &self,
-        gateway_node: SphinxNode,
+        gateway_address: &NodeAddressBytes,
     ) -> Result<Vec<SphinxNode>, NymTopologyError> {
+        let b58_address = gateway_address.to_base58_string();
+
+        let gateway = self
+            .gateways()
+            .iter()
+            .find(|&gateway| gateway.pub_key == b58_address)
+            .ok_or_else(|| NymTopologyError::NonExistentGatewayError)?
+            .clone();
+
         Ok(self
             .random_mix_route()?
             .into_iter()
-            .chain(std::iter::once(gateway_node))
+            .chain(std::iter::once(gateway.into()))
             .collect())
     }
 
@@ -154,4 +170,5 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
 pub enum NymTopologyError {
     InvalidMixLayerError,
     MissingLayerError(Vec<u64>),
+    NonExistentGatewayError,
 }

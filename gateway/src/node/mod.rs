@@ -66,13 +66,18 @@ impl Gateway {
         }
     }
 
-    fn start_mix_socket_listener(&self, clients_handler_sender: ClientsHandlerRequestSender) {
+    fn start_mix_socket_listener(
+        &self,
+        clients_handler_sender: ClientsHandlerRequestSender,
+        ack_sender: OutboundMixMessageSender,
+    ) {
         info!("Starting mix socket listener...");
 
         let packet_processor = mixnet_handling::PacketProcessor::new(
             Arc::new(self.sphinx_keypair.private_key().clone()),
             clients_handler_sender,
             self.client_inbox_storage.clone(),
+            ack_sender,
         );
 
         mixnet_handling::Listener::new(self.config.get_mix_listening_address())
@@ -180,7 +185,7 @@ impl Gateway {
             let mix_forwarding_channel = self.start_packet_forwarder();
             let clients_handler_sender = self.start_clients_handler();
 
-            self.start_mix_socket_listener(clients_handler_sender.clone());
+            self.start_mix_socket_listener(clients_handler_sender.clone(), mix_forwarding_channel.clone());
             self.start_client_websocket_listener(mix_forwarding_channel, clients_handler_sender);
 
             self.start_presence_notifier();

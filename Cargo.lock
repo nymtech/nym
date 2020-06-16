@@ -29,10 +29,22 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2e5b0458ea3beae0d1d8c0f3946564f8e10f90646cf78c06b4351052058d1ee"
 dependencies = [
- "aes-soft",
- "aesni",
- "ctr",
- "stream-cipher",
+ "aes-soft 0.3.3",
+ "aesni 0.6.0",
+ "ctr 0.3.2",
+ "stream-cipher 0.3.2",
+]
+
+[[package]]
+name = "aes-ctr"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92e60aeefd2a0243bd53a42e92444e039f67c3d7f0382c9813577696e7c10bf3"
+dependencies = [
+ "aes-soft 0.4.0",
+ "aesni 0.7.0",
+ "ctr 0.4.0",
+ "stream-cipher 0.4.1",
 ]
 
 [[package]]
@@ -47,6 +59,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "aes-soft"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4925647ee64e5056cf231608957ce7c81e12d6d6e316b9ce1404778cc1d35fa7"
+dependencies = [
+ "block-cipher",
+ "byteorder",
+ "opaque-debug",
+]
+
+[[package]]
 name = "aesni"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -54,7 +77,18 @@ checksum = "2f70a6b5f971e473091ab7cfb5ffac6cde81666c4556751d8d5620ead8abf100"
 dependencies = [
  "block-cipher-trait",
  "opaque-debug",
- "stream-cipher",
+ "stream-cipher 0.3.2",
+]
+
+[[package]]
+name = "aesni"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d050d39b0b7688b3a3254394c3e30a9d66c41dcf9b05b0e2dbdc623f6505d264"
+dependencies = [
+ "block-cipher",
+ "opaque-debug",
+ "stream-cipher 0.4.1",
 ]
 
 [[package]]
@@ -212,7 +246,16 @@ dependencies = [
  "block-padding",
  "byte-tools",
  "byteorder",
- "generic-array",
+ "generic-array 0.12.3",
+]
+
+[[package]]
+name = "block-cipher"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa136449e765dc7faa244561ccae839c394048667929af599b5d931ebe7b7f10"
+dependencies = [
+ "generic-array 0.14.1",
 ]
 
 [[package]]
@@ -221,7 +264,7 @@ version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c924d49bd09e7c06003acda26cd9742e796e34282ec6c1189404dee0c1f4774"
 dependencies = [
- "generic-array",
+ "generic-array 0.12.3",
 ]
 
 [[package]]
@@ -514,7 +557,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4434400df11d95d556bac068ddfedd482915eb18fe8bea89bc80b6e4b1c179e5"
 dependencies = [
- "generic-array",
+ "generic-array 0.12.3",
  "subtle 1.0.0",
 ]
 
@@ -525,7 +568,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "022cd691704491df67d25d006fe8eca083098253c4d43516c2206479c58c6736"
 dependencies = [
  "block-cipher-trait",
- "stream-cipher",
+ "stream-cipher 0.3.2",
+]
+
+[[package]]
+name = "ctr"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3592740fd55aaf61dd72df96756bd0d11e6037b89dcf30ae2e1895b267692be"
+dependencies = [
+ "stream-cipher 0.4.1",
 ]
 
 [[package]]
@@ -575,7 +627,7 @@ version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3d0c8c8752312f9713efd397ff63acb9f85585afbf179282e720e7704954dd5"
 dependencies = [
- "generic-array",
+ "generic-array 0.12.3",
 ]
 
 [[package]]
@@ -933,6 +985,15 @@ name = "generic-array"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c68f0274ae0e023facc3c97b2e00f076be70e254bc851d972503b328db79b2ec"
+dependencies = [
+ "typenum",
+]
+
+[[package]]
+name = "generic-array"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d2664c2cf08049036f31015b04c6ac3671379a1d86f52ed2416893f16022deb"
 dependencies = [
  "typenum",
 ]
@@ -1675,7 +1736,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "0.7.0"
+version = "0.8.0-dev"
 dependencies = [
  "bs58",
  "built",
@@ -1695,6 +1756,7 @@ dependencies = [
  "pem",
  "pemstore",
  "pretty_env_logger",
+ "rand 0.7.3",
  "reqwest 0.9.24",
  "serde",
  "serde_json",
@@ -1726,7 +1788,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "0.7.0"
+version = "0.8.0-dev"
 dependencies = [
  "built",
  "clap",
@@ -1756,7 +1818,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "0.7.0"
+version = "0.8.0-dev"
 dependencies = [
  "bs58",
  "built",
@@ -1782,7 +1844,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator"
-version = "0.7.0"
+version = "0.8.0-dev"
 dependencies = [
  "abci",
  "bodyparser",
@@ -1812,12 +1874,84 @@ dependencies = [
 name = "nymsphinx"
 version = "0.1.0"
 dependencies = [
- "bytes 0.5.4",
- "log 0.4.8",
+ "nymsphinx-acknowledgements",
+ "nymsphinx-addressing",
+ "nymsphinx-chunking",
+ "nymsphinx-cover",
+ "nymsphinx-framing",
+ "nymsphinx-params",
+ "nymsphinx-types",
  "rand 0.7.3",
  "rand_distr",
- "sphinx",
+]
+
+[[package]]
+name = "nymsphinx-acknowledgements"
+version = "0.1.0"
+dependencies = [
+ "aes-ctr 0.4.0",
+ "nymsphinx-addressing",
+ "nymsphinx-params",
+ "nymsphinx-types",
+ "rand 0.7.3",
+ "topology",
+]
+
+[[package]]
+name = "nymsphinx-addressing"
+version = "0.1.0"
+dependencies = [
+ "nymsphinx-types",
+]
+
+[[package]]
+name = "nymsphinx-chunking"
+version = "0.1.0"
+dependencies = [
+ "log 0.4.8",
+ "nymsphinx-acknowledgements",
+ "nymsphinx-addressing",
+ "nymsphinx-params",
+ "nymsphinx-types",
+ "rand 0.7.3",
+ "topology",
+]
+
+[[package]]
+name = "nymsphinx-cover"
+version = "0.1.0"
+dependencies = [
+ "nymsphinx-acknowledgements",
+ "nymsphinx-addressing",
+ "nymsphinx-chunking",
+ "nymsphinx-params",
+ "nymsphinx-types",
+ "rand 0.7.3",
+ "topology",
+]
+
+[[package]]
+name = "nymsphinx-framing"
+version = "0.1.0"
+dependencies = [
+ "bytes 0.5.4",
+ "nymsphinx-params",
+ "nymsphinx-types",
  "tokio-util",
+]
+
+[[package]]
+name = "nymsphinx-params"
+version = "0.1.0"
+dependencies = [
+ "nymsphinx-types",
+]
+
+[[package]]
+name = "nymsphinx-types"
+version = "0.1.0"
+dependencies = [
+ "sphinx",
 ]
 
 [[package]]
@@ -2764,9 +2898,9 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=fcd17932acbd21a76c42a4bf2a42b9f8668f7e1f#fcd17932acbd21a76c42a4bf2a42b9f8668f7e1f"
+source = "git+https://github.com/nymtech/sphinx?rev=cd9f09b85de33c60030ba6d7fae613c42cbe1faf#cd9f09b85de33c60030ba6d7fae613c42cbe1faf"
 dependencies = [
- "aes-ctr",
+ "aes-ctr 0.3.0",
  "arrayref",
  "blake2",
  "bs58",
@@ -2789,7 +2923,17 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8131256a5896cabcf5eb04f4d6dacbe1aefda854b0d9896e09cb58829ec5638c"
 dependencies = [
- "generic-array",
+ "generic-array 0.12.3",
+]
+
+[[package]]
+name = "stream-cipher"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09f8ed9974042b8c3672ff3030a69fcc03b74c47c3d1ecb7755e8a3626011e88"
+dependencies = [
+ "block-cipher",
+ "generic-array 0.14.1",
 ]
 
 [[package]]
@@ -3138,7 +3282,8 @@ dependencies = [
  "bs58",
  "itertools",
  "log 0.4.8",
- "nymsphinx",
+ "nymsphinx-addressing",
+ "nymsphinx-types",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",

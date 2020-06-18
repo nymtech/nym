@@ -2896,6 +2896,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "socks5"
+version = "0.1.0"
+
+[[package]]
 name = "sphinx"
 version = "0.1.0"
 source = "git+https://github.com/nymtech/sphinx?rev=cd9f09b85de33c60030ba6d7fae613c42cbe1faf#cd9f09b85de33c60030ba6d7fae613c42cbe1faf"

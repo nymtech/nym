@@ -45,7 +45,7 @@ impl SURBAck {
         rng: &mut R,
         recipient: &Recipient,
         ack_key: &AckAes128Key,
-        marshaled_fragment_id: &[u8],
+        marshaled_fragment_id: [u8; 5],
         average_delay: time::Duration,
         topology: &T,
     ) -> Result<Self, NymTopologyError>

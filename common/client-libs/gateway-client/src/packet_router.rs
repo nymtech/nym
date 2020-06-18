@@ -17,6 +17,7 @@
 
 use futures::channel::mpsc;
 use log::*;
+use nymsphinx::addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
 use nymsphinx::params::packet_sizes::PacketSize;
 
 pub type MixnetMessageSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
@@ -46,21 +47,33 @@ impl PacketRouter {
         let mut received_messages = Vec::new();
         let mut received_acks = Vec::new();
 
-        for received_packet in unwrapped_packets {
-            // TODO: currently this is not true because gateways are removing padding from the packets
-            // but will be fixed soon enough by all other changes in the pipeline
-            // the question is, however, what exactly will gateways be returning instead. payloads?
-            // 'plaintext'?. To be determined later on.
-            // if received_packet.len() == PacketSize::ACKPacket.payload_size() {
+        // remember: gateway removes final layer of sphinx encryption and from the unwrapped
+        // data he takes the SURB-ACK and first hop address.
+        // currently SURB-ACKs are attached in EVERY packet, even cover, so this is always true
+        let ack_overhead = PacketSize::ACKPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN;
 
-            // this is an extremely ugly if statement, but will be improved once things are actually
-            // constant length everywhere
-            if received_packet.len() == 21 {
+        for received_packet in unwrapped_packets {
+            // NOTE TO FUTURE-SELF:
+            // Right now we're kinda cheating to achieve constant length packets
+            // by basically including padding in the message itself
+            // this will eventually be removed in favour of proper encryption.
+            // and I guess some changes in gateways to maybe not remove padding from sphinx packets
+            // themselves? to be determined.
+
+            if received_packet.len() == PacketSize::ACKPacket.plaintext_size() {
                 received_acks.push(received_packet);
+            } else if received_packet.len()
+                == PacketSize::RegularPacket.plaintext_size() - ack_overhead
+            {
+                received_messages.push(received_packet);
+            } else if received_packet.len()
+                == PacketSize::ExtendedPacket.plaintext_size() - ack_overhead
+            {
+                warn!("received extended packet? Did not expect this...");
+                received_messages.push(received_packet);
             } else {
-                // well, technically all 21 bytes packets will be considered acks which is not
-                // entirely true, but for time being let's stick with it until other changes are
-                // introduced
+                // this can happen if other clients are not padding their messages
+                warn!("Received message of unexpected size. Probably from an outdated client... len: {}", received_packet.len());
                 received_messages.push(received_packet);
             }
         }

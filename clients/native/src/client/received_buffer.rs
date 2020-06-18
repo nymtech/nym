@@ -56,7 +56,7 @@ impl ReceivedMessagesBuffer {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
                 messages: Vec::new(),
-                message_reconstructor: MessageReconstructor::new(),
+                message_reconstructor: MessageReconstructor::new(true),
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
             })),
@@ -111,7 +111,7 @@ impl ReceivedMessagesBuffer {
         mutex_guard: &mut MutexGuard<ReceivedMessagesBufferInner>,
         raw_fragment: Vec<u8>,
     ) -> Option<Vec<u8>> {
-        if raw_fragment == LOOP_COVER_MESSAGE_PAYLOAD {
+        if nymsphinx::cover::is_cover(&raw_fragment) {
             trace!("The message was a loop cover message! Skipping it");
             return None;
         }

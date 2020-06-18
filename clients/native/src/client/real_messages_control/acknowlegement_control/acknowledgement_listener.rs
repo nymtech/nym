@@ -49,7 +49,7 @@ impl AcknowledgementListener {
                 warn!("Received invalid ACK!"); // should we do anything else about that?
                 return;
             }
-            Some(frag_id_bytes) => match FragmentIdentifier::try_from_bytes(&frag_id_bytes) {
+            Some(frag_id_bytes) => match FragmentIdentifier::try_from_bytes(frag_id_bytes) {
                 Ok(frag_id) => frag_id,
                 Err(err) => {
                     warn!("Received invalid ACK! - {:?}", err); // should we do anything else about that?

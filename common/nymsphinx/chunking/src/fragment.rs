@@ -72,20 +72,18 @@ pub struct FragmentIdentifier {
 }
 
 impl FragmentIdentifier {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.set_id
-            .to_be_bytes()
-            .iter()
-            .cloned()
-            .chain(std::iter::once(self.fragment_position))
-            .collect()
+    pub fn to_bytes(&self) -> [u8; 5] {
+        let set_id_bytes = self.set_id.to_be_bytes();
+        [
+            set_id_bytes[0],
+            set_id_bytes[1],
+            set_id_bytes[2],
+            set_id_bytes[3],
+            self.fragment_position,
+        ]
     }
 
-    pub fn try_from_bytes(b: &[u8]) -> Result<Self, ChunkingError> {
-        if b.len() != 5 {
-            return Err(ChunkingError::MalformedFragmentIdentifier);
-        }
-
+    pub fn try_from_bytes(b: [u8; 5]) -> Result<Self, ChunkingError> {
         let set_id = i32::from_be_bytes([b[0], b[1], b[2], b[3]]);
         // set_id == 0 is valid for, and only for, COVER_FRAG_ID
         if set_id < 0 {

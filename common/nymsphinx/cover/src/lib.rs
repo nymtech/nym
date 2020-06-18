@@ -70,7 +70,7 @@ where
         rng,
         full_address,
         ack_key,
-        &COVER_FRAG_ID.to_bytes(),
+        COVER_FRAG_ID.to_bytes(),
         average_ack_delay,
         topology,
     )?)

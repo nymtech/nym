@@ -17,7 +17,6 @@
 
 use futures::channel::mpsc;
 use log::*;
-use nymsphinx::params::packet_sizes::PacketSize;
 
 pub type MixnetMessageSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
 pub type MixnetMessageReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crypto::identity::MixIdentityKeyPair;
+use crypto::identity;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 use wasm_bindgen::prelude::*;
@@ -42,7 +42,7 @@ impl TryInto<String> for GatewayIdentity {
 
 #[wasm_bindgen]
 pub fn keygen() -> String {
-    let keypair = MixIdentityKeyPair::new();
+    let keypair = identity::KeyPair::new();
     let address = keypair.public_key().derive_address();
 
     GatewayIdentity {

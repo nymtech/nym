@@ -15,16 +15,16 @@
 use crate::{PemStorableKey, PemStorableKeyPair};
 use bs58;
 use ed25519_dalek::{SignatureError, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
-use nymsphinx::DestinationAddressBytes;
+use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use rand::{rngs::OsRng, CryptoRng, RngCore};
 
 /// Keypair for usage in ed25519 EdDSA.
-pub struct MixIdentityKeyPair {
-    private_key: MixIdentityPrivateKey,
-    public_key: MixIdentityPublicKey,
+pub struct KeyPair {
+    private_key: PrivateKey,
+    public_key: PublicKey,
 }
 
-impl MixIdentityKeyPair {
+impl KeyPair {
     pub fn new() -> Self {
         let mut rng = OsRng;
         Self::new_with_rng(&mut rng)
@@ -33,31 +33,31 @@ impl MixIdentityKeyPair {
     pub fn new_with_rng<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
         let ed25519_keypair = ed25519_dalek::Keypair::generate(rng);
 
-        MixIdentityKeyPair {
-            private_key: MixIdentityPrivateKey(ed25519_keypair.secret),
-            public_key: MixIdentityPublicKey(ed25519_keypair.public),
+        KeyPair {
+            private_key: PrivateKey(ed25519_keypair.secret),
+            public_key: PublicKey(ed25519_keypair.public),
         }
     }
 
-    pub fn private_key(&self) -> &MixIdentityPrivateKey {
+    pub fn private_key(&self) -> &PrivateKey {
         &self.private_key
     }
 
-    pub fn public_key(&self) -> &MixIdentityPublicKey {
+    pub fn public_key(&self) -> &PublicKey {
         &self.public_key
     }
 
     pub fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, SignatureError> {
-        Ok(MixIdentityKeyPair {
-            private_key: MixIdentityPrivateKey::from_bytes(priv_bytes)?,
-            public_key: MixIdentityPublicKey::from_bytes(pub_bytes)?,
+        Ok(KeyPair {
+            private_key: PrivateKey::from_bytes(priv_bytes)?,
+            public_key: PublicKey::from_bytes(pub_bytes)?,
         })
     }
 }
 
-impl PemStorableKeyPair for MixIdentityKeyPair {
-    type PrivatePemKey = MixIdentityPrivateKey;
-    type PublicPemKey = MixIdentityPublicKey;
+impl PemStorableKeyPair for KeyPair {
+    type PrivatePemKey = PrivateKey;
+    type PublicPemKey = PublicKey;
     type Error = SignatureError;
 
     fn private_key(&self) -> &Self::PrivatePemKey {
@@ -75,14 +75,16 @@ impl PemStorableKeyPair for MixIdentityKeyPair {
 
 /// ed25519 EdDSA Public Key
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct MixIdentityPublicKey(ed25519_dalek::PublicKey);
+pub struct PublicKey(ed25519_dalek::PublicKey);
 
-impl MixIdentityPublicKey {
+impl PublicKey {
     pub fn derive_address(&self) -> DestinationAddressBytes {
-        let mut temporary_address = [0u8; 32];
+        let mut temporary_address = [0u8; DESTINATION_ADDRESS_LENGTH];
         let public_key_bytes = self.to_bytes();
-        temporary_address.copy_from_slice(&public_key_bytes[..]);
 
+        assert_eq!(DESTINATION_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH);
+
+        temporary_address.copy_from_slice(&public_key_bytes[..]);
         DestinationAddressBytes::from_bytes(temporary_address)
     }
 
@@ -92,9 +94,7 @@ impl MixIdentityPublicKey {
     }
 
     pub fn from_bytes(b: &[u8]) -> Result<Self, SignatureError> {
-        Ok(MixIdentityPublicKey(ed25519_dalek::PublicKey::from_bytes(
-            b,
-        )?))
+        Ok(PublicKey(ed25519_dalek::PublicKey::from_bytes(b)?))
     }
 
     pub fn to_base58_string(&self) -> String {
@@ -109,7 +109,7 @@ impl MixIdentityPublicKey {
     }
 }
 
-impl PemStorableKey for MixIdentityPublicKey {
+impl PemStorableKey for PublicKey {
     fn pem_type(&self) -> String {
         String::from("ED25519 PUBLIC KEY")
     }
@@ -121,24 +121,21 @@ impl PemStorableKey for MixIdentityPublicKey {
 
 /// ed25519 EdDSA Private Key
 #[derive(Debug)]
-pub struct MixIdentityPrivateKey(ed25519_dalek::SecretKey);
+pub struct PrivateKey(ed25519_dalek::SecretKey);
 
-impl<'a> From<&'a MixIdentityPrivateKey> for MixIdentityPublicKey {
-    fn from(pk: &'a MixIdentityPrivateKey) -> Self {
-        let public = ed25519_dalek::PublicKey::from(&pk.0);
-        MixIdentityPublicKey(public)
+impl<'a> From<&'a PrivateKey> for PublicKey {
+    fn from(pk: &'a PrivateKey) -> Self {
+        PublicKey((&pk.0).into())
     }
 }
 
-impl MixIdentityPrivateKey {
+impl PrivateKey {
     pub fn to_bytes(&self) -> [u8; SECRET_KEY_LENGTH] {
         self.0.to_bytes()
     }
 
     pub fn from_bytes(b: &[u8]) -> Result<Self, SignatureError> {
-        Ok(MixIdentityPrivateKey(ed25519_dalek::SecretKey::from_bytes(
-            b,
-        )?))
+        Ok(PrivateKey(ed25519_dalek::SecretKey::from_bytes(b)?))
     }
 
     pub fn to_base58_string(&self) -> String {
@@ -153,7 +150,7 @@ impl MixIdentityPrivateKey {
     }
 }
 
-impl PemStorableKey for MixIdentityPrivateKey {
+impl PemStorableKey for PrivateKey {
     fn pem_type(&self) -> String {
         String::from("ED25519 PRIVATE KEY")
     }

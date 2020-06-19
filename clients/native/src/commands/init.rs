@@ -17,7 +17,7 @@ use crate::commands::override_config;
 use crate::config::persistence::pathfinder::ClientPathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::identity::MixIdentityKeyPair;
+use crypto::identity;
 use directory_client::DirectoryClient;
 use gateway_client::GatewayClient;
 use gateway_requests::AuthToken;
@@ -128,7 +128,7 @@ pub fn execute(matches: &ArgMatches) {
         config = config.set_high_default_traffic_volume();
     }
 
-    let mix_identity_keys = MixIdentityKeyPair::new();
+    let mix_identity_keys = identity::KeyPair::new();
 
     // if there is no gateway chosen, get a random-ish one from the topology
     if config.get_gateway_id().is_empty() {

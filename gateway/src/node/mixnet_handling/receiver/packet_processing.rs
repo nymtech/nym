@@ -23,13 +23,11 @@ use futures::channel::oneshot;
 use futures::lock::Mutex;
 use log::*;
 use nymsphinx::acknowledgements::surb_ack::{SURBAck, SURBAckRecoveryError};
-use nymsphinx::cover::LOOP_COVER_MESSAGE_PAYLOAD;
 use nymsphinx::params::packet_sizes::PacketSize;
 use nymsphinx::{DestinationAddressBytes, Error as SphinxError, ProcessedPacket, SphinxPacket};
 
 use std::collections::HashMap;
 use std::io;
-use std::ops::Deref;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -184,7 +182,7 @@ impl PacketProcessor {
         &self,
         packet: SphinxPacket,
     ) -> Result<(DestinationAddressBytes, Vec<u8>), MixProcessingError> {
-        match packet.process(self.secret_key.deref().inner()) {
+        match packet.process(&self.secret_key.as_ref().into()) {
             Ok(ProcessedPacket::ProcessedPacketForwardHop(_, _, _)) => {
                 warn!("Received a forward hop message - those are not implemented for gateways");
                 Err(MixProcessingError::ReceivedForwardHopError)

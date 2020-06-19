@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::pathfinder::PathFinder;
-use crypto::identity::MixIdentityKeyPair;
+use crypto::identity;
 use crypto::PemStorableKey;
 use crypto::{encryption, PemStorableKeyPair};
 use log::info;
@@ -69,7 +69,7 @@ impl PemStore {
         self.read_keypair()
     }
 
-    pub fn read_identity(&self) -> io::Result<MixIdentityKeyPair> {
+    pub fn read_identity(&self) -> io::Result<identity::KeyPair> {
         self.read_keypair()
     }
 
@@ -108,7 +108,7 @@ impl PemStore {
     // This should be refactored and made more generic for when we have other kinds of
     // KeyPairs that we want to persist (e.g. validator keypairs, or keys for
     // signing vs encryption). However, for the moment, it does the job.
-    pub fn write_identity(&self, key_pair: MixIdentityKeyPair) -> io::Result<()> {
+    pub fn write_identity(&self, key_pair: identity::KeyPair) -> io::Result<()> {
         self.write_keypair(key_pair)
     }
 

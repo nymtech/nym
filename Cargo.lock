@@ -552,13 +552,13 @@ name = "crypto"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "curve25519-dalek",
  "ed25519-dalek",
  "log 0.4.8",
  "nymsphinx",
  "pretty_env_logger",
  "rand 0.7.3",
  "rand_core 0.5.1",
+ "x25519-dalek",
 ]
 
 [[package]]
@@ -1745,7 +1745,6 @@ dependencies = [
  "clap",
  "config",
  "crypto",
- "curve25519-dalek",
  "directory-client",
  "dirs",
  "dotenv",
@@ -2899,7 +2898,6 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=cd9f09b85de33c60030ba6d7fae613c42cbe1faf#cd9f09b85de33c60030ba6d7fae613c42cbe1faf"
 dependencies = [
  "aes-ctr 0.3.0",
  "arrayref",
@@ -2913,7 +2911,6 @@ dependencies = [
  "lioness",
  "log 0.4.8",
  "rand 0.7.3",
- "rand_core 0.5.1",
  "rand_distr",
  "sha2",
 ]
@@ -3721,7 +3718,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "x25519-dalek"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "637ff90c9540fa3073bb577e65033069e4bae7c79d49d74aa3ffdf5342a53217"
+dependencies = [
+ "curve25519-dalek",
+ "rand_core 0.5.1",
+ "zeroize",
+]
+
+[[package]]
 name = "zeroize"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3cbac2ed2ba24cc90f5e06485ac8c7c1e5449fe8911aef4d8877218af021a5b8"
+dependencies = [
+ "zeroize_derive",
+]
+
+[[package]]
+name = "zeroize_derive"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de251eec69fc7c1bc3923403d18ececb929380e016afe103da75f396704f8ca2"
+dependencies = [
+ "proc-macro2 1.0.10",
+ "quote 1.0.3",
+ "syn",
+ "synstructure",
+]

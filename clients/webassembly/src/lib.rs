@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crypto::identity::MixIdentityPublicKey;
 use models::topology::Topology;
 use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx::Node as SphinxNode;
@@ -115,19 +114,15 @@ fn sphinx_route_to(topology_json: &str, gateway_address: &NodeAddressBytes) -> V
 }
 
 impl TryFrom<NodeData> for SphinxNode {
+    // We really should start actually using errors rather than unwrapping on everything
     type Error = ();
 
     fn try_from(node_data: NodeData) -> Result<Self, Self::Error> {
         let addr: SocketAddr = node_data.address.parse().unwrap();
         let address: NodeAddressBytes = NymNodeRoutingAddress::from(addr).try_into().unwrap();
-
-        // this has to be temporarily moved out of separate function as we can't return private types
-        let pub_key = {
-            let src = encryption::PublicKey::from_base58_string(node_data.public_key).to_bytes();
-            let mut dest: [u8; 32] = [0; 32];
-            dest.copy_from_slice(&src);
-            nymsphinx::public_key_from_bytes(dest)
-        };
+        let pub_key = encryption::PublicKey::from_base58_string(node_data.public_key)
+            .unwrap()
+            .into();
 
         Ok(SphinxNode { address, pub_key })
     }

@@ -24,7 +24,7 @@ use crate::client::topology_control::{
 };
 use crate::config::{Config, SocketType};
 use crate::websocket;
-use crypto::identity::MixIdentityKeyPair;
+use crypto::identity;
 use futures::channel::mpsc;
 use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
@@ -50,7 +50,7 @@ pub(crate) mod topology_control;
 pub struct NymClient {
     config: Config,
     runtime: Runtime,
-    identity_keypair: MixIdentityKeyPair,
+    identity_keypair: identity::KeyPair,
 
     // to be used by "send" function or socket, etc
     input_tx: Option<InputMessageSender>,
@@ -60,7 +60,7 @@ pub struct NymClient {
 }
 
 impl NymClient {
-    pub fn new(config: Config, identity_keypair: MixIdentityKeyPair) -> Self {
+    pub fn new(config: Config, identity_keypair: identity::KeyPair) -> Self {
         NymClient {
             runtime: Runtime::new().unwrap(),
             config,

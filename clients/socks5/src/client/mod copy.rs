@@ -23,6 +23,7 @@ use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use crate::config::{Config, SocketType};
+use crate::websocket;
 use crypto::identity::MixIdentityKeyPair;
 use futures::channel::mpsc;
 use gateway_client::{
@@ -265,25 +266,23 @@ impl NymClient {
         MixTrafficController::new(mix_rx, gateway_client).start(self.runtime.handle());
     }
 
-    // DH: this is where we can stick the socks5 startup code, instead of the websocket
-    // startup code. It was originally a websocket listener start function.
-    fn start_socks5_listener<T: 'static + NymTopology>(
+    fn start_websocket_listener<T: 'static + NymTopology>(
         &self,
         topology_accessor: TopologyAccessor<T>,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
     ) {
-        // info!("Starting websocket listener...");
+        info!("Starting websocket listener...");
 
-        // let websocket_handler = websocket::Handler::new(
-        //     msg_input,
-        //     buffer_requester,
-        //     self.as_mix_recipient(),
-        //     topology_accessor,
-        // );
+        let websocket_handler = websocket::Handler::new(
+            msg_input,
+            buffer_requester,
+            self.as_mix_recipient(),
+            topology_accessor,
+        );
 
-        // websocket::Listener::new(self.config.get_listening_port())
-        //     .start(self.runtime.handle(), websocket_handler);
+        websocket::Listener::new(self.config.get_listening_port())
+            .start(self.runtime.handle(), websocket_handler);
     }
 
     /// EXPERIMENTAL DIRECT RUST API
@@ -387,7 +386,7 @@ impl NymClient {
         );
 
         match self.config.get_socket_type() {
-            SocketType::WebSocket => self.start_socks5_listener(
+            SocketType::WebSocket => self.start_websocket_listener(
                 shared_topology_accessor,
                 received_buffer_request_sender,
                 input_sender,

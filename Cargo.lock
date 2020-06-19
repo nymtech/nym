@@ -2897,7 +2897,11 @@ dependencies = [
 
 [[package]]
 name = "socks5"
-version = "0.1.0"
+version = "0.8.0-dev"
+dependencies = [
+ "built",
+ "tokio 0.2.16",
+]
 
 [[package]]
 name = "sphinx"

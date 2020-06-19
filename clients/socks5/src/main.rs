@@ -24,10 +24,10 @@ fn main() {
     setup_logging();
     println!("{}", banner());
 
-    let arg_matches = App::new("Nym Client")
+    let arg_matches = App::new("Nym Socks5 Proxy")
         .version(built_info::PKG_VERSION)
         .author("Nymtech")
-        .about("Implementation of the Nym Client")
+        .about("A Socks5 proxy that converts incoming messages to Sphinx and sends them to a Nym address")
         .subcommand(commands::init::command_args())
         .subcommand(commands::run::command_args())
         .get_matches();

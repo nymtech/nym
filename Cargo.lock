@@ -2900,6 +2900,11 @@ name = "socks5"
 version = "0.8.0-dev"
 dependencies = [
  "built",
+ "clap",
+ "dotenv",
+ "log 0.4.8",
+ "pem",
+ "pretty_env_logger",
  "tokio 0.2.16",
 ]
 

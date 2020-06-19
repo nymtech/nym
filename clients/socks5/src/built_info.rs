@@ -11,6 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-pub mod built_info;
-pub mod client;
-pub mod config;
+
+// The file has been placed there by the build script.
+include!(concat!(env!("OUT_DIR"), "/built.rs"));

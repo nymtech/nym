@@ -200,7 +200,7 @@ fn prepare_linked_fragment_set(
 }
 
 /// Based on total message length, determines the number of sets into which it is going to be split.
-fn total_number_of_sets(message_len: usize, max_plaintext_size: usize) -> usize {
+pub(crate) fn total_number_of_sets(message_len: usize, max_plaintext_size: usize) -> usize {
     if message_len <= max_unlinked_set_payload_length(max_plaintext_size) {
         1
     } else if message_len > max_unlinked_set_payload_length(max_plaintext_size)

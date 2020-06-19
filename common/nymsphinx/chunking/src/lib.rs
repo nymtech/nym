@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::fragment::{Fragment, FragmentIdentifier};
+use crate::fragment::{
+    linked_fragment_payload_max_len, unlinked_fragment_payload_max_len, Fragment,
+    FragmentIdentifier,
+};
 use crate::set::split_into_sets;
 use nymsphinx_acknowledgements::identifier::AckAes128Key;
 use nymsphinx_acknowledgements::surb_ack::SURBAck;
@@ -33,6 +36,10 @@ use topology::{NymTopology, NymTopologyError};
 // library like: https://github.com/rust-fuzz/afl.rs and use that instead for the inputs.
 
 // perhaps it might be useful down the line for interaction testing between client,mixes,etc?
+
+// TODO: this module has evolved significantly since the tests were first written
+// they should definitely be revisited.
+// For instance there are not tests for the cases when we are padding the message
 
 pub mod fragment;
 pub mod reconstruction;
@@ -88,6 +95,7 @@ pub struct MessageChunker<R: CryptoRng + Rng> {
     ack_recipient: Recipient,
     packet_size: PacketSize,
     reply_surbs: bool,
+    should_pad: bool,
     average_packet_delay_duration: Duration,
     average_ack_delay_duration: Duration,
 }
@@ -95,12 +103,14 @@ pub struct MessageChunker<R: CryptoRng + Rng> {
 impl MessageChunker<DefaultRng> {
     pub fn new(
         ack_recipient: Recipient,
+        should_pad: bool,
         average_packet_delay_duration: Duration,
         average_ack_delay_duration: Duration,
     ) -> Self {
         Self::new_with_rng(
             DEFAULT_RNG,
             ack_recipient,
+            should_pad,
             average_packet_delay_duration,
             average_ack_delay_duration,
         )
@@ -115,7 +125,12 @@ impl MessageChunker<DefaultRng> {
             DestinationAddressBytes::from_bytes(empty_address),
             NodeAddressBytes::from_bytes(empty_address),
         );
-        Self::new(empty_recipient, Default::default(), Default::default())
+        Self::new(
+            empty_recipient,
+            false,
+            Default::default(),
+            Default::default(),
+        )
     }
 }
 
@@ -123,12 +138,14 @@ impl<R: CryptoRng + Rng> MessageChunker<R> {
     pub fn new_with_rng(
         rng: R,
         ack_recipient: Recipient,
+        should_pad: bool,
         average_packet_delay_duration: Duration,
         average_ack_delay_duration: Duration,
     ) -> Self {
         MessageChunker {
             rng,
             ack_recipient,
+            should_pad,
             packet_size: Default::default(),
             reply_surbs: false,
             average_packet_delay_duration,
@@ -219,10 +236,104 @@ impl<R: CryptoRng + Rng> MessageChunker<R> {
             &mut self.rng,
             &self.ack_recipient,
             ack_key,
-            &fragment_id.to_bytes(),
+            fragment_id.to_bytes(),
             self.average_ack_delay_duration,
             topology,
         )
+    }
+
+    /// Returns number of fragments the message will be split to as well as number of available
+    /// bytes in the final fragment
+    pub fn number_of_required_fragments(
+        message_len: usize,
+        plaintext_per_fragment: usize,
+    ) -> (usize, usize) {
+        let max_unlinked = unlinked_fragment_payload_max_len(plaintext_per_fragment);
+        let max_linked = linked_fragment_payload_max_len(plaintext_per_fragment);
+
+        match set::total_number_of_sets(message_len, plaintext_per_fragment) {
+            n if n == 1 => {
+                // is if it's a single fragment message
+                if message_len < max_unlinked {
+                    return (1, max_unlinked - message_len);
+                }
+
+                // all fragments will be 'unlinked'
+                let quot = message_len / max_unlinked;
+                let rem = message_len % max_unlinked;
+
+                if rem == 0 {
+                    (quot, 0)
+                } else {
+                    (quot + 1, max_unlinked - rem)
+                }
+            }
+
+            n => {
+                // in first and last set there will be one 'linked' fragment
+                // and two 'linked' fragment in every other set, meaning
+                // there will be 2 * (n - 2) + 2 = 2n - 2 'linked' fragments total
+                // rest will be 'unlinked'
+
+                // we know for sure that all fragments in all but last set are definitely full
+                // (last one has single 'linked' fragment)
+                let without_last = (n - 1) * (u8::max_value() as usize);
+                let linked_fragments_without_last = (2 * n - 2) - 1;
+                let unlinked_fragments_without_last = without_last - linked_fragments_without_last;
+
+                let final_set_message_len = message_len
+                    - linked_fragments_without_last * max_linked
+                    - unlinked_fragments_without_last * max_unlinked;
+
+                // we must be careful with the last set as it might be the case that it only
+                // consists of a single, linked, non-full fragment
+                if final_set_message_len < max_linked {
+                    return (without_last + 1, max_linked - final_set_message_len);
+                } else if final_set_message_len == max_linked {
+                    return (without_last + 1, 0);
+                }
+
+                let remaining_len = final_set_message_len - max_linked;
+
+                let quot = remaining_len / max_unlinked;
+                let rem = remaining_len % max_unlinked;
+
+                if rem == 0 {
+                    (without_last + quot + 1, 0)
+                } else {
+                    (without_last + quot + 2, max_unlinked - rem)
+                }
+            }
+        }
+    }
+
+    /// Takes the entire message and splits it into bytes chunks that will fit into sphinx packets
+    /// after attaching SURB-ACK, such that the payload of the sphinx packet will be fully
+    /// used up.
+    /// After receiving they can be combined using `reconstruction::MessageReconstructor`
+    /// to obtain the original message back.
+    pub fn split_message_to_constant_length_chunks(&mut self, message: &[u8]) -> Vec<Fragment> {
+        let available_plaintext_per_fragment = self.available_plaintext_size();
+
+        // 1 is added as there will always have to be at least a single byte of padding (1) added
+        // to be able to later remove the padding
+        let (_, space_left) =
+            Self::number_of_required_fragments(message.len() + 1, available_plaintext_per_fragment);
+
+        // TODO: this makes copy of all data and so will a fragment chunker,
+        // so a tiny optimization would be to make all
+        // methods using this value, i.e. take Vec<u8> rather than &[u8]
+        let message: Vec<_> = message
+            .iter()
+            .cloned()
+            .chain(std::iter::once(1u8))
+            .chain(std::iter::repeat(0u8).take(space_left))
+            .collect();
+
+        split_into_sets(&mut self.rng, &message, available_plaintext_per_fragment)
+            .into_iter()
+            .flat_map(|fragment_set| fragment_set.into_iter())
+            .collect()
     }
 
     /// Takes the entire message and splits it into bytes chunks that will fit into sphinx packets
@@ -230,11 +341,154 @@ impl<R: CryptoRng + Rng> MessageChunker<R> {
     /// After receiving they can be combined using `reconstruction::MessageReconstructor`
     /// to obtain the original message back.
     pub fn split_message(&mut self, message: &[u8]) -> Vec<Fragment> {
-        let available_plaintext_per_fragment = self.available_plaintext_size();
+        if self.should_pad {
+            self.split_message_to_constant_length_chunks(message)
+        } else {
+            let available_plaintext_per_fragment = self.available_plaintext_size();
 
-        split_into_sets(&mut self.rng, message, available_plaintext_per_fragment)
-            .into_iter()
-            .flat_map(|fragment_set| fragment_set.into_iter())
-            .collect()
+            split_into_sets(&mut self.rng, &message, available_plaintext_per_fragment)
+                .into_iter()
+                .flat_map(|fragment_set| fragment_set.into_iter())
+                .collect()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::set::{max_one_way_linked_set_payload_length, two_way_linked_set_payload_length};
+
+    #[test]
+    fn calculating_number_of_required_fragments() {
+        // plaintext len should not affect this at all, but let's test it with something tiny
+        // and reasonable
+        let used_plaintext_len = PacketSize::default().plaintext_size()
+            - PacketSize::ACKPacket.size()
+            - MAX_NODE_ADDRESS_UNPADDED_LEN;
+
+        let plaintext_lens = vec![17, used_plaintext_len, 20, 42, 10000];
+        const SET_LEN: usize = u8::max_value() as usize;
+
+        for plaintext_len in plaintext_lens {
+            let unlinked_len = unlinked_fragment_payload_max_len(plaintext_len);
+            let linked_len = linked_fragment_payload_max_len(plaintext_len);
+            let full_edge_set = max_one_way_linked_set_payload_length(plaintext_len);
+            let full_middle_set = two_way_linked_set_payload_length(plaintext_len);
+
+            let single_non_full_frag_message_len = unlinked_len - 5;
+            let (frags, space_left) = MessageChunker::<DefaultRng>::number_of_required_fragments(
+                single_non_full_frag_message_len,
+                plaintext_len,
+            );
+            assert_eq!(frags, 1);
+            assert_eq!(space_left, unlinked_len - single_non_full_frag_message_len);
+
+            let single_full_frag_message_len = unlinked_len;
+            let (frags, space_left) = MessageChunker::<DefaultRng>::number_of_required_fragments(
+                single_full_frag_message_len,
+                plaintext_len,
+            );
+            assert_eq!(frags, 1);
+            assert_eq!(space_left, 0);
+
+            let two_non_full_frags_len = unlinked_len + 1;
+            let (frags, space_left) = MessageChunker::<DefaultRng>::number_of_required_fragments(
+                two_non_full_frags_len,
+                plaintext_len,
+            );
+            assert_eq!(frags, 2);
+            assert_eq!(space_left, unlinked_len - 1);
+
+            let two_full_frags_len = 2 * unlinked_len;
+            let (frags, space_left) = MessageChunker::<DefaultRng>::number_of_required_fragments(
+                two_full_frags_len,
+                plaintext_len,
+            );
+            assert_eq!(frags, 2);
+            assert_eq!(space_left, 0);
+
+            let multi_single_set_frags_non_full = unlinked_len * 42 - 5;
+            let (frags, space_left) = MessageChunker::<DefaultRng>::number_of_required_fragments(
+                multi_single_set_frags_non_full,
+                plaintext_len,
+            );
+            assert_eq!(frags, 42);
+            assert_eq!(space_left, 5);
+
+            let multi_single_set_frags_full = unlinked_len * 42;
+            let (frags, space_left) = MessageChunker::<DefaultRng>::number_of_required_fragments(
+                multi_single_set_frags_full,
+                plaintext_len,
+            );
+            assert_eq!(frags, 42);
+            assert_eq!(space_left, 0);
+
+            let two_set_one_non_full_frag = full_edge_set + linked_len - 1;
+            let (frags, space_left) = MessageChunker::<DefaultRng>::number_of_required_fragments(
+                two_set_one_non_full_frag,
+                plaintext_len,
+            );
+            assert_eq!(frags, SET_LEN + 1);
+            assert_eq!(space_left, 1);
+
+            let two_set_one_full_frag = full_edge_set + linked_len;
+            let (frags, space_left) = MessageChunker::<DefaultRng>::number_of_required_fragments(
+                two_set_one_full_frag,
+                plaintext_len,
+            );
+            assert_eq!(frags, SET_LEN + 1);
+            assert_eq!(space_left, 0);
+
+            let two_set_multi_frags_non_full = full_edge_set + linked_len + unlinked_len * 41 - 5;
+            let (frags, space_left) = MessageChunker::<DefaultRng>::number_of_required_fragments(
+                two_set_multi_frags_non_full,
+                plaintext_len,
+            );
+            assert_eq!(frags, SET_LEN + 42);
+            assert_eq!(space_left, 5);
+
+            let two_set_multi_frags_full = full_edge_set + linked_len + unlinked_len * 41;
+            let (frags, space_left) = MessageChunker::<DefaultRng>::number_of_required_fragments(
+                two_set_multi_frags_full,
+                plaintext_len,
+            );
+            assert_eq!(frags, SET_LEN + 42);
+            assert_eq!(space_left, 0);
+
+            let ten_set_one_non_full_frag = full_edge_set + 8 * full_middle_set + linked_len - 1;
+            let (frags, space_left) = MessageChunker::<DefaultRng>::number_of_required_fragments(
+                ten_set_one_non_full_frag,
+                plaintext_len,
+            );
+            assert_eq!(frags, 9 * SET_LEN + 1);
+            assert_eq!(space_left, 1);
+
+            let ten_set_one_full_frag = full_edge_set + 8 * full_middle_set + linked_len;
+            let (frags, space_left) = MessageChunker::<DefaultRng>::number_of_required_fragments(
+                ten_set_one_full_frag,
+                plaintext_len,
+            );
+            assert_eq!(frags, 9 * SET_LEN + 1);
+            assert_eq!(space_left, 0);
+
+            let ten_set_multi_frags_non_full =
+                full_edge_set + 8 * full_middle_set + linked_len + 41 * unlinked_len - 5;
+            let (frags, space_left) = MessageChunker::<DefaultRng>::number_of_required_fragments(
+                ten_set_multi_frags_non_full,
+                plaintext_len,
+            );
+            assert_eq!(frags, 9 * SET_LEN + 42);
+            assert_eq!(space_left, 5);
+
+            let ten_set_multi_frags_full =
+                full_edge_set + 8 * full_middle_set + linked_len + 41 * unlinked_len;
+            let (frags, space_left) = MessageChunker::<DefaultRng>::number_of_required_fragments(
+                ten_set_multi_frags_full,
+                plaintext_len,
+            );
+            assert_eq!(frags, 9 * SET_LEN + 42);
+            assert_eq!(space_left, 0);
+        }
     }
 }

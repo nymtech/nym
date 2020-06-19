@@ -70,7 +70,7 @@ where
         rng,
         full_address,
         ack_key,
-        &COVER_FRAG_ID.to_bytes(),
+        COVER_FRAG_ID.to_bytes(),
         average_ack_delay,
         topology,
     )?)
@@ -93,9 +93,16 @@ where
         generate_loop_cover_surb_ack(rng, topology, ack_key, full_address, average_ack_delay)?
             .prepare_for_sending();
 
+    let plaintext_size = PacketSize::default().plaintext_size();
+
     let cover_payload: Vec<_> = ack_bytes
         .into_iter()
         .chain(LOOP_COVER_MESSAGE_PAYLOAD.into_iter().cloned())
+        // let's be lazy about it (temporarily! because cover messages will need to be encrypted)
+        // TODO: to remember: encrypt cover messages
+        .chain(std::iter::once(1))
+        .chain(std::iter::repeat(0))
+        .take(plaintext_size)
         .collect();
 
     let route = topology.random_route_to_gateway(&full_address.gateway())?;
@@ -113,4 +120,65 @@ where
         NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone()).unwrap();
 
     Ok((first_hop_address.into(), packet))
+}
+
+/// Helper function used to determine if given message represents a loop cover message.
+// It kinda seems like there must exist "prefix" or "starts_with" method for bytes
+// or something, but I couldn't find anything
+pub fn is_cover(data: &[u8]) -> bool {
+    if data.len() < LOOP_COVER_MESSAGE_PAYLOAD.len() {
+        return false;
+    }
+
+    for i in 0..LOOP_COVER_MESSAGE_PAYLOAD.len() {
+        if data[i] != LOOP_COVER_MESSAGE_PAYLOAD[i] {
+            return false;
+        }
+    }
+
+    true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_cover_works_for_identical_input() {
+        assert!(is_cover(&LOOP_COVER_MESSAGE_PAYLOAD))
+    }
+
+    #[test]
+    fn is_cover_works_for_longer_input() {
+        let input: Vec<_> = LOOP_COVER_MESSAGE_PAYLOAD
+            .iter()
+            .cloned()
+            .chain(std::iter::repeat(42).take(100))
+            .collect();
+        assert!(is_cover(&input))
+    }
+
+    #[test]
+    fn is_cover_returns_false_for_unrelated_input() {
+        // make sure the length checks out
+        let input: Vec<_> = LOOP_COVER_MESSAGE_PAYLOAD.iter().map(|_| 42).collect();
+        assert!(!is_cover(&input))
+    }
+
+    #[test]
+    fn is_cover_returns_false_for_part_of_correct_input() {
+        let input: Vec<_> = LOOP_COVER_MESSAGE_PAYLOAD
+            .iter()
+            .cloned()
+            .take(LOOP_COVER_MESSAGE_PAYLOAD.len() - 1)
+            .chain(std::iter::once(42))
+            .collect();
+        assert!(!is_cover(&input))
+    }
+
+    #[test]
+    fn is_cover_returns_false_for_empty_input() {
+        let empty = Vec::new();
+        assert!(!is_cover(&empty))
+    }
 }

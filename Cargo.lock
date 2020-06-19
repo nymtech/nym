@@ -1097,26 +1097,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "healthcheck"
-version = "0.1.0"
-dependencies = [
- "crypto",
- "directory-client",
- "futures 0.3.4",
- "itertools",
- "log 0.4.8",
- "mixnet-client",
- "nymsphinx",
- "pretty_env_logger",
- "rand 0.7.3",
- "rand_os",
- "serde",
- "serde_derive",
- "tokio 0.2.16",
- "topology",
-]
-
-[[package]]
 name = "hermit-abi"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1880,7 +1860,6 @@ dependencies = [
  "dirs",
  "dotenv",
  "futures 0.3.4",
- "healthcheck",
  "iron",
  "log 0.4.8",
  "pretty_env_logger",

@@ -150,6 +150,7 @@ impl ReconstructionBuffer {
 /// returning original messages that they encapsulate.
 #[derive(Default, PartialEq, Debug, Clone)]
 pub struct MessageReconstructor {
+    expects_padding: bool,
     // TODO: some cleaner thread/routine that if message is incomplete and
     // we haven't received any fragments in X time, we assume they
     // were lost and message can't be restored.
@@ -163,8 +164,11 @@ pub struct MessageReconstructor {
 
 impl MessageReconstructor {
     /// Creates an empty `MessageReconstructor`.
-    pub fn new() -> Self {
-        Default::default()
+    pub fn new(expects_padding: bool) -> Self {
+        MessageReconstructor {
+            expects_padding,
+            reconstructed_sets: HashMap::new(),
+        }
     }
 
     /// Given fully received set of given `id`, if it has any post-linked sets, recursively
@@ -266,13 +270,26 @@ impl MessageReconstructor {
         let set_id_sequence: Vec<_> =
             std::iter::successors(Some(starting_id), |&id| self.next_linked_set_id(id)).collect();
 
-        let message_content = set_id_sequence
+        let message_content: Vec<_> = set_id_sequence
             .iter()
             .map(|&id| self.extract_set_payload(id))
             .flat_map(|payload| payload.into_iter())
             .collect();
 
-        (message_content, set_id_sequence)
+        if self.expects_padding {
+            // remove padding
+            // we are looking for first occurrence of 1 in the tail and we get its index
+            if let Some(i) = message_content.iter().rposition(|b| *b == 1) {
+                // and now we only take bytes until that point (but not including it)
+                let unpadded_content = message_content.into_iter().take(i).collect();
+                (unpadded_content, set_id_sequence)
+            } else {
+                error!("received unpadded message!");
+                (message_content, set_id_sequence)
+            }
+        } else {
+            (message_content, set_id_sequence)
+        }
     }
 
     /// Given recovered `Fragment`, tries to insert it into an appropriate `ReconstructionBuffer`.
@@ -539,7 +556,7 @@ mod message_reconstructor {
     #[should_panic]
     fn checking_front_chain_is_not_allowed_for_incomplete_sets() {
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
 
         let message =
             vec![
@@ -580,7 +597,7 @@ mod message_reconstructor {
     #[should_panic]
     fn checking_back_chain_is_not_allowed_for_incomplete_sets() {
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
 
         let message = vec![
             42u8;
@@ -625,7 +642,7 @@ mod message_reconstructor {
     #[test]
     fn checking_front_chain_returns_false_for_complete_set_but_incomplete_message() {
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
 
         let message =
             vec![
@@ -673,7 +690,7 @@ mod message_reconstructor {
     #[test]
     fn checking_back_chain_returns_false_for_complete_set_but_incomplete_message() {
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
 
         let message =
             vec![
@@ -715,7 +732,7 @@ mod message_reconstructor {
     fn checking_front_chain_returns_true_for_if_there_are_no_more_front_sets() {
         // case of 2 sets: [id1 -- id2], where id1 is completed and being checked
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
 
         let message =
             vec![
@@ -757,7 +774,7 @@ mod message_reconstructor {
     fn checking_back_chain_returns_true_for_if_there_are_no_more_back_sets() {
         // case of 2 sets: [id1 -- id2], where id2 is completed and being checked
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
 
         let message = vec![
             42u8;
@@ -798,7 +815,7 @@ mod message_reconstructor {
     fn checking_front_chain_returns_true_for_complete_front_chain() {
         // case of 3 sets: [id1 -- id2 -- id3], where id1 and id2 are completed and id2 is being checked
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
 
         let message =
             vec![
@@ -841,7 +858,7 @@ mod message_reconstructor {
     fn checking_back_chain_returns_true_for_complete_back_chain() {
         // case of 3 sets: [id1 -- id2 -- id3], where id2 and id3 are completed and id2 is being checked
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
 
         let message =
             vec![
@@ -881,13 +898,13 @@ mod message_reconstructor {
 
     #[test]
     fn checking_if_set_is_fully_received_returns_false_if_no_fragments_were_ever_received() {
-        let reconstructor = MessageReconstructor::new();
+        let reconstructor = MessageReconstructor::default();
         assert!(!reconstructor.is_set_fully_received(12345));
     }
 
     #[test]
     fn checking_if_set_is_fully_received_if_exists_returns_whatever_is_complete_flag_is_set_to() {
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
         reconstructor.reconstructed_sets.insert(
             12345,
             ReconstructionBuffer {
@@ -915,7 +932,7 @@ mod message_reconstructor {
     #[test]
     fn finding_starting_set_id_returns_none_if_message_was_not_fully_received() {
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
 
         let message1 = vec![
             42u8;
@@ -990,7 +1007,7 @@ mod message_reconstructor {
     #[test]
     fn finding_starting_set_id_returns_expected_starting_id() {
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
 
         let message =
             vec![
@@ -1076,7 +1093,7 @@ mod message_reconstructor {
     #[should_panic]
     fn getting_previous_linked_set_id_is_not_allowed_for_incomplete_sets() {
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
 
         let message =
             vec![
@@ -1109,7 +1126,7 @@ mod message_reconstructor {
 
     #[test]
     fn getting_previous_linked_set_id_returns_id_of_previous_set() {
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
         reconstructor.reconstructed_sets.insert(
             12345,
             ReconstructionBuffer {
@@ -1136,7 +1153,7 @@ mod message_reconstructor {
     #[should_panic]
     fn getting_next_linked_set_id_is_not_allowed_for_incomplete_sets() {
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
 
         let message =
             vec![
@@ -1169,7 +1186,7 @@ mod message_reconstructor {
 
     #[test]
     fn getting_next_linked_set_id_returns_id_of_next_set() {
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
         reconstructor.reconstructed_sets.insert(
             12345,
             ReconstructionBuffer {
@@ -1196,7 +1213,7 @@ mod message_reconstructor {
     #[should_panic]
     fn extracting_set_payload_is_not_allowed_for_incomplete_sets() {
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
 
         let message =
             vec![
@@ -1230,7 +1247,7 @@ mod message_reconstructor {
     #[test]
     fn extracting_set_payload_is_returns_entire_set_data() {
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
         let mut set_buf = ReconstructionBuffer::new(3);
         let mut rng = thread_rng();
 
@@ -1265,7 +1282,7 @@ mod message_reconstructor {
     fn reconstructing_message_for_single_set_is_equivalent_to_extracting_set_payload() {
         // we're inserting this via the buffer approach as not to trigger immediate re-assembly
         let mut message_chunker = MessageChunker::test_fixture();
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
         let mut set_buf = ReconstructionBuffer::new(3);
         let mut rng = thread_rng();
 
@@ -1304,7 +1321,7 @@ mod message_reconstructor {
         let mut message_chunker = MessageChunker::test_fixture();
 
         // we're inserting this via the buffer approach as not to trigger immediate re-assembly
-        let mut reconstructor = MessageReconstructor::new();
+        let mut reconstructor = MessageReconstructor::default();
         let mut set_buf1 = ReconstructionBuffer::new(u8::max_value());
         let mut set_buf2 = ReconstructionBuffer::new(1);
 
@@ -1358,13 +1375,13 @@ mod message_reconstructor {
     #[test]
     fn adding_invalid_fragment_does_not_change_reconstructor_state() {
         let mut message_chunker = MessageChunker::test_fixture();
-        let empty_reconstructor = MessageReconstructor::new();
+        let empty_reconstructor = MessageReconstructor::default();
         assert!(empty_reconstructor
             .recover_fragment([24u8; 43].to_vec())
             .is_err());
-        assert_eq!(empty_reconstructor, MessageReconstructor::new());
+        assert_eq!(empty_reconstructor, MessageReconstructor::default());
 
-        let mut reconstructor_with_data = MessageReconstructor::new();
+        let mut reconstructor_with_data = MessageReconstructor::default();
         let dummy_message =
             vec![
                 24u8;
@@ -1422,7 +1439,7 @@ mod message_reconstruction {
                 .collect();
             assert_eq!(fragment.len(), 1);
 
-            let mut message_reconstructor = MessageReconstructor::new();
+            let mut message_reconstructor = MessageReconstructor::default();
             let reconstructed_message = message_reconstructor
                 .insert_new_fragment(
                     message_reconstructor
@@ -1454,7 +1471,7 @@ mod message_reconstruction {
                 .collect();
             assert_eq!(fragment.len(), 1);
 
-            let mut message_reconstructor = MessageReconstructor::new();
+            let mut message_reconstructor = MessageReconstructor::default();
             let reconstructed_message = message_reconstructor
                 .insert_new_fragment(
                     message_reconstructor
@@ -1487,7 +1504,7 @@ mod message_reconstruction {
                 .collect();
             assert_eq!(fragments.len(), 2);
 
-            let mut message_reconstructor = MessageReconstructor::new();
+            let mut message_reconstructor = MessageReconstructor::default();
             assert!(message_reconstructor
                 .insert_new_fragment(
                     message_reconstructor
@@ -1528,7 +1545,7 @@ mod message_reconstruction {
                 .collect();
             assert_eq!(fragments.len(), 2);
 
-            let mut message_reconstructor = MessageReconstructor::new();
+            let mut message_reconstructor = MessageReconstructor::default();
             assert!(message_reconstructor
                 .insert_new_fragment(
                     message_reconstructor
@@ -1569,7 +1586,7 @@ mod message_reconstruction {
                 .collect();
             assert_eq!(fragments.len(), 30);
 
-            let mut message_reconstructor = MessageReconstructor::new();
+            let mut message_reconstructor = MessageReconstructor::default();
             for i in 0..29 {
                 assert!(message_reconstructor
                     .insert_new_fragment(
@@ -1615,7 +1632,7 @@ mod message_reconstruction {
             // shuffle the fragments
             fragments.shuffle(&mut rng);
 
-            let mut message_reconstructor = MessageReconstructor::new();
+            let mut message_reconstructor = MessageReconstructor::default();
             for i in 0..29 {
                 assert!(message_reconstructor
                     .insert_new_fragment(
@@ -1672,7 +1689,7 @@ mod message_reconstruction {
             let fragments = fragments1;
             assert_eq!(fragments.len(), 60);
 
-            let mut message_reconstructor = MessageReconstructor::new();
+            let mut message_reconstructor = MessageReconstructor::default();
             for fragment in fragments {
                 if let Some(reconstructed_msg) = message_reconstructor.insert_new_fragment(
                     message_reconstructor
@@ -1721,7 +1738,7 @@ mod message_reconstruction {
             let fragments = fragments1;
             assert_eq!(fragments.len(), (u8::max_value() as usize) * 2);
 
-            let mut message_reconstructor = MessageReconstructor::new();
+            let mut message_reconstructor = MessageReconstructor::default();
             for fragment in fragments.into_iter() {
                 if let Some(reconstructed_msg) = message_reconstructor.insert_new_fragment(
                     message_reconstructor
@@ -1767,7 +1784,7 @@ mod message_reconstruction {
             // shuffle the fragments
             fragments.shuffle(&mut rng);
 
-            let mut message_reconstructor = MessageReconstructor::new();
+            let mut message_reconstructor = MessageReconstructor::default();
             let mut finished_reconstruction = false;
             for fragment in fragments.into_iter() {
                 if finished_reconstruction {
@@ -1808,7 +1825,7 @@ mod message_reconstruction {
             // shuffle the fragments
             fragments.shuffle(&mut rng);
 
-            let mut message_reconstructor = MessageReconstructor::new();
+            let mut message_reconstructor = MessageReconstructor::default();
             let mut finished_reconstruction = false;
             for fragment in fragments.into_iter() {
                 if finished_reconstruction {
@@ -1850,7 +1867,7 @@ mod message_reconstruction {
             // shuffle the fragments
             fragments.shuffle(&mut rng);
 
-            let mut message_reconstructor = MessageReconstructor::new();
+            let mut message_reconstructor = MessageReconstructor::default();
             let mut finished_reconstruction = false;
             for fragment in fragments.into_iter() {
                 if finished_reconstruction {
@@ -1906,7 +1923,7 @@ mod message_reconstruction {
             let fragments = fragments1;
             assert_eq!(fragments.len(), (u8::max_value() as usize) * 8);
 
-            let mut message_reconstructor = MessageReconstructor::new();
+            let mut message_reconstructor = MessageReconstructor::default();
             for fragment in fragments.into_iter() {
                 if let Some(msg) = message_reconstructor.insert_new_fragment(
                     message_reconstructor

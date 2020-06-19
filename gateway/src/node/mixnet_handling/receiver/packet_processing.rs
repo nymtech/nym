@@ -171,7 +171,7 @@ impl PacketProcessor {
 
         // JS: I think this would never get called anyway, because if loop cover messages are sent
         // it means client is online and hence all his messages should be pushed directly to him?
-        if message == LOOP_COVER_MESSAGE_PAYLOAD {
+        if nymsphinx::cover::is_cover(&message) {
             debug!("Received a loop cover message - not going to store it");
             return Ok(());
         }

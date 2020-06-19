@@ -132,6 +132,7 @@ where
         let message_chunker = MessageChunker::new_with_rng(
             rng,
             ack_recipient.clone(),
+            true,
             average_packet_delay_duration,
             average_ack_delay_duration,
         );

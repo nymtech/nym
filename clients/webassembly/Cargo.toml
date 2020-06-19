@@ -6,6 +6,7 @@ edition = "2018"
 keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy", "client"]
 license = "Apache-2.0"
 repository = "https://github.com/nymtech/nym"
+description = "A webassembly client which can be used to interact with the the Nym privacy platform. Wasm is used for Sphinx packet generation."
 
 [lib]
 crate-type = ["cdylib", "rlib"]

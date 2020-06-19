@@ -13,13 +13,32 @@
 // limitations under the License.
 
 use crate::{PemStorableKey, PemStorableKeyPair};
-use curve25519_dalek::montgomery::MontgomeryPoint;
-use curve25519_dalek::scalar::Scalar;
-use rand_core::OsRng;
+use rand::{rngs::OsRng, CryptoRng, RngCore};
+use std::fmt::{self, Display, Formatter};
 
-// TODO: ensure this is a proper name for this considering we are not implementing entire DH here
+/// Size of a X25519 private key
+pub const PRIVATE_KEY_SIZE: usize = 32;
 
-const CURVE_GENERATOR: MontgomeryPoint = curve25519_dalek::constants::X25519_BASEPOINT;
+/// Size of a X25519 public key
+pub const PUBLIC_KEY_SIZE: usize = 32;
+
+#[derive(Debug)]
+pub enum EncryptionKeyError {
+    InvalidPublicKey,
+    InvalidPrivateKey,
+}
+
+// required for std::error::Error
+impl Display for EncryptionKeyError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            EncryptionKeyError::InvalidPrivateKey => write!(f, "Invalid private key"),
+            EncryptionKeyError::InvalidPublicKey => write!(f, "Invalid public key"),
+        }
+    }
+}
+
+impl std::error::Error for EncryptionKeyError {}
 
 pub struct KeyPair {
     pub(crate) private_key: PrivateKey,
@@ -29,12 +48,16 @@ pub struct KeyPair {
 impl KeyPair {
     pub fn new() -> Self {
         let mut rng = OsRng;
-        let private_key_value = Scalar::random(&mut rng);
-        let public_key_value = CURVE_GENERATOR * private_key_value;
+        Self::new_with_rng(&mut rng)
+    }
+
+    pub fn new_with_rng<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+        let private_key = x25519_dalek::StaticSecret::new(rng);
+        let public_key = (&private_key).into();
 
         KeyPair {
-            private_key: PrivateKey(private_key_value),
-            public_key: PublicKey(public_key_value),
+            private_key: PrivateKey(private_key),
+            public_key: PublicKey(public_key),
         }
     }
 
@@ -46,11 +69,11 @@ impl KeyPair {
         &self.public_key
     }
 
-    pub fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self {
-        KeyPair {
-            private_key: PrivateKey::from_bytes(priv_bytes),
-            public_key: PublicKey::from_bytes(pub_bytes),
-        }
+    pub fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, EncryptionKeyError> {
+        Ok(KeyPair {
+            private_key: PrivateKey::from_bytes(priv_bytes)?,
+            public_key: PublicKey::from_bytes(pub_bytes)?,
+        })
     }
 }
 
@@ -63,7 +86,7 @@ impl Default for KeyPair {
 impl PemStorableKeyPair for KeyPair {
     type PrivatePemKey = PrivateKey;
     type PublicPemKey = PublicKey;
-    type Error = std::io::Error; // rather tmp I'd guess
+    type Error = EncryptionKeyError;
 
     fn private_key(&self) -> &Self::PrivatePemKey {
         self.private_key()
@@ -73,73 +96,37 @@ impl PemStorableKeyPair for KeyPair {
         self.public_key()
     }
 
-    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, std::io::Error> {
-        Ok(Self::from_bytes(priv_bytes, pub_bytes))
+    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, EncryptionKeyError> {
+        Self::from_bytes(priv_bytes, pub_bytes)
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct PrivateKey(pub Scalar);
-
-impl PrivateKey {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.0.to_bytes().to_vec()
-    }
-
-    pub fn from_bytes(b: &[u8]) -> Self {
-        let mut bytes = [0; 32];
-        bytes.copy_from_slice(&b[..]);
-        // due to trait restriction we have no choice but to panic if this fails
-        let key = Scalar::from_canonical_bytes(bytes).unwrap();
-        Self(key)
-    }
-
-    pub fn inner(&self) -> Scalar {
-        self.0
-    }
-}
-
-impl PemStorableKey for PrivateKey {
-    fn pem_type(&self) -> String {
-        String::from("X25519 PRIVATE KEY")
-    }
-
-    fn to_bytes(&self) -> Vec<u8> {
-        self.to_bytes()
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct PublicKey(pub MontgomeryPoint);
-
-impl<'a> From<&'a PrivateKey> for PublicKey {
-    fn from(pk: &'a PrivateKey) -> Self {
-        PublicKey(CURVE_GENERATOR * pk.0)
-    }
-}
+#[derive(Debug, Clone)]
+pub struct PublicKey(x25519_dalek::PublicKey);
 
 impl PublicKey {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.0.to_bytes().to_vec()
+    pub fn to_bytes(&self) -> [u8; PUBLIC_KEY_SIZE] {
+        *self.0.as_bytes()
     }
 
-    pub fn from_bytes(b: &[u8]) -> Self {
-        let mut bytes = [0; 32];
-        bytes.copy_from_slice(&b[..]);
-        let key = MontgomeryPoint(bytes);
-        Self(key)
-    }
-
-    pub fn inner(&self) -> MontgomeryPoint {
-        self.0
+    pub fn from_bytes(b: &[u8]) -> Result<Self, EncryptionKeyError> {
+        if b.len() != PUBLIC_KEY_SIZE {
+            return Err(EncryptionKeyError::InvalidPublicKey);
+        }
+        let mut bytes = [0; PUBLIC_KEY_SIZE];
+        bytes.copy_from_slice(&b[..PUBLIC_KEY_SIZE]);
+        Ok(Self(x25519_dalek::PublicKey::from(bytes)))
     }
 
     pub fn to_base58_string(&self) -> String {
         bs58::encode(&self.to_bytes()).into_string()
     }
 
-    pub fn from_base58_string(val: String) -> Self {
-        Self::from_bytes(&bs58::decode(&val).into_vec().unwrap())
+    pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, EncryptionKeyError> {
+        let bytes = bs58::decode(val.into())
+            .into_vec()
+            .expect("TODO: deal with this failure case");
+        Self::from_bytes(&bytes)
     }
 }
 
@@ -149,6 +136,130 @@ impl PemStorableKey for PublicKey {
     }
 
     fn to_bytes(&self) -> Vec<u8> {
-        self.to_bytes()
+        self.to_bytes().to_vec()
+    }
+}
+
+#[derive(Clone)]
+pub struct PrivateKey(x25519_dalek::StaticSecret);
+
+impl<'a> From<&'a PrivateKey> for PublicKey {
+    fn from(pk: &'a PrivateKey) -> Self {
+        PublicKey((&pk.0).into())
+    }
+}
+
+impl PrivateKey {
+    pub fn to_bytes(&self) -> [u8; PRIVATE_KEY_SIZE] {
+        self.0.to_bytes()
+    }
+
+    pub fn from_bytes(b: &[u8]) -> Result<Self, EncryptionKeyError> {
+        if b.len() != PRIVATE_KEY_SIZE {
+            return Err(EncryptionKeyError::InvalidPrivateKey);
+        }
+        let mut bytes = [0; 32];
+        bytes.copy_from_slice(&b[..PRIVATE_KEY_SIZE]);
+        Ok(Self(x25519_dalek::StaticSecret::from(bytes)))
+    }
+
+    pub fn to_base58_string(&self) -> String {
+        bs58::encode(&self.to_bytes()).into_string()
+    }
+
+    pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, EncryptionKeyError> {
+        let bytes = bs58::decode(val.into())
+            .into_vec()
+            .expect("TODO: deal with this failure case");
+        Self::from_bytes(&bytes)
+    }
+}
+
+impl PemStorableKey for PrivateKey {
+    fn pem_type(&self) -> String {
+        String::from("X25519 PRIVATE KEY")
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_bytes().to_vec()
+    }
+}
+
+// compatibility with sphinx keys:
+
+impl Into<nymsphinx::PublicKey> for PublicKey {
+    fn into(self) -> nymsphinx::PublicKey {
+        nymsphinx::PublicKey::from(self.to_bytes())
+    }
+}
+
+impl From<nymsphinx::PublicKey> for PublicKey {
+    fn from(pub_key: nymsphinx::PublicKey) -> Self {
+        Self(x25519_dalek::PublicKey::from(*pub_key.as_bytes()))
+    }
+}
+
+impl Into<nymsphinx::PrivateKey> for PrivateKey {
+    fn into(self) -> nymsphinx::PrivateKey {
+        nymsphinx::PrivateKey::from(self.to_bytes())
+    }
+}
+
+impl<'a> Into<nymsphinx::PrivateKey> for &'a PrivateKey {
+    fn into(self) -> nymsphinx::PrivateKey {
+        nymsphinx::PrivateKey::from(self.to_bytes())
+    }
+}
+
+impl From<nymsphinx::PrivateKey> for PrivateKey {
+    fn from(private_key: nymsphinx::PrivateKey) -> Self {
+        let private_key_bytes = private_key.to_bytes();
+        assert_eq!(private_key_bytes.len(), PRIVATE_KEY_SIZE);
+        Self::from_bytes(&private_key_bytes).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod sphinx_key_conversion {
+    use super::*;
+
+    const NUM_ITERATIONS: usize = 100;
+
+    #[test]
+    fn works_for_forward_conversion() {
+        for _ in 0..NUM_ITERATIONS {
+            let keys = KeyPair::new();
+            let private = keys.private_key;
+            let public = keys.public_key;
+
+            let private_bytes = private.to_bytes();
+            let public_bytes = public.to_bytes();
+
+            let sphinx_private: nymsphinx::PrivateKey = private.into();
+            let recovered_private = PrivateKey::from(sphinx_private);
+
+            let sphinx_public: nymsphinx::PublicKey = public.into();
+            let recovered_public = PublicKey::from(sphinx_public);
+            assert_eq!(private_bytes, recovered_private.to_bytes());
+            assert_eq!(public_bytes, recovered_public.to_bytes());
+        }
+    }
+
+    #[test]
+    fn works_for_backward_conversion() {
+        for _ in 0..NUM_ITERATIONS {
+            let (sphinx_private, sphinx_public) = nymsphinx::crypto::keygen();
+
+            let private_bytes = sphinx_private.to_bytes();
+            let public_bytes = sphinx_public.as_bytes();
+
+            let private: PrivateKey = sphinx_private.into();
+            let recovered_sphinx_private: nymsphinx::PrivateKey = private.into();
+
+            let public: PublicKey = sphinx_public.into();
+            let recovered_sphinx_public: nymsphinx::PublicKey = public.into();
+            assert_eq!(private_bytes, recovered_sphinx_private.to_bytes());
+            assert_eq!(public_bytes, recovered_sphinx_public.as_bytes());
+        }
     }
 }

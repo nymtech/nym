@@ -17,7 +17,7 @@ use crate::commands::override_config;
 use crate::config::{persistence::pathfinder::ClientPathfinder, Config};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::identity;
+use crypto::asymmetric::identity;
 use pemstore::pemstore::PemStore;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {

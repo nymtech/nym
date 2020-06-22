@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod encryption;
-pub mod identity;
+pub mod asymmetric;
 
 // TODO: ideally those trait should be moved to 'pemstore' crate, however, that would cause
 // circular dependency. The best solution would be to remove dependency on 'crypto' from

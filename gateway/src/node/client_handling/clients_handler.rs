@@ -16,7 +16,7 @@ use crate::node::{
     client_handling::websocket::message_receiver::MixMessageSender,
     storage::{inboxes::ClientStorage, ClientLedger},
 };
-use crypto::encryption;
+use crypto::asymmetric::encryption;
 use futures::{
     channel::{mpsc, oneshot},
     StreamExt,

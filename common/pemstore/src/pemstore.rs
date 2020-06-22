@@ -13,9 +13,8 @@
 // limitations under the License.
 
 use crate::pathfinder::PathFinder;
-use crypto::identity;
-use crypto::PemStorableKey;
-use crypto::{encryption, PemStorableKeyPair};
+use crypto::asymmetric::{encryption, identity};
+use crypto::{PemStorableKey, PemStorableKeyPair};
 use log::info;
 use pem::{encode, parse, Pem};
 use std::fs::File;

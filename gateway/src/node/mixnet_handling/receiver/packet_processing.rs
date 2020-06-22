@@ -18,7 +18,7 @@ use crate::node::client_handling::clients_handler::{
 use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
 use crate::node::mixnet_handling::sender::OutboundMixMessageSender;
 use crate::node::storage::inboxes::{ClientStorage, StoreData};
-use crypto::encryption;
+use crypto::asymmetric::encryption;
 use futures::channel::oneshot;
 use futures::lock::Mutex;
 use log::*;

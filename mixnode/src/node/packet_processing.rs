@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::node::metrics;
-use crypto::encryption;
+use crypto::asymmetric::encryption;
 use log::*;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx::{

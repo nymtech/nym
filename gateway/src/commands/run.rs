@@ -18,7 +18,7 @@ use crate::config::Config;
 use crate::node::Gateway;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::encryption;
+use crypto::asymmetric::encryption;
 use pemstore::pemstore::PemStore;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {

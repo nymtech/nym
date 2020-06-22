@@ -16,7 +16,7 @@ use crate::commands::override_config;
 use crate::config::persistence::pathfinder::MixNodePathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::encryption;
+use crypto::asymmetric::encryption;
 use pemstore::pemstore::PemStore;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {

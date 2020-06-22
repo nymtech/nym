@@ -25,7 +25,7 @@ use wasm_bindgen::prelude::*;
 mod models;
 mod utils;
 
-use crypto::encryption;
+use crypto::asymmetric::encryption;
 pub use models::keys::keygen;
 use nymsphinx::addressing::clients::Recipient;
 use topology::NymTopology;

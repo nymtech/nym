@@ -17,7 +17,7 @@ use crate::node::client_handling::clients_handler::{ClientsHandler, ClientsHandl
 use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::sender::{OutboundMixMessageSender, PacketForwarder};
 use crate::node::storage::{inboxes, ClientLedger};
-use crypto::encryption;
+use crypto::asymmetric::encryption;
 use directory_client::DirectoryClient;
 use log::*;
 use std::sync::Arc;

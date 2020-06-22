@@ -17,7 +17,7 @@ use crate::commands::override_config;
 use crate::config::persistence::pathfinder::ClientPathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::identity;
+use crypto::asymmetric::identity;
 use directory_client::DirectoryClient;
 use gateway_client::GatewayClient;
 use gateway_requests::AuthToken;

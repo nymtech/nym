@@ -24,7 +24,7 @@ use crate::client::topology_control::{
 };
 use crate::config::{Config, SocketType};
 use crate::websocket;
-use crypto::identity;
+use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,

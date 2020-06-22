@@ -15,7 +15,7 @@
 use crate::{PemStorableKey, PemStorableKeyPair};
 use bs58;
 use ed25519_dalek::{SignatureError, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
-use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
+use nymsphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use rand::{rngs::OsRng, CryptoRng, RngCore};
 
 /// Keypair for usage in ed25519 EdDSA.

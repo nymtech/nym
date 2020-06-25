@@ -22,6 +22,9 @@ pub const PRIVATE_KEY_SIZE: usize = 32;
 /// Size of a X25519 public key
 pub const PUBLIC_KEY_SIZE: usize = 32;
 
+/// Size of a X25519 shared secret
+pub const SHARED_SECRET_SIZE: usize = 32;
+
 #[derive(Debug)]
 pub enum EncryptionKeyError {
     InvalidPublicKey,
@@ -172,6 +175,11 @@ impl PrivateKey {
             .into_vec()
             .expect("TODO: deal with this failure case");
         Self::from_bytes(&bytes)
+    }
+
+    /// Perform a key exchange with another public key
+    pub fn diffie_hellman(&self, remote_public: &PublicKey) -> [u8; SHARED_SECRET_SIZE] {
+        *self.0.diffie_hellman(&remote_public.0).as_bytes()
     }
 }
 

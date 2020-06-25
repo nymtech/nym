@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod asymmetric;
+pub mod kdf;
 pub mod symmetric;
 
 // TODO: ideally those trait should be moved to 'pemstore' crate, however, that would cause

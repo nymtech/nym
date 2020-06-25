@@ -12,15 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod auth_token;
-pub mod registration;
-pub mod types;
+pub mod handshake;
 
-pub const DUMMY_MESSAGE_CONTENT: &[u8] =
-    b"[DUMMY MESSAGE] Wanting something does not give you the right to have it.";
+// TODO: is it perhaps possible to replace the 'custom' handshake with an existing
+// implementation like with one of the variants on the Noise framework?
 
-pub use crypto::symmetric::aes_ctr::generic_array;
-
-// TODO: REMOVE
-pub use auth_token::AuthToken;
-pub use types::*;
+// Right now it's based on the STS (Station-to-Station) Protocol.

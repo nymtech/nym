@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::auth_token::AuthToken;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx::params::packet_sizes::PacketSize;
 use nymsphinx::{DestinationAddressBytes, SphinxPacket};
@@ -23,6 +22,69 @@ use std::{
     net::SocketAddr,
 };
 use tokio_tungstenite::tungstenite::protocol::Message;
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum RegistrationHandshake {
+    HandshakePayload { data: Vec<u8> },
+    HandshakeError { message: String },
+}
+
+impl RegistrationHandshake {
+    pub fn new_payload(data: Vec<u8>) -> Self {
+        RegistrationHandshake::HandshakePayload { data }
+    }
+
+    pub fn new_error<S: Into<String>>(message: S) -> Self {
+        RegistrationHandshake::HandshakeError {
+            message: message.into(),
+        }
+    }
+}
+
+impl TryFrom<String> for RegistrationHandshake {
+    type Error = serde_json::Error;
+
+    fn try_from(msg: String) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(&msg)
+    }
+}
+
+impl TryInto<String> for RegistrationHandshake {
+    type Error = serde_json::Error;
+
+    fn try_into(self) -> Result<String, serde_json::Error> {
+        serde_json::to_string(&self)
+    }
+}
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//
+//     #[test]
+//     fn foo() {
+//         let a = RegistrationHandshake::HandshakePayload {
+//             data: vec![1, 2, 3, 4, 5],
+//         };
+//         let b = RegistrationHandshake::HandshakeError {
+//             message: "foo".to_string(),
+//         };
+//
+//         let a_str: String = a.try_into().unwrap();
+//         let b_str: String = b.try_into().unwrap();
+//
+//         panic!("{} {}", a_str, b_str);
+//     }
+// }
+
+////////////////////////
+////////////////////////
+////////////////////////
+// TODO: SOMEHOW SPLIT IT
+////////////////////////
+////////////////////////
+////////////////////////
 
 #[derive(Debug)]
 pub enum GatewayRequestsError {
@@ -57,23 +119,25 @@ impl From<NymNodeRoutingAddressError> for GatewayRequestsError {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ClientControlRequest {
-    Authenticate { address: String, token: String },
-    Register { address: String },
+    Authenticate {
+        address: String,
+        enc_address: String,
+    },
+    #[serde(alias = "handshakePayload")]
+    RegisterHandshakeInitRequest { data: Vec<u8> },
 }
 
 impl ClientControlRequest {
-    pub fn new_authenticate(address: DestinationAddressBytes, token: AuthToken) -> Self {
+    pub fn new_authenticate(address: DestinationAddressBytes, enc_address: Vec<u8>) -> Self {
         ClientControlRequest::Authenticate {
             address: address.to_base58_string(),
-            token: token.to_base58_string(),
+            enc_address: todo!(), // need to convert vec<u8> to b58
         }
     }
 
-    pub fn new_register(address: DestinationAddressBytes) -> Self {
-        ClientControlRequest::Register {
-            address: address.to_base58_string(),
-        }
-    }
+    // pub fn new_register_request() -> Self {
+    //     ClientControlRequest::RegisterHandshakeInitRequest
+    // }
 }
 
 impl Into<Message> for ClientControlRequest {
@@ -105,7 +169,7 @@ impl TryInto<String> for ClientControlRequest {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ServerResponse {
     Authenticate { status: bool },
-    Register { token: String },
+    // Register(HandshakePayload),
     Send { status: bool },
     Error { message: String },
 }
@@ -127,7 +191,7 @@ impl ServerResponse {
     pub fn implies_successful_authentication(&self) -> bool {
         match self {
             ServerResponse::Authenticate { status, .. } => *status,
-            ServerResponse::Register { .. } => true,
+            // ServerResponse::Register { .. } => true,
             _ => false,
         }
     }
@@ -217,3 +281,25 @@ impl Into<Message> for BinaryRequest {
 }
 
 // TODO: tests...
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn handshake_payload_can_be_deserialized_into_register_handshake_init_request() {
+        let handshake_data = vec![1, 2, 3, 4, 5, 6];
+        let handshake_payload = RegistrationHandshake::HandshakePayload {
+            data: handshake_data.clone(),
+        };
+        let serialized = serde_json::to_string(&handshake_payload).unwrap();
+        let deserialized = ClientControlRequest::try_from(serialized).unwrap();
+
+        match deserialized {
+            ClientControlRequest::RegisterHandshakeInitRequest { data } => {
+                assert_eq!(data, handshake_data)
+            }
+            _ => unreachable!("this branch shouldn't have been reached!"),
+        }
+    }
+}

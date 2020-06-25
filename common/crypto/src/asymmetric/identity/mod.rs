@@ -14,7 +14,8 @@
 
 use crate::{PemStorableKey, PemStorableKeyPair};
 use bs58;
-use ed25519_dalek::{SignatureError, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
+use ed25519_dalek::SignatureError;
+pub use ed25519_dalek::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
 use nymsphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use rand::{rngs::OsRng, CryptoRng, RngCore};
 
@@ -107,6 +108,10 @@ impl PublicKey {
             .expect("TODO: deal with this failure case");
         Self::from_bytes(&bytes)
     }
+
+    pub fn verify(&self, message: &[u8], signature: &Signature) -> Result<(), SignatureError> {
+        self.0.verify(message, &signature.0)
+    }
 }
 
 impl PemStorableKey for PublicKey {
@@ -148,6 +153,13 @@ impl PrivateKey {
             .expect("TODO: deal with this failure case");
         Self::from_bytes(&bytes)
     }
+
+    pub fn sign(&self, message: &[u8]) -> Signature {
+        let expanded_secret_key = ed25519_dalek::ExpandedSecretKey::from(&self.0);
+        let public_key: PublicKey = self.into();
+        let sig = expanded_secret_key.sign(message, &public_key.0);
+        Signature(sig)
+    }
 }
 
 impl PemStorableKey for PrivateKey {
@@ -157,5 +169,18 @@ impl PemStorableKey for PrivateKey {
 
     fn to_bytes(&self) -> Vec<u8> {
         self.to_bytes().to_vec()
+    }
+}
+
+#[derive(Debug)]
+pub struct Signature(ed25519_dalek::Signature);
+
+impl Signature {
+    pub fn to_bytes(&self) -> [u8; SIGNATURE_LENGTH] {
+        self.0.to_bytes()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, SignatureError> {
+        Ok(Signature(ed25519_dalek::Signature::from_bytes(bytes)?))
     }
 }

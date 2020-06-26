@@ -79,7 +79,7 @@ impl PemStore {
         parse(&buf).map_err(|e| io::Error::new(io::ErrorKind::Other, e))
     }
 
-    fn write_keypair(&self, key_pair: impl PemStorableKeyPair) -> io::Result<()> {
+    fn write_keypair(&self, key_pair: &impl PemStorableKeyPair) -> io::Result<()> {
         let private_key = key_pair.private_key();
         let public_key = key_pair.public_key();
 
@@ -107,11 +107,11 @@ impl PemStore {
     // This should be refactored and made more generic for when we have other kinds of
     // KeyPairs that we want to persist (e.g. validator keypairs, or keys for
     // signing vs encryption). However, for the moment, it does the job.
-    pub fn write_identity(&self, key_pair: identity::KeyPair) -> io::Result<()> {
+    pub fn write_identity(&self, key_pair: &identity::KeyPair) -> io::Result<()> {
         self.write_keypair(key_pair)
     }
 
-    pub fn write_encryption_keys(&self, key_pair: encryption::KeyPair) -> io::Result<()> {
+    pub fn write_encryption_keys(&self, key_pair: &encryption::KeyPair) -> io::Result<()> {
         self.write_keypair(key_pair)
     }
 

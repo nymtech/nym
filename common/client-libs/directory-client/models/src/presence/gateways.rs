@@ -21,7 +21,8 @@ pub struct GatewayPresence {
     pub location: String,
     pub client_listener: String,
     pub mixnet_listener: String,
-    pub pub_key: String,
+    pub identity_key: String,
+    pub sphinx_key: String,
     pub registered_clients: Vec<GatewayClient>,
     pub last_seen: u64,
     pub version: String,
@@ -33,7 +34,8 @@ impl Into<topology::gateway::Node> for GatewayPresence {
             location: self.location,
             client_listener: self.client_listener.parse().unwrap(),
             mixnet_listener: self.mixnet_listener.parse().unwrap(),
-            pub_key: self.pub_key,
+            identity_key: self.identity_key,
+            sphinx_key: self.sphinx_key,
             registered_clients: self
                 .registered_clients
                 .into_iter()
@@ -51,7 +53,8 @@ impl From<topology::gateway::Node> for GatewayPresence {
             location: mpn.location,
             client_listener: mpn.client_listener.to_string(),
             mixnet_listener: mpn.mixnet_listener.to_string(),
-            pub_key: mpn.pub_key,
+            identity_key: mpn.identity_key,
+            sphinx_key: mpn.sphinx_key,
             registered_clients: mpn
                 .registered_clients
                 .into_iter()

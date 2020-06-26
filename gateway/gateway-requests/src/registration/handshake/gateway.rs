@@ -43,6 +43,7 @@ impl<'a> GatewayHandshake<'a> {
                 let (remote_identity, remote_ephemeral_key) =
                     State::<S>::parse_init_message(received_init_payload)?;
                 state.update_remote_identity(remote_identity);
+                state.derive_shared_key(&remote_ephemeral_key);
 
                 // -> g^y || AES(k, sig(gate_priv, (g^y || g^x))
                 let material = state.prepare_key_material_sig(&remote_ephemeral_key);

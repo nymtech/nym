@@ -106,6 +106,19 @@ impl Config {
                 self::Gateway::default_public_sphinx_key_file(&id);
         }
         if self
+            .gateway
+            .private_identity_key_file
+            .as_os_str()
+            .is_empty()
+        {
+            self.gateway.private_identity_key_file =
+                self::Gateway::default_private_identity_key_file(&id);
+        }
+        if self.gateway.public_identity_key_file.as_os_str().is_empty() {
+            self.gateway.public_identity_key_file =
+                self::Gateway::default_public_identity_key_file(&id);
+        }
+        if self
             .clients_endpoint
             .inboxes_directory
             .as_os_str()
@@ -425,6 +438,14 @@ impl Gateway {
 
     fn default_public_sphinx_key_file(id: &str) -> PathBuf {
         Config::default_data_directory(Some(id)).join("public_sphinx.pem")
+    }
+
+    fn default_private_identity_key_file(id: &str) -> PathBuf {
+        Config::default_data_directory(Some(id)).join("private_identity.pem")
+    }
+
+    fn default_public_identity_key_file(id: &str) -> PathBuf {
+        Config::default_data_directory(Some(id)).join("public_identity.pem")
     }
 
     fn default_location() -> String {

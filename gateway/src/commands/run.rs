@@ -19,6 +19,7 @@ use crate::node::Gateway;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
+use pemstore::pathfinder::PathFinder;
 use pemstore::pemstore::PemStore;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
@@ -127,7 +128,7 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-fn load_sphinx_keys(pemstore: &PemStore) -> encryption::KeyPair {
+fn load_sphinx_keys<P: PathFinder>(pemstore: &PemStore<P>) -> encryption::KeyPair {
     let sphinx_keypair = pemstore
         .read_encryption()
         .expect("Failed to read stored sphinx key files");
@@ -138,7 +139,7 @@ fn load_sphinx_keys(pemstore: &PemStore) -> encryption::KeyPair {
     sphinx_keypair
 }
 
-fn load_identity_keys(pemstore: &PemStore) -> identity::KeyPair {
+fn load_identity_keys<P: PathFinder>(pemstore: &PemStore<P>) -> identity::KeyPair {
     let identity_keypair = pemstore
         .read_identity()
         .expect("Failed to read stored identity key files");

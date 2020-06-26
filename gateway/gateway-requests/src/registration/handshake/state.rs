@@ -12,18 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::DerivedSharedKey;
 use crate::registration::handshake::error::HandshakeError;
+use crate::registration::handshake::shared_key::{SharedKey, SharedKeySize};
 use crate::registration::handshake::WsItem;
 use crate::types;
 use crypto::{
     asymmetric::{encryption, identity},
     kdf::blake3_hkdf,
-    symmetric::aes_ctr::{
-        self,
-        generic_array::{typenum::Unsigned, GenericArray},
-        Aes128KeySize,
-    },
+    symmetric::aes_ctr::{self, generic_array::typenum::Unsigned},
 };
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use log::*;
@@ -41,7 +37,7 @@ pub(crate) struct State<'a, S> {
     /// Local ephemeral Diffie-Hellman keypair generated as a part of the handshake.
     ephemeral_keypair: encryption::KeyPair,
     /// The derived shared key using the ephemeral keys of both parties.
-    derived_shared_key: Option<DerivedSharedKey>,
+    derived_shared_key: Option<SharedKey>,
     /// The known or received public identity key of the remote.
     /// Ideally it would always be known before the handshake was initiated.
     remote_pubkey: Option<identity::PublicKey>,
@@ -112,12 +108,11 @@ impl<'a, S> State<'a, S> {
 
         // there is no reason for this to fail as our okm is expected to be only 16 bytes
         let okm =
-            blake3_hkdf::extract_then_expand(None, &dh_result, None, Aes128KeySize::to_usize())
+            blake3_hkdf::extract_then_expand(None, &dh_result, None, SharedKeySize::to_usize())
                 .expect("somehow too long okm was provided");
 
-        let derived_shared_key: GenericArray<u8, Aes128KeySize> =
-            GenericArray::from_exact_iter(okm.into_iter())
-                .expect("somehow the resultant okm did not have a known size");
+        let derived_shared_key =
+            SharedKey::try_from_bytes(&okm).expect("okm was expanded to incorrect length!");
 
         self.derived_shared_key = Some(derived_shared_key)
     }
@@ -250,9 +245,9 @@ impl<'a, S> State<'a, S> {
             .map_err(|_| HandshakeError::ClosedStream)
     }
 
-    /// Finish the handshake, yielding the derived shared key and the communication channel 'borrowed'
-    /// for the duration of the handshake.
-    pub(crate) fn finalize_handshake(self) -> DerivedSharedKey {
+    /// Finish the handshake, yielding the derived shared key and implicitly dropping all borrowed
+    /// values.
+    pub(crate) fn finalize_handshake(self) -> SharedKey {
         self.derived_shared_key.unwrap()
     }
 }

@@ -12,29 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::registration::handshake::shared_key::SharedKey;
 use crate::registration::handshake::state::State;
-use crate::registration::handshake::{
-    error::HandshakeError, DerivedSharedKey, RegistrationHandshake, WsItem,
-};
+use crate::registration::handshake::{error::HandshakeError, WsItem};
 use futures::future::BoxFuture;
 use futures::task::{Context, Poll};
 use futures::{Future, Sink, Stream};
 use rand::{CryptoRng, RngCore};
-use std::marker::PhantomData;
 use std::pin::Pin;
-use tokio_tungstenite::tungstenite::{Error as WsError, Message as WsMessage};
+use tokio_tungstenite::tungstenite::Message as WsMessage;
 
-pub(crate) struct GatewayHandshake<'a, S> {
-    // same could have been achieved via futures::future::BoxFuture, but this way we don't
-    // need to specify redundant lifetimes
-    handshake_future: BoxFuture<'a, Result<DerivedSharedKey, HandshakeError>>,
-    _phantom: PhantomData<&'a S>,
+pub(crate) struct GatewayHandshake<'a> {
+    handshake_future: BoxFuture<'a, Result<SharedKey, HandshakeError>>,
 }
 
-// impl<'a, S> RegistrationHandshake<S> for GatewayHandshake<'a, S> {}
-
-impl<'a, S> GatewayHandshake<'a, S> {
-    pub(crate) fn new(
+impl<'a> GatewayHandshake<'a> {
+    pub(crate) fn new<S>(
         rng: &mut (impl RngCore + CryptoRng),
         ws_stream: &'a mut S,
         identity: &'a crypto::asymmetric::identity::KeyPair,
@@ -64,46 +57,16 @@ impl<'a, S> GatewayHandshake<'a, S> {
                 state.send_handshake_data(finalizer).await?;
                 Ok(state.finalize_handshake())
             }),
-            _phantom: PhantomData,
         }
     }
 
     fn prepare_finalization_response() -> Vec<u8> {
         vec![1]
     }
-
-    // // client should have received
-    // // G^y || AES(k, SIG(PRIV_S, G^y || G^x))
-    // fn parse_mid_response(
-    //     mut resp: Vec<u8>,
-    // ) -> Result<(encryption::PublicKey, Vec<u8>), HandshakeError> {
-    //     if resp.len() != PUBLIC_KEY_SIZE + SIGNATURE_LENGTH {
-    //         return Err(HandshakeError::MalformedResponse);
-    //     }
-    //
-    //     let remote_key_material = resp.split_off(PUBLIC_KEY_SIZE);
-    //     // this can only fail if the provided bytes have len different from PUBLIC_KEY_SIZE
-    //     // which is impossible
-    //     let remote_ephemeral_key = encryption::PublicKey::from_bytes(&resp).unwrap();
-    //     Ok((remote_ephemeral_key, remote_key_material))
-    // }
-    //
-    // fn parse_finalization_response(resp: Vec<u8>) -> Result<(), HandshakeError> {
-    //     if resp.len() != 1 {
-    //         return Err(HandshakeError::MalformedResponse);
-    //     }
-    //     if resp[0] == 1 {
-    //         Ok(())
-    //     } else if resp[0] == 0 {
-    //         Err(HandshakeError::HandshakeFailure)
-    //     } else {
-    //         Err(HandshakeError::MalformedResponse)
-    //     }
-    // }
 }
 
-impl<'a, S> Future for GatewayHandshake<'a, S> {
-    type Output = Result<DerivedSharedKey, HandshakeError>;
+impl<'a> Future for GatewayHandshake<'a> {
+    type Output = Result<SharedKey, HandshakeError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         Pin::new(&mut self.handshake_future).poll(cx)

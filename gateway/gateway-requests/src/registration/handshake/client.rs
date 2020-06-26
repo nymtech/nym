@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::registration::handshake::shared_key::SharedKey;
 use crate::registration::handshake::state::State;
-use crate::registration::handshake::{
-    error::HandshakeError, DerivedSharedKey, RegistrationHandshake, WsItem,
-};
+use crate::registration::handshake::{error::HandshakeError, WsItem};
 use crypto::asymmetric::encryption::PUBLIC_KEY_SIZE;
 use crypto::asymmetric::identity::SIGNATURE_LENGTH;
 use crypto::asymmetric::{encryption, identity};
@@ -24,55 +23,47 @@ use futures::task::{Context, Poll};
 use futures::{Future, Sink, Stream};
 use rand::{CryptoRng, RngCore};
 use std::pin::Pin;
-use tokio_tungstenite::tungstenite::{Error as WsError, Message as WsMessage};
+use tokio_tungstenite::tungstenite::Message as WsMessage;
 
-pub(crate) struct ClientHandshake<'a, S> {
-    // same could have been achieved via futures::future::BoxFuture, but this way we don't
-    // need to specify redundant lifetimes
-    handshake_future: BoxFuture<'a, Result<(DerivedSharedKey, S), HandshakeError>>,
+pub(crate) struct ClientHandshake<'a> {
+    handshake_future: BoxFuture<'a, Result<SharedKey, HandshakeError>>,
 }
 
-impl<'a, S> RegistrationHandshake<S> for ClientHandshake<'a, S> {}
-
-impl<'a, S> ClientHandshake<'a, S> {
-    pub(crate) fn new(
+impl<'a> ClientHandshake<'a> {
+    pub(crate) fn new<S>(
         rng: &mut (impl RngCore + CryptoRng),
-        ws_stream: S,
+        ws_stream: &'a mut S,
         identity: &'a crypto::asymmetric::identity::KeyPair,
         gateway_pubkey: identity::PublicKey,
     ) -> Self
     where
-        S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + 'a,
+        S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
     {
-        // let mut state = State::new(rng, &ws_stream, identity, Some(gateway_pubkey));
+        let mut state = State::new(rng, ws_stream, identity, Some(gateway_pubkey));
 
-        todo!()
+        ClientHandshake {
+            handshake_future: Box::pin(async move {
+                // if any step along the way failed, try to send 'error' message to the remote
+                // party to indicate handshake should be terminated
 
-        // ClientHandshake {
-        //     handshake_future: Box::pin(async move {
-        //         // if any step along the way failed, try to send 'error' message to the remote
-        //         // party to indicate handshake should be terminated
-        //
-        //         let init_message = state.init_message();
-        //         // -> pub_key || g^x
-        //         state.send_handshake_data(init_message).await?;
-        //         // <- g^y || AES(k, sig(gate_priv, (g^y || g^x))
-        //         let mid_res = state.receive_handshake_message().await?;
-        //         let (remote_ephemeral_key, remote_key_material) =
-        //             Self::parse_mid_response(mid_res)?;
-        //         state.derive_shared_key(&remote_ephemeral_key);
-        //         state.verify_remote_key_material(&remote_key_material, &remote_ephemeral_key)?;
-        //         let material = state.prepare_key_material_sig(&remote_ephemeral_key);
-        //         // -> AES(k, sig(priv, g^x || g^y))
-        //         state.send_handshake_data(material).await?;
-        //         // <- Ok
-        //         let finalization = state.receive_handshake_message().await?;
-        //         Self::parse_finalization_response(finalization)?;
-        //         // Ok(state.finalize_handshake())
-        //
-        //         todo!()
-        //     }),
-        // }
+                let init_message = state.init_message();
+                // -> pub_key || g^x
+                state.send_handshake_data(init_message).await?;
+                // <- g^y || AES(k, sig(gate_priv, (g^y || g^x))
+                let mid_res = state.receive_handshake_message().await?;
+                let (remote_ephemeral_key, remote_key_material) =
+                    Self::parse_mid_response(mid_res)?;
+                state.derive_shared_key(&remote_ephemeral_key);
+                state.verify_remote_key_material(&remote_key_material, &remote_ephemeral_key)?;
+                let material = state.prepare_key_material_sig(&remote_ephemeral_key);
+                // -> AES(k, sig(priv, g^x || g^y))
+                state.send_handshake_data(material).await?;
+                // <- Ok
+                let finalization = state.receive_handshake_message().await?;
+                Self::parse_finalization_response(finalization)?;
+                Ok(state.finalize_handshake())
+            }),
+        }
     }
 
     // client should have received
@@ -105,8 +96,8 @@ impl<'a, S> ClientHandshake<'a, S> {
     }
 }
 
-impl<'a, S> Future for ClientHandshake<'a, S> {
-    type Output = Result<(DerivedSharedKey, S), HandshakeError>;
+impl<'a> Future for ClientHandshake<'a> {
+    type Output = Result<SharedKey, HandshakeError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         Pin::new(&mut self.handshake_future).poll(cx)

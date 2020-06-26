@@ -17,12 +17,15 @@ use crate::packet_router::PacketRouter;
 pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
+use crypto::asymmetric::identity;
 use futures::stream::{SplitSink, SplitStream};
-use futures::{future::BoxFuture, FutureExt, SinkExt, StreamExt};
-use gateway_requests::auth_token::AuthToken;
+use futures::{future::BoxFuture, FutureExt, SinkExt, Stream, StreamExt};
+use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
+use gateway_requests::authentication::iv::AuthenticationIV;
+use gateway_requests::registration::handshake::{client_handshake, SharedKey, DEFAULT_RNG};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
 use log::*;
-use nymsphinx::{DestinationAddressBytes, SphinxPacket};
+use nymsphinx::SphinxPacket;
 use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -31,31 +34,26 @@ use tokio::net::TcpStream;
 use tokio::sync::Notify;
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::{client::IntoClientRequest, protocol::Message},
+    tungstenite::{client::IntoClientRequest, protocol::Message, Error as WsError},
     WebSocketStream,
 };
 
 pub mod error;
 pub mod packet_router;
 
-// TODO: combine the duplicate reading procedure, i.e.
-/*
-msg read from conn.next().await:
-    if msg.is_none() {
-        res = Some(Err(GatewayClientError::ConnectionAbruptlyClosed));
-        break;
+/// A helper method to read an underlying message from the stream or return an error.
+async fn read_ws_stream_message<S>(conn: &mut S) -> Result<Message, GatewayClientError>
+where
+    S: Stream<Item = Result<Message, WsError>> + Unpin,
+{
+    match conn.next().await {
+        Some(msg) => match msg {
+            Ok(msg) => Ok(msg),
+            Err(err) => Err(GatewayClientError::NetworkError(err)),
+        },
+        None => Err(GatewayClientError::ConnectionAbruptlyClosed),
     }
-    let msg = match msg.unwrap() {
-        Ok(msg) => msg,
-        Err(err) => {
-            res = Some(Err(GatewayClientError::NetworkError(err)));
-            break;
-        }
-    };
-    match msg {
-        // specific handling
-    }
-*/
+}
 
 // TODO: some batching mechanism to allow reading and sending more than a single packet through
 
@@ -94,17 +92,8 @@ impl<'a> PartiallyDelegated<'a> {
                     _ = notify_clone.notified() => {
                         should_return = true;
                     }
-                    msg = stream.next() => {
-                        if msg.is_none() {
-                            return Err(GatewayClientError::ConnectionAbruptlyClosed);
-                        }
-                        let msg = match msg.unwrap() {
-                            Ok(msg) => msg,
-                            Err(err) => {
-                                return Err(GatewayClientError::NetworkError(err));
-                            }
-                        };
-                        match msg {
+                    msg = read_ws_stream_message(&mut stream) => {
+                        match msg? {
                             Message::Binary(bin_msg) => {
                                 // TODO: some batching mechanism to allow reading and sending more than
                                 // one packet at the time, because the receiver can easily handle it
@@ -184,32 +173,25 @@ impl<'a> SocketState<'a> {
     }
 }
 
-pub struct GatewayClient<'a, R: IntoClientRequest + Unpin + Clone> {
+pub struct GatewayClient<'a, R> {
     authenticated: bool,
     // can be String, string slices, `url::Url`, `http::Uri`, etc.
     gateway_address: R,
-    our_address: DestinationAddressBytes,
-    auth_token: Option<AuthToken>,
+    gateway_identity: identity::PublicKey,
+    local_identity: Arc<identity::KeyPair>,
+    shared_key: Option<SharedKey>,
     connection: SocketState<'a>,
     packet_router: PacketRouter,
     response_timeout_duration: Duration,
 }
 
-impl<'a, R: IntoClientRequest + Unpin + Clone> Drop for GatewayClient<'a, R> {
-    fn drop(&mut self) {
-        // TODO to fix forcibly closing connection (although now that I think about it,
-        // I'm not sure this would do it, as to fix the said issue we'd need graceful shutdowns)
-    }
-}
-
-impl<'a, R> GatewayClient<'static, R>
-where
-    R: IntoClientRequest + Unpin + Clone,
-{
+impl<'a, R> GatewayClient<'static, R> {
+    // TODO: put it all in a Config struct
     pub fn new(
         gateway_address: R,
-        our_address: DestinationAddressBytes,
-        auth_token: Option<AuthToken>,
+        local_identity: Arc<identity::KeyPair>,
+        gateway_identity: identity::PublicKey,
+        shared_key: Option<SharedKey>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
@@ -217,8 +199,9 @@ where
         GatewayClient {
             authenticated: false,
             gateway_address,
-            our_address,
-            auth_token,
+            gateway_identity,
+            local_identity,
+            shared_key,
             connection: SocketState::NotConnected,
             packet_router: PacketRouter::new(ack_sender, mixnet_message_sender),
             response_timeout_duration,
@@ -227,7 +210,8 @@ where
 
     pub fn new_init(
         gateway_address: R,
-        our_address: DestinationAddressBytes,
+        gateway_identity: identity::PublicKey,
+        local_identity: Arc<identity::KeyPair>,
         response_timeout_duration: Duration,
     ) -> Self {
         use futures::channel::mpsc;
@@ -241,28 +225,13 @@ where
         GatewayClient {
             authenticated: false,
             gateway_address,
-            our_address,
-            auth_token: None,
+            gateway_identity,
+            local_identity,
+            shared_key: None,
             connection: SocketState::NotConnected,
             packet_router,
             response_timeout_duration,
         }
-    }
-
-    pub async fn register_without_listening(&mut self) -> Result<AuthToken, GatewayClientError> {
-        if !self.connection.is_established() {
-            self.establish_connection().await?;
-        }
-        let msg = ClientControlRequest::new_register(self.our_address.clone()).into();
-        let token = match self.send_websocket_message(msg).await? {
-            ServerResponse::Register { token } => {
-                self.authenticated = true;
-                Ok(AuthToken::try_from_base58_string(token)?)
-            }
-            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
-            _ => unreachable!(),
-        }?;
-        Ok(token)
     }
 
     pub async fn close_connection(&mut self) -> Result<(), GatewayClientError> {
@@ -279,7 +248,10 @@ where
         }
     }
 
-    pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
+    pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError>
+    where
+        R: IntoClientRequest + Unpin + Clone,
+    {
         let ws_stream = match connect_async(self.gateway_address.clone()).await {
             Ok((ws_stream, _)) => ws_stream,
             Err(e) => return Err(GatewayClientError::NetworkError(e)),
@@ -308,19 +280,12 @@ where
                 }
                 // just keep getting through socket buffer until we get to what we want...
                 // (or we time out)
-                msg = conn.next() => {
-                    if msg.is_none() {
-                        res = Some(Err(GatewayClientError::ConnectionAbruptlyClosed));
+                msg = read_ws_stream_message(conn) => {
+                    if let Err(err) = msg {
+                        res = Some(Err(err));
                         break;
                     }
-                    let msg = match msg.unwrap() {
-                        Ok(msg) => msg,
-                        Err(err) => {
-                            res = Some(Err(GatewayClientError::NetworkError(err)));
-                            break;
-                        }
-                    };
-                    match msg {
+                    match msg.unwrap() {
                         Message::Binary(bin_msg) => {
                             self.packet_router.route_received(vec![bin_msg]);
                         }
@@ -376,38 +341,47 @@ where
         }
     }
 
-    pub async fn register(&mut self) -> Result<AuthToken, GatewayClientError> {
+    pub async fn register(&mut self) -> Result<SharedKey, GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
-        let msg = ClientControlRequest::new_register(self.our_address.clone()).into();
-        let token = match self.send_websocket_message(msg).await? {
-            ServerResponse::Register { token } => {
-                self.authenticated = true;
-                Ok(AuthToken::try_from_base58_string(token)?)
-            }
-            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
+
+        debug_assert!(self.connection.is_available());
+
+        match &mut self.connection {
+            SocketState::Available(ws_stream) => client_handshake(
+                &mut DEFAULT_RNG,
+                ws_stream,
+                self.local_identity.as_ref(),
+                self.gateway_identity.clone(),
+            )
+            .await
+            .map_err(|handshake_err| GatewayClientError::RegistrationFailure(handshake_err)),
             _ => unreachable!(),
-        }?;
-        self.start_listening_for_mixnet_messages()?;
-        Ok(token)
+        }
     }
 
     pub async fn authenticate(
         &mut self,
-        auth_token: Option<AuthToken>,
+        shared_key: Option<SharedKey>,
     ) -> Result<bool, GatewayClientError> {
-        if auth_token.is_none() && self.auth_token.is_none() {
-            return Err(GatewayClientError::NoAuthTokenAvailable);
+        if shared_key.is_none() && self.shared_key.is_none() {
+            return Err(GatewayClientError::NoSharedKeyAvailable);
         }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
         // because of the previous check one of the unwraps MUST succeed
-        let auth_token = auth_token.unwrap_or_else(|| self.auth_token.unwrap());
+        let shared_key = shared_key
+            .as_ref()
+            .unwrap_or_else(|| self.shared_key.as_ref().unwrap());
+        let iv = AuthenticationIV::new_random(&mut DEFAULT_RNG);
+        let self_address = self.local_identity.as_ref().public_key().derive_address();
+        let encrypted_address = EncryptedAddressBytes::new(&self_address, shared_key, &iv);
 
         let msg =
-            ClientControlRequest::new_authenticate(self.our_address.clone(), auth_token).into();
+            ClientControlRequest::new_authenticate(self_address, encrypted_address, iv).into();
+
         let authenticated = match self.send_websocket_message(msg).await? {
             ServerResponse::Authenticate { status } => {
                 self.authenticated = status;
@@ -416,22 +390,21 @@ where
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             _ => unreachable!(),
         }?;
-        self.start_listening_for_mixnet_messages()?;
         Ok(authenticated)
     }
 
-    // just a helper method to either call register or authenticate based on self.auth_token value
+    /// Helper method to either call register or authenticate based on self.shared_key value
     pub async fn perform_initial_authentication(
         &mut self,
-    ) -> Result<AuthToken, GatewayClientError> {
-        if self.auth_token.is_some() {
+    ) -> Result<SharedKey, GatewayClientError> {
+        if self.shared_key.is_some() {
             self.authenticate(None).await?;
         } else {
             self.register().await?;
         }
         if self.authenticated {
-            // if we are authenticated it means we MUST have an associated auth_token
-            Ok(self.auth_token.clone().unwrap())
+            // if we are authenticated it means we MUST have an associated shared_key
+            Ok(self.shared_key.clone().unwrap())
         } else {
             Err(GatewayClientError::AuthenticationFailure)
         }
@@ -470,7 +443,11 @@ where
         Ok(())
     }
 
-    fn start_listening_for_mixnet_messages(&mut self) -> Result<(), GatewayClientError> {
+    // Note: this requires prior authentication
+    pub fn start_listening_for_mixnet_messages(&mut self) -> Result<(), GatewayClientError> {
+        if !self.authenticated {
+            return Err(GatewayClientError::NotAuthenticated);
+        }
         if self.connection.is_partially_delegated() {
             return Ok(());
         }
@@ -491,5 +468,20 @@ where
 
         self.connection = SocketState::PartiallyDelegated(partially_delegated);
         Ok(())
+    }
+
+    pub async fn authenticate_and_start(&mut self) -> Result<SharedKey, GatewayClientError>
+    where
+        R: IntoClientRequest + Unpin + Clone,
+    {
+        if !self.connection.is_established() {
+            self.establish_connection().await?;
+        }
+        let shared_key = self.perform_initial_authentication().await?;
+
+        // that call is NON-blocking
+        self.start_listening_for_mixnet_messages()?;
+
+        Ok(shared_key)
     }
 }

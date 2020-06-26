@@ -15,6 +15,7 @@ tokio = { version = "0.2", features = ["macros", "rt-core", "stream", "sync", "t
 tokio-tungstenite = "0.10"
 
 # internal
+crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
 nymsphinx = { path = "../../nymsphinx" }
 

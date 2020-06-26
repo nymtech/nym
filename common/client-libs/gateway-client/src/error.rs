@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use gateway_requests::auth_token::AuthTokenConversionError;
+use gateway_requests::registration::handshake::error::HandshakeError;
 use std::fmt::{self, Error, Formatter};
 use tokio_tungstenite::tungstenite::Error as WsError;
 
@@ -21,11 +21,12 @@ pub enum GatewayClientError {
     ConnectionNotEstablished,
     GatewayError(String),
     NetworkError(WsError),
-    NoAuthTokenAvailable,
+    NoSharedKeyAvailable,
     ConnectionAbruptlyClosed,
     MalformedResponse,
     NotAuthenticated,
     ConnectionInInvalidState,
+    RegistrationFailure(HandshakeError),
     AuthenticationFailure,
     Timeout,
 }
@@ -33,12 +34,6 @@ pub enum GatewayClientError {
 impl From<WsError> for GatewayClientError {
     fn from(err: WsError) -> Self {
         GatewayClientError::NetworkError(err)
-    }
-}
-
-impl From<AuthTokenConversionError> for GatewayClientError {
-    fn from(_err: AuthTokenConversionError) -> Self {
-        GatewayClientError::MalformedResponse
     }
 }
 
@@ -50,8 +45,8 @@ impl fmt::Display for GatewayClientError {
             GatewayClientError::ConnectionNotEstablished => {
                 write!(f, "connection to the gateway is not established")
             }
-            GatewayClientError::NoAuthTokenAvailable => {
-                write!(f, "no AuthToken was provided or obtained")
+            GatewayClientError::NoSharedKeyAvailable => {
+                write!(f, "no shared key was provided or obtained")
             }
             GatewayClientError::NotAuthenticated => write!(f, "client is not authenticated"),
             GatewayClientError::NetworkError(err) => {
@@ -65,6 +60,11 @@ impl fmt::Display for GatewayClientError {
             GatewayClientError::ConnectionInInvalidState => write!(
                 f,
                 "connection is in an invalid state - please send a bug report"
+            ),
+            GatewayClientError::RegistrationFailure(handshake_err) => write!(
+                f,
+                "failed to finish registration handshake - {}",
+                handshake_err
             ),
             GatewayClientError::AuthenticationFailure => write!(f, "authentication failure"),
             GatewayClientError::GatewayError(err) => {

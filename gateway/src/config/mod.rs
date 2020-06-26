@@ -317,6 +317,14 @@ impl Config {
         self.gateway.location.clone()
     }
 
+    pub fn get_private_identity_key_file(&self) -> PathBuf {
+        self.gateway.private_identity_key_file.clone()
+    }
+
+    pub fn get_public_identity_key_file(&self) -> PathBuf {
+        self.gateway.public_identity_key_file.clone()
+    }
+
     pub fn get_private_sphinx_key_file(&self) -> PathBuf {
         self.gateway.private_sphinx_key_file.clone()
     }
@@ -390,6 +398,12 @@ pub struct Gateway {
     /// this field with as much accuracy as you wish to share.
     location: String,
 
+    /// Path to file containing private identity key.
+    private_identity_key_file: PathBuf,
+
+    /// Path to file containing public identity key.
+    public_identity_key_file: PathBuf,
+
     /// Path to file containing private sphinx key.
     private_sphinx_key_file: PathBuf,
 
@@ -423,6 +437,8 @@ impl Default for Gateway {
         Gateway {
             id: "".to_string(),
             location: Self::default_location(),
+            private_identity_key_file: Default::default(),
+            public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
             presence_directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),

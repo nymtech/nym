@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crypto::symmetric::aes_ctr::{
-    generic_array::{typenum::Unsigned, GenericArray},
-    Aes128IV, Aes128NonceSize,
-};
+use crypto::symmetric::aes_ctr::{generic_array::{typenum::Unsigned, GenericArray}, Aes128IV, Aes128NonceSize, random_iv};
 use std::ops::Deref;
+use rand::{CryptoRng, RngCore};
 
 pub struct AuthenticationIV(Aes128IV);
 
@@ -28,6 +26,10 @@ pub enum IVConversionError {
 }
 
 impl AuthenticationIV {
+    pub fn new_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+        AuthenticationIV(random_iv(rng))
+    }
+    
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, IVConversionError> {
         if bytes.len() != Aes128NonceSize::to_usize() {
             return Err(IVConversionError::BytesOfInvalidLengthError);

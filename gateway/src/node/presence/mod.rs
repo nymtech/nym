@@ -25,7 +25,8 @@ pub(crate) struct NotifierConfig {
     directory_server: String,
     mix_announce_host: String,
     clients_announce_host: String,
-    pub_key_string: String,
+    identity_string: String,
+    sphinx_key_string: String,
     sending_delay: Duration,
 }
 
@@ -35,7 +36,8 @@ impl NotifierConfig {
         directory_server: String,
         mix_announce_host: String,
         clients_announce_host: String,
-        pub_key_string: String,
+        identity_string: String,
+        sphinx_key_string: String,
         sending_delay: Duration,
     ) -> Self {
         NotifierConfig {
@@ -43,7 +45,8 @@ impl NotifierConfig {
             directory_server,
             mix_announce_host,
             clients_announce_host,
-            pub_key_string,
+            identity_string,
+            sphinx_key_string,
             sending_delay,
         }
     }
@@ -56,7 +59,8 @@ pub(crate) struct Notifier {
     sending_delay: Duration,
     client_listener: String,
     mixnet_listener: String,
-    pub_key_string: String,
+    identity: String,
+    sphinx_key: String,
 }
 
 impl Notifier {
@@ -72,7 +76,8 @@ impl Notifier {
             location: config.location,
             client_listener: config.clients_announce_host,
             mixnet_listener: config.mix_announce_host,
-            pub_key_string: config.pub_key_string,
+            identity: config.identity_string,
+            sphinx_key: config.sphinx_key_string,
             sending_delay: config.sending_delay,
         }
     }
@@ -90,7 +95,8 @@ impl Notifier {
             location: self.location.clone(),
             client_listener: self.client_listener.clone(),
             mixnet_listener: self.mixnet_listener.clone(),
-            pub_key: self.pub_key_string.clone(),
+            identity_key: self.identity.clone(),
+            sphinx_key: self.sphinx_key.clone(),
             registered_clients,
             last_seen: 0,
             version: built_info::PKG_VERSION.to_string(),

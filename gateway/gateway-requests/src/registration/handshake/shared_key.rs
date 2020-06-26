@@ -20,7 +20,7 @@ use std::ops::Deref;
 
 pub type SharedKeySize = Aes128KeySize;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SharedKey(Aes128Key);
 
 #[derive(Debug)]

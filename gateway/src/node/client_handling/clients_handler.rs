@@ -16,18 +16,16 @@ use crate::node::{
     client_handling::websocket::message_receiver::MixMessageSender,
     storage::{inboxes::ClientStorage, ClientLedger},
 };
-use crypto::asymmetric::encryption;
 use futures::{
     channel::{mpsc, oneshot},
     StreamExt,
 };
-use gateway_requests::auth_token::AuthToken;
-use hmac::{Hmac, Mac};
+use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
+use gateway_requests::authentication::iv::AuthenticationIV;
+use gateway_requests::registration::handshake::SharedKey;
 use log::*;
 use nymsphinx::DestinationAddressBytes;
-use sha2::Sha256;
 use std::collections::HashMap;
-use std::sync::Arc;
 use tokio::task::JoinHandle;
 
 pub(crate) type ClientsHandlerRequestSender = mpsc::UnboundedSender<ClientsHandlerRequest>;
@@ -35,17 +33,19 @@ pub(crate) type ClientsHandlerRequestReceiver = mpsc::UnboundedReceiver<ClientsH
 
 pub(crate) type ClientsHandlerResponseSender = oneshot::Sender<ClientsHandlerResponse>;
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub(crate) enum ClientsHandlerRequest {
     // client
     Register(
         DestinationAddressBytes,
+        SharedKey,
         MixMessageSender,
         ClientsHandlerResponseSender,
     ),
     Authenticate(
         DestinationAddressBytes,
-        AuthToken,
+        EncryptedAddressBytes,
+        AuthenticationIV,
         MixMessageSender,
         ClientsHandlerResponseSender,
     ),
@@ -57,27 +57,21 @@ pub(crate) enum ClientsHandlerRequest {
 
 #[derive(Debug)]
 pub(crate) enum ClientsHandlerResponse {
-    Register(AuthToken),
-    Authenticate(bool),
+    Register(bool),
+    Authenticate(Option<SharedKey>),
     IsOnline(Option<MixMessageSender>),
     Error(Box<dyn std::error::Error + Send + Sync>),
 }
 
 pub(crate) struct ClientsHandler {
-    secret_key: Arc<encryption::PrivateKey>,
     open_connections: HashMap<DestinationAddressBytes, MixMessageSender>,
     clients_ledger: ClientLedger,
     clients_inbox_storage: ClientStorage,
 }
 
 impl ClientsHandler {
-    pub(crate) fn new(
-        secret_key: Arc<encryption::PrivateKey>,
-        clients_ledger: ClientLedger,
-        clients_inbox_storage: ClientStorage,
-    ) -> Self {
+    pub(crate) fn new(clients_ledger: ClientLedger, clients_inbox_storage: ClientStorage) -> Self {
         ClientsHandler {
-            secret_key,
             open_connections: HashMap::new(),
             clients_ledger,
             clients_inbox_storage,
@@ -99,18 +93,6 @@ impl ClientsHandler {
         if let Err(_) = res_channel.send(self.make_error_response(err)) {
             error!("Somehow we failed to send response back to websocket handler - there seem to be a weird bug present!");
         }
-    }
-
-    fn generate_new_auth_token(&self, client_address: DestinationAddressBytes) -> AuthToken {
-        type HmacSha256 = Hmac<Sha256>;
-
-        // note that `new_varkey` doesn't even have an execution branch returning an error
-        // (true as of hmac 0.7.1)
-        let mut auth_token_raw = HmacSha256::new_varkey(&self.secret_key.to_bytes()).unwrap();
-        auth_token_raw.input(client_address.as_bytes());
-        let mut auth_token = [0u8; 32];
-        auth_token.copy_from_slice(auth_token_raw.result().code().as_slice());
-        AuthToken::from_bytes(auth_token)
     }
 
     async fn push_stored_messages_to_client_and_save_channel(
@@ -172,6 +154,7 @@ impl ClientsHandler {
     async fn handle_register_request(
         &mut self,
         address: DestinationAddressBytes,
+        derived_shared_key: SharedKey,
         comm_channel: MixMessageSender,
         res_channel: ClientsHandlerResponseSender,
     ) {
@@ -188,12 +171,9 @@ impl ClientsHandler {
             return;
         }
 
-        // I presume some additional checks will go here:
-        // ...
-        let auth_token = self.generate_new_auth_token(address.clone());
         if self
             .clients_ledger
-            .insert_token(auth_token.clone(), address.clone())
+            .insert_shared_key(derived_shared_key, address.clone())
             .unwrap()
             .is_some()
         {
@@ -206,17 +186,17 @@ impl ClientsHandler {
             .create_storage_dir(address.clone())
             .await
         {
-            error!("We failed to create inbox directory for the client -{:?}\nReverting issued token...", e);
+            error!("We failed to create inbox directory for the client -{:?}\nReverting stored shared key...", e);
             // we must revert our changes if this operation failed
-            self.clients_ledger.remove_token(&address).unwrap();
-            self.send_error_response("failed to issue an auth token", res_channel);
+            self.clients_ledger.remove_shared_key(&address).unwrap();
+            self.send_error_response("failed to complete issuing shared key", res_channel);
             return;
         }
 
         self.push_stored_messages_to_client_and_save_channel(address, comm_channel)
             .await;
 
-        if let Err(_) = res_channel.send(ClientsHandlerResponse::Register(auth_token)) {
+        if let Err(_) = res_channel.send(ClientsHandlerResponse::Register(true)) {
             error!("Somehow we failed to send response back to websocket handler - there seem to be a weird bug present!");
         }
     }
@@ -224,7 +204,8 @@ impl ClientsHandler {
     async fn handle_authenticate_request(
         &mut self,
         address: DestinationAddressBytes,
-        token: AuthToken,
+        encrypted_address: EncryptedAddressBytes,
+        iv: AuthenticationIV,
         comm_channel: MixMessageSender,
         res_channel: ClientsHandlerResponseSender,
     ) {
@@ -239,14 +220,26 @@ impl ClientsHandler {
             return;
         }
 
-        if self.clients_ledger.verify_token(&token, &address).unwrap() {
+        if self
+            .clients_ledger
+            .verify_shared_key(&address, &encrypted_address, &iv)
+            .unwrap()
+        {
+            // The first unwrap is due to possible db read errors, but I'm not entirely sure when could
+            // the second one happen.
+            let shared_key = self
+                .clients_ledger
+                .get_shared_key(&address)
+                .unwrap()
+                .unwrap();
             self.push_stored_messages_to_client_and_save_channel(address, comm_channel)
                 .await;
-            if let Err(_) = res_channel.send(ClientsHandlerResponse::Authenticate(true)) {
+            if let Err(_) = res_channel.send(ClientsHandlerResponse::Authenticate(Some(shared_key)))
+            {
                 error!("Somehow we failed to send response back to websocket handler - there seem to be a weird bug present!");
             }
         } else {
-            if let Err(_) = res_channel.send(ClientsHandlerResponse::Authenticate(false)) {
+            if let Err(_) = res_channel.send(ClientsHandlerResponse::Authenticate(None)) {
                 error!("Somehow we failed to send response back to websocket handler - there seem to be a weird bug present!");
             }
         }
@@ -286,13 +279,35 @@ impl ClientsHandler {
     ) {
         while let Some(request) = request_receiver_channel.next().await {
             match request {
-                ClientsHandlerRequest::Register(address, comm_channel, res_channel) => {
-                    self.handle_register_request(address, comm_channel, res_channel)
-                        .await
+                ClientsHandlerRequest::Register(
+                    address,
+                    derived_shared_key,
+                    comm_channel,
+                    res_channel,
+                ) => {
+                    self.handle_register_request(
+                        address,
+                        derived_shared_key,
+                        comm_channel,
+                        res_channel,
+                    )
+                    .await
                 }
-                ClientsHandlerRequest::Authenticate(address, token, comm_channel, res_channel) => {
-                    self.handle_authenticate_request(address, token, comm_channel, res_channel)
-                        .await
+                ClientsHandlerRequest::Authenticate(
+                    address,
+                    encrypted_address,
+                    iv,
+                    comm_channel,
+                    res_channel,
+                ) => {
+                    self.handle_authenticate_request(
+                        address,
+                        encrypted_address,
+                        iv,
+                        comm_channel,
+                        res_channel,
+                    )
+                    .await
                 }
                 ClientsHandlerRequest::Disconnect(address) => self.handle_disconnect(address),
                 ClientsHandlerRequest::IsOnline(address, res_channel) => {

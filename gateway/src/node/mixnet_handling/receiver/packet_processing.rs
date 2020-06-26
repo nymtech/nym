@@ -68,7 +68,7 @@ impl From<SURBAckRecoveryError> for MixProcessingError {
 // PacketProcessor contains all data required to correctly unwrap and store sphinx packets
 #[derive(Clone)]
 pub struct PacketProcessor {
-    secret_key: Arc<encryption::PrivateKey>,
+    encryption_keys: Arc<encryption::KeyPair>,
     // TODO: later investigate some concurrent hashmap solutions or perhaps RWLocks.
     // Right now Mutex is the simplest and fastest to implement approach
     available_socket_senders_cache: Arc<Mutex<HashMap<DestinationAddressBytes, MixMessageSender>>>,
@@ -79,7 +79,7 @@ pub struct PacketProcessor {
 
 impl PacketProcessor {
     pub(crate) fn new(
-        secret_key: Arc<encryption::PrivateKey>,
+        encryption_keys: Arc<encryption::KeyPair>,
         clients_handler_sender: ClientsHandlerRequestSender,
         client_store: ClientStorage,
         ack_sender: OutboundMixMessageSender,
@@ -88,7 +88,7 @@ impl PacketProcessor {
             available_socket_senders_cache: Arc::new(Mutex::new(HashMap::new())),
             clients_handler_sender,
             client_store,
-            secret_key,
+            encryption_keys,
             ack_sender,
         }
     }
@@ -182,7 +182,7 @@ impl PacketProcessor {
         &self,
         packet: SphinxPacket,
     ) -> Result<(DestinationAddressBytes, Vec<u8>), MixProcessingError> {
-        match packet.process(&self.secret_key.as_ref().into()) {
+        match packet.process(&self.encryption_keys.as_ref().private_key().into()) {
             Ok(ProcessedPacket::ProcessedPacketForwardHop(_, _, _)) => {
                 warn!("Received a forward hop message - those are not implemented for gateways");
                 Err(MixProcessingError::ReceivedForwardHopError)

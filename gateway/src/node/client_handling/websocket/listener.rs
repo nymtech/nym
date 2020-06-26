@@ -15,17 +15,23 @@
 use crate::node::client_handling::clients_handler::ClientsHandlerRequestSender;
 use crate::node::client_handling::websocket::connection_handler::Handle;
 use crate::node::mixnet_handling::sender::OutboundMixMessageSender;
+use crypto::asymmetric::identity;
 use log::*;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::task::JoinHandle;
 
 pub(crate) struct Listener {
     address: SocketAddr,
+    local_identity: Arc<identity::KeyPair>,
 }
 
 impl Listener {
-    pub(crate) fn new(address: SocketAddr) -> Self {
-        Listener { address }
+    pub(crate) fn new(address: SocketAddr, local_identity: Arc<identity::KeyPair>) -> Self {
+        Listener {
+            address,
+            local_identity,
+        }
     }
 
     pub(crate) async fn run(
@@ -42,12 +48,13 @@ impl Listener {
             match tcp_listener.accept().await {
                 Ok((socket, remote_addr)) => {
                     trace!("received a socket connection from {}", remote_addr);
-                    // TODO: I think we need a mechanism for having a maximum number of connected
+                    // TODO: I think we *REALLY* need a mechanism for having a maximum number of connected
                     // clients or spawned tokio tasks -> perhaps a worker system?
                     let mut handle = Handle::new(
                         socket,
                         clients_handler_sender.clone(),
                         outbound_mix_sender.clone(),
+                        Arc::clone(&self.local_identity),
                     );
                     tokio::spawn(async move { handle.start_handling().await });
                 }

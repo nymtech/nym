@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crypto::asymmetric::identity;
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug)]
@@ -37,7 +38,23 @@ impl HandshakeError {
 
 impl Display for HandshakeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        unimplemented!()
+        match self {
+            HandshakeError::KeyMaterialOfInvalidSize(received) => write!(
+                f,
+                "received key material of invalid length - {}. Expected: {}",
+                received,
+                identity::SIGNATURE_LENGTH
+            ),
+            HandshakeError::InvalidSignature => write!(f, "received invalid signature"),
+            HandshakeError::NetworkError => write!(f, "encountered network error"),
+            HandshakeError::ClosedStream => {
+                write!(f, "the stream was closed before completing handshake")
+            }
+            HandshakeError::RemoteError(err) => write!(f, "error on the remote: {}", err),
+            HandshakeError::MalformedResponse => write!(f, "received response was malformed:"),
+            HandshakeError::MalformedRequest => write!(f, "sent request was malformed"),
+            HandshakeError::HandshakeFailure => write!(f, "unknown handshake failure"),
+        }
     }
 }
 

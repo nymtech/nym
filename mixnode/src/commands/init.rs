@@ -88,7 +88,7 @@ pub fn execute(matches: &ArgMatches) {
     let pathfinder = MixNodePathfinder::new_from_config(&config);
     let pem_store = PemStore::new(pathfinder);
     pem_store
-        .write_encryption_keys(sphinx_keys)
+        .write_encryption_keys(&sphinx_keys)
         .expect("Failed to save sphinx keys");
     println!("Saved mixnet sphinx keypair");
 

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::authentication::iv::AuthenticationIV;
-use crate::registration::handshake::DerivedSharedKey;
+use crate::registration::handshake::shared_key::SharedKey;
 use crypto::symmetric::aes_ctr;
 use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 
@@ -33,11 +33,7 @@ pub enum EncryptedAddressConversionError {
 }
 
 impl EncryptedAddressBytes {
-    pub fn new(
-        address: &DestinationAddressBytes,
-        key: &DerivedSharedKey,
-        iv: &AuthenticationIV,
-    ) -> Self {
+    pub fn new(address: &DestinationAddressBytes, key: &SharedKey, iv: &AuthenticationIV) -> Self {
         let ciphertext = aes_ctr::encrypt(key, iv, address.as_bytes());
 
         let mut enc_address = [0u8; ENCRYPTED_ADDRESS_SIZE];
@@ -48,10 +44,10 @@ impl EncryptedAddressBytes {
     pub fn verify(
         &self,
         address: &DestinationAddressBytes,
-        key: &DerivedSharedKey,
+        key: &SharedKey,
         iv: &AuthenticationIV,
     ) -> bool {
-        self == Self::new(address, key, iv)
+        self == &Self::new(address, key, iv)
     }
 
     pub fn from_bytes(bytes: [u8; ENCRYPTED_ADDRESS_SIZE]) -> Self {

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::authentication::encrypted_address::EncryptedAddressBytes;
+use crate::authentication::iv::AuthenticationIV;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx::params::packet_sizes::PacketSize;
 use nymsphinx::{DestinationAddressBytes, SphinxPacket};
@@ -122,22 +124,24 @@ pub enum ClientControlRequest {
     Authenticate {
         address: String,
         enc_address: String,
+        iv: String,
     },
     #[serde(alias = "handshakePayload")]
     RegisterHandshakeInitRequest { data: Vec<u8> },
 }
 
 impl ClientControlRequest {
-    pub fn new_authenticate(address: DestinationAddressBytes, enc_address: Vec<u8>) -> Self {
+    pub fn new_authenticate(
+        address: DestinationAddressBytes,
+        enc_address: EncryptedAddressBytes,
+        iv: AuthenticationIV,
+    ) -> Self {
         ClientControlRequest::Authenticate {
             address: address.to_base58_string(),
-            enc_address: todo!(), // need to convert vec<u8> to b58
+            enc_address: enc_address.to_base58_string(),
+            iv: iv.to_base58_string(),
         }
     }
-
-    // pub fn new_register_request() -> Self {
-    //     ClientControlRequest::RegisterHandshakeInitRequest
-    // }
 }
 
 impl Into<Message> for ClientControlRequest {
@@ -169,7 +173,7 @@ impl TryInto<String> for ClientControlRequest {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ServerResponse {
     Authenticate { status: bool },
-    // Register(HandshakePayload),
+    Register { status: bool },
     Send { status: bool },
     Error { message: String },
 }
@@ -191,7 +195,7 @@ impl ServerResponse {
     pub fn implies_successful_authentication(&self) -> bool {
         match self {
             ServerResponse::Authenticate { status, .. } => *status,
-            // ServerResponse::Register { .. } => true,
+            ServerResponse::Register { status, .. } => *status,
             _ => false,
         }
     }
@@ -253,7 +257,7 @@ impl BinaryRequest {
                 sphinx_packet,
             } => {
                 // TODO: using intermediate `NymNodeRoutingAddress` here is just temporary, because
-                // it happens to do exactly what we needed, but we don't really want to be
+                // it happens to do exactly what we needed, but we really don't want to be
                 // dependant on what it does
                 let wrapped_address = NymNodeRoutingAddress::from(address);
                 wrapped_address
@@ -279,8 +283,6 @@ impl Into<Message> for BinaryRequest {
         Message::Binary(self.into_bytes())
     }
 }
-
-// TODO: tests...
 
 #[cfg(test)]
 mod tests {

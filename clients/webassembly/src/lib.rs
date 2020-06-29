@@ -152,7 +152,7 @@ mod test_constructing_a_sphinx_packet {
         let mut payload = create_sphinx_packet(
             topology_fixture(),
             "foomp",
-            "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq@7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
+            "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq@CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
         );
         // you don't really need 32 bytes here, but giving too much won't make it fail
         let mut address_buffer = [0; 32];
@@ -174,7 +174,7 @@ mod building_a_topology_from_json {
         sphinx_route_to(
             "",
             &NodeAddressBytes::try_from_base58_string(
-                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
+                "CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
             )
             .unwrap(),
         );
@@ -186,7 +186,7 @@ mod building_a_topology_from_json {
         sphinx_route_to(
             "bad bad bad not json",
             &NodeAddressBytes::try_from_base58_string(
-                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
+                "CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
             )
             .unwrap(),
         );
@@ -201,7 +201,7 @@ mod building_a_topology_from_json {
         sphinx_route_to(
             &json,
             &NodeAddressBytes::try_from_base58_string(
-                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
+                "CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
             )
             .unwrap(),
         );
@@ -217,7 +217,7 @@ mod building_a_topology_from_json {
         sphinx_route_to(
             &json,
             &NodeAddressBytes::try_from_base58_string(
-                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
+                "CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
             )
             .unwrap(),
         );
@@ -230,7 +230,7 @@ mod building_a_topology_from_json {
         let route = sphinx_route_to(
             topology_fixture(),
             &NodeAddressBytes::try_from_base58_string(
-                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
+                "CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
             )
             .unwrap(),
         );
@@ -244,7 +244,7 @@ mod building_a_topology_from_json {
         let route = sphinx_route_to(
             &json,
             &NodeAddressBytes::try_from_base58_string(
-                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
+                "CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
             )
             .unwrap(),
         );
@@ -312,7 +312,8 @@ fn topology_fixture() -> &'static str {
             {
             "clientListener": "139.162.246.48:9000",
             "mixnetListener": "139.162.246.48:1789",
-            "pubKey": "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
+            "identityKey": "CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
+            "sphinxKey": "BnLYqQjb8K6TmW5oFdNZrUTocGxa3rgzBvapQrf8XUbF",
             "version": "0.6.0",
             "location": "London, UK",
             "registeredClients": [
@@ -325,7 +326,8 @@ fn topology_fixture() -> &'static str {
             {
             "clientListener": "127.0.0.1:9000",
             "mixnetListener": "127.0.0.1:1789",
-            "pubKey": "2XK8RDcUTRcJLUWoDfoXc2uP4YViscMLEM5NSzhSi87M",
+            "identityKey": "B9xz9V6jpp1fEbDkeyR5f8miorw9bzXGKoMbKnaxkD41",
+            "sphinxKey": "3KCpz1HCD8DqnQjemT1uuBZipmHFXM4V5btxLXwvM1gG",
             "version": "0.6.0",
             "location": "unknown",
             "registeredClients": [],

@@ -48,6 +48,7 @@ mod topology_requests {
     #[cfg(test)]
     mod on_a_400_status {
         use super::*;
+
         #[tokio::test]
         async fn it_returns_an_error() {
             let _m = mock("GET", PATH)
@@ -60,9 +61,11 @@ mod topology_requests {
             _m.assert();
         }
     }
+
     #[cfg(test)]
     mod on_a_200 {
         use super::*;
+
         #[tokio::test]
         async fn it_returns_a_response_with_200_status_and_a_correct_topology() {
             let json = fixtures::topology_response_json();
@@ -208,7 +211,8 @@ mod topology_requests {
                   "location": "unknown",
                   "clientListener": "3.8.176.11:8888",
                   "mixnetListener": "3.8.176.11:9999",
-                  "pubKey": "54U6krAr-j9nQXFlsHk3io04_p0tctuqH71t7w_usgI=",
+                  "identityKey": "B9xz9V6jpp1fEbDkeyR5f8miorw9bzXGKoMbKnaxkD41",
+                  "sphinxKey": "3KCpz1HCD8DqnQjemT1uuBZipmHFXM4V5btxLXwvM1gG",
                   "registeredClients": [
                     {
                       "pubKey": "zOqdJFH49HcgGSCRnmbXGzovnwRLEPN0YGN1SCafTyo="
@@ -224,7 +228,8 @@ mod topology_requests {
                   "location": "unknown",
                   "clientListener": "3.8.176.12:8888",
                   "mixnetListener": "3.8.176.12:9999",
-                  "pubKey": "sA-sxi038pEbGy4lgZWG-RdHHDkA6kZzu44G0LUxFSc=",
+                  "identityKey": "CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
+                  "sphinxKey": "BnLYqQjb8K6TmW5oFdNZrUTocGxa3rgzBvapQrf8XUbF",
                   "registeredClients": [
                     {
                       "pubKey": "UE-7r6-bpw0b4T3GxOBVxlg02psx23DF2p5Tuf-OBSE="

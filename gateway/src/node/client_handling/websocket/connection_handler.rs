@@ -254,9 +254,11 @@ impl<S> Handle<S> {
             ClientsHandlerResponse::Authenticate(shared_key) => {
                 if shared_key.is_some() {
                     self.remote_address = Some(address);
-                    self.shared_key = shared_key
+                    self.shared_key = shared_key;
+                    ServerResponse::Authenticate { status: true }
+                } else {
+                    ServerResponse::Authenticate { status: false }
                 }
-                ServerResponse::Authenticate { status: false }
             }
             ClientsHandlerResponse::Error(e) => {
                 error!("Authentication unexpectedly failed - {}", e);

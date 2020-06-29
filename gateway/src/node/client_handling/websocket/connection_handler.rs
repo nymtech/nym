@@ -186,9 +186,13 @@ impl<S> Handle<S> {
 
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
         trace!("Handling binary message (presumably sphinx packet)");
-        // TODO: those are going to be encrypted and we should use self.shared_key for decryption!
 
-        match BinaryRequest::try_from_bytes(&bin_msg) {
+        match BinaryRequest::try_from_encrypted_bytes(
+            bin_msg,
+            self.shared_key
+                .as_ref()
+                .expect("no shared key present even though we authenticated the client!"),
+        ) {
             Err(e) => ServerResponse::new_error(e.to_string()),
             Ok(request) => match request {
                 // currently only a single type exists

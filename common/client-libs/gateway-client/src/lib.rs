@@ -100,7 +100,7 @@ impl<'a> PartiallyDelegated<'a> {
                                 packet_router.route_received(vec![bin_msg])
                             },
                             // I think that in the future we should perhaps have some sequence number system, i.e.
-                            // so each request/reponse pair can be easily identified, so that if messages are
+                            // so each request/response pair can be easily identified, so that if messages are
                             // not ordered (for some peculiar reason) we wouldn't lose anything.
                             // This would also require NOT discarding any text responses here.
                             Message::Text(_) => debug!("received a text message - probably a response to some previous query!"),
@@ -422,7 +422,11 @@ impl<'a, R> GatewayClient<'static, R> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
-        let msg = BinaryRequest::new_forward_request(address, packet).into();
+        let msg = BinaryRequest::new_forward_request(address, packet).into_ws_message(
+            self.shared_key
+                .as_ref()
+                .expect("no shared key present even though we're authenticated!"),
+        );
         self.send_websocket_message_without_response(msg).await
     }
 

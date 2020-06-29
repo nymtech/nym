@@ -14,6 +14,8 @@
 
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::authentication::iv::AuthenticationIV;
+use crate::registration::handshake::SharedKey;
+use crypto::symmetric::aes_ctr;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx::params::packet_sizes::PacketSize;
 use nymsphinx::{DestinationAddressBytes, SphinxPacket};
@@ -60,39 +62,12 @@ impl TryInto<String> for RegistrationHandshake {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     #[test]
-//     fn foo() {
-//         let a = RegistrationHandshake::HandshakePayload {
-//             data: vec![1, 2, 3, 4, 5],
-//         };
-//         let b = RegistrationHandshake::HandshakeError {
-//             message: "foo".to_string(),
-//         };
-//
-//         let a_str: String = a.try_into().unwrap();
-//         let b_str: String = b.try_into().unwrap();
-//
-//         panic!("{} {}", a_str, b_str);
-//     }
-// }
-
-////////////////////////
-////////////////////////
-////////////////////////
-// TODO: SOMEHOW SPLIT IT
-////////////////////////
-////////////////////////
-////////////////////////
-
 #[derive(Debug)]
 pub enum GatewayRequestsError {
     IncorrectlyEncodedAddress,
     RequestOfInvalidSize(usize),
     MalformedSphinxPacket,
+    MalformedEncryption,
 }
 
 // to use it as `std::error::Error`, and we don't want to just derive is because we want
@@ -108,6 +83,7 @@ impl fmt::Display for GatewayRequestsError {
                 actual, PacketSize::ACKPacket.size(), PacketSize::RegularPacket.size(), PacketSize::ExtendedPacket.size()
             ),
             MalformedSphinxPacket => write!(f, "received sphinx packet was malformed"),
+            MalformedEncryption => write!(f, "the received encrypted data was malformed"),
         }
     }
 }
@@ -225,20 +201,38 @@ pub enum BinaryRequest {
     },
 }
 
+// TODO: ask @AP if that's sufficient
+const PADDING_LEN: usize = 16;
+
+// Right now the only valid `BinaryRequest` is a request to forward a sphinx packet.
+// It is encrypted using the derived shared key between client and the gateway. Thanks to
+// randomness inside the sphinx packet themselves (even via the same route), the 0s IV can be used here.
+// HOWEVER, NOTE: If we introduced another 'BinaryRequest', we must carefully examine if a 0s IV
+// would work there.
 impl BinaryRequest {
-    pub fn try_from_bytes(raw_req: &[u8]) -> Result<Self, GatewayRequestsError> {
+    pub fn try_from_encrypted_bytes(
+        mut raw_req: Vec<u8>,
+        shared_key: &SharedKey,
+    ) -> Result<Self, GatewayRequestsError> {
+        aes_ctr::decrypt_in_place(shared_key, &aes_ctr::zero_iv(), &mut raw_req);
+        // see if the padding is retained
+        if !raw_req.iter().rev().take(PADDING_LEN).all(|&x| x == 0) {
+            return Err(GatewayRequestsError::MalformedEncryption);
+        }
+
         // right now there's only a single option possible which significantly simplifies the logic
         // if we decided to allow for more 'binary' messages, the API wouldn't need to change
         let address = NymNodeRoutingAddress::try_from_bytes(&raw_req)?;
         let addr_offset = address.bytes_min_len();
 
-        let packet_size = raw_req[addr_offset..].len();
+        let sphinx_packet_data = &raw_req[addr_offset..raw_req.len() - PADDING_LEN];
+        let packet_size = sphinx_packet_data.len();
         if let Err(_) = PacketSize::get_type(packet_size) {
             // TODO: should this allow AckPacket sizes?
 
             Err(GatewayRequestsError::RequestOfInvalidSize(packet_size))
         } else {
-            let sphinx_packet = match SphinxPacket::from_bytes(&raw_req[addr_offset..]) {
+            let sphinx_packet = match SphinxPacket::from_bytes(sphinx_packet_data) {
                 Ok(packet) => packet,
                 Err(_) => return Err(GatewayRequestsError::MalformedSphinxPacket),
             };
@@ -250,7 +244,7 @@ impl BinaryRequest {
         }
     }
 
-    pub fn into_bytes(self) -> Vec<u8> {
+    pub fn into_encrypted_bytes(self, shared_key: &SharedKey) -> Vec<u8> {
         match self {
             BinaryRequest::ForwardSphinx {
                 address,
@@ -260,11 +254,17 @@ impl BinaryRequest {
                 // it happens to do exactly what we needed, but we really don't want to be
                 // dependant on what it does
                 let wrapped_address = NymNodeRoutingAddress::from(address);
-                wrapped_address
+
+                // add 16 bytes of padding so that the gateway could catch incorrect encryption
+                let mut gateway_data: Vec<_> = wrapped_address
                     .as_bytes()
                     .into_iter()
                     .chain(sphinx_packet.to_bytes().into_iter())
-                    .collect()
+                    .chain(std::iter::repeat(0).take(PADDING_LEN))
+                    .collect();
+
+                aes_ctr::encrypt_in_place(shared_key, &aes_ctr::zero_iv(), &mut gateway_data);
+                gateway_data
             }
         }
     }
@@ -276,11 +276,9 @@ impl BinaryRequest {
             sphinx_packet,
         }
     }
-}
 
-impl Into<Message> for BinaryRequest {
-    fn into(self) -> Message {
-        Message::Binary(self.into_bytes())
+    pub fn into_ws_message(self, shared_key: &SharedKey) -> Message {
+        Message::Binary(self.into_encrypted_bytes(shared_key))
     }
 }
 

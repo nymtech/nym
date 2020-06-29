@@ -98,7 +98,7 @@ fn special_addresses() -> Vec<&'static str> {
 
 fn load_sphinx_keys(config_file: &Config) -> encryption::KeyPair {
     let sphinx_keypair = PemStore::new(MixNodePathfinder::new_from_config(&config_file))
-        .read_encryption()
+        .read_encryption_keypair()
         .expect("Failed to read stored sphinx key files");
     println!(
         "Public key: {}\n",

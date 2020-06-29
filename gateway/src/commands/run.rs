@@ -130,7 +130,7 @@ fn special_addresses() -> Vec<&'static str> {
 
 fn load_sphinx_keys<P: PathFinder>(pemstore: &PemStore<P>) -> encryption::KeyPair {
     let sphinx_keypair = pemstore
-        .read_encryption()
+        .read_encryption_keypair()
         .expect("Failed to read stored sphinx key files");
     println!(
         "Public sphinx key: {}\n",
@@ -141,7 +141,7 @@ fn load_sphinx_keys<P: PathFinder>(pemstore: &PemStore<P>) -> encryption::KeyPai
 
 fn load_identity_keys<P: PathFinder>(pemstore: &PemStore<P>) -> identity::KeyPair {
     let identity_keypair = pemstore
-        .read_identity()
+        .read_identity_keypair()
         .expect("Failed to read stored identity key files");
     println!(
         "Public identity key: {}\n",

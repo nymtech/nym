@@ -88,14 +88,14 @@ impl<P> PemStore<P> {
         Ok(key_pair)
     }
 
-    pub fn read_encryption(&self) -> io::Result<encryption::KeyPair>
+    pub fn read_encryption_keypair(&self) -> io::Result<encryption::KeyPair>
     where
         P: PathFinder,
     {
         self.read_keypair(KeyType::Encryption)
     }
 
-    pub fn read_identity(&self) -> io::Result<identity::KeyPair>
+    pub fn read_identity_keypair(&self) -> io::Result<identity::KeyPair>
     where
         P: PathFinder,
     {
@@ -137,14 +137,14 @@ impl<P> PemStore<P> {
     // This should be refactored and made more generic for when we have other kinds of
     // KeyPairs that we want to persist (e.g. validator keypairs, or keys for
     // signing vs encryption). However, for the moment, it does the job.
-    pub fn write_identity(&self, key_pair: &identity::KeyPair) -> io::Result<()>
+    pub fn write_identity_keypair(&self, key_pair: &identity::KeyPair) -> io::Result<()>
     where
         P: PathFinder,
     {
         self.write_keypair(key_pair, KeyType::Identity)
     }
 
-    pub fn write_encryption_keys(&self, key_pair: &encryption::KeyPair) -> io::Result<()>
+    pub fn write_encryption_keypair(&self, key_pair: &encryption::KeyPair) -> io::Result<()>
     where
         P: PathFinder,
     {

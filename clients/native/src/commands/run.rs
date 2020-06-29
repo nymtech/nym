@@ -59,7 +59,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
 
 fn load_identity_keys(config_file: &Config) -> identity::KeyPair {
     let identity_keypair = PemStore::new(ClientPathfinder::new_from_config(&config_file))
-        .read_identity()
+        .read_identity_keypair()
         .expect("Failed to read stored identity key files");
     println!(
         "Public identity key: {}\n",

@@ -118,10 +118,10 @@ pub fn execute(matches: &ArgMatches) {
     let pathfinder = GatewayPathfinder::new_from_config(&config);
     let pem_store = PemStore::new(pathfinder);
     pem_store
-        .write_encryption_keys(&sphinx_keys)
+        .write_encryption_keypair(&sphinx_keys)
         .expect("Failed to save sphinx keys");
     pem_store
-        .write_identity(&identity_keys)
+        .write_identity_keypair(&identity_keys)
         .expect("Failed to save identity keys");
 
     println!("Saved identity and mixnet sphinx keypairs");

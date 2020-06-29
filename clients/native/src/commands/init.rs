@@ -193,7 +193,7 @@ pub fn execute(matches: &ArgMatches) {
     let pathfinder = ClientPathfinder::new_from_config(&config);
     let pem_store = PemStore::new(pathfinder);
     pem_store
-        .write_identity(mix_identity_keys.as_ref())
+        .write_identity_keypair(mix_identity_keys.as_ref())
         .expect("Failed to save identity keys");
     println!("Saved mixnet identity keypair");
 

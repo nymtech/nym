@@ -59,6 +59,10 @@ impl<'a, S> State<'a, S> {
             derived_shared_key: None,
         }
     }
+    
+    pub(crate) fn local_ephemeral_key(&self) -> &encryption::PublicKey {
+        self.ephemeral_keypair.public_key()
+    }
 
     // LOCAL_ID_PUBKEY || EPHEMERAL_KEY
     // Eventually the ID_PUBKEY prefix will get removed and recipient will know

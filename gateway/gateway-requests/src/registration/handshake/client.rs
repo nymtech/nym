@@ -47,17 +47,23 @@ impl<'a> ClientHandshake<'a> {
                 // party to indicate handshake should be terminated
 
                 let init_message = state.init_message();
-                // -> pub_key || g^x
                 state.send_handshake_data(init_message).await?;
+
                 // <- g^y || AES(k, sig(gate_priv, (g^y || g^x))
                 let mid_res = state.receive_handshake_message().await?;
                 let (remote_ephemeral_key, remote_key_material) =
                     Self::parse_mid_response(mid_res)?;
+
+                // hkdf::<blake3>::(g^xy)
                 state.derive_shared_key(&remote_ephemeral_key);
                 state.verify_remote_key_material(&remote_key_material, &remote_ephemeral_key)?;
+
+                // AES(k, sig(client_priv, (g^y || g^x))
                 let material = state.prepare_key_material_sig(&remote_ephemeral_key);
-                // -> AES(k, sig(priv, g^x || g^y))
+
+                // -> AES(k, sig(client_priv, g^x || g^y))
                 state.send_handshake_data(material).await?;
+
                 // <- Ok
                 let finalization = state.receive_handshake_message().await?;
                 Self::parse_finalization_response(finalization)?;

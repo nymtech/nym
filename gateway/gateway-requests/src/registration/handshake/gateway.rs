@@ -15,6 +15,7 @@
 use crate::registration::handshake::shared_key::SharedKey;
 use crate::registration::handshake::state::State;
 use crate::registration::handshake::{error::HandshakeError, WsItem};
+use crypto::asymmetric::encryption;
 use futures::future::BoxFuture;
 use futures::task::{Context, Poll};
 use futures::{Future, Sink, Stream};
@@ -43,13 +44,23 @@ impl<'a> GatewayHandshake<'a> {
                 let (remote_identity, remote_ephemeral_key) =
                     State::<S>::parse_init_message(received_init_payload)?;
                 state.update_remote_identity(remote_identity);
+
+                // hkdf::<blake3>::(g^xy)
                 state.derive_shared_key(&remote_ephemeral_key);
 
-                // -> g^y || AES(k, sig(gate_priv, (g^y || g^x))
+                // AES(k, sig(gate_priv, (g^y || g^x))
                 let material = state.prepare_key_material_sig(&remote_ephemeral_key);
-                state.send_handshake_data(material).await?;
 
-                // <- AES(k, sig(priv, g^x || g^y))
+                // g^y || AES(k, sig(gate_priv, (g^y || g^x))
+                let handshake_payload = Self::combine_material_with_ephemeral_key(
+                    state.local_ephemeral_key(),
+                    material,
+                );
+
+                // -> g^y || AES(k, sig(gate_priv, (g^y || g^x))
+                state.send_handshake_data(handshake_payload).await?;
+
+                // <- AES(k, sig(client_priv, g^x || g^y))
                 let remote_key_material = state.receive_handshake_message().await?;
                 state.verify_remote_key_material(&remote_key_material, &remote_ephemeral_key)?;
                 let finalizer = Self::prepare_finalization_response();
@@ -59,6 +70,19 @@ impl<'a> GatewayHandshake<'a> {
                 Ok(state.finalize_handshake())
             }),
         }
+    }
+
+    // create g^y || AES(k, sig(gate_priv, (g^y || g^x))
+    fn combine_material_with_ephemeral_key(
+        ephemeral_key: &encryption::PublicKey,
+        material: Vec<u8>,
+    ) -> Vec<u8> {
+        ephemeral_key
+            .to_bytes()
+            .iter()
+            .cloned()
+            .chain(material.into_iter())
+            .collect()
     }
 
     fn prepare_finalization_response() -> Vec<u8> {

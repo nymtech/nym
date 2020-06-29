@@ -155,28 +155,6 @@ impl NymClient {
             .start(self.runtime.handle())
     }
 
-    // // TODO: this information should be just put in the config on init...
-    // async fn get_gateway_address<T: NymTopology>(
-    //     gateway_id: String,
-    //     topology_accessor: TopologyAccessor<T>,
-    // ) -> url::Url {
-    //     // we already have our gateway written in the config
-    //     let gateway_address = topology_accessor
-    //         .get_gateway_socket_url(&gateway_id)
-    //         .await
-    //         .unwrap_or_else(|| {
-    //             panic!(
-    //                 "Could not find gateway with id {:?}.\
-    //          It does not seem to be present in the current network topology.\
-    //           Are you sure it is still online?\
-    //            Perhaps try to run `nym-client init` again to obtain a new gateway",
-    //                 gateway_id
-    //             )
-    //         });
-    //
-    //     url::Url::parse(&gateway_address).expect("provided gateway address is invalid!")
-    // }
-
     fn start_gateway_client(
         &mut self,
         mixnet_message_sender: MixnetMessageSender,

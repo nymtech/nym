@@ -47,7 +47,6 @@ pub async fn client_handshake<'a, S>(
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
 {
-    // TODO: error map (and send back response to terminate handshake)
     ClientHandshake::new(rng, ws_stream, identity, gateway_pubkey).await
 }
 
@@ -60,7 +59,6 @@ pub async fn gateway_handshake<'a, S>(
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
 {
-    // TODO: error map (and send back response to terminate handshake)
     GatewayHandshake::new(rng, ws_stream, identity, received_init_payload).await
 }
 

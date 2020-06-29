@@ -46,7 +46,7 @@ gateway_listener = '{{ client.gateway_listener }}'
 
 # A gateway specific, optional, base58 stringified shared key used for
 # communication with particular gateway.
-gateway_shared_key = '{{ client.gateway_authtoken }}'
+gateway_shared_key = '{{ client.gateway_shared_key }}'
     
 ##### advanced configuration options #####
 

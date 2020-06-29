@@ -59,7 +59,7 @@ impl<'a, S> State<'a, S> {
             derived_shared_key: None,
         }
     }
-    
+
     pub(crate) fn local_ephemeral_key(&self) -> &encryption::PublicKey {
         self.ephemeral_keypair.public_key()
     }

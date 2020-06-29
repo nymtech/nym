@@ -40,9 +40,31 @@ impl<'a> GatewayHandshake<'a> {
         let mut state = State::new(rng, ws_stream, identity, None);
         GatewayHandshake {
             handshake_future: Box::pin(async move {
+                // If any step along the way failed (that are non-network related),
+                // try to send 'error' message to the remote
+                // party to indicate handshake should be terminated
+                pub(crate) async fn check_processing_error<T, S>(
+                    result: Result<T, HandshakeError>,
+                    state: &mut State<'_, S>,
+                ) -> Result<T, HandshakeError>
+                where
+                    S: Sink<WsMessage> + Unpin,
+                {
+                    match result {
+                        Ok(ok) => Ok(ok),
+                        Err(err) => {
+                            state.send_handshake_error(err.to_string()).await?;
+                            Err(err)
+                        }
+                    }
+                }
+
                 // init: <- pub_key || g^x
-                let (remote_identity, remote_ephemeral_key) =
-                    State::<S>::parse_init_message(received_init_payload)?;
+                let (remote_identity, remote_ephemeral_key) = check_processing_error(
+                    State::<S>::parse_init_message(received_init_payload),
+                    &mut state,
+                )
+                .await?;
                 state.update_remote_identity(remote_identity);
 
                 // hkdf::<blake3>::(g^xy)
@@ -62,7 +84,9 @@ impl<'a> GatewayHandshake<'a> {
 
                 // <- AES(k, sig(client_priv, g^x || g^y))
                 let remote_key_material = state.receive_handshake_message().await?;
-                state.verify_remote_key_material(&remote_key_material, &remote_ephemeral_key)?;
+                let verification_res =
+                    state.verify_remote_key_material(&remote_key_material, &remote_ephemeral_key);
+                check_processing_error(verification_res, &mut state).await?;
                 let finalizer = Self::prepare_finalization_response();
 
                 // -> Ok

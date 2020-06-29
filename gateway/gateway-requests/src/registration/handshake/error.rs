@@ -27,15 +27,6 @@ pub enum HandshakeError {
     HandshakeFailure,
 }
 
-impl HandshakeError {
-    pub fn is_network_related(&self) -> bool {
-        match self {
-            HandshakeError::ClosedStream | HandshakeError::NetworkError => true,
-            _ => false,
-        }
-    }
-}
-
 impl Display for HandshakeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {

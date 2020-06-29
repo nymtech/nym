@@ -225,7 +225,6 @@ impl<'a, S> State<'a, S> {
         message: M,
     ) -> Result<(), HandshakeError>
     where
-        // TODO: Or WsItem?
         S: Sink<WsMessage> + Unpin,
     {
         let handshake_message = types::RegistrationHandshake::new_error(message);

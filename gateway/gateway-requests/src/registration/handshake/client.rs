@@ -43,8 +43,24 @@ impl<'a> ClientHandshake<'a> {
 
         ClientHandshake {
             handshake_future: Box::pin(async move {
-                // if any step along the way failed, try to send 'error' message to the remote
+                // If any step along the way failed (that are non-network related),
+                // try to send 'error' message to the remote
                 // party to indicate handshake should be terminated
+                pub(crate) async fn check_processing_error<T, S>(
+                    result: Result<T, HandshakeError>,
+                    state: &mut State<'_, S>,
+                ) -> Result<T, HandshakeError>
+                where
+                    S: Sink<WsMessage> + Unpin,
+                {
+                    match result {
+                        Ok(ok) => Ok(ok),
+                        Err(err) => {
+                            state.send_handshake_error(err.to_string()).await?;
+                            Err(err)
+                        }
+                    }
+                }
 
                 let init_message = state.init_message();
                 state.send_handshake_data(init_message).await?;
@@ -52,11 +68,13 @@ impl<'a> ClientHandshake<'a> {
                 // <- g^y || AES(k, sig(gate_priv, (g^y || g^x))
                 let mid_res = state.receive_handshake_message().await?;
                 let (remote_ephemeral_key, remote_key_material) =
-                    Self::parse_mid_response(mid_res)?;
+                    check_processing_error(Self::parse_mid_response(mid_res), &mut state).await?;
 
                 // hkdf::<blake3>::(g^xy)
                 state.derive_shared_key(&remote_ephemeral_key);
-                state.verify_remote_key_material(&remote_key_material, &remote_ephemeral_key)?;
+                let verification_res =
+                    state.verify_remote_key_material(&remote_key_material, &remote_ephemeral_key);
+                check_processing_error(verification_res, &mut state).await?;
 
                 // AES(k, sig(client_priv, (g^y || g^x))
                 let material = state.prepare_key_material_sig(&remote_ephemeral_key);
@@ -66,14 +84,15 @@ impl<'a> ClientHandshake<'a> {
 
                 // <- Ok
                 let finalization = state.receive_handshake_message().await?;
-                Self::parse_finalization_response(finalization)?;
+                check_processing_error(Self::parse_finalization_response(finalization), &mut state)
+                    .await?;
                 Ok(state.finalize_handshake())
             }),
         }
     }
 
     // client should have received
-    // G^y || AES(k, SIG(PRIV_S, G^y || G^x))
+    // G^y || AES(k, SIG(PRIV_GATE, G^y || G^x))
     fn parse_mid_response(
         mut resp: Vec<u8>,
     ) -> Result<(encryption::PublicKey, Vec<u8>), HandshakeError> {

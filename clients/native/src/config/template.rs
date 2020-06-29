@@ -42,7 +42,7 @@ public_identity_key_file = '{{ client.public_identity_key_file }}'
 gateway_id = '{{ client.gateway_id }}'
 
 # Address of the gateway listener to which all client requests should be sent.
-gateway_listener = {{ client.gateway_listener }}'
+gateway_listener = '{{ client.gateway_listener }}'
 
 # A gateway specific, optional, base58 stringified shared key used for
 # communication with particular gateway.

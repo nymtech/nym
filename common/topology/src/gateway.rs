@@ -39,9 +39,7 @@ pub struct Node {
 impl Node {
     fn get_sphinx_key_bytes(&self) -> [u8; 32] {
         let mut key_bytes = [0; 32];
-        bs58::decode(&self.identity_key)
-            .into(&mut key_bytes)
-            .unwrap();
+        bs58::decode(&self.sphinx_key).into(&mut key_bytes).unwrap();
         key_bytes
     }
 

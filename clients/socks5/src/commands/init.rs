@@ -21,7 +21,6 @@ use crypto::asymmetric::identity;
 use directory_client::DirectoryClient;
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKey;
-use nymsphinx::DestinationAddressBytes;
 use pemstore::pemstore::PemStore;
 use std::sync::Arc;
 use std::time::Duration;

@@ -257,9 +257,9 @@ impl NymClient {
 
     fn start_socks5_listener<T: 'static + NymTopology>(
         &self,
-        topology_accessor: TopologyAccessor<T>,
-        buffer_requester: ReceivedBufferRequestSender,
-        msg_input: InputMessageSender,
+        _topology_accessor: TopologyAccessor<T>,
+        _buffer_requester: ReceivedBufferRequestSender,
+        _msg_input: InputMessageSender,
     ) {
         // info!("Starting websocket listener...");
 

@@ -117,17 +117,6 @@ impl<T: NymTopology> TopologyAccessor<T> {
         self.inner.write().await.update(new_topology);
     }
 
-    // pub(crate) async fn get_gateway_socket_url(&self, id: &str) -> Option<String> {
-    //     match &self.inner.read().await.0 {
-    //         None => None,
-    //         Some(ref topology) => topology
-    //             .gateways()
-    //             .iter()
-    //             .find(|gateway| gateway.identity_key == id)
-    //             .map(|gateway| gateway.client_listener.clone()),
-    //     }
-    // }
-
     // only used by the client at startup to get a slightly more reasonable error message
     // (currently displays as unused because healthchecker is disabled due to required changes)
     pub(crate) async fn is_routable(&self) -> bool {

@@ -17,7 +17,7 @@ use crate::node::client_handling::clients_handler::{ClientsHandler, ClientsHandl
 use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::sender::{OutboundMixMessageSender, PacketForwarder};
 use crate::node::storage::{inboxes, ClientLedger};
-use crypto::encryption;
+use crypto::asymmetric::{encryption, identity};
 use directory_client::DirectoryClient;
 use log::*;
 use std::sync::Arc;
@@ -28,27 +28,22 @@ pub(crate) mod mixnet_handling;
 mod presence;
 pub(crate) mod storage;
 
-// current issues in this file:
-// - two calls to `Arc::new(self.sphinx_keypair.private_key().clone()),` - basically 2 separate
-// Arcs to the same underlying data (well, after a clone), so what it ends up resulting in is
-// private key being in 3 different places in memory rather than in a single location.
-// Does it affect performance? No, not really. Is it *SUPER* insecure? Also, not as much, because
-// if somebody could read memory of the machine, they probably got better attack vectors.
-// Should it get fixed? Probably. But it's very low priority for time being.
-
 pub struct Gateway {
     config: Config,
-    sphinx_keypair: encryption::KeyPair,
+    /// ed25519 keypair used to assert one's identity.
+    identity: Arc<identity::KeyPair>,
+    /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
+    encryption_keys: Arc<encryption::KeyPair>,
     registered_clients_ledger: ClientLedger,
     client_inbox_storage: inboxes::ClientStorage,
 }
 
 impl Gateway {
-    // the constructor differs from mixnodes and providers in that it takes keys directly
-    // as opposed to having `Self::load_sphinx_keys(cfg: &Config)` method. Let's see
-    // how it works out, because I'm not sure which one would be "better", but when I think about it,
-    // I kinda prefer to delegate having to load the keys to outside the gateway
-    pub fn new(config: Config, sphinx_keypair: encryption::KeyPair) -> Self {
+    pub fn new(
+        config: Config,
+        encryption_keys: encryption::KeyPair,
+        identity: identity::KeyPair,
+    ) -> Self {
         let registered_clients_ledger = match ClientLedger::load(config.get_clients_ledger_path()) {
             Err(e) => panic!(format!("Failed to load the ledger - {:?}", e)),
             Ok(ledger) => ledger,
@@ -60,7 +55,8 @@ impl Gateway {
         );
         Gateway {
             config,
-            sphinx_keypair,
+            identity: Arc::new(identity),
+            encryption_keys: Arc::new(encryption_keys),
             client_inbox_storage,
             registered_clients_ledger,
         }
@@ -74,7 +70,7 @@ impl Gateway {
         info!("Starting mix socket listener...");
 
         let packet_processor = mixnet_handling::PacketProcessor::new(
-            Arc::new(self.sphinx_keypair.private_key().clone()),
+            Arc::clone(&self.encryption_keys),
             clients_handler_sender,
             self.client_inbox_storage.clone(),
             ack_sender,
@@ -91,8 +87,11 @@ impl Gateway {
     ) {
         info!("Starting client [web]socket listener...");
 
-        websocket::Listener::new(self.config.get_clients_listening_address())
-            .start(clients_handler_sender, forwarding_channel);
+        websocket::Listener::new(
+            self.config.get_clients_listening_address(),
+            Arc::clone(&self.identity),
+        )
+        .start(clients_handler_sender, forwarding_channel);
     }
 
     fn start_packet_forwarder(&self) -> OutboundMixMessageSender {
@@ -110,7 +109,6 @@ impl Gateway {
     fn start_clients_handler(&self) -> ClientsHandlerRequestSender {
         info!("Starting clients handler");
         let (_, clients_handler_sender) = ClientsHandler::new(
-            Arc::new(self.sphinx_keypair.private_key().clone()),
             self.registered_clients_ledger.clone(),
             self.client_inbox_storage.clone(),
         )
@@ -125,7 +123,8 @@ impl Gateway {
             self.config.get_presence_directory_server(),
             self.config.get_mix_announce_address(),
             self.config.get_clients_announce_address(),
-            self.sphinx_keypair.public_key().to_base58_string(),
+            self.identity.public_key().to_base58_string(),
+            self.encryption_keys.public_key().to_base58_string(),
             self.config.get_presence_sending_delay(),
         );
         presence::Notifier::new(notifier_config, self.registered_clients_ledger.clone()).start();
@@ -160,7 +159,7 @@ impl Gateway {
                 node.mixnet_listener == announced_mix_host
                     || node.client_listener == announced_clients_host
             })
-            .map(|node| node.pub_key.clone())
+            .map(|node| node.identity_key.clone())
     }
 
     // Rather than starting all futures with explicit `&Handle` argument, let's see how it works

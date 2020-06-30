@@ -89,7 +89,7 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
         let b58_address = gateway_address.to_base58_string();
         self.gateways()
             .iter()
-            .find(|&gateway| gateway.pub_key == b58_address)
+            .find(|&gateway| gateway.identity_key == b58_address)
             .is_some()
     }
 
@@ -102,7 +102,7 @@ pub trait NymTopology: Sized + std::fmt::Debug + Send + Sync + Clone {
         let gateway = self
             .gateways()
             .iter()
-            .find(|&gateway| gateway.pub_key == b58_address)
+            .find(|&gateway| gateway.identity_key == b58_address)
             .ok_or_else(|| NymTopologyError::NonExistentGatewayError)?
             .clone();
 

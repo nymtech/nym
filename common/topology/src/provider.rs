@@ -54,7 +54,7 @@ impl Into<SphinxNode> for Node {
             .try_into()
             .unwrap();
         let key_bytes = self.get_pub_key_bytes();
-        let key = nymsphinx_types::public_key_from_bytes(key_bytes);
+        let key = nymsphinx_types::PublicKey::from(key_bytes);
 
         SphinxNode::new(node_address_bytes, key)
     }

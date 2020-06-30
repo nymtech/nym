@@ -16,7 +16,7 @@ use crate::commands::override_config;
 use crate::config::persistence::pathfinder::MixNodePathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::encryption;
+use crypto::asymmetric::encryption;
 use pemstore::pemstore::PemStore;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
@@ -88,7 +88,7 @@ pub fn execute(matches: &ArgMatches) {
     let pathfinder = MixNodePathfinder::new_from_config(&config);
     let pem_store = PemStore::new(pathfinder);
     pem_store
-        .write_encryption_keys(sphinx_keys)
+        .write_encryption_keypair(&sphinx_keys)
         .expect("Failed to save sphinx keys");
     println!("Saved mixnet sphinx keypair");
 

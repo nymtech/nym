@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::node::metrics;
-use crypto::encryption;
+use crypto::asymmetric::encryption;
 use log::*;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx::{
@@ -21,7 +21,6 @@ use nymsphinx::{
 };
 use std::convert::TryFrom;
 use std::net::SocketAddr;
-use std::ops::Deref;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -96,8 +95,7 @@ impl PacketProcessor {
     ) -> Result<MixProcessingResult, MixProcessingError> {
         // we received something resembling a sphinx packet, report it!
         self.metrics_reporter.report_received();
-
-        match packet.process(self.secret_key.deref().inner()) {
+        match packet.process(&self.secret_key.as_ref().into()) {
             Ok(ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay)) => {
                 self.process_forward_hop(packet, address, delay).await
             }

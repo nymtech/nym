@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod encryption;
-pub mod identity;
+pub mod asymmetric;
+pub mod kdf;
+pub mod symmetric;
 
 // TODO: ideally those trait should be moved to 'pemstore' crate, however, that would cause
 // circular dependency. The best solution would be to remove dependency on 'crypto' from
@@ -25,12 +26,13 @@ pub trait PemStorableKey {
     fn to_bytes(&self) -> Vec<u8>;
 }
 
-pub trait PemStorableKeyPair {
+pub trait PemStorableKeyPair: Sized {
     type PrivatePemKey: PemStorableKey;
     type PublicPemKey: PemStorableKey;
+    type Error: std::error::Error;
 
     fn private_key(&self) -> &Self::PrivatePemKey;
     fn public_key(&self) -> &Self::PublicPemKey;
 
-    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Self;
+    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, Self::Error>;
 }

@@ -12,36 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use aes_ctr::{
-    stream_cipher::{
-        generic_array::{
-            typenum::{marker_traits::Unsigned, U16},
-            GenericArray,
-        },
-        NewStreamCipher, SyncStreamCipher,
-    },
-    Aes128Ctr,
-};
+use crypto::symmetric::aes_ctr::generic_array::typenum::Unsigned;
+use crypto::symmetric::aes_ctr::{iv_from_slice, Aes128IV, Aes128Key, Aes128NonceSize};
 use nymsphinx_params::packet_sizes::PacketSize;
 use rand::{CryptoRng, RngCore};
 
-// the 'U16' type is taken directly from the `Ctr128` for consistency sake
-pub type Aes128KeySize = U16;
-pub type Aes128NonceSize = U16;
-
-pub type AckAes128Key = GenericArray<u8, Aes128KeySize>;
-type AckAes128IV = GenericArray<u8, Aes128NonceSize>;
+pub type AckAes128Key = Aes128Key;
+type AckAes128IV = Aes128IV;
 
 pub fn generate_key<R: RngCore + CryptoRng>(rng: &mut R) -> AckAes128Key {
-    let mut ack_key = GenericArray::default();
-    rng.fill_bytes(&mut ack_key);
-    ack_key
+    crypto::symmetric::aes_ctr::generate_key(rng)
 }
 
 fn random_iv<R: RngCore + CryptoRng>(rng: &mut R) -> AckAes128IV {
-    let mut iv = GenericArray::default();
-    rng.fill_bytes(&mut iv);
-    iv
+    crypto::symmetric::aes_ctr::random_iv(rng)
 }
 
 pub fn prepare_identifier<R: RngCore + CryptoRng>(
@@ -50,30 +34,30 @@ pub fn prepare_identifier<R: RngCore + CryptoRng>(
     marshaled_id: [u8; 5],
 ) -> Vec<u8> {
     let iv = random_iv(rng);
-    let mut cipher = Aes128Ctr::new(key, &iv);
-    let mut output = marshaled_id.to_vec();
+    let id_ciphertext = crypto::symmetric::aes_ctr::encrypt(key, &iv, &marshaled_id);
 
-    cipher.apply_keystream(&mut output);
-
-    iv.into_iter().chain(output.into_iter()).collect()
+    // IV || ID_CIPHERTEXT
+    iv.into_iter().chain(id_ciphertext.into_iter()).collect()
 }
 
-pub fn recover_identifier(key: &AckAes128Key, iv_ciphertext: &[u8]) -> Option<[u8; 5]> {
+pub fn recover_identifier(key: &AckAes128Key, iv_id_ciphertext: &[u8]) -> Option<[u8; 5]> {
     // first few bytes are expected to be the concatenated IV. It must be followed by at least 1 more
     // byte that we wish to recover, but it can be no longer from what we can physically store inside
     // an ack
-    if iv_ciphertext.len() != PacketSize::ACKPacket.plaintext_size() {
+    if iv_id_ciphertext.len() != PacketSize::ACKPacket.plaintext_size() {
         return None;
     }
 
-    let iv = GenericArray::from_slice(&iv_ciphertext[..Aes128NonceSize::to_usize()]);
-    let mut cipher = Aes128Ctr::new(key, &iv);
-    let mut output = iv_ciphertext[Aes128NonceSize::to_usize()..].to_vec();
-    cipher.apply_keystream(&mut output);
+    let iv = iv_from_slice(&iv_id_ciphertext[..Aes128NonceSize::to_usize()]);
+    let id = crypto::symmetric::aes_ctr::decrypt(
+        key,
+        iv,
+        &iv_id_ciphertext[Aes128NonceSize::to_usize()..],
+    );
 
-    let mut output_arr = [0u8; 5];
-    output_arr.copy_from_slice(&output);
-    Some(output_arr)
+    let mut id_arr = [0u8; 5];
+    id_arr.copy_from_slice(&id);
+    Some(id_arr)
 }
 
 #[cfg(test)]

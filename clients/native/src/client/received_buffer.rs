@@ -18,7 +18,6 @@ use futures::StreamExt;
 use gateway_client::MixnetMessageReceiver;
 use log::*;
 use nymsphinx::chunking::reconstruction::MessageReconstructor;
-use nymsphinx::cover::LOOP_COVER_MESSAGE_PAYLOAD;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::runtime::Handle;

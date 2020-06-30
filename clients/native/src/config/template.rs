@@ -41,9 +41,12 @@ public_identity_key_file = '{{ client.public_identity_key_file }}'
 # ID of the gateway from which the client should be fetching messages.
 gateway_id = '{{ client.gateway_id }}'
 
-# A gateway specific, optional, base58 stringified authentication token used for 
+# Address of the gateway listener to which all client requests should be sent.
+gateway_listener = '{{ client.gateway_listener }}'
+
+# A gateway specific, optional, base58 stringified shared key used for
 # communication with particular gateway.
-gateway_authtoken = '{{ client.gateway_authtoken }}'
+gateway_shared_key = '{{ client.gateway_shared_key }}'
     
 ##### advanced configuration options #####
 

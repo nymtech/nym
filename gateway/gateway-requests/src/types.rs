@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::auth_token::AuthToken;
+use crate::authentication::encrypted_address::EncryptedAddressBytes;
+use crate::authentication::iv::AuthenticationIV;
+use crate::registration::handshake::SharedKey;
+use crypto::symmetric::aes_ctr;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx::params::packet_sizes::PacketSize;
 use nymsphinx::{DestinationAddressBytes, SphinxPacket};
@@ -24,11 +27,47 @@ use std::{
 };
 use tokio_tungstenite::tungstenite::protocol::Message;
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum RegistrationHandshake {
+    HandshakePayload { data: Vec<u8> },
+    HandshakeError { message: String },
+}
+
+impl RegistrationHandshake {
+    pub fn new_payload(data: Vec<u8>) -> Self {
+        RegistrationHandshake::HandshakePayload { data }
+    }
+
+    pub fn new_error<S: Into<String>>(message: S) -> Self {
+        RegistrationHandshake::HandshakeError {
+            message: message.into(),
+        }
+    }
+}
+
+impl TryFrom<String> for RegistrationHandshake {
+    type Error = serde_json::Error;
+
+    fn try_from(msg: String) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(&msg)
+    }
+}
+
+impl TryInto<String> for RegistrationHandshake {
+    type Error = serde_json::Error;
+
+    fn try_into(self) -> Result<String, serde_json::Error> {
+        serde_json::to_string(&self)
+    }
+}
+
 #[derive(Debug)]
 pub enum GatewayRequestsError {
     IncorrectlyEncodedAddress,
     RequestOfInvalidSize(usize),
     MalformedSphinxPacket,
+    MalformedEncryption,
 }
 
 // to use it as `std::error::Error`, and we don't want to just derive is because we want
@@ -44,6 +83,7 @@ impl fmt::Display for GatewayRequestsError {
                 actual, PacketSize::ACKPacket.size(), PacketSize::RegularPacket.size(), PacketSize::ExtendedPacket.size()
             ),
             MalformedSphinxPacket => write!(f, "received sphinx packet was malformed"),
+            MalformedEncryption => write!(f, "the received encrypted data was malformed"),
         }
     }
 }
@@ -57,21 +97,25 @@ impl From<NymNodeRoutingAddressError> for GatewayRequestsError {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ClientControlRequest {
-    Authenticate { address: String, token: String },
-    Register { address: String },
+    Authenticate {
+        address: String,
+        enc_address: String,
+        iv: String,
+    },
+    #[serde(alias = "handshakePayload")]
+    RegisterHandshakeInitRequest { data: Vec<u8> },
 }
 
 impl ClientControlRequest {
-    pub fn new_authenticate(address: DestinationAddressBytes, token: AuthToken) -> Self {
+    pub fn new_authenticate(
+        address: DestinationAddressBytes,
+        enc_address: EncryptedAddressBytes,
+        iv: AuthenticationIV,
+    ) -> Self {
         ClientControlRequest::Authenticate {
             address: address.to_base58_string(),
-            token: token.to_base58_string(),
-        }
-    }
-
-    pub fn new_register(address: DestinationAddressBytes) -> Self {
-        ClientControlRequest::Register {
-            address: address.to_base58_string(),
+            enc_address: enc_address.to_base58_string(),
+            iv: iv.to_base58_string(),
         }
     }
 }
@@ -105,7 +149,7 @@ impl TryInto<String> for ClientControlRequest {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ServerResponse {
     Authenticate { status: bool },
-    Register { token: String },
+    Register { status: bool },
     Send { status: bool },
     Error { message: String },
 }
@@ -127,7 +171,7 @@ impl ServerResponse {
     pub fn implies_successful_authentication(&self) -> bool {
         match self {
             ServerResponse::Authenticate { status, .. } => *status,
-            ServerResponse::Register { .. } => true,
+            ServerResponse::Register { status, .. } => *status,
             _ => false,
         }
     }
@@ -157,20 +201,38 @@ pub enum BinaryRequest {
     },
 }
 
+// TODO: ask @AP if that's sufficient
+const PADDING_LEN: usize = 16;
+
+// Right now the only valid `BinaryRequest` is a request to forward a sphinx packet.
+// It is encrypted using the derived shared key between client and the gateway. Thanks to
+// randomness inside the sphinx packet themselves (even via the same route), the 0s IV can be used here.
+// HOWEVER, NOTE: If we introduced another 'BinaryRequest', we must carefully examine if a 0s IV
+// would work there.
 impl BinaryRequest {
-    pub fn try_from_bytes(raw_req: &[u8]) -> Result<Self, GatewayRequestsError> {
+    pub fn try_from_encrypted_bytes(
+        mut raw_req: Vec<u8>,
+        shared_key: &SharedKey,
+    ) -> Result<Self, GatewayRequestsError> {
+        aes_ctr::decrypt_in_place(shared_key, &aes_ctr::zero_iv(), &mut raw_req);
+        // see if the padding is retained
+        if !raw_req.iter().rev().take(PADDING_LEN).all(|&x| x == 0) {
+            return Err(GatewayRequestsError::MalformedEncryption);
+        }
+
         // right now there's only a single option possible which significantly simplifies the logic
         // if we decided to allow for more 'binary' messages, the API wouldn't need to change
         let address = NymNodeRoutingAddress::try_from_bytes(&raw_req)?;
         let addr_offset = address.bytes_min_len();
 
-        let packet_size = raw_req[addr_offset..].len();
+        let sphinx_packet_data = &raw_req[addr_offset..raw_req.len() - PADDING_LEN];
+        let packet_size = sphinx_packet_data.len();
         if let Err(_) = PacketSize::get_type(packet_size) {
             // TODO: should this allow AckPacket sizes?
 
             Err(GatewayRequestsError::RequestOfInvalidSize(packet_size))
         } else {
-            let sphinx_packet = match SphinxPacket::from_bytes(&raw_req[addr_offset..]) {
+            let sphinx_packet = match SphinxPacket::from_bytes(sphinx_packet_data) {
                 Ok(packet) => packet,
                 Err(_) => return Err(GatewayRequestsError::MalformedSphinxPacket),
             };
@@ -182,21 +244,27 @@ impl BinaryRequest {
         }
     }
 
-    pub fn into_bytes(self) -> Vec<u8> {
+    pub fn into_encrypted_bytes(self, shared_key: &SharedKey) -> Vec<u8> {
         match self {
             BinaryRequest::ForwardSphinx {
                 address,
                 sphinx_packet,
             } => {
                 // TODO: using intermediate `NymNodeRoutingAddress` here is just temporary, because
-                // it happens to do exactly what we needed, but we don't really want to be
+                // it happens to do exactly what we needed, but we really don't want to be
                 // dependant on what it does
                 let wrapped_address = NymNodeRoutingAddress::from(address);
-                wrapped_address
+
+                // add 16 bytes of padding so that the gateway could catch incorrect encryption
+                let mut gateway_data: Vec<_> = wrapped_address
                     .as_bytes()
                     .into_iter()
                     .chain(sphinx_packet.to_bytes().into_iter())
-                    .collect()
+                    .chain(std::iter::repeat(0).take(PADDING_LEN))
+                    .collect();
+
+                aes_ctr::encrypt_in_place(shared_key, &aes_ctr::zero_iv(), &mut gateway_data);
+                gateway_data
             }
         }
     }
@@ -208,12 +276,30 @@ impl BinaryRequest {
             sphinx_packet,
         }
     }
-}
 
-impl Into<Message> for BinaryRequest {
-    fn into(self) -> Message {
-        Message::Binary(self.into_bytes())
+    pub fn into_ws_message(self, shared_key: &SharedKey) -> Message {
+        Message::Binary(self.into_encrypted_bytes(shared_key))
     }
 }
 
-// TODO: tests...
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn handshake_payload_can_be_deserialized_into_register_handshake_init_request() {
+        let handshake_data = vec![1, 2, 3, 4, 5, 6];
+        let handshake_payload = RegistrationHandshake::HandshakePayload {
+            data: handshake_data.clone(),
+        };
+        let serialized = serde_json::to_string(&handshake_payload).unwrap();
+        let deserialized = ClientControlRequest::try_from(serialized).unwrap();
+
+        match deserialized {
+            ClientControlRequest::RegisterHandshakeInitRequest { data } => {
+                assert_eq!(data, handshake_data)
+            }
+            _ => unreachable!("this branch shouldn't have been reached!"),
+        }
+    }
+}

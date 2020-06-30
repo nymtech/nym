@@ -129,7 +129,7 @@ impl<T: NymTopology> TopologyAccessor<T> {
     // }
 
     // only used by the client at startup to get a slightly more reasonable error message
-    // (currently displays as unused because healthchecker is disabled due to required changes)
+    // (currently displays as unused because health checker is disabled due to required changes)
     pub(crate) async fn is_routable(&self) -> bool {
         match &self.inner.read().await.0 {
             None => false,

@@ -17,7 +17,7 @@ use crate::commands::override_config;
 use crate::config::{persistence::pathfinder::ClientPathfinder, Config};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::identity::MixIdentityKeyPair;
+use crypto::asymmetric::identity;
 use pemstore::pemstore::PemStore;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
@@ -57,13 +57,13 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
 }
 
-fn load_identity_keys(config_file: &Config) -> MixIdentityKeyPair {
+fn load_identity_keys(config_file: &Config) -> identity::KeyPair {
     let identity_keypair = PemStore::new(ClientPathfinder::new_from_config(&config_file))
-        .read_identity()
+        .read_identity_keypair()
         .expect("Failed to read stored identity key files");
     println!(
         "Public identity key: {}\n",
-        identity_keypair.public_key.to_base58_string()
+        identity_keypair.public_key().to_base58_string()
     );
     identity_keypair
 }

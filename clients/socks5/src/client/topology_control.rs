@@ -117,16 +117,16 @@ impl<T: NymTopology> TopologyAccessor<T> {
         self.inner.write().await.update(new_topology);
     }
 
-    pub(crate) async fn get_gateway_socket_url(&self, id: &str) -> Option<String> {
-        match &self.inner.read().await.0 {
-            None => None,
-            Some(ref topology) => topology
-                .gateways()
-                .iter()
-                .find(|gateway| gateway.pub_key == id)
-                .map(|gateway| gateway.client_listener.clone()),
-        }
-    }
+    // pub(crate) async fn get_gateway_socket_url(&self, id: &str) -> Option<String> {
+    //     match &self.inner.read().await.0 {
+    //         None => None,
+    //         Some(ref topology) => topology
+    //             .gateways()
+    //             .iter()
+    //             .find(|gateway| gateway.pub_key == id)
+    //             .map(|gateway| gateway.client_listener.clone()),
+    //     }
+    // }
 
     // only used by the client at startup to get a slightly more reasonable error message
     // (currently displays as unused because healthchecker is disabled due to required changes)
@@ -134,21 +134,6 @@ impl<T: NymTopology> TopologyAccessor<T> {
         match &self.inner.read().await.0 {
             None => false,
             Some(ref topology) => topology.can_construct_path_through(),
-        }
-    }
-
-    pub(crate) async fn get_all_clients(&self) -> Option<Vec<provider::Client>> {
-        // TODO: this will need to be modified to instead return pairs (provider, client)
-        match &self.inner.read().await.0 {
-            None => None,
-            Some(ref topology) => Some(
-                topology
-                    .providers()
-                    .iter()
-                    .flat_map(|provider| provider.registered_clients.iter())
-                    .cloned()
-                    .collect::<Vec<_>>(),
-            ),
         }
     }
 }

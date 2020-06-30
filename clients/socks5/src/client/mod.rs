@@ -23,13 +23,13 @@ use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use crate::config::{Config, SocketType};
-use crypto::identity::MixIdentityKeyPair;
+use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
     MixnetMessageSender,
 };
-use gateway_requests::auth_token::AuthToken;
+use gateway_requests::registration::handshake::SharedKey;
 use log::*;
 use nymsphinx::acknowledgements::identifier::AckAes128Key;
 use nymsphinx::addressing::clients::Recipient;
@@ -49,7 +49,7 @@ pub(crate) mod topology_control;
 pub struct NymClient {
     config: Config,
     runtime: Runtime,
-    identity_keypair: MixIdentityKeyPair,
+    identity_keypair: Arc<identity::KeyPair>,
 
     // to be used by "send" function or socket, etc
     input_tx: Option<InputMessageSender>,
@@ -59,11 +59,11 @@ pub struct NymClient {
 }
 
 impl NymClient {
-    pub fn new(config: Config, identity_keypair: MixIdentityKeyPair) -> Self {
+    pub fn new(config: Config, identity_keypair: identity::KeyPair) -> Self {
         NymClient {
             runtime: Runtime::new().unwrap(),
             config,
-            identity_keypair,
+            identity_keypair: Arc::new(identity_keypair),
             input_tx: None,
             receive_tx: None,
         }
@@ -71,7 +71,7 @@ impl NymClient {
 
     pub fn as_mix_recipient(&self) -> Recipient {
         Recipient::new(
-            self.identity_keypair.public_key.derive_address(),
+            self.identity_keypair.public_key().derive_address(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
             NodeAddressBytes::try_from_base58_string(self.config.get_gateway_id()).unwrap(),
@@ -158,63 +158,53 @@ impl NymClient {
         &mut self,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
-        gateway_address: url::Url,
     ) -> GatewayClient<'static, url::Url> {
-        let auth_token = self
-            .config
-            .get_gateway_auth_token()
-            .map(|str_token| AuthToken::try_from_base58_string(str_token).ok())
-            .unwrap_or(None);
+        let gateway_id = self.config.get_gateway_id();
+        if gateway_id.is_empty() {
+            panic!("The identity of the gateway is unknown - did you run `nym-client` init?")
+        }
+        let gateway_address_str = self.config.get_gateway_listener();
+        if gateway_address_str.is_empty() {
+            panic!("The address of the gateway is unknown - did you run `nym-client` init?")
+        }
+
+        let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
+            .expect("provided gateway id is invalid!");
+
+        // TODO: since we presumably now get something valid-ish from the `init`, can we just
+        // ditch url::Url and operate on `String`?
+        let gateway_address =
+            url::Url::parse(&gateway_address_str).expect("provided gateway address is invalid!");
+
+        let shared_key = self.config.get_gateway_shared_key().map(|str_shared_key| {
+            SharedKey::try_from_base58_string(str_shared_key)
+                .expect("The stored shared key is invalid!")
+        });
 
         let mut gateway_client = GatewayClient::new(
             gateway_address,
-            self.as_mix_recipient().destination(),
-            auth_token,
+            Arc::clone(&self.identity_keypair),
+            gateway_identity,
+            shared_key,
             mixnet_message_sender,
             ack_sender,
             self.config.get_gateway_response_timeout(),
         );
 
-        let auth_token = self.runtime.block_on(async {
+        let shared_key = self.runtime.block_on(async {
             gateway_client
-                .establish_connection()
+                .authenticate_and_start()
                 .await
-                .expect("could not establish initial connection with the gateway");
-            gateway_client
-                .perform_initial_authentication()
-                .await
-                .expect("could not perform initial authentication with the gateway")
+                .expect("could not authenticate and start up the gateway connection")
         });
 
-        // TODO: if we didn't have an auth_token initially, save it to config or something?
+        // TODO: if we didn't have a shared_key initially, save it to config or something?
         info!(
             "Performed initial authentication. Auth token is {:?}",
-            auth_token.to_base58_string()
+            shared_key.to_base58_string()
         );
 
         gateway_client
-    }
-
-    // TODO: this information should be just put in the config on init...
-    async fn get_gateway_address<T: NymTopology>(
-        gateway_id: String,
-        topology_accessor: TopologyAccessor<T>,
-    ) -> url::Url {
-        // we already have our gateway written in the config
-        let gateway_address = topology_accessor
-            .get_gateway_socket_url(&gateway_id)
-            .await
-            .unwrap_or_else(|| {
-                panic!(
-                    "Could not find gateway with id {:?}.\
-             It does not seem to be present in the current network topology.\
-              Are you sure it is still online?\
-               Perhaps try to run `nym-client init` again to obtain a new gateway",
-                    gateway_id
-                )
-            });
-
-        url::Url::parse(&gateway_address).expect("provided gateway address is invalid!")
     }
 
     // future responsible for periodically polling directory server and updating
@@ -265,8 +255,6 @@ impl NymClient {
         MixTrafficController::new(mix_rx, gateway_client).start(self.runtime.handle());
     }
 
-    // DH: this is where we can stick the socks5 startup code, instead of the websocket
-    // startup code. It was originally a websocket listener start function.
     fn start_socks5_listener<T: 'static + NymTopology>(
         &self,
         topology_accessor: TopologyAccessor<T>,
@@ -364,12 +352,7 @@ impl NymClient {
             mixnet_messages_receiver,
         );
 
-        let gateway_url = self.runtime.block_on(Self::get_gateway_address(
-            self.config.get_gateway_id(),
-            shared_topology_accessor.clone(),
-        ));
-        let gateway_client =
-            self.start_gateway_client(mixnet_messages_sender, ack_sender, gateway_url);
+        let gateway_client = self.start_gateway_client(mixnet_messages_sender, ack_sender);
 
         self.start_mix_traffic_controller(sphinx_message_receiver, gateway_client);
 

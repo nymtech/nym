@@ -18,7 +18,8 @@ use crate::config::Config;
 use crate::node::Gateway;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::encryption;
+use crypto::asymmetric::{encryption, identity};
+use pemstore::pathfinder::PathFinder;
 use pemstore::pemstore::PemStore;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
@@ -127,15 +128,26 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-fn load_sphinx_keys(config_file: &Config) -> encryption::KeyPair {
-    let sphinx_keypair = PemStore::new(GatewayPathfinder::new_from_config(&config_file))
-        .read_encryption()
+fn load_sphinx_keys<P: PathFinder>(pemstore: &PemStore<P>) -> encryption::KeyPair {
+    let sphinx_keypair = pemstore
+        .read_encryption_keypair()
         .expect("Failed to read stored sphinx key files");
     println!(
-        "Public key: {}\n",
+        "Public sphinx key: {}\n",
         sphinx_keypair.public_key().to_base58_string()
     );
     sphinx_keypair
+}
+
+fn load_identity_keys<P: PathFinder>(pemstore: &PemStore<P>) -> identity::KeyPair {
+    let identity_keypair = pemstore
+        .read_identity_keypair()
+        .expect("Failed to read stored identity key files");
+    println!(
+        "Public identity key: {}\n",
+        identity_keypair.public_key().to_base58_string()
+    );
+    identity_keypair
 }
 
 pub fn execute(matches: &ArgMatches) {
@@ -149,7 +161,9 @@ pub fn execute(matches: &ArgMatches) {
 
     config = override_config(config, matches);
 
-    let sphinx_keypair = load_sphinx_keys(&config);
+    let pemstore = PemStore::new(GatewayPathfinder::new_from_config(&config));
+    let sphinx_keypair = load_sphinx_keys(&pemstore);
+    let identity = load_identity_keys(&pemstore);
 
     let mix_listening_ip_string = config.get_mix_listening_address().ip().to_string();
     if special_addresses().contains(&mix_listening_ip_string.as_ref()) {
@@ -194,5 +208,5 @@ pub fn execute(matches: &ArgMatches) {
         config.get_clients_ledger_path()
     );
 
-    Gateway::new(config, sphinx_keypair).run();
+    Gateway::new(config, sphinx_keypair, identity).run();
 }

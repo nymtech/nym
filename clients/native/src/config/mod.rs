@@ -126,8 +126,13 @@ impl Config {
         self
     }
 
-    pub fn with_gateway_auth_token<S: Into<String>>(mut self, token: S) -> Self {
-        self.client.gateway_authtoken = Some(token.into());
+    pub fn with_gateway_listener<S: Into<String>>(mut self, gateway_listener: S) -> Self {
+        self.client.gateway_listener = gateway_listener.into();
+        self
+    }
+
+    pub fn with_gateway_shared_key<S: Into<String>>(mut self, shared_key: S) -> Self {
+        self.client.gateway_shared_key = Some(shared_key.into());
         self
     }
 
@@ -174,8 +179,12 @@ impl Config {
         self.client.gateway_id.clone()
     }
 
-    pub fn get_gateway_auth_token(&self) -> Option<String> {
-        self.client.gateway_authtoken.clone()
+    pub fn get_gateway_listener(&self) -> String {
+        self.client.gateway_listener.clone()
+    }
+
+    pub fn get_gateway_shared_key(&self) -> Option<String> {
+        self.client.gateway_shared_key.clone()
     }
 
     pub fn get_socket_type(&self) -> SocketType {
@@ -255,10 +264,13 @@ pub struct Client {
     /// If initially omitted, a random gateway will be chosen from the available topology.
     gateway_id: String,
 
-    /// A gateway specific, optional, base58 stringified authentication token used for
+    /// Address of the gateway listener to which all client requests should be sent.
+    gateway_listener: String,
+
+    /// A gateway specific, optional, base58 stringified shared key used for
     /// communication with particular gateway.
     #[serde(deserialize_with = "de_option_string")]
-    gateway_authtoken: Option<String>,
+    gateway_shared_key: Option<String>,
 
     /// nym_home_directory specifies absolute path to the home nym Clients directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
@@ -274,7 +286,8 @@ impl Default for Client {
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             gateway_id: "".to_string(),
-            gateway_authtoken: None,
+            gateway_listener: "".to_string(),
+            gateway_shared_key: None,
             nym_root_directory: Config::default_root_directory(),
         }
     }

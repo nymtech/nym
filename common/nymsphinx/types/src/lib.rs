@@ -17,7 +17,7 @@ pub use sphinx::{
     constants::{
         self, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, MAX_PATH_LENGTH, NODE_ADDRESS_LENGTH,
     },
-    crypto::{public_key_from_bytes, PublicKey, SecretKey},
+    crypto::{self, EphemeralSecret, PrivateKey, PublicKey, SharedSecret},
     header::{self, delays, delays::Delay, ProcessedHeader, SphinxHeader, HEADER_SIZE},
     packet::builder::{self, DEFAULT_PAYLOAD_SIZE},
     payload::{Payload, PAYLOAD_OVERHEAD_SIZE},

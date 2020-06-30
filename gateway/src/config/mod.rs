@@ -106,6 +106,19 @@ impl Config {
                 self::Gateway::default_public_sphinx_key_file(&id);
         }
         if self
+            .gateway
+            .private_identity_key_file
+            .as_os_str()
+            .is_empty()
+        {
+            self.gateway.private_identity_key_file =
+                self::Gateway::default_private_identity_key_file(&id);
+        }
+        if self.gateway.public_identity_key_file.as_os_str().is_empty() {
+            self.gateway.public_identity_key_file =
+                self::Gateway::default_public_identity_key_file(&id);
+        }
+        if self
             .clients_endpoint
             .inboxes_directory
             .as_os_str()
@@ -317,6 +330,14 @@ impl Config {
         self.gateway.location.clone()
     }
 
+    pub fn get_private_identity_key_file(&self) -> PathBuf {
+        self.gateway.private_identity_key_file.clone()
+    }
+
+    pub fn get_public_identity_key_file(&self) -> PathBuf {
+        self.gateway.public_identity_key_file.clone()
+    }
+
     pub fn get_private_sphinx_key_file(&self) -> PathBuf {
         self.gateway.private_sphinx_key_file.clone()
     }
@@ -390,6 +411,12 @@ pub struct Gateway {
     /// this field with as much accuracy as you wish to share.
     location: String,
 
+    /// Path to file containing private identity key.
+    private_identity_key_file: PathBuf,
+
+    /// Path to file containing public identity key.
+    public_identity_key_file: PathBuf,
+
     /// Path to file containing private sphinx key.
     private_sphinx_key_file: PathBuf,
 
@@ -413,6 +440,14 @@ impl Gateway {
         Config::default_data_directory(Some(id)).join("public_sphinx.pem")
     }
 
+    fn default_private_identity_key_file(id: &str) -> PathBuf {
+        Config::default_data_directory(Some(id)).join("private_identity.pem")
+    }
+
+    fn default_public_identity_key_file(id: &str) -> PathBuf {
+        Config::default_data_directory(Some(id)).join("public_identity.pem")
+    }
+
     fn default_location() -> String {
         "unknown".into()
     }
@@ -423,6 +458,8 @@ impl Default for Gateway {
         Gateway {
             id: "".to_string(),
             location: Self::default_location(),
+            private_identity_key_file: Default::default(),
+            public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
             presence_directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),

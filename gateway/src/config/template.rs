@@ -33,6 +33,12 @@ id = '{{ gateway.id }}'
 # this field with as much accuracy as you wish to share.
 location = '{{ gateway.location }}'
 
+# Path to file containing private identity key.
+private_identity_key_file = '{{ gateway.private_identity_key_file }}'
+
+# Path to file containing public identity key.
+public_identity_key_file = '{{ gateway.public_identity_key_file }}'
+
 # Path to file containing private sphinx key.
 private_sphinx_key_file = '{{ gateway.private_sphinx_key_file }}'
 

@@ -46,7 +46,7 @@ impl Into<SphinxNode> for Node {
     fn into(self) -> SphinxNode {
         let node_address_bytes = NymNodeRoutingAddress::from(self.host).try_into().unwrap();
         let key_bytes = self.get_pub_key_bytes();
-        let key = nymsphinx_types::public_key_from_bytes(key_bytes);
+        let key = nymsphinx_types::PublicKey::from(key_bytes);
 
         SphinxNode::new(node_address_bytes, key)
     }

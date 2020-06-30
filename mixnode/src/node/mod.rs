@@ -14,7 +14,7 @@
 
 use crate::config::Config;
 use crate::node::packet_processing::PacketProcessor;
-use crypto::encryption;
+use crypto::asymmetric::encryption;
 use directory_client::DirectoryClient;
 use futures::channel::mpsc;
 use log::*;

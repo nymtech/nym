@@ -16,7 +16,7 @@ use crate::commands::override_config;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::encryption;
+use crypto::asymmetric::{encryption, identity};
 use pemstore::pemstore::PemStore;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
@@ -113,13 +113,18 @@ pub fn execute(matches: &ArgMatches) {
 
     config = override_config(config, matches);
 
+    let identity_keys = identity::KeyPair::new();
     let sphinx_keys = encryption::KeyPair::new();
     let pathfinder = GatewayPathfinder::new_from_config(&config);
     let pem_store = PemStore::new(pathfinder);
     pem_store
-        .write_encryption_keys(sphinx_keys)
+        .write_encryption_keypair(&sphinx_keys)
         .expect("Failed to save sphinx keys");
-    println!("Saved mixnet sphinx keypair");
+    pem_store
+        .write_identity_keypair(&identity_keys)
+        .expect("Failed to save identity keys");
+
+    println!("Saved identity and mixnet sphinx keypairs");
 
     let config_save_location = config.get_config_file_save_location();
     config

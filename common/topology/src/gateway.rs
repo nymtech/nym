@@ -28,16 +28,18 @@ pub struct Node {
     pub location: String,
     pub client_listener: String,
     pub mixnet_listener: SocketAddr,
-    pub pub_key: String,
+    // TODO: should we just import common/crypto and use 'proper' types for those directly?
+    pub identity_key: String,
+    pub sphinx_key: String,
     pub registered_clients: Vec<Client>,
     pub last_seen: u64,
     pub version: String,
 }
 
 impl Node {
-    pub fn get_pub_key_bytes(&self) -> [u8; 32] {
+    fn get_sphinx_key_bytes(&self) -> [u8; 32] {
         let mut key_bytes = [0; 32];
-        bs58::decode(&self.pub_key).into(&mut key_bytes).unwrap();
+        bs58::decode(&self.sphinx_key).into(&mut key_bytes).unwrap();
         key_bytes
     }
 
@@ -60,8 +62,8 @@ impl Into<SphinxNode> for Node {
         let node_address_bytes = NymNodeRoutingAddress::from(self.mixnet_listener)
             .try_into()
             .unwrap();
-        let key_bytes = self.get_pub_key_bytes();
-        let key = nymsphinx_types::public_key_from_bytes(key_bytes);
+        let key_bytes = self.get_sphinx_key_bytes();
+        let key = nymsphinx_types::PublicKey::from(key_bytes);
 
         SphinxNode::new(node_address_bytes, key)
     }

@@ -12,17 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::key::AckAes128Key;
 use crypto::symmetric::aes_ctr::generic_array::typenum::Unsigned;
-use crypto::symmetric::aes_ctr::{iv_from_slice, Aes128IV, Aes128Key, Aes128NonceSize};
+use crypto::symmetric::aes_ctr::{iv_from_slice, Aes128IV, Aes128NonceSize};
 use nymsphinx_params::packet_sizes::PacketSize;
 use rand::{CryptoRng, RngCore};
 
-pub type AckAes128Key = Aes128Key;
 type AckAes128IV = Aes128IV;
-
-pub fn generate_key<R: RngCore + CryptoRng>(rng: &mut R) -> AckAes128Key {
-    crypto::symmetric::aes_ctr::generate_key(rng)
-}
 
 fn random_iv<R: RngCore + CryptoRng>(rng: &mut R) -> AckAes128IV {
     crypto::symmetric::aes_ctr::random_iv(rng)
@@ -68,7 +64,7 @@ mod tests {
     #[test]
     fn id_is_recoverable() {
         let mut rng = OsRng;
-        let key = generate_key(&mut rng);
+        let key = AckAes128Key::new(&mut rng);
 
         let id = [1, 2, 3, 4, 5];
         let iv_ciphertext = prepare_identifier(&mut rng, &key, id);

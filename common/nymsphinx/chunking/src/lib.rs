@@ -17,8 +17,8 @@ use crate::fragment::{
     FragmentIdentifier,
 };
 use crate::set::split_into_sets;
-use nymsphinx_acknowledgements::identifier::AckAes128Key;
 use nymsphinx_acknowledgements::surb_ack::SURBAck;
+use nymsphinx_acknowledgements::AckAes128Key;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nymsphinx_params::packet_sizes::PacketSize;

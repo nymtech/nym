@@ -27,7 +27,7 @@ use crate::client::{
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
-use nymsphinx::acknowledgements::identifier::AckAes128Key;
+use nymsphinx::acknowledgements::AckAes128Key;
 use nymsphinx::addressing::clients::Recipient;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;

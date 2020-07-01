@@ -12,8 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod identifier;
-pub mod key;
-pub mod surb_ack;
+use crypto::symmetric::aes_ctr::Aes128Key;
+use rand::{CryptoRng, RngCore};
+use std::ops::Deref;
 
-pub use key::AckAes128Key;
+pub struct AckAes128Key(Aes128Key);
+
+impl AckAes128Key {
+    pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+        AckAes128Key(crypto::symmetric::aes_ctr::generate_key(rng))
+    }
+
+    // TODO: is there any possible use of storing this on disk and this adding to/from bytes methods?
+}
+
+impl Deref for AckAes128Key {
+    type Target = Aes128Key;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}

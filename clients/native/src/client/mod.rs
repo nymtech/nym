@@ -32,7 +32,7 @@ use gateway_client::{
 };
 use gateway_requests::registration::handshake::SharedKey;
 use log::*;
-use nymsphinx::acknowledgements::identifier::AckAes128Key;
+use nymsphinx::acknowledgements::AckAes128Key;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::NodeAddressBytes;
 use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};

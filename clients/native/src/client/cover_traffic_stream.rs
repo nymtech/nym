@@ -17,7 +17,7 @@ use crate::client::topology_control::TopologyAccessor;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
-use nymsphinx::acknowledgements::identifier::AckAes128Key;
+use nymsphinx::acknowledgements::AckAes128Key;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::utils::sample_poisson_duration;

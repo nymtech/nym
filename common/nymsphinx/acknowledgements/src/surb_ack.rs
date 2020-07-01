@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::identifier::{prepare_identifier, AckAes128Key};
+use crate::identifier::prepare_identifier;
+use crate::AckAes128Key;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nymsphinx_params::packet_sizes::PacketSize;

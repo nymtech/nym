@@ -24,7 +24,7 @@ use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
 use nymsphinx::{
-    acknowledgements::{self, identifier::AckAes128Key},
+    acknowledgements::AckAes128Key,
     addressing::clients::Recipient,
     chunking::{
         fragment::{Fragment, FragmentIdentifier},
@@ -127,7 +127,7 @@ where
     ) -> Self {
         // note for future-self: perhaps for key rotation we could replace it with Arc<AtomicCell<Key>> ?
         // actually same could be true for any keys we use
-        let ack_key = Arc::new(acknowledgements::generate_key(&mut rng));
+        let ack_key = Arc::new(AckAes128Key::new(&mut rng));
         let pending_acks = Arc::new(RwLock::new(HashMap::new()));
         let message_chunker = MessageChunker::new_with_rng(
             rng,

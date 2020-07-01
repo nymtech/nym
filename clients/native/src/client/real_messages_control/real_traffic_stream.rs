@@ -19,7 +19,7 @@ use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
-use nymsphinx::acknowledgements::identifier::AckAes128Key;
+use nymsphinx::acknowledgements::AckAes128Key;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::cover::generate_loop_cover_packet;

@@ -13,8 +13,7 @@
 // limitations under the License.
 
 use crate::config::Config;
-use pemstore::pathfinder::PathFinder;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct GatewayPathfinder {
@@ -35,26 +34,24 @@ impl GatewayPathfinder {
             public_identity_key: config.get_public_identity_key_file(),
         }
     }
-}
 
-impl PathFinder for GatewayPathfinder {
-    fn config_dir(&self) -> PathBuf {
-        self.config_dir.clone()
+    pub fn config_dir(&self) -> &Path {
+        &self.config_dir
     }
 
-    fn private_identity_key(&self) -> PathBuf {
-        self.private_identity_key.clone()
+    pub fn private_identity_key(&self) -> &Path {
+        &self.private_identity_key
     }
 
-    fn public_identity_key(&self) -> PathBuf {
-        self.public_identity_key.clone()
+    pub fn public_identity_key(&self) -> &Path {
+        &self.public_identity_key
     }
 
-    fn private_encryption_key(&self) -> Option<PathBuf> {
-        Some(self.private_sphinx_key.clone())
+    pub fn private_encryption_key(&self) -> &Path {
+        &self.private_sphinx_key
     }
 
-    fn public_encryption_key(&self) -> Option<PathBuf> {
-        Some(self.public_sphinx_key.clone())
+    pub fn public_encryption_key(&self) -> &Path {
+        &self.public_sphinx_key
     }
 }

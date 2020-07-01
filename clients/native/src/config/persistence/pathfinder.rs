@@ -13,14 +13,19 @@
 // limitations under the License.
 
 use crate::config::Config;
-use pemstore::pathfinder::PathFinder;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct ClientPathfinder {
     pub config_dir: PathBuf,
     pub private_mix_key: PathBuf,
     pub public_mix_key: PathBuf,
+
+    identity_private_key: PathBuf,
+    identity_public_key: PathBuf,
+    encryption_private_key: PathBuf,
+    encryption_public_key: PathBuf,
+    shared_gateway_key: PathBuf,
 }
 
 impl ClientPathfinder {
@@ -33,6 +38,12 @@ impl ClientPathfinder {
             config_dir,
             private_mix_key,
             public_mix_key,
+
+            identity_private_key: Default::default(),
+            identity_public_key: Default::default(),
+            encryption_private_key: Default::default(),
+            encryption_public_key: Default::default(),
+            shared_gateway_key: Default::default(),
         }
     }
 
@@ -41,20 +52,24 @@ impl ClientPathfinder {
             config_dir: config.get_config_file_save_location(),
             private_mix_key: config.get_private_identity_key_file(),
             public_mix_key: config.get_public_identity_key_file(),
+
+            identity_private_key: Default::default(),
+            identity_public_key: Default::default(),
+            encryption_private_key: Default::default(),
+            encryption_public_key: Default::default(),
+            shared_gateway_key: Default::default(),
         }
     }
-}
 
-impl PathFinder for ClientPathfinder {
-    fn config_dir(&self) -> PathBuf {
-        self.config_dir.clone()
+    pub fn config_dir(&self) -> &Path {
+        &self.config_dir
     }
 
-    fn private_identity_key(&self) -> PathBuf {
-        self.private_mix_key.clone()
+    pub fn private_identity_key(&self) -> &Path {
+        &self.private_mix_key
     }
 
-    fn public_identity_key(&self) -> PathBuf {
-        self.public_mix_key.clone()
+    pub fn public_identity_key(&self) -> &Path {
+        &self.public_mix_key
     }
 }

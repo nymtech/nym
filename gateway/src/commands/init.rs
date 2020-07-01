@@ -17,7 +17,6 @@ use crate::config::persistence::pathfinder::GatewayPathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
-use pemstore::pemstore::PemStore;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
@@ -116,13 +115,23 @@ pub fn execute(matches: &ArgMatches) {
     let identity_keys = identity::KeyPair::new();
     let sphinx_keys = encryption::KeyPair::new();
     let pathfinder = GatewayPathfinder::new_from_config(&config);
-    let pem_store = PemStore::new(pathfinder);
-    pem_store
-        .write_encryption_keypair(&sphinx_keys)
-        .expect("Failed to save sphinx keys");
-    pem_store
-        .write_identity_keypair(&identity_keys)
-        .expect("Failed to save identity keys");
+    pemstore::store_keypair(
+        &sphinx_keys,
+        &pemstore::KeyPairPath::new(
+            pathfinder.private_encryption_key().to_owned(),
+            pathfinder.public_encryption_key().to_owned(),
+        ),
+    )
+    .expect("Failed to save sphinx keys");
+
+    pemstore::store_keypair(
+        &identity_keys,
+        &pemstore::KeyPairPath::new(
+            pathfinder.private_identity_key().to_owned(),
+            pathfinder.public_identity_key().to_owned(),
+        ),
+    )
+    .expect("Failed to save identity keys");
 
     println!("Saved identity and mixnet sphinx keypairs");
 

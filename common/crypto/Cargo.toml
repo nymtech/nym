@@ -25,3 +25,4 @@ rand = {version = "0.7.3", features = ["wasm-bindgen"]}
 
 # internal
 nymsphinx-types = { path = "../nymsphinx/types" }
+pemstore = { path = "../../common/pemstore" }

@@ -21,7 +21,6 @@ use crypto::asymmetric::identity;
 use directory_client::DirectoryClient;
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKey;
-use pemstore::pemstore::PemStore;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::gateway::Node;
@@ -191,10 +190,15 @@ pub fn execute(matches: &ArgMatches) {
     }
 
     let pathfinder = ClientPathfinder::new_from_config(&config);
-    let pem_store = PemStore::new(pathfinder);
-    pem_store
-        .write_identity_keypair(mix_identity_keys.as_ref())
-        .expect("Failed to save identity keys");
+    pemstore::store_keypair(
+        mix_identity_keys.as_ref(),
+        &pemstore::KeyPairPath::new(
+            pathfinder.private_identity_key().to_owned(),
+            pathfinder.public_identity_key().to_owned(),
+        ),
+    )
+    .expect("Failed to save identity keys");
+
     println!("Saved mixnet identity keypair");
 
     let config_save_location = config.get_config_file_save_location();

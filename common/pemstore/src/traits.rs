@@ -12,6 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod asymmetric;
-pub mod kdf;
-pub mod symmetric;
+pub trait PemStorableKey: Sized {
+    type Error: std::error::Error;
+    fn pem_type() -> &'static str;
+    fn to_bytes(&self) -> Vec<u8>;
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error>;
+}
+
+pub trait PemStorableKeyPair {
+    type PrivatePemKey: PemStorableKey;
+    type PublicPemKey: PemStorableKey;
+
+    fn private_key(&self) -> &Self::PrivatePemKey;
+    fn public_key(&self) -> &Self::PublicPemKey;
+    fn from_keys(private_key: Self::PrivatePemKey, public_key: Self::PublicPemKey) -> Self;
+}

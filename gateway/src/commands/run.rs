@@ -19,8 +19,6 @@ use crate::node::Gateway;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
-use pemstore::pathfinder::PathFinder;
-use pemstore::pemstore::PemStore;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("run")
@@ -128,10 +126,12 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-fn load_sphinx_keys<P: PathFinder>(pemstore: &PemStore<P>) -> encryption::KeyPair {
-    let sphinx_keypair = pemstore
-        .read_encryption_keypair()
-        .expect("Failed to read stored sphinx key files");
+fn load_sphinx_keys(pathfinder: &GatewayPathfinder) -> encryption::KeyPair {
+    let sphinx_keypair: encryption::KeyPair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
+        pathfinder.private_encryption_key().to_owned(),
+        pathfinder.public_encryption_key().to_owned(),
+    ))
+    .expect("Failed to read stored sphinx key files");
     println!(
         "Public sphinx key: {}\n",
         sphinx_keypair.public_key().to_base58_string()
@@ -139,10 +139,12 @@ fn load_sphinx_keys<P: PathFinder>(pemstore: &PemStore<P>) -> encryption::KeyPai
     sphinx_keypair
 }
 
-fn load_identity_keys<P: PathFinder>(pemstore: &PemStore<P>) -> identity::KeyPair {
-    let identity_keypair = pemstore
-        .read_identity_keypair()
-        .expect("Failed to read stored identity key files");
+fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
+    let identity_keypair: identity::KeyPair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
+        pathfinder.private_identity_key().to_owned(),
+        pathfinder.public_identity_key().to_owned(),
+    ))
+    .expect("Failed to read stored identity key files");
     println!(
         "Public identity key: {}\n",
         identity_keypair.public_key().to_base58_string()
@@ -161,9 +163,9 @@ pub fn execute(matches: &ArgMatches) {
 
     config = override_config(config, matches);
 
-    let pemstore = PemStore::new(GatewayPathfinder::new_from_config(&config));
-    let sphinx_keypair = load_sphinx_keys(&pemstore);
-    let identity = load_identity_keys(&pemstore);
+    let pathfinder = GatewayPathfinder::new_from_config(&config);
+    let sphinx_keypair = load_sphinx_keys(&pathfinder);
+    let identity = load_identity_keys(&pathfinder);
 
     let mix_listening_ip_string = config.get_mix_listening_address().ip().to_string();
     if special_addresses().contains(&mix_listening_ip_string.as_ref()) {

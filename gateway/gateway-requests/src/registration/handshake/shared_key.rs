@@ -16,6 +16,8 @@ use crypto::symmetric::aes_ctr::{
     generic_array::{typenum::Unsigned, GenericArray},
     Aes128Key, Aes128KeySize,
 };
+use pemstore::traits::PemStorableKey;
+use std::fmt::{self, Display, Formatter};
 use std::ops::Deref;
 
 pub type SharedKeySize = Aes128KeySize;
@@ -29,6 +31,26 @@ pub enum SharedKeyConversionError {
     BytesOfInvalidLengthError,
     StringOfInvalidLengthError,
 }
+
+impl Display for SharedKeyConversionError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            SharedKeyConversionError::DecodeError(err) => write!(
+                f,
+                "encountered error while decoding the byte sequence: {}",
+                err
+            ),
+            SharedKeyConversionError::BytesOfInvalidLengthError => {
+                write!(f, "provided bytes have invalid length")
+            }
+            SharedKeyConversionError::StringOfInvalidLengthError => {
+                write!(f, "provided string has invalid length")
+            }
+        }
+    }
+}
+
+impl std::error::Error for SharedKeyConversionError {}
 
 impl SharedKey {
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, SharedKeyConversionError> {
@@ -84,3 +106,19 @@ impl Deref for SharedKey {
 }
 
 // I don't see any cases in which DerefMut would be useful. So did not implement it.
+
+impl PemStorableKey for SharedKey {
+    type Error = SharedKeyConversionError;
+
+    fn pem_type() -> &'static str {
+        "AES-128-CTR GATEWAY SHARED KEY"
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_bytes()
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
+        Self::try_from_bytes(bytes)
+    }
+}

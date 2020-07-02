@@ -13,6 +13,7 @@ crypto = { path = "../../crypto" }
 nymsphinx-addressing = { path = "../addressing" }
 nymsphinx-params = { path = "../params" }
 nymsphinx-types = { path = "../types" }
+pemstore = { path = "../../pemstore" }
 topology = { path = "../../topology" }
 
 

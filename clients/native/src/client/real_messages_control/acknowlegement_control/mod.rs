@@ -103,7 +103,6 @@ where
     R: CryptoRng + Rng,
     T: NymTopology,
 {
-    ack_key: Arc<AckAes128Key>,
     acknowledgement_listener: Option<AcknowledgementListener>,
     input_message_listener: Option<InputMessageListener<R, T>>,
     retransmission_request_listener: Option<RetransmissionRequestListener<R, T>>,
@@ -116,8 +115,9 @@ where
     T: 'static + NymTopology,
 {
     pub(super) fn new(
-        mut rng: R,
+        rng: R,
         topology_access: TopologyAccessor<T>,
+        ack_key: Arc<AckAes128Key>,
         ack_recipient: Recipient,
         average_packet_delay_duration: Duration,
         average_ack_delay_duration: Duration,
@@ -125,9 +125,6 @@ where
         ack_wait_addition: Duration,
         connectors: AcknowledgementControllerConnectors,
     ) -> Self {
-        // note for future-self: perhaps for key rotation we could replace it with Arc<AtomicCell<Key>> ?
-        // actually same could be true for any keys we use
-        let ack_key = Arc::new(AckAes128Key::new(&mut rng));
         let pending_acks = Arc::new(RwLock::new(HashMap::new()));
         let message_chunker = MessageChunker::new_with_rng(
             rng,
@@ -174,16 +171,11 @@ where
         );
 
         AcknowledgementController {
-            ack_key,
             acknowledgement_listener: Some(acknowledgement_listener),
             input_message_listener: Some(input_message_listener),
             retransmission_request_listener: Some(retransmission_request_listener),
             sent_notification_listener: Some(sent_notification_listener),
         }
-    }
-
-    pub(super) fn ack_key(&self) -> Arc<AckAes128Key> {
-        Arc::clone(&self.ack_key)
     }
 
     pub(super) async fn run(&mut self) {

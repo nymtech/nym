@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::built_info;
+use crate::client::key_manager::KeyManager;
 use crate::commands::override_config;
 use crate::config::persistence::pathfinder::ClientPathfinder;
 use clap::{App, Arg, ArgMatches};
@@ -21,6 +22,7 @@ use crypto::asymmetric::identity;
 use directory_client::DirectoryClient;
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKey;
+use rand::rngs::OsRng;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::gateway::Node;
@@ -152,13 +154,15 @@ pub fn execute(matches: &ArgMatches) {
 
     let id = matches.value_of("id").unwrap(); // required for now
     let mut config = crate::config::Config::new(id);
+    let mut rng = OsRng;
 
     config = override_config(config, matches);
     if matches.is_present("fastmode") {
         config = config.set_high_default_traffic_volume();
     }
 
-    let mix_identity_keys = Arc::new(identity::KeyPair::new());
+    // create identity, encryption and ack keys.
+    let mut key_manager = KeyManager::new(&mut rng);
 
     // if there is no gateway chosen, get a random-ish one from the topology
     if config.get_gateway_id().is_empty() {
@@ -166,13 +170,14 @@ pub fn execute(matches: &ArgMatches) {
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         let (gateway_id, gateway_listener, shared_key) = rt.block_on(choose_gateway(
             config.get_directory_server(),
-            mix_identity_keys.clone(),
+            key_manager.identity_keypair(),
         ));
 
         config = config
             .with_gateway_id(gateway_id)
-            .with_gateway_listener(gateway_listener)
-            .with_gateway_shared_key(shared_key.to_base58_string());
+            .with_gateway_listener(gateway_listener);
+
+        key_manager.insert_gateway_shared_key(shared_key)
     }
 
     // we specified our gateway but don't know its physical address
@@ -190,16 +195,10 @@ pub fn execute(matches: &ArgMatches) {
     }
 
     let pathfinder = ClientPathfinder::new_from_config(&config);
-    pemstore::store_keypair(
-        mix_identity_keys.as_ref(),
-        &pemstore::KeyPairPath::new(
-            pathfinder.private_identity_key().to_owned(),
-            pathfinder.public_identity_key().to_owned(),
-        ),
-    )
-    .expect("Failed to save identity keys");
-
-    println!("Saved mixnet identity keypair");
+    key_manager
+        .store_keys(&pathfinder)
+        .expect("Failed to generated keys");
+    println!("Saved all generated keys");
 
     let config_save_location = config.get_config_file_save_location();
     config
@@ -211,8 +210,6 @@ pub fn execute(matches: &ArgMatches) {
         "Unless overridden in all `nym-client run` we will be talking to the following gateway: {}...",
         config.get_gateway_id(),
     );
-    if let Some(shared_key) = config.get_gateway_shared_key() {
-        println!("using optional SharedKey: {:?}", shared_key)
-    }
+
     println!("Client configuration completed.\n\n\n")
 }

@@ -40,6 +40,7 @@ mod acknowlegement_control;
 mod real_traffic_stream;
 
 pub(crate) struct Config {
+    ack_key: Arc<AckAes128Key>,
     ack_wait_multiplier: f64,
     ack_wait_addition: Duration,
     self_recipient: Recipient,
@@ -50,6 +51,7 @@ pub(crate) struct Config {
 
 impl Config {
     pub(crate) fn new(
+        ack_key: Arc<AckAes128Key>,
         ack_wait_multiplier: f64,
         ack_wait_addition: Duration,
         average_ack_delay_duration: Duration,
@@ -58,6 +60,7 @@ impl Config {
         self_recipient: Recipient,
     ) -> Self {
         Config {
+            ack_key,
             self_recipient,
             average_packet_delay_duration,
             average_ack_delay_duration,
@@ -102,6 +105,7 @@ impl<T: 'static + NymTopology> RealMessagesController<OsRng, T> {
         let ack_control = AcknowledgementController::new(
             rng,
             topology_access.clone(),
+            Arc::clone(&config.ack_key),
             config.self_recipient.clone(),
             config.average_packet_delay_duration,
             config.average_ack_delay_duration,
@@ -111,7 +115,7 @@ impl<T: 'static + NymTopology> RealMessagesController<OsRng, T> {
         );
 
         let out_queue_control = OutQueueControl::new(
-            ack_control.ack_key(),
+            Arc::clone(&config.ack_key),
             config.average_ack_delay_duration,
             config.average_packet_delay_duration,
             config.average_message_sending_delay,
@@ -127,11 +131,6 @@ impl<T: 'static + NymTopology> RealMessagesController<OsRng, T> {
             out_queue_control: Some(out_queue_control),
             ack_control: Some(ack_control),
         }
-    }
-
-    // Note: this method can only be called before `run` is called
-    pub(super) fn ack_key(&self) -> Arc<AckAes128Key> {
-        self.ack_control.as_ref().unwrap().ack_key()
     }
 
     pub(super) async fn run(&mut self) {

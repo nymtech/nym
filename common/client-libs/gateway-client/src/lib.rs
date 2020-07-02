@@ -179,7 +179,7 @@ pub struct GatewayClient<'a, R> {
     gateway_address: R,
     gateway_identity: identity::PublicKey,
     local_identity: Arc<identity::KeyPair>,
-    shared_key: Option<SharedKey>,
+    shared_key: Option<Arc<SharedKey>>,
     connection: SocketState<'a>,
     packet_router: PacketRouter,
     response_timeout_duration: Duration,
@@ -191,7 +191,7 @@ impl<'a, R> GatewayClient<'static, R> {
         gateway_address: R,
         local_identity: Arc<identity::KeyPair>,
         gateway_identity: identity::PublicKey,
-        shared_key: Option<SharedKey>,
+        shared_key: Option<Arc<SharedKey>>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
@@ -396,7 +396,7 @@ impl<'a, R> GatewayClient<'static, R> {
     /// Helper method to either call register or authenticate based on self.shared_key value
     pub async fn perform_initial_authentication(
         &mut self,
-    ) -> Result<SharedKey, GatewayClientError> {
+    ) -> Result<Arc<SharedKey>, GatewayClientError> {
         if self.shared_key.is_some() {
             self.authenticate(None).await?;
         } else {
@@ -404,7 +404,7 @@ impl<'a, R> GatewayClient<'static, R> {
         }
         if self.authenticated {
             // if we are authenticated it means we MUST have an associated shared_key
-            Ok(self.shared_key.clone().unwrap())
+            Ok(Arc::clone(&self.shared_key.as_ref().unwrap()))
         } else {
             Err(GatewayClientError::AuthenticationFailure)
         }
@@ -474,7 +474,7 @@ impl<'a, R> GatewayClient<'static, R> {
         Ok(())
     }
 
-    pub async fn authenticate_and_start(&mut self) -> Result<SharedKey, GatewayClientError>
+    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKey>, GatewayClientError>
     where
         R: IntoClientRequest + Unpin + Clone,
     {

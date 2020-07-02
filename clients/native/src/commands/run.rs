@@ -14,10 +14,9 @@
 
 use crate::client::NymClient;
 use crate::commands::override_config;
-use crate::config::{persistence::pathfinder::ClientPathfinder, Config};
+use crate::config::Config;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::asymmetric::identity;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("run")
@@ -56,19 +55,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
 }
 
-fn load_identity_keys(pathfinder: &ClientPathfinder) -> identity::KeyPair {
-    let identity_keypair: identity::KeyPair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
-        pathfinder.private_identity_key().to_owned(),
-        pathfinder.public_identity_key().to_owned(),
-    ))
-    .expect("Failed to read stored identity key files");
-    println!(
-        "Public identity key: {}\n",
-        identity_keypair.public_key().to_base58_string()
-    );
-    identity_keypair
-}
-
 pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
 
@@ -77,7 +63,6 @@ pub fn execute(matches: &ArgMatches) {
             .expect("Failed to load config file");
 
     config = override_config(config, matches);
-    let pathfinder = ClientPathfinder::new_from_config(&config);
-    let identity_keypair = load_identity_keys(&pathfinder);
-    NymClient::new(config, identity_keypair).run_forever();
+
+    NymClient::new(config).run_forever();
 }

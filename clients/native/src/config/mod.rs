@@ -14,7 +14,7 @@
 
 use crate::config::template::config_template;
 use config::NymConfig;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time;
 
@@ -109,6 +109,8 @@ impl Config {
     // builder methods
     pub fn with_id<S: Into<String>>(mut self, id: S) -> Self {
         let id = id.into();
+
+        // identity key setting
         if self.client.private_identity_key_file.as_os_str().is_empty() {
             self.client.private_identity_key_file =
                 self::Client::default_private_identity_key_file(&id);
@@ -117,6 +119,38 @@ impl Config {
             self.client.public_identity_key_file =
                 self::Client::default_public_identity_key_file(&id);
         }
+
+        // encryption key setting
+        if self
+            .client
+            .private_encryption_key_file
+            .as_os_str()
+            .is_empty()
+        {
+            self.client.private_encryption_key_file =
+                self::Client::default_private_encryption_key_file(&id);
+        }
+        if self
+            .client
+            .public_encryption_key_file
+            .as_os_str()
+            .is_empty()
+        {
+            self.client.public_encryption_key_file =
+                self::Client::default_public_encryption_key_file(&id);
+        }
+
+        // shared gateway key setting
+        if self.client.gateway_shared_key_file.as_os_str().is_empty() {
+            self.client.gateway_shared_key_file =
+                self::Client::default_gateway_shared_key_file(&id);
+        }
+
+        // ack key setting
+        if self.client.ack_key_file.as_os_str().is_empty() {
+            self.client.ack_key_file = self::Client::default_ack_key_file(&id);
+        }
+
         self.client.id = id;
         self
     }
@@ -128,11 +162,6 @@ impl Config {
 
     pub fn with_gateway_listener<S: Into<String>>(mut self, gateway_listener: S) -> Self {
         self.client.gateway_listener = gateway_listener.into();
-        self
-    }
-
-    pub fn with_gateway_shared_key<S: Into<String>>(mut self, shared_key: S) -> Self {
-        self.client.gateway_shared_key = Some(shared_key.into());
         self
     }
 
@@ -171,6 +200,22 @@ impl Config {
         self.client.public_identity_key_file.clone()
     }
 
+    pub fn get_private_encryption_key_file(&self) -> PathBuf {
+        self.client.private_encryption_key_file.clone()
+    }
+
+    pub fn get_public_encryption_key_file(&self) -> PathBuf {
+        self.client.public_encryption_key_file.clone()
+    }
+
+    pub fn get_gateway_shared_key_file(&self) -> PathBuf {
+        self.client.gateway_shared_key_file.clone()
+    }
+
+    pub fn get_ack_key_file(&self) -> PathBuf {
+        self.client.ack_key_file.clone()
+    }
+
     pub fn get_directory_server(&self) -> String {
         self.client.directory_server.clone()
     }
@@ -181,10 +226,6 @@ impl Config {
 
     pub fn get_gateway_listener(&self) -> String {
         self.client.gateway_listener.clone()
-    }
-
-    pub fn get_gateway_shared_key(&self) -> Option<String> {
-        self.client.gateway_shared_key.clone()
     }
 
     pub fn get_socket_type(&self) -> SocketType {
@@ -233,18 +274,6 @@ impl Config {
     }
 }
 
-fn de_option_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s = String::deserialize(deserializer)?;
-    if s.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(s))
-    }
-}
-
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Client {
@@ -260,17 +289,26 @@ pub struct Client {
     /// Path to file containing public identity key.
     public_identity_key_file: PathBuf,
 
+    /// Path to file containing private encryption key.
+    private_encryption_key_file: PathBuf,
+
+    /// Path to file containing public encryption key.
+    public_encryption_key_file: PathBuf,
+
+    /// Path to file containing shared key derived with the specified gateway that is used
+    /// for all communication with it.
+    gateway_shared_key_file: PathBuf,
+
+    /// Path to file containing key used for encrypting and decrypting the content of an
+    /// acknowledgement so that nobody besides the client knows which packet it refers to.
+    ack_key_file: PathBuf,
+
     /// gateway_id specifies ID of the gateway to which the client should send messages.
     /// If initially omitted, a random gateway will be chosen from the available topology.
     gateway_id: String,
 
     /// Address of the gateway listener to which all client requests should be sent.
     gateway_listener: String,
-
-    /// A gateway specific, optional, base58 stringified shared key used for
-    /// communication with particular gateway.
-    #[serde(deserialize_with = "de_option_string")]
-    gateway_shared_key: Option<String>,
 
     /// nym_home_directory specifies absolute path to the home nym Clients directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
@@ -285,9 +323,12 @@ impl Default for Client {
             directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
+            private_encryption_key_file: Default::default(),
+            public_encryption_key_file: Default::default(),
+            gateway_shared_key_file: Default::default(),
+            ack_key_file: Default::default(),
             gateway_id: "".to_string(),
             gateway_listener: "".to_string(),
-            gateway_shared_key: None,
             nym_root_directory: Config::default_root_directory(),
         }
     }
@@ -300,6 +341,22 @@ impl Client {
 
     fn default_public_identity_key_file(id: &str) -> PathBuf {
         Config::default_data_directory(Some(id)).join("public_identity.pem")
+    }
+
+    fn default_private_encryption_key_file(id: &str) -> PathBuf {
+        Config::default_data_directory(Some(id)).join("private_encryption.pem")
+    }
+
+    fn default_public_encryption_key_file(id: &str) -> PathBuf {
+        Config::default_data_directory(Some(id)).join("public_encryption.pem")
+    }
+
+    fn default_gateway_shared_key_file(id: &str) -> PathBuf {
+        Config::default_data_directory(Some(id)).join("gateway_shared.pem")
+    }
+
+    fn default_ack_key_file(id: &str) -> PathBuf {
+        Config::default_data_directory(Some(id)).join("ack_key.pem")
     }
 }
 

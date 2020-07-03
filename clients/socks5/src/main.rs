@@ -18,6 +18,7 @@ pub mod built_info;
 pub mod client;
 mod commands;
 pub mod config;
+pub mod socks;
 
 fn main() {
     dotenv::dotenv().ok();

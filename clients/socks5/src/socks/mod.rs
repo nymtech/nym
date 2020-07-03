@@ -3,19 +3,17 @@
 use log::*;
 use serde::Deserialize;
 use snafu::Snafu;
-use std::error::Error;
-use std::io::copy;
-use std::io::prelude::*;
 use std::net::{
-    Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr, SocketAddrV4, SocketAddrV6, TcpListener, TcpStream,
-    ToSocketAddrs,
+    Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs,
 };
-use std::thread;
+use tokio::prelude::*;
+use tokio::{
+    self,
+    net::{TcpListener, TcpStream},
+};
 
 /// Version of socks
 const SOCKS_VERSION: u8 = 0x05;
-
-const RESERVED: u8 = 0x00;
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct User {
@@ -63,15 +61,6 @@ impl AddrType {
             _ => None,
         }
     }
-
-    // /// Return the size of the AddrType
-    // fn size(&self) -> u8 {
-    //     match self {
-    //         AddrType::V4 => 4,
-    //         AddrType::Domain => 1,
-    //         AddrType::V6 => 16
-    //     }
-    // }
 }
 
 /// SOCK5 CMD Type
@@ -79,7 +68,7 @@ impl AddrType {
 enum SockCommand {
     Connect = 0x01,
     Bind = 0x02,
-    UdpAssosiate = 0x3,
+    UdpAssociate = 0x3,
 }
 
 impl SockCommand {
@@ -88,14 +77,14 @@ impl SockCommand {
         match n {
             1 => Some(SockCommand::Connect),
             2 => Some(SockCommand::Bind),
-            3 => Some(SockCommand::UdpAssosiate),
+            3 => Some(SockCommand::UdpAssociate),
             _ => None,
         }
     }
 }
 
 /// Client Authentication Methods
-pub enum AuthMethods {
+pub enum AuthenticationMethods {
     /// No Authentication
     NoAuth = 0x00,
     // GssApi = 0x01,
@@ -106,61 +95,60 @@ pub enum AuthMethods {
 }
 
 pub struct SphinxSocks {
-    listener: TcpListener,
     users: Vec<User>,
     auth_methods: Vec<u8>,
+    listening_address: SocketAddr,
 }
 
 impl SphinxSocks {
     /// Create a new SphinxSocks instance
-    pub fn new(
-        port: u16,
-        ip: &str,
-        auth_methods: Vec<u8>,
-        users: Vec<User>,
-    ) -> Result<Self, Box<dyn Error>> {
+    pub fn new(port: u16, ip: &str, auth_methods: Vec<u8>, users: Vec<User>) -> Self {
         info!("Listening on {}:{}", ip, port);
-        Ok(SphinxSocks {
-            listener: TcpListener::bind((ip, port))?,
+        SphinxSocks {
             auth_methods,
             users,
-        })
+            listening_address: format!("{}:{}", ip, port).parse().unwrap(), // unsure
+        }
     }
 
-    pub fn serve(&mut self) -> Result<(), Box<dyn Error>> {
+    pub async fn serve(&mut self) -> Result<(), SocksProxyError> {
         info!("Serving Connections...");
+        let mut listener = TcpListener::bind(self.listening_address).await.unwrap();
         loop {
-            if let Ok((stream, _remote)) = self.listener.accept() {
+            if let Ok((stream, _remote)) = listener.accept().await {
                 // TODO Optimize this
                 let mut client =
                     SOCKClient::new(stream, self.users.clone(), self.auth_methods.clone());
-                thread::spawn(move || {
-                    match client.init() {
-                        Ok(_) => {}
-                        Err(error) => {
-                            error!("Error! {}", error);
-                            let error_text = format!("{}", error);
 
-                            let response: ResponseCode;
+                tokio::spawn(async move {
+                    {
+                        match client.init().await {
+                            Ok(_) => {}
+                            Err(error) => {
+                                error!("Error! {}", error);
+                                let error_text = format!("{}", error);
 
-                            if error_text.contains("Host") {
-                                response = ResponseCode::HostUnreachable;
-                            } else if error_text.contains("Network") {
-                                response = ResponseCode::NetworkUnreachable;
-                            } else if error_text.contains("ttl") {
-                                response = ResponseCode::TtlExpired
-                            } else {
-                                response = ResponseCode::Failure
+                                let response: ResponseCode;
+
+                                if error_text.contains("Host") {
+                                    response = ResponseCode::HostUnreachable;
+                                } else if error_text.contains("Network") {
+                                    response = ResponseCode::NetworkUnreachable;
+                                } else if error_text.contains("ttl") {
+                                    response = ResponseCode::TtlExpired
+                                } else {
+                                    response = ResponseCode::Failure
+                                }
+
+                                if client.error(response).await.is_err() {
+                                    warn!("Failed to send error code");
+                                };
+                                if client.shutdown().is_err() {
+                                    warn!("Failed to shutdown TcpStream");
+                                };
                             }
-
-                            if client.error(response).is_err() {
-                                warn!("Failed to send error code");
-                            };
-                            if client.shutdown().is_err() {
-                                warn!("Failed to shutdown TcpStream");
-                            };
-                        }
-                    };
+                        };
+                    }
                 });
             }
         }
@@ -171,44 +159,64 @@ struct SOCKClient {
     stream: TcpStream,
     auth_nmethods: u8,
     auth_methods: Vec<u8>,
-    authed_users: Vec<User>,
+    authenticated_users: Vec<User>,
     socks_version: u8,
+}
+
+#[derive(Debug)]
+pub enum SocksProxyError {
+    GenericError(String),
+}
+
+impl std::fmt::Display for SocksProxyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "foomp")
+    }
+}
+
+impl<E> From<E> for SocksProxyError
+where
+    E: std::error::Error,
+{
+    fn from(err: E) -> Self {
+        SocksProxyError::GenericError(err.to_string())
+    }
 }
 
 impl SOCKClient {
     /// Create a new SOCKClient
-    pub fn new(stream: TcpStream, authed_users: Vec<User>, auth_methods: Vec<u8>) -> Self {
+    pub fn new(stream: TcpStream, authenticated_users: Vec<User>, auth_methods: Vec<u8>) -> Self {
         SOCKClient {
             stream,
             auth_nmethods: 0,
             socks_version: 0,
-            authed_users,
+            authenticated_users,
             auth_methods,
         }
     }
 
     /// Check if username + password pair are valid
-    fn authed(&self, user: &User) -> bool {
-        self.authed_users.contains(user)
+    fn authenticated(&self, user: &User) -> bool {
+        self.authenticated_users.contains(user)
     }
 
-    /// Send an error to the client
-    pub fn error(&mut self, r: ResponseCode) -> Result<(), Box<dyn Error>> {
-        self.stream.write_all(&[5, r as u8])?;
+    // Send an error to the client
+    pub async fn error(&mut self, r: ResponseCode) -> Result<(), SocksProxyError> {
+        self.stream.write_all(&[5, r as u8]).await?;
         Ok(())
     }
 
     /// Shutdown a client
-    pub fn shutdown(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn shutdown(&mut self) -> Result<(), SocksProxyError> {
         self.stream.shutdown(Shutdown::Both)?;
         Ok(())
     }
 
-    fn init(&mut self) -> Result<(), Box<dyn Error>> {
+    async fn init(&mut self) -> Result<(), SocksProxyError> {
         debug!("New connection from: {}", self.stream.peer_addr()?.ip());
         let mut header = [0u8; 2];
         // Read a byte from the stream and determine the version being requested
-        self.stream.read_exact(&mut header)?;
+        self.stream.read_exact(&mut header).await?;
 
         self.socks_version = header[0];
         self.auth_nmethods = header[1];
@@ -227,35 +235,35 @@ impl SOCKClient {
         // Valid SOCKS5
         else {
             // Authenticate w/ client
-            self.auth()?;
+            self.authenticate().await?;
             // Handle requests
-            self.handle_client()?;
+            self.handle_client().await?;
         }
 
         Ok(())
     }
 
-    fn auth(&mut self) -> Result<(), Box<dyn Error>> {
+    async fn authenticate(&mut self) -> Result<(), SocksProxyError> {
         debug!("Authenticating w/ {}", self.stream.peer_addr()?.ip());
         // Get valid auth methods
-        let methods = self.get_avalible_methods()?;
+        let methods = self.get_available_methods().await?;
         trace!("methods: {:?}", methods);
 
         let mut response = [0u8; 2];
 
         // Set the version in the response
         response[0] = SOCKS_VERSION;
-        if methods.contains(&(AuthMethods::UserPass as u8)) {
+        if methods.contains(&(AuthenticationMethods::UserPass as u8)) {
             // Set the default auth method (NO AUTH)
-            response[1] = AuthMethods::UserPass as u8;
+            response[1] = AuthenticationMethods::UserPass as u8;
 
             debug!("Sending USER/PASS packet");
-            self.stream.write_all(&response)?;
+            self.stream.write_all(&response).await?;
 
             let mut header = [0u8; 2];
 
             // Read a byte from the stream and determine the version being requested
-            self.stream.read_exact(&mut header)?;
+            self.stream.read_exact(&mut header).await?;
 
             // debug!("Auth Header: [{}, {}]", header[0], header[1]);
 
@@ -269,11 +277,11 @@ impl SOCKClient {
                 username.push(0);
             }
 
-            self.stream.read_exact(&mut username)?;
+            self.stream.read_exact(&mut username).await?;
 
             // Password Parsing
             let mut plen = [0u8; 1];
-            self.stream.read_exact(&mut plen)?;
+            self.stream.read_exact(&mut plen).await?;
 
             let mut password = Vec::with_capacity(plen[0] as usize);
 
@@ -282,7 +290,7 @@ impl SOCKClient {
                 password.push(0);
             }
 
-            self.stream.read_exact(&mut password)?;
+            self.stream.read_exact(&mut password).await;
 
             let username_str = String::from_utf8(username)?;
             let password_str = String::from_utf8(password)?;
@@ -293,42 +301,42 @@ impl SOCKClient {
             };
 
             // Authenticate passwords
-            if self.authed(&user) {
+            if self.authenticated(&user) {
                 debug!("Access Granted. User: {}", user.username);
                 let response = [1, ResponseCode::Success as u8];
-                self.stream.write_all(&response)?;
+                self.stream.write_all(&response).await?;
             } else {
                 debug!("Access Denied. User: {}", user.username);
                 let response = [1, ResponseCode::Failure as u8];
-                self.stream.write_all(&response)?;
+                self.stream.write_all(&response).await?;
 
                 // Shutdown
                 self.shutdown()?;
             }
 
             Ok(())
-        } else if methods.contains(&(AuthMethods::NoAuth as u8)) {
+        } else if methods.contains(&(AuthenticationMethods::NoAuth as u8)) {
             // set the default auth method (no auth)
-            response[1] = AuthMethods::NoAuth as u8;
+            response[1] = AuthenticationMethods::NoAuth as u8;
             debug!("Sending NOAUTH packet");
-            self.stream.write_all(&response)?;
+            self.stream.write_all(&response).await?;
             Ok(())
         } else {
-            warn!("Client has no suitable Auth methods!");
-            response[1] = AuthMethods::NoMethods as u8;
-            self.stream.write_all(&response)?;
+            warn!("Client has no suitable authentication methods!");
+            response[1] = AuthenticationMethods::NoMethods as u8;
+            self.stream.write_all(&response).await?;
             self.shutdown()?;
-            Err(Box::new(ResponseCode::Failure))
+            Err(ResponseCode::Failure.into())
         }
     }
 
     /// Handles a client
-    pub fn handle_client(&mut self) -> Result<(), Box<dyn Error>> {
+    pub async fn handle_client(&mut self) -> Result<(), SocksProxyError> {
         debug!("Handling requests for {}", self.stream.peer_addr()?.ip());
         // Read request
         // loop {
         // Parse Request
-        let req = SOCKSReq::from_stream(&mut self.stream)?;
+        let req = SOCKSReq::from_stream(&mut self.stream).await?;
 
         if req.addr_type == AddrType::V6 {}
 
@@ -342,71 +350,17 @@ impl SOCKClient {
             req.port
         );
 
-        // Respond
-        match req.command {
-            // Use the Proxy to connect to the specified addr/port
-            SockCommand::Connect => {
-                debug!("Handling CONNECT Command");
-
-                let sock_addr = addr_to_socket(&req.addr_type, &req.addr, req.port)?;
-
-                trace!("Connecting to: {:?}", sock_addr);
-
-                let target = TcpStream::connect(&sock_addr[..])?;
-
-                trace!("Connected!");
-
-                self.stream
-                    .write_all(&[
-                        SOCKS_VERSION,
-                        ResponseCode::Success as u8,
-                        RESERVED,
-                        1,
-                        127,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                    ])
-                    .unwrap();
-
-                // Copy it all
-                let mut outbound_in = target.try_clone()?;
-                let mut outbound_out = target.try_clone()?;
-                let mut inbound_in = self.stream.try_clone()?;
-                let mut inbound_out = self.stream.try_clone()?;
-
-                // Download Thread
-                thread::spawn(move || {
-                    copy(&mut outbound_in, &mut inbound_out).is_ok();
-                    outbound_in.shutdown(Shutdown::Read).unwrap_or(());
-                    inbound_out.shutdown(Shutdown::Write).unwrap_or(());
-                });
-
-                // Upload Thread
-                thread::spawn(move || {
-                    copy(&mut inbound_in, &mut outbound_out).is_ok();
-                    inbound_in.shutdown(Shutdown::Read).unwrap_or(());
-                    outbound_out.shutdown(Shutdown::Write).unwrap_or(());
-                });
-            }
-            SockCommand::Bind => {}
-            SockCommand::UdpAssosiate => {}
-        }
-
-        // connected = false;
-        // }
+        // serialise into Sphinx and send to mixnet!
 
         Ok(())
     }
 
-    /// Return the avalible methods based on `self.auth_nmethods`
-    fn get_avalible_methods(&mut self) -> Result<Vec<u8>, Box<dyn Error>> {
+    /// Return the available methods based on `self.auth_nmethods`
+    async fn get_available_methods(&mut self) -> Result<Vec<u8>, SocksProxyError> {
         let mut methods: Vec<u8> = Vec::with_capacity(self.auth_nmethods as usize);
         for _ in 0..self.auth_nmethods {
             let mut method = [0u8; 1];
-            self.stream.read_exact(&mut method)?;
+            self.stream.read_exact(&mut method).await?;
             if self.auth_methods.contains(&method[0]) {
                 methods.append(&mut method.to_vec());
             }
@@ -420,7 +374,7 @@ fn addr_to_socket(
     addr_type: &AddrType,
     addr: &[u8],
     port: u16,
-) -> Result<Vec<SocketAddr>, Box<dyn Error>> {
+) -> Result<Vec<SocketAddr>, SocksProxyError> {
     match addr_type {
         AddrType::V6 => {
             let new_addr = (0..8)
@@ -494,14 +448,14 @@ struct SOCKSReq {
 
 impl SOCKSReq {
     /// Parse a SOCKS Req from a TcpStream
-    fn from_stream(stream: &mut TcpStream) -> Result<Self, Box<dyn Error>> {
+    async fn from_stream(stream: &mut TcpStream) -> Result<Self, SocksProxyError> {
         let mut packet = [0u8; 4];
         // Read a byte from the stream and determine the version being requested
-        stream.read_exact(&mut packet)?;
+        stream.read_exact(&mut packet).await?;
 
         if packet[0] != SOCKS_VERSION {
             warn!("from_stream Unsupported version: SOCKS{}", packet[0]);
-            stream.shutdown(Shutdown::Both)?;
+            stream.shutdown();
         }
 
         // Get command
@@ -513,7 +467,7 @@ impl SOCKSReq {
             }
             None => {
                 warn!("Invalid Command");
-                stream.shutdown(Shutdown::Both)?;
+                stream.shutdown();
                 Err(ResponseCode::CommandNotSupported)
             }
         }?;
@@ -528,31 +482,31 @@ impl SOCKSReq {
             }
             None => {
                 error!("No Addr");
-                stream.shutdown(Shutdown::Both)?;
+                stream.shutdown();
                 Err(ResponseCode::AddrTypeNotSupported)
             }
         }?;
 
         trace!("Getting Addr");
         // Get Addr from addr_type and stream
-        let addr: Result<Vec<u8>, Box<dyn Error>> = match addr_type {
+        let addr: Result<Vec<u8>, SocksProxyError> = match addr_type {
             AddrType::Domain => {
-                let mut dlen = [0u8; 1];
-                stream.read_exact(&mut dlen)?;
+                let mut domain_length = [0u8; 1];
+                stream.read_exact(&mut domain_length).await?;
 
-                let mut domain = vec![0u8; dlen[0] as usize];
-                stream.read_exact(&mut domain)?;
+                let mut domain = vec![0u8; domain_length[0] as usize];
+                stream.read_exact(&mut domain).await?;
 
                 Ok(domain)
             }
             AddrType::V4 => {
                 let mut addr = [0u8; 4];
-                stream.read_exact(&mut addr)?;
+                stream.read_exact(&mut addr).await?;
                 Ok(addr.to_vec())
             }
             AddrType::V6 => {
                 let mut addr = [0u8; 16];
-                stream.read_exact(&mut addr)?;
+                stream.read_exact(&mut addr).await?;
                 Ok(addr.to_vec())
             }
         };
@@ -561,8 +515,7 @@ impl SOCKSReq {
 
         // read DST.port
         let mut port = [0u8; 2];
-        stream.read_exact(&mut port)?;
-
+        stream.read_exact(&mut port).await?;
         // Merge two u8s into u16
         let port = (u16::from(port[0]) << 8) | u16::from(port[1]);
 

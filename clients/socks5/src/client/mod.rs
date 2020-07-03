@@ -266,39 +266,12 @@ impl NymClient {
 
         let mut auth_methods: Vec<u8> = Vec::new();
         auth_methods.push(socks::AuthenticationMethods::NoAuth as u8);
-
-        // change
-        // let websocket_handler = websocket::Handler::new(
-        //     msg_input,
-        //     buffer_requester,
-        //     self.as_mix_recipient(),
-        //     topology_accessor,
-        // );
-
-        // websocket::Listener::new(self.config.get_listening_port())
-        //     .start(self.runtime.handle(), websocket_handler);
-
         let mut sphinx_socks = SphinxSocks::new(9001, "127.0.0.1", auth_methods, Vec::new());
-        /*
-                    TOKIO DOCS EXAMPLE
-                    use tokio::runtime::Runtime;
+        self.runtime.spawn(async move {
+            let _ = _msg_input;
 
-                // Create the runtime
-                let rt = Runtime::new().unwrap();
-                let handle = rt.handle();
-
-                let res = handle.spawn_blocking(move || {
-                // do some compute-heavy work or call synchronous code
-                    "done computing"
-                }).await?;
-        https://docs.rs/tokio/0.2.21/tokio/runtime/struct.Handle.html#method.spawn_blocking
-                */
-
-        self.runtime
-            .spawn(async move { sphinx_socks.serve().await });
-
-        // let handle = self.runtime.handle();
-        // handle.spawn_blocking(move || sphinx_socks.serve())
+            sphinx_socks.serve().await
+        });
     }
 
     /// EXPERIMENTAL DIRECT RUST API
@@ -383,18 +356,18 @@ impl NymClient {
 
         self.start_mix_traffic_controller(sphinx_message_receiver, gateway_client);
 
-        // let ack_key = self.start_real_traffic_controller(
-        //     shared_topology_accessor.clone(),
-        //     ack_receiver,
-        //     input_receiver,
-        //     sphinx_message_sender.clone(),
-        // );
+        let ack_key = self.start_real_traffic_controller(
+            shared_topology_accessor.clone(),
+            ack_receiver,
+            input_receiver,
+            sphinx_message_sender.clone(),
+        );
 
-        // self.start_cover_traffic_stream(
-        //     ack_key,
-        //     shared_topology_accessor.clone(),
-        //     sphinx_message_sender,
-        // );
+        self.start_cover_traffic_stream(
+            ack_key,
+            shared_topology_accessor.clone(),
+            sphinx_message_sender,
+        );
 
         match self.config.get_socket_type() {
             SocketType::WebSocket => self.start_socks5_listener(

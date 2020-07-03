@@ -312,7 +312,7 @@ impl<R: CryptoRng + Rng> MessageChunker<R> {
     /// used up.
     /// After receiving they can be combined using `reconstruction::MessageReconstructor`
     /// to obtain the original message back.
-    pub fn split_message_to_constant_length_chunks(&mut self, message: &[u8]) -> Vec<Fragment> {
+    pub fn split_message_to_constant_length_chunks(&mut self, message: Vec<u8>) -> Vec<Fragment> {
         let available_plaintext_per_fragment = self.available_plaintext_size();
 
         // 1 is added as there will always have to be at least a single byte of padding (1) added
@@ -324,8 +324,7 @@ impl<R: CryptoRng + Rng> MessageChunker<R> {
         // so a tiny optimization would be to make all
         // methods using this value, i.e. take Vec<u8> rather than &[u8]
         let message: Vec<_> = message
-            .iter()
-            .cloned()
+            .into_iter()
             .chain(std::iter::once(1u8))
             .chain(std::iter::repeat(0u8).take(space_left))
             .collect();
@@ -336,20 +335,44 @@ impl<R: CryptoRng + Rng> MessageChunker<R> {
             .collect()
     }
 
+    /// Takes the message that is to be split and prefixes it with either a 0 byte to indicate
+    /// lack of reply surb or with a 1 byte followed by an actual reply SURB.
+    // TODO: perhaps if we wanted to incldue multiple reply SURBs, we could change 0/1 into
+    // number of reply SURBs attached?
+    fn prepare_and_attach_reply_surb(&self, message: &[u8]) -> Vec<u8> {
+        let prefix: Vec<_> = if self.reply_surbs {
+            let reply_surb_bytes_todo: Vec<u8> = Vec::new();
+            std::iter::once(1)
+                .chain(reply_surb_bytes_todo.into_iter())
+                .collect()
+        } else {
+            std::iter::once(0).collect()
+        };
+
+        prefix.into_iter().chain(message.iter().cloned()).collect()
+    }
+
     /// Takes the entire message and splits it into bytes chunks that will fit into sphinx packets
     /// after attaching SURB-ACK.
     /// After receiving they can be combined using `reconstruction::MessageReconstructor`
     /// to obtain the original message back.
     pub fn split_message(&mut self, message: &[u8]) -> Vec<Fragment> {
+        // TODO: future optimization: message is currently 'unnecessarily' copied two times
+        let message_with_reply_surb = self.prepare_and_attach_reply_surb(message);
+
         if self.should_pad {
-            self.split_message_to_constant_length_chunks(message)
+            self.split_message_to_constant_length_chunks(message_with_reply_surb)
         } else {
             let available_plaintext_per_fragment = self.available_plaintext_size();
 
-            split_into_sets(&mut self.rng, &message, available_plaintext_per_fragment)
-                .into_iter()
-                .flat_map(|fragment_set| fragment_set.into_iter())
-                .collect()
+            split_into_sets(
+                &mut self.rng,
+                &message_with_reply_surb,
+                available_plaintext_per_fragment,
+            )
+            .into_iter()
+            .flat_map(|fragment_set| fragment_set.into_iter())
+            .collect()
         }
     }
 }

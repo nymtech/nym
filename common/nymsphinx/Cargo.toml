@@ -12,6 +12,7 @@ rand_distr = "0.2.2"
 
 nymsphinx-acknowledgements = { path = "acknowledgements" }
 nymsphinx-addressing = { path = "addressing" }
+nymsphinx-anonymous-replies = { path = "anonymous-replies" }
 nymsphinx-chunking = { path = "chunking" }
 nymsphinx-cover = { path = "cover" }
 nymsphinx-framing = { path = "framing" }

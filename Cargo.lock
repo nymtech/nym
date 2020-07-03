@@ -572,6 +572,7 @@ dependencies = [
  "hkdf 0.9.0",
  "log 0.4.8",
  "nymsphinx-types",
+ "pemstore",
  "pretty_env_logger",
  "rand 0.7.3",
  "x25519-dalek",
@@ -1036,6 +1037,7 @@ dependencies = [
  "futures 0.3.4",
  "log 0.4.8",
  "nymsphinx",
+ "pemstore",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -1934,6 +1936,7 @@ version = "0.1.0"
 dependencies = [
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
+ "nymsphinx-anonymous-replies",
  "nymsphinx-chunking",
  "nymsphinx-cover",
  "nymsphinx-framing",
@@ -1951,6 +1954,7 @@ dependencies = [
  "nymsphinx-addressing",
  "nymsphinx-params",
  "nymsphinx-types",
+ "pemstore",
  "rand 0.7.3",
  "topology",
 ]
@@ -1960,6 +1964,18 @@ name = "nymsphinx-addressing"
 version = "0.1.0"
 dependencies = [
  "nymsphinx-types",
+]
+
+[[package]]
+name = "nymsphinx-anonymous-replies"
+version = "0.1.0"
+dependencies = [
+ "crypto",
+ "nymsphinx-addressing",
+ "nymsphinx-params",
+ "nymsphinx-types",
+ "rand 0.7.3",
+ "topology",
 ]
 
 [[package]]
@@ -2116,10 +2132,7 @@ dependencies = [
 name = "pemstore"
 version = "0.1.0"
 dependencies = [
- "crypto",
- "log 0.4.8",
  "pem",
- "pretty_env_logger",
 ]
 
 [[package]]

@@ -49,6 +49,14 @@ struct ReconstructionBuffer {
 /// set ids used for the reconstructions processed so that they could be used for replay prevention.
 pub type ReconstructedMessage = (Vec<u8>, Vec<i32>);
 
+// TODO: replace original `[ReconstructedMessage]` with this.
+pub struct ReconstructedMessageNew {
+    message: Vec<u8>,
+    #[allow(non_snake_case)]
+    reply_SURB_bytes: Option<Vec<u8>>, // TODO: or reply_surb directly?
+    used_sets: Vec<i32>,
+}
+
 impl ReconstructionBuffer {
     /// Initialises new instance of a `ReconstructionBuffer` with given size, i.e.
     /// number of expected `Fragment`s in the set.

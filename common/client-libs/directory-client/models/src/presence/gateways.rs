@@ -15,12 +15,13 @@
 use crypto::asymmetric::{encryption, identity};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
-use std::net::AddrParseError;
+use std::io;
+use std::net::ToSocketAddrs;
 
 #[derive(Debug)]
 pub enum ConversionError {
     InvalidKeyError,
-    InvalidAddress,
+    InvalidAddress(io::Error),
 }
 
 impl From<identity::SignatureError> for ConversionError {
@@ -35,9 +36,9 @@ impl From<encryption::EncryptionKeyError> for ConversionError {
     }
 }
 
-impl From<std::net::AddrParseError> for ConversionError {
-    fn from(_: AddrParseError) -> Self {
-        ConversionError::InvalidAddress
+impl From<io::Error> for ConversionError {
+    fn from(err: io::Error) -> Self {
+        ConversionError::InvalidAddress(err)
     }
 }
 
@@ -58,10 +59,18 @@ impl TryInto<topology::gateway::Node> for GatewayPresence {
     type Error = ConversionError;
 
     fn try_into(self) -> Result<topology::gateway::Node, Self::Error> {
+        let resolved_mix_hostname = self.mixnet_listener.to_socket_addrs()?.next();
+        if resolved_mix_hostname.is_none() {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                "no valid socket address",
+            ))?;
+        }
+
         Ok(topology::gateway::Node {
             location: self.location,
             client_listener: self.client_listener,
-            mixnet_listener: self.mixnet_listener.parse()?,
+            mixnet_listener: resolved_mix_hostname.unwrap(),
             identity_key: identity::PublicKey::from_base58_string(self.identity_key).unwrap(),
             sphinx_key: encryption::PublicKey::from_base58_string(self.sphinx_key).unwrap(),
             registered_clients: self

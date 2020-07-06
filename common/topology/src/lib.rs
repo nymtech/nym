@@ -126,8 +126,7 @@ impl NymTopology {
             .gateways
             .iter()
             .find(|&gateway| gateway.identity_key == b58_address)
-            .ok_or_else(|| NymTopologyError::NonExistentGatewayError)?
-            .clone();
+            .ok_or_else(|| NymTopologyError::NonExistentGatewayError)?;
 
         Ok(self
             .random_mix_route(rng, num_mix_hops)?

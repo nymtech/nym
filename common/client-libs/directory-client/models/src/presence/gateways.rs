@@ -71,8 +71,8 @@ impl TryInto<topology::gateway::Node> for GatewayPresence {
             location: self.location,
             client_listener: self.client_listener,
             mixnet_listener: resolved_mix_hostname.unwrap(),
-            identity_key: identity::PublicKey::from_base58_string(self.identity_key).unwrap(),
-            sphinx_key: encryption::PublicKey::from_base58_string(self.sphinx_key).unwrap(),
+            identity_key: identity::PublicKey::from_base58_string(self.identity_key)?,
+            sphinx_key: encryption::PublicKey::from_base58_string(self.sphinx_key)?,
             registered_clients: self
                 .registered_clients
                 .into_iter()

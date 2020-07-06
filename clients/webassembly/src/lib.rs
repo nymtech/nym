@@ -11,24 +11,27 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use crypto::asymmetric::encryption;
+pub use models::keys::keygen;
 use models::topology::Topology;
+use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
+use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 use nymsphinx::Node as SphinxNode;
 use nymsphinx::{delays, Destination, NodeAddressBytes, SphinxPacket};
+use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::net::SocketAddr;
 use std::time::Duration;
+use topology::NymTopology;
 use wasm_bindgen::prelude::*;
 
 mod models;
 mod utils;
 
-use crypto::asymmetric::encryption;
-pub use models::keys::keygen;
-use nymsphinx::addressing::clients::Recipient;
-use topology::NymTopology;
+const DEFAULT_RNG: OsRng = OsRng;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -106,8 +109,9 @@ fn payload(sphinx_packet: SphinxPacket, route: Vec<SphinxNode>) -> Vec<u8> {
 /// extracted to a `JsonRoute`.
 fn sphinx_route_to(topology_json: &str, gateway_address: &NodeAddressBytes) -> Vec<SphinxNode> {
     let topology = Topology::new(topology_json);
-    let route = topology
-        .random_route_to_gateway(gateway_address)
+    let nym_topology: NymTopology = topology.into();
+    let route = nym_topology
+        .random_route_to_gateway(&mut DEFAULT_RNG, DEFAULT_NUM_MIX_HOPS, gateway_address)
         .expect("invalid route produced");
     assert_eq!(4, route.len());
     route

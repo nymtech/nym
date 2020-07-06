@@ -16,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::io;
 use std::net::ToSocketAddrs;
-use topology::mix;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,18 +48,5 @@ impl TryInto<topology::mix::Node> for MixNodePresence {
             last_seen: self.last_seen,
             version: self.version,
         })
-    }
-}
-
-impl From<topology::mix::Node> for MixNodePresence {
-    fn from(mn: mix::Node) -> Self {
-        MixNodePresence {
-            location: mn.location,
-            host: mn.host.to_string(),
-            pub_key: mn.pub_key,
-            layer: mn.layer,
-            last_seen: mn.last_seen,
-            version: mn.version,
-        }
     }
 }

@@ -13,9 +13,10 @@
 // limitations under the License.
 
 use super::{coconodes, gateways, mixnodes, providers};
+use log::warn;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
-use topology::{coco, gateway, mix, provider, NymTopology};
+use topology::{MixLayer, NymTopology};
 
 // Topology shows us the current state of the overall Nym network
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -27,47 +28,37 @@ pub struct Topology {
     pub gateway_nodes: Vec<gateways::GatewayPresence>,
 }
 
-impl NymTopology for Topology {
-    fn new_from_nodes(
-        mix_nodes: Vec<mix::Node>,
-        mix_provider_nodes: Vec<provider::Node>,
-        coco_nodes: Vec<coco::Node>,
-        gateway_nodes: Vec<gateway::Node>,
-    ) -> Self {
-        Topology {
-            coco_nodes: coco_nodes.into_iter().map(|node| node.into()).collect(),
-            mix_nodes: mix_nodes.into_iter().map(|node| node.into()).collect(),
-            mix_provider_nodes: mix_provider_nodes
-                .into_iter()
-                .map(|node| node.into())
-                .collect(),
-            gateway_nodes: gateway_nodes.into_iter().map(|node| node.into()).collect(),
+impl Into<NymTopology> for Topology {
+    fn into(self) -> NymTopology {
+        use std::collections::HashMap;
+
+        let coco_nodes = self
+            .coco_nodes
+            .into_iter()
+            .map(|coco_node| coco_node.into())
+            .collect();
+
+        let mut mixes = HashMap::new();
+        for mix in self.mix_nodes.into_iter() {
+            let layer = mix.layer as MixLayer;
+            let layer_entry = mixes.entry(layer).or_insert(Vec::new());
+            let mix_entry = match mix.try_into() {
+                Ok(mix_entry) => mix_entry,
+                Err(err) => {
+                    warn!("failed to perform mix conversion {:?}", err);
+                    continue;
+                }
+            };
+            layer_entry.push(mix_entry)
         }
-    }
 
-    fn mix_nodes(&self) -> Vec<mix::Node> {
-        self.mix_nodes
-            .iter()
-            .filter_map(|x| x.clone().try_into().ok())
-            .collect()
-    }
+        let gateways = self
+            .gateway_nodes
+            .into_iter()
+            .map(|gateway| gateway.into())
+            .collect();
 
-    fn providers(&self) -> Vec<provider::Node> {
-        self.mix_provider_nodes
-            .iter()
-            .map(|x| x.clone().into())
-            .collect()
-    }
-
-    fn gateways(&self) -> Vec<gateway::Node> {
-        self.gateway_nodes
-            .iter()
-            .map(|x| x.clone().into())
-            .collect()
-    }
-
-    fn coco_nodes(&self) -> Vec<topology::coco::Node> {
-        self.coco_nodes.iter().map(|x| x.clone().into()).collect()
+        NymTopology::new(coco_nodes, mixes, gateways)
     }
 }
 
@@ -77,6 +68,8 @@ mod converting_mixnode_presence_into_topology_mixnode {
 
     #[test]
     fn it_returns_error_on_unresolvable_hostname() {
+        use topology::mix;
+
         let unresolvable_hostname = "foomp.foomp.foomp:1234";
 
         let mix_presence = mixnodes::MixNodePresence {

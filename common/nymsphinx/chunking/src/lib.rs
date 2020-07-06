@@ -22,6 +22,7 @@ use nymsphinx_acknowledgements::surb_ack::SURBAck;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nymsphinx_params::packet_sizes::PacketSize;
+use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
 use nymsphinx_types::builder::SphinxPacketBuilder;
 use nymsphinx_types::{delays, Delay, Destination, SphinxPacket};
 use rand::{rngs::OsRng, CryptoRng, Rng};
@@ -134,7 +135,10 @@ impl MessageChunker<DefaultRng> {
     }
 }
 
-impl<R: CryptoRng + Rng> MessageChunker<R> {
+impl<R> MessageChunker<R>
+where
+    R: CryptoRng + Rng,
+{
     pub fn new_with_rng(
         rng: R,
         ack_recipient: Recipient,
@@ -186,10 +190,10 @@ impl<R: CryptoRng + Rng> MessageChunker<R> {
     /// such that it contains required SURB-ACK.
     /// This method can fail if the provided network topology is invalid.
     /// It returns total expected delay as well as the `SphinxPacket` to be sent through the network.
-    pub fn prepare_chunk_for_sending<T: NymTopology>(
+    pub fn prepare_chunk_for_sending(
         &mut self,
         fragment: Fragment,
-        topology: &T,
+        topology: &NymTopology,
         ack_key: &AckAes128Key,
         packet_recipient: &Recipient,
     ) -> Result<(Delay, (SocketAddr, SphinxPacket)), NymTopologyError> {
@@ -203,7 +207,11 @@ impl<R: CryptoRng + Rng> MessageChunker<R> {
             .chain(fragment.into_bytes().into_iter())
             .collect();
 
-        let route = topology.random_route_to_gateway(&packet_recipient.gateway())?;
+        let route = topology.random_route_to_gateway(
+            &mut self.rng,
+            DEFAULT_NUM_MIX_HOPS,
+            &packet_recipient.gateway(),
+        )?;
         let delays =
             delays::generate_from_average_duration(route.len(), self.average_packet_delay_duration);
         let destination = Destination::new(packet_recipient.destination(), Default::default());
@@ -223,15 +231,12 @@ impl<R: CryptoRng + Rng> MessageChunker<R> {
         ))
     }
 
-    fn generate_surb_ack<T>(
+    fn generate_surb_ack(
         &mut self,
         fragment_id: &FragmentIdentifier,
-        topology: &T,
+        topology: &NymTopology,
         ack_key: &AckAes128Key,
-    ) -> Result<SURBAck, NymTopologyError>
-    where
-        T: NymTopology,
-    {
+    ) -> Result<SURBAck, NymTopologyError> {
         SURBAck::construct(
             &mut self.rng,
             &self.ack_recipient,

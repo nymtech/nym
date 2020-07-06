@@ -25,13 +25,11 @@ use nymsphinx::{
 };
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
-use topology::NymTopology;
 
 // responsible for splitting received message and initial sending attempt
-pub(super) struct InputMessageListener<R, T>
+pub(super) struct InputMessageListener<R>
 where
     R: CryptoRng + Rng,
-    T: NymTopology,
 {
     ack_key: Arc<AckAes128Key>,
     ack_recipient: Recipient,
@@ -39,13 +37,12 @@ where
     message_chunker: MessageChunker<R>,
     pending_acks: PendingAcksMap,
     real_message_sender: RealMessageSender,
-    topology_access: TopologyAccessor<T>,
+    topology_access: TopologyAccessor,
 }
 
-impl<R, T> InputMessageListener<R, T>
+impl<R> InputMessageListener<R>
 where
     R: CryptoRng + Rng,
-    T: NymTopology,
 {
     pub(super) fn new(
         ack_key: Arc<AckAes128Key>,
@@ -54,7 +51,7 @@ where
         message_chunker: MessageChunker<R>,
         pending_acks: PendingAcksMap,
         real_message_sender: RealMessageSender,
-        topology_access: TopologyAccessor<T>,
+        topology_access: TopologyAccessor,
     ) -> Self {
         InputMessageListener {
             ack_key,

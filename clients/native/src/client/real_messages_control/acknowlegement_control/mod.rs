@@ -38,7 +38,6 @@ use tokio::{
     sync::{Notify, RwLock},
     task::JoinHandle,
 };
-use topology::NymTopology;
 
 mod acknowledgement_listener;
 mod input_message_listener;
@@ -98,26 +97,24 @@ impl AcknowledgementControllerConnectors {
     }
 }
 
-pub(super) struct AcknowledgementController<R, T>
+pub(super) struct AcknowledgementController<R>
 where
     R: CryptoRng + Rng,
-    T: NymTopology,
 {
     ack_key: Arc<AckAes128Key>,
     acknowledgement_listener: Option<AcknowledgementListener>,
-    input_message_listener: Option<InputMessageListener<R, T>>,
-    retransmission_request_listener: Option<RetransmissionRequestListener<R, T>>,
+    input_message_listener: Option<InputMessageListener<R>>,
+    retransmission_request_listener: Option<RetransmissionRequestListener<R>>,
     sent_notification_listener: Option<SentNotificationListener>,
 }
 
-impl<R, T> AcknowledgementController<R, T>
+impl<R> AcknowledgementController<R>
 where
     R: 'static + CryptoRng + Rng + Clone + Send,
-    T: 'static + NymTopology,
 {
     pub(super) fn new(
         mut rng: R,
-        topology_access: TopologyAccessor<T>,
+        topology_access: TopologyAccessor,
         ack_recipient: Recipient,
         average_packet_delay_duration: Duration,
         average_ack_delay_duration: Duration,

@@ -24,8 +24,7 @@ use gateway_requests::registration::handshake::SharedKey;
 use pemstore::pemstore::PemStore;
 use std::sync::Arc;
 use std::time::Duration;
-use topology::gateway::Node;
-use topology::NymTopology;
+use topology::{gateway, NymTopology};
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
@@ -64,7 +63,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
 }
 
 async fn try_gateway_registration(
-    gateways: Vec<Node>,
+    gateways: &Vec<gateway::Node>,
     our_identity: Arc<identity::KeyPair>,
 ) -> Option<(String, String, SharedKey)> {
     let timeout = Duration::from_millis(1500);
@@ -93,7 +92,11 @@ async fn try_gateway_registration(
                     eprintln!("Error while closing connection to the gateway! - {:?}", err);
                     continue;
                 } else {
-                    return Some((gateway.identity_key, gateway.client_listener, shared_key));
+                    return Some((
+                        gateway.identity_key.clone(),
+                        gateway.client_listener.clone(),
+                        shared_key,
+                    ));
                 }
             }
         }
@@ -108,8 +111,9 @@ async fn choose_gateway(
     let directory_client_config = directory_client::Config::new(directory_server.clone());
     let directory_client = directory_client::Client::new(directory_client_config);
     let topology = directory_client.get_topology().await.unwrap();
+    let nym_topology: NymTopology = topology.into();
 
-    let version_filtered_topology = topology.filter_system_version(built_info::PKG_VERSION);
+    let version_filtered_topology = nym_topology.filter_system_version(built_info::PKG_VERSION);
     // don't care about health of the networks as mixes can go up and down any time,
     // but DO care about gateways
     let gateways = version_filtered_topology.gateways();
@@ -138,11 +142,14 @@ async fn get_gateway_listener(directory_server: String, gateway_identity: &str) 
     let directory_client_config = directory_client::Config::new(directory_server);
     let directory_client = directory_client::Client::new(directory_client_config);
     let topology = directory_client.get_topology().await.unwrap();
-    let gateways = topology.gateways();
+
+    // technically we don't need to do conversion here, but let's be consistent
+    let nym_topology: NymTopology = topology.into();
+    let gateways = nym_topology.gateways();
 
     for gateway in gateways {
         if gateway.identity_key == gateway_identity {
-            return Some(gateway.client_listener);
+            return Some(gateway.client_listener.clone());
         }
     }
     None

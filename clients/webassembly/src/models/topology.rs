@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use serde::Serializer;
-use topology::{coco, gateway, mix, provider, NymTopology};
+use topology::NymTopology;
 
 #[derive(Clone, Debug)]
 pub struct Topology {
@@ -56,35 +56,8 @@ impl Topology {
     }
 }
 
-impl NymTopology for Topology {
-    fn new_from_nodes(
-        mix_nodes: Vec<mix::Node>,
-        mix_provider_nodes: Vec<provider::Node>,
-        coco_nodes: Vec<coco::Node>,
-        gateway_nodes: Vec<gateway::Node>,
-    ) -> Self {
-        Topology {
-            inner: directory_client_models::presence::Topology::new_from_nodes(
-                mix_nodes,
-                mix_provider_nodes,
-                coco_nodes,
-                gateway_nodes,
-            ),
-        }
-    }
-    fn mix_nodes(&self) -> Vec<mix::Node> {
-        self.inner.mix_nodes()
-    }
-
-    fn providers(&self) -> Vec<provider::Node> {
-        self.inner.providers()
-    }
-
-    fn gateways(&self) -> Vec<gateway::Node> {
-        self.inner.gateways()
-    }
-
-    fn coco_nodes(&self) -> Vec<topology::coco::Node> {
-        self.inner.coco_nodes()
+impl Into<NymTopology> for Topology {
+    fn into(self) -> NymTopology {
+        self.inner.into()
     }
 }

@@ -42,7 +42,7 @@ impl filter::Versioned for Node {
     }
 }
 
-impl Into<SphinxNode> for Node {
+impl<'a> Into<SphinxNode> for &'a Node {
     fn into(self) -> SphinxNode {
         let node_address_bytes = NymNodeRoutingAddress::from(self.host).try_into().unwrap();
         let key_bytes = self.get_pub_key_bytes();

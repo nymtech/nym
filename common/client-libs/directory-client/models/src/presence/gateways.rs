@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use serde::{Deserialize, Serialize};
-use topology::gateway;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,25 +46,6 @@ impl Into<topology::gateway::Node> for GatewayPresence {
     }
 }
 
-impl From<topology::gateway::Node> for GatewayPresence {
-    fn from(mpn: gateway::Node) -> Self {
-        GatewayPresence {
-            location: mpn.location,
-            client_listener: mpn.client_listener.to_string(),
-            mixnet_listener: mpn.mixnet_listener.to_string(),
-            identity_key: mpn.identity_key,
-            sphinx_key: mpn.sphinx_key,
-            registered_clients: mpn
-                .registered_clients
-                .into_iter()
-                .map(|c| c.into())
-                .collect(),
-            last_seen: mpn.last_seen,
-            version: mpn.version,
-        }
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayClient {
@@ -76,14 +56,6 @@ impl Into<topology::gateway::Client> for GatewayClient {
     fn into(self) -> topology::gateway::Client {
         topology::gateway::Client {
             pub_key: self.pub_key,
-        }
-    }
-}
-
-impl From<topology::gateway::Client> for GatewayClient {
-    fn from(mpc: topology::gateway::Client) -> Self {
-        GatewayClient {
-            pub_key: mpc.pub_key,
         }
     }
 }

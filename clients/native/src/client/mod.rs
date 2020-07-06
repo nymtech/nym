@@ -71,7 +71,9 @@ impl NymClient {
 
     pub fn as_mix_recipient(&self) -> Recipient {
         Recipient::new(
-            self.identity_keypair.public_key().derive_address(),
+            self.identity_keypair
+                .public_key()
+                .derive_destination_address(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
             NodeAddressBytes::try_from_base58_string(self.config.get_gateway_id()).unwrap(),

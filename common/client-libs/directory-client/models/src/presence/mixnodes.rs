@@ -12,10 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crypto::asymmetric::encryption;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::io;
 use std::net::ToSocketAddrs;
+
+#[derive(Debug)]
+pub enum ConversionError {
+    InvalidKeyError,
+    InvalidAddress(io::Error),
+}
+
+impl From<encryption::EncryptionKeyError> for ConversionError {
+    fn from(_: encryption::EncryptionKeyError) -> Self {
+        ConversionError::InvalidKeyError
+    }
+}
+
+impl From<io::Error> for ConversionError {
+    fn from(err: io::Error) -> Self {
+        ConversionError::InvalidAddress(err)
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -29,7 +48,7 @@ pub struct MixNodePresence {
 }
 
 impl TryInto<topology::mix::Node> for MixNodePresence {
-    type Error = io::Error;
+    type Error = ConversionError;
 
     fn try_into(self) -> Result<topology::mix::Node, Self::Error> {
         let resolved_hostname = self.host.to_socket_addrs()?.next();
@@ -37,13 +56,13 @@ impl TryInto<topology::mix::Node> for MixNodePresence {
             return Err(io::Error::new(
                 io::ErrorKind::Other,
                 "no valid socket address",
-            ));
+            ))?;
         }
 
         Ok(topology::mix::Node {
             location: self.location,
             host: resolved_hostname.unwrap(),
-            pub_key: self.pub_key,
+            pub_key: encryption::PublicKey::from_base58_string(self.pub_key)?,
             layer: self.layer,
             last_seen: self.last_seen,
             version: self.version,

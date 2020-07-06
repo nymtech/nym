@@ -22,6 +22,7 @@ use directory_client::DirectoryClient;
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKey;
 use pemstore::pemstore::PemStore;
+use std::convert::TryInto;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::{gateway, NymTopology};
@@ -68,21 +69,9 @@ async fn try_gateway_registration(
 ) -> Option<(String, String, SharedKey)> {
     let timeout = Duration::from_millis(1500);
     for gateway in gateways {
-        let gateway_identity =
-            match identity::PublicKey::from_base58_string(gateway.identity_key.clone()) {
-                Ok(id) => id,
-                Err(_) => {
-                    eprintln!(
-                        "gateway {} announces invalid identity!",
-                        gateway.identity_key
-                    );
-                    continue;
-                }
-            };
-
         let mut gateway_client = GatewayClient::new_init(
             url::Url::parse(&gateway.client_listener).unwrap(),
-            gateway_identity,
+            gateway.identity_key.clone(),
             our_identity.clone(),
             timeout,
         );
@@ -93,7 +82,7 @@ async fn try_gateway_registration(
                     continue;
                 } else {
                     return Some((
-                        gateway.identity_key.clone(),
+                        gateway.identity_key.to_base58_string(),
                         gateway.client_listener.clone(),
                         shared_key,
                     ));
@@ -111,7 +100,7 @@ async fn choose_gateway(
     let directory_client_config = directory_client::Config::new(directory_server.clone());
     let directory_client = directory_client::Client::new(directory_client_config);
     let topology = directory_client.get_topology().await.unwrap();
-    let nym_topology: NymTopology = topology.into();
+    let nym_topology: NymTopology = topology.try_into().expect("Invalid topology data!");
 
     let version_filtered_topology = nym_topology.filter_system_version(built_info::PKG_VERSION);
     // don't care about health of the networks as mixes can go up and down any time,
@@ -144,11 +133,11 @@ async fn get_gateway_listener(directory_server: String, gateway_identity: &str) 
     let topology = directory_client.get_topology().await.unwrap();
 
     // technically we don't need to do conversion here, but let's be consistent
-    let nym_topology: NymTopology = topology.into();
+    let nym_topology: NymTopology = topology.try_into().ok()?;
     let gateways = nym_topology.gateways();
 
     for gateway in gateways {
-        if gateway.identity_key == gateway_identity {
+        if gateway.identity_key.to_base58_string() == gateway_identity {
             return Some(gateway.client_listener.clone());
         }
     }

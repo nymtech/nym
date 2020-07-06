@@ -66,7 +66,8 @@ pub fn create_sphinx_packet(topology_json: &str, msg: &str, recipient: &str) -> 
 
     let recipient = Recipient::try_from_string(recipient).unwrap();
 
-    let route = sphinx_route_to(topology_json, &recipient.gateway());
+    let route =
+        sphinx_route_to(topology_json, &recipient.gateway()).expect("todo: error handling...");
     let average_delay = Duration::from_secs_f64(0.1);
     let delays = delays::generate_from_average_duration(route.len(), average_delay);
 
@@ -107,14 +108,17 @@ fn payload(sphinx_packet: SphinxPacket, route: Vec<SphinxNode>) -> Vec<u8> {
 ///
 /// This function panics if the supplied `raw_route` json string can't be
 /// extracted to a `JsonRoute`.
-fn sphinx_route_to(topology_json: &str, gateway_address: &NodeAddressBytes) -> Vec<SphinxNode> {
+fn sphinx_route_to(
+    topology_json: &str,
+    gateway_address: &NodeAddressBytes,
+) -> Option<Vec<SphinxNode>> {
     let topology = Topology::new(topology_json);
-    let nym_topology: NymTopology = topology.into();
+    let nym_topology: NymTopology = topology.try_into().ok()?;
     let route = nym_topology
         .random_route_to_gateway(&mut DEFAULT_RNG, DEFAULT_NUM_MIX_HOPS, gateway_address)
         .expect("invalid route produced");
     assert_eq!(4, route.len());
-    route
+    Some(route)
 }
 
 impl TryFrom<NodeData> for SphinxNode {
@@ -149,23 +153,6 @@ mod test_constructing_a_sphinx_packet {
     //     );
     //     assert_eq!(1404, packet.len());
     // }
-
-    #[test]
-    #[cfg_attr(feature = "offline-test", ignore)]
-    fn starts_with_a_mix_address() {
-        let mut payload = create_sphinx_packet(
-            topology_fixture(),
-            "foomp",
-            "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq@CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
-        );
-        // you don't really need 32 bytes here, but giving too much won't make it fail
-        let mut address_buffer = [0; 32];
-        let _ = payload.split_off(32);
-        address_buffer.copy_from_slice(payload.as_slice());
-        let address = NymNodeRoutingAddress::try_from_bytes(&address_buffer);
-
-        assert!(address.is_ok());
-    }
 }
 
 #[cfg(test)]
@@ -178,10 +165,11 @@ mod building_a_topology_from_json {
         sphinx_route_to(
             "",
             &NodeAddressBytes::try_from_base58_string(
-                "CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
+                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
             )
             .unwrap(),
-        );
+        )
+        .unwrap();
     }
 
     #[test]
@@ -190,10 +178,11 @@ mod building_a_topology_from_json {
         sphinx_route_to(
             "bad bad bad not json",
             &NodeAddressBytes::try_from_base58_string(
-                "CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
+                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
             )
             .unwrap(),
-        );
+        )
+        .unwrap();
     }
 
     #[test]
@@ -205,10 +194,11 @@ mod building_a_topology_from_json {
         sphinx_route_to(
             &json,
             &NodeAddressBytes::try_from_base58_string(
-                "CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
+                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
             )
             .unwrap(),
-        );
+        )
+        .unwrap();
     }
 
     #[test]
@@ -221,23 +211,24 @@ mod building_a_topology_from_json {
         sphinx_route_to(
             &json,
             &NodeAddressBytes::try_from_base58_string(
-                "CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
+                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
             )
             .unwrap(),
-        );
+        )
+        .unwrap();
     }
 
-    // JS: why is this an "offline-test" feature? It makes no network requests?
     #[test]
     #[cfg_attr(feature = "offline-test", ignore)]
     fn test_works_on_happy_json() {
         let route = sphinx_route_to(
             topology_fixture(),
             &NodeAddressBytes::try_from_base58_string(
-                "CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
+                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
             )
             .unwrap(),
-        );
+        )
+        .unwrap();
         assert_eq!(4, route.len());
     }
 
@@ -248,11 +239,22 @@ mod building_a_topology_from_json {
         let route = sphinx_route_to(
             &json,
             &NodeAddressBytes::try_from_base58_string(
-                "CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
+                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
             )
             .unwrap(),
-        );
+        )
+        .unwrap();
         assert_eq!(4, route.len());
+    }
+}
+
+#[cfg(test)]
+mod topology_fixture {
+    use super::*;
+
+    #[test]
+    fn is_valid() {
+        let _nym_topology: NymTopology = Topology::new(topology_fixture()).try_into().unwrap();
     }
 }
 
@@ -316,7 +318,7 @@ fn topology_fixture() -> &'static str {
             {
             "clientListener": "139.162.246.48:9000",
             "mixnetListener": "139.162.246.48:1789",
-            "identityKey": "CdqJCedY5d1geJNDjUqnEx8zF7mKjb6PCZ6k3T6xhxD",
+            "identityKey": "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
             "sphinxKey": "BnLYqQjb8K6TmW5oFdNZrUTocGxa3rgzBvapQrf8XUbF",
             "version": "0.6.0",
             "location": "London, UK",
@@ -330,7 +332,7 @@ fn topology_fixture() -> &'static str {
             {
             "clientListener": "127.0.0.1:9000",
             "mixnetListener": "127.0.0.1:1789",
-            "identityKey": "B9xz9V6jpp1fEbDkeyR5f8miorw9bzXGKoMbKnaxkD41",
+            "identityKey": "7hU4RNHtGC1FreLYLoBXXTH8AdaqU913NbqCv5Fu4z1r",
             "sphinxKey": "3KCpz1HCD8DqnQjemT1uuBZipmHFXM4V5btxLXwvM1gG",
             "version": "0.6.0",
             "location": "unknown",

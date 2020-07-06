@@ -693,7 +693,7 @@ dependencies = [
 name = "directory-client-models"
 version = "0.1.0"
 dependencies = [
- "log 0.4.8",
+ "crypto",
  "serde",
  "topology",
 ]
@@ -3329,6 +3329,7 @@ name = "topology"
 version = "0.1.0"
 dependencies = [
  "bs58",
+ "crypto",
  "log 0.4.8",
  "nymsphinx-addressing",
  "nymsphinx-types",

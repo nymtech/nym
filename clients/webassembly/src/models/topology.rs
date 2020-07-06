@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use serde::Serializer;
+use std::convert::TryInto;
 use topology::NymTopology;
 
 #[derive(Clone, Debug)]
@@ -56,8 +57,10 @@ impl Topology {
     }
 }
 
-impl Into<NymTopology> for Topology {
-    fn into(self) -> NymTopology {
-        self.inner.into()
+impl TryInto<NymTopology> for Topology {
+    type Error = directory_client_models::presence::TopologyConversionError;
+
+    fn try_into(self) -> Result<NymTopology, Self::Error> {
+        self.inner.try_into()
     }
 }

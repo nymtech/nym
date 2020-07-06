@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::filter;
+use crypto::asymmetric::{encryption, identity};
 use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx_types::Node as SphinxNode;
 use std::convert::TryInto;
@@ -28,21 +29,14 @@ pub struct Node {
     pub location: String,
     pub client_listener: String,
     pub mixnet_listener: SocketAddr,
-    // TODO: should we just import common/crypto and use 'proper' types for those directly?
-    pub identity_key: String,
-    pub sphinx_key: String,
+    pub identity_key: identity::PublicKey,
+    pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
     pub registered_clients: Vec<Client>,
     pub last_seen: u64,
     pub version: String,
 }
 
 impl Node {
-    fn get_sphinx_key_bytes(&self) -> [u8; 32] {
-        let mut key_bytes = [0; 32];
-        bs58::decode(&self.sphinx_key).into(&mut key_bytes).unwrap();
-        key_bytes
-    }
-
     pub fn has_client(&self, client_pub_key: String) -> bool {
         self.registered_clients
             .iter()
@@ -62,9 +56,7 @@ impl<'a> Into<SphinxNode> for &'a Node {
         let node_address_bytes = NymNodeRoutingAddress::from(self.mixnet_listener)
             .try_into()
             .unwrap();
-        let key_bytes = self.get_sphinx_key_bytes();
-        let key = nymsphinx_types::PublicKey::from(key_bytes);
 
-        SphinxNode::new(node_address_bytes, key)
+        SphinxNode::new(node_address_bytes, (&self.sphinx_key).into())
     }
 }

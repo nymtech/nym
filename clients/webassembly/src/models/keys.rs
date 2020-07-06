@@ -43,7 +43,7 @@ impl TryInto<String> for GatewayIdentity {
 #[wasm_bindgen]
 pub fn keygen() -> String {
     let keypair = identity::KeyPair::new();
-    let address = keypair.public_key().derive_address();
+    let address = keypair.public_key().derive_destination_address();
 
     GatewayIdentity {
         private_key: keypair.private_key().to_base58_string(),

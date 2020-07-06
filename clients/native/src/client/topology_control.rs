@@ -17,6 +17,7 @@ use directory_client::DirectoryClient;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
+use std::convert::TryInto;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time;
@@ -195,7 +196,7 @@ impl TopologyRefresher {
                 None
             }
             Ok(topology) => {
-                let nym_topology: NymTopology = topology.into();
+                let nym_topology: NymTopology = topology.try_into().ok()?;
                 Some(nym_topology.filter_system_version(built_info::PKG_VERSION))
             }
         }

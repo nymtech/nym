@@ -66,12 +66,14 @@ impl NymTopology {
         &self.gateways
     }
 
-    pub fn gateway_exists(&self, gateway_address: &NodeAddressBytes) -> bool {
-        let b58_address = gateway_address.to_base58_string();
+    fn get_gateway(&self, gateway_address: &NodeAddressBytes) -> Option<&gateway::Node> {
         self.gateways
             .iter()
-            .find(|&gateway| gateway.identity_key == b58_address)
-            .is_some()
+            .find(|gateway| &gateway.identity_key.derive_node_address() == gateway_address)
+    }
+
+    pub fn gateway_exists(&self, gateway_address: &NodeAddressBytes) -> bool {
+        self.get_gateway(gateway_address).is_some()
     }
 
     pub fn random_mix_route<R>(
@@ -120,12 +122,8 @@ impl NymTopology {
         // I don't think there's a need for this RNG to be crypto-secure
         R: Rng + ?Sized,
     {
-        let b58_address = gateway_address.to_base58_string();
-
         let gateway = self
-            .gateways
-            .iter()
-            .find(|&gateway| gateway.identity_key == b58_address)
+            .get_gateway(gateway_address)
             .ok_or_else(|| NymTopologyError::NonExistentGatewayError)?;
 
         Ok(self

@@ -12,7 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crypto::asymmetric::{encryption, identity};
 use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
+use std::net::AddrParseError;
+
+#[derive(Debug)]
+pub enum ConversionError {
+    InvalidKeyError,
+    InvalidAddress,
+}
+
+impl From<identity::SignatureError> for ConversionError {
+    fn from(_: identity::SignatureError) -> Self {
+        ConversionError::InvalidKeyError
+    }
+}
+
+impl From<encryption::EncryptionKeyError> for ConversionError {
+    fn from(_: encryption::EncryptionKeyError) -> Self {
+        ConversionError::InvalidKeyError
+    }
+}
+
+impl From<std::net::AddrParseError> for ConversionError {
+    fn from(_: AddrParseError) -> Self {
+        ConversionError::InvalidAddress
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -27,14 +54,16 @@ pub struct GatewayPresence {
     pub version: String,
 }
 
-impl Into<topology::gateway::Node> for GatewayPresence {
-    fn into(self) -> topology::gateway::Node {
-        topology::gateway::Node {
+impl TryInto<topology::gateway::Node> for GatewayPresence {
+    type Error = ConversionError;
+
+    fn try_into(self) -> Result<topology::gateway::Node, Self::Error> {
+        Ok(topology::gateway::Node {
             location: self.location,
-            client_listener: self.client_listener.parse().unwrap(),
-            mixnet_listener: self.mixnet_listener.parse().unwrap(),
-            identity_key: self.identity_key,
-            sphinx_key: self.sphinx_key,
+            client_listener: self.client_listener,
+            mixnet_listener: self.mixnet_listener.parse()?,
+            identity_key: identity::PublicKey::from_base58_string(self.identity_key).unwrap(),
+            sphinx_key: encryption::PublicKey::from_base58_string(self.sphinx_key).unwrap(),
             registered_clients: self
                 .registered_clients
                 .into_iter()
@@ -42,7 +71,7 @@ impl Into<topology::gateway::Node> for GatewayPresence {
                 .collect(),
             last_seen: self.last_seen,
             version: self.version,
-        }
+        })
     }
 }
 

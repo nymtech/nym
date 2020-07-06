@@ -21,7 +21,6 @@ pub mod coco;
 mod filter;
 pub mod gateway;
 pub mod mix;
-pub mod provider;
 
 #[derive(Debug)]
 pub enum NymTopologyError {

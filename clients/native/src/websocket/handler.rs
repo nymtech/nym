@@ -31,7 +31,6 @@ use tokio_tungstenite::{
     tungstenite::{protocol::Message, Error as WsError},
     WebSocketStream,
 };
-use topology::NymTopology;
 
 enum ReceivedResponseType {
     Binary,
@@ -44,17 +43,17 @@ impl Default for ReceivedResponseType {
     }
 }
 
-pub(crate) struct Handler<T: NymTopology> {
+pub(crate) struct Handler {
     msg_input: InputMessageSender,
     buffer_requester: ReceivedBufferRequestSender,
     self_full_address: Recipient,
-    topology_accessor: TopologyAccessor<T>,
+    topology_accessor: TopologyAccessor,
     socket: Option<WebSocketStream<TcpStream>>,
     received_response_type: ReceivedResponseType,
 }
 
 // clone is used to use handler on a new connection, which initially is `None`
-impl<T: NymTopology> Clone for Handler<T> {
+impl Clone for Handler {
     fn clone(&self) -> Self {
         Handler {
             msg_input: self.msg_input.clone(),
@@ -67,7 +66,7 @@ impl<T: NymTopology> Clone for Handler<T> {
     }
 }
 
-impl<T: NymTopology> Drop for Handler<T> {
+impl Drop for Handler {
     fn drop(&mut self) {
         self.buffer_requester
             .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
@@ -75,12 +74,12 @@ impl<T: NymTopology> Drop for Handler<T> {
     }
 }
 
-impl<T: NymTopology> Handler<T> {
+impl Handler {
     pub(crate) fn new(
         msg_input: InputMessageSender,
         buffer_requester: ReceivedBufferRequestSender,
         self_full_address: Recipient,
-        topology_accessor: TopologyAccessor<T>,
+        topology_accessor: TopologyAccessor,
     ) -> Self {
         Handler {
             msg_input,

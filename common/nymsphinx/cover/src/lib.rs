@@ -18,6 +18,7 @@ use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx_chunking::fragment::COVER_FRAG_ID;
 use nymsphinx_params::packet_sizes::PacketSize;
+use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
 use nymsphinx_types::builder::SphinxPacketBuilder;
 use nymsphinx_types::{delays, Destination, Error as SphinxError, SphinxPacket};
 use rand::{CryptoRng, RngCore};
@@ -55,16 +56,15 @@ impl From<NymTopologyError> for CoverMessageError {
     }
 }
 
-pub fn generate_loop_cover_surb_ack<R, T>(
+pub fn generate_loop_cover_surb_ack<R>(
     rng: &mut R,
-    topology: &T,
+    topology: &NymTopology,
     ack_key: &AckAes128Key,
     full_address: &Recipient,
     average_ack_delay: time::Duration,
 ) -> Result<SURBAck, CoverMessageError>
 where
     R: RngCore + CryptoRng,
-    T: NymTopology,
 {
     Ok(SURBAck::construct(
         rng,
@@ -76,9 +76,9 @@ where
     )?)
 }
 
-pub fn generate_loop_cover_packet<R, T>(
+pub fn generate_loop_cover_packet<R>(
     rng: &mut R,
-    topology: &T,
+    topology: &NymTopology,
     ack_key: &AckAes128Key,
     full_address: &Recipient,
     average_ack_delay: time::Duration,
@@ -86,7 +86,6 @@ pub fn generate_loop_cover_packet<R, T>(
 ) -> Result<(SocketAddr, SphinxPacket), CoverMessageError>
 where
     R: RngCore + CryptoRng,
-    T: NymTopology,
 {
     // we don't care about total ack delay - we will not be retransmitting it anyway
     let (_, ack_bytes) =
@@ -105,7 +104,8 @@ where
         .take(plaintext_size)
         .collect();
 
-    let route = topology.random_route_to_gateway(&full_address.gateway())?;
+    let route =
+        topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, &full_address.gateway())?;
     let delays = delays::generate_from_average_duration(route.len(), average_packet_delay);
     // in our design we don't care about SURB_ID
     let destination = Destination::new(full_address.destination(), Default::default());

@@ -13,12 +13,13 @@
 // limitations under the License.
 
 use crate::filter;
+use crypto::asymmetric::identity;
 
 #[derive(Debug, Clone)]
 pub struct Node {
     pub location: String,
     pub host: String,
-    pub pub_key: String,
+    pub pub_key: identity::PublicKey,
     pub last_seen: u64,
     pub version: String,
 }

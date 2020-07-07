@@ -13,3 +13,7 @@
 // limitations under the License.
 
 pub mod packet_sizes;
+
+// If somebody can provide an argument why it might be reasonable to have more than 255 mix hops,
+// I will change this to [`usize`]
+pub const DEFAULT_NUM_MIX_HOPS: u8 = 3;

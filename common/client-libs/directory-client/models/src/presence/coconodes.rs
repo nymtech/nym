@@ -12,8 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
-use topology::coco;
+use std::convert::TryInto;
+
+#[derive(Debug)]
+pub enum ConversionError {
+    InvalidKeyError,
+}
+
+impl From<identity::SignatureError> for ConversionError {
+    fn from(_: identity::SignatureError) -> Self {
+        ConversionError::InvalidKeyError
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,26 +37,16 @@ pub struct CocoPresence {
     pub version: String,
 }
 
-impl Into<topology::coco::Node> for CocoPresence {
-    fn into(self) -> topology::coco::Node {
-        topology::coco::Node {
+impl TryInto<topology::coco::Node> for CocoPresence {
+    type Error = ConversionError;
+
+    fn try_into(self) -> Result<topology::coco::Node, Self::Error> {
+        Ok(topology::coco::Node {
             location: self.location,
             host: self.host,
-            pub_key: self.pub_key,
+            pub_key: identity::PublicKey::from_base58_string(self.pub_key)?,
             last_seen: self.last_seen,
             version: self.version,
-        }
-    }
-}
-
-impl From<topology::coco::Node> for CocoPresence {
-    fn from(cn: coco::Node) -> Self {
-        CocoPresence {
-            location: cn.location,
-            host: cn.host,
-            pub_key: cn.pub_key,
-            last_seen: cn.last_seen,
-            version: cn.version,
-        }
+        })
     }
 }

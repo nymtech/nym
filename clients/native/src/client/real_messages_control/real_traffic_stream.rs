@@ -31,12 +31,10 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
-use topology::NymTopology;
 
-pub(crate) struct OutQueueControl<R, T>
+pub(crate) struct OutQueueControl<R>
 where
     R: CryptoRng + Rng,
-    T: NymTopology,
 {
     /// Key used to encrypt and decrypt content of an ACK packet.
     ack_key: Arc<AckAes128Key>,
@@ -72,7 +70,7 @@ where
     rng: R,
 
     /// Accessor to the common instance of network topology.
-    topology_access: TopologyAccessor<T>,
+    topology_access: TopologyAccessor,
 }
 
 pub(crate) struct RealMessage {
@@ -105,10 +103,9 @@ pub(crate) enum StreamMessage {
     Real(RealMessage),
 }
 
-impl<R, T> Stream for OutQueueControl<R, T>
+impl<R> Stream for OutQueueControl<R>
 where
     R: CryptoRng + Rng + Unpin,
-    T: NymTopology, // this really confuses me, why T doesn't need to be Unpin?
 {
     type Item = StreamMessage;
 
@@ -144,10 +141,9 @@ where
     }
 }
 
-impl<R, T> OutQueueControl<R, T>
+impl<R> OutQueueControl<R>
 where
     R: CryptoRng + Rng + Unpin,
-    T: NymTopology,
 {
     pub(crate) fn new(
         ack_key: Arc<AckAes128Key>,
@@ -159,7 +155,7 @@ where
         real_receiver: RealMessageReceiver,
         rng: R,
         our_full_destination: Recipient,
-        topology_access: TopologyAccessor<T>,
+        topology_access: TopologyAccessor,
     ) -> Self {
         OutQueueControl {
             ack_key,

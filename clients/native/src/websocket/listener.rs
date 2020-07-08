@@ -20,7 +20,6 @@ use std::{
 };
 use tokio::runtime;
 use tokio::{sync::Notify, task::JoinHandle};
-use topology::NymTopology;
 
 enum State {
     Connected,
@@ -50,7 +49,7 @@ impl Listener {
         }
     }
 
-    pub(crate) async fn run<T: NymTopology + 'static>(&mut self, handler: Handler<T>) {
+    pub(crate) async fn run(&mut self, handler: Handler) {
         let mut tcp_listener = tokio::net::TcpListener::bind(self.address)
             .await
             .expect("Failed to start websocket listener");
@@ -100,11 +99,7 @@ impl Listener {
         }
     }
 
-    pub(crate) fn start<T: NymTopology + 'static>(
-        mut self,
-        rt_handle: &runtime::Handle,
-        handler: Handler<T>,
-    ) -> JoinHandle<()> {
+    pub(crate) fn start(mut self, rt_handle: &runtime::Handle, handler: Handler) -> JoinHandle<()> {
         info!("Running websocket on {:?}", self.address.to_string());
 
         rt_handle.spawn(async move { self.run(handler).await })

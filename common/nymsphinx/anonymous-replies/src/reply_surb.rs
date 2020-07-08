@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use nymsphinx_addressing::clients::Recipient;
+use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
 use nymsphinx_types::{delays, Destination, Error as SphinxError, SURBMaterial, SURB};
 use rand::{CryptoRng, RngCore};
 use std::time;
@@ -27,17 +28,17 @@ pub enum ReplySURBError {
 }
 
 impl ReplySURB {
-    pub fn construct<R, T>(
-        _rng: &mut R,
+    pub fn construct<R>(
+        rng: &mut R,
         recipient: &Recipient,
         average_delay: time::Duration,
-        topology: &T,
+        topology: &NymTopology,
     ) -> Result<Self, NymTopologyError>
     where
         R: RngCore + CryptoRng,
-        T: NymTopology,
     {
-        let route = topology.random_route_to_gateway(&recipient.gateway())?;
+        let route =
+            topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, &recipient.gateway())?;
         let delays = delays::generate_from_average_duration(route.len(), average_delay);
         let destination = Destination::new(recipient.destination(), Default::default());
 

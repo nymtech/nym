@@ -34,7 +34,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
-use topology::NymTopology;
 
 mod acknowlegement_control;
 mod real_traffic_stream;
@@ -71,24 +70,23 @@ impl Config {
     }
 }
 
-pub(crate) struct RealMessagesController<R, T>
+pub(crate) struct RealMessagesController<R>
 where
     R: CryptoRng + Rng,
-    T: NymTopology,
 {
-    out_queue_control: Option<OutQueueControl<R, T>>,
-    ack_control: Option<AcknowledgementController<R, T>>,
+    out_queue_control: Option<OutQueueControl<R>>,
+    ack_control: Option<AcknowledgementController<R>>,
 }
 
 // obviously when we finally make shared rng that is on 'higher' level, this should become
 // generic `R`
-impl<T: 'static + NymTopology> RealMessagesController<OsRng, T> {
+impl RealMessagesController<OsRng> {
     pub(crate) fn new(
         config: Config,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: MixMessageSender,
-        topology_access: TopologyAccessor<T>,
+        topology_access: TopologyAccessor,
     ) -> Self {
         let rng = OsRng;
 

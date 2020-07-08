@@ -37,7 +37,6 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::NodeAddressBytes;
 use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
 use tokio::runtime::Runtime;
-use topology::NymTopology;
 
 mod cover_traffic_stream;
 pub(crate) mod inbound_messages;
@@ -79,7 +78,7 @@ impl NymClient {
             self.key_manager
                 .identity_keypair()
                 .public_key()
-                .derive_address(),
+                .derive_destination_address(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
             NodeAddressBytes::try_from_base58_string(self.config.get_gateway_id()).unwrap(),
@@ -88,9 +87,9 @@ impl NymClient {
 
     // future constantly pumping loop cover traffic at some specified average rate
     // the pumped traffic goes to the MixTrafficController
-    fn start_cover_traffic_stream<T: 'static + NymTopology>(
+    fn start_cover_traffic_stream(
         &self,
-        topology_accessor: TopologyAccessor<T>,
+        topology_accessor: TopologyAccessor,
         mix_tx: MixMessageSender,
     ) {
         info!("Starting loop cover traffic stream...");
@@ -111,9 +110,9 @@ impl NymClient {
             .start(self.runtime.handle());
     }
 
-    fn start_real_traffic_controller<T: 'static + NymTopology>(
+    fn start_real_traffic_controller(
         &self,
-        topology_accessor: TopologyAccessor<T>,
+        topology_accessor: TopologyAccessor,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: MixMessageSender,
@@ -206,10 +205,7 @@ impl NymClient {
 
     // future responsible for periodically polling directory server and updating
     // the current global view of topology
-    fn start_topology_refresher(
-        &mut self,
-        topology_accessor: TopologyAccessor<directory_client::Topology>,
-    ) {
+    fn start_topology_refresher(&mut self, topology_accessor: TopologyAccessor) {
         let topology_refresher_config = TopologyRefresherConfig::new(
             self.config.get_directory_server(),
             self.config.get_topology_refresh_rate(),
@@ -252,9 +248,9 @@ impl NymClient {
         MixTrafficController::new(mix_rx, gateway_client).start(self.runtime.handle());
     }
 
-    fn start_websocket_listener<T: 'static + NymTopology>(
+    fn start_websocket_listener(
         &self,
-        topology_accessor: TopologyAccessor<T>,
+        topology_accessor: TopologyAccessor,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
     ) {
@@ -339,7 +335,7 @@ impl NymClient {
 
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
-        let shared_topology_accessor = TopologyAccessor::<directory_client::Topology>::new();
+        let shared_topology_accessor = TopologyAccessor::new();
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.

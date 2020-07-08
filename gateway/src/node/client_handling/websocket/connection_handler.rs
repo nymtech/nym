@@ -296,7 +296,7 @@ impl<S> Handle<S> {
             Some(address) => address,
             None => return ServerResponse::new_error("malformed request"),
         };
-        let remote_address = remote_identity.derive_address();
+        let remote_address = remote_identity.derive_destination_address();
 
         let derived_shared_key = match self.perform_registration_handshake(init_data).await {
             Ok(shared_key) => shared_key,

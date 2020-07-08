@@ -376,7 +376,11 @@ impl<'a, R> GatewayClient<'static, R> {
             .as_ref()
             .unwrap_or_else(|| self.shared_key.as_ref().unwrap());
         let iv = AuthenticationIV::new_random(&mut DEFAULT_RNG);
-        let self_address = self.local_identity.as_ref().public_key().derive_address();
+        let self_address = self
+            .local_identity
+            .as_ref()
+            .public_key()
+            .derive_destination_address();
         let encrypted_address = EncryptedAddressBytes::new(&self_address, shared_key, &iv);
 
         let msg =

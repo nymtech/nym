@@ -8,13 +8,13 @@ edition = "2018"
 
 [dependencies]
 bs58 = "0.3.0"
-itertools = "0.8.2"
 log = "0.4"
 pretty_env_logger = "0.3"
 rand = "0.7.2"
 serde = { version = "1.0.104", features = ["derive"] }
 
 ## internal
-nymsphinx-addressing = {path = "../nymsphinx/addressing"}
-nymsphinx-types = {path = "../nymsphinx/types"}
-version-checker = {path = "../version-checker" }
+crypto = { path = "../crypto" }
+nymsphinx-addressing = { path = "../nymsphinx/addressing" }
+nymsphinx-types = { path = "../nymsphinx/types" }
+version-checker = { path = "../version-checker" }

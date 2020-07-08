@@ -18,4 +18,4 @@ pub mod mixnodes;
 pub mod providers;
 pub mod topology;
 
-pub use self::topology::Topology;
+pub use self::topology::{Topology, TopologyConversionError};

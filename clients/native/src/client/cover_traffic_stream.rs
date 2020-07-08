@@ -27,12 +27,10 @@ use std::sync::Arc;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 use tokio::time;
-use topology::NymTopology;
 
-pub(crate) struct LoopCoverTrafficStream<R, T>
+pub(crate) struct LoopCoverTrafficStream<R>
 where
     R: CryptoRng + Rng,
-    T: NymTopology,
 {
     /// Key used to encrypt and decrypt content of an ACK packet.
     ack_key: Arc<AckAes128Key>,
@@ -61,13 +59,12 @@ where
     rng: R,
 
     /// Accessor to the common instance of network topology.
-    topology_access: TopologyAccessor<T>,
+    topology_access: TopologyAccessor,
 }
 
-impl<R, T> Stream for LoopCoverTrafficStream<R, T>
+impl<R> Stream for LoopCoverTrafficStream<R>
 where
     R: CryptoRng + Rng + Unpin,
-    T: NymTopology, // this really confuses me, why T doesn't need to be Unpin?
 {
     // Item is only used to indicate we should create a new message rather than actual cover message
     // reason being to not introduce unnecessary complexity by having to keep state of topology
@@ -98,7 +95,7 @@ where
 
 // obviously when we finally make shared rng that is on 'higher' level, this should become
 // generic `R`
-impl<T: 'static + NymTopology> LoopCoverTrafficStream<OsRng, T> {
+impl LoopCoverTrafficStream<OsRng> {
     pub(crate) fn new(
         ack_key: Arc<AckAes128Key>,
         average_ack_delay: time::Duration,
@@ -106,7 +103,7 @@ impl<T: 'static + NymTopology> LoopCoverTrafficStream<OsRng, T> {
         average_cover_message_sending_delay: time::Duration,
         mix_tx: MixMessageSender,
         our_full_destination: Recipient,
-        topology_access: TopologyAccessor<T>,
+        topology_access: TopologyAccessor,
     ) -> Self {
         let rng = OsRng;
 

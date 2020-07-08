@@ -13,9 +13,11 @@
 // limitations under the License.
 
 use bs58;
-use ed25519_dalek::SignatureError;
+pub use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
-use nymsphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
+use nymsphinx_types::{
+    DestinationAddressBytes, NodeAddressBytes, DESTINATION_ADDRESS_LENGTH, NODE_ADDRESS_LENGTH,
+};
 use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use rand::{rngs::OsRng, CryptoRng, RngCore};
 
@@ -80,7 +82,7 @@ impl PemStorableKeyPair for KeyPair {
 pub struct PublicKey(ed25519_dalek::PublicKey);
 
 impl PublicKey {
-    pub fn derive_address(&self) -> DestinationAddressBytes {
+    pub fn derive_destination_address(&self) -> DestinationAddressBytes {
         let mut temporary_address = [0u8; DESTINATION_ADDRESS_LENGTH];
         let public_key_bytes = self.to_bytes();
 
@@ -88,6 +90,16 @@ impl PublicKey {
 
         temporary_address.copy_from_slice(&public_key_bytes[..]);
         DestinationAddressBytes::from_bytes(temporary_address)
+    }
+
+    pub fn derive_node_address(&self) -> NodeAddressBytes {
+        let mut temporary_address = [0u8; NODE_ADDRESS_LENGTH];
+        let public_key_bytes = self.to_bytes();
+
+        assert_eq!(NODE_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH);
+
+        temporary_address.copy_from_slice(&public_key_bytes[..]);
+        NodeAddressBytes::from_bytes(temporary_address)
     }
 
     /// Convert this public key to a byte array.

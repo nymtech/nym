@@ -209,6 +209,12 @@ impl Into<nymsphinx_types::PublicKey> for PublicKey {
     }
 }
 
+impl<'a> Into<nymsphinx_types::PublicKey> for &'a PublicKey {
+    fn into(self) -> nymsphinx_types::PublicKey {
+        nymsphinx_types::PublicKey::from(self.to_bytes())
+    }
+}
+
 impl From<nymsphinx_types::PublicKey> for PublicKey {
     fn from(pub_key: nymsphinx_types::PublicKey) -> Self {
         Self(x25519_dalek::PublicKey::from(*pub_key.as_bytes()))

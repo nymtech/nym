@@ -26,13 +26,11 @@ use nymsphinx::{
 };
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
-use topology::NymTopology;
 
 // responsible for packet retransmission upon fired timer
-pub(super) struct RetransmissionRequestListener<R, T>
+pub(super) struct RetransmissionRequestListener<R>
 where
     R: CryptoRng + Rng,
-    T: NymTopology,
 {
     ack_key: Arc<AckAes128Key>,
     ack_recipient: Recipient,
@@ -40,13 +38,12 @@ where
     pending_acks: PendingAcksMap,
     real_message_sender: RealMessageSender,
     request_receiver: RetransmissionRequestReceiver,
-    topology_access: TopologyAccessor<T>,
+    topology_access: TopologyAccessor,
 }
 
-impl<R, T> RetransmissionRequestListener<R, T>
+impl<R> RetransmissionRequestListener<R>
 where
     R: CryptoRng + Rng,
-    T: NymTopology,
 {
     pub(super) fn new(
         ack_key: Arc<AckAes128Key>,
@@ -55,7 +52,7 @@ where
         pending_acks: PendingAcksMap,
         real_message_sender: RealMessageSender,
         request_receiver: RetransmissionRequestReceiver,
-        topology_access: TopologyAccessor<T>,
+        topology_access: TopologyAccessor,
     ) -> Self {
         RetransmissionRequestListener {
             ack_key,

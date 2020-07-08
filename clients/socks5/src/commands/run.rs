@@ -61,10 +61,6 @@ fn load_identity_keys(config_file: &Config) -> identity::KeyPair {
     let identity_keypair = PemStore::new(ClientPathfinder::new_from_config(&config_file))
         .read_identity_keypair()
         .expect("Failed to read stored identity key files");
-    println!(
-        "Public identity key: {}\n",
-        identity_keypair.public_key().to_base58_string()
-    );
     identity_keypair
 }
 
@@ -77,5 +73,10 @@ pub fn execute(matches: &ArgMatches) {
 
     config = override_config(config, matches);
     let identity_keypair = load_identity_keys(&config);
+    println!(
+        "Nym address: {}@{}\n",
+        identity_keypair.public_key().to_base58_string(),
+        config.get_gateway_id()
+    );
     NymClient::new(config, identity_keypair).run_forever();
 }

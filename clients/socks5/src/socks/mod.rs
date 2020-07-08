@@ -1,6 +1,9 @@
 #![forbid(unsafe_code)]
 
+use crate::client::inbound_messages::InputMessage;
+use crate::client::inbound_messages::InputMessageSender;
 use log::*;
+use nymsphinx::{addressing::clients::Recipient, DestinationAddressBytes, NodeAddressBytes};
 use serde::Deserialize;
 use snafu::Snafu;
 use std::net::{
@@ -14,6 +17,8 @@ use tokio::{
 
 /// Version of socks
 const SOCKS_VERSION: u8 = 0x05;
+
+const RESERVED: u8 = 0x00;
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct User {
@@ -111,14 +116,21 @@ impl SphinxSocks {
         }
     }
 
-    pub async fn serve(&mut self) -> Result<(), SocksProxyError> {
+    pub(crate) async fn serve(
+        &mut self,
+        input_sender: InputMessageSender,
+    ) -> Result<(), SocksProxyError> {
         info!("Serving Connections...");
         let mut listener = TcpListener::bind(self.listening_address).await.unwrap();
         loop {
             if let Ok((stream, _remote)) = listener.accept().await {
                 // TODO Optimize this
-                let mut client =
-                    SOCKClient::new(stream, self.users.clone(), self.auth_methods.clone());
+                let mut client = SOCKClient::new(
+                    stream,
+                    self.users.clone(),
+                    self.auth_methods.clone(),
+                    input_sender.clone(),
+                );
 
                 tokio::spawn(async move {
                     {
@@ -161,6 +173,7 @@ struct SOCKClient {
     auth_methods: Vec<u8>,
     authenticated_users: Vec<User>,
     socks_version: u8,
+    input_sender: InputMessageSender,
 }
 
 #[derive(Debug)]
@@ -185,13 +198,19 @@ where
 
 impl SOCKClient {
     /// Create a new SOCKClient
-    pub fn new(stream: TcpStream, authenticated_users: Vec<User>, auth_methods: Vec<u8>) -> Self {
+    pub fn new(
+        stream: TcpStream,
+        authenticated_users: Vec<User>,
+        auth_methods: Vec<u8>,
+        input_sender: InputMessageSender,
+    ) -> Self {
         SOCKClient {
             stream,
             auth_nmethods: 0,
             socks_version: 0,
             authenticated_users,
             auth_methods,
+            input_sender,
         }
     }
 
@@ -350,7 +369,62 @@ impl SOCKClient {
             req.port
         );
 
-        // serialise into Sphinx and send to mixnet!
+        let recipient = Recipient::new(
+            // client address
+            DestinationAddressBytes::try_from_base58_string(
+                "6ho9un9BMqUcfnkRNxQiRodo6ShdJVkqj5ShuPGyydDf",
+            )
+            .unwrap(),
+            // gateway address
+            NodeAddressBytes::try_from_base58_string(
+                "GYCqU48ndXke9o2434i7zEGv1sWg1cNVswWJfRnY1VTB",
+            )
+            .unwrap(),
+        );
+
+        // Respond
+        match req.command {
+            // Use the Proxy to connect to the specified addr/port
+            SockCommand::Connect => {
+                debug!("Handling CONNECT Command");
+
+                let sock_addr = addr_to_socket(&req.addr_type, &req.addr, req.port)?;
+                trace!("Connecting to: {:?}", sock_addr);
+
+                self.stream
+                    .write_all(&[
+                        SOCKS_VERSION,
+                        ResponseCode::Success as u8,
+                        RESERVED,
+                        1,
+                        127,
+                        0,
+                        0,
+                        1,
+                        0,
+                        0,
+                    ])
+                    .await
+                    .unwrap();
+
+                let remote_address = format!("{}:{}", displayed_addr, req.port);
+                let remote_bytes = remote_address.into_bytes();
+                let remote_bytes_len = remote_bytes.len() as u16;
+                let foo = remote_bytes_len.to_be_bytes(); // this is [u8; 2];
+                let mut buf = foo
+                    .iter()
+                    .cloned()
+                    .chain(remote_bytes.into_iter())
+                    .collect::<Vec<_>>();
+
+                self.stream.read_to_end(&mut buf).await.unwrap();
+                println!("read: {:?}", buf);
+
+                let input_message = InputMessage::new(recipient, buf);
+                self.input_sender.unbounded_send(input_message).unwrap();
+            }
+            _ => unreachable!("don't want to go there"),
+        }
 
         Ok(())
     }

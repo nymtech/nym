@@ -71,6 +71,7 @@ async def bitcoin_proxy():
             bin_payload += bytearray(response)
             await websocket.send(bin_payload)
 
+            # { "type" : "send" }
             msg_send_confirmation = json.loads(await websocket.recv())
             assert msg_send_confirmation["type"], "send"
 

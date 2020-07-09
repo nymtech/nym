@@ -23,6 +23,7 @@ use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use crate::config::{Config, SocketType};
+use crate::socks::authentication::User;
 use crate::socks::{self, server::SphinxSocksServer};
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
@@ -34,9 +35,9 @@ use gateway_requests::registration::handshake::SharedKey;
 use log::*;
 use nymsphinx::acknowledgements::identifier::AckAes128Key;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::NodeAddressBytes;
+use nymsphinx::{DestinationAddressBytes, NodeAddressBytes};
 use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
-use socks::authentication::AuthenticationMethods;
+use socks::authentication::{AuthenticationMethods, Authenticator};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
@@ -267,7 +268,25 @@ impl NymClient {
 
         let mut auth_methods: Vec<u8> = Vec::new();
         auth_methods.push(AuthenticationMethods::NoAuth as u8);
-        let mut sphinx_socks = SphinxSocksServer::new(1080, "127.0.0.1", auth_methods, Vec::new());
+        let allowed_users: Vec<User> = Vec::new();
+
+        let authenticator = Authenticator::new(auth_methods, allowed_users);
+
+        // TODO: make this configurable in the client config file
+        let recipient = Recipient::new(
+            // destination client address - the service provider making the requests
+            DestinationAddressBytes::try_from_base58_string(
+                "6ho9un9BMqUcfnkRNxQiRodo6ShdJVkqj5ShuPGyydDf",
+            )
+            .unwrap(),
+            // the service provider's gateway address
+            NodeAddressBytes::try_from_base58_string(
+                "GYCqU48ndXke9o2434i7zEGv1sWg1cNVswWJfRnY1VTB",
+            )
+            .unwrap(),
+        );
+
+        let mut sphinx_socks = SphinxSocksServer::new(1080, "127.0.0.1", authenticator, recipient);
         self.runtime
             .spawn(async move { sphinx_socks.serve(msg_input).await });
     }

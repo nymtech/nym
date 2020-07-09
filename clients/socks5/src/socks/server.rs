@@ -1,25 +1,31 @@
-use super::authentication::User;
+use super::authentication::Authenticator;
 use super::client::SocksClient;
 use super::{ResponseCode, SocksProxyError};
 use crate::client::inbound_messages::InputMessageSender;
 use log::*;
+use nymsphinx::addressing::clients::Recipient;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
 pub struct SphinxSocksServer {
-    users: Vec<User>,
-    auth_methods: Vec<u8>,
+    authenticator: Authenticator,
     listening_address: SocketAddr,
+    service_provider: Recipient,
 }
 
 impl SphinxSocksServer {
     /// Create a new SphinxSocks instance
-    pub fn new(port: u16, ip: &str, auth_methods: Vec<u8>, users: Vec<User>) -> Self {
+    pub(crate) fn new(
+        port: u16,
+        ip: &str,
+        authenticator: Authenticator,
+        service_provider: Recipient,
+    ) -> Self {
         info!("Listening on {}:{}", ip, port);
         SphinxSocksServer {
-            auth_methods,
-            users,
+            authenticator,
             listening_address: format!("{}:{}", ip, port).parse().unwrap(),
+            service_provider,
         }
     }
 
@@ -34,9 +40,9 @@ impl SphinxSocksServer {
                 // TODO Optimize this
                 let mut client = SocksClient::new(
                     stream,
-                    self.users.clone(),
-                    self.auth_methods.clone(),
+                    self.authenticator.clone(),
                     input_sender.clone(),
+                    self.service_provider.clone(),
                 );
 
                 tokio::spawn(async move {

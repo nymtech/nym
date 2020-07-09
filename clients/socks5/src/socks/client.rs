@@ -1,41 +1,44 @@
 #![forbid(unsafe_code)]
 
-use super::authentication::{AuthenticationMethods, User};
-use super::request::{SocksCommand, SocksRequest};
-use super::{AddrType, ResponseCode, SocksProxyError, RESERVED, SOCKS_VERSION};
-use crate::client::inbound_messages::InputMessage;
-use crate::client::inbound_messages::InputMessageSender;
-use crate::socks::utils;
-use log::*;
-use nymsphinx::{addressing::clients::Recipient, DestinationAddressBytes, NodeAddressBytes};
 use std::net::Shutdown;
+
+use log::*;
 use tokio::prelude::*;
 use tokio::{self, net::TcpStream};
+
+use nymsphinx::addressing::clients::Recipient;
+
+use crate::client::inbound_messages::InputMessage;
+use crate::client::inbound_messages::InputMessageSender;
+
+use super::authentication::{AuthenticationMethods, Authenticator, User};
+use super::request::{SocksCommand, SocksRequest};
+use super::{ResponseCode, SocksProxyError, RESERVED, SOCKS_VERSION};
 
 pub(crate) struct SocksClient {
     stream: TcpStream,
     auth_nmethods: u8,
-    auth_methods: Vec<u8>,
-    authenticated_users: Vec<User>,
+    authenticator: Authenticator,
     socks_version: u8,
     input_sender: InputMessageSender,
+    service_provider: Recipient,
 }
 
 impl SocksClient {
     /// Create a new SOCKClient
     pub fn new(
         stream: TcpStream,
-        authenticated_users: Vec<User>,
-        auth_methods: Vec<u8>,
+        authenticator: Authenticator,
         input_sender: InputMessageSender,
+        service_provider: Recipient,
     ) -> Self {
         SocksClient {
             stream,
             auth_nmethods: 0,
             socks_version: 0,
-            authenticated_users,
-            auth_methods,
+            authenticator,
             input_sender,
+            service_provider,
         }
     }
 
@@ -60,12 +63,6 @@ impl SocksClient {
         self.socks_version = header[0];
         self.auth_nmethods = header[1];
 
-        trace!(
-            "Version: {} Auth nmethods: {}",
-            self.socks_version,
-            self.auth_nmethods
-        );
-
         // Handle SOCKS4 requests
         if header[0] != SOCKS_VERSION {
             warn!("Init: Unsupported version: SOCKS{}", self.socks_version);
@@ -76,87 +73,71 @@ impl SocksClient {
             // Authenticate w/ client
             self.authenticate().await?;
             // Handle requests
-            self.handle_client().await?;
+            self.handle_request().await?;
         }
 
         Ok(())
     }
 
     /// Handles a client
-    async fn handle_client(&mut self) -> Result<(), SocksProxyError> {
-        debug!("Handling requests for {}", self.stream.peer_addr()?.ip());
+    async fn handle_request(&mut self) -> Result<(), SocksProxyError> {
+        debug!("Handling CONNECT Command");
+
         let req = SocksRequest::from_stream(&mut self.stream).await?;
 
-        if req.addr_type == AddrType::V6 {}
-
-        // Log Request
-        let displayed_addr = utils::pretty_print_addr(&req.addr_type, &req.addr);
-        info!(
-            "New Request: Source: {}, Command: {:?} Addr: {}, Port: {}",
-            self.stream.peer_addr()?.ip(),
-            req.command,
-            displayed_addr,
-            req.port
-        );
-
-        let recipient = Recipient::new(
-            // client address
-            DestinationAddressBytes::try_from_base58_string(
-                "6ho9un9BMqUcfnkRNxQiRodo6ShdJVkqj5ShuPGyydDf",
-            )
-            .unwrap(),
-            // gateway address
-            NodeAddressBytes::try_from_base58_string(
-                "GYCqU48ndXke9o2434i7zEGv1sWg1cNVswWJfRnY1VTB",
-            )
-            .unwrap(),
-        );
-
-        // Respond
         match req.command {
             // Use the Proxy to connect to the specified addr/port
             SocksCommand::Connect => {
-                debug!("Handling CONNECT Command");
-
-                let sock_addr = utils::addr_to_socket(&req.addr_type, &req.addr, req.port)?;
-                trace!("Connecting to: {:?}", sock_addr);
-
-                self.stream
-                    .write_all(&[
-                        SOCKS_VERSION,
-                        ResponseCode::Success as u8,
-                        RESERVED,
-                        1,
-                        127,
-                        0,
-                        0,
-                        1,
-                        0,
-                        0,
-                    ])
-                    .await
-                    .unwrap();
-
-                let remote_address = format!("{}:{}", displayed_addr, req.port);
-                let remote_bytes = remote_address.into_bytes();
-                let remote_bytes_len = remote_bytes.len() as u16;
-                let foo = remote_bytes_len.to_be_bytes(); // this is [u8; 2];
-                let mut buf = foo
-                    .iter()
-                    .cloned()
-                    .chain(remote_bytes.into_iter())
-                    .collect::<Vec<_>>();
-
-                self.stream.read_to_end(&mut buf).await.unwrap();
-                println!("read: {:?}", buf);
-
-                let input_message = InputMessage::new(recipient, buf);
-                self.input_sender.unbounded_send(input_message).unwrap();
+                trace!("Connecting to: {:?}", req.to_socket());
+                self.write_socks5_response().await;
+                let buf = self.serialize(req).await;
+                self.send_to_mixnet(buf).await;
             }
             _ => unreachable!("don't want to go there"),
         }
-
         Ok(())
+    }
+
+    async fn send_to_mixnet(&self, buf: Vec<u8>) {
+        let input_message = InputMessage::new(self.service_provider.clone(), buf);
+        self.input_sender.unbounded_send(input_message).unwrap();
+    }
+
+    /// Serialize the destination address and port (as a string) concatenated with
+    /// the entirety of the request stream. Return it all as a sequence of bytes.
+    async fn serialize(&mut self, req: SocksRequest) -> Vec<u8> {
+        let remote_address = req.to_string();
+        let remote_bytes = remote_address.into_bytes();
+        let remote_bytes_len = remote_bytes.len() as u16;
+        let temp_bytes = remote_bytes_len.to_be_bytes(); // this is [u8; 2];
+        let mut buf = temp_bytes
+            .iter()
+            .cloned()
+            .chain(remote_bytes.into_iter())
+            .collect::<Vec<_>>();
+
+        self.stream.read_to_end(&mut buf).await.unwrap(); // appends the rest of the request stream into buf
+        buf
+    }
+
+    /// Writes a Socks5 header back to the requesting client's TCP stream,
+    /// basically saying "I acknowledge your request".
+    async fn write_socks5_response(&mut self) {
+        self.stream
+            .write_all(&[
+                SOCKS_VERSION,
+                ResponseCode::Success as u8,
+                RESERVED,
+                1,
+                127,
+                0,
+                0,
+                1,
+                0,
+                0,
+            ])
+            .await
+            .unwrap();
     }
 
     async fn authenticate(&mut self) -> Result<(), SocksProxyError> {
@@ -217,7 +198,7 @@ impl SocksClient {
             };
 
             // Authenticate passwords
-            if self.authenticated(&user) {
+            if self.authenticator.is_allowed(&user) {
                 debug!("Access Granted. User: {}", user.username);
                 let response = [1, ResponseCode::Success as u8];
                 self.stream.write_all(&response).await?;
@@ -246,18 +227,13 @@ impl SocksClient {
         }
     }
 
-    /// Check if username + password pair are valid
-    fn authenticated(&self, user: &User) -> bool {
-        self.authenticated_users.contains(user)
-    }
-
     /// Return the available methods based on `self.auth_nmethods`
     async fn get_available_methods(&mut self) -> Result<Vec<u8>, SocksProxyError> {
         let mut methods: Vec<u8> = Vec::with_capacity(self.auth_nmethods as usize);
         for _ in 0..self.auth_nmethods {
             let mut method = [0u8; 1];
             self.stream.read_exact(&mut method).await?;
-            if self.auth_methods.contains(&method[0]) {
+            if self.authenticator.auth_methods.contains(&method[0]) {
                 methods.append(&mut method.to_vec());
             }
         }

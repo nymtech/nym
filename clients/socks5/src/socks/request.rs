@@ -1,5 +1,6 @@
-use super::{AddrType, ResponseCode, SocksProxyError, SOCKS_VERSION};
+use super::{utils, AddrType, ResponseCode, SocksProxyError, SOCKS_VERSION};
 use log::*;
+use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::prelude::*;
 
@@ -93,6 +94,15 @@ impl SocksRequest {
             addr,
             port,
         })
+    }
+
+    pub(crate) fn to_string(&self) -> String {
+        let address = utils::pretty_print_addr(&self.addr_type, &self.addr);
+        format!("{}:{}", address, self.port)
+    }
+
+    pub(crate) fn to_socket(&self) -> Result<Vec<SocketAddr>, SocksProxyError> {
+        utils::addr_to_socket(&self.addr_type, &self.addr, self.port)
     }
 }
 

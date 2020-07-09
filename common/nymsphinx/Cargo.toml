@@ -19,3 +19,4 @@ nymsphinx-framing = { path = "framing" }
 nymsphinx-params = { path = "params" }
 nymsphinx-types = { path = "types" }
 
+topology = { path = "../topology" }

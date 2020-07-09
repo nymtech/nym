@@ -15,7 +15,7 @@ use crypto::asymmetric::encryption;
 pub use models::keys::keygen;
 use models::topology::Topology;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
+use nymsphinx::addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 use nymsphinx::Node as SphinxNode;
 use nymsphinx::{delays, Destination, NodeAddressBytes, SphinxPacket};
@@ -110,12 +110,12 @@ fn payload(sphinx_packet: SphinxPacket, route: Vec<SphinxNode>) -> Vec<u8> {
 /// extracted to a `JsonRoute`.
 fn sphinx_route_to(
     topology_json: &str,
-    gateway_address: &NodeAddressBytes,
+    gateway_identity: &NodeIdentity,
 ) -> Option<Vec<SphinxNode>> {
     let topology = Topology::new(topology_json);
     let nym_topology: NymTopology = topology.try_into().ok()?;
     let route = nym_topology
-        .random_route_to_gateway(&mut DEFAULT_RNG, DEFAULT_NUM_MIX_HOPS, gateway_address)
+        .random_route_to_gateway(&mut DEFAULT_RNG, DEFAULT_NUM_MIX_HOPS, gateway_identity)
         .expect("invalid route produced");
     assert_eq!(4, route.len());
     Some(route)
@@ -164,10 +164,8 @@ mod building_a_topology_from_json {
     fn panics_on_empty_string() {
         sphinx_route_to(
             "",
-            &NodeAddressBytes::try_from_base58_string(
-                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
-            )
-            .unwrap(),
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
         )
         .unwrap();
     }
@@ -177,10 +175,8 @@ mod building_a_topology_from_json {
     fn panics_on_bad_json() {
         sphinx_route_to(
             "bad bad bad not json",
-            &NodeAddressBytes::try_from_base58_string(
-                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
-            )
-            .unwrap(),
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
         )
         .unwrap();
     }
@@ -193,10 +189,8 @@ mod building_a_topology_from_json {
         let json = serde_json::to_string(&topology).unwrap();
         sphinx_route_to(
             &json,
-            &NodeAddressBytes::try_from_base58_string(
-                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
-            )
-            .unwrap(),
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
         )
         .unwrap();
     }
@@ -210,10 +204,8 @@ mod building_a_topology_from_json {
         let json = serde_json::to_string(&topology).unwrap();
         sphinx_route_to(
             &json,
-            &NodeAddressBytes::try_from_base58_string(
-                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
-            )
-            .unwrap(),
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
         )
         .unwrap();
     }
@@ -223,10 +215,8 @@ mod building_a_topology_from_json {
     fn test_works_on_happy_json() {
         let route = sphinx_route_to(
             topology_fixture(),
-            &NodeAddressBytes::try_from_base58_string(
-                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
-            )
-            .unwrap(),
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
         )
         .unwrap();
         assert_eq!(4, route.len());
@@ -238,10 +228,8 @@ mod building_a_topology_from_json {
         let json = serde_json::to_string(&topology).unwrap();
         let route = sphinx_route_to(
             &json,
-            &NodeAddressBytes::try_from_base58_string(
-                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
-            )
-            .unwrap(),
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
         )
         .unwrap();
         assert_eq!(4, route.len());

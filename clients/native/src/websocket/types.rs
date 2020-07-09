@@ -52,7 +52,7 @@ impl BinaryClientRequest {
         }
         let mut recipient_bytes = [0u8; Recipient::LEN];
         recipient_bytes.copy_from_slice(&req[..Recipient::LEN]);
-        let recipient = Recipient::from_bytes(recipient_bytes);
+        let recipient = Recipient::try_from_bytes(recipient_bytes).ok()?;
 
         Some(BinaryClientRequest::Send {
             recipient,

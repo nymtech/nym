@@ -1955,6 +1955,7 @@ dependencies = [
 name = "nymsphinx-addressing"
 version = "0.1.0"
 dependencies = [
+ "crypto",
  "nymsphinx-types",
 ]
 
@@ -2961,7 +2962,7 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=05e788b8448463c9552fa418d6049cc25c378c2b#05e788b8448463c9552fa418d6049cc25c378c2b"
+source = "git+https://github.com/nymtech/sphinx?rev=04f397f5ca5a775ce84f0a9d86504a22230b08ca#04f397f5ca5a775ce84f0a9d86504a22230b08ca"
 dependencies = [
  "aes-ctr 0.3.0",
  "arrayref",

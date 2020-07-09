@@ -92,16 +92,6 @@ impl PublicKey {
         DestinationAddressBytes::from_bytes(temporary_address)
     }
 
-    pub fn derive_node_address(&self) -> NodeAddressBytes {
-        let mut temporary_address = [0u8; NODE_ADDRESS_LENGTH];
-        let public_key_bytes = self.to_bytes();
-
-        assert_eq!(NODE_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH);
-
-        temporary_address.copy_from_slice(&public_key_bytes[..]);
-        NodeAddressBytes::from_bytes(temporary_address)
-    }
-
     /// Convert this public key to a byte array.
     pub fn to_bytes(&self) -> [u8; PUBLIC_KEY_LENGTH] {
         self.0.to_bytes()

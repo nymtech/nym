@@ -34,7 +34,7 @@ use gateway_client::{
 };
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::NodeAddressBytes;
+use nymsphinx::addressing::nodes::NodeIdentity;
 use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
 use tokio::runtime::Runtime;
 
@@ -81,7 +81,7 @@ impl NymClient {
                 .derive_destination_address(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
-            NodeAddressBytes::try_from_base58_string(self.config.get_gateway_id()).unwrap(),
+            NodeIdentity::from_base58_string(self.config.get_gateway_id()).unwrap(),
         )
     }
 

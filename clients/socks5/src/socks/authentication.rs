@@ -47,7 +47,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn new_works() {
+    fn constructor_works() {
         let mut auth_methods: Vec<u8> = Vec::new();
         auth_methods.push(AuthenticationMethods::NoAuth as u8);
         auth_methods.push(AuthenticationMethods::UserPass as u8);

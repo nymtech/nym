@@ -91,7 +91,12 @@ impl Handler {
         }
     }
 
-    fn handle_text_send(&mut self, msg: String, full_recipient_address: String) -> ServerResponse {
+    fn handle_text_send(
+        &mut self,
+        msg: String,
+        full_recipient_address: String,
+        with_reply_surb: bool,
+    ) -> ServerResponse {
         let message_bytes = msg.into_bytes();
 
         let recipient = match Recipient::try_from_string(full_recipient_address) {
@@ -103,7 +108,7 @@ impl Handler {
         };
 
         // the ack control is now responsible for chunking, etc.
-        let input_msg = InputMessage::new(recipient, message_bytes);
+        let input_msg = InputMessage::new(recipient, message_bytes, with_reply_surb);
         self.msg_input.unbounded_send(input_msg).unwrap();
 
         self.received_response_type = ReceivedResponseType::Text;
@@ -139,9 +144,11 @@ impl Handler {
             }
             .into(),
             Ok(req) => match req {
-                ClientRequest::Send { message, recipient } => {
-                    self.handle_text_send(message, recipient)
-                }
+                ClientRequest::Send {
+                    message,
+                    recipient,
+                    with_reply_surb,
+                } => self.handle_text_send(message, recipient, with_reply_surb),
                 ClientRequest::GetClients => self.handle_text_get_clients().await,
                 ClientRequest::SelfAddress => self.handle_text_self_address(),
             }
@@ -149,9 +156,14 @@ impl Handler {
         }
     }
 
-    async fn handle_binary_send(&mut self, recipient: Recipient, data: Vec<u8>) -> ServerResponse {
+    async fn handle_binary_send(
+        &mut self,
+        recipient: Recipient,
+        data: Vec<u8>,
+        with_reply_surb: bool,
+    ) -> ServerResponse {
         // the ack control is now responsible for chunking, etc.
-        let input_msg = InputMessage::new(recipient, data);
+        let input_msg = InputMessage::new(recipient, data, with_reply_surb);
         self.msg_input.unbounded_send(input_msg).unwrap();
 
         self.received_response_type = ReceivedResponseType::Binary;
@@ -170,8 +182,13 @@ impl Handler {
             return ServerResponse::new_error("invalid binary request").into();
         }
         match binary_request.unwrap() {
-            BinaryClientRequest::Send { recipient, data } => {
-                self.handle_binary_send(recipient, data).await
+            BinaryClientRequest::Send {
+                recipient,
+                data,
+                with_reply_surb,
+            } => {
+                self.handle_binary_send(recipient, data, with_reply_surb)
+                    .await
             }
         }
         .into()

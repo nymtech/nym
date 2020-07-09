@@ -65,7 +65,10 @@ where
     }
 
     async fn on_input_message(&mut self, msg: InputMessage) {
-        let (recipient, content) = msg.destruct();
+        let (recipient, content, with_reply_surb) = msg.destruct();
+
+        todo!("deal with reply surbs");
+
         let split_message = self.message_chunker.split_message(&content);
         let topology_permit = self.topology_access.get_read_permit().await;
 

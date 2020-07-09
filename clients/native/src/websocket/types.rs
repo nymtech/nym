@@ -20,7 +20,11 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ClientRequest {
-    Send { message: String, recipient: String },
+    Send {
+        message: String,
+        recipient: String,
+        with_reply_surb: bool,
+    },
     GetClients,
     SelfAddress,
 }
@@ -41,31 +45,45 @@ impl Into<Message> for ClientRequest {
 }
 
 pub enum BinaryClientRequest {
-    Send { recipient: Recipient, data: Vec<u8> },
+    Send {
+        recipient: Recipient,
+        data: Vec<u8>,
+        with_reply_surb: bool,
+    },
 }
 
 impl BinaryClientRequest {
     // TODO: perhaps do it the proper way and introduce an error type
     pub fn try_from_bytes(req: &[u8]) -> Option<Self> {
-        if req.len() < Recipient::LEN {
+        if req.len() < Recipient::LEN + 1 {
             return None;
         }
+
+        let with_reply_surb = match req[0] {
+            n if n == 1 => true,
+            n if n == 0 => false,
+            n => return None, // we only 'accept' 0 or 1 byte here
+        };
+
         let mut recipient_bytes = [0u8; Recipient::LEN];
-        recipient_bytes.copy_from_slice(&req[..Recipient::LEN]);
+        recipient_bytes.copy_from_slice(&req[1..Recipient::LEN + 1]);
         let recipient = Recipient::try_from_bytes(recipient_bytes).ok()?;
 
         Some(BinaryClientRequest::Send {
             recipient,
-            data: req[Recipient::LEN..].to_vec(),
+            data: req[1 + Recipient::LEN..].to_vec(),
+            with_reply_surb,
         })
     }
 
     pub fn into_bytes(self) -> Vec<u8> {
         match self {
-            Self::Send { recipient, data } => recipient
-                .into_bytes()
-                .iter()
-                .cloned()
+            Self::Send {
+                recipient,
+                data,
+                with_reply_surb,
+            } => std::iter::once(if with_reply_surb { 1u8 } else { 0u8 })
+                .chain(recipient.into_bytes().iter().cloned())
                 .chain(data.into_iter())
                 .collect(),
         }

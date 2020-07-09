@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod message;
+pub mod preparer;
 pub mod utils;
 
 // re-export sub-crates

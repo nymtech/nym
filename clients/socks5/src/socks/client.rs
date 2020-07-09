@@ -79,7 +79,7 @@ impl SocksClient {
         Ok(())
     }
 
-    /// Handles a client
+    /// Handles a client request.
     async fn handle_request(&mut self) -> Result<(), SocksProxyError> {
         debug!("Handling CONNECT Command");
 
@@ -126,6 +126,24 @@ impl SocksClient {
             .unwrap();
     }
 
+    /// Authenticate the incoming request. Each request is checked for its
+    /// authentication method. A user/password request will extract the
+    /// username and password from the stream, then check with the Authenticator
+    /// to see if the resulting user is allowed.
+    ///
+    /// A lot of this could probably be put into the the `SocksRequest::from_stream()`
+    /// constructor, and/or cleaned up with tokio::codec. It's mostly just
+    /// read-a-byte-or-two. The bytes being extracted look like this:
+    ///
+    /// +----+------+----------+------+----------+
+    //  |VER | ULEN |  UNAME   | PLEN |  PASSWD  |
+    /// +----+------+----------+------+----------+
+    /// | 1  |  1   | 1 to 255 |  1   | 1 to 255 |
+    /// +----+------+----------+------+----------+
+    ///
+    /// Taking the extraction code into its own home, and moving the if/else logic
+    /// into the Authenticator (where it'll be more easily testable)
+    /// would be a good next step.
     async fn authenticate(&mut self) -> Result<(), SocksProxyError> {
         debug!("Authenticating w/ {}", self.stream.peer_addr()?.ip());
         // Get valid auth methods

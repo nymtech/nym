@@ -83,7 +83,7 @@ impl SocksClient {
     }
 
     /// Handles a client
-    pub async fn handle_client(&mut self) -> Result<(), SocksProxyError> {
+    async fn handle_client(&mut self) -> Result<(), SocksProxyError> {
         debug!("Handling requests for {}", self.stream.peer_addr()?.ip());
         let req = SocksRequest::from_stream(&mut self.stream).await?;
 

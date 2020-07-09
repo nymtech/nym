@@ -23,6 +23,7 @@ pub enum ClientRequest {
     Send {
         message: String,
         recipient: String,
+        // Perhaps we could change it to a number to indicate how many reply_surbs we want to include?
         with_reply_surb: bool,
     },
     GetClients,
@@ -62,7 +63,7 @@ impl BinaryClientRequest {
         let with_reply_surb = match req[0] {
             n if n == 1 => true,
             n if n == 0 => false,
-            n => return None, // we only 'accept' 0 or 1 byte here
+            _ => return None, // we only 'accept' 0 or 1 byte here
         };
 
         let mut recipient_bytes = [0u8; Recipient::LEN];

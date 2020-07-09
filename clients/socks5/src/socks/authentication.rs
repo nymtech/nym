@@ -1,5 +1,3 @@
-use super::{ResponseCode, SocksProxyError, SOCKS_VERSION};
-use log::*;
 use serde::Deserialize;
 
 /// Client Authentication Methods
@@ -38,8 +36,6 @@ impl Authenticator {
     pub fn is_allowed(&self, user: &User) -> bool {
         self.allowed_users.contains(user)
     }
-
-    // fn check(&self, user: &User) -> bool {}
 }
 
 #[cfg(test)]

@@ -119,12 +119,14 @@ impl MessageChunker<DefaultRng> {
 
     #[cfg(test)]
     pub(crate) fn test_fixture() -> Self {
-        use nymsphinx_types::{DestinationAddressBytes, NodeAddressBytes};
+        use nymsphinx_addressing::nodes::NodeIdentity;
+        use nymsphinx_types::DestinationAddressBytes;
 
         let empty_address = [0u8; 32];
+        let valid_identity = "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3";
         let empty_recipient = Recipient::new(
             DestinationAddressBytes::from_bytes(empty_address),
-            NodeAddressBytes::from_bytes(empty_address),
+            NodeIdentity::from_base58_string(valid_identity).unwrap(),
         );
         Self::new(
             empty_recipient,
@@ -196,7 +198,7 @@ where
         topology: &NymTopology,
         ack_key: &AckAes128Key,
         packet_recipient: &Recipient,
-    ) -> Result<(Delay, (SocketAddr, SphinxPacket)), NymTopologyError> {
+    ) -> Result<(Delay, (NymNodeRoutingAddress, SphinxPacket)), NymTopologyError> {
         let (ack_delay, surb_bytes) = self
             .generate_surb_ack(&fragment.fragment_identifier(), topology, ack_key)?
             .prepare_for_sending();
@@ -227,7 +229,7 @@ where
 
         Ok((
             delays.iter().sum::<Delay>() + ack_delay,
-            (first_hop_address.into(), packet),
+            (first_hop_address, packet),
         ))
     }
 

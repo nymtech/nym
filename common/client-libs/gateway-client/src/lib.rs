@@ -25,9 +25,8 @@ use gateway_requests::authentication::iv::AuthenticationIV;
 use gateway_requests::registration::handshake::{client_handshake, SharedKey, DEFAULT_RNG};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
 use log::*;
-use nymsphinx::SphinxPacket;
+use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
 use std::convert::TryFrom;
-use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
@@ -417,7 +416,7 @@ impl<'a, R> GatewayClient<'static, R> {
     // TODO: possibly make responses optional
     pub async fn send_sphinx_packet(
         &mut self,
-        address: SocketAddr,
+        address: NymNodeRoutingAddress,
         packet: SphinxPacket,
     ) -> Result<(), GatewayClientError> {
         if !self.authenticated {

@@ -20,13 +20,12 @@ use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
 use nymsphinx::acknowledgements::AckAes128Key;
-use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::addressing::{clients::Recipient, nodes::NymNodeRoutingAddress};
 use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::utils::sample_poisson_duration;
 use nymsphinx::SphinxPacket;
 use rand::{CryptoRng, Rng};
-use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -74,14 +73,14 @@ where
 }
 
 pub(crate) struct RealMessage {
-    first_hop_address: SocketAddr,
+    first_hop_address: NymNodeRoutingAddress,
     packet: SphinxPacket,
     fragment_id: FragmentIdentifier,
 }
 
 impl RealMessage {
     pub(crate) fn new(
-        first_hop_address: SocketAddr,
+        first_hop_address: NymNodeRoutingAddress,
         packet: SphinxPacket,
         fragment_id: FragmentIdentifier,
     ) -> Self {

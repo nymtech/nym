@@ -23,7 +23,6 @@ use nymsphinx_types::builder::SphinxPacketBuilder;
 use nymsphinx_types::{delays, Destination, Error as SphinxError, SphinxPacket};
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
-use std::net::SocketAddr;
 use std::time;
 use topology::{NymTopology, NymTopologyError};
 
@@ -83,7 +82,7 @@ pub fn generate_loop_cover_packet<R>(
     full_address: &Recipient,
     average_ack_delay: time::Duration,
     average_packet_delay: time::Duration,
-) -> Result<(SocketAddr, SphinxPacket), CoverMessageError>
+) -> Result<(NymNodeRoutingAddress, SphinxPacket), CoverMessageError>
 where
     R: RngCore + CryptoRng,
 {
@@ -119,7 +118,7 @@ where
     let first_hop_address =
         NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone()).unwrap();
 
-    Ok((first_hop_address.into(), packet))
+    Ok((first_hop_address, packet))
 }
 
 /// Helper function used to determine if given message represents a loop cover message.

@@ -13,9 +13,8 @@
 // limitations under the License.
 
 use crate::filter::VersionFilterable;
-use crypto::asymmetric::identity;
 use nymsphinx_addressing::nodes::NodeIdentity;
-use nymsphinx_types::{Node as SphinxNode, NodeAddressBytes};
+use nymsphinx_types::Node as SphinxNode;
 use rand::Rng;
 use std::collections::HashMap;
 

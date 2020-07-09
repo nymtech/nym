@@ -23,7 +23,6 @@ use serde::{Deserialize, Serialize};
 use std::{
     convert::{TryFrom, TryInto},
     fmt::{self, Error, Formatter},
-    net::SocketAddr,
 };
 use tokio_tungstenite::tungstenite::protocol::Message;
 
@@ -196,7 +195,7 @@ impl TryFrom<String> for ServerResponse {
 
 pub enum BinaryRequest {
     ForwardSphinx {
-        address: SocketAddr,
+        address: NymNodeRoutingAddress,
         sphinx_packet: SphinxPacket,
     },
 }
@@ -250,13 +249,8 @@ impl BinaryRequest {
                 address,
                 sphinx_packet,
             } => {
-                // TODO: using intermediate `NymNodeRoutingAddress` here is just temporary, because
-                // it happens to do exactly what we needed, but we really don't want to be
-                // dependant on what it does
-                let wrapped_address = NymNodeRoutingAddress::from(address);
-
                 // add 16 bytes of padding so that the gateway could catch incorrect encryption
-                let mut gateway_data: Vec<_> = wrapped_address
+                let mut gateway_data: Vec<_> = address
                     .as_bytes()
                     .into_iter()
                     .chain(sphinx_packet.to_bytes().into_iter())
@@ -270,7 +264,10 @@ impl BinaryRequest {
     }
 
     // TODO: this will be encrypted, etc.
-    pub fn new_forward_request(address: SocketAddr, sphinx_packet: SphinxPacket) -> BinaryRequest {
+    pub fn new_forward_request(
+        address: NymNodeRoutingAddress,
+        sphinx_packet: SphinxPacket,
+    ) -> BinaryRequest {
         BinaryRequest::ForwardSphinx {
             address,
             sphinx_packet,

@@ -23,7 +23,7 @@ use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use crate::config::{Config, SocketType};
-use crate::socks::{self, AuthenticationMethods, SphinxSocks};
+use crate::socks::{self, server::SphinxSocks};
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use gateway_client::{
@@ -36,6 +36,7 @@ use nymsphinx::acknowledgements::identifier::AckAes128Key;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::NodeAddressBytes;
 use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
+use socks::authentication::AuthenticationMethods;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
@@ -265,7 +266,7 @@ impl NymClient {
         info!("Starting socks5 listener...");
 
         let mut auth_methods: Vec<u8> = Vec::new();
-        auth_methods.push(socks::AuthenticationMethods::NoAuth as u8);
+        auth_methods.push(AuthenticationMethods::NoAuth as u8);
         let mut sphinx_socks = SphinxSocks::new(1080, "127.0.0.1", auth_methods, Vec::new());
         self.runtime
             .spawn(async move { sphinx_socks.serve(msg_input).await });

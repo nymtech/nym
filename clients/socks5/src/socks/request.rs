@@ -1,0 +1,117 @@
+use super::{AddrType, ResponseCode, SocksProxyError, SOCKS_VERSION};
+use log::*;
+use tokio::net::TcpStream;
+use tokio::prelude::*;
+
+/// Proxy User Request
+pub(crate) struct SocksRequest {
+    pub version: u8,
+    pub command: SocksCommand,
+    pub addr_type: AddrType,
+    pub addr: Vec<u8>,
+    pub port: u16,
+}
+
+impl SocksRequest {
+    /// Parse a SOCKS Req from a TcpStream
+    pub async fn from_stream(stream: &mut TcpStream) -> Result<Self, SocksProxyError> {
+        let mut packet = [0u8; 4];
+        // Read a byte from the stream and determine the version being requested
+        stream.read_exact(&mut packet).await?;
+
+        if packet[0] != SOCKS_VERSION {
+            warn!("from_stream Unsupported version: SOCKS{}", packet[0]);
+            stream.shutdown();
+        }
+
+        // Get command
+        let mut command: SocksCommand = SocksCommand::Connect;
+        match SocksCommand::from(packet[1] as usize) {
+            Some(com) => {
+                command = com;
+                Ok(())
+            }
+            None => {
+                warn!("Invalid Command");
+                stream.shutdown();
+                Err(ResponseCode::CommandNotSupported)
+            }
+        }?;
+
+        // DST.address
+
+        let mut addr_type: AddrType = AddrType::V6;
+        match AddrType::from(packet[3] as usize) {
+            Some(addr) => {
+                addr_type = addr;
+                Ok(())
+            }
+            None => {
+                error!("No Addr");
+                stream.shutdown();
+                Err(ResponseCode::AddrTypeNotSupported)
+            }
+        }?;
+
+        trace!("Getting Addr");
+        // Get Addr from addr_type and stream
+        let addr: Result<Vec<u8>, SocksProxyError> = match addr_type {
+            AddrType::Domain => {
+                let mut domain_length = [0u8; 1];
+                stream.read_exact(&mut domain_length).await?;
+
+                let mut domain = vec![0u8; domain_length[0] as usize];
+                stream.read_exact(&mut domain).await?;
+
+                Ok(domain)
+            }
+            AddrType::V4 => {
+                let mut addr = [0u8; 4];
+                stream.read_exact(&mut addr).await?;
+                Ok(addr.to_vec())
+            }
+            AddrType::V6 => {
+                let mut addr = [0u8; 16];
+                stream.read_exact(&mut addr).await?;
+                Ok(addr.to_vec())
+            }
+        };
+
+        let addr = addr?;
+
+        // read DST.port
+        let mut port = [0u8; 2];
+        stream.read_exact(&mut port).await?;
+        // Merge two u8s into u16
+        let port = (u16::from(port[0]) << 8) | u16::from(port[1]);
+
+        // Return parsed request
+        Ok(SocksRequest {
+            version: packet[0],
+            command,
+            addr_type,
+            addr,
+            port,
+        })
+    }
+}
+
+/// SOCK5 CMD Type
+#[derive(Debug)]
+pub(crate) enum SocksCommand {
+    Connect = 0x01,
+    Bind = 0x02,
+    UdpAssociate = 0x3,
+}
+
+impl SocksCommand {
+    /// Parse Byte to Command
+    fn from(n: usize) -> Option<SocksCommand> {
+        match n {
+            1 => Some(SocksCommand::Connect),
+            2 => Some(SocksCommand::Bind),
+            3 => Some(SocksCommand::UdpAssociate),
+            _ => None,
+        }
+    }
+}

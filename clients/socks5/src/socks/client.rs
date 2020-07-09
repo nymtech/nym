@@ -42,13 +42,13 @@ impl SocksClient {
         }
     }
 
-    // Send an error to the client
+    // Send an error back to the client
     pub async fn error(&mut self, r: ResponseCode) -> Result<(), SocksProxyError> {
         self.stream.write_all(&[5, r as u8]).await?;
         Ok(())
     }
 
-    /// Shutdown a client
+    /// Shutdown the TcpStream to the client and end the session
     pub fn shutdown(&mut self) -> Result<(), SocksProxyError> {
         self.stream.shutdown(Shutdown::Both)?;
         Ok(())
@@ -83,41 +83,27 @@ impl SocksClient {
     async fn handle_request(&mut self) -> Result<(), SocksProxyError> {
         debug!("Handling CONNECT Command");
 
-        let req = SocksRequest::from_stream(&mut self.stream).await?;
+        let mut request = SocksRequest::from_stream(&mut self.stream).await?;
 
-        match req.command {
+        match request.command {
             // Use the Proxy to connect to the specified addr/port
             SocksCommand::Connect => {
-                trace!("Connecting to: {:?}", req.to_socket());
+                trace!("Connecting to: {:?}", request.to_socket());
                 self.write_socks5_response().await;
-                let buf = self.serialize(req).await;
-                self.send_to_mixnet(buf).await;
+                let request_bytes = request.serialize(&mut self.stream).await;
+                self.send_to_mixnet(request_bytes).await;
             }
             _ => unreachable!("don't want to go there"),
         }
         Ok(())
     }
 
-    async fn send_to_mixnet(&self, buf: Vec<u8>) {
-        let input_message = InputMessage::new(self.service_provider.clone(), buf);
+    /// Send serialized Socks5 request bytes to the mixnet. It will chunked up into a
+    /// series of one or more Sphinx packets and reassembled at the destination
+    /// service provider at the other end, then sent onwards anonymously.
+    async fn send_to_mixnet(&self, request_bytes: Vec<u8>) {
+        let input_message = InputMessage::new(self.service_provider.clone(), request_bytes);
         self.input_sender.unbounded_send(input_message).unwrap();
-    }
-
-    /// Serialize the destination address and port (as a string) concatenated with
-    /// the entirety of the request stream. Return it all as a sequence of bytes.
-    async fn serialize(&mut self, req: SocksRequest) -> Vec<u8> {
-        let remote_address = req.to_string();
-        let remote_bytes = remote_address.into_bytes();
-        let remote_bytes_len = remote_bytes.len() as u16;
-        let temp_bytes = remote_bytes_len.to_be_bytes(); // this is [u8; 2];
-        let mut buf = temp_bytes
-            .iter()
-            .cloned()
-            .chain(remote_bytes.into_iter())
-            .collect::<Vec<_>>();
-
-        self.stream.read_to_end(&mut buf).await.unwrap(); // appends the rest of the request stream into buf
-        buf
     }
 
     /// Writes a Socks5 header back to the requesting client's TCP stream,
@@ -165,25 +151,25 @@ impl SocksClient {
             // debug!("Auth Header: [{}, {}]", header[0], header[1]);
 
             // Username parsing
-            let username_length = header[1];
+            let ulen = header[1];
 
-            let mut username = Vec::with_capacity(username_length as usize);
+            let mut username = Vec::with_capacity(ulen as usize);
 
             // For some reason the vector needs to actually be full
-            for _ in 0..username_length {
+            for _ in 0..ulen {
                 username.push(0);
             }
 
             self.stream.read_exact(&mut username).await?;
 
             // Password Parsing
-            let mut password_length = [0u8; 1];
-            self.stream.read_exact(&mut password_length).await?;
+            let mut plen = [0u8; 1];
+            self.stream.read_exact(&mut plen).await?;
 
-            let mut password = Vec::with_capacity(password_length[0] as usize);
+            let mut password = Vec::with_capacity(plen[0] as usize);
 
             // For some reason the vector needs to actually be full
-            for _ in 0..password_length[0] {
+            for _ in 0..plen[0] {
                 password.push(0);
             }
 

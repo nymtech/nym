@@ -104,6 +104,23 @@ impl SocksRequest {
     pub(crate) fn to_socket(&self) -> Result<Vec<SocketAddr>, SocksProxyError> {
         utils::addr_to_socket(&self.addr_type, &self.addr, self.port)
     }
+
+    /// Serialize the destination address and port (as a string) concatenated with
+    /// the entirety of the request stream. Return it all as a sequence of bytes.
+    pub async fn serialize(&mut self, stream: &mut TcpStream) -> Vec<u8> {
+        let remote_address = self.to_string();
+        let remote_bytes = remote_address.into_bytes();
+        let remote_bytes_len = remote_bytes.len() as u16;
+        let temp_bytes = remote_bytes_len.to_be_bytes(); // this is [u8; 2];
+        let mut buf = temp_bytes
+            .iter()
+            .cloned()
+            .chain(remote_bytes.into_iter())
+            .collect::<Vec<_>>();
+
+        stream.read_to_end(&mut buf).await.unwrap(); // appends the rest of the request stream into buf
+        buf
+    }
 }
 
 /// SOCK5 CMD Type

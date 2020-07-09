@@ -13,9 +13,15 @@
 // limitations under the License.
 
 use nymsphinx_addressing::clients::Recipient;
+use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
+use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
-use nymsphinx_types::{delays, Destination, Error as SphinxError, SURBMaterial, SURB};
+use nymsphinx_types::{
+    delays, Destination, Error as SphinxError, SURBMaterial, SphinxPacket, SURB,
+};
 use rand::{CryptoRng, RngCore};
+use std::convert::TryFrom;
+use std::net::SocketAddr;
 use std::time;
 use topology::{NymTopology, NymTopologyError};
 
@@ -60,12 +66,27 @@ impl ReplySURB {
         Ok(ReplySURB(surb))
     }
 
-    pub fn use_surb(self, message: &[u8]) -> Result<Vec<u8>, ReplySURBError> {
-        // SURB_FIRST_HOP || SURB_ACK
+    // Allows to optionally increase the packet size to send slightly longer reply.
+    pub fn use_surb(
+        self,
+        message: &[u8],
+        packet_size: Option<PacketSize>,
+    ) -> Result<(SphinxPacket, NymNodeRoutingAddress), ReplySURBError> {
+        let packet_size = packet_size.unwrap_or_else(|| Default::default());
 
-        // and here we have a roadblock. we have to have a 'destination' here which we, as a recipient,
-        // do not know
+        // there's no chunking in reply-surbs
+        if message.len() > packet_size.plaintext_size() {
+            return Err(ReplySURBError::TooLongMessageError);
+        }
 
-        todo!()
+        // this can realistically only fail on too messages and we just checked for that
+        let (packet, first_hop) = self
+            .0
+            .use_surb(message, packet_size.payload_size())
+            .expect("this error indicates inconsistent message length checking - it shouldn't have happened!");
+
+        let first_hop_address = NymNodeRoutingAddress::try_from(first_hop).unwrap();
+
+        Ok((packet, first_hop_address))
     }
 }

@@ -23,7 +23,7 @@ use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use crate::config::{Config, SocketType};
-use crate::socks::{self, server::SphinxSocks};
+use crate::socks::{self, server::SphinxSocksServer};
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use gateway_client::{
@@ -267,7 +267,7 @@ impl NymClient {
 
         let mut auth_methods: Vec<u8> = Vec::new();
         auth_methods.push(AuthenticationMethods::NoAuth as u8);
-        let mut sphinx_socks = SphinxSocks::new(1080, "127.0.0.1", auth_methods, Vec::new());
+        let mut sphinx_socks = SphinxSocksServer::new(1080, "127.0.0.1", auth_methods, Vec::new());
         self.runtime
             .spawn(async move { sphinx_socks.serve(msg_input).await });
     }

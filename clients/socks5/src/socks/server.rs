@@ -1,22 +1,22 @@
 use super::authentication::User;
-use super::client::SOCKClient;
+use super::client::SocksClient;
 use super::{ResponseCode, SocksProxyError};
 use crate::client::inbound_messages::InputMessageSender;
 use log::*;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
-pub struct SphinxSocks {
+pub struct SphinxSocksServer {
     users: Vec<User>,
     auth_methods: Vec<u8>,
     listening_address: SocketAddr,
 }
 
-impl SphinxSocks {
+impl SphinxSocksServer {
     /// Create a new SphinxSocks instance
     pub fn new(port: u16, ip: &str, auth_methods: Vec<u8>, users: Vec<User>) -> Self {
         info!("Listening on {}:{}", ip, port);
-        SphinxSocks {
+        SphinxSocksServer {
             auth_methods,
             users,
             listening_address: format!("{}:{}", ip, port).parse().unwrap(),
@@ -32,7 +32,7 @@ impl SphinxSocks {
         loop {
             if let Ok((stream, _remote)) = listener.accept().await {
                 // TODO Optimize this
-                let mut client = SOCKClient::new(
+                let mut client = SocksClient::new(
                     stream,
                     self.users.clone(),
                     self.auth_methods.clone(),

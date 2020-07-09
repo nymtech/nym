@@ -12,7 +12,7 @@ use std::net::Shutdown;
 use tokio::prelude::*;
 use tokio::{self, net::TcpStream};
 
-pub(crate) struct SOCKClient {
+pub(crate) struct SocksClient {
     stream: TcpStream,
     auth_nmethods: u8,
     auth_methods: Vec<u8>,
@@ -21,7 +21,7 @@ pub(crate) struct SOCKClient {
     input_sender: InputMessageSender,
 }
 
-impl SOCKClient {
+impl SocksClient {
     /// Create a new SOCKClient
     pub fn new(
         stream: TcpStream,
@@ -29,7 +29,7 @@ impl SOCKClient {
         auth_methods: Vec<u8>,
         input_sender: InputMessageSender,
     ) -> Self {
-        SOCKClient {
+        SocksClient {
             stream,
             auth_nmethods: 0,
             socks_version: 0,

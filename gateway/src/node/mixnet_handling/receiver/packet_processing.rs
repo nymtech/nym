@@ -33,7 +33,6 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub enum MixProcessingError {
     ReceivedForwardHopError,
-    NonMatchingRecipient,
     UnsupportedSphinxPacketSize(usize),
     SphinxProcessingError(SphinxError),
     IncorrectlyFormattedSURBAck(SURBAckRecoveryError),
@@ -190,12 +189,7 @@ impl PacketProcessor {
             Ok(ProcessedPacket::ProcessedPacketFinalHop(client_address, _surb_id, payload)) => {
                 // in our current design, we do not care about the 'surb_id' in the header
                 // as it will always be empty anyway
-                let (payload_destination, message) =
-                    payload.try_recover_destination_and_plaintext()?;
-                // TODO: @AP, does that check still make sense?
-                if client_address != payload_destination {
-                    return Err(MixProcessingError::NonMatchingRecipient);
-                }
+                let message = payload.recover_plaintext()?;
                 Ok((client_address, message))
             }
             Err(e) => {

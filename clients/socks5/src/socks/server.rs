@@ -7,6 +7,7 @@ use nymsphinx::addressing::clients::Recipient;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
+/// A Socks5 server that listens for connections.
 pub struct SphinxSocksServer {
     authenticator: Authenticator,
     listening_address: SocketAddr,
@@ -29,6 +30,8 @@ impl SphinxSocksServer {
         }
     }
 
+    /// Set up the listener and initiate connection handling when something
+    /// connects to the server.
     pub(crate) async fn serve(
         &mut self,
         input_sender: InputMessageSender,

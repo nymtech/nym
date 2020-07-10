@@ -15,6 +15,10 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::{ResponseCode, SocksProxyError, RESERVED, SOCKS_VERSION};
 
+/// A client connecting to the Socks proxy server, because
+/// it wants to make a Nym-protected outbound request. Typically, this is
+/// something like e.g. a wallet app running on your laptop connecting to
+/// SphinxSocksServer.
 pub(crate) struct SocksClient {
     stream: TcpStream,
     auth_nmethods: u8,
@@ -54,6 +58,8 @@ impl SocksClient {
         Ok(())
     }
 
+    /// Initializes the new client, checking that the correct Socks version (5)
+    /// is in use and that the client is authenticated.
     pub async fn init(&mut self) -> Result<(), SocksProxyError> {
         debug!("New connection from: {}", self.stream.peer_addr()?.ip());
         let mut header = [0u8; 2];
@@ -107,7 +113,7 @@ impl SocksClient {
     }
 
     /// Writes a Socks5 header back to the requesting client's TCP stream,
-    /// basically saying "I acknowledge your request".
+    /// basically saying "I acknowledge your request and am dealing with it".
     async fn write_socks5_response(&mut self) {
         self.stream
             .write_all(&[
@@ -135,13 +141,13 @@ impl SocksClient {
     /// constructor, and/or cleaned up with tokio::codec. It's mostly just
     /// read-a-byte-or-two. The bytes being extracted look like this:
     ///
-    /// +----+------+----------+------+----------+
-    //  |VER | ULEN |  UNAME   | PLEN |  PASSWD  |
-    /// +----+------+----------+------+----------+
-    /// | 1  |  1   | 1 to 255 |  1   | 1 to 255 |
-    /// +----+------+----------+------+----------+
+    /// +----+------+----------+------+------------+
+    //  |ver | ulen |  uname   | plen |  password  |
+    /// +----+------+----------+------+------------+
+    /// | 1  |  1   | 1 to 255 |  1   | 1 to 255   |
+    /// +----+------+----------+------+------------+
     ///
-    /// Taking the extraction code into its own home, and moving the if/else logic
+    /// Pulling out the stream code into its own home, and moving the if/else logic
     /// into the Authenticator (where it'll be more easily testable)
     /// would be a good next step.
     async fn authenticate(&mut self) -> Result<(), SocksProxyError> {

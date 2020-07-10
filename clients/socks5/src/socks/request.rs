@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::prelude::*;
 
-/// Proxy User Request
+/// A Socks5 request hitting the proxy.
 pub(crate) struct SocksRequest {
     pub version: u8,
     pub command: SocksCommand,
@@ -14,7 +14,7 @@ pub(crate) struct SocksRequest {
 }
 
 impl SocksRequest {
-    /// Parse a SOCKS Req from a TcpStream
+    /// Parse a SOCKS5 request from a TcpStream
     pub async fn from_stream(stream: &mut TcpStream) -> Result<Self, SocksProxyError> {
         let mut packet = [0u8; 4];
         // Read a byte from the stream and determine the version being requested
@@ -96,17 +96,22 @@ impl SocksRequest {
         })
     }
 
+    /// Print out the address and port to a String.
+    /// This might return domain:port, ipv6:port, or ipv4:port.
     pub(crate) fn to_string(&self) -> String {
         let address = utils::pretty_print_addr(&self.addr_type, &self.addr);
         format!("{}:{}", address, self.port)
     }
 
+    /// Convert the request object to a SocketAddr
     pub(crate) fn to_socket(&self) -> Result<Vec<SocketAddr>, SocksProxyError> {
         utils::addr_to_socket(&self.addr_type, &self.addr, self.port)
     }
 
     /// Serialize the destination address and port (as a string) concatenated with
     /// the entirety of the request stream. Return it all as a sequence of bytes.
+    ///
+    /// Can be used as a Sphinx payload.
     pub async fn serialize(&mut self, stream: &mut TcpStream) -> Vec<u8> {
         let remote_address = self.to_string();
         let remote_bytes = remote_address.into_bytes();
@@ -123,7 +128,7 @@ impl SocksRequest {
     }
 }
 
-/// SOCK5 CMD Type
+/// SOCK5 CMD type
 #[derive(Debug)]
 pub(crate) enum SocksCommand {
     Connect = 0x01,
@@ -132,7 +137,7 @@ pub(crate) enum SocksCommand {
 }
 
 impl SocksCommand {
-    /// Parse Byte to Command
+    /// Parse bytes to SocksCommand
     fn from(n: usize) -> Option<SocksCommand> {
         match n {
             1 => Some(SocksCommand::Connect),

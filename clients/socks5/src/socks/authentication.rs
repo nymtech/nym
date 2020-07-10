@@ -34,7 +34,14 @@ impl Authenticator {
 
     /// Check if username + password pair are valid
     pub fn is_allowed(&self, user: &User) -> bool {
-        self.allowed_users.contains(user)
+        if self
+            .auth_methods
+            .contains(&(AuthenticationMethods::UserPass as u8))
+        {
+            self.allowed_users.contains(user)
+        } else {
+            false
+        }
     }
 }
 
@@ -63,6 +70,26 @@ mod tests {
         assert!(authenticator
             .auth_methods
             .contains(&(AuthenticationMethods::UserPass as u8)));
+    }
+
+    mod without_user_and_password_auth_enabled {
+        use super::*;
+
+        #[test]
+        fn user_pass_authentication_fails() {
+            let mut auth_methods: Vec<u8> = Vec::new(); // it's empty
+
+            let admin = User {
+                username: "foo".to_string(),
+                password: "bar".to_string(),
+            };
+
+            let allowed_users = vec![admin.clone()];
+
+            let authenticator = Authenticator::new(auth_methods, allowed_users);
+
+            assert!(!authenticator.is_allowed(&admin));
+        }
     }
 
     #[cfg(test)]

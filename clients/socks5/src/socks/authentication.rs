@@ -79,16 +79,27 @@ mod tests {
                 password: "bar".to_string(),
             };
 
-            let bad_user = User {
-                username: "ashy".to_string(),
-                password: "slashy".to_string(),
-            };
-
             let allowed_users = vec![admin.clone()];
 
             let authenticator = Authenticator::new(auth_methods, allowed_users);
 
             assert!(authenticator.is_allowed(&admin));
+        }
+
+        #[test]
+        fn disallowed_user_fails_authentication_check() {
+            let mut auth_methods: Vec<u8> = Vec::new();
+            auth_methods.push(AuthenticationMethods::UserPass as u8);
+
+            let bad_user = User {
+                username: "ashy".to_string(),
+                password: "slashy".to_string(),
+            };
+
+            let allowed_users = Vec::new();
+
+            let authenticator = Authenticator::new(auth_methods, allowed_users);
+
             assert!(!authenticator.is_allowed(&bad_user));
         }
     }

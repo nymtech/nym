@@ -1,6 +1,6 @@
 use super::authentication::Authenticator;
 use super::client::SocksClient;
-use super::{ResponseCode, SocksProxyError};
+use super::types::{ResponseCode, SocksProxyError};
 use crate::client::inbound_messages::InputMessageSender;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;

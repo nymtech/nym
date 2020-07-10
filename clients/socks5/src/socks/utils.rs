@@ -1,4 +1,4 @@
-use super::{AddrType, SocksProxyError};
+use super::types::{AddrType, SocksProxyError};
 use log::*;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 

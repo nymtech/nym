@@ -1,4 +1,5 @@
-use super::{utils, AddrType, ResponseCode, SocksProxyError, SOCKS_VERSION};
+use super::types::{AddrType, ResponseCode, SocksProxyError};
+use super::{utils, SOCKS_VERSION};
 use log::*;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;

@@ -13,7 +13,8 @@ use crate::client::inbound_messages::InputMessageSender;
 
 use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
-use super::{ResponseCode, SocksProxyError, RESERVED, SOCKS_VERSION};
+use super::types::{ResponseCode, SocksProxyError};
+use super::{RESERVED, SOCKS_VERSION};
 
 /// A client connecting to the Socks proxy server, because
 /// it wants to make a Nym-protected outbound request. Typically, this is
@@ -99,8 +100,10 @@ impl SocksClient {
                 let request_bytes = request.serialize(&mut self.stream).await;
                 self.send_to_mixnet(request_bytes).await;
             }
-            _ => unreachable!("don't want to go there"),
-        }
+
+            SocksCommand::Bind => unimplemented!(), // not handled
+            SocksCommand::UdpAssociate => unimplemented!(), // not handled
+        };
         Ok(())
     }
 

@@ -9,11 +9,7 @@ edition = "2018"
 [dependencies]
 aes-ctr = "0.4.0"
 bs58 = "0.3.0"
-# can't use proper release just yet (unless we use outdated hkdf)
-# as hkdf depends on digest 0.9.0 and most recent release of blake3 still uses 0.8.1
-# they've pushed an update to their repo on 12.06, so I presume another release is imminent.
-blake3 = { git = "https://github.com/BLAKE3-team/BLAKE3", rev="4c41a893a00a3ebe7b24529531ccf96d8593a57c" }
-#blake3 = "0.3.4"
+blake3 = "0.3.5"
 hkdf = "0.9"
 
 x25519-dalek = "0.6"

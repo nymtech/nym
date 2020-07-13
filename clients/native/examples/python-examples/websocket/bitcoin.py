@@ -43,7 +43,7 @@ async def bitcoin_proxy():
             try:
                 client.settimeout(15)
             except OSError:
-                print("caught OSError")
+                print("caught timeout")
                 continue
             ip_host = address.split(":")
             try:
@@ -94,7 +94,11 @@ async def bitcoin_proxy():
 
             final_response = bytearray(request_id)
             final_response += bin_payload
-            await websocket.send(bin_payload)
+            try:
+                await websocket.send(bin_payload)
+            except error as err:
+                print("error sending to websocket: {}".format(err))
+                continue
 
             # { "type" : "send" }
             try:

@@ -18,23 +18,26 @@ async def bitcoin_proxy():
         while True:
             received_message = await websocket.recv()
             print("received WEBSOCKET message: {}".format(received_message))
+            # received_message is a blob of bytes serialized like this:
+            # || 2 bytes address len || address || 16 bytes request_id || message
+            print("received serialized payload length: {}".format(
+                len(received_message)))
+            address_length_bytes = received_message[0:2]
+            print("address length bytes: {}".format(address_length_bytes))
 
-            print("received len: {}".format(len(received_message)))
-            len_bytes = received_message[0:2]
-            print("len bytes: {}".format(len_bytes))
+            address_length = int.from_bytes(
+                address_length_bytes, byteorder='big', signed=False)
+            print("len: {}".format(address_length))
 
-            foo = int.from_bytes(len_bytes, byteorder='big', signed=False)
-            print("len: {}".format(foo))
-
-            address_bytes = received_message[2:2+foo]
+            address_bytes = received_message[2:2+address_length]
             address = address_bytes.decode('utf-8')
             print("address: {}".format(address))
 
-            proxy_message = received_message[2+foo:]
+            request_id = received_message[2+address_length:2+address_length+16]
+            print("request id: {}", format(request_id))
 
-            # 2 bytes address len || address || message
+            tcp_request = received_message[2+address_length+16:]
 
-            print("\nreceived '{}' from the mix network".format(received_message))
             print("opening socket...")
             client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
@@ -49,11 +52,16 @@ async def bitcoin_proxy():
                 print("caught socket connect error: {}".format(exc))
 
             try:
-                client.send(proxy_message)
+                client.send(tcp_request)
             except socket.error as exc:
                 print("caught socket send error: {}".format(exc))
 
             response = []
+
+            # Let's check our types here.
+            print("response type: {}".format(type(response)))
+            print("request_id type: {}".format(type(request_id)))
+
             while True:
                 buf_size = 65536
                 try:
@@ -61,6 +69,9 @@ async def bitcoin_proxy():
                     response += data_chunk
                 except socket.error as exc:
                     print("recv error: {}".format(exc))
+                    break
+                except TypeError as exc:
+                    print("type error in while loop: {}".format(exc))
                     break
                 print(response)
                 if len(data_chunk) != buf_size:
@@ -72,7 +83,17 @@ async def bitcoin_proxy():
             split_address = wallet.split("@")
             bin_payload = bytearray(base58.b58decode(split_address[0]))
             bin_payload += base58.b58decode(split_address[1])
-            bin_payload += bytearray(response)
+            try:
+                bin_payload += bytearray(response)
+            except TypeError as exc:
+                print("type error while building bytearray response: {}".format(exc))
+                continue
+
+            print("response payload: {}".format(bin_payload))
+            print("request id: {}", format(request_id))
+
+            final_response = bytearray(request_id)
+            final_response += bin_payload
             await websocket.send(bin_payload)
 
             # { "type" : "send" }

@@ -26,8 +26,6 @@ async def send_file():
 
         print("sending content of 'dummy_file' over the mix network...")
         await websocket.send(bin_payload)
-        msg_send_confirmation = json.loads(await websocket.recv())
-        assert msg_send_confirmation["type"], "send"
 
         print("waiting to receive the 'dummy_file' from the mix network...")
         received_data = await websocket.recv()

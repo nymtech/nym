@@ -21,7 +21,7 @@ use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
 use nymsphinx_types::builder::SphinxPacketBuilder;
 use nymsphinx_types::{
     delays::{self, Delay},
-    Destination, SphinxPacket,
+    SphinxPacket,
 };
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
@@ -57,7 +57,7 @@ impl SURBAck {
         let route =
             topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, &recipient.gateway())?;
         let delays = delays::generate_from_average_duration(route.len(), average_delay);
-        let destination = Destination::new(recipient.destination(), Default::default());
+        let destination = recipient.as_sphinx_destination();
 
         let surb_ack_payload = prepare_identifier(rng, ack_key, marshaled_fragment_id);
 

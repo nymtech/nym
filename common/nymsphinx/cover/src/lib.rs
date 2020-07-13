@@ -20,7 +20,7 @@ use nymsphinx_chunking::fragment::COVER_FRAG_ID;
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
 use nymsphinx_types::builder::SphinxPacketBuilder;
-use nymsphinx_types::{delays, Destination, Error as SphinxError, SphinxPacket};
+use nymsphinx_types::{delays, Error as SphinxError, SphinxPacket};
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
 use std::time;
@@ -106,8 +106,7 @@ where
     let route =
         topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, &full_address.gateway())?;
     let delays = delays::generate_from_average_duration(route.len(), average_packet_delay);
-    // in our design we don't care about SURB_ID
-    let destination = Destination::new(full_address.destination(), Default::default());
+    let destination = full_address.as_sphinx_destination();
 
     // once merged, that's an easy rng injection point for sphinx packets : )
     let packet = SphinxPacketBuilder::new()

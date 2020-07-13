@@ -24,10 +24,9 @@ use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADD
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
 use nymsphinx_types::builder::SphinxPacketBuilder;
-use nymsphinx_types::{delays, Delay, Destination, SphinxPacket};
+use nymsphinx_types::{delays, Delay, SphinxPacket};
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::convert::TryFrom;
-use std::net::SocketAddr;
 use std::time::Duration;
 use topology::{NymTopology, NymTopologyError};
 
@@ -119,17 +118,9 @@ impl MessageChunker<DefaultRng> {
 
     #[cfg(test)]
     pub(crate) fn test_fixture() -> Self {
-        use nymsphinx_addressing::nodes::NodeIdentity;
-        use nymsphinx_types::DestinationAddressBytes;
-
-        let empty_address = [0u8; 32];
-        let valid_identity = "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3";
-        let empty_recipient = Recipient::new(
-            DestinationAddressBytes::from_bytes(empty_address),
-            NodeIdentity::from_base58_string(valid_identity).unwrap(),
-        );
+        let dummy_recipient = Recipient::try_from_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@4sBbL1ngf1vtNqykydQKTFh26sQCw888GpUqvPvyNB4f").unwrap();
         Self::new(
-            empty_recipient,
+            dummy_recipient,
             false,
             Default::default(),
             Default::default(),
@@ -216,7 +207,7 @@ where
         )?;
         let delays =
             delays::generate_from_average_duration(route.len(), self.average_packet_delay_duration);
-        let destination = Destination::new(packet_recipient.destination(), Default::default());
+        let destination = packet_recipient.as_sphinx_destination();
 
         // once merged, that's an easy rng injection point for sphinx packets : )
         let packet = SphinxPacketBuilder::new()

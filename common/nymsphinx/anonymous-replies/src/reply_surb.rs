@@ -16,16 +16,11 @@ use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
-use nymsphinx_types::{
-    delays, Destination, Error as SphinxError, SURBMaterial, SphinxPacket, SURB,
-};
+use nymsphinx_types::{delays, Error as SphinxError, SURBMaterial, SphinxPacket, SURB};
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
-use std::net::SocketAddr;
 use std::time;
 use topology::{NymTopology, NymTopologyError};
-
-pub struct ReplySURB(SURB);
 
 #[derive(Debug)]
 pub enum ReplySURBError {
@@ -33,7 +28,11 @@ pub enum ReplySURBError {
     RecoveryError(SphinxError),
 }
 
+pub struct ReplySURB(SURB);
+
 impl ReplySURB {
+    // TODO: should this return `ReplySURBError` for consistency sake
+    // or keep `NymTopologyError` because it's the only error it can actually return?
     pub fn construct<R>(
         rng: &mut R,
         recipient: &Recipient,
@@ -46,7 +45,7 @@ impl ReplySURB {
         let route =
             topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, &recipient.gateway())?;
         let delays = delays::generate_from_average_duration(route.len(), average_delay);
-        let destination = Destination::new(recipient.destination(), Default::default());
+        let destination = recipient.as_sphinx_destination();
 
         let surb_material = SURBMaterial::new(route, delays, destination);
 

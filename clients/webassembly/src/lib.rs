@@ -18,7 +18,7 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 use nymsphinx::Node as SphinxNode;
-use nymsphinx::{delays, Destination, NodeAddressBytes, SphinxPacket};
+use nymsphinx::{delays, NodeAddressBytes, SphinxPacket};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -78,7 +78,7 @@ pub fn create_sphinx_packet(topology_json: &str, msg: &str, recipient: &str) -> 
 
     let message = msg.as_bytes().to_vec();
 
-    let destination = Destination::new(recipient.destination(), Default::default());
+    let destination = recipient.as_sphinx_destination();
     let sphinx_packet = SphinxPacket::new(message, &route, &destination, &delays).unwrap();
     payload(sphinx_packet, route)
 }

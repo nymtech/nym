@@ -15,9 +15,7 @@
 use bs58;
 pub use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
-use nymsphinx_types::{
-    DestinationAddressBytes, NodeAddressBytes, DESTINATION_ADDRESS_LENGTH, NODE_ADDRESS_LENGTH,
-};
+use nymsphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use rand::{rngs::OsRng, CryptoRng, RngCore};
 

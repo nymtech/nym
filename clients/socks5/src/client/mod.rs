@@ -260,8 +260,8 @@ impl NymClient {
 
     fn start_socks5_listener<T: 'static + NymTopology>(
         &self,
-        _topology_accessor: TopologyAccessor<T>,
-        _buffer_requester: ReceivedBufferRequestSender,
+        _topology_accessor: TopologyAccessor<T>, // TODO: remove this argument
+        buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
     ) {
         info!("Starting socks5 listener...");
@@ -288,7 +288,7 @@ impl NymClient {
 
         let mut sphinx_socks = SphinxSocksServer::new(1080, "127.0.0.1", authenticator, recipient);
         self.runtime
-            .spawn(async move { sphinx_socks.serve(msg_input).await });
+            .spawn(async move { sphinx_socks.serve(msg_input, buffer_requester).await });
     }
 
     /// EXPERIMENTAL DIRECT RUST API

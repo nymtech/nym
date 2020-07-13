@@ -160,7 +160,10 @@ impl ReceivedMessagesBuffer {
             if let Some(completed_message) =
                 Self::process_received_fragment(&mut inner_guard, msg_fragment)
             {
-                println!("Managed to reconstruct a message - {:?}", completed_message);
+                println!(
+                    "Reconstructed message arriving from mixnet - {:?}",
+                    completed_message
+                );
                 completed_messages.push(completed_message)
             }
         }

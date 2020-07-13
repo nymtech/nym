@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 
-use std::net::Shutdown;
+use rand::RngCore;
+use std::{collections::HashMap, net::Shutdown, sync::Arc};
 
 use log::*;
 use tokio::prelude::*;
@@ -10,6 +11,7 @@ use nymsphinx::addressing::clients::Recipient;
 
 use crate::client::inbound_messages::InputMessage;
 use crate::client::inbound_messages::InputMessageSender;
+use futures::{channel::oneshot, lock::Mutex};
 
 use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
@@ -21,13 +23,22 @@ use super::{RESERVED, SOCKS_VERSION};
 /// something like e.g. a wallet app running on your laptop connecting to
 /// SphinxSocksServer.
 pub(crate) struct SocksClient {
+    active_streams: ActiveStreams,
     stream: TcpStream,
     auth_nmethods: u8,
     authenticator: Authenticator,
     socks_version: u8,
     input_sender: InputMessageSender,
+    request_id: RequestID,
     service_provider: Recipient,
 }
+
+pub(crate) const REQUEST_ID_SIZE: usize = 16;
+pub(crate) type RequestID = [u8; REQUEST_ID_SIZE];
+
+type StreamResponseSender = oneshot::Sender<Vec<u8>>;
+
+pub(crate) type ActiveStreams = Arc<Mutex<HashMap<RequestID, StreamResponseSender>>>;
 
 impl SocksClient {
     /// Create a new SOCKClient
@@ -36,8 +47,12 @@ impl SocksClient {
         authenticator: Authenticator,
         input_sender: InputMessageSender,
         service_provider: Recipient,
+        active_streams: ActiveStreams,
     ) -> Self {
+        let request_id = Self::generate_random();
         SocksClient {
+            active_streams,
+            request_id,
             stream,
             auth_nmethods: 0,
             socks_version: 0,
@@ -45,6 +60,13 @@ impl SocksClient {
             input_sender,
             service_provider,
         }
+    }
+
+    fn generate_random() -> RequestID {
+        let mut id = [0u8; REQUEST_ID_SIZE];
+        let mut rng = rand::rngs::OsRng;
+        rng.fill_bytes(&mut id);
+        id
     }
 
     // Send an error back to the client
@@ -97,8 +119,20 @@ impl SocksClient {
             SocksCommand::Connect => {
                 trace!("Connecting to: {:?}", request.to_socket());
                 self.write_socks5_response().await;
-                let request_bytes = request.serialize(&mut self.stream).await;
+                let request_bytes = request.serialize(&mut self.stream, &self.request_id).await;
                 self.send_to_mixnet(request_bytes).await;
+                // refactor idea: crossbeam oneshot channels are faster
+                let (sender, receiver) = oneshot::channel();
+                let mut active_streams_guard = self.active_streams.lock().await;
+                if active_streams_guard
+                    .insert(self.request_id, sender)
+                    .is_some()
+                {
+                    panic!("there is already an active request with the same id present - it's probably a bug!")
+                };
+                let response_data = receiver.await.unwrap();
+                println!("response_data: {:?}", response_data);
+                self.stream.write_all(&response_data).await.unwrap();
             }
 
             SocksCommand::Bind => unimplemented!(), // not handled

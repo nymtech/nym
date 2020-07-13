@@ -37,7 +37,11 @@ async def bitcoin_proxy():
             print("\nreceived '{}' from the mix network".format(received_message))
             print("opening socket...")
             client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client.settimeout(5)
+            try:
+                client.settimeout(15)
+            except OSError:
+                print("caught OSError")
+                continue
             ip_host = address.split(":")
             try:
                 client.connect((ip_host[0], int(ip_host[1])))
@@ -51,7 +55,7 @@ async def bitcoin_proxy():
 
             response = []
             while True:
-                buf_size = 1024
+                buf_size = 65536
                 try:
                     data_chunk = client.recv(buf_size)
                     response += data_chunk
@@ -72,8 +76,11 @@ async def bitcoin_proxy():
             await websocket.send(bin_payload)
 
             # { "type" : "send" }
-            msg_send_confirmation = json.loads(await websocket.recv())
-            assert msg_send_confirmation["type"], "send"
+            try:
+                msg_send_confirmation = json.loads(await websocket.recv())
+                assert msg_send_confirmation["type"], "send"
+            except error as err:
+                print("caught json error: {}".format(err))
 
 
 asyncio.get_event_loop().run_until_complete(bitcoin_proxy())

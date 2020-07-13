@@ -1,5 +1,5 @@
 use super::types::{AddrType, ResponseCode, SocksProxyError};
-use super::{utils, SOCKS_VERSION};
+use super::{client::RequestID, utils, SOCKS_VERSION};
 use log::*;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
@@ -109,19 +109,34 @@ impl SocksRequest {
         utils::addr_to_socket(&self.addr_type, &self.addr, self.port)
     }
 
-    /// Serialize the destination address and port (as a string) concatenated with
-    /// the entirety of the request stream. Return it all as a sequence of bytes.
+    /// Serialize the destination address and port (as a string), and the
+    /// request_id concatenated with the entirety of the request stream.
+    /// Return it all as a sequence of bytes.
+    ///
+    /// The bytes serialization looks like this:
+    ///
+    /// ----------------------------------------------------------------
+    /// | address_length | remote_address_bytes | request_id | request |
+    /// |      2         |    address_length    |     16     |   ...   |
+    /// ----------------------------------------------------------------
+    ///
+    /// `remote_address_bytes` is variable length as it can be either IPV4,
+    /// domain, or IPv6. We read it from `address_length`.
+    ///
+    /// The request length is unbounded, but it will currently fail if it's
+    /// bigger than a single sphinx packet.
     ///
     /// Can be used as a Sphinx payload.
-    pub async fn serialize(&mut self, stream: &mut TcpStream) -> Vec<u8> {
+    pub async fn serialize(&mut self, stream: &mut TcpStream, request_id: &RequestID) -> Vec<u8> {
         let remote_address = self.to_string();
-        let remote_bytes = remote_address.into_bytes();
-        let remote_bytes_len = remote_bytes.len() as u16;
-        let temp_bytes = remote_bytes_len.to_be_bytes(); // this is [u8; 2];
-        let mut buf = temp_bytes
+        let remote_address_bytes = remote_address.into_bytes();
+        let remote_address_bytes_len = remote_address_bytes.len() as u16;
+        let address_length = remote_address_bytes_len.to_be_bytes(); // this is [u8; 2];
+        let mut buf = address_length
             .iter()
             .cloned()
-            .chain(remote_bytes.into_iter())
+            .chain(remote_address_bytes.into_iter())
+            .chain(request_id.to_vec().into_iter())
             .collect::<Vec<_>>();
 
         stream.read_to_end(&mut buf).await.unwrap(); // appends the rest of the request stream into buf

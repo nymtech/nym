@@ -40,6 +40,12 @@ type StreamResponseSender = oneshot::Sender<Vec<u8>>;
 
 pub(crate) type ActiveStreams = Arc<Mutex<HashMap<RequestID, StreamResponseSender>>>;
 
+impl Drop for SocksClient {
+    fn drop(&mut self) {
+        println!("socksclient is going out of scope - the stream is getting dropped!")
+    }
+}
+
 impl SocksClient {
     /// Create a new SOCKClient
     pub fn new(
@@ -66,6 +72,7 @@ impl SocksClient {
         let mut id = [0u8; REQUEST_ID_SIZE];
         let mut rng = rand::rngs::OsRng;
         rng.fill_bytes(&mut id);
+        println!("request_id is {:?}", id);
         id
     }
 
@@ -108,6 +115,29 @@ impl SocksClient {
         Ok(())
     }
 
+    /**
+    *          // Copy it all
+               let mut outbound_in = target.try_clone()?;
+               let mut outbound_out = target.try_clone()?;
+               let mut inbound_in = self.stream.try_clone()?;
+               let mut inbound_out = self.stream.try_clone()?;
+
+               // Download Thread
+               thread::spawn(move || {
+                   copy(&mut outbound_in, &mut inbound_out).is_ok();
+                   outbound_in.shutdown(Shutdown::Read).unwrap_or(());
+                   inbound_out.shutdown(Shutdown::Write).unwrap_or(());
+               });
+
+               // Upload Thread
+               thread::spawn(move || {
+                   copy(&mut inbound_in, &mut outbound_out).is_ok();
+                   inbound_in.shutdown(Shutdown::Read).unwrap_or(());
+                   outbound_out.shutdown(Shutdown::Write).unwrap_or(());
+               });
+    *
+    */
+
     /// Handles a client request.
     async fn handle_request(&mut self) -> Result<(), SocksProxyError> {
         debug!("Handling CONNECT Command");
@@ -119,20 +149,30 @@ impl SocksClient {
             SocksCommand::Connect => {
                 trace!("Connecting to: {:?}", request.to_socket());
                 self.write_socks5_response().await;
-                let request_bytes = request.serialize(&mut self.stream, &self.request_id).await;
-                self.send_to_mixnet(request_bytes).await;
-                // refactor idea: crossbeam oneshot channels are faster
-                let (sender, receiver) = oneshot::channel();
-                let mut active_streams_guard = self.active_streams.lock().await;
-                if active_streams_guard
-                    .insert(self.request_id, sender)
-                    .is_some()
+                if let Some(request_bytes) =
+                    request.serialize(&mut self.stream, &self.request_id).await
                 {
-                    panic!("there is already an active request with the same id present - it's probably a bug!")
+                    println!(
+                        "Sending request {:?} outbound through mixnet",
+                        self.request_id
+                    );
+                    self.send_to_mixnet(request_bytes).await;
+                    // refactor idea: crossbeam oneshot channels are faster
+                    let (sender, receiver) = oneshot::channel();
+                    let mut active_streams_guard = self.active_streams.lock().await;
+                    if active_streams_guard
+                        .insert(self.request_id, sender)
+                        .is_some()
+                    {
+                        panic!("there is already an active request with the same id present - it's probably a bug!")
+                    };
+                    drop(active_streams_guard);
+                    let response_data = receiver.await.unwrap();
+                    println!("response_data: {:?}", response_data);
+                    self.stream.write_all(&response_data).await.unwrap();
+                } else {
+                    println!("Stream closed or there was an error");
                 };
-                let response_data = receiver.await.unwrap();
-                println!("response_data: {:?}", response_data);
-                self.stream.write_all(&response_data).await.unwrap();
             }
 
             SocksCommand::Bind => unimplemented!(), // not handled

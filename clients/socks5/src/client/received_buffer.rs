@@ -170,7 +170,7 @@ impl ReceivedMessagesBuffer {
 
         if !completed_messages.is_empty() {
             if let Some(sender) = &inner_guard.message_sender {
-                trace!("Sending reconstructed messages to announced sender");
+                info!("Sending reconstructed messages to announced sender");
                 if let Err(err) = sender.unbounded_send(completed_messages) {
                     warn!("The reconstructed message receiver went offline without explicit notification (relevant error: - {:?})", err);
                     // make sure to drop the lock to not deadlock

@@ -127,20 +127,39 @@ impl SocksRequest {
     /// bigger than a single sphinx packet.
     ///
     /// Can be used as a Sphinx payload.
-    pub async fn serialize(&mut self, stream: &mut TcpStream, request_id: &RequestID) -> Vec<u8> {
+    pub async fn serialize(
+        &mut self,
+        stream: &mut TcpStream,
+        request_id: &RequestID,
+    ) -> Option<Vec<u8>> {
         let remote_address = self.to_string();
         let remote_address_bytes = remote_address.into_bytes();
         let remote_address_bytes_len = remote_address_bytes.len() as u16;
         let address_length = remote_address_bytes_len.to_be_bytes(); // this is [u8; 2];
-        let mut buf = address_length
-            .iter()
-            .cloned()
-            .chain(remote_address_bytes.into_iter())
-            .chain(request_id.to_vec().into_iter())
-            .collect::<Vec<_>>();
+        const BUF_SIZE: usize = 4096;
+        let mut stream_buf = [0u8; BUF_SIZE];
 
-        stream.read_to_end(&mut buf).await.unwrap(); // appends the rest of the request stream into buf
-        buf
+        match stream.read(&mut stream_buf).await {
+            // socket closed
+            Ok(n) if n == 0 => {
+                trace!("Remote connection closed.");
+                None
+            }
+            Ok(n) => {
+                let buf = address_length
+                    .iter()
+                    .cloned()
+                    .chain(remote_address_bytes.into_iter())
+                    .chain(request_id.to_vec().into_iter())
+                    .chain(stream_buf.iter().take(n).cloned())
+                    .collect::<Vec<_>>();
+                Some(buf)
+            }
+            Err(e) => {
+                warn!("failed to read from socket; err = {:?}", e);
+                None
+            }
+        }
     }
 }
 

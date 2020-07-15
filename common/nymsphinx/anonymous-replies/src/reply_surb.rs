@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::encryption_key::{
+    SURBEncryptionKey, SURBEncryptionKeyError, SURBEncryptionKeySize, Unsigned,
+};
+use crypto::symmetric::aes_ctr;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx_params::packet_sizes::PacketSize;
@@ -26,9 +30,19 @@ use topology::{NymTopology, NymTopologyError};
 pub enum ReplySURBError {
     TooLongMessageError,
     RecoveryError(SphinxError),
+    InvalidEncryptionKeyData(SURBEncryptionKeyError),
 }
 
-pub struct ReplySURB(SURB);
+impl From<SURBEncryptionKeyError> for ReplySURBError {
+    fn from(err: SURBEncryptionKeyError) -> Self {
+        ReplySURBError::InvalidEncryptionKeyData(err)
+    }
+}
+
+pub struct ReplySURB {
+    surb: SURB,
+    encryption_key: SURBEncryptionKey,
+}
 
 impl ReplySURB {
     // TODO: should this return `ReplySURBError` for consistency sake
@@ -50,19 +64,34 @@ impl ReplySURB {
         let surb_material = SURBMaterial::new(route, delays, destination);
 
         // this can't fail as we know we have a valid route to gateway and have correct number of delays
-        Ok(ReplySURB(surb_material.construct_SURB().unwrap()))
+        Ok(ReplySURB {
+            surb: surb_material.construct_SURB().unwrap(),
+            encryption_key: SURBEncryptionKey::new(rng),
+        })
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        self.0.to_bytes()
+        // KEY || SURB_BYTES
+        self.encryption_key
+            .to_bytes()
+            .into_iter()
+            .chain(self.surb.to_bytes().into_iter())
+            .collect()
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ReplySURBError> {
-        let surb = match SURB::from_bytes(bytes) {
+        let encryption_key =
+            SURBEncryptionKey::try_from_bytes(&bytes[..SURBEncryptionKeySize::to_usize()])?;
+
+        let surb = match SURB::from_bytes(&bytes[SURBEncryptionKeySize::to_usize()..]) {
             Err(err) => return Err(ReplySURBError::RecoveryError(err)),
             Ok(surb) => surb,
         };
-        Ok(ReplySURB(surb))
+
+        Ok(ReplySURB {
+            surb,
+            encryption_key,
+        })
     }
 
     // Allows to optionally increase the packet size to send slightly longer reply.
@@ -78,10 +107,13 @@ impl ReplySURB {
             return Err(ReplySURBError::TooLongMessageError);
         }
 
+        let encrypted_message =
+            aes_ctr::encrypt(&self.encryption_key, &aes_ctr::zero_iv(), message);
+
         // this can realistically only fail on too messages and we just checked for that
         let (packet, first_hop) = self
-            .0
-            .use_surb(message, packet_size.payload_size())
+            .surb
+            .use_surb(&encrypted_message, packet_size.payload_size())
             .expect("this error indicates inconsistent message length checking - it shouldn't have happened!");
 
         let first_hop_address = NymNodeRoutingAddress::try_from(first_hop).unwrap();

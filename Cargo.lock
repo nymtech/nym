@@ -1926,6 +1926,7 @@ dependencies = [
 name = "nymsphinx"
 version = "0.1.0"
 dependencies = [
+ "crypto",
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
  "nymsphinx-anonymous-replies",
@@ -1936,6 +1937,7 @@ dependencies = [
  "nymsphinx-types",
  "rand 0.7.3",
  "rand_distr",
+ "topology",
 ]
 
 [[package]]

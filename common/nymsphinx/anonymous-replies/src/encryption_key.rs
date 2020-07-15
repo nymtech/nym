@@ -20,6 +20,7 @@ use std::ops::Deref;
 
 pub type SURBEncryptionKeySize = Aes128KeySize;
 
+#[derive(Clone, Debug)]
 pub struct SURBEncryptionKey(Aes128Key);
 
 #[derive(Debug)]

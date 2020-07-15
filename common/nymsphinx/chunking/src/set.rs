@@ -241,8 +241,9 @@ fn prepare_fragment_set(
     }
 }
 
-/// Entry point for splitting whole message into possibly multiple `Set`s.
-pub(crate) fn split_into_sets<R: Rng>(
+/// Entry point for splitting whole message into possibly multiple [`Set`]s.
+// TODO: make it take message: Vec<u8> instead
+pub fn split_into_sets<R: Rng>(
     rng: &mut R,
     message: &[u8],
     max_plaintext_size: usize,

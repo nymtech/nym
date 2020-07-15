@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod preparer;
+pub mod receiver;
 pub mod utils;
 
 // re-export sub-crates

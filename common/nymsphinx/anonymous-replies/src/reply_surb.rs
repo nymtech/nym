@@ -70,6 +70,23 @@ impl ReplySURB {
         })
     }
 
+    /// Returns the expected number of bytes the [`ReplySURB`] will take after serialization.
+    /// Useful for deserialization from a bytes stream.
+    pub fn serialized_len(mix_hops: u8) -> usize {
+        use nymsphinx_types::{HEADER_SIZE, NODE_ADDRESS_LENGTH, PAYLOAD_KEY_SIZE};
+
+        // the SURB itself consists of SURB_header, first hop address and set of payload keys
+        // (note extra 1 for the gateway)
+        SURBEncryptionKeySize::to_usize()
+            + HEADER_SIZE
+            + NODE_ADDRESS_LENGTH
+            + (1 + mix_hops as usize) * PAYLOAD_KEY_SIZE
+    }
+
+    pub fn encryption_key(&self) -> &SURBEncryptionKey {
+        &self.encryption_key
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         // KEY || SURB_BYTES
         self.encryption_key

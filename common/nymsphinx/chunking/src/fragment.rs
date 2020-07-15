@@ -163,7 +163,7 @@ impl Fragment {
     }
 
     /// Convert this `Fragment` into vector of bytes which can be put into a sphinx packet.
-    pub(crate) fn into_bytes(self) -> Vec<u8> {
+    pub fn into_bytes(self) -> Vec<u8> {
         self.header
             .to_bytes()
             .into_iter()
@@ -214,7 +214,7 @@ impl Fragment {
     /// Tries to recover `Fragment` from slice of bytes extracted from received sphinx packet.
     /// It can fail if payload would not fully fit in a single `Fragment` or some of the metadata
     /// is malformed or self-contradictory, for example if current_fragment > total_fragments.
-    pub(crate) fn try_from_bytes(b: &[u8]) -> Result<Self, ChunkingError> {
+    pub fn try_from_bytes(b: &[u8]) -> Result<Self, ChunkingError> {
         let (header, n) = FragmentHeader::try_from_bytes(b)?;
 
         // there's no sane way to decide if payload has correct range anymore as

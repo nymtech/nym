@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::chunking;
 use crypto::asymmetric::encryption;
 use crypto::kdf::blake3_hkdf;
 use crypto::symmetric::aes_ctr::{
@@ -21,17 +22,15 @@ use nymsphinx_acknowledgements::surb_ack::SURBAck;
 use nymsphinx_acknowledgements::AckAes128Key;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
+use nymsphinx_anonymous_replies::encryption_key::SURBEncryptionKey;
 use nymsphinx_anonymous_replies::reply_surb::ReplySURB;
 use nymsphinx_chunking::fragment::{Fragment, FragmentIdentifier};
-use nymsphinx_chunking::set::split_into_sets;
-use nymsphinx_chunking::MessageChunker;
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
 use nymsphinx_types::builder::SphinxPacketBuilder;
 use nymsphinx_types::{delays, Delay, SphinxPacket};
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
-use std::sync::Arc;
 use std::time::Duration;
 use topology::{NymTopology, NymTopologyError};
 
@@ -62,9 +61,8 @@ impl From<NymTopologyError> for PreparationError {
 /// an optional reply-SURB, padding it to appropriate length, encrypting its content,
 /// and chunking into appropriate size [`Fragment`]s.
 pub struct MessagePreparer<R: CryptoRng + Rng> {
+    /// Instance of a cryptographically secure random number generator.
     rng: R,
-
-    ack_key: Arc<AckAes128Key>,
 
     /// Size of the target [`SphinxPacket`] into which the underlying is going to get split.
     packet_size: PacketSize,
@@ -73,8 +71,15 @@ pub struct MessagePreparer<R: CryptoRng + Rng> {
     /// and surb-based are going to be sent.
     our_address: Recipient,
 
-    average_packet_delay_duration: Duration,
-    average_ack_delay_duration: Duration,
+    /// Average delay a data packet is going to get delay at a single mixnode.
+    average_packet_delay: Duration,
+
+    /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
+    average_ack_delay: Duration,
+
+    /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
+    /// Note that it does not include gateway hops.
+    num_mix_hops: u8,
 }
 
 impl<R> MessagePreparer<R>
@@ -90,9 +95,14 @@ where
         //     chunker,
         //     ack_key,
         //     our_address,
-        //     average_packet_delay_duration,
-        //     average_ack_delay_duration
+        //     average_packet_delay,
+        //     average_ack_delay
         // }
+    }
+
+    pub fn with_mix_hops(mut self, hops: u8) -> Self {
+        self.num_mix_hops = hops;
+        self
     }
 
     /// Length of plaintext (from the sphinx point of view) data that is available per sphinx
@@ -116,7 +126,7 @@ where
     fn pad_message(&self, message: Vec<u8>) -> Vec<u8> {
         // 1 is added as there will always have to be at least a single byte of padding (1) added
         // to be able to later distinguish the actual padding from the underlying message
-        let (_, space_left) = MessageChunker::number_of_required_fragments(
+        let (_, space_left) = chunking::number_of_required_fragments(
             message.len() + 1,
             self.available_plaintext_per_packet(),
         );
@@ -150,37 +160,29 @@ where
         (ephemeral_keypair.public_key().clone(), derived_shared_key)
     }
 
-    /// Generates fresh pseudorandom key that is going to be used by the recipient of the message
-    /// to encrypt payload of the reply. It is only generated when reply-SURB is attached.
-    fn new_reply_key(&mut self) -> Aes128Key {
-        aes_ctr::generate_key(&mut self.rng)
-    }
-
     /// Attaches reply-SURB to the message alongside the reply key.
     fn optionally_attach_reply_surb(
         &mut self,
         message: Vec<u8>,
         should_attach: bool,
         topology: &NymTopology,
-    ) -> Result<(Vec<u8>, Option<Aes128Key>), PreparationError> {
+    ) -> Result<(Vec<u8>, Option<SURBEncryptionKey>), PreparationError> {
         if should_attach {
             let reply_surb = ReplySURB::construct(
                 &mut self.rng,
                 &self.our_address,
-                self.average_packet_delay_duration,
+                self.average_packet_delay,
                 topology,
             )?;
 
-            let reply_key = self.new_reply_key();
-
+            let reply_key = reply_surb.encryption_key();
             // if there's a reply surb, the message takes form of `1 || REPLY_KEY || REPLY_SURB || MSG`
             Ok((
                 std::iter::once(1u8)
-                    .chain(reply_key.as_bytes().iter().cloned())
                     .chain(reply_surb.to_bytes().iter().cloned())
                     .chain(message.into_iter())
                     .collect(),
-                Some(reply_key),
+                Some(reply_key.clone()),
             ))
         } else {
             // but if there's no reply surb, the message takes form of `0 || MSG`
@@ -193,14 +195,11 @@ where
 
     /// Splits the message into [`Fragment`] that are going to be put later put into sphinx packets.
     fn split_message(&mut self, message: Vec<u8>) -> Vec<Fragment> {
-        split_into_sets(
-            &mut self.rng,
-            &message,
-            self.available_plaintext_per_packet(),
-        )
-        .into_iter()
-        .flat_map(|fragment_set| fragment_set.into_iter())
-        .collect()
+        let plaintext_per_packet = self.available_plaintext_per_packet();
+        chunking::split_into_sets(&mut self.rng, &message, plaintext_per_packet)
+            .into_iter()
+            .flat_map(|fragment_set| fragment_set.into_iter())
+            .collect()
     }
 
     /// Tries to convert this [`Fragment`] into a [`SphinxPacket`] that can be sent through the Nym mix-network,
@@ -214,6 +213,7 @@ where
         &mut self,
         fragment: Fragment,
         topology: &NymTopology,
+        ack_key: &AckAes128Key,
         packet_recipient: &Recipient,
     ) -> Result<PreparedMessage, NymTopologyError> {
         // create an ack
@@ -222,7 +222,8 @@ where
             .prepare_for_sending();
 
         // create keys for 'payload' encryption
-        let (ephemeral_key, shared_key) = self.new_ephemeral_shared_key(recipient.encryption_key());
+        let (ephemeral_key, shared_key) =
+            self.new_ephemeral_shared_key(packet_recipient.encryption_key());
 
         // serialize fragment and encrypt its content
         let mut chunk_data = fragment.into_bytes();
@@ -233,21 +234,20 @@ where
         // (note: surb_ack_bytes contains SURB_ACK_FIRST_HOP || SURB_ACK_DATA )
         let packet_payload: Vec<_> = surb_ack_bytes
             .into_iter()
-            .chain(ephemeral_key.to_bytes().iter().cloned)
+            .chain(ephemeral_key.to_bytes().iter().cloned())
             .chain(chunk_data.into_iter())
             .collect();
 
         // generate pseudorandom route for the packet
         let route = topology.random_route_to_gateway(
             &mut self.rng,
-            DEFAULT_NUM_MIX_HOPS,
+            self.num_mix_hops,
             &packet_recipient.gateway(),
         )?;
         let destination = packet_recipient.as_sphinx_destination();
 
         // including set of delays
-        let delays =
-            delays::generate_from_average_duration(route.len(), self.average_packet_delay_duration);
+        let delays = delays::generate_from_average_duration(route.len(), self.average_packet_delay);
 
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.
@@ -279,10 +279,10 @@ where
     ) -> Result<SURBAck, NymTopologyError> {
         SURBAck::construct(
             &mut self.rng,
-            &self.ack_recipient,
+            &self.our_address,
             ack_key,
             fragment_id.to_bytes(),
-            self.average_ack_delay_duration,
+            self.average_ack_delay,
             topology,
         )
     }
@@ -292,8 +292,9 @@ where
         message: Vec<u8>,
         recipient: &Recipient,
         with_reply_surb: bool,
+        ack_key: &AckAes128Key,
         topology: &NymTopology,
-    ) -> Result<(Vec<PreparedMessage>, Option<Aes128Key>), PreparationError> {
+    ) -> Result<(Vec<PreparedMessage>, Option<SURBEncryptionKey>), PreparationError> {
         // 1. attach (or not) the reply-surb
         // new_message = 0 || message
         // OR
@@ -317,11 +318,27 @@ where
         // - compute sphinx = Sphinx(recipient, vk_b)
         let mut prepared_messages = Vec::with_capacity(fragments.len());
         for fragment in fragments {
-            let prepared_message = self.prepare_chunk_for_sending(fragment, topology, recipient)?;
+            let prepared_message =
+                self.prepare_chunk_for_sending(fragment, topology, ack_key, recipient)?;
             prepared_messages.push(prepared_message)
         }
 
         Ok((prepared_messages, reply_key))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_fixture() -> MessagePreparer<rand::rngs::OsRng> {
+        let rng = rand::rngs::OsRng;
+        let dummy_address = Recipient::try_from_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@4sBbL1ngf1vtNqykydQKTFh26sQCw888GpUqvPvyNB4f").unwrap();
+
+        MessagePreparer {
+            rng,
+            packet_size: Default::default(),
+            our_address: dummy_address,
+            average_packet_delay: Default::default(),
+            average_ack_delay: Default::default(),
+            num_mix_hops: DEFAULT_NUM_MIX_HOPS,
+        }
     }
 }
 

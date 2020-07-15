@@ -28,7 +28,7 @@ fn main() {
     let arg_matches = App::new("Nym Socks5 Proxy")
         .version(built_info::PKG_VERSION)
         .author("Nymtech")
-        .about("A Socks5 proxy that converts incoming messages to Sphinx and sends them to a Nym address")
+        .about("A Socks5 localhost proxy that converts incoming messages to Sphinx and sends them to a Nym address")
         .subcommand(commands::init::command_args())
         .subcommand(commands::run::command_args())
         .get_matches();

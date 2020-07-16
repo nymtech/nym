@@ -2904,6 +2904,8 @@ version = "0.1.0"
 dependencies = [
  "bs58",
  "clap",
+ "futures 0.3.4",
+ "futures-util",
  "log 0.4.8",
  "pretty_env_logger",
  "tokio 0.2.16",

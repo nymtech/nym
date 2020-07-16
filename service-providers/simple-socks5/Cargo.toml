@@ -9,7 +9,10 @@ edition = "2018"
 [dependencies]
 bs58 = "0.3.0"
 clap = "2.33.0"
+futures = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["async-await", "sink", "std"] }
 log = "0.4"
 pretty_env_logger = "0.3"
 tokio = { version = "0.2", features = ["full"] }
 tokio-tungstenite = "0.10.1"
+

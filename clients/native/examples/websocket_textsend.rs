@@ -30,6 +30,7 @@ async fn main() {
     let send_request = ClientRequest::Send {
         message: message.clone(),
         recipient: self_address,
+        with_reply_surb: false,
     };
     println!("sending {:?} over the mix network...", message);
     ws_stream.send(send_request.into()).await.unwrap();

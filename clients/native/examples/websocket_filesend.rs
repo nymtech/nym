@@ -31,6 +31,7 @@ async fn main() {
     let send_request = BinaryClientRequest::Send {
         recipient,
         data: read_data,
+        with_reply_surb: false,
     };
 
     println!("sending content of 'dummy_file' over the mix network...");

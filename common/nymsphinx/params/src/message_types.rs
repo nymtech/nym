@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod message_types;
-pub mod packet_sizes;
-
-pub use message_types::MessageType;
-pub use packet_sizes::PacketSize;
-
-// If somebody can provide an argument why it might be reasonable to have more than 255 mix hops,
-// I will change this to [`usize`]
-pub const DEFAULT_NUM_MIX_HOPS: u8 = 3;
+// Perhaps this idea could be extended with some binary masking to convey more information
+// like to help the receiver to know whether the message is expected to be text-based or binary
+#[repr(u8)]
+#[derive(Clone, Copy, Debug)]
+pub enum MessageType {
+    WithoutReplySURB = 0,
+    WithReplySURB = 1,
+    IsReply = 2,
+}

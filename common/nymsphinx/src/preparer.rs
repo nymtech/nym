@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{chunking, MessageMode};
+use crate::chunking;
 use crypto::asymmetric::encryption;
 use crypto::kdf::blake3_hkdf;
 use crypto::symmetric::aes_ctr::{
@@ -26,7 +26,7 @@ use nymsphinx_anonymous_replies::encryption_key::SURBEncryptionKey;
 use nymsphinx_anonymous_replies::reply_surb::ReplySURB;
 use nymsphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nymsphinx_params::packet_sizes::PacketSize;
-use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
+use nymsphinx_params::{MessageType, DEFAULT_NUM_MIX_HOPS};
 use nymsphinx_types::builder::SphinxPacketBuilder;
 use nymsphinx_types::{delays, Delay, SphinxPacket};
 use rand::{CryptoRng, Rng};
@@ -189,7 +189,7 @@ where
             let reply_key = reply_surb.encryption_key();
             // if there's a reply surb, the message takes form of `1 || REPLY_KEY || REPLY_SURB || MSG`
             Ok((
-                std::iter::once(MessageMode::WithReplySURB as u8)
+                std::iter::once(MessageType::WithReplySURB as u8)
                     .chain(reply_surb.to_bytes().iter().cloned())
                     .chain(message.into_iter())
                     .collect(),
@@ -198,7 +198,7 @@ where
         } else {
             // but if there's no reply surb, the message takes form of `0 || MSG`
             Ok((
-                std::iter::once(MessageMode::WithoutReplySURB as u8)
+                std::iter::once(MessageType::WithoutReplySURB as u8)
                     .chain(message.into_iter())
                     .collect(),
                 None,

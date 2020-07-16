@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::MessageMode;
 use crypto::asymmetric::encryption;
 use crypto::kdf::blake3_hkdf;
 use crypto::symmetric::aes_ctr;
@@ -20,7 +19,7 @@ use crypto::symmetric::aes_ctr::{generic_array::typenum::Unsigned, Aes128Key, Ae
 use nymsphinx_anonymous_replies::reply_surb::{ReplySURB, ReplySURBError};
 use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_chunking::reconstruction::MessageReconstructor;
-use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
+use nymsphinx_params::{MessageType, DEFAULT_NUM_MIX_HOPS};
 
 #[allow(non_snake_case)]
 #[derive(Debug)]
@@ -35,12 +34,12 @@ pub struct ReconstructedMessage {
 impl ReconstructedMessage {
     pub fn into_bytes(self) -> Vec<u8> {
         if let Some(reply_surb) = self.reply_SURB {
-            std::iter::once(MessageMode::WithReplySURB as u8)
+            std::iter::once(MessageType::WithReplySURB as u8)
                 .chain(reply_surb.to_bytes().iter().cloned())
                 .chain(self.message.into_iter())
                 .collect()
         } else {
-            std::iter::once(MessageMode::WithoutReplySURB as u8)
+            std::iter::once(MessageType::WithoutReplySURB as u8)
                 .chain(self.message.into_iter())
                 .collect()
         }
@@ -111,11 +110,11 @@ impl MessageReceiver {
         message: &mut Vec<u8>,
     ) -> Result<Option<ReplySURB>, MessageRecoveryError> {
         match message[0] {
-            n if n == MessageMode::WithoutReplySURB as u8 => {
+            n if n == MessageType::WithoutReplySURB as u8 => {
                 message.remove(0);
                 Ok(None)
             }
-            n if n == MessageMode::WithReplySURB as u8 => {
+            n if n == MessageType::WithReplySURB as u8 => {
                 let surb_len: usize = ReplySURB::serialized_len(self.num_mix_hops);
                 // note the extra +1 (due to 0/1 message prefix)
                 let surb_bytes = &message[1..1 + surb_len];
@@ -124,7 +123,7 @@ impl MessageReceiver {
                 *message = message.drain(1 + surb_len..).collect();
                 Ok(Some(reply_surb))
             }
-            n if n == MessageMode::IsReply as u8 => {
+            n if n == MessageType::IsReply as u8 => {
                 unimplemented!("this will probably require completely different logic and perhaps make this function itself irrelevant")
             }
 

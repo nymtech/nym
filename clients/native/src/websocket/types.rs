@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::params::MessageType;
 use nymsphinx::receiver::ReconstructedMessage;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -73,9 +74,9 @@ impl BinaryClientRequest {
         }
 
         let with_reply_surb = match req[0] {
-            n if n == 1 => true,
-            n if n == 0 => false,
-            _ => return None, // we only 'accept' 0 or 1 byte here
+            n if n == MessageType::WithReplySURB as u8 => true,
+            n if n == MessageType::WithoutReplySURB as u8 => false,
+            _ => return None, // no other option is valid in this context
         };
 
         let mut recipient_bytes = [0u8; Recipient::LEN];

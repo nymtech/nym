@@ -25,14 +25,3 @@ pub use nymsphinx_cover as cover;
 pub use nymsphinx_framing as framing;
 pub use nymsphinx_params as params;
 pub use nymsphinx_types::*;
-
-// TODO: lets see if that sticks anywhere and where should be moved
-// Perhaps this idea could be extended with some binary masking to convey more information
-// like to help the receiver to know whether the message is expected to be text-based or binary
-#[repr(u8)]
-#[derive(Clone, Copy, Debug)]
-pub enum MessageMode {
-    WithoutReplySURB = 0,
-    WithReplySURB = 1,
-    IsReply = 2,
-}

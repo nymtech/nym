@@ -483,7 +483,7 @@ impl<'a, R> GatewayClient<'static, R> {
         }
         let shared_key = self.perform_initial_authentication().await?;
 
-        // that call is NON-blocking
+        // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;
 
         Ok(shared_key)

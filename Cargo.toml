@@ -27,6 +27,7 @@ members = [
     "common/topology",
     "gateway",
     "gateway/gateway-requests",
+    "service-providers/simple-socks5",
     "mixnode",
     "validator",
 ]

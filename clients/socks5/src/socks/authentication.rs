@@ -77,7 +77,7 @@ mod tests {
 
         #[test]
         fn user_pass_authentication_fails() {
-            let mut auth_methods: Vec<u8> = Vec::new(); // it's empty
+            let auth_methods: Vec<u8> = Vec::new(); // it's empty
 
             let admin = User {
                 username: "foo".to_string(),

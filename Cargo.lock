@@ -2899,6 +2899,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "simple-socks5"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "clap",
+ "log 0.4.8",
+ "pretty_env_logger",
+ "tokio 0.2.16",
+ "tokio-tungstenite",
+]
+
+[[package]]
 name = "siphasher"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

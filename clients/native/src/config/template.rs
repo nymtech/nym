@@ -52,7 +52,7 @@ gateway_listener = '{{ client.gateway_listener }}'
 
 # A gateway specific, optional, base58 stringified shared key used for
 # communication with particular gateway.
-gateway_shared_key = '{{ client.gateway_shared_key }}'
+gateway_shared_key_file = '{{ client.gateway_shared_key_file }}'
 
 # Path to file containing key used for encrypting and decrypting the content of an
 # acknowledgement so that nobody besides the client knows which packet it refers to.

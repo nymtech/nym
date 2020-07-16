@@ -1,0 +1,45 @@
+[package]
+build = "build.rs"
+name = "nym-mobile"
+version = "0.2.0-dev"
+authors = ["Roberto Santacroce Martins <miles.chet@gmail.com>", "Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "nym_mobile"
+path = "src/lib.rs"
+crate-type = ["staticlib", "cdylib"] 
+
+[dependencies]
+bs58 = "0.3.0"
+clap = "2.33.0"
+curve25519-dalek = "2.0.0"
+dirs = "2.0.2"
+dotenv = "0.15.0"
+futures = "0.3.1"
+log = "0.4"
+pretty_env_logger = "0.3"
+serde = { version = "1.0.104", features = ["derive"] }
+tokio = { version = "0.2", features = ["full"] }
+tokio-util = { version = "0.3.1", features = ["codec"] }
+
+## internal
+config = {path = "../../common/config"}
+crypto = {path = "../../common/crypto"}
+directory-client = { path = "../../common/client-libs/directory-client" }
+mixnet-client = { path = "../../common/client-libs/mixnet-client" }
+nymsphinx = {path = "../../common/nymsphinx" }
+pemstore = {path = "../../common/pemstore"}
+topology = {path = "../../common/topology"}
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { version = "0.13.1", default-features = false }
+openssl = { version = "^0.10", features = ["vendored"] }
+
+[build-dependencies]
+built = "0.3.2"
+
+[dev-dependencies]
+tempfile = "3.1.0"

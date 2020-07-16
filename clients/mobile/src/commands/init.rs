@@ -1,0 +1,43 @@
+// Copyright 2020 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use crate::commands::override_config;
+use crate::config::persistence::pathfinder::MixNodePathfinder;
+use config::NymConfig;
+use crypto::encryption;
+use pemstore::pemstore::PemStore;
+use std::path::PathBuf;
+
+pub fn execute(id: String) {
+    println!("Initialising mixnode {}...", id);
+    let mut config = crate::config::Config::new(id, 3);
+    config = override_config(config, "".to_string());
+    let sphinx_keys = encryption::KeyPair::new();
+
+    let pathfinder = MixNodePathfinder::new_from_config(&config);
+   
+    let pem_store = PemStore::new(pathfinder);
+    pem_store
+        .write_encryption_keys(sphinx_keys)
+        .expect("Failed to save sphinx keys");
+    println!("Saved mixnet sphinx keypair");
+
+    let config_save_location = config.get_config_file_save_location();
+    config
+        .save_to_file(None)
+        .expect("Failed to save the config file");
+    println!("Saved configuration file to {:?}", config_save_location);
+
+    println!("Mixnode configuration completed.\n\n\n")
+}

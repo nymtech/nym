@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::receiver::ReconstructedMessage;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use tokio_tungstenite::tungstenite::protocol::Message;
@@ -28,6 +29,11 @@ pub enum ClientRequest {
     },
     GetClients,
     SelfAddress,
+    // Reply {
+    //     message: String,
+    //     #[allow(non_snake_case)]
+    //     reply_SURB: String,
+    // }
 }
 
 impl TryFrom<String> for ClientRequest {
@@ -51,6 +57,11 @@ pub enum BinaryClientRequest {
         data: Vec<u8>,
         with_reply_surb: bool,
     },
+    // Reply {
+    //     message: Vec<u8>,
+    //     #[allow(non_snake_case)]
+    //     reply_SURB: ReplySURB,
+    // },
 }
 
 impl BinaryClientRequest {
@@ -97,11 +108,45 @@ impl Into<Message> for BinaryClientRequest {
     }
 }
 
+// TODO: it's very likely this will be renamed and will also be used to send replies via SURBs
+// but for time being let's just leave it like that
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ReceivedMessage {
+    message: String,
+    reply_surb: Option<String>,
+}
+
+impl<'a> TryFrom<&'a ReconstructedMessage> for ReceivedMessage {
+    type Error = std::str::Utf8Error;
+
+    fn try_from(reconstructed_message: &ReconstructedMessage) -> Result<Self, Self::Error> {
+        Ok(ReceivedMessage {
+            message: std::str::from_utf8(&reconstructed_message.message)?.to_string(),
+            reply_surb: reconstructed_message
+                .reply_SURB
+                .as_ref()
+                .map(|reply_surb| reply_surb.to_base58_string()),
+        })
+    }
+}
+
+impl ReceivedMessage {
+    pub fn to_json(&self) -> String {
+        // from the docs:
+        // "Serialization can fail if `T`'s implementation of `Serialize` decides to
+        // fail, or if `T` contains a map with non-string keys."
+        // so under those conditions it's impossible for the serialization to fail.
+        serde_json::to_string(&self).expect("json serialization unexpectedly failed!")
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ServerResponse {
     Send,
-    Received { messages: Vec<String> },
+    Received { messages: Vec<ReceivedMessage> },
     GetClients { clients: Vec<String> },
     SelfAddress { address: String },
     Error { message: String },

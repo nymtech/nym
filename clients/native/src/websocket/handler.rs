@@ -20,11 +20,13 @@ use crate::client::{
     },
     topology_control::TopologyAccessor,
 };
+use crate::websocket::types::ReceivedMessage;
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use std::convert::TryFrom;
+use nymsphinx::receiver::ReconstructedMessage;
+use std::convert::{TryFrom, TryInto};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     accept_async,
@@ -209,19 +211,21 @@ impl Handler {
 
     async fn push_websocket_received_plaintexts(
         &mut self,
-        messages_bytes: Vec<Vec<u8>>,
+        reconstructed_messages: Vec<ReconstructedMessage>,
     ) -> Result<(), WsError> {
+        // TODO: later there will be a flag on the reconstructed message itself
+
         let response_messages: Vec<_> = match self.received_response_type {
-            ReceivedResponseType::Binary => messages_bytes
+            ReceivedResponseType::Binary => reconstructed_messages
                 .into_iter()
-                .map(|msg| Ok(Message::Binary(msg)))
+                .map(|msg| Ok(Message::Binary(msg.into_bytes())))
                 .collect(),
             ReceivedResponseType::Text => {
-                let mut decoded_messages = Vec::new();
+                let mut decoded_messages: Vec<ReceivedMessage> = Vec::new();
                 // either all succeed or all fall back
                 let mut did_fail = false;
-                for message in messages_bytes.iter() {
-                    match std::str::from_utf8(message) {
+                for message in reconstructed_messages.iter() {
+                    match message.try_into() {
                         Ok(msg) => decoded_messages.push(msg),
                         Err(err) => {
                             did_fail = true;
@@ -231,14 +235,14 @@ impl Handler {
                     }
                 }
                 if did_fail {
-                    messages_bytes
+                    reconstructed_messages
                         .into_iter()
-                        .map(|msg| Ok(Message::Binary(msg)))
+                        .map(|msg| Ok(Message::Binary(msg.into_bytes())))
                         .collect()
                 } else {
                     decoded_messages
-                        .into_iter()
-                        .map(|msg| Ok(Message::Text(msg.to_string())))
+                        .iter()
+                        .map(|msg| Ok(Message::Text(msg.to_json())))
                         .collect()
                 }
             }

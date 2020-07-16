@@ -1965,6 +1965,7 @@ dependencies = [
 name = "nymsphinx-anonymous-replies"
 version = "0.1.0"
 dependencies = [
+ "bs58",
  "crypto",
  "nymsphinx-addressing",
  "nymsphinx-params",
@@ -2964,7 +2965,7 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=04f397f5ca5a775ce84f0a9d86504a22230b08ca#04f397f5ca5a775ce84f0a9d86504a22230b08ca"
+source = "git+https://github.com/nymtech/sphinx?rev=18aa34e1a39a5f3f14ba493ded9209658ff2cbfa#18aa34e1a39a5f3f14ba493ded9209658ff2cbfa"
 dependencies = [
  "aes-ctr 0.3.0",
  "arrayref",

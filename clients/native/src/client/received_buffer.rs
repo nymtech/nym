@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crypto::asymmetric::encryption;
 use futures::channel::mpsc;
 use futures::lock::{Mutex, MutexGuard};
 use futures::StreamExt;
 use gateway_client::MixnetMessageReceiver;
 use log::*;
-use nymsphinx::chunking::reconstruction::MessageReconstructor;
+use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::runtime::Handle;
@@ -29,12 +30,16 @@ pub(crate) type ReceivedBufferRequestSender = mpsc::UnboundedSender<ReceivedBuff
 pub(crate) type ReceivedBufferRequestReceiver = mpsc::UnboundedReceiver<ReceivedBufferMessage>;
 
 // The channel set for the above
-pub(crate) type ReconstructedMessagesSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
-pub(crate) type ReconstructedMessagesReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
+pub(crate) type ReconstructedMessagesSender = mpsc::UnboundedSender<Vec<ReconstructedMessage>>;
+pub(crate) type ReconstructedMessagesReceiver = mpsc::UnboundedReceiver<Vec<ReconstructedMessage>>;
 
 struct ReceivedMessagesBufferInner {
-    messages: Vec<Vec<u8>>,
-    message_reconstructor: MessageReconstructor,
+    messages: Vec<ReconstructedMessage>,
+    local_encryption_keypair: Arc<encryption::KeyPair>,
+
+    // TODO: looking how it 'looks' here, perhaps `MessageReceiver` should be renamed to something
+    // else instead.
+    message_receiver: MessageReceiver,
     message_sender: Option<ReconstructedMessagesSender>,
 
     // TODO: this will get cleared upon re-running the client
@@ -51,11 +56,12 @@ struct ReceivedMessagesBuffer {
 }
 
 impl ReceivedMessagesBuffer {
-    fn new() -> Self {
+    fn new(local_encryption_keypair: Arc<encryption::KeyPair>) -> Self {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
                 messages: Vec::new(),
-                message_reconstructor: MessageReconstructor::new(true),
+                local_encryption_keypair,
+                message_receiver: MessageReceiver::new(),
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
             })),
@@ -100,25 +106,26 @@ impl ReceivedMessagesBuffer {
         guard.message_sender = Some(sender);
     }
 
-    async fn add_reconstructed_messages(&mut self, msgs: Vec<Vec<u8>>) {
+    async fn add_reconstructed_messages(&mut self, msgs: Vec<ReconstructedMessage>) {
         debug!("Adding {:?} new messages to the buffer!", msgs.len());
         trace!("Adding new messages to the buffer! {:?}", msgs);
         self.inner.lock().await.messages.extend(msgs)
     }
 
+    // TODO: when refactoring this code, get rid of direct MutexGuard argument here, it looks hideous
     fn process_received_fragment(
         mutex_guard: &mut MutexGuard<ReceivedMessagesBufferInner>,
         raw_fragment: Vec<u8>,
-    ) -> Option<Vec<u8>> {
+    ) -> Option<ReconstructedMessage> {
         if nymsphinx::cover::is_cover(&raw_fragment) {
             trace!("The message was a loop cover message! Skipping it");
             return None;
         }
 
-        let fragment = match mutex_guard
-            .message_reconstructor
-            .recover_fragment(raw_fragment)
-        {
+        let fragment = match mutex_guard.message_receiver.recover_fragment(
+            mutex_guard.local_encryption_keypair.private_key(),
+            raw_fragment,
+        ) {
             Err(e) => {
                 warn!("failed to recover fragment data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
                 return None;
@@ -131,20 +138,36 @@ impl ReceivedMessagesBuffer {
             return None;
         }
 
-        if let Some(reconstructed_message) = mutex_guard
-            .message_reconstructor
-            .insert_new_fragment(fragment)
-        {
-            let (completed_message, message_sets) = reconstructed_message;
-            for set_id in message_sets {
-                if !mutex_guard.recently_reconstructed.insert(set_id) {
-                    // or perhaps we should even panic at this point?
-                    error!("Reconstructed another message containing already used set id!")
+        // if we returned an error the underlying message is malformed in some way
+        match mutex_guard.message_receiver.insert_new_fragment(fragment) {
+            Err(err) => match err {
+                MessageRecoveryError::MalformedReconstructedMessage(message_sets) => {
+                    // TODO: should we really insert reconstructed sets? could this be abused for some attack?
+                    for set_id in message_sets {
+                        if !mutex_guard.recently_reconstructed.insert(set_id) {
+                            // or perhaps we should even panic at this point?
+                            error!("Reconstructed another message containing already used set id!")
+                        }
+                    }
+                    None
                 }
-            }
-            return Some(completed_message);
+                _ => unreachable!(
+                    "no other error kind should have been returned here! If so, it's a bug!"
+                ),
+            },
+            Ok(reconstruction_result) => match reconstruction_result {
+                Some((reconstructed_message, used_sets)) => {
+                    for set_id in used_sets {
+                        if !mutex_guard.recently_reconstructed.insert(set_id) {
+                            // or perhaps we should even panic at this point?
+                            error!("Reconstructed another message containing already used set id!")
+                        }
+                    }
+                    Some(reconstructed_message)
+                }
+                None => None,
+            },
         }
-        None
     }
 
     async fn add_new_message_fragments(&mut self, msgs: Vec<Vec<u8>>) {
@@ -260,10 +283,11 @@ pub(crate) struct ReceivedMessagesBufferController {
 
 impl ReceivedMessagesBufferController {
     pub(crate) fn new(
+        local_encryption_keypair: Arc<encryption::KeyPair>,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_packet_receiver: MixnetMessageReceiver,
     ) -> Self {
-        let received_buffer = ReceivedMessagesBuffer::new();
+        let received_buffer = ReceivedMessagesBuffer::new(local_encryption_keypair);
 
         ReceivedMessagesBufferController {
             fragmented_message_receiver: FragmentedMessageReceiver::new(

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::MessageMode;
 use crypto::asymmetric::encryption;
 use crypto::kdf::blake3_hkdf;
 use crypto::symmetric::aes_ctr;
@@ -21,6 +22,31 @@ use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_chunking::reconstruction::MessageReconstructor;
 use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
 
+#[allow(non_snake_case)]
+#[derive(Debug)]
+pub struct ReconstructedMessage {
+    /// The actual plaintext message that was received.
+    pub message: Vec<u8>,
+
+    /// Optional ReplySURB to allow for an anonymous reply to the sender.
+    pub reply_SURB: Option<ReplySURB>,
+}
+
+impl ReconstructedMessage {
+    pub fn into_bytes(self) -> Vec<u8> {
+        if let Some(reply_surb) = self.reply_SURB {
+            std::iter::once(MessageMode::WithReplySURB as u8)
+                .chain(reply_surb.to_bytes().iter().cloned())
+                .chain(self.message.into_iter())
+                .collect()
+        } else {
+            std::iter::once(MessageMode::WithoutReplySURB as u8)
+                .chain(self.message.into_iter())
+                .collect()
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum MessageRecoveryError {
     InvalidSurbPrefixError,
@@ -28,6 +54,7 @@ pub enum MessageRecoveryError {
     InvalidRemoteEphemeralKey(encryption::EncryptionKeyError),
     MalformedFragmentError,
     InvalidMessagePaddingError,
+    MalformedReconstructedMessage(Vec<i32>),
 }
 
 impl From<ReplySURBError> for MessageRecoveryError {
@@ -42,14 +69,9 @@ impl From<encryption::EncryptionKeyError> for MessageRecoveryError {
     }
 }
 
-pub struct ReconstructedMessage {
-    message: Vec<u8>,
-    #[allow(non_snake_case)]
-    reply_SURB: Option<ReplySURB>,
-    used_sets: Vec<i32>,
-}
-
 pub struct MessageReceiver {
+    /// High level public structure used to buffer all received data [`Fragment`]s and eventually
+    /// returning original messages that they encapsulate.
     reconstructor: MessageReconstructor,
 
     /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
@@ -58,6 +80,10 @@ pub struct MessageReceiver {
 }
 
 impl MessageReceiver {
+    pub fn new() -> Self {
+        Default::default()
+    }
+
     fn recompute_shared_key(
         &self,
         remote_key: &encryption::PublicKey,
@@ -73,21 +99,23 @@ impl MessageReceiver {
         Aes128Key::from_exact_iter(okm).expect("okm was expanded to incorrect length!")
     }
 
+    /// Allows setting non-default number of expected mix hops in the network.
     pub fn with_mix_hops(mut self, hops: u8) -> Self {
         self.num_mix_hops = hops;
         self
     }
 
+    /// Parses the message to strip and optionally recover reply SURB.
     fn recover_reply_surb_from_message(
         &self,
         message: &mut Vec<u8>,
     ) -> Result<Option<ReplySURB>, MessageRecoveryError> {
         match message[0] {
-            n if n == 0 => {
+            n if n == MessageMode::WithoutReplySURB as u8 => {
                 message.remove(0);
                 Ok(None)
             }
-            n if n == 1 => {
+            n if n == MessageMode::WithReplySURB as u8 => {
                 let surb_len: usize = ReplySURB::serialized_len(self.num_mix_hops);
                 // note the extra +1 (due to 0/1 message prefix)
                 let surb_bytes = &message[1..1 + surb_len];
@@ -96,11 +124,17 @@ impl MessageReceiver {
                 *message = message.drain(1 + surb_len..).collect();
                 Ok(Some(reply_surb))
             }
+            n if n == MessageMode::IsReply as u8 => {
+                unimplemented!("this will probably require completely different logic and perhaps make this function itself irrelevant")
+            }
+
             _ => Err(MessageRecoveryError::InvalidSurbPrefixError),
         }
     }
 
-    fn recover_fragment(
+    /// Given raw fragment data, recovers the remote ephemeral key, recomputes shared secret,
+    /// uses it to decrypt fragment data and finally recovers [`Fragment`] itself.
+    pub fn recover_fragment(
         &self,
         local_key: &encryption::PrivateKey,
         mut raw_enc_frag: Vec<u8>,
@@ -136,21 +170,40 @@ impl MessageReceiver {
     /// Inserts given [`Fragment`] into the reconstructor.
     /// If it was last remaining [`Fragment`] for the original message, the message is reconstructed
     /// and returned alongside all (if applicable) set ids used in the message.
-    fn insert_new_fragment(
+    ///
+    /// # Returns:
+    /// - The reconstructed message alongside optional reply SURB,
+    /// - List of ids of all the [`Set`]s used during reconstruction to detect stale retransmissions.
+    pub fn insert_new_fragment(
         &mut self,
         fragment: Fragment,
-    ) -> Result<Option<ReconstructedMessage>, MessageRecoveryError> {
+    ) -> Result<Option<(ReconstructedMessage, Vec<i32>)>, MessageRecoveryError> {
         if let Some((mut message, used_sets)) = self.reconstructor.insert_new_fragment(fragment) {
             #[allow(non_snake_case)]
             // Split message into plaintext and reply-SURB
-            let reply_SURB = self.recover_reply_surb_from_message(&mut message)?;
+            let reply_SURB = match self.recover_reply_surb_from_message(&mut message) {
+                Ok(reply_surb) => reply_surb,
+                Err(_) => {
+                    return Err(MessageRecoveryError::MalformedReconstructedMessage(
+                        used_sets,
+                    ))
+                }
+            };
+
             // Finally, remove the zero padding from the message
-            Self::remove_padding(&mut message)?;
-            Ok(Some(ReconstructedMessage {
-                message,
-                reply_SURB,
+            if let Err(_) = Self::remove_padding(&mut message) {
+                return Err(MessageRecoveryError::MalformedReconstructedMessage(
+                    used_sets,
+                ));
+            };
+
+            Ok(Some((
+                ReconstructedMessage {
+                    message,
+                    reply_SURB,
+                },
                 used_sets,
-            }))
+            )))
         } else {
             Ok(None)
         }

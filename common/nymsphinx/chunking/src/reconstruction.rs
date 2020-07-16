@@ -150,7 +150,6 @@ impl ReconstructionBuffer {
 /// returning original messages that they encapsulate.
 #[derive(Default, PartialEq, Debug, Clone)]
 pub struct MessageReconstructor {
-    expects_padding: bool,
     // TODO: some cleaner thread/routine that if message is incomplete and
     // we haven't received any fragments in X time, we assume they
     // were lost and message can't be restored.
@@ -164,11 +163,8 @@ pub struct MessageReconstructor {
 
 impl MessageReconstructor {
     /// Creates an empty `MessageReconstructor`.
-    pub fn new(expects_padding: bool) -> Self {
-        MessageReconstructor {
-            expects_padding,
-            reconstructed_sets: HashMap::new(),
-        }
+    pub fn new() -> Self {
+        Default::default()
     }
 
     /// Given fully received set of given `id`, if it has any post-linked sets, recursively
@@ -276,20 +272,7 @@ impl MessageReconstructor {
             .flat_map(|payload| payload.into_iter())
             .collect();
 
-        if self.expects_padding {
-            // remove padding
-            // we are looking for first occurrence of 1 in the tail and we get its index
-            if let Some(i) = message_content.iter().rposition(|b| *b == 1) {
-                // and now we only take bytes until that point (but not including it)
-                let unpadded_content = message_content.into_iter().take(i).collect();
-                (unpadded_content, set_id_sequence)
-            } else {
-                error!("received unpadded message!");
-                (message_content, set_id_sequence)
-            }
-        } else {
-            (message_content, set_id_sequence)
-        }
+        (message_content, set_id_sequence)
     }
 
     /// Given recovered `Fragment`, tries to insert it into an appropriate `ReconstructionBuffer`.

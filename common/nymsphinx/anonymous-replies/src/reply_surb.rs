@@ -29,6 +29,7 @@ use topology::{NymTopology, NymTopologyError};
 #[derive(Debug)]
 pub enum ReplySURBError {
     TooLongMessageError,
+    MalformedStringError,
     RecoveryError(SphinxError),
     InvalidEncryptionKeyData(SURBEncryptionKeyError),
 }
@@ -39,6 +40,7 @@ impl From<SURBEncryptionKeyError> for ReplySURBError {
     }
 }
 
+#[derive(Debug)]
 pub struct ReplySURB {
     surb: SURB,
     encryption_key: SURBEncryptionKey,
@@ -109,6 +111,18 @@ impl ReplySURB {
             surb,
             encryption_key,
         })
+    }
+
+    pub fn to_base58_string(&self) -> String {
+        bs58::encode(&self.to_bytes()).into_string()
+    }
+
+    pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, ReplySURBError> {
+        let bytes = match bs58::decode(val.into()).into_vec() {
+            Ok(decoded) => decoded,
+            Err(_) => return Err(ReplySURBError::MalformedStringError),
+        };
+        Self::from_bytes(&bytes)
     }
 
     // Allows to optionally increase the packet size to send slightly longer reply.

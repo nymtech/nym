@@ -20,9 +20,8 @@ use crate::client::{
 };
 use futures::StreamExt;
 use log::*;
-use nymsphinx::{
-    acknowledgements::AckAes128Key, addressing::clients::Recipient, chunking::MessageChunker,
-};
+use nymsphinx::preparer::MessagePreparer;
+use nymsphinx::{acknowledgements::AckAes128Key, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
 
@@ -34,7 +33,7 @@ where
     ack_key: Arc<AckAes128Key>,
     ack_recipient: Recipient,
     input_receiver: InputMessageReceiver,
-    message_chunker: MessageChunker<R>,
+    message_preparer: MessagePreparer<R>,
     pending_acks: PendingAcksMap,
     real_message_sender: RealMessageSender,
     topology_access: TopologyAccessor,
@@ -48,7 +47,7 @@ where
         ack_key: Arc<AckAes128Key>,
         ack_recipient: Recipient,
         input_receiver: InputMessageReceiver,
-        message_chunker: MessageChunker<R>,
+        message_preparer: MessagePreparer<R>,
         pending_acks: PendingAcksMap,
         real_message_sender: RealMessageSender,
         topology_access: TopologyAccessor,
@@ -57,7 +56,7 @@ where
             ack_key,
             ack_recipient,
             input_receiver,
-            message_chunker,
+            message_preparer,
             pending_acks,
             real_message_sender,
             topology_access,
@@ -67,11 +66,7 @@ where
     async fn on_input_message(&mut self, msg: InputMessage) {
         let (recipient, content, with_reply_surb) = msg.destruct();
 
-        todo!("deal with reply surbs");
-
-        let split_message = self.message_chunker.split_message(&content);
         let topology_permit = self.topology_access.get_read_permit().await;
-
         let topology_ref_option =
             topology_permit.try_get_valid_topology_ref(&self.ack_recipient, &recipient);
         if topology_ref_option.is_none() {
@@ -79,6 +74,19 @@ where
             return;
         }
         let topology_ref = topology_ref_option.unwrap();
+
+        let (split_message, _reply_key) = self
+            .message_preparer
+            .prepare_and_split_message(content, with_reply_surb, topology_ref)
+            .expect("somehow the topology was invalid after all!");
+
+        // TODO:
+        // TODO:
+        // TODO:
+        // TODO:
+        // TODO:
+        // WE'RE NOT STORING, HANDLING, ANYTHING, THE REPLY KEY!!
+        // IN FACT, WHERE SHOULD IT EVEN GO?
 
         let mut pending_acks = Vec::with_capacity(split_message.len());
         let mut real_messages = Vec::with_capacity(split_message.len());
@@ -88,15 +96,22 @@ where
             // we need to clone it because we need to keep it in memory in case we had to retransmit
             // it. And then we'd need to recreate entire ACK again.
             let chunk_clone = message_chunk.clone();
-            let (total_delay, (first_hop, packet)) = self
-                .message_chunker
+            let prepared_fragment = self
+                .message_preparer
                 .prepare_chunk_for_sending(chunk_clone, topology_ref, &self.ack_key, &recipient)
                 .unwrap();
 
-            real_messages.push(RealMessage::new(first_hop, packet, frag_id));
+            real_messages.push(RealMessage::new(
+                prepared_fragment.first_hop_address,
+                prepared_fragment.sphinx_packet,
+                frag_id,
+            ));
 
-            let pending_ack =
-                PendingAcknowledgement::new(message_chunk, total_delay, recipient.clone());
+            let pending_ack = PendingAcknowledgement::new(
+                message_chunk,
+                prepared_fragment.total_delay,
+                recipient.clone(),
+            );
 
             pending_acks.push((frag_id, pending_ack));
         }

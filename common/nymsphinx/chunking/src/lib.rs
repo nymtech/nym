@@ -12,22 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::fragment::{
-    linked_fragment_payload_max_len, unlinked_fragment_payload_max_len, Fragment,
-    FragmentIdentifier,
-};
-use nymsphinx_acknowledgements::surb_ack::SURBAck;
-use nymsphinx_acknowledgements::AckAes128Key;
-use nymsphinx_addressing::clients::Recipient;
-use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
-use nymsphinx_params::packet_sizes::PacketSize;
-use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
-use nymsphinx_types::builder::SphinxPacketBuilder;
-use nymsphinx_types::{delays, Delay, SphinxPacket};
-use rand::{rngs::OsRng, CryptoRng, Rng};
-use std::convert::TryFrom;
-use std::time::Duration;
-use topology::{NymTopology, NymTopologyError};
+use crate::fragment::{linked_fragment_payload_max_len, unlinked_fragment_payload_max_len};
+pub use set::split_into_sets;
 
 // Future consideration: currently in a lot of places, the payloads have randomised content
 // which is not a perfect testing strategy as it might not detect some edge cases I never would
@@ -43,11 +29,6 @@ use topology::{NymTopology, NymTopologyError};
 pub mod fragment;
 pub mod reconstruction;
 pub mod set;
-
-pub use set::split_into_sets;
-
-type DefaultRng = OsRng;
-const DEFAULT_RNG: DefaultRng = OsRng;
 
 /// The idea behind the process of chunking is to incur as little data overhead as possible due
 /// to very computationally costly sphinx encapsulation procedure.
@@ -379,6 +360,8 @@ pub fn number_of_required_fragments(
 mod tests {
     use super::*;
     use crate::set::{max_one_way_linked_set_payload_length, two_way_linked_set_payload_length};
+    use nymsphinx_addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
+    use nymsphinx_params::packet_sizes::PacketSize;
 
     #[test]
     fn calculating_number_of_required_fragments() {

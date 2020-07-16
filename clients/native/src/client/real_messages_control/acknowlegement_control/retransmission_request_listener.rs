@@ -19,10 +19,10 @@ use crate::client::{
 };
 use futures::StreamExt;
 use log::*;
+use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{
-    acknowledgements::AckAes128Key,
-    addressing::clients::Recipient,
-    chunking::{fragment::FragmentIdentifier, MessageChunker},
+    acknowledgements::AckAes128Key, addressing::clients::Recipient,
+    chunking::fragment::FragmentIdentifier,
 };
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
@@ -34,7 +34,7 @@ where
 {
     ack_key: Arc<AckAes128Key>,
     ack_recipient: Recipient,
-    message_chunker: MessageChunker<R>,
+    message_preparer: MessagePreparer<R>,
     pending_acks: PendingAcksMap,
     real_message_sender: RealMessageSender,
     request_receiver: RetransmissionRequestReceiver,
@@ -48,7 +48,7 @@ where
     pub(super) fn new(
         ack_key: Arc<AckAes128Key>,
         ack_recipient: Recipient,
-        message_chunker: MessageChunker<R>,
+        message_preparer: MessagePreparer<R>,
         pending_acks: PendingAcksMap,
         real_message_sender: RealMessageSender,
         request_receiver: RetransmissionRequestReceiver,
@@ -57,7 +57,7 @@ where
         RetransmissionRequestListener {
             ack_key,
             ack_recipient,
-            message_chunker,
+            message_preparer,
             pending_acks,
             real_message_sender,
             request_receiver,
@@ -92,8 +92,8 @@ where
         }
         let topology_ref = topology_ref_option.unwrap();
 
-        let (total_delay, (first_hop, packet)) = self
-            .message_chunker
+        let prepared_fragment = self
+            .message_preparer
             .prepare_chunk_for_sending(chunk_clone, topology_ref, &self.ack_key, &packet_recipient)
             .unwrap();
 
@@ -108,10 +108,14 @@ where
             .expect(
                 "on_retransmission_request: somehow we already received an ack for this packet?",
             )
-            .update_delay(total_delay);
+            .update_delay(prepared_fragment.total_delay);
 
         self.real_message_sender
-            .unbounded_send(RealMessage::new(first_hop, packet, frag_id))
+            .unbounded_send(RealMessage::new(
+                prepared_fragment.first_hop_address,
+                prepared_fragment.sphinx_packet,
+                frag_id,
+            ))
             .unwrap();
     }
 

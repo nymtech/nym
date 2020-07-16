@@ -14,3 +14,6 @@
 
 pub mod encryption_key;
 pub mod reply_surb;
+
+pub use encryption_key::SURBEncryptionKey;
+pub use reply_surb::{ReplySURB, ReplySURBError};

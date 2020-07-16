@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::chunking;
+use crate::{chunking, MessageMode};
 use crypto::asymmetric::encryption;
 use crypto::kdf::blake3_hkdf;
 use crypto::symmetric::aes_ctr::{
@@ -34,16 +34,17 @@ use std::convert::TryFrom;
 use std::time::Duration;
 use topology::{NymTopology, NymTopologyError};
 
-pub struct PreparedMessage {
+/// Represents fully packed and prepared [`Fragment`] that can be sent through the mix network.
+pub struct PreparedFragment {
     /// Indicates the total expected round-trip time, i.e. delay from the sending of this message
     /// until receiving the acknowledgement included inside of it.
-    total_delay: Delay,
+    pub total_delay: Delay,
 
     /// Indicates address of the node to which the message should be sent.
-    first_hop_address: NymNodeRoutingAddress,
+    pub first_hop_address: NymNodeRoutingAddress,
 
     /// The actual 'chunk' of the message that is going to go through the mix network.
-    sphinx_packet: SphinxPacket,
+    pub sphinx_packet: SphinxPacket,
 }
 
 #[derive(Debug)]
@@ -60,6 +61,7 @@ impl From<NymTopologyError> for PreparationError {
 /// Prepares the message that is to be sent through the mix network by attaching
 /// an optional reply-SURB, padding it to appropriate length, encrypting its content,
 /// and chunking into appropriate size [`Fragment`]s.
+#[derive(Debug, Clone)]
 pub struct MessagePreparer<R: CryptoRng + Rng> {
     /// Instance of a cryptographically secure random number generator.
     rng: R,
@@ -69,7 +71,7 @@ pub struct MessagePreparer<R: CryptoRng + Rng> {
 
     /// Address of this client which also represent an address to which all acknowledgements
     /// and surb-based are going to be sent.
-    our_address: Recipient,
+    sender_address: Recipient,
 
     /// Average delay a data packet is going to get delay at a single mixnode.
     average_packet_delay: Duration,
@@ -86,22 +88,31 @@ impl<R> MessagePreparer<R>
 where
     R: CryptoRng + Rng,
 {
-    fn new(rng: R) -> Self {
-        // let chunker=  MessageChunker::new_with_rng(rng,)
-
-        todo!()
-        // MessagePreparer {
-        //     rng,
-        //     chunker,
-        //     ack_key,
-        //     our_address,
-        //     average_packet_delay,
-        //     average_ack_delay
-        // }
+    pub fn new(
+        rng: R,
+        sender_address: Recipient,
+        average_packet_delay: Duration,
+        average_ack_delay: Duration,
+    ) -> Self {
+        MessagePreparer {
+            rng,
+            packet_size: Default::default(),
+            sender_address,
+            average_packet_delay,
+            average_ack_delay,
+            num_mix_hops: DEFAULT_NUM_MIX_HOPS,
+        }
     }
 
+    /// Allows setting non-default number of expected mix hops in the network.
     pub fn with_mix_hops(mut self, hops: u8) -> Self {
         self.num_mix_hops = hops;
+        self
+    }
+
+    /// Allows setting non-default size of the sphinx packets sent out.
+    pub fn with_packet_size(mut self, packet_size: PacketSize) -> Self {
+        self.packet_size = packet_size;
         self
     }
 
@@ -170,7 +181,7 @@ where
         if should_attach {
             let reply_surb = ReplySURB::construct(
                 &mut self.rng,
-                &self.our_address,
+                &self.sender_address,
                 self.average_packet_delay,
                 topology,
             )?;
@@ -178,7 +189,7 @@ where
             let reply_key = reply_surb.encryption_key();
             // if there's a reply surb, the message takes form of `1 || REPLY_KEY || REPLY_SURB || MSG`
             Ok((
-                std::iter::once(1u8)
+                std::iter::once(MessageMode::WithReplySURB as u8)
                     .chain(reply_surb.to_bytes().iter().cloned())
                     .chain(message.into_iter())
                     .collect(),
@@ -187,7 +198,9 @@ where
         } else {
             // but if there's no reply surb, the message takes form of `0 || MSG`
             Ok((
-                std::iter::once(0u8).chain(message.into_iter()).collect(),
+                std::iter::once(MessageMode::WithoutReplySURB as u8)
+                    .chain(message.into_iter())
+                    .collect(),
                 None,
             ))
         }
@@ -209,13 +222,23 @@ where
     /// This method can fail if the provided network topology is invalid.
     /// It returns total expected delay as well as the [`SphinxPacket`] (including first hop address)
     /// to be sent through the network.
-    fn prepare_chunk_for_sending(
+    ///
+    /// The procedure is as follows:
+    /// For each fragment:
+    /// - compute SURB_ACK
+    /// - generate (x, g^x)
+    /// - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
+    /// - compute v_b = AES-128-CTR(k, serialized_fragment)
+    /// - compute vk_b = g^x || v_b
+    /// - compute sphinx_plaintext = SURB_ACK || g^x || v_b
+    /// - compute sphinx_packet = Sphinx(recipient, sphinx_plaintext)
+    pub fn prepare_chunk_for_sending(
         &mut self,
         fragment: Fragment,
         topology: &NymTopology,
         ack_key: &AckAes128Key,
         packet_recipient: &Recipient,
-    ) -> Result<PreparedMessage, NymTopologyError> {
+    ) -> Result<PreparedFragment, NymTopologyError> {
         // create an ack
         let (ack_delay, surb_ack_bytes) = self
             .generate_surb_ack(&fragment.fragment_identifier(), topology, ack_key)?
@@ -261,7 +284,7 @@ where
         let first_hop_address =
             NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone()).unwrap();
 
-        Ok(PreparedMessage {
+        Ok(PreparedFragment {
             // the round-trip delay is the sum of delays of all hops on the forward route as
             // well as the total delay of the ack packet.
             total_delay: delays.iter().sum::<Delay>() + ack_delay,
@@ -279,7 +302,7 @@ where
     ) -> Result<SURBAck, NymTopologyError> {
         SURBAck::construct(
             &mut self.rng,
-            &self.our_address,
+            &self.sender_address,
             ack_key,
             fragment_id.to_bytes(),
             self.average_ack_delay,
@@ -287,14 +310,15 @@ where
         )
     }
 
-    pub fn prepare_message(
+    /// Attaches an optional reply-surb and correct padding to the underlying message
+    /// and splits it into [`Fragment`] that can be later packed into sphinx packets to be
+    /// sent through the mix network.
+    pub fn prepare_and_split_message(
         &mut self,
         message: Vec<u8>,
-        recipient: &Recipient,
         with_reply_surb: bool,
-        ack_key: &AckAes128Key,
         topology: &NymTopology,
-    ) -> Result<(Vec<PreparedMessage>, Option<SURBEncryptionKey>), PreparationError> {
+    ) -> Result<(Vec<Fragment>, Option<SURBEncryptionKey>), PreparationError> {
         // 1. attach (or not) the reply-surb
         // new_message = 0 || message
         // OR
@@ -308,22 +332,22 @@ where
 
         // 3. chunk the message so that each chunk fits into a sphinx packet. Note, extra 32 bytes
         // are left in each chunk
-        let fragments = self.split_message(message);
+        Ok((self.split_message(message), reply_key))
 
-        // 4. For each fragment:
-        // - generate (x, g^x)
-        // - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
-        // - compute v_b = AES-128-CTR(k, serialized_fragment)
-        // - compute vk_b = g^x || v_b
-        // - compute sphinx = Sphinx(recipient, vk_b)
-        let mut prepared_messages = Vec::with_capacity(fragments.len());
-        for fragment in fragments {
-            let prepared_message =
-                self.prepare_chunk_for_sending(fragment, topology, ack_key, recipient)?;
-            prepared_messages.push(prepared_message)
-        }
-
-        Ok((prepared_messages, reply_key))
+        // // 4. For each fragment:
+        // // - generate (x, g^x)
+        // // - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
+        // // - compute v_b = AES-128-CTR(k, serialized_fragment)
+        // // - compute vk_b = g^x || v_b
+        // // - compute sphinx = Sphinx(recipient, vk_b)
+        // let mut prepared_messages = Vec::with_capacity(fragments.len());
+        // for fragment in fragments {
+        //     let prepared_message =
+        //         self.prepare_chunk_for_sending(fragment, topology, ack_key, recipient)?;
+        //     prepared_messages.push(prepared_message)
+        // }
+        //
+        // Ok((prepared_messages, reply_key))
     }
 
     #[cfg(test)]
@@ -334,7 +358,7 @@ where
         MessagePreparer {
             rng,
             packet_size: Default::default(),
-            our_address: dummy_address,
+            sender_address: dummy_address,
             average_packet_delay: Default::default(),
             average_ack_delay: Default::default(),
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,

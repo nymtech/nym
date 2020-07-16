@@ -35,6 +35,7 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
+use nymsphinx::receiver::ReconstructedMessage;
 use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
 use tokio::runtime::Runtime;
 
@@ -149,8 +150,12 @@ impl NymClient {
         mixnet_receiver: MixnetMessageReceiver,
     ) {
         info!("Starting received messages buffer controller...");
-        ReceivedMessagesBufferController::new(query_receiver, mixnet_receiver)
-            .start(self.runtime.handle())
+        ReceivedMessagesBufferController::new(
+            self.key_manager.encryption_keypair(),
+            query_receiver,
+            mixnet_receiver,
+        )
+        .start(self.runtime.handle())
     }
 
     fn start_gateway_client(
@@ -283,7 +288,7 @@ impl NymClient {
     /// well enough in local tests)
     /// Note: it waits for the first occurrence of messages being sent to ourselves. If you expect multiple
     /// messages, you might have to call this function repeatedly.
-    pub async fn wait_for_messages(&mut self) -> Vec<Vec<u8>> {
+    pub async fn wait_for_messages(&mut self) -> Vec<ReconstructedMessage> {
         use futures::StreamExt;
 
         self.receive_tx

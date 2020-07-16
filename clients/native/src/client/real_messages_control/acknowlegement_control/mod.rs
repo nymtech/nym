@@ -23,13 +23,11 @@ use crate::client::{inbound_messages::InputMessageReceiver, topology_control::To
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
+use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{
     acknowledgements::AckAes128Key,
     addressing::clients::Recipient,
-    chunking::{
-        fragment::{Fragment, FragmentIdentifier},
-        MessageChunker,
-    },
+    chunking::fragment::{Fragment, FragmentIdentifier},
     Delay,
 };
 use rand::{CryptoRng, Rng};
@@ -116,19 +114,18 @@ where
         topology_access: TopologyAccessor,
         ack_key: Arc<AckAes128Key>,
         ack_recipient: Recipient,
-        average_packet_delay_duration: Duration,
-        average_ack_delay_duration: Duration,
+        average_packet_delay: Duration,
+        average_ack_delay: Duration,
         ack_wait_multiplier: f64,
         ack_wait_addition: Duration,
         connectors: AcknowledgementControllerConnectors,
     ) -> Self {
         let pending_acks = Arc::new(RwLock::new(HashMap::new()));
-        let message_chunker = MessageChunker::new_with_rng(
+        let message_preparer = MessagePreparer::new(
             rng,
             ack_recipient.clone(),
-            true,
-            average_packet_delay_duration,
-            average_ack_delay_duration,
+            average_packet_delay,
+            average_ack_delay,
         );
 
         let acknowledgement_listener = AcknowledgementListener::new(
@@ -141,7 +138,7 @@ where
             Arc::clone(&ack_key),
             ack_recipient.clone(),
             connectors.input_receiver,
-            message_chunker.clone(),
+            message_preparer.clone(),
             Arc::clone(&pending_acks),
             connectors.real_message_sender.clone(),
             topology_access.clone(),
@@ -152,7 +149,7 @@ where
         let retransmission_request_listener = RetransmissionRequestListener::new(
             Arc::clone(&ack_key),
             ack_recipient,
-            message_chunker,
+            message_preparer,
             Arc::clone(&pending_acks),
             connectors.real_message_sender,
             retransmission_rx,

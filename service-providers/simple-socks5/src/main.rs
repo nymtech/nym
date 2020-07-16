@@ -1,5 +1,5 @@
 mod core;
-mod socks5_proxy;
+mod proxy;
 mod websocket;
 
 fn main() {

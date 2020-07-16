@@ -19,12 +19,16 @@ impl Server {
         println!("\nStopping...");
     }
 
-    pub fn start(&self) {
+    pub fn start(&mut self) {
         self.connect_websocket("ws://localhost:1977");
+        println!("All systems go. Press CTRL-C to stop the server.");
     }
 
-    fn connect_websocket(&self, uri: &str) {
-        let ws = websocket::Connection::new(uri); // any use of `new` is suspicious. Should this live up in main and then get wired in as a trait? might be nice to test that way...
-        let ws_stream = ws.connect();
+    /// any use of `new` is suspicious. Should this live up in main and then get wired in as a trait? might be nice to test that way...
+    fn connect_websocket(&mut self, uri: &str) {
+        self.runtime.block_on(async {
+            let ws = websocket::Connection::new(uri);
+            ws.connect().await.unwrap();
+        })
     }
 }

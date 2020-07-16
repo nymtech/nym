@@ -98,14 +98,14 @@ impl Handler {
         msg: String,
         full_recipient_address: String,
         with_reply_surb: bool,
-    ) -> ServerResponse {
+    ) -> Option<ServerResponse> {
         let message_bytes = msg.into_bytes();
 
         let recipient = match Recipient::try_from_string(full_recipient_address) {
             Ok(address) => address,
             Err(e) => {
                 trace!("failed to parse received Recipient: {:?}", e);
-                return ServerResponse::new_error("malformed recipient address");
+                return Some(ServerResponse::new_error("malformed recipient address"));
             }
         };
 
@@ -114,8 +114,7 @@ impl Handler {
         self.msg_input.unbounded_send(input_msg).unwrap();
 
         self.received_response_type = ReceivedResponseType::Text;
-
-        ServerResponse::Send
+        None
     }
 
     async fn handle_text_get_clients(&mut self) -> ServerResponse {
@@ -136,25 +135,28 @@ impl Handler {
         }
     }
 
-    async fn handle_text_message(&mut self, msg: String) -> Message {
+    async fn handle_text_message(&mut self, msg: String) -> Option<Message> {
         debug!("Handling text message request");
         trace!("Content: {:?}", msg.clone());
 
         match ClientRequest::try_from(msg) {
-            Err(e) => ServerResponse::Error {
-                message: format!("received invalid request. err: {:?}", e),
-            }
-            .into(),
+            Err(e) => Some(
+                ServerResponse::Error {
+                    message: format!("received invalid request. err: {:?}", e),
+                }
+                .into(),
+            ),
             Ok(req) => match req {
                 ClientRequest::Send {
                     message,
                     recipient,
                     with_reply_surb,
-                } => self.handle_text_send(message, recipient, with_reply_surb),
-                ClientRequest::GetClients => self.handle_text_get_clients().await,
-                ClientRequest::SelfAddress => self.handle_text_self_address(),
-            }
-            .into(),
+                } => self
+                    .handle_text_send(message, recipient, with_reply_surb)
+                    .map(|resp| resp.into()),
+                ClientRequest::GetClients => Some(self.handle_text_get_clients().await.into()),
+                ClientRequest::SelfAddress => Some(self.handle_text_self_address().into()),
+            },
         }
     }
 
@@ -163,25 +165,26 @@ impl Handler {
         recipient: Recipient,
         data: Vec<u8>,
         with_reply_surb: bool,
-    ) -> ServerResponse {
+    ) -> Option<ServerResponse> {
         // the ack control is now responsible for chunking, etc.
         let input_msg = InputMessage::new(recipient, data, with_reply_surb);
         self.msg_input.unbounded_send(input_msg).unwrap();
 
         self.received_response_type = ReceivedResponseType::Binary;
-        ServerResponse::Send
+
+        None
     }
 
     // if it's binary we assume it's a sphinx packet formatted the same way as we'd have sent
     // it to the gateway
-    async fn handle_binary_message(&mut self, msg: Vec<u8>) -> Message {
+    async fn handle_binary_message(&mut self, msg: Vec<u8>) -> Option<Message> {
         debug!("Handling binary message request");
 
         self.received_response_type = ReceivedResponseType::Binary;
         // make sure it is correctly formatted
         let binary_request = BinaryClientRequest::try_from_bytes(&msg);
         if binary_request.is_none() {
-            return ServerResponse::new_error("invalid binary request").into();
+            return Some(ServerResponse::new_error("invalid binary request").into());
         }
         match binary_request.unwrap() {
             BinaryClientRequest::Send {
@@ -193,7 +196,7 @@ impl Handler {
                     .await
             }
         }
-        .into()
+        .map(|resp| resp.into())
     }
 
     async fn handle_request(&mut self, raw_request: Message) -> Option<Message> {
@@ -201,10 +204,8 @@ impl Handler {
         // them and let's test that claim. If that's not the case, just copy code from
         // old version of this file.
         match raw_request {
-            Message::Text(text_message) => Some(self.handle_text_message(text_message).await),
-            Message::Binary(binary_message) => {
-                Some(self.handle_binary_message(binary_message).await)
-            }
+            Message::Text(text_message) => self.handle_text_message(text_message).await,
+            Message::Binary(binary_message) => self.handle_binary_message(binary_message).await,
             _ => None,
         }
     }

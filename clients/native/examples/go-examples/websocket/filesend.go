@@ -56,14 +56,6 @@ func main() {
 	if err = conn.WriteMessage(websocket.BinaryMessage, payload); err != nil {
 		panic(err)
 	}
-	sendConfirmationJSON := make(map[string]interface{})
-	err = conn.ReadJSON(&sendConfirmationJSON)
-	if err != nil {
-		panic(err)
-	}
-	if sendConfirmationJSON["type"].(string) != "send" {
-		panic("invalid send confirmation")
-	}
 
 	fmt.Printf("waiting to receive a message from the mix network...\n")
 	_, receivedMessage, err := conn.ReadMessage()

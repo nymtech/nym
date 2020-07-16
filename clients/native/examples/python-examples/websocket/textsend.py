@@ -24,8 +24,6 @@ async def send_text():
 
         print("sending '{}' over the mix network...".format(message))
         await websocket.send(text_send)
-        msg_send_confirmation = json.loads(await websocket.recv())
-        assert msg_send_confirmation["type"], "send"
 
         print("waiting to receive a message from the mix network...")
         received_message = await websocket.recv()

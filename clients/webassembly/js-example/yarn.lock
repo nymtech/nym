@@ -2,7 +2,7 @@
 # yarn lockfile v1
 
 
-"@nymproject/nym-client-wasm@^0.7.4":
+"@nymproject/nym-client-wasm@^0.7.5":
   version "0.7.5"
   resolved "https://registry.yarnpkg.com/@nymproject/nym-client-wasm/-/nym-client-wasm-0.7.5.tgz#75bc6c426a93d12915f5e28862daafff34ff1f7e"
   integrity sha512-r5RW4aSqyzWUvnO01EwqWdA0UGcULGrNSTe9eTDo+EoprCp1ab3vFpJs4pcg64DhxkbNbTgFVbi6TZVxObKhPQ==
@@ -2126,9 +2126,9 @@ locate-path@^3.0.0:
     path-exists "^3.0.0"
 
 lodash@^4.17.11, lodash@^4.17.14:
-  version "4.17.15"
-  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.15.tgz#b447f6670a0455bbfeedd11392eff330ea097548"
-  integrity sha512-8xOcRHvCjnocdS5cpwXQXVzmmh5e5+saE2QGoeQmbKmRS6J3VQppPOIt0MnmE+4xlZoumy0GPG0D0MVIQbNA1A==
+  version "4.17.19"
+  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.19.tgz#e48ddedbe30b3321783c5b4301fbd353bc1e4a4b"
+  integrity sha512-JNvd8XER9GQX0v2qJgsaN/mzFCNA5BRe/j8JN9d+tWyGLSodKQHKFicdwNYzWwI3wjRnaKPsGj1XkBjx/F96DQ==
 
 loglevel@^1.6.8:
   version "1.6.8"

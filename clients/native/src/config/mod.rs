@@ -151,6 +151,16 @@ impl Config {
             self.client.ack_key_file = self::Client::default_ack_key_file(&id);
         }
 
+        if self
+            .client
+            .reply_encryption_key_store_path
+            .as_os_str()
+            .is_empty()
+        {
+            self.client.reply_encryption_key_store_path =
+                self::Client::default_reply_encryption_key_store_path(&id);
+        }
+
         self.client.id = id;
         self
     }
@@ -366,6 +376,10 @@ impl Client {
 
     fn default_ack_key_file(id: &str) -> PathBuf {
         Config::default_data_directory(Some(id)).join("ack_key.pem")
+    }
+
+    fn default_reply_encryption_key_store_path(id: &str) -> PathBuf {
+        Config::default_data_directory(Some(id)).join("reply_key_store")
     }
 }
 

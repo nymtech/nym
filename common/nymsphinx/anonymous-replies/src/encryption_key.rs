@@ -29,7 +29,7 @@ pub type DefaultHasher = blake3::Hasher;
 
 // TODO: what should be the 'correct' length of the digest we want?
 // presumably 32 bytes to match ed25519 public key size?
-type HasherOutputSize = U32;
+pub type HasherOutputSize = U32;
 
 pub type EncryptionKeyDigest = GenericArray<u8, HasherOutputSize>;
 

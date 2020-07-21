@@ -15,7 +15,7 @@
 use crate::built_info;
 use crate::client::key_manager::KeyManager;
 use crate::commands::override_config;
-use crate::config::persistence::pathfinder::ClientPathfinder;
+use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::identity;
@@ -190,7 +190,7 @@ pub fn execute(matches: &ArgMatches) {
         config = config.with_gateway_listener(gateway_listener);
     }
 
-    let pathfinder = ClientPathfinder::new_from_config(&config);
+    let pathfinder = ClientKeyPathfinder::new_from_config(&config);
     key_manager
         .store_keys(&pathfinder)
         .expect("Failed to generated keys");

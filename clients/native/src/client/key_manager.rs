@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::persistence::pathfinder::ClientPathfinder;
+use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use crypto::asymmetric::{encryption, identity};
 use gateway_requests::registration::handshake::SharedKey;
 use log::*;
@@ -66,7 +66,7 @@ impl KeyManager {
     }
 
     /// Loads previously stored keys from the disk.
-    pub(crate) fn load_keys(client_pathfinder: &ClientPathfinder) -> io::Result<Self> {
+    pub(crate) fn load_keys(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
         let identity_keypair: identity::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(
                 client_pathfinder.private_identity_key().to_owned(),
@@ -97,7 +97,7 @@ impl KeyManager {
     // While perhaps there is no much point in storing the `AckAes128Key` on the disk,
     // it is done so for the consistency sake so that you wouldn't require an rng instance
     // during `load_keys` to generate the said key.
-    pub(crate) fn store_keys(&self, client_pathfinder: &ClientPathfinder) -> io::Result<()> {
+    pub(crate) fn store_keys(&self, client_pathfinder: &ClientKeyPathfinder) -> io::Result<()> {
         pemstore::store_keypair(
             self.identity_keypair.as_ref(),
             &pemstore::KeyPairPath::new(

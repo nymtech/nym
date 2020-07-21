@@ -123,10 +123,6 @@ impl MessageReceiver {
                 *message = message.drain(1 + surb_len..).collect();
                 Ok(Some(reply_surb))
             }
-            n if n == MessageType::IsReply as u8 => {
-                unimplemented!("this will probably require completely different logic and perhaps make this function itself irrelevant")
-            }
-
             _ => Err(MessageRecoveryError::InvalidSurbPrefixError),
         }
     }

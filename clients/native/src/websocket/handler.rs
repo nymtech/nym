@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::types::{BinaryClientRequest, ClientRequest, ServerResponse};
+use super::types::{BinaryClientRequest, ClientTextRequest, ServerTextResponse};
 use crate::client::{
     inbound_messages::{InputMessage, InputMessageSender},
     received_buffer::{
@@ -25,6 +25,7 @@ use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::anonymous_replies::ReplySURB;
 use nymsphinx::receiver::ReconstructedMessage;
 use std::convert::{TryFrom, TryInto};
 use tokio::net::TcpStream;
@@ -98,39 +99,57 @@ impl Handler {
         msg: String,
         full_recipient_address: String,
         with_reply_surb: bool,
-    ) -> Option<ServerResponse> {
+    ) -> Option<ServerTextResponse> {
         let message_bytes = msg.into_bytes();
 
         let recipient = match Recipient::try_from_string(full_recipient_address) {
             Ok(address) => address,
-            Err(e) => {
-                trace!("failed to parse received Recipient: {:?}", e);
-                return Some(ServerResponse::new_error("malformed recipient address"));
+            Err(err) => {
+                trace!("failed to parse received Recipient: {:?}", err);
+                return Some(ServerTextResponse::new_error("malformed recipient address"));
             }
         };
 
         // the ack control is now responsible for chunking, etc.
-        let input_msg = InputMessage::new(recipient, message_bytes, with_reply_surb);
+        let input_msg = InputMessage::new_fresh(recipient, message_bytes, with_reply_surb);
         self.msg_input.unbounded_send(input_msg).unwrap();
 
         self.received_response_type = ReceivedResponseType::Text;
         None
     }
 
-    async fn handle_text_get_clients(&mut self) -> ServerResponse {
+    fn handle_text_reply(&mut self, msg: String, reply_surb: String) -> Option<ServerTextResponse> {
+        let message_bytes = msg.into_bytes();
+
+        let reply_surb = match ReplySURB::from_base58_string(reply_surb) {
+            Ok(reply_surb) => reply_surb,
+            Err(err) => {
+                trace!("failed to parse received ReplySURB: {:?}", err);
+                return Some(ServerTextResponse::new_error("malformed reply surb"));
+            }
+        };
+
+        let input_msg = InputMessage::new_reply(reply_surb, message_bytes);
+        self.msg_input.unbounded_send(input_msg).unwrap();
+
+        self.received_response_type = ReceivedResponseType::Text;
+        None
+    }
+
+    async fn handle_text_get_clients(&mut self) -> ServerTextResponse {
         match self.topology_accessor.get_all_clients().await {
             Some(clients) => {
                 let client_keys = clients.into_iter().map(|client| client.pub_key).collect();
-                ServerResponse::GetClients {
+                ServerTextResponse::GetClients {
                     clients: client_keys,
                 }
             }
-            None => ServerResponse::new_error("invalid network topology"),
+            None => ServerTextResponse::new_error("invalid network topology"),
         }
     }
 
-    fn handle_text_self_address(&self) -> ServerResponse {
-        ServerResponse::SelfAddress {
+    fn handle_text_self_address(&self) -> ServerTextResponse {
+        ServerTextResponse::SelfAddress {
             address: self.self_full_address.to_string(),
         }
     }
@@ -139,35 +158,58 @@ impl Handler {
         debug!("Handling text message request");
         trace!("Content: {:?}", msg.clone());
 
-        match ClientRequest::try_from(msg) {
+        match ClientTextRequest::try_from(msg) {
             Err(e) => Some(
-                ServerResponse::Error {
+                ServerTextResponse::Error {
                     message: format!("received invalid request. err: {:?}", e),
                 }
                 .into(),
             ),
             Ok(req) => match req {
-                ClientRequest::Send {
+                ClientTextRequest::Send {
                     message,
                     recipient,
                     with_reply_surb,
                 } => self
                     .handle_text_send(message, recipient, with_reply_surb)
                     .map(|resp| resp.into()),
-                ClientRequest::GetClients => Some(self.handle_text_get_clients().await.into()),
-                ClientRequest::SelfAddress => Some(self.handle_text_self_address().into()),
+                ClientTextRequest::Reply {
+                    message,
+                    reply_surb,
+                } => self
+                    .handle_text_reply(message, reply_surb)
+                    .map(|resp| resp.into()),
+                ClientTextRequest::GetClients => Some(self.handle_text_get_clients().await.into()),
+                ClientTextRequest::SelfAddress => Some(self.handle_text_self_address().into()),
             },
         }
     }
 
-    async fn handle_binary_send(
+    fn handle_binary_send(
         &mut self,
         recipient: Recipient,
         data: Vec<u8>,
         with_reply_surb: bool,
-    ) -> Option<ServerResponse> {
+    ) -> Option<ServerTextResponse> {
         // the ack control is now responsible for chunking, etc.
-        let input_msg = InputMessage::new(recipient, data, with_reply_surb);
+        let input_msg = InputMessage::new_fresh(recipient, data, with_reply_surb);
+        self.msg_input.unbounded_send(input_msg).unwrap();
+
+        self.received_response_type = ReceivedResponseType::Binary;
+
+        None
+    }
+
+    fn handle_binary_reply(
+        &mut self,
+        reply_surb: ReplySURB,
+        message: Vec<u8>,
+    ) -> Option<ServerTextResponse> {
+        if message.len() > ReplySURB::max_default_msg_len() {
+            return Some(ServerTextResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySURB::max_default_msg_len())));
+        }
+
+        let input_msg = InputMessage::new_reply(reply_surb, message);
         self.msg_input.unbounded_send(input_msg).unwrap();
 
         self.received_response_type = ReceivedResponseType::Binary;
@@ -177,24 +219,25 @@ impl Handler {
 
     // if it's binary we assume it's a sphinx packet formatted the same way as we'd have sent
     // it to the gateway
-    async fn handle_binary_message(&mut self, msg: Vec<u8>) -> Option<Message> {
+    fn handle_binary_message(&mut self, msg: Vec<u8>) -> Option<Message> {
         debug!("Handling binary message request");
 
         self.received_response_type = ReceivedResponseType::Binary;
         // make sure it is correctly formatted
         let binary_request = BinaryClientRequest::try_from_bytes(&msg);
         if binary_request.is_none() {
-            return Some(ServerResponse::new_error("invalid binary request").into());
+            return Some(ServerTextResponse::new_error("invalid binary request").into());
         }
         match binary_request.unwrap() {
             BinaryClientRequest::Send {
                 recipient,
                 data,
                 with_reply_surb,
-            } => {
-                self.handle_binary_send(recipient, data, with_reply_surb)
-                    .await
-            }
+            } => self.handle_binary_send(recipient, data, with_reply_surb),
+            BinaryClientRequest::Reply {
+                message,
+                reply_surb,
+            } => self.handle_binary_reply(reply_surb, message),
         }
         .map(|resp| resp.into())
     }
@@ -205,7 +248,7 @@ impl Handler {
         // old version of this file.
         match raw_request {
             Message::Text(text_message) => self.handle_text_message(text_message).await,
-            Message::Binary(binary_message) => self.handle_binary_message(binary_message).await,
+            Message::Binary(binary_message) => self.handle_binary_message(binary_message),
             _ => None,
         }
     }
@@ -214,7 +257,7 @@ impl Handler {
         &mut self,
         reconstructed_messages: Vec<ReconstructedMessage>,
     ) -> Result<(), WsError> {
-        // TODO: later there will be a flag on the reconstructed message itself
+        // TODO: later there might be a flag on the reconstructed message itself
 
         let response_messages: Vec<_> = match self.received_response_type {
             ReceivedResponseType::Binary => reconstructed_messages

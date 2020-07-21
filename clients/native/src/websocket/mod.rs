@@ -19,4 +19,4 @@ pub(crate) mod types;
 pub(crate) use handler::Handler;
 pub(crate) use listener::Listener;
 
-pub use types::{BinaryClientRequest, ClientRequest, ServerResponse};
+pub use types::{BinaryClientRequest, ClientTextRequest, ServerTextResponse};

@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//use directory_client::presence::providers::MixProviderClient;
-//use log::*;
-//use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
-//use sfw_provider_requests::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
-//use std::path::PathBuf;
-
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
 use gateway_requests::generic_array::typenum::Unsigned;
@@ -50,7 +44,7 @@ impl ClientLedger {
         let ledger = ClientLedger { db };
 
         ledger.db.iter().keys().for_each(|key| {
-            println!(
+            trace!(
                 "key: {:?}",
                 ledger
                     .read_destination_address_bytes(key.unwrap())

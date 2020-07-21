@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::encryption_key::{
-    SURBEncryptionKey, SURBEncryptionKeyError, SURBEncryptionKeySize, Unsigned,
+    HasherOutputSize, SURBEncryptionKey, SURBEncryptionKeyError, SURBEncryptionKeySize, Unsigned,
 };
 use crypto::symmetric::aes_ctr;
 use nymsphinx_addressing::clients::Recipient;
@@ -47,6 +47,11 @@ pub struct ReplySURB {
 }
 
 impl ReplySURB {
+    pub fn max_default_msg_len() -> usize {
+        // we need to also put the key digest into the message
+        PacketSize::default().plaintext_size() - HasherOutputSize::to_usize()
+    }
+
     // TODO: should this return `ReplySURBError` for consistency sake
     // or keep `NymTopologyError` because it's the only error it can actually return?
     pub fn construct<R>(
@@ -133,18 +138,27 @@ impl ReplySURB {
     ) -> Result<(SphinxPacket, NymNodeRoutingAddress), ReplySURBError> {
         let packet_size = packet_size.unwrap_or_else(|| Default::default());
 
-        // there's no chunking in reply-surbs
-        if message.len() > packet_size.plaintext_size() {
+        // there's no chunking in reply-surbs so there's a hard limit on message,
+        // we also need to put the key digest into the message
+        if message.len() > packet_size.plaintext_size() - HasherOutputSize::to_usize() {
             return Err(ReplySURBError::TooLongMessageError);
         }
 
         let encrypted_message =
             aes_ctr::encrypt(&self.encryption_key, &aes_ctr::zero_iv(), message);
 
+        let message_with_digest: Vec<_> = self
+            .encryption_key
+            .compute_digest()
+            .to_vec()
+            .into_iter()
+            .chain(encrypted_message.into_iter())
+            .collect();
+
         // this can realistically only fail on too messages and we just checked for that
         let (packet, first_hop) = self
             .surb
-            .use_surb(&encrypted_message, packet_size.payload_size())
+            .use_surb(&message_with_digest, packet_size.payload_size())
             .expect("this error indicates inconsistent message length checking - it shouldn't have happened!");
 
         let first_hop_address = NymNodeRoutingAddress::try_from(first_hop).unwrap();

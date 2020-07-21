@@ -16,8 +16,7 @@ use crate::config::Config;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
-pub struct ClientPathfinder {
-    config_dir: PathBuf,
+pub struct ClientKeyPathfinder {
     identity_private_key: PathBuf,
     identity_public_key: PathBuf,
     encryption_private_key: PathBuf,
@@ -26,24 +25,22 @@ pub struct ClientPathfinder {
     ack_key: PathBuf,
 }
 
-impl ClientPathfinder {
+impl ClientKeyPathfinder {
     pub fn new(id: String) -> Self {
         let os_config_dir = dirs::config_dir().expect("no config directory known for this OS"); // grabs the OS default config dir
         let config_dir = os_config_dir.join("nym").join("clients").join(id);
-        ClientPathfinder {
+        ClientKeyPathfinder {
             identity_private_key: config_dir.join("private_identity.pem"),
             identity_public_key: config_dir.join("public_identity.pem"),
             encryption_private_key: config_dir.join("public_encryption.pem"),
             encryption_public_key: config_dir.join("private_encryption.pem"),
             gateway_shared_key: config_dir.join("gateway_shared.pem"),
             ack_key: config_dir.join("ack_key.pem"),
-            config_dir,
         }
     }
 
     pub fn new_from_config(config: &Config) -> Self {
-        ClientPathfinder {
-            config_dir: config.get_config_file_save_location(),
+        ClientKeyPathfinder {
             identity_private_key: config.get_private_identity_key_file(),
             identity_public_key: config.get_public_identity_key_file(),
             encryption_private_key: config.get_private_encryption_key_file(),
@@ -51,10 +48,6 @@ impl ClientPathfinder {
             gateway_shared_key: config.get_gateway_shared_key_file(),
             ack_key: config.get_ack_key_file(),
         }
-    }
-
-    pub fn config_dir(&self) -> &Path {
-        &self.config_dir
     }
 
     pub fn private_identity_key(&self) -> &Path {

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use super::{PendingAcknowledgement, PendingAcksMap};
+use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{
     inbound_messages::{InputMessage, InputMessageReceiver},
     real_messages_control::real_traffic_stream::{RealMessage, RealMessageSender},
@@ -20,6 +21,8 @@ use crate::client::{
 };
 use futures::StreamExt;
 use log::*;
+use nymsphinx::anonymous_replies::ReplySURB;
+use nymsphinx::chunking::fragment::REPLY_FRAG_ID;
 use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckAes128Key, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
@@ -37,6 +40,7 @@ where
     pending_acks: PendingAcksMap,
     real_message_sender: RealMessageSender,
     topology_access: TopologyAccessor,
+    reply_key_storage: ReplyKeyStorage,
 }
 
 impl<R> InputMessageListener<R>
@@ -51,6 +55,7 @@ where
         pending_acks: PendingAcksMap,
         real_message_sender: RealMessageSender,
         topology_access: TopologyAccessor,
+        reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         InputMessageListener {
             ack_key,
@@ -60,34 +65,55 @@ where
             pending_acks,
             real_message_sender,
             topology_access,
+            reply_key_storage,
         }
     }
 
-    async fn on_input_message(&mut self, msg: InputMessage) {
-        let (recipient, content, with_reply_surb) = msg.destruct();
+    // reply processing is significantly simpler than 'fresh' message - there is no route generation,
+    // chunking, ack attaching, etc here
+    async fn handle_reply(&mut self, reply_surb: ReplySURB, data: Vec<u8>) -> Option<RealMessage> {
+        match reply_surb.use_surb(&data, None) {
+            Ok((sphinx_packet, first_hop)) => {
+                Some(RealMessage::new(first_hop, sphinx_packet, REPLY_FRAG_ID))
+            }
+            Err(err) => {
+                // TODO: should we have some mechanism to indicate to the user that the `reply_surb`
+                // could be reused since technically it wasn't used up here?
+                warn!("failed to deal with received reply surb - {:?}", err);
+                None
+            }
+        }
+    }
 
+    async fn handle_fresh_message(
+        &mut self,
+        recipient: Recipient,
+        content: Vec<u8>,
+        with_reply_surb: bool,
+    ) -> Vec<RealMessage> {
+        // get current network topology
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology_ref_option =
             topology_permit.try_get_valid_topology_ref(&self.ack_recipient, &recipient);
         if topology_ref_option.is_none() {
             warn!("Could not process the message - the network topology is invalid");
-            return;
+            return Vec::new();
         }
         let topology_ref = topology_ref_option.unwrap();
 
-        let (split_message, _reply_key) = self
+        // split the message, attach optional reply surb
+        let (split_message, reply_key) = self
             .message_preparer
             .prepare_and_split_message(content, with_reply_surb, topology_ref)
             .expect("somehow the topology was invalid after all!");
 
-        // TODO:
-        // TODO:
-        // TODO:
-        // TODO:
-        // TODO:
-        // WE'RE NOT STORING, HANDLING, ANYTHING, THE REPLY KEY!!
-        // IN FACT, WHERE SHOULD IT EVEN GO?
+        if let Some(reply_key) = reply_key {
+            self.reply_key_storage
+                .insert_encryption_key(reply_key)
+                .expect("Failed to insert surb reply key to the store!")
+        }
 
+        // encrypt chunks, put them inside sphinx packets and generate acks
         let mut pending_acks = Vec::with_capacity(split_message.len());
         let mut real_messages = Vec::with_capacity(split_message.len());
         for message_chunk in split_message {
@@ -124,6 +150,28 @@ where
                 panic!("Tried to insert duplicate pending ack")
             }
         }
+
+        real_messages
+    }
+
+    async fn on_input_message(&mut self, msg: InputMessage) {
+        let real_messages = match msg {
+            InputMessage::Fresh {
+                recipient,
+                data,
+                with_reply_surb,
+            } => {
+                self.handle_fresh_message(recipient, data, with_reply_surb)
+                    .await
+            }
+            InputMessage::Reply { reply_surb, data } => {
+                if let Some(real_message) = self.handle_reply(reply_surb, data).await {
+                    vec![real_message]
+                } else {
+                    return;
+                }
+            }
+        };
 
         for real_message in real_messages {
             self.real_message_sender

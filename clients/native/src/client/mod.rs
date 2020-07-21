@@ -35,6 +35,7 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
+use nymsphinx::anonymous_replies::ReplySURB;
 use nymsphinx::receiver::ReconstructedMessage;
 use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
 use tokio::runtime::Runtime;
@@ -45,6 +46,7 @@ pub(crate) mod key_manager;
 mod mix_traffic;
 pub(crate) mod real_messages_control;
 pub(crate) mod received_buffer;
+mod reply_key_storage;
 pub(crate) mod topology_control;
 
 pub struct NymClient {
@@ -274,7 +276,20 @@ impl NymClient {
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
     pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>, with_reply_surb: bool) {
-        let input_msg = InputMessage::new(recipient, message, with_reply_surb);
+        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb);
+
+        self.input_tx
+            .as_ref()
+            .expect("start method was not called before!")
+            .unbounded_send(input_msg)
+            .unwrap();
+    }
+
+    /// EXPERIMENTAL DIRECT RUST API
+    /// It's untested and there are absolutely no guarantees about it (but seems to have worked
+    /// well enough in local tests)
+    pub fn send_reply(&mut self, reply_surb: ReplySURB, message: Vec<u8>) {
+        let input_msg = InputMessage::new_reply(reply_surb, message);
 
         self.input_tx
             .as_ref()
@@ -288,6 +303,7 @@ impl NymClient {
     /// well enough in local tests)
     /// Note: it waits for the first occurrence of messages being sent to ourselves. If you expect multiple
     /// messages, you might have to call this function repeatedly.
+    // TODO: I guess this should really return something that `impl Stream<Item=ReconstructedMessage>`
     pub async fn wait_for_messages(&mut self) -> Vec<ReconstructedMessage> {
         use futures::StreamExt;
 

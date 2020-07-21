@@ -73,7 +73,12 @@ impl ReplyKeyStorage {
 
         let insertion_result = match self.db.insert(digest.to_vec(), encryption_key.to_bytes()) {
             Err(e) => Err(ReplyKeyStorageError::DbWriteError(e)),
-            Ok(_) => panic!("HASH COLLISION DETECTED"),
+            Ok(existing_key) => {
+                if existing_key.is_some() {
+                    panic!("HASH COLLISION DETECTED")
+                };
+                Ok(())
+            }
         };
 
         // TODO: perhaps we could implement some batching mechanism to avoid frequent flushes?
@@ -99,7 +104,7 @@ impl ReplyKeyStorage {
         key_digest: EncryptionKeyDigest,
     ) -> Result<Option<SURBEncryptionKey>, ReplyKeyStorageError> {
         let removal_result = match self.db.remove(&key_digest.to_vec()) {
-            Err(e) => Err(ReplyKeyStorageError::DbWriteError(e)),
+            Err(e) => Err(ReplyKeyStorageError::DbReadError(e)),
             Ok(existing_key) => {
                 Ok(existing_key.map(|existing_key| self.read_encryption_key(existing_key)))
             }

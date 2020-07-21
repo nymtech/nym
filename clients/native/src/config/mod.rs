@@ -212,6 +212,10 @@ impl Config {
         self.client.gateway_shared_key_file.clone()
     }
 
+    pub fn get_reply_encryption_key_store_path(&self) -> PathBuf {
+        self.client.reply_encryption_key_store_path.clone()
+    }
+
     pub fn get_ack_key_file(&self) -> PathBuf {
         self.client.ack_key_file.clone()
     }
@@ -303,6 +307,10 @@ pub struct Client {
     /// acknowledgement so that nobody besides the client knows which packet it refers to.
     ack_key_file: PathBuf,
 
+    /// Full path to file containing reply encryption keys of all reply-SURBs we have ever
+    /// sent but not received back.
+    reply_encryption_key_store_path: PathBuf,
+
     /// gateway_id specifies ID of the gateway to which the client should send messages.
     /// If initially omitted, a random gateway will be chosen from the available topology.
     gateway_id: String,
@@ -327,6 +335,7 @@ impl Default for Client {
             public_encryption_key_file: Default::default(),
             gateway_shared_key_file: Default::default(),
             ack_key_file: Default::default(),
+            reply_encryption_key_store_path: Default::default(),
             gateway_id: "".to_string(),
             gateway_listener: "".to_string(),
             nym_root_directory: Config::default_root_directory(),

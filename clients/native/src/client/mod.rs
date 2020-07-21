@@ -20,10 +20,11 @@ use crate::client::real_messages_control::RealMessagesController;
 use crate::client::received_buffer::{
     ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
 };
+use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
-use crate::config::persistence::pathfinder::ClientPathfinder;
+use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use crate::config::{Config, SocketType};
 use crate::websocket;
 use crypto::asymmetric::identity;
@@ -64,7 +65,7 @@ pub struct NymClient {
 
 impl NymClient {
     pub fn new(config: Config) -> Self {
-        let pathfinder = ClientPathfinder::new_from_config(&config);
+        let pathfinder = ClientKeyPathfinder::new_from_config(&config);
         let key_manager = KeyManager::load_keys(&pathfinder).expect("failed to load stored keys");
 
         NymClient {
@@ -114,6 +115,7 @@ impl NymClient {
     fn start_real_traffic_controller(
         &self,
         topology_accessor: TopologyAccessor,
+        reply_key_storage: ReplyKeyStorage,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: MixMessageSender,
@@ -139,6 +141,7 @@ impl NymClient {
                 input_receiver,
                 mix_sender,
                 topology_accessor,
+                reply_key_storage,
             )
         });
         real_messages_controller.start(self.runtime.handle());
@@ -150,12 +153,14 @@ impl NymClient {
         &self,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_receiver: MixnetMessageReceiver,
+        reply_key_storage: ReplyKeyStorage,
     ) {
         info!("Starting received messages buffer controller...");
         ReceivedMessagesBufferController::new(
             self.key_manager.encryption_keypair(),
             query_receiver,
             mixnet_receiver,
+            reply_key_storage,
         )
         .start(self.runtime.handle())
     }
@@ -356,12 +361,17 @@ impl NymClient {
         let (ack_sender, ack_receiver) = mpsc::unbounded();
         let shared_topology_accessor = TopologyAccessor::new();
 
+        let reply_key_storage =
+            ReplyKeyStorage::load(self.config.get_reply_encryption_key_store_path())
+                .expect("Failed to load reply key storage!");
+
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
         self.start_topology_refresher(shared_topology_accessor.clone());
         self.start_received_messages_buffer_controller(
             received_buffer_request_receiver,
             mixnet_messages_receiver,
+            reply_key_storage.clone(),
         );
 
         let gateway_client = self.start_gateway_client(mixnet_messages_sender, ack_sender);
@@ -369,6 +379,7 @@ impl NymClient {
         self.start_mix_traffic_controller(sphinx_message_receiver, gateway_client);
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
+            reply_key_storage,
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),

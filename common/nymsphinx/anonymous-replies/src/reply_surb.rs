@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use crate::encryption_key::{
-    HasherOutputSize, SURBEncryptionKey, SURBEncryptionKeyError, SURBEncryptionKeySize, Unsigned,
+    DefaultHasher, HasherOutputSize, SURBEncryptionKey, SURBEncryptionKeyError,
+    SURBEncryptionKeySize, Unsigned,
 };
 use crypto::symmetric::aes_ctr;
 use nymsphinx_addressing::clients::Recipient;
@@ -149,7 +150,7 @@ impl ReplySURB {
 
         let message_with_digest: Vec<_> = self
             .encryption_key
-            .compute_digest()
+            .compute_digest::<DefaultHasher>()
             .to_vec()
             .into_iter()
             .chain(encrypted_message.into_iter())

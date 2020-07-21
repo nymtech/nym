@@ -63,6 +63,9 @@ pub const COVER_FRAG_ID: FragmentIdentifier = FragmentIdentifier {
     fragment_position: 0,
 };
 
+// some 'irrelevant' value on which nothing is going to get done
+pub const REPLY_FRAG_ID: FragmentIdentifier = COVER_FRAG_ID;
+
 /// Identifier to uniquely identify a fragment. It represents 31bit ID of given `FragmentSet`
 /// and u8 position of the `Fragment` in the set.
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]

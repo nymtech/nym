@@ -20,6 +20,7 @@ use self::{
     acknowlegement_control::AcknowledgementController, real_traffic_stream::OutQueueControl,
 };
 use crate::client::real_messages_control::acknowlegement_control::AcknowledgementControllerConnectors;
+use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{
     inbound_messages::InputMessageReceiver, mix_traffic::MixMessageSender,
     topology_control::TopologyAccessor,
@@ -87,6 +88,7 @@ impl RealMessagesController<OsRng> {
         input_receiver: InputMessageReceiver,
         mix_sender: MixMessageSender,
         topology_access: TopologyAccessor,
+        reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         let rng = OsRng;
 
@@ -105,6 +107,7 @@ impl RealMessagesController<OsRng> {
             topology_access.clone(),
             Arc::clone(&config.ack_key),
             config.self_recipient.clone(),
+            reply_key_storage,
             config.average_packet_delay_duration,
             config.average_ack_delay_duration,
             config.ack_wait_multiplier,

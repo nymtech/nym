@@ -35,7 +35,7 @@ pub(crate) enum ReplyKeyStorageError {
 /// with each reply.
 /// Moreover, there is no restriction when the [`ReplySURB`] might get used so we need to
 /// have a permanent storage for all the keys that we might ever see in the future.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ReplyKeyStorage {
     db: sled::Db,
 }

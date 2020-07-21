@@ -19,6 +19,7 @@ use self::{
     sent_notification_listener::SentNotificationListener,
 };
 use super::real_traffic_stream::RealMessageSender;
+use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{inbound_messages::InputMessageReceiver, topology_control::TopologyAccessor};
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
@@ -114,6 +115,7 @@ where
         topology_access: TopologyAccessor,
         ack_key: Arc<AckAes128Key>,
         ack_recipient: Recipient,
+        reply_key_storage: ReplyKeyStorage,
         average_packet_delay: Duration,
         average_ack_delay: Duration,
         ack_wait_multiplier: f64,
@@ -142,6 +144,7 @@ where
             Arc::clone(&pending_acks),
             connectors.real_message_sender.clone(),
             topology_access.clone(),
+            reply_key_storage,
         );
 
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();

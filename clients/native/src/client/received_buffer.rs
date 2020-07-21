@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::client::reply_key_storage::ReplyKeyStorage;
 use crypto::asymmetric::encryption;
+use crypto::symmetric::aes_ctr;
+use crypto::symmetric::aes_ctr::generic_array::typenum::Unsigned;
 use futures::channel::mpsc;
-use futures::lock::{Mutex, MutexGuard};
+use futures::lock::Mutex;
 use futures::StreamExt;
 use gateway_client::MixnetMessageReceiver;
 use log::*;
+use nymsphinx::anonymous_replies::{
+    encryption_key::{EncryptionKeyDigest, HasherOutputSize},
+    SURBEncryptionKey,
+};
 use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -53,10 +60,17 @@ struct ReceivedMessagesBufferInner {
 // You should always use .clone() to create additional instances
 struct ReceivedMessagesBuffer {
     inner: Arc<Mutex<ReceivedMessagesBufferInner>>,
+
+    /// Storage containing keys to all [`ReplySURB`]s ever sent out that we did not receive back.
+    // There's no need to put it behind a Mutex since it's already properly concurrent
+    reply_key_storage: ReplyKeyStorage,
 }
 
 impl ReceivedMessagesBuffer {
-    fn new(local_encryption_keypair: Arc<encryption::KeyPair>) -> Self {
+    fn new(
+        local_encryption_keypair: Arc<encryption::KeyPair>,
+        reply_key_storage: ReplyKeyStorage,
+    ) -> Self {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
                 messages: Vec::new(),
@@ -65,6 +79,7 @@ impl ReceivedMessagesBuffer {
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
             })),
+            reply_key_storage,
         }
     }
 
@@ -114,7 +129,7 @@ impl ReceivedMessagesBuffer {
 
     // TODO: when refactoring this code, get rid of direct MutexGuard argument here, it looks hideous
     fn process_received_fragment(
-        mutex_guard: &mut MutexGuard<ReceivedMessagesBufferInner>,
+        buffer_inner: &mut ReceivedMessagesBufferInner,
         raw_fragment: Vec<u8>,
     ) -> Option<ReconstructedMessage> {
         if nymsphinx::cover::is_cover(&raw_fragment) {
@@ -122,8 +137,8 @@ impl ReceivedMessagesBuffer {
             return None;
         }
 
-        let fragment = match mutex_guard.message_receiver.recover_fragment(
-            mutex_guard.local_encryption_keypair.private_key(),
+        let fragment = match buffer_inner.message_receiver.recover_fragment(
+            buffer_inner.local_encryption_keypair.private_key(),
             raw_fragment,
         ) {
             Err(e) => {
@@ -133,18 +148,18 @@ impl ReceivedMessagesBuffer {
             Ok(frag) => frag,
         };
 
-        if mutex_guard.recently_reconstructed.contains(&fragment.id()) {
+        if buffer_inner.recently_reconstructed.contains(&fragment.id()) {
             debug!("Received a chunk of already re-assembled message ({:?})! It probably got here because the ack got lost", fragment.id());
             return None;
         }
 
         // if we returned an error the underlying message is malformed in some way
-        match mutex_guard.message_receiver.insert_new_fragment(fragment) {
+        match buffer_inner.message_receiver.insert_new_fragment(fragment) {
             Err(err) => match err {
                 MessageRecoveryError::MalformedReconstructedMessage(message_sets) => {
                     // TODO: should we really insert reconstructed sets? could this be abused for some attack?
                     for set_id in message_sets {
-                        if !mutex_guard.recently_reconstructed.insert(set_id) {
+                        if !buffer_inner.recently_reconstructed.insert(set_id) {
                             // or perhaps we should even panic at this point?
                             error!("Reconstructed another message containing already used set id!")
                         }
@@ -158,7 +173,7 @@ impl ReceivedMessagesBuffer {
             Ok(reconstruction_result) => match reconstruction_result {
                 Some((reconstructed_message, used_sets)) => {
                     for set_id in used_sets {
-                        if !mutex_guard.recently_reconstructed.insert(set_id) {
+                        if !buffer_inner.recently_reconstructed.insert(set_id) {
                             // or perhaps we should even panic at this point?
                             error!("Reconstructed another message containing already used set id!")
                         }
@@ -170,20 +185,57 @@ impl ReceivedMessagesBuffer {
         }
     }
 
-    async fn add_new_message_fragments(&mut self, msgs: Vec<Vec<u8>>) {
+    // TODO: when refactoring this code, get rid of direct MutexGuard argument here, it looks hideous
+    fn process_received_reply(
+        reply_ciphertext: &[u8],
+        reply_key: SURBEncryptionKey,
+    ) -> ReconstructedMessage {
+        let reply_msg = aes_ctr::decrypt(&reply_key, &aes_ctr::zero_iv(), reply_ciphertext);
+
+        // TODO: perhaps having to say it doesn't have a surb an indication the type should be changed?
+        ReconstructedMessage {
+            message: reply_msg,
+            reply_SURB: None,
+        }
+    }
+
+    async fn handle_new_received(&mut self, msgs: Vec<Vec<u8>>) {
         debug!(
-            "Adding {:?} new message fragments to the buffer!",
+            "Processing {:?} new message that might get added to the buffer!",
             msgs.len()
         );
-        trace!("Adding new message fragments to the buffer! {:?}", msgs);
 
         let mut completed_messages = Vec::new();
         let mut inner_guard = self.inner.lock().await;
-        for msg_fragment in msgs {
-            if let Some(completed_message) =
-                Self::process_received_fragment(&mut inner_guard, msg_fragment)
+
+        // first check if this is a reply or a chunked message
+        // TODO: verify with @AP if this way of doing it is safe or whether it could
+        // cause some attacks due to, I don't know, stupid edge case collisions?
+        for msg in msgs {
+            let possible_key_digest =
+                EncryptionKeyDigest::clone_from_slice(&msg[..HasherOutputSize::to_usize()]);
+
+            // check first `HasherOutputSize` bytes if they correspond to known encryption key
+            // if yes - this is a reply message
+
+            // TODO: this might be a bottleneck - since the keys are stored on disk we, presumably,
+            // are doing a disk operation every single received fragment
+            if let Some(reply_encryption_key) = self
+                .reply_key_storage
+                .get_and_remove_encryption_key(possible_key_digest)
+                .expect("storage operation failed!")
             {
-                completed_messages.push(completed_message)
+                completed_messages.push(Self::process_received_reply(
+                    &msg[HasherOutputSize::to_usize()..],
+                    reply_encryption_key,
+                ))
+            } else {
+                // otherwise - it's a 'normal' message
+                if let Some(completed_message) =
+                    Self::process_received_fragment(&mut inner_guard, msg)
+                {
+                    completed_messages.push(completed_message)
+                }
             }
         }
 
@@ -268,9 +320,7 @@ impl FragmentedMessageReceiver {
     fn start(mut self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move {
             while let Some(new_messages) = self.mixnet_packet_receiver.next().await {
-                self.received_buffer
-                    .add_new_message_fragments(new_messages)
-                    .await;
+                self.received_buffer.handle_new_received(new_messages).await;
             }
         })
     }
@@ -286,8 +336,10 @@ impl ReceivedMessagesBufferController {
         local_encryption_keypair: Arc<encryption::KeyPair>,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_packet_receiver: MixnetMessageReceiver,
+        reply_key_storage: ReplyKeyStorage,
     ) -> Self {
-        let received_buffer = ReceivedMessagesBuffer::new(local_encryption_keypair);
+        let received_buffer =
+            ReceivedMessagesBuffer::new(local_encryption_keypair, reply_key_storage);
 
         ReceivedMessagesBufferController {
             fragmented_message_receiver: FragmentedMessageReceiver::new(

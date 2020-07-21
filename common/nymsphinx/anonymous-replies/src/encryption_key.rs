@@ -12,11 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use crypto::symmetric::aes_ctr::generic_array::typenum::Unsigned;
-use crypto::symmetric::aes_ctr::{generic_array::GenericArray, Aes128Key, Aes128KeySize};
+pub use crypto::symmetric::aes_ctr::{
+    generic_array::{
+        typenum::{Unsigned, U32},
+        ArrayLength, GenericArray,
+    },
+    Aes128Key, Aes128KeySize,
+};
+use digest::Digest;
 use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
 use std::ops::Deref;
+
+// TODO: what should be the default hasher here? Blake3? Sha3? Something else?
+pub type DefaultHasher = blake3::Hasher;
+
+// TODO: what should be the 'correct' length of the digest we want?
+// presumably 32 bytes to match ed25519 public key size?
+type HasherOutputSize = U32;
+
+pub type EncryptionKeyDigest = GenericArray<u8, HasherOutputSize>;
 
 pub type SURBEncryptionKeySize = Aes128KeySize;
 
@@ -53,6 +68,15 @@ impl SURBEncryptionKey {
         }
 
         Ok(SURBEncryptionKey(GenericArray::clone_from_slice(bytes)))
+    }
+
+    pub fn compute_digest<D>(&self) -> EncryptionKeyDigest
+    where
+        D: Digest<OutputSize = HasherOutputSize>,
+    {
+        let mut hasher = D::new();
+        hasher.update(&self.0);
+        hasher.finalize()
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

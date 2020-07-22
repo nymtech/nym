@@ -61,6 +61,12 @@ impl AcknowledgementListener {
         if frag_id == COVER_FRAG_ID {
             trace!("Received an ack for a cover message - no need to do anything");
             return;
+        } else if frag_id.is_reply() {
+            debug!("Received an ack for a reply message - no need to do anything!");
+            // TODO: probably there will need to be some extra procedure here, something to notify
+            // user that his reply reached the recipient (since we got an ack)
+            info!("We received an ack for one of the replies we sent!");
+            return;
         }
 
         if let Some(pending_ack) = self.pending_acks.write().await.remove(&frag_id) {

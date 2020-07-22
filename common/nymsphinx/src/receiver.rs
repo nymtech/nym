@@ -151,7 +151,7 @@ impl MessageReceiver {
 
     /// Removes the zero padding from the message that was initially included to ensure same length
     /// sphinx payloads.
-    fn remove_padding(message: &mut Vec<u8>) -> Result<(), MessageRecoveryError> {
+    pub fn remove_padding(message: &mut Vec<u8>) -> Result<(), MessageRecoveryError> {
         // we are looking for first occurrence of 1 in the tail and we get its index
         if let Some(i) = message.iter().rposition(|b| *b == 1) {
             // and now we only take bytes until that point (but not including it)

@@ -76,7 +76,7 @@ pub(crate) type FragmentSet = Vec<Fragment>;
 /// Finally, the reason 0 id is not allowed is to explicitly distinguish it from `COVER_FRAG_ID`
 /// `Fragment`s thus allowing for some additional optimizations by letting it skip
 /// certain procedures when reconstructing.
-fn generate_set_id<R: Rng>(rng: &mut R) -> i32 {
+pub(crate) fn generate_set_id<R: Rng>(rng: &mut R) -> i32 {
     let potential_id = rng.gen::<i32>().abs();
     // make sure id is always non-zero, as we do not want to accidentally have weird
     // reconstruction cases where unfragmented payload overwrites some part of set with id0

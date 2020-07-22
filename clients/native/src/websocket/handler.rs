@@ -205,8 +205,8 @@ impl Handler {
         reply_surb: ReplySURB,
         message: Vec<u8>,
     ) -> Option<ServerTextResponse> {
-        if message.len() > ReplySURB::max_default_msg_len() {
-            return Some(ServerTextResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySURB::max_default_msg_len())));
+        if message.len() > ReplySURB::max_msg_len(Default::default()) {
+            return Some(ServerTextResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySURB::max_msg_len(Default::default()))));
         }
 
         let input_msg = InputMessage::new_reply(reply_surb, message);

@@ -22,11 +22,11 @@ use crate::client::{
 use futures::StreamExt;
 use log::*;
 use nymsphinx::anonymous_replies::ReplySURB;
-use nymsphinx::chunking::fragment::REPLY_FRAG_ID;
 use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckAes128Key, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
+use topology::NymTopology;
 
 // responsible for splitting received message and initial sending attempt
 pub(super) struct InputMessageListener<R>
@@ -69,12 +69,26 @@ where
         }
     }
 
-    // reply processing is significantly simpler than 'fresh' message - there is no route generation,
-    // chunking, ack attaching, etc here
     async fn handle_reply(&mut self, reply_surb: ReplySURB, data: Vec<u8>) -> Option<RealMessage> {
-        match reply_surb.use_surb(&data, None) {
-            Ok((sphinx_packet, first_hop)) => {
-                Some(RealMessage::new(first_hop, sphinx_packet, REPLY_FRAG_ID))
+        let topology_permit = self.topology_access.get_read_permit().await;
+        let topology_ref_option =
+            topology_permit.try_get_valid_topology_ref(&self.ack_recipient, None);
+        if topology_ref_option.is_none() {
+            warn!("Could not process the message - the network topology is invalid");
+            return None;
+        }
+        let topology = topology_ref_option.unwrap();
+
+        match self
+            .message_preparer
+            .prepare_reply_for_use(data, reply_surb, topology, &self.ack_key)
+        {
+            Ok((reply_id, sphinx_packet, first_hop)) => {
+                // TODO: later probably write pending ack here
+                // and deal with them....
+                // ... somehow
+
+                Some(RealMessage::new(first_hop, sphinx_packet, reply_id))
             }
             Err(err) => {
                 // TODO: should we have some mechanism to indicate to the user that the `reply_surb`
@@ -91,20 +105,19 @@ where
         content: Vec<u8>,
         with_reply_surb: bool,
     ) -> Vec<RealMessage> {
-        // get current network topology
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology_ref_option =
-            topology_permit.try_get_valid_topology_ref(&self.ack_recipient, &recipient);
+            topology_permit.try_get_valid_topology_ref(&self.ack_recipient, Some(&recipient));
         if topology_ref_option.is_none() {
             warn!("Could not process the message - the network topology is invalid");
             return Vec::new();
         }
-        let topology_ref = topology_ref_option.unwrap();
+        let topology = topology_ref_option.unwrap();
 
         // split the message, attach optional reply surb
         let (split_message, reply_key) = self
             .message_preparer
-            .prepare_and_split_message(content, with_reply_surb, topology_ref)
+            .prepare_and_split_message(content, with_reply_surb, topology)
             .expect("somehow the topology was invalid after all!");
 
         if let Some(reply_key) = reply_key {
@@ -124,7 +137,7 @@ where
             let chunk_clone = message_chunk.clone();
             let prepared_fragment = self
                 .message_preparer
-                .prepare_chunk_for_sending(chunk_clone, topology_ref, &self.ack_key, &recipient)
+                .prepare_chunk_for_sending(chunk_clone, topology, &self.ack_key, &recipient)
                 .unwrap();
 
             real_messages.push(RealMessage::new(

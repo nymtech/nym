@@ -189,13 +189,17 @@ impl ReceivedMessagesBuffer {
     fn process_received_reply(
         reply_ciphertext: &[u8],
         reply_key: SURBEncryptionKey,
-    ) -> ReconstructedMessage {
-        let reply_msg = aes_ctr::decrypt(&reply_key, &aes_ctr::zero_iv(), reply_ciphertext);
-
-        // TODO: perhaps having to say it doesn't have a surb an indication the type should be changed?
-        ReconstructedMessage {
-            message: reply_msg,
-            reply_SURB: None,
+    ) -> Option<ReconstructedMessage> {
+        let mut reply_msg = aes_ctr::decrypt(&reply_key, &aes_ctr::zero_iv(), reply_ciphertext);
+        if let Err(err) = MessageReceiver::remove_padding(&mut reply_msg) {
+            warn!("Received reply had malformed padding! - {:?}", err);
+            None
+        } else {
+            // TODO: perhaps having to say it doesn't have a surb an indication the type should be changed?
+            Some(ReconstructedMessage {
+                message: reply_msg,
+                reply_SURB: None,
+            })
         }
     }
 
@@ -225,10 +229,12 @@ impl ReceivedMessagesBuffer {
                 .get_and_remove_encryption_key(possible_key_digest)
                 .expect("storage operation failed!")
             {
-                completed_messages.push(Self::process_received_reply(
+                if let Some(completed_message) = Self::process_received_reply(
                     &msg[HasherOutputSize::to_usize()..],
                     reply_encryption_key,
-                ))
+                ) {
+                    completed_messages.push(completed_message)
+                }
             } else {
                 // otherwise - it's a 'normal' message
                 if let Some(completed_message) =

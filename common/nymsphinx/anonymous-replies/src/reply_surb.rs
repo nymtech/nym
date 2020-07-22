@@ -13,12 +13,10 @@
 // limitations under the License.
 
 use crate::encryption_key::{
-    DefaultHasher, HasherOutputSize, SURBEncryptionKey, SURBEncryptionKeyError,
-    SURBEncryptionKeySize, Unsigned,
+    HasherOutputSize, SURBEncryptionKey, SURBEncryptionKeyError, SURBEncryptionKeySize, Unsigned,
 };
-use crypto::symmetric::aes_ctr;
 use nymsphinx_addressing::clients::Recipient;
-use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
+use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
 use nymsphinx_types::{delays, Error as SphinxError, SURBMaterial, SphinxPacket, SURB};
@@ -29,7 +27,7 @@ use topology::{NymTopology, NymTopologyError};
 
 #[derive(Debug)]
 pub enum ReplySURBError {
-    TooLongMessageError,
+    NonPaddedMessageError,
     MalformedStringError,
     RecoveryError(SphinxError),
     InvalidEncryptionKeyData(SURBEncryptionKeyError),
@@ -48,9 +46,11 @@ pub struct ReplySURB {
 }
 
 impl ReplySURB {
-    pub fn max_default_msg_len() -> usize {
-        // we need to also put the key digest into the message
-        PacketSize::default().plaintext_size() - HasherOutputSize::to_usize()
+    pub fn max_msg_len(packet_size: PacketSize) -> usize {
+        // For detailed explanation (of ack overhead) refer to common\nymsphinx\src\preparer.rs::available_plaintext_per_packet()
+        let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::ACKPacket.size();
+
+        packet_size.plaintext_size() - ack_overhead - HasherOutputSize::to_usize() - 1
     }
 
     // TODO: should this return `ReplySURBError` for consistency sake
@@ -132,34 +132,26 @@ impl ReplySURB {
     }
 
     // Allows to optionally increase the packet size to send slightly longer reply.
-    pub fn use_surb(
+    // the "used" surb produces the following bytes:
+    // note that the `message` argument is expected to already contain all the required parts, i.e.:
+    // - surb-ack
+    // - key digest
+    // - encrypted plaintext with padding to constant length
+    pub fn apply_surb(
         self,
         message: &[u8],
         packet_size: Option<PacketSize>,
     ) -> Result<(SphinxPacket, NymNodeRoutingAddress), ReplySURBError> {
         let packet_size = packet_size.unwrap_or_else(|| Default::default());
 
-        // there's no chunking in reply-surbs so there's a hard limit on message,
-        // we also need to put the key digest into the message
-        if message.len() > packet_size.plaintext_size() - HasherOutputSize::to_usize() {
-            return Err(ReplySURBError::TooLongMessageError);
+        if message.len() != packet_size.plaintext_size() {
+            return Err(ReplySURBError::NonPaddedMessageError);
         }
 
-        let encrypted_message =
-            aes_ctr::encrypt(&self.encryption_key, &aes_ctr::zero_iv(), message);
-
-        let message_with_digest: Vec<_> = self
-            .encryption_key
-            .compute_digest::<DefaultHasher>()
-            .to_vec()
-            .into_iter()
-            .chain(encrypted_message.into_iter())
-            .collect();
-
-        // this can realistically only fail on too messages and we just checked for that
+        // this can realistically only fail on too long messages and we just checked for that
         let (packet, first_hop) = self
             .surb
-            .use_surb(&message_with_digest, packet_size.payload_size())
+            .use_surb(&message, packet_size.payload_size())
             .expect("this error indicates inconsistent message length checking - it shouldn't have happened!");
 
         let first_hop_address = NymNodeRoutingAddress::try_from(first_hop).unwrap();

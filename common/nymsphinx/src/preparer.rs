@@ -22,7 +22,7 @@ use nymsphinx_acknowledgements::surb_ack::SURBAck;
 use nymsphinx_acknowledgements::AckAes128Key;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
-use nymsphinx_anonymous_replies::encryption_key::SURBEncryptionKey;
+use nymsphinx_anonymous_replies::encryption_key::{self, DefaultHasher, SURBEncryptionKey};
 use nymsphinx_anonymous_replies::reply_surb::ReplySURB;
 use nymsphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nymsphinx_params::packet_sizes::PacketSize;
@@ -50,6 +50,7 @@ pub struct PreparedFragment {
 #[derive(Debug)]
 pub enum PreparationError {
     TopologyError(NymTopologyError),
+    TooLongReplyMessageError,
 }
 
 impl From<NymTopologyError> for PreparationError {
@@ -334,20 +335,90 @@ where
         // are left in each chunk
         Ok((self.split_message(message), reply_key))
 
-        // // 4. For each fragment:
-        // // - generate (x, g^x)
-        // // - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
-        // // - compute v_b = AES-128-CTR(k, serialized_fragment)
-        // // - compute vk_b = g^x || v_b
-        // // - compute sphinx = Sphinx(recipient, vk_b)
-        // let mut prepared_messages = Vec::with_capacity(fragments.len());
-        // for fragment in fragments {
-        //     let prepared_message =
-        //         self.prepare_chunk_for_sending(fragment, topology, ack_key, recipient)?;
-        //     prepared_messages.push(prepared_message)
-        // }
-        //
-        // Ok((prepared_messages, reply_key))
+        // 4. For each fragment:
+        // - generate (x, g^x)
+        // - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
+        // - compute v_b = AES-128-CTR(k, serialized_fragment)
+        // - compute vk_b = g^x || v_b
+        // - compute sphinx = Sphinx(recipient, vk_b)
+    }
+
+    // TODO: perhaps the return type could somehow be combined with [`PreparedFragment`] ?
+    pub fn prepare_reply_for_use(
+        &mut self,
+        message: Vec<u8>,
+        reply_surb: ReplySURB,
+        topology: &NymTopology,
+        ack_key: &AckAes128Key,
+    ) -> Result<(FragmentIdentifier, SphinxPacket, NymNodeRoutingAddress), PreparationError> {
+        // there's no chunking in reply-surbs so there's a hard limit on message,
+        // we also need to put the key digest into the message (same size as ephemeral key)
+        // and need 1 byte to indicate padding length (this is not the case for 'normal' messages
+        // as there the padding is added for the whole message)
+        // so before doing any processing, let's see if we have enough space for it all
+        let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::ACKPacket.size();
+        if message.len()
+            > self.packet_size.plaintext_size()
+                - ack_overhead
+                - encryption_key::HasherOutputSize::to_usize()
+                - 1
+        {
+            return Err(PreparationError::TooLongReplyMessageError);
+        }
+
+        let reply_id = FragmentIdentifier::new_reply(&mut self.rng);
+
+        // create an ack
+        // even though it won't be used for retransmission, it must be present so that
+        // gateways could not distinguish reply packets from normal messages due to lack of said acks
+        // note: the ack delay is irrelevant since we do not know the delay of actual surb
+        let (_, surb_ack_bytes) = self
+            .generate_surb_ack(&reply_id, topology, ack_key)?
+            .prepare_for_sending();
+
+        let zero_pad_len = self.packet_size.plaintext_size()
+            - message.len()
+            - ack_overhead
+            - encryption_key::HasherOutputSize::to_usize()
+            - 1;
+
+        // create reply message that will reach the recipient:
+        let mut reply_content: Vec<_> = message
+            .into_iter()
+            .chain(std::iter::once(1))
+            .chain(std::iter::repeat(0).take(zero_pad_len))
+            .collect();
+
+        // encrypt the reply message
+        aes_ctr::encrypt_in_place(
+            reply_surb.encryption_key(),
+            &aes_ctr::zero_iv(),
+            &mut reply_content,
+        );
+
+        // combine it together as follows:
+        // SURB_ACK_FIRST_HOP || SURB_ACK_DATA || KEY_DIGEST || E (REPLY_MESSAGE || 1 || 0*)
+        // (note: surb_ack_bytes contains SURB_ACK_FIRST_HOP || SURB_ACK_DATA )
+        let packet_payload: Vec<_> = surb_ack_bytes
+            .into_iter()
+            .chain(
+                reply_surb
+                    .encryption_key()
+                    .compute_digest::<DefaultHasher>()
+                    .to_vec()
+                    .into_iter(),
+            )
+            .chain(reply_content.into_iter())
+            .collect();
+
+        // finally put it all inside a sphinx packet
+        // this can only fail if packet payload has incorrect size, but if it does, it means
+        // there's a bug in the above code
+        let (packet, first_hop) = reply_surb
+            .apply_surb(&packet_payload, Some(self.packet_size))
+            .unwrap();
+
+        Ok((reply_id, packet, first_hop))
     }
 
     #[cfg(test)]

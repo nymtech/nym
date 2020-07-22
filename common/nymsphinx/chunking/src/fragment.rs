@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::set::generate_set_id;
 use crate::ChunkingError;
+use rand::Rng;
 use std::convert::TryInto;
 
 // Personal reflection: In hindsight I've spent too much time on relatively too little
@@ -63,11 +65,10 @@ pub const COVER_FRAG_ID: FragmentIdentifier = FragmentIdentifier {
     fragment_position: 0,
 };
 
-// some 'irrelevant' value on which nothing is going to get done
-pub const REPLY_FRAG_ID: FragmentIdentifier = COVER_FRAG_ID;
-
 /// Identifier to uniquely identify a fragment. It represents 31bit ID of given `FragmentSet`
 /// and u8 position of the `Fragment` in the set.
+// TODO: this should really be redesigned, especially how cover and reply messages are really
+// "abusing" this. They should work with it natively instead.
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub struct FragmentIdentifier {
     set_id: i32,
@@ -75,6 +76,20 @@ pub struct FragmentIdentifier {
 }
 
 impl FragmentIdentifier {
+    // I really dislike how 'hacky' this function seems
+    // refer to: https://github.com/nymtech/nym/issues/294 for further discussion
+    pub fn new_reply<R: Rng>(rng: &mut R) -> Self {
+        FragmentIdentifier {
+            set_id: generate_set_id(rng),
+            fragment_position: 0,
+        }
+    }
+
+    // and this one
+    pub fn is_reply(&self) -> bool {
+        self.set_id > 0 && self.fragment_position == 0
+    }
+
     pub fn to_bytes(&self) -> [u8; 5] {
         let set_id_bytes = self.set_id.to_be_bytes();
         [
@@ -88,7 +103,7 @@ impl FragmentIdentifier {
 
     pub fn try_from_bytes(b: [u8; 5]) -> Result<Self, ChunkingError> {
         let set_id = i32::from_be_bytes([b[0], b[1], b[2], b[3]]);
-        // set_id == 0 is valid for, and only for, COVER_FRAG_ID
+        // set_id == 0 is valid for COVER_FRAG_ID and replies
         if set_id < 0 {
             return Err(ChunkingError::MalformedFragmentIdentifier);
         }

@@ -83,8 +83,8 @@ where
         drop(pending_acks_map_read_guard);
 
         let topology_permit = self.topology_access.get_read_permit().await;
-        let topology_ref_option =
-            topology_permit.try_get_valid_topology_ref(&self.ack_recipient, &packet_recipient);
+        let topology_ref_option = topology_permit
+            .try_get_valid_topology_ref(&self.ack_recipient, Some(&packet_recipient));
         if topology_ref_option.is_none() {
             warn!("Could not retransmit the packet - the network topology is invalid");
             // TODO: perhaps put back into pending acks and reset the timer?

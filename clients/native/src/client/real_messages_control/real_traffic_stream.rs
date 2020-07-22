@@ -183,7 +183,7 @@ where
                 // the ack is sent back to ourselves (and then ignored)
                 let topology_ref_option = topology_permit.try_get_valid_topology_ref(
                     &self.our_full_destination,
-                    &self.our_full_destination,
+                    Some(&self.our_full_destination),
                 );
                 if topology_ref_option.is_none() {
                     warn!(

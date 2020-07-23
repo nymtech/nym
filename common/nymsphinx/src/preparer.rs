@@ -15,6 +15,7 @@
 use crate::chunking;
 use crypto::asymmetric::encryption;
 use crypto::kdf::blake3_hkdf;
+use crypto::new_ephemeral_shared_key;
 use crypto::symmetric::aes_ctr::{
     self, generic_array::typenum::Unsigned, Aes128Key, Aes128KeySize,
 };
@@ -150,28 +151,6 @@ where
             .collect()
     }
 
-    /// Generate fresh set of ephemeral keys for one data chunk.
-    // we need to keep our ephemeral public key for sending and the actual derived key for encryption
-    fn new_ephemeral_shared_key(
-        &mut self,
-        remote_key: &encryption::PublicKey,
-    ) -> (encryption::PublicKey, Aes128Key) {
-        let ephemeral_keypair = encryption::KeyPair::new_with_rng(&mut self.rng);
-
-        // after performing diffie-hellman we don't care about the private component anymore
-        let dh_result = ephemeral_keypair.private_key().diffie_hellman(remote_key);
-
-        // there is no reason for this to fail as our okm is expected to be only 16 bytes
-        let okm =
-            blake3_hkdf::extract_then_expand(None, &dh_result, None, Aes128KeySize::to_usize())
-                .expect("somehow too long okm was provided");
-
-        let derived_shared_key =
-            Aes128Key::from_exact_iter(okm).expect("okm was expanded to incorrect length!");
-
-        (ephemeral_keypair.public_key().clone(), derived_shared_key)
-    }
-
     /// Attaches reply-SURB to the message alongside the reply key.
     fn optionally_attach_reply_surb(
         &mut self,
@@ -246,8 +225,8 @@ where
             .prepare_for_sending();
 
         // create keys for 'payload' encryption
-        let (ephemeral_key, shared_key) =
-            self.new_ephemeral_shared_key(packet_recipient.encryption_key());
+        let (ephemeral_keypair, shared_key) =
+            new_ephemeral_shared_key(&mut self.rng, packet_recipient.encryption_key());
 
         // serialize fragment and encrypt its content
         let mut chunk_data = fragment.into_bytes();
@@ -258,7 +237,7 @@ where
         // (note: surb_ack_bytes contains SURB_ACK_FIRST_HOP || SURB_ACK_DATA )
         let packet_payload: Vec<_> = surb_ack_bytes
             .into_iter()
-            .chain(ephemeral_key.to_bytes().iter().cloned())
+            .chain(ephemeral_keypair.public_key().to_bytes().iter().cloned())
             .chain(chunk_data.into_iter())
             .collect();
 

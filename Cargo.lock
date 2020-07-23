@@ -2025,6 +2025,7 @@ dependencies = [
 name = "nymsphinx-cover"
 version = "0.1.0"
 dependencies = [
+ "crypto",
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
  "nymsphinx-chunking",

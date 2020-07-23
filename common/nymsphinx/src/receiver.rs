@@ -21,6 +21,7 @@ use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_chunking::reconstruction::MessageReconstructor;
 use nymsphinx_params::{MessageType, DEFAULT_NUM_MIX_HOPS};
 
+// TODO: should this live in this file?
 #[allow(non_snake_case)]
 #[derive(Debug)]
 pub struct ReconstructedMessage {
@@ -44,6 +45,30 @@ impl ReconstructedMessage {
                 .collect()
         }
     }
+
+    pub fn try_from_bytes(b: &[u8]) -> Result<Self, MessageRecoveryError> {
+        if b.is_empty() {
+            return Err(MessageRecoveryError::TooShortMessageError);
+        }
+
+        match b[0] {
+            n if n == MessageType::WithReplySURB as u8 => {
+                let surb_len = ReplySURB::serialized_len(DEFAULT_NUM_MIX_HOPS);
+                if b.len() < surb_len + 1 {
+                    return Err(MessageRecoveryError::TooShortMessageError);
+                }
+                Ok(ReconstructedMessage {
+                    reply_SURB: Some(ReplySURB::from_bytes(&b[1..1 + surb_len])?),
+                    message: b[1 + surb_len..].to_vec(),
+                })
+            }
+            n if n == MessageType::WithoutReplySURB as u8 => Ok(ReconstructedMessage {
+                message: b[1..].to_vec(),
+                reply_SURB: None,
+            }),
+            _ => Err(MessageRecoveryError::InvalidSurbPrefixError),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -54,6 +79,7 @@ pub enum MessageRecoveryError {
     MalformedFragmentError,
     InvalidMessagePaddingError,
     MalformedReconstructedMessage(Vec<i32>),
+    TooShortMessageError,
 }
 
 impl From<ReplySURBError> for MessageRecoveryError {
@@ -181,7 +207,7 @@ impl MessageReceiver {
                 Err(_) => {
                     return Err(MessageRecoveryError::MalformedReconstructedMessage(
                         used_sets,
-                    ))
+                    ));
                 }
             };
 

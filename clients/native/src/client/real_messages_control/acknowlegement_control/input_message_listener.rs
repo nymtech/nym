@@ -26,7 +26,6 @@ use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckAes128Key, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
-use topology::NymTopology;
 
 // responsible for splitting received message and initial sending attempt
 pub(super) struct InputMessageListener<R>

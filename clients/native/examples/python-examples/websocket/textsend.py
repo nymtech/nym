@@ -36,6 +36,10 @@ async def send_text_with_reply():
 
     uri = "ws://localhost:1977"
     async with websockets.connect(uri) as websocket:
+        await websocket.send(self_address_request)
+        self_address = json.loads(await websocket.recv())
+        print("our address is: {}".format(self_address["address"]))
+
         text_send = json.dumps({
             "type": "send",
             "message": message,

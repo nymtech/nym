@@ -285,8 +285,8 @@ impl Handler {
                         .collect()
                 } else {
                     decoded_messages
-                        .iter()
-                        .map(|msg| Ok(Message::Text(msg.to_json())))
+                        .into_iter()
+                        .map(|msg| Ok(ServerTextResponse::Received(msg).into()))
                         .collect()
                 }
             }

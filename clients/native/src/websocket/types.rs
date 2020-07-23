@@ -55,11 +55,11 @@ impl Into<WsMessage> for ClientTextRequest {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ReceivedMessage {
-    message: String,
-    reply_surb: Option<String>,
+    pub message: String,
+    pub reply_surb: Option<String>,
 }
 
 impl<'a> TryFrom<&'a ReconstructedMessage> for ReceivedMessage {
@@ -76,20 +76,10 @@ impl<'a> TryFrom<&'a ReconstructedMessage> for ReceivedMessage {
     }
 }
 
-impl ReceivedMessage {
-    pub fn to_json(&self) -> String {
-        // from the docs:
-        // "Serialization can fail if `T`'s implementation of `Serialize` decides to
-        // fail, or if `T` contains a map with non-string keys."
-        // so under those conditions it's impossible for the serialization to fail.
-        serde_json::to_string(&self).expect("json serialization unexpectedly failed!")
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ServerTextResponse {
-    Received { messages: Vec<ReceivedMessage> },
+    Received(ReceivedMessage),
     GetClients { clients: Vec<String> },
     SelfAddress { address: String },
     Error { message: String },
@@ -221,6 +211,35 @@ impl BinaryClientRequest {
 }
 
 impl Into<WsMessage> for BinaryClientRequest {
+    fn into(self) -> WsMessage {
+        WsMessage::Binary(self.into_bytes())
+    }
+}
+
+pub enum BinaryServerResponse {
+    Received(ReconstructedMessage),
+}
+
+impl BinaryServerResponse {
+    pub fn into_bytes(self) -> Vec<u8> {
+        match self {
+            // this happens to work because right now there's only a single possible binary response
+            BinaryServerResponse::Received(reconstructed_message) => {
+                reconstructed_message.into_bytes()
+            }
+        }
+    }
+
+    // TODO: dont be lazy and define error type and change it into Result<Self, Error>
+    pub fn try_from_bytes(b: &[u8]) -> Option<Self> {
+        // this happens to work because right now there's only a single possible binary response
+        Some(BinaryServerResponse::Received(
+            ReconstructedMessage::try_from_bytes(b).ok()?,
+        ))
+    }
+}
+
+impl Into<WsMessage> for BinaryServerResponse {
     fn into(self) -> WsMessage {
         WsMessage::Binary(self.into_bytes())
     }

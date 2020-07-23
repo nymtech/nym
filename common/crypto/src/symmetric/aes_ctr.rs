@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use aes_ctr::stream_cipher::generic_array;
 use aes_ctr::{
-    stream_cipher::{
-        generic_array::{
-            typenum::{Unsigned, U16},
-            GenericArray,
-        },
-        NewStreamCipher, SyncStreamCipher,
-    },
+    stream_cipher::{NewStreamCipher, SyncStreamCipher},
     Aes128Ctr,
+};
+pub use generic_array::{
+    self,
+    typenum::{Unsigned, U16},
+    GenericArray,
 };
 use rand::{CryptoRng, RngCore};
 

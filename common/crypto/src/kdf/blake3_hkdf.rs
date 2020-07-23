@@ -12,28 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use hkdf::Hkdf;
+use crate::kdf::HkdfError;
 
-#[derive(Debug)]
-pub enum HkdfError {
-    InvalidOkmLength,
-}
-
-/// Perform HKDF `extract` then `expand` as a single step.
+// this is kinda left here not to break older code
+/// Perform HKDF `extract` then `expand` as a single step using blake3 algorithm.
 pub fn extract_then_expand(
     salt: Option<&[u8]>,
     ikm: &[u8],
     info: Option<&[u8]>,
     okm_length: usize,
 ) -> Result<Vec<u8>, HkdfError> {
-    // TODO: this would need to change if we ever needed the generated pseudorandom key, but
-    // realistically I don't see any reasons why we might need it
-
-    let hkdf = Hkdf::<blake3::Hasher>::new(salt, ikm);
-    let mut okm = vec![0u8; okm_length];
-    if let Err(_) = hkdf.expand(info.unwrap_or_else(|| &[]), &mut okm) {
-        return Err(HkdfError::InvalidOkmLength);
-    }
-
-    Ok(okm)
+    super::extract_then_expand::<blake3::Hasher>(salt, ikm, info, okm_length)
 }

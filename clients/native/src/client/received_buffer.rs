@@ -132,17 +132,28 @@ impl ReceivedMessagesBuffer {
         buffer_inner: &mut ReceivedMessagesBufferInner,
         raw_fragment: Vec<u8>,
     ) -> Option<ReconstructedMessage> {
-        if nymsphinx::cover::is_cover(&raw_fragment) {
-            trace!("The message was a loop cover message! Skipping it");
-            return None;
-        }
-
-        let fragment = match buffer_inner.message_receiver.recover_fragment(
+        let fragment_data = match buffer_inner.message_receiver.recover_plaintext(
             buffer_inner.local_encryption_keypair.private_key(),
             raw_fragment,
         ) {
             Err(e) => {
                 warn!("failed to recover fragment data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
+                return None;
+            }
+            Ok(frag_data) => frag_data,
+        };
+
+        if nymsphinx::cover::is_cover(&fragment_data) {
+            trace!("The message was a loop cover message! Skipping it");
+            return None;
+        }
+
+        let fragment = match buffer_inner
+            .message_receiver
+            .recover_fragment(&fragment_data)
+        {
+            Err(e) => {
+                warn!("failed to recover fragment from raw data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
                 return None;
             }
             Ok(frag) => frag,

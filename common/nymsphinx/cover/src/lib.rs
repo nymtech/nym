@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crypto::new_ephemeral_shared_key;
+use crypto::symmetric::aes_ctr;
 use nymsphinx_acknowledgements::surb_ack::SURBAck;
 use nymsphinx_acknowledgements::AckAes128Key;
 use nymsphinx_addressing::clients::Recipient;
@@ -91,16 +93,33 @@ where
         generate_loop_cover_surb_ack(rng, topology, ack_key, full_address, average_ack_delay)?
             .prepare_for_sending();
 
-    let plaintext_size = PacketSize::default().plaintext_size();
+    // cover message can't be distinguishable from a normal traffic so we have to go through
+    // all the effort of key generation, encryption, etc. Note here we are generating shared key
+    // with ourselves!
+    let (ephemeral_keypair, shared_key) =
+        new_ephemeral_shared_key(rng, full_address.encryption_key());
 
-    let cover_payload: Vec<_> = ack_bytes
+    let public_key_bytes = ephemeral_keypair.public_key().to_bytes();
+    let cover_size =
+        PacketSize::default().plaintext_size() - public_key_bytes.len() - ack_bytes.len();
+
+    let mut cover_content: Vec<_> = LOOP_COVER_MESSAGE_PAYLOAD
         .into_iter()
-        .chain(LOOP_COVER_MESSAGE_PAYLOAD.into_iter().cloned())
-        // let's be lazy about it (temporarily! because cover messages will need to be encrypted)
-        // TODO: to remember: encrypt cover messages
+        .cloned()
         .chain(std::iter::once(1))
         .chain(std::iter::repeat(0))
-        .take(plaintext_size)
+        .take(cover_size)
+        .collect();
+
+    aes_ctr::encrypt_in_place(&shared_key, &aes_ctr::zero_iv(), &mut cover_content);
+
+    // combine it together as follows:
+    // SURB_ACK_FIRST_HOP || SURB_ACK_DATA || EPHEMERAL_KEY || COVER_CONTENT
+    // (note: surb_ack_bytes contains SURB_ACK_FIRST_HOP || SURB_ACK_DATA )
+    let packet_payload: Vec<_> = ack_bytes
+        .into_iter()
+        .chain(ephemeral_keypair.public_key().to_bytes().iter().cloned())
+        .chain(cover_content.into_iter())
         .collect();
 
     let route =
@@ -111,7 +130,7 @@ where
     // once merged, that's an easy rng injection point for sphinx packets : )
     let packet = SphinxPacketBuilder::new()
         .with_payload_size(PacketSize::default().payload_size())
-        .build_packet(cover_payload, &route, &destination, &delays)
+        .build_packet(packet_payload, &route, &destination, &delays)
         .unwrap();
 
     let first_hop_address =

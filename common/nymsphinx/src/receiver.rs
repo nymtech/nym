@@ -154,12 +154,12 @@ impl MessageReceiver {
     }
 
     /// Given raw fragment data, recovers the remote ephemeral key, recomputes shared secret,
-    /// uses it to decrypt fragment data and finally recovers [`Fragment`] itself.
-    pub fn recover_fragment(
+    /// uses it to decrypt fragment data
+    pub fn recover_plaintext(
         &self,
         local_key: &encryption::PrivateKey,
         mut raw_enc_frag: Vec<u8>,
-    ) -> Result<Fragment, MessageRecoveryError> {
+    ) -> Result<Vec<u8>, MessageRecoveryError> {
         // 1. recover remote encryption key
         let remote_key_bytes = &raw_enc_frag[..encryption::PUBLIC_KEY_SIZE];
         let remote_ephemeral_key = encryption::PublicKey::from_bytes(remote_key_bytes)?;
@@ -169,9 +169,16 @@ impl MessageReceiver {
 
         // 3. decrypt fragment data
         let mut fragment_bytes = &mut raw_enc_frag[encryption::PUBLIC_KEY_SIZE..];
-        aes_ctr::decrypt_in_place(&encryption_key, &aes_ctr::zero_iv(), &mut fragment_bytes);
+        Ok(aes_ctr::decrypt(
+            &encryption_key,
+            &aes_ctr::zero_iv(),
+            &mut fragment_bytes,
+        ))
+    }
 
-        Fragment::try_from_bytes(fragment_bytes)
+    /// Given fragment data recovers [`Fragment`] itself.
+    pub fn recover_fragment(&self, frag_data: &[u8]) -> Result<Fragment, MessageRecoveryError> {
+        Fragment::try_from_bytes(frag_data)
             .map_err(|_| MessageRecoveryError::MalformedFragmentError)
     }
 

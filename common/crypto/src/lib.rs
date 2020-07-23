@@ -18,6 +18,7 @@ use crate::symmetric::aes_ctr::{generic_array::typenum::Unsigned, Aes128Key, Aes
 use rand::{CryptoRng, RngCore};
 
 pub mod asymmetric;
+pub mod hmac;
 pub mod kdf;
 pub mod symmetric;
 

@@ -584,8 +584,11 @@ dependencies = [
  "aes-ctr 0.4.0",
  "blake3",
  "bs58",
+ "digest 0.9.0",
  "ed25519-dalek",
+ "generic-array 0.14.1",
  "hkdf 0.9.0",
+ "hmac 0.8.1",
  "log 0.4.8",
  "nymsphinx-types",
  "pemstore",
@@ -1181,7 +1184,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe1149865383e4526a43aee8495f9a325f0b806c63ce6427d06336a590abbbc9"
 dependencies = [
  "digest 0.9.0",
- "hmac 0.8.0",
+ "hmac 0.8.1",
 ]
 
 [[package]]
@@ -1196,9 +1199,9 @@ dependencies = [
 
 [[package]]
 name = "hmac"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b87b580bd66811cc2324a27f3587de707cacf7525b96dca8122f7493e6cce0da"
+checksum = "126888268dcc288495a26bf004b38c5fdbb31682f992c84ceb046a1f0fe38840"
 dependencies = [
  "crypto-mac 0.8.0",
  "digest 0.9.0",

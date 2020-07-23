@@ -20,7 +20,7 @@ use crate::client::{
     },
     topology_control::TopologyAccessor,
 };
-use crate::websocket::types::ReceivedMessage;
+use crate::websocket::types::ReceivedTextMessage;
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::*;
@@ -265,7 +265,7 @@ impl Handler {
                 .map(|msg| Ok(Message::Binary(msg.into_bytes())))
                 .collect(),
             ReceivedResponseType::Text => {
-                let mut decoded_messages: Vec<ReceivedMessage> = Vec::new();
+                let mut decoded_messages: Vec<ReceivedTextMessage> = Vec::new();
                 // either all succeed or all fall back
                 let mut did_fail = false;
                 for message in reconstructed_messages.iter() {

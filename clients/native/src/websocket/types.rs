@@ -57,16 +57,16 @@ impl Into<WsMessage> for ClientTextRequest {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct ReceivedMessage {
+pub struct ReceivedTextMessage {
     pub message: String,
     pub reply_surb: Option<String>,
 }
 
-impl<'a> TryFrom<&'a ReconstructedMessage> for ReceivedMessage {
+impl<'a> TryFrom<&'a ReconstructedMessage> for ReceivedTextMessage {
     type Error = std::str::Utf8Error;
 
     fn try_from(reconstructed_message: &ReconstructedMessage) -> Result<Self, Self::Error> {
-        Ok(ReceivedMessage {
+        Ok(ReceivedTextMessage {
             message: std::str::from_utf8(&reconstructed_message.message)?.to_string(),
             reply_surb: reconstructed_message
                 .reply_SURB
@@ -79,7 +79,7 @@ impl<'a> TryFrom<&'a ReconstructedMessage> for ReceivedMessage {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ServerTextResponse {
-    Received(ReceivedMessage),
+    Received(ReceivedTextMessage),
     GetClients { clients: Vec<String> },
     SelfAddress { address: String },
     Error { message: String },

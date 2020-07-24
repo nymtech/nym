@@ -21,7 +21,7 @@ use config::NymConfig;
 use crypto::asymmetric::identity;
 use directory_client::DirectoryClient;
 use gateway_client::GatewayClient;
-use gateway_requests::registration::handshake::SharedKey;
+use gateway_requests::registration::handshake::SharedKeys;
 use rand::rngs::OsRng;
 use std::convert::TryInto;
 use std::sync::Arc;
@@ -67,7 +67,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
 async fn try_gateway_registration(
     gateways: &[gateway::Node],
     our_identity: Arc<identity::KeyPair>,
-) -> Option<(String, String, SharedKey)> {
+) -> Option<(String, String, SharedKeys)> {
     let timeout = Duration::from_millis(1500);
     for gateway in gateways {
         let mut gateway_client = GatewayClient::new_init(
@@ -97,7 +97,7 @@ async fn try_gateway_registration(
 async fn choose_gateway(
     directory_server: String,
     our_identity: Arc<identity::KeyPair>,
-) -> (String, String, SharedKey) {
+) -> (String, String, SharedKeys) {
     let directory_client_config = directory_client::Config::new(directory_server.clone());
     let directory_client = directory_client::Client::new(directory_client_config);
     let topology = directory_client.get_topology().await.unwrap();

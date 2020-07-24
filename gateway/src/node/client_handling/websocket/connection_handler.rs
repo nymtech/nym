@@ -27,7 +27,7 @@ use futures::{
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
 use gateway_requests::registration::handshake::error::HandshakeError;
-use gateway_requests::registration::handshake::{gateway_handshake, SharedKey, DEFAULT_RNG};
+use gateway_requests::registration::handshake::{gateway_handshake, SharedKeys, DEFAULT_RNG};
 use gateway_requests::types::{BinaryRequest, ClientControlRequest, ServerResponse};
 use log::*;
 use nymsphinx::DestinationAddressBytes;
@@ -62,7 +62,7 @@ impl<S> SocketStream<S> {
 
 pub(crate) struct Handle<S> {
     remote_address: Option<DestinationAddressBytes>,
-    shared_key: Option<SharedKey>,
+    shared_key: Option<SharedKeys>,
     clients_handler_sender: ClientsHandlerRequestSender,
     outbound_mix_sender: OutboundMixMessageSender,
     socket_connection: SocketStream<S>,
@@ -115,7 +115,7 @@ impl<S> Handle<S> {
     async fn perform_registration_handshake(
         &mut self,
         init_msg: Vec<u8>,
-    ) -> Result<SharedKey, HandshakeError>
+    ) -> Result<SharedKeys, HandshakeError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {

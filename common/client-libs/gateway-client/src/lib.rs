@@ -22,7 +22,7 @@ use futures::stream::{SplitSink, SplitStream};
 use futures::{future::BoxFuture, FutureExt, SinkExt, Stream, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
-use gateway_requests::registration::handshake::{client_handshake, SharedKey, DEFAULT_RNG};
+use gateway_requests::registration::handshake::{client_handshake, SharedKeys, DEFAULT_RNG};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
 use log::*;
 use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
@@ -178,7 +178,7 @@ pub struct GatewayClient<'a, R> {
     gateway_address: R,
     gateway_identity: identity::PublicKey,
     local_identity: Arc<identity::KeyPair>,
-    shared_key: Option<Arc<SharedKey>>,
+    shared_key: Option<Arc<SharedKeys>>,
     connection: SocketState<'a>,
     packet_router: PacketRouter,
     response_timeout_duration: Duration,
@@ -190,7 +190,7 @@ impl<'a, R> GatewayClient<'static, R> {
         gateway_address: R,
         local_identity: Arc<identity::KeyPair>,
         gateway_identity: identity::PublicKey,
-        shared_key: Option<Arc<SharedKey>>,
+        shared_key: Option<Arc<SharedKeys>>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
@@ -341,7 +341,7 @@ impl<'a, R> GatewayClient<'static, R> {
         }
     }
 
-    pub async fn register(&mut self) -> Result<SharedKey, GatewayClientError> {
+    pub async fn register(&mut self) -> Result<SharedKeys, GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
@@ -363,7 +363,7 @@ impl<'a, R> GatewayClient<'static, R> {
 
     pub async fn authenticate(
         &mut self,
-        shared_key: Option<SharedKey>,
+        shared_key: Option<SharedKeys>,
     ) -> Result<bool, GatewayClientError> {
         if shared_key.is_none() && self.shared_key.is_none() {
             return Err(GatewayClientError::NoSharedKeyAvailable);
@@ -400,7 +400,7 @@ impl<'a, R> GatewayClient<'static, R> {
     /// Helper method to either call register or authenticate based on self.shared_key value
     pub async fn perform_initial_authentication(
         &mut self,
-    ) -> Result<Arc<SharedKey>, GatewayClientError> {
+    ) -> Result<Arc<SharedKeys>, GatewayClientError> {
         if self.shared_key.is_some() {
             self.authenticate(None).await?;
         } else {
@@ -478,7 +478,7 @@ impl<'a, R> GatewayClient<'static, R> {
         Ok(())
     }
 
-    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKey>, GatewayClientError>
+    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError>
     where
         R: IntoClientRequest + Unpin + Clone,
     {

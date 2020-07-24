@@ -13,17 +13,30 @@
 // limitations under the License.
 
 use crypto::symmetric::aes_ctr::{
-    generic_array::{typenum::Unsigned, GenericArray},
+    generic_array::{
+        typenum::{Sum, Unsigned, U16},
+        GenericArray,
+    },
     Aes128Key, Aes128KeySize,
 };
+use crypto::Digest;
+use nymsphinx::params::GatewayIntegrityHmacAlgorithm;
 use pemstore::traits::PemStorableKey;
 use std::fmt::{self, Display, Formatter};
-use std::ops::Deref;
 
-pub type SharedKeySize = Aes128KeySize;
+// we're using 16 byte long key in sphinx, so let's use the same one here
+type MacKeySize = U16;
+
+// shared key is as long as the Aes128 key and the MAC key
+pub type SharedKeySize = Sum<Aes128KeySize, MacKeySize>;
+
+pub type MacKey = GenericArray<u8, MacKeySize>;
 
 #[derive(Clone, Debug)]
-pub struct SharedKey(Aes128Key);
+pub struct SharedKeys {
+    encryption_key: Aes128Key,
+    mac_key: MacKey,
+}
 
 #[derive(Debug)]
 pub enum SharedKeyConversionError {
@@ -52,21 +65,35 @@ impl Display for SharedKeyConversionError {
 
 impl std::error::Error for SharedKeyConversionError {}
 
-impl SharedKey {
+impl SharedKeys {
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, SharedKeyConversionError> {
         if bytes.len() != SharedKeySize::to_usize() {
             return Err(SharedKeyConversionError::BytesOfInvalidLengthError);
         }
 
-        Ok(SharedKey(GenericArray::clone_from_slice(bytes)))
+        let encryption_key = GenericArray::clone_from_slice(&bytes[..Aes128KeySize::to_usize()]);
+        let mac_key = GenericArray::clone_from_slice(&bytes[Aes128KeySize::to_usize()..]);
+
+        Ok(SharedKeys {
+            encryption_key,
+            mac_key,
+        })
+    }
+
+    pub fn encryption_key(&self) -> &Aes128Key {
+        &self.encryption_key
+    }
+
+    pub fn mac_key(&self) -> &MacKey {
+        &self.mac_key
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        self.0.to_vec()
-    }
-
-    pub fn as_bytes(&self) -> &[u8] {
-        self.0.as_ref()
+        self.encryption_key
+            .to_vec()
+            .into_iter()
+            .chain(self.mac_key.to_vec().into_iter())
+            .collect()
     }
 
     pub fn try_from_base58_string<S: Into<String>>(
@@ -81,9 +108,7 @@ impl SharedKey {
             return Err(SharedKeyConversionError::StringOfInvalidLengthError);
         }
 
-        Ok(SharedKey(
-            GenericArray::from_exact_iter(decoded).expect("Invalid vector length!"),
-        ))
+        SharedKeys::try_from_bytes(&decoded)
     }
 
     pub fn to_base58_string(&self) -> String {
@@ -91,27 +116,19 @@ impl SharedKey {
     }
 }
 
-impl Into<String> for SharedKey {
+impl Into<String> for SharedKeys {
     fn into(self) -> String {
         self.to_base58_string()
     }
 }
 
-impl Deref for SharedKey {
-    type Target = Aes128Key;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-// I don't see any cases in which DerefMut would be useful. So did not implement it.
-
-impl PemStorableKey for SharedKey {
+impl PemStorableKey for SharedKeys {
     type Error = SharedKeyConversionError;
 
     fn pem_type() -> &'static str {
-        "AES-128-CTR GATEWAY SHARED KEY"
+        // TODO: If common\nymsphinx\params\src\lib::GatewayIntegrityHmacAlgorithm changes
+        // the pem type needs updating!
+        "AES-128-CTR + HMAC<BLAKE3> GATEWAY SHARED KEYS"
     }
 
     fn to_bytes(&self) -> Vec<u8> {

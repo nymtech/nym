@@ -14,7 +14,7 @@
 
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::authentication::iv::AuthenticationIV;
-use crate::registration::handshake::SharedKey;
+use crate::registration::handshake::SharedKeys;
 use crypto::symmetric::aes_ctr;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx::params::packet_sizes::PacketSize;
@@ -211,9 +211,13 @@ const PADDING_LEN: usize = 16;
 impl BinaryRequest {
     pub fn try_from_encrypted_bytes(
         mut raw_req: Vec<u8>,
-        shared_key: &SharedKey,
+        shared_key: &SharedKeys,
     ) -> Result<Self, GatewayRequestsError> {
-        aes_ctr::decrypt_in_place(shared_key, &aes_ctr::zero_iv(), &mut raw_req);
+        aes_ctr::decrypt_in_place(
+            shared_key.encryption_key(),
+            &aes_ctr::zero_iv(),
+            &mut raw_req,
+        );
         // see if the padding is retained
         if !raw_req.iter().rev().take(PADDING_LEN).all(|&x| x == 0) {
             return Err(GatewayRequestsError::MalformedEncryption);
@@ -243,7 +247,7 @@ impl BinaryRequest {
         }
     }
 
-    pub fn into_encrypted_bytes(self, shared_key: &SharedKey) -> Vec<u8> {
+    pub fn into_encrypted_bytes(self, shared_key: &SharedKeys) -> Vec<u8> {
         match self {
             BinaryRequest::ForwardSphinx {
                 address,
@@ -257,7 +261,11 @@ impl BinaryRequest {
                     .chain(std::iter::repeat(0).take(PADDING_LEN))
                     .collect();
 
-                aes_ctr::encrypt_in_place(shared_key, &aes_ctr::zero_iv(), &mut gateway_data);
+                aes_ctr::encrypt_in_place(
+                    shared_key.encryption_key(),
+                    &aes_ctr::zero_iv(),
+                    &mut gateway_data,
+                );
                 gateway_data
             }
         }
@@ -274,7 +282,7 @@ impl BinaryRequest {
         }
     }
 
-    pub fn into_ws_message(self, shared_key: &SharedKey) -> Message {
+    pub fn into_ws_message(self, shared_key: &SharedKeys) -> Message {
         Message::Binary(self.into_encrypted_bytes(shared_key))
     }
 }

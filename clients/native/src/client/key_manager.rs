@@ -14,7 +14,7 @@
 
 use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use crypto::asymmetric::{encryption, identity};
-use gateway_requests::registration::handshake::SharedKey;
+use gateway_requests::registration::handshake::SharedKeys;
 use log::*;
 use nymsphinx::acknowledgements::AckAes128Key;
 use rand::{CryptoRng, RngCore};
@@ -32,7 +32,7 @@ pub(crate) struct KeyManager {
     /// encryption key associated with the client instance.
     encryption_keypair: Arc<encryption::KeyPair>,
     /// shared key derived with the gateway during "registration handshake"
-    gateway_shared_key: Option<Arc<SharedKey>>,
+    gateway_shared_key: Option<Arc<SharedKeys>>,
     /// key used for producing and processing acknowledgement packets.
     ack_key: Arc<AckAes128Key>,
 }
@@ -62,7 +62,7 @@ impl KeyManager {
     }
 
     /// After shared key with the gateway is derived, puts its ownership to this instance of a [`KeyManager`].
-    pub(crate) fn insert_gateway_shared_key(&mut self, gateway_shared_key: SharedKey) {
+    pub(crate) fn insert_gateway_shared_key(&mut self, gateway_shared_key: SharedKeys) {
         self.gateway_shared_key = Some(Arc::new(gateway_shared_key))
     }
 
@@ -79,7 +79,7 @@ impl KeyManager {
                 client_pathfinder.public_encryption_key().to_owned(),
             ))?;
 
-        let gateway_shared_key: SharedKey =
+        let gateway_shared_key: SharedKeys =
             pemstore::load_key(&client_pathfinder.gateway_shared_key().to_owned())?;
 
         let ack_key: AckAes128Key = pemstore::load_key(&client_pathfinder.ack_key().to_owned())?;
@@ -139,7 +139,7 @@ impl KeyManager {
     /// Gets an atomically reference counted pointer to [`SharedKey`].
     // since this function is not fully public, it is not expected to be used externally and
     // hence it's up to us to ensure it's called in correct context
-    pub(crate) fn gateway_shared_key(&self) -> Arc<SharedKey> {
+    pub(crate) fn gateway_shared_key(&self) -> Arc<SharedKeys> {
         Arc::clone(
             &self
                 .gateway_shared_key

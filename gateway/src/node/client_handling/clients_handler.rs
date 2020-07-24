@@ -22,7 +22,7 @@ use futures::{
 };
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
-use gateway_requests::registration::handshake::SharedKey;
+use gateway_requests::registration::handshake::SharedKeys;
 use log::*;
 use nymsphinx::DestinationAddressBytes;
 use std::collections::HashMap;
@@ -38,7 +38,7 @@ pub(crate) enum ClientsHandlerRequest {
     // client
     Register(
         DestinationAddressBytes,
-        SharedKey,
+        SharedKeys,
         MixMessageSender,
         ClientsHandlerResponseSender,
     ),
@@ -58,7 +58,7 @@ pub(crate) enum ClientsHandlerRequest {
 #[derive(Debug)]
 pub(crate) enum ClientsHandlerResponse {
     Register(bool),
-    Authenticate(Option<SharedKey>),
+    Authenticate(Option<SharedKeys>),
     IsOnline(Option<MixMessageSender>),
     Error(Box<dyn std::error::Error + Send + Sync>),
 }
@@ -154,7 +154,7 @@ impl ClientsHandler {
     async fn handle_register_request(
         &mut self,
         address: DestinationAddressBytes,
-        derived_shared_key: SharedKey,
+        derived_shared_key: SharedKeys,
         comm_channel: MixMessageSender,
         res_channel: ClientsHandlerResponseSender,
     ) {

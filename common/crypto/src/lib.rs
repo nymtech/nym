@@ -14,6 +14,7 @@
 
 use crate::asymmetric::encryption;
 use crate::symmetric::aes_ctr::{Aes128Key, Aes128KeySize};
+pub use digest::Digest;
 use digest::{BlockInput, FixedOutput, Reset, Update};
 use generic_array::{typenum::Unsigned, ArrayLength};
 use rand::{CryptoRng, RngCore};

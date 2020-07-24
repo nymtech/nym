@@ -2000,10 +2000,8 @@ dependencies = [
 name = "nymsphinx-anonymous-replies"
 version = "0.1.0"
 dependencies = [
- "blake3",
  "bs58",
  "crypto",
- "digest 0.9.0",
  "nymsphinx-addressing",
  "nymsphinx-params",
  "nymsphinx-types",

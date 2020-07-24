@@ -15,15 +15,13 @@
 use crate::client::reply_key_storage::ReplyKeyStorage;
 use crypto::asymmetric::encryption;
 use crypto::symmetric::aes_ctr;
+use crypto::Digest;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use gateway_client::MixnetMessageReceiver;
 use log::*;
-use nymsphinx::anonymous_replies::{
-    encryption_key::{Digest, EncryptionKeyDigest},
-    SURBEncryptionKey,
-};
+use nymsphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SURBEncryptionKey};
 use nymsphinx::params::ReplySURBKeyDigestAlgorithm;
 use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;

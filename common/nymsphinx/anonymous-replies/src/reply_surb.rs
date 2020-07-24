@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use crate::encryption_key::{
-    Digest, SURBEncryptionKey, SURBEncryptionKeyError, SURBEncryptionKeySize, Unsigned,
+    SURBEncryptionKey, SURBEncryptionKeyError, SURBEncryptionKeySize, Unsigned,
 };
+use crypto::Digest;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nymsphinx_params::packet_sizes::PacketSize;

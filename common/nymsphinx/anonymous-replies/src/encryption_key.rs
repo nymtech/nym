@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crypto::crypto_hash;
 pub use crypto::symmetric::aes_ctr::{
     generic_array::{
         typenum::{Unsigned, U32},
@@ -20,7 +19,7 @@ pub use crypto::symmetric::aes_ctr::{
     },
     Aes128Key, Aes128KeySize,
 };
-pub use digest::Digest;
+use crypto::{crypto_hash, Digest};
 use nymsphinx_params::ReplySURBKeyDigestAlgorithm;
 use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};

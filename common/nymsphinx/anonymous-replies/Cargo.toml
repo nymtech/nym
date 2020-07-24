@@ -8,9 +8,7 @@ edition = "2018"
 
 [dependencies]
 rand = {version = "0.7.3", features = ["wasm-bindgen"]}
-blake3 = "0.3.5"
 bs58 = "0.3"
-digest = "0.9"
 
 crypto = { path = "../../crypto" }
 nymsphinx-addressing = { path = "../addressing" }

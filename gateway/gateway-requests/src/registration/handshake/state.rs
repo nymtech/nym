@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::registration::handshake::error::HandshakeError;
-use crate::registration::handshake::shared_key::{SharedKey, SharedKeySize};
+use crate::registration::handshake::shared_key::{SharedKeySize, SharedKeys};
 use crate::registration::handshake::WsItem;
 use crate::types;
 use crypto::{
@@ -38,7 +38,7 @@ pub(crate) struct State<'a, S> {
     /// Local ephemeral Diffie-Hellman keypair generated as a part of the handshake.
     ephemeral_keypair: encryption::KeyPair,
     /// The derived shared key using the ephemeral keys of both parties.
-    derived_shared_key: Option<SharedKey>,
+    derived_shared_key: Option<SharedKeys>,
     /// The known or received public identity key of the remote.
     /// Ideally it would always be known before the handshake was initiated.
     remote_pubkey: Option<identity::PublicKey>,
@@ -121,7 +121,7 @@ impl<'a, S> State<'a, S> {
         .expect("somehow too long okm was provided");
 
         let derived_shared_key =
-            SharedKey::try_from_bytes(&okm).expect("okm was expanded to incorrect length!");
+            SharedKeys::try_from_bytes(&okm).expect("okm was expanded to incorrect length!");
 
         self.derived_shared_key = Some(derived_shared_key)
     }
@@ -143,7 +143,7 @@ impl<'a, S> State<'a, S> {
 
         let signature = self.identity.private_key().sign(&message);
         aes_ctr::encrypt(
-            self.derived_shared_key.as_ref().unwrap(),
+            self.derived_shared_key.as_ref().unwrap().encryption_key(),
             &aes_ctr::zero_iv(),
             &signature.to_bytes(),
         )
@@ -166,8 +166,11 @@ impl<'a, S> State<'a, S> {
             .expect("shared key was not derived!");
 
         // first decrypt received data
-        let decrypted_signature =
-            aes_ctr::decrypt(derived_shared_key, &aes_ctr::zero_iv(), remote_material);
+        let decrypted_signature = aes_ctr::decrypt(
+            derived_shared_key.encryption_key(),
+            &aes_ctr::zero_iv(),
+            remote_material,
+        );
 
         // now verify signature itself
         let signature = identity::Signature::from_bytes(&decrypted_signature)
@@ -255,7 +258,7 @@ impl<'a, S> State<'a, S> {
 
     /// Finish the handshake, yielding the derived shared key and implicitly dropping all borrowed
     /// values.
-    pub(crate) fn finalize_handshake(self) -> SharedKey {
+    pub(crate) fn finalize_handshake(self) -> SharedKeys {
         self.derived_shared_key.unwrap()
     }
 }

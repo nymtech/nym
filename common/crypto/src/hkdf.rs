@@ -38,7 +38,7 @@ where
 
     let hkdf = Hkdf::<D>::new(salt, ikm);
     let mut okm = vec![0u8; okm_length];
-    if let Err(_) = hkdf.expand(info.unwrap_or_else(|| &[]), &mut okm) {
+    if hkdf.expand(info.unwrap_or_else(|| &[]), &mut okm).is_err() {
         return Err(HkdfError::InvalidOkmLength);
     }
 

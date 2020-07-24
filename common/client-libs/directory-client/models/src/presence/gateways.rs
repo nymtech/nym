@@ -61,10 +61,10 @@ impl TryInto<topology::gateway::Node> for GatewayPresence {
     fn try_into(self) -> Result<topology::gateway::Node, Self::Error> {
         let resolved_mix_hostname = self.mixnet_listener.to_socket_addrs()?.next();
         if resolved_mix_hostname.is_none() {
-            return Err(io::Error::new(
+            return Err(ConversionError::InvalidAddress(io::Error::new(
                 io::ErrorKind::Other,
                 "no valid socket address",
-            ))?;
+            )));
         }
 
         Ok(topology::gateway::Node {

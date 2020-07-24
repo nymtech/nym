@@ -46,19 +46,19 @@ impl TryFrom<u8> for PacketSize {
 }
 
 impl PacketSize {
-    pub fn size(&self) -> usize {
-        match &self {
+    pub fn size(self) -> usize {
+        match self {
             PacketSize::RegularPacket => REGULAR_PACKET_SIZE,
             PacketSize::ACKPacket => ACK_PACKET_SIZE,
             PacketSize::ExtendedPacket => EXTENDED_PACKET_SIZE,
         }
     }
 
-    pub fn plaintext_size(&self) -> usize {
+    pub fn plaintext_size(self) -> usize {
         self.size() - HEADER_SIZE - PAYLOAD_OVERHEAD_SIZE
     }
 
-    pub fn payload_size(&self) -> usize {
+    pub fn payload_size(self) -> usize {
         self.size() - HEADER_SIZE
     }
 

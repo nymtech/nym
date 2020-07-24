@@ -134,8 +134,7 @@ impl<'a> ConnectionManager<'static> {
                     return Err(io::Error::new(
                         io::ErrorKind::BrokenPipe,
                         "connection is broken - reconnection is in progress",
-                    )
-                    .into());
+                    ));
                 }
                 Poll::Ready(conn) => conn,
             };
@@ -155,7 +154,7 @@ impl<'a> ConnectionManager<'static> {
                     pending_messages
                         .into_iter()
                         .chain(std::iter::once(packet))
-                        .map(|packet| Ok(packet)),
+                        .map(Ok),
                 );
 
                 match conn_writer.send_all(&mut send_stream).await {

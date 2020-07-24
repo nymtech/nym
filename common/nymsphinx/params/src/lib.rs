@@ -33,4 +33,3 @@ pub type GatewaySharedKeyHkdfAlgorithm = blake3::Hasher;
 
 /// Hashing algorithm used when computing digest of a reply SURB encryption key.
 pub type ReplySURBKeyDigestAlgorithm = blake3::Hasher;
-

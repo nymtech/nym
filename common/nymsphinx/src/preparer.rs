@@ -15,7 +15,7 @@
 use crate::chunking;
 use crypto::asymmetric::encryption;
 use crypto::new_ephemeral_shared_key;
-use crypto::symmetric::aes_ctr::{self, generic_array::typenum::Unsigned};
+use crypto::symmetric::aes_ctr::{self};
 use nymsphinx_acknowledgements::surb_ack::SURBAck;
 use nymsphinx_acknowledgements::AckAes128Key;
 use nymsphinx_addressing::clients::Recipient;
@@ -220,7 +220,7 @@ where
     ) -> Result<PreparedFragment, NymTopologyError> {
         // create an ack
         let (ack_delay, surb_ack_bytes) = self
-            .generate_surb_ack(&fragment.fragment_identifier(), topology, ack_key)?
+            .generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)?
             .prepare_for_sending();
 
         // create keys for 'payload' encryption
@@ -277,7 +277,7 @@ where
     /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
     fn generate_surb_ack(
         &mut self,
-        fragment_id: &FragmentIdentifier,
+        fragment_id: FragmentIdentifier,
         topology: &NymTopology,
         ack_key: &AckAes128Key,
     ) -> Result<SURBAck, NymTopologyError> {
@@ -353,7 +353,7 @@ where
         // gateways could not distinguish reply packets from normal messages due to lack of said acks
         // note: the ack delay is irrelevant since we do not know the delay of actual surb
         let (_, surb_ack_bytes) = self
-            .generate_surb_ack(&reply_id, topology, ack_key)?
+            .generate_surb_ack(reply_id, topology, ack_key)?
             .prepare_for_sending();
 
         let zero_pad_len = self.packet_size.plaintext_size()

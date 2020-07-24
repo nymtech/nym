@@ -140,9 +140,7 @@ impl PacketProcessor {
             _ => panic!("received response to wrong query!"), // again, this should NEVER happen
         };
 
-        if client_sender.is_none() {
-            return None;
-        }
+        client_sender.as_ref()?;
 
         let client_sender = client_sender.unwrap();
         // finally re-acquire the lock to update the cache
@@ -266,7 +264,7 @@ impl PacketProcessor {
                 .store_processed_packet_payload(client_address.clone(), unsent_plaintext)
                 .await
             {
-                return Err(io_err)?;
+                return Err(io_err.into());
             } else {
                 trace!(
                     "Managed to store packet for {:?} on the disk",
@@ -289,7 +287,7 @@ impl PacketProcessor {
                 ack_first_hop
             );
             self.ack_sender
-                .unbounded_send((ack_first_hop.into(), ack_packet))
+                .unbounded_send((ack_first_hop, ack_packet))
                 .unwrap();
         }
 

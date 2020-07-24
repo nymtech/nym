@@ -306,11 +306,12 @@ impl<'a, R> GatewayClient<'static, R> {
         &mut self,
         msg: Message,
     ) -> Result<ServerResponse, GatewayClientError> {
-        let mut should_restart_mixnet_listener = false;
-        if self.connection.is_partially_delegated() {
+        let should_restart_mixnet_listener = if self.connection.is_partially_delegated() {
             self.recover_socket_connection().await?;
-            should_restart_mixnet_listener = true;
-        }
+            true
+        } else {
+            false
+        };
 
         let conn = match self.connection {
             SocketState::Available(ref mut conn) => conn,
@@ -352,10 +353,10 @@ impl<'a, R> GatewayClient<'static, R> {
                 &mut DEFAULT_RNG,
                 ws_stream,
                 self.local_identity.as_ref(),
-                self.gateway_identity.clone(),
+                self.gateway_identity,
             )
             .await
-            .map_err(|handshake_err| GatewayClientError::RegistrationFailure(handshake_err)),
+            .map_err(GatewayClientError::RegistrationFailure),
             _ => unreachable!(),
         }
     }

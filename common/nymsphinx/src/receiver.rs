@@ -153,11 +153,11 @@ impl MessageReceiver {
             recompute_shared_key::<PacketHkdfAlgorithm>(&remote_ephemeral_key, local_key);
 
         // 3. decrypt fragment data
-        let mut fragment_bytes = &mut raw_enc_frag[encryption::PUBLIC_KEY_SIZE..];
+        let fragment_bytes = &mut raw_enc_frag[encryption::PUBLIC_KEY_SIZE..];
         Ok(aes_ctr::decrypt(
             &encryption_key,
             &aes_ctr::zero_iv(),
-            &mut fragment_bytes,
+            &fragment_bytes,
         ))
     }
 
@@ -204,7 +204,7 @@ impl MessageReceiver {
             };
 
             // Finally, remove the zero padding from the message
-            if let Err(_) = Self::remove_padding(&mut message) {
+            if Self::remove_padding(&mut message).is_err() {
                 return Err(MessageRecoveryError::MalformedReconstructedMessage(
                     used_sets,
                 ));

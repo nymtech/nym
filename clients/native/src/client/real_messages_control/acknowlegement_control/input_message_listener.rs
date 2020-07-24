@@ -158,7 +158,10 @@ where
         // some very nasty (and time-consuming to figure out...) race condition.
         let mut pending_acks_map_write_guard = self.pending_acks.write().await;
         for (frag_id, pending_ack) in pending_acks.into_iter() {
-            if let Some(_) = pending_acks_map_write_guard.insert(frag_id, pending_ack) {
+            if pending_acks_map_write_guard
+                .insert(frag_id, pending_ack)
+                .is_some()
+            {
                 panic!("Tried to insert duplicate pending ack")
             }
         }

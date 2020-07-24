@@ -122,7 +122,7 @@ mod tests {
         let mut rng = OsRng;
 
         let mut data = [42; 200];
-        let original_data = data.clone();
+        let original_data = data;
 
         let key = generate_key(&mut rng);
         let iv = random_iv(&mut rng);

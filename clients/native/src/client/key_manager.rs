@@ -47,6 +47,7 @@ pub(crate) struct KeyManager {
 */
 
 impl KeyManager {
+    // I have absolutely no idea why clippy insists it's unused. The call happens during client::init::execute
     /// Creates new instance of a [`KeyManager`]
     pub(crate) fn new<R>(rng: &mut R) -> Self
     where

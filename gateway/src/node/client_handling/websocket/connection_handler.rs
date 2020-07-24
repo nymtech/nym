@@ -177,11 +177,11 @@ impl<S> Handle<S> {
     fn disconnect(&self) {
         // if we never established what is the address of the client, its connection was never
         // announced hence we do not need to send 'disconnect' message
-        self.remote_address.as_ref().map(|addr| {
+        if let Some(addr) = self.remote_address.as_ref() {
             self.clients_handler_sender
                 .unbounded_send(ClientsHandlerRequest::Disconnect(addr.clone()))
                 .unwrap();
-        });
+        }
     }
 
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
@@ -222,7 +222,7 @@ impl<S> Handle<S> {
             Ok(address) => address,
             Err(e) => {
                 trace!("failed to parse received DestinationAddress: {:?}", e);
-                return ServerResponse::new_error("malformed destination address").into();
+                return ServerResponse::new_error("malformed destination address");
             }
         };
 
@@ -230,7 +230,7 @@ impl<S> Handle<S> {
             Ok(address) => address,
             Err(e) => {
                 trace!("failed to parse received encrypted address: {:?}", e);
-                return ServerResponse::new_error("malformed encrypted address").into();
+                return ServerResponse::new_error("malformed encrypted address");
             }
         };
 
@@ -238,7 +238,7 @@ impl<S> Handle<S> {
             Ok(iv) => iv,
             Err(e) => {
                 trace!("failed to parse received IV {:?}", e);
-                return ServerResponse::new_error("malformed iv").into();
+                return ServerResponse::new_error("malformed iv");
             }
         };
 

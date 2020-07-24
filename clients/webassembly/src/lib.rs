@@ -138,8 +138,6 @@ impl TryFrom<NodeData> for SphinxNode {
 
 #[cfg(test)]
 mod test_constructing_a_sphinx_packet {
-    use super::*;
-
     // the below test is no longer true, as the produced length is 1372 bytes + 7 (for IPV4) or + 19 (for IPV6)
     // conceptually everything works as before, only the 0 padding was removed as it served no purpose here
 

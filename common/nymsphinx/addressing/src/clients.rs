@@ -173,9 +173,9 @@ mod tests {
         let gateway_id_pair = identity::KeyPair::new();
 
         let recipient = Recipient::new(
-            client_id_pair.public_key().clone(),
+            *client_id_pair.public_key(),
             client_enc_pair.public_key().clone(),
-            gateway_id_pair.public_key().clone(),
+            *gateway_id_pair.public_key(),
         );
 
         let str_recipient = recipient.to_string();
@@ -203,9 +203,9 @@ mod tests {
         let gateway_id_pair = identity::KeyPair::new();
 
         let recipient = Recipient::new(
-            client_id_pair.public_key().clone(),
+            *client_id_pair.public_key(),
             client_enc_pair.public_key().clone(),
-            gateway_id_pair.public_key().clone(),
+            *gateway_id_pair.public_key(),
         );
 
         let bytes_recipient = recipient.clone().into_bytes();

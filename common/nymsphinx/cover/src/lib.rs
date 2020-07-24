@@ -20,7 +20,7 @@ use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx_chunking::fragment::COVER_FRAG_ID;
 use nymsphinx_params::packet_sizes::PacketSize;
-use nymsphinx_params::{DEFAULT_NUM_MIX_HOPS, PacketHkdfAlgorithm};
+use nymsphinx_params::{PacketHkdfAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nymsphinx_types::builder::SphinxPacketBuilder;
 use nymsphinx_types::{delays, Error as SphinxError, SphinxPacket};
 use rand::{CryptoRng, RngCore};
@@ -104,7 +104,7 @@ where
         PacketSize::default().plaintext_size() - public_key_bytes.len() - ack_bytes.len();
 
     let mut cover_content: Vec<_> = LOOP_COVER_MESSAGE_PAYLOAD
-        .into_iter()
+        .iter()
         .cloned()
         .chain(std::iter::once(1))
         .chain(std::iter::repeat(0))

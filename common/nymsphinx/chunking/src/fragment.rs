@@ -86,11 +86,11 @@ impl FragmentIdentifier {
     }
 
     // and this one
-    pub fn is_reply(&self) -> bool {
+    pub fn is_reply(self) -> bool {
         self.set_id > 0 && self.fragment_position == 0
     }
 
-    pub fn to_bytes(&self) -> [u8; 5] {
+    pub fn to_bytes(self) -> [u8; 5] {
         let set_id_bytes = self.set_id.to_be_bytes();
         [
             set_id_bytes[0],

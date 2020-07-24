@@ -141,7 +141,7 @@ impl ReplySURB {
         message: &[u8],
         packet_size: Option<PacketSize>,
     ) -> Result<(SphinxPacket, NymNodeRoutingAddress), ReplySURBError> {
-        let packet_size = packet_size.unwrap_or_else(|| Default::default());
+        let packet_size = packet_size.unwrap_or_else(Default::default);
 
         if message.len() != packet_size.plaintext_size() {
             return Err(ReplySURBError::NonPaddedMessageError);

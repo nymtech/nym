@@ -226,7 +226,7 @@ impl BinaryRequest {
 
         let sphinx_packet_data = &raw_req[addr_offset..raw_req.len() - PADDING_LEN];
         let packet_size = sphinx_packet_data.len();
-        if let Err(_) = PacketSize::get_type(packet_size) {
+        if PacketSize::get_type(packet_size).is_err() {
             // TODO: should this allow AckPacket sizes?
 
             Err(GatewayRequestsError::RequestOfInvalidSize(packet_size))
@@ -237,7 +237,7 @@ impl BinaryRequest {
             };
 
             Ok(BinaryRequest::ForwardSphinx {
-                address: address.into(),
+                address,
                 sphinx_packet,
             })
         }

@@ -65,18 +65,18 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
 }
 
 async fn try_gateway_registration(
-    gateways: &Vec<gateway::Node>,
+    gateways: &[gateway::Node],
     our_identity: Arc<identity::KeyPair>,
 ) -> Option<(String, String, SharedKey)> {
     let timeout = Duration::from_millis(1500);
     for gateway in gateways {
         let mut gateway_client = GatewayClient::new_init(
             url::Url::parse(&gateway.client_listener).unwrap(),
-            gateway.identity_key.clone(),
+            gateway.identity_key,
             our_identity.clone(),
             timeout,
         );
-        if let Ok(_) = gateway_client.establish_connection().await {
+        if gateway_client.establish_connection().await.is_ok() {
             if let Ok(shared_key) = gateway_client.register().await {
                 if let Err(err) = gateway_client.close_connection().await {
                     eprintln!("Error while closing connection to the gateway! - {:?}", err);

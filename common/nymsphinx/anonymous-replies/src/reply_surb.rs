@@ -13,12 +13,12 @@
 // limitations under the License.
 
 use crate::encryption_key::{
-    HasherOutputSize, SURBEncryptionKey, SURBEncryptionKeyError, SURBEncryptionKeySize, Unsigned,
+    Digest, SURBEncryptionKey, SURBEncryptionKeyError, SURBEncryptionKeySize, Unsigned,
 };
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nymsphinx_params::packet_sizes::PacketSize;
-use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
+use nymsphinx_params::{ReplySURBKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nymsphinx_types::{delays, Error as SphinxError, SURBMaterial, SphinxPacket, SURB};
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
@@ -49,8 +49,7 @@ impl ReplySURB {
     pub fn max_msg_len(packet_size: PacketSize) -> usize {
         // For detailed explanation (of ack overhead) refer to common\nymsphinx\src\preparer.rs::available_plaintext_per_packet()
         let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::ACKPacket.size();
-
-        packet_size.plaintext_size() - ack_overhead - HasherOutputSize::to_usize() - 1
+        packet_size.plaintext_size() - ack_overhead - ReplySURBKeyDigestAlgorithm::output_size() - 1
     }
 
     // TODO: should this return `ReplySURBError` for consistency sake

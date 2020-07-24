@@ -16,8 +16,6 @@ use digest::{BlockInput, FixedOutput, Reset, Update};
 use generic_array::ArrayLength;
 use hmac::{crypto_mac, Hmac, Mac, NewMac};
 
-pub mod blake3_hmac;
-
 /// Compute keyed hmac
 pub fn compute_keyed_hmac<D>(key: &[u8], data: &[u8]) -> crypto_mac::Output<Hmac<D>>
 where

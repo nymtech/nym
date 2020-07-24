@@ -16,8 +16,6 @@ use digest::{BlockInput, FixedOutput, Reset, Update};
 use generic_array::ArrayLength;
 use hkdf::Hkdf;
 
-pub mod blake3_hkdf;
-
 #[derive(Debug)]
 pub enum HkdfError {
     InvalidOkmLength,

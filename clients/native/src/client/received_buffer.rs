@@ -15,16 +15,16 @@
 use crate::client::reply_key_storage::ReplyKeyStorage;
 use crypto::asymmetric::encryption;
 use crypto::symmetric::aes_ctr;
-use crypto::symmetric::aes_ctr::generic_array::typenum::Unsigned;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use gateway_client::MixnetMessageReceiver;
 use log::*;
 use nymsphinx::anonymous_replies::{
-    encryption_key::{EncryptionKeyDigest, HasherOutputSize},
+    encryption_key::{Digest, EncryptionKeyDigest},
     SURBEncryptionKey,
 };
+use nymsphinx::params::ReplySURBKeyDigestAlgorithm;
 use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -223,12 +223,14 @@ impl ReceivedMessagesBuffer {
         let mut completed_messages = Vec::new();
         let mut inner_guard = self.inner.lock().await;
 
+        let reply_surb_digest_size = ReplySURBKeyDigestAlgorithm::output_size();
+
         // first check if this is a reply or a chunked message
         // TODO: verify with @AP if this way of doing it is safe or whether it could
         // cause some attacks due to, I don't know, stupid edge case collisions?
         for msg in msgs {
             let possible_key_digest =
-                EncryptionKeyDigest::clone_from_slice(&msg[..HasherOutputSize::to_usize()]);
+                EncryptionKeyDigest::clone_from_slice(&msg[..reply_surb_digest_size]);
 
             // check first `HasherOutputSize` bytes if they correspond to known encryption key
             // if yes - this is a reply message
@@ -241,7 +243,7 @@ impl ReceivedMessagesBuffer {
                 .expect("storage operation failed!")
             {
                 if let Some(completed_message) = Self::process_received_reply(
-                    &msg[HasherOutputSize::to_usize()..],
+                    &msg[reply_surb_digest_size..],
                     reply_encryption_key,
                 ) {
                     completed_messages.push(completed_message)

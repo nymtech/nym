@@ -13,13 +13,12 @@
 // limitations under the License.
 
 use crypto::asymmetric::encryption;
-use crypto::kdf::blake3_hkdf;
+use crypto::recompute_shared_key;
 use crypto::symmetric::aes_ctr;
-use crypto::symmetric::aes_ctr::{generic_array::typenum::Unsigned, Aes128Key, Aes128KeySize};
 use nymsphinx_anonymous_replies::reply_surb::{ReplySURB, ReplySURBError};
 use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_chunking::reconstruction::MessageReconstructor;
-use nymsphinx_params::{MessageType, DEFAULT_NUM_MIX_HOPS};
+use nymsphinx_params::{MessageType, PacketHkdfAlgorithm, DEFAULT_NUM_MIX_HOPS};
 
 // TODO: should this live in this file?
 #[allow(non_snake_case)]
@@ -109,21 +108,6 @@ impl MessageReceiver {
         Default::default()
     }
 
-    fn recompute_shared_key(
-        &self,
-        remote_key: &encryption::PublicKey,
-        local_key: &encryption::PrivateKey,
-    ) -> Aes128Key {
-        let dh_result = local_key.diffie_hellman(remote_key);
-
-        // there is no reason for this to fail as our okm is expected to be only 16 bytes
-        let okm =
-            blake3_hkdf::extract_then_expand(None, &dh_result, None, Aes128KeySize::to_usize())
-                .expect("somehow too long okm was provided");
-
-        Aes128Key::from_exact_iter(okm).expect("okm was expanded to incorrect length!")
-    }
-
     /// Allows setting non-default number of expected mix hops in the network.
     pub fn with_mix_hops(mut self, hops: u8) -> Self {
         self.num_mix_hops = hops;
@@ -165,7 +149,8 @@ impl MessageReceiver {
         let remote_ephemeral_key = encryption::PublicKey::from_bytes(remote_key_bytes)?;
 
         // 2. recompute shared encryption key
-        let encryption_key = self.recompute_shared_key(&remote_ephemeral_key, local_key);
+        let encryption_key =
+            recompute_shared_key::<PacketHkdfAlgorithm>(&remote_ephemeral_key, local_key);
 
         // 3. decrypt fragment data
         let mut fragment_bytes = &mut raw_enc_frag[encryption::PUBLIC_KEY_SIZE..];

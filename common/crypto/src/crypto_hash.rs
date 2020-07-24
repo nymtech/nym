@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use hmac::{crypto_mac, Hmac, Mac, NewMac};
+use digest::{BlockInput, Digest, FixedOutput, Reset, Update};
+use generic_array::{ArrayLength, GenericArray};
 
-pub type Blake3hmac = crypto_mac::Output<Hmac<blake3::Hasher>>;
-
-/// Compute keyed hmac using blake3 algorithm
-pub fn compute_keyed_hmac(key: &[u8], data: &[u8]) -> Blake3hmac {
-    let mut hmac = Hmac::<blake3::Hasher>::new_varkey(key)
-        .expect("HMAC should be able to take key of any size!");
-    hmac.update(data);
-    hmac.finalize()
+pub fn compute_digest<D>(data: &[u8]) -> GenericArray<u8, <D as Digest>::OutputSize>
+where
+    D: Update + BlockInput + FixedOutput + Reset + Default + Clone,
+    D::BlockSize: ArrayLength<u8>,
+    D::OutputSize: ArrayLength<u8>,
+{
+    D::digest(data)
 }

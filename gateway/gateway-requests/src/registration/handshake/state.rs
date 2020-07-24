@@ -18,11 +18,12 @@ use crate::registration::handshake::WsItem;
 use crate::types;
 use crypto::{
     asymmetric::{encryption, identity},
-    kdf::blake3_hkdf,
+    hkdf,
     symmetric::aes_ctr::{self, generic_array::typenum::Unsigned},
 };
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use log::*;
+use nymsphinx::params::GatewaySharedKeyHkdfAlgorithm;
 use rand::{CryptoRng, RngCore};
 use std::convert::{TryFrom, TryInto};
 use tokio_tungstenite::tungstenite::Message as WsMessage;
@@ -111,9 +112,13 @@ impl<'a, S> State<'a, S> {
             .diffie_hellman(remote_ephemeral_key);
 
         // there is no reason for this to fail as our okm is expected to be only 16 bytes
-        let okm =
-            blake3_hkdf::extract_then_expand(None, &dh_result, None, SharedKeySize::to_usize())
-                .expect("somehow too long okm was provided");
+        let okm = hkdf::extract_then_expand::<GatewaySharedKeyHkdfAlgorithm>(
+            None,
+            &dh_result,
+            None,
+            SharedKeySize::to_usize(),
+        )
+        .expect("somehow too long okm was provided");
 
         let derived_shared_key =
             SharedKey::try_from_bytes(&okm).expect("okm was expanded to incorrect length!");

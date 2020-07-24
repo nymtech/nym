@@ -14,9 +14,8 @@
 
 use log::*;
 use nymsphinx::anonymous_replies::{
-    encryption_key::Unsigned,
-    encryption_key::{DefaultHasher, EncryptionKeyDigest},
-    SURBEncryptionKey, SURBEncryptionKeySize,
+    encryption_key::EncryptionKeyDigest, encryption_key::Unsigned, SURBEncryptionKey,
+    SURBEncryptionKeySize,
 };
 use std::path::Path;
 
@@ -69,7 +68,7 @@ impl ReplyKeyStorage {
         &mut self,
         encryption_key: SURBEncryptionKey,
     ) -> Result<(), ReplyKeyStorageError> {
-        let digest = encryption_key.compute_digest::<DefaultHasher>();
+        let digest = encryption_key.compute_digest();
 
         let insertion_result = match self.db.insert(digest.to_vec(), encryption_key.to_bytes()) {
             Err(e) => Err(ReplyKeyStorageError::DbWriteError(e)),

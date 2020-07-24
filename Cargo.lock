@@ -2052,6 +2052,7 @@ dependencies = [
 name = "nymsphinx-params"
 version = "0.1.0"
 dependencies = [
+ "crypto",
  "nymsphinx-types",
 ]
 

@@ -14,20 +14,19 @@
 
 use crate::chunking;
 use crypto::asymmetric::encryption;
-use crypto::kdf::blake3_hkdf;
 use crypto::new_ephemeral_shared_key;
-use crypto::symmetric::aes_ctr::{
-    self, generic_array::typenum::Unsigned, Aes128Key, Aes128KeySize,
-};
+use crypto::symmetric::aes_ctr::{self, generic_array::typenum::Unsigned};
 use nymsphinx_acknowledgements::surb_ack::SURBAck;
 use nymsphinx_acknowledgements::AckAes128Key;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
-use nymsphinx_anonymous_replies::encryption_key::{self, DefaultHasher, SURBEncryptionKey};
+use nymsphinx_anonymous_replies::encryption_key::{Digest, SURBEncryptionKey};
 use nymsphinx_anonymous_replies::reply_surb::ReplySURB;
 use nymsphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nymsphinx_params::packet_sizes::PacketSize;
-use nymsphinx_params::{MessageType, DEFAULT_NUM_MIX_HOPS};
+use nymsphinx_params::{
+    MessageType, PacketHkdfAlgorithm, ReplySURBKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS,
+};
 use nymsphinx_types::builder::SphinxPacketBuilder;
 use nymsphinx_types::{delays, Delay, SphinxPacket};
 use rand::{CryptoRng, Rng};
@@ -225,8 +224,10 @@ where
             .prepare_for_sending();
 
         // create keys for 'payload' encryption
-        let (ephemeral_keypair, shared_key) =
-            new_ephemeral_shared_key(&mut self.rng, packet_recipient.encryption_key());
+        let (ephemeral_keypair, shared_key) = new_ephemeral_shared_key::<PacketHkdfAlgorithm, _>(
+            &mut self.rng,
+            packet_recipient.encryption_key(),
+        );
 
         // serialize fragment and encrypt its content
         let mut chunk_data = fragment.into_bytes();
@@ -339,7 +340,7 @@ where
         if message.len()
             > self.packet_size.plaintext_size()
                 - ack_overhead
-                - encryption_key::HasherOutputSize::to_usize()
+                - ReplySURBKeyDigestAlgorithm::output_size()
                 - 1
         {
             return Err(PreparationError::TooLongReplyMessageError);
@@ -358,7 +359,7 @@ where
         let zero_pad_len = self.packet_size.plaintext_size()
             - message.len()
             - ack_overhead
-            - encryption_key::HasherOutputSize::to_usize()
+            - ReplySURBKeyDigestAlgorithm::output_size()
             - 1;
 
         // create reply message that will reach the recipient:
@@ -383,7 +384,7 @@ where
             .chain(
                 reply_surb
                     .encryption_key()
-                    .compute_digest::<DefaultHasher>()
+                    .compute_digest()
                     .to_vec()
                     .into_iter(),
             )

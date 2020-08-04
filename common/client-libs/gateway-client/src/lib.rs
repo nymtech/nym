@@ -23,7 +23,7 @@ use futures::{future::BoxFuture, FutureExt, SinkExt, Stream, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
 use gateway_requests::registration::handshake::{client_handshake, SharedKeys, DEFAULT_RNG};
-use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
+use gateway_requests::{BinaryRequest, BinaryResponse, ClientControlRequest, ServerResponse};
 use log::*;
 use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
 use std::convert::TryFrom;
@@ -76,6 +76,7 @@ impl<'a> PartiallyDelegated<'a> {
     fn split_and_listen_for_mixnet_messages(
         conn: WsConn,
         packet_router: PacketRouter,
+        shared_key: Arc<SharedKeys>,
     ) -> Result<Self, GatewayClientError> {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
         // read control request responses.
@@ -94,15 +95,26 @@ impl<'a> PartiallyDelegated<'a> {
                     msg = read_ws_stream_message(&mut stream) => {
                         match msg? {
                             Message::Binary(bin_msg) => {
+                                // this function decrypts the request and checks the MAC
+                                let plaintext = match BinaryResponse::try_from_encrypted_tagged_bytes(bin_msg, shared_key.as_ref()) {
+                                    Ok(bin_response) => match bin_response {
+                                        BinaryResponse::PushedMixMessage(plaintext) => plaintext,
+                                    },
+                                    Err(err) => {
+                                        warn!("message received from the gateway was malformed! - {:?}", err);
+                                        continue
+                                    }
+                                };
+
                                 // TODO: some batching mechanism to allow reading and sending more than
                                 // one packet at the time, because the receiver can easily handle it
-                                packet_router.route_received(vec![bin_msg])
+                                packet_router.route_received(vec![plaintext])
                             },
                             // I think that in the future we should perhaps have some sequence number system, i.e.
                             // so each request/response pair can be easily identified, so that if messages are
                             // not ordered (for some peculiar reason) we wouldn't lose anything.
                             // This would also require NOT discarding any text responses here.
-                            Message::Text(_) => debug!("received a text message - probably a response to some previous query!"),
+                            Message::Text(text) => warn!("received a text message - probably a response to some previous query! - {}", text),
                             _ => (),
                         };
                     }
@@ -426,6 +438,8 @@ impl<'a, R> GatewayClient<'static, R> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
+        // note: into_ws_message encrypts the requests and adds a MAC on it. Perhaps it should
+        // be more explicit in the naming?
         let msg = BinaryRequest::new_forward_request(address, packet).into_ws_message(
             self.shared_key
                 .as_ref()
@@ -469,6 +483,11 @@ impl<'a, R> GatewayClient<'static, R> {
                     PartiallyDelegated::split_and_listen_for_mixnet_messages(
                         conn,
                         self.packet_router.clone(),
+                        Arc::clone(
+                            self.shared_key
+                                .as_ref()
+                                .expect("no shared key present even though we're authenticated!"),
+                        ),
                     )?
                 }
                 _ => unreachable!(),

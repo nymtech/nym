@@ -29,6 +29,7 @@ use gateway_requests::authentication::iv::AuthenticationIV;
 use gateway_requests::registration::handshake::error::HandshakeError;
 use gateway_requests::registration::handshake::{gateway_handshake, SharedKeys, DEFAULT_RNG};
 use gateway_requests::types::{BinaryRequest, ClientControlRequest, ServerResponse};
+use gateway_requests::BinaryResponse;
 use log::*;
 use nymsphinx::DestinationAddressBytes;
 use std::convert::TryFrom;
@@ -157,13 +158,27 @@ impl<S> Handle<S> {
         }
     }
 
-    async fn send_websocket_sphinx_packets(&mut self, packets: Vec<Vec<u8>>) -> Result<(), WsError>
+    // Note that it encrypts each message and slaps a MAC on it
+    async fn send_websocket_unwrapped_sphinx_packets(
+        &mut self,
+        packets: Vec<Vec<u8>>,
+    ) -> Result<(), WsError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
+        let shared_key = self
+            .shared_key
+            .as_ref()
+            .expect("no shared key present even though we authenticated the client!");
+
+        // note: into_ws_message encrypts the requests and adds a MAC on it. Perhaps it should
+        // be more explicit in the naming?
         let messages: Vec<Result<Message, WsError>> = packets
             .into_iter()
-            .map(|packet| Ok(Message::Binary(packet)))
+            .map(|received_message| {
+                Ok(BinaryResponse::new_pushed_mix_message(received_message)
+                    .into_ws_message(shared_key))
+            })
             .collect();
         let mut send_stream = futures::stream::iter(messages);
         match self.socket_connection {
@@ -187,6 +202,7 @@ impl<S> Handle<S> {
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
         trace!("Handling binary message (presumably sphinx packet)");
 
+        // this function decrypts the request and checks the MAC
         match BinaryRequest::try_from_encrypted_tagged_bytes(
             bin_msg,
             self.shared_key
@@ -486,8 +502,8 @@ impl<S> Handle<S> {
                 },
                 mix_messages = mix_receiver.next() => {
                     let mix_messages = mix_messages.expect("sender was unexpectedly closed! this shouldn't have ever happened!");
-                    if let Err(e) = self.send_websocket_sphinx_packets(mix_messages).await {
-                        warn!("failed to send sphinx packets back to the client - {:?}, assuming the connection is dead", e);
+                    if let Err(e) = self.send_websocket_unwrapped_sphinx_packets(mix_messages).await {
+                        warn!("failed to send the unwrapped sphinx packets back to the client - {:?}, assuming the connection is dead", e);
                         break;
                     }
                 }

@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crypto::hmac::compute_keyed_hmac;
+use crypto::hmac::hmac::digest::{BlockInput, FixedOutput, Reset, Update};
 use crypto::symmetric::aes_ctr::{
+    self,
     generic_array::{
         typenum::{Sum, Unsigned, U16},
-        GenericArray,
+        ArrayLength, GenericArray,
     },
-    Aes128Key, Aes128KeySize,
+    Aes128IV, Aes128Key, Aes128KeySize,
 };
 use pemstore::traits::PemStorableKey;
 use std::fmt::{self, Display, Formatter};
@@ -77,6 +80,27 @@ impl SharedKeys {
             encryption_key,
             mac_key,
         })
+    }
+
+    /// Encrypts the provided data using the optionally provided initialisation vector,
+    /// or a 0 value if nothing was given. Then it computes an integrity mac and concatenates it
+    /// with the previously produced ciphertext.
+    pub fn encrypt_and_tag<D>(&self, data: &[u8], iv: Option<&Aes128IV>) -> Vec<u8>
+    where
+        D: Update + BlockInput + FixedOutput + Reset + Default + Clone,
+        D::BlockSize: ArrayLength<u8>,
+        D::OutputSize: ArrayLength<u8>,
+    {
+        let encrypted_data = match iv {
+            Some(iv) => aes_ctr::encrypt(self.encryption_key(), iv, data),
+            None => aes_ctr::encrypt(self.encryption_key(), &aes_ctr::zero_iv(), data),
+        };
+        let mac = compute_keyed_hmac::<D>(self.mac_key(), &encrypted_data);
+
+        mac.into_bytes()
+            .into_iter()
+            .chain(encrypted_data.into_iter())
+            .collect()
     }
 
     pub fn encryption_key(&self) -> &Aes128Key {

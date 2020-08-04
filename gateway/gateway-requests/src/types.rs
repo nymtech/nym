@@ -16,7 +16,7 @@ use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::authentication::iv::AuthenticationIV;
 use crate::registration::handshake::SharedKeys;
 use crate::GatewayMacSize;
-use crypto::hmac::{compute_keyed_hmac, recompute_keyed_hmac_and_verify_tag};
+use crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use crypto::symmetric::aes_ctr::{self, generic_array::typenum::Unsigned};
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx::params::packet_sizes::PacketSize;
@@ -104,6 +104,8 @@ impl From<NymNodeRoutingAddressError> for GatewayRequestsError {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ClientControlRequest {
+    // TODO: should this also contain a MAC considering that at this point we already
+    // have the shared key derived?
     Authenticate {
         address: String,
         enc_address: String,
@@ -274,27 +276,15 @@ impl BinaryRequest {
                 address,
                 sphinx_packet,
             } => {
-                let mut forwarding_data: Vec<_> = address
+                let forwarding_data: Vec<_> = address
                     .as_bytes()
                     .into_iter()
                     .chain(sphinx_packet.to_bytes().into_iter())
                     .collect();
 
-                aes_ctr::encrypt_in_place(
-                    shared_key.encryption_key(),
-                    &aes_ctr::zero_iv(),
-                    &mut forwarding_data,
-                );
-
-                let mac = compute_keyed_hmac::<GatewayIntegrityHmacAlgorithm>(
-                    &shared_key.mac_key(),
-                    &forwarding_data,
-                );
-
-                mac.into_bytes()
-                    .into_iter()
-                    .chain(forwarding_data.into_iter())
-                    .collect()
+                // TODO: it could be theoretically slightly more efficient if the data wasn't taken
+                // by reference because then it makes a copy for encryption rather than do it in place
+                shared_key.encrypt_and_tag::<GatewayIntegrityHmacAlgorithm>(&forwarding_data, None)
             }
         }
     }
@@ -308,6 +298,60 @@ impl BinaryRequest {
             address,
             sphinx_packet,
         }
+    }
+
+    pub fn into_ws_message(self, shared_key: &SharedKeys) -> Message {
+        Message::Binary(self.into_encrypted_tagged_bytes(shared_key))
+    }
+}
+
+// Introduced for consistency sake
+pub enum BinaryResponse {
+    PushedMixMessage(Vec<u8>),
+}
+
+impl BinaryResponse {
+    pub fn try_from_encrypted_tagged_bytes(
+        raw_req: Vec<u8>,
+        shared_keys: &SharedKeys,
+    ) -> Result<Self, GatewayRequestsError> {
+        let mac_size = GatewayMacSize::to_usize();
+        if raw_req.len() < mac_size {
+            return Err(GatewayRequestsError::TooShortRequest);
+        }
+
+        let mac_tag = &raw_req[..mac_size];
+        let message_bytes = &raw_req[mac_size..];
+
+        if !recompute_keyed_hmac_and_verify_tag::<GatewayIntegrityHmacAlgorithm>(
+            shared_keys.mac_key(),
+            message_bytes,
+            mac_tag,
+        ) {
+            return Err(GatewayRequestsError::InvalidMAC);
+        }
+
+        let plaintext = aes_ctr::decrypt(
+            shared_keys.encryption_key(),
+            &aes_ctr::zero_iv(),
+            &message_bytes,
+        );
+
+        Ok(BinaryResponse::PushedMixMessage(plaintext))
+    }
+
+    pub fn into_encrypted_tagged_bytes(self, shared_key: &SharedKeys) -> Vec<u8> {
+        match self {
+            // TODO: it could be theoretically slightly more efficient if the data wasn't taken
+            // by reference because then it makes a copy for encryption rather than do it in place
+            BinaryResponse::PushedMixMessage(message) => {
+                shared_key.encrypt_and_tag::<GatewayIntegrityHmacAlgorithm>(&message, None)
+            }
+        }
+    }
+
+    pub fn new_pushed_mix_message(msg: Vec<u8>) -> Self {
+        BinaryResponse::PushedMixMessage(msg)
     }
 
     pub fn into_ws_message(self, shared_key: &SharedKeys) -> Message {

@@ -35,10 +35,6 @@ impl GatewayPathfinder {
         }
     }
 
-    pub fn config_dir(&self) -> &Path {
-        &self.config_dir
-    }
-
     pub fn private_identity_key(&self) -> &Path {
         &self.private_identity_key
     }

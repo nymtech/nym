@@ -31,10 +31,6 @@ impl MixNodePathfinder {
         }
     }
 
-    pub fn config_dir(&self) -> &Path {
-        &self.config_dir
-    }
-
     pub fn private_encryption_key(&self) -> &Path {
         &self.private_sphinx_key
     }

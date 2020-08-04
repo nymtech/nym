@@ -29,10 +29,13 @@ use std::sync::Arc;
 pub(crate) struct KeyManager {
     /// identity key associated with the client instance.
     identity_keypair: Arc<identity::KeyPair>,
+
     /// encryption key associated with the client instance.
     encryption_keypair: Arc<encryption::KeyPair>,
+
     /// shared key derived with the gateway during "registration handshake"
     gateway_shared_key: Option<Arc<SharedKeys>>,
+
     /// key used for producing and processing acknowledgement packets.
     ack_key: Arc<AckAes128Key>,
 }
@@ -47,7 +50,9 @@ pub(crate) struct KeyManager {
 */
 
 impl KeyManager {
-    // I have absolutely no idea why clippy insists it's unused. The call happens during client::init::execute
+    // this is actually **NOT** dead code
+    // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
+    #[allow(dead_code)]
     /// Creates new instance of a [`KeyManager`]
     pub(crate) fn new<R>(rng: &mut R) -> Self
     where
@@ -61,6 +66,9 @@ impl KeyManager {
         }
     }
 
+    // this is actually **NOT** dead code
+    // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
+    #[allow(dead_code)]
     /// After shared key with the gateway is derived, puts its ownership to this instance of a [`KeyManager`].
     pub(crate) fn insert_gateway_shared_key(&mut self, gateway_shared_key: SharedKeys) {
         self.gateway_shared_key = Some(Arc::new(gateway_shared_key))
@@ -94,6 +102,9 @@ impl KeyManager {
         })
     }
 
+    // this is actually **NOT** dead code
+    // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
+    #[allow(dead_code)]
     /// Stores all available keys on the disk.
     // While perhaps there is no much point in storing the `AckAes128Key` on the disk,
     // it is done so for the consistency sake so that you wouldn't require an rng instance

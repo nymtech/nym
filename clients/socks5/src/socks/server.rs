@@ -74,7 +74,7 @@ impl SphinxSocksServer {
 
                 tokio::spawn(async move {
                     {
-                        match client.init().await {
+                        match client.run().await {
                             Ok(_) => {}
                             Err(error) => {
                                 error!("Error! {}", error);
@@ -100,6 +100,7 @@ impl SphinxSocksServer {
                                 };
                             }
                         };
+                        // client gets dropped here
                     }
                 });
             }

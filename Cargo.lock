@@ -2907,6 +2907,7 @@ dependencies = [
  "futures 0.3.4",
  "futures-util",
  "log 0.4.8",
+ "nymsphinx",
  "pretty_env_logger",
  "tokio 0.2.16",
  "tokio-tungstenite",

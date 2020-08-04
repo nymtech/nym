@@ -109,6 +109,35 @@ impl SocksRequest {
         utils::addr_to_socket(&self.addr_type, &self.addr, self.port)
     }
 
+    async fn try_read_request_data<R: AsyncRead + Unpin>(reader: &mut R) -> io::Result<Vec<u8>> {
+        let mut data = Vec::new();
+        let timeout_duration = std::time::Duration::from_millis(500);
+
+        let mut timeout = tokio::time::delay_for(timeout_duration);
+        loop {
+            let mut buf = [0u8; 1024];
+            tokio::select! {
+                _ = &mut timeout => {
+                    println!("we timed out!");
+                    return Ok(data)
+                }
+                read_data = reader.read(&mut buf) => {
+                    match read_data {
+                        Ok(0) => return Ok(data),
+                        Err(err) => return Err(err),
+                        // Ok(n) => data.append(&buf[..n].to_vec())
+                        Ok(n) => {
+                            let now = timeout.deadline();
+                            let next = now + timeout_duration;
+                            timeout.reset(next);
+                            data.extend_from_slice(&buf[..n])
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// Serialize the destination address and port (as a string), and the
     /// request_id concatenated with the entirety of the request stream.
     /// Return it all as a sequence of bytes.
@@ -129,37 +158,50 @@ impl SocksRequest {
     /// Can be used as a Sphinx payload.
     pub async fn serialize(
         &mut self,
-        stream: &mut TcpStream,
+        mut stream: &mut TcpStream,
         request_id: &RequestID,
-    ) -> Option<Vec<u8>> {
+    ) -> io::Result<Vec<u8>> {
         let remote_address = self.to_string();
         let remote_address_bytes = remote_address.into_bytes();
         let remote_address_bytes_len = remote_address_bytes.len() as u16;
         let address_length = remote_address_bytes_len.to_be_bytes(); // this is [u8; 2];
-        const BUF_SIZE: usize = 4096;
-        let mut stream_buf = [0u8; BUF_SIZE];
+                                                                     // const BUF_SIZE: usize = 4096;
+                                                                     // let mut stream_buf = [0u8; BUF_SIZE];
 
-        match stream.read(&mut stream_buf).await {
-            // socket closed
-            Ok(n) if n == 0 => {
-                trace!("Remote connection closed.");
-                None
-            }
-            Ok(n) => {
-                let buf = address_length
-                    .iter()
-                    .cloned()
-                    .chain(remote_address_bytes.into_iter())
-                    .chain(request_id.to_vec().into_iter())
-                    .chain(stream_buf.iter().take(n).cloned())
-                    .collect::<Vec<_>>();
-                Some(buf)
-            }
-            Err(e) => {
-                warn!("failed to read from socket; err = {:?}", e);
-                None
-            }
+        let request_data = Self::try_read_request_data(&mut stream).await?;
+        if request_data.len() == 0 {
+            return Err(io::Error::new(io::ErrorKind::Other, "foomp!"));
         }
+
+        Ok(address_length
+            .iter()
+            .cloned()
+            .chain(remote_address_bytes.into_iter())
+            .chain(request_id.to_vec().into_iter())
+            .chain(request_data.into_iter())
+            .collect())
+
+        // match stream.read(&mut stream_buf).await {
+        //     // socket closed
+        //     Ok(n) if n == 0 => {
+        //         trace!("Remote connection closed.");
+        //         None
+        //     }
+        //     Ok(n) => {
+        //         let buf = address_length
+        //             .iter()
+        //             .cloned()
+        //             .chain(remote_address_bytes.into_iter())
+        //             .chain(request_id.to_vec().into_iter())
+        //             .chain(stream_buf.iter().take(n).cloned())
+        //             .collect::<Vec<_>>();
+        //         Some(buf)
+        //     }
+        //     Err(e) => {
+        //         warn!("failed to read from socket; err = {:?}", e);
+        //         None
+        //     }
+        // }
     }
 }
 

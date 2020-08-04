@@ -84,13 +84,14 @@ impl SocksClient {
 
     /// Shutdown the TcpStream to the client and end the session
     pub fn shutdown(&mut self) -> Result<(), SocksProxyError> {
+        println!("client is shutting down its TCP stream");
         self.stream.shutdown(Shutdown::Both)?;
         Ok(())
     }
 
     /// Initializes the new client, checking that the correct Socks version (5)
-    /// is in use and that the client is authenticated.
-    pub async fn init(&mut self) -> Result<(), SocksProxyError> {
+    /// is in use and that the client is authenticated, then runs the request.
+    pub async fn run(&mut self) -> Result<(), SocksProxyError> {
         debug!("New connection from: {}", self.stream.peer_addr()?.ip());
         let mut header = [0u8; 2];
         // Read a byte from the stream and determine the version being requested
@@ -148,31 +149,38 @@ impl SocksClient {
             // Use the Proxy to connect to the specified addr/port
             SocksCommand::Connect => {
                 trace!("Connecting to: {:?}", request.to_socket());
-                self.write_socks5_response().await;
-                if let Some(request_bytes) =
-                    request.serialize(&mut self.stream, &self.request_id).await
-                {
-                    println!(
-                        "Sending request {:?} outbound through mixnet",
-                        self.request_id
-                    );
-                    self.send_to_mixnet(request_bytes).await;
-                    // refactor idea: crossbeam oneshot channels are faster
-                    let (sender, receiver) = oneshot::channel();
-                    let mut active_streams_guard = self.active_streams.lock().await;
-                    if active_streams_guard
-                        .insert(self.request_id, sender)
-                        .is_some()
+                self.acknowledge_socks5().await;
+
+                loop {
+                    if let Ok(request_bytes) =
+                        request.serialize(&mut self.stream, &self.request_id).await
                     {
-                        panic!("there is already an active request with the same id present - it's probably a bug!")
+                        println!(
+                            "Sending request {:?} outbound through mixnet",
+                            self.request_id
+                        );
+                        self.send_to_mixnet(request_bytes).await;
+                        // refactor idea: crossbeam oneshot channels are faster
+
+                        // could there be some problem in this next bit which causes
+                        // our SSL problem? Let's talk this over.
+                        let (sender, receiver) = oneshot::channel();
+                        let mut active_streams_guard = self.active_streams.lock().await;
+                        if active_streams_guard
+                            .insert(self.request_id, sender)
+                            .is_some()
+                        {
+                            panic!("there is already an active request with the same id present - it's probably a bug!")
+                        };
+                        drop(active_streams_guard);
+                        let response_data = receiver.await.unwrap();
+                        println!("response_data: {:?}", response_data);
+                        self.stream.write_all(&response_data).await.unwrap();
+                    } else {
+                        println!("Stream closed or there was an error");
+                        break;
                     };
-                    drop(active_streams_guard);
-                    let response_data = receiver.await.unwrap();
-                    println!("response_data: {:?}", response_data);
-                    self.stream.write_all(&response_data).await.unwrap();
-                } else {
-                    println!("Stream closed or there was an error");
-                };
+                }
             }
 
             SocksCommand::Bind => unimplemented!(), // not handled
@@ -181,9 +189,10 @@ impl SocksClient {
         Ok(())
     }
 
-    /// Send serialized Socks5 request bytes to the mixnet. It will chunked up into a
-    /// series of one or more Sphinx packets and reassembled at the destination
-    /// service provider at the other end, then sent onwards anonymously.
+    /// Send serialized Socks5 request bytes to the mixnet. The request stream
+    /// will be chunked up into a series of one or more Sphinx packets and
+    /// reassembled at the destination service provider at the other end, then
+    /// sent onwards anonymously.
     async fn send_to_mixnet(&self, request_bytes: Vec<u8>) {
         let input_message = InputMessage::new(self.service_provider.clone(), request_bytes);
         self.input_sender.unbounded_send(input_message).unwrap();
@@ -191,7 +200,7 @@ impl SocksClient {
 
     /// Writes a Socks5 header back to the requesting client's TCP stream,
     /// basically saying "I acknowledge your request and am dealing with it".
-    async fn write_socks5_response(&mut self) {
+    async fn acknowledge_socks5(&mut self) {
         self.stream
             .write_all(&[
                 SOCKS_VERSION,

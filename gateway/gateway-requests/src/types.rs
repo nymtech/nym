@@ -15,9 +15,12 @@
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::authentication::iv::AuthenticationIV;
 use crate::registration::handshake::SharedKeys;
-use crypto::symmetric::aes_ctr;
+use crate::GatewayMacSize;
+use crypto::hmac::{compute_keyed_hmac, recompute_keyed_hmac_and_verify_tag};
+use crypto::symmetric::aes_ctr::{self, generic_array::typenum::Unsigned};
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx::params::packet_sizes::PacketSize;
+use nymsphinx::params::GatewayIntegrityHmacAlgorithm;
 use nymsphinx::{DestinationAddressBytes, SphinxPacket};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -63,6 +66,8 @@ impl TryInto<String> for RegistrationHandshake {
 
 #[derive(Debug)]
 pub enum GatewayRequestsError {
+    TooShortRequest,
+    InvalidMAC,
     IncorrectlyEncodedAddress,
     RequestOfInvalidSize(usize),
     MalformedSphinxPacket,
@@ -75,8 +80,11 @@ impl fmt::Display for GatewayRequestsError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         use GatewayRequestsError::*;
         match self {
+            TooShortRequest => write!(f, "the request is too short"),
+            InvalidMAC => write!(f, "provided MAC is invalid"),
             IncorrectlyEncodedAddress => write!(f, "address field was incorrectly encoded"),
-            RequestOfInvalidSize(actual) => write!(
+            RequestOfInvalidSize(actual) =>
+                write!(
                 f,
                 "received request had invalid size. (actual: {}, but expected one of: {} (ACK), {} (REGULAR), {} (EXTENDED))",
                 actual, PacketSize::ACKPacket.size(), PacketSize::RegularPacket.size(), PacketSize::ExtendedPacket.size()
@@ -200,35 +208,48 @@ pub enum BinaryRequest {
     },
 }
 
-// TODO: ask @AP if that's sufficient
-const PADDING_LEN: usize = 16;
-
 // Right now the only valid `BinaryRequest` is a request to forward a sphinx packet.
 // It is encrypted using the derived shared key between client and the gateway. Thanks to
 // randomness inside the sphinx packet themselves (even via the same route), the 0s IV can be used here.
 // HOWEVER, NOTE: If we introduced another 'BinaryRequest', we must carefully examine if a 0s IV
 // would work there.
 impl BinaryRequest {
-    pub fn try_from_encrypted_bytes(
+    pub fn try_from_encrypted_tagged_bytes(
         mut raw_req: Vec<u8>,
-        shared_key: &SharedKeys,
+        shared_keys: &SharedKeys,
     ) -> Result<Self, GatewayRequestsError> {
-        aes_ctr::decrypt_in_place(
-            shared_key.encryption_key(),
-            &aes_ctr::zero_iv(),
-            &mut raw_req,
-        );
-        // see if the padding is retained
-        if !raw_req.iter().rev().take(PADDING_LEN).all(|&x| x == 0) {
-            return Err(GatewayRequestsError::MalformedEncryption);
+        let mac_size = GatewayMacSize::to_usize();
+        if raw_req.len() < mac_size {
+            return Err(GatewayRequestsError::TooShortRequest);
         }
+
+        let mac_tag = &raw_req[..mac_size];
+        let message_bytes = &raw_req[mac_size..];
+
+        if !recompute_keyed_hmac_and_verify_tag::<GatewayIntegrityHmacAlgorithm>(
+            shared_keys.mac_key(),
+            message_bytes,
+            mac_tag,
+        ) {
+            return Err(GatewayRequestsError::InvalidMAC);
+        }
+
+        // couldn't have made the first borrow mutable as you can't have an immutable borrow
+        // together with a mutable one
+        let mut message_bytes_mut = &mut raw_req[mac_size..];
+
+        aes_ctr::decrypt_in_place(
+            shared_keys.encryption_key(),
+            &aes_ctr::zero_iv(),
+            &mut message_bytes_mut,
+        );
 
         // right now there's only a single option possible which significantly simplifies the logic
         // if we decided to allow for more 'binary' messages, the API wouldn't need to change
-        let address = NymNodeRoutingAddress::try_from_bytes(&raw_req)?;
+        let address = NymNodeRoutingAddress::try_from_bytes(&message_bytes_mut)?;
         let addr_offset = address.bytes_min_len();
 
-        let sphinx_packet_data = &raw_req[addr_offset..raw_req.len() - PADDING_LEN];
+        let sphinx_packet_data = &message_bytes_mut[addr_offset..];
         let packet_size = sphinx_packet_data.len();
         if PacketSize::get_type(packet_size).is_err() {
             // TODO: should this allow AckPacket sizes?
@@ -247,26 +268,33 @@ impl BinaryRequest {
         }
     }
 
-    pub fn into_encrypted_bytes(self, shared_key: &SharedKeys) -> Vec<u8> {
+    pub fn into_encrypted_tagged_bytes(self, shared_key: &SharedKeys) -> Vec<u8> {
         match self {
             BinaryRequest::ForwardSphinx {
                 address,
                 sphinx_packet,
             } => {
-                // add 16 bytes of padding so that the gateway could catch incorrect encryption
-                let mut gateway_data: Vec<_> = address
+                let mut forwarding_data: Vec<_> = address
                     .as_bytes()
                     .into_iter()
                     .chain(sphinx_packet.to_bytes().into_iter())
-                    .chain(std::iter::repeat(0).take(PADDING_LEN))
                     .collect();
 
                 aes_ctr::encrypt_in_place(
                     shared_key.encryption_key(),
                     &aes_ctr::zero_iv(),
-                    &mut gateway_data,
+                    &mut forwarding_data,
                 );
-                gateway_data
+
+                let mac = compute_keyed_hmac::<GatewayIntegrityHmacAlgorithm>(
+                    &shared_key.mac_key(),
+                    &forwarding_data,
+                );
+
+                mac.into_bytes()
+                    .into_iter()
+                    .chain(forwarding_data.into_iter())
+                    .collect()
             }
         }
     }
@@ -283,7 +311,7 @@ impl BinaryRequest {
     }
 
     pub fn into_ws_message(self, shared_key: &SharedKeys) -> Message {
-        Message::Binary(self.into_encrypted_bytes(shared_key))
+        Message::Binary(self.into_encrypted_tagged_bytes(shared_key))
     }
 }
 

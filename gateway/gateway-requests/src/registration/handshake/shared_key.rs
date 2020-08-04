@@ -19,17 +19,16 @@ use crypto::symmetric::aes_ctr::{
     },
     Aes128Key, Aes128KeySize,
 };
-use crypto::Digest;
-use nymsphinx::params::GatewayIntegrityHmacAlgorithm;
 use pemstore::traits::PemStorableKey;
 use std::fmt::{self, Display, Formatter};
+
+// shared key is as long as the Aes128 key and the MAC key combined.
+pub type SharedKeySize = Sum<Aes128KeySize, MacKeySize>;
 
 // we're using 16 byte long key in sphinx, so let's use the same one here
 type MacKeySize = U16;
 
-// shared key is as long as the Aes128 key and the MAC key
-pub type SharedKeySize = Sum<Aes128KeySize, MacKeySize>;
-
+/// Shared key used when computing MAC for messages exchanged between client and its gateway.
 pub type MacKey = GenericArray<u8, MacKeySize>;
 
 #[derive(Clone, Debug)]
@@ -128,7 +127,7 @@ impl PemStorableKey for SharedKeys {
     fn pem_type() -> &'static str {
         // TODO: If common\nymsphinx\params\src\lib::GatewayIntegrityHmacAlgorithm changes
         // the pem type needs updating!
-        "AES-128-CTR + HMAC<BLAKE3> GATEWAY SHARED KEYS"
+        "AES-128-CTR + HMAC-BLAKE3 GATEWAY SHARED KEYS"
     }
 
     fn to_bytes(&self) -> Vec<u8> {

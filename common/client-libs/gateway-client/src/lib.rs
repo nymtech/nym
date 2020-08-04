@@ -114,7 +114,9 @@ impl<'a> PartiallyDelegated<'a> {
                             // so each request/response pair can be easily identified, so that if messages are
                             // not ordered (for some peculiar reason) we wouldn't lose anything.
                             // This would also require NOT discarding any text responses here.
-                            Message::Text(text) => warn!("received a text message - probably a response to some previous query! - {}", text),
+
+                            // TODO: those can return the "send confirmations" - perhaps it should be somehow worked around?
+                            Message::Text(text) => debug!("received a text message - probably a response to some previous query! - {}", text),
                             _ => (),
                         };
                     }

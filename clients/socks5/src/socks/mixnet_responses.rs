@@ -1,4 +1,4 @@
-use super::client::{ActiveStreams, RequestID, REQUEST_ID_SIZE};
+use super::client::{ActiveStreams, RequestID};
 use crate::client::received_buffer::ReconstructedMessagesReceiver;
 use crate::client::received_buffer::{ReceivedBufferMessage, ReceivedBufferRequestSender};
 use futures::channel::mpsc;
@@ -42,15 +42,23 @@ impl MixnetResponseListener {
     }
 
     fn parse_message(&self, message: Vec<u8>) -> Result<(RequestID, Vec<u8>), MixnetResponseError> {
-        if message.len() < REQUEST_ID_SIZE {
+        if message.len() < 8 {
             return Err(MixnetResponseError::InvalidResponseError);
         }
 
         let mut request_id_bytes = message;
-        let response = request_id_bytes.split_off(REQUEST_ID_SIZE);
+        let response = request_id_bytes.split_off(8);
 
-        let mut request_id = [0u8; REQUEST_ID_SIZE];
-        request_id.copy_from_slice(&request_id_bytes);
+        let request_id = u64::from_be_bytes([
+            request_id_bytes[0],
+            request_id_bytes[1],
+            request_id_bytes[2],
+            request_id_bytes[3],
+            request_id_bytes[4],
+            request_id_bytes[5],
+            request_id_bytes[6],
+            request_id_bytes[7],
+        ]);
 
         Ok((request_id, response))
     }

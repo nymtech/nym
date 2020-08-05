@@ -33,8 +33,7 @@ pub(crate) struct SocksClient {
     service_provider: Recipient,
 }
 
-pub(crate) const REQUEST_ID_SIZE: usize = 16;
-pub(crate) type RequestID = [u8; REQUEST_ID_SIZE];
+pub(crate) type RequestID = u64;
 
 type StreamResponseSender = oneshot::Sender<Vec<u8>>;
 
@@ -69,11 +68,8 @@ impl SocksClient {
     }
 
     fn generate_random() -> RequestID {
-        let mut id = [0u8; REQUEST_ID_SIZE];
         let mut rng = rand::rngs::OsRng;
-        rng.fill_bytes(&mut id);
-        println!("request_id is {:?}", id);
-        id
+        rng.next_u64()
     }
 
     // Send an error back to the client

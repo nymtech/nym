@@ -146,17 +146,56 @@ impl Request {
     }
 }
 
-pub enum Response {}
+pub struct Response {
+    data: Vec<u8>,
+    connection_id: ConnectionId,
+}
 
 impl Response {
+    pub fn new(connection_id: ConnectionId, data: Vec<u8>) -> Self {
+        Response {
+            connection_id,
+            data,
+        }
+    }
+
     pub fn try_from_bytes(b: &[u8]) -> Result<Self> {
         todo!()
     }
 
     pub fn into_bytes(self) -> Vec<u8> {
-        todo!()
+        self.connection_id
+            .to_be_bytes()
+            .iter()
+            .cloned()
+            .chain(self.data.into_iter())
+            .collect()
     }
 }
+
+// TODO: this will go to simple_socks5_requests::types
+// pub struct Response {
+//     data: Vec<u8>,
+//     connection_id: connection::Id,
+// }
+
+// impl Response {
+//     pub fn new(connection_id: [u8; 16], data: Vec<u8>) -> Response {
+//         Response {
+//             data,
+//             connection_id,
+//         }
+//     }
+
+//     /// Serializes the response as `connection_id || data`, returning a byte vector
+//     pub fn serialize(self) -> Vec<u8> {
+//         self.connection_id
+//             .iter()
+//             .cloned()
+//             .chain(self.data.into_iter())
+//             .collect()
+//     }
+// }
 
 #[cfg(test)]
 mod request_deserialization_tests {

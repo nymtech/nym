@@ -1,7 +1,7 @@
 use crate::{proxy, websocket};
 use futures::SinkExt;
 use futures_util::StreamExt;
-use proxy::connection::Connection;
+use proxy::{connection::Connection, controller::Controller};
 use simple_socks5_requests::Request;
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
@@ -23,6 +23,8 @@ impl Server {
     pub fn start(&mut self) {
         let websocket_stream = self.connect_websocket("ws://localhost:1977");
         let (mut write, mut read) = websocket_stream.split();
+        let mut controller = Controller::new();
+
         self.runtime.block_on(async {
             println!("\nAll systems go. Press CTRL-C to stop the server.");
             while let Some(msg) = read.next().await {
@@ -35,27 +37,29 @@ impl Server {
                 // A: websocket -> request -> router -> connection -> controller -> websocket
                 // B: websocket -> request -> controller -> connection -> controller -> websocket
 
-                let request = Request::try_from_bytes(&data);
+                let request = Request::try_from_bytes(&data).unwrap();
+                let response = controller.process_request(request).await.unwrap();
+
                 // let response = router.route(request);
 
                 println!(
                     "Socks5 requester received a new request message: {:?}",
                     String::from_utf8_lossy(&data)
                 );
-                // let request = Connection::new(data);
-                // let response = request.run().await.unwrap();
-                // let return_address = "4QC5D8auMbVpFVBfiZnVtQVUPiNUV9FMnpb81cauFpEp@GYCqU48ndXke9o2434i7zEGv1sWg1cNVswWJfRnY1VTB";
-                // let recipient = nymsphinx::addressing::clients::Recipient::try_from_string(return_address).unwrap();
+
+                
+                let return_address = "4QC5D8auMbVpFVBfiZnVtQVUPiNUV9FMnpb81cauFpEp@GYCqU48ndXke9o2434i7zEGv1sWg1cNVswWJfRnY1VTB";
+                let recipient = nymsphinx::addressing::clients::Recipient::try_from_string(return_address).unwrap();
 
                 // // bytes:  recipient || request_id || response_data
-                // let response_message = recipient.into_bytes()
-                //     .iter()
-                //     .cloned()
-                //     .chain(response.serialize().into_iter())
-                //     .collect();
+                let response_message = recipient.into_bytes()
+                    .iter()
+                    .cloned()
+                    .chain(response.unwrap().into_bytes().into_iter())
+                    .collect();
 
-                // let message = Message::Binary(response_message);
-                // write.send(message).await.unwrap();
+                let message = Message::Binary(response_message);
+                write.send(message).await.unwrap();
             }
         });
     }

@@ -1,8 +1,9 @@
 use crate::proxy::connection;
 use connection::Connection;
-use simple_socks5_requests::{ConnectionId, RemoteAddress, Request};
+use simple_socks5_requests::{ConnectionId, RemoteAddress, Request, Response};
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub struct TodoError;
 
 pub(crate) struct Controller {
@@ -17,13 +18,25 @@ impl Controller {
         }
     }
 
-    pub(crate) async fn process_request(&mut self, request: Request) -> Result<(), TodoError> {
+    pub(crate) async fn process_request(
+        &mut self,
+        request: Request,
+    ) -> Result<Option<Response>, TodoError> {
         match request {
             Request::Connect(conn_id, remote_addr, data) => {
-                self.create_new_connection(conn_id, remote_addr, data).await
+                let response = self
+                    .create_new_connection(conn_id, remote_addr, data)
+                    .await?;
+                Ok(Some(response))
             }
-            Request::Send(conn_id, data) => self.send_to_connection(conn_id, data).await,
-            Request::Close(conn_id) => self.close_connection(conn_id),
+            Request::Send(conn_id, data) => {
+                let response = self.send_to_connection(conn_id, data).await?;
+                Ok(Some(response))
+            }
+            Request::Close(conn_id) => {
+                self.close_connection(conn_id)?;
+                Ok(None)
+            }
         }
     }
 
@@ -32,24 +45,27 @@ impl Controller {
         conn_id: ConnectionId,
         remote_addr: RemoteAddress,
         init_data: Vec<u8>,
-    ) -> Result<(), TodoError> {
+    ) -> Result<Response, TodoError> {
         Connection::new(conn_id, remote_addr, &init_data)
             .await
             .expect("todo: error handling");
-        Ok(())
+
+        todo!("return a response")
+        // Ok(())
     }
 
     async fn send_to_connection(
         &mut self,
         conn_id: ConnectionId,
         data: Vec<u8>,
-    ) -> Result<(), TodoError> {
+    ) -> Result<Response, TodoError> {
         let connection = self
             .open_connections
             .get_mut(&conn_id)
             .expect("TODO: dont panic - connection doesn't exist");
         connection.send_data(&data).await.expect("todo: error");
-        Ok(())
+        todo!("return a response")
+        // Ok(())
     }
 
     fn close_connection(&mut self, conn_id: ConnectionId) -> Result<(), TodoError> {

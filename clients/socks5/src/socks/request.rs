@@ -173,11 +173,10 @@ impl SocksRequest {
             return Err(io::Error::new(io::ErrorKind::Other, "foomp!"));
         }
 
-        Ok(address_length
-            .iter()
-            .cloned()
+        Ok(std::iter::once(0)
+            .chain(request_id.to_be_bytes().iter().cloned())
+            .chain(address_length.iter().cloned())
             .chain(remote_address_bytes.into_iter())
-            .chain(request_id.to_vec().into_iter())
             .chain(request_data.into_iter())
             .collect())
     }

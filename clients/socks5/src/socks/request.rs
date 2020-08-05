@@ -109,6 +109,8 @@ impl SocksRequest {
         utils::addr_to_socket(&self.addr_type, &self.addr, self.port)
     }
 
+    /// Attempts to read data from the Socks5 request stream. Times out and
+    /// returns what it's got if no data is read for the timeout_duration
     async fn try_read_request_data<R: AsyncRead + Unpin>(reader: &mut R) -> io::Result<Vec<u8>> {
         let mut data = Vec::new();
         let timeout_duration = std::time::Duration::from_millis(500);

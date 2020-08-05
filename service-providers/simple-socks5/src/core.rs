@@ -2,11 +2,13 @@ use crate::{proxy, websocket};
 use futures::SinkExt;
 use futures_util::StreamExt;
 use proxy::connection::Connection;
+use simple_socks5_requests::Request;
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::WebSocketStream;
 use websocket::WebsocketConnectionError;
+
 pub struct Server {
     runtime: Runtime,
 }
@@ -29,6 +31,12 @@ impl Server {
                     println!("json: {:?}", String::from_utf8_lossy(&data));
                     continue
                 }
+
+                // A: websocket -> request -> router -> connection -> controller -> websocket
+                // B: websocket -> request -> controller -> connection -> controller -> websocket
+
+                let request = Request::try_from_bytes(&data);
+                // let response = router.route(request);
 
                 println!("Socks5 requester received a new request message: {:?}", String::from_utf8_lossy(&data));
                 let request = Connection::new(data);

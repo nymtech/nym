@@ -2909,9 +2909,14 @@ dependencies = [
  "log 0.4.8",
  "nymsphinx",
  "pretty_env_logger",
+ "simple-socks5-requests",
  "tokio 0.2.16",
  "tokio-tungstenite",
 ]
+
+[[package]]
+name = "simple-socks5-requests"
+version = "0.1.0"
 
 [[package]]
 name = "siphasher"

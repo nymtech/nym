@@ -46,12 +46,17 @@ impl Controller {
         remote_addr: RemoteAddress,
         init_data: Vec<u8>,
     ) -> Result<Response, TodoError> {
-        Connection::new(conn_id, remote_addr, &init_data)
+        let mut connection = Connection::new(conn_id, remote_addr, &init_data)
             .await
             .expect("todo: error handling");
 
-        todo!("return a response")
-        // Ok(())
+        let response_data = connection
+            .try_read_response_data()
+            .await
+            .expect("todo: error handling");
+
+        self.open_connections.insert(conn_id, connection);
+        Ok(Response::new(conn_id, response_data))
     }
 
     async fn send_to_connection(

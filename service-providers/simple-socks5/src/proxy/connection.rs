@@ -66,7 +66,7 @@ impl Connection {
 
     /// Read response data by looping, waiting for anything we get back from the
     /// remote server. Returns once it times out or the connection closes.
-    async fn try_read_response_data<R: AsyncRead + Unpin>(reader: &mut R) -> io::Result<Vec<u8>> {
+    pub(crate) async fn try_read_response_data(&mut self) -> io::Result<Vec<u8>> {
         let timeout_duration = std::time::Duration::from_millis(500);
         let mut data = Vec::new();
         let mut timeout = tokio::time::delay_for(timeout_duration);
@@ -77,7 +77,7 @@ impl Connection {
                     println!("we timed out!");
                     return Ok(data)
                 }
-                read_data = reader.read(&mut buf) => {
+                read_data = self.conn.read(&mut buf) => {
                     match read_data {
                         Err(err) => return Err(err),
                         Ok(0) => return Ok(data),

@@ -14,12 +14,32 @@ type RemoteAddress = String;
 type RequestData = Vec<u8>;
 
 impl Request {
-    pub fn new(request_bytes: Vec<u8>) -> Request {
+    pub(crate) fn new(request_bytes: Vec<u8>) -> Request {
         let (id, address, data) = Request::deserialize(request_bytes);
         Request { id, address, data }
     }
 
-    async fn try_read_request_data<R: AsyncRead + Unpin>(reader: &mut R) -> io::Result<Vec<u8>> {
+    pub(crate) async fn run(&self) -> tokio::io::Result<Response> {
+        println!(
+            "running request id {:?}, remote {:?}, data {:?}",
+            self.id,
+            self.address,
+            String::from_utf8_lossy(&self.data)
+        );
+
+        let mut stream = TcpStream::connect(&self.address).await?;
+        stream.write_all(&self.data).await?;
+
+        let response_buf = Request::try_read_response_data(&mut stream).await?;
+        println!(
+            "response data: {:?}",
+            String::from_utf8_lossy(&response_buf)
+        );
+        let response = Response::new(self.id, response_buf);
+        Ok(response)
+    }
+
+    async fn try_read_response_data<R: AsyncRead + Unpin>(reader: &mut R) -> io::Result<Vec<u8>> {
         let mut data = Vec::new();
         let timeout_duration = std::time::Duration::from_millis(500);
 
@@ -35,7 +55,6 @@ impl Request {
                     match read_data {
                         Ok(0) => return Ok(data),
                         Err(err) => return Err(err),
-                        // Ok(n) => data.append(&buf[..n].to_vec())
                         Ok(n) => {
                             let now = timeout.deadline();
                             let next = now + timeout_duration;
@@ -46,28 +65,6 @@ impl Request {
                 }
             }
         }
-    }
-
-    pub async fn run(&self) -> tokio::io::Result<Response> {
-        println!(
-            "running request id {:?}, remote {:?}, data {:?}",
-            self.id,
-            self.address,
-            String::from_utf8_lossy(&self.data)
-        );
-
-        // let mut response_buf = vec![0u8; 2 ^ 16]; // let's limit responses to 64KB for now
-        let mut stream = TcpStream::connect(&self.address).await?;
-        stream.write_all(&self.data).await?;
-
-        let response_buf = Request::try_read_request_data(&mut stream).await?;
-
-        // let mut foo = [0u8; 32];
-        // stream.read_to_end(&mut foo).await?;
-        println!("request data: {:?}", String::from_utf8_lossy(&response_buf));
-        // println!("second foo read: {:?}", String::from_utf8_lossy(&foo));
-        let response = Response::new(self.id, response_buf);
-        Ok(response)
     }
 
     /// Deserialize the destination address and port, the request id,

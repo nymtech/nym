@@ -29,7 +29,7 @@ impl Server {
                 let data = msg.unwrap().into_data();
                 if data[0] == b'{' && data[1] == b'"' {
                     println!("json: {:?}", String::from_utf8_lossy(&data));
-                    continue
+                    continue;
                 }
 
                 // A: websocket -> request -> router -> connection -> controller -> websocket
@@ -38,21 +38,24 @@ impl Server {
                 let request = Request::try_from_bytes(&data);
                 // let response = router.route(request);
 
-                println!("Socks5 requester received a new request message: {:?}", String::from_utf8_lossy(&data));
-                let request = Connection::new(data);
-                let response = request.run().await.unwrap();
-                let return_address = "4QC5D8auMbVpFVBfiZnVtQVUPiNUV9FMnpb81cauFpEp@GYCqU48ndXke9o2434i7zEGv1sWg1cNVswWJfRnY1VTB";
-                let recipient = nymsphinx::addressing::clients::Recipient::try_from_string(return_address).unwrap();
+                println!(
+                    "Socks5 requester received a new request message: {:?}",
+                    String::from_utf8_lossy(&data)
+                );
+                // let request = Connection::new(data);
+                // let response = request.run().await.unwrap();
+                // let return_address = "4QC5D8auMbVpFVBfiZnVtQVUPiNUV9FMnpb81cauFpEp@GYCqU48ndXke9o2434i7zEGv1sWg1cNVswWJfRnY1VTB";
+                // let recipient = nymsphinx::addressing::clients::Recipient::try_from_string(return_address).unwrap();
 
-                // bytes:  recipient || request_id || response_data
-                let response_message = recipient.into_bytes()
-                    .iter()
-                    .cloned()
-                    .chain(response.serialize().into_iter())
-                    .collect();
+                // // bytes:  recipient || request_id || response_data
+                // let response_message = recipient.into_bytes()
+                //     .iter()
+                //     .cloned()
+                //     .chain(response.serialize().into_iter())
+                //     .collect();
 
-                let message = Message::Binary(response_message);
-                write.send(message).await.unwrap();
+                // let message = Message::Binary(response_message);
+                // write.send(message).await.unwrap();
             }
         });
     }

@@ -52,6 +52,18 @@ impl Request {
         todo!()
     }
 
+    // TODO: this dsecription is outdated
+    /// Deserialize the destination address and port, the request id,
+    /// and the request body from bytes. This is the reverse of SocksRequest::serialize.
+    ///
+    /// Serialized bytes looks like this:
+    ///
+    /// ------------------------------------------------------------------------
+    /// | address_length | remote_address_bytes | connection_id | request_data |
+    /// |      2         |    address_length    |     16     |   ...           |
+    /// ------------------------------------------------------------------------
+    ///
+    /// We return the useful deserialized values.
     pub fn try_from_bytes(b: &[u8]) -> Result<Self> {
         // each request needs to at least contain flag and ConnectionId
         if b.is_empty() {

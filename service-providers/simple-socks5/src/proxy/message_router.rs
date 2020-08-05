@@ -1,51 +1,59 @@
 use crate::proxy::connection;
+use connection::Connection;
+use simple_socks5_requests::{ConnectionId, RemoteAddress, Request};
+use std::collections::HashMap;
 
-pub(crate) struct Controller {}
+pub struct TodoError;
+
+pub(crate) struct Controller {
+    // TODO: I've got a feeling this will need to have a mutex slapped on it, but we'll see
+    open_connections: HashMap<ConnectionId, Connection>,
+}
 
 impl Controller {
-    /// Deserialize the destination address and port, the request id,
-    /// and the request body from bytes. This is the reverse of SocksRequest::serialize.
-    ///
-    /// Serialized bytes looks like this:
-    ///
-    /// ------------------------------------------------------------------------
-    /// | address_length | remote_address_bytes | connection_id | request_data |
-    /// |      2         |    address_length    |     16     |   ...           |
-    /// ------------------------------------------------------------------------
-    ///
-    /// We return the useful deserialized values.
-    pub(crate) fn parse_message(
-        request_bytes: Vec<u8>,
-    ) -> (
-        connection::Id,
-        connection::RemoteAddress,
-        connection::RequestData,
-    ) {
-        let total_length = request_bytes.len();
-        let address_length: usize =
-            (((request_bytes[0] as u16) << 8) | request_bytes[1] as u16).into(); // combines first 2 bytes into one u16
-        let address_start = 2;
-        let address_end = address_start + address_length;
-        let address_vec = request_bytes[address_start..address_end].to_vec();
-        let address = String::from_utf8_lossy(&address_vec).to_string();
-
-        let request_id_start = address_end;
-        let request_id_end = request_id_start + 16;
-        let request_id_vec = request_bytes[request_id_start..request_id_end].to_vec();
-        let connection_id = Controller::from_slice(&request_id_vec);
-
-        let data_start = request_id_end;
-        let mut data = Vec::new();
-        if data_start <= total_length {
-            data = request_bytes[data_start..].to_vec();
+    pub(crate) async fn process_request(&mut self, request: Request) -> Result<(), TodoError> {
+        match request {
+            Request::Connect(conn_id, remote_addr, data) => {
+                self.create_new_connection(conn_id, remote_addr, data).await
+            }
+            Request::Send(conn_id, data) => self.send_to_connection(conn_id, data).await,
+            Request::Close(conn_id) => self.close_connection(conn_id),
         }
-        (connection_id, address, data)
     }
 
-    fn from_slice(bytes: &[u8]) -> [u8; 16] {
-        let mut array = [0; 16];
-        let bytes = &bytes[..array.len()]; // panics if not enough data
-        array.copy_from_slice(bytes);
-        array
+    async fn create_new_connection(
+        &mut self,
+        conn_id: ConnectionId,
+        remote_addr: RemoteAddress,
+        init_data: Vec<u8>,
+    ) -> Result<(), TodoError> {
+        Connection::new(conn_id, remote_addr, &init_data)
+            .await
+            .expect("todo: error handling");
+        Ok(())
+    }
+
+    async fn send_to_connection(
+        &mut self,
+        conn_id: ConnectionId,
+        data: Vec<u8>,
+    ) -> Result<(), TodoError> {
+        let connection = self
+            .open_connections
+            .get_mut(&conn_id)
+            .expect("TODO: dont panic - connection doesn't exist");
+        connection.send_data(&data).await.expect("todo: error");
+        Ok(())
+    }
+
+    fn close_connection(&mut self, conn_id: ConnectionId) -> Result<(), TodoError> {
+        match self.open_connections.remove(&conn_id) {
+            // I *think* connection is closed implicitly on drop, but I'm not 100% sure!
+            Some(_conn) => (),
+            // TODO: don't panic
+            None => panic!("tried to close non-existing connection! - {}", conn_id),
+        }
+
+        Ok(())
     }
 }

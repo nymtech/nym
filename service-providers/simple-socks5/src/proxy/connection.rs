@@ -1,20 +1,13 @@
-use crate::proxy::message_router::Controller;
-use crate::proxy::response::Response;
+use simple_socks5_requests::{ConnectionId, RemoteAddress};
 use tokio::net::TcpStream;
 use tokio::prelude::*;
 
 #[derive(Debug)]
 pub(crate) struct Connection {
-    id: Id,
+    id: ConnectionId,
     address: RemoteAddress,
-    // TODO: replace data with stream?
-    data: RequestData,
     conn: TcpStream,
 }
-
-pub(crate) type Id = [u8; 16];
-pub(crate) type RemoteAddress = String;
-pub(crate) type RequestData = Vec<u8>;
 
 /*
     Request:
@@ -32,45 +25,44 @@ pub(crate) type RequestData = Vec<u8>;
 // }
 
 impl Connection {
-    /// Constructor: deserializes the incoming data and returns a new Connection
-    /// which can be used to shoot data up and down.
-    pub(crate) fn new(request_bytes: Vec<u8>) -> Connection {
-        let (id, address, data) = Controller::parse_message(request_bytes);
-        let conn = todo!();
-        Connection {
-            id,
-            address,
-            data,
-            conn,
-        }
+    pub(crate) async fn new(
+        id: ConnectionId,
+        address: RemoteAddress,
+        initial_data: &[u8],
+    ) -> io::Result<Self> {
+        // TODO: do we want to have async stuff in constructor?
+        let conn = TcpStream::connect(&address).await?;
+        let mut connection = Connection { id, address, conn };
+        connection.send_data(&initial_data).await?;
+        Ok(connection)
     }
 
-    async fn send_data(&mut self, data: &[u8]) -> io::Result<()> {
+    pub(crate) async fn send_data(&mut self, data: &[u8]) -> io::Result<()> {
         self.conn.write_all(&data).await
     }
 
-    /// Runs the request, by setting up a new TCP connection, shooting request
-    /// data up that connection, and returning whatever it receives in response.
-    pub(crate) async fn run(&self) -> tokio::io::Result<Response> {
-        // rename to connect
-        println!(
-            "connecting id {:?}, remote {:?}, data {:?}",
-            self.id,
-            self.address,
-            String::from_utf8_lossy(&self.data)
-        );
+    // /// Runs the request, by setting up a new TCP connection, shooting request
+    // /// data up that connection, and returning whatever it receives in response.
+    // pub(crate) async fn run(&self) -> tokio::io::Result<Response> {
+    //     // rename to connect
+    //     println!(
+    //         "connecting id {:?}, remote {:?}, data {:?}",
+    //         self.id,
+    //         self.address,
+    //         String::from_utf8_lossy(&self.data)
+    //     );
 
-        let mut stream = TcpStream::connect(&self.address).await?;
-        stream.write_all(&self.data).await?;
+    //     let mut stream = TcpStream::connect(&self.address).await?;
+    //     stream.write_all(&self.data).await?;
 
-        let response_buf = Connection::try_read_response_data(&mut stream).await?;
-        println!(
-            "response data: {:?}",
-            String::from_utf8_lossy(&response_buf)
-        );
-        let response = Response::new(self.id, response_buf);
-        Ok(response)
-    }
+    //     let response_buf = Connection::try_read_response_data(&mut stream).await?;
+    //     println!(
+    //         "response data: {:?}",
+    //         String::from_utf8_lossy(&response_buf)
+    //     );
+    //     let response = Response::new(self.id, response_buf);
+    //     Ok(response)
+    // }
 
     /// Read response data by looping, waiting for anything we get back from the
     /// remote server. Returns once it times out or the connection closes.

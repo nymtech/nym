@@ -81,7 +81,7 @@ impl Request {
 
         match RequestFlag::try_from(b[0])? {
             RequestFlag::Connect => {
-                let connect_request_bytes = &b[8..];
+                let connect_request_bytes = &b[9..];
 
                 // we need to be able to read at least 2 bytes that specify address length
                 if connect_request_bytes.len() < 2 {
@@ -94,6 +94,13 @@ impl Request {
                 let address_length =
                     u16::from_be_bytes([connect_request_bytes[0], connect_request_bytes[1]])
                         as usize;
+
+                if connect_request_bytes.len() < 2 + address_length {
+                    return Err(Error::new(
+                        ErrorKind::InvalidRequest,
+                        "address of invalid length",
+                    ));
+                }
 
                 let address_start = 2;
                 let address_end = address_start + address_length;
@@ -168,45 +175,126 @@ mod request_deserialization_tests {
             );
         }
 
-        // #[test]
-        // fn returns_error_when_address_too_short_for_given_address_length() {
-        //     let request_bytes = [0, 1].to_vec(); // there should be a 1-byte remote address, but there's nothing
-        //     assert_eq!(Request::try_from_bytes(&request_bytes);
-        // }
+        #[test]
+        fn returns_error_when_connection_id_too_short() {
+            let request_bytes = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7].to_vec(); // 7 bytes connection id
+            let expected = Error::new(
+                ErrorKind::InvalidRequest,
+                "not enough bytes to parse connection id",
+            );
+            assert_eq!(
+                expected.to_string(),
+                Request::try_from_bytes(&request_bytes)
+                    .unwrap_err()
+                    .to_string()
+            );
+        }
 
-        // #[test]
-        // fn returns_error_when_request_id_too_short() {
-        //     // there is a 1-byte remote address, followed by only 1 byte of connection_id, which is too short (must be 16 bytes)
-        //     let request_bytes = [0, 1, 0, 1].to_vec();
-        //     Request::parse_message(&request_bytes);
-        // }
+        #[test]
+        fn returns_error_when_address_length_is_too_short() {
+            let request_bytes1 = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7, 8].to_vec(); // 8 bytes connection id, 0 bytes address length (2 were expected)
+            let request_bytes2 = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7, 8, 0].to_vec(); // 8 bytes connection id, 1 bytes address length (2 were expected)
+            let expected = Error::new(ErrorKind::InvalidRequest, "address length too short");
 
-        // #[test]
-        // fn works_when_request_is_sized_properly_even_without_data() {
-        //     // this one has "foo.com" remote address, correct 16 bytes of connection_id, and 0 bytes request data
-        //     let request_bytes = [
-        //         0, 7, 102, 111, 111, 46, 99, 111, 109, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-        //         15, 16,
-        //     ]
-        //     .to_vec();
-        //     let (id, remote_address, data) = Controller::parse_message(request_bytes);
-        //     assert_eq!("foo.com".to_string(), remote_address);
-        //     assert_eq!([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], id);
-        //     assert_eq!(Vec::<u8>::new(), data);
-        // }
+            assert_eq!(
+                expected.to_string(),
+                Request::try_from_bytes(&request_bytes1)
+                    .unwrap_err()
+                    .to_string()
+            );
 
-        // #[test]
-        // fn works_when_request_is_sized_properly_and_has_data() {
-        //     // this one has a 1-byte remote address, correct 16 bytes of connection_id, and 3 bytes request data
-        //     let request_bytes = [
-        //         0, 7, 102, 111, 111, 46, 99, 111, 109, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-        //         15, 16, 255, 255, 255,
-        //     ]
-        //     .to_vec();
-        //     let (id, remote_address, data) = Controller::parse_message(request_bytes);
-        //     assert_eq!("foo.com".to_string(), remote_address);
-        //     assert_eq!([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], id);
-        //     assert_eq!(vec![255, 255, 255], data);
-        // }
+            assert_eq!(
+                expected.to_string(),
+                Request::try_from_bytes(&request_bytes2)
+                    .unwrap_err()
+                    .to_string()
+            );
+        }
+
+        #[test]
+        fn returns_error_when_address_too_short_for_given_address_length() {
+            let request_bytes = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1].to_vec(); // 8 bytes connection id, 2 bytes address length, missing address
+            let expected = Error::new(ErrorKind::InvalidRequest, "address of invalid length");
+            assert_eq!(
+                expected.to_string(),
+                Request::try_from_bytes(&request_bytes)
+                    .unwrap_err()
+                    .to_string()
+            );
+        }
+
+        #[test]
+        fn works_when_request_is_sized_properly_even_without_data() {
+            // this one has "foo.com" remote address, correct 8 bytes of connection_id, and 0 bytes request data
+            let request_bytes = [
+                RequestFlag::Connect as u8,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                0,
+                7,
+                102,
+                111,
+                111,
+                46,
+                99,
+                111,
+                109,
+            ]
+            .to_vec();
+            let request = Request::try_from_bytes(&request_bytes).unwrap();
+            match request {
+                Request::Connect(conn_id, remote_address, data) => {
+                    assert_eq!("foo.com".to_string(), remote_address);
+                    assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
+                    assert_eq!(Vec::<u8>::new(), data);
+                }
+                _ => unreachable!(),
+            }
+        }
+
+        #[test]
+        fn works_when_request_is_sized_properly_and_has_data() {
+            // this one has a 1-byte remote address, correct 16 bytes of connection_id, and 3 bytes request data
+            let request_bytes = [
+                RequestFlag::Connect as u8,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                0,
+                7,
+                102,
+                111,
+                111,
+                46,
+                99,
+                111,
+                109,
+                255,
+                255,
+                255,
+            ]
+            .to_vec();
+
+            let request = Request::try_from_bytes(&request_bytes).unwrap();
+            match request {
+                Request::Connect(conn_id, remote_address, data) => {
+                    assert_eq!("foo.com".to_string(), remote_address);
+                    assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
+                    assert_eq!(vec![255, 255, 255], data);
+                }
+                _ => unreachable!(),
+            }
+        }
     }
 }

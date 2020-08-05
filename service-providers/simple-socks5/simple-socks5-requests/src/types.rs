@@ -40,16 +40,20 @@ pub enum Request {
 }
 
 impl Request {
-    pub fn new_connect() -> Request {
-        todo!()
+    pub fn new_connect(
+        conn_id: ConnectionId,
+        remote_addr: RemoteAddress,
+        data: Vec<u8>,
+    ) -> Request {
+        Request::Connect(conn_id, remote_addr, data)
     }
 
-    pub fn new_send() -> Request {
-        todo!()
+    pub fn new_send(conn_id: ConnectionId, data: Vec<u8>) -> Request {
+        Request::Send(conn_id, data)
     }
 
-    pub fn new_close() -> Request {
-        todo!()
+    pub fn new_close(conn_id: ConnectionId) -> Request {
+        Request::Close(conn_id)
     }
 
     // TODO: this dsecription is outdated

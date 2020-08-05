@@ -43,10 +43,11 @@ impl Request {
         Ok(response)
     }
 
-    async fn try_read_response_data<R: AsyncRead + Unpin>(reader: &mut R) -> io::Result<Vec<u8>> {
-        let mut data = Vec::new();
+    /// Read response data by looping, waiting for anything we get back from the
+    /// remote server. Returns once it times out or the connection closes.
+    async fn try_read_request_data<R: AsyncRead + Unpin>(reader: &mut R) -> io::Result<Vec<u8>> {
         let timeout_duration = std::time::Duration::from_millis(500);
-
+        let mut data = Vec::new();
         let mut timeout = tokio::time::delay_for(timeout_duration);
         loop {
             let mut buf = [0u8; 1024];
@@ -57,8 +58,8 @@ impl Request {
                 }
                 read_data = reader.read(&mut buf) => {
                     match read_data {
-                        Ok(0) => return Ok(data),
                         Err(err) => return Err(err),
+                        Ok(0) => return Ok(data),
                         Ok(n) => {
                             let now = timeout.deadline();
                             let next = now + timeout_duration;

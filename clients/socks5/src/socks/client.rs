@@ -17,6 +17,7 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCode, SocksProxyError};
 use super::{RESERVED, SOCKS_VERSION};
+use simple_socks5_requests::{ConnectionId, Request};
 
 /// A client connecting to the Socks proxy server, because
 /// it wants to make a Nym-protected outbound request. Typically, this is
@@ -29,15 +30,13 @@ pub(crate) struct SocksClient {
     authenticator: Authenticator,
     socks_version: u8,
     input_sender: InputMessageSender,
-    request_id: RequestID,
+    request_id: ConnectionId,
     service_provider: Recipient,
 }
 
-pub(crate) type RequestID = u64;
-
 type StreamResponseSender = oneshot::Sender<Vec<u8>>;
 
-pub(crate) type ActiveStreams = Arc<Mutex<HashMap<RequestID, StreamResponseSender>>>;
+pub(crate) type ActiveStreams = Arc<Mutex<HashMap<ConnectionId, StreamResponseSender>>>;
 
 impl Drop for SocksClient {
     fn drop(&mut self) {
@@ -67,7 +66,7 @@ impl SocksClient {
         }
     }
 
-    fn generate_random() -> RequestID {
+    fn generate_random() -> ConnectionId {
         let mut rng = rand::rngs::OsRng;
         rng.next_u64()
     }
@@ -140,6 +139,7 @@ impl SocksClient {
         debug!("Handling CONNECT Command");
 
         let mut request = SocksRequest::from_stream(&mut self.stream).await?;
+        let remote_address = request.to_string();
 
         match request.command {
             // Use the Proxy to connect to the specified addr/port
@@ -147,36 +147,59 @@ impl SocksClient {
                 trace!("Connecting to: {:?}", request.to_socket());
                 self.acknowledge_socks5().await;
 
-                loop {
-                    if let Ok(request_bytes) =
-                        request.serialize(&mut self.stream, &self.request_id).await
-                    // TODO HERE
-                    {
-                        println!(
-                            "Sending request {:?} outbound through mixnet",
-                            self.request_id
-                        );
-                        self.send_to_mixnet(request_bytes).await;
-                        // refactor idea: crossbeam oneshot channels are faster
+                /*
+                               let request = new  send_connect_request
+                                send_to_mix(request)
+                                loop {
+                                    let request = new send_send_request
+                                    send_to_mix(request)
+                                }
+                                let request = new              send_close_request
+                                send_to_mix(request)
+                */
 
-                        // could there be some problem in this next bit which causes
-                        // our SSL problem? Let's talk this over.
-                        let (sender, receiver) = oneshot::channel();
-                        let mut active_streams_guard = self.active_streams.lock().await;
-                        if active_streams_guard
-                            .insert(self.request_id, sender)
-                            .is_some()
-                        {
-                            panic!("there is already an active request with the same id present - it's probably a bug!")
-                        };
-                        drop(active_streams_guard);
-                        let response_data = receiver.await.unwrap();
-                        println!("response_data: {:?}", response_data);
-                        self.stream.write_all(&response_data).await.unwrap();
-                    } else {
-                        println!("Stream closed or there was an error");
-                        break;
+                loop {
+                    // Request::new_connect(self.request_id, todo!())
+                    let request_data_bytes = SocksRequest::try_read_request_data(&mut self.stream)
+                        .await
+                        .expect("todo: deal with error");
+                    let socks_provider_request = Request::new_connect(
+                        self.request_id,
+                        remote_address.clone(),
+                        request_data_bytes,
+                    );
+
+                    // if let Ok(request_bytes) =
+                    //     request.serialize(&mut self.stream, &self.request_id).await
+                    // // TODO HERE
+                    // {
+
+                    println!(
+                        "Sending request {:?} outbound through mixnet",
+                        self.request_id
+                    );
+                    self.send_to_mixnet(socks_provider_request.into_bytes())
+                        .await;
+                    // refactor idea: crossbeam oneshot channels are faster
+
+                    // could there be some problem in this next bit which causes
+                    // our SSL problem? Let's talk this over.
+                    let (sender, receiver) = oneshot::channel();
+                    let mut active_streams_guard = self.active_streams.lock().await;
+                    if active_streams_guard
+                        .insert(self.request_id, sender)
+                        .is_some()
+                    {
+                        panic!("there is already an active request with the same id present - it's probably a bug!")
                     };
+                    drop(active_streams_guard);
+                    let response_data = receiver.await.unwrap();
+                    println!("response_data: {:?}", response_data);
+                    self.stream.write_all(&response_data).await.unwrap();
+                    // } else {
+                    //     println!("Stream closed or there was an error");
+                    //     break;
+                    // };
                 }
             }
 

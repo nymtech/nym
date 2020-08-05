@@ -1,9 +1,10 @@
-use super::client::{ActiveStreams, RequestID};
+use super::client::ActiveStreams;
 use crate::client::received_buffer::ReconstructedMessagesReceiver;
 use crate::client::received_buffer::{ReceivedBufferMessage, ReceivedBufferRequestSender};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
+use simple_socks5_requests::{ConnectionId, Request};
 
 #[derive(Debug)]
 pub(crate) enum MixnetResponseError {
@@ -41,7 +42,10 @@ impl MixnetResponseListener {
         }
     }
 
-    fn parse_message(&self, message: Vec<u8>) -> Result<(RequestID, Vec<u8>), MixnetResponseError> {
+    fn parse_message(
+        &self,
+        message: Vec<u8>,
+    ) -> Result<(ConnectionId, Vec<u8>), MixnetResponseError> {
         if message.len() < 8 {
             return Err(MixnetResponseError::InvalidResponseError);
         }

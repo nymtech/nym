@@ -36,6 +36,7 @@ gateway-requests = { path = "../../gateway/gateway-requests" }
 mixnet-client = { path = "../../common/client-libs/mixnet-client" }
 nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = {path = "../../common/pemstore"}
+simple-socks5-requests = { path = "../../service-providers/simple-socks5/simple-socks5-requests"}
 topology = {path = "../../common/topology" }
 
 [build-dependencies]

@@ -3027,6 +3027,7 @@ dependencies = [
  "reqwest 0.9.24",
  "serde",
  "serde_json",
+ "simple-socks5-requests",
  "snafu",
  "tempfile",
  "tokio 0.2.16",

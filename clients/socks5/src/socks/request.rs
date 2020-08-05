@@ -1,6 +1,7 @@
 use super::types::{AddrType, ResponseCode, SocksProxyError};
-use super::{client::RequestID, utils, SOCKS_VERSION};
+use super::{utils, SOCKS_VERSION};
 use log::*;
+use simple_socks5_requests::{ConnectionId, Request};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::prelude::*;
@@ -111,7 +112,9 @@ impl SocksRequest {
 
     /// Attempts to read data from the Socks5 request stream. Times out and
     /// returns what it's got if no data is read for the timeout_duration
-    async fn try_read_request_data<R: AsyncRead + Unpin>(reader: &mut R) -> io::Result<Vec<u8>> {
+    pub(crate) async fn try_read_request_data<R: AsyncRead + Unpin>(
+        reader: &mut R,
+    ) -> io::Result<Vec<u8>> {
         let timeout_duration = std::time::Duration::from_millis(500);
         let mut data = Vec::new();
         let mut timeout = tokio::time::delay_for(timeout_duration);
@@ -136,49 +139,6 @@ impl SocksRequest {
                 }
             }
         }
-    }
-
-    /// Serialize the destination address and port (as a string), and the
-    /// request_id concatenated with the entirety of the request stream.
-    /// Return it all as a sequence of bytes.
-    ///
-    /// The bytes serialization looks like this:
-    ///
-    /// ----------------------------------------------------------------
-    /// | address_length | remote_address_bytes | request_id | request |
-    /// |      2         |    address_length    |     16     |   ...   |
-    /// ----------------------------------------------------------------
-    ///
-    /// `remote_address_bytes` is variable length as it can be either IPV4,
-    /// domain, or IPv6. We read it from `address_length`.
-    ///
-    /// The request length is unbounded, but it will currently fail if it's
-    /// bigger than a single sphinx packet.
-    ///
-    /// Can be used as a Sphinx payload.
-    pub async fn serialize(
-        &mut self,
-        mut stream: &mut TcpStream,
-        request_id: &RequestID,
-    ) -> io::Result<Vec<u8>> {
-        let remote_address = self.to_string();
-        let remote_address_bytes = remote_address.into_bytes();
-        let remote_address_bytes_len = remote_address_bytes.len() as u16;
-        let address_length = remote_address_bytes_len.to_be_bytes(); // this is [u8; 2];
-                                                                     // const BUF_SIZE: usize = 4096;
-                                                                     // let mut stream_buf = [0u8; BUF_SIZE];
-
-        let request_data = Self::try_read_request_data(&mut stream).await?;
-        if request_data.len() == 0 {
-            return Err(io::Error::new(io::ErrorKind::Other, "foomp!"));
-        }
-
-        Ok(std::iter::once(0)
-            .chain(request_id.to_be_bytes().iter().cloned())
-            .chain(address_length.iter().cloned())
-            .chain(remote_address_bytes.into_iter())
-            .chain(request_data.into_iter())
-            .collect())
     }
 }
 

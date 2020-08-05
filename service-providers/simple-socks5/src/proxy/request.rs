@@ -14,11 +14,15 @@ type RemoteAddress = String;
 type RequestData = Vec<u8>;
 
 impl Request {
+    /// Constructor: deserializes the incoming data and returns a new Request
+    /// which can be run.
     pub(crate) fn new(request_bytes: Vec<u8>) -> Request {
         let (id, address, data) = Request::deserialize(request_bytes);
         Request { id, address, data }
     }
 
+    /// Runs the request, by setting up a new TCP connection, shooting request
+    /// data up that connection, and returning whatever it receives in response.
     pub(crate) async fn run(&self) -> tokio::io::Result<Response> {
         println!(
             "running request id {:?}, remote {:?}, data {:?}",

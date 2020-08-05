@@ -11,6 +11,12 @@ pub(crate) struct Controller {
 }
 
 impl Controller {
+    pub(crate) fn new() -> Self {
+        Controller {
+            open_connections: HashMap::new(),
+        }
+    }
+
     pub(crate) async fn process_request(&mut self, request: Request) -> Result<(), TodoError> {
         match request {
             Request::Connect(conn_id, remote_addr, data) => {

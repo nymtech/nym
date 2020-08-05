@@ -154,6 +154,7 @@ impl SocksClient {
                 loop {
                     if let Ok(request_bytes) =
                         request.serialize(&mut self.stream, &self.request_id).await
+                    // TODO HERE
                     {
                         println!(
                             "Sending request {:?} outbound through mixnet",

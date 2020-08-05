@@ -1,7 +1,7 @@
 use crate::{proxy, websocket};
 use futures::SinkExt;
 use futures_util::StreamExt;
-use proxy::request::Request;
+use proxy::connection::Connection;
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_tungstenite::tungstenite::protocol::Message;
@@ -31,7 +31,7 @@ impl Server {
                 }
 
                 println!("Socks5 requester received a new request message: {:?}", String::from_utf8_lossy(&data));
-                let request = Request::new(data);
+                let request = Connection::new(data);
                 let response = request.run().await.unwrap();
                 let return_address = "4QC5D8auMbVpFVBfiZnVtQVUPiNUV9FMnpb81cauFpEp@GYCqU48ndXke9o2434i7zEGv1sWg1cNVswWJfRnY1VTB";
                 let recipient = nymsphinx::addressing::clients::Recipient::try_from_string(return_address).unwrap();

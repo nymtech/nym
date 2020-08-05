@@ -134,6 +134,34 @@ impl SocksClient {
     *
     */
 
+    async fn send_request_to_mixnet(&mut self, request: Request) {
+        println!(
+            "Sending request {:?} outbound through mixnet",
+            self.request_id
+        );
+        self.send_to_mixnet(request.into_bytes()).await;
+    }
+
+    async fn send_request_to_mixnet_and_get_response(&mut self, request: Request) -> Vec<u8> {
+        println!(
+            "Sending request {:?} outbound through mixnet",
+            self.request_id
+        );
+        self.send_to_mixnet(request.into_bytes()).await;
+
+        // refactor idea: crossbeam oneshot channels are faster
+        let (sender, receiver) = oneshot::channel();
+        let mut active_streams_guard = self.active_streams.lock().await;
+        if active_streams_guard
+            .insert(self.request_id, sender)
+            .is_some()
+        {
+            panic!("there is already an active request with the same id present - it's probably a bug!")
+        };
+        drop(active_streams_guard);
+        receiver.await.unwrap()
+    }
+
     /// Handles a client request.
     async fn handle_request(&mut self) -> Result<(), SocksProxyError> {
         debug!("Handling CONNECT Command");
@@ -147,60 +175,38 @@ impl SocksClient {
                 trace!("Connecting to: {:?}", request.to_socket());
                 self.acknowledge_socks5().await;
 
-                /*
-                               let request = new  send_connect_request
-                                send_to_mix(request)
-                                loop {
-                                    let request = new send_send_request
-                                    send_to_mix(request)
-                                }
-                                let request = new              send_close_request
-                                send_to_mix(request)
-                */
+                let request_data_bytes = SocksRequest::try_read_request_data(&mut self.stream)
+                    .await
+                    .expect("todo: deal with error");
+                let socks_provider_request = Request::new_connect(
+                    self.request_id,
+                    remote_address.clone(),
+                    request_data_bytes,
+                );
+                let response_data = self
+                    .send_request_to_mixnet_and_get_response(socks_provider_request)
+                    .await;
+                self.stream.write_all(&response_data).await.unwrap();
 
                 loop {
-                    // Request::new_connect(self.request_id, todo!())
-                    let request_data_bytes = SocksRequest::try_read_request_data(&mut self.stream)
-                        .await
-                        .expect("todo: deal with error");
-                    let socks_provider_request = Request::new_connect(
-                        self.request_id,
-                        remote_address.clone(),
-                        request_data_bytes,
-                    );
-
-                    // if let Ok(request_bytes) =
-                    //     request.serialize(&mut self.stream, &self.request_id).await
-                    // // TODO HERE
-                    // {
-
-                    println!(
-                        "Sending request {:?} outbound through mixnet",
-                        self.request_id
-                    );
-                    self.send_to_mixnet(socks_provider_request.into_bytes())
-                        .await;
-                    // refactor idea: crossbeam oneshot channels are faster
-
-                    // could there be some problem in this next bit which causes
-                    // our SSL problem? Let's talk this over.
-                    let (sender, receiver) = oneshot::channel();
-                    let mut active_streams_guard = self.active_streams.lock().await;
-                    if active_streams_guard
-                        .insert(self.request_id, sender)
-                        .is_some()
+                    if let Ok(request_data_bytes) =
+                        SocksRequest::try_read_request_data(&mut self.stream).await
                     {
-                        panic!("there is already an active request with the same id present - it's probably a bug!")
-                    };
-                    drop(active_streams_guard);
-                    let response_data = receiver.await.unwrap();
-                    println!("response_data: {:?}", response_data);
-                    self.stream.write_all(&response_data).await.unwrap();
-                    // } else {
-                    //     println!("Stream closed or there was an error");
-                    //     break;
-                    // };
+                        let socks_provider_request =
+                            Request::new_send(self.request_id, request_data_bytes);
+                        let response_data = self
+                            .send_request_to_mixnet_and_get_response(socks_provider_request)
+                            .await;
+                        self.stream.write_all(&response_data).await.unwrap();
+                    } else {
+                        break;
+                    }
                 }
+                let socks_provider_request = Request::new_close(self.request_id);
+                self.send_request_to_mixnet(socks_provider_request).await;
+                // TODO: where is connection removed from active connection??
+                // TODO: where is connection removed from active connection??
+                // TODO: where is connection removed from active connection??
             }
 
             SocksCommand::Bind => unimplemented!(), // not handled

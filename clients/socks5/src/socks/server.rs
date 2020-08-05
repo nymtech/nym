@@ -52,14 +52,9 @@ impl SphinxSocksServer {
         let mut mixnet_response_listener =
             MixnetResponseListener::new(buffer_requester, Arc::clone(&active_streams));
 
-        println!("before spawn");
         tokio::spawn(async move {
-            println!("before starting listener");
             mixnet_response_listener.run().await;
-            println!("wtf listener finished");
         });
-
-        println!("after spawn");
 
         loop {
             if let Ok((stream, _remote)) = listener.accept().await {

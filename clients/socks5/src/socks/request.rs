@@ -124,9 +124,8 @@ impl SocksRequest {
                 }
                 read_data = reader.read(&mut buf) => {
                     match read_data {
-                        Ok(0) => return Ok(data),
                         Err(err) => return Err(err),
-                        // Ok(n) => data.append(&buf[..n].to_vec())
+                        Ok(0) => return Ok(data),
                         Ok(n) => {
                             let now = timeout.deadline();
                             let next = now + timeout_duration;
@@ -181,28 +180,6 @@ impl SocksRequest {
             .chain(request_id.to_vec().into_iter())
             .chain(request_data.into_iter())
             .collect())
-
-        // match stream.read(&mut stream_buf).await {
-        //     // socket closed
-        //     Ok(n) if n == 0 => {
-        //         trace!("Remote connection closed.");
-        //         None
-        //     }
-        //     Ok(n) => {
-        //         let buf = address_length
-        //             .iter()
-        //             .cloned()
-        //             .chain(remote_address_bytes.into_iter())
-        //             .chain(request_id.to_vec().into_iter())
-        //             .chain(stream_buf.iter().take(n).cloned())
-        //             .collect::<Vec<_>>();
-        //         Some(buf)
-        //     }
-        //     Err(e) => {
-        //         warn!("failed to read from socket; err = {:?}", e);
-        //         None
-        //     }
-        // }
     }
 }
 

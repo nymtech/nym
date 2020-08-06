@@ -2,6 +2,9 @@ use simple_socks5_requests::{ConnectionId, RemoteAddress};
 use tokio::net::TcpStream;
 use tokio::prelude::*;
 
+/// A TCP connection between the Socks5 service provider, which makes
+/// outbound requests on behalf of users and returns the responses through
+/// the mixnet.
 #[derive(Debug)]
 pub(crate) struct Connection {
     id: ConnectionId,

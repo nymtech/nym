@@ -1,5 +1,4 @@
-use crate::proxy::connection;
-use connection::Connection;
+use crate::connection::Connection;
 use simple_socks5_requests::{ConnectionId, RemoteAddress, Request, Response};
 use std::collections::HashMap;
 

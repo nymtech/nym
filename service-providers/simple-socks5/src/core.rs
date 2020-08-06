@@ -1,7 +1,6 @@
-use crate::{proxy, websocket};
+use crate::{controller::Controller, websocket};
 use futures::SinkExt;
 use futures_util::StreamExt;
-use proxy::{controller::Controller};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_tungstenite::tungstenite::protocol::Message;
@@ -9,14 +8,14 @@ use tokio_tungstenite::WebSocketStream;
 use websocket::WebsocketConnectionError;
 use simple_socks5_requests::Request;
 
-pub struct Server {
+pub struct ServiceProvider {
     runtime: Runtime,
 }
 
-impl Server {
-    pub fn new() -> Server {
+impl ServiceProvider {
+    pub fn new() -> ServiceProvider {
         let runtime = Runtime::new().unwrap();
-        Server { runtime }
+        ServiceProvider { runtime }
     }
 
     /// Start all subsystems

@@ -119,7 +119,7 @@ impl Request {
                     request_data.to_vec(),
                 ))
             }
-            RequestFlag::Send => Ok(Request::Send(connection_id, b[8..].as_ref().to_vec())),
+            RequestFlag::Send => Ok(Request::Send(connection_id, b[9..].as_ref().to_vec())),
             RequestFlag::Close => Ok(Request::Close(connection_id)),
         }
     }

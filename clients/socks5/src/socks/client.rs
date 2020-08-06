@@ -111,8 +111,8 @@ impl SocksClient {
         Ok(())
     }
 
-    /**
-    *          // Copy it all
+    /*
+              // Copy it all
                let mut outbound_in = target.try_clone()?;
                let mut outbound_out = target.try_clone()?;
                let mut inbound_in = self.stream.try_clone()?;
@@ -131,7 +131,6 @@ impl SocksClient {
                    inbound_in.shutdown(Shutdown::Read).unwrap_or(());
                    outbound_out.shutdown(Shutdown::Write).unwrap_or(());
                });
-    *
     */
 
     async fn send_request_to_mixnet(&mut self, request: Request) {
@@ -166,7 +165,7 @@ impl SocksClient {
     async fn handle_request(&mut self) -> Result<(), SocksProxyError> {
         debug!("Handling CONNECT Command");
 
-        let mut request = SocksRequest::from_stream(&mut self.stream).await?;
+        let request = SocksRequest::from_stream(&mut self.stream).await?;
         let remote_address = request.to_string();
 
         match request.command {
@@ -207,8 +206,6 @@ impl SocksClient {
                 }
                 let socks_provider_request = Request::new_close(self.request_id);
                 self.send_request_to_mixnet(socks_provider_request).await;
-                // TODO: where is connection removed from active connection??
-                // TODO: where is connection removed from active connection??
                 // TODO: where is connection removed from active connection??
             }
 

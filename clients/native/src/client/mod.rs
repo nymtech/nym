@@ -51,15 +51,25 @@ mod reply_key_storage;
 pub(crate) mod topology_control;
 
 pub struct NymClient {
+    /// Client configuration options, including, among other things, packet sending rates,
+    /// key filepaths, etc.
     config: Config,
+
+    /// Tokio runtime used for futures execution.
+    // TODO: JS: Personally I think I prefer the implicit way of using it that we've done with the
+    // gateway.
     runtime: Runtime,
-    // identity_keypair: Arc<identity::KeyPair>,
+
+    /// KeyManager object containing smart pointers to all relevant keys used by the client.
     key_manager: KeyManager,
 
-    // to be used by "send" function or socket, etc
+    /// Channel used for transforming 'raw' messages into sphinx packets and sending them
+    /// through the mix network.
+    /// It is only available if the client started with the websocket listener disabled.
     input_tx: Option<InputMessageSender>,
 
-    // to be used by "receive" function or socket, etc
+    /// Channel used for obtaining reconstructed messages received from the mix network.
+    /// It is only available if the client started with the websocket listener disabled.
     receive_tx: Option<ReconstructedMessagesReceiver>,
 }
 

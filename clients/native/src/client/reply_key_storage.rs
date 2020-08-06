@@ -85,18 +85,6 @@ impl ReplyKeyStorage {
         insertion_result
     }
 
-    // perhaps this is not going to be useful? because once we get a key we do not expect to
-    // ever need it again
-    // pub(crate) fn get_encryption_key(
-    //     &self,
-    //     key_digest: EncryptionKeyDigest,
-    // ) -> Result<Option<SURBEncryptionKey>, ReplyKeyStorageError> {
-    //     match self.db.get(&key_digest) {
-    //         Err(e) => Err(ReplyKeyStorageError::DbReadError(e)),
-    //         Ok(existing_key) => Ok(existing_key.map(|key_ivec| self.read_encryption_key(key_ivec))),
-    //     }
-    // }
-
     // Once we use key once, we do not expect to use it again
     pub(crate) fn get_and_remove_encryption_key(
         &self,
@@ -109,7 +97,8 @@ impl ReplyKeyStorage {
             }
         };
 
-        // removal of keys happens extremely rarely, so flush is also fine here
+        // TODO: not sure how to feel about flushing it every single time here...
+        // same with insertion
         self.db.flush().unwrap();
         removal_result
     }

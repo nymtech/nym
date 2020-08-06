@@ -53,6 +53,70 @@ struct ReceivedMessagesBufferInner {
     recently_reconstructed: HashSet<i32>,
 }
 
+impl ReceivedMessagesBufferInner {
+    fn process_received_fragment(&mut self, raw_fragment: Vec<u8>) -> Option<ReconstructedMessage> {
+        let fragment_data = match self
+            .message_receiver
+            .recover_plaintext(self.local_encryption_keypair.private_key(), raw_fragment)
+        {
+            Err(e) => {
+                warn!("failed to recover fragment data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
+                return None;
+            }
+            Ok(frag_data) => frag_data,
+        };
+
+        if nymsphinx::cover::is_cover(&fragment_data) {
+            trace!("The message was a loop cover message! Skipping it");
+            return None;
+        }
+
+        let fragment = match self.message_receiver.recover_fragment(&fragment_data) {
+            Err(e) => {
+                warn!("failed to recover fragment from raw data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
+                return None;
+            }
+            Ok(frag) => frag,
+        };
+
+        if self.recently_reconstructed.contains(&fragment.id()) {
+            debug!("Received a chunk of already re-assembled message ({:?})! It probably got here because the ack got lost", fragment.id());
+            return None;
+        }
+
+        // if we returned an error the underlying message is malformed in some way
+        match self.message_receiver.insert_new_fragment(fragment) {
+            Err(err) => match err {
+                MessageRecoveryError::MalformedReconstructedMessage(message_sets) => {
+                    // TODO: should we really insert reconstructed sets? could this be abused for some attack?
+                    for set_id in message_sets {
+                        if !self.recently_reconstructed.insert(set_id) {
+                            // or perhaps we should even panic at this point?
+                            error!("Reconstructed another message containing already used set id!")
+                        }
+                    }
+                    None
+                }
+                _ => unreachable!(
+                    "no other error kind should have been returned here! If so, it's a bug!"
+                ),
+            },
+            Ok(reconstruction_result) => match reconstruction_result {
+                Some((reconstructed_message, used_sets)) => {
+                    for set_id in used_sets {
+                        if !self.recently_reconstructed.insert(set_id) {
+                            // or perhaps we should even panic at this point?
+                            error!("Reconstructed another message containing already used set id!")
+                        }
+                    }
+                    Some(reconstructed_message)
+                }
+                None => None,
+            },
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 // Note: you should NEVER create more than a single instance of this using 'new()'.
 // You should always use .clone() to create additional instances
@@ -125,76 +189,6 @@ impl ReceivedMessagesBuffer {
         self.inner.lock().await.messages.extend(msgs)
     }
 
-    // TODO: when refactoring this code, get rid of direct MutexGuard argument here, it looks hideous
-    fn process_received_fragment(
-        buffer_inner: &mut ReceivedMessagesBufferInner,
-        raw_fragment: Vec<u8>,
-    ) -> Option<ReconstructedMessage> {
-        let fragment_data = match buffer_inner.message_receiver.recover_plaintext(
-            buffer_inner.local_encryption_keypair.private_key(),
-            raw_fragment,
-        ) {
-            Err(e) => {
-                warn!("failed to recover fragment data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
-                return None;
-            }
-            Ok(frag_data) => frag_data,
-        };
-
-        if nymsphinx::cover::is_cover(&fragment_data) {
-            trace!("The message was a loop cover message! Skipping it");
-            return None;
-        }
-
-        let fragment = match buffer_inner
-            .message_receiver
-            .recover_fragment(&fragment_data)
-        {
-            Err(e) => {
-                warn!("failed to recover fragment from raw data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
-                return None;
-            }
-            Ok(frag) => frag,
-        };
-
-        if buffer_inner.recently_reconstructed.contains(&fragment.id()) {
-            debug!("Received a chunk of already re-assembled message ({:?})! It probably got here because the ack got lost", fragment.id());
-            return None;
-        }
-
-        // if we returned an error the underlying message is malformed in some way
-        match buffer_inner.message_receiver.insert_new_fragment(fragment) {
-            Err(err) => match err {
-                MessageRecoveryError::MalformedReconstructedMessage(message_sets) => {
-                    // TODO: should we really insert reconstructed sets? could this be abused for some attack?
-                    for set_id in message_sets {
-                        if !buffer_inner.recently_reconstructed.insert(set_id) {
-                            // or perhaps we should even panic at this point?
-                            error!("Reconstructed another message containing already used set id!")
-                        }
-                    }
-                    None
-                }
-                _ => unreachable!(
-                    "no other error kind should have been returned here! If so, it's a bug!"
-                ),
-            },
-            Ok(reconstruction_result) => match reconstruction_result {
-                Some((reconstructed_message, used_sets)) => {
-                    for set_id in used_sets {
-                        if !buffer_inner.recently_reconstructed.insert(set_id) {
-                            // or perhaps we should even panic at this point?
-                            error!("Reconstructed another message containing already used set id!")
-                        }
-                    }
-                    Some(reconstructed_message)
-                }
-                None => None,
-            },
-        }
-    }
-
-    // TODO: when refactoring this code, get rid of direct MutexGuard argument here, it looks hideous
     fn process_received_reply(
         reply_ciphertext: &[u8],
         reply_key: SURBEncryptionKey,
@@ -226,6 +220,7 @@ impl ReceivedMessagesBuffer {
         // first check if this is a reply or a chunked message
         // TODO: verify with @AP if this way of doing it is safe or whether it could
         // cause some attacks due to, I don't know, stupid edge case collisions?
+        // Update: this DOES introduce a possible leakage: https://github.com/nymtech/nym/issues/296
         for msg in msgs {
             let possible_key_digest =
                 EncryptionKeyDigest::clone_from_slice(&msg[..reply_surb_digest_size]);
@@ -248,9 +243,7 @@ impl ReceivedMessagesBuffer {
                 }
             } else {
                 // otherwise - it's a 'normal' message
-                if let Some(completed_message) =
-                    Self::process_received_fragment(&mut inner_guard, msg)
-                {
+                if let Some(completed_message) = inner_guard.process_received_fragment(msg) {
                     completed_messages.push(completed_message)
                 }
             }

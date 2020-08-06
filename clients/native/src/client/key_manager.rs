@@ -26,6 +26,8 @@ use std::sync::Arc;
 // AtomicCell includes a Mutex implicitly if the underlying type does not work atomically.
 // And I guess there will need to be some mechanism for a grace period when you can still
 // use the old key after new one was issued.
+
+// Remember that Arc<T> has Deref implementation for T
 pub(crate) struct KeyManager {
     /// identity key associated with the client instance.
     identity_keypair: Arc<identity::KeyPair>,

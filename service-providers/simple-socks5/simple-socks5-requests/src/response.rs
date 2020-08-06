@@ -1,6 +1,10 @@
 use crate::ConnectionId;
-use crate::{Error, ErrorKind, Result};
 
+#[derive(Debug, PartialEq)]
+pub enum ResponseError {
+    ConnectionIdTooShort,
+    NoData,
+}
 /// A remote network response retrieved by the Socks5 service provider. This
 /// can be serialized and sent back through the mixnet to the requesting
 /// application.
@@ -19,12 +23,13 @@ impl Response {
         }
     }
 
-    pub fn try_from_bytes(b: &[u8]) -> Result<Response> {
+    pub fn try_from_bytes(b: &[u8]) -> Result<Response, ResponseError> {
+        if b.is_empty() {
+            return Err(ResponseError::NoData);
+        }
+
         if b.len() < 8 {
-            return Err(Error::new(
-                ErrorKind::InvalidResponse,
-                "response bytes too short",
-            ));
+            return Err(ResponseError::ConnectionIdTooShort);
         }
 
         let mut connection_id_bytes = b.to_vec();
@@ -64,31 +69,24 @@ mod constructing_socks5_responses_from_bytes {
     #[test]
     fn fails_when_zero_bytes_are_supplied() {
         let response_bytes = Vec::new();
-        let expected = Error::new(ErrorKind::InvalidResponse, "response bytes too short");
 
         assert_eq!(
-            expected.to_string(),
-            Response::try_from_bytes(&response_bytes)
-                .unwrap_err()
-                .to_string()
+            ResponseError::NoData,
+            Response::try_from_bytes(&response_bytes).unwrap_err()
         );
     }
 
     #[test]
     fn fails_when_connection_id_bytes_are_too_short() {
         let response_bytes = vec![0, 1, 2, 3, 4, 5, 6];
-        let expected = Error::new(ErrorKind::InvalidResponse, "response bytes too short");
-
         assert_eq!(
-            expected.to_string(),
-            Response::try_from_bytes(&response_bytes)
-                .unwrap_err()
-                .to_string()
+            ResponseError::ConnectionIdTooShort,
+            Response::try_from_bytes(&response_bytes).unwrap_err()
         );
     }
 
     #[test]
-    fn works_even_with_no_data() {
+    fn works_when_there_is_no_data() {
         let response_bytes = vec![0, 1, 2, 3, 4, 5, 6, 7];
         let expected = Response::new(u64::from_be_bytes([0, 1, 2, 3, 4, 5, 6, 7]), Vec::new());
         let actual = Response::try_from_bytes(&response_bytes).unwrap();

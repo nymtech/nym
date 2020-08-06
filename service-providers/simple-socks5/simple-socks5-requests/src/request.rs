@@ -3,8 +3,6 @@ use std::convert::TryFrom;
 pub type ConnectionId = u64;
 pub type RemoteAddress = String;
 
-use crate::{Error, ErrorKind, Result};
-
 #[repr(u8)]
 #[derive(Clone, Copy, Debug)]
 pub enum RequestFlag {
@@ -13,15 +11,24 @@ pub enum RequestFlag {
     Close = 2,
 }
 
-impl TryFrom<u8> for RequestFlag {
-    type Error = crate::error::Error;
+#[derive(Debug, PartialEq)]
+pub enum RequestError {
+    AddressLengthTooShort,
+    AddressTooShort,
+    ConnectionIdTooShort,
+    NoData,
+    UnknownRequestFlag,
+}
 
-    fn try_from(value: u8) -> crate::error::Result<Self> {
+impl TryFrom<u8> for RequestFlag {
+    type Error = RequestError;
+
+    fn try_from(value: u8) -> Result<RequestFlag, RequestError> {
         match value {
             _ if value == (RequestFlag::Connect as u8) => Ok(Self::Connect),
             _ if value == (RequestFlag::Send as u8) => Ok(Self::Send),
             _ if value == (RequestFlag::Close as u8) => Ok(Self::Close),
-            _ => Err(Error::new(ErrorKind::InvalidRequest, "unknown RequestFlag")),
+            _ => Err(RequestError::UnknownRequestFlag),
         }
     }
 }
@@ -74,17 +81,14 @@ impl Request {
     /// The request_flag tells us whether this is a new connection request (`new_connect`),
     /// an already-established connection we should send up (`new_send`), or
     /// a request to close an established connection (`new_close`).
-    pub fn try_from_bytes(b: &[u8]) -> Result<Self> {
+    pub fn try_from_bytes(b: &[u8]) -> Result<Request, RequestError> {
         // each request needs to at least contain flag and ConnectionId
         if b.is_empty() {
-            return Err(Error::new(ErrorKind::InvalidRequest, "no data provided"));
+            return Err(RequestError::NoData);
         }
 
         if b.len() < 9 {
-            return Err(Error::new(
-                ErrorKind::InvalidRequest,
-                "not enough bytes to parse connection id",
-            ));
+            return Err(RequestError::ConnectionIdTooShort);
         }
 
         let connection_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
@@ -95,10 +99,7 @@ impl Request {
 
                 // we need to be able to read at least 2 bytes that specify address length
                 if connect_request_bytes.len() < 2 {
-                    return Err(Error::new(
-                        ErrorKind::InvalidRequest,
-                        "address length too short",
-                    ));
+                    return Err(RequestError::AddressLengthTooShort);
                 }
 
                 let address_length =
@@ -106,10 +107,7 @@ impl Request {
                         as usize;
 
                 if connect_request_bytes.len() < 2 + address_length {
-                    return Err(Error::new(
-                        ErrorKind::InvalidRequest,
-                        "address of invalid length",
-                    ));
+                    return Err(RequestError::AddressTooShort);
                 }
 
                 let address_start = 2;
@@ -165,28 +163,18 @@ mod request_deserialization_tests {
         #[test]
         fn returns_error_when_zero_bytes() {
             let request_bytes = Vec::new();
-            let expected = Error::new(ErrorKind::InvalidRequest, "no data provided");
-
             assert_eq!(
-                expected.to_string(),
-                Request::try_from_bytes(&request_bytes)
-                    .unwrap_err()
-                    .to_string()
+                RequestError::NoData,
+                Request::try_from_bytes(&request_bytes).unwrap_err()
             );
         }
 
         #[test]
         fn returns_error_when_connection_id_too_short() {
             let request_bytes = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7].to_vec(); // 7 bytes connection id
-            let expected = Error::new(
-                ErrorKind::InvalidRequest,
-                "not enough bytes to parse connection id",
-            );
             assert_eq!(
-                expected.to_string(),
-                Request::try_from_bytes(&request_bytes)
-                    .unwrap_err()
-                    .to_string()
+                RequestError::ConnectionIdTooShort,
+                Request::try_from_bytes(&request_bytes).unwrap_err()
             );
         }
     }
@@ -199,32 +187,24 @@ mod request_deserialization_tests {
         fn returns_error_when_address_length_is_too_short() {
             let request_bytes1 = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7, 8].to_vec(); // 8 bytes connection id, 0 bytes address length (2 were expected)
             let request_bytes2 = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7, 8, 0].to_vec(); // 8 bytes connection id, 1 bytes address length (2 were expected)
-            let expected = Error::new(ErrorKind::InvalidRequest, "address length too short");
 
             assert_eq!(
-                expected.to_string(),
-                Request::try_from_bytes(&request_bytes1)
-                    .unwrap_err()
-                    .to_string()
+                RequestError::AddressLengthTooShort,
+                Request::try_from_bytes(&request_bytes1).unwrap_err()
             );
 
             assert_eq!(
-                expected.to_string(),
-                Request::try_from_bytes(&request_bytes2)
-                    .unwrap_err()
-                    .to_string()
+                RequestError::AddressLengthTooShort,
+                Request::try_from_bytes(&request_bytes2).unwrap_err()
             );
         }
 
         #[test]
         fn returns_error_when_address_too_short_for_given_address_length() {
             let request_bytes = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1].to_vec(); // 8 bytes connection id, 2 bytes address length, missing address
-            let expected = Error::new(ErrorKind::InvalidRequest, "address of invalid length");
             assert_eq!(
-                expected.to_string(),
-                Request::try_from_bytes(&request_bytes)
-                    .unwrap_err()
-                    .to_string()
+                RequestError::AddressTooShort,
+                Request::try_from_bytes(&request_bytes).unwrap_err()
             );
         }
 

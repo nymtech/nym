@@ -9,21 +9,6 @@ pub(crate) struct Connection {
     conn: TcpStream,
 }
 
-/*
-    Request:
-    Connect: CONN_FLAG || address_length || remote_address_bytes || connection_id || request_data_content (vec<u8>)
-    Send: SEND_FLAG || connection_id || request_data_content (vec<u8>)
-    Close: CLOSE_FLAG
-
-    Mixnetwork -> request -> router -> connection -> .... tcp magic here ....
-*/
-
-// enum Connectionquest {
-//     New(RequestId, RemoteAddress),Connection
-//     SomethingSomethingExisting,Connection
-//     ClosConnection
-// }
-
 impl Connection {
     pub(crate) async fn new(
         id: ConnectionId,
@@ -40,29 +25,6 @@ impl Connection {
     pub(crate) async fn send_data(&mut self, data: &[u8]) -> io::Result<()> {
         self.conn.write_all(&data).await
     }
-
-    // /// Runs the request, by setting up a new TCP connection, shooting request
-    // /// data up that connection, and returning whatever it receives in response.
-    // pub(crate) async fn run(&self) -> tokio::io::Result<Response> {
-    //     // rename to connect
-    //     println!(
-    //         "connecting id {:?}, remote {:?}, data {:?}",
-    //         self.id,
-    //         self.address,
-    //         String::from_utf8_lossy(&self.data)
-    //     );
-
-    //     let mut stream = TcpStream::connect(&self.address).await?;
-    //     stream.write_all(&self.data).await?;
-
-    //     let response_buf = Connection::try_read_response_data(&mut stream).await?;
-    //     println!(
-    //         "response data: {:?}",
-    //         String::from_utf8_lossy(&response_buf)
-    //     );
-    //     let response = Response::new(self.id, response_buf);
-    //     Ok(response)
-    // }
 
     /// Read response data by looping, waiting for anything we get back from the
     /// remote server. Returns once it times out or the connection closes.

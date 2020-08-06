@@ -34,9 +34,6 @@ impl Server {
                     continue;
                 }
 
-                // A: websocket -> request -> router -> connection -> controller -> websocket
-                // B: websocket -> request -> controller -> connection -> controller -> websocket
-
                 let request = Request::try_from_bytes(&data).unwrap();
                 let response = controller.process_request(request).await.unwrap();
 

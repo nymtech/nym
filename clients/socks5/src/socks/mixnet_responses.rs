@@ -88,10 +88,6 @@ impl MixnetResponseListener {
 
     pub(crate) async fn run(&mut self) {
         while let Some(received_responses) = self.mix_response_receiver.next().await {
-            println!(
-                "\n\nRECEIVED MIXNET MESSAGES!! - {:?}\n\n",
-                received_responses
-            );
             for received_response in received_responses {
                 self.on_message(received_response).await;
             }

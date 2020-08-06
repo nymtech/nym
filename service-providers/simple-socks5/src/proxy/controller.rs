@@ -69,8 +69,12 @@ impl Controller {
             .get_mut(&conn_id)
             .expect("TODO: dont panic - connection doesn't exist");
         connection.send_data(&data).await.expect("todo: error");
-        todo!("return a response")
-        // Ok(())
+
+        let response_data = connection
+            .try_read_response_data()
+            .await
+            .expect("todo: error handling");
+        Ok(Response::new(conn_id, response_data))
     }
 
     fn close_connection(&mut self, conn_id: ConnectionId) -> Result<(), TodoError> {

@@ -36,6 +36,9 @@ impl Server {
 
                 let request = Request::try_from_bytes(&data).unwrap();
                 let response = controller.process_request(request).await.unwrap();
+                if response.is_none() { // restart the loop if we got nothing back
+                    continue;
+                }
                 
                 let return_address = "4QC5D8auMbVpFVBfiZnVtQVUPiNUV9FMnpb81cauFpEp@GYCqU48ndXke9o2434i7zEGv1sWg1cNVswWJfRnY1VTB";
                 let recipient = nymsphinx::addressing::clients::Recipient::try_from_string(return_address).unwrap();

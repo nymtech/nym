@@ -12,14 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// pub use crypto::symmetric::aes_ctr::{
-//     generic_array::{
-//         typenum::{Unsigned, U32},
-//         ArrayLength, GenericArray,
-//     },
-//     Aes128Key, Aes128KeySize,
-// };
-
 pub use crypto::generic_array::typenum::Unsigned;
 use crypto::{
     crypto_hash,

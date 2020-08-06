@@ -40,6 +40,7 @@ impl Server {
                     continue;
                 }
                 
+                // TODO: wire SURBs in here once they're available
                 let return_address = "4QC5D8auMbVpFVBfiZnVtQVUPiNUV9FMnpb81cauFpEp@GYCqU48ndXke9o2434i7zEGv1sWg1cNVswWJfRnY1VTB";
                 let recipient = nymsphinx::addressing::clients::Recipient::try_from_string(return_address).unwrap();
 
@@ -63,13 +64,7 @@ impl Server {
         println!("\nStopping...");
     }
 
-    /// TODO: use of `new` is suspicious. Should this live up in start and then get wired in as a trait? might be nice to test that way...
-    /// TODO: later on, once we have all this shit connected up, try and *use*
-    /// the websocket::Connection instead of the stream directly, to wire things
-    /// together. I have a feeling this might make testing substantially easier
-    /// so that we can have small testable units of logic rather than a bunch
-    /// of un-testable hose pipes wired together (as in most Rust example
-    /// code that's available on the internet).
+    // Make the websocket connection so we can receive incoming Mixnet messages.
     fn connect_websocket(&mut self, uri: &str) -> WebSocketStream<TcpStream> {
         self.runtime.block_on(async {
             let ws_stream = match websocket::Connection::new(uri).connect().await {

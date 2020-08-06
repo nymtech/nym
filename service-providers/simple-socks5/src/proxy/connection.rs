@@ -18,7 +18,6 @@ impl Connection {
         address: RemoteAddress,
         initial_data: &[u8],
     ) -> io::Result<Self> {
-        // TODO: do we want to have async stuff in constructor?
         let conn = TcpStream::connect(&address).await?;
         let mut connection = Connection { id, address, conn };
         connection.send_data(&initial_data).await?;

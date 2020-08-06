@@ -1,7 +1,6 @@
 use super::types::{AddrType, ResponseCode, SocksProxyError};
 use super::{utils, SOCKS_VERSION};
 use log::*;
-use simple_socks5_requests::{ConnectionId, Request};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::prelude::*;

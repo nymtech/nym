@@ -38,7 +38,6 @@ impl Connection {
             let mut buf = [0u8; 1024];
             tokio::select! {
                 _ = &mut timeout => {
-                    println!("we timed out!");
                     return Ok(data)
                 }
                 read_data = self.conn.read(&mut buf) => {

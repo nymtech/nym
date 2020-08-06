@@ -25,21 +25,23 @@ impl TryFrom<u8> for RequestFlag {
     }
 }
 
-/*
-Request:
-    Connect: CONN_FLAG || connection_id || address_length || remote_address_bytes  || request_data_content (vec<u8>)
-    Send: SEND_FLAG || connection_id || request_data_content (vec<u8>)
-    Close: CLOSE_FLAG || connection_id
-*/
-
+/// A request from a SOCKS5 client that a Nym Socks5 service provider should
+/// take an action for an application using a (probably local) Nym Socks5 proxy.
 #[derive(Debug)]
 pub enum Request {
+    /// Start a new TCP connection to the specified `RemoteAddress` and send
+    /// the request data up the connection.
     Connect(ConnectionId, RemoteAddress, Vec<u8>),
+
+    /// Re-use an existing TCP connection, sending more request data up it.
     Send(ConnectionId, Vec<u8>),
+
+    /// Close an existing TCP connection.
     Close(ConnectionId),
 }
 
 impl Request {
+    /// Construct a new Request::Connect instance
     pub fn new_connect(
         conn_id: ConnectionId,
         remote_addr: RemoteAddress,
@@ -48,15 +50,17 @@ impl Request {
         Request::Connect(conn_id, remote_addr, data)
     }
 
+    /// Construct a new Request::Send instance
     pub fn new_send(conn_id: ConnectionId, data: Vec<u8>) -> Request {
         Request::Send(conn_id, data)
     }
 
+    /// Construct a new Request::Close instance
     pub fn new_close(conn_id: ConnectionId) -> Request {
         Request::Close(conn_id)
     }
 
-    /// Deserialize the connection id, destination address and port,
+    /// Deserialize the request type, connection id, destination address and port,
     /// and the request body from bytes.
     ///
     /// Serialized bytes looks like this:
@@ -124,6 +128,9 @@ impl Request {
         }
     }
 
+    /// Serialize a Socks5 request into bytes, so that it can be packed inside
+    /// a Sphinx packet, sent through the mixnet, and deserialized by the Socks5
+    /// service provider which will make the request.
     pub fn into_bytes(self) -> Vec<u8> {
         match self {
             Request::Connect(conn_id, remote_address, data) => {
@@ -147,12 +154,16 @@ impl Request {
     }
 }
 
+/// A remote network response retrieved by the Socks5 service provider. This
+/// can be serialized and sent back through the mixnet to the requesting
+/// application.
 pub struct Response {
     data: Vec<u8>,
     connection_id: ConnectionId,
 }
 
 impl Response {
+    /// Constructor for responses
     pub fn new(connection_id: ConnectionId, data: Vec<u8>) -> Self {
         Response {
             connection_id,
@@ -164,6 +175,8 @@ impl Response {
         todo!()
     }
 
+    /// Serializes the response into bytes so that it can be sent back through
+    /// the mixnet to the requesting application.
     pub fn into_bytes(self) -> Vec<u8> {
         self.connection_id
             .to_be_bytes()

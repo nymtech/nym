@@ -4,12 +4,7 @@ use crate::client::received_buffer::{ReceivedBufferMessage, ReceivedBufferReques
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use simple_socks5_requests::{ConnectionId, Response};
-
-#[derive(Debug)]
-pub(crate) enum MixnetResponseError {
-    InvalidResponseError,
-}
+use simple_socks5_requests::Response;
 
 pub(crate) struct MixnetResponseListener {
     buffer_requester: ReceivedBufferRequestSender,

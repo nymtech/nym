@@ -108,7 +108,7 @@ impl KeyManager {
     // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
     #[allow(dead_code)]
     /// Stores all available keys on the disk.
-    // While perhaps there is no much point in storing the `AckAes128Key` on the disk,
+    // While perhaps there is no much point in storing the `AckKey` on the disk,
     // it is done so for the consistency sake so that you wouldn't require an rng instance
     // during `load_keys` to generate the said key.
     pub(crate) fn store_keys(&self, client_pathfinder: &ClientKeyPathfinder) -> io::Result<()> {
@@ -161,7 +161,7 @@ impl KeyManager {
         )
     }
 
-    /// Gets an atomically reference counted pointer to [`AckAes128Key`].
+    /// Gets an atomically reference counted pointer to [`AckKey`].
     pub(crate) fn ack_key(&self) -> Arc<AckKey> {
         Arc::clone(&self.ack_key)
     }

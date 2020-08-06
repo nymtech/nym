@@ -594,6 +594,7 @@ dependencies = [
  "pemstore",
  "pretty_env_logger",
  "rand 0.7.3",
+ "stream-cipher 0.4.1",
  "x25519-dalek",
 ]
 

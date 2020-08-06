@@ -13,3 +13,4 @@
 // limitations under the License.
 
 pub mod aes_ctr;
+pub mod stream_cipher;

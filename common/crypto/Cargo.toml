@@ -7,16 +7,15 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aes-ctr = "0.4.0"
+aes-ctr = "0.4"
 bs58 = "0.3.0"
 blake3 = "0.3.5"
 digest = "0.9"
 generic-array = "0.14"
 hkdf = "0.9"
 hmac = "0.8"
-
+stream-cipher = "0.4"
 x25519-dalek = "0.6"
-# TODO: do we need serde feature?
 ed25519-dalek = "1.0.0-pre.3"
 log = "0.4"
 pretty_env_logger = "0.3"

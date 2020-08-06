@@ -1,7 +1,7 @@
 use crate::{proxy, websocket};
 use futures::SinkExt;
 use futures_util::StreamExt;
-use proxy::{connection::Connection, controller::Controller};
+use proxy::{controller::Controller};
 use simple_socks5_requests::Request;
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;

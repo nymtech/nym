@@ -43,7 +43,6 @@ impl Server {
                 let return_address = "4QC5D8auMbVpFVBfiZnVtQVUPiNUV9FMnpb81cauFpEp@GYCqU48ndXke9o2434i7zEGv1sWg1cNVswWJfRnY1VTB";
                 let recipient = nymsphinx::addressing::clients::Recipient::try_from_string(return_address).unwrap();
 
-                // // bytes:  recipient || request_id || response_data
                 let response_message = recipient.into_bytes()
                     .iter()
                     .cloned()

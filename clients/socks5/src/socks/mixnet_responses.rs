@@ -54,7 +54,7 @@ impl MixnetResponseListener {
             stream_receiver.send(response.data).unwrap()
         } else {
             warn!(
-                "no request_id exists with id: {:?}",
+                "no connection_id exists with id: {:?}",
                 &response.connection_id
             )
         }

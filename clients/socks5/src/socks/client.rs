@@ -30,7 +30,7 @@ pub(crate) struct SocksClient {
     authenticator: Authenticator,
     socks_version: u8,
     input_sender: InputMessageSender,
-    request_id: ConnectionId,
+    connection_id: ConnectionId,
     service_provider: Recipient,
 }
 
@@ -53,10 +53,10 @@ impl SocksClient {
         service_provider: Recipient,
         active_streams: ActiveStreams,
     ) -> Self {
-        let request_id = Self::generate_random();
+        let connection_id = Self::generate_random();
         SocksClient {
             active_streams,
-            request_id,
+            connection_id,
             stream,
             auth_nmethods: 0,
             socks_version: 0,
@@ -136,7 +136,7 @@ impl SocksClient {
     async fn send_request_to_mixnet(&mut self, request: Request) {
         println!(
             "Sending request {:?} outbound through mixnet",
-            self.request_id
+            self.connection_id
         );
         self.send_to_mixnet(request.into_bytes()).await;
     }
@@ -144,7 +144,7 @@ impl SocksClient {
     async fn send_request_to_mixnet_and_get_response(&mut self, request: Request) -> Vec<u8> {
         println!(
             "Sending request {:?} outbound through mixnet",
-            self.request_id
+            self.connection_id
         );
         self.send_to_mixnet(request.into_bytes()).await;
 
@@ -152,7 +152,7 @@ impl SocksClient {
         let (sender, receiver) = oneshot::channel();
         let mut active_streams_guard = self.active_streams.lock().await;
         if active_streams_guard
-            .insert(self.request_id, sender)
+            .insert(self.connection_id, sender)
             .is_some()
         {
             panic!("there is already an active request with the same id present - it's probably a bug!")
@@ -178,7 +178,7 @@ impl SocksClient {
                     .await
                     .expect("todo: deal with error");
                 let socks_provider_request = Request::new_connect(
-                    self.request_id,
+                    self.connection_id,
                     remote_address.clone(),
                     request_data_bytes,
                 );
@@ -195,7 +195,7 @@ impl SocksClient {
                             break;
                         }
                         let socks_provider_request =
-                            Request::new_send(self.request_id, request_data_bytes);
+                            Request::new_send(self.connection_id, request_data_bytes);
                         let response_data = self
                             .send_request_to_mixnet_and_get_response(socks_provider_request)
                             .await;
@@ -204,7 +204,7 @@ impl SocksClient {
                         break;
                     }
                 }
-                let socks_provider_request = Request::new_close(self.request_id);
+                let socks_provider_request = Request::new_close(self.connection_id);
                 self.send_request_to_mixnet(socks_provider_request).await;
                 // TODO: where is connection removed from active connection??
             }

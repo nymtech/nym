@@ -20,7 +20,7 @@ impl TryFrom<u8> for RequestFlag {
             _ if value == (RequestFlag::Connect as u8) => Ok(Self::Connect),
             _ if value == (RequestFlag::Send as u8) => Ok(Self::Send),
             _ if value == (RequestFlag::Close as u8) => Ok(Self::Close),
-            _ => todo!("error"),
+            _ => Err(Error::new(ErrorKind::InvalidRequest, "unknown RequestFlag")),
         }
     }
 }
@@ -158,8 +158,8 @@ impl Request {
 /// can be serialized and sent back through the mixnet to the requesting
 /// application.
 pub struct Response {
-    data: Vec<u8>,
-    connection_id: ConnectionId,
+    pub data: Vec<u8>,
+    pub connection_id: ConnectionId,
 }
 
 impl Response {
@@ -171,8 +171,30 @@ impl Response {
         }
     }
 
-    pub fn try_from_bytes(b: &[u8]) -> Result<Self> {
-        todo!()
+    pub fn try_from_bytes(b: &[u8]) -> Result<Response> {
+        if b.len() < 8 {
+            return Err(Error::new(
+                ErrorKind::InvalidResponse,
+                "response bytes too short",
+            ));
+        }
+
+        let mut connection_id_bytes = b.to_vec();
+        let data = connection_id_bytes.split_off(8);
+
+        let connection_id = u64::from_be_bytes([
+            connection_id_bytes[0],
+            connection_id_bytes[1],
+            connection_id_bytes[2],
+            connection_id_bytes[3],
+            connection_id_bytes[4],
+            connection_id_bytes[5],
+            connection_id_bytes[6],
+            connection_id_bytes[7],
+        ]);
+
+        let response = Response::new(connection_id, data);
+        Ok(response)
     }
 
     /// Serializes the response into bytes so that it can be sent back through

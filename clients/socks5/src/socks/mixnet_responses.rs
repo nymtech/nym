@@ -4,7 +4,7 @@ use crate::client::received_buffer::{ReceivedBufferMessage, ReceivedBufferReques
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use simple_socks5_requests::ConnectionId;
+use simple_socks5_requests::{ConnectionId, Response};
 
 #[derive(Debug)]
 pub(crate) enum MixnetResponseError {
@@ -42,33 +42,8 @@ impl MixnetResponseListener {
         }
     }
 
-    fn parse_message(
-        &self,
-        message: Vec<u8>,
-    ) -> Result<(ConnectionId, Vec<u8>), MixnetResponseError> {
-        if message.len() < 8 {
-            return Err(MixnetResponseError::InvalidResponseError);
-        }
-
-        let mut request_id_bytes = message;
-        let response = request_id_bytes.split_off(8);
-
-        let request_id = u64::from_be_bytes([
-            request_id_bytes[0],
-            request_id_bytes[1],
-            request_id_bytes[2],
-            request_id_bytes[3],
-            request_id_bytes[4],
-            request_id_bytes[5],
-            request_id_bytes[6],
-            request_id_bytes[7],
-        ]);
-
-        Ok((request_id, response))
-    }
-
-    async fn on_message(&self, message: Vec<u8>) {
-        let (request_id, response) = match self.parse_message(message) {
+    async fn on_message(&self, bytes: Vec<u8>) {
+        let response = match Response::try_from_bytes(&bytes) {
             Err(err) => {
                 warn!("failed to parse received response - {:?}", err);
                 return;
@@ -77,12 +52,16 @@ impl MixnetResponseListener {
         };
 
         let mut active_streams_guard = self.active_streams.lock().await;
-        // `remove` gives back the entry (assuming it exists). There's no reason for it to persist
-        // after we send data back
-        if let Some(stream_receiver) = active_streams_guard.remove(&request_id) {
-            stream_receiver.send(response).unwrap()
+
+        // `remove` gives back the entry (assuming it exists). There's no reason
+        // for it to persist after we send data back
+        if let Some(stream_receiver) = active_streams_guard.remove(&response.connection_id) {
+            stream_receiver.send(response.data).unwrap()
         } else {
-            warn!("no request_id exists with id: {:?}", request_id)
+            warn!(
+                "no request_id exists with id: {:?}",
+                &response.connection_id
+            )
         }
     }
 

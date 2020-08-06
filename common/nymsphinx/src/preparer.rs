@@ -14,7 +14,7 @@
 
 use crate::chunking;
 use crypto::asymmetric::encryption;
-use crypto::new_ephemeral_shared_key;
+use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::aes_ctr::{self};
 use crypto::Digest;
 use nymsphinx_acknowledgements::surb_ack::SURBAck;
@@ -26,7 +26,8 @@ use nymsphinx_anonymous_replies::reply_surb::ReplySURB;
 use nymsphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_params::{
-    MessageType, PacketHkdfAlgorithm, ReplySURBKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS,
+    MessageType, PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySURBKeyDigestAlgorithm,
+    DEFAULT_NUM_MIX_HOPS,
 };
 use nymsphinx_types::builder::SphinxPacketBuilder;
 use nymsphinx_types::{delays, Delay, SphinxPacket};
@@ -225,10 +226,11 @@ where
             .prepare_for_sending();
 
         // create keys for 'payload' encryption
-        let (ephemeral_keypair, shared_key) = new_ephemeral_shared_key::<PacketHkdfAlgorithm, _>(
-            &mut self.rng,
-            packet_recipient.encryption_key(),
-        );
+        let (ephemeral_keypair, shared_key) =
+            new_ephemeral_shared_key::<PacketEncryptionAlgorithm, PacketHkdfAlgorithm, _>(
+                &mut self.rng,
+                packet_recipient.encryption_key(),
+            );
 
         // serialize fragment and encrypt its content
         let mut chunk_data = fragment.into_bytes();

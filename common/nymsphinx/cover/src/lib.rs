@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crypto::new_ephemeral_shared_key;
+use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::aes_ctr;
 use nymsphinx_acknowledgements::surb_ack::SURBAck;
 use nymsphinx_acknowledgements::AckAes128Key;
@@ -20,7 +20,7 @@ use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx_chunking::fragment::COVER_FRAG_ID;
 use nymsphinx_params::packet_sizes::PacketSize;
-use nymsphinx_params::{PacketHkdfAlgorithm, DEFAULT_NUM_MIX_HOPS};
+use nymsphinx_params::{PacketEncryptionAlgorithm, PacketHkdfAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nymsphinx_types::builder::SphinxPacketBuilder;
 use nymsphinx_types::{delays, Error as SphinxError, SphinxPacket};
 use rand::{CryptoRng, RngCore};
@@ -96,8 +96,11 @@ where
     // cover message can't be distinguishable from a normal traffic so we have to go through
     // all the effort of key generation, encryption, etc. Note here we are generating shared key
     // with ourselves!
-    let (ephemeral_keypair, shared_key) =
-        new_ephemeral_shared_key::<PacketHkdfAlgorithm, _>(rng, full_address.encryption_key());
+    let (ephemeral_keypair, shared_key) = new_ephemeral_shared_key::<
+        PacketEncryptionAlgorithm,
+        PacketHkdfAlgorithm,
+        _,
+    >(rng, full_address.encryption_key());
 
     let public_key_bytes = ephemeral_keypair.public_key().to_bytes();
     let cover_size =

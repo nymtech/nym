@@ -13,12 +13,14 @@
 // limitations under the License.
 
 use crypto::asymmetric::encryption;
-use crypto::recompute_shared_key;
+use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::aes_ctr;
 use nymsphinx_anonymous_replies::reply_surb::{ReplySURB, ReplySURBError};
 use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_chunking::reconstruction::MessageReconstructor;
-use nymsphinx_params::{MessageType, PacketHkdfAlgorithm, DEFAULT_NUM_MIX_HOPS};
+use nymsphinx_params::{
+    MessageType, PacketEncryptionAlgorithm, PacketHkdfAlgorithm, DEFAULT_NUM_MIX_HOPS,
+};
 
 // TODO: should this live in this file?
 #[allow(non_snake_case)]
@@ -149,8 +151,10 @@ impl MessageReceiver {
         let remote_ephemeral_key = encryption::PublicKey::from_bytes(remote_key_bytes)?;
 
         // 2. recompute shared encryption key
-        let encryption_key =
-            recompute_shared_key::<PacketHkdfAlgorithm>(&remote_ephemeral_key, local_key);
+        let encryption_key = recompute_shared_key::<PacketEncryptionAlgorithm, PacketHkdfAlgorithm>(
+            &remote_ephemeral_key,
+            local_key,
+        );
 
         // 3. decrypt fragment data
         let fragment_bytes = &mut raw_enc_frag[encryption::PUBLIC_KEY_SIZE..];

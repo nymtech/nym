@@ -16,6 +16,7 @@ use crypto::blake3;
 pub mod message_types;
 pub mod packet_sizes;
 
+use crypto::aes_ctr::Aes128Ctr;
 pub use message_types::MessageType;
 pub use packet_sizes::PacketSize;
 
@@ -38,3 +39,11 @@ pub type ReplySURBKeyDigestAlgorithm = blake3::Hasher;
 // TODO: if updated, the pem type defined in gateway\gateway-requests\src\registration\handshake\shared_key
 // needs updating!
 pub type GatewayIntegrityHmacAlgorithm = blake3::Hasher;
+
+/// Encryption algorithm used for end-to-end encryption of messages exchanged between clients
+/// and their gateways.
+pub type GatewayEncryptionAlgorithm = Aes128Ctr;
+
+/// Encryption algorithm used for end-to-end encryption of messages exchanged between clients that are
+/// encapsulated inside sphinx packets.
+pub type PacketEncryptionAlgorithm = Aes128Ctr;

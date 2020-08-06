@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::identifier::prepare_identifier;
-use crate::AckAes128Key;
+use crate::AckKey;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nymsphinx_params::packet_sizes::PacketSize;
@@ -46,7 +46,7 @@ impl SURBAck {
     pub fn construct<R>(
         rng: &mut R,
         recipient: &Recipient,
-        ack_key: &AckAes128Key,
+        ack_key: &AckKey,
         marshaled_fragment_id: [u8; 5],
         average_delay: time::Duration,
         topology: &NymTopology,

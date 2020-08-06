@@ -17,21 +17,21 @@ use futures::StreamExt;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
 use nymsphinx::{
-    acknowledgements::{identifier::recover_identifier, AckAes128Key},
+    acknowledgements::{identifier::recover_identifier, AckKey},
     chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID},
 };
 use std::sync::Arc;
 
 // responsible for cancelling retransmission timers and removed entries from the map
 pub(super) struct AcknowledgementListener {
-    ack_key: Arc<AckAes128Key>,
+    ack_key: Arc<AckKey>,
     ack_receiver: AcknowledgementReceiver,
     pending_acks: PendingAcksMap,
 }
 
 impl AcknowledgementListener {
     pub(super) fn new(
-        ack_key: Arc<AckAes128Key>,
+        ack_key: Arc<AckKey>,
         ack_receiver: AcknowledgementReceiver,
         pending_acks: PendingAcksMap,
     ) -> Self {

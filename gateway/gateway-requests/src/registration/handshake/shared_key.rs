@@ -12,31 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crypto::hmac::compute_keyed_hmac;
-use crypto::hmac::hmac::digest::{BlockInput, FixedOutput, Reset, Update};
-use crypto::symmetric::aes_ctr::{
-    self,
-    generic_array::{
-        typenum::{Sum, Unsigned, U16},
-        ArrayLength, GenericArray,
-    },
-    Aes128IV, Aes128Key, Aes128KeySize,
+use crypto::generic_array::{
+    typenum::{Sum, Unsigned, U16},
+    GenericArray,
 };
+use crypto::hmac::compute_keyed_hmac;
+use crypto::symmetric::stream_cipher::{self, Key, NewStreamCipher, IV};
+use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorithm};
 use pemstore::traits::PemStorableKey;
 use std::fmt::{self, Display, Formatter};
 
-// shared key is as long as the Aes128 key and the MAC key combined.
-pub type SharedKeySize = Sum<Aes128KeySize, MacKeySize>;
+// shared key is as long as the encryption key and the MAC key combined.
+pub type SharedKeySize = Sum<EncryptionKeySize, MacKeySize>;
 
 // we're using 16 byte long key in sphinx, so let's use the same one here
 type MacKeySize = U16;
+type EncryptionKeySize = <GatewayEncryptionAlgorithm as NewStreamCipher>::KeySize;
 
 /// Shared key used when computing MAC for messages exchanged between client and its gateway.
 pub type MacKey = GenericArray<u8, MacKeySize>;
 
 #[derive(Clone, Debug)]
 pub struct SharedKeys {
-    encryption_key: Aes128Key,
+    encryption_key: Key<GatewayEncryptionAlgorithm>,
     mac_key: MacKey,
 }
 
@@ -73,8 +71,9 @@ impl SharedKeys {
             return Err(SharedKeyConversionError::BytesOfInvalidLengthError);
         }
 
-        let encryption_key = GenericArray::clone_from_slice(&bytes[..Aes128KeySize::to_usize()]);
-        let mac_key = GenericArray::clone_from_slice(&bytes[Aes128KeySize::to_usize()..]);
+        let encryption_key =
+            GenericArray::clone_from_slice(&bytes[..EncryptionKeySize::to_usize()]);
+        let mac_key = GenericArray::clone_from_slice(&bytes[EncryptionKeySize::to_usize()..]);
 
         Ok(SharedKeys {
             encryption_key,
@@ -85,17 +84,28 @@ impl SharedKeys {
     /// Encrypts the provided data using the optionally provided initialisation vector,
     /// or a 0 value if nothing was given. Then it computes an integrity mac and concatenates it
     /// with the previously produced ciphertext.
-    pub fn encrypt_and_tag<D>(&self, data: &[u8], iv: Option<&Aes128IV>) -> Vec<u8>
-    where
-        D: Update + BlockInput + FixedOutput + Reset + Default + Clone,
-        D::BlockSize: ArrayLength<u8>,
-        D::OutputSize: ArrayLength<u8>,
-    {
+    pub fn encrypt_and_tag(
+        &self,
+        data: &[u8],
+        iv: Option<&IV<GatewayEncryptionAlgorithm>>,
+    ) -> Vec<u8> {
         let encrypted_data = match iv {
-            Some(iv) => aes_ctr::encrypt(self.encryption_key(), iv, data),
-            None => aes_ctr::encrypt(self.encryption_key(), &aes_ctr::zero_iv(), data),
+            Some(iv) => stream_cipher::encrypt::<GatewayEncryptionAlgorithm>(
+                self.encryption_key(),
+                iv,
+                data,
+            ),
+            None => {
+                let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
+                stream_cipher::encrypt::<GatewayEncryptionAlgorithm>(
+                    self.encryption_key(),
+                    &zero_iv,
+                    data,
+                )
+            }
         };
-        let mac = compute_keyed_hmac::<D>(self.mac_key(), &encrypted_data);
+        let mac =
+            compute_keyed_hmac::<GatewayIntegrityHmacAlgorithm>(self.mac_key(), &encrypted_data);
 
         mac.into_bytes()
             .into_iter()
@@ -103,7 +113,7 @@ impl SharedKeys {
             .collect()
     }
 
-    pub fn encryption_key(&self) -> &Aes128Key {
+    pub fn encryption_key(&self) -> &Key<GatewayEncryptionAlgorithm> {
         &self.encryption_key
     }
 

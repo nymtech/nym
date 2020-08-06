@@ -14,7 +14,7 @@
 
 use crate::client::reply_key_storage::ReplyKeyStorage;
 use crypto::asymmetric::encryption;
-use crypto::symmetric::aes_ctr;
+use crypto::symmetric::stream_cipher;
 use crypto::Digest;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
@@ -22,7 +22,7 @@ use futures::StreamExt;
 use gateway_client::MixnetMessageReceiver;
 use log::*;
 use nymsphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SURBEncryptionKey};
-use nymsphinx::params::ReplySURBKeyDigestAlgorithm;
+use nymsphinx::params::{ReplySURBEncryptionAlgorithm, ReplySURBKeyDigestAlgorithm};
 use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -193,7 +193,13 @@ impl ReceivedMessagesBuffer {
         reply_ciphertext: &[u8],
         reply_key: SURBEncryptionKey,
     ) -> Option<ReconstructedMessage> {
-        let mut reply_msg = aes_ctr::decrypt(&reply_key, &aes_ctr::zero_iv(), reply_ciphertext);
+        let zero_iv = stream_cipher::zero_iv::<ReplySURBEncryptionAlgorithm>();
+
+        let mut reply_msg = stream_cipher::decrypt::<ReplySURBEncryptionAlgorithm>(
+            &reply_key.inner(),
+            &zero_iv,
+            reply_ciphertext,
+        );
         if let Err(err) = MessageReceiver::remove_padding(&mut reply_msg) {
             warn!("Received reply had malformed padding! - {:?}", err);
             None

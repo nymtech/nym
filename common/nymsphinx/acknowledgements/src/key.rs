@@ -12,18 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crypto::symmetric::aes_ctr::{
-    generic_array::{typenum::Unsigned, GenericArray},
-    Aes128Key, Aes128KeySize,
-};
+use crypto::generic_array::{typenum::Unsigned, GenericArray};
+use crypto::symmetric::stream_cipher::{generate_key, Key, NewStreamCipher};
+use nymsphinx_params::AckEncryptionAlgorithm;
 use pemstore::traits::PemStorableKey;
 use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
-use std::ops::Deref;
 
-pub type AckKeySize = Aes128KeySize;
-
-pub struct AckAes128Key(Aes128Key);
+pub struct AckKey(Key<AckEncryptionAlgorithm>);
 
 #[derive(Debug)]
 pub enum AckKeyConversionError {
@@ -42,17 +38,17 @@ impl Display for AckKeyConversionError {
 
 impl std::error::Error for AckKeyConversionError {}
 
-impl AckAes128Key {
+impl AckKey {
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
-        AckAes128Key(crypto::symmetric::aes_ctr::generate_key(rng))
+        AckKey(generate_key::<AckEncryptionAlgorithm, _>(rng))
     }
 
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, AckKeyConversionError> {
-        if bytes.len() != AckKeySize::to_usize() {
+        if bytes.len() != <AckEncryptionAlgorithm as NewStreamCipher>::KeySize::to_usize() {
             return Err(AckKeyConversionError::BytesOfInvalidLengthError);
         }
 
-        Ok(AckAes128Key(GenericArray::clone_from_slice(bytes)))
+        Ok(AckKey(GenericArray::clone_from_slice(bytes)))
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -62,17 +58,13 @@ impl AckAes128Key {
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_ref()
     }
-}
 
-impl Deref for AckAes128Key {
-    type Target = Aes128Key;
-
-    fn deref(&self) -> &Self::Target {
+    pub fn inner(&self) -> &Key<AckEncryptionAlgorithm> {
         &self.0
     }
 }
 
-impl PemStorableKey for AckAes128Key {
+impl PemStorableKey for AckKey {
     type Error = AckKeyConversionError;
 
     fn pem_type() -> &'static str {

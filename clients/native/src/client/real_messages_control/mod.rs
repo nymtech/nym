@@ -28,7 +28,7 @@ use crate::client::{
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
-use nymsphinx::acknowledgements::AckAes128Key;
+use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
@@ -40,7 +40,7 @@ mod acknowlegement_control;
 mod real_traffic_stream;
 
 pub(crate) struct Config {
-    ack_key: Arc<AckAes128Key>,
+    ack_key: Arc<AckKey>,
     ack_wait_multiplier: f64,
     ack_wait_addition: Duration,
     self_recipient: Recipient,
@@ -51,7 +51,7 @@ pub(crate) struct Config {
 
 impl Config {
     pub(crate) fn new(
-        ack_key: Arc<AckAes128Key>,
+        ack_key: Arc<AckKey>,
         ack_wait_multiplier: f64,
         ack_wait_addition: Duration,
         average_ack_delay_duration: Duration,

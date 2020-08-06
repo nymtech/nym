@@ -17,7 +17,7 @@ use crate::client::topology_control::TopologyAccessor;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
-use nymsphinx::acknowledgements::AckAes128Key;
+use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::utils::sample_poisson_duration;
@@ -33,7 +33,7 @@ where
     R: CryptoRng + Rng,
 {
     /// Key used to encrypt and decrypt content of an ACK packet.
-    ack_key: Arc<AckAes128Key>,
+    ack_key: Arc<AckKey>,
 
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: time::Duration,
@@ -97,7 +97,7 @@ where
 // generic `R`
 impl LoopCoverTrafficStream<OsRng> {
     pub(crate) fn new(
-        ack_key: Arc<AckAes128Key>,
+        ack_key: Arc<AckKey>,
         average_ack_delay: time::Duration,
         average_packet_delay: time::Duration,
         average_cover_message_sending_delay: time::Duration,

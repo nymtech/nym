@@ -16,4 +16,4 @@ pub mod identifier;
 pub mod key;
 pub mod surb_ack;
 
-pub use key::AckAes128Key;
+pub use key::AckKey;

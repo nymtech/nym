@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crypto::symmetric::aes_ctr::{
-    generic_array::{typenum::Unsigned, GenericArray},
-    random_iv, Aes128IV, Aes128NonceSize,
-};
+use crypto::generic_array::{typenum::Unsigned, GenericArray};
+use crypto::symmetric::stream_cipher::{random_iv, NewStreamCipher, IV};
+use nymsphinx::params::GatewayEncryptionAlgorithm;
 use rand::{CryptoRng, RngCore};
-use std::ops::Deref;
 
-pub struct AuthenticationIV(Aes128IV);
+type NonceSize = <GatewayEncryptionAlgorithm as NewStreamCipher>::NonceSize;
+
+pub struct AuthenticationIV(IV<GatewayEncryptionAlgorithm>);
 
 #[derive(Debug)]
 pub enum IVConversionError {
@@ -30,11 +30,11 @@ pub enum IVConversionError {
 
 impl AuthenticationIV {
     pub fn new_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
-        AuthenticationIV(random_iv(rng))
+        AuthenticationIV(random_iv::<GatewayEncryptionAlgorithm, _>(rng))
     }
 
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, IVConversionError> {
-        if bytes.len() != Aes128NonceSize::to_usize() {
+        if bytes.len() != NonceSize::to_usize() {
             return Err(IVConversionError::BytesOfInvalidLengthError);
         }
 
@@ -49,13 +49,17 @@ impl AuthenticationIV {
         self.0.as_ref()
     }
 
+    pub fn inner(&self) -> &IV<GatewayEncryptionAlgorithm> {
+        &self.0
+    }
+
     pub fn try_from_base58_string<S: Into<String>>(val: S) -> Result<Self, IVConversionError> {
         let decoded = match bs58::decode(val.into()).into_vec() {
             Ok(decoded) => decoded,
             Err(err) => return Err(IVConversionError::DecodeError(err)),
         };
 
-        if decoded.len() != Aes128NonceSize::to_usize() {
+        if decoded.len() != NonceSize::to_usize() {
             return Err(IVConversionError::StringOfInvalidLengthError);
         }
 
@@ -74,13 +78,3 @@ impl Into<String> for AuthenticationIV {
         self.to_base58_string()
     }
 }
-
-impl Deref for AuthenticationIV {
-    type Target = Aes128IV;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-// I don't see any cases in which DerefMut would be useful. So did not implement it.

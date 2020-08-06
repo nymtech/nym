@@ -23,7 +23,7 @@ use futures::StreamExt;
 use log::*;
 use nymsphinx::anonymous_replies::ReplySURB;
 use nymsphinx::preparer::MessagePreparer;
-use nymsphinx::{acknowledgements::AckAes128Key, addressing::clients::Recipient};
+use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
 
@@ -32,7 +32,7 @@ pub(super) struct InputMessageListener<R>
 where
     R: CryptoRng + Rng,
 {
-    ack_key: Arc<AckAes128Key>,
+    ack_key: Arc<AckKey>,
     ack_recipient: Recipient,
     input_receiver: InputMessageReceiver,
     message_preparer: MessagePreparer<R>,
@@ -47,7 +47,7 @@ where
     R: CryptoRng + Rng,
 {
     pub(super) fn new(
-        ack_key: Arc<AckAes128Key>,
+        ack_key: Arc<AckKey>,
         ack_recipient: Recipient,
         input_receiver: InputMessageReceiver,
         message_preparer: MessagePreparer<R>,

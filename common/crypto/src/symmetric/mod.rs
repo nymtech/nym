@@ -12,5 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod aes_ctr;
 pub mod stream_cipher;

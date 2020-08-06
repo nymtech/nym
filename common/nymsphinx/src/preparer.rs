@@ -15,10 +15,10 @@
 use crate::chunking;
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
-use crypto::symmetric::aes_ctr::{self};
+use crypto::symmetric::stream_cipher;
 use crypto::Digest;
 use nymsphinx_acknowledgements::surb_ack::SURBAck;
-use nymsphinx_acknowledgements::AckAes128Key;
+use nymsphinx_acknowledgements::AckKey;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nymsphinx_anonymous_replies::encryption_key::SURBEncryptionKey;
@@ -26,8 +26,8 @@ use nymsphinx_anonymous_replies::reply_surb::ReplySURB;
 use nymsphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_params::{
-    MessageType, PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySURBKeyDigestAlgorithm,
-    DEFAULT_NUM_MIX_HOPS,
+    MessageType, PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySURBEncryptionAlgorithm,
+    ReplySURBKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS,
 };
 use nymsphinx_types::builder::SphinxPacketBuilder;
 use nymsphinx_types::{delays, Delay, SphinxPacket};
@@ -217,7 +217,7 @@ where
         &mut self,
         fragment: Fragment,
         topology: &NymTopology,
-        ack_key: &AckAes128Key,
+        ack_key: &AckKey,
         packet_recipient: &Recipient,
     ) -> Result<PreparedFragment, NymTopologyError> {
         // create an ack
@@ -234,7 +234,12 @@ where
 
         // serialize fragment and encrypt its content
         let mut chunk_data = fragment.into_bytes();
-        aes_ctr::encrypt_in_place(&shared_key, &aes_ctr::zero_iv(), &mut chunk_data);
+        let zero_iv = stream_cipher::zero_iv::<PacketEncryptionAlgorithm>();
+        stream_cipher::encrypt_in_place::<PacketEncryptionAlgorithm>(
+            &shared_key,
+            &zero_iv,
+            &mut chunk_data,
+        );
 
         // combine it together as follows:
         // SURB_ACK_FIRST_HOP || SURB_ACK_DATA || EPHEMERAL_KEY || CHUNK_DATA
@@ -282,7 +287,7 @@ where
         &mut self,
         fragment_id: FragmentIdentifier,
         topology: &NymTopology,
-        ack_key: &AckAes128Key,
+        ack_key: &AckKey,
     ) -> Result<SURBAck, NymTopologyError> {
         SURBAck::construct(
             &mut self.rng,
@@ -332,7 +337,7 @@ where
         message: Vec<u8>,
         reply_surb: ReplySURB,
         topology: &NymTopology,
-        ack_key: &AckAes128Key,
+        ack_key: &AckKey,
     ) -> Result<(FragmentIdentifier, SphinxPacket, NymNodeRoutingAddress), PreparationError> {
         // there's no chunking in reply-surbs so there's a hard limit on message,
         // we also need to put the key digest into the message (same size as ephemeral key)
@@ -373,9 +378,10 @@ where
             .collect();
 
         // encrypt the reply message
-        aes_ctr::encrypt_in_place(
-            reply_surb.encryption_key(),
-            &aes_ctr::zero_iv(),
+        let zero_iv = stream_cipher::zero_iv::<ReplySURBEncryptionAlgorithm>();
+        stream_cipher::encrypt_in_place::<ReplySURBEncryptionAlgorithm>(
+            reply_surb.encryption_key().inner(),
+            &zero_iv,
             &mut reply_content,
         );
 

@@ -16,7 +16,7 @@ use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use crypto::asymmetric::{encryption, identity};
 use gateway_requests::registration::handshake::SharedKeys;
 use log::*;
-use nymsphinx::acknowledgements::AckAes128Key;
+use nymsphinx::acknowledgements::AckKey;
 use rand::{CryptoRng, RngCore};
 use std::io;
 use std::sync::Arc;
@@ -39,7 +39,7 @@ pub(crate) struct KeyManager {
     gateway_shared_key: Option<Arc<SharedKeys>>,
 
     /// key used for producing and processing acknowledgement packets.
-    ack_key: Arc<AckAes128Key>,
+    ack_key: Arc<AckKey>,
 }
 
 // The expected flow of a KeyManager "lifetime" is as follows:
@@ -64,7 +64,7 @@ impl KeyManager {
             identity_keypair: Arc::new(identity::KeyPair::new_with_rng(rng)),
             encryption_keypair: Arc::new(encryption::KeyPair::new_with_rng(rng)),
             gateway_shared_key: None,
-            ack_key: Arc::new(AckAes128Key::new(rng)),
+            ack_key: Arc::new(AckKey::new(rng)),
         }
     }
 
@@ -92,7 +92,7 @@ impl KeyManager {
         let gateway_shared_key: SharedKeys =
             pemstore::load_key(&client_pathfinder.gateway_shared_key().to_owned())?;
 
-        let ack_key: AckAes128Key = pemstore::load_key(&client_pathfinder.ack_key().to_owned())?;
+        let ack_key: AckKey = pemstore::load_key(&client_pathfinder.ack_key().to_owned())?;
 
         // TODO: ack key is never stored so it is generated now. But perhaps it should be stored
         // after all for consistency sake?
@@ -162,7 +162,7 @@ impl KeyManager {
     }
 
     /// Gets an atomically reference counted pointer to [`AckAes128Key`].
-    pub(crate) fn ack_key(&self) -> Arc<AckAes128Key> {
+    pub(crate) fn ack_key(&self) -> Arc<AckKey> {
         Arc::clone(&self.ack_key)
     }
 }

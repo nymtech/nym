@@ -14,7 +14,7 @@
 
 use crypto::asymmetric::encryption;
 use crypto::shared_key::recompute_shared_key;
-use crypto::symmetric::aes_ctr;
+use crypto::symmetric::stream_cipher;
 use nymsphinx_anonymous_replies::reply_surb::{ReplySURB, ReplySURBError};
 use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_chunking::reconstruction::MessageReconstructor;
@@ -158,9 +158,11 @@ impl MessageReceiver {
 
         // 3. decrypt fragment data
         let fragment_bytes = &mut raw_enc_frag[encryption::PUBLIC_KEY_SIZE..];
-        Ok(aes_ctr::decrypt(
+
+        let zero_iv = stream_cipher::zero_iv::<PacketEncryptionAlgorithm>();
+        Ok(stream_cipher::decrypt::<PacketEncryptionAlgorithm>(
             &encryption_key,
-            &aes_ctr::zero_iv(),
+            &zero_iv,
             &fragment_bytes,
         ))
     }

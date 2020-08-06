@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use crypto::shared_key::new_ephemeral_shared_key;
-use crypto::symmetric::aes_ctr;
+use crypto::symmetric::stream_cipher;
 use nymsphinx_acknowledgements::surb_ack::SURBAck;
-use nymsphinx_acknowledgements::AckAes128Key;
+use nymsphinx_acknowledgements::AckKey;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx_chunking::fragment::COVER_FRAG_ID;
@@ -60,7 +60,7 @@ impl From<NymTopologyError> for CoverMessageError {
 pub fn generate_loop_cover_surb_ack<R>(
     rng: &mut R,
     topology: &NymTopology,
-    ack_key: &AckAes128Key,
+    ack_key: &AckKey,
     full_address: &Recipient,
     average_ack_delay: time::Duration,
 ) -> Result<SURBAck, CoverMessageError>
@@ -80,7 +80,7 @@ where
 pub fn generate_loop_cover_packet<R>(
     rng: &mut R,
     topology: &NymTopology,
-    ack_key: &AckAes128Key,
+    ack_key: &AckKey,
     full_address: &Recipient,
     average_ack_delay: time::Duration,
     average_packet_delay: time::Duration,
@@ -114,7 +114,12 @@ where
         .take(cover_size)
         .collect();
 
-    aes_ctr::encrypt_in_place(&shared_key, &aes_ctr::zero_iv(), &mut cover_content);
+    let zero_iv = stream_cipher::zero_iv::<PacketEncryptionAlgorithm>();
+    stream_cipher::encrypt_in_place::<PacketEncryptionAlgorithm>(
+        &shared_key,
+        &zero_iv,
+        &mut cover_content,
+    );
 
     // combine it together as follows:
     // SURB_ACK_FIRST_HOP || SURB_ACK_DATA || EPHEMERAL_KEY || COVER_CONTENT

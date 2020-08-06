@@ -16,11 +16,12 @@ use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::authentication::iv::AuthenticationIV;
 use crate::registration::handshake::SharedKeys;
 use crate::GatewayMacSize;
+use crypto::generic_array::typenum::Unsigned;
 use crypto::hmac::recompute_keyed_hmac_and_verify_tag;
-use crypto::symmetric::aes_ctr::{self, generic_array::typenum::Unsigned};
+use crypto::symmetric::stream_cipher;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx::params::packet_sizes::PacketSize;
-use nymsphinx::params::GatewayIntegrityHmacAlgorithm;
+use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorithm};
 use nymsphinx::{DestinationAddressBytes, SphinxPacket};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -240,9 +241,10 @@ impl BinaryRequest {
         // together with a mutable one
         let mut message_bytes_mut = &mut raw_req[mac_size..];
 
-        aes_ctr::decrypt_in_place(
+        let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
+        stream_cipher::decrypt_in_place::<GatewayEncryptionAlgorithm>(
             shared_keys.encryption_key(),
-            &aes_ctr::zero_iv(),
+            &zero_iv,
             &mut message_bytes_mut,
         );
 
@@ -284,7 +286,7 @@ impl BinaryRequest {
 
                 // TODO: it could be theoretically slightly more efficient if the data wasn't taken
                 // by reference because then it makes a copy for encryption rather than do it in place
-                shared_key.encrypt_and_tag::<GatewayIntegrityHmacAlgorithm>(&forwarding_data, None)
+                shared_key.encrypt_and_tag(&forwarding_data, None)
             }
         }
     }
@@ -331,9 +333,10 @@ impl BinaryResponse {
             return Err(GatewayRequestsError::InvalidMAC);
         }
 
-        let plaintext = aes_ctr::decrypt(
+        let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
+        let plaintext = stream_cipher::decrypt::<GatewayEncryptionAlgorithm>(
             shared_keys.encryption_key(),
-            &aes_ctr::zero_iv(),
+            &zero_iv,
             &message_bytes,
         );
 
@@ -344,9 +347,7 @@ impl BinaryResponse {
         match self {
             // TODO: it could be theoretically slightly more efficient if the data wasn't taken
             // by reference because then it makes a copy for encryption rather than do it in place
-            BinaryResponse::PushedMixMessage(message) => {
-                shared_key.encrypt_and_tag::<GatewayIntegrityHmacAlgorithm>(&message, None)
-            }
+            BinaryResponse::PushedMixMessage(message) => shared_key.encrypt_and_tag(&message, None),
         }
     }
 

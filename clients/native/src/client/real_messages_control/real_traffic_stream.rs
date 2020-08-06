@@ -19,7 +19,7 @@ use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
-use nymsphinx::acknowledgements::AckAes128Key;
+use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::{clients::Recipient, nodes::NymNodeRoutingAddress};
 use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::cover::generate_loop_cover_packet;
@@ -36,7 +36,7 @@ where
     R: CryptoRng + Rng,
 {
     /// Key used to encrypt and decrypt content of an ACK packet.
-    ack_key: Arc<AckAes128Key>,
+    ack_key: Arc<AckKey>,
 
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
@@ -145,7 +145,7 @@ where
     R: CryptoRng + Rng + Unpin,
 {
     pub(crate) fn new(
-        ack_key: Arc<AckAes128Key>,
+        ack_key: Arc<AckKey>,
         average_ack_delay: Duration,
         average_packet_delay: Duration,
         average_message_sending_delay: Duration,

@@ -14,6 +14,7 @@
 
 use crate::set::generate_set_id;
 use crate::ChunkingError;
+use nymsphinx_params::{SerializedFragmentIdentifier, FRAG_ID_LEN};
 use rand::Rng;
 use std::convert::TryInto;
 
@@ -90,7 +91,9 @@ impl FragmentIdentifier {
         self.set_id > 0 && self.fragment_position == 0
     }
 
-    pub fn to_bytes(self) -> [u8; 5] {
+    pub fn to_bytes(self) -> SerializedFragmentIdentifier {
+        debug_assert_eq!(FRAG_ID_LEN, 5);
+
         let set_id_bytes = self.set_id.to_be_bytes();
         [
             set_id_bytes[0],
@@ -101,7 +104,9 @@ impl FragmentIdentifier {
         ]
     }
 
-    pub fn try_from_bytes(b: [u8; 5]) -> Result<Self, ChunkingError> {
+    pub fn try_from_bytes(b: SerializedFragmentIdentifier) -> Result<Self, ChunkingError> {
+        debug_assert_eq!(FRAG_ID_LEN, 5);
+
         let set_id = i32::from_be_bytes([b[0], b[1], b[2], b[3]]);
         // set_id == 0 is valid for COVER_FRAG_ID and replies
         if set_id < 0 {

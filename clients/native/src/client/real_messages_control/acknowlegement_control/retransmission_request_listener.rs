@@ -21,7 +21,7 @@ use futures::StreamExt;
 use log::*;
 use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{
-    acknowledgements::AckAes128Key, addressing::clients::Recipient,
+    acknowledgements::AckKey, addressing::clients::Recipient,
     chunking::fragment::FragmentIdentifier,
 };
 use rand::{CryptoRng, Rng};
@@ -32,7 +32,7 @@ pub(super) struct RetransmissionRequestListener<R>
 where
     R: CryptoRng + Rng,
 {
-    ack_key: Arc<AckAes128Key>,
+    ack_key: Arc<AckKey>,
     ack_recipient: Recipient,
     message_preparer: MessagePreparer<R>,
     pending_acks: PendingAcksMap,
@@ -46,7 +46,7 @@ where
     R: CryptoRng + Rng,
 {
     pub(super) fn new(
-        ack_key: Arc<AckAes128Key>,
+        ack_key: Arc<AckKey>,
         ack_recipient: Recipient,
         message_preparer: MessagePreparer<R>,
         pending_acks: PendingAcksMap,

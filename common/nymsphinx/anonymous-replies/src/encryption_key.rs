@@ -12,26 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use crypto::symmetric::aes_ctr::{
-    generic_array::{
-        typenum::{Unsigned, U32},
-        ArrayLength, GenericArray,
-    },
-    Aes128Key, Aes128KeySize,
+// pub use crypto::symmetric::aes_ctr::{
+//     generic_array::{
+//         typenum::{Unsigned, U32},
+//         ArrayLength, GenericArray,
+//     },
+//     Aes128Key, Aes128KeySize,
+// };
+
+pub use crypto::generic_array::typenum::Unsigned;
+use crypto::{
+    crypto_hash,
+    generic_array::GenericArray,
+    symmetric::stream_cipher::{generate_key, Key, NewStreamCipher},
+    Digest,
 };
-use crypto::{crypto_hash, Digest};
-use nymsphinx_params::ReplySURBKeyDigestAlgorithm;
+use nymsphinx_params::{ReplySURBEncryptionAlgorithm, ReplySURBKeyDigestAlgorithm};
 use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
-use std::ops::Deref;
 
 pub type EncryptionKeyDigest =
     GenericArray<u8, <ReplySURBKeyDigestAlgorithm as Digest>::OutputSize>;
 
-pub type SURBEncryptionKeySize = Aes128KeySize;
+pub type SURBEncryptionKeySize = <ReplySURBEncryptionAlgorithm as NewStreamCipher>::KeySize;
 
 #[derive(Clone, Debug)]
-pub struct SURBEncryptionKey(Aes128Key);
+pub struct SURBEncryptionKey(Key<ReplySURBEncryptionAlgorithm>);
 
 #[derive(Debug)]
 pub enum SURBEncryptionKeyError {
@@ -54,7 +60,7 @@ impl SURBEncryptionKey {
     /// Generates fresh pseudorandom key that is going to be used by the recipient of the message
     /// to encrypt payload of the reply. It is only generated when reply-SURB is attached.
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
-        SURBEncryptionKey(crypto::symmetric::aes_ctr::generate_key(rng))
+        SURBEncryptionKey(generate_key::<ReplySURBEncryptionAlgorithm, _>(rng))
     }
 
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, SURBEncryptionKeyError> {
@@ -76,12 +82,8 @@ impl SURBEncryptionKey {
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_ref()
     }
-}
 
-impl Deref for SURBEncryptionKey {
-    type Target = Aes128Key;
-
-    fn deref(&self) -> &Self::Target {
+    pub fn inner(&self) -> &Key<ReplySURBEncryptionAlgorithm> {
         &self.0
     }
 }

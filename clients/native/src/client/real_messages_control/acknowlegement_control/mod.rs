@@ -26,7 +26,7 @@ use gateway_client::AcknowledgementReceiver;
 use log::*;
 use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{
-    acknowledgements::AckAes128Key,
+    acknowledgements::AckKey,
     addressing::clients::Recipient,
     chunking::fragment::{Fragment, FragmentIdentifier},
     Delay,
@@ -113,7 +113,7 @@ where
     pub(super) fn new(
         rng: R,
         topology_access: TopologyAccessor,
-        ack_key: Arc<AckAes128Key>,
+        ack_key: Arc<AckKey>,
         ack_recipient: Recipient,
         reply_key_storage: ReplyKeyStorage,
         average_packet_delay: Duration,

@@ -20,6 +20,7 @@ pub mod shared_key;
 pub mod symmetric;
 
 pub use digest::Digest;
+pub use generic_array;
 
 // with the below my idea was to try to introduce have a single place of importing all hashing, encryption,
 // etc. algorithms and import them elsewhere as needed via common/crypto

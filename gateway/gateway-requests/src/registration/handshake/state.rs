@@ -18,12 +18,13 @@ use crate::registration::handshake::WsItem;
 use crate::types;
 use crypto::{
     asymmetric::{encryption, identity},
+    generic_array::typenum::Unsigned,
     hkdf,
-    symmetric::aes_ctr::{self, generic_array::typenum::Unsigned},
+    symmetric::stream_cipher,
 };
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use log::*;
-use nymsphinx::params::GatewaySharedKeyHkdfAlgorithm;
+use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
 use rand::{CryptoRng, RngCore};
 use std::convert::{TryFrom, TryInto};
 use tokio_tungstenite::tungstenite::Message as WsMessage;
@@ -142,9 +143,10 @@ impl<'a, S> State<'a, S> {
             .collect();
 
         let signature = self.identity.private_key().sign(&message);
-        aes_ctr::encrypt(
+        let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
+        stream_cipher::encrypt::<GatewayEncryptionAlgorithm>(
             self.derived_shared_key.as_ref().unwrap().encryption_key(),
-            &aes_ctr::zero_iv(),
+            &zero_iv,
             &signature.to_bytes(),
         )
     }
@@ -166,9 +168,10 @@ impl<'a, S> State<'a, S> {
             .expect("shared key was not derived!");
 
         // first decrypt received data
-        let decrypted_signature = aes_ctr::decrypt(
+        let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
+        let decrypted_signature = stream_cipher::decrypt::<GatewayEncryptionAlgorithm>(
             derived_shared_key.encryption_key(),
-            &aes_ctr::zero_iv(),
+            &zero_iv,
             remote_material,
         );
 

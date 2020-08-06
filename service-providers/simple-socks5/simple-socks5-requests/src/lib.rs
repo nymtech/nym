@@ -1,5 +1,7 @@
 pub mod error;
-pub mod types;
+pub mod request;
+pub mod response;
 
 pub use crate::error::{Error, ErrorKind, Result};
-pub use types::*;
+pub use request::*;
+pub use response::*;

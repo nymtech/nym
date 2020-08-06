@@ -1,8 +1,9 @@
-use crate::{Error, ErrorKind, Result};
 use std::convert::TryFrom;
 
 pub type ConnectionId = u64;
 pub type RemoteAddress = String;
+
+use crate::{Error, ErrorKind, Result};
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug)]
@@ -154,67 +155,11 @@ impl Request {
     }
 }
 
-/// A remote network response retrieved by the Socks5 service provider. This
-/// can be serialized and sent back through the mixnet to the requesting
-/// application.
-pub struct Response {
-    pub data: Vec<u8>,
-    pub connection_id: ConnectionId,
-}
-
-impl Response {
-    /// Constructor for responses
-    pub fn new(connection_id: ConnectionId, data: Vec<u8>) -> Self {
-        Response {
-            connection_id,
-            data,
-        }
-    }
-
-    pub fn try_from_bytes(b: &[u8]) -> Result<Response> {
-        if b.len() < 8 {
-            return Err(Error::new(
-                ErrorKind::InvalidResponse,
-                "response bytes too short",
-            ));
-        }
-
-        let mut connection_id_bytes = b.to_vec();
-        let data = connection_id_bytes.split_off(8);
-
-        let connection_id = u64::from_be_bytes([
-            connection_id_bytes[0],
-            connection_id_bytes[1],
-            connection_id_bytes[2],
-            connection_id_bytes[3],
-            connection_id_bytes[4],
-            connection_id_bytes[5],
-            connection_id_bytes[6],
-            connection_id_bytes[7],
-        ]);
-
-        let response = Response::new(connection_id, data);
-        Ok(response)
-    }
-
-    /// Serializes the response into bytes so that it can be sent back through
-    /// the mixnet to the requesting application.
-    pub fn into_bytes(self) -> Vec<u8> {
-        self.connection_id
-            .to_be_bytes()
-            .iter()
-            .cloned()
-            .chain(self.data.into_iter())
-            .collect()
-    }
-}
-
 #[cfg(test)]
 mod request_deserialization_tests {
     use super::*;
 
-    #[cfg(test)]
-    mod new_connection_tests {
+    mod all_request_types {
         use super::*;
 
         #[test]
@@ -244,6 +189,11 @@ mod request_deserialization_tests {
                     .to_string()
             );
         }
+    }
+
+    #[cfg(test)]
+    mod sending_data_over_a_new_connection {
+        use super::*;
 
         #[test]
         fn returns_error_when_address_length_is_too_short() {
@@ -347,6 +297,71 @@ mod request_deserialization_tests {
                     assert_eq!("foo.com".to_string(), remote_address);
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
                     assert_eq!(vec![255, 255, 255], data);
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod sending_additional_data_over_an_existing_connection {
+        use super::*;
+
+        #[test]
+        fn works_when_request_is_sized_properly_even_without_data() {
+            // correct 8 bytes of connection_id, and 0 bytes request data
+            let request_bytes = [RequestFlag::Send as u8, 1, 2, 3, 4, 5, 6, 7, 8].to_vec();
+            let request = Request::try_from_bytes(&request_bytes).unwrap();
+            match request {
+                Request::Send(conn_id, data) => {
+                    assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
+                    assert_eq!(Vec::<u8>::new(), data);
+                }
+                _ => unreachable!(),
+            }
+        }
+
+        #[test]
+        fn works_when_request_is_sized_properly_and_has_data() {
+            // correct 8 bytes of connection_id, and 3 bytes request data (all 255)
+            let request_bytes = [
+                RequestFlag::Send as u8,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                255,
+                255,
+                255,
+            ]
+            .to_vec();
+
+            let request = Request::try_from_bytes(&request_bytes).unwrap();
+            match request {
+                Request::Send(conn_id, data) => {
+                    assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
+                    assert_eq!(vec![255, 255, 255], data);
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod connection_close_requests {
+        use super::*;
+
+        #[test]
+        fn can_be_constructed() {
+            let request_bytes = [RequestFlag::Close as u8, 1, 2, 3, 4, 5, 6, 7, 8].to_vec();
+            let request = Request::try_from_bytes(&request_bytes).unwrap();
+            match request {
+                Request::Close(conn_id) => {
+                    assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
                 }
                 _ => unreachable!(),
             }

@@ -2,12 +2,12 @@ use crate::{proxy, websocket};
 use futures::SinkExt;
 use futures_util::StreamExt;
 use proxy::{controller::Controller};
-use simple_socks5_requests::Request;
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::WebSocketStream;
 use websocket::WebsocketConnectionError;
+use simple_socks5_requests::Request;
 
 pub struct Server {
     runtime: Runtime,

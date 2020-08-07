@@ -256,18 +256,13 @@ impl NymClient {
 
     fn start_websocket_listener(
         &self,
-        topology_accessor: TopologyAccessor,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
     ) {
         info!("Starting websocket listener...");
 
-        let websocket_handler = websocket::Handler::new(
-            msg_input,
-            buffer_requester,
-            self.as_mix_recipient(),
-            topology_accessor,
-        );
+        let websocket_handler =
+            websocket::Handler::new(msg_input, buffer_requester, self.as_mix_recipient());
 
         websocket::Listener::new(self.config.get_listening_port())
             .start(self.runtime.handle(), websocket_handler);
@@ -362,18 +357,12 @@ impl NymClient {
             sphinx_message_sender.clone(),
         );
 
-        self.start_cover_traffic_stream(
-            ack_key,
-            shared_topology_accessor.clone(),
-            sphinx_message_sender,
-        );
+        self.start_cover_traffic_stream(ack_key, shared_topology_accessor, sphinx_message_sender);
 
         match self.config.get_socket_type() {
-            SocketType::WebSocket => self.start_websocket_listener(
-                shared_topology_accessor,
-                received_buffer_request_sender,
-                input_sender,
-            ),
+            SocketType::WebSocket => {
+                self.start_websocket_listener(received_buffer_request_sender, input_sender)
+            }
             SocketType::None => {
                 // if we did not start the socket, it means we're running (supposedly) in the native mode
                 // and hence we should announce 'ourselves' to the buffer

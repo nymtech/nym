@@ -25,7 +25,7 @@ use std::time::Duration;
 use tokio::runtime::Handle;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::task::JoinHandle;
-use topology::{gateway, NymTopology};
+use topology::NymTopology;
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before
 #[derive(Debug)]
@@ -118,38 +118,12 @@ impl TopologyAccessor {
         self.inner.write().await.update(new_topology);
     }
 
-    // pub(crate) async fn get_gateway_socket_url(&self, id: &str) -> Option<String> {
-    //     match &self.inner.read().await.0 {
-    //         None => None,
-    //         Some(ref topology) => topology
-    //             .gateways()
-    //             .iter()
-    //             .find(|gateway| gateway.identity_key == id)
-    //             .map(|gateway| gateway.client_listener.clone()),
-    //     }
-    // }
-
     // only used by the client at startup to get a slightly more reasonable error message
     // (currently displays as unused because healthchecker is disabled due to required changes)
     pub(crate) async fn is_routable(&self) -> bool {
         match &self.inner.read().await.0 {
             None => false,
             Some(ref topology) => topology.can_construct_path_through(DEFAULT_NUM_MIX_HOPS),
-        }
-    }
-
-    pub(crate) async fn get_all_clients(&self) -> Option<Vec<gateway::Client>> {
-        // TODO: this will need to be modified to instead return pairs (provider, client)
-        match &self.inner.read().await.0 {
-            None => None,
-            Some(ref topology) => Some(
-                topology
-                    .gateways()
-                    .iter()
-                    .flat_map(|gateway| gateway.registered_clients.iter())
-                    .cloned()
-                    .collect::<Vec<_>>(),
-            ),
         }
     }
 }

@@ -17,13 +17,14 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use nymsphinx::SphinxPacket;
-use std::net::SocketAddr;
+use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
 use std::time::Duration;
 use tokio::task::JoinHandle;
 
-pub(crate) type OutboundMixMessageSender = mpsc::UnboundedSender<(SocketAddr, SphinxPacket)>;
-pub(crate) type OutboundMixMessageReceiver = mpsc::UnboundedReceiver<(SocketAddr, SphinxPacket)>;
+pub(crate) type OutboundMixMessageSender =
+    mpsc::UnboundedSender<(NymNodeRoutingAddress, SphinxPacket)>;
+pub(crate) type OutboundMixMessageReceiver =
+    mpsc::UnboundedReceiver<(NymNodeRoutingAddress, SphinxPacket)>;
 
 pub(crate) struct PacketForwarder {
     mixnet_client: mixnet_client::Client,

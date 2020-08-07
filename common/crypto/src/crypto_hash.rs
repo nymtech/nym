@@ -12,4 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod blake3_hkdf;
+use digest::{BlockInput, Digest, FixedOutput, Reset, Update};
+use generic_array::{ArrayLength, GenericArray};
+
+pub fn compute_digest<D>(data: &[u8]) -> GenericArray<u8, <D as Digest>::OutputSize>
+where
+    D: Update + BlockInput + FixedOutput + Reset + Default + Clone,
+    D::BlockSize: ArrayLength<u8>,
+    D::OutputSize: ArrayLength<u8>,
+{
+    D::digest(data)
+}

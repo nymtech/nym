@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use crate::authentication::iv::AuthenticationIV;
-use crate::registration::handshake::shared_key::SharedKey;
-use crypto::symmetric::aes_ctr;
+use crate::registration::handshake::shared_key::SharedKeys;
+use crypto::symmetric::stream_cipher;
+use nymsphinx::params::GatewayEncryptionAlgorithm;
 use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 
 pub const ENCRYPTED_ADDRESS_SIZE: usize = DESTINATION_ADDRESS_LENGTH;
@@ -33,8 +34,12 @@ pub enum EncryptedAddressConversionError {
 }
 
 impl EncryptedAddressBytes {
-    pub fn new(address: &DestinationAddressBytes, key: &SharedKey, iv: &AuthenticationIV) -> Self {
-        let ciphertext = aes_ctr::encrypt(key, iv, address.as_bytes());
+    pub fn new(address: &DestinationAddressBytes, key: &SharedKeys, iv: &AuthenticationIV) -> Self {
+        let ciphertext = stream_cipher::encrypt::<GatewayEncryptionAlgorithm>(
+            key.encryption_key(),
+            iv.inner(),
+            address.as_bytes(),
+        );
 
         let mut enc_address = [0u8; ENCRYPTED_ADDRESS_SIZE];
         enc_address.copy_from_slice(&ciphertext[..]);
@@ -44,7 +49,7 @@ impl EncryptedAddressBytes {
     pub fn verify(
         &self,
         address: &DestinationAddressBytes,
-        key: &SharedKey,
+        key: &SharedKeys,
         iv: &AuthenticationIV,
     ) -> bool {
         self == &Self::new(address, key, iv)

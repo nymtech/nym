@@ -27,16 +27,13 @@ impl Handler for Update {
     fn handle(&self, req: &mut Request) -> IronResult<Response> {
         let json_parse = req.get::<Struct<Capacity>>();
 
-        if json_parse.is_ok() {
-            let capacity = json_parse
-                .unwrap()
-                .expect("Unexpected JSON parsing problem")
-                .value;
-            self.service.lock().unwrap().set_capacity(capacity);
-            Ok(Response::with(status::Created))
-        } else {
-            let error = json_parse.unwrap_err();
-            Ok(Response::with((status::BadRequest, error.detail)))
+        match json_parse {
+            Ok(capacity) => {
+                let capacity = capacity.expect("Unexpected JSON parsing problem").value;
+                self.service.lock().unwrap().set_capacity(capacity);
+                Ok(Response::with(status::Created))
+            }
+            Err(err) => Ok(Response::with((status::BadRequest, err.detail))),
         }
     }
 }

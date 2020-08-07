@@ -16,17 +16,16 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use gateway_client::GatewayClient;
 use log::*;
-use nymsphinx::SphinxPacket;
-use std::net::SocketAddr;
+use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
-pub(crate) struct MixMessage(SocketAddr, SphinxPacket);
+pub(crate) struct MixMessage(NymNodeRoutingAddress, SphinxPacket);
 pub(crate) type MixMessageSender = mpsc::UnboundedSender<MixMessage>;
 pub(crate) type MixMessageReceiver = mpsc::UnboundedReceiver<MixMessage>;
 
 impl MixMessage {
-    pub(crate) fn new(address: SocketAddr, packet: SphinxPacket) -> Self {
+    pub(crate) fn new(address: NymNodeRoutingAddress, packet: SphinxPacket) -> Self {
         MixMessage(address, packet)
     }
 }

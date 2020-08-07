@@ -19,14 +19,13 @@ use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
-use nymsphinx::acknowledgements::identifier::AckAes128Key;
-use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::acknowledgements::AckKey;
+use nymsphinx::addressing::{clients::Recipient, nodes::NymNodeRoutingAddress};
 use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::utils::sample_poisson_duration;
 use nymsphinx::SphinxPacket;
 use rand::{CryptoRng, Rng};
-use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -37,7 +36,7 @@ where
     R: CryptoRng + Rng,
 {
     /// Key used to encrypt and decrypt content of an ACK packet.
-    ack_key: Arc<AckAes128Key>,
+    ack_key: Arc<AckKey>,
 
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
@@ -74,14 +73,14 @@ where
 }
 
 pub(crate) struct RealMessage {
-    first_hop_address: SocketAddr,
+    first_hop_address: NymNodeRoutingAddress,
     packet: SphinxPacket,
     fragment_id: FragmentIdentifier,
 }
 
 impl RealMessage {
     pub(crate) fn new(
-        first_hop_address: SocketAddr,
+        first_hop_address: NymNodeRoutingAddress,
         packet: SphinxPacket,
         fragment_id: FragmentIdentifier,
     ) -> Self {
@@ -146,7 +145,7 @@ where
     R: CryptoRng + Rng + Unpin,
 {
     pub(crate) fn new(
-        ack_key: Arc<AckAes128Key>,
+        ack_key: Arc<AckKey>,
         average_ack_delay: Duration,
         average_packet_delay: Duration,
         average_message_sending_delay: Duration,
@@ -184,7 +183,7 @@ where
                 // the ack is sent back to ourselves (and then ignored)
                 let topology_ref_option = topology_permit.try_get_valid_topology_ref(
                     &self.our_full_destination,
-                    &self.our_full_destination,
+                    Some(&self.our_full_destination),
                 );
                 if topology_ref_option.is_none() {
                     warn!(

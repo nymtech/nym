@@ -14,7 +14,7 @@
 
 use crate::filter;
 use crypto::asymmetric::{encryption, identity};
-use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
+use nymsphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
 use nymsphinx_types::Node as SphinxNode;
 use std::convert::TryInto;
 use std::net::SocketAddr;
@@ -33,6 +33,12 @@ pub struct Node {
     pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
     pub last_seen: u64,
     pub version: String,
+}
+
+impl Node {
+    pub fn identity(&self) -> &NodeIdentity {
+        &self.identity_key
+    }
 }
 
 impl filter::Versioned for Node {

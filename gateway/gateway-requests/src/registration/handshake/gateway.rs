@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::registration::handshake::shared_key::SharedKey;
+use crate::registration::handshake::shared_key::SharedKeys;
 use crate::registration::handshake::state::State;
 use crate::registration::handshake::{error::HandshakeError, WsItem};
 use crypto::asymmetric::encryption;
@@ -24,7 +24,7 @@ use std::pin::Pin;
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 pub(crate) struct GatewayHandshake<'a> {
-    handshake_future: BoxFuture<'a, Result<SharedKey, HandshakeError>>,
+    handshake_future: BoxFuture<'a, Result<SharedKeys, HandshakeError>>,
 }
 
 impl<'a> GatewayHandshake<'a> {
@@ -115,7 +115,7 @@ impl<'a> GatewayHandshake<'a> {
 }
 
 impl<'a> Future for GatewayHandshake<'a> {
-    type Output = Result<SharedKey, HandshakeError>;
+    type Output = Result<SharedKeys, HandshakeError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         Pin::new(&mut self.handshake_future).poll(cx)

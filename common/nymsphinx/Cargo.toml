@@ -12,9 +12,14 @@ rand_distr = "0.2.2"
 
 nymsphinx-acknowledgements = { path = "acknowledgements" }
 nymsphinx-addressing = { path = "addressing" }
+nymsphinx-anonymous-replies = { path = "anonymous-replies" }
 nymsphinx-chunking = { path = "chunking" }
 nymsphinx-cover = { path = "cover" }
 nymsphinx-framing = { path = "framing" }
 nymsphinx-params = { path = "params" }
 nymsphinx-types = { path = "types" }
 
+# those dependencies are due to intriducing preparer and receiver. Perpaphs that indicates they should be moved
+# to separate crate?
+crypto = { path = "../crypto" }
+topology = { path = "../topology" }

@@ -12,50 +12,49 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crypto::symmetric::aes_ctr::generic_array::typenum::Unsigned;
-use crypto::symmetric::aes_ctr::{iv_from_slice, Aes128IV, Aes128Key, Aes128NonceSize};
-use nymsphinx_params::packet_sizes::PacketSize;
+use crate::AckKey;
+use crypto::aes_ctr::stream_cipher::NewStreamCipher;
+use crypto::generic_array::typenum::Unsigned;
+use crypto::symmetric::stream_cipher::{self, encrypt, iv_from_slice, random_iv};
+use nymsphinx_params::{
+    packet_sizes::PacketSize, AckEncryptionAlgorithm, SerializedFragmentIdentifier, FRAG_ID_LEN,
+};
 use rand::{CryptoRng, RngCore};
 
-pub type AckAes128Key = Aes128Key;
-type AckAes128IV = Aes128IV;
-
-pub fn generate_key<R: RngCore + CryptoRng>(rng: &mut R) -> AckAes128Key {
-    crypto::symmetric::aes_ctr::generate_key(rng)
-}
-
-fn random_iv<R: RngCore + CryptoRng>(rng: &mut R) -> AckAes128IV {
-    crypto::symmetric::aes_ctr::random_iv(rng)
-}
+// TODO: should those functions even exist in this file?
 
 pub fn prepare_identifier<R: RngCore + CryptoRng>(
     rng: &mut R,
-    key: &AckAes128Key,
-    marshaled_id: [u8; 5],
+    key: &AckKey,
+    serialized_id: SerializedFragmentIdentifier,
 ) -> Vec<u8> {
-    let iv = random_iv(rng);
-    let id_ciphertext = crypto::symmetric::aes_ctr::encrypt(key, &iv, &marshaled_id);
+    let iv = random_iv::<AckEncryptionAlgorithm, _>(rng);
+    let id_ciphertext = encrypt::<AckEncryptionAlgorithm>(key.inner(), &iv, &serialized_id);
 
     // IV || ID_CIPHERTEXT
     iv.into_iter().chain(id_ciphertext.into_iter()).collect()
 }
 
-pub fn recover_identifier(key: &AckAes128Key, iv_id_ciphertext: &[u8]) -> Option<[u8; 5]> {
-    // first few bytes are expected to be the concatenated IV. It must be followed by at least 1 more
-    // byte that we wish to recover, but it can be no longer from what we can physically store inside
-    // an ack
+pub fn recover_identifier(
+    key: &AckKey,
+    iv_id_ciphertext: &[u8],
+) -> Option<SerializedFragmentIdentifier> {
+    // The content of an 'ACK' packet consists of AckEncryptionAlgorithm::IV followed by
+    // serialized FragmentIdentifier
     if iv_id_ciphertext.len() != PacketSize::ACKPacket.plaintext_size() {
         return None;
     }
 
-    let iv = iv_from_slice(&iv_id_ciphertext[..Aes128NonceSize::to_usize()]);
-    let id = crypto::symmetric::aes_ctr::decrypt(
-        key,
+    let iv_size = <AckEncryptionAlgorithm as NewStreamCipher>::NonceSize::to_usize();
+    let iv = iv_from_slice::<AckEncryptionAlgorithm>(&iv_id_ciphertext[..iv_size]);
+
+    let id = stream_cipher::decrypt::<AckEncryptionAlgorithm>(
+        key.inner(),
         iv,
-        &iv_id_ciphertext[Aes128NonceSize::to_usize()..],
+        &iv_id_ciphertext[iv_size..],
     );
 
-    let mut id_arr = [0u8; 5];
+    let mut id_arr = [0u8; FRAG_ID_LEN];
     id_arr.copy_from_slice(&id);
     Some(id_arr)
 }
@@ -68,7 +67,7 @@ mod tests {
     #[test]
     fn id_is_recoverable() {
         let mut rng = OsRng;
-        let key = generate_key(&mut rng);
+        let key = AckKey::new(&mut rng);
 
         let id = [1, 2, 3, 4, 5];
         let iv_ciphertext = prepare_identifier(&mut rng, &key, id);

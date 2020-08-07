@@ -15,10 +15,10 @@ use crypto::asymmetric::encryption;
 pub use models::keys::keygen;
 use models::topology::Topology;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
+use nymsphinx::addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 use nymsphinx::Node as SphinxNode;
-use nymsphinx::{delays, Destination, NodeAddressBytes, SphinxPacket};
+use nymsphinx::{delays, NodeAddressBytes, SphinxPacket};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -78,7 +78,7 @@ pub fn create_sphinx_packet(topology_json: &str, msg: &str, recipient: &str) -> 
 
     let message = msg.as_bytes().to_vec();
 
-    let destination = Destination::new(recipient.destination(), Default::default());
+    let destination = recipient.as_sphinx_destination();
     let sphinx_packet = SphinxPacket::new(message, &route, &destination, &delays).unwrap();
     payload(sphinx_packet, route)
 }
@@ -110,12 +110,12 @@ fn payload(sphinx_packet: SphinxPacket, route: Vec<SphinxNode>) -> Vec<u8> {
 /// extracted to a `JsonRoute`.
 fn sphinx_route_to(
     topology_json: &str,
-    gateway_address: &NodeAddressBytes,
+    gateway_identity: &NodeIdentity,
 ) -> Option<Vec<SphinxNode>> {
     let topology = Topology::new(topology_json);
     let nym_topology: NymTopology = topology.try_into().ok()?;
     let route = nym_topology
-        .random_route_to_gateway(&mut DEFAULT_RNG, DEFAULT_NUM_MIX_HOPS, gateway_address)
+        .random_route_to_gateway(&mut DEFAULT_RNG, DEFAULT_NUM_MIX_HOPS, gateway_identity)
         .expect("invalid route produced");
     assert_eq!(4, route.len());
     Some(route)
@@ -138,8 +138,6 @@ impl TryFrom<NodeData> for SphinxNode {
 
 #[cfg(test)]
 mod test_constructing_a_sphinx_packet {
-    use super::*;
-
     // the below test is no longer true, as the produced length is 1372 bytes + 7 (for IPV4) or + 19 (for IPV6)
     // conceptually everything works as before, only the 0 padding was removed as it served no purpose here
 
@@ -164,10 +162,8 @@ mod building_a_topology_from_json {
     fn panics_on_empty_string() {
         sphinx_route_to(
             "",
-            &NodeAddressBytes::try_from_base58_string(
-                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
-            )
-            .unwrap(),
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
         )
         .unwrap();
     }
@@ -177,10 +173,8 @@ mod building_a_topology_from_json {
     fn panics_on_bad_json() {
         sphinx_route_to(
             "bad bad bad not json",
-            &NodeAddressBytes::try_from_base58_string(
-                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
-            )
-            .unwrap(),
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
         )
         .unwrap();
     }
@@ -193,10 +187,8 @@ mod building_a_topology_from_json {
         let json = serde_json::to_string(&topology).unwrap();
         sphinx_route_to(
             &json,
-            &NodeAddressBytes::try_from_base58_string(
-                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
-            )
-            .unwrap(),
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
         )
         .unwrap();
     }
@@ -210,10 +202,8 @@ mod building_a_topology_from_json {
         let json = serde_json::to_string(&topology).unwrap();
         sphinx_route_to(
             &json,
-            &NodeAddressBytes::try_from_base58_string(
-                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
-            )
-            .unwrap(),
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
         )
         .unwrap();
     }
@@ -223,10 +213,8 @@ mod building_a_topology_from_json {
     fn test_works_on_happy_json() {
         let route = sphinx_route_to(
             topology_fixture(),
-            &NodeAddressBytes::try_from_base58_string(
-                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
-            )
-            .unwrap(),
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
         )
         .unwrap();
         assert_eq!(4, route.len());
@@ -238,10 +226,8 @@ mod building_a_topology_from_json {
         let json = serde_json::to_string(&topology).unwrap();
         let route = sphinx_route_to(
             &json,
-            &NodeAddressBytes::try_from_base58_string(
-                "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
-            )
-            .unwrap(),
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
         )
         .unwrap();
         assert_eq!(4, route.len());

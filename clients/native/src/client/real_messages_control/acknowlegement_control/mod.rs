@@ -19,17 +19,16 @@ use self::{
     sent_notification_listener::SentNotificationListener,
 };
 use super::real_traffic_stream::RealMessageSender;
+use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{inbound_messages::InputMessageReceiver, topology_control::TopologyAccessor};
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
+use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{
-    acknowledgements::{self, identifier::AckAes128Key},
+    acknowledgements::AckKey,
     addressing::clients::Recipient,
-    chunking::{
-        fragment::{Fragment, FragmentIdentifier},
-        MessageChunker,
-    },
+    chunking::fragment::{Fragment, FragmentIdentifier},
     Delay,
 };
 use rand::{CryptoRng, Rng};
@@ -101,7 +100,6 @@ pub(super) struct AcknowledgementController<R>
 where
     R: CryptoRng + Rng,
 {
-    ack_key: Arc<AckAes128Key>,
     acknowledgement_listener: Option<AcknowledgementListener>,
     input_message_listener: Option<InputMessageListener<R>>,
     retransmission_request_listener: Option<RetransmissionRequestListener<R>>,
@@ -113,25 +111,23 @@ where
     R: 'static + CryptoRng + Rng + Clone + Send,
 {
     pub(super) fn new(
-        mut rng: R,
+        rng: R,
         topology_access: TopologyAccessor,
+        ack_key: Arc<AckKey>,
         ack_recipient: Recipient,
-        average_packet_delay_duration: Duration,
-        average_ack_delay_duration: Duration,
+        reply_key_storage: ReplyKeyStorage,
+        average_packet_delay: Duration,
+        average_ack_delay: Duration,
         ack_wait_multiplier: f64,
         ack_wait_addition: Duration,
         connectors: AcknowledgementControllerConnectors,
     ) -> Self {
-        // note for future-self: perhaps for key rotation we could replace it with Arc<AtomicCell<Key>> ?
-        // actually same could be true for any keys we use
-        let ack_key = Arc::new(acknowledgements::generate_key(&mut rng));
         let pending_acks = Arc::new(RwLock::new(HashMap::new()));
-        let message_chunker = MessageChunker::new_with_rng(
+        let message_preparer = MessagePreparer::new(
             rng,
             ack_recipient.clone(),
-            true,
-            average_packet_delay_duration,
-            average_ack_delay_duration,
+            average_packet_delay,
+            average_ack_delay,
         );
 
         let acknowledgement_listener = AcknowledgementListener::new(
@@ -144,10 +140,11 @@ where
             Arc::clone(&ack_key),
             ack_recipient.clone(),
             connectors.input_receiver,
-            message_chunker.clone(),
+            message_preparer.clone(),
             Arc::clone(&pending_acks),
             connectors.real_message_sender.clone(),
             topology_access.clone(),
+            reply_key_storage,
         );
 
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
@@ -155,7 +152,7 @@ where
         let retransmission_request_listener = RetransmissionRequestListener::new(
             Arc::clone(&ack_key),
             ack_recipient,
-            message_chunker,
+            message_preparer,
             Arc::clone(&pending_acks),
             connectors.real_message_sender,
             retransmission_rx,
@@ -171,16 +168,11 @@ where
         );
 
         AcknowledgementController {
-            ack_key,
             acknowledgement_listener: Some(acknowledgement_listener),
             input_message_listener: Some(input_message_listener),
             retransmission_request_listener: Some(retransmission_request_listener),
             sent_notification_listener: Some(sent_notification_listener),
         }
-    }
-
-    pub(super) fn ack_key(&self) -> Arc<AckAes128Key> {
-        Arc::clone(&self.ack_key)
     }
 
     pub(super) async fn run(&mut self) {

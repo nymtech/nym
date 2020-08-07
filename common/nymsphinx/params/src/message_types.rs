@@ -12,18 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::PathBuf;
-
-pub trait PathFinder {
-    fn config_dir(&self) -> PathBuf;
-    fn private_identity_key(&self) -> PathBuf;
-    fn public_identity_key(&self) -> PathBuf;
-
-    // Optional:
-    fn private_encryption_key(&self) -> Option<PathBuf> {
-        None
-    }
-    fn public_encryption_key(&self) -> Option<PathBuf> {
-        None
-    }
+// Perhaps this idea could be extended with some binary masking to convey more information
+// like to help the receiver to know whether the message is expected to be text-based or binary
+#[repr(u8)]
+#[derive(Clone, Copy, Debug)]
+pub enum MessageType {
+    WithoutReplySURB = 0,
+    WithReplySURB = 1,
+    IsReply = 2,
 }

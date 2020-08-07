@@ -14,14 +14,17 @@
 
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
+use crate::client::key_manager::KeyManager;
 use crate::client::mix_traffic::{MixMessageReceiver, MixMessageSender, MixTrafficController};
 use crate::client::real_messages_control::RealMessagesController;
 use crate::client::received_buffer::{
     ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
 };
+use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
+use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use crate::config::{Config, SocketType};
 use crate::websocket;
 use crypto::asymmetric::identity;
@@ -30,40 +33,55 @@ use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
     MixnetMessageSender,
 };
-use gateway_requests::registration::handshake::SharedKey;
 use log::*;
-use nymsphinx::acknowledgements::identifier::AckAes128Key;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::NodeAddressBytes;
+use nymsphinx::addressing::nodes::NodeIdentity;
+use nymsphinx::anonymous_replies::ReplySURB;
+use nymsphinx::receiver::ReconstructedMessage;
 use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
-use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 mod cover_traffic_stream;
 pub(crate) mod inbound_messages;
+pub(crate) mod key_manager;
 mod mix_traffic;
 pub(crate) mod real_messages_control;
 pub(crate) mod received_buffer;
+mod reply_key_storage;
 pub(crate) mod topology_control;
 
 pub struct NymClient {
+    /// Client configuration options, including, among other things, packet sending rates,
+    /// key filepaths, etc.
     config: Config,
-    runtime: Runtime,
-    identity_keypair: Arc<identity::KeyPair>,
 
-    // to be used by "send" function or socket, etc
+    /// Tokio runtime used for futures execution.
+    // TODO: JS: Personally I think I prefer the implicit way of using it that we've done with the
+    // gateway.
+    runtime: Runtime,
+
+    /// KeyManager object containing smart pointers to all relevant keys used by the client.
+    key_manager: KeyManager,
+
+    /// Channel used for transforming 'raw' messages into sphinx packets and sending them
+    /// through the mix network.
+    /// It is only available if the client started with the websocket listener disabled.
     input_tx: Option<InputMessageSender>,
 
-    // to be used by "receive" function or socket, etc
+    /// Channel used for obtaining reconstructed messages received from the mix network.
+    /// It is only available if the client started with the websocket listener disabled.
     receive_tx: Option<ReconstructedMessagesReceiver>,
 }
 
 impl NymClient {
-    pub fn new(config: Config, identity_keypair: identity::KeyPair) -> Self {
+    pub fn new(config: Config) -> Self {
+        let pathfinder = ClientKeyPathfinder::new_from_config(&config);
+        let key_manager = KeyManager::load_keys(&pathfinder).expect("failed to load stored keys");
+
         NymClient {
             runtime: Runtime::new().unwrap(),
             config,
-            identity_keypair: Arc::new(identity_keypair),
+            key_manager,
             input_tx: None,
             receive_tx: None,
         }
@@ -71,12 +89,11 @@ impl NymClient {
 
     pub fn as_mix_recipient(&self) -> Recipient {
         Recipient::new(
-            self.identity_keypair
-                .public_key()
-                .derive_destination_address(),
+            *self.key_manager.identity_keypair().public_key(),
+            self.key_manager.encryption_keypair().public_key().clone(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
-            NodeAddressBytes::try_from_base58_string(self.config.get_gateway_id()).unwrap(),
+            NodeIdentity::from_base58_string(self.config.get_gateway_id()).unwrap(),
         )
     }
 
@@ -84,7 +101,6 @@ impl NymClient {
     // the pumped traffic goes to the MixTrafficController
     fn start_cover_traffic_stream(
         &self,
-        ack_key: Arc<AckAes128Key>,
         topology_accessor: TopologyAccessor,
         mix_tx: MixMessageSender,
     ) {
@@ -94,7 +110,7 @@ impl NymClient {
         self.runtime
             .enter(|| {
                 LoopCoverTrafficStream::new(
-                    ack_key,
+                    self.key_manager.ack_key(),
                     self.config.get_average_ack_delay(),
                     self.config.get_average_packet_delay(),
                     self.config.get_loop_cover_traffic_average_delay(),
@@ -106,17 +122,16 @@ impl NymClient {
             .start(self.runtime.handle());
     }
 
-    // TODO: I'm not a fan of this function signature, i.e. that it returns the ACK key, but then again
-    // I think the ACK key should be generated by 'acknowledgement_control' rather than by
-    // the client itself. However, it all might change once we have to implement key rotation.
     fn start_real_traffic_controller(
         &self,
         topology_accessor: TopologyAccessor,
+        reply_key_storage: ReplyKeyStorage,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: MixMessageSender,
-    ) -> Arc<AckAes128Key> {
+    ) {
         let controller_config = real_messages_control::Config::new(
+            self.key_manager.ack_key(),
             self.config.get_ack_wait_multiplier(),
             self.config.get_ack_wait_addition(),
             self.config.get_average_ack_delay(),
@@ -136,12 +151,10 @@ impl NymClient {
                 input_receiver,
                 mix_sender,
                 topology_accessor,
+                reply_key_storage,
             )
         });
-        let ack_key = real_messages_controller.ack_key();
         real_messages_controller.start(self.runtime.handle());
-
-        ack_key
     }
 
     // buffer controlling all messages fetched from provider
@@ -150,10 +163,16 @@ impl NymClient {
         &self,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_receiver: MixnetMessageReceiver,
+        reply_key_storage: ReplyKeyStorage,
     ) {
         info!("Starting received messages buffer controller...");
-        ReceivedMessagesBufferController::new(query_receiver, mixnet_receiver)
-            .start(self.runtime.handle())
+        ReceivedMessagesBufferController::new(
+            self.key_manager.encryption_keypair(),
+            query_receiver,
+            mixnet_receiver,
+            reply_key_storage,
+        )
+        .start(self.runtime.handle())
     }
 
     fn start_gateway_client(
@@ -178,16 +197,11 @@ impl NymClient {
         let gateway_address =
             url::Url::parse(&gateway_address_str).expect("provided gateway address is invalid!");
 
-        let shared_key = self.config.get_gateway_shared_key().map(|str_shared_key| {
-            SharedKey::try_from_base58_string(str_shared_key)
-                .expect("The stored shared key is invalid!")
-        });
-
         let mut gateway_client = GatewayClient::new(
             gateway_address,
-            Arc::clone(&self.identity_keypair),
+            self.key_manager.identity_keypair(),
             gateway_identity,
-            shared_key,
+            Some(self.key_manager.gateway_shared_key()),
             mixnet_message_sender,
             ack_sender,
             self.config.get_gateway_response_timeout(),
@@ -271,8 +285,21 @@ impl NymClient {
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>) {
-        let input_msg = InputMessage::new(recipient, message);
+    pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>, with_reply_surb: bool) {
+        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb);
+
+        self.input_tx
+            .as_ref()
+            .expect("start method was not called before!")
+            .unbounded_send(input_msg)
+            .unwrap();
+    }
+
+    /// EXPERIMENTAL DIRECT RUST API
+    /// It's untested and there are absolutely no guarantees about it (but seems to have worked
+    /// well enough in local tests)
+    pub fn send_reply(&mut self, reply_surb: ReplySURB, message: Vec<u8>) {
+        let input_msg = InputMessage::new_reply(reply_surb, message);
 
         self.input_tx
             .as_ref()
@@ -286,7 +313,8 @@ impl NymClient {
     /// well enough in local tests)
     /// Note: it waits for the first occurrence of messages being sent to ourselves. If you expect multiple
     /// messages, you might have to call this function repeatedly.
-    pub async fn wait_for_messages(&mut self) -> Vec<Vec<u8>> {
+    // TODO: I guess this should really return something that `impl Stream<Item=ReconstructedMessage>`
+    pub async fn wait_for_messages(&mut self) -> Vec<ReconstructedMessage> {
         use futures::StreamExt;
 
         self.receive_tx
@@ -338,26 +366,30 @@ impl NymClient {
         let (ack_sender, ack_receiver) = mpsc::unbounded();
         let shared_topology_accessor = TopologyAccessor::new();
 
+        let reply_key_storage =
+            ReplyKeyStorage::load(self.config.get_reply_encryption_key_store_path())
+                .expect("Failed to load reply key storage!");
+
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
         self.start_topology_refresher(shared_topology_accessor.clone());
         self.start_received_messages_buffer_controller(
             received_buffer_request_receiver,
             mixnet_messages_receiver,
+            reply_key_storage.clone(),
         );
 
         let gateway_client = self.start_gateway_client(mixnet_messages_sender, ack_sender);
 
         self.start_mix_traffic_controller(sphinx_message_receiver, gateway_client);
-
-        let ack_key = self.start_real_traffic_controller(
+        self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
+            reply_key_storage,
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
         );
-
-        self.start_cover_traffic_stream(ack_key, shared_topology_accessor, sphinx_message_sender);
+        self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
 
         match self.config.get_socket_type() {
             SocketType::WebSocket => {

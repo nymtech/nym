@@ -53,13 +53,6 @@ impl PacketRouter {
         let ack_overhead = PacketSize::ACKPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN;
 
         for received_packet in unwrapped_packets {
-            // NOTE TO FUTURE-SELF:
-            // Right now we're kinda cheating to achieve constant length packets
-            // by basically including padding in the message itself
-            // this will eventually be removed in favour of proper encryption.
-            // and I guess some changes in gateways to maybe not remove padding from sphinx packets
-            // themselves? to be determined.
-
             if received_packet.len() == PacketSize::ACKPacket.plaintext_size() {
                 received_acks.push(received_packet);
             } else if received_packet.len()

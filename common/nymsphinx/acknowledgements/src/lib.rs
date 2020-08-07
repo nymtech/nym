@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod identifier;
+pub mod key;
 pub mod surb_ack;
 
-pub use identifier::{generate_key, AckAes128Key};
+pub use key::AckKey;

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{PemStorableKey, PemStorableKeyPair};
+use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use rand::{rngs::OsRng, CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
 
@@ -80,16 +80,9 @@ impl KeyPair {
     }
 }
 
-impl Default for KeyPair {
-    fn default() -> Self {
-        KeyPair::new()
-    }
-}
-
 impl PemStorableKeyPair for KeyPair {
     type PrivatePemKey = PrivateKey;
     type PublicPemKey = PublicKey;
-    type Error = EncryptionKeyError;
 
     fn private_key(&self) -> &Self::PrivatePemKey {
         self.private_key()
@@ -99,8 +92,11 @@ impl PemStorableKeyPair for KeyPair {
         self.public_key()
     }
 
-    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, EncryptionKeyError> {
-        Self::from_bytes(priv_bytes, pub_bytes)
+    fn from_keys(private_key: Self::PrivatePemKey, public_key: Self::PublicPemKey) -> Self {
+        KeyPair {
+            private_key,
+            public_key,
+        }
     }
 }
 
@@ -134,12 +130,18 @@ impl PublicKey {
 }
 
 impl PemStorableKey for PublicKey {
-    fn pem_type(&self) -> String {
-        String::from("X25519 PUBLIC KEY")
+    type Error = EncryptionKeyError;
+
+    fn pem_type() -> &'static str {
+        "X25519 PUBLIC KEY"
     }
 
     fn to_bytes(&self) -> Vec<u8> {
         self.to_bytes().to_vec()
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
+        Self::from_bytes(bytes)
     }
 }
 
@@ -184,12 +186,18 @@ impl PrivateKey {
 }
 
 impl PemStorableKey for PrivateKey {
-    fn pem_type(&self) -> String {
-        String::from("X25519 PRIVATE KEY")
+    type Error = EncryptionKeyError;
+
+    fn pem_type() -> &'static str {
+        "X25519 PRIVATE KEY"
     }
 
     fn to_bytes(&self) -> Vec<u8> {
         self.to_bytes().to_vec()
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
+        Self::from_bytes(bytes)
     }
 }
 

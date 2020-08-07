@@ -22,7 +22,7 @@ use futures::{
 };
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
-use gateway_requests::registration::handshake::SharedKey;
+use gateway_requests::registration::handshake::SharedKeys;
 use log::*;
 use nymsphinx::DestinationAddressBytes;
 use std::collections::HashMap;
@@ -38,7 +38,7 @@ pub(crate) enum ClientsHandlerRequest {
     // client
     Register(
         DestinationAddressBytes,
-        SharedKey,
+        SharedKeys,
         MixMessageSender,
         ClientsHandlerResponseSender,
     ),
@@ -58,7 +58,7 @@ pub(crate) enum ClientsHandlerRequest {
 #[derive(Debug)]
 pub(crate) enum ClientsHandlerResponse {
     Register(bool),
-    Authenticate(Option<SharedKey>),
+    Authenticate(Option<SharedKeys>),
     IsOnline(Option<MixMessageSender>),
     Error(Box<dyn std::error::Error + Send + Sync>),
 }
@@ -90,7 +90,7 @@ impl ClientsHandler {
     where
         E: Into<Box<dyn std::error::Error + Send + Sync>>,
     {
-        if let Err(_) = res_channel.send(self.make_error_response(err)) {
+        if res_channel.send(self.make_error_response(err)).is_err() {
             error!("Somehow we failed to send response back to websocket handler - there seem to be a weird bug present!");
         }
     }
@@ -133,7 +133,7 @@ impl ClientsHandler {
             .map(|c| c.into_tuple())
             .unzip();
 
-        if let Err(_) = comm_channel.unbounded_send(messages) {
+        if comm_channel.unbounded_send(messages).is_err() {
             error!("Somehow we failed to stored messages to a fresh client channel - there seem to be a weird bug present!");
         } else {
             // but if all went well, we can now delete it
@@ -154,7 +154,7 @@ impl ClientsHandler {
     async fn handle_register_request(
         &mut self,
         address: DestinationAddressBytes,
-        derived_shared_key: SharedKey,
+        derived_shared_key: SharedKeys,
         comm_channel: MixMessageSender,
         res_channel: ClientsHandlerResponseSender,
     ) {
@@ -196,7 +196,10 @@ impl ClientsHandler {
         self.push_stored_messages_to_client_and_save_channel(address, comm_channel)
             .await;
 
-        if let Err(_) = res_channel.send(ClientsHandlerResponse::Register(true)) {
+        if res_channel
+            .send(ClientsHandlerResponse::Register(true))
+            .is_err()
+        {
             error!("Somehow we failed to send response back to websocket handler - there seem to be a weird bug present!");
         }
     }
@@ -234,14 +237,17 @@ impl ClientsHandler {
                 .unwrap();
             self.push_stored_messages_to_client_and_save_channel(address, comm_channel)
                 .await;
-            if let Err(_) = res_channel.send(ClientsHandlerResponse::Authenticate(Some(shared_key)))
+            if res_channel
+                .send(ClientsHandlerResponse::Authenticate(Some(shared_key)))
+                .is_err()
             {
                 error!("Somehow we failed to send response back to websocket handler - there seem to be a weird bug present!");
             }
-        } else {
-            if let Err(_) = res_channel.send(ClientsHandlerResponse::Authenticate(None)) {
-                error!("Somehow we failed to send response back to websocket handler - there seem to be a weird bug present!");
-            }
+        } else if res_channel
+            .send(ClientsHandlerResponse::Authenticate(None))
+            .is_err()
+        {
+            error!("Somehow we failed to send response back to websocket handler - there seem to be a weird bug present!");
         }
     }
 
@@ -263,10 +269,7 @@ impl ClientsHandler {
             address.to_base58_string()
         );
 
-        let response_value = self
-            .open_connections
-            .get(&address)
-            .map(|channel| channel.clone());
+        let response_value = self.open_connections.get(&address).cloned();
         // if this fails, it's a critical failure, because mix handlers should ALWAYS be online
         res_channel
             .send(ClientsHandlerResponse::IsOnline(response_value))

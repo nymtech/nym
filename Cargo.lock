@@ -116,6 +116,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d663a8e9a99154b5fb793032533f6328da35e23aac63d5c152279aa8ba356825"
 
 [[package]]
+name = "array-init"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f30bbe2f5e3d117f55bd8c7a1f9191e4a5deba9f15f595bbea4f670c59c765db"
+
+[[package]]
 name = "arrayref"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -427,6 +433,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cloudabi"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4344512281c643ae7638bbabc3af17a11307803ec8f0fcad9fae512a8bf36467"
+dependencies = [
+ "bitflags",
+]
+
+[[package]]
 name = "colored"
 version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -569,12 +584,17 @@ dependencies = [
  "aes-ctr 0.4.0",
  "blake3",
  "bs58",
+ "digest 0.9.0",
  "ed25519-dalek",
+ "generic-array 0.14.1",
  "hkdf 0.9.0",
+ "hmac 0.8.1",
  "log 0.4.8",
  "nymsphinx-types",
+ "pemstore",
  "pretty_env_logger",
  "rand 0.7.3",
+ "stream-cipher 0.4.1",
  "x25519-dalek",
 ]
 
@@ -1038,6 +1058,7 @@ dependencies = [
  "futures 0.3.4",
  "log 0.4.8",
  "nymsphinx",
+ "pemstore",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -1164,7 +1185,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe1149865383e4526a43aee8495f9a325f0b806c63ce6427d06336a590abbbc9"
 dependencies = [
  "digest 0.9.0",
- "hmac 0.8.0",
+ "hmac 0.8.1",
 ]
 
 [[package]]
@@ -1179,9 +1200,9 @@ dependencies = [
 
 [[package]]
 name = "hmac"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b87b580bd66811cc2324a27f3587de707cacf7525b96dca8122f7493e6cce0da"
+checksum = "126888268dcc288495a26bf004b38c5fdbb31682f992c84ceb046a1f0fe38840"
 dependencies = [
  "crypto-mac 0.8.0",
  "digest 0.9.0",
@@ -1386,6 +1407,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "instant"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b141fdc7836c525d4d594027d318c84161ca17aaf8113ab1f81ab93ae897485"
+
+[[package]]
 name = "integer-encoding"
 version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1470,9 +1497,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.68"
+version = "0.2.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dea0c0405123bba743ee3f91f49b1c7cfb684eef0da0a50110f758ccf24cdff0"
+checksum = "a9f8082297d534141b30c8d39e9b1773713ab50fdbe4ff30f750d063b3bfd701"
 
 [[package]]
 name = "libgit2-sys"
@@ -1525,6 +1552,15 @@ name = "lock_api"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4da24a77a3d8a6d4862d95f72e6fdb9c09a643ecdb402d754004a557f2bec75"
+dependencies = [
+ "scopeguard",
+]
+
+[[package]]
+name = "lock_api"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28247cc5a5be2f05fbcd76dd0cf2c7d3b5400cb978a28042abcd4fa0b3f8261c"
 dependencies = [
  "scopeguard",
 ]
@@ -1814,6 +1850,7 @@ dependencies = [
  "reqwest 0.9.24",
  "serde",
  "serde_json",
+ "sled 0.33.0",
  "tempfile",
  "tokio 0.2.16",
  "tokio-tungstenite",
@@ -1860,7 +1897,7 @@ dependencies = [
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
- "sled",
+ "sled 0.31.0",
  "tempfile",
  "tokio 0.2.16",
  "tokio-tungstenite",
@@ -1925,8 +1962,10 @@ dependencies = [
 name = "nymsphinx"
 version = "0.1.0"
 dependencies = [
+ "crypto",
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
+ "nymsphinx-anonymous-replies",
  "nymsphinx-chunking",
  "nymsphinx-cover",
  "nymsphinx-framing",
@@ -1934,6 +1973,7 @@ dependencies = [
  "nymsphinx-types",
  "rand 0.7.3",
  "rand_distr",
+ "topology",
 ]
 
 [[package]]
@@ -1944,6 +1984,7 @@ dependencies = [
  "nymsphinx-addressing",
  "nymsphinx-params",
  "nymsphinx-types",
+ "pemstore",
  "rand 0.7.3",
  "topology",
 ]
@@ -1952,7 +1993,21 @@ dependencies = [
 name = "nymsphinx-addressing"
 version = "0.1.0"
 dependencies = [
+ "crypto",
  "nymsphinx-types",
+]
+
+[[package]]
+name = "nymsphinx-anonymous-replies"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "crypto",
+ "nymsphinx-addressing",
+ "nymsphinx-params",
+ "nymsphinx-types",
+ "rand 0.7.3",
+ "topology",
 ]
 
 [[package]]
@@ -1972,6 +2027,7 @@ dependencies = [
 name = "nymsphinx-cover"
 version = "0.1.0"
 dependencies = [
+ "crypto",
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
  "nymsphinx-chunking",
@@ -1995,6 +2051,7 @@ dependencies = [
 name = "nymsphinx-params"
 version = "0.1.0"
 dependencies = [
+ "crypto",
  "nymsphinx-types",
 ]
 
@@ -2050,7 +2107,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f842b1982eb6c2fe34036a4fbfb06dd185a3f5c8edfaacdf7d1ea10b07de6252"
 dependencies = [
- "lock_api",
+ "lock_api 0.3.4",
  "parking_lot_core 0.6.2",
  "rustc_version",
 ]
@@ -2061,8 +2118,19 @@ version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3a704eb390aafdc107b0e392f56a82b668e3a71366993b5340f5833fd62505e"
 dependencies = [
- "lock_api",
+ "lock_api 0.3.4",
  "parking_lot_core 0.7.1",
+]
+
+[[package]]
+name = "parking_lot"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4893845fa2ca272e647da5d0e46660a314ead9c2fdd9a883aabc32e481a8733"
+dependencies = [
+ "instant",
+ "lock_api 0.4.1",
+ "parking_lot_core 0.8.0",
 ]
 
 [[package]]
@@ -2072,7 +2140,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b876b1b9e7ac6e1a74a6da34d25c42e17e8862aa409cbbbdcfc8d86c6f3bc62b"
 dependencies = [
  "cfg-if",
- "cloudabi",
+ "cloudabi 0.0.3",
  "libc",
  "redox_syscall",
  "rustc_version",
@@ -2087,10 +2155,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e136c1904604defe99ce5fd71a28d473fa60a12255d511aa78a9ddf11237aeb"
 dependencies = [
  "cfg-if",
- "cloudabi",
+ "cloudabi 0.0.3",
  "libc",
  "redox_syscall",
- "smallvec 1.3.0",
+ "smallvec 1.4.1",
+ "winapi 0.3.8",
+]
+
+[[package]]
+name = "parking_lot_core"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c361aa727dd08437f2f1447be8b59a33b0edd15e0fcee698f935613d9efbca9b"
+dependencies = [
+ "cfg-if",
+ "cloudabi 0.1.0",
+ "instant",
+ "libc",
+ "redox_syscall",
+ "smallvec 1.4.1",
  "winapi 0.3.8",
 ]
 
@@ -2109,10 +2192,7 @@ dependencies = [
 name = "pemstore"
 version = "0.1.0"
 dependencies = [
- "crypto",
- "log 0.4.8",
  "pem",
- "pretty_env_logger",
 ]
 
 [[package]]
@@ -2530,7 +2610,7 @@ version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b75f676a1e053fc562eafbb47838d67c84801e38fc1ba459e8f180deabd5071"
 dependencies = [
- "cloudabi",
+ "cloudabi 0.0.3",
  "fuchsia-cprng",
  "libc",
  "rand_core 0.4.2",
@@ -2914,6 +2994,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "sled"
+version = "0.33.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "701fd6e07375a3ecff6f754e990862fc115e881f602b950518e18658005e262b"
+dependencies = [
+ "array-init",
+ "crc32fast",
+ "crossbeam-epoch",
+ "crossbeam-utils",
+ "fs2",
+ "fxhash",
+ "libc",
+ "log 0.4.8",
+ "parking_lot 0.11.0",
+]
+
+[[package]]
 name = "slice_as_array"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2930,9 +3027,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.3.0"
+version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05720e22615919e4734f6a99ceae50d00226c3c5aca406e102ebc33298214e0a"
+checksum = "3757cb9d89161a2f24e1cf78efa0c1fcff485d18e3f55e0aa3480824ddaa0f3f"
 
 [[package]]
 name = "socket2"
@@ -2949,7 +3046,7 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=f31efdbf667952440bd9af5eb0c140135fd1bc4c#f31efdbf667952440bd9af5eb0c140135fd1bc4c"
+source = "git+https://github.com/nymtech/sphinx?rev=18aa34e1a39a5f3f14ba493ded9209658ff2cbfa#18aa34e1a39a5f3f14ba493ded9209658ff2cbfa"
 dependencies = [
  "aes-ctr 0.3.0",
  "arrayref",
@@ -3446,7 +3543,7 @@ version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5479532badd04e128284890390c1e876ef7a993d0570b3597ae43dfa1d59afa4"
 dependencies = [
- "smallvec 1.3.0",
+ "smallvec 1.4.1",
 ]
 
 [[package]]

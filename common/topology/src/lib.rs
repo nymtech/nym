@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use crate::filter::VersionFilterable;
-use nymsphinx_types::{Node as SphinxNode, NodeAddressBytes};
+use nymsphinx_addressing::nodes::NodeIdentity;
+use nymsphinx_types::Node as SphinxNode;
 use rand::Rng;
 use std::collections::HashMap;
 
@@ -66,14 +67,14 @@ impl NymTopology {
         &self.gateways
     }
 
-    fn get_gateway(&self, gateway_address: &NodeAddressBytes) -> Option<&gateway::Node> {
+    fn get_gateway(&self, gateway_identity: &NodeIdentity) -> Option<&gateway::Node> {
         self.gateways
             .iter()
-            .find(|gateway| &gateway.identity_key.derive_node_address() == gateway_address)
+            .find(|gateway| gateway.identity() == gateway_identity)
     }
 
-    pub fn gateway_exists(&self, gateway_address: &NodeAddressBytes) -> bool {
-        self.get_gateway(gateway_address).is_some()
+    pub fn gateway_exists(&self, gateway_identity: &NodeIdentity) -> bool {
+        self.get_gateway(gateway_identity).is_some()
     }
 
     pub fn random_mix_route<R>(
@@ -116,14 +117,14 @@ impl NymTopology {
         &self,
         rng: &mut R,
         num_mix_hops: u8,
-        gateway_address: &NodeAddressBytes,
+        gateway_identity: &NodeIdentity,
     ) -> Result<Vec<SphinxNode>, NymTopologyError>
     where
         // I don't think there's a need for this RNG to be crypto-secure
         R: Rng + ?Sized,
     {
         let gateway = self
-            .get_gateway(gateway_address)
+            .get_gateway(gateway_identity)
             .ok_or_else(|| NymTopologyError::NonExistentGatewayError)?;
 
         Ok(self

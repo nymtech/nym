@@ -53,10 +53,10 @@ impl TryInto<topology::mix::Node> for MixNodePresence {
     fn try_into(self) -> Result<topology::mix::Node, Self::Error> {
         let resolved_hostname = self.host.to_socket_addrs()?.next();
         if resolved_hostname.is_none() {
-            return Err(io::Error::new(
+            return Err(ConversionError::InvalidAddress(io::Error::new(
                 io::ErrorKind::Other,
                 "no valid socket address",
-            ))?;
+            )));
         }
 
         Ok(topology::mix::Node {

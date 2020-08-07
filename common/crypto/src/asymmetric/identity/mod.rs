@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{PemStorableKey, PemStorableKeyPair};
 use bs58;
 pub use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
-use nymsphinx_types::{
-    DestinationAddressBytes, NodeAddressBytes, DESTINATION_ADDRESS_LENGTH, NODE_ADDRESS_LENGTH,
-};
+use nymsphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
+use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use rand::{rngs::OsRng, CryptoRng, RngCore};
 
 /// Keypair for usage in ed25519 EdDSA.
@@ -61,18 +59,19 @@ impl KeyPair {
 impl PemStorableKeyPair for KeyPair {
     type PrivatePemKey = PrivateKey;
     type PublicPemKey = PublicKey;
-    type Error = SignatureError;
 
     fn private_key(&self) -> &Self::PrivatePemKey {
         self.private_key()
     }
-
     fn public_key(&self) -> &Self::PublicPemKey {
         self.public_key()
     }
 
-    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, SignatureError> {
-        Self::from_bytes(priv_bytes, pub_bytes)
+    fn from_keys(private_key: Self::PrivatePemKey, public_key: Self::PublicPemKey) -> Self {
+        KeyPair {
+            private_key,
+            public_key,
+        }
     }
 }
 
@@ -89,16 +88,6 @@ impl PublicKey {
 
         temporary_address.copy_from_slice(&public_key_bytes[..]);
         DestinationAddressBytes::from_bytes(temporary_address)
-    }
-
-    pub fn derive_node_address(&self) -> NodeAddressBytes {
-        let mut temporary_address = [0u8; NODE_ADDRESS_LENGTH];
-        let public_key_bytes = self.to_bytes();
-
-        assert_eq!(NODE_ADDRESS_LENGTH, PUBLIC_KEY_LENGTH);
-
-        temporary_address.copy_from_slice(&public_key_bytes[..]);
-        NodeAddressBytes::from_bytes(temporary_address)
     }
 
     /// Convert this public key to a byte array.
@@ -127,12 +116,18 @@ impl PublicKey {
 }
 
 impl PemStorableKey for PublicKey {
-    fn pem_type(&self) -> String {
-        String::from("ED25519 PUBLIC KEY")
+    type Error = SignatureError;
+
+    fn pem_type() -> &'static str {
+        "ED25519 PUBLIC KEY"
     }
 
     fn to_bytes(&self) -> Vec<u8> {
         self.to_bytes().to_vec()
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
+        Self::from_bytes(bytes)
     }
 }
 
@@ -175,12 +170,18 @@ impl PrivateKey {
 }
 
 impl PemStorableKey for PrivateKey {
-    fn pem_type(&self) -> String {
-        String::from("ED25519 PRIVATE KEY")
+    type Error = SignatureError;
+
+    fn pem_type() -> &'static str {
+        "ED25519 PRIVATE KEY"
     }
 
     fn to_bytes(&self) -> Vec<u8> {
         self.to_bytes().to_vec()
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
+        Self::from_bytes(bytes)
     }
 }
 

@@ -13,16 +13,18 @@
 // limitations under the License.
 
 use crate::registration::handshake::error::HandshakeError;
-use crate::registration::handshake::shared_key::{SharedKey, SharedKeySize};
+use crate::registration::handshake::shared_key::{SharedKeySize, SharedKeys};
 use crate::registration::handshake::WsItem;
 use crate::types;
 use crypto::{
     asymmetric::{encryption, identity},
-    kdf::blake3_hkdf,
-    symmetric::aes_ctr::{self, generic_array::typenum::Unsigned},
+    generic_array::typenum::Unsigned,
+    hkdf,
+    symmetric::stream_cipher,
 };
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use log::*;
+use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
 use rand::{CryptoRng, RngCore};
 use std::convert::{TryFrom, TryInto};
 use tokio_tungstenite::tungstenite::Message as WsMessage;
@@ -31,13 +33,17 @@ use tokio_tungstenite::tungstenite::Message as WsMessage;
 pub(crate) struct State<'a, S> {
     /// The underlying WebSocket stream.
     ws_stream: &'a mut S,
+
     /// Identity of the local "node" (client or gateway) which is used
     /// during the handshake.
     identity: &'a identity::KeyPair,
+
     /// Local ephemeral Diffie-Hellman keypair generated as a part of the handshake.
     ephemeral_keypair: encryption::KeyPair,
+
     /// The derived shared key using the ephemeral keys of both parties.
-    derived_shared_key: Option<SharedKey>,
+    derived_shared_keys: Option<SharedKeys>,
+
     /// The known or received public identity key of the remote.
     /// Ideally it would always be known before the handshake was initiated.
     remote_pubkey: Option<identity::PublicKey>,
@@ -56,7 +62,7 @@ impl<'a, S> State<'a, S> {
             ephemeral_keypair,
             identity,
             remote_pubkey,
-            derived_shared_key: None,
+            derived_shared_keys: None,
         }
     }
 
@@ -111,14 +117,18 @@ impl<'a, S> State<'a, S> {
             .diffie_hellman(remote_ephemeral_key);
 
         // there is no reason for this to fail as our okm is expected to be only 16 bytes
-        let okm =
-            blake3_hkdf::extract_then_expand(None, &dh_result, None, SharedKeySize::to_usize())
-                .expect("somehow too long okm was provided");
+        let okm = hkdf::extract_then_expand::<GatewaySharedKeyHkdfAlgorithm>(
+            None,
+            &dh_result,
+            None,
+            SharedKeySize::to_usize(),
+        )
+        .expect("somehow too long okm was provided");
 
         let derived_shared_key =
-            SharedKey::try_from_bytes(&okm).expect("okm was expanded to incorrect length!");
+            SharedKeys::try_from_bytes(&okm).expect("okm was expanded to incorrect length!");
 
-        self.derived_shared_key = Some(derived_shared_key)
+        self.derived_shared_keys = Some(derived_shared_key)
     }
 
     // produces AES(k, SIG(ID_PRIV, G^x || G^y),
@@ -137,9 +147,10 @@ impl<'a, S> State<'a, S> {
             .collect();
 
         let signature = self.identity.private_key().sign(&message);
-        aes_ctr::encrypt(
-            self.derived_shared_key.as_ref().unwrap(),
-            &aes_ctr::zero_iv(),
+        let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
+        stream_cipher::encrypt::<GatewayEncryptionAlgorithm>(
+            self.derived_shared_keys.as_ref().unwrap().encryption_key(),
+            &zero_iv,
             &signature.to_bytes(),
         )
     }
@@ -156,13 +167,17 @@ impl<'a, S> State<'a, S> {
             ));
         }
         let derived_shared_key = self
-            .derived_shared_key
+            .derived_shared_keys
             .as_ref()
             .expect("shared key was not derived!");
 
         // first decrypt received data
-        let decrypted_signature =
-            aes_ctr::decrypt(derived_shared_key, &aes_ctr::zero_iv(), remote_material);
+        let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
+        let decrypted_signature = stream_cipher::decrypt::<GatewayEncryptionAlgorithm>(
+            derived_shared_key.encryption_key(),
+            &zero_iv,
+            remote_material,
+        );
 
         // now verify signature itself
         let signature = identity::Signature::from_bytes(&decrypted_signature)
@@ -250,7 +265,7 @@ impl<'a, S> State<'a, S> {
 
     /// Finish the handshake, yielding the derived shared key and implicitly dropping all borrowed
     /// values.
-    pub(crate) fn finalize_handshake(self) -> SharedKey {
-        self.derived_shared_key.unwrap()
+    pub(crate) fn finalize_handshake(self) -> SharedKeys {
+        self.derived_shared_keys.unwrap()
     }
 }

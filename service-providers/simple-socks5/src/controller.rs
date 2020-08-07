@@ -3,7 +3,7 @@ use simple_socks5_requests::{ConnectionId, RemoteAddress, Request, Response};
 use std::collections::HashMap;
 
 #[derive(Debug)]
-pub struct TodoError;
+pub struct ConnectionError;
 
 pub(crate) struct Controller {
     // TODO: I've got a feeling this will need to have a mutex slapped on it, but we'll see
@@ -20,7 +20,7 @@ impl Controller {
     pub(crate) async fn process_request(
         &mut self,
         request: Request,
-    ) -> Result<Option<Response>, TodoError> {
+    ) -> Result<Option<Response>, ConnectionError> {
         match request {
             Request::Connect(conn_id, remote_addr, data) => {
                 let response = self
@@ -44,7 +44,7 @@ impl Controller {
         conn_id: ConnectionId,
         remote_addr: RemoteAddress,
         init_data: Vec<u8>,
-    ) -> Result<Response, TodoError> {
+    ) -> Result<Response, ConnectionError> {
         let mut connection = Connection::new(conn_id, remote_addr, &init_data)
             .await
             .map_err(|err| log::error!("new connection failed with: {}", err))
@@ -64,7 +64,7 @@ impl Controller {
         &mut self,
         conn_id: ConnectionId,
         data: Vec<u8>,
-    ) -> Result<Response, TodoError> {
+    ) -> Result<Response, ConnectionError> {
         let connection = self
             .open_connections
             .get_mut(&conn_id)
@@ -78,7 +78,7 @@ impl Controller {
         Ok(Response::new(conn_id, response_data))
     }
 
-    fn close_connection(&mut self, conn_id: ConnectionId) -> Result<(), TodoError> {
+    fn close_connection(&mut self, conn_id: ConnectionId) -> Result<(), ConnectionError> {
         match self.open_connections.remove(&conn_id) {
             // I *think* connection is closed implicitly on drop, but I'm not 100% sure!
             Some(_conn) => (),

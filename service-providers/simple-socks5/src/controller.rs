@@ -47,12 +47,14 @@ impl Controller {
     ) -> Result<Response, TodoError> {
         let mut connection = Connection::new(conn_id, remote_addr, &init_data)
             .await
-            .expect("todo: error handling");
+            .map_err(|err| log::error!("new connection failed with: {}", err))
+            .unwrap();
 
         let response_data = connection
             .try_read_response_data()
             .await
-            .expect("todo: error handling");
+            .map_err(|err| log::error!("error reading response data: {}", err))
+            .unwrap();
 
         self.open_connections.insert(conn_id, connection);
         Ok(Response::new(conn_id, response_data))

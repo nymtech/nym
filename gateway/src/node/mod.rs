@@ -127,7 +127,7 @@ impl Gateway {
             self.encryption_keys.public_key().to_base58_string(),
             self.config.get_presence_sending_delay(),
         );
-        presence::Notifier::new(notifier_config, self.registered_clients_ledger.clone()).start();
+        presence::Notifier::new(notifier_config).start();
     }
 
     async fn wait_for_interrupt(&self) {

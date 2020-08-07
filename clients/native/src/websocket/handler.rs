@@ -18,7 +18,6 @@ use crate::client::{
     received_buffer::{
         ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
     },
-    topology_control::TopologyAccessor,
 };
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
@@ -47,7 +46,6 @@ pub(crate) struct Handler {
     msg_input: InputMessageSender,
     buffer_requester: ReceivedBufferRequestSender,
     self_full_address: Recipient,
-    topology_accessor: TopologyAccessor,
     socket: Option<WebSocketStream<TcpStream>>,
     received_response_type: ReceivedResponseType,
 }
@@ -59,7 +57,6 @@ impl Clone for Handler {
             msg_input: self.msg_input.clone(),
             buffer_requester: self.buffer_requester.clone(),
             self_full_address: self.self_full_address.clone(),
-            topology_accessor: self.topology_accessor.clone(),
             socket: None,
             received_response_type: Default::default(),
         }
@@ -79,13 +76,11 @@ impl Handler {
         msg_input: InputMessageSender,
         buffer_requester: ReceivedBufferRequestSender,
         self_full_address: Recipient,
-        topology_accessor: TopologyAccessor,
     ) -> Self {
         Handler {
             msg_input,
             buffer_requester,
             self_full_address,
-            topology_accessor,
             socket: None,
             received_response_type: Default::default(),
         }
@@ -114,18 +109,6 @@ impl Handler {
         None
     }
 
-    async fn handle_text_get_clients(&mut self) -> ServerResponse {
-        match self.topology_accessor.get_all_clients().await {
-            Some(clients) => {
-                let client_keys = clients.into_iter().map(|client| client.pub_key).collect();
-                ServerResponse::GetClients {
-                    clients: client_keys,
-                }
-            }
-            None => ServerResponse::new_error("invalid network topology"),
-        }
-    }
-
     fn handle_text_self_address(&self) -> ServerResponse {
         ServerResponse::SelfAddress {
             address: self.self_full_address.to_string(),
@@ -147,7 +130,6 @@ impl Handler {
                 ClientRequest::Send { message, recipient } => self
                     .handle_text_send(message, recipient)
                     .map(|resp| resp.into()),
-                ClientRequest::GetClients => Some(self.handle_text_get_clients().await.into()),
                 ClientRequest::SelfAddress => Some(self.handle_text_self_address().into()),
             },
         }

@@ -21,7 +21,6 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ClientRequest {
     Send { message: String, recipient: String },
-    GetClients,
     SelfAddress,
 }
 

@@ -31,7 +31,6 @@ pub enum ClientTextRequest {
         // Perhaps we could change it to a number to indicate how many reply_SURBs we want to include?
         with_reply_surb: bool,
     },
-    GetClients,
     SelfAddress,
     #[serde(rename_all = "camelCase")]
     Reply {

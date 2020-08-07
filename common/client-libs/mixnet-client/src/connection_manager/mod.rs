@@ -48,7 +48,6 @@ pub(crate) struct ConnectionManager<'a> {
     reconnection_backoff: Duration,
 
     state: ConnectionState<'a>,
-    pending_messages_buffer: Vec<SphinxPacket>,
 }
 
 impl<'a> Drop for ConnectionManager<'a> {
@@ -92,7 +91,6 @@ impl<'a> ConnectionManager<'static> {
             maximum_reconnection_backoff,
             reconnection_backoff,
             state: initial_state,
-            pending_messages_buffer: Vec::new(),
         }
     }
 
@@ -125,12 +123,13 @@ impl<'a> ConnectionManager<'static> {
     // so it is possible to read any responses we might receive (it is also duplex, so that could be
     // done while writing packets themselves). But it'd require slight additions to `SphinxCodec`
     async fn handle_new_packet(&mut self, packet: SphinxPacket) -> io::Result<()> {
+        // we don't do a match here as it's possible to transition from ConnectionState::Reconnecting to ConnectionState::Writing
+        // in this function call. And if that happens, we want to send the packet we have received.
         if let ConnectionState::Reconnecting(conn_reconnector) = &mut self.state {
             // do a single poll rather than await for future to completely resolve
             let new_connection = match futures::poll(conn_reconnector).await {
                 Poll::Pending => {
-                    // make sure we don't lose the received packet
-                    self.pending_messages_buffer.push(packet);
+                    debug!("The packet is getting dropped - there's nowhere to send it");
                     return Err(io::Error::new(
                         io::ErrorKind::BrokenPipe,
                         "connection is broken - reconnection is in progress",
@@ -146,54 +145,23 @@ impl<'a> ConnectionManager<'static> {
         // we must be in writing state if we are here, either by being here from beginning or just
         // transitioning from reconnecting
         if let ConnectionState::Writing(conn_writer) = &mut self.state {
-            // check if we have any pending writes
-            return if !self.pending_messages_buffer.is_empty() {
-                let pending_messages =
-                    std::mem::replace(&mut self.pending_messages_buffer, Vec::new());
-                let mut send_stream = futures::stream::iter(
-                    pending_messages
-                        .into_iter()
-                        .chain(std::iter::once(packet))
-                        .map(Ok),
+            if let Err(e) = conn_writer.send(packet).await {
+                warn!(
+                    "Failed to forward message - {:?}. Starting reconnection procedure...",
+                    e
                 );
-
-                match conn_writer.send_all(&mut send_stream).await {
-                    Ok(_) => Ok(()),
-                    Err(e) => {
-                        // whatever wasn't successfully sent, put it back into the buffer
-                        // (Looking at Future impl for SendAll, I *think* it does not consume
-                        // items it failed to send)
-                        self.pending_messages_buffer = send_stream
-                            .filter_map(|x| async move { x.ok() }) // presumably all items will be an 'Ok'?
-                            .collect()
-                            .await;
-
-                        warn!(
-                            "Failed to forward messages - {:?}. Starting reconnection procedure...",
-                            e
-                        );
-                        self.state = ConnectionState::Reconnecting(ConnectionReconnector::new(
-                            self.address,
-                            self.reconnection_backoff,
-                            self.maximum_reconnection_backoff,
-                        ));
-                        Err(e.into())
-                    }
-                }
+                self.state = ConnectionState::Reconnecting(ConnectionReconnector::new(
+                    self.address,
+                    self.reconnection_backoff,
+                    self.maximum_reconnection_backoff,
+                ));
+                return Err(io::Error::new(
+                    io::ErrorKind::BrokenPipe,
+                    "connection is broken - reconnection is in progress",
+                ));
             } else {
-                if let Err(e) = conn_writer.send(packet).await {
-                    warn!(
-                        "Failed to forward message - {:?}. Starting reconnection procedure...",
-                        e
-                    );
-                    self.state = ConnectionState::Reconnecting(ConnectionReconnector::new(
-                        self.address,
-                        self.reconnection_backoff,
-                        self.maximum_reconnection_backoff,
-                    ));
-                }
-                Ok(())
-            };
+                return Ok(());
+            }
         }
 
         unreachable!();

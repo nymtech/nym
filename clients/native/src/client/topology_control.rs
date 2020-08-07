@@ -25,7 +25,7 @@ use std::time::Duration;
 use tokio::runtime::Handle;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::task::JoinHandle;
-use topology::{gateway, NymTopology};
+use topology::NymTopology;
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before
 #[derive(Debug)]
@@ -128,21 +128,6 @@ impl TopologyAccessor {
         match &self.inner.read().await.0 {
             None => false,
             Some(ref topology) => topology.can_construct_path_through(DEFAULT_NUM_MIX_HOPS),
-        }
-    }
-
-    pub(crate) async fn get_all_clients(&self) -> Option<Vec<gateway::Client>> {
-        // TODO: this will need to be modified to instead return pairs (provider, client)
-        match &self.inner.read().await.0 {
-            None => None,
-            Some(ref topology) => Some(
-                topology
-                    .gateways()
-                    .iter()
-                    .flat_map(|gateway| gateway.registered_clients.iter())
-                    .cloned()
-                    .collect::<Vec<_>>(),
-            ),
         }
     }
 }

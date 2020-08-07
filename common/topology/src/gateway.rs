@@ -31,18 +31,11 @@ pub struct Node {
     pub mixnet_listener: SocketAddr,
     pub identity_key: identity::PublicKey,
     pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
-    pub registered_clients: Vec<Client>,
     pub last_seen: u64,
     pub version: String,
 }
 
 impl Node {
-    pub fn has_client(&self, client_pub_key: String) -> bool {
-        self.registered_clients
-            .iter()
-            .any(|client| client.pub_key == client_pub_key)
-    }
-
     pub fn identity(&self) -> &NodeIdentity {
         &self.identity_key
     }

@@ -149,22 +149,4 @@ impl ClientLedger {
         self.db.flush().unwrap();
         removal_result
     }
-
-    pub(crate) fn current_clients(
-        &self,
-    ) -> Result<Vec<DestinationAddressBytes>, ClientLedgerError> {
-        let clients = self.db.iter().keys();
-
-        let mut client_vec = Vec::new();
-        for client in clients {
-            match client {
-                Err(e) => return Err(ClientLedgerError::DbWriteError(e)),
-                Ok(client_entry) => {
-                    client_vec.push(self.read_destination_address_bytes(client_entry))
-                }
-            }
-        }
-
-        Ok(client_vec)
-    }
 }

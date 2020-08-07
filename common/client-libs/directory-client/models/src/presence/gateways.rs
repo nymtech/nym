@@ -50,7 +50,6 @@ pub struct GatewayPresence {
     pub mixnet_listener: String,
     pub identity_key: String,
     pub sphinx_key: String,
-    pub registered_clients: Vec<GatewayClient>,
     pub last_seen: u64,
     pub version: String,
 }
@@ -73,27 +72,8 @@ impl TryInto<topology::gateway::Node> for GatewayPresence {
             mixnet_listener: resolved_mix_hostname.unwrap(),
             identity_key: identity::PublicKey::from_base58_string(self.identity_key)?,
             sphinx_key: encryption::PublicKey::from_base58_string(self.sphinx_key)?,
-            registered_clients: self
-                .registered_clients
-                .into_iter()
-                .map(|c| c.into())
-                .collect(),
             last_seen: self.last_seen,
             version: self.version,
         })
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GatewayClient {
-    pub pub_key: String,
-}
-
-impl Into<topology::gateway::Client> for GatewayClient {
-    fn into(self) -> topology::gateway::Client {
-        topology::gateway::Client {
-            pub_key: self.pub_key,
-        }
     }
 }

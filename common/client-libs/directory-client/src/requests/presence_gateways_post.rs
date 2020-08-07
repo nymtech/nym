@@ -92,7 +92,6 @@ mod presence_gateways_post_request {
                 mixnet_listener: "foo.com".to_string(),
                 identity_key: "def".to_string(),
                 sphinx_key: "abc".to_string(),
-                registered_clients: vec![],
                 last_seen: 0,
                 version: "0.1.0".to_string(),
             }

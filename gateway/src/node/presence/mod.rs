@@ -13,8 +13,7 @@
 // limitations under the License.
 
 use crate::built_info;
-use crate::node::storage::ClientLedger;
-use directory_client::presence::gateways::{GatewayClient, GatewayPresence};
+use directory_client::presence::gateways::GatewayPresence;
 use directory_client::DirectoryClient;
 use log::{error, trace};
 use std::time::Duration;
@@ -55,7 +54,6 @@ impl NotifierConfig {
 pub(crate) struct Notifier {
     location: String,
     net_client: directory_client::Client,
-    client_ledger: ClientLedger,
     sending_delay: Duration,
     client_listener: String,
     mixnet_listener: String,
@@ -64,14 +62,13 @@ pub(crate) struct Notifier {
 }
 
 impl Notifier {
-    pub(crate) fn new(config: NotifierConfig, client_ledger: ClientLedger) -> Notifier {
+    pub(crate) fn new(config: NotifierConfig) -> Notifier {
         let directory_client_cfg = directory_client::Config {
             base_url: config.directory_server,
         };
         let net_client = directory_client::Client::new(directory_client_cfg);
 
         Notifier {
-            client_ledger,
             net_client,
             location: config.location,
             client_listener: config.clients_announce_host,
@@ -83,21 +80,12 @@ impl Notifier {
     }
 
     async fn make_presence(&self) -> GatewayPresence {
-        let client_keys = self.client_ledger.current_clients().unwrap();
-        let registered_clients = client_keys
-            .into_iter()
-            .map(|key_bytes| GatewayClient {
-                pub_key: key_bytes.to_base58_string(),
-            })
-            .collect();
-
         GatewayPresence {
             location: self.location.clone(),
             client_listener: self.client_listener.clone(),
             mixnet_listener: self.mixnet_listener.clone(),
             identity_key: self.identity.clone(),
             sphinx_key: self.sphinx_key.clone(),
-            registered_clients,
             last_seen: 0,
             version: built_info::PKG_VERSION.to_string(),
         }

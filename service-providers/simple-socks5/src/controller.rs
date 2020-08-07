@@ -1,12 +1,21 @@
 use crate::connection::Connection;
 use simple_socks5_requests::{ConnectionId, RemoteAddress, Request, Response};
 use std::collections::HashMap;
+use std::io;
 
 #[derive(Debug)]
-pub struct ConnectionError;
+pub enum ConnectionError {
+    ConnectionFailed(io::Error),
+    MissingConnection,
+}
+
+impl From<io::Error> for ConnectionError {
+    fn from(e: io::Error) -> Self {
+        ConnectionError::ConnectionFailed(e)
+    }
+}
 
 pub(crate) struct Controller {
-    // TODO: I've got a feeling this will need to have a mutex slapped on it, but we'll see
     open_connections: HashMap<ConnectionId, Connection>,
 }
 
@@ -45,17 +54,9 @@ impl Controller {
         remote_addr: RemoteAddress,
         init_data: Vec<u8>,
     ) -> Result<Response, ConnectionError> {
-        let mut connection = Connection::new(conn_id, remote_addr, &init_data)
-            .await
-            .map_err(|err| log::error!("new connection failed with: {}", err))
-            .unwrap();
+        let mut connection = Connection::new(conn_id, remote_addr, &init_data).await?;
 
-        let response_data = connection
-            .try_read_response_data()
-            .await
-            .map_err(|err| log::error!("error reading response data: {}", err))
-            .unwrap();
-
+        let response_data = connection.try_read_response_data().await?;
         self.open_connections.insert(conn_id, connection);
         Ok(Response::new(conn_id, response_data))
     }
@@ -68,18 +69,10 @@ impl Controller {
         let connection = self
             .open_connections
             .get_mut(&conn_id)
-            .expect("TODO: dont panic - connection doesn't exist");
-        connection
-            .send_data(&data)
-            .await
-            .map_err(|err| log::error!("error sending data: {}", err))
-            .unwrap();
+            .ok_or_else(|| ConnectionError::MissingConnection)?;
+        connection.send_data(&data).await?;
 
-        let response_data = connection
-            .try_read_response_data()
-            .await
-            .map_err(|err| log::error!("error reading response data: {}", err))
-            .unwrap();
+        let response_data = connection.try_read_response_data().await?;
         Ok(Response::new(conn_id, response_data))
     }
 

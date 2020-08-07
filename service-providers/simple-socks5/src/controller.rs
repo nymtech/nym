@@ -69,12 +69,17 @@ impl Controller {
             .open_connections
             .get_mut(&conn_id)
             .expect("TODO: dont panic - connection doesn't exist");
-        connection.send_data(&data).await.expect("todo: error");
+        connection
+            .send_data(&data)
+            .await
+            .map_err(|err| log::error!("error sending data: {}", err))
+            .unwrap();
 
         let response_data = connection
             .try_read_response_data()
             .await
-            .expect("todo: error handling");
+            .map_err(|err| log::error!("error reading response data: {}", err))
+            .unwrap();
         Ok(Response::new(conn_id, response_data))
     }
 
@@ -82,8 +87,7 @@ impl Controller {
         match self.open_connections.remove(&conn_id) {
             // I *think* connection is closed implicitly on drop, but I'm not 100% sure!
             Some(_conn) => (),
-            // TODO: don't panic
-            None => panic!("tried to close non-existing connection! - {}", conn_id),
+            None => log::error!("tried to close non-existent connection - {}", conn_id),
         }
 
         Ok(())

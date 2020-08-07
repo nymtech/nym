@@ -315,7 +315,6 @@ mod message_receiver {
                     "EB42xvMFMD5rUCstE2CDazgQQJ22zLv8SPm1Luxni44c",
                 )
                 .unwrap(),
-                registered_clients: vec![],
                 last_seen: 1594812897745695000,
                 version: "0.8.0-dev".to_string(),
             }],

@@ -21,12 +21,12 @@ impl ServiceProvider {
     /// Start all subsystems
     pub fn start(&mut self) {
         let websocket_stream = self.connect_websocket("ws://localhost:1977");
-        let (mut write, mut read) = websocket_stream.split();
+        let (mut websocket_writer, mut websocket_reader) = websocket_stream.split();
         let mut controller = Controller::new();
 
         self.runtime.block_on(async {
             println!("\nAll systems go. Press CTRL-C to stop the server.");
-            while let Some(msg) = read.next().await {
+            while let Some(msg) = websocket_reader.next().await {
                 let data = msg.unwrap().into_data();
                 if data[0] == b'{' && data[1] == b'"' {
                     println!("json: {:?}", String::from_utf8_lossy(&data));
@@ -50,7 +50,7 @@ impl ServiceProvider {
                     .collect();
 
                 let message = Message::Binary(response_message);
-                write.send(message).await.unwrap();
+                websocket_writer.send(message).await.unwrap();
             }
         });
     }

@@ -35,7 +35,6 @@ pub struct Node {
     pub version: String,
 }
 
-
 impl filter::Versioned for Node {
     fn version(&self) -> String {
         self.version.clone()

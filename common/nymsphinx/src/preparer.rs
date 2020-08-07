@@ -137,6 +137,7 @@ where
     }
 
     /// Pads the message so that after it gets chunked, it will occupy exactly N sphinx packets.
+    /// Produces new_message = message || 1 || 0000....
     fn pad_message(&self, message: Vec<u8>) -> Vec<u8> {
         // 1 is added as there will always have to be at least a single byte of padding (1) added
         // to be able to later distinguish the actual padding from the underlying message
@@ -153,6 +154,10 @@ where
     }
 
     /// Attaches reply-SURB to the message alongside the reply key.
+    /// Results in:
+    /// new_message = 0 || message
+    /// OR
+    /// new_message = 1 || REPLY_KEY || REPLY_SURB || message
     fn optionally_attach_reply_surb(
         &mut self,
         message: Vec<u8>,
@@ -308,27 +313,12 @@ where
         with_reply_surb: bool,
         topology: &NymTopology,
     ) -> Result<(Vec<Fragment>, Option<SURBEncryptionKey>), PreparationError> {
-        // 1. attach (or not) the reply-surb
-        // new_message = 0 || message
-        // OR
-        // new_message = 1 || REPLY_KEY || REPLY_SURB || message
         let (message, reply_key) =
             self.optionally_attach_reply_surb(message, with_reply_surb, topology)?;
 
-        // 2. pad the message, so that when chunked it fits into EXACTLY N sphinx packets
-        // new_message = message || 1 || 0000....
         let message = self.pad_message(message);
 
-        // 3. chunk the message so that each chunk fits into a sphinx packet. Note, extra 32 bytes
-        // are left in each chunk
         Ok((self.split_message(message), reply_key))
-
-        // 4. For each fragment:
-        // - generate (x, g^x)
-        // - compute k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
-        // - compute v_b = AES-128-CTR(k, serialized_fragment)
-        // - compute vk_b = g^x || v_b
-        // - compute sphinx = Sphinx(recipient, vk_b)
     }
 
     // TODO: perhaps the return type could somehow be combined with [`PreparedFragment`] ?

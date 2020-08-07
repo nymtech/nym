@@ -33,13 +33,17 @@ use tokio_tungstenite::tungstenite::Message as WsMessage;
 pub(crate) struct State<'a, S> {
     /// The underlying WebSocket stream.
     ws_stream: &'a mut S,
+
     /// Identity of the local "node" (client or gateway) which is used
     /// during the handshake.
     identity: &'a identity::KeyPair,
+
     /// Local ephemeral Diffie-Hellman keypair generated as a part of the handshake.
     ephemeral_keypair: encryption::KeyPair,
+
     /// The derived shared key using the ephemeral keys of both parties.
-    derived_shared_key: Option<SharedKeys>,
+    derived_shared_keys: Option<SharedKeys>,
+
     /// The known or received public identity key of the remote.
     /// Ideally it would always be known before the handshake was initiated.
     remote_pubkey: Option<identity::PublicKey>,
@@ -58,7 +62,7 @@ impl<'a, S> State<'a, S> {
             ephemeral_keypair,
             identity,
             remote_pubkey,
-            derived_shared_key: None,
+            derived_shared_keys: None,
         }
     }
 
@@ -124,7 +128,7 @@ impl<'a, S> State<'a, S> {
         let derived_shared_key =
             SharedKeys::try_from_bytes(&okm).expect("okm was expanded to incorrect length!");
 
-        self.derived_shared_key = Some(derived_shared_key)
+        self.derived_shared_keys = Some(derived_shared_key)
     }
 
     // produces AES(k, SIG(ID_PRIV, G^x || G^y),
@@ -145,7 +149,7 @@ impl<'a, S> State<'a, S> {
         let signature = self.identity.private_key().sign(&message);
         let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
         stream_cipher::encrypt::<GatewayEncryptionAlgorithm>(
-            self.derived_shared_key.as_ref().unwrap().encryption_key(),
+            self.derived_shared_keys.as_ref().unwrap().encryption_key(),
             &zero_iv,
             &signature.to_bytes(),
         )
@@ -163,7 +167,7 @@ impl<'a, S> State<'a, S> {
             ));
         }
         let derived_shared_key = self
-            .derived_shared_key
+            .derived_shared_keys
             .as_ref()
             .expect("shared key was not derived!");
 
@@ -262,6 +266,6 @@ impl<'a, S> State<'a, S> {
     /// Finish the handshake, yielding the derived shared key and implicitly dropping all borrowed
     /// values.
     pub(crate) fn finalize_handshake(self) -> SharedKeys {
-        self.derived_shared_key.unwrap()
+        self.derived_shared_keys.unwrap()
     }
 }

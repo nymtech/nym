@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::types::{BinaryClientRequest, ClientTextRequest, ServerTextResponse};
 use crate::client::{
     inbound_messages::{InputMessage, InputMessageSender},
     received_buffer::{
         ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
     },
 };
-use crate::websocket::types::ReceivedTextMessage;
+use crate::websocket::api;
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::*;
@@ -94,14 +93,16 @@ impl Handler {
         msg: String,
         full_recipient_address: String,
         with_reply_surb: bool,
-    ) -> Option<ServerTextResponse> {
+    ) -> Option<api::text::ServerResponse> {
         let message_bytes = msg.into_bytes();
 
         let recipient = match Recipient::try_from_string(full_recipient_address) {
             Ok(address) => address,
             Err(err) => {
                 trace!("failed to parse received Recipient: {:?}", err);
-                return Some(ServerTextResponse::new_error("malformed recipient address"));
+                return Some(api::text::ServerResponse::new_error(
+                    "malformed recipient address",
+                ));
             }
         };
 
@@ -113,14 +114,18 @@ impl Handler {
         None
     }
 
-    fn handle_text_reply(&mut self, msg: String, reply_surb: String) -> Option<ServerTextResponse> {
+    fn handle_text_reply(
+        &mut self,
+        msg: String,
+        reply_surb: String,
+    ) -> Option<api::text::ServerResponse> {
         let message_bytes = msg.into_bytes();
 
         let reply_surb = match ReplySURB::from_base58_string(reply_surb) {
             Ok(reply_surb) => reply_surb,
             Err(err) => {
                 trace!("failed to parse received ReplySURB: {:?}", err);
-                return Some(ServerTextResponse::new_error("malformed reply surb"));
+                return Some(api::text::ServerResponse::new_error("malformed reply surb"));
             }
         };
 
@@ -131,8 +136,8 @@ impl Handler {
         None
     }
 
-    fn handle_text_self_address(&self) -> ServerTextResponse {
-        ServerTextResponse::SelfAddress {
+    fn handle_text_self_address(&self) -> api::text::ServerResponse {
+        api::text::ServerResponse::SelfAddress {
             address: self.self_full_address.to_string(),
         }
     }
@@ -141,28 +146,30 @@ impl Handler {
         debug!("Handling text message request");
         trace!("Content: {:?}", msg.clone());
 
-        match ClientTextRequest::try_from(msg) {
+        match api::text::ClientRequest::try_from(msg) {
             Err(e) => Some(
-                ServerTextResponse::Error {
+                api::text::ServerResponse::Error {
                     message: format!("received invalid request. err: {:?}", e),
                 }
                 .into(),
             ),
             Ok(req) => match req {
-                ClientTextRequest::Send {
+                api::text::ClientRequest::Send {
                     message,
                     recipient,
                     with_reply_surb,
                 } => self
                     .handle_text_send(message, recipient, with_reply_surb)
                     .map(|resp| resp.into()),
-                ClientTextRequest::Reply {
+                api::text::ClientRequest::Reply {
                     message,
                     reply_surb,
                 } => self
                     .handle_text_reply(message, reply_surb)
                     .map(|resp| resp.into()),
-                ClientTextRequest::SelfAddress => Some(self.handle_text_self_address().into()),
+                api::text::ClientRequest::SelfAddress => {
+                    Some(self.handle_text_self_address().into())
+                }
             },
         }
     }
@@ -172,7 +179,7 @@ impl Handler {
         recipient: Recipient,
         data: Vec<u8>,
         with_reply_surb: bool,
-    ) -> Option<ServerTextResponse> {
+    ) -> Option<api::text::ServerResponse> {
         // the ack control is now responsible for chunking, etc.
         let input_msg = InputMessage::new_fresh(recipient, data, with_reply_surb);
         self.msg_input.unbounded_send(input_msg).unwrap();
@@ -186,9 +193,9 @@ impl Handler {
         &mut self,
         reply_surb: ReplySURB,
         message: Vec<u8>,
-    ) -> Option<ServerTextResponse> {
+    ) -> Option<api::text::ServerResponse> {
         if message.len() > ReplySURB::max_msg_len(Default::default()) {
-            return Some(ServerTextResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySURB::max_msg_len(Default::default()))));
+            return Some(api::text::ServerResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySURB::max_msg_len(Default::default()))));
         }
 
         let input_msg = InputMessage::new_reply(reply_surb, message);
@@ -206,17 +213,17 @@ impl Handler {
 
         self.received_response_type = ReceivedResponseType::Binary;
         // make sure it is correctly formatted
-        let binary_request = BinaryClientRequest::try_from_bytes(&msg);
+        let binary_request = api::binary::ClientRequest::try_from_bytes(&msg);
         if binary_request.is_none() {
-            return Some(ServerTextResponse::new_error("invalid binary request").into());
+            return Some(api::text::ServerResponse::new_error("invalid binary request").into());
         }
         match binary_request.unwrap() {
-            BinaryClientRequest::Send {
+            api::binary::ClientRequest::Send {
                 recipient,
                 data,
                 with_reply_surb,
             } => self.handle_binary_send(recipient, data, with_reply_surb),
-            BinaryClientRequest::Reply {
+            api::binary::ClientRequest::Reply {
                 message,
                 reply_surb,
             } => self.handle_binary_reply(reply_surb, message),
@@ -247,7 +254,7 @@ impl Handler {
                 .map(|msg| Ok(Message::Binary(msg.into_bytes())))
                 .collect(),
             ReceivedResponseType::Text => {
-                let mut decoded_messages: Vec<ReceivedTextMessage> = Vec::new();
+                let mut decoded_messages: Vec<api::text::ReceivedTextMessage> = Vec::new();
                 // either all succeed or all fall back
                 let mut did_fail = false;
                 for message in reconstructed_messages.iter() {
@@ -268,7 +275,7 @@ impl Handler {
                 } else {
                     decoded_messages
                         .into_iter()
-                        .map(|msg| Ok(ServerTextResponse::Received(msg).into()))
+                        .map(|msg| Ok(api::text::ServerResponse::Received(msg).into()))
                         .collect()
                 }
             }

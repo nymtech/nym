@@ -111,28 +111,6 @@ impl SocksClient {
         Ok(())
     }
 
-    /*
-              // Copy it all
-               let mut outbound_in = target.try_clone()?;
-               let mut outbound_out = target.try_clone()?;
-               let mut inbound_in = self.stream.try_clone()?;
-               let mut inbound_out = self.stream.try_clone()?;
-
-               // Download Thread
-               thread::spawn(move || {
-                   copy(&mut outbound_in, &mut inbound_out).is_ok();
-                   outbound_in.shutdown(Shutdown::Read).unwrap_or(());
-                   inbound_out.shutdown(Shutdown::Write).unwrap_or(());
-               });
-
-               // Upload Thread
-               thread::spawn(move || {
-                   copy(&mut inbound_in, &mut outbound_out).is_ok();
-                   inbound_in.shutdown(Shutdown::Read).unwrap_or(());
-                   outbound_out.shutdown(Shutdown::Write).unwrap_or(());
-               });
-    */
-
     async fn send_request_to_mixnet(&mut self, request: Request) {
         println!(
             "Sending request {:?} outbound through mixnet",

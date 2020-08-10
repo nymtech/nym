@@ -227,6 +227,7 @@ impl Handler {
                 message,
                 reply_surb,
             } => self.handle_binary_reply(reply_surb, message),
+            _ => unimplemented!(),
         }
         .map(|resp| resp.into())
     }

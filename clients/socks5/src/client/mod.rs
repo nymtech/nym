@@ -26,7 +26,10 @@ use crate::client::topology_control::{
 };
 use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use crate::config::{Config, SocketType};
-use crate::websocket;
+use crate::socks::{
+    authentication::{AuthenticationMethods, Authenticator, User},
+    server::SphinxSocksServer,
+};
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use gateway_client::{
@@ -34,7 +37,7 @@ use gateway_client::{
     MixnetMessageSender,
 };
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::addressing::clients::{ClientEncryptionKey, ClientIdentity, Recipient};
 use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::anonymous_replies::ReplySURB;
 use nymsphinx::receiver::ReconstructedMessage;
@@ -262,18 +265,35 @@ impl NymClient {
         MixTrafficController::new(mix_rx, gateway_client).start(self.runtime.handle());
     }
 
-    fn start_websocket_listener(
+    fn start_socks5_listener(
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
     ) {
-        info!("Starting websocket listener...");
+        info!("Starting socks5 listener...");
+        let mut auth_methods: Vec<u8> = Vec::new();
+        auth_methods.push(AuthenticationMethods::NoAuth as u8);
+        let allowed_users: Vec<User> = Vec::new();
 
-        let websocket_handler =
-            websocket::Handler::new(msg_input, buffer_requester, self.as_mix_recipient());
+        let authenticator = Authenticator::new(auth_methods, allowed_users);
+        let recipient = self.load_socks5_service_provider();
+        let mut sphinx_socks = SphinxSocksServer::new(1080, "127.0.0.1", authenticator, recipient);
+        self.runtime
+            .spawn(async move { sphinx_socks.serve(msg_input, buffer_requester).await });
+    }
+    // TODO: make this configurable in the client config file
+    // TODO: Talk to JS about where I can easily find these.
+    fn load_socks5_service_provider(&self) -> Recipient {
+        // load from file here, or better yet, inject it
+        let identity = "7qBXQor8nHXUXDAUM4aLvqDJ2MECFKn3AJ3brQsu5qz8";
+        let encryption_key = "4uzn7m3vPEy5MhPHLqzFCJHk2BCnvbCsGdrYzng7jnor";
+        let gateway_key = "e3vUAo6YhB7zq3GH8B4k3iiGT4H2USjdd5ZMZoUsHdF";
 
-        websocket::Listener::new(self.config.get_listening_port())
-            .start(self.runtime.handle(), websocket_handler);
+        let client_identity = ClientIdentity::from_base58_string(identity).unwrap();
+        let client_encryption_key =
+            ClientEncryptionKey::from_base58_string(encryption_key).unwrap();
+        let gateway = NodeIdentity::from_base58_string(gateway_key).unwrap();
+        Recipient::new(client_identity, client_encryption_key, gateway)
     }
 
     /// EXPERIMENTAL DIRECT RUST API
@@ -387,7 +407,7 @@ impl NymClient {
 
         match self.config.get_socket_type() {
             SocketType::WebSocket => {
-                self.start_websocket_listener(received_buffer_request_sender, input_sender)
+                self.start_socks5_listener(received_buffer_request_sender, input_sender)
             }
             SocketType::None => {
                 // if we did not start the socket, it means we're running (supposedly) in the native mode

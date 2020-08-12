@@ -625,7 +625,7 @@ mod fragment {
             10,
             None,
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_ok());
         assert!(Fragment::try_new(
@@ -635,7 +635,7 @@ mod fragment {
             1,
             None,
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_ok());
 
@@ -646,7 +646,7 @@ mod fragment {
             10,
             None,
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_ok());
         assert!(Fragment::try_new(
@@ -656,7 +656,7 @@ mod fragment {
             1,
             None,
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_ok());
     }
@@ -678,7 +678,7 @@ mod fragment {
             1,
             None,
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_err());
         assert!(Fragment::try_new(
@@ -688,7 +688,7 @@ mod fragment {
             5,
             None,
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_err());
 
@@ -699,7 +699,7 @@ mod fragment {
             1,
             None,
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_err());
         assert!(Fragment::try_new(
@@ -709,7 +709,7 @@ mod fragment {
             5,
             None,
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_err());
         assert!(Fragment::try_new(
@@ -719,7 +719,7 @@ mod fragment {
             1,
             None,
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_err());
 
@@ -730,7 +730,7 @@ mod fragment {
             1,
             None,
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_err());
         assert!(Fragment::try_new(
@@ -740,7 +740,7 @@ mod fragment {
             5,
             None,
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_err());
     }
@@ -761,7 +761,7 @@ mod fragment {
             1,
             Some(link_id),
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_ok());
         assert!(Fragment::try_new(
@@ -771,7 +771,7 @@ mod fragment {
             1,
             Some(link_id),
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_ok());
         assert!(Fragment::try_new(
@@ -781,7 +781,7 @@ mod fragment {
             1,
             Some(link_id),
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_ok());
         assert!(Fragment::try_new(
@@ -791,7 +791,7 @@ mod fragment {
             1,
             Some(link_id),
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_ok());
 
@@ -802,7 +802,7 @@ mod fragment {
             u8::max_value(),
             None,
             Some(link_id),
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_ok());
     }
@@ -823,7 +823,7 @@ mod fragment {
             1,
             Some(link_id),
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_err());
         assert!(Fragment::try_new(
@@ -833,7 +833,7 @@ mod fragment {
             1,
             Some(link_id),
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_err());
         assert!(Fragment::try_new(
@@ -843,7 +843,7 @@ mod fragment {
             1,
             Some(link_id),
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_err());
         assert!(Fragment::try_new(
@@ -853,7 +853,7 @@ mod fragment {
             1,
             Some(link_id),
             None,
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_err());
 
@@ -864,7 +864,7 @@ mod fragment {
             u8::max_value(),
             None,
             Some(link_id),
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_err());
         assert!(Fragment::try_new(
@@ -874,7 +874,7 @@ mod fragment {
             u8::max_value(),
             None,
             Some(link_id),
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_err());
 
@@ -885,7 +885,7 @@ mod fragment {
             u8::max_value(),
             None,
             Some(link_id),
-            max_plaintext_size()
+            max_plaintext_size(),
         )
         .is_err());
     }
@@ -989,7 +989,7 @@ mod fragment_header {
                 u8::max_value(),
                 u8::max_value(),
                 None,
-                Some(0)
+                Some(0),
             )
             .is_err());
         }

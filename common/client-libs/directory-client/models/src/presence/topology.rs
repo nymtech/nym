@@ -99,9 +99,7 @@ mod converting_mixnode_presence_into_topology_mixnode {
         };
 
         let result: Result<mix::Node, self::mixnodes::ConversionError> = mix_presence.try_into();
-        assert!(result.is_err()) // This fails only for me. Why?
-                                 // ¯\_(ツ)_/¯ - works on my machine (and travis)
-                                 // Is it still broken?
+        assert!(result.is_err());
     }
 
     #[test]

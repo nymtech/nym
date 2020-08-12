@@ -6,6 +6,7 @@ opt-level = "s"
 
 members = [
     "clients/native",
+    "clients/socks5",
     "clients/webassembly",
     "common/client-libs/directory-client",
     "common/client-libs/directory-client/models",
@@ -27,6 +28,7 @@ members = [
     "common/topology",
     "gateway",
     "gateway/gateway-requests",
+    "service-providers/simple-socks5",
     "mixnode",
     "validator",
 ]

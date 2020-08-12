@@ -9,8 +9,8 @@ use tokio::{self, net::TcpStream};
 
 use nymsphinx::addressing::clients::Recipient;
 
-use crate::client::inbound_messages::InputMessage;
-use crate::client::inbound_messages::InputMessageSender;
+use client_core::client::inbound_messages::InputMessage;
+use client_core::client::inbound_messages::InputMessageSender;
 use futures::{channel::oneshot, lock::Mutex};
 
 use super::authentication::{AuthenticationMethods, Authenticator, User};

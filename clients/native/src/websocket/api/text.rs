@@ -24,7 +24,6 @@ pub enum ClientRequest {
     Send {
         message: String,
         recipient: String,
-        // Perhaps we could change it to a number to indicate how many reply_SURBs we want to include?
         with_reply_surb: bool,
     },
     SelfAddress,
@@ -75,7 +74,6 @@ impl<'a> TryFrom<&'a ReconstructedMessage> for ReceivedTextMessage {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ServerResponse {
     Received(ReceivedTextMessage),
-    GetClients { clients: Vec<String> },
     SelfAddress { address: String },
     Error { message: String },
 }

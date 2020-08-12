@@ -44,19 +44,19 @@ impl Error {
 #[derive(PartialEq, Clone, Serialize, Deserialize)]
 pub enum ErrorKind {
     /// The received request contained no data.
-    EmptyRequest = 0x00,
+    EmptyRequest = 0x01,
 
     /// The received request did not contain enough data to be fully parsed.
-    TooShortRequest = 0x01,
+    TooShortRequest = 0x02,
 
     /// The received request tag is not defined.
-    UnknownRequest = 0x02,
+    UnknownRequest = 0x03,
 
     /// The received request is malformed.
-    MalformedRequest = 0x03,
+    MalformedRequest = 0x04,
 
-    // that's an arbitrary division but lets keep 0-127 (hex 0x00 - 0x7F) values request-specific
-    // and 128-255 (hex 0x80 - 0xFF) for responses
+    // that's an arbitrary division but lets keep 1-127 (hex 0x01 - 0x7F) values request-specific
+    // and 128-254 (hex 0x80 - 0xFE) for responses
     /// The received response contained no data.
     EmptyResponse = 0x80,
 
@@ -68,6 +68,9 @@ pub enum ErrorKind {
 
     /// The received response is malformed.
     MalformedResponse = 0x83,
+
+    /// The error is due to something else.
+    Other = 0xFF,
 }
 
 impl ErrorKind {
@@ -82,6 +85,8 @@ impl ErrorKind {
             ErrorKind::TooShortResponse => "received response did not contain enough data",
             ErrorKind::UnknownResponse => "unknown response type",
             ErrorKind::MalformedResponse => "malformed response",
+
+            ErrorKind::Other => "other",
         }
     }
 }

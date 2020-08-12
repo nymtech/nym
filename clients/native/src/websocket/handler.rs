@@ -179,7 +179,7 @@ impl Handler {
         recipient: Recipient,
         data: Vec<u8>,
         with_reply_surb: bool,
-    ) -> Option<api::text::ServerResponse> {
+    ) -> Option<api::binary::ServerResponse> {
         // the ack control is now responsible for chunking, etc.
         let input_msg = InputMessage::new_fresh(recipient, data, with_reply_surb);
         self.msg_input.unbounded_send(input_msg).unwrap();
@@ -193,9 +193,9 @@ impl Handler {
         &mut self,
         reply_surb: ReplySURB,
         message: Vec<u8>,
-    ) -> Option<api::text::ServerResponse> {
+    ) -> Option<api::binary::ServerResponse> {
         if message.len() > ReplySURB::max_msg_len(Default::default()) {
-            return Some(api::text::ServerResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySURB::max_msg_len(Default::default()))));
+            return Some(api::binary::ServerResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySURB::max_msg_len(Default::default()))));
         }
 
         let input_msg = InputMessage::new_reply(reply_surb, message);
@@ -206,6 +206,10 @@ impl Handler {
         None
     }
 
+    fn handle_binary_self_address(&self) -> api::binary::ServerResponse {
+        todo!()
+    }
+
     // if it's binary we assume it's a sphinx packet formatted the same way as we'd have sent
     // it to the gateway
     fn handle_binary_message(&mut self, msg: Vec<u8>) -> Option<Message> {
@@ -213,11 +217,12 @@ impl Handler {
 
         self.received_response_type = ReceivedResponseType::Binary;
         // make sure it is correctly formatted
-        let binary_request = api::binary::ClientRequest::try_from_bytes(&msg);
-        if binary_request.is_none() {
-            return Some(api::text::ServerResponse::new_error("invalid binary request").into());
-        }
-        match binary_request.unwrap() {
+        let binary_request = match api::binary::ClientRequest::deserialize(&msg) {
+            Ok(bin_request) => bin_request,
+            Err(err) => return Some(api::binary::ServerResponse::Error(err).into()),
+        };
+
+        match binary_request {
             api::binary::ClientRequest::Send {
                 recipient,
                 data,
@@ -227,7 +232,7 @@ impl Handler {
                 message,
                 reply_surb,
             } => self.handle_binary_reply(reply_surb, message),
-            _ => unimplemented!(),
+            api::binary::ClientRequest::SelfAddress => Some(self.handle_binary_self_address()),
         }
         .map(|resp| resp.into())
     }

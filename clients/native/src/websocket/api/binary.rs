@@ -267,98 +267,11 @@ impl ClientRequest {
             n => return Err(Error::new(ErrorKind::UnknownRequest, format!("type {}", n))),
         }
     }
-
-    // OLD CODE THAT'S STILL IN USE!!
-    // OLD CODE THAT'S STILL IN USE!!
-    // OLD CODE THAT'S STILL IN USE!!
-    // OLD CODE THAT'S STILL IN USE!!
-    // OLD CODE THAT'S STILL IN USE!!
-
-    // TODO: I really think this should be done with something like protobuf / flatbuffers / Cap'n Proto,
-    // especially if people using different languages had to use it
-    // Another reason for some proper schema: messages pushed back to the client which will require
-    // extra parsing to determine when the actual message starts and which parts are the reply surb
-
-    // TODO2: perhaps do it the proper way and introduce an error type
-    // TODO3: but if this 'stays' this way, the function could definitely use a clean up
-    pub fn try_from_bytes(req: &[u8]) -> Option<Self> {
-        if req.is_empty() {
-            return None;
-        }
-        let with_reply_surb = match req[0] {
-            n if n == MessageType::WithReplySURB as u8 => true,
-            n if n == MessageType::WithoutReplySURB as u8 => false,
-            n if n == MessageType::IsReply as u8 => {
-                // TODO: this is extremely fragile as only works for the very specific network topology
-                // and number of hops - another reason for some proper serialization library
-                let surb_len = ReplySURB::serialized_len(DEFAULT_NUM_MIX_HOPS);
-
-                if req.len() < surb_len + 1 {
-                    return None;
-                }
-
-                // note the extra +1 (due to message prefix)
-                let surb_bytes = &req[1..1 + surb_len];
-                let reply_surb = ReplySURB::from_bytes(surb_bytes).ok()?;
-
-                return Some(ClientRequest::Reply {
-                    message: req[1 + surb_len..].to_vec(),
-                    reply_surb,
-                });
-            }
-            _ => return None, // no other option is valid in this context
-        };
-
-        if req.len() < Recipient::LEN + 1 {
-            return None;
-        }
-
-        let mut recipient_bytes = [0u8; Recipient::LEN];
-        recipient_bytes.copy_from_slice(&req[1..Recipient::LEN + 1]);
-        let recipient = Recipient::try_from_bytes(recipient_bytes).ok()?;
-
-        Some(ClientRequest::Send {
-            recipient,
-            data: req[1 + Recipient::LEN..].to_vec(),
-            with_reply_surb,
-        })
-    }
-
-    pub fn into_bytes(self) -> Vec<u8> {
-        match self {
-            // (MessageType::WithReplySURB OR MessageType::WithoutReplySURB) || RECIPIENT || MESSAGE
-            ClientRequest::Send {
-                recipient,
-                data,
-                with_reply_surb,
-            } => std::iter::once(if with_reply_surb {
-                MessageType::WithReplySURB as u8
-            } else {
-                MessageType::WithoutReplySURB as u8
-            })
-            .chain(recipient.to_bytes().iter().cloned())
-            .chain(data.into_iter())
-            .collect(),
-
-            // MessageType::IsReply || REPLY_SURB || MESSAGE
-            // TODO: this is fragile as reply_SURB length CAN BE variable. however temporarily
-            // we are making 'unsafe' assumption that it will be constant
-            ClientRequest::Reply {
-                message,
-                reply_surb,
-            } => std::iter::once(MessageType::IsReply as u8)
-                .chain(reply_surb.to_bytes().into_iter())
-                .chain(message.into_iter())
-                .collect(),
-
-            ClientRequest::SelfAddress => todo!(),
-        }
-    }
 }
 
 impl Into<WsMessage> for ClientRequest {
     fn into(self) -> WsMessage {
-        WsMessage::Binary(self.into_bytes())
+        WsMessage::Binary(self.serialize())
     }
 }
 
@@ -370,6 +283,13 @@ pub enum ServerResponse {
 }
 
 impl ServerResponse {
+    pub(crate) fn new_error<S: Into<String>>(message: S) -> Self {
+        ServerResponse::Error(Error {
+            kind: ErrorKind::Other,
+            message: message.into(),
+        })
+    }
+
     // RECEIVED_RESPONSE_TAG || with_reply || (surb_len || surb) || msg_len || msg
     fn serialize_received(reconstructed_message: ReconstructedMessage) -> Vec<u8> {
         let message_len_bytes = (reconstructed_message.message.len() as u64).to_be_bytes();
@@ -557,6 +477,8 @@ impl ServerResponse {
             _ if b[1] == (ErrorKind::UnknownResponse as u8) => ErrorKind::UnknownResponse,
             _ if b[1] == (ErrorKind::MalformedResponse as u8) => ErrorKind::MalformedResponse,
 
+            _ if b[1] == (ErrorKind::Other as u8) => ErrorKind::Other,
+
             n => {
                 return Err(Error::new(
                     ErrorKind::MalformedResponse,
@@ -637,39 +559,17 @@ impl ServerResponse {
             }
         }
     }
-
-    // OLD CODE THAT'S STILL IN USE!!
-    // OLD CODE THAT'S STILL IN USE!!
-    // OLD CODE THAT'S STILL IN USE!!
-    // OLD CODE THAT'S STILL IN USE!!
-
-    pub fn into_bytes(self) -> Vec<u8> {
-        match self {
-            // this happens to work because right now there's only a single possible binary response
-            ServerResponse::Received(reconstructed_message) => reconstructed_message.into_bytes(),
-            _ => todo!(),
-        }
-    }
-
-    // TODO: dont be lazy and define error type and change it into Result<Self, Error>
-    pub fn try_from_bytes(b: &[u8]) -> Option<Self> {
-        // this happens to work because right now there's only a single possible binary response
-        Some(ServerResponse::Received(
-            ReconstructedMessage::try_from_bytes(b).ok()?,
-        ))
-    }
 }
 
 impl Into<WsMessage> for ServerResponse {
     fn into(self) -> WsMessage {
-        WsMessage::Binary(self.into_bytes())
+        WsMessage::Binary(self.serialize())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    // use bincode::{DefaultOptions, Options};
     use crypto::asymmetric::{encryption, identity};
 
     // very basic tests to check for obvious errors like off by one

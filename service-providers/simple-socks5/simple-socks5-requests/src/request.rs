@@ -89,14 +89,16 @@ impl Request {
             return Err(RequestError::NoData);
         }
 
-        if b.len() < 9
-        {
+        if b.len() < 9 {
             return Err(RequestError::ConnectionIdTooShort);
         }
 
         println!("whole request: {:?}", b);
         let connection_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
-        println!("connection_id_bytes: {:?}", [b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
+        println!(
+            "connection_id_bytes: {:?}",
+            [b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]
+        );
         println!("connection_id: {}", connection_id);
         match RequestFlag::try_from(b[0])? {
             RequestFlag::Connect => {
@@ -239,7 +241,7 @@ mod request_deserialization_tests {
                 111,
                 109,
             ]
-                .to_vec();
+            .to_vec();
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {
                 Request::Connect(conn_id, remote_address, data) => {
@@ -277,7 +279,7 @@ mod request_deserialization_tests {
                 255,
                 255,
             ]
-                .to_vec();
+            .to_vec();
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {
@@ -326,7 +328,7 @@ mod request_deserialization_tests {
                 255,
                 255,
             ]
-                .to_vec();
+            .to_vec();
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {

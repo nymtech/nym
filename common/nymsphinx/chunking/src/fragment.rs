@@ -568,7 +568,7 @@ mod fragment {
                 None,
                 Some(1234),
             )
-                .unwrap(),
+            .unwrap(),
             payload: msg,
         };
         let packet_bytes = fragment.clone().into_bytes();
@@ -585,7 +585,7 @@ mod fragment {
                 None,
                 Some(1234),
             )
-                .unwrap(),
+            .unwrap(),
             payload: msg,
         };
         let packet_bytes = fragment.clone().into_bytes();
@@ -627,7 +627,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_ok());
+        .is_ok());
         assert!(Fragment::try_new(
             &non_full_payload,
             id,
@@ -637,7 +637,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_ok());
+        .is_ok());
 
         assert!(Fragment::try_new(
             &non_full_payload2,
@@ -648,7 +648,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_ok());
+        .is_ok());
         assert!(Fragment::try_new(
             &non_full_payload2,
             id,
@@ -658,7 +658,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_ok());
+        .is_ok());
     }
 
     #[test]
@@ -680,7 +680,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_err());
+        .is_err());
         assert!(Fragment::try_new(
             &non_full_payload,
             id,
@@ -690,7 +690,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_err());
+        .is_err());
 
         assert!(Fragment::try_new(
             &too_much_payload,
@@ -701,7 +701,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_err());
+        .is_err());
         assert!(Fragment::try_new(
             &too_much_payload,
             id,
@@ -711,7 +711,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_err());
+        .is_err());
         assert!(Fragment::try_new(
             &too_much_payload,
             id,
@@ -721,7 +721,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_err());
+        .is_err());
 
         assert!(Fragment::try_new(
             &non_full_payload2,
@@ -732,7 +732,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_err());
+        .is_err());
         assert!(Fragment::try_new(
             &non_full_payload2,
             id,
@@ -742,7 +742,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_err());
+        .is_err());
     }
 
     #[test]
@@ -763,7 +763,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_ok());
+        .is_ok());
         assert!(Fragment::try_new(
             &full_payload,
             id,
@@ -773,7 +773,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_ok());
+        .is_ok());
         assert!(Fragment::try_new(
             &non_full_payload,
             id,
@@ -783,7 +783,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_ok());
+        .is_ok());
         assert!(Fragment::try_new(
             &non_full_payload2,
             id,
@@ -793,7 +793,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_ok());
+        .is_ok());
 
         assert!(Fragment::try_new(
             &full_payload,
@@ -804,7 +804,7 @@ mod fragment {
             Some(link_id),
             max_plaintext_size(),
         )
-            .is_ok());
+        .is_ok());
     }
 
     #[test]
@@ -825,7 +825,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_err());
+        .is_err());
         assert!(Fragment::try_new(
             &non_full_payload2,
             id,
@@ -835,7 +835,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_err());
+        .is_err());
         assert!(Fragment::try_new(
             &too_much_payload,
             id,
@@ -845,7 +845,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_err());
+        .is_err());
         assert!(Fragment::try_new(
             &too_much_payload,
             id,
@@ -855,7 +855,7 @@ mod fragment {
             None,
             max_plaintext_size(),
         )
-            .is_err());
+        .is_err());
 
         assert!(Fragment::try_new(
             &non_full_payload,
@@ -866,7 +866,7 @@ mod fragment {
             Some(link_id),
             max_plaintext_size(),
         )
-            .is_err());
+        .is_err());
         assert!(Fragment::try_new(
             &non_full_payload2,
             id,
@@ -876,7 +876,7 @@ mod fragment {
             Some(link_id),
             max_plaintext_size(),
         )
-            .is_err());
+        .is_err());
 
         assert!(Fragment::try_new(
             &too_much_payload,
@@ -887,7 +887,7 @@ mod fragment {
             Some(link_id),
             max_plaintext_size(),
         )
-            .is_err());
+        .is_err());
     }
 }
 
@@ -991,7 +991,7 @@ mod fragment_header {
                 None,
                 Some(0),
             )
-                .is_err());
+            .is_err());
         }
 
         #[test]
@@ -1049,7 +1049,7 @@ mod fragment_header {
                 None,
                 Some(1234),
             )
-                .is_ok());
+            .is_ok());
             assert!(FragmentHeader::try_new(12345, 10, 2, Some(1234), None).is_err());
         }
 

@@ -4,8 +4,8 @@ use crate::client::received_buffer::{ReceivedBufferMessage, ReceivedBufferReques
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use simple_socks5_requests::Response;
 use nymsphinx::receiver::ReconstructedMessage;
+use simple_socks5_requests::Response;
 
 pub(crate) struct MixnetResponseListener {
     buffer_requester: ReceivedBufferRequestSender,
@@ -39,8 +39,8 @@ impl MixnetResponseListener {
     }
 
     async fn on_message(&self, bytes: Vec<u8>) {
-
-        let reconstructed_message = ReconstructedMessage::try_from_bytes(&bytes).expect("todo: error handling");
+        let reconstructed_message =
+            ReconstructedMessage::try_from_bytes(&bytes).expect("todo: error handling");
         let raw_message = reconstructed_message.message;
         if reconstructed_message.reply_SURB.is_some() {
             println!("this message had a surb - we didn't do anything with it");

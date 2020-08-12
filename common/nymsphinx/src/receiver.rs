@@ -70,9 +70,14 @@ impl ReconstructedMessage {
                 reply_SURB: None,
             }),
             n => {
-                println!("the received prefix was: {:?} expected one of {} or {}", n, MessageType::WithReplySURB as u8, MessageType::WithoutReplySURB as u8);
+                println!(
+                    "the received prefix was: {:?} expected one of {} or {}",
+                    n,
+                    MessageType::WithReplySURB as u8,
+                    MessageType::WithoutReplySURB as u8
+                );
                 Err(MessageRecoveryError::InvalidSurbPrefixError)
-            },
+            }
         }
     }
 }

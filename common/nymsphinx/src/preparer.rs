@@ -88,8 +88,8 @@ pub struct MessagePreparer<R: CryptoRng + Rng> {
 }
 
 impl<R> MessagePreparer<R>
-    where
-        R: CryptoRng + Rng,
+where
+    R: CryptoRng + Rng,
 {
     pub fn new(
         rng: R,
@@ -339,9 +339,9 @@ impl<R> MessagePreparer<R>
         let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::ACKPacket.size();
         if message.len()
             > self.packet_size.plaintext_size()
-            - ack_overhead
-            - ReplySURBKeyDigestAlgorithm::output_size()
-            - 1
+                - ack_overhead
+                - ReplySURBKeyDigestAlgorithm::output_size()
+                - 1
         {
             return Err(PreparationError::TooLongReplyMessageError);
         }

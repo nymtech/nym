@@ -177,7 +177,7 @@ impl SocksClient {
 
                 loop {
                     if let Ok(request_data_bytes) =
-                    SocksRequest::try_read_request_data(&mut self.stream).await
+                        SocksRequest::try_read_request_data(&mut self.stream).await
                     {
                         if request_data_bytes.is_empty() {
                             break;

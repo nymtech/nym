@@ -61,8 +61,8 @@ impl ReplySURB {
         average_delay: time::Duration,
         topology: &NymTopology,
     ) -> Result<Self, NymTopologyError>
-        where
-            R: RngCore + CryptoRng,
+    where
+        R: RngCore + CryptoRng,
     {
         let route =
             topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, &recipient.gateway())?;

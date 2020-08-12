@@ -1,14 +1,14 @@
 use crate::{controller::Controller, websocket};
 use futures::SinkExt;
 use futures_util::StreamExt;
+use nymsphinx::params::MessageType;
+use nymsphinx::receiver::ReconstructedMessage;
+use simple_socks5_requests::Request;
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::WebSocketStream;
 use websocket::WebsocketConnectionError;
-use simple_socks5_requests::Request;
-use nymsphinx::receiver::ReconstructedMessage;
-use nymsphinx::params::MessageType;
 
 pub struct ServiceProvider {
     runtime: Runtime,

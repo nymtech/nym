@@ -29,8 +29,8 @@ use std::sync::Arc;
 
 // responsible for packet retransmission upon fired timer
 pub(super) struct RetransmissionRequestListener<R>
-    where
-        R: CryptoRng + Rng,
+where
+    R: CryptoRng + Rng,
 {
     ack_key: Arc<AckKey>,
     ack_recipient: Recipient,
@@ -42,8 +42,8 @@ pub(super) struct RetransmissionRequestListener<R>
 }
 
 impl<R> RetransmissionRequestListener<R>
-    where
-        R: CryptoRng + Rng,
+where
+    R: CryptoRng + Rng,
 {
     pub(super) fn new(
         ack_key: Arc<AckKey>,

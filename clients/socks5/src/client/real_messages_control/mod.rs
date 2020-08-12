@@ -20,6 +20,7 @@ use self::{
     acknowlegement_control::AcknowledgementController, real_traffic_stream::OutQueueControl,
 };
 use crate::client::real_messages_control::acknowlegement_control::AcknowledgementControllerConnectors;
+use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{
     inbound_messages::InputMessageReceiver, mix_traffic::MixMessageSender,
     topology_control::TopologyAccessor,
@@ -27,19 +28,19 @@ use crate::client::{
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
-use nymsphinx::acknowledgements::identifier::AckAes128Key;
+use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
-use topology::NymTopology;
 
 mod acknowlegement_control;
 mod real_traffic_stream;
 
 pub(crate) struct Config {
+    ack_key: Arc<AckKey>,
     ack_wait_multiplier: f64,
     ack_wait_addition: Duration,
     self_recipient: Recipient,
@@ -50,6 +51,7 @@ pub(crate) struct Config {
 
 impl Config {
     pub(crate) fn new(
+        ack_key: Arc<AckKey>,
         ack_wait_multiplier: f64,
         ack_wait_addition: Duration,
         average_ack_delay_duration: Duration,
@@ -58,6 +60,7 @@ impl Config {
         self_recipient: Recipient,
     ) -> Self {
         Config {
+            ack_key,
             self_recipient,
             average_packet_delay_duration,
             average_ack_delay_duration,
@@ -68,24 +71,24 @@ impl Config {
     }
 }
 
-pub(crate) struct RealMessagesController<R, T>
+pub(crate) struct RealMessagesController<R>
 where
     R: CryptoRng + Rng,
-    T: NymTopology,
 {
-    out_queue_control: Option<OutQueueControl<R, T>>,
-    ack_control: Option<AcknowledgementController<R, T>>,
+    out_queue_control: Option<OutQueueControl<R>>,
+    ack_control: Option<AcknowledgementController<R>>,
 }
 
 // obviously when we finally make shared rng that is on 'higher' level, this should become
 // generic `R`
-impl<T: 'static + NymTopology> RealMessagesController<OsRng, T> {
+impl RealMessagesController<OsRng> {
     pub(crate) fn new(
         config: Config,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: MixMessageSender,
-        topology_access: TopologyAccessor<T>,
+        topology_access: TopologyAccessor,
+        reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         let rng = OsRng;
 
@@ -102,7 +105,9 @@ impl<T: 'static + NymTopology> RealMessagesController<OsRng, T> {
         let ack_control = AcknowledgementController::new(
             rng,
             topology_access.clone(),
+            Arc::clone(&config.ack_key),
             config.self_recipient.clone(),
+            reply_key_storage,
             config.average_packet_delay_duration,
             config.average_ack_delay_duration,
             config.ack_wait_multiplier,
@@ -111,7 +116,7 @@ impl<T: 'static + NymTopology> RealMessagesController<OsRng, T> {
         );
 
         let out_queue_control = OutQueueControl::new(
-            ack_control.ack_key(),
+            Arc::clone(&config.ack_key),
             config.average_ack_delay_duration,
             config.average_packet_delay_duration,
             config.average_message_sending_delay,
@@ -127,11 +132,6 @@ impl<T: 'static + NymTopology> RealMessagesController<OsRng, T> {
             out_queue_control: Some(out_queue_control),
             ack_control: Some(ack_control),
         }
-    }
-
-    // Note: this method can only be called before `run` is called
-    pub(super) fn ack_key(&self) -> Arc<AckAes128Key> {
-        self.ack_control.as_ref().unwrap().ack_key()
     }
 
     pub(super) async fn run(&mut self) {

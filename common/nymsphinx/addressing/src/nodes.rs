@@ -12,9 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crypto::asymmetric::identity;
 use nymsphinx_types::{NodeAddressBytes, NODE_ADDRESS_LENGTH};
 use std::convert::{TryFrom, TryInto};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+
+// Not entirely sure whether this is the correct place for those, but let's see how it's going
+// to work out
+pub type NodeIdentity = identity::PublicKey;
+pub const NODE_IDENTITY_SIZE: usize = identity::PUBLIC_KEY_LENGTH;
 
 /// This module is responsible for encoding and decoding node routing information, so that
 /// they could be later put into an appropriate field in a sphinx header.
@@ -35,6 +41,12 @@ pub enum NymNodeRoutingAddressError {
 /// At this point of time it is a simple `SocketAddr`.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct NymNodeRoutingAddress(SocketAddr);
+
+impl std::fmt::Display for NymNodeRoutingAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 impl NymNodeRoutingAddress {
     /// Minimum number of bytes that need to be available to represent self.

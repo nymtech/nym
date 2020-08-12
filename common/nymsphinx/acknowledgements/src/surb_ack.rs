@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::identifier::{prepare_identifier, AckAes128Key};
+use crate::identifier::prepare_identifier;
+use crate::AckKey;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nymsphinx_params::packet_sizes::PacketSize;
+use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
 use nymsphinx_types::builder::SphinxPacketBuilder;
 use nymsphinx_types::{
     delays::{self, Delay},
-    Destination, SphinxPacket,
+    SphinxPacket,
 };
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
@@ -41,21 +43,21 @@ pub enum SURBAckRecoveryError {
 }
 
 impl SURBAck {
-    pub fn construct<R, T>(
+    pub fn construct<R>(
         rng: &mut R,
         recipient: &Recipient,
-        ack_key: &AckAes128Key,
+        ack_key: &AckKey,
         marshaled_fragment_id: [u8; 5],
         average_delay: time::Duration,
-        topology: &T,
+        topology: &NymTopology,
     ) -> Result<Self, NymTopologyError>
     where
         R: RngCore + CryptoRng,
-        T: NymTopology,
     {
-        let route = topology.random_route_to_gateway(&recipient.gateway())?;
+        let route =
+            topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, &recipient.gateway())?;
         let delays = delays::generate_from_average_duration(route.len(), average_delay);
-        let destination = Destination::new(recipient.destination(), Default::default());
+        let destination = recipient.as_sphinx_destination();
 
         let surb_ack_payload = prepare_identifier(rng, ack_key, marshaled_fragment_id);
 

@@ -15,7 +15,7 @@
 use self::client::ClientHandshake;
 use self::error::HandshakeError;
 use self::gateway::GatewayHandshake;
-pub use self::shared_key::{SharedKey, SharedKeySize};
+pub use self::shared_key::{SharedKeySize, SharedKeys};
 use crypto::asymmetric::identity;
 use futures::{Sink, Stream};
 use rand::rngs::OsRng;
@@ -43,7 +43,7 @@ pub async fn client_handshake<'a, S>(
     ws_stream: &'a mut S,
     identity: &'a identity::KeyPair,
     gateway_pubkey: identity::PublicKey,
-) -> Result<SharedKey, HandshakeError>
+) -> Result<SharedKeys, HandshakeError>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
 {
@@ -55,7 +55,7 @@ pub async fn gateway_handshake<'a, S>(
     ws_stream: &'a mut S,
     identity: &'a identity::KeyPair,
     received_init_payload: Vec<u8>,
-) -> Result<SharedKey, HandshakeError>
+) -> Result<SharedKeys, HandshakeError>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
 {

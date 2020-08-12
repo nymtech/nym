@@ -33,7 +33,6 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub enum MixProcessingError {
     ReceivedForwardHopError,
-    NonMatchingRecipient,
     UnsupportedSphinxPacketSize(usize),
     SphinxProcessingError(SphinxError),
     IncorrectlyFormattedSURBAck(SURBAckRecoveryError),
@@ -141,9 +140,7 @@ impl PacketProcessor {
             _ => panic!("received response to wrong query!"), // again, this should NEVER happen
         };
 
-        if client_sender.is_none() {
-            return None;
-        }
+        client_sender.as_ref()?;
 
         let client_sender = client_sender.unwrap();
         // finally re-acquire the lock to update the cache
@@ -190,12 +187,7 @@ impl PacketProcessor {
             Ok(ProcessedPacket::ProcessedPacketFinalHop(client_address, _surb_id, payload)) => {
                 // in our current design, we do not care about the 'surb_id' in the header
                 // as it will always be empty anyway
-                let (payload_destination, message) =
-                    payload.try_recover_destination_and_plaintext()?;
-                // TODO: @AP, does that check still make sense?
-                if client_address != payload_destination {
-                    return Err(MixProcessingError::NonMatchingRecipient);
-                }
+                let message = payload.recover_plaintext()?;
                 Ok((client_address, message))
             }
             Err(e) => {
@@ -272,7 +264,7 @@ impl PacketProcessor {
                 .store_processed_packet_payload(client_address.clone(), unsent_plaintext)
                 .await
             {
-                return Err(io_err)?;
+                return Err(io_err.into());
             } else {
                 trace!(
                     "Managed to store packet for {:?} on the disk",
@@ -295,7 +287,7 @@ impl PacketProcessor {
                 ack_first_hop
             );
             self.ack_sender
-                .unbounded_send((ack_first_hop.into(), ack_packet))
+                .unbounded_send((ack_first_hop, ack_packet))
                 .unwrap();
         }
 

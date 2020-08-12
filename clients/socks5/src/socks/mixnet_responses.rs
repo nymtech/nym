@@ -5,6 +5,7 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use simple_socks5_requests::Response;
+use nymsphinx::receiver::ReconstructedMessage;
 
 pub(crate) struct MixnetResponseListener {
     buffer_requester: ReceivedBufferRequestSender,
@@ -38,7 +39,14 @@ impl MixnetResponseListener {
     }
 
     async fn on_message(&self, bytes: Vec<u8>) {
-        let response = match Response::try_from_bytes(&bytes) {
+
+        let reconstructed_message = ReconstructedMessage::try_from_bytes(&bytes).expect("todo: error handling");
+        let raw_message = reconstructed_message.message;
+        if reconstructed_message.reply_SURB.is_some() {
+            println!("this message had a surb - we didn't do anything with it");
+        }
+
+        let response = match Response::try_from_bytes(&raw_message) {
             Err(err) => {
                 warn!("failed to parse received response - {:?}", err);
                 return;
@@ -63,7 +71,7 @@ impl MixnetResponseListener {
     pub(crate) async fn run(&mut self) {
         while let Some(received_responses) = self.mix_response_receiver.next().await {
             for received_response in received_responses {
-                self.on_message(received_response).await;
+                self.on_message(received_response.into_bytes()).await;
             }
         }
         println!("We should never see this message");

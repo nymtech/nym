@@ -12,8 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crypto::asymmetric::{encryption, identity};
 use serde::{Deserialize, Serialize};
-use topology::gateway;
+use std::convert::TryInto;
+use std::io;
+use std::net::ToSocketAddrs;
+
+#[derive(Debug)]
+pub enum ConversionError {
+    InvalidKeyError,
+    InvalidAddress(io::Error),
+}
+
+impl From<identity::SignatureError> for ConversionError {
+    fn from(_: identity::SignatureError) -> Self {
+        ConversionError::InvalidKeyError
+    }
+}
+
+impl From<encryption::EncryptionKeyError> for ConversionError {
+    fn from(_: encryption::EncryptionKeyError) -> Self {
+        ConversionError::InvalidKeyError
+    }
+}
+
+impl From<io::Error> for ConversionError {
+    fn from(err: io::Error) -> Self {
+        ConversionError::InvalidAddress(err)
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -23,67 +50,30 @@ pub struct GatewayPresence {
     pub mixnet_listener: String,
     pub identity_key: String,
     pub sphinx_key: String,
-    pub registered_clients: Vec<GatewayClient>,
     pub last_seen: u64,
     pub version: String,
 }
 
-impl Into<topology::gateway::Node> for GatewayPresence {
-    fn into(self) -> topology::gateway::Node {
-        topology::gateway::Node {
+impl TryInto<topology::gateway::Node> for GatewayPresence {
+    type Error = ConversionError;
+
+    fn try_into(self) -> Result<topology::gateway::Node, Self::Error> {
+        let resolved_mix_hostname = self.mixnet_listener.to_socket_addrs()?.next();
+        if resolved_mix_hostname.is_none() {
+            return Err(ConversionError::InvalidAddress(io::Error::new(
+                io::ErrorKind::Other,
+                "no valid socket address",
+            )));
+        }
+
+        Ok(topology::gateway::Node {
             location: self.location,
-            client_listener: self.client_listener.parse().unwrap(),
-            mixnet_listener: self.mixnet_listener.parse().unwrap(),
-            identity_key: self.identity_key,
-            sphinx_key: self.sphinx_key,
-            registered_clients: self
-                .registered_clients
-                .into_iter()
-                .map(|c| c.into())
-                .collect(),
+            client_listener: self.client_listener,
+            mixnet_listener: resolved_mix_hostname.unwrap(),
+            identity_key: identity::PublicKey::from_base58_string(self.identity_key)?,
+            sphinx_key: encryption::PublicKey::from_base58_string(self.sphinx_key)?,
             last_seen: self.last_seen,
             version: self.version,
-        }
-    }
-}
-
-impl From<topology::gateway::Node> for GatewayPresence {
-    fn from(mpn: gateway::Node) -> Self {
-        GatewayPresence {
-            location: mpn.location,
-            client_listener: mpn.client_listener.to_string(),
-            mixnet_listener: mpn.mixnet_listener.to_string(),
-            identity_key: mpn.identity_key,
-            sphinx_key: mpn.sphinx_key,
-            registered_clients: mpn
-                .registered_clients
-                .into_iter()
-                .map(|c| c.into())
-                .collect(),
-            last_seen: mpn.last_seen,
-            version: mpn.version,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GatewayClient {
-    pub pub_key: String,
-}
-
-impl Into<topology::gateway::Client> for GatewayClient {
-    fn into(self) -> topology::gateway::Client {
-        topology::gateway::Client {
-            pub_key: self.pub_key,
-        }
-    }
-}
-
-impl From<topology::gateway::Client> for GatewayClient {
-    fn from(mpc: topology::gateway::Client) -> Self {
-        GatewayClient {
-            pub_key: mpc.pub_key,
-        }
+        })
     }
 }

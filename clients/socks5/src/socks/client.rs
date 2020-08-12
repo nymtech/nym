@@ -112,19 +112,30 @@ impl SocksClient {
     }
 
     async fn send_request_to_mixnet(&mut self, request: Request) {
+        let req_bytes = self.connection_id.to_be_bytes();
         println!(
             "Sending request {:?} outbound through mixnet",
             self.connection_id
         );
-        self.send_to_mixnet(request.into_bytes()).await;
+        println!("connection_id_bytes: {:?}", req_bytes);
+
+        let b = request.into_bytes();
+        print!("b: {:?}", b);
+        self.send_to_mixnet(b).await;
     }
 
     async fn send_request_to_mixnet_and_get_response(&mut self, request: Request) -> Vec<u8> {
+        let req_bytes = self.connection_id.to_be_bytes();
+
         println!(
             "Sending request {:?} outbound through mixnet",
             self.connection_id
         );
-        self.send_to_mixnet(request.into_bytes()).await;
+        println!("connection_id_bytes: {:?}", req_bytes);
+
+        let b = request.into_bytes();
+        print!("b: {:?}", b);
+        self.send_to_mixnet(b).await;
 
         // refactor idea: crossbeam oneshot channels are faster
         let (sender, receiver) = oneshot::channel();
@@ -152,9 +163,8 @@ impl SocksClient {
                 trace!("Connecting to: {:?}", request.to_socket());
                 self.acknowledge_socks5().await;
 
-                let request_data_bytes = SocksRequest::try_read_request_data(&mut self.stream)
-                    .await
-                    .expect("todo: deal with error");
+                let request_data_bytes =
+                    SocksRequest::try_read_request_data(&mut self.stream).await?;
                 let socks_provider_request = Request::new_connect(
                     self.connection_id,
                     remote_address.clone(),
@@ -167,7 +177,7 @@ impl SocksClient {
 
                 loop {
                     if let Ok(request_data_bytes) =
-                        SocksRequest::try_read_request_data(&mut self.stream).await
+                    SocksRequest::try_read_request_data(&mut self.stream).await
                     {
                         if request_data_bytes.is_empty() {
                             break;
@@ -198,7 +208,8 @@ impl SocksClient {
     /// reassembled at the destination service provider at the other end, then
     /// sent onwards anonymously.
     async fn send_to_mixnet(&self, request_bytes: Vec<u8>) {
-        let input_message = InputMessage::new(self.service_provider.clone(), request_bytes);
+        let input_message =
+            InputMessage::new_fresh(self.service_provider.clone(), request_bytes, false);
         self.input_sender.unbounded_send(input_message).unwrap();
     }
 

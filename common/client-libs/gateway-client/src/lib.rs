@@ -22,12 +22,11 @@ use futures::stream::{SplitSink, SplitStream};
 use futures::{future::BoxFuture, FutureExt, SinkExt, Stream, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
-use gateway_requests::registration::handshake::{client_handshake, SharedKey, DEFAULT_RNG};
-use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
+use gateway_requests::registration::handshake::{client_handshake, SharedKeys, DEFAULT_RNG};
+use gateway_requests::{BinaryRequest, BinaryResponse, ClientControlRequest, ServerResponse};
 use log::*;
-use nymsphinx::SphinxPacket;
+use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
 use std::convert::TryFrom;
-use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
@@ -77,6 +76,7 @@ impl<'a> PartiallyDelegated<'a> {
     fn split_and_listen_for_mixnet_messages(
         conn: WsConn,
         packet_router: PacketRouter,
+        shared_key: Arc<SharedKeys>,
     ) -> Result<Self, GatewayClientError> {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
         // read control request responses.
@@ -95,15 +95,28 @@ impl<'a> PartiallyDelegated<'a> {
                     msg = read_ws_stream_message(&mut stream) => {
                         match msg? {
                             Message::Binary(bin_msg) => {
+                                // this function decrypts the request and checks the MAC
+                                let plaintext = match BinaryResponse::try_from_encrypted_tagged_bytes(bin_msg, shared_key.as_ref()) {
+                                    Ok(bin_response) => match bin_response {
+                                        BinaryResponse::PushedMixMessage(plaintext) => plaintext,
+                                    },
+                                    Err(err) => {
+                                        warn!("message received from the gateway was malformed! - {:?}", err);
+                                        continue
+                                    }
+                                };
+
                                 // TODO: some batching mechanism to allow reading and sending more than
                                 // one packet at the time, because the receiver can easily handle it
-                                packet_router.route_received(vec![bin_msg])
+                                packet_router.route_received(vec![plaintext])
                             },
                             // I think that in the future we should perhaps have some sequence number system, i.e.
                             // so each request/response pair can be easily identified, so that if messages are
                             // not ordered (for some peculiar reason) we wouldn't lose anything.
                             // This would also require NOT discarding any text responses here.
-                            Message::Text(_) => debug!("received a text message - probably a response to some previous query!"),
+
+                            // TODO: those can return the "send confirmations" - perhaps it should be somehow worked around?
+                            Message::Text(text) => debug!("received a text message - probably a response to some previous query! - {}", text),
                             _ => (),
                         };
                     }
@@ -179,7 +192,7 @@ pub struct GatewayClient<'a, R> {
     gateway_address: R,
     gateway_identity: identity::PublicKey,
     local_identity: Arc<identity::KeyPair>,
-    shared_key: Option<SharedKey>,
+    shared_key: Option<Arc<SharedKeys>>,
     connection: SocketState<'a>,
     packet_router: PacketRouter,
     response_timeout_duration: Duration,
@@ -191,7 +204,7 @@ impl<'a, R> GatewayClient<'static, R> {
         gateway_address: R,
         local_identity: Arc<identity::KeyPair>,
         gateway_identity: identity::PublicKey,
-        shared_key: Option<SharedKey>,
+        shared_key: Option<Arc<SharedKeys>>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
@@ -307,11 +320,12 @@ impl<'a, R> GatewayClient<'static, R> {
         &mut self,
         msg: Message,
     ) -> Result<ServerResponse, GatewayClientError> {
-        let mut should_restart_mixnet_listener = false;
-        if self.connection.is_partially_delegated() {
+        let should_restart_mixnet_listener = if self.connection.is_partially_delegated() {
             self.recover_socket_connection().await?;
-            should_restart_mixnet_listener = true;
-        }
+            true
+        } else {
+            false
+        };
 
         let conn = match self.connection {
             SocketState::Available(ref mut conn) => conn,
@@ -341,7 +355,7 @@ impl<'a, R> GatewayClient<'static, R> {
         }
     }
 
-    pub async fn register(&mut self) -> Result<SharedKey, GatewayClientError> {
+    pub async fn register(&mut self) -> Result<SharedKeys, GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
@@ -353,17 +367,17 @@ impl<'a, R> GatewayClient<'static, R> {
                 &mut DEFAULT_RNG,
                 ws_stream,
                 self.local_identity.as_ref(),
-                self.gateway_identity.clone(),
+                self.gateway_identity,
             )
             .await
-            .map_err(|handshake_err| GatewayClientError::RegistrationFailure(handshake_err)),
+            .map_err(GatewayClientError::RegistrationFailure),
             _ => unreachable!(),
         }
     }
 
     pub async fn authenticate(
         &mut self,
-        shared_key: Option<SharedKey>,
+        shared_key: Option<SharedKeys>,
     ) -> Result<bool, GatewayClientError> {
         if shared_key.is_none() && self.shared_key.is_none() {
             return Err(GatewayClientError::NoSharedKeyAvailable);
@@ -376,7 +390,11 @@ impl<'a, R> GatewayClient<'static, R> {
             .as_ref()
             .unwrap_or_else(|| self.shared_key.as_ref().unwrap());
         let iv = AuthenticationIV::new_random(&mut DEFAULT_RNG);
-        let self_address = self.local_identity.as_ref().public_key().derive_address();
+        let self_address = self
+            .local_identity
+            .as_ref()
+            .public_key()
+            .derive_destination_address();
         let encrypted_address = EncryptedAddressBytes::new(&self_address, shared_key, &iv);
 
         let msg =
@@ -396,7 +414,7 @@ impl<'a, R> GatewayClient<'static, R> {
     /// Helper method to either call register or authenticate based on self.shared_key value
     pub async fn perform_initial_authentication(
         &mut self,
-    ) -> Result<SharedKey, GatewayClientError> {
+    ) -> Result<Arc<SharedKeys>, GatewayClientError> {
         if self.shared_key.is_some() {
             self.authenticate(None).await?;
         } else {
@@ -404,7 +422,7 @@ impl<'a, R> GatewayClient<'static, R> {
         }
         if self.authenticated {
             // if we are authenticated it means we MUST have an associated shared_key
-            Ok(self.shared_key.clone().unwrap())
+            Ok(Arc::clone(&self.shared_key.as_ref().unwrap()))
         } else {
             Err(GatewayClientError::AuthenticationFailure)
         }
@@ -413,7 +431,7 @@ impl<'a, R> GatewayClient<'static, R> {
     // TODO: possibly make responses optional
     pub async fn send_sphinx_packet(
         &mut self,
-        address: SocketAddr,
+        address: NymNodeRoutingAddress,
         packet: SphinxPacket,
     ) -> Result<(), GatewayClientError> {
         if !self.authenticated {
@@ -422,6 +440,8 @@ impl<'a, R> GatewayClient<'static, R> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
+        // note: into_ws_message encrypts the requests and adds a MAC on it. Perhaps it should
+        // be more explicit in the naming?
         let msg = BinaryRequest::new_forward_request(address, packet).into_ws_message(
             self.shared_key
                 .as_ref()
@@ -465,6 +485,11 @@ impl<'a, R> GatewayClient<'static, R> {
                     PartiallyDelegated::split_and_listen_for_mixnet_messages(
                         conn,
                         self.packet_router.clone(),
+                        Arc::clone(
+                            self.shared_key
+                                .as_ref()
+                                .expect("no shared key present even though we're authenticated!"),
+                        ),
                     )?
                 }
                 _ => unreachable!(),
@@ -474,7 +499,7 @@ impl<'a, R> GatewayClient<'static, R> {
         Ok(())
     }
 
-    pub async fn authenticate_and_start(&mut self) -> Result<SharedKey, GatewayClientError>
+    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError>
     where
         R: IntoClientRequest + Unpin + Clone,
     {

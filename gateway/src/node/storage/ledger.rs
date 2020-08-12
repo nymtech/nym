@@ -12,16 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//use directory_client::presence::providers::MixProviderClient;
-//use log::*;
-//use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
-//use sfw_provider_requests::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
-//use std::path::PathBuf;
-
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
 use gateway_requests::generic_array::typenum::Unsigned;
-use gateway_requests::registration::handshake::{SharedKey, SharedKeySize};
+use gateway_requests::registration::handshake::{SharedKeySize, SharedKeys};
 use log::*;
 use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use std::path::PathBuf;
@@ -50,7 +44,7 @@ impl ClientLedger {
         let ledger = ClientLedger { db };
 
         ledger.db.iter().keys().for_each(|key| {
-            println!(
+            trace!(
                 "key: {:?}",
                 ledger
                     .read_destination_address_bytes(key.unwrap())
@@ -61,7 +55,7 @@ impl ClientLedger {
         Ok(ledger)
     }
 
-    fn read_shared_key(&self, raw_key: sled::IVec) -> SharedKey {
+    fn read_shared_key(&self, raw_key: sled::IVec) -> SharedKeys {
         let key_bytes_ref = raw_key.as_ref();
         // if this fails it means we have some database corruption and we
         // absolutely can't continue
@@ -72,7 +66,7 @@ impl ClientLedger {
         }
 
         // this can only fail if the bytes have invalid length but we already asserted it
-        SharedKey::try_from_bytes(key_bytes_ref).unwrap()
+        SharedKeys::try_from_bytes(key_bytes_ref).unwrap()
     }
 
     fn read_destination_address_bytes(
@@ -113,7 +107,7 @@ impl ClientLedger {
     pub(crate) fn get_shared_key(
         &self,
         client_address: &DestinationAddressBytes,
-    ) -> Result<Option<SharedKey>, ClientLedgerError> {
+    ) -> Result<Option<SharedKeys>, ClientLedgerError> {
         match self.db.get(&client_address.to_bytes()) {
             Err(e) => Err(ClientLedgerError::DbReadError(e)),
             Ok(existing_key) => Ok(existing_key.map(|key_ivec| self.read_shared_key(key_ivec))),
@@ -122,9 +116,9 @@ impl ClientLedger {
 
     pub(crate) fn insert_shared_key(
         &mut self,
-        shared_key: SharedKey,
+        shared_key: SharedKeys,
         client_address: DestinationAddressBytes,
-    ) -> Result<Option<SharedKey>, ClientLedgerError> {
+    ) -> Result<Option<SharedKeys>, ClientLedgerError> {
         let insertion_result = match self
             .db
             .insert(&client_address.to_bytes(), shared_key.to_bytes())
@@ -143,7 +137,7 @@ impl ClientLedger {
     pub(crate) fn remove_shared_key(
         &mut self,
         client_address: &DestinationAddressBytes,
-    ) -> Result<Option<SharedKey>, ClientLedgerError> {
+    ) -> Result<Option<SharedKeys>, ClientLedgerError> {
         let removal_result = match self.db.remove(&client_address.to_bytes()) {
             Err(e) => Err(ClientLedgerError::DbWriteError(e)),
             Ok(existing_key) => {
@@ -154,23 +148,5 @@ impl ClientLedger {
         // removal of keys happens extremely rarely, so flush is also fine here
         self.db.flush().unwrap();
         removal_result
-    }
-
-    pub(crate) fn current_clients(
-        &self,
-    ) -> Result<Vec<DestinationAddressBytes>, ClientLedgerError> {
-        let clients = self.db.iter().keys();
-
-        let mut client_vec = Vec::new();
-        for client in clients {
-            match client {
-                Err(e) => return Err(ClientLedgerError::DbWriteError(e)),
-                Ok(client_entry) => {
-                    client_vec.push(self.read_destination_address_bytes(client_entry))
-                }
-            }
-        }
-
-        Ok(client_vec)
     }
 }

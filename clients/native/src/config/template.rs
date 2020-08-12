@@ -36,6 +36,16 @@ private_identity_key_file = '{{ client.private_identity_key_file }}'
 # Path to file containing public identity key.
 public_identity_key_file = '{{ client.public_identity_key_file }}'
 
+# Path to file containing private encryption key.
+private_encryption_key_file = '{{ client.private_encryption_key_file }}'
+
+# Path to file containing public encryption key.
+public_encryption_key_file = '{{ client.public_encryption_key_file }}'
+
+# Full path to file containing reply encryption keys of all reply-SURBs we have ever
+# sent but not received back.
+reply_encryption_key_store_path = '{{ client.reply_encryption_key_store_path }}'
+
 ##### additional client config options #####
 
 # ID of the gateway from which the client should be fetching messages.
@@ -46,7 +56,11 @@ gateway_listener = '{{ client.gateway_listener }}'
 
 # A gateway specific, optional, base58 stringified shared key used for
 # communication with particular gateway.
-gateway_shared_key = '{{ client.gateway_shared_key }}'
+gateway_shared_key_file = '{{ client.gateway_shared_key_file }}'
+
+# Path to file containing key used for encrypting and decrypting the content of an
+# acknowledgement so that nobody besides the client knows which packet it refers to.
+ack_key_file = '{{ client.ack_key_file }}'
     
 ##### advanced configuration options #####
 

@@ -15,7 +15,7 @@
 use super::{PendingAcksMap, RetransmissionRequestSender, SentPacketNotificationReceiver};
 use futures::StreamExt;
 use log::*;
-use nymsphinx::chunking::fragment::FragmentIdentifier;
+use nymsphinx::chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -49,6 +49,16 @@ impl SentNotificationListener {
     }
 
     async fn on_sent_message(&mut self, frag_id: FragmentIdentifier) {
+        if frag_id == COVER_FRAG_ID {
+            trace!("sent off a cover message - no need to start retransmission timer!");
+            return;
+        } else if frag_id.is_reply() {
+            debug!("sent off a reply message - no need to start retransmission timer!");
+            // TODO: probably there will need to be some extra procedure here, like it would
+            // be nice to know that our reply actually reached the recipient (i.e. we got the ack)
+            return;
+        }
+
         let pending_acks_map_read_guard = self.pending_acks.read().await;
         // if the unwrap failed here, we have some weird bug somewhere
         // although when I think about it, it *theoretically* could happen under extremely heavy client

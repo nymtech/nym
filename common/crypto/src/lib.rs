@@ -13,26 +13,19 @@
 // limitations under the License.
 
 pub mod asymmetric;
-pub mod kdf;
+pub mod crypto_hash;
+pub mod hkdf;
+pub mod hmac;
+pub mod shared_key;
 pub mod symmetric;
 
-// TODO: ideally those trait should be moved to 'pemstore' crate, however, that would cause
-// circular dependency. The best solution would be to remove dependency on 'crypto' from
-// pemstore by using either dynamic dispatch or generics - perhaps this should be done
-// at some point during one of refactors.
+pub use digest::Digest;
+pub use generic_array;
 
-pub trait PemStorableKey {
-    fn pem_type(&self) -> String;
-    fn to_bytes(&self) -> Vec<u8>;
-}
+// with the below my idea was to try to introduce have a single place of importing all hashing, encryption,
+// etc. algorithms and import them elsewhere as needed via common/crypto
+pub use aes_ctr;
+pub use blake3;
 
-pub trait PemStorableKeyPair: Sized {
-    type PrivatePemKey: PemStorableKey;
-    type PublicPemKey: PemStorableKey;
-    type Error: std::error::Error;
-
-    fn private_key(&self) -> &Self::PrivatePemKey;
-    fn public_key(&self) -> &Self::PublicPemKey;
-
-    fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, Self::Error>;
-}
+// TODO: this function uses all three modules: asymmetric crypto, symmetric crypto and derives key...,
+// so I don't know where to put it...

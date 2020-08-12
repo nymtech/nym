@@ -17,7 +17,7 @@ use crate::client::topology_control::TopologyAccessor;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
-use nymsphinx::acknowledgements::identifier::AckAes128Key;
+use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::utils::sample_poisson_duration;
@@ -27,15 +27,13 @@ use std::sync::Arc;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 use tokio::time;
-use topology::NymTopology;
 
-pub(crate) struct LoopCoverTrafficStream<R, T>
+pub(crate) struct LoopCoverTrafficStream<R>
 where
     R: CryptoRng + Rng,
-    T: NymTopology,
 {
     /// Key used to encrypt and decrypt content of an ACK packet.
-    ack_key: Arc<AckAes128Key>,
+    ack_key: Arc<AckKey>,
 
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: time::Duration,
@@ -61,13 +59,12 @@ where
     rng: R,
 
     /// Accessor to the common instance of network topology.
-    topology_access: TopologyAccessor<T>,
+    topology_access: TopologyAccessor,
 }
 
-impl<R, T> Stream for LoopCoverTrafficStream<R, T>
+impl<R> Stream for LoopCoverTrafficStream<R>
 where
     R: CryptoRng + Rng + Unpin,
-    T: NymTopology, // this really confuses me, why T doesn't need to be Unpin?
 {
     // Item is only used to indicate we should create a new message rather than actual cover message
     // reason being to not introduce unnecessary complexity by having to keep state of topology
@@ -98,15 +95,15 @@ where
 
 // obviously when we finally make shared rng that is on 'higher' level, this should become
 // generic `R`
-impl<T: 'static + NymTopology> LoopCoverTrafficStream<OsRng, T> {
+impl LoopCoverTrafficStream<OsRng> {
     pub(crate) fn new(
-        ack_key: Arc<AckAes128Key>,
+        ack_key: Arc<AckKey>,
         average_ack_delay: time::Duration,
         average_packet_delay: time::Duration,
         average_cover_message_sending_delay: time::Duration,
         mix_tx: MixMessageSender,
         our_full_destination: Recipient,
-        topology_access: TopologyAccessor<T>,
+        topology_access: TopologyAccessor,
     ) -> Self {
         let rng = OsRng;
 
@@ -131,8 +128,10 @@ impl<T: 'static + NymTopology> LoopCoverTrafficStream<OsRng, T> {
         // poisson delay, but is it really a problem?
         let topology_permit = self.topology_access.get_read_permit().await;
         // the ack is sent back to ourselves (and then ignored)
-        let topology_ref_option = topology_permit
-            .try_get_valid_topology_ref(&self.our_full_destination, &self.our_full_destination);
+        let topology_ref_option = topology_permit.try_get_valid_topology_ref(
+            &self.our_full_destination,
+            Some(&self.our_full_destination),
+        );
         if topology_ref_option.is_none() {
             warn!("No valid topology detected - won't send any loop cover message this time");
             return;

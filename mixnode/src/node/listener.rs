@@ -16,7 +16,7 @@ use crate::node::packet_processing::{MixProcessingResult, PacketProcessor};
 use futures::channel::mpsc;
 use log::*;
 use nymsphinx::framing::SphinxCodec;
-use nymsphinx::SphinxPacket;
+use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
 use std::io;
 use std::net::SocketAddr;
 use tokio::runtime::Handle;
@@ -27,7 +27,7 @@ use tokio_util::codec::Framed;
 async fn process_received_packet(
     sphinx_packet: SphinxPacket,
     packet_processor: PacketProcessor,
-    forwarding_channel: mpsc::UnboundedSender<(SocketAddr, SphinxPacket)>,
+    forwarding_channel: mpsc::UnboundedSender<(NymNodeRoutingAddress, SphinxPacket)>,
 ) {
     // all processing incl. delay was done, the only thing left is to forward it
     match packet_processor.process_sphinx_packet(sphinx_packet).await {
@@ -54,7 +54,7 @@ async fn process_received_packet(
 async fn process_socket_connection(
     socket: tokio::net::TcpStream,
     packet_processor: PacketProcessor,
-    forwarding_channel: mpsc::UnboundedSender<(SocketAddr, SphinxPacket)>,
+    forwarding_channel: mpsc::UnboundedSender<(NymNodeRoutingAddress, SphinxPacket)>,
 ) {
     let mut framed = Framed::new(socket, SphinxCodec);
     while let Some(sphinx_packet) = framed.next().await {
@@ -89,7 +89,7 @@ pub(crate) fn run_socket_listener(
     handle: &Handle,
     addr: SocketAddr,
     packet_processor: PacketProcessor,
-    forwarding_channel: mpsc::UnboundedSender<(SocketAddr, SphinxPacket)>,
+    forwarding_channel: mpsc::UnboundedSender<(NymNodeRoutingAddress, SphinxPacket)>,
 ) -> JoinHandle<io::Result<()>> {
     let handle_clone = handle.clone();
     handle.spawn(async move {

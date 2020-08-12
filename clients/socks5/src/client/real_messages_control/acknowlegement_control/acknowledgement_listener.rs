@@ -17,21 +17,21 @@ use futures::StreamExt;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
 use nymsphinx::{
-    acknowledgements::{identifier::recover_identifier, AckAes128Key},
+    acknowledgements::{identifier::recover_identifier, AckKey},
     chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID},
 };
 use std::sync::Arc;
 
 // responsible for cancelling retransmission timers and removed entries from the map
 pub(super) struct AcknowledgementListener {
-    ack_key: Arc<AckAes128Key>,
+    ack_key: Arc<AckKey>,
     ack_receiver: AcknowledgementReceiver,
     pending_acks: PendingAcksMap,
 }
 
 impl AcknowledgementListener {
     pub(super) fn new(
-        ack_key: Arc<AckAes128Key>,
+        ack_key: Arc<AckKey>,
         ack_receiver: AcknowledgementReceiver,
         pending_acks: PendingAcksMap,
     ) -> Self {
@@ -60,6 +60,12 @@ impl AcknowledgementListener {
 
         if frag_id == COVER_FRAG_ID {
             trace!("Received an ack for a cover message - no need to do anything");
+            return;
+        } else if frag_id.is_reply() {
+            debug!("Received an ack for a reply message - no need to do anything!");
+            // TODO: probably there will need to be some extra procedure here, something to notify
+            // user that his reply reached the recipient (since we got an ack)
+            info!("We received an ack for one of the replies we sent!");
             return;
         }
 

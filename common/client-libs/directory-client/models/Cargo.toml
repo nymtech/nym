@@ -9,4 +9,5 @@ edition = "2018"
 [dependencies]
 serde = { version = "1.0.104", features = ["derive"] }
 
+crypto = { path = "../../../crypto" }
 topology = { path = "../../../topology" }

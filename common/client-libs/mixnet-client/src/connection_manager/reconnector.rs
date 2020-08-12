@@ -79,11 +79,15 @@ impl<'a> Future for ConnectionReconnector<'a> {
                 // let's ensure our delay is always on a sane side of being maximum 1 day.
                 let maximum_sane_delay = Duration::from_secs(24 * 60 * 60);
 
+                // MIN ( max_sane_delay, max_reconnection_backoff, 2^attempt * initial )
                 let next_delay = std::cmp::min(
                     maximum_sane_delay,
-                    self.initial_reconnection_backoff
-                        .checked_mul(2_u32.pow(self.current_retry_attempt))
-                        .unwrap_or_else(|| self.maximum_reconnection_backoff),
+                    std::cmp::min(
+                        self.initial_reconnection_backoff
+                            .checked_mul(2_u32.pow(self.current_retry_attempt))
+                            .unwrap_or_else(|| self.maximum_reconnection_backoff),
+                        self.maximum_reconnection_backoff,
+                    ),
                 );
 
                 let now = self.current_backoff_delay.deadline();

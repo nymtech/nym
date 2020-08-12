@@ -16,7 +16,7 @@ use crate::connection_manager::{ConnectionManager, ConnectionManagerSender};
 use futures::channel::oneshot;
 use futures::future::AbortHandle;
 use log::*;
-use nymsphinx::SphinxPacket;
+use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
@@ -88,24 +88,26 @@ impl Client {
     // waiting periods
     pub async fn send(
         &mut self,
-        address: SocketAddr,
+        address: NymNodeRoutingAddress,
         packet: SphinxPacket,
         wait_for_response: bool,
     ) -> io::Result<()> {
         trace!("Sending packet to {:?}", address);
-        if !self.connections_managers.contains_key(&address) {
+        let socket_address = address.into();
+
+        if !self.connections_managers.contains_key(&socket_address) {
             debug!(
                 "There is no existing connection to {:?} - it will be established now",
                 address
             );
 
             let (new_manager_sender, abort_handle) =
-                self.start_new_connection_manager(address).await;
+                self.start_new_connection_manager(socket_address).await;
             self.connections_managers
-                .insert(address, (new_manager_sender, abort_handle));
+                .insert(socket_address, (new_manager_sender, abort_handle));
         }
 
-        let manager = self.connections_managers.get_mut(&address).unwrap();
+        let manager = self.connections_managers.get_mut(&socket_address).unwrap();
 
         if wait_for_response {
             let (res_tx, res_rx) = oneshot::channel();

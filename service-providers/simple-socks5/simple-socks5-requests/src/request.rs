@@ -3,6 +3,8 @@ use std::convert::TryFrom;
 pub type ConnectionId = u64;
 pub type RemoteAddress = String;
 
+//9196658814774797586
+//35924448495214053
 #[repr(u8)]
 #[derive(Clone, Copy, Debug)]
 pub enum RequestFlag {
@@ -87,12 +89,15 @@ impl Request {
             return Err(RequestError::NoData);
         }
 
-        if b.len() < 9 {
+        if b.len() < 9
+        {
             return Err(RequestError::ConnectionIdTooShort);
         }
 
+        println!("whole request: {:?}", b);
         let connection_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
-
+        println!("connection_id_bytes: {:?}", [b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
+        println!("connection_id: {}", connection_id);
         match RequestFlag::try_from(b[0])? {
             RequestFlag::Connect => {
                 let connect_request_bytes = &b[9..];
@@ -106,7 +111,9 @@ impl Request {
                     u16::from_be_bytes([connect_request_bytes[0], connect_request_bytes[1]])
                         as usize;
 
+                println!("address_length is {}", address_length);
                 if connect_request_bytes.len() < 2 + address_length {
+                    println!("address too short: {:?}", connect_request_bytes);
                     return Err(RequestError::AddressTooShort);
                 }
 
@@ -135,6 +142,7 @@ impl Request {
             Request::Connect(conn_id, remote_address, data) => {
                 let remote_address_bytes = remote_address.into_bytes();
                 let remote_address_bytes_len = remote_address_bytes.len() as u16;
+                println!("remote_address_bytes_len: {}", remote_address_bytes_len);
                 std::iter::once(RequestFlag::Connect as u8)
                     .chain(conn_id.to_be_bytes().iter().cloned())
                     .chain(remote_address_bytes_len.to_be_bytes().iter().cloned())
@@ -231,7 +239,7 @@ mod request_deserialization_tests {
                 111,
                 109,
             ]
-            .to_vec();
+                .to_vec();
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {
                 Request::Connect(conn_id, remote_address, data) => {
@@ -269,7 +277,7 @@ mod request_deserialization_tests {
                 255,
                 255,
             ]
-            .to_vec();
+                .to_vec();
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {
@@ -318,7 +326,7 @@ mod request_deserialization_tests {
                 255,
                 255,
             ]
-            .to_vec();
+                .to_vec();
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {

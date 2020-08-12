@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crypto::shared_key::new_ephemeral_shared_key;
+use crypto::symmetric::stream_cipher;
 use nymsphinx_acknowledgements::surb_ack::SURBAck;
-use nymsphinx_acknowledgements::AckAes128Key;
+use nymsphinx_acknowledgements::AckKey;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx_chunking::fragment::COVER_FRAG_ID;
 use nymsphinx_params::packet_sizes::PacketSize;
+use nymsphinx_params::{PacketEncryptionAlgorithm, PacketHkdfAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nymsphinx_types::builder::SphinxPacketBuilder;
-use nymsphinx_types::{delays, Destination, Error as SphinxError, SphinxPacket};
+use nymsphinx_types::{delays, Error as SphinxError, SphinxPacket};
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
-use std::net::SocketAddr;
 use std::time;
 use topology::{NymTopology, NymTopologyError};
 
@@ -55,16 +57,15 @@ impl From<NymTopologyError> for CoverMessageError {
     }
 }
 
-pub fn generate_loop_cover_surb_ack<R, T>(
+pub fn generate_loop_cover_surb_ack<R>(
     rng: &mut R,
-    topology: &T,
-    ack_key: &AckAes128Key,
+    topology: &NymTopology,
+    ack_key: &AckKey,
     full_address: &Recipient,
     average_ack_delay: time::Duration,
 ) -> Result<SURBAck, CoverMessageError>
 where
     R: RngCore + CryptoRng,
-    T: NymTopology,
 {
     Ok(SURBAck::construct(
         rng,
@@ -76,50 +77,74 @@ where
     )?)
 }
 
-pub fn generate_loop_cover_packet<R, T>(
+pub fn generate_loop_cover_packet<R>(
     rng: &mut R,
-    topology: &T,
-    ack_key: &AckAes128Key,
+    topology: &NymTopology,
+    ack_key: &AckKey,
     full_address: &Recipient,
     average_ack_delay: time::Duration,
     average_packet_delay: time::Duration,
-) -> Result<(SocketAddr, SphinxPacket), CoverMessageError>
+) -> Result<(NymNodeRoutingAddress, SphinxPacket), CoverMessageError>
 where
     R: RngCore + CryptoRng,
-    T: NymTopology,
 {
     // we don't care about total ack delay - we will not be retransmitting it anyway
     let (_, ack_bytes) =
         generate_loop_cover_surb_ack(rng, topology, ack_key, full_address, average_ack_delay)?
             .prepare_for_sending();
 
-    let plaintext_size = PacketSize::default().plaintext_size();
+    // cover message can't be distinguishable from a normal traffic so we have to go through
+    // all the effort of key generation, encryption, etc. Note here we are generating shared key
+    // with ourselves!
+    let (ephemeral_keypair, shared_key) = new_ephemeral_shared_key::<
+        PacketEncryptionAlgorithm,
+        PacketHkdfAlgorithm,
+        _,
+    >(rng, full_address.encryption_key());
 
-    let cover_payload: Vec<_> = ack_bytes
-        .into_iter()
-        .chain(LOOP_COVER_MESSAGE_PAYLOAD.into_iter().cloned())
-        // let's be lazy about it (temporarily! because cover messages will need to be encrypted)
-        // TODO: to remember: encrypt cover messages
+    let public_key_bytes = ephemeral_keypair.public_key().to_bytes();
+    let cover_size =
+        PacketSize::default().plaintext_size() - public_key_bytes.len() - ack_bytes.len();
+
+    let mut cover_content: Vec<_> = LOOP_COVER_MESSAGE_PAYLOAD
+        .iter()
+        .cloned()
         .chain(std::iter::once(1))
         .chain(std::iter::repeat(0))
-        .take(plaintext_size)
+        .take(cover_size)
         .collect();
 
-    let route = topology.random_route_to_gateway(&full_address.gateway())?;
+    let zero_iv = stream_cipher::zero_iv::<PacketEncryptionAlgorithm>();
+    stream_cipher::encrypt_in_place::<PacketEncryptionAlgorithm>(
+        &shared_key,
+        &zero_iv,
+        &mut cover_content,
+    );
+
+    // combine it together as follows:
+    // SURB_ACK_FIRST_HOP || SURB_ACK_DATA || EPHEMERAL_KEY || COVER_CONTENT
+    // (note: surb_ack_bytes contains SURB_ACK_FIRST_HOP || SURB_ACK_DATA )
+    let packet_payload: Vec<_> = ack_bytes
+        .into_iter()
+        .chain(ephemeral_keypair.public_key().to_bytes().iter().cloned())
+        .chain(cover_content.into_iter())
+        .collect();
+
+    let route =
+        topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, &full_address.gateway())?;
     let delays = delays::generate_from_average_duration(route.len(), average_packet_delay);
-    // in our design we don't care about SURB_ID
-    let destination = Destination::new(full_address.destination(), Default::default());
+    let destination = full_address.as_sphinx_destination();
 
     // once merged, that's an easy rng injection point for sphinx packets : )
     let packet = SphinxPacketBuilder::new()
         .with_payload_size(PacketSize::default().payload_size())
-        .build_packet(cover_payload, &route, &destination, &delays)
+        .build_packet(packet_payload, &route, &destination, &delays)
         .unwrap();
 
     let first_hop_address =
         NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone()).unwrap();
 
-    Ok((first_hop_address.into(), packet))
+    Ok((first_hop_address, packet))
 }
 
 /// Helper function used to determine if given message represents a loop cover message.

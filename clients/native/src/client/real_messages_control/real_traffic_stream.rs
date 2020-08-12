@@ -19,27 +19,24 @@ use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
-use nymsphinx::acknowledgements::identifier::AckAes128Key;
-use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::acknowledgements::AckKey;
+use nymsphinx::addressing::{clients::Recipient, nodes::NymNodeRoutingAddress};
 use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::utils::sample_poisson_duration;
 use nymsphinx::SphinxPacket;
 use rand::{CryptoRng, Rng};
-use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
-use topology::NymTopology;
 
-pub(crate) struct OutQueueControl<R, T>
+pub(crate) struct OutQueueControl<R>
 where
     R: CryptoRng + Rng,
-    T: NymTopology,
 {
     /// Key used to encrypt and decrypt content of an ACK packet.
-    ack_key: Arc<AckAes128Key>,
+    ack_key: Arc<AckKey>,
 
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
@@ -72,18 +69,18 @@ where
     rng: R,
 
     /// Accessor to the common instance of network topology.
-    topology_access: TopologyAccessor<T>,
+    topology_access: TopologyAccessor,
 }
 
 pub(crate) struct RealMessage {
-    first_hop_address: SocketAddr,
+    first_hop_address: NymNodeRoutingAddress,
     packet: SphinxPacket,
     fragment_id: FragmentIdentifier,
 }
 
 impl RealMessage {
     pub(crate) fn new(
-        first_hop_address: SocketAddr,
+        first_hop_address: NymNodeRoutingAddress,
         packet: SphinxPacket,
         fragment_id: FragmentIdentifier,
     ) -> Self {
@@ -105,10 +102,9 @@ pub(crate) enum StreamMessage {
     Real(RealMessage),
 }
 
-impl<R, T> Stream for OutQueueControl<R, T>
+impl<R> Stream for OutQueueControl<R>
 where
     R: CryptoRng + Rng + Unpin,
-    T: NymTopology, // this really confuses me, why T doesn't need to be Unpin?
 {
     type Item = StreamMessage;
 
@@ -144,13 +140,12 @@ where
     }
 }
 
-impl<R, T> OutQueueControl<R, T>
+impl<R> OutQueueControl<R>
 where
     R: CryptoRng + Rng + Unpin,
-    T: NymTopology,
 {
     pub(crate) fn new(
-        ack_key: Arc<AckAes128Key>,
+        ack_key: Arc<AckKey>,
         average_ack_delay: Duration,
         average_packet_delay: Duration,
         average_message_sending_delay: Duration,
@@ -159,7 +154,7 @@ where
         real_receiver: RealMessageReceiver,
         rng: R,
         our_full_destination: Recipient,
-        topology_access: TopologyAccessor<T>,
+        topology_access: TopologyAccessor,
     ) -> Self {
         OutQueueControl {
             ack_key,
@@ -188,7 +183,7 @@ where
                 // the ack is sent back to ourselves (and then ignored)
                 let topology_ref_option = topology_permit.try_get_valid_topology_ref(
                     &self.our_full_destination,
-                    &self.our_full_destination,
+                    Some(&self.our_full_destination),
                 );
                 if topology_ref_option.is_none() {
                     warn!(

@@ -16,6 +16,8 @@ use crate::built_info;
 use directory_client::DirectoryClient;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
+use std::convert::TryInto;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time;
@@ -23,70 +25,73 @@ use std::time::Duration;
 use tokio::runtime::Handle;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::task::JoinHandle;
-use topology::{gateway, NymTopology};
+use topology::NymTopology;
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before
 #[derive(Debug)]
-struct TopologyAccessorInner<T: NymTopology>(Option<T>);
+pub(super) struct TopologyAccessorInner(Option<NymTopology>);
 
-impl<T: NymTopology> Deref for TopologyAccessorInner<T> {
-    type Target = Option<T>;
-
-    fn deref(&self) -> &Self::Target {
+impl AsRef<Option<NymTopology>> for TopologyAccessorInner {
+    fn as_ref(&self) -> &Option<NymTopology> {
         &self.0
     }
 }
 
-impl<T: NymTopology> TopologyAccessorInner<T> {
+impl TopologyAccessorInner {
     fn new() -> Self {
         TopologyAccessorInner(None)
     }
 
-    fn update(&mut self, new: Option<T>) {
+    fn update(&mut self, new: Option<NymTopology>) {
         self.0 = new;
     }
 }
 
-pub(super) struct TopologyReadPermit<'a, T: NymTopology> {
-    permit: RwLockReadGuard<'a, TopologyAccessorInner<T>>,
+pub(super) struct TopologyReadPermit<'a> {
+    permit: RwLockReadGuard<'a, TopologyAccessorInner>,
 }
 
-impl<'a, T: NymTopology> TopologyReadPermit<'a, T> {
+impl<'a> Deref for TopologyReadPermit<'a> {
+    type Target = TopologyAccessorInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.permit
+    }
+}
+
+impl<'a> TopologyReadPermit<'a> {
     /// Using provided topology read permit, tries to get an immutable reference to the underlying
     /// topology. For obvious reasons the lifetime of the topology reference is bound to the permit.
     pub(super) fn try_get_valid_topology_ref(
         &'a self,
         ack_recipient: &Recipient,
-        packet_recipient: &Recipient,
-    ) -> Option<&'a T> {
-        // first we need to deref out of RwLockReadGuard
-        // then we need to deref out of TopologyAccessorInner
-        // then we must take ref of option, i.e. Option<&T>
-        // and finally try to unwrap it to obtain &T
-        let topology_ref_option = (*self.permit.deref()).as_ref();
-
-        if topology_ref_option.is_none() {
-            return None;
-        }
-
-        let topology_ref = topology_ref_option.unwrap();
-
-        // see if it's possible to route the packet to both gateways
-        if !topology_ref.can_construct_path_through()
-            || !topology_ref.gateway_exists(&packet_recipient.gateway())
-            || !topology_ref.gateway_exists(&ack_recipient.gateway())
-        {
-            None
-        } else {
-            Some(topology_ref)
+        packet_recipient: Option<&Recipient>,
+    ) -> Option<&'a NymTopology> {
+        // Note: implicit deref with Deref for TopologyReadPermit is happening here
+        let topology_ref_option = self.permit.as_ref();
+        match topology_ref_option {
+            None => None,
+            Some(topology_ref) => {
+                // see if it's possible to route the packet to both gateways
+                if !topology_ref.can_construct_path_through(DEFAULT_NUM_MIX_HOPS)
+                    || !topology_ref.gateway_exists(&ack_recipient.gateway())
+                    || if let Some(packet_recipient) = packet_recipient {
+                        !topology_ref.gateway_exists(&packet_recipient.gateway())
+                    } else {
+                        false
+                    }
+                {
+                    None
+                } else {
+                    Some(topology_ref)
+                }
+            }
         }
     }
 }
 
-impl<'a, T: NymTopology> From<RwLockReadGuard<'a, TopologyAccessorInner<T>>>
-    for TopologyReadPermit<'a, T>
-{
-    fn from(read_permit: RwLockReadGuard<'a, TopologyAccessorInner<T>>) -> Self {
+impl<'a> From<RwLockReadGuard<'a, TopologyAccessorInner>> for TopologyReadPermit<'a> {
+    fn from(read_permit: RwLockReadGuard<'a, TopologyAccessorInner>) -> Self {
         TopologyReadPermit {
             permit: read_permit,
         }
@@ -94,61 +99,35 @@ impl<'a, T: NymTopology> From<RwLockReadGuard<'a, TopologyAccessorInner<T>>>
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct TopologyAccessor<T: NymTopology> {
+pub(crate) struct TopologyAccessor {
     // `RwLock` *seems to* be the better approach for this as write access is only requested every
     // few seconds, while reads are needed every single packet generated.
     // However, proper benchmarks will be needed to determine if `RwLock` is indeed a better
     // approach than a `Mutex`
-    inner: Arc<RwLock<TopologyAccessorInner<T>>>,
+    inner: Arc<RwLock<TopologyAccessorInner>>,
 }
 
-impl<T: NymTopology> TopologyAccessor<T> {
+impl TopologyAccessor {
     pub(crate) fn new() -> Self {
         TopologyAccessor {
             inner: Arc::new(RwLock::new(TopologyAccessorInner::new())),
         }
     }
 
-    pub(super) async fn get_read_permit(&self) -> TopologyReadPermit<'_, T> {
+    pub(super) async fn get_read_permit(&self) -> TopologyReadPermit<'_> {
         self.inner.read().await.into()
     }
 
-    async fn update_global_topology(&mut self, new_topology: Option<T>) {
+    async fn update_global_topology(&mut self, new_topology: Option<NymTopology>) {
         self.inner.write().await.update(new_topology);
     }
-
-    // pub(crate) async fn get_gateway_socket_url(&self, id: &str) -> Option<String> {
-    //     match &self.inner.read().await.0 {
-    //         None => None,
-    //         Some(ref topology) => topology
-    //             .gateways()
-    //             .iter()
-    //             .find(|gateway| gateway.identity_key == id)
-    //             .map(|gateway| gateway.client_listener.clone()),
-    //     }
-    // }
 
     // only used by the client at startup to get a slightly more reasonable error message
     // (currently displays as unused because health checker is disabled due to required changes)
     pub(crate) async fn is_routable(&self) -> bool {
         match &self.inner.read().await.0 {
             None => false,
-            Some(ref topology) => topology.can_construct_path_through(),
-        }
-    }
-
-    pub(crate) async fn get_all_clients(&self) -> Option<Vec<gateway::Client>> {
-        // TODO: this will need to be modified to instead return pairs (provider, client)
-        match &self.inner.read().await.0 {
-            None => None,
-            Some(ref topology) => Some(
-                topology
-                    .gateways()
-                    .iter()
-                    .flat_map(|gateway| gateway.registered_clients.iter())
-                    .cloned()
-                    .collect::<Vec<_>>(),
-            ),
+            Some(ref topology) => topology.can_construct_path_through(DEFAULT_NUM_MIX_HOPS),
         }
     }
 }
@@ -167,17 +146,16 @@ impl TopologyRefresherConfig {
     }
 }
 
-pub(crate) struct TopologyRefresher<T: NymTopology> {
+pub(crate) struct TopologyRefresher {
     directory_client: directory_client::Client,
-    topology_accessor: TopologyAccessor<T>,
+    topology_accessor: TopologyAccessor,
     refresh_rate: Duration,
 }
 
-// TODO: consider (or maybe not) restoring generic TopologyRefresher<T>
-impl TopologyRefresher<directory_client::Topology> {
+impl TopologyRefresher {
     pub(crate) fn new_directory_client(
         cfg: TopologyRefresherConfig,
-        topology_accessor: TopologyAccessor<directory_client::Topology>,
+        topology_accessor: TopologyAccessor,
     ) -> Self {
         let directory_client_config = directory_client::Config::new(cfg.directory_server);
         let directory_client = directory_client::Client::new(directory_client_config);
@@ -189,13 +167,16 @@ impl TopologyRefresher<directory_client::Topology> {
         }
     }
 
-    async fn get_current_compatible_topology(&self) -> Option<directory_client::Topology> {
+    async fn get_current_compatible_topology(&self) -> Option<NymTopology> {
         match self.directory_client.get_topology().await {
             Err(err) => {
                 error!("failed to get network topology! - {:?}", err);
                 None
             }
-            Ok(topology) => Some(topology.filter_system_version(built_info::PKG_VERSION)),
+            Ok(topology) => {
+                let nym_topology: NymTopology = topology.try_into().ok()?;
+                Some(nym_topology.filter_system_version(built_info::PKG_VERSION))
+            }
         }
     }
 

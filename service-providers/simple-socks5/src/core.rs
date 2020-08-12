@@ -7,6 +7,8 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::WebSocketStream;
 use websocket::WebsocketConnectionError;
 use simple_socks5_requests::Request;
+use nymsphinx::receiver::ReconstructedMessage;
+use nymsphinx::params::MessageType;
 
 pub struct ServiceProvider {
     runtime: Runtime,
@@ -28,24 +30,26 @@ impl ServiceProvider {
             println!("\nAll systems go. Press CTRL-C to stop the server.");
             while let Some(msg) = websocket_reader.next().await {
                 let data = msg.unwrap().into_data();
-                if data[0] == b'{' && data[1] == b'"' {
-                    println!("json: {:?}", String::from_utf8_lossy(&data));
-                    continue;
-                }
 
-                let request = Request::try_from_bytes(&data).unwrap();
+                let reconstructed_message = ReconstructedMessage::try_from_bytes(&data).expect("todo: error handling");
+                let raw_message = reconstructed_message.message;
+
+                // if raw_message[0] == b'{' && raw_message[1] == b'"' {
+                //     println!("json: {:?}", String::from_utf8_lossy(&raw_message));
+                //     continue;
+                // }
+                let request = Request::try_from_bytes(&raw_message).unwrap();
                 let response = controller.process_request(request).await.unwrap();
                 if response.is_none() { // restart the loop if we got nothing back
                     continue;
                 }
-                
+
                 // TODO: wire SURBs in here once they're available
-                let return_address = "4QC5D8auMbVpFVBfiZnVtQVUPiNUV9FMnpb81cauFpEp@GYCqU48ndXke9o2434i7zEGv1sWg1cNVswWJfRnY1VTB";
+                let return_address = "7tVXwePpo6SM99sqM1xEp6S4T1TSpxYx97fTpEdvmF7i.GgrN8998SmwvQghNEvqtPPZCgMQqJovWBrzspMnBESsE@e3vUAo6YhB7zq3GH8B4k3iiGT4H2USjdd5ZMZoUsHdF";
                 let recipient = nymsphinx::addressing::clients::Recipient::try_from_string(return_address).unwrap();
 
-                let response_message = recipient.into_bytes()
-                    .iter()
-                    .cloned()
+                let response_message = std::iter::once(MessageType::WithoutReplySURB as u8)
+                    .chain(recipient.into_bytes().iter().cloned())
                     .chain(response.unwrap().into_bytes().into_iter())
                     .collect();
 

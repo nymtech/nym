@@ -13,19 +13,20 @@
 // limitations under the License.
 
 use crate::built_info;
+use crate::client::key_manager::KeyManager;
 use crate::commands::override_config;
-use crate::config::persistence::pathfinder::ClientPathfinder;
+use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use directory_client::DirectoryClient;
 use gateway_client::GatewayClient;
-use gateway_requests::registration::handshake::SharedKey;
-use pemstore::pemstore::PemStore;
+use gateway_requests::registration::handshake::SharedKeys;
+use rand::rngs::OsRng;
+use std::convert::TryInto;
 use std::sync::Arc;
 use std::time::Duration;
-use topology::gateway::Node;
-use topology::NymTopology;
+use topology::{gateway, NymTopology};
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
@@ -64,36 +65,28 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
 }
 
 async fn try_gateway_registration(
-    gateways: Vec<Node>,
+    gateways: &[gateway::Node],
     our_identity: Arc<identity::KeyPair>,
-) -> Option<(String, String, SharedKey)> {
+) -> Option<(String, String, SharedKeys)> {
     let timeout = Duration::from_millis(1500);
     for gateway in gateways {
-        let gateway_identity =
-            match identity::PublicKey::from_base58_string(gateway.identity_key.clone()) {
-                Ok(id) => id,
-                Err(_) => {
-                    eprintln!(
-                        "gateway {} announces invalid identity!",
-                        gateway.identity_key
-                    );
-                    continue;
-                }
-            };
-
         let mut gateway_client = GatewayClient::new_init(
             url::Url::parse(&gateway.client_listener).unwrap(),
-            gateway_identity,
+            gateway.identity_key,
             our_identity.clone(),
             timeout,
         );
-        if let Ok(_) = gateway_client.establish_connection().await {
+        if gateway_client.establish_connection().await.is_ok() {
             if let Ok(shared_key) = gateway_client.register().await {
                 if let Err(err) = gateway_client.close_connection().await {
                     eprintln!("Error while closing connection to the gateway! - {:?}", err);
                     continue;
                 } else {
-                    return Some((gateway.identity_key, gateway.client_listener, shared_key));
+                    return Some((
+                        gateway.identity_key.to_base58_string(),
+                        gateway.client_listener.clone(),
+                        shared_key,
+                    ));
                 }
             }
         }
@@ -104,12 +97,13 @@ async fn try_gateway_registration(
 async fn choose_gateway(
     directory_server: String,
     our_identity: Arc<identity::KeyPair>,
-) -> (String, String, SharedKey) {
+) -> (String, String, SharedKeys) {
     let directory_client_config = directory_client::Config::new(directory_server.clone());
     let directory_client = directory_client::Client::new(directory_client_config);
     let topology = directory_client.get_topology().await.unwrap();
+    let nym_topology: NymTopology = topology.try_into().expect("Invalid topology data!");
 
-    let version_filtered_topology = topology.filter_system_version(built_info::PKG_VERSION);
+    let version_filtered_topology = nym_topology.filter_system_version(built_info::PKG_VERSION);
     // don't care about health of the networks as mixes can go up and down any time,
     // but DO care about gateways
     let gateways = version_filtered_topology.gateways();
@@ -138,11 +132,14 @@ async fn get_gateway_listener(directory_server: String, gateway_identity: &str) 
     let directory_client_config = directory_client::Config::new(directory_server);
     let directory_client = directory_client::Client::new(directory_client_config);
     let topology = directory_client.get_topology().await.unwrap();
-    let gateways = topology.gateways();
+
+    // technically we don't need to do conversion here, but let's be consistent
+    let nym_topology: NymTopology = topology.try_into().ok()?;
+    let gateways = nym_topology.gateways();
 
     for gateway in gateways {
-        if gateway.identity_key == gateway_identity {
-            return Some(gateway.client_listener);
+        if gateway.identity_key.to_base58_string() == gateway_identity {
+            return Some(gateway.client_listener.clone());
         }
     }
     None
@@ -153,13 +150,15 @@ pub fn execute(matches: &ArgMatches) {
 
     let id = matches.value_of("id").unwrap(); // required for now
     let mut config = crate::config::Config::new(id);
+    let mut rng = OsRng;
 
     config = override_config(config, matches);
     if matches.is_present("fastmode") {
         config = config.set_high_default_traffic_volume();
     }
 
-    let mix_identity_keys = Arc::new(identity::KeyPair::new());
+    // create identity, encryption and ack keys.
+    let mut key_manager = KeyManager::new(&mut rng);
 
     // if there is no gateway chosen, get a random-ish one from the topology
     if config.get_gateway_id().is_empty() {
@@ -167,13 +166,14 @@ pub fn execute(matches: &ArgMatches) {
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         let (gateway_id, gateway_listener, shared_key) = rt.block_on(choose_gateway(
             config.get_directory_server(),
-            mix_identity_keys.clone(),
+            key_manager.identity_keypair(),
         ));
 
         config = config
             .with_gateway_id(gateway_id)
-            .with_gateway_listener(gateway_listener)
-            .with_gateway_shared_key(shared_key.to_base58_string());
+            .with_gateway_listener(gateway_listener);
+
+        key_manager.insert_gateway_shared_key(shared_key)
     }
 
     // we specified our gateway but don't know its physical address
@@ -190,12 +190,11 @@ pub fn execute(matches: &ArgMatches) {
         config = config.with_gateway_listener(gateway_listener);
     }
 
-    let pathfinder = ClientPathfinder::new_from_config(&config);
-    let pem_store = PemStore::new(pathfinder);
-    pem_store
-        .write_identity_keypair(mix_identity_keys.as_ref())
-        .expect("Failed to save identity keys");
-    println!("Saved mixnet identity keypair");
+    let pathfinder = ClientKeyPathfinder::new_from_config(&config);
+    key_manager
+        .store_keys(&pathfinder)
+        .expect("Failed to generated keys");
+    println!("Saved all generated keys");
 
     let config_save_location = config.get_config_file_save_location();
     config
@@ -207,8 +206,6 @@ pub fn execute(matches: &ArgMatches) {
         "Unless overridden in all `nym-client run` we will be talking to the following gateway: {}...",
         config.get_gateway_id(),
     );
-    if let Some(shared_key) = config.get_gateway_shared_key() {
-        println!("using optional SharedKey: {:?}", shared_key)
-    }
+
     println!("Client configuration completed.\n\n\n")
 }

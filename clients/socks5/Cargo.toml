@@ -29,6 +29,7 @@ tokio-tungstenite = "0.10.1"
 url = "2.1"
 
 ## internal
+client-core = { path = "../client-core" }
 config = {path = "../../common/config"}
 crypto = {path = "../../common/crypto"}
 directory-client = { path = "../../common/client-libs/directory-client" }

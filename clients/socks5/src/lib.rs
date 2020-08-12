@@ -13,5 +13,4 @@
 // limitations under the License.
 pub mod built_info;
 pub mod client;
-pub mod config;
 pub mod socks;

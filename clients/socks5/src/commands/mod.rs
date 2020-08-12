@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::{Config, SocketType};
 use clap::ArgMatches;
+use client_core::config::{Config, SocketType};
 
 pub mod init;
 pub mod run;

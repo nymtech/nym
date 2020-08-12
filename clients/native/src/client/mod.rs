@@ -24,9 +24,9 @@ use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
-use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use crate::config::{Config, SocketType};
 use crate::websocket;
+use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use client_core::config::{Config, SocketType};
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use gateway_client::{

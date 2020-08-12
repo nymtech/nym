@@ -426,6 +426,12 @@ dependencies = [
 [[package]]
 name = "client-core"
 version = "0.1.0"
+dependencies = [
+ "config",
+ "dirs",
+ "serde",
+ "tempfile",
+]
 
 [[package]]
 name = "cloudabi"

@@ -7,3 +7,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+serde = { version = "1.0.104", features = ["derive"] }
+dirs = "2.0.2"
+
+
+# internal
+config = { path = "../../common/config" }
+
+[dev-dependencies]
+tempfile = "3.1.0"

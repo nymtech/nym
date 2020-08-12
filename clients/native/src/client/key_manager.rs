@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use crypto::asymmetric::{encryption, identity};
 use gateway_requests::registration::handshake::SharedKeys;
 use log::*;

@@ -225,7 +225,6 @@ where
         ack_key: &AckKey,
         packet_recipient: &Recipient,
     ) -> Result<PreparedFragment, NymTopologyError> {
-        //
         // create an ack
         let (ack_delay, surb_ack_bytes) = self
             .generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)?

@@ -4,7 +4,6 @@ use tokio_tungstenite::WebSocketStream;
 
 pub struct Connection {
     uri: String,
-    // ws_stream:
 }
 
 impl Connection {

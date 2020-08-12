@@ -3,8 +3,6 @@ use std::convert::TryFrom;
 pub type ConnectionId = u64;
 pub type RemoteAddress = String;
 
-//9196658814774797586
-//35924448495214053
 #[repr(u8)]
 #[derive(Clone, Copy, Debug)]
 pub enum RequestFlag {

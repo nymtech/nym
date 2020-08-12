@@ -52,8 +52,6 @@ impl ReconstructedMessage {
             return Err(MessageRecoveryError::TooShortMessageError);
         }
 
-        println!("the first byte we're gonna match is : {}", b[0]);
-        println!("and the whole thing is : {:?}", b);
         match b[0] {
             n if n == MessageType::WithReplySURB as u8 => {
                 let surb_len = ReplySURB::serialized_len(DEFAULT_NUM_MIX_HOPS);
@@ -69,15 +67,7 @@ impl ReconstructedMessage {
                 message: b[1..].to_vec(),
                 reply_SURB: None,
             }),
-            n => {
-                println!(
-                    "the received prefix was: {:?} expected one of {} or {}",
-                    n,
-                    MessageType::WithReplySURB as u8,
-                    MessageType::WithoutReplySURB as u8
-                );
-                Err(MessageRecoveryError::InvalidSurbPrefixError)
-            }
+            _ => Err(MessageRecoveryError::InvalidSurbPrefixError),
         }
     }
 }

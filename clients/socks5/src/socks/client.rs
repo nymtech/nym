@@ -112,30 +112,11 @@ impl SocksClient {
     }
 
     async fn send_request_to_mixnet(&mut self, request: Request) {
-        let req_bytes = self.connection_id.to_be_bytes();
-        println!(
-            "Sending request {:?} outbound through mixnet",
-            self.connection_id
-        );
-        println!("connection_id_bytes: {:?}", req_bytes);
-
-        let b = request.into_bytes();
-        print!("b: {:?}", b);
-        self.send_to_mixnet(b).await;
+        self.send_to_mixnet(request.into_bytes()).await;
     }
 
     async fn send_request_to_mixnet_and_get_response(&mut self, request: Request) -> Vec<u8> {
-        let req_bytes = self.connection_id.to_be_bytes();
-
-        println!(
-            "Sending request {:?} outbound through mixnet",
-            self.connection_id
-        );
-        println!("connection_id_bytes: {:?}", req_bytes);
-
-        let b = request.into_bytes();
-        print!("b: {:?}", b);
-        self.send_to_mixnet(b).await;
+        self.send_to_mixnet(request.into_bytes()).await;
 
         // refactor idea: crossbeam oneshot channels are faster
         let (sender, receiver) = oneshot::channel();

@@ -12,19 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
-use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
-use crate::client::key_manager::KeyManager;
-use crate::client::mix_traffic::{MixMessageReceiver, MixMessageSender, MixTrafficController};
-use crate::client::real_messages_control::RealMessagesController;
-use crate::client::received_buffer::{
-    ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
+use crate::websocket;
+use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
+use client_core::client::inbound_messages::{
+    InputMessage, InputMessageReceiver, InputMessageSender,
 };
-use crate::client::reply_key_storage::ReplyKeyStorage;
-use crate::client::topology_control::{
+use client_core::client::key_manager::KeyManager;
+use client_core::client::mix_traffic::{
+    MixMessageReceiver, MixMessageSender, MixTrafficController,
+};
+use client_core::client::real_messages_control;
+use client_core::client::real_messages_control::RealMessagesController;
+use client_core::client::received_buffer::{
+    ReceivedBufferMessage, ReceivedBufferRequestReceiver, ReceivedBufferRequestSender,
+    ReceivedMessagesBufferController, ReconstructedMessagesReceiver,
+};
+use client_core::client::reply_key_storage::ReplyKeyStorage;
+use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
-use crate::websocket;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use client_core::config::{Config, SocketType};
 use crypto::asymmetric::identity;
@@ -38,17 +44,7 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::anonymous_replies::ReplySURB;
 use nymsphinx::receiver::ReconstructedMessage;
-use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
 use tokio::runtime::Runtime;
-
-mod cover_traffic_stream;
-pub(crate) mod inbound_messages;
-pub(crate) mod key_manager;
-mod mix_traffic;
-pub(crate) mod real_messages_control;
-pub(crate) mod received_buffer;
-mod reply_key_storage;
-pub(crate) mod topology_control;
 
 pub struct NymClient {
     /// Client configuration options, including, among other things, packet sending rates,

@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use super::types::{BinaryClientRequest, ClientTextRequest, ServerTextResponse};
-use crate::client::{
+use crate::websocket::types::ReceivedTextMessage;
+use client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender},
     received_buffer::{
         ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
     },
 };
-use crate::websocket::types::ReceivedTextMessage;
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::*;

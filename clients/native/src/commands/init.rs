@@ -13,9 +13,9 @@
 // limitations under the License.
 
 use crate::built_info;
-use crate::client::key_manager::KeyManager;
 use crate::commands::override_config;
 use clap::{App, Arg, ArgMatches};
+use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use config::NymConfig;
 use crypto::asymmetric::identity;

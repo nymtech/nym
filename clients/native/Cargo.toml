@@ -20,7 +20,7 @@ futures = "0.3.1"
 log = "0.4"
 pem = "0.7.0"
 pretty_env_logger = "0.3"
-rand = {version = "0.7.3", features = ["wasm-bindgen"]}
+rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 reqwest = "0.9.22"
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0.44"
@@ -30,15 +30,16 @@ tokio-tungstenite = "0.10.1"
 url = "2.1"
 
 ## internal
-config = {path = "../../common/config"}
-crypto = {path = "../../common/crypto"}
+client-core = { path = "../client-core" }
+config = { path = "../../common/config" }
+crypto = { path = "../../common/crypto" }
 directory-client = { path = "../../common/client-libs/directory-client" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 mixnet-client = { path = "../../common/client-libs/mixnet-client" }
 nymsphinx = { path = "../../common/nymsphinx" }
-pemstore = {path = "../../common/pemstore"}
-topology = {path = "../../common/topology" }
+pemstore = { path = "../../common/pemstore" }
+topology = { path = "../../common/topology" }
 
 [build-dependencies]
 built = "0.3.2"

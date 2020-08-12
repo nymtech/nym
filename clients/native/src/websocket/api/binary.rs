@@ -58,18 +58,18 @@ pub enum ClientRequest {
 }
 
 impl ClientRequest {
-    // with_surb || recipient || data_len || data
+    // SEND_REQUEST_TAG || with_surb || recipient || data_len || data
     fn serialize_send(recipient: Recipient, data: Vec<u8>, with_reply_surb: bool) -> Vec<u8> {
         let data_len_bytes = (data.len() as u64).to_be_bytes();
         std::iter::once(SEND_REQUEST_TAG)
             .chain(std::iter::once(with_reply_surb as u8))
-            .chain(recipient.into_bytes().iter().cloned()) // will not be length prefixed because the length is constant
+            .chain(recipient.to_bytes().iter().cloned()) // will not be length prefixed because the length is constant
             .chain(data_len_bytes.iter().cloned())
             .chain(data.into_iter())
             .collect()
     }
 
-    // with_reply || recipient || data_len || data
+    // SEND_REQUEST_TAG || with_reply || recipient || data_len || data
     fn deserialize_send(b: &[u8]) -> Result<Self, Error> {
         // we need to have at least 1 (tag) + 1 (reply flag) + Recipient::LEN + sizeof<u64> bytes
         if b.len() < 2 + Recipient::LEN + size_of::<u64>() {
@@ -126,7 +126,7 @@ impl ClientRequest {
         })
     }
 
-    // surb_len || surb || message_len || message
+    // REPLY_REQUEST_TAG || surb_len || surb || message_len || message
     fn serialize_reply(message: Vec<u8>, reply_surb: ReplySURB) -> Vec<u8> {
         let reply_surb_bytes = reply_surb.to_bytes();
         let surb_len_bytes = (reply_surb_bytes.len() as u64).to_be_bytes();
@@ -140,7 +140,7 @@ impl ClientRequest {
             .collect()
     }
 
-    // surb_len || surb || message_len || message
+    // REPLY_REQUEST_TAG || surb_len || surb || message_len || message
     fn deserialize_reply(b: &[u8]) -> Result<Self, Error> {
         // we need to have at the very least 2 * sizeof<u64> bytes (in case, for some peculiar reason
         // message and reply surb were 0 len - the request would still be malformed, but would in theory
@@ -208,10 +208,12 @@ impl ClientRequest {
         })
     }
 
+    // SELF_ADDRESS_REQUEST_TAG
     fn serialize_self_address() -> Vec<u8> {
         std::iter::once(SELF_ADDRESS_REQUEST_TAG).collect()
     }
 
+    // SELF_ADDRESS_REQUEST_TAG
     fn deserialize_self_address(b: &[u8]) -> Result<Self, Error> {
         // this MUST match because it was called by 'deserialize'
         debug_assert_eq!(b[0], SELF_ADDRESS_REQUEST_TAG);
@@ -334,7 +336,7 @@ impl ClientRequest {
             } else {
                 MessageType::WithoutReplySURB as u8
             })
-            .chain(recipient.into_bytes().iter().cloned())
+            .chain(recipient.to_bytes().iter().cloned())
             .chain(data.into_iter())
             .collect(),
 
@@ -360,6 +362,7 @@ impl Into<WsMessage> for ClientRequest {
     }
 }
 
+#[derive(Debug)]
 pub enum ServerResponse {
     Received(ReconstructedMessage),
     SelfAddress(Recipient),
@@ -367,7 +370,7 @@ pub enum ServerResponse {
 }
 
 impl ServerResponse {
-    // with_reply || (surb_len || surb) || msg_len || msg
+    // RECEIVED_RESPONSE_TAG || with_reply || (surb_len || surb) || msg_len || msg
     fn serialize_received(reconstructed_message: ReconstructedMessage) -> Vec<u8> {
         let message_len_bytes = (reconstructed_message.message.len() as u64).to_be_bytes();
 
@@ -393,21 +396,27 @@ impl ServerResponse {
         }
     }
 
-    // with_reply || recipient || data_len || data
+    // RECEIVED_RESPONSE_TAG || with_reply || (surb_len || surb) || msg_len || msg
     fn deserialize_received(b: &[u8]) -> Result<Self, Error> {
         // this MUST match because it was called by 'deserialize'
         debug_assert_eq!(b[0], RECEIVED_RESPONSE_TAG);
 
         // we must be able to read at the very least if it has a reply_surb and length of some field
         if b.len() < 2 + size_of::<u64>() {
-            panic!("how to deal with server response deserialization errors?");
+            return Err(Error::new(
+                ErrorKind::TooShortResponse,
+                "not enough data provided to recover 'received'".to_string(),
+            ));
         }
 
         let with_reply_surb = match b[1] {
             0 => false,
             1 => true,
-            _n => {
-                panic!("how to deal with server response deserialization errors?");
+            n => {
+                return Err(Error::new(
+                    ErrorKind::MalformedResponse,
+                    format!("invalid reply flag {}", n),
+                ))
             }
         };
 
@@ -417,7 +426,10 @@ impl ServerResponse {
 
             // make sure we won't go out of bounds here
             if reply_surb_len > (b.len() - 2 + 2 * size_of::<u64>()) as u64 {
-                panic!("how to deal with server response deserialization errors?");
+                return Err(Error::new(
+                    ErrorKind::MalformedResponse,
+                    "not enough bytes to read reply_surb bytes!".to_string(),
+                ));
             }
 
             let surb_bound = 2 + size_of::<u64>() + reply_surb_len as usize;
@@ -425,8 +437,11 @@ impl ServerResponse {
             let reply_surb_bytes = &b[2 + size_of::<u64>()..surb_bound];
             let reply_surb = match ReplySURB::from_bytes(reply_surb_bytes) {
                 Ok(reply_surb) => reply_surb,
-                Err(_err) => {
-                    panic!("how to deal with server response deserialization errors?");
+                Err(err) => {
+                    return Err(Error::new(
+                        ErrorKind::MalformedResponse,
+                        format!("malformed reply SURB: {:?}", err),
+                    ))
                 }
             };
 
@@ -438,7 +453,14 @@ impl ServerResponse {
             );
             let message = &b[surb_bound + size_of::<u64>()..];
             if message.len() as u64 != message_len {
-                panic!("how to deal with server response deserialization errors?");
+                return Err(Error::new(
+                    ErrorKind::MalformedResponse,
+                    format!(
+                        "message len has inconsistent length. specified: {} got: {}",
+                        message_len,
+                        message.len()
+                    ),
+                ));
             }
 
             Ok(ServerResponse::Received(ReconstructedMessage {
@@ -450,7 +472,14 @@ impl ServerResponse {
                 u64::from_be_bytes(b[2..2 + size_of::<u64>()].as_ref().try_into().unwrap());
             let message = &b[2 + size_of::<u64>()..];
             if message.len() as u64 != message_len {
-                panic!("how to deal with server response deserialization errors?");
+                return Err(Error::new(
+                    ErrorKind::MalformedResponse,
+                    format!(
+                        "message len has inconsistent length. specified: {} got: {}",
+                        message_len,
+                        message.len()
+                    ),
+                ));
             }
 
             Ok(ServerResponse::Received(ReconstructedMessage {
@@ -460,18 +489,23 @@ impl ServerResponse {
         }
     }
 
+    // SELF_ADDRESS_RESPONSE_TAG || self_address
     fn serialize_self_address(address: Recipient) -> Vec<u8> {
         std::iter::once(SELF_ADDRESS_RESPONSE_TAG)
-            .chain(address.into_bytes().iter().cloned())
+            .chain(address.to_bytes().iter().cloned())
             .collect()
     }
 
+    // SELF_ADDRESS_RESPONSE_TAG || self_address
     fn deserialize_self_address(b: &[u8]) -> Result<Self, Error> {
         // this MUST match because it was called by 'deserialize'
         debug_assert_eq!(b[0], SELF_ADDRESS_RESPONSE_TAG);
 
         if b.len() != 1 + Recipient::LEN {
-            panic!("how to deal with server response deserialization errors?");
+            return Err(Error::new(
+                ErrorKind::TooShortResponse,
+                "not enough data provided to recover 'self_address'".to_string(),
+            ));
         }
 
         let mut recipient_bytes = [0u8; Recipient::LEN];
@@ -479,16 +513,18 @@ impl ServerResponse {
 
         let recipient = match Recipient::try_from_bytes(recipient_bytes) {
             Ok(recipient) => recipient,
-            Err(_err) => panic!("how to deal with server response deserialization errors?"),
+            Err(err) => {
+                return Err(Error::new(
+                    ErrorKind::MalformedResponse,
+                    format!("malformed Recipient: {:?}", err),
+                ))
+            }
         };
 
         Ok(ServerResponse::SelfAddress(recipient))
     }
 
-    // TODO: perhaps those should go into error::Error itself, but for time being, before we
-    // benchmark, it's fine
-
-    // err_code || msg_len || msg
+    // ERROR_RESPONSE_TAG || err_code || msg_len || msg
     fn serialize_error(error: Error) -> Vec<u8> {
         let message_len_bytes = (error.message.len() as u64).to_be_bytes();
         std::iter::once(ERROR_RESPONSE_TAG)
@@ -498,13 +534,16 @@ impl ServerResponse {
             .collect()
     }
 
-    // err_code || msg_len || msg
+    // ERROR_RESPONSE_TAG || err_code || msg_len || msg
     fn deserialize_error(b: &[u8]) -> Result<Self, Error> {
         // this MUST match because it was called by 'deserialize'
         debug_assert_eq!(b[0], ERROR_RESPONSE_TAG);
 
         if b.len() < size_of::<u8>() + size_of::<u64>() {
-            panic!("how to deal with server response deserialization errors?");
+            return Err(Error::new(
+                ErrorKind::TooShortResponse,
+                "not enough data provided to recover 'error'".to_string(),
+            ));
         }
 
         let error_kind = match b[1] {
@@ -512,19 +551,42 @@ impl ServerResponse {
             _ if b[1] == (ErrorKind::TooShortRequest as u8) => ErrorKind::TooShortRequest,
             _ if b[1] == (ErrorKind::UnknownRequest as u8) => ErrorKind::UnknownRequest,
             _ if b[1] == (ErrorKind::MalformedRequest as u8) => ErrorKind::MalformedRequest,
-            _ => panic!("how to deal with server response deserialization errors?"),
+
+            _ if b[1] == (ErrorKind::EmptyResponse as u8) => ErrorKind::EmptyResponse,
+            _ if b[1] == (ErrorKind::TooShortResponse as u8) => ErrorKind::TooShortResponse,
+            _ if b[1] == (ErrorKind::UnknownResponse as u8) => ErrorKind::UnknownResponse,
+            _ if b[1] == (ErrorKind::MalformedResponse as u8) => ErrorKind::MalformedResponse,
+
+            n => {
+                return Err(Error::new(
+                    ErrorKind::MalformedResponse,
+                    format!("invalid error code {}", n),
+                ))
+            }
         };
 
         let message_len =
             u64::from_be_bytes(b[2..2 + size_of::<u64>()].as_ref().try_into().unwrap());
         let message = &b[2 + size_of::<u64>()..];
         if message.len() as u64 != message_len {
-            panic!("how to deal with server response deserialization errors?");
+            return Err(Error::new(
+                ErrorKind::MalformedResponse,
+                format!(
+                    "message len has inconsistent length. specified: {} got: {}",
+                    message_len,
+                    message.len()
+                ),
+            ));
         }
 
         let err_message = match String::from_utf8(message.to_vec()) {
             Ok(msg) => msg,
-            Err(_err) => panic!("how to deal with server response deserialization errors?"),
+            Err(err) => {
+                return Err(Error::new(
+                    ErrorKind::MalformedResponse,
+                    format!("malformed error message: {:?}", err),
+                ))
+            }
         };
 
         Ok(ServerResponse::Error(Error::new(error_kind, err_message)))
@@ -544,11 +606,20 @@ impl ServerResponse {
         if b.is_empty() {
             // technically I'm not even sure this can ever be returned, because reading empty
             // request would imply closed socket, but let's include it for completion sake
-            panic!("how to deal with server response deserialization errors?");
+            return Err(Error::new(
+                ErrorKind::EmptyResponse,
+                "no data provided".to_string(),
+            ));
         }
 
         if b.len() < size_of::<u8>() {
-            panic!("how to deal with server response deserialization errors?");
+            return Err(Error::new(
+                ErrorKind::TooShortResponse,
+                format!(
+                    "not enough data provided to recover response tag. Provided only {} bytes",
+                    b.len()
+                ),
+            ));
         }
 
         let response_tag = b[0];
@@ -558,7 +629,12 @@ impl ServerResponse {
             RECEIVED_RESPONSE_TAG => Self::deserialize_received(b),
             SELF_ADDRESS_RESPONSE_TAG => Self::deserialize_self_address(b),
             ERROR_RESPONSE_TAG => Self::deserialize_error(b),
-            _n => panic!("how to deal with server response deserialization errors?"),
+            n => {
+                return Err(Error::new(
+                    ErrorKind::UnknownResponse,
+                    format!("type {}", n),
+                ))
+            }
         }
     }
 
@@ -758,29 +834,4 @@ mod tests {
             _ => unreachable!(),
         }
     }
-
-    // that might, or might not, come later
-
-    // #[test]
-    // fn send_serialization_can_be_bincode_compatible() {
-    //     // bincode::DefaultOptions::new()
-    //     //     .with_fixint_encoding()
-    //     //     .with_big_endian()
-    //     //     .deserialize(&[42]);
-    // }
-    //
-    // #[test]
-    // fn reply_serialization_can_be_bincode_compatible() {}
-    //
-    // #[test]
-    // fn self_address_request_serialization_can_be_bincode_compatible() {}
-    //
-    // #[test]
-    // fn self_address_response_serialization_can_be_bincode_compatible() {}
-    //
-    // #[test]
-    // fn received_serialization_can_be_bincode_compatible() {}
-    //
-    // #[test]
-    // fn error_serialization_can_be_bincode_compatible() {}
 }

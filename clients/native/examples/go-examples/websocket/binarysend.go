@@ -1,44 +1,107 @@
 package main
 
 import (
-	"encoding/json"
+	"encoding/binary"
 	"fmt"
 	"io/ioutil"
-	"strings"
 
-	"github.com/btcsuite/btcutil/base58"
 	"github.com/gorilla/websocket"
 )
 
-const WITHOUT_REPLY = 0
-const WITH_REPLY = 1
-const REPLY = 2
+// request tags
+const SEND_REQUEST_TAG = 0x00
+const REPLY_REQUEST_TAG = 0x01
+const SELF_ADDRESS_REQUEST_TAG = 0x02
 
-// this is really flaky so ideally will be replaced by some proper serialization
-// 16 - length of encryption key
-// 32 - length of first hop
-// 348 - current sphinx header size
-// 192 - size of single payload key
-// 4 - number of mix hops (gateway + 3 nodes)
-const REPLY_SURB_LEN = 16 + 32 + 348 + 4*192
+// response tags
+const ERROR_RESPONSE_TAG = 0x00
+const RECEIVED_RESPONSE_TAG = 0x01
+const SELF_ADDRESS_RESPONSE_TAG = 0x02
 
-func getSelfAddress(conn *websocket.Conn) string {
-	selfAddressRequest, err := json.Marshal(map[string]string{"type": "selfAddress"})
-	if err != nil {
-		panic(err)
+func makeSelfAddressRequest() []byte {
+	return []byte{SELF_ADDRESS_REQUEST_TAG}
+}
+
+func parseSelfAddressResponse(rawResponse []byte) []byte {
+	if len(rawResponse) != 97 || rawResponse[0] != SELF_ADDRESS_RESPONSE_TAG {
+		panic("Received invalid response")
+	}
+	return rawResponse[1:]
+}
+
+func makeSendRequest(recipient []byte, message []byte, withReplySurb bool) []byte {
+	messageLen := make([]byte, 8)
+	binary.BigEndian.PutUint64(messageLen, uint64(len(message)))
+
+	surbByte := byte(0)
+	if withReplySurb {
+		surbByte = 1
 	}
 
-	if err = conn.WriteMessage(websocket.TextMessage, []byte(selfAddressRequest)); err != nil {
-		panic(err)
+	out := []byte{SEND_REQUEST_TAG, surbByte}
+	out = append(out, recipient...)
+	out = append(out, messageLen...)
+	out = append(out, message...)
+
+	fmt.Println("first send req: ", out[:10])
+	return out
+}
+
+func makeReplyRequest(message []byte, replySURB []byte) []byte {
+	messageLen := make([]byte, 8)
+	binary.BigEndian.PutUint64(messageLen, uint64(len(message)))
+
+	surbLen := make([]byte, 8)
+	binary.BigEndian.PutUint64(surbLen, uint64(len(replySURB)))
+
+	out := []byte{REPLY_REQUEST_TAG}
+	out = append(out, surbLen...)
+	out = append(out, replySURB...)
+	out = append(out, messageLen...)
+	out = append(out, message...)
+
+	return out
+}
+
+func parseReceived(rawResponse []byte) ([]byte, []byte) {
+	if rawResponse[0] != RECEIVED_RESPONSE_TAG {
+		panic("Received invalid response!")
 	}
 
-	responseJSON := make(map[string]interface{})
-	err = conn.ReadJSON(&responseJSON)
-	if err != nil {
-		panic(err)
+	hasSurb := false
+	if rawResponse[1] == 1 {
+		hasSurb = true
+	} else if rawResponse[1] == 0 {
+		hasSurb = false
+	} else {
+		panic("malformed received response!")
 	}
 
-	return responseJSON["address"].(string)
+	data := rawResponse[2:]
+	if hasSurb {
+		surbLen := binary.BigEndian.Uint64(data[:8])
+		other := data[8:]
+
+		surb := other[:surbLen]
+		msgLen := binary.BigEndian.Uint64(other[surbLen : surbLen+8])
+
+		if len(other[surbLen+8:]) != int(msgLen) {
+			panic("invalid msg len")
+		}
+
+		msg := other[surbLen+8:]
+		return msg, surb
+	} else {
+		msgLen := binary.BigEndian.Uint64(data[:8])
+		other := data[8:]
+
+		if len(other) != int(msgLen) {
+			panic("invalid msg len")
+		}
+
+		msg := other[:msgLen]
+		return msg, nil
+	}
 }
 
 func sendWithoutReply() {
@@ -50,47 +113,39 @@ func sendWithoutReply() {
 	}
 	defer conn.Close()
 
-	selfAddress := getSelfAddress(conn)
-	fmt.Printf("our address is: %v\n", selfAddress)
-
-	// we receive our address in string format of OUR_ID_PUB_KEY . OUR_ENC_PUB_KEY @ OUR_GATE_ID_PUB_KEY
-	// all keys are 32 bytes and we need to encode them as binary without the '.' or '@' signs
-	splitAddress := strings.Split(selfAddress, "@")
-	clientHalf := splitAddress[0]
-	gatewayHalf := splitAddress[1]
-	split_client_address := strings.Split(clientHalf, ".")
-
-	decodedIdentity := base58.Decode(split_client_address[0])
-	decodedEncryption := base58.Decode(split_client_address[1])
-	decodedGateway := base58.Decode(gatewayHalf)
+	selfAddressRequest := makeSelfAddressRequest()
+	if err = conn.WriteMessage(websocket.BinaryMessage, selfAddressRequest); err != nil {
+		panic(err)
+	}
+	_, receivedResponse, err := conn.ReadMessage()
+	if err != nil {
+		panic(err)
+	}
+	selfAddress := parseSelfAddressResponse(receivedResponse)
 
 	read_data, err := ioutil.ReadFile("dummy_file")
 	if err != nil {
 		panic(err)
 	}
 
-	payload := []byte{WITHOUT_REPLY}
-	payload = append(payload, decodedIdentity[:]...)
-	payload = append(payload, decodedEncryption[:]...)
-	payload = append(payload, decodedGateway[:]...)
-	payload = append(payload, read_data[:]...)
-
+	sendRequest := makeSendRequest(selfAddress, read_data, false)
 	fmt.Printf("sending content of 'dummy file' over the mix network...\n")
-	if err = conn.WriteMessage(websocket.BinaryMessage, payload); err != nil {
+	if err = conn.WriteMessage(websocket.BinaryMessage, sendRequest); err != nil {
 		panic(err)
 	}
 
 	fmt.Printf("waiting to receive a message from the mix network...\n")
-	_, receivedMessage, err := conn.ReadMessage()
+	_, receivedResponse, err = conn.ReadMessage()
 	if err != nil {
 		panic(err)
 	}
-	if receivedMessage[0] != WITHOUT_REPLY {
-		panic("incorrect prefix")
-	}
 
+	fileData, replySURB := parseReceived(receivedResponse)
+	if replySURB != nil {
+		panic("did not expect a replySURB!")
+	}
 	fmt.Printf("writing the file back to the disk!\n")
-	ioutil.WriteFile("received_file_noreply", receivedMessage[1:], 0644)
+	ioutil.WriteFile("received_file_noreply", fileData, 0644)
 }
 
 func sendWithReply() {
@@ -102,72 +157,58 @@ func sendWithReply() {
 	}
 	defer conn.Close()
 
-	selfAddress := getSelfAddress(conn)
-	fmt.Printf("our address is: %v\n", selfAddress)
+	selfAddressRequest := makeSelfAddressRequest()
+	if err = conn.WriteMessage(websocket.BinaryMessage, selfAddressRequest); err != nil {
+		panic(err)
+	}
+	_, receivedResponse, err := conn.ReadMessage()
+	if err != nil {
+		panic(err)
+	}
+	selfAddress := parseSelfAddressResponse(receivedResponse)
 
-	// we receive our address in string format of OUR_ID_PUB_KEY . OUR_ENC_PUB_KEY @ OUR_GATE_ID_PUB_KEY
-	// all keys are 32 bytes and we need to encode them as binary without the '.' or '@' signs
-	splitAddress := strings.Split(selfAddress, "@")
-	clientHalf := splitAddress[0]
-	gatewayHalf := splitAddress[1]
-	split_client_address := strings.Split(clientHalf, ".")
-
-	decodedIdentity := base58.Decode(split_client_address[0])
-	decodedEncryption := base58.Decode(split_client_address[1])
-	decodedGateway := base58.Decode(gatewayHalf)
-
-	read_data, err := ioutil.ReadFile("dummy_file")
+	readData, err := ioutil.ReadFile("dummy_file")
 	if err != nil {
 		panic(err)
 	}
 
-	payload := []byte{WITH_REPLY}
-	payload = append(payload, decodedIdentity[:]...)
-	payload = append(payload, decodedEncryption[:]...)
-	payload = append(payload, decodedGateway[:]...)
-	payload = append(payload, read_data[:]...)
-
+	sendRequest := makeSendRequest(selfAddress, readData, true)
 	fmt.Printf("sending content of 'dummy file' over the mix network...\n")
-	if err = conn.WriteMessage(websocket.BinaryMessage, payload); err != nil {
+	if err = conn.WriteMessage(websocket.BinaryMessage, sendRequest); err != nil {
 		panic(err)
 	}
 
 	fmt.Printf("waiting to receive a message from the mix network...\n")
-	_, receivedMessage, err := conn.ReadMessage()
+	_, receivedResponse, err = conn.ReadMessage()
 	if err != nil {
 		panic(err)
 	}
-	if receivedMessage[0] != WITH_REPLY {
-		panic("incorrect prefix")
-	}
 
-	replySurb := receivedMessage[1 : 1+REPLY_SURB_LEN]
-	outputFileData := receivedMessage[1+REPLY_SURB_LEN:]
+	fileData, replySURB := parseReceived(receivedResponse)
 
 	fmt.Printf("writing the file back to the disk!\n")
-	ioutil.WriteFile("received_file_withreply", outputFileData, 0644)
+	ioutil.WriteFile("received_file_withreply", fileData, 0644)
 
 	replyMessage := []byte("hello from reply SURB! - thanks for sending me the file!")
-	binaryReply := []byte{REPLY}
-	binaryReply = append(binaryReply, replySurb[:]...)
-	binaryReply = append(binaryReply, replyMessage[:]...)
+	replyRequest := makeReplyRequest(replyMessage, replySURB)
 
 	fmt.Printf("sending '%v' (using reply SURB) over the mix network...\n", string(replyMessage))
-	if err = conn.WriteMessage(websocket.BinaryMessage, binaryReply); err != nil {
+	if err = conn.WriteMessage(websocket.BinaryMessage, replyRequest); err != nil {
 		panic(err)
 	}
 
 	fmt.Printf("waiting to receive a message from the mix network...\n")
-	_, receivedReply, err := conn.ReadMessage()
+	_, receivedResponse, err = conn.ReadMessage()
 	if err != nil {
 		panic(err)
 	}
 
-	if receivedReply[0] != WITHOUT_REPLY {
-		panic("incorrect prefix")
+	receivedMessage, replySURB := parseReceived(receivedResponse)
+	if replySURB != nil {
+		panic("did not expect a replySURB!")
 	}
 
-	fmt.Printf("received %v from the mix network!\n", string(receivedReply[1:]))
+	fmt.Printf("received %v from the mix network!\n", string(receivedMessage))
 
 }
 

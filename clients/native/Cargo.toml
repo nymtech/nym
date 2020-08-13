@@ -36,7 +36,6 @@ crypto = { path = "../../common/crypto" }
 directory-client = { path = "../../common/client-libs/directory-client" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }
-mixnet-client = { path = "../../common/client-libs/mixnet-client" }
 nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }

@@ -18,10 +18,9 @@ pub struct User {
 }
 
 #[derive(Clone, Debug)]
-
 pub(crate) struct Authenticator {
     allowed_users: Vec<User>,
-    pub auth_methods: Vec<u8>, // DH TODO: this should not be public
+    pub(crate) auth_methods: Vec<u8>,
 }
 
 impl Authenticator {

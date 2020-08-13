@@ -432,7 +432,6 @@ dependencies = [
  "crypto",
  "directory-client",
  "dirs",
- "dotenv",
  "futures 0.3.4",
  "gateway-client",
  "gateway-requests",
@@ -676,28 +675,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "diesel"
-version = "1.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d7cc03b910de9935007861dce440881f69102aaaedfd4bc5a6f40340ca5840c"
-dependencies = [
- "byteorder",
- "diesel_derives",
- "libsqlite3-sys",
-]
-
-[[package]]
-name = "diesel_derives"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45f5098f628d02a7a0f68ddba586fb61e80edec3bdc1be3b921f4ceec60858d3"
-dependencies = [
- "proc-macro2 1.0.10",
- "quote 1.0.3",
- "syn 1.0.17",
-]
-
-[[package]]
 name = "difference"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -726,7 +703,6 @@ name = "directory-client"
 version = "0.1.0"
 dependencies = [
  "directory-client-models",
- "futures 0.3.4",
  "log 0.4.8",
  "mockito",
  "pretty_env_logger",
@@ -1545,16 +1521,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "libsqlite3-sys"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e5b95e89c330291768dc840238db7f9e204fd208511ab6319b56193a7f2ae25"
-dependencies = [
- "pkg-config",
- "vcpkg",
-]
-
-[[package]]
 name = "libz-sys"
 version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1873,7 +1839,6 @@ dependencies = [
  "gateway-client",
  "gateway-requests",
  "log 0.4.8",
- "mixnet-client",
  "nymsphinx",
  "pem",
  "pemstore",
@@ -1902,7 +1867,6 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "serde_json",
- "slice_as_array",
  "topology",
  "wasm-bindgen",
  "wasm-bindgen-test",
@@ -1973,9 +1937,6 @@ dependencies = [
  "byteorder",
  "clap",
  "config",
- "crypto",
- "diesel",
- "directory-client",
  "dirs",
  "dotenv",
  "futures 0.3.4",
@@ -1987,7 +1948,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio 0.2.16",
- "topology",
 ]
 
 [[package]]
@@ -2047,12 +2007,10 @@ name = "nymsphinx-chunking"
 version = "0.1.0"
 dependencies = [
  "log 0.4.8",
- "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
  "nymsphinx-params",
  "nymsphinx-types",
  "rand 0.7.3",
- "topology",
 ]
 
 [[package]]
@@ -3063,12 +3021,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "slice_as_array"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64c963ee59ddedb5ab95dc2cd97c48b4a292572a52c5636fbbabdb9985bfe4c3"
-
-[[package]]
 name = "smallvec"
 version = "0.6.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3135,7 +3087,6 @@ dependencies = [
  "gateway-client",
  "gateway-requests",
  "log 0.4.8",
- "mixnet-client",
  "nymsphinx",
  "pem",
  "pemstore",
@@ -3555,7 +3506,6 @@ dependencies = [
  "nymsphinx-types",
  "pretty_env_logger",
  "rand 0.7.3",
- "serde",
  "version-checker",
 ]
 

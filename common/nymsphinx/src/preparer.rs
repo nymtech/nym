@@ -401,6 +401,7 @@ where
         Ok((reply_id, packet, first_hop))
     }
 
+    #[allow(dead_code)]
     #[cfg(test)]
     pub(crate) fn test_fixture() -> MessagePreparer<rand::rngs::OsRng> {
         let rng = rand::rngs::OsRng;

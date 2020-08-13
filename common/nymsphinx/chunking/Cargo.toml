@@ -10,8 +10,6 @@ edition = "2018"
 log = "0.4.8"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 
-nymsphinx-acknowledgements = { path = "../acknowledgements" }
 nymsphinx-addressing = { path = "../addressing" }
 nymsphinx-params = { path = "../params" }
 nymsphinx-types = { path = "../types" }
-topology = { path = "../../topology" }

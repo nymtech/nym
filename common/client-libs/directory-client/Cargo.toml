@@ -11,7 +11,6 @@ offline-test = []
 
 [dependencies]
 log = "0.4"
-futures = "0.3"
 pretty_env_logger = "0.3"
 serde = { version = "1.0.104", features = ["derive"] }
 reqwest = { version = "0.10", features = ["json"] }

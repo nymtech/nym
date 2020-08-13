@@ -44,6 +44,7 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::anonymous_replies::ReplySURB;
 use nymsphinx::receiver::ReconstructedMessage;
+use tokio::runtime;
 use tokio::runtime::Runtime;
 
 pub struct NymClient {
@@ -258,18 +259,8 @@ impl NymClient {
         MixTrafficController::new(mix_rx, gateway_client).start(self.runtime.handle());
     }
 
-    fn start_websocket_listener(
-        &self,
-        buffer_requester: ReceivedBufferRequestSender,
-        msg_input: InputMessageSender,
-    ) {
-        info!("Starting websocket listener...");
-
-        let websocket_handler =
-            websocket::Handler::new(msg_input, buffer_requester, self.as_mix_recipient());
-
-        websocket::Listener::new(self.config.get_listening_port())
-            .start(self.runtime.handle(), websocket_handler);
+    fn start_listening(&self, listener: Box<dyn ClientListener>) {
+        listener.listen(self.config.get_listening_port(), self.runtime.handle());
     }
 
     /// EXPERIMENTAL DIRECT RUST API
@@ -380,10 +371,16 @@ impl NymClient {
             sphinx_message_sender.clone(),
         );
         self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
+        let recipient = self.as_mix_recipient();
+        let websocket = Box::new(WebsocketListener::new(
+            received_buffer_request_sender.clone(),
+            input_sender.clone(),
+            recipient,
+        ));
 
         match self.config.get_socket_type() {
             SocketType::WebSocket => {
-                self.start_websocket_listener(received_buffer_request_sender, input_sender)
+                self.start_listening(websocket);
             }
             SocketType::None => {
                 // if we did not start the socket, it means we're running (supposedly) in the native mode
@@ -415,5 +412,32 @@ impl NymClient {
             "Gateway identity public key is: {:?}",
             self.config.get_gateway_id()
         );
+    }
+}
+
+pub(crate) trait ClientListener {
+    fn listen(&self, port: u16, runtime_handle: &runtime::Handle);
+}
+
+struct WebsocketListener {
+    handler: websocket::Handler,
+}
+
+impl ClientListener for WebsocketListener {
+    fn listen(&self, port: u16, runtime_handle: &runtime::Handle) {
+        info!("Starting websocket listener...");
+        websocket::Listener::new(port).start(runtime_handle, self.handler.clone());
+    }
+}
+
+impl WebsocketListener {
+    fn new(
+        received_buffer_request_sender: ReceivedBufferRequestSender,
+        input_sender: InputMessageSender,
+        recipient: Recipient,
+    ) -> WebsocketListener {
+        let handler =
+            websocket::Handler::new(input_sender, received_buffer_request_sender, recipient);
+        WebsocketListener { handler }
     }
 }

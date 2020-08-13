@@ -150,7 +150,7 @@ impl ReceivedMessagesBuffer {
         if guard.message_sender.is_none() {
             // in theory we could just ignore it, but that situation should have never happened
             // in the first place, so this way we at least know we have an important bug to fix
-            panic!("trying to disconnect non-existent sender!")
+            // panic!("trying to disconnect non-existent sender!") // TODO: WTF is happening here?
         }
         guard.message_sender = None;
     }

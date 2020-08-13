@@ -31,11 +31,35 @@ use topology::{NymTopology, NymTopologyError};
 
 #[derive(Debug)]
 pub enum ReplySURBError {
-    NonPaddedMessageError,
-    MalformedStringError,
+    UnpaddedMessageError,
+    MalformedStringError(bs58::decode::Error),
     RecoveryError(SphinxError),
     InvalidEncryptionKeyData(SURBEncryptionKeyError),
 }
+
+impl fmt::Display for ReplySURBError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ReplySURBError::UnpaddedMessageError => {
+                write!(f, "tried to use reply SURB with an unpadded message")
+            }
+            ReplySURBError::MalformedStringError(decode_err) => {
+                write!(f, "reply SURB is incorrectly formatted: {}", decode_err)
+            }
+            ReplySURBError::RecoveryError(sphinx_err) => {
+                write!(f, "failed to recover reply SURB from bytes: {}", sphinx_err)
+            }
+            ReplySURBError::InvalidEncryptionKeyData(surb_key_err) => write!(
+                f,
+                "failed to recover reply SURB encryption key from bytes: {}",
+                surb_key_err
+            ),
+        }
+    }
+}
+
+// since we have Debug and Display might as well slap Error on top of it too
+impl std::error::Error for ReplySURBError {}
 
 impl From<SURBEncryptionKeyError> for ReplySURBError {
     fn from(err: SURBEncryptionKeyError) -> Self {
@@ -167,7 +191,7 @@ impl ReplySURB {
     pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, ReplySURBError> {
         let bytes = match bs58::decode(val.into()).into_vec() {
             Ok(decoded) => decoded,
-            Err(_) => return Err(ReplySURBError::MalformedStringError),
+            Err(err) => return Err(ReplySURBError::MalformedStringError(err)),
         };
         Self::from_bytes(&bytes)
     }
@@ -186,7 +210,7 @@ impl ReplySURB {
         let packet_size = packet_size.unwrap_or_else(Default::default);
 
         if message.len() != packet_size.plaintext_size() {
-            return Err(ReplySURBError::NonPaddedMessageError);
+            return Err(ReplySURBError::UnpaddedMessageError);
         }
 
         // this can realistically only fail on too long messages and we just checked for that

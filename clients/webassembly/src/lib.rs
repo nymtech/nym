@@ -64,7 +64,7 @@ pub struct NodeData {
 pub fn create_sphinx_packet(topology_json: &str, msg: &str, recipient: &str) -> Vec<u8> {
     utils::set_panic_hook(); // nicer js errors.
 
-    let recipient = Recipient::try_from_string(recipient).unwrap();
+    let recipient = Recipient::try_from_base58_string(recipient).unwrap();
 
     let route =
         sphinx_route_to(topology_json, &recipient.gateway()).expect("todo: error handling...");

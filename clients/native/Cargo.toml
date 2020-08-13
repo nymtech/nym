@@ -20,29 +20,28 @@ futures = "0.3" # bunch of futures stuff, however, now that I think about it, it
 # and the single instance of abortable we have should really be refactored anyway
 url = "2.1" # I think we should just replace it with String
 
-bincode = "1.3" # (possibly) for binary websocket API
 clap = "2.33.0" # for the command line arguments
 dirs = "2.0.2" # for determining default store directories in config
 dotenv = "0.15.0" # for obtaining environmental variables (only used for RUST_LOG for time being)
 log = "0.4" # self explanatory
 pretty_env_logger = "0.3" # for formatting log messages
 rand = {version = "0.7.3", features = ["wasm-bindgen"]} # rng-related traits + some rng implementation to use
-serde = { version = "1.0.104", features = ["derive"] } # for api serialization/deserialization
-serde_json = "1.0.44" # for the text websocket API
+serde = { version = "1.0.104", features = ["derive"] } # for config serialization/deserialization
 sled = "0.33" # for storage of replySURB decryption keys
 tokio = { version = "0.2", features = ["full"] } # async runtime
 tokio-tungstenite = "0.10.1" # websocket
 
 ## internal
-config = {path = "../../common/config"}
-crypto = {path = "../../common/crypto"}
+config = { path = "../../common/config" }
+crypto = { path = "../../common/crypto" }
 directory-client = { path = "../../common/client-libs/directory-client" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 mixnet-client = { path = "../../common/client-libs/mixnet-client" }
 nymsphinx = { path = "../../common/nymsphinx" }
-pemstore = {path = "../../common/pemstore"}
-topology = {path = "../../common/topology" }
+pemstore = { path = "../../common/pemstore" }
+topology = { path = "../../common/topology" }
+websocket-requests = { path = "websocket-requests" }
 
 [build-dependencies]
 built = "0.3.2"

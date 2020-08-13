@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::ReplySURB;
-use nymsphinx::receiver::ReconstructedMessage;
-
-pub mod binary;
 pub mod error;
-pub mod text;
+pub mod requests;
+pub mod responses;
+mod text;

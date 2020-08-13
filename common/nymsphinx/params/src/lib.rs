@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crypto::blake3;
-
-pub mod message_types;
 pub mod packet_sizes;
 
 use crypto::aes_ctr::Aes128Ctr;
-pub use message_types::MessageType;
 pub use packet_sizes::PacketSize;
 
 // If somebody can provide an argument why it might be reasonable to have more than 255 mix hops,

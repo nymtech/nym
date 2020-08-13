@@ -27,6 +27,30 @@ pub enum RecipientFormattingError {
     MalformedGatewayError(identity::SignatureError),
 }
 
+impl fmt::Display for RecipientFormattingError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RecipientFormattingError::MalformedRecipientError => {
+                write!(f, "recipient is malformed")
+            }
+            RecipientFormattingError::MalformedIdentityError(id_err) => {
+                write!(f, "recipient's identity key is malformed: {}", id_err)
+            }
+            RecipientFormattingError::MalformedEncryptionKeyError(enc_err) => {
+                write!(f, "recipient's encryption key is malformed: {}", enc_err)
+            }
+            RecipientFormattingError::MalformedGatewayError(id_err) => write!(
+                f,
+                "recipient gateway's identity key is malformed: {}",
+                id_err
+            ),
+        }
+    }
+}
+
+// since we have Debug and Display might as well slap Error on top of it too
+impl std::error::Error for RecipientFormattingError {}
+
 impl From<encryption::EncryptionKeyError> for RecipientFormattingError {
     fn from(err: encryption::EncryptionKeyError) -> Self {
         RecipientFormattingError::MalformedEncryptionKeyError(err)
@@ -166,7 +190,7 @@ impl Recipient {
         })
     }
 
-    pub fn try_from_string<S: Into<String>>(
+    pub fn try_from_base58_string<S: Into<String>>(
         full_address: S,
     ) -> Result<Self, RecipientFormattingError> {
         let string_address = full_address.into();
@@ -204,7 +228,7 @@ impl Recipient {
 
 // ADDRESS . ENCRYPTION @ GATEWAY_ID
 impl std::fmt::Display for Recipient {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}.{}@{}",
@@ -232,7 +256,7 @@ mod tests {
         );
 
         let str_recipient = recipient.to_string();
-        let recovered_recipient = Recipient::try_from_string(str_recipient).unwrap();
+        let recovered_recipient = Recipient::try_from_base58_string(str_recipient).unwrap();
 
         // as long as byte representation of internal keys are identical, it's all fine
         assert_eq!(

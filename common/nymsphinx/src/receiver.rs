@@ -81,11 +81,11 @@ impl MessageReceiver {
         message: &mut Vec<u8>,
     ) -> Result<Option<ReplySURB>, MessageRecoveryError> {
         match message[0] {
-            n if n == true as u8 => {
+            n if n == false as u8 => {
                 message.remove(0);
                 Ok(None)
             }
-            n if n == false as u8 => {
+            n if n == true as u8 => {
                 let surb_len: usize = ReplySURB::serialized_len(self.num_mix_hops);
                 // note the extra +1 (due to 0/1 message prefix)
                 let surb_bytes = &message[1..1 + surb_len];

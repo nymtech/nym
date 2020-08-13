@@ -28,7 +28,7 @@ use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 use tokio::time;
 
-pub(crate) struct LoopCoverTrafficStream<R>
+pub struct LoopCoverTrafficStream<R>
 where
     R: CryptoRng + Rng,
 {
@@ -96,7 +96,7 @@ where
 // obviously when we finally make shared rng that is on 'higher' level, this should become
 // generic `R`
 impl LoopCoverTrafficStream<OsRng> {
-    pub(crate) fn new(
+    pub fn new(
         ack_key: Arc<AckKey>,
         average_ack_delay: time::Duration,
         average_packet_delay: time::Duration,
@@ -178,7 +178,7 @@ impl LoopCoverTrafficStream<OsRng> {
         }
     }
 
-    pub(crate) fn start(mut self, handle: &Handle) -> JoinHandle<()> {
+    pub fn start(mut self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move {
             self.run().await;
         })

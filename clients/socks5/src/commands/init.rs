@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use crate::built_info;
-use crate::client::key_manager::KeyManager;
 use crate::commands::override_config;
-use crate::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use clap::{App, Arg, ArgMatches};
+use client_core::client::key_manager::KeyManager;
+use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use directory_client::DirectoryClient;
@@ -149,7 +149,7 @@ pub fn execute(matches: &ArgMatches) {
     println!("Initialising client...");
 
     let id = matches.value_of("id").unwrap(); // required for now
-    let mut config = crate::config::Config::new(id);
+    let mut config = client_core::config::Config::new(id);
     let mut rng = OsRng;
 
     config = override_config(config, matches);

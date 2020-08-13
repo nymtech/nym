@@ -1,6 +1,6 @@
 use super::client::ActiveStreams;
-use crate::client::received_buffer::ReconstructedMessagesReceiver;
-use crate::client::received_buffer::{ReceivedBufferMessage, ReceivedBufferRequestSender};
+use client_core::client::received_buffer::ReconstructedMessagesReceiver;
+use client_core::client::received_buffer::{ReceivedBufferMessage, ReceivedBufferRequestSender};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;

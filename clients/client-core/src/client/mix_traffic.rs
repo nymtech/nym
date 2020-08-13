@@ -20,19 +20,19 @@ use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
-pub(crate) struct MixMessage(NymNodeRoutingAddress, SphinxPacket);
-pub(crate) type MixMessageSender = mpsc::UnboundedSender<MixMessage>;
-pub(crate) type MixMessageReceiver = mpsc::UnboundedReceiver<MixMessage>;
+pub struct MixMessage(NymNodeRoutingAddress, SphinxPacket);
+pub type MixMessageSender = mpsc::UnboundedSender<MixMessage>;
+pub type MixMessageReceiver = mpsc::UnboundedReceiver<MixMessage>;
 
 impl MixMessage {
-    pub(crate) fn new(address: NymNodeRoutingAddress, packet: SphinxPacket) -> Self {
+    pub fn new(address: NymNodeRoutingAddress, packet: SphinxPacket) -> Self {
         MixMessage(address, packet)
     }
 }
 
 const MAX_FAILURE_COUNT: usize = 100;
 
-pub(crate) struct MixTrafficController<'a> {
+pub struct MixTrafficController<'a> {
     // TODO: most likely to be replaced by some higher level construct as
     // later on gateway_client will need to be accessible by other entities
     gateway_client: GatewayClient<'a, url::Url>,
@@ -44,7 +44,7 @@ pub(crate) struct MixTrafficController<'a> {
 }
 
 impl<'a> MixTrafficController<'static> {
-    pub(crate) fn new(
+    pub fn new(
         mix_rx: MixMessageReceiver,
         gateway_client: GatewayClient<'a, url::Url>,
     ) -> MixTrafficController<'a> {
@@ -77,13 +77,13 @@ impl<'a> MixTrafficController<'static> {
         }
     }
 
-    pub(crate) async fn run(&mut self) {
+    pub async fn run(&mut self) {
         while let Some(mix_message) = self.mix_rx.next().await {
             self.on_message(mix_message).await;
         }
     }
 
-    pub(crate) fn start(mut self, handle: &Handle) -> JoinHandle<()> {
+    pub fn start(mut self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move {
             self.run().await;
         })

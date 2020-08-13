@@ -28,7 +28,7 @@ use std::sync::Arc;
 // use the old key after new one was issued.
 
 // Remember that Arc<T> has Deref implementation for T
-pub(crate) struct KeyManager {
+pub struct KeyManager {
     /// identity key associated with the client instance.
     identity_keypair: Arc<identity::KeyPair>,
 
@@ -56,7 +56,7 @@ impl KeyManager {
     // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
     #[allow(dead_code)]
     /// Creates new instance of a [`KeyManager`]
-    pub(crate) fn new<R>(rng: &mut R) -> Self
+    pub fn new<R>(rng: &mut R) -> Self
     where
         R: RngCore + CryptoRng,
     {
@@ -72,12 +72,12 @@ impl KeyManager {
     // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
     #[allow(dead_code)]
     /// After shared key with the gateway is derived, puts its ownership to this instance of a [`KeyManager`].
-    pub(crate) fn insert_gateway_shared_key(&mut self, gateway_shared_key: SharedKeys) {
+    pub fn insert_gateway_shared_key(&mut self, gateway_shared_key: SharedKeys) {
         self.gateway_shared_key = Some(Arc::new(gateway_shared_key))
     }
 
     /// Loads previously stored keys from the disk.
-    pub(crate) fn load_keys(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
+    pub fn load_keys(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
         let identity_keypair: identity::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(
                 client_pathfinder.private_identity_key().to_owned(),
@@ -111,7 +111,7 @@ impl KeyManager {
     // While perhaps there is no much point in storing the `AckKey` on the disk,
     // it is done so for the consistency sake so that you wouldn't require an rng instance
     // during `load_keys` to generate the said key.
-    pub(crate) fn store_keys(&self, client_pathfinder: &ClientKeyPathfinder) -> io::Result<()> {
+    pub fn store_keys(&self, client_pathfinder: &ClientKeyPathfinder) -> io::Result<()> {
         pemstore::store_keypair(
             self.identity_keypair.as_ref(),
             &pemstore::KeyPairPath::new(
@@ -140,19 +140,19 @@ impl KeyManager {
     }
 
     /// Gets an atomically reference counted pointer to [`identity::KeyPair`].
-    pub(crate) fn identity_keypair(&self) -> Arc<identity::KeyPair> {
+    pub fn identity_keypair(&self) -> Arc<identity::KeyPair> {
         Arc::clone(&self.identity_keypair)
     }
 
     /// Gets an atomically reference counted pointer to [`encryption::KeyPair`].
-    pub(crate) fn encryption_keypair(&self) -> Arc<encryption::KeyPair> {
+    pub fn encryption_keypair(&self) -> Arc<encryption::KeyPair> {
         Arc::clone(&self.encryption_keypair)
     }
 
     /// Gets an atomically reference counted pointer to [`SharedKey`].
     // since this function is not fully public, it is not expected to be used externally and
     // hence it's up to us to ensure it's called in correct context
-    pub(crate) fn gateway_shared_key(&self) -> Arc<SharedKeys> {
+    pub fn gateway_shared_key(&self) -> Arc<SharedKeys> {
         Arc::clone(
             &self
                 .gateway_shared_key
@@ -162,7 +162,7 @@ impl KeyManager {
     }
 
     /// Gets an atomically reference counted pointer to [`AckKey`].
-    pub(crate) fn ack_key(&self) -> Arc<AckKey> {
+    pub fn ack_key(&self) -> Arc<AckKey> {
         Arc::clone(&self.ack_key)
     }
 }

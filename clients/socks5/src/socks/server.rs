@@ -4,7 +4,7 @@ use super::{
     mixnet_responses::MixnetResponseListener,
     types::{ResponseCode, SocksProxyError},
 };
-use crate::client::{
+use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
 use futures::lock::Mutex;

@@ -1,42 +1,29 @@
 [package]
 build = "build.rs"
-name = "nym-client"
+name = "client-core"
 version = "0.8.0-dev"
-authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
+authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[lib]
-name = "nym_client"
-path = "src/lib.rs"
-
 [dependencies]
-bs58 = "0.3.0"
-clap = "2.33.0"
 dirs = "2.0.2"
 dotenv = "0.15.0"
 futures = "0.3.1"
 log = "0.4"
-pem = "0.7.0"
-pretty_env_logger = "0.3"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-reqwest = "0.9.22"
 serde = { version = "1.0.104", features = ["derive"] }
-serde_json = "1.0.44"
 sled = "0.33"
 tokio = { version = "0.2", features = ["full"] }
-tokio-tungstenite = "0.10.1"
 url = "2.1"
 
-## internal
-client-core = { path = "../client-core" }
+# internal
 config = { path = "../../common/config" }
 crypto = { path = "../../common/crypto" }
 directory-client = { path = "../../common/client-libs/directory-client" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }
-mixnet-client = { path = "../../common/client-libs/mixnet-client" }
 nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }

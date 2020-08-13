@@ -20,7 +20,7 @@ use nymsphinx::anonymous_replies::{
 use std::path::Path;
 
 #[derive(Debug)]
-pub(crate) enum ReplyKeyStorageError {
+pub enum ReplyKeyStorageError {
     DbReadError(sled::Error),
     DbWriteError(sled::Error),
     DbOpenError(sled::Error),
@@ -40,7 +40,7 @@ pub struct ReplyKeyStorage {
 }
 
 impl ReplyKeyStorage {
-    pub(crate) fn load<P: AsRef<Path>>(path: P) -> Result<Self, ReplyKeyStorageError> {
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, ReplyKeyStorageError> {
         let db = match sled::open(path) {
             Err(e) => return Err(ReplyKeyStorageError::DbOpenError(e)),
             Ok(db) => db,
@@ -64,7 +64,7 @@ impl ReplyKeyStorage {
     }
 
     // TOOD: perhaps we could also store some part of original message here too?
-    pub(crate) fn insert_encryption_key(
+    pub fn insert_encryption_key(
         &mut self,
         encryption_key: SURBEncryptionKey,
     ) -> Result<(), ReplyKeyStorageError> {
@@ -86,7 +86,7 @@ impl ReplyKeyStorage {
     }
 
     // Once we use key once, we do not expect to use it again
-    pub(crate) fn get_and_remove_encryption_key(
+    pub fn get_and_remove_encryption_key(
         &self,
         key_digest: EncryptionKeyDigest,
     ) -> Result<Option<SURBEncryptionKey>, ReplyKeyStorageError> {

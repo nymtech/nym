@@ -14,8 +14,8 @@
 
 use crate::client::NymClient;
 use crate::commands::override_config;
-use crate::config::Config;
 use clap::{App, Arg, ArgMatches};
+use client_core::config::Config;
 use config::NymConfig;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {

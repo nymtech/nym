@@ -424,6 +424,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "client-core"
+version = "0.8.0-dev"
+dependencies = [
+ "built",
+ "config",
+ "crypto",
+ "directory-client",
+ "dirs",
+ "dotenv",
+ "futures 0.3.4",
+ "gateway-client",
+ "gateway-requests",
+ "log 0.4.8",
+ "nymsphinx",
+ "pemstore",
+ "rand 0.7.3",
+ "serde",
+ "sled 0.33.0",
+ "tempfile",
+ "tokio 0.2.16",
+ "topology",
+ "url 2.1.1",
+]
+
+[[package]]
 name = "cloudabi"
 version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1838,6 +1863,7 @@ dependencies = [
  "bs58",
  "built",
  "clap",
+ "client-core",
  "config",
  "crypto",
  "directory-client",
@@ -3098,6 +3124,7 @@ dependencies = [
  "bs58",
  "built",
  "clap",
+ "client-core",
  "config",
  "crypto",
  "curve25519-dalek",

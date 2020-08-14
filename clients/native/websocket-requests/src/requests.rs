@@ -256,12 +256,10 @@ impl ClientRequest {
             SEND_REQUEST_TAG => Self::deserialize_send(b),
             REPLY_REQUEST_TAG => Self::deserialize_reply(b),
             SELF_ADDRESS_REQUEST_TAG => Self::deserialize_self_address(b),
-            n => {
-                return Err(error::Error::new(
-                    ErrorKind::UnknownRequest,
-                    format!("type {}", n),
-                ))
-            }
+            n => Err(error::Error::new(
+                ErrorKind::UnknownRequest,
+                format!("type {}", n),
+            )),
         }
     }
 

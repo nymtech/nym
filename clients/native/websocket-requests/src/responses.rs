@@ -50,7 +50,6 @@ impl ServerResponse {
     // RECEIVED_RESPONSE_TAG || with_reply || (surb_len || surb) || msg_len || msg
     fn serialize_received(reconstructed_message: ReconstructedMessage) -> Vec<u8> {
         let message_len_bytes = (reconstructed_message.message.len() as u64).to_be_bytes();
-
         if let Some(reply_surb) = reconstructed_message.reply_SURB {
             let reply_surb_bytes = reply_surb.to_bytes();
             let surb_len_bytes = (reply_surb_bytes.len() as u64).to_be_bytes();

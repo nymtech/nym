@@ -1,7 +1,5 @@
 use futures::{SinkExt, StreamExt};
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::receiver::ReconstructedMessage;
-use std::convert::TryFrom;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, WebSocketStream};
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};

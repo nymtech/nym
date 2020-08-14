@@ -12,7 +12,6 @@ name = "nym_client"
 path = "src/lib.rs"
 
 [dependencies]
-#bs58 = "0.3.0"
 # dependencies to review:
 futures = "0.3" # bunch of futures stuff, however, now that I think about it, it could perhaps be completely removed
 # the AsyncRead, AsyncWrite, Stream, Sink, etc. traits could be used from tokio
@@ -48,3 +47,4 @@ built = "0.3.2"
 
 [dev-dependencies]
 tempfile = "3.1.0"
+serde_json = "1.0" # for the "textsend" example

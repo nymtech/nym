@@ -1628,6 +1628,7 @@ dependencies = [
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
+ "serde_json",
  "sled 0.33.0",
  "tempfile",
  "tokio 0.2.16",

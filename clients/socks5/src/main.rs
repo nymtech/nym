@@ -16,18 +16,18 @@ use clap::{App, ArgMatches};
 
 pub mod built_info;
 pub mod client;
-pub mod commands;
-pub mod websocket;
+mod commands;
+pub mod socks;
 
 fn main() {
     dotenv::dotenv().ok();
     setup_logging();
     println!("{}", banner());
 
-    let arg_matches = App::new("Nym Client")
+    let arg_matches = App::new("Nym Socks5 Proxy")
         .version(built_info::PKG_VERSION)
         .author("Nymtech")
-        .about("Implementation of the Nym Client")
+        .about("A Socks5 localhost proxy that converts incoming messages to Sphinx and sends them to a Nym address")
         .subcommand(commands::init::command_args())
         .subcommand(commands::run::command_args())
         .get_matches();
@@ -57,7 +57,7 @@ fn banner() -> String {
      |_| |_|\__, |_| |_| |_|
             |___/
 
-             (client - version {:})
+             (socks5 proxy - version {:})
 
     "#,
         built_info::PKG_VERSION

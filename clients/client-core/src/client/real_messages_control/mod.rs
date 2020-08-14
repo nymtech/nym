@@ -39,7 +39,7 @@ use tokio::task::JoinHandle;
 mod acknowlegement_control;
 mod real_traffic_stream;
 
-pub(crate) struct Config {
+pub struct Config {
     ack_key: Arc<AckKey>,
     ack_wait_multiplier: f64,
     ack_wait_addition: Duration,
@@ -50,7 +50,7 @@ pub(crate) struct Config {
 }
 
 impl Config {
-    pub(crate) fn new(
+    pub fn new(
         ack_key: Arc<AckKey>,
         ack_wait_multiplier: f64,
         ack_wait_addition: Duration,
@@ -71,7 +71,7 @@ impl Config {
     }
 }
 
-pub(crate) struct RealMessagesController<R>
+pub struct RealMessagesController<R>
 where
     R: CryptoRng + Rng,
 {
@@ -82,7 +82,7 @@ where
 // obviously when we finally make shared rng that is on 'higher' level, this should become
 // generic `R`
 impl RealMessagesController<OsRng> {
-    pub(crate) fn new(
+    pub fn new(
         config: Config,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
@@ -161,7 +161,7 @@ impl RealMessagesController<OsRng> {
 
     // &Handle is only passed for consistency sake with other client modules, but I think
     // when we get to refactoring, we should apply gateway approach and make it implicit
-    pub(super) fn start(mut self, handle: &Handle) -> JoinHandle<Self> {
+    pub fn start(mut self, handle: &Handle) -> JoinHandle<Self> {
         handle.spawn(async move {
             self.run().await;
             self

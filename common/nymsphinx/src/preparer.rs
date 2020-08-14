@@ -239,6 +239,7 @@ where
 
         // serialize fragment and encrypt its content
         let mut chunk_data = fragment.into_bytes();
+
         let zero_iv = stream_cipher::zero_iv::<PacketEncryptionAlgorithm>();
         stream_cipher::encrypt_in_place::<PacketEncryptionAlgorithm>(
             &shared_key,
@@ -400,6 +401,7 @@ where
         Ok((reply_id, packet, first_hop))
     }
 
+    #[allow(dead_code)]
     #[cfg(test)]
     pub(crate) fn test_fixture() -> MessagePreparer<rand::rngs::OsRng> {
         let rng = rand::rngs::OsRng;

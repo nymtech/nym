@@ -29,7 +29,7 @@ use topology::NymTopology;
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before
 #[derive(Debug)]
-pub(super) struct TopologyAccessorInner(Option<NymTopology>);
+pub struct TopologyAccessorInner(Option<NymTopology>);
 
 impl AsRef<Option<NymTopology>> for TopologyAccessorInner {
     fn as_ref(&self) -> &Option<NymTopology> {
@@ -47,7 +47,7 @@ impl TopologyAccessorInner {
     }
 }
 
-pub(super) struct TopologyReadPermit<'a> {
+pub struct TopologyReadPermit<'a> {
     permit: RwLockReadGuard<'a, TopologyAccessorInner>,
 }
 
@@ -99,7 +99,7 @@ impl<'a> From<RwLockReadGuard<'a, TopologyAccessorInner>> for TopologyReadPermit
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct TopologyAccessor {
+pub struct TopologyAccessor {
     // `RwLock` *seems to* be the better approach for this as write access is only requested every
     // few seconds, while reads are needed every single packet generated.
     // However, proper benchmarks will be needed to determine if `RwLock` is indeed a better
@@ -108,13 +108,13 @@ pub(crate) struct TopologyAccessor {
 }
 
 impl TopologyAccessor {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         TopologyAccessor {
             inner: Arc::new(RwLock::new(TopologyAccessorInner::new())),
         }
     }
 
-    pub(super) async fn get_read_permit(&self) -> TopologyReadPermit<'_> {
+    pub async fn get_read_permit(&self) -> TopologyReadPermit<'_> {
         self.inner.read().await.into()
     }
 
@@ -123,8 +123,8 @@ impl TopologyAccessor {
     }
 
     // only used by the client at startup to get a slightly more reasonable error message
-    // (currently displays as unused because healthchecker is disabled due to required changes)
-    pub(crate) async fn is_routable(&self) -> bool {
+    // (currently displays as unused because health checker is disabled due to required changes)
+    pub async fn is_routable(&self) -> bool {
         match &self.inner.read().await.0 {
             None => false,
             Some(ref topology) => topology.can_construct_path_through(DEFAULT_NUM_MIX_HOPS),
@@ -132,13 +132,13 @@ impl TopologyAccessor {
     }
 }
 
-pub(crate) struct TopologyRefresherConfig {
+pub struct TopologyRefresherConfig {
     directory_server: String,
     refresh_rate: time::Duration,
 }
 
 impl TopologyRefresherConfig {
-    pub(crate) fn new(directory_server: String, refresh_rate: time::Duration) -> Self {
+    pub fn new(directory_server: String, refresh_rate: time::Duration) -> Self {
         TopologyRefresherConfig {
             directory_server,
             refresh_rate,
@@ -146,14 +146,14 @@ impl TopologyRefresherConfig {
     }
 }
 
-pub(crate) struct TopologyRefresher {
+pub struct TopologyRefresher {
     directory_client: directory_client::Client,
     topology_accessor: TopologyAccessor,
     refresh_rate: Duration,
 }
 
 impl TopologyRefresher {
-    pub(crate) fn new_directory_client(
+    pub fn new_directory_client(
         cfg: TopologyRefresherConfig,
         topology_accessor: TopologyAccessor,
     ) -> Self {
@@ -180,7 +180,7 @@ impl TopologyRefresher {
         }
     }
 
-    pub(crate) async fn refresh(&mut self) {
+    pub async fn refresh(&mut self) {
         trace!("Refreshing the topology");
         let new_topology = self.get_current_compatible_topology().await;
 
@@ -189,11 +189,11 @@ impl TopologyRefresher {
             .await;
     }
 
-    pub(crate) async fn is_topology_routable(&self) -> bool {
+    pub async fn is_topology_routable(&self) -> bool {
         self.topology_accessor.is_routable().await
     }
 
-    pub(crate) fn start(mut self, handle: &Handle) -> JoinHandle<()> {
+    pub fn start(mut self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move {
             loop {
                 tokio::time::delay_for(self.refresh_rate).await;

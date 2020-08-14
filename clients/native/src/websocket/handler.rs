@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client::{
+use client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender},
     received_buffer::{
         ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,

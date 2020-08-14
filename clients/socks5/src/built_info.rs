@@ -12,6 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod built_info;
-pub mod client;
-pub mod websocket;
+// The file has been placed there by the build script.
+include!(concat!(env!("OUT_DIR"), "/built.rs"));

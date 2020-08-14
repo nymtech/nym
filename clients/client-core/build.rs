@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod built_info;
-pub mod client;
-pub mod websocket;
+use built;
+
+fn main() {
+    built::write_built_file().expect("Failed to acquire build-time information");
+}

@@ -37,7 +37,7 @@ kill_old
 export RUST_LOG=warning
 # NOTE: If we wanted to suppress stdout and stderr, replace `&` with `> /dev/null 2>&1 &` in the `run`
 
-cargo run --bin nym-gateway -- init --id gateway-local --mix-host 127.0.0.1:10000 --clients-host 127.0.0.1:10001 --directory $DIR
+# cargo run --bin nym-gateway -- init --id gateway-local --mix-host 127.0.0.1:10000 --clients-host 127.0.0.1:10001 --directory $DIR
 cargo run --bin nym-gateway -- run --id gateway-local &
 
 sleep 1

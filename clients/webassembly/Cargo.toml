@@ -19,9 +19,8 @@ offline-test = []
 log = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-slice_as_array = "1.1.0"
 wasm-bindgen = "0.2"
-rand = {version = "0.7.3", features = ["wasm-bindgen"]}
+rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 
 # internal
 crypto = { path = "../../common/crypto" }

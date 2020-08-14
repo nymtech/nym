@@ -31,12 +31,12 @@ use tokio::task::JoinHandle;
 
 // Buffer Requests to say "hey, send any reconstructed messages to this channel"
 // or to say "hey, I'm going offline, don't send anything more to me. Just buffer them instead"
-pub(crate) type ReceivedBufferRequestSender = mpsc::UnboundedSender<ReceivedBufferMessage>;
-pub(crate) type ReceivedBufferRequestReceiver = mpsc::UnboundedReceiver<ReceivedBufferMessage>;
+pub type ReceivedBufferRequestSender = mpsc::UnboundedSender<ReceivedBufferMessage>;
+pub type ReceivedBufferRequestReceiver = mpsc::UnboundedReceiver<ReceivedBufferMessage>;
 
 // The channel set for the above
-pub(crate) type ReconstructedMessagesSender = mpsc::UnboundedSender<Vec<ReconstructedMessage>>;
-pub(crate) type ReconstructedMessagesReceiver = mpsc::UnboundedReceiver<Vec<ReconstructedMessage>>;
+pub type ReconstructedMessagesSender = mpsc::UnboundedSender<Vec<ReconstructedMessage>>;
+pub type ReconstructedMessagesReceiver = mpsc::UnboundedReceiver<Vec<ReconstructedMessage>>;
 
 struct ReceivedMessagesBufferInner {
     messages: Vec<ReconstructedMessage>,
@@ -277,7 +277,7 @@ impl ReceivedMessagesBuffer {
     }
 }
 
-pub(crate) enum ReceivedBufferMessage {
+pub enum ReceivedBufferMessage {
     // Signals a websocket connection (or a native implementation) was established and we should stop buffering messages,
     // and instead send them directly to the received channel
     ReceiverAnnounce(ReconstructedMessagesSender),
@@ -342,13 +342,13 @@ impl FragmentedMessageReceiver {
     }
 }
 
-pub(crate) struct ReceivedMessagesBufferController {
+pub struct ReceivedMessagesBufferController {
     fragmented_message_receiver: FragmentedMessageReceiver,
     request_receiver: RequestReceiver,
 }
 
 impl ReceivedMessagesBufferController {
-    pub(crate) fn new(
+    pub fn new(
         local_encryption_keypair: Arc<encryption::KeyPair>,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_packet_receiver: MixnetMessageReceiver,
@@ -366,7 +366,7 @@ impl ReceivedMessagesBufferController {
         }
     }
 
-    pub(crate) fn start(self, handle: &Handle) {
+    pub fn start(self, handle: &Handle) {
         // TODO: should we do anything with JoinHandle(s) returned by start methods?
         self.fragmented_message_receiver.start(handle);
         self.request_receiver.start(handle);

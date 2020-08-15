@@ -46,7 +46,7 @@ use nymsphinx::addressing::clients::{ClientEncryptionKey, ClientIdentity, Recipi
 use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::anonymous_replies::ReplySURB;
 use nymsphinx::receiver::ReconstructedMessage;
-use tokio::runtime::{self, Runtime};
+use tokio::runtime::Runtime;
 
 pub struct NymClient {
     /// Client configuration options, including, among other things, packet sending rates,
@@ -260,9 +260,35 @@ impl NymClient {
         MixTrafficController::new(mix_rx, gateway_client).start(self.runtime.handle());
     }
 
-    fn start_listening(&self, listener: Box<dyn ClientListener>) {
+    fn start_socks5_listener(
+        &self,
+        buffer_requester: ReceivedBufferRequestSender,
+        msg_input: InputMessageSender,
+    ) {
         info!("Starting socks5 listener...");
-        listener.listen(self.config.get_listening_port(), self.runtime.handle());
+        let mut auth_methods: Vec<u8> = Vec::new();
+        auth_methods.push(AuthenticationMethods::NoAuth as u8);
+        let allowed_users: Vec<User> = Vec::new();
+
+        let authenticator = Authenticator::new(auth_methods, allowed_users);
+        let recipient = self.load_socks5_service_provider();
+        let mut sphinx_socks = SphinxSocksServer::new(1080, "127.0.0.1", authenticator, recipient);
+        self.runtime
+            .spawn(async move { sphinx_socks.serve(msg_input, buffer_requester).await });
+    }
+    // TODO: make this configurable in the client config file
+    // TODO: Talk to JS about where I can easily find these.
+    fn load_socks5_service_provider(&self) -> Recipient {
+        // load from file here, or better yet, inject it
+        let identity = "7qBXQor8nHXUXDAUM4aLvqDJ2MECFKn3AJ3brQsu5qz8";
+        let encryption_key = "4uzn7m3vPEy5MhPHLqzFCJHk2BCnvbCsGdrYzng7jnor";
+        let gateway_key = "e3vUAo6YhB7zq3GH8B4k3iiGT4H2USjdd5ZMZoUsHdF";
+
+        let client_identity = ClientIdentity::from_base58_string(identity).unwrap();
+        let client_encryption_key =
+            ClientEncryptionKey::from_base58_string(encryption_key).unwrap();
+        let gateway = NodeIdentity::from_base58_string(gateway_key).unwrap();
+        Recipient::new(client_identity, client_encryption_key, gateway)
     }
 
     /// EXPERIMENTAL DIRECT RUST API
@@ -374,17 +400,9 @@ impl NymClient {
         );
         self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
 
-        let recipient = load_socks5_service_provider();
-        let socks = Box::new(SocksListener::new(
-            received_buffer_request_sender.clone(),
-            input_sender.clone(),
-            recipient,
-        ));
-        // let socks = Box::new(listener);
-
         match self.config.get_socket_type() {
             SocketType::WebSocket => {
-                self.start_listening(socks);
+                self.start_socks5_listener(received_buffer_request_sender, input_sender)
             }
             SocketType::None => {
                 // if we did not start the socket, it means we're running (supposedly) in the native mode
@@ -416,58 +434,5 @@ impl NymClient {
             "Gateway identity public key is: {:?}",
             self.config.get_gateway_id()
         );
-    }
-}
-
-// TODO: make this configurable in the client config file
-// TODO: Talk to JS about where I can easily find these.
-fn load_socks5_service_provider() -> Recipient {
-    // load from file here, or better yet, inject it
-    let identity = "7qBXQor8nHXUXDAUM4aLvqDJ2MECFKn3AJ3brQsu5qz8";
-    let encryption_key = "4uzn7m3vPEy5MhPHLqzFCJHk2BCnvbCsGdrYzng7jnor";
-    let gateway_key = "e3vUAo6YhB7zq3GH8B4k3iiGT4H2USjdd5ZMZoUsHdF";
-
-    let client_identity = ClientIdentity::from_base58_string(identity).unwrap();
-    let client_encryption_key = ClientEncryptionKey::from_base58_string(encryption_key).unwrap();
-    let gateway = NodeIdentity::from_base58_string(gateway_key).unwrap();
-    Recipient::new(client_identity, client_encryption_key, gateway)
-}
-
-trait ClientListener {
-    fn listen(&mut self, port: u16, runtime_handle: &runtime::Handle);
-}
-
-struct SocksListener {
-    server: SphinxSocksServer,
-}
-
-impl ClientListener for SocksListener {
-    fn listen(&mut self, port: u16, runtime_handle: &runtime::Handle) {
-        info!("Starting socks listener...");
-
-        runtime_handle.spawn(async move { self.server.serve().await });
-    }
-}
-
-impl SocksListener {
-    fn new(
-        received_buffer_request_sender: ReceivedBufferRequestSender,
-        input_sender: InputMessageSender,
-        recipient: Recipient,
-    ) -> SocksListener {
-        let mut auth_methods: Vec<u8> = Vec::new();
-        auth_methods.push(AuthenticationMethods::NoAuth as u8);
-        let allowed_users: Vec<User> = Vec::new();
-
-        let authenticator = Authenticator::new(auth_methods, allowed_users);
-        let server = SphinxSocksServer::new(
-            1080,
-            "127.0.0.1",
-            authenticator,
-            recipient,
-            input_sender,
-            received_buffer_request_sender,
-        );
-        SocksListener { server }
     }
 }

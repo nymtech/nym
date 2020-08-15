@@ -18,8 +18,6 @@ pub struct SphinxSocksServer {
     authenticator: Authenticator,
     listening_address: SocketAddr,
     service_provider: Recipient,
-    input_sender: InputMessageSender,
-    buffer_requester: ReceivedBufferRequestSender,
 }
 
 impl SphinxSocksServer {
@@ -29,22 +27,22 @@ impl SphinxSocksServer {
         ip: &str,
         authenticator: Authenticator,
         service_provider: Recipient,
-        input_sender: InputMessageSender,
-        buffer_requester: ReceivedBufferRequestSender,
     ) -> Self {
         info!("Listening on {}:{}", ip, port);
         SphinxSocksServer {
             authenticator,
-            buffer_requester,
             listening_address: format!("{}:{}", ip, port).parse().unwrap(),
             service_provider,
-            input_sender,
         }
     }
 
     /// Set up the listener and initiate connection handling when something
     /// connects to the server.
-    pub(crate) async fn serve(&mut self) -> Result<(), SocksProxyError> {
+    pub(crate) async fn serve(
+        &mut self,
+        input_sender: InputMessageSender,
+        buffer_requester: ReceivedBufferRequestSender,
+    ) -> Result<(), SocksProxyError> {
         info!("Serving Connections...");
         let mut listener = TcpListener::bind(self.listening_address).await.unwrap();
 
@@ -52,7 +50,7 @@ impl SphinxSocksServer {
         let active_streams = Arc::new(Mutex::new(HashMap::new()));
 
         let mut mixnet_response_listener =
-            MixnetResponseListener::new(self.buffer_requester.clone(), Arc::clone(&active_streams));
+            MixnetResponseListener::new(buffer_requester, Arc::clone(&active_streams));
 
         tokio::spawn(async move {
             mixnet_response_listener.run().await;
@@ -64,7 +62,7 @@ impl SphinxSocksServer {
                 let mut client = SocksClient::new(
                     stream,
                     self.authenticator.clone(),
-                    self.input_sender.clone(),
+                    input_sender.clone(),
                     self.service_provider.clone(),
                     Arc::clone(&active_streams),
                 );

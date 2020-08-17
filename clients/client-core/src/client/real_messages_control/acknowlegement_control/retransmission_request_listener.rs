@@ -67,11 +67,18 @@ where
 
     async fn on_retransmission_request(&mut self, frag_id: FragmentIdentifier) {
         let pending_acks_map_read_guard = self.pending_acks.read().await;
-        // if the unwrap failed here, we have some weird bug somewhere - honestly, I'm not sure
-        // if it's even possible for it to happen
-        let unreceived_ack_fragment = pending_acks_map_read_guard
-            .get(&frag_id)
-            .expect("wanted to retransmit ack'd fragment");
+
+        let unreceived_ack_fragment = match pending_acks_map_read_guard.get(&frag_id) {
+            Some(pending_ack) => pending_ack,
+            // this can actually happen when ack retransmission times out while `on_ack` is being processed
+            // 1. `retransmission_sender.unbounded_send(frag_id).unwrap()` happens thus triggering this function
+            // 2. at the same time ack is received and fully processed (which takes pending_acks *WRITE* lock!!) -> ack is removed from the map + `self.pending_acks.read()` blocks
+            // 3. `on_retransmission_request` manages to get read lock, but the entry was already removed
+            None => {
+                info!("wanted to retransmit ack'd fragment");
+                return;
+            }
+        };
 
         let packet_recipient = unreceived_ack_fragment.recipient.clone();
         let chunk_clone = unreceived_ack_fragment.message_chunk.clone();

@@ -114,7 +114,7 @@ impl SocksRequest {
     pub(crate) async fn try_read_request_data<R: AsyncRead + Unpin>(
         reader: &mut R,
     ) -> io::Result<Vec<u8>> {
-        let timeout_duration = std::time::Duration::from_millis(100);
+        let timeout_duration = std::time::Duration::from_millis(500);
         let mut data = Vec::new();
         let mut timeout = tokio::time::delay_for(timeout_duration);
         loop {

@@ -54,6 +54,7 @@ impl Controller {
         remote_addr: RemoteAddress,
         init_data: Vec<u8>,
     ) -> Result<Response, ConnectionError> {
+        println!("Connecting {} to remote {}", conn_id, remote_addr);
         let mut connection = Connection::new(conn_id, remote_addr, &init_data).await?;
 
         let response_data = connection.try_read_response_data().await?;
@@ -66,6 +67,7 @@ impl Controller {
         conn_id: ConnectionId,
         data: Vec<u8>,
     ) -> Result<Response, ConnectionError> {
+        println!("Sending {} bytes to conn_id {}", data.len(), conn_id);
         let connection = self
             .open_connections
             .get_mut(&conn_id)
@@ -73,6 +75,11 @@ impl Controller {
         connection.send_data(&data).await?;
 
         let response_data = connection.try_read_response_data().await?;
+        println!(
+            "Got {} bytes response for conn_id {}",
+            response_data.len(),
+            conn_id
+        );
         Ok(Response::new(conn_id, response_data))
     }
 

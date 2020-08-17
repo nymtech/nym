@@ -31,7 +31,7 @@ impl Connection {
     /// Read response data by looping, waiting for anything we get back from the
     /// remote server. Returns once it times out or the connection closes.
     pub(crate) async fn try_read_response_data(&mut self) -> io::Result<Vec<u8>> {
-        let timeout_duration = std::time::Duration::from_millis(100);
+        let timeout_duration = std::time::Duration::from_millis(500);
         let mut data = Vec::new();
         let mut timeout = tokio::time::delay_for(timeout_duration);
         loop {
@@ -45,9 +45,9 @@ impl Connection {
                         Err(err) => return Err(err),
                         Ok(0) => return Ok(data),
                         Ok(n) => {
-                            // let now = timeout.deadline();
-                            // let next = now + timeout_duration;
-                            // timeout.reset(next);
+                            let now = timeout.deadline();
+                            let next = now + timeout_duration;
+                            timeout.reset(next);
                             data.extend_from_slice(&buf[..n])
                         }
                     }

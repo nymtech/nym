@@ -3,9 +3,10 @@ mod controller;
 mod core;
 mod websocket;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     println!("Starting socks5 service provider:");
     let mut server = core::ServiceProvider::new();
-    server.start();
-    server.run_forever();
+    server.run().await;
+    // server.run_forever();
 }

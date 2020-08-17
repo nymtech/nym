@@ -18,8 +18,16 @@ impl Connection {
         address: RemoteAddress,
         initial_data: &[u8],
     ) -> io::Result<Self> {
-        let conn = TcpStream::connect(&address).await?;
+        println!("Connecting to {}", address);
+        let conn = match TcpStream::connect(&address).await {
+            Ok(conn) => conn,
+            Err(err) => {
+                eprintln!("error while connecting! - {:?}", err);
+                return Err(err);
+            }
+        };
         let mut connection = Connection { id, address, conn };
+        println!("Sending data {:?}", initial_data);
         connection.send_data(&initial_data).await?;
         Ok(connection)
     }
@@ -38,12 +46,16 @@ impl Connection {
             let mut buf = [0u8; 1024];
             tokio::select! {
                 _ = &mut timeout => {
+                    eprintln!("we timed out - read {:?}", data);
                     return Ok(data) // we return all response data on timeout
                 }
                 read_data = self.conn.read(&mut buf) => {
                     match read_data {
                         Err(err) => return Err(err),
-                        Ok(0) => return Ok(data),
+                        Ok(0) => {
+                            eprintln!("read 0 - connection is closed (accumulated {:?})", data);
+                            return Ok(data)
+                        }
                         Ok(n) => {
                             let now = timeout.deadline();
                             let next = now + timeout_duration;

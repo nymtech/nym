@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rand = {version = "0.7.3", features = ["wasm-bindgen"]}
+rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 rand_distr = "0.2.2"
 
 nymsphinx-acknowledgements = { path = "acknowledgements" }
@@ -15,7 +15,6 @@ nymsphinx-addressing = { path = "addressing" }
 nymsphinx-anonymous-replies = { path = "anonymous-replies" }
 nymsphinx-chunking = { path = "chunking" }
 nymsphinx-cover = { path = "cover" }
-nymsphinx-framing = { path = "framing" }
 nymsphinx-params = { path = "params" }
 nymsphinx-types = { path = "types" }
 
@@ -23,3 +22,8 @@ nymsphinx-types = { path = "types" }
 # to separate crate?
 crypto = { path = "../crypto" }
 topology = { path = "../topology" }
+
+# do not incnlude this when compiling into wasm as it somehow when combined together with reqwest, it will require
+# net2 via tokio-util -> tokio -> mio -> net2
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.nymsphinx-framing]
+path = "framing"

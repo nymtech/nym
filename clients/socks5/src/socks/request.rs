@@ -114,20 +114,20 @@ impl SocksRequest {
     pub(crate) async fn try_read_request_data<R: AsyncRead + Unpin>(
         reader: &mut R,
     ) -> io::Result<Vec<u8>> {
-        let timeout_duration = std::time::Duration::from_millis(500);
+        let timeout_duration = std::time::Duration::from_millis(100);
         let mut data = Vec::new();
         let mut timeout = tokio::time::delay_for(timeout_duration);
         loop {
             let mut buf = [0u8; 1024];
             tokio::select! {
                 _ = &mut timeout => {
-                    println!("we timed out!");
+                    println!("we timed out! Going to return {:?}", data);
                     return Ok(data)
                 }
                 read_data = reader.read(&mut buf) => {
                     match read_data {
                         Err(err) => return Err(err),
-                        Ok(0) => return Ok(data),
+                        Ok(0) => return Ok(data), // EOF -> connection closed
                         Ok(n) => {
                             let now = timeout.deadline();
                             let next = now + timeout_duration;

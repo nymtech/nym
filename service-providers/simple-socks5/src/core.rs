@@ -39,9 +39,15 @@ impl ServiceProvider {
 
                 let raw_message = received.message;
                 let request = Request::try_from_bytes(&raw_message).unwrap();
-                let response = match controller.process_request(request).await.unwrap() {
-                    None => continue, // restart the loop if we got nothing back
-                    Some(response) => response,
+                let response = match controller.process_request(request).await {
+                    Ok(response_option) => match response_option {
+                        None => continue, // restart the loop if we got nothing back
+                        Some(response) => response,
+                    },
+                    Err(err) => {
+                        eprintln!("just some error - {:?}", err);
+                        continue
+                    }
                 };
 
                 // TODO: wire SURBs in here once they're available

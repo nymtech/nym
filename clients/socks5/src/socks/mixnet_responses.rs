@@ -38,9 +38,7 @@ impl MixnetResponseListener {
         }
     }
 
-    async fn on_message(&self, bytes: Vec<u8>) {
-        let reconstructed_message =
-            ReconstructedMessage::try_from_bytes(&bytes).expect("todo: error handling");
+    async fn on_message(&self, reconstructed_message: ReconstructedMessage) {
         let raw_message = reconstructed_message.message;
         if reconstructed_message.reply_SURB.is_some() {
             println!("this message had a surb - we didn't do anything with it");
@@ -70,8 +68,8 @@ impl MixnetResponseListener {
 
     pub(crate) async fn run(&mut self) {
         while let Some(received_responses) = self.mix_response_receiver.next().await {
-            for received_response in received_responses {
-                self.on_message(received_response.into_bytes()).await;
+            for reconstructed_message in received_responses {
+                self.on_message(reconstructed_message).await;
             }
         }
         println!("We should never see this message");

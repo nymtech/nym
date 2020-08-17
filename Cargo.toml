@@ -6,6 +6,7 @@ opt-level = "s"
 
 members = [
     "clients/native",
+    "clients/native/websocket-requests",
     "clients/socks5",
     "clients/webassembly",
     "clients/client-core",

@@ -12,12 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Perhaps this idea could be extended with some binary masking to convey more information
-// like to help the receiver to know whether the message is expected to be text-based or binary
-#[repr(u8)]
-#[derive(Clone, Copy, Debug)]
-pub enum MessageType {
-    WithoutReplySURB = 0,
-    WithReplySURB = 1,
-    IsReply = 2,
-}
+pub mod error;
+pub mod requests;
+pub mod responses;
+mod text;

@@ -18,9 +18,7 @@ use crypto::symmetric::stream_cipher;
 use nymsphinx_anonymous_replies::reply_surb::{ReplySURB, ReplySURBError};
 use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_chunking::reconstruction::MessageReconstructor;
-use nymsphinx_params::{
-    MessageType, PacketEncryptionAlgorithm, PacketHkdfAlgorithm, DEFAULT_NUM_MIX_HOPS,
-};
+use nymsphinx_params::{PacketEncryptionAlgorithm, PacketHkdfAlgorithm, DEFAULT_NUM_MIX_HOPS};
 
 // TODO: should this live in this file?
 #[allow(non_snake_case)]
@@ -31,45 +29,6 @@ pub struct ReconstructedMessage {
 
     /// Optional ReplySURB to allow for an anonymous reply to the sender.
     pub reply_SURB: Option<ReplySURB>,
-}
-
-impl ReconstructedMessage {
-    pub fn into_bytes(self) -> Vec<u8> {
-        if let Some(reply_surb) = self.reply_SURB {
-            std::iter::once(MessageType::WithReplySURB as u8)
-                .chain(reply_surb.to_bytes().iter().cloned())
-                .chain(self.message.into_iter())
-                .collect()
-        } else {
-            std::iter::once(MessageType::WithoutReplySURB as u8)
-                .chain(self.message.into_iter())
-                .collect()
-        }
-    }
-
-    pub fn try_from_bytes(b: &[u8]) -> Result<Self, MessageRecoveryError> {
-        if b.is_empty() {
-            return Err(MessageRecoveryError::TooShortMessageError);
-        }
-
-        match b[0] {
-            n if n == MessageType::WithReplySURB as u8 => {
-                let surb_len = ReplySURB::serialized_len(DEFAULT_NUM_MIX_HOPS);
-                if b.len() < surb_len + 1 {
-                    return Err(MessageRecoveryError::TooShortMessageError);
-                }
-                Ok(ReconstructedMessage {
-                    reply_SURB: Some(ReplySURB::from_bytes(&b[1..1 + surb_len])?),
-                    message: b[1 + surb_len..].to_vec(),
-                })
-            }
-            n if n == MessageType::WithoutReplySURB as u8 => Ok(ReconstructedMessage {
-                message: b[1..].to_vec(),
-                reply_SURB: None,
-            }),
-            _ => Err(MessageRecoveryError::InvalidSurbPrefixError),
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -122,11 +81,11 @@ impl MessageReceiver {
         message: &mut Vec<u8>,
     ) -> Result<Option<ReplySURB>, MessageRecoveryError> {
         match message[0] {
-            n if n == MessageType::WithoutReplySURB as u8 => {
+            n if n == false as u8 => {
                 message.remove(0);
                 Ok(None)
             }
-            n if n == MessageType::WithReplySURB as u8 => {
+            n if n == true as u8 => {
                 let surb_len: usize = ReplySURB::serialized_len(self.num_mix_hops);
                 // note the extra +1 (due to 0/1 message prefix)
                 let surb_bytes = &message[1..1 + surb_len];
@@ -327,7 +286,7 @@ mod message_receiver {
 
         // the actual 'correctness' of the underlying message doesn't matter for this test
         let message = vec![42; 100];
-        let dummy_recipient = Recipient::try_from_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@FioFa8nMmPpQnYi7JyojoTuwGLeyNS8BF4ChPr29zUML").unwrap();
+        let dummy_recipient = Recipient::try_from_base58_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@FioFa8nMmPpQnYi7JyojoTuwGLeyNS8BF4ChPr29zUML").unwrap();
         let average_delay = Duration::from_millis(500);
         let topology = topology_fixture();
 

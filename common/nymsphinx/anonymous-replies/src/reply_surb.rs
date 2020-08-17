@@ -22,17 +22,44 @@ use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_params::{ReplySURBKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nymsphinx_types::{delays, Error as SphinxError, SURBMaterial, SphinxPacket, SURB};
 use rand::{CryptoRng, RngCore};
+use serde::de::{Error as SerdeError, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::convert::TryFrom;
+use std::fmt::{self, Formatter};
 use std::time;
 use topology::{NymTopology, NymTopologyError};
 
 #[derive(Debug)]
 pub enum ReplySURBError {
-    NonPaddedMessageError,
-    MalformedStringError,
+    UnpaddedMessageError,
+    MalformedStringError(bs58::decode::Error),
     RecoveryError(SphinxError),
     InvalidEncryptionKeyData(SURBEncryptionKeyError),
 }
+
+impl fmt::Display for ReplySURBError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ReplySURBError::UnpaddedMessageError => {
+                write!(f, "tried to use reply SURB with an unpadded message")
+            }
+            ReplySURBError::MalformedStringError(decode_err) => {
+                write!(f, "reply SURB is incorrectly formatted: {}", decode_err)
+            }
+            ReplySURBError::RecoveryError(sphinx_err) => {
+                write!(f, "failed to recover reply SURB from bytes: {}", sphinx_err)
+            }
+            ReplySURBError::InvalidEncryptionKeyData(surb_key_err) => write!(
+                f,
+                "failed to recover reply SURB encryption key from bytes: {}",
+                surb_key_err
+            ),
+        }
+    }
+}
+
+// since we have Debug and Display might as well slap Error on top of it too
+impl std::error::Error for ReplySURBError {}
 
 impl From<SURBEncryptionKeyError> for ReplySURBError {
     fn from(err: SURBEncryptionKeyError) -> Self {
@@ -44,6 +71,44 @@ impl From<SURBEncryptionKeyError> for ReplySURBError {
 pub struct ReplySURB {
     surb: SURB,
     encryption_key: SURBEncryptionKey,
+}
+
+// Serialize + Deserialize is not really used anymore (it was for a CBOR experiment)
+// however, if we decided we needed it again, it's already here
+impl Serialize for ReplySURB {
+    fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_bytes(&self.to_bytes())
+    }
+}
+
+impl<'de> Deserialize<'de> for ReplySURB {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct ReplySURBVisitor;
+
+        impl<'de> Visitor<'de> for ReplySURBVisitor {
+            type Value = ReplySURB;
+
+            fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+                write!(formatter, "A replySURB must contain a valid symmetric encryption key and a correctly formed sphinx header")
+            }
+
+            fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Self::Value, E>
+            where
+                E: SerdeError,
+            {
+                ReplySURB::from_bytes(bytes)
+                    .or_else(|_| Err(SerdeError::invalid_length(bytes.len(), &self)))
+            }
+        }
+
+        deserializer.deserialize_bytes(ReplySURBVisitor)
+    }
 }
 
 impl ReplySURB {
@@ -126,7 +191,7 @@ impl ReplySURB {
     pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, ReplySURBError> {
         let bytes = match bs58::decode(val.into()).into_vec() {
             Ok(decoded) => decoded,
-            Err(_) => return Err(ReplySURBError::MalformedStringError),
+            Err(err) => return Err(ReplySURBError::MalformedStringError(err)),
         };
         Self::from_bytes(&bytes)
     }
@@ -145,7 +210,7 @@ impl ReplySURB {
         let packet_size = packet_size.unwrap_or_else(Default::default);
 
         if message.len() != packet_size.plaintext_size() {
-            return Err(ReplySURBError::NonPaddedMessageError);
+            return Err(ReplySURBError::UnpaddedMessageError);
         }
 
         // this can realistically only fail on too long messages and we just checked for that

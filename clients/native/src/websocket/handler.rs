@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::types::{BinaryClientRequest, ClientTextRequest, ServerTextResponse};
-use crate::websocket::types::ReceivedTextMessage;
 use client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender},
     received_buffer::{
@@ -26,13 +24,13 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::ReplySURB;
 use nymsphinx::receiver::ReconstructedMessage;
-use std::convert::{TryFrom, TryInto};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     accept_async,
-    tungstenite::{protocol::Message, Error as WsError},
+    tungstenite::{protocol::Message as WsMessage, Error as WsError},
     WebSocketStream,
 };
+use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
 enum ReceivedResponseType {
     Binary,
@@ -89,189 +87,127 @@ impl Handler {
         }
     }
 
-    fn handle_text_send(
-        &mut self,
-        msg: String,
-        full_recipient_address: String,
-        with_reply_surb: bool,
-    ) -> Option<ServerTextResponse> {
-        let message_bytes = msg.into_bytes();
-
-        let recipient = match Recipient::try_from_string(full_recipient_address) {
-            Ok(address) => address,
-            Err(err) => {
-                trace!("failed to parse received Recipient: {:?}", err);
-                return Some(ServerTextResponse::new_error("malformed recipient address"));
-            }
-        };
-
-        // the ack control is now responsible for chunking, etc.
-        let input_msg = InputMessage::new_fresh(recipient, message_bytes, with_reply_surb);
-        self.msg_input.unbounded_send(input_msg).unwrap();
-
-        self.received_response_type = ReceivedResponseType::Text;
-        None
-    }
-
-    fn handle_text_reply(&mut self, msg: String, reply_surb: String) -> Option<ServerTextResponse> {
-        let message_bytes = msg.into_bytes();
-
-        let reply_surb = match ReplySURB::from_base58_string(reply_surb) {
-            Ok(reply_surb) => reply_surb,
-            Err(err) => {
-                trace!("failed to parse received ReplySURB: {:?}", err);
-                return Some(ServerTextResponse::new_error("malformed reply surb"));
-            }
-        };
-
-        let input_msg = InputMessage::new_reply(reply_surb, message_bytes);
-        self.msg_input.unbounded_send(input_msg).unwrap();
-
-        self.received_response_type = ReceivedResponseType::Text;
-        None
-    }
-
-    fn handle_text_self_address(&self) -> ServerTextResponse {
-        ServerTextResponse::SelfAddress {
-            address: self.self_full_address.to_string(),
-        }
-    }
-
-    async fn handle_text_message(&mut self, msg: String) -> Option<Message> {
-        debug!("Handling text message request");
-        trace!("Content: {:?}", msg.clone());
-
-        match ClientTextRequest::try_from(msg) {
-            Err(e) => Some(
-                ServerTextResponse::Error {
-                    message: format!("received invalid request. err: {:?}", e),
-                }
-                .into(),
-            ),
-            Ok(req) => match req {
-                ClientTextRequest::Send {
-                    message,
-                    recipient,
-                    with_reply_surb,
-                } => self
-                    .handle_text_send(message, recipient, with_reply_surb)
-                    .map(|resp| resp.into()),
-                ClientTextRequest::Reply {
-                    message,
-                    reply_surb,
-                } => self
-                    .handle_text_reply(message, reply_surb)
-                    .map(|resp| resp.into()),
-                ClientTextRequest::SelfAddress => Some(self.handle_text_self_address().into()),
-            },
-        }
-    }
-
-    fn handle_binary_send(
+    fn handle_send(
         &mut self,
         recipient: Recipient,
-        data: Vec<u8>,
+        message: Vec<u8>,
         with_reply_surb: bool,
-    ) -> Option<ServerTextResponse> {
+    ) -> Option<ServerResponse> {
         // the ack control is now responsible for chunking, etc.
-        let input_msg = InputMessage::new_fresh(recipient, data, with_reply_surb);
+        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb);
         self.msg_input.unbounded_send(input_msg).unwrap();
-
-        self.received_response_type = ReceivedResponseType::Binary;
 
         None
     }
 
-    fn handle_binary_reply(
-        &mut self,
-        reply_surb: ReplySURB,
-        message: Vec<u8>,
-    ) -> Option<ServerTextResponse> {
+    fn handle_reply(&mut self, reply_surb: ReplySURB, message: Vec<u8>) -> Option<ServerResponse> {
         if message.len() > ReplySURB::max_msg_len(Default::default()) {
-            return Some(ServerTextResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySURB::max_msg_len(Default::default()))));
+            return Some(ServerResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySURB::max_msg_len(Default::default()))));
         }
 
         let input_msg = InputMessage::new_reply(reply_surb, message);
         self.msg_input.unbounded_send(input_msg).unwrap();
 
-        self.received_response_type = ReceivedResponseType::Binary;
-
         None
     }
 
-    // if it's binary we assume it's a sphinx packet formatted the same way as we'd have sent
-    // it to the gateway
-    fn handle_binary_message(&mut self, msg: Vec<u8>) -> Option<Message> {
+    fn handle_self_address(&self) -> ServerResponse {
+        ServerResponse::SelfAddress(self.self_full_address.clone())
+    }
+
+    fn handle_request(&mut self, request: ClientRequest) -> Option<ServerResponse> {
+        match request {
+            ClientRequest::Send {
+                recipient,
+                message,
+                with_reply_surb,
+            } => self.handle_send(recipient, message, with_reply_surb),
+            ClientRequest::Reply {
+                message,
+                reply_surb,
+            } => self.handle_reply(reply_surb, message),
+            ClientRequest::SelfAddress => Some(self.handle_self_address()),
+        }
+    }
+
+    fn handle_text_message(&mut self, msg: String) -> Option<WsMessage> {
+        debug!("Handling text message request");
+        trace!("Content: {:?}", msg);
+
+        self.received_response_type = ReceivedResponseType::Text;
+        let client_request = ClientRequest::try_from_text(msg);
+
+        let response = match client_request {
+            Err(err) => Some(ServerResponse::Error(err)),
+            Ok(req) => self.handle_request(req),
+        };
+
+        response.map(|resp| WsMessage::text(resp.into_text()))
+    }
+
+    fn handle_binary_message(&mut self, msg: Vec<u8>) -> Option<WsMessage> {
         debug!("Handling binary message request");
 
         self.received_response_type = ReceivedResponseType::Binary;
-        // make sure it is correctly formatted
-        let binary_request = BinaryClientRequest::try_from_bytes(&msg);
-        if binary_request.is_none() {
-            return Some(ServerTextResponse::new_error("invalid binary request").into());
-        }
-        match binary_request.unwrap() {
-            BinaryClientRequest::Send {
-                recipient,
-                data,
-                with_reply_surb,
-            } => self.handle_binary_send(recipient, data, with_reply_surb),
-            BinaryClientRequest::Reply {
-                message,
-                reply_surb,
-            } => self.handle_binary_reply(reply_surb, message),
-        }
-        .map(|resp| resp.into())
+        let client_request = ClientRequest::try_from_binary(msg);
+
+        let response = match client_request {
+            Err(err) => Some(ServerResponse::Error(err)),
+            Ok(req) => self.handle_request(req),
+        };
+
+        response.map(|resp| WsMessage::Binary(resp.into_binary()))
     }
 
-    async fn handle_request(&mut self, raw_request: Message) -> Option<Message> {
+    fn handle_ws_request(&mut self, raw_request: WsMessage) -> Option<WsMessage> {
         // apparently tungstenite auto-handles ping/pong/close messages so for now let's ignore
         // them and let's test that claim. If that's not the case, just copy code from
         // old version of this file.
         match raw_request {
-            Message::Text(text_message) => self.handle_text_message(text_message).await,
-            Message::Binary(binary_message) => self.handle_binary_message(binary_message),
+            WsMessage::Text(text_message) => self.handle_text_message(text_message),
+            WsMessage::Binary(binary_message) => self.handle_binary_message(binary_message),
             _ => None,
         }
+    }
+
+    // I'm still not entirely sure why `send_all` requires `TryStream` rather than `Stream`, but
+    // let's just play along for now
+    fn prepare_reconstructed_binary(
+        &self,
+        reconstructed_messages: Vec<ReconstructedMessage>,
+    ) -> Vec<Result<WsMessage, WsError>> {
+        reconstructed_messages
+            .into_iter()
+            .map(ServerResponse::Received)
+            .map(|resp| Ok(WsMessage::Binary(resp.into_binary())))
+            .collect()
+    }
+
+    // I'm still not entirely sure why `send_all` requires `TryStream` rather than `Stream`, but
+    // let's just play along for now
+    fn prepare_reconstructed_text(
+        &self,
+        reconstructed_messages: Vec<ReconstructedMessage>,
+    ) -> Vec<Result<WsMessage, WsError>> {
+        reconstructed_messages
+            .into_iter()
+            .map(ServerResponse::Received)
+            .map(|resp| Ok(WsMessage::Text(resp.into_text())))
+            .collect()
     }
 
     async fn push_websocket_received_plaintexts(
         &mut self,
         reconstructed_messages: Vec<ReconstructedMessage>,
     ) -> Result<(), WsError> {
-        // TODO: later there might be a flag on the reconstructed message itself
-
-        let response_messages: Vec<_> = match self.received_response_type {
-            ReceivedResponseType::Binary => reconstructed_messages
-                .into_iter()
-                .map(|msg| Ok(Message::Binary(msg.into_bytes())))
-                .collect(),
-            ReceivedResponseType::Text => {
-                let mut decoded_messages: Vec<ReceivedTextMessage> = Vec::new();
-                // either all succeed or all fall back
-                let mut did_fail = false;
-                for message in reconstructed_messages.iter() {
-                    match message.try_into() {
-                        Ok(msg) => decoded_messages.push(msg),
-                        Err(err) => {
-                            did_fail = true;
-                            warn!("Invalid UTF-8 sequence in response message - {:?}", err);
-                            break;
-                        }
-                    }
-                }
-                if did_fail {
-                    reconstructed_messages
-                        .into_iter()
-                        .map(|msg| Ok(Message::Binary(msg.into_bytes())))
-                        .collect()
-                } else {
-                    decoded_messages
-                        .into_iter()
-                        .map(|msg| Ok(ServerTextResponse::Received(msg).into()))
-                        .collect()
-                }
+        // TODO: later there might be a flag on the reconstructed message itself to tell us
+        // if it's text or binary, but for time being we use the naive assumption that if
+        // client is sending Message::Text it expects text back. Same for Message::Binary
+        let response_messages = match self.received_response_type {
+            ReceivedResponseType::Binary => {
+                self.prepare_reconstructed_binary(reconstructed_messages)
             }
+            ReceivedResponseType::Text => self.prepare_reconstructed_text(reconstructed_messages),
         };
 
         let mut send_stream = futures::stream::iter(response_messages);
@@ -282,7 +218,7 @@ impl Handler {
             .await
     }
 
-    async fn send_websocket_response(&mut self, msg: Message) -> Result<(), WsError> {
+    async fn send_websocket_response(&mut self, msg: WsMessage) -> Result<(), WsError> {
         match self.socket {
             // TODO: more closely investigate difference between `Sink::send` and `Sink::send_all`
             // it got something to do with batching and flushing - it might be important if it
@@ -292,7 +228,7 @@ impl Handler {
         }
     }
 
-    async fn next_websocket_request(&mut self) -> Option<Result<Message, WsError>> {
+    async fn next_websocket_request(&mut self) -> Option<Result<WsMessage, WsError>> {
         match self.socket {
             Some(ref mut ws_stream) => ws_stream.next().await,
             None => None,
@@ -302,6 +238,7 @@ impl Handler {
     async fn listen_for_requests(&mut self, mut msg_receiver: ReconstructedMessagesReceiver) {
         loop {
             tokio::select! {
+                // we can either get a client request from the websocket
                 socket_msg = self.next_websocket_request() => {
                     if socket_msg.is_none() {
                         break;
@@ -309,7 +246,7 @@ impl Handler {
                     let socket_msg = match socket_msg.unwrap() {
                         Ok(socket_msg) => socket_msg,
                         Err(err) => {
-                            error!("failed to obtain message from websocket stream! stopping connection handler: {}", err);
+                            warn!("failed to obtain message from websocket stream! stopping connection handler: {}", err);
                             break;
                         }
                     };
@@ -318,7 +255,7 @@ impl Handler {
                         break;
                     }
 
-                    if let Some(response) = self.handle_request(socket_msg).await {
+                    if let Some(response) = self.handle_ws_request(socket_msg) {
                         if let Err(err) = self.send_websocket_response(response).await {
                             warn!(
                                 "Failed to send message over websocket: {}. Assuming the connection is dead.",
@@ -328,6 +265,7 @@ impl Handler {
                         }
                     }
                 }
+                // or a reconstructed mix message that we need to push back to the client
                 mix_messages = msg_receiver.next() => {
                     let mix_messages = mix_messages.expect(
                         "mix messages sender was unexpectedly closed! this shouldn't have ever happened!",

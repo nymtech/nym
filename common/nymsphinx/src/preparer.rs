@@ -26,7 +26,7 @@ use nymsphinx_anonymous_replies::reply_surb::ReplySURB;
 use nymsphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_params::{
-    MessageType, PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySURBEncryptionAlgorithm,
+    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySURBEncryptionAlgorithm,
     ReplySURBKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS,
 };
 use nymsphinx_types::builder::SphinxPacketBuilder;
@@ -175,7 +175,7 @@ where
             let reply_key = reply_surb.encryption_key();
             // if there's a reply surb, the message takes form of `1 || REPLY_KEY || REPLY_SURB || MSG`
             Ok((
-                std::iter::once(MessageType::WithReplySURB as u8)
+                std::iter::once(true as u8)
                     .chain(reply_surb.to_bytes().iter().cloned())
                     .chain(message.into_iter())
                     .collect(),
@@ -184,7 +184,7 @@ where
         } else {
             // but if there's no reply surb, the message takes form of `0 || MSG`
             Ok((
-                std::iter::once(MessageType::WithoutReplySURB as u8)
+                std::iter::once(false as u8)
                     .chain(message.into_iter())
                     .collect(),
                 None,
@@ -405,7 +405,7 @@ where
     #[cfg(test)]
     pub(crate) fn test_fixture() -> MessagePreparer<rand::rngs::OsRng> {
         let rng = rand::rngs::OsRng;
-        let dummy_address = Recipient::try_from_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@4sBbL1ngf1vtNqykydQKTFh26sQCw888GpUqvPvyNB4f").unwrap();
+        let dummy_address = Recipient::try_from_base58_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@4sBbL1ngf1vtNqykydQKTFh26sQCw888GpUqvPvyNB4f").unwrap();
 
         MessagePreparer {
             rng,

@@ -1,15 +1,14 @@
 use crate::{controller::Controller, websocket};
 use futures::SinkExt;
 use futures_util::StreamExt;
-use nymsphinx::params::MessageType;
-use nymsphinx::receiver::ReconstructedMessage;
+use nymsphinx::addressing::clients::Recipient;
 use simple_socks5_requests::Request;
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::WebSocketStream;
 use websocket::WebsocketConnectionError;
-
+use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 pub struct ServiceProvider {
     runtime: Runtime,
 }
@@ -30,25 +29,33 @@ impl ServiceProvider {
             println!("\nAll systems go. Press CTRL-C to stop the server.");
             while let Some(msg) = websocket_reader.next().await {
                 let data = msg.unwrap().into_data();
+                let received = match ServerResponse::deserialize(&data).expect("todo: error handling") {
+                    ServerResponse::Received(received) => received,
+                    ServerResponse::Error(err) => {
+                        panic!("received error from native client! - {}", err)
+                    },
+                    _ => unimplemented!("probably should never be reached?")
+                };
 
-                let reconstructed_message = ReconstructedMessage::try_from_bytes(&data).expect("todo: error handling");
-                let raw_message = reconstructed_message.message;
+                let raw_message = received.message;
                 let request = Request::try_from_bytes(&raw_message).unwrap();
-                let response = controller.process_request(request).await.unwrap();
-                if response.is_none() { // restart the loop if we got nothing back
-                    continue;
-                }
+                let response = match controller.process_request(request).await.unwrap() {
+                    None => continue, // restart the loop if we got nothing back
+                    Some(response) => response,
+                };
 
                 // TODO: wire SURBs in here once they're available
                 let return_address = "7tVXwePpo6SM99sqM1xEp6S4T1TSpxYx97fTpEdvmF7i.GgrN8998SmwvQghNEvqtPPZCgMQqJovWBrzspMnBESsE@e3vUAo6YhB7zq3GH8B4k3iiGT4H2USjdd5ZMZoUsHdF";
-                let recipient = nymsphinx::addressing::clients::Recipient::try_from_string(return_address).unwrap();
+                let recipient = Recipient::try_from_base58_string(return_address).unwrap();
 
-                let response_message = std::iter::once(MessageType::WithoutReplySURB as u8)
-                    .chain(recipient.into_bytes().iter().cloned())
-                    .chain(response.unwrap().into_bytes().into_iter())
-                    .collect();
+                // make 'request' to native-websocket client
+                let response_message = ClientRequest::Send {
+                    recipient,
+                    message: response.into_bytes(),
+                    with_reply_surb: false
+                };
 
-                let message = Message::Binary(response_message);
+                let message = Message::Binary(response_message.serialize());
                 websocket_writer.send(message).await.unwrap();
             }
         });

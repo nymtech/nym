@@ -40,9 +40,9 @@ func sendWithoutReply() {
 	selfAddress := getSelfAddress(conn)
 	fmt.Printf("our address is: %v\n", selfAddress)
 	sendRequest, err := json.Marshal(map[string]interface{}{
-		"type": "send",
-		"recipient": selfAddress,
-		"message": message,
+		"type":          "send",
+		"recipient":     selfAddress,
+		"message":       message,
 		"withReplySurb": false,
 	})
 	if err != nil {
@@ -76,9 +76,9 @@ func sendWithReply() {
 	selfAddress := getSelfAddress(conn)
 	fmt.Printf("our address is: %v\n", selfAddress)
 	sendRequest, err := json.Marshal(map[string]interface{}{
-		"type": "send",
-		"recipient": selfAddress,
-		"message": message,
+		"type":          "send",
+		"recipient":     selfAddress,
+		"message":       message,
 		"withReplySurb": true,
 	})
 	if err != nil {
@@ -101,15 +101,15 @@ func sendWithReply() {
 	if err := json.Unmarshal(receivedMessage, &receivedMessageJson); err != nil {
 		panic(err)
 	}
-	
+
 	// use the received surb to send an anonymous reply!
-	replySurb := receivedMessageJson["replySurb"]
+	replySURB := receivedMessageJson["replySURB"]
 	replyMessage := "hello from reply SURB!"
 
 	reply, err := json.Marshal(map[string]interface{}{
-		"type": "reply",
-		"message": replyMessage,
-		"replySurb": replySurb,
+		"type":      "reply",
+		"message":   replyMessage,
+		"replySURB": replySURB,
 	})
 	if err != nil {
 		panic(err)
@@ -129,6 +129,6 @@ func sendWithReply() {
 }
 
 func main() {
-	// sendWithoutReply();
-	sendWithReply();
+	// sendWithoutReply()
+	sendWithReply()
 }

@@ -52,6 +52,14 @@ impl Controller {
         }
     }
 
+    async fn insert_connection(
+        &mut self,
+        conn_id: ConnectionId,
+        conn: Connection,
+    ) -> Option<Connection> {
+        self.open_connections.lock().await.insert(conn_id, conn)
+    }
+
     async fn create_new_connection(
         &mut self,
         conn_id: ConnectionId,
@@ -61,10 +69,7 @@ impl Controller {
         println!("Connecting {} to remote {}", conn_id, remote_addr);
         let mut connection = Connection::new(conn_id, remote_addr, &init_data).await?;
         let response_data = connection.try_read_response_data().await?;
-        self.open_connections
-            .lock()
-            .await
-            .insert(conn_id, connection);
+        self.insert_connection(conn_id, connection).await;
         Ok(Response::new(conn_id, response_data))
     }
 
@@ -76,20 +81,23 @@ impl Controller {
         println!("Sending {} bytes to conn_id {}", data.len(), conn_id);
         let mut open_connections_guard = self.open_connections.lock().await;
 
-        let connection = open_connections_guard
-            .get_mut(&conn_id)
+        // TODO: is it possible to do it more nicely than getting lock -> removing connection ->
+        // processing -> reacquiring lock and putting connection back?
+
+        let mut connection = open_connections_guard
+            .remove(&conn_id)
             .ok_or_else(|| ConnectionError::MissingConnection)?;
         connection.send_data(&data).await?;
 
-        // TODO: SUPER SLOW DOWN WILL HAPPEN HERE!!!
-        // TODO: SUPER SLOW DOWN WILL HAPPEN HERE!!!
-        // TODO: SUPER SLOW DOWN WILL HAPPEN HERE!!!
+        drop(open_connections_guard);
         let response_data = connection.try_read_response_data().await?;
         println!(
             "Got {} bytes response for conn_id {}",
             response_data.len(),
             conn_id
         );
+        self.insert_connection(conn_id, connection).await;
+
         Ok(Response::new(conn_id, response_data))
     }
 

@@ -46,14 +46,12 @@ impl Connection {
             let mut buf = [0u8; 1024];
             tokio::select! {
                 _ = &mut timeout => {
-                    eprintln!("we timed out - read {:?}", data);
                     return Ok(data) // we return all response data on timeout
                 }
                 read_data = self.conn.read(&mut buf) => {
                     match read_data {
                         Err(err) => return Err(err),
                         Ok(0) => {
-                            eprintln!("read 0 - connection is closed (accumulated {:?})", data);
                             return Ok(data)
                         }
                         Ok(n) => {

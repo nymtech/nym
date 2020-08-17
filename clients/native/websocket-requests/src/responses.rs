@@ -356,13 +356,6 @@ mod tests {
             _ => unreachable!(),
         }
 
-        panic!(
-            "{:?}",
-            ReplySURB::from_base58_string(reply_surb_string)
-                .unwrap()
-                .to_bytes()
-        );
-
         let received_without_surb = ServerResponse::Received(ReconstructedMessage {
             message: b"foomp".to_vec(),
             reply_SURB: None,

@@ -12,16 +12,18 @@ pub(crate) enum AuthenticationMethods {
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
+/// A socks5 user with a matching password.
 pub struct User {
     pub username: String,
     pub password: String,
 }
 
 #[derive(Clone, Debug)]
-
+/// Allows configuration of access methods (no auth required, username/pass, reject all)
+/// and keeps a list of users who have access if that method is enabled.
 pub(crate) struct Authenticator {
     allowed_users: Vec<User>,
-    pub auth_methods: Vec<u8>, // DH TODO: this should not be public
+    pub(crate) auth_methods: Vec<u8>,
 }
 
 impl Authenticator {

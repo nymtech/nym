@@ -18,7 +18,6 @@ impl Connection {
         address: RemoteAddress,
         initial_data: &[u8],
     ) -> io::Result<Self> {
-        println!("Connecting to {}", address);
         let conn = match TcpStream::connect(&address).await {
             Ok(conn) => conn,
             Err(err) => {
@@ -27,7 +26,6 @@ impl Connection {
             }
         };
         let mut connection = Connection { id, address, conn };
-        println!("Sending data {:?}", initial_data);
         connection.send_data(&initial_data).await?;
         Ok(connection)
     }

@@ -4,6 +4,9 @@ version = "0.8.0-dev"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2018"
 
+[profile.dev]
+panic = "abort"
+
 [lib]
 name = "nym_socks5"
 path = "src/lib.rs"

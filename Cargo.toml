@@ -2,6 +2,9 @@
 panic = "abort"
 opt-level = "s"
 
+[profile.dev]
+panic = "abort"
+
 [workspace]
 
 members = [

@@ -18,7 +18,7 @@ use topology::NymTopology;
 
 #[derive(Clone, Debug)]
 pub struct Topology {
-    inner: directory_client_models::presence::Topology,
+    // inner: directory_client_models::presence::Topology,
 }
 
 impl serde::Serialize for Topology {
@@ -26,41 +26,44 @@ impl serde::Serialize for Topology {
     where
         S: Serializer,
     {
-        self.inner.serialize(serializer)
+        todo!()
+        // self.inner.serialize(serializer)
     }
 }
 
 impl Topology {
     pub fn new(json: &str) -> Self {
-        if json.is_empty() {
-            panic!("empty json passed");
-        }
-
-        Topology {
-            inner: serde_json::from_str(json).unwrap(),
-        }
+        todo!()
+        // if json.is_empty() {
+        //     panic!("empty json passed");
+        // }
+        //
+        // Topology {
+        //     inner: serde_json::from_str(json).unwrap(),
+        // }
     }
 
-    #[cfg(test)]
-    pub(crate) fn set_mixnodes(
-        &mut self,
-        mix_nodes: Vec<directory_client_models::presence::mixnodes::MixNodePresence>,
-    ) {
-        self.inner.mix_nodes = mix_nodes
-    }
-
-    #[cfg(test)]
-    pub(crate) fn get_current_raw_mixnodes(
-        &self,
-    ) -> Vec<directory_client_models::presence::mixnodes::MixNodePresence> {
-        self.inner.mix_nodes.clone()
-    }
+    // #[cfg(test)]
+    // pub(crate) fn set_mixnodes(
+    //     &mut self,
+    //     mix_nodes: Vec<directory_client_models::presence::mixnodes::MixNodePresence>,
+    // ) {
+    //     self.inner.mix_nodes = mix_nodes
+    // }
+    //
+    // #[cfg(test)]
+    // pub(crate) fn get_current_raw_mixnodes(
+    //     &self,
+    // ) -> Vec<directory_client_models::presence::mixnodes::MixNodePresence> {
+    //     self.inner.mix_nodes.clone()
+    // }
 }
 
 impl TryInto<NymTopology> for Topology {
-    type Error = directory_client_models::presence::TopologyConversionError;
+    type Error = (); //directory_client_models::presence::TopologyConversionError;
 
     fn try_into(self) -> Result<NymTopology, Self::Error> {
-        self.inner.try_into()
+        todo!()
+        // self.inner.try_into()
     }
 }

@@ -2,10 +2,8 @@
 # yarn lockfile v1
 
 
-"@nymproject/nym-client-wasm@^0.7.4":
+"@nymproject/nym-client-wasm@file:../pkg":
   version "0.7.5"
-  resolved "https://registry.yarnpkg.com/@nymproject/nym-client-wasm/-/nym-client-wasm-0.7.5.tgz#75bc6c426a93d12915f5e28862daafff34ff1f7e"
-  integrity sha512-r5RW4aSqyzWUvnO01EwqWdA0UGcULGrNSTe9eTDo+EoprCp1ab3vFpJs4pcg64DhxkbNbTgFVbi6TZVxObKhPQ==
   dependencies:
     semver "^7.3.2"
 

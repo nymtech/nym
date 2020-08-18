@@ -12,6 +12,7 @@ export class Identity {
         this.address = raw_identity.address;
         this.privateKey = raw_identity.private_key;
         this.publicKey = raw_identity.public_key;
+        await wasm.foomp()
     }
 }
 

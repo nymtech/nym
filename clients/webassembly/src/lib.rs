@@ -11,27 +11,52 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+use crate::models::client::ClientTest;
+use crate::websocket::WsStream;
 use crypto::asymmetric::encryption;
+use js_sys::Promise;
 pub use models::keys::keygen;
-use models::topology::Topology;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
-use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
-use nymsphinx::Node as SphinxNode;
-use nymsphinx::{delays, NodeAddressBytes, SphinxPacket};
 use rand::rngs::OsRng;
-use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
-use std::convert::TryInto;
-use std::net::SocketAddr;
-use std::time::Duration;
-use topology::NymTopology;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::{spawn_local, JsFuture};
+use web_sys::window;
 
 mod models;
 mod utils;
+mod websocket;
 
-const DEFAULT_RNG: OsRng = OsRng;
+// will cause messages to be written as if console.log("...") was called
+#[macro_export]
+macro_rules! console_log {
+    ($($t:tt)*) => ($crate::log(&format_args!($($t)*).to_string()))
+}
+
+// will cause messages to be written as if console.warm("...") was called
+#[macro_export]
+macro_rules! console_warn {
+    ($($t:tt)*) => ($crate::warn(&format_args!($($t)*).to_string()))
+}
+
+// will cause messages to be written as if console.error("...") was called
+#[macro_export]
+macro_rules! console_error {
+    ($($t:tt)*) => ($crate::error(&format_args!($($t)*).to_string()))
+}
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    pub fn log(s: &str);
+
+    #[wasm_bindgen(js_namespace = console)]
+    pub fn warn(s: &str);
+
+    #[wasm_bindgen(js_namespace = console)]
+    pub fn error(s: &str);
+}
+
+pub const DEFAULT_RNG: OsRng = OsRng;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -39,293 +64,107 @@ const DEFAULT_RNG: OsRng = OsRng;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-#[derive(Serialize, Deserialize)]
-pub struct JsonRoute {
-    nodes: Vec<NodeData>,
-}
-
 #[wasm_bindgen]
-#[derive(Clone, Serialize, Deserialize)]
-pub struct NodeData {
-    address: String,
-    public_key: String,
+pub async fn foomp() {
+    console_log!("foomp was called!");
+
+    let stream = WsStream::new();
+
+    let topology = ClientTest::do_foomp().await;
+
+    console_log!("{}", topology);
+
+    // spawn_local(async {
+    //     for i in 0..100 {
+    //         console_log!("foomp {}", i);
+    //         sleep(50).await.unwrap();
+    //     }
+    // });
+
+    console_log!("foomp is done");
 }
 
-/// Creates a Gateway payload for use in JavaScript applications, using wasm.
-/// It contains encoded address of first hop as well as the actual Sphinx Packet with the data.
-///
-/// The `wasm-pack build` command will cause this to output JS bindings and a
-/// wasm executable in the `pkg/` directory.
-///
-/// Message chunking is currently not implemented. If the message exceeds the
-/// capacity of a single Sphinx packet, the extra information will be discarded.
-///
-#[wasm_bindgen]
-pub fn create_sphinx_packet(topology_json: &str, msg: &str, recipient: &str) -> Vec<u8> {
-    utils::set_panic_hook(); // nicer js errors.
-
-    let recipient = Recipient::try_from_base58_string(recipient).unwrap();
-
-    let route =
-        sphinx_route_to(topology_json, &recipient.gateway()).expect("todo: error handling...");
-    let average_delay = Duration::from_secs_f64(0.1);
-    let delays = delays::generate_from_average_duration(route.len(), average_delay);
-
-    // TODO: once we are able to reconstruct split messages use this instead
-    // let split_message = split_and_prepare_payloads(&msg.as_bytes());
-    // assert_eq!(split_message.len(), 1);
-    // let message = split_message.first().unwrap().clone();
-
-    let message = msg.as_bytes().to_vec();
-
-    let destination = recipient.as_sphinx_destination();
-    let sphinx_packet = SphinxPacket::new(message, &route, &destination, &delays).unwrap();
-    payload(sphinx_packet, route)
-}
-
-/// Concatenate the gateway address bytes with the Sphinx packet.
-///
-/// The Nym gateway node has no idea what is inside the Sphinx packet, or where
-/// it should send a packet it receives. So we prepend the packet with the
-/// address bytes of the first mix inside the packet, so that the gateway can
-/// forward the packet to it.
-fn payload(sphinx_packet: SphinxPacket, route: Vec<SphinxNode>) -> Vec<u8> {
-    let packet = sphinx_packet.to_bytes();
-    let first_node_address =
-        NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone()).unwrap();
-
-    first_node_address
-        .as_bytes()
-        .into_iter()
-        .chain(packet.into_iter())
-        .collect()
-}
-
-/// Attempts to create a Sphinx route, which is a `Vec<sphinx::Node>`, from a
-/// JSON string.
-///
-/// # Panics
-///
-/// This function panics if the supplied `raw_route` json string can't be
-/// extracted to a `JsonRoute`.
-fn sphinx_route_to(
-    topology_json: &str,
-    gateway_identity: &NodeIdentity,
-) -> Option<Vec<SphinxNode>> {
-    let topology = Topology::new(topology_json);
-    let nym_topology: NymTopology = topology.try_into().ok()?;
-    let route = nym_topology
-        .random_route_to_gateway(&mut DEFAULT_RNG, DEFAULT_NUM_MIX_HOPS, gateway_identity)
-        .expect("invalid route produced");
-    assert_eq!(4, route.len());
-    Some(route)
-}
-
-impl TryFrom<NodeData> for SphinxNode {
-    // We really should start actually using errors rather than unwrapping on everything
-    type Error = ();
-
-    fn try_from(node_data: NodeData) -> Result<Self, Self::Error> {
-        let addr: SocketAddr = node_data.address.parse().unwrap();
-        let address: NodeAddressBytes = NymNodeRoutingAddress::from(addr).try_into().unwrap();
-        let pub_key = encryption::PublicKey::from_base58_string(node_data.public_key)
-            .unwrap()
-            .into();
-
-        Ok(SphinxNode { address, pub_key })
-    }
-}
-
-#[cfg(test)]
-mod test_constructing_a_sphinx_packet {
-    // the below test is no longer true, as the produced length is 1372 bytes + 7 (for IPV4) or + 19 (for IPV6)
-    // conceptually everything works as before, only the 0 padding was removed as it served no purpose here
-
-    // #[test]
-    // fn produces_1404_bytes() {
-    //     // 32 byte address + 1372 byte sphinx packet
-    //     let packet = create_gateway_sphinx_packet(
-    //         topology_fixture(),
-    //         "foomp",
-    //         "AetTDvynUNB2N35rvCVDxkPR593Cx4PCe4QQKrMgm5RR",
-    //     );
-    //     assert_eq!(1404, packet.len());
-    // }
-}
-
-#[cfg(test)]
-mod building_a_topology_from_json {
-    use super::*;
-
-    #[test]
-    #[should_panic]
-    fn panics_on_empty_string() {
-        sphinx_route_to(
-            "",
-            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
-                .unwrap(),
-        )
-        .unwrap();
-    }
-
-    #[test]
-    #[should_panic]
-    fn panics_on_bad_json() {
-        sphinx_route_to(
-            "bad bad bad not json",
-            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
-                .unwrap(),
-        )
-        .unwrap();
-    }
-
-    #[test]
-    #[should_panic]
-    fn panics_when_there_are_no_mixnodes() {
-        let mut topology = Topology::new(topology_fixture());
-        topology.set_mixnodes(vec![]);
-        let json = serde_json::to_string(&topology).unwrap();
-        sphinx_route_to(
-            &json,
-            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
-                .unwrap(),
-        )
-        .unwrap();
-    }
-
-    #[test]
-    #[should_panic]
-    fn panics_when_there_are_not_enough_mixnodes() {
-        let mut topology = Topology::new(topology_fixture());
-        let node = topology.get_current_raw_mixnodes().first().unwrap().clone();
-        topology.set_mixnodes(vec![node]); // 1 mixnode isn't enough. Panic!
-        let json = serde_json::to_string(&topology).unwrap();
-        sphinx_route_to(
-            &json,
-            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
-                .unwrap(),
-        )
-        .unwrap();
-    }
-
-    #[test]
-    #[cfg_attr(feature = "offline-test", ignore)]
-    fn test_works_on_happy_json() {
-        let route = sphinx_route_to(
-            topology_fixture(),
-            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
-                .unwrap(),
-        )
-        .unwrap();
-        assert_eq!(4, route.len());
-    }
-
-    #[test]
-    fn test_works_on_happy_json_when_serialized() {
-        let topology = Topology::new(topology_fixture());
-        let json = serde_json::to_string(&topology).unwrap();
-        let route = sphinx_route_to(
-            &json,
-            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
-                .unwrap(),
-        )
-        .unwrap();
-        assert_eq!(4, route.len());
-    }
-}
-
-#[cfg(test)]
-mod topology_fixture {
-    use super::*;
-
-    #[test]
-    fn is_valid() {
-        let _nym_topology: NymTopology = Topology::new(topology_fixture()).try_into().unwrap();
-    }
-}
-
-#[cfg(test)]
-fn topology_fixture() -> &'static str {
-    r#"
-        {
-        "cocoNodes": [],
-        "mixNodes": [
-            {
-            "host": "nym.300baud.de:1789",
-            "pubKey": "AetTDvynUNB2N35rvCVDxkPR593Cx4PCe4QQKrMgm5RR",
-            "version": "0.6.0",
-            "location": "Falkenstein, DE",
-            "layer": 3,
-            "lastSeen": 1587572945877713700
-            },
-            {
-            "host": "testnet_nymmixnode.roussel-zeter.eu:1789",
-            "pubKey": "9wJ3zLoyat41e4ZgT1AWeueExv5c6uwnjvkRepj8Ebis",
-            "version": "0.6.0",
-            "location": "Geneva, CH",
-            "layer": 3,
-            "lastSeen": 1587572945907250400
-            },
-            {
-            "host": "185.144.83.134:1789",
-            "pubKey": "59tCzpCYsiKXz89rtvNiEYwQDdkseSShPEkifQXhsCgA",
-            "version": "0.6.0",
-            "location": "Bucharest",
-            "layer": 1,
-            "lastSeen": 1587572946007431400
-            },
-            {
-            "host": "[2a0a:e5c0:2:2:0:c8ff:fe68:bf6b]:1789",
-            "pubKey": "J9f9uS1hN8iwcN2STqH55fPRYqt7McEPyhNzpTYsxNdG",
-            "version": "0.6.0",
-            "location": "Glarus",
-            "layer": 1,
-            "lastSeen": 1587572945920982000
-            },
-            {
-            "host": "[2a0a:e5c0:2:2:0:c8ff:fe68:bf6b]:1789",
-            "pubKey": "J9f9uS1hN8iwcN2STqH55fPRYqt7McEPyhNzpTYsxNdG",
-            "version": "0.6.0",
-            "location": "Glarus",
-            "layer": 2,
-            "lastSeen": 1587572945920982000
-            },
-            {
-            "host": "[2a0a:e5c0:2:2:0:c8ff:fe68:bf6b]:1789",
-            "pubKey": "J9f9uS1hN8iwcN2STqH55fPRYqt7McEPyhNzpTYsxNdG",
-            "version": "0.6.0",
-            "location": "Glarus",
-            "layer": 2,
-            "lastSeen": 1587572945920982000
-            }
-        ],
-        "mixProviderNodes":[],
-        "gatewayNodes": [
-            {
-            "clientListener": "139.162.246.48:9000",
-            "mixnetListener": "139.162.246.48:1789",
-            "identityKey": "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
-            "sphinxKey": "BnLYqQjb8K6TmW5oFdNZrUTocGxa3rgzBvapQrf8XUbF",
-            "version": "0.6.0",
-            "location": "London, UK",
-            "registeredClients": [
-                {
-                "pubKey": "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq"
-                }
-            ],
-            "lastSeen": 1587572946261865200
-            },
-            {
-            "clientListener": "127.0.0.1:9000",
-            "mixnetListener": "127.0.0.1:1789",
-            "identityKey": "7hU4RNHtGC1FreLYLoBXXTH8AdaqU913NbqCv5Fu4z1r",
-            "sphinxKey": "3KCpz1HCD8DqnQjemT1uuBZipmHFXM4V5btxLXwvM1gG",
-            "version": "0.6.0",
-            "location": "unknown",
-            "registeredClients": [],
-            "lastSeen": 1587572946304564700
-            }
-        ]
-        }
-    "#
-}
+// /// Creates a Gateway payload for use in JavaScript applications, using wasm.
+// /// It contains encoded address of first hop as well as the actual Sphinx Packet with the data.
+// ///
+// /// The `wasm-pack build` command will cause this to output JS bindings and a
+// /// wasm executable in the `pkg/` directory.
+// ///
+// /// Message chunking is currently not implemented. If the message exceeds the
+// /// capacity of a single Sphinx packet, the extra information will be discarded.
+// ///
+// #[wasm_bindgen]
+// pub fn create_sphinx_packet(topology_json: &str, msg: &str, recipient: &str) -> Vec<u8> {
+//     utils::set_panic_hook(); // nicer js errors.
+//
+//     let recipient = Recipient::try_from_base58_string(recipient).unwrap();
+//
+//     let route =
+//         sphinx_route_to(topology_json, &recipient.gateway()).expect("todo: error handling...");
+//     let average_delay = Duration::from_secs_f64(0.1);
+//     let delays = delays::generate_from_average_duration(route.len(), average_delay);
+//
+//     // TODO: once we are able to reconstruct split messages use this instead
+//     // let split_message = split_and_prepare_payloads(&msg.as_bytes());
+//     // assert_eq!(split_message.len(), 1);
+//     // let message = split_message.first().unwrap().clone();
+//
+//     let message = msg.as_bytes().to_vec();
+//
+//     let destination = recipient.as_sphinx_destination();
+//     let sphinx_packet = SphinxPacket::new(message, &route, &destination, &delays).unwrap();
+//     payload(sphinx_packet, route)
+// }
+//
+// /// Concatenate the gateway address bytes with the Sphinx packet.
+// ///
+// /// The Nym gateway node has no idea what is inside the Sphinx packet, or where
+// /// it should send a packet it receives. So we prepend the packet with the
+// /// address bytes of the first mix inside the packet, so that the gateway can
+// /// forward the packet to it.
+// fn payload(sphinx_packet: SphinxPacket, route: Vec<SphinxNode>) -> Vec<u8> {
+//     let packet = sphinx_packet.to_bytes();
+//     let first_node_address =
+//         NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone()).unwrap();
+//
+//     first_node_address
+//         .as_bytes()
+//         .into_iter()
+//         .chain(packet.into_iter())
+//         .collect()
+// }
+//
+// /// Attempts to create a Sphinx route, which is a `Vec<sphinx::Node>`, from a
+// /// JSON string.
+// ///
+// /// # Panics
+// ///
+// /// This function panics if the supplied `raw_route` json string can't be
+// /// extracted to a `JsonRoute`.
+// fn sphinx_route_to(
+//     topology_json: &str,
+//     gateway_identity: &NodeIdentity,
+// ) -> Option<Vec<SphinxNode>> {
+//     let topology = Topology::new(topology_json);
+//     let nym_topology: NymTopology = topology.try_into().ok()?;
+//     let route = nym_topology
+//         .random_route_to_gateway(&mut DEFAULT_RNG, DEFAULT_NUM_MIX_HOPS, gateway_identity)
+//         .expect("invalid route produced");
+//     assert_eq!(4, route.len());
+//     Some(route)
+// }
+//
+// impl TryFrom<NodeData> for SphinxNode {
+//     // We really should start actually using errors rather than unwrapping on everything
+//     type Error = ();
+//
+//     fn try_from(node_data: NodeData) -> Result<Self, Self::Error> {
+//         let addr: SocketAddr = node_data.address.parse().unwrap();
+//         let address: NodeAddressBytes = NymNodeRoutingAddress::from(addr).try_into().unwrap();
+//         let pub_key = encryption::PublicKey::from_base58_string(node_data.public_key)
+//             .unwrap()
+//             .into();
+//
+//         Ok(SphinxNode { address, pub_key })
+//     }
+// }

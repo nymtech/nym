@@ -19,21 +19,25 @@ import {
 
 async function main() {
     // Set up identity and client
-    let directory = "https://directory.nymtech.net";
+    let directory = "http://localhost:8080";
     let identity = new Identity();
-    let nymClient = new Client(directory, identity, null);
 
-    // Wire up events callbacks
-    nymClient.onConnect = (_) => displaySenderAddress(nymClient);
-    nymClient.onText = displayReceived;
-    nymClient.onErrorResponse = (event) => alert("Received invalid gateway response", event.data);
-    const sendButton = document.querySelector('#send-button');
-    sendButton.onclick = function () {
-        sendMessageTo(nymClient);
-    }
+    console.log(identity);
 
-    // Start the Nym client. Connects to a Nym gateway via websocket.
-    await nymClient.start();
+    console.log("should be done!");
+//    let nymClient = new Client(directory, identity, null);
+//
+//    // Wire up events callbacks
+//    nymClient.onConnect = (_) => displaySenderAddress(nymClient);
+//    nymClient.onText = displayReceived;
+//    nymClient.onErrorResponse = (event) => alert("Received invalid gateway response", event.data);
+//    const sendButton = document.querySelector('#send-button');
+//    sendButton.onclick = function () {
+//        sendMessageTo(nymClient);
+//    }
+//
+//    // Start the Nym client. Connects to a Nym gateway via websocket.
+//    await nymClient.start();
 }
 
 /**

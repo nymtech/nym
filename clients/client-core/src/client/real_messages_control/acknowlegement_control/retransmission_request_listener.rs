@@ -108,22 +108,30 @@ where
         // waiting for the write lock on `pending_acks`
         drop(topology_permit);
 
-        self.pending_acks
-            .write()
-            .await
-            .get_mut(&frag_id)
-            .expect(
-                "on_retransmission_request: somehow we already received an ack for this packet?",
-            )
-            .update_delay(prepared_fragment.total_delay);
+        // for this to actually return a None, the following sequence of events needs to happen:
+        // 0. recall that up until this point we're holding a READ lock, so nobody else can WRITE
+        // 1. `on_retransmission_request` is called - processing takes a while (we need to create SPHINX packet, etc.)
+        // 2. at the same time we receive DELAYED (i.e. post timeout) ack for the packet we are about to retransmit
+        // 3. the procedure to remove the pending ack waits for the WRITE lock and acquires it in the tiny window
+        // between when READ lock is dropped and WRITE lock is reacquired in this method
+        // 4. the pending ack is removed and when WRITE lock is acquired here, `None` is returned
 
-        self.real_message_sender
-            .unbounded_send(RealMessage::new(
-                prepared_fragment.first_hop_address,
-                prepared_fragment.sphinx_packet,
-                frag_id,
-            ))
-            .unwrap();
+        // TODO: benchmark whether it wouldn't be potentially more efficient to acquire WRITE lock at the very beginning of the method
+        // one major drawback: nobody else could READ while we're preparing two sphinx packets, encrypting data, etc.
+        if let Some(pending_ack) = self.pending_acks.write().await.get_mut(&frag_id) {
+            pending_ack.update_delay(prepared_fragment.total_delay);
+
+            self.real_message_sender
+                .unbounded_send(RealMessage::new(
+                    prepared_fragment.first_hop_address,
+                    prepared_fragment.sphinx_packet,
+                    frag_id,
+                ))
+                .unwrap();
+        } else {
+            // later on we will want this to be decreased to 'debug' (or maybe not?)
+            info!("received an ack after timeout, but before retransmission went through")
+        }
     }
 
     pub(super) async fn run(&mut self) {

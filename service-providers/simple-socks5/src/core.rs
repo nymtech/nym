@@ -60,17 +60,13 @@ impl ServiceProvider {
             let mut controller_local_pointer = controller.clone();
             let response_sender_clone = sender.clone();
             tokio::spawn(async move {
-                match controller_local_pointer.process_request(request).await {
-                    Ok(response_option) => {
-                        if let Some(response) = response_option {
-                            // if we have an actual response - send it through the mixnet!
-                            response_sender_clone
-                                .unbounded_send(response)
-                                .expect("channel got closed?");
-                        }
-                    }
-                    Err(err) => {
-                        eprintln!("just some error - {:?}", err);
+                if let Ok(response_option) = controller_local_pointer.process_request(request).await
+                {
+                    if let Some(response) = response_option {
+                        // if we have an actual response - send it through the mixnet!
+                        response_sender_clone
+                            .unbounded_send(response)
+                            .expect("channel got closed?");
                     }
                 };
             });

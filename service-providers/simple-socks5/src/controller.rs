@@ -78,7 +78,6 @@ impl Controller {
         conn_id: ConnectionId,
         data: Vec<u8>,
     ) -> Result<Response, ConnectionError> {
-        println!("Sending {} bytes to conn_id {}", data.len(), conn_id);
         let mut open_connections_guard = self.open_connections.lock().await;
 
         // TODO: is it possible to do it more nicely than getting lock -> removing connection ->
@@ -91,11 +90,6 @@ impl Controller {
 
         drop(open_connections_guard);
         let response_data = connection.try_read_response_data().await?;
-        println!(
-            "Got {} bytes response for conn_id {}",
-            response_data.len(),
-            conn_id
-        );
         self.insert_connection(conn_id, connection).await;
 
         Ok(Response::new(conn_id, response_data))

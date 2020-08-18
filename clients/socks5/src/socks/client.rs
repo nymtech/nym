@@ -168,7 +168,13 @@ impl SocksClient {
                         let response_data = self
                             .send_request_to_mixnet_and_get_response(socks_provider_request)
                             .await;
-                        self.stream.write_all(&response_data).await.unwrap();
+                        if let Err(err) = self.stream.write_all(&response_data).await {
+                            error!(
+                                "tried to write to (presumably) closed connection - {:?}",
+                                err
+                            );
+                            break;
+                        }
                     } else {
                         break;
                     }

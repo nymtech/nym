@@ -21,7 +21,7 @@ impl Connection {
         let conn = match TcpStream::connect(&address).await {
             Ok(conn) => conn,
             Err(err) => {
-                eprintln!("error while connecting! - {:?}", err);
+                eprintln!("error while connecting to {:?} ! - {:?}", address, err);
                 return Err(err);
             }
         };
@@ -31,6 +31,7 @@ impl Connection {
     }
 
     pub(crate) async fn send_data(&mut self, data: &[u8]) -> io::Result<()> {
+        println!("Sending {} bytes to {}", data.len(), self.address);
         self.conn.write_all(&data).await
     }
 
@@ -41,7 +42,7 @@ impl Connection {
         let mut data = Vec::new();
         let mut timeout = tokio::time::delay_for(timeout_duration);
         loop {
-            let mut buf = [0u8; 1024];
+            let mut buf = [0u8; 8192];
             tokio::select! {
                 _ = &mut timeout => {
                     return Ok(data) // we return all response data on timeout
@@ -56,6 +57,8 @@ impl Connection {
                             let now = timeout.deadline();
                             let next = now + timeout_duration;
                             timeout.reset(next);
+                                    println!("Receiving {} bytes from {}", n, self.address);
+
                             data.extend_from_slice(&buf[..n])
                         }
                     }

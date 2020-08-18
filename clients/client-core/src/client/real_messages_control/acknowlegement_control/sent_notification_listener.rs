@@ -65,9 +65,13 @@ impl SentNotificationListener {
         // load that `on_sent_message()` is not called (and we do not receive the read permit)
         // until we already received and processed an ack for the packet
         // but this seems extremely unrealistic, but perhaps we should guard against that?
-        let pending_ack_data = pending_acks_map_read_guard
-            .get(&frag_id)
-            .expect("on_sent_message: somehow we already received an ack for this packet?");
+        let pending_ack_data = match pending_acks_map_read_guard.get(&frag_id) {
+            Some(pending_ack) => pending_ack,
+            None => {
+                info!("on_sent_message: somehow we already received an ack for this packet?");
+                return;
+            }
+        };
 
         // if this assertion ever fails, we have some bug due to some unintended leak.
         // the only reason I see it could happen if the `tokio::select` in the spawned

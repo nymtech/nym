@@ -118,7 +118,7 @@ impl SocksRequest {
         let mut data = Vec::new();
         let mut timeout = tokio::time::delay_for(timeout_duration);
         loop {
-            let mut buf = [0u8; 1024];
+            let mut buf = [0u8; 8192];
             tokio::select! {
                 _ = &mut timeout => {
                     println!("we timed out! Going to return {:?}", data);

@@ -286,9 +286,9 @@ impl NymClient {
     // TODO: Talk to JS about where I can easily find these.
     fn load_socks5_service_provider(&self) -> Recipient {
         // load from file here, or better yet, inject it
-        let identity = "v78rabqFamiwcHoVFazLHXzRtZAypMEwPV4Hizbt9qh";
-        let encryption_key = "8kweuyArd5CFpnJotEtquGGKsXFEjBet5Kop1KKQ3ueu";
-        let gateway_key = "A4kiq5J3eGfEFtyV3CEUze43L3JupBuCNN5cHjyKgr6h";
+        let identity = "G3WSu7S3Jdm5HHQwZ3bT7NKoEBNSGr8JY2jngbUigqfz";
+        let encryption_key = "6KUoz9gexdFziLrrh6M2gXpAW4Fdn3HBHss11WJDYKEL";
+        let gateway_key = "5QAR66H9aMqaEo9y9G4hxAsvenJe13wJSRkwQ8qjsF6C";
 
         let client_identity = ClientIdentity::from_base58_string(identity).unwrap();
         let client_encryption_key =

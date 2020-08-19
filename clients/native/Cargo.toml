@@ -28,7 +28,7 @@ rand = {version = "0.7.3", features = ["wasm-bindgen"]} # rng-related traits + s
 serde = { version = "1.0.104", features = ["derive"] } # for config serialization/deserialization
 sled = "0.33" # for storage of replySURB decryption keys
 tokio = { version = "0.2", features = ["full"] } # async runtime
-tokio-tungstenite = "0.10.1" # websocket
+tokio-tungstenite = "0.11.0" # websocket
 
 ## internal
 client-core = { path = "../client-core" }

@@ -25,7 +25,7 @@ pub const PUBLIC_KEY_SIZE: usize = 32;
 /// Size of a X25519 shared secret
 pub const SHARED_SECRET_SIZE: usize = 32;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub enum EncryptionKeyError {
     InvalidPublicKey,
     InvalidPrivateKey,

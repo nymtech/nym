@@ -1,3 +1,4 @@
+use nymsphinx::addressing::clients::Recipient;
 use simple_socks5_requests::{ConnectionId, RemoteAddress};
 use tokio::net::TcpStream;
 use tokio::prelude::*;
@@ -10,6 +11,7 @@ pub(crate) struct Connection {
     id: ConnectionId,
     address: RemoteAddress,
     conn: TcpStream,
+    return_address: Recipient,
 }
 
 impl Connection {
@@ -17,6 +19,7 @@ impl Connection {
         id: ConnectionId,
         address: RemoteAddress,
         initial_data: &[u8],
+        return_address: Recipient,
     ) -> io::Result<Self> {
         let conn = match TcpStream::connect(&address).await {
             Ok(conn) => conn,
@@ -25,9 +28,18 @@ impl Connection {
                 return Err(err);
             }
         };
-        let mut connection = Connection { id, address, conn };
+        let mut connection = Connection {
+            id,
+            address,
+            conn,
+            return_address,
+        };
         connection.send_data(&initial_data).await?;
         Ok(connection)
+    }
+
+    pub(crate) fn return_address(&self) -> Recipient {
+        self.return_address.clone()
     }
 
     pub(crate) async fn send_data(&mut self, data: &[u8]) -> io::Result<()> {
@@ -67,3 +79,10 @@ impl Connection {
         }
     }
 }
+
+// TODO: perhaps a smart implementation of this could alleviate some issues associated with `try_read_response_data` ?
+// impl AsyncRead for Connection {
+//     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<io::Result<usize>> {
+//         unimplemented!()
+//     }
+// }

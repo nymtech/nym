@@ -2988,6 +2988,9 @@ dependencies = [
 [[package]]
 name = "simple-socks5-requests"
 version = "0.1.0"
+dependencies = [
+ "nymsphinx-addressing",
+]
 
 [[package]]
 name = "siphasher"

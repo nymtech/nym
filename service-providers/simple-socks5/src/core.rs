@@ -23,16 +23,14 @@ impl ServiceProvider {
         let (mut websocket_writer, mut websocket_reader) = websocket_stream.split();
         let controller = Controller::new();
 
-        let (sender, mut reader) = mpsc::unbounded::<Response>();
+        let (sender, mut reader) = mpsc::unbounded::<(Response, Recipient)>();
 
         let response_reader_future = async move {
             // TODO: wire SURBs in here once they're available
-            let return_address = "7tVXwePpo6SM99sqM1xEp6S4T1TSpxYx97fTpEdvmF7i.GgrN8998SmwvQghNEvqtPPZCgMQqJovWBrzspMnBESsE@e3vUAo6YhB7zq3GH8B4k3iiGT4H2USjdd5ZMZoUsHdF";
-            let recipient = Recipient::try_from_base58_string(return_address).unwrap();
-            while let Some(response) = reader.next().await {
+            while let Some((response, return_address)) = reader.next().await {
                 // make 'request' to native-websocket client
                 let response_message = ClientRequest::Send {
-                    recipient: recipient.clone(),
+                    recipient: return_address,
                     message: response.into_bytes(),
                     with_reply_surb: false,
                 };
@@ -62,10 +60,10 @@ impl ServiceProvider {
             tokio::spawn(async move {
                 if let Ok(response_option) = controller_local_pointer.process_request(request).await
                 {
-                    if let Some(response) = response_option {
+                    if let Some((response, return_address)) = response_option {
                         // if we have an actual response - send it through the mixnet!
                         response_sender_clone
-                            .unbounded_send(response)
+                            .unbounded_send((response, return_address))
                             .expect("channel got closed?");
                     }
                 };

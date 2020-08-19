@@ -18,6 +18,7 @@ pub struct SphinxSocksServer {
     authenticator: Authenticator,
     listening_address: SocketAddr,
     service_provider: Recipient,
+    self_address: Recipient,
 }
 
 impl SphinxSocksServer {
@@ -27,12 +28,14 @@ impl SphinxSocksServer {
         ip: &str,
         authenticator: Authenticator,
         service_provider: Recipient,
+        self_address: Recipient,
     ) -> Self {
         info!("Listening on {}:{}", ip, port);
         SphinxSocksServer {
             authenticator,
             listening_address: format!("{}:{}", ip, port).parse().unwrap(),
             service_provider,
+            self_address,
         }
     }
 
@@ -65,6 +68,7 @@ impl SphinxSocksServer {
                     input_sender.clone(),
                     self.service_provider.clone(),
                     Arc::clone(&active_streams),
+                    self.self_address.clone(),
                 );
 
                 tokio::spawn(async move {

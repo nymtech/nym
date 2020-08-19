@@ -32,6 +32,7 @@ pub(crate) struct SocksClient {
     input_sender: InputMessageSender,
     connection_id: ConnectionId,
     service_provider: Recipient,
+    self_address: Recipient,
 }
 
 type StreamResponseSender = oneshot::Sender<Vec<u8>>;
@@ -52,6 +53,7 @@ impl SocksClient {
         input_sender: InputMessageSender,
         service_provider: Recipient,
         active_streams: ActiveStreams,
+        self_address: Recipient,
     ) -> Self {
         let connection_id = Self::generate_random();
         SocksClient {
@@ -63,6 +65,7 @@ impl SocksClient {
             authenticator,
             input_sender,
             service_provider,
+            self_address,
         }
     }
 
@@ -150,6 +153,7 @@ impl SocksClient {
                     self.connection_id,
                     remote_address.clone(),
                     request_data_bytes,
+                    self.self_address.clone(),
                 );
                 let response_data = self
                     .send_request_to_mixnet_and_get_response(socks_provider_request)

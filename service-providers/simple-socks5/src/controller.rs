@@ -1,5 +1,6 @@
 use crate::connection::Connection;
 use futures::lock::Mutex;
+use nymsphinx::addressing::clients::Recipient;
 use simple_socks5_requests::{ConnectionId, RemoteAddress, Request, Response};
 use std::collections::HashMap;
 use std::io;
@@ -33,17 +34,22 @@ impl Controller {
     pub(crate) async fn process_request(
         &mut self,
         request: Request,
-    ) -> Result<Option<Response>, ConnectionError> {
+    ) -> Result<Option<(Response, Recipient)>, ConnectionError> {
         match request {
-            Request::Connect(conn_id, remote_addr, data) => {
+            Request::Connect {
+                conn_id,
+                remote_addr,
+                data,
+                return_address,
+            } => {
                 let response = self
-                    .create_new_connection(conn_id, remote_addr, data)
+                    .create_new_connection(conn_id, remote_addr, data, return_address.clone())
                     .await?;
-                Ok(Some(response))
+                Ok(Some((response, return_address)))
             }
             Request::Send(conn_id, data) => {
-                let response = self.send_to_connection(conn_id, data).await?;
-                Ok(Some(response))
+                let (response, return_address) = self.send_to_connection(conn_id, data).await?;
+                Ok(Some((response, return_address)))
             }
             Request::Close(conn_id) => {
                 self.close_connection(conn_id).await?;
@@ -65,9 +71,11 @@ impl Controller {
         conn_id: ConnectionId,
         remote_addr: RemoteAddress,
         init_data: Vec<u8>,
+        return_address: Recipient,
     ) -> Result<Response, ConnectionError> {
         println!("Connecting {} to remote {}", conn_id, remote_addr);
-        let mut connection = Connection::new(conn_id, remote_addr, &init_data).await?;
+        let mut connection =
+            Connection::new(conn_id, remote_addr, &init_data, return_address).await?;
         let response_data = connection.try_read_response_data().await?;
         self.insert_connection(conn_id, connection).await;
         Ok(Response::new(conn_id, response_data))
@@ -77,7 +85,7 @@ impl Controller {
         &mut self,
         conn_id: ConnectionId,
         data: Vec<u8>,
-    ) -> Result<Response, ConnectionError> {
+    ) -> Result<(Response, Recipient), ConnectionError> {
         let mut open_connections_guard = self.open_connections.lock().await;
 
         // TODO: is it possible to do it more nicely than getting lock -> removing connection ->
@@ -88,11 +96,13 @@ impl Controller {
             .ok_or_else(|| ConnectionError::MissingConnection)?;
         connection.send_data(&data).await?;
 
+        let return_address = connection.return_address();
+
         drop(open_connections_guard);
         let response_data = connection.try_read_response_data().await?;
         self.insert_connection(conn_id, connection).await;
 
-        Ok(Response::new(conn_id, response_data))
+        Ok((Response::new(conn_id, response_data), return_address))
     }
 
     async fn close_connection(&mut self, conn_id: ConnectionId) -> Result<(), ConnectionError> {

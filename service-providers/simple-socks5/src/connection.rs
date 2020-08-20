@@ -2,6 +2,7 @@ use nymsphinx::addressing::clients::Recipient;
 use simple_socks5_requests::{ConnectionId, RemoteAddress};
 use tokio::net::TcpStream;
 use tokio::prelude::*;
+use utils::read_delay_loop::try_read_data;
 
 /// A TCP connection between the Socks5 service provider, which makes
 /// outbound requests on behalf of users and returns the responses through
@@ -51,38 +52,6 @@ impl Connection {
     /// remote server. Returns once it times out or the connection closes.
     pub(crate) async fn try_read_response_data(&mut self) -> io::Result<Vec<u8>> {
         let timeout_duration = std::time::Duration::from_millis(500);
-        let mut data = Vec::new();
-        let mut timeout = tokio::time::delay_for(timeout_duration);
-        loop {
-            let mut buf = [0u8; 8192];
-            tokio::select! {
-                _ = &mut timeout => {
-                    return Ok(data) // we return all response data on timeout
-                }
-                read_data = self.conn.read(&mut buf) => {
-                    match read_data {
-                        Err(err) => return Err(err),
-                        Ok(0) => {
-                            return Ok(data)
-                        }
-                        Ok(n) => {
-                            let now = timeout.deadline();
-                            let next = now + timeout_duration;
-                            timeout.reset(next);
-                                    println!("Receiving {} bytes from {}", n, self.address);
-
-                            data.extend_from_slice(&buf[..n])
-                        }
-                    }
-                }
-            }
-        }
+        try_read_data(timeout_duration, &mut self.conn, &self.address).await
     }
 }
-
-// TODO: perhaps a smart implementation of this could alleviate some issues associated with `try_read_response_data` ?
-// impl AsyncRead for Connection {
-//     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut [u8]) -> Poll<io::Result<usize>> {
-//         unimplemented!()
-//     }
-// }

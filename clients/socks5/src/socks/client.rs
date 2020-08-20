@@ -141,6 +141,7 @@ impl SocksClient {
         let request = SocksRequest::from_stream(&mut self.stream).await?;
         let remote_address = request.to_string();
 
+        let client_address = self.stream.peer_addr().unwrap().to_string();
         match request.command {
             // Use the Proxy to connect to the specified addr/port
             SocksCommand::Connect => {
@@ -148,7 +149,7 @@ impl SocksClient {
                 self.acknowledge_socks5().await;
 
                 let request_data_bytes =
-                    SocksRequest::try_read_request_data(&mut self.stream).await?;
+                    SocksRequest::try_read_request_data(&mut self.stream, &client_address).await?;
                 let socks_provider_request = Request::new_connect(
                     self.connection_id,
                     remote_address.clone(),
@@ -162,7 +163,7 @@ impl SocksClient {
 
                 loop {
                     if let Ok(request_data_bytes) =
-                        SocksRequest::try_read_request_data(&mut self.stream).await
+                        SocksRequest::try_read_request_data(&mut self.stream, &client_address).await
                     {
                         if request_data_bytes.is_empty() {
                             break;

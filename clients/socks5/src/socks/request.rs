@@ -1,9 +1,10 @@
 use super::types::{AddrType, ResponseCode, SocksProxyError};
-use super::{utils, SOCKS_VERSION};
+use super::{utils as socks_utils, SOCKS_VERSION};
 use log::*;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::prelude::*;
+use utils::read_delay_loop::try_read_data;
 
 /// A Socks5 request hitting the proxy.
 pub(crate) struct SocksRequest {
@@ -100,44 +101,23 @@ impl SocksRequest {
     /// Print out the address and port to a String.
     /// This might return domain:port, ipv6:port, or ipv4:port.
     pub(crate) fn to_string(&self) -> String {
-        let address = utils::pretty_print_addr(&self.addr_type, &self.addr);
+        let address = socks_utils::pretty_print_addr(&self.addr_type, &self.addr);
         format!("{}:{}", address, self.port)
     }
 
     /// Convert the request object to a SocketAddr
     pub(crate) fn to_socket(&self) -> Result<Vec<SocketAddr>, SocksProxyError> {
-        utils::addr_to_socket(&self.addr_type, &self.addr, self.port)
+        socks_utils::addr_to_socket(&self.addr_type, &self.addr, self.port)
     }
 
     /// Attempts to read data from the Socks5 request stream. Times out and
     /// returns what it's got if no data is read for the timeout_duration
     pub(crate) async fn try_read_request_data<R: AsyncRead + Unpin>(
         reader: &mut R,
+        remote_address: &str,
     ) -> io::Result<Vec<u8>> {
         let timeout_duration = std::time::Duration::from_millis(500);
-        let mut data = Vec::new();
-        let mut timeout = tokio::time::delay_for(timeout_duration);
-        loop {
-            let mut buf = [0u8; 8192];
-            tokio::select! {
-                _ = &mut timeout => {
-                    println!("we timed out! Going to return {:?}", data);
-                    return Ok(data)
-                }
-                read_data = reader.read(&mut buf) => {
-                    match read_data {
-                        Err(err) => return Err(err),
-                        Ok(0) => return Ok(data), // EOF -> connection closed
-                        Ok(n) => {
-                            let now = timeout.deadline();
-                            let next = now + timeout_duration;
-                            timeout.reset(next);
-                            data.extend_from_slice(&buf[..n])
-                        }
-                    }
-                }
-            }
-        }
+        try_read_data(timeout_duration, reader, remote_address).await
     }
 }
 

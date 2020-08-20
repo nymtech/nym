@@ -37,7 +37,7 @@ pub enum ClientRequest {
     Send {
         recipient: Recipient,
         message: Vec<u8>,
-        // Perhaps we could change it to a number to indicate how many reply_SURBs we want to include?
+        // Perhaps we could change it to a number to indicate how many reply_surbs we want to include?
         with_reply_surb: bool,
     },
     Reply {

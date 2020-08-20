@@ -57,7 +57,7 @@ async fn send_file_with_reply() {
     let reply_message = b"hello from reply SURB! - thanks for sending me the file!".to_vec();
     let reply_request = ClientRequest::Reply {
         message: reply_message.clone(),
-        reply_surb: received.reply_SURB.unwrap(),
+        reply_surb: received.reply_surb.unwrap(),
     };
 
     println!(

@@ -272,7 +272,13 @@ impl NymClient {
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let recipient = self.load_socks5_service_provider();
-        let mut sphinx_socks = SphinxSocksServer::new(1080, "127.0.0.1", authenticator, recipient);
+        let mut sphinx_socks = SphinxSocksServer::new(
+            1080,
+            "127.0.0.1",
+            authenticator,
+            recipient,
+            self.as_mix_recipient(),
+        );
         self.runtime
             .spawn(async move { sphinx_socks.serve(msg_input, buffer_requester).await });
     }
@@ -280,9 +286,9 @@ impl NymClient {
     // TODO: Talk to JS about where I can easily find these.
     fn load_socks5_service_provider(&self) -> Recipient {
         // load from file here, or better yet, inject it
-        let identity = "7qBXQor8nHXUXDAUM4aLvqDJ2MECFKn3AJ3brQsu5qz8";
-        let encryption_key = "4uzn7m3vPEy5MhPHLqzFCJHk2BCnvbCsGdrYzng7jnor";
-        let gateway_key = "e3vUAo6YhB7zq3GH8B4k3iiGT4H2USjdd5ZMZoUsHdF";
+        let identity = "G3WSu7S3Jdm5HHQwZ3bT7NKoEBNSGr8JY2jngbUigqfz";
+        let encryption_key = "6KUoz9gexdFziLrrh6M2gXpAW4Fdn3HBHss11WJDYKEL";
+        let gateway_key = "5QAR66H9aMqaEo9y9G4hxAsvenJe13wJSRkwQ8qjsF6C";
 
         let client_identity = ClientIdentity::from_base58_string(identity).unwrap();
         let client_encryption_key =

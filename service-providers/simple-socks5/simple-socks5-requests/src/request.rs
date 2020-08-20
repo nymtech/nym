@@ -1,3 +1,4 @@
+use nymsphinx_addressing::clients::{Recipient, RecipientFormattingError};
 use std::convert::TryFrom;
 
 pub type ConnectionId = u64;
@@ -18,6 +19,17 @@ pub enum RequestError {
     ConnectionIdTooShort,
     NoData,
     UnknownRequestFlag,
+    ReturnAddressTooShort,
+    MalformedReturnAddress(RecipientFormattingError),
+}
+
+impl RequestError {
+    pub fn is_malformed_return(&self) -> bool {
+        match self {
+            RequestError::MalformedReturnAddress(_) => true,
+            _ => false,
+        }
+    }
 }
 
 impl TryFrom<u8> for RequestFlag {
@@ -39,7 +51,13 @@ impl TryFrom<u8> for RequestFlag {
 pub enum Request {
     /// Start a new TCP connection to the specified `RemoteAddress` and send
     /// the request data up the connection.
-    Connect(ConnectionId, RemoteAddress, Vec<u8>),
+    /// All responses produced on this `ConnectionId` should come back to the specified `Recipient`
+    Connect {
+        conn_id: ConnectionId,
+        remote_addr: RemoteAddress,
+        data: Vec<u8>,
+        return_address: Recipient,
+    },
 
     /// Re-use an existing TCP connection, sending more request data up it.
     Send(ConnectionId, Vec<u8>),
@@ -54,8 +72,14 @@ impl Request {
         conn_id: ConnectionId,
         remote_addr: RemoteAddress,
         data: Vec<u8>,
+        return_address: Recipient,
     ) -> Request {
-        Request::Connect(conn_id, remote_addr, data)
+        Request::Connect {
+            conn_id,
+            remote_addr,
+            data,
+            return_address,
+        }
     }
 
     /// Construct a new Request::Send instance
@@ -113,12 +137,23 @@ impl Request {
                 let address_bytes = &connect_request_bytes[address_start..address_end];
                 let remote_address = String::from_utf8_lossy(&address_bytes).to_string();
 
-                let request_data = &connect_request_bytes[address_end..];
-                Ok(Request::Connect(
-                    connection_id,
-                    remote_address,
-                    request_data.to_vec(),
-                ))
+                // just a temporary reference to mid-slice for ease of use
+                let recipient_data_bytes = &connect_request_bytes[address_end..];
+                if recipient_data_bytes.len() < Recipient::LEN {
+                    return Err(RequestError::ReturnAddressTooShort);
+                }
+
+                let mut return_bytes = [0u8; Recipient::LEN];
+                return_bytes.copy_from_slice(&recipient_data_bytes[..Recipient::LEN]);
+                let return_address = Recipient::try_from_bytes(return_bytes)
+                    .map_err(|err| RequestError::MalformedReturnAddress(err))?;
+
+                Ok(Request::Connect {
+                    conn_id: connection_id,
+                    remote_addr: remote_address,
+                    data: recipient_data_bytes[Recipient::LEN..].to_vec(),
+                    return_address,
+                })
             }
             RequestFlag::Send => Ok(Request::Send(connection_id, b[9..].as_ref().to_vec())),
             RequestFlag::Close => Ok(Request::Close(connection_id)),
@@ -130,13 +165,21 @@ impl Request {
     /// service provider which will make the request.
     pub fn into_bytes(self) -> Vec<u8> {
         match self {
-            Request::Connect(conn_id, remote_address, data) => {
-                let remote_address_bytes = remote_address.into_bytes();
+            // connect is: CONN_FLAG || CONN_ID || REMOTE_LEN || REMOTE || RETURN || DATA
+            Request::Connect {
+                conn_id,
+                remote_addr,
+                data,
+                return_address,
+            } => {
+                let remote_address_bytes = remote_addr.into_bytes();
                 let remote_address_bytes_len = remote_address_bytes.len() as u16;
+
                 std::iter::once(RequestFlag::Connect as u8)
                     .chain(conn_id.to_be_bytes().iter().cloned())
                     .chain(remote_address_bytes_len.to_be_bytes().iter().cloned())
                     .chain(remote_address_bytes.into_iter())
+                    .chain(return_address.to_bytes().iter().cloned())
                     .chain(data.into_iter())
                     .collect()
             }
@@ -207,6 +250,87 @@ mod request_deserialization_tests {
         }
 
         #[test]
+        fn returns_error_for_when_return_address_is_too_short() {
+            // this one has "foo.com" remote address and correct 8 bytes of connection_id
+            let request_bytes_prefix = [
+                RequestFlag::Connect as u8,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                0,
+                7,
+                102,
+                111,
+                111,
+                46,
+                99,
+                111,
+                109,
+            ];
+
+            let recipient = Recipient::try_from_base58_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@4sBbL1ngf1vtNqykydQKTFh26sQCw888GpUqvPvyNB4f").unwrap();
+            let recipient_bytes = recipient.to_bytes();
+
+            // take only part of actual recipient
+            let request_bytes: Vec<_> = request_bytes_prefix
+                .iter()
+                .cloned()
+                .chain(recipient_bytes.iter().take(40).cloned())
+                .collect();
+            assert_eq!(
+                RequestError::ReturnAddressTooShort,
+                Request::try_from_bytes(&request_bytes).unwrap_err()
+            );
+        }
+
+        #[test]
+        fn returns_error_for_when_return_address_is_malformed() {
+            // this one has "foo.com" remote address and correct 8 bytes of connection_id
+            let request_bytes_prefix = [
+                RequestFlag::Connect as u8,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                0,
+                7,
+                102,
+                111,
+                111,
+                46,
+                99,
+                111,
+                109,
+            ];
+
+            let recipient = Recipient::try_from_base58_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@4sBbL1ngf1vtNqykydQKTFh26sQCw888GpUqvPvyNB4f").unwrap();
+            let mut recipient_bytes = recipient.to_bytes();
+
+            // mess up few bytes
+            recipient_bytes[0] = 255;
+            recipient_bytes[15] ^= 1;
+            recipient_bytes[31] ^= 1;
+
+            let request_bytes: Vec<_> = request_bytes_prefix
+                .iter()
+                .cloned()
+                .chain(recipient_bytes.iter().cloned())
+                .collect();
+            assert!(Request::try_from_bytes(&request_bytes)
+                .unwrap_err()
+                .is_malformed_return());
+        }
+
+        #[test]
         fn works_when_request_is_sized_properly_even_without_data() {
             // this one has "foo.com" remote address, correct 8 bytes of connection_id, and 0 bytes request data
             let request_bytes = [
@@ -230,11 +354,29 @@ mod request_deserialization_tests {
                 109,
             ]
             .to_vec();
+
+            let recipient = Recipient::try_from_base58_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@4sBbL1ngf1vtNqykydQKTFh26sQCw888GpUqvPvyNB4f").unwrap();
+            let recipient_bytes = recipient.to_bytes();
+
+            let request_bytes: Vec<_> = request_bytes
+                .into_iter()
+                .chain(recipient_bytes.iter().cloned())
+                .collect();
+
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {
-                Request::Connect(conn_id, remote_address, data) => {
-                    assert_eq!("foo.com".to_string(), remote_address);
+                Request::Connect {
+                    conn_id,
+                    remote_addr,
+                    data,
+                    return_address,
+                } => {
+                    assert_eq!("foo.com".to_string(), remote_addr);
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
+                    assert_eq!(
+                        return_address.to_bytes().to_vec(),
+                        recipient.to_bytes().to_vec()
+                    );
                     assert_eq!(Vec::<u8>::new(), data);
                 }
                 _ => unreachable!(),
@@ -243,7 +385,7 @@ mod request_deserialization_tests {
 
         #[test]
         fn works_when_request_is_sized_properly_and_has_data() {
-            // this one has a 1-byte remote address, correct 16 bytes of connection_id, and 3 bytes request data
+            // this one has a 1-byte remote address, correct 8 bytes of connection_id, and 3 bytes request data
             let request_bytes = [
                 RequestFlag::Connect as u8,
                 1,
@@ -263,17 +405,32 @@ mod request_deserialization_tests {
                 99,
                 111,
                 109,
-                255,
-                255,
-                255,
             ]
             .to_vec();
 
+            let recipient = Recipient::try_from_base58_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@4sBbL1ngf1vtNqykydQKTFh26sQCw888GpUqvPvyNB4f").unwrap();
+            let recipient_bytes = recipient.to_bytes();
+
+            let request_bytes: Vec<_> = request_bytes
+                .into_iter()
+                .chain(recipient_bytes.iter().cloned())
+                .chain(vec![255, 255, 255].into_iter())
+                .collect();
+
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {
-                Request::Connect(conn_id, remote_address, data) => {
-                    assert_eq!("foo.com".to_string(), remote_address);
+                Request::Connect {
+                    conn_id,
+                    remote_addr,
+                    data,
+                    return_address,
+                } => {
+                    assert_eq!("foo.com".to_string(), remote_addr);
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
+                    assert_eq!(
+                        return_address.to_bytes().to_vec(),
+                        recipient.to_bytes().to_vec()
+                    );
                     assert_eq!(vec![255, 255, 255], data);
                 }
                 _ => unreachable!(),

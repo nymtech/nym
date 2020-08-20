@@ -33,8 +33,10 @@ pub struct InvalidPacketSize;
 #[repr(u8)]
 #[derive(Clone, Copy, Debug)]
 pub enum PacketSize {
-    RegularPacket = 1,  // for example instant messaging use case
-    ACKPacket = 2,      // for sending SURB-ACKs
+    RegularPacket = 1,
+    // for example instant messaging use case
+    ACKPacket = 2,
+    // for sending SURB-ACKs
     ExtendedPacket = 3, // for example for streaming fast and furious in uncompressed 10bit 4K HDR quality
 }
 

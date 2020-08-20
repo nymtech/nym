@@ -32,6 +32,7 @@ pub(crate) struct SocksClient {
     input_sender: InputMessageSender,
     connection_id: ConnectionId,
     service_provider: Recipient,
+    self_address: Recipient,
 }
 
 type StreamResponseSender = oneshot::Sender<Vec<u8>>;
@@ -52,6 +53,7 @@ impl SocksClient {
         input_sender: InputMessageSender,
         service_provider: Recipient,
         active_streams: ActiveStreams,
+        self_address: Recipient,
     ) -> Self {
         let connection_id = Self::generate_random();
         SocksClient {
@@ -63,6 +65,7 @@ impl SocksClient {
             authenticator,
             input_sender,
             service_provider,
+            self_address,
         }
     }
 
@@ -138,6 +141,7 @@ impl SocksClient {
         let request = SocksRequest::from_stream(&mut self.stream).await?;
         let remote_address = request.to_string();
 
+        let client_address = self.stream.peer_addr().unwrap().to_string();
         match request.command {
             // Use the Proxy to connect to the specified addr/port
             SocksCommand::Connect => {
@@ -145,11 +149,12 @@ impl SocksClient {
                 self.acknowledge_socks5().await;
 
                 let request_data_bytes =
-                    SocksRequest::try_read_request_data(&mut self.stream).await?;
+                    SocksRequest::try_read_request_data(&mut self.stream, &client_address).await?;
                 let socks_provider_request = Request::new_connect(
                     self.connection_id,
                     remote_address.clone(),
                     request_data_bytes,
+                    self.self_address.clone(),
                 );
                 let response_data = self
                     .send_request_to_mixnet_and_get_response(socks_provider_request)
@@ -158,7 +163,7 @@ impl SocksClient {
 
                 loop {
                     if let Ok(request_data_bytes) =
-                        SocksRequest::try_read_request_data(&mut self.stream).await
+                        SocksRequest::try_read_request_data(&mut self.stream, &client_address).await
                     {
                         if request_data_bytes.is_empty() {
                             break;
@@ -168,7 +173,13 @@ impl SocksClient {
                         let response_data = self
                             .send_request_to_mixnet_and_get_response(socks_provider_request)
                             .await;
-                        self.stream.write_all(&response_data).await.unwrap();
+                        if let Err(err) = self.stream.write_all(&response_data).await {
+                            error!(
+                                "tried to write to (presumably) closed connection - {:?}",
+                                err
+                            );
+                            break;
+                        }
                     } else {
                         break;
                     }

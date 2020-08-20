@@ -2,6 +2,9 @@
 panic = "abort"
 opt-level = "s"
 
+[profile.dev]
+panic = "abort"
+
 [workspace]
 
 members = [
@@ -28,6 +31,7 @@ members = [
     "common/nymsphinx/types",
     "common/pemstore",
     "common/topology",
+    "common/utils",
     "gateway",
     "gateway/gateway-requests",
     "service-providers/simple-socks5",

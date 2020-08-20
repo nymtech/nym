@@ -39,6 +39,7 @@ nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
 simple-socks5-requests = { path = "../../service-providers/simple-socks5/simple-socks5-requests" }
 topology = { path = "../../common/topology" }
+utils = { path = "../../common/utils" }
 
 [build-dependencies]
 built = "0.3.2"

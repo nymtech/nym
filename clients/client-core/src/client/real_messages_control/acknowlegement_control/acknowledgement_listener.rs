@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::PendingAcksMap;
+use super::controller::{Action, ActionSender};
 use futures::StreamExt;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
@@ -22,67 +22,60 @@ use nymsphinx::{
 };
 use std::sync::Arc;
 
-// responsible for cancelling retransmission timers and removed entries from the map
+/// Module responsible for listening for any data resembling acknowledgements from the network
+/// and firing actions to remove them from the 'Pending' state.
 pub(super) struct AcknowledgementListener {
     ack_key: Arc<AckKey>,
     ack_receiver: AcknowledgementReceiver,
-    pending_acks: PendingAcksMap,
+    action_sender: ActionSender,
 }
 
 impl AcknowledgementListener {
     pub(super) fn new(
         ack_key: Arc<AckKey>,
         ack_receiver: AcknowledgementReceiver,
-        pending_acks: PendingAcksMap,
+        action_sender: ActionSender,
     ) -> Self {
         AcknowledgementListener {
             ack_key,
             ack_receiver,
-            pending_acks,
+            action_sender,
         }
     }
 
     async fn on_ack(&mut self, ack_content: Vec<u8>) {
         debug!("Received an ack");
-        let frag_id = match recover_identifier(&self.ack_key, &ack_content) {
-            None => {
+        let frag_id = match recover_identifier(&self.ack_key, &ack_content)
+            .map(FragmentIdentifier::try_from_bytes)
+        {
+            Some(Ok(frag_id)) => frag_id,
+            _ => {
                 warn!("Received invalid ACK!"); // should we do anything else about that?
                 return;
             }
-            Some(frag_id_bytes) => match FragmentIdentifier::try_from_bytes(frag_id_bytes) {
-                Ok(frag_id) => frag_id,
-                Err(err) => {
-                    warn!("Received invalid ACK! - {:?}", err); // should we do anything else about that?
-                    return;
-                }
-            },
         };
 
+        // if we received an ack for cover message or a reply there will be nothing to remove,
+        // because nothing was inserted in the first place
         if frag_id == COVER_FRAG_ID {
             trace!("Received an ack for a cover message - no need to do anything");
             return;
         } else if frag_id.is_reply() {
-            debug!("Received an ack for a reply message - no need to do anything!");
+            info!("Received an ack for a reply message - no need to do anything! (don't know what to do!)");
             // TODO: probably there will need to be some extra procedure here, something to notify
             // user that his reply reached the recipient (since we got an ack)
-            info!("We received an ack for one of the replies we sent!");
             return;
         }
 
-        if let Some(pending_ack) = self.pending_acks.write().await.remove(&frag_id) {
-            // cancel the retransmission future
-            pending_ack.retransmission_cancel.notify();
-        } else {
-            warn!("received ACK for packet we haven't stored! - {:?}", frag_id);
-        }
+        self.action_sender
+            .unbounded_send(Action::new_remove(frag_id))
+            .unwrap();
     }
 
     pub(super) async fn run(&mut self) {
         debug!("Started AcknowledgementListener");
         while let Some(acks) = self.ack_receiver.next().await {
-            // realistically we would only be getting one ack at the time, but if we managed to
-            // introduce batching in gateway client, this call should be improved to not re-acquire
-            // write permit on the map every loop iteration
+            // realistically we would only be getting one ack at the time
             for ack in acks {
                 self.on_ack(ack).await;
             }

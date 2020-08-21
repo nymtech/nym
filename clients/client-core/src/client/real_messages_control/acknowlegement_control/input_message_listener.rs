@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{PendingAcknowledgement, PendingAcksMap};
+use super::controller::{Action, ActionSender};
+use super::PendingAcknowledgement;
 use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{
     inbound_messages::{InputMessage, InputMessageReceiver},
@@ -27,7 +28,9 @@ use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
 
-// responsible for splitting received message and initial sending attempt
+/// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
+/// putting everything into sphinx packets, etc.
+/// It also makes an initial sending attempt for said messages.
 pub(super) struct InputMessageListener<R>
 where
     R: CryptoRng + Rng,
@@ -36,7 +39,7 @@ where
     ack_recipient: Recipient,
     input_receiver: InputMessageReceiver,
     message_preparer: MessagePreparer<R>,
-    pending_acks: PendingAcksMap,
+    action_sender: ActionSender,
     real_message_sender: RealMessageSender,
     topology_access: TopologyAccessor,
     reply_key_storage: ReplyKeyStorage,
@@ -51,7 +54,7 @@ where
         ack_recipient: Recipient,
         input_receiver: InputMessageReceiver,
         message_preparer: MessagePreparer<R>,
-        pending_acks: PendingAcksMap,
+        action_sender: ActionSender,
         real_message_sender: RealMessageSender,
         topology_access: TopologyAccessor,
         reply_key_storage: ReplyKeyStorage,
@@ -61,22 +64,23 @@ where
             ack_recipient,
             input_receiver,
             message_preparer,
-            pending_acks,
+            action_sender,
             real_message_sender,
             topology_access,
             reply_key_storage,
         }
     }
 
+    // we require topology for replies to generate surb_acks
     async fn handle_reply(&mut self, reply_surb: ReplySURB, data: Vec<u8>) -> Option<RealMessage> {
         let topology_permit = self.topology_access.get_read_permit().await;
-        let topology_ref_option =
-            topology_permit.try_get_valid_topology_ref(&self.ack_recipient, None);
-        if topology_ref_option.is_none() {
-            warn!("Could not process the message - the network topology is invalid");
-            return None;
-        }
-        let topology = topology_ref_option.unwrap();
+        let topology = match topology_permit.try_get_valid_topology_ref(&self.ack_recipient, None) {
+            Some(topology_ref) => topology_ref,
+            None => {
+                warn!("Could not process the message - the network topology is invalid");
+                return None;
+            }
+        };
 
         match self
             .message_preparer
@@ -86,7 +90,6 @@ where
                 // TODO: later probably write pending ack here
                 // and deal with them....
                 // ... somehow
-
                 Some(RealMessage::new(first_hop, sphinx_packet, reply_id))
             }
             Err(err) => {
@@ -105,13 +108,15 @@ where
         with_reply_surb: bool,
     ) -> Vec<RealMessage> {
         let topology_permit = self.topology_access.get_read_permit().await;
-        let topology_ref_option =
-            topology_permit.try_get_valid_topology_ref(&self.ack_recipient, Some(&recipient));
-        if topology_ref_option.is_none() {
-            warn!("Could not process the message - the network topology is invalid");
-            return Vec::new();
-        }
-        let topology = topology_ref_option.unwrap();
+        let topology = match topology_permit
+            .try_get_valid_topology_ref(&self.ack_recipient, Some(&recipient))
+        {
+            Some(topology_ref) => topology_ref,
+            None => {
+                warn!("Could not process the message - the network topology is invalid");
+                return Vec::new();
+            }
+        };
 
         // split the message, attach optional reply surb
         let (split_message, reply_key) = self
@@ -129,8 +134,6 @@ where
         let mut pending_acks = Vec::with_capacity(split_message.len());
         let mut real_messages = Vec::with_capacity(split_message.len());
         for message_chunk in split_message {
-            // since the paths can be constructed, this CAN'T fail, if it does, there's a bug somewhere
-            let frag_id = message_chunk.fragment_identifier();
             // we need to clone it because we need to keep it in memory in case we had to retransmit
             // it. And then we'd need to recreate entire ACK again.
             let chunk_clone = message_chunk.clone();
@@ -142,29 +145,20 @@ where
             real_messages.push(RealMessage::new(
                 prepared_fragment.first_hop_address,
                 prepared_fragment.sphinx_packet,
-                frag_id,
+                message_chunk.fragment_identifier(),
             ));
 
-            let pending_ack = PendingAcknowledgement::new(
+            pending_acks.push(PendingAcknowledgement::new(
                 message_chunk,
                 prepared_fragment.total_delay,
                 recipient.clone(),
-            );
-
-            pending_acks.push((frag_id, pending_ack));
+            ));
         }
 
-        // first insert pending_acks only then request fragments to be sent, otherwise you might get
-        // some very nasty (and time-consuming to figure out...) race condition.
-        let mut pending_acks_map_write_guard = self.pending_acks.write().await;
-        for (frag_id, pending_ack) in pending_acks.into_iter() {
-            if pending_acks_map_write_guard
-                .insert(frag_id, pending_ack)
-                .is_some()
-            {
-                panic!("Tried to insert duplicate pending ack")
-            }
-        }
+        // tells the controller to put this into the hashmap
+        self.action_sender
+            .unbounded_send(Action::new_insert(pending_acks))
+            .unwrap();
 
         real_messages
     }
@@ -188,6 +182,7 @@ where
             }
         };
 
+        // tells real message sender (with the poisson timer) to send this to the mix network
         for real_message in real_messages {
             self.real_message_sender
                 .unbounded_send(real_message)

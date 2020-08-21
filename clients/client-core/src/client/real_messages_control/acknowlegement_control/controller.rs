@@ -12,73 +12,106 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::PendingAcknowledgement;
 use crate::client::real_messages_control::acknowlegement_control::ack_delay_queue::AckDelayQueue;
 use crate::client::real_messages_control::acknowlegement_control::RetransmissionRequestSender;
-use futures::channel::mpsc::UnboundedReceiver;
-use futures::channel::oneshot;
+use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::chunking::fragment::{Fragment, FragmentIdentifier};
-use nymsphinx::Delay;
+use nymsphinx::chunking::fragment::FragmentIdentifier;
+use nymsphinx::Delay as SphinxDelay;
 use std::collections::HashMap;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::stream::StreamExt;
 use tokio::time::delay_queue::{self, Expired};
 use tokio::time::Error as TimerError;
 
-#[derive(Debug)]
-struct PendingAcknowledgement {
-    message_chunk: Fragment,
-    delay: Delay,
-    recipient: Recipient,
-    // or perhaps put the delay queue key here?
-    // active_reader: Option<Notify>, // retransmission_cancel: Arc<Notify>,
-}
+pub(crate) type ActionSender = UnboundedSender<Action>;
 
-// and state values: done, not done, not valid, etc
-// AtomicU8
+// The actual data being sent off as well as potential key to the delay queue
+type PendingAckEntry = (Arc<PendingAcknowledgement>, Option<delay_queue::Key>);
 
-// Condvar?
-
-// Arc::clone, vs Arc::downgrade and then weak.upgrade is difference of 15ns vs 30ns...
-
-// just tokio select with action or delay fired; on delay might as well send READ data!
-
-enum Action {
+// we can either:
+// - have a completely new set of packets we just sent and need to create entries for
+// - received an ack so we want to remove an entry
+// - start a retransmission timer for sending the packet into the network (on either first try or retransmission)
+pub(crate) enum Action {
     /// Inserts new `PendingAcknowledgement`s into the 'shared' state.
     /// Initiated by `InputMessageListener`
     InsertPending(Vec<PendingAcknowledgement>),
-
-    /// Starts the retransmission timer on given `PendingAcknowledgement` with the provided `Duration`.
-    /// Initiated by `SentNotificationListener`
-    StartTimer(FragmentIdentifier, Duration),
 
     /// Removes given `PendingAcknowledgement` from the 'shared' state. Also cancels the retransmission timer.
     /// Initiated by `AcknowledgementListener`
     RemovePending(FragmentIdentifier),
 
-    // TODO: this might go away if we send all data on timeout
-    /// Reads the `PendingAcknowledgement` data.
-    /// Initiated by `RetransmissionRequestListener`
-    ReadPending(
-        FragmentIdentifier,
-        oneshot::Sender<Option<Weak<PendingAcknowledgement>>>, // to send reply on
-    ),
+    /// Starts the retransmission timer on given `PendingAcknowledgement` with the `Duration` based on
+    /// its internal data.
+    /// Initiated by `SentNotificationListener`
+    /// Can also be initiated by `RetransmissionRequestListener` in the rare cases of invalid Topology.
+    StartTimer(FragmentIdentifier),
 
-    /// Resets the retransmission timer on given `PendingAcknowledgement` with the provided `Duration`.
-    /// Returns a bool to indicate whether the action was successful.
+    /// Updates the expected delay of given `PendingAcknowledgement` with the new provided `SphinxDelay`.
     /// Initiated by `RetransmissionRequestListener`
-    // return channel is provided so that `RetransmissionRequestListener` could wait until the
-    // request was processed and see if it's still valid (i.e. ack wasn't removed between read and update)
-    ResetTimer(FragmentIdentifier, Duration, oneshot::Sender<bool>),
+    UpdateDelay(FragmentIdentifier, SphinxDelay),
+    // // TODO: this might go away if we send all data on timeout
+    // /// Reads the `PendingAcknowledgement` data.
+    // /// Initiated by `RetransmissionRequestListener`
+    // ReadPending(
+    //     FragmentIdentifier,
+    //     oneshot::Sender<Option<Weak<PendingAcknowledgement>>>, // to send reply on
+    // ),
+
+    // /// Resets the retransmission timer on given `PendingAcknowledgement` with the provided `Duration`.
+    // /// Returns a bool to indicate whether the action was successful.
+    // /// Initiated by `RetransmissionRequestListener`
+    // // return channel is provided so that `RetransmissionRequestListener` could wait until the
+    // // request was processed and see if it's still valid (i.e. ack wasn't removed between read and update)
+    // ResetTimer(FragmentIdentifier, Duration, oneshot::Sender<bool>),
 }
 
-struct Controller {
+impl Action {
+    pub(crate) fn new_insert(pending_acks: Vec<PendingAcknowledgement>) -> Self {
+        Action::InsertPending(pending_acks)
+    }
+
+    pub(crate) fn new_remove(frag_id: FragmentIdentifier) -> Self {
+        Action::RemovePending(frag_id)
+    }
+
+    pub(crate) fn new_start_timer(frag_id: FragmentIdentifier) -> Self {
+        Action::StartTimer(frag_id)
+    }
+
+    pub(crate) fn new_update_delay(frag_id: FragmentIdentifier, delay: SphinxDelay) -> Self {
+        Action::UpdateDelay(frag_id, delay)
+    }
+}
+
+/// Configurable parameters of the `Controller`
+pub(super) struct Config {
+    /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the additive part `b`
+    ack_wait_addition: Duration,
+
+    /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the multiplier `a`
+    ack_wait_multiplier: f64,
+}
+
+impl Config {
+    pub(super) fn new(ack_wait_addition: Duration, ack_wait_multiplier: f64) -> Self {
+        Config {
+            ack_wait_addition,
+            ack_wait_multiplier,
+        }
+    }
+}
+
+pub(super) struct Controller {
+    /// Configurable parameters of the `Controller`
+    config: Config,
+
     /// Contains a map between `FragmentIdentifier` and its full `PendingAcknowledgement` as well as
     /// key to its `AckDelayQueue` entry if it was started.
-    pending_acks_data:
-        HashMap<FragmentIdentifier, (Arc<PendingAcknowledgement>, Option<delay_queue::Key>)>,
+    pending_acks_data: HashMap<FragmentIdentifier, PendingAckEntry>,
 
     // This structure ensures that we will EITHER handle expired timer or a received action and NEVER both
     // at the same time hence getting rid of one possible race condition that we suffered from in the
@@ -95,9 +128,28 @@ struct Controller {
 }
 
 impl Controller {
+    pub(super) fn new(
+        config: Config,
+        retransmission_sender: RetransmissionRequestSender,
+    ) -> (Self, ActionSender) {
+        let (sender, receiver) = mpsc::unbounded();
+        (
+            Controller {
+                config,
+                pending_acks_data: HashMap::new(),
+                pending_acks_timers: AckDelayQueue::new(),
+                incoming_actions: receiver,
+                retransmission_sender,
+            },
+            sender,
+        )
+    }
+
     fn handle_insert(&mut self, pending_acks: Vec<PendingAcknowledgement>) {
         for pending_ack in pending_acks {
             let frag_id = pending_ack.message_chunk.fragment_identifier();
+            info!("{} is inserted", frag_id);
+
             if self
                 .pending_acks_data
                 .insert(frag_id, (Arc::new(pending_ack), None))
@@ -108,13 +160,19 @@ impl Controller {
         }
     }
 
-    fn handle_start_timer(&mut self, frag_id: FragmentIdentifier, timeout: Duration) {
-        if let Some((_, queue_key)) = self.pending_acks_data.get_mut(&frag_id) {
+    fn handle_start_timer(&mut self, frag_id: FragmentIdentifier) {
+        info!("{} is starting its timer", frag_id);
+
+        if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.get_mut(&frag_id) {
             if queue_key.is_some() {
                 // this branch should be IMPOSSIBLE under ANY condition. It would imply starting
                 // timer TWICE for the SAME PendingAcknowledgement
                 panic!("Tried to start an already started ack timer!")
             }
+            let timeout = (pending_ack_data.delay.clone() * self.config.ack_wait_multiplier)
+                .to_duration()
+                + self.config.ack_wait_addition;
+
             let new_queue_key = self.pending_acks_timers.insert(frag_id, timeout);
             *queue_key = Some(new_queue_key)
         } else {
@@ -128,6 +186,8 @@ impl Controller {
     }
 
     fn handle_remove(&mut self, frag_id: FragmentIdentifier) {
+        info!("{} is getting removed", frag_id);
+
         match self.pending_acks_data.remove(&frag_id) {
             None => {
                 // TODO: only reason it's a warning is to see how often it's actually being thrown
@@ -159,42 +219,18 @@ impl Controller {
         }
     }
 
-    // TODO: PERHAPS REMOVE IN FAVOUR OF SENDING ALL DATA ON TIMEOUT
-    fn handle_read(
-        &mut self,
-        frag_id: FragmentIdentifier,
-        return_sender: oneshot::Sender<Option<Weak<PendingAcknowledgement>>>,
-    ) {
-        if let Some((pending_ack_data, _)) = self.pending_acks_data.get(&frag_id) {
-            return_sender
-                .send(Some(Arc::downgrade(pending_ack_data)))
-                .unwrap()
-        } else {
-            // TODO: only reason it's a warning is to see how often it's actually being thrown
-            // before merging this should be downgraded to debug/trace
-            warn!(
-                "[DEBUG] Tried to READ pending ack that is already gone! - {}",
-                frag_id
-            );
-            return_sender.send(None).unwrap()
-        }
-    }
+    fn handle_update_delay(&mut self, frag_id: FragmentIdentifier, delay: SphinxDelay) {
+        info!("{} is updating its delay", frag_id);
+        // TODO: how to solve this without either locking or temporarily removing the value?
+        if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.remove(&frag_id) {
+            // this Action is triggered by `RetransmissionRequestListener` which held the other potential
+            // reference to this Arc. HOWEVER, before the Action was pushed onto the queue, the reference
+            // was dropped hence this unwrap is safe.
+            let mut inner_data = Arc::try_unwrap(pending_ack_data).unwrap();
+            inner_data.update_delay(delay);
 
-    fn handle_reset_timer(
-        &mut self,
-        frag_id: FragmentIdentifier,
-        timeout: Duration,
-        return_sender: oneshot::Sender<bool>,
-    ) {
-        if let Some((_, queue_key)) = self.pending_acks_data.get_mut(&frag_id) {
-            if queue_key.is_some() {
-                // this branch should be IMPOSSIBLE under ANY condition. It would imply starting
-                // timer TWICE for the SAME PendingAcknowledgement
-                panic!("Tried to reset an already started ack timer!")
-            }
-            let new_queue_key = self.pending_acks_timers.insert(frag_id, timeout);
-            *queue_key = Some(new_queue_key);
-            return_sender.send(true).unwrap();
+            self.pending_acks_data
+                .insert(frag_id, (Arc::new(inner_data), queue_key));
         } else {
             // TODO: only reason it's a warning is to see how often it's actually being thrown
             // before merging this should be downgraded to debug/trace
@@ -202,11 +238,10 @@ impl Controller {
                 "[DEBUG] Tried to UPDATE TIMER on pending ack that is already gone! - {}",
                 frag_id
             );
-            // request is no longer valid
-            return_sender.send(false).unwrap();
         }
     }
 
+    // note: when the entry expires it's automatically removed from pending_acks_timers
     fn handle_expired_ack_timer(
         &mut self,
         expired_ack: Result<Expired<FragmentIdentifier>, TimerError>,
@@ -218,24 +253,37 @@ impl Controller {
             .expect("Tokio timer returned an error!")
             .into_inner();
 
-        if let Some((_, queue_key)) = self.pending_acks_data.get_mut(&frag_id) {
+        info!("{} has expired", frag_id);
+
+        if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.get_mut(&frag_id) {
             if queue_key.is_none() {
                 // this branch should be IMPOSSIBLE under ANY condition. It would imply the timeout
                 // happened before it even started.
                 panic!("Ack expired before it was even scheduled!")
             }
             *queue_key = None;
-            // TODO: CHANGE TO                 .send(Some(Arc::downgrade(pending_ack_data)))
-            self.retransmission_sender.unbounded_send(frag_id).unwrap()
+            // downgrading an arc and then upgrading vs cloning is difference of 30ns vs 15ns
+            // so it's literally a NO difference while it might prevent us from unnecessarily
+            // resending data (in maybe 1 in 1 million cases, but it's something)
+            self.retransmission_sender
+                .unbounded_send(Arc::downgrade(pending_ack_data))
+                .unwrap()
         } else {
             // this shouldn't cause any issues but shouldn't have happened to begin with!
             error!("An already removed pending ack has expired")
         }
     }
 
-    fn process_action(&mut self, action: Action) {}
+    fn process_action(&mut self, action: Action) {
+        match action {
+            Action::InsertPending(pending_acks) => self.handle_insert(pending_acks),
+            Action::RemovePending(frag_id) => self.handle_remove(frag_id),
+            Action::StartTimer(frag_id) => self.handle_start_timer(frag_id),
+            Action::UpdateDelay(frag_id, delay) => self.handle_update_delay(frag_id, delay),
+        }
+    }
 
-    async fn run(&mut self) {
+    pub(super) async fn run(&mut self) {
         loop {
             // at some point there will be a global shutdown signal here as the third option
             tokio::select! {
@@ -272,10 +320,17 @@ desync example1:
 
     no problem - StartTimer becomes a noop if entry does not exist
 
+
+InsertPending
+StartTimer
+Retransmit
+UpdateTimer
+StartTimer
+
 desync example2:
     InsertPending
     StartTimer
-    ReadPending
+    Retransmit
     ...
     backlog
     ...

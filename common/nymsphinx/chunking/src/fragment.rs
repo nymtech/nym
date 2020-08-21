@@ -17,6 +17,7 @@ use crate::ChunkingError;
 use nymsphinx_params::{SerializedFragmentIdentifier, FRAG_ID_LEN};
 use rand::Rng;
 use std::convert::TryInto;
+use std::fmt::{self, Formatter};
 
 // Personal reflection: In hindsight I've spent too much time on relatively too little
 // gain here, as even though I might have saved couple of bytes per packet, the gain
@@ -74,6 +75,16 @@ pub const COVER_FRAG_ID: FragmentIdentifier = FragmentIdentifier {
 pub struct FragmentIdentifier {
     set_id: i32,
     fragment_position: u8,
+}
+
+impl fmt::Display for FragmentIdentifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Fragment Identifier: id: {} position: {}",
+            self.set_id, self.fragment_position
+        )
+    }
 }
 
 impl FragmentIdentifier {

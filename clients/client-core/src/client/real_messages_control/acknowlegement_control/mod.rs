@@ -38,7 +38,9 @@ use tokio::{
     task::JoinHandle,
 };
 
+mod ack_delay_queue;
 mod acknowledgement_listener;
+mod controller;
 mod input_message_listener;
 mod retransmission_request_listener;
 mod sent_notification_listener;
@@ -74,9 +76,20 @@ impl PendingAcknowledgement {
 }
 
 pub(super) struct AcknowledgementControllerConnectors {
+    /// Channel used for forwarding prepared sphinx messages into the poisson sender
+    /// to be sent to the mix network.
     real_message_sender: RealMessageSender,
+
+    /// Channel used for receiving raw messages from a client. The messages need to be put
+    /// into sphinx packets first.
     input_receiver: InputMessageReceiver,
+
+    /// Channel used for receiving notification about particular packet being sent off to the
+    /// mix network (i.e. it was done being delayed by whatever value was determined in the poisson
+    /// sender)
     sent_notifier: SentPacketNotificationReceiver,
+
+    /// Channel used for receiving acknowledgements from the mix network.
     ack_receiver: AcknowledgementReceiver,
 }
 

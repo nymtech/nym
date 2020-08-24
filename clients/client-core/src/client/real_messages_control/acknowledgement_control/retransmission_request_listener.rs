@@ -68,9 +68,7 @@ where
         let timed_out_ack = match timed_out_ack.upgrade() {
             Some(timed_out_ack) => timed_out_ack,
             None => {
-                // TODO: only reason it's a warning is to see how often it's actually being thrown
-                // before merging this should be downgraded to debug/trace
-                warn!("[DEBUG] we received an ack JUST as we were about to retransmit [1]");
+                debug!("We received an ack JUST as we were about to retransmit [1]");
                 return;
             }
         };
@@ -103,9 +101,7 @@ where
         if Arc::strong_count(&timed_out_ack) == 1 {
             // while we were messing with topology, wrapping data in sphinx, etc. we actually received
             // this ack after all! no need to retransmit then
-            // TODO: only reason it's a warning is to see how often it's actually being thrown
-            // before merging this should be downgraded to debug/trace
-            warn!("[DEBUG] we received an ack JUST as we were about to retransmit [2]");
+            debug!("We received an ack JUST as we were about to retransmit [2]");
             return;
         }
         // we no longer need the reference - let's drop it so that if somehow `UpdateTimer` action

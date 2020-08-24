@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::controller::{Action, ActionSender};
+use super::action_controller::{Action, ActionSender};
 use futures::StreamExt;
 use gateway_client::AcknowledgementReceiver;
 use log::*;

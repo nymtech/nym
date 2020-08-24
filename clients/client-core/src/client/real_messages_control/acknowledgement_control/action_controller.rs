@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use super::PendingAcknowledgement;
-use crate::client::real_messages_control::acknowlegement_control::ack_delay_queue::AckDelayQueue;
-use crate::client::real_messages_control::acknowlegement_control::RetransmissionRequestSender;
+use crate::client::real_messages_control::acknowledgement_control::ack_delay_queue::AckDelayQueue;
+use crate::client::real_messages_control::acknowledgement_control::RetransmissionRequestSender;
 use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use log::*;
 use nymsphinx::chunking::fragment::FragmentIdentifier;
@@ -35,6 +35,7 @@ type PendingAckEntry = (Arc<PendingAcknowledgement>, Option<delay_queue::Key>);
 // - have a completely new set of packets we just sent and need to create entries for
 // - received an ack so we want to remove an entry
 // - start a retransmission timer for sending the packet into the network (on either first try or retransmission)
+// - update the internal sphinx delay of an expired packet
 pub(crate) enum Action {
     /// Inserts new `PendingAcknowledgement`s into the 'shared' state.
     /// Initiated by `InputMessageListener`
@@ -53,20 +54,6 @@ pub(crate) enum Action {
     /// Updates the expected delay of given `PendingAcknowledgement` with the new provided `SphinxDelay`.
     /// Initiated by `RetransmissionRequestListener`
     UpdateDelay(FragmentIdentifier, SphinxDelay),
-    // // TODO: this might go away if we send all data on timeout
-    // /// Reads the `PendingAcknowledgement` data.
-    // /// Initiated by `RetransmissionRequestListener`
-    // ReadPending(
-    //     FragmentIdentifier,
-    //     oneshot::Sender<Option<Weak<PendingAcknowledgement>>>, // to send reply on
-    // ),
-
-    // /// Resets the retransmission timer on given `PendingAcknowledgement` with the provided `Duration`.
-    // /// Returns a bool to indicate whether the action was successful.
-    // /// Initiated by `RetransmissionRequestListener`
-    // // return channel is provided so that `RetransmissionRequestListener` could wait until the
-    // // request was processed and see if it's still valid (i.e. ack wasn't removed between read and update)
-    // ResetTimer(FragmentIdentifier, Duration, oneshot::Sender<bool>),
 }
 
 impl Action {
@@ -87,7 +74,7 @@ impl Action {
     }
 }
 
-/// Configurable parameters of the `Controller`
+/// Configurable parameters of the `ActionController`
 pub(super) struct Config {
     /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the additive part `b`
     ack_wait_addition: Duration,
@@ -105,8 +92,8 @@ impl Config {
     }
 }
 
-pub(super) struct Controller {
-    /// Configurable parameters of the `Controller`
+pub(super) struct ActionController {
+    /// Configurable parameters of the `ActionController`
     config: Config,
 
     /// Contains a map between `FragmentIdentifier` and its full `PendingAcknowledgement` as well as
@@ -127,14 +114,14 @@ pub(super) struct Controller {
     retransmission_sender: RetransmissionRequestSender,
 }
 
-impl Controller {
+impl ActionController {
     pub(super) fn new(
         config: Config,
         retransmission_sender: RetransmissionRequestSender,
     ) -> (Self, ActionSender) {
         let (sender, receiver) = mpsc::unbounded();
         (
-            Controller {
+            ActionController {
                 config,
                 pending_acks_data: HashMap::new(),
                 pending_acks_timers: AckDelayQueue::new(),
@@ -219,9 +206,11 @@ impl Controller {
         }
     }
 
+    // initiated basically as a first step of retransmission. At first data has its delay updated
+    // (as new sphinx packet was created with new expected delivery time)
     fn handle_update_delay(&mut self, frag_id: FragmentIdentifier, delay: SphinxDelay) {
         info!("{} is updating its delay", frag_id);
-        // TODO: how to solve this without either locking or temporarily removing the value?
+        // TODO: is it possible to solve this without either locking or temporarily removing the value?
         if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.remove(&frag_id) {
             // this Action is triggered by `RetransmissionRequestListener` which held the other potential
             // reference to this Arc. HOWEVER, before the Action was pushed onto the queue, the reference
@@ -295,48 +284,3 @@ impl Controller {
         }
     }
 }
-
-/*
-Normal:
-    InsertPending
-    StartTimer
-    RemovePending
-
-Retransmission normal:
-    InsertPending
-    StartTimer
-    ReadPending
-    UpdateTimer
-    ...
-    ReadPending
-    UpdateTimer
-    RemovePending
-
-
-desync example1:
-    InsertPending
-    RemovePending
-    StartTimer
-
-    no problem - StartTimer becomes a noop if entry does not exist
-
-
-InsertPending
-StartTimer
-Retransmit
-UpdateTimer
-StartTimer
-
-desync example2:
-    InsertPending
-    StartTimer
-    Retransmit
-    ...
-    backlog
-    ...
-    RemovePending -> will invalidate read
-    UpdateTimer
-
-    should be no problem - UpdateTimer shouldn't be called as `RetransmissionRequestListener`
-    should see the reference count indicates he's the only holder so ack was removed
- */

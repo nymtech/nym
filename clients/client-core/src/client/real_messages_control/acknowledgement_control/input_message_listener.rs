@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::controller::{Action, ActionSender};
+use super::action_controller::{Action, ActionSender};
 use super::PendingAcknowledgement;
 use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{

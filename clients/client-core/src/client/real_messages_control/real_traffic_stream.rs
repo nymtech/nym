@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::client::mix_traffic::{MixMessage, MixMessageSender};
-use crate::client::real_messages_control::acknowlegement_control::SentPacketNotificationSender;
+use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
@@ -31,13 +31,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
 
-pub(crate) struct OutQueueControl<R>
-where
-    R: CryptoRng + Rng,
-{
-    /// Key used to encrypt and decrypt content of an ACK packet.
-    ack_key: Arc<AckKey>,
-
+/// Configurable parameters of the `OutQueueControl`
+pub(crate) struct Config {
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
 
@@ -46,6 +41,31 @@ where
 
     /// Average delay between sending subsequent packets.
     average_message_sending_delay: Duration,
+}
+
+impl Config {
+    pub(crate) fn new(
+        average_ack_delay: Duration,
+        average_packet_delay: Duration,
+        average_message_sending_delay: Duration,
+    ) -> Self {
+        Config {
+            average_ack_delay,
+            average_packet_delay,
+            average_message_sending_delay,
+        }
+    }
+}
+
+pub(crate) struct OutQueueControl<R>
+where
+    R: CryptoRng + Rng,
+{
+    /// Configurable parameters of the `ActionController`
+    config: Config,
+
+    /// Key used to encrypt and decrypt content of an ACK packet.
+    ack_key: Arc<AckKey>,
 
     /// Channel used for notifying of a real packet being sent out. Used to start up retransmission timer.
     sent_notifier: SentPacketNotificationSender,
@@ -116,7 +136,7 @@ where
 
         // we know it's time to send a message, so let's prepare delay for the next one
         // Get the `now` by looking at the current `delay` deadline
-        let avg_delay = self.average_message_sending_delay;
+        let avg_delay = self.config.average_message_sending_delay;
         let now = self.next_delay.deadline();
         let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
 
@@ -145,10 +165,8 @@ where
     R: CryptoRng + Rng + Unpin,
 {
     pub(crate) fn new(
+        config: Config,
         ack_key: Arc<AckKey>,
-        average_ack_delay: Duration,
-        average_packet_delay: Duration,
-        average_message_sending_delay: Duration,
         sent_notifier: SentPacketNotificationSender,
         mix_tx: MixMessageSender,
         real_receiver: RealMessageReceiver,
@@ -157,10 +175,8 @@ where
         topology_access: TopologyAccessor,
     ) -> Self {
         OutQueueControl {
+            config,
             ack_key,
-            average_ack_delay,
-            average_packet_delay,
-            average_message_sending_delay,
             sent_notifier,
             next_delay: time::delay_for(Default::default()),
             mix_tx,
@@ -198,8 +214,8 @@ where
                     topology_ref,
                     &*self.ack_key,
                     &self.our_full_destination,
-                    self.average_ack_delay,
-                    self.average_packet_delay,
+                    self.config.average_ack_delay,
+                    self.config.average_packet_delay,
                 )
                 .expect("Somehow failed to generate a loop cover message with a valid topology");
 
@@ -234,7 +250,7 @@ where
         // we should set initial delay only when we actually start the stream
         self.next_delay = time::delay_for(sample_poisson_duration(
             &mut self.rng,
-            self.average_message_sending_delay,
+            self.config.average_message_sending_delay,
         ));
 
         info!("Starting out queue controller...");

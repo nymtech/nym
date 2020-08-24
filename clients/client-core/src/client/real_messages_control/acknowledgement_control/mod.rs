@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use self::{
-    acknowledgement_listener::AcknowledgementListener,
+    acknowledgement_listener::AcknowledgementListener, action_controller::ActionController,
     input_message_listener::InputMessageListener,
     retransmission_request_listener::RetransmissionRequestListener,
     sent_notification_listener::SentNotificationListener,
@@ -21,7 +21,6 @@ use self::{
 use super::real_traffic_stream::RealMessageSender;
 use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{inbound_messages::InputMessageReceiver, topology_control::TopologyAccessor};
-use controller::Controller;
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
@@ -33,13 +32,15 @@ use nymsphinx::{
     Delay as SphinxDelay,
 };
 use rand::{CryptoRng, Rng};
-use std::sync::Weak;
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{Arc, Weak},
+    time::Duration,
+};
 use tokio::task::JoinHandle;
 
 mod ack_delay_queue;
 mod acknowledgement_listener;
-mod controller;
+mod action_controller;
 mod input_message_listener;
 mod retransmission_request_listener;
 mod sent_notification_listener;
@@ -117,6 +118,37 @@ impl AcknowledgementControllerConnectors {
     }
 }
 
+/// Configurable parameters of the `AcknowledgementController`
+pub(super) struct Config {
+    /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the additive part `b`
+    ack_wait_addition: Duration,
+
+    /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the multiplier `a`
+    ack_wait_multiplier: f64,
+
+    /// Average delay an acknowledgement packet is going to get delayed at a single mixnode.
+    average_ack_delay: Duration,
+
+    /// Average delay a data packet is going to get delayed at a single mixnode.
+    average_packet_delay: Duration,
+}
+
+impl Config {
+    pub(super) fn new(
+        ack_wait_addition: Duration,
+        ack_wait_multiplier: f64,
+        average_ack_delay: Duration,
+        average_packet_delay: Duration,
+    ) -> Self {
+        Config {
+            ack_wait_addition,
+            ack_wait_multiplier,
+            average_ack_delay,
+            average_packet_delay,
+        }
+    }
+}
+
 pub(super) struct AcknowledgementController<R>
 where
     R: CryptoRng + Rng,
@@ -125,40 +157,34 @@ where
     input_message_listener: Option<InputMessageListener<R>>,
     retransmission_request_listener: Option<RetransmissionRequestListener<R>>,
     sent_notification_listener: Option<SentNotificationListener>,
-
-    // TODO: DO IT PROPERLY!
-    pending_controller: Option<Controller>,
+    action_controller: Option<ActionController>,
 }
 
 impl<R> AcknowledgementController<R>
 where
     R: 'static + CryptoRng + Rng + Clone + Send,
 {
-    // TODO: put all those delays etc into a `Config` struct and pass that instead
     pub(super) fn new(
+        config: Config,
         rng: R,
         topology_access: TopologyAccessor,
         ack_key: Arc<AckKey>,
         ack_recipient: Recipient,
         reply_key_storage: ReplyKeyStorage,
-        average_packet_delay: Duration,
-        average_ack_delay: Duration,
-        ack_wait_multiplier: f64,
-        ack_wait_addition: Duration,
         connectors: AcknowledgementControllerConnectors,
     ) -> Self {
-        // TODO: names, etc
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 
-        let config = controller::Config::new(ack_wait_addition, ack_wait_multiplier);
-
-        let (controller, action_sender) = Controller::new(config, retransmission_tx);
+        let action_config =
+            action_controller::Config::new(config.ack_wait_addition, config.ack_wait_multiplier);
+        let (action_controller, action_sender) =
+            ActionController::new(action_config, retransmission_tx);
 
         let message_preparer = MessagePreparer::new(
             rng,
             ack_recipient.clone(),
-            average_packet_delay,
-            average_ack_delay,
+            config.average_packet_delay,
+            config.average_ack_delay,
         );
 
         // will listen for any acks coming from the network
@@ -201,8 +227,7 @@ where
             input_message_listener: Some(input_message_listener),
             retransmission_request_listener: Some(retransmission_request_listener),
             sent_notification_listener: Some(sent_notification_listener),
-
-            pending_controller: Some(controller),
+            action_controller: Some(action_controller),
         }
     }
 
@@ -212,7 +237,7 @@ where
         let mut retransmission_request_listener =
             self.retransmission_request_listener.take().unwrap();
         let mut sent_notification_listener = self.sent_notification_listener.take().unwrap();
-        let mut controller = self.pending_controller.take().unwrap();
+        let mut action_controller = self.action_controller.take().unwrap();
 
         // the below are log messages are errors as at the current stage we do not expect any of
         // the task to ever finish. This will of course change once we introduce
@@ -237,10 +262,10 @@ where
             error!("The sent notification listener has finished execution!");
             sent_notification_listener
         });
-        let controller_fut = tokio::spawn(async move {
-            controller.run().await;
+        let action_controller_fut = tokio::spawn(async move {
+            action_controller.run().await;
             error!("The controller has finished execution!");
-            controller
+            action_controller
         });
 
         // technically we don't have to bring `AcknowledgementController` back to a valid state
@@ -250,7 +275,7 @@ where
         self.input_message_listener = Some(input_listener_fut.await.unwrap());
         self.retransmission_request_listener = Some(retransmission_req_fut.await.unwrap());
         self.sent_notification_listener = Some(sent_notification_fut.await.unwrap());
-        self.pending_controller = Some(controller_fut.await.unwrap());
+        self.action_controller = Some(action_controller_fut.await.unwrap());
     }
 
     #[allow(dead_code)]

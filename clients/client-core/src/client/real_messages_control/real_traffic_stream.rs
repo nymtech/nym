@@ -225,6 +225,10 @@ where
                 // well technically the message was not sent just yet, but now it's up to internal
                 // queues and client load rather than the required delay. So realistically we can treat
                 // whatever is about to happen as negligible additional delay.
+                info!(
+                    "{} is about to get sent to the mixnet",
+                    real_message.fragment_id
+                );
                 self.sent_notifier
                     .unbounded_send(real_message.fragment_id)
                     .unwrap();

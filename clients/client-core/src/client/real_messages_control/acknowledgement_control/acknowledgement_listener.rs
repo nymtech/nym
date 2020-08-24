@@ -67,6 +67,8 @@ impl AcknowledgementListener {
             return;
         }
 
+        info!("Received {} from the mix network", frag_id);
+
         self.action_sender
             .unbounded_send(Action::new_remove(frag_id))
             .unwrap();

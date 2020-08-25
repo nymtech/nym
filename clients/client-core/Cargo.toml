@@ -28,7 +28,7 @@ pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }
 
 [build-dependencies]
-built = "0.3.2"
+built = "0.4.3"
 
 [dev-dependencies]
 tempfile = "3.1.0"

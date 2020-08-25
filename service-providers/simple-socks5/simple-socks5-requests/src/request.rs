@@ -60,7 +60,7 @@ pub enum Request {
     },
 
     /// Re-use an existing TCP connection, sending more request data up it.
-    Send(ConnectionId, Vec<u8>),
+    Send(ConnectionId, Vec<u8>, bool),
 
     /// Close an existing TCP connection.
     Close(ConnectionId),
@@ -83,8 +83,8 @@ impl Request {
     }
 
     /// Construct a new Request::Send instance
-    pub fn new_send(conn_id: ConnectionId, data: Vec<u8>) -> Request {
-        Request::Send(conn_id, data)
+    pub fn new_send(conn_id: ConnectionId, data: Vec<u8>, local_closed: bool) -> Request {
+        Request::Send(conn_id, data, local_closed)
     }
 
     /// Construct a new Request::Close instance
@@ -155,7 +155,12 @@ impl Request {
                     return_address,
                 })
             }
-            RequestFlag::Send => Ok(Request::Send(connection_id, b[9..].as_ref().to_vec())),
+            RequestFlag::Send => {
+                let local_closed = b[9] != 0;
+                let data = b[10..].as_ref().to_vec();
+
+                Ok(Request::Send(connection_id, data, local_closed))
+            }
             RequestFlag::Close => Ok(Request::Close(connection_id)),
         }
     }
@@ -183,8 +188,9 @@ impl Request {
                     .chain(data.into_iter())
                     .collect()
             }
-            Request::Send(conn_id, data) => std::iter::once(RequestFlag::Send as u8)
+            Request::Send(conn_id, data, local_closed) => std::iter::once(RequestFlag::Send as u8)
                 .chain(conn_id.to_be_bytes().iter().cloned())
+                .chain(std::iter::once(local_closed as u8))
                 .chain(data.into_iter())
                 .collect(),
             Request::Close(conn_id) => std::iter::once(RequestFlag::Close as u8)
@@ -444,13 +450,14 @@ mod request_deserialization_tests {
 
         #[test]
         fn works_when_request_is_sized_properly_even_without_data() {
-            // correct 8 bytes of connection_id, and 0 bytes request data
-            let request_bytes = [RequestFlag::Send as u8, 1, 2, 3, 4, 5, 6, 7, 8].to_vec();
+            // correct 8 bytes of connection_id, 1 byte of local_closed and 0 bytes request data
+            let request_bytes = [RequestFlag::Send as u8, 1, 2, 3, 4, 5, 6, 7, 8, 0].to_vec();
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {
-                Request::Send(conn_id, data) => {
+                Request::Send(conn_id, data, local_closed) => {
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
                     assert_eq!(Vec::<u8>::new(), data);
+                    assert!(!local_closed)
                 }
                 _ => unreachable!(),
             }
@@ -458,7 +465,7 @@ mod request_deserialization_tests {
 
         #[test]
         fn works_when_request_is_sized_properly_and_has_data() {
-            // correct 8 bytes of connection_id, and 3 bytes request data (all 255)
+            // correct 8 bytes of connection_id, 1 byte of local_closed and 3 bytes request data (all 255)
             let request_bytes = [
                 RequestFlag::Send as u8,
                 1,
@@ -469,6 +476,7 @@ mod request_deserialization_tests {
                 6,
                 7,
                 8,
+                0,
                 255,
                 255,
                 255,
@@ -477,9 +485,10 @@ mod request_deserialization_tests {
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {
-                Request::Send(conn_id, data) => {
+                Request::Send(conn_id, data, local_closed) => {
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
                     assert_eq!(vec![255, 255, 255], data);
+                    assert!(!local_closed)
                 }
                 _ => unreachable!(),
             }

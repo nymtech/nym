@@ -9,16 +9,15 @@ use crate::socks::active_streams_controller::{
 };
 use client_core::client::inbound_messages::InputMessage;
 use client_core::client::inbound_messages::InputMessageSender;
-use futures::channel::{mpsc, oneshot};
+use futures::channel::mpsc;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use rand::RngCore;
 use simple_socks5_requests::{ConnectionId, Request};
 use std::net::Shutdown;
 use tokio::prelude::*;
-use tokio::stream::StreamExt;
 use tokio::{self, net::TcpStream};
-use utils::proxy_runner::{ProxyMessage, ProxyRunner};
+use utils::proxy_runner::ProxyRunner;
 
 /// A client connecting to the Socks proxy server, because
 /// it wants to make a Nym-protected outbound request. Typically, this is
@@ -138,24 +137,13 @@ impl SocksClient {
         let recipient = self.service_provider.clone();
         let (stream, _) = ProxyRunner::new(stream, mix_receiver, input_sender, connection_id)
             .run(move |conn_id, read_data, socket_closed| {
-                // TODO: deal with socket_closed
-                let provider_request = Request::new_send(conn_id, read_data);
+                let provider_request = Request::new_send(conn_id, read_data, socket_closed);
                 InputMessage::new_fresh(recipient, provider_request.into_bytes(), false)
             })
             .await
             .into_inner();
         // recover stream from the proxy
         self.stream = Some(stream);
-    }
-
-    // specialised version of `send_to_mixnet` that does not require `Self`
-    async fn send_to_mixnet_with_recipient_on_channel(
-        request_bytes: Vec<u8>,
-        recipient: Recipient,
-        input_sender: InputMessageSender,
-    ) {
-        let input_message = InputMessage::new_fresh(recipient, request_bytes, false);
-        input_sender.unbounded_send(input_message).unwrap();
     }
 
     /// Handles a client request.

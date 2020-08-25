@@ -22,6 +22,9 @@ impl From<io::Error> for ConnectionError {
 #[derive(Clone)]
 pub(crate) struct Controller {
     open_connections: Arc<Mutex<HashMap<ConnectionId, Connection>>>,
+    
+    
+    
 }
 
 impl Controller {
@@ -78,6 +81,7 @@ impl Controller {
             Connection::new(conn_id, remote_addr, &init_data, return_address).await?;
         let (response_data, timed_out) = connection.try_read_response_data().await?;
         self.insert_connection(conn_id, connection).await;
+        
         // if it didn't time out it means there was an early return due to closed connection
         Ok(Response::new(conn_id, response_data, !timed_out))
     }

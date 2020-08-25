@@ -12,104 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// async fn run_proxy(&mut self, mut mix_receiver: StreamResponseReceiver) {
-//     let notify_closed = Arc::new(Notify::new());
-//     let notify_clone = Arc::clone(&notify_closed);
-//
-//     let stream = self.stream.take().unwrap();
-//     let connection_id = self.connection_id;
-//     let client_address = stream.peer_addr().unwrap().to_string();
-//
-//     let (mut read_half, mut write_half) = stream.into_split();
-//
-//     let provider_address = self.service_provider.clone();
-//     let input_sender = self.input_sender.clone();
-//
-//     // should run until either inbound closes or is notified from outbound
-//     let inbound_future = async move {
-//         loop {
-//             tokio::select! {
-//                     _ = notify_closed.notified() => {
-//                         // the remote (service provider) socket is closed, so there's no point
-//                         // in reading anything more because we won't be able to write to remote anyway!
-//                         break
-//                     }
-//                     // basically copy data from client to mixnet until the socket remains open
-//                     reading_result = SocksRequest::try_read_request_data(&mut read_half, &client_address) => {
-//                         let (request_data, timed_out) = match reading_result {
-//                             Ok(data) => data,
-//                             Err(err) => {
-//                                 error!("failed to read request from the socket - {}", err);
-//                                 break;
-//                             }
-//                         };
-//                         if request_data.is_empty() && !timed_out {
-//                             debug!("The socket is closed - won't receive any more data");
-//                             // no point in reading from mixnet if connection is closed!
-//                             notify_closed.notify();
-//                             break;
-//                         }
-//                         if request_data.is_empty() {
-//                             // no point in writing empty request
-//                             continue;
-//                         }
-//                         let socks_provider_request = Request::new_send(connection_id, request_data);
-//                         Self::send_to_mixnet_with_recipient_on_channel(
-//                             socks_provider_request.into_bytes(),
-//                             provider_address.clone(),
-//                             input_sender.clone(),
-//                         ).await;
-//                     }
-//                 }
-//         }
-//
-//         read_half
-//     };
-//
-//     // should run until notified from mixnet or until local connection is closed
-//     let outbound_future = async move {
-//         // keep reading from mixnet until close signal
-//         loop {
-//             tokio::select! {
-//                     _ = notify_clone.notified() => {
-//                         // no need to read from mixnet as we won't be able to send to socket
-//                         // anyway
-//                         break
-//                     }
-//                     // if channel closed => done?
-//                     mix_data = mix_receiver.next() => {
-//                         let (data, remote_closed) = mix_data.unwrap();
-//                         if let Err(err) = write_half.write_all(&data).await {
-//                             // the other half is probably going to blow up too (if not, this task also needs to notify the other one!!)
-//                             error!("failed to write response back to the socket - {}", err)
-//                         }
-//                         if remote_closed {
-//                             println!("remote got closed - let's write what we received and also close!");
-//                             notify_clone.notify();
-//                             break
-//                         }
-//                     }
-//                 }
-//         }
-//         write_half
-//     };
-//
-//     let handle_inbound = tokio::spawn(inbound_future);
-//     let handle_outbound = tokio::spawn(outbound_future);
-//
-//     let (write_half, read_half) = futures::future::join(handle_inbound, handle_outbound).await;
-//
-//     if write_half.is_err() || read_half.is_err() {
-//         panic!("TODO: some future error?")
-//     }
-//
-//     self.stream = Some(write_half.unwrap().reunite(read_half.unwrap()).unwrap());
-// }
-
 use super::read_delay_loop::try_read_data;
 use futures::channel::mpsc;
 use log::*;
-use simple_socks5_requests::{ConnectionId, Request};
+use simple_socks5_requests::ConnectionId;
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::prelude::*;
@@ -197,20 +103,20 @@ where
                                 break;
                             }
                         };
-                        if read_data.is_empty() && !timed_out {
+
+                        if read_data.is_empty() && timed_out {
+                            // no point in writing empty data on each timeout
+                            continue
+                        }
+
+                        mix_sender.unbounded_send(adapter_fn(connection_id, read_data, !timed_out)).unwrap();
+
+                        if !timed_out {
                             debug!("The socket is closed - won't receive any more data");
                             // no point in reading from mixnet if connection is closed!
                             notify_closed.notify();
                             break;
                         }
-                        if read_data.is_empty() {
-                            // no point in writing empty data
-                            continue;
-                        }
-
-
-                        // TODO: currently timed_out (if false) won't reach this point!
-                        mix_sender.unbounded_send(adapter_fn(connection_id, read_data, !timed_out)).unwrap();
                     }
                 }
             }
@@ -229,6 +135,12 @@ where
                         break
                     }
                     mix_data = mix_receiver.next() => {
+                        if mix_data.is_none() {
+                            // we already got closed
+                            // not sure if we HAVE to notify the other task, but might as well
+                            notify_clone.notify();
+                            break
+                        }
                         let mix_data = mix_data.unwrap().into();
                         if let Err(err) = write_half.write_all(&mix_data.data).await {
                             // the other half is probably going to blow up too (if not, this task also needs to notify the other one!!)

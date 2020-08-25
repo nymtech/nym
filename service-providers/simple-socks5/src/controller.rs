@@ -76,9 +76,10 @@ impl Controller {
         println!("Connecting {} to remote {}", conn_id, remote_addr);
         let mut connection =
             Connection::new(conn_id, remote_addr, &init_data, return_address).await?;
-        let response_data = connection.try_read_response_data().await?;
+        let (response_data, timed_out) = connection.try_read_response_data().await?;
         self.insert_connection(conn_id, connection).await;
-        Ok(Response::new(conn_id, response_data))
+        // if it didn't time out it means there was an early return due to closed connection
+        Ok(Response::new(conn_id, response_data, !timed_out))
     }
 
     async fn send_to_connection(
@@ -99,13 +100,28 @@ impl Controller {
         let return_address = connection.return_address();
 
         drop(open_connections_guard);
-        let response_data = connection.try_read_response_data().await?;
-        self.insert_connection(conn_id, connection).await;
 
-        Ok((Response::new(conn_id, response_data), return_address))
+        // TODO: THIS IS SUPER BAD - WE MIGHT NOT ALWAYS GET RESPONSE BACK
+        let (response_data, timed_out) = connection.try_read_response_data().await?;
+        if response_data.is_empty() {
+            println!("empty response!");
+        }
+        if !timed_out {
+            println!("and connection is closed anyway!!");
+        } else {
+            // if connection is closed, no point in re-inserting it!
+            self.insert_connection(conn_id, connection).await;
+        }
+
+        // if it didn't time out it means there was an early return due to closed connection
+        Ok((
+            Response::new(conn_id, response_data, !timed_out),
+            return_address,
+        ))
     }
 
     async fn close_connection(&mut self, conn_id: ConnectionId) -> Result<(), ConnectionError> {
+        println!("closing connection {}", conn_id);
         match self.open_connections.lock().await.remove(&conn_id) {
             // I *think* connection is closed implicitly on drop, but I'm not 100% sure!
             Some(_conn) => (),

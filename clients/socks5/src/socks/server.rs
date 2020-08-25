@@ -4,13 +4,13 @@ use super::{
     mixnet_responses::MixnetResponseListener,
     types::{ResponseCode, SocksProxyError},
 };
+use crate::socks::active_streams_controller;
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
-use futures::lock::Mutex;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
 /// A Socks5 server that listens for connections.
@@ -49,14 +49,18 @@ impl SphinxSocksServer {
         info!("Serving Connections...");
         let mut listener = TcpListener::bind(self.listening_address).await.unwrap();
 
-        // todo: probably just create a wrapper type for this guy
-        let active_streams = Arc::new(Mutex::new(HashMap::new()));
+        let (mut active_streams_controller, controller_sender) =
+            active_streams_controller::Controller::new();
 
         let mut mixnet_response_listener =
-            MixnetResponseListener::new(buffer_requester, Arc::clone(&active_streams));
+            MixnetResponseListener::new(buffer_requester, controller_sender.clone());
 
         tokio::spawn(async move {
             mixnet_response_listener.run().await;
+        });
+
+        tokio::spawn(async move {
+            active_streams_controller.run().await;
         });
 
         loop {
@@ -67,7 +71,7 @@ impl SphinxSocksServer {
                     self.authenticator.clone(),
                     input_sender.clone(),
                     self.service_provider.clone(),
-                    Arc::clone(&active_streams),
+                    controller_sender.clone(),
                     self.self_address.clone(),
                 );
 

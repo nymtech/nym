@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+mod active_streams_controller;
 pub mod authentication;
 mod client;
 pub(crate) mod mixnet_responses;

@@ -50,7 +50,7 @@ impl Connection {
 
     /// Read response data by looping, waiting for anything we get back from the
     /// remote server. Returns once it times out or the connection closes.
-    pub(crate) async fn try_read_response_data(&mut self) -> io::Result<Vec<u8>> {
+    pub(crate) async fn try_read_response_data(&mut self) -> io::Result<(Vec<u8>, bool)> {
         let timeout_duration = std::time::Duration::from_millis(500);
         try_read_data(timeout_duration, &mut self.conn, &self.address).await
     }

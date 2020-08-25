@@ -1,4 +1,5 @@
 use super::client::ActiveStreams;
+use crate::socks::active_streams_controller::{ControllerCommand, ControllerSender};
 use client_core::client::received_buffer::ReconstructedMessagesReceiver;
 use client_core::client::received_buffer::{ReceivedBufferMessage, ReceivedBufferRequestSender};
 use futures::channel::mpsc;
@@ -10,7 +11,7 @@ use simple_socks5_requests::Response;
 pub(crate) struct MixnetResponseListener {
     buffer_requester: ReceivedBufferRequestSender,
     mix_response_receiver: ReconstructedMessagesReceiver,
-    active_streams: ActiveStreams,
+    controller_sender: ControllerSender,
 }
 
 impl Drop for MixnetResponseListener {
@@ -24,7 +25,7 @@ impl Drop for MixnetResponseListener {
 impl MixnetResponseListener {
     pub(crate) fn new(
         buffer_requester: ReceivedBufferRequestSender,
-        active_streams: ActiveStreams,
+        controller_sender: ControllerSender,
     ) -> Self {
         let (mix_response_sender, mix_response_receiver) = mpsc::unbounded();
         buffer_requester
@@ -32,7 +33,7 @@ impl MixnetResponseListener {
             .unwrap();
 
         MixnetResponseListener {
-            active_streams,
+            controller_sender,
             buffer_requester,
             mix_response_receiver,
         }
@@ -52,18 +53,14 @@ impl MixnetResponseListener {
             Ok(data) => data,
         };
 
-        let mut active_streams_guard = self.active_streams.lock().await;
-
-        // `remove` gives back the entry (assuming it exists). There's no reason
-        // for it to persist after we send data back
-        if let Some(stream_receiver) = active_streams_guard.remove(&response.connection_id) {
-            stream_receiver.send(response.data).unwrap()
-        } else {
-            warn!(
-                "no connection_id exists with id: {:?}",
-                &response.connection_id
-            )
-        }
+        println!("sending to connection");
+        self.controller_sender
+            .unbounded_send(ControllerCommand::Send(
+                response.connection_id,
+                response.data,
+                response.is_closed,
+            ))
+            .unwrap();
     }
 
     pub(crate) async fn run(&mut self) {

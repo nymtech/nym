@@ -115,7 +115,7 @@ impl SocksRequest {
     pub(crate) async fn try_read_request_data<R: AsyncRead + Unpin>(
         reader: &mut R,
         remote_address: &str,
-    ) -> io::Result<Vec<u8>> {
+    ) -> io::Result<(Vec<u8>, bool)> {
         let timeout_duration = std::time::Duration::from_millis(500);
         try_read_data(timeout_duration, reader, remote_address).await
     }

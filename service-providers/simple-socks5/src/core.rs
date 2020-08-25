@@ -17,6 +17,8 @@ impl ServiceProvider {
         ServiceProvider {}
     }
 
+    async fn run_proxy() {}
+
     /// Start all subsystems
     pub async fn run(&mut self) {
         let websocket_stream = self.connect_websocket("ws://localhost:1977").await;
@@ -57,6 +59,9 @@ impl ServiceProvider {
 
             let mut controller_local_pointer = controller.clone();
             let response_sender_clone = sender.clone();
+
+            // TODO: spawn a task with some channels?
+
             tokio::spawn(async move {
                 if let Ok(response_option) = controller_local_pointer.process_request(request).await
                 {

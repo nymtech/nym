@@ -13,4 +13,5 @@
 // limitations under the License.
 
 pub mod available_reader;
+pub mod proxy_runner;
 pub mod read_delay_loop;

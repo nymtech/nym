@@ -3728,6 +3728,9 @@ name = "utils"
 version = "0.1.0"
 dependencies = [
  "bytes 0.5.4",
+ "futures 0.3.4",
+ "log 0.4.8",
+ "simple-socks5-requests",
  "tokio 0.2.22",
  "tokio-test",
 ]

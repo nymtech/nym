@@ -8,8 +8,10 @@ edition = "2018"
 
 [dependencies]
 bytes = "0.5"
-# no need for any features as `AsyncRead` is always available
-tokio = { version = "0.2", features = [] }
+tokio = { version = "0.2", features = [ "tcp", "io-util" ] }
+futures = "0.3"
+log = "0.4"
+simple-socks5-requests = { path = "../../service-providers/simple-socks5/simple-socks5-requests" }
 
 [dev-dependencies]
 tokio = { version = "0.2", features = ["rt-threaded", "macros"] }

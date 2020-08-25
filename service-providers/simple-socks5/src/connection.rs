@@ -39,6 +39,10 @@ impl Connection {
         Ok(connection)
     }
 
+    pub(crate) async fn run_proxy(&mut self) {
+        let stream: TcpStream = todo!();
+    }
+
     pub(crate) fn return_address(&self) -> Recipient {
         self.return_address.clone()
     }

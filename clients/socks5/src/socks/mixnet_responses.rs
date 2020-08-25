@@ -1,4 +1,3 @@
-use super::client::ActiveStreams;
 use crate::socks::active_streams_controller::{ControllerCommand, ControllerSender};
 use client_core::client::received_buffer::ReconstructedMessagesReceiver;
 use client_core::client::received_buffer::{ReceivedBufferMessage, ReceivedBufferRequestSender};

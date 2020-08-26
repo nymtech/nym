@@ -4,7 +4,6 @@ use super::{
     mixnet_responses::MixnetResponseListener,
     types::{ResponseCode, SocksProxyError},
 };
-use crate::socks::active_streams_controller;
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
@@ -12,6 +11,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
+use utils::connection_controller::Controller;
 
 /// A Socks5 server that listens for connections.
 pub struct SphinxSocksServer {
@@ -46,21 +46,21 @@ impl SphinxSocksServer {
         input_sender: InputMessageSender,
         buffer_requester: ReceivedBufferRequestSender,
     ) -> Result<(), SocksProxyError> {
-        info!("Serving Connections...");
         let mut listener = TcpListener::bind(self.listening_address).await.unwrap();
+        info!("Serving Connections...");
 
-        let (mut active_streams_controller, controller_sender) =
-            active_streams_controller::Controller::new();
+        // controller for managing all active connections
+        let (mut active_streams_controller, controller_sender) = Controller::new();
+        tokio::spawn(async move {
+            active_streams_controller.run().await;
+        });
 
+        // listener for mix messages
         let mut mixnet_response_listener =
             MixnetResponseListener::new(buffer_requester, controller_sender.clone());
 
         tokio::spawn(async move {
             mixnet_response_listener.run().await;
-        });
-
-        tokio::spawn(async move {
-            active_streams_controller.run().await;
         });
 
         loop {

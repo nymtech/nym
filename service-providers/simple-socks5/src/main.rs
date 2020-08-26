@@ -1,13 +1,11 @@
 mod connection;
-// mod controller;
 mod core;
-mod foo;
 mod websocket;
 
 #[tokio::main]
 async fn main() {
+    let uri = "ws://localhost:1977";
     println!("Starting socks5 service provider:");
-    let mut server = core::ServiceProvider::new();
+    let mut server = core::ServiceProvider::new(uri.into());
     server.run().await;
-    // server.run_forever();
 }

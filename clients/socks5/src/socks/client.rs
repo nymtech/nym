@@ -4,20 +4,123 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCode, SocksProxyError};
 use super::{RESERVED, SOCKS_VERSION};
-use crate::socks::active_streams_controller::{
-    ControllerCommand, ControllerSender, StreamResponseReceiver,
-};
 use client_core::client::inbound_messages::InputMessage;
 use client_core::client::inbound_messages::InputMessageSender;
 use futures::channel::mpsc;
+use futures::core_reexport::pin::Pin;
+use futures::task::{Context, Poll};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
+use pin_project::pin_project;
 use rand::RngCore;
 use simple_socks5_requests::{ConnectionId, Request};
-use std::net::Shutdown;
+use std::net::{Shutdown, SocketAddr};
 use tokio::prelude::*;
 use tokio::{self, net::TcpStream};
+use utils::connection_controller::{ConnectionReceiver, ControllerCommand, ControllerSender};
 use utils::proxy_runner::ProxyRunner;
+
+#[pin_project(project = StateProject)]
+enum StreamState {
+    Available(TcpStream),
+    RunningProxy,
+}
+
+impl StreamState {
+    fn finish_proxy(&mut self, stream: TcpStream) {
+        match self {
+            StreamState::RunningProxy => *self = StreamState::Available(stream),
+            StreamState::Available(_) => panic!("invalid state!"),
+        }
+    }
+
+    fn run_proxy(&mut self) -> TcpStream {
+        // It's not the nicest way to do it, but it works
+        #[allow(unused_assignments)]
+        let mut stream = None;
+        *self = match std::mem::replace(self, StreamState::RunningProxy) {
+            StreamState::Available(inner_stream) => {
+                stream = Some(inner_stream);
+                StreamState::RunningProxy
+            }
+            StreamState::RunningProxy => panic!("invalid state"),
+        };
+        stream.unwrap()
+    }
+
+    /// Returns the remote address that this stream is connected to.
+    fn peer_addr(&self) -> io::Result<SocketAddr> {
+        match self {
+            StreamState::RunningProxy => Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "stream is being used to run the proxy",
+            )),
+            StreamState::Available(ref stream) => stream.peer_addr(),
+        }
+    }
+
+    fn shutdown(&self, how: Shutdown) -> io::Result<()> {
+        // shutdown should only be called if proxy is not being run. If it is, there's some bug
+        // somewhere
+        match self {
+            StreamState::RunningProxy => panic!("Tried to shutdown stream while proxy is running"),
+            StreamState::Available(ref stream) => TcpStream::shutdown(stream, how),
+        }
+    }
+}
+
+// convenience implementations
+impl AsyncRead for StreamState {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        match self.project() {
+            StateProject::RunningProxy => Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "stream is being used to run the proxy",
+            ))),
+            StateProject::Available(ref mut stream) => Pin::new(stream).poll_read(cx, buf),
+        }
+    }
+}
+
+impl AsyncWrite for StreamState {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        match self.project() {
+            StateProject::RunningProxy => Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "stream is being used to run the proxy",
+            ))),
+            StateProject::Available(ref mut stream) => Pin::new(stream).poll_write(cx, buf),
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match self.project() {
+            StateProject::RunningProxy => Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "stream is being used to run the proxy",
+            ))),
+            StateProject::Available(ref mut stream) => Pin::new(stream).poll_flush(cx),
+        }
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match self.project() {
+            StateProject::RunningProxy => Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "stream is being used to run the proxy",
+            ))),
+            StateProject::Available(ref mut stream) => Pin::new(stream).poll_shutdown(cx),
+        }
+    }
+}
 
 /// A client connecting to the Socks proxy server, because
 /// it wants to make a Nym-protected outbound request. Typically, this is
@@ -25,7 +128,7 @@ use utils::proxy_runner::ProxyRunner;
 /// SphinxSocksServer.
 pub(crate) struct SocksClient {
     controller_sender: ControllerSender,
-    stream: Option<TcpStream>,
+    stream: StreamState,
     auth_nmethods: u8,
     authenticator: Authenticator,
     socks_version: u8,
@@ -37,7 +140,8 @@ pub(crate) struct SocksClient {
 
 impl Drop for SocksClient {
     fn drop(&mut self) {
-        println!("socksclient is going out of scope - the stream is getting dropped!");
+        // TODO: decrease to debug/trace
+        info!("socksclient is going out of scope - the stream is getting dropped!");
         self.controller_sender
             .unbounded_send(ControllerCommand::Remove(self.connection_id))
             .unwrap();
@@ -58,7 +162,7 @@ impl SocksClient {
         SocksClient {
             controller_sender,
             connection_id,
-            stream: Some(stream),
+            stream: StreamState::Available(stream),
             auth_nmethods: 0,
             socks_version: 0,
             authenticator,
@@ -75,35 +179,24 @@ impl SocksClient {
 
     // Send an error back to the client
     pub async fn error(&mut self, r: ResponseCode) -> Result<(), SocksProxyError> {
-        self.stream
-            .as_mut()
-            .unwrap()
-            .write_all(&[5, r as u8])
-            .await?;
+        self.stream.write_all(&[5, r as u8]).await?;
         Ok(())
     }
 
     /// Shutdown the TcpStream to the client and end the session
     pub fn shutdown(&mut self) -> Result<(), SocksProxyError> {
-        println!("client is shutting down its TCP stream");
-        TcpStream::shutdown(self.stream.as_mut().unwrap(), Shutdown::Both)?;
+        info!("client is shutting down its TCP stream");
+        self.stream.shutdown(Shutdown::Both)?;
         Ok(())
     }
 
     /// Initializes the new client, checking that the correct Socks version (5)
     /// is in use and that the client is authenticated, then runs the request.
     pub async fn run(&mut self) -> Result<(), SocksProxyError> {
-        debug!(
-            "New connection from: {}",
-            self.stream.as_mut().unwrap().peer_addr()?.ip()
-        );
+        debug!("New connection from: {}", self.stream.peer_addr()?.ip());
         let mut header = [0u8; 2];
         // Read a byte from the stream and determine the version being requested
-        self.stream
-            .as_mut()
-            .unwrap()
-            .read_exact(&mut header)
-            .await?;
+        self.stream.read_exact(&mut header).await?;
 
         self.socks_version = header[0];
         self.auth_nmethods = header[1];
@@ -128,14 +221,14 @@ impl SocksClient {
         self.send_to_mixnet(request.into_bytes()).await;
     }
 
-    async fn run_proxy(&mut self, mix_receiver: StreamResponseReceiver) {
-        let stream = self.stream.take().unwrap();
+    async fn run_proxy(&mut self, conn_receiver: ConnectionReceiver) {
+        let stream = self.stream.run_proxy();
         let connection_id = self.connection_id;
 
         let input_sender = self.input_sender.clone();
 
         let recipient = self.service_provider.clone();
-        let (stream, _) = ProxyRunner::new(stream, mix_receiver, input_sender, connection_id)
+        let (stream, _) = ProxyRunner::new(stream, conn_receiver, input_sender, connection_id)
             .run(move |conn_id, read_data, socket_closed| {
                 let provider_request = Request::new_send(conn_id, read_data, socket_closed);
                 InputMessage::new_fresh(recipient, provider_request.into_bytes(), false)
@@ -143,22 +236,16 @@ impl SocksClient {
             .await
             .into_inner();
         // recover stream from the proxy
-        self.stream = Some(stream);
+        self.stream.finish_proxy(stream)
     }
 
     /// Handles a client request.
     async fn handle_request(&mut self) -> Result<(), SocksProxyError> {
         debug!("Handling CONNECT Command");
 
-        let request = SocksRequest::from_stream(&mut self.stream.as_mut().unwrap()).await?;
+        let request = SocksRequest::from_stream(&mut self.stream).await?;
         let remote_address = request.to_string();
-        let client_address = self
-            .stream
-            .as_mut()
-            .unwrap()
-            .peer_addr()
-            .unwrap()
-            .to_string();
+        let client_address = self.stream.peer_addr().unwrap().to_string();
 
         // setup for receiving from the mixnet
         let (mix_sender, mix_receiver) = mpsc::unbounded();
@@ -173,11 +260,8 @@ impl SocksClient {
                 self.acknowledge_socks5().await;
 
                 // 'connect' needs to be handled manually due to different structure
-                let (request_data_bytes, _) = SocksRequest::try_read_request_data(
-                    &mut self.stream.as_mut().unwrap(),
-                    &client_address,
-                )
-                .await?;
+                let (request_data_bytes, _) =
+                    SocksRequest::try_read_request_data(&mut self.stream, &client_address).await?;
                 let socks_provider_request = Request::new_connect(
                     self.connection_id,
                     remote_address.clone(),
@@ -212,8 +296,6 @@ impl SocksClient {
     /// basically saying "I acknowledge your request and am dealing with it".
     async fn acknowledge_socks5(&mut self) {
         self.stream
-            .as_mut()
-            .unwrap()
             .write_all(&[
                 SOCKS_VERSION,
                 ResponseCode::Success as u8,
@@ -249,10 +331,7 @@ impl SocksClient {
     /// into the Authenticator (where it'll be more easily testable)
     /// would be a good next step.
     async fn authenticate(&mut self) -> Result<(), SocksProxyError> {
-        debug!(
-            "Authenticating w/ {}",
-            self.stream.as_mut().unwrap().peer_addr()?.ip()
-        );
+        debug!("Authenticating w/ {}", self.stream.peer_addr()?.ip());
         // Get valid auth methods
         let methods = self.get_available_methods().await?;
         trace!("methods: {:?}", methods);
@@ -266,16 +345,12 @@ impl SocksClient {
             response[1] = AuthenticationMethods::UserPass as u8;
 
             debug!("Sending USER/PASS packet");
-            self.stream.as_mut().unwrap().write_all(&response).await?;
+            self.stream.write_all(&response).await?;
 
             let mut header = [0u8; 2];
 
             // Read a byte from the stream and determine the version being requested
-            self.stream
-                .as_mut()
-                .unwrap()
-                .read_exact(&mut header)
-                .await?;
+            self.stream.read_exact(&mut header).await?;
 
             // debug!("Auth Header: [{}, {}]", header[0], header[1]);
 
@@ -289,15 +364,11 @@ impl SocksClient {
                 username.push(0);
             }
 
-            self.stream
-                .as_mut()
-                .unwrap()
-                .read_exact(&mut username)
-                .await?;
+            self.stream.read_exact(&mut username).await?;
 
             // Password Parsing
             let mut plen = [0u8; 1];
-            self.stream.as_mut().unwrap().read_exact(&mut plen).await?;
+            self.stream.read_exact(&mut plen).await?;
 
             let mut password = Vec::with_capacity(plen[0] as usize);
 
@@ -306,11 +377,7 @@ impl SocksClient {
                 password.push(0);
             }
 
-            self.stream
-                .as_mut()
-                .unwrap()
-                .read_exact(&mut password)
-                .await?;
+            self.stream.read_exact(&mut password).await?;
 
             let username_str = String::from_utf8(username)?;
             let password_str = String::from_utf8(password)?;
@@ -324,11 +391,11 @@ impl SocksClient {
             if self.authenticator.is_allowed(&user) {
                 debug!("Access Granted. User: {}", user.username);
                 let response = [1, ResponseCode::Success as u8];
-                self.stream.as_mut().unwrap().write_all(&response).await?;
+                self.stream.write_all(&response).await?;
             } else {
                 debug!("Access Denied. User: {}", user.username);
                 let response = [1, ResponseCode::Failure as u8];
-                self.stream.as_mut().unwrap().write_all(&response).await?;
+                self.stream.write_all(&response).await?;
 
                 // Shutdown
                 self.shutdown()?;
@@ -339,12 +406,12 @@ impl SocksClient {
             // set the default auth method (no auth)
             response[1] = AuthenticationMethods::NoAuth as u8;
             debug!("Sending NOAUTH packet");
-            self.stream.as_mut().unwrap().write_all(&response).await?;
+            self.stream.write_all(&response).await?;
             Ok(())
         } else {
             warn!("Client has no suitable authentication methods!");
             response[1] = AuthenticationMethods::NoMethods as u8;
-            self.stream.as_mut().unwrap().write_all(&response).await?;
+            self.stream.write_all(&response).await?;
             self.shutdown()?;
             Err(ResponseCode::Failure.into())
         }
@@ -355,11 +422,7 @@ impl SocksClient {
         let mut methods: Vec<u8> = Vec::with_capacity(self.auth_nmethods as usize);
         for _ in 0..self.auth_nmethods {
             let mut method = [0u8; 1];
-            self.stream
-                .as_mut()
-                .unwrap()
-                .read_exact(&mut method)
-                .await?;
+            self.stream.read_exact(&mut method).await?;
             if self.authenticator.auth_methods.contains(&method[0]) {
                 methods.append(&mut method.to_vec());
             }

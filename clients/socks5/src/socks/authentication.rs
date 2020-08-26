@@ -4,7 +4,7 @@ use serde::Deserialize;
 pub(crate) enum AuthenticationMethods {
     /// No Authentication
     NoAuth = 0x00,
-    // GssApi = 0x01,
+    // GssApi = 0x01, // question to DH: why is this commented?
     /// Authenticate with a username / password
     UserPass = 0x02,
     /// Cannot authenticate

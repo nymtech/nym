@@ -23,21 +23,27 @@ pub(crate) enum ResponseCode {
 
 #[derive(Debug)]
 pub enum SocksProxyError {
-    GenericError(String),
+    GenericError(Box<dyn std::error::Error + Send + Sync>),
+    UnsupportedProxyVersion(u8),
 }
 
 impl std::fmt::Display for SocksProxyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "foomp")
+        match self {
+            SocksProxyError::GenericError(err) => write!(f, "GenericError - {}", err),
+            SocksProxyError::UnsupportedProxyVersion(version) => {
+                write!(f, "Unsupported proxy version {}", version)
+            }
+        }
     }
 }
 
 impl<E> From<E> for SocksProxyError
 where
-    E: std::error::Error,
+    E: std::error::Error + Send + Sync + 'static,
 {
     fn from(err: E) -> Self {
-        SocksProxyError::GenericError(err.to_string())
+        SocksProxyError::GenericError(Box::new(err))
     }
 }
 

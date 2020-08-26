@@ -18,11 +18,26 @@ use simple_socks5_requests::ConnectionId;
 use std::collections::HashMap;
 use tokio::stream::StreamExt;
 
-pub(crate) type ConnectionSender = mpsc::UnboundedSender<(Vec<u8>, bool)>;
-pub(crate) type ConnectionReceiver = mpsc::UnboundedReceiver<(Vec<u8>, bool)>;
+/// A generic message produced after reading from a socket/connection. It includes data that was
+/// actually read alongside boolean indicating whether the connection got closed so that
+/// remote could act accordingly.
+#[derive(Debug)]
+pub struct ConnectionMessage {
+    pub payload: Vec<u8>,
+    pub socket_closed: bool,
+}
 
-pub(crate) type ControllerSender = mpsc::UnboundedSender<ControllerCommand>;
-pub(crate) type ControllerReceiver = mpsc::UnboundedReceiver<ControllerCommand>;
+/// Channel responsible for sending data that was received from mix network into particular connection.
+/// Data includes the actual payload that is to be written onto the connection
+/// alongside boolean indicating whether the remote connection was closed after producing this message,
+/// so that the local connection should also shut down.
+pub type ConnectionSender = mpsc::UnboundedSender<ConnectionMessage>;
+
+/// Receiver part of the [`ConnectionSender`]
+pub type ConnectionReceiver = mpsc::UnboundedReceiver<ConnectionMessage>;
+
+pub type ControllerSender = mpsc::UnboundedSender<ControllerCommand>;
+pub type ControllerReceiver = mpsc::UnboundedReceiver<ControllerCommand>;
 
 pub enum ControllerCommand {
     Insert(ConnectionId, ConnectionSender),
@@ -30,13 +45,15 @@ pub enum ControllerCommand {
     Send(ConnectionId, Vec<u8>, bool),
 }
 
-pub(super) struct Controller {
+/// Controller represents a way of managing multiple open connections that are used for socks5
+/// proxy.
+pub struct Controller {
     active_connections: HashMap<ConnectionId, ConnectionSender>,
     receiver: ControllerReceiver,
 }
 
 impl Controller {
-    pub(crate) fn new() -> (Self, ControllerSender) {
+    pub fn new() -> (Self, ControllerSender) {
         let (sender, receiver) = mpsc::unbounded();
         (
             Controller {
@@ -62,15 +79,20 @@ impl Controller {
         }
     }
 
-    fn send_to_connection(&mut self, conn_id: ConnectionId, data: Vec<u8>, is_closed: bool) {
+    fn send_to_connection(&mut self, conn_id: ConnectionId, payload: Vec<u8>, is_closed: bool) {
         if let Some(sender) = self.active_connections.get_mut(&conn_id) {
-            sender.unbounded_send((data, is_closed)).unwrap()
+            sender
+                .unbounded_send(ConnectionMessage {
+                    payload,
+                    socket_closed: is_closed,
+                })
+                .unwrap()
         } else {
             error!("no connection exists with id: {:?}", conn_id)
         }
     }
 
-    pub(crate) async fn run(&mut self) {
+    pub async fn run(&mut self) {
         while let Some(command) = self.receiver.next().await {
             match command {
                 ControllerCommand::Send(conn_id, data, is_closed) => {

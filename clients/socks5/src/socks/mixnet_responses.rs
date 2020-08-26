@@ -1,4 +1,3 @@
-use crate::socks::active_streams_controller::{ControllerCommand, ControllerSender};
 use client_core::client::received_buffer::ReconstructedMessagesReceiver;
 use client_core::client::received_buffer::{ReceivedBufferMessage, ReceivedBufferRequestSender};
 use futures::channel::mpsc;
@@ -6,6 +5,7 @@ use futures::StreamExt;
 use log::*;
 use nymsphinx::receiver::ReconstructedMessage;
 use simple_socks5_requests::Response;
+use utils::connection_controller::{ControllerCommand, ControllerSender};
 
 pub(crate) struct MixnetResponseListener {
     buffer_requester: ReceivedBufferRequestSender,
@@ -41,7 +41,7 @@ impl MixnetResponseListener {
     async fn on_message(&self, reconstructed_message: ReconstructedMessage) {
         let raw_message = reconstructed_message.message;
         if reconstructed_message.reply_SURB.is_some() {
-            println!("this message had a surb - we didn't do anything with it");
+            warn!("this message had a surb - we didn't do anything with it");
         }
 
         let response = match Response::try_from_bytes(&raw_message) {
@@ -52,7 +52,7 @@ impl MixnetResponseListener {
             Ok(data) => data,
         };
 
-        println!("sending to connection len: {}", response.data.len());
+        info!("sending to connection len: {}", response.data.len());
         self.controller_sender
             .unbounded_send(ControllerCommand::Send(
                 response.connection_id,
@@ -68,6 +68,6 @@ impl MixnetResponseListener {
                 self.on_message(reconstructed_message).await;
             }
         }
-        println!("We should never see this message");
+        error!("We should never see this message");
     }
 }

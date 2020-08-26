@@ -2973,10 +2973,8 @@ dependencies = [
 name = "simple-socks5"
 version = "0.1.0"
 dependencies = [
- "bs58",
  "clap",
  "futures 0.3.4",
- "futures-util",
  "log 0.4.8",
  "nymsphinx",
  "pretty_env_logger",
@@ -3109,6 +3107,7 @@ dependencies = [
  "nymsphinx",
  "pem",
  "pemstore",
+ "pin-project",
  "pretty_env_logger",
  "rand 0.7.3",
  "reqwest 0.9.24",

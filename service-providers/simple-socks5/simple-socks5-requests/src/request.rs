@@ -1,5 +1,6 @@
 use nymsphinx_addressing::clients::{Recipient, RecipientFormattingError};
 use std::convert::TryFrom;
+use std::fmt::{self};
 
 pub type ConnectionId = u64;
 pub type RemoteAddress = String;
@@ -22,6 +23,28 @@ pub enum RequestError {
     ReturnAddressTooShort,
     MalformedReturnAddress(RecipientFormattingError),
 }
+
+impl fmt::Display for RequestError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RequestError::AddressLengthTooShort => {
+                write!(f, "not enough bytes to recover the lenght of the address")
+            }
+            RequestError::AddressTooShort => write!(f, "not enough bytes to recover the address"),
+            RequestError::ConnectionIdTooShort => {
+                write!(f, "not enough bytes to recover the connection id")
+            }
+            RequestError::NoData => write!(f, "no data provided"),
+            RequestError::UnknownRequestFlag => write!(f, "request of unknown type"),
+            RequestError::ReturnAddressTooShort => write!(f, "too short return address"),
+            RequestError::MalformedReturnAddress(recipient_err) => {
+                write!(f, "malformed return address - {}", recipient_err)
+            }
+        }
+    }
+}
+
+impl std::error::Error for RequestError {}
 
 impl RequestError {
     pub fn is_malformed_return(&self) -> bool {

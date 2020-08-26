@@ -1,10 +1,11 @@
 use futures::channel::mpsc;
+use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use simple_socks5_requests::{ConnectionId, RemoteAddress, Response};
 use tokio::net::TcpStream;
 use tokio::prelude::*;
+use utils::connection_controller::ConnectionReceiver;
 use utils::proxy_runner::ProxyRunner;
-use utils::read_delay_loop::try_read_data;
 
 /// A TCP connection between the Socks5 service provider, which makes
 /// outbound requests on behalf of users and returns the responses through
@@ -24,27 +25,27 @@ impl Connection {
         initial_data: &[u8],
         return_address: Recipient,
     ) -> io::Result<Self> {
-        let conn = match TcpStream::connect(&address).await {
-            Ok(conn) => conn,
-            Err(err) => {
-                eprintln!("error while connecting to {:?} ! - {:?}", address, err);
-                return Err(err);
-            }
-        };
-        let mut connection = Connection {
+        let mut conn = TcpStream::connect(&address).await?;
+
+        // write the initial data to the connection before continuing
+        info!(
+            "Sending initial {} bytes to {}",
+            initial_data.len(),
+            address
+        );
+        conn.write_all(initial_data).await?;
+
+        Ok(Connection {
             id,
             address,
             conn: Some(conn),
             return_address,
-        };
-        connection.send_data(&initial_data).await?;
-        Ok(connection)
+        })
     }
 
-    // TODO: type alias somewhere
     pub(crate) async fn run_proxy(
         &mut self,
-        mix_receiver: mpsc::UnboundedReceiver<(Vec<u8>, bool)>,
+        mix_receiver: ConnectionReceiver,
         mix_sender: mpsc::UnboundedSender<(Response, Recipient)>,
     ) {
         let stream = self.conn.take().unwrap();
@@ -59,20 +60,4 @@ impl Connection {
         println!("proxy for {} is over!", self.address);
         self.conn = Some(stream);
     }
-
-    pub(crate) fn return_address(&self) -> Recipient {
-        self.return_address.clone()
-    }
-
-    pub(crate) async fn send_data(&mut self, data: &[u8]) -> io::Result<()> {
-        println!("Sending {} bytes to {}", data.len(), self.address);
-        self.conn.as_mut().unwrap().write_all(&data).await
-    }
-
-    // /// Read response data by looping, waiting for anything we get back from the
-    // /// remote server. Returns once it times out or the connection closes.
-    // pub(crate) async fn try_read_response_data(&mut self) -> io::Result<(Vec<u8>, bool)> {
-    //     let timeout_duration = std::time::Duration::from_millis(500);
-    //     try_read_data(timeout_duration, &mut self.conn, &self.address).await
-    // }
 }

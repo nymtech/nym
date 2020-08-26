@@ -8,11 +8,12 @@ edition = "2018"
 
 [dependencies]
 bytes = "0.5"
-tokio = { version = "0.2", features = [ "tcp", "io-util" ] }
+# TODO: "time" feature is only required for the delay loop which is going to go away very soon!
+tokio = { version = "0.2", features = [ "tcp", "io-util", "sync", "macros", "time" ] }
 futures = "0.3"
 log = "0.4"
 simple-socks5-requests = { path = "../../service-providers/simple-socks5/simple-socks5-requests" }
 
 [dev-dependencies]
-tokio = { version = "0.2", features = ["rt-threaded", "macros"] }
+tokio = { version = "0.2", features = ["rt-threaded"] }
 tokio-test = "0.2"

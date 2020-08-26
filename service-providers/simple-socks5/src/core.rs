@@ -64,6 +64,8 @@ impl ServiceProvider {
             Self::mixnet_response_listener(websocket_writer, mix_input_receiver).await;
         });
 
+        println!("\nAll systems go. Press CTRL-C to stop the server.");
+
         // for each incoming message from the websocket... (which in 99.99% cases is going to be a mix message)
         while let Some(msg) = websocket_reader.next().await {
             let data = msg
@@ -129,12 +131,18 @@ impl ServiceProvider {
                         {
                             Ok(conn) => conn,
                             Err(err) => {
-                                error!("error while connecting to {:?} ! - {:?}", remote_addr, err);
+                                error!(
+                                    "error while connecting to {:?} ! - {:?}",
+                                    remote_addr.clone(),
+                                    err
+                                );
                                 return;
                             }
                         };
 
+                        info!("Starting proxy for {}", remote_addr.clone());
                         conn.run_proxy(mix_receiver, mix_input_sender_clone).await;
+                        info!("Proxy for {} is finished", remote_addr);
                     });
                 }
                 // on send just tell the controller to send that data to the correct connection

@@ -52,7 +52,6 @@ impl MixnetResponseListener {
             Ok(data) => data,
         };
 
-        info!("sending to connection len: {}", response.data.len());
         self.controller_sender
             .unbounded_send(ControllerCommand::Send(
                 response.connection_id,

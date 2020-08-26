@@ -142,6 +142,7 @@ impl Drop for SocksClient {
     fn drop(&mut self) {
         // TODO: decrease to debug/trace
         info!("socksclient is going out of scope - the stream is getting dropped!");
+        info!("Connection {} is getting closed", self.connection_id);
         self.controller_sender
             .unbounded_send(ControllerCommand::Remove(self.connection_id))
             .unwrap();

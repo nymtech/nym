@@ -107,6 +107,13 @@ where
                         continue
                     }
 
+                    info!(
+                        "Going to send {} bytes via mixnet to remote {}. Is local closed: {}",
+                        read_data.len(),
+                        connection_id,
+                        !timed_out
+                    );
+
                     mix_sender.unbounded_send(adapter_fn(connection_id, read_data, !timed_out)).unwrap();
 
                     if !timed_out {
@@ -126,6 +133,7 @@ where
         mut writer: OwnedWriteHalf,
         notify_closed: Arc<Notify>,
         mut mix_receiver: ConnectionReceiver,
+        connection_id: ConnectionId,
     ) -> (OwnedWriteHalf, ConnectionReceiver) {
         loop {
             tokio::select! {
@@ -142,6 +150,14 @@ where
                         break
                     }
                     let connection_message = mix_data.unwrap();
+
+                    info!(
+                        "Going to write {} bytes received from mixnet to connection {}. Is remote closed: {}",
+                        connection_message.payload.len(),
+                        connection_id,
+                        connection_message.socket_closed
+                    );
+
                     if let Err(err) = writer.write_all(&connection_message.payload).await {
                         // the other half is probably going to blow up too (if not, this task also needs to notify the other one!!)
                         error!("failed to write response back to the socket - {}", err)
@@ -178,7 +194,8 @@ where
             self.mix_sender.clone(),
             adapter_fn,
         );
-        let outbound_future = Self::run_outbound(write_half, notify_clone, mix_receiver);
+        let outbound_future =
+            Self::run_outbound(write_half, notify_clone, mix_receiver, self.connection_id);
 
         // TODO: this shouldn't really have to spawn tasks inside "library" code, but
         // if we used join directly, stuff would have been executed on the same thread

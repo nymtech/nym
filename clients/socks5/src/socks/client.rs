@@ -271,9 +271,9 @@ impl SocksClient {
                 );
 
                 self.send_request_to_mixnet(socks_provider_request).await;
+                info!("Starting proxy for {}", remote_address.clone());
                 self.run_proxy(mix_receiver).await;
-                self.send_request_to_mixnet(Request::new_close(self.connection_id))
-                    .await;
+                info!("Proxy for {} is finished", remote_address);
             }
 
             SocksCommand::Bind => unimplemented!(), // not handled

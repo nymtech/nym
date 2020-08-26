@@ -71,6 +71,7 @@ impl Controller {
     }
 
     fn remove_connection(&mut self, conn_id: ConnectionId) {
+        debug!("Removing {} from controller", conn_id);
         if self.active_connections.remove(&conn_id).is_none() {
             error!(
                 "tried to remove non-existing connection with id: {:?}",
@@ -88,7 +89,7 @@ impl Controller {
                 })
                 .unwrap()
         } else {
-            error!("no connection exists with id: {:?}", conn_id)
+            error!("no connection exists with id: {:?}", conn_id);
         }
     }
 

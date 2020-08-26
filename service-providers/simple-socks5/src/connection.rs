@@ -57,7 +57,6 @@ impl Connection {
             })
             .await
             .into_inner();
-        info!("Proxy for {} is over!", self.address);
         self.conn = Some(stream);
     }
 }

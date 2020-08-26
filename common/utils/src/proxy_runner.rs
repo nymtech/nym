@@ -117,7 +117,8 @@ where
                     mix_sender.unbounded_send(adapter_fn(connection_id, read_data, !timed_out)).unwrap();
 
                     if !timed_out {
-                        debug!("The socket is closed - won't receive any more data");
+                        // technically we already informed it when we sent the message to mixnet above
+                        info!("The local socket is closed - won't receive any more data. Informing remote about that...");
                         // no point in reading from mixnet if connection is closed!
                         notify_closed.notify();
                         break;
@@ -144,6 +145,7 @@ where
                 }
                 mix_data = mix_receiver.next() => {
                     if mix_data.is_none() {
+                        warn!("mix receiver is none so we already got removed somewhere. This isn't really a warning, but shouldn't happen to begin with, so please say if you see this message");
                         // we already got closed
                         // not sure if we HAVE TO notify the other task, but might as well
                         notify_closed.notify();
@@ -160,10 +162,11 @@ where
 
                     if let Err(err) = writer.write_all(&connection_message.payload).await {
                         // the other half is probably going to blow up too (if not, this task also needs to notify the other one!!)
-                        error!("failed to write response back to the socket - {}", err)
+                        error!("failed to write response back to the socket - {}", err);
+                        break;
                     }
                     if connection_message.socket_closed {
-                        println!("remote got closed - let's write what we received and also close!");
+                        info!("Remote socket got closed - closing the local socket too");
                         notify_closed.notify();
                         break
                     }

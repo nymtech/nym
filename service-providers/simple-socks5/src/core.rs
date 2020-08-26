@@ -117,10 +117,10 @@ impl ServiceProvider {
                         .unbounded_send(ControllerCommand::Insert(conn_id, mix_sender))
                         .unwrap();
 
+                    let controller_sender_clone = controller_sender.clone();
                     // and start the proxy for this connection
                     let mix_input_sender_clone = mix_input_sender.clone();
                     tokio::spawn(async move {
-                        // TODO: we must be careful to ensure we have no memory leaks here. hopefully we won't...
                         let mut conn = match Connection::new(
                             conn_id,
                             remote_addr.clone(),
@@ -142,6 +142,10 @@ impl ServiceProvider {
 
                         info!("Starting proxy for {}", remote_addr.clone());
                         conn.run_proxy(mix_receiver, mix_input_sender_clone).await;
+                        // proxy is done - remove the access channel from the controller
+                        controller_sender_clone
+                            .unbounded_send(ControllerCommand::Remove(conn_id))
+                            .unwrap();
                         info!("Proxy for {} is finished", remote_addr);
                     });
                 }
@@ -149,14 +153,6 @@ impl ServiceProvider {
                 Request::Send(conn_id, data, closed) => controller_sender
                     .unbounded_send(ControllerCommand::Send(conn_id, data, closed))
                     .unwrap(),
-                Request::Close(conn_id) => {
-                    // After connection is removed from controller, `mix_sender` created in `Request::Connect`
-                    // will get dropped. `ProxyRunner` handling proxy on Connection will detect it
-                    // causing the task spawned in `Request::Connect` to terminate soon after.
-                    controller_sender
-                        .unbounded_send(ControllerCommand::Remove(conn_id))
-                        .unwrap();
-                }
             }
         }
     }

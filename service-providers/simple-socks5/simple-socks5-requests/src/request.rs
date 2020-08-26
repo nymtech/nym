@@ -10,7 +10,6 @@ pub type RemoteAddress = String;
 pub enum RequestFlag {
     Connect = 0,
     Send = 1,
-    Close = 2,
 }
 
 #[derive(Debug, PartialEq)]
@@ -62,7 +61,6 @@ impl TryFrom<u8> for RequestFlag {
         match value {
             _ if value == (RequestFlag::Connect as u8) => Ok(Self::Connect),
             _ if value == (RequestFlag::Send as u8) => Ok(Self::Send),
-            _ if value == (RequestFlag::Close as u8) => Ok(Self::Close),
             _ => Err(RequestError::UnknownRequestFlag),
         }
     }
@@ -84,9 +82,6 @@ pub enum Request {
 
     /// Re-use an existing TCP connection, sending more request data up it.
     Send(ConnectionId, Vec<u8>, bool),
-
-    /// Close an existing TCP connection.
-    Close(ConnectionId),
 }
 
 impl Request {
@@ -108,11 +103,6 @@ impl Request {
     /// Construct a new Request::Send instance
     pub fn new_send(conn_id: ConnectionId, data: Vec<u8>, local_closed: bool) -> Request {
         Request::Send(conn_id, data, local_closed)
-    }
-
-    /// Construct a new Request::Close instance
-    pub fn new_close(conn_id: ConnectionId) -> Request {
-        Request::Close(conn_id)
     }
 
     /// Deserialize the request type, connection id, destination address and port,
@@ -184,7 +174,6 @@ impl Request {
 
                 Ok(Request::Send(connection_id, data, local_closed))
             }
-            RequestFlag::Close => Ok(Request::Close(connection_id)),
         }
     }
 
@@ -215,9 +204,6 @@ impl Request {
                 .chain(conn_id.to_be_bytes().iter().cloned())
                 .chain(std::iter::once(local_closed as u8))
                 .chain(data.into_iter())
-                .collect(),
-            Request::Close(conn_id) => std::iter::once(RequestFlag::Close as u8)
-                .chain(conn_id.to_be_bytes().iter().cloned())
                 .collect(),
         }
     }
@@ -512,23 +498,6 @@ mod request_deserialization_tests {
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
                     assert_eq!(vec![255, 255, 255], data);
                     assert!(!local_closed)
-                }
-                _ => unreachable!(),
-            }
-        }
-    }
-
-    #[cfg(test)]
-    mod connection_close_requests {
-        use super::*;
-
-        #[test]
-        fn can_be_constructed() {
-            let request_bytes = [RequestFlag::Close as u8, 1, 2, 3, 4, 5, 6, 7, 8].to_vec();
-            let request = Request::try_from_bytes(&request_bytes).unwrap();
-            match request {
-                Request::Close(conn_id) => {
-                    assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
                 }
                 _ => unreachable!(),
             }

@@ -14,7 +14,7 @@
 
 use crate::models::client::ClientTest;
 use crate::utils::sleep;
-use crate::websocket::WsStream;
+use crate::websocket::JSWebsocket;
 use crypto::asymmetric::encryption;
 use futures::{SinkExt, StreamExt};
 use js_sys::Promise;
@@ -71,7 +71,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 pub async fn foomp() {
     console_log!("foomp was called!");
 
-    let socket = WsStream::new("ws://echo.websocket.org").unwrap();
+    let socket = JSWebsocket::new("ws://echo.websocket.org").unwrap();
 
     sleep(100).await.unwrap();
 

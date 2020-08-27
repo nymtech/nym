@@ -23,16 +23,16 @@ use std::io;
 use std::pin::Pin;
 use std::rc::Rc;
 use std::task::{Context, Poll, Waker};
-use tungstenite::{Error as WsError, Message as WsMessage};
+use tungstenite::{Error as WsError, Message as WsMessage}; // use tungstenite Message and Error types for easier compatibility with `ClientHandshake`
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
-use web_sys::{CloseEvent, ErrorEvent, MessageEvent, WebSocket}; // use tungstenite Message and Error types for easier compatibility with `ClientHandshake`
+use web_sys::{CloseEvent, ErrorEvent, MessageEvent, WebSocket};
 
 mod state;
 
-pub struct WsStream {
+pub struct JSWebsocket {
     socket: web_sys::WebSocket,
 
     message_queue: Rc<RefCell<VecDeque<WsMessage>>>,
@@ -43,13 +43,16 @@ pub struct WsStream {
     /// Waker of a task wanting to write to the sink.
     sink_waker: Rc<RefCell<Option<Waker>>>,
 
+    /// Waker of a sink wanting to close the connection.
+    close_waker: Rc<RefCell<Option<Waker>>>,
+
     // The callback closures. We need to store them as they will invalidate their
     // corresponding JS callback whenever they are dropped, so if we were to
     // normally return from `new` then our registered closures will
     // raise an exception when invoked.
     _on_open: Closure<dyn FnMut(JsValue)>,
     _on_error: Closure<dyn FnMut(ErrorEvent)>,
-    // _on_close: Closure<dyn FnMut(CloseEvent)>,
+    _on_close: Closure<dyn FnMut(CloseEvent)>,
     _on_message: Closure<dyn FnMut(MessageEvent)>,
 }
 
@@ -78,7 +81,7 @@ fn try_message_event_into_ws_message(msg_event: MessageEvent) -> Result<WsMessag
     }
 }
 
-impl WsStream {
+impl JSWebsocket {
     pub fn new(url: &str) -> Result<Self, JsValue> {
         let ws = WebSocket::new(url)?;
         // we don't want to ever have to deal with blobs
@@ -92,6 +95,9 @@ impl WsStream {
 
         let sink_waker: Rc<RefCell<Option<Waker>>> = Rc::new(RefCell::new(None));
         let sink_waker_clone = Rc::clone(&sink_waker);
+
+        let close_waker: Rc<RefCell<Option<Waker>>> = Rc::new(RefCell::new(None));
+        let close_waker_clone = Rc::clone(&close_waker);
 
         let on_message = Closure::wrap(Box::new(move |msg_event| {
             let ws_message = match try_message_event_into_ws_message(msg_event) {
@@ -109,8 +115,7 @@ impl WsStream {
             }
         }) as Box<dyn FnMut(MessageEvent)>);
 
-        let on_open = Closure::wrap(Box::new(move |foo| {
-            console_log!("received a foo {:?}", foo);
+        let on_open = Closure::wrap(Box::new(move |_| {
             // in case there was a sink send request made before connection was fully established
             console_log!("socket is now open!");
 
@@ -127,20 +132,36 @@ impl WsStream {
             console_error!("error event: {:?}", e);
         }) as Box<dyn FnMut(ErrorEvent)>);
 
+        let on_close = Closure::wrap(Box::new(move |evt: CloseEvent| {
+            // something was waiting for the close event!
+            if let Some(waker) = close_waker_clone.borrow_mut().take() {
+                waker.wake()
+            }
+
+            // TODO: we should somehow notify sink and stream that no more work can be done
+        }) as Box<dyn FnMut(CloseEvent)>);
+
         ws.set_onmessage(Some(on_message.as_ref().unchecked_ref()));
         ws.set_onerror(Some(on_error.as_ref().unchecked_ref()));
         ws.set_onopen(Some(on_open.as_ref().unchecked_ref()));
+        ws.set_onclose(Some(on_close.as_ref().unchecked_ref()));
 
-        Ok(WsStream {
+        Ok(JSWebsocket {
             socket: ws,
             message_queue,
             stream_waker,
             sink_waker,
+            close_waker,
 
             _on_open: on_open,
             _on_error: on_error,
+            _on_close: on_close,
             _on_message: on_message,
         })
+    }
+
+    pub async fn close(&mut self, code: u16) {
+        // TODO: allow to close with code
     }
 
     fn state(&self) -> State {
@@ -148,7 +169,7 @@ impl WsStream {
     }
 }
 
-impl Drop for WsStream {
+impl Drop for JSWebsocket {
     fn drop(&mut self) {
         match self.state() {
             State::Closed | State::Closing => {} // no need to do anything here
@@ -161,7 +182,7 @@ impl Drop for WsStream {
     }
 }
 
-impl Stream for WsStream {
+impl Stream for JSWebsocket {
     type Item = WsMessage;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -185,7 +206,7 @@ impl Stream for WsStream {
     }
 }
 
-impl Sink<WsMessage> for WsStream {
+impl Sink<WsMessage> for JSWebsocket {
     type Error = WsError;
 
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
@@ -230,8 +251,23 @@ impl Sink<WsMessage> for WsStream {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        unimplemented!()
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        match self.state() {
+            State::Open | State::Connecting => {
+                // TODO: do we need to wait for closing event here?
+                *self.close_waker.borrow_mut() = Some(cx.waker().clone());
+
+                // close inner socket
+                Poll::Ready(self.socket.close().map_err(|_| todo!()))
+            }
+            // if we're already closed, nothing left to do!
+            State::Closed => Poll::Ready(Ok(())),
+            State::Closing => {
+                *self.close_waker.borrow_mut() = Some(cx.waker().clone());
+                // wait for the close event...
+                Poll::Pending
+            }
+        }
     }
 }
 

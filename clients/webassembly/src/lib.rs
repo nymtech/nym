@@ -13,11 +13,14 @@
 // limitations under the License.
 
 use crate::models::client::ClientTest;
+use crate::utils::sleep;
 use crate::websocket::WsStream;
 use crypto::asymmetric::encryption;
+use futures::{SinkExt, StreamExt};
 use js_sys::Promise;
 pub use models::keys::keygen;
 use rand::rngs::OsRng;
+use tungstenite::{Error as WsError, Message as WsMessage};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{spawn_local, JsFuture};
 use web_sys::window;
@@ -68,18 +71,39 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 pub async fn foomp() {
     console_log!("foomp was called!");
 
-    let stream = WsStream::new();
+    let socket = WsStream::new("ws://echo.websocket.org").unwrap();
 
-    let topology = ClientTest::do_foomp().await;
+    sleep(100).await.unwrap();
 
-    console_log!("{}", topology);
+    let (mut sink, mut stream) = socket.split();
 
-    // spawn_local(async {
-    //     for i in 0..100 {
-    //         console_log!("foomp {}", i);
-    //         sleep(50).await.unwrap();
-    //     }
-    // });
+    spawn_local(async move {
+        sink.send(WsMessage::Text("foomp1".into())).await.unwrap();
+        sink.send(WsMessage::Text("foomp2".into())).await.unwrap();
+        sink.send(WsMessage::Text("foomp3".into())).await.unwrap();
+    });
+
+    spawn_local(async move {
+        while let Some(received) = stream.next().await {
+            console_log!("received {} from the socket!", received);
+        }
+        console_log!("won't get anything more")
+    });
+    // just for test to not have to bother with setting it all up
+
+    console_log!("waiting");
+    sleep(10000).await.unwrap();
+
+    // let topology = ClientTest::do_foomp().await;
+    //
+    // console_log!("{}", topology);
+    //
+    // // spawn_local(async {
+    // //     for i in 0..100 {
+    // //         console_log!("foomp {}", i);
+    // //         sleep(50).await.unwrap();
+    // //     }
+    // // });
 
     console_log!("foomp is done");
 }

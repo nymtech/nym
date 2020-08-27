@@ -1904,7 +1904,7 @@ dependencies = [
  "serde",
  "serde_json",
  "topology",
- "tungstenite",
+ "tungstenite 0.10.1",
  "wasm-bindgen",
  "wasm-bindgen-futures 0.4.10",
  "wasm-bindgen-test",

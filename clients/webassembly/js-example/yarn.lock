@@ -3,7 +3,7 @@
 
 
 "@nymproject/nym-client-wasm@file:../pkg":
-  version "0.7.5"
+  version "0.8.0"
   dependencies:
     semver "^7.3.2"
 

@@ -1,5 +1,3 @@
-use serde::Deserialize;
-
 /// Client Authentication Methods
 pub(crate) enum AuthenticationMethods {
     /// No Authentication
@@ -11,7 +9,7 @@ pub(crate) enum AuthenticationMethods {
     NoMethods = 0xFF,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
 /// A socks5 user with a matching password.
 pub struct User {
     pub username: String,

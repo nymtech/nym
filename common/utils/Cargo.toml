@@ -1,0 +1,16 @@
+[package]
+name = "utils"
+version = "0.1.0"
+authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bytes = "0.5"
+# no need for any features as `AsyncRead` is always available
+tokio = { version = "0.2", features = [] }
+
+[dev-dependencies]
+tokio = { version = "0.2", features = ["rt-threaded", "macros"] }
+tokio-test = "0.2"

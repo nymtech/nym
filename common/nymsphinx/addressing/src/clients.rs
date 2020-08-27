@@ -19,7 +19,7 @@ const CLIENT_ENCRYPTION_KEY_SIZE: usize = encryption::PUBLIC_KEY_SIZE;
 pub type ClientIdentity = identity::PublicKey;
 const CLIENT_IDENTITY_SIZE: usize = identity::PUBLIC_KEY_LENGTH;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub enum RecipientFormattingError {
     MalformedRecipientError,
     MalformedIdentityError(identity::SignatureError),

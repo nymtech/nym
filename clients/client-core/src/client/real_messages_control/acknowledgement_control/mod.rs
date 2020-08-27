@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use self::{
-    acknowledgement_listener::AcknowledgementListener,
+    acknowledgement_listener::AcknowledgementListener, action_controller::ActionController,
     input_message_listener::InputMessageListener,
     retransmission_request_listener::RetransmissionRequestListener,
     sent_notification_listener::SentNotificationListener,
@@ -24,59 +24,81 @@ use crate::client::{inbound_messages::InputMessageReceiver, topology_control::To
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
-use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{
     acknowledgements::AckKey,
     addressing::clients::Recipient,
     chunking::fragment::{Fragment, FragmentIdentifier},
-    Delay,
+    preparer::MessagePreparer,
+    Delay as SphinxDelay,
 };
 use rand::{CryptoRng, Rng};
-use std::{collections::HashMap, sync::Arc, time::Duration};
-use tokio::{
-    sync::{Notify, RwLock},
-    task::JoinHandle,
+use std::{
+    sync::{Arc, Weak},
+    time::Duration,
 };
+use tokio::task::JoinHandle;
 
+mod ack_delay_queue;
 mod acknowledgement_listener;
+mod action_controller;
 mod input_message_listener;
 mod retransmission_request_listener;
 mod sent_notification_listener;
 
-type RetransmissionRequestSender = mpsc::UnboundedSender<FragmentIdentifier>;
-type RetransmissionRequestReceiver = mpsc::UnboundedReceiver<FragmentIdentifier>;
+/// Channel used for indicating that the particular `Fragment` should be retransmitted.
+type RetransmissionRequestSender = mpsc::UnboundedSender<Weak<PendingAcknowledgement>>;
 
+/// Channel used for receiving data about particular `Fragment` that should be retransmitted.
+type RetransmissionRequestReceiver = mpsc::UnboundedReceiver<Weak<PendingAcknowledgement>>;
+
+/// Channel used for signalling that the particular `Fragment` (associated with the `FragmentIdentifier`)
+/// is done being delayed and is about to be sent to the mix network.
 pub(super) type SentPacketNotificationSender = mpsc::UnboundedSender<FragmentIdentifier>;
+
+/// Channel used for receiving signals about the particular `Fragment` (associated with the `FragmentIdentifier`)
+/// that it is about to be sent to tbe mix network and its timeout timer should be started.
 type SentPacketNotificationReceiver = mpsc::UnboundedReceiver<FragmentIdentifier>;
 
-type PendingAcksMap = Arc<RwLock<HashMap<FragmentIdentifier, PendingAcknowledgement>>>;
-
-struct PendingAcknowledgement {
+/// Structure representing a data `Fragment` that is on-route to the specified `Recipient`
+#[derive(Debug)]
+pub(crate) struct PendingAcknowledgement {
     message_chunk: Fragment,
-    delay: Delay,
+    delay: SphinxDelay,
     recipient: Recipient,
-    retransmission_cancel: Arc<Notify>,
 }
 
 impl PendingAcknowledgement {
-    fn new(message_chunk: Fragment, delay: Delay, recipient: Recipient) -> Self {
+    /// Creates new instance of `PendingAcknowledgement` using the provided data.
+    fn new(message_chunk: Fragment, delay: SphinxDelay, recipient: Recipient) -> Self {
         PendingAcknowledgement {
             message_chunk,
             delay,
-            retransmission_cancel: Arc::new(Notify::new()),
             recipient,
         }
     }
 
-    fn update_delay(&mut self, new_delay: Delay) {
+    fn update_delay(&mut self, new_delay: SphinxDelay) {
         self.delay = new_delay;
     }
 }
 
+/// AcknowledgementControllerConnectors represents set of channels for communication with
+/// other parts of the system in order to support acknowledgements and retransmission.
 pub(super) struct AcknowledgementControllerConnectors {
+    /// Channel used for forwarding prepared sphinx messages into the poisson sender
+    /// to be sent to the mix network.
     real_message_sender: RealMessageSender,
+
+    /// Channel used for receiving raw messages from a client. The messages need to be put
+    /// into sphinx packets first.
     input_receiver: InputMessageReceiver,
+
+    /// Channel used for receiving notification about particular packet being sent off to the
+    /// mix network (i.e. it was done being delayed by whatever value was determined in the poisson
+    /// sender)
     sent_notifier: SentPacketNotificationReceiver,
+
+    /// Channel used for receiving acknowledgements from the mix network.
     ack_receiver: AcknowledgementReceiver,
 }
 
@@ -96,6 +118,37 @@ impl AcknowledgementControllerConnectors {
     }
 }
 
+/// Configurable parameters of the `AcknowledgementController`
+pub(super) struct Config {
+    /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the additive part `b`
+    ack_wait_addition: Duration,
+
+    /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the multiplier `a`
+    ack_wait_multiplier: f64,
+
+    /// Average delay an acknowledgement packet is going to get delayed at a single mixnode.
+    average_ack_delay: Duration,
+
+    /// Average delay a data packet is going to get delayed at a single mixnode.
+    average_packet_delay: Duration,
+}
+
+impl Config {
+    pub(super) fn new(
+        ack_wait_addition: Duration,
+        ack_wait_multiplier: f64,
+        average_ack_delay: Duration,
+        average_packet_delay: Duration,
+    ) -> Self {
+        Config {
+            ack_wait_addition,
+            ack_wait_multiplier,
+            average_ack_delay,
+            average_packet_delay,
+        }
+    }
+}
+
 pub(super) struct AcknowledgementController<R>
 where
     R: CryptoRng + Rng,
@@ -104,6 +157,7 @@ where
     input_message_listener: Option<InputMessageListener<R>>,
     retransmission_request_listener: Option<RetransmissionRequestListener<R>>,
     sent_notification_listener: Option<SentNotificationListener>,
+    action_controller: Option<ActionController>,
 }
 
 impl<R> AcknowledgementController<R>
@@ -111,67 +165,69 @@ where
     R: 'static + CryptoRng + Rng + Clone + Send,
 {
     pub(super) fn new(
+        config: Config,
         rng: R,
         topology_access: TopologyAccessor,
         ack_key: Arc<AckKey>,
         ack_recipient: Recipient,
         reply_key_storage: ReplyKeyStorage,
-        average_packet_delay: Duration,
-        average_ack_delay: Duration,
-        ack_wait_multiplier: f64,
-        ack_wait_addition: Duration,
         connectors: AcknowledgementControllerConnectors,
     ) -> Self {
-        let pending_acks = Arc::new(RwLock::new(HashMap::new()));
+        let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
+
+        let action_config =
+            action_controller::Config::new(config.ack_wait_addition, config.ack_wait_multiplier);
+        let (action_controller, action_sender) =
+            ActionController::new(action_config, retransmission_tx);
+
         let message_preparer = MessagePreparer::new(
             rng,
             ack_recipient.clone(),
-            average_packet_delay,
-            average_ack_delay,
+            config.average_packet_delay,
+            config.average_ack_delay,
         );
 
+        // will listen for any acks coming from the network
         let acknowledgement_listener = AcknowledgementListener::new(
             Arc::clone(&ack_key),
             connectors.ack_receiver,
-            Arc::clone(&pending_acks),
+            action_sender.clone(),
         );
 
+        // will listen for any new messages from the client
         let input_message_listener = InputMessageListener::new(
             Arc::clone(&ack_key),
             ack_recipient.clone(),
             connectors.input_receiver,
             message_preparer.clone(),
-            Arc::clone(&pending_acks),
+            action_sender.clone(),
             connectors.real_message_sender.clone(),
             topology_access.clone(),
             reply_key_storage,
         );
 
-        let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
-
+        // will listen for any ack timeouts and trigger retransmission
         let retransmission_request_listener = RetransmissionRequestListener::new(
             Arc::clone(&ack_key),
             ack_recipient,
             message_preparer,
-            Arc::clone(&pending_acks),
+            action_sender.clone(),
             connectors.real_message_sender,
             retransmission_rx,
             topology_access,
         );
 
-        let sent_notification_listener = SentNotificationListener::new(
-            ack_wait_multiplier,
-            ack_wait_addition,
-            connectors.sent_notifier,
-            pending_acks,
-            retransmission_tx,
-        );
+        // will listen for events indicating the packet was sent through the network so that
+        // the retransmission timer should be started.
+        let sent_notification_listener =
+            SentNotificationListener::new(connectors.sent_notifier, action_sender);
 
         AcknowledgementController {
             acknowledgement_listener: Some(acknowledgement_listener),
             input_message_listener: Some(input_message_listener),
             retransmission_request_listener: Some(retransmission_request_listener),
             sent_notification_listener: Some(sent_notification_listener),
+            action_controller: Some(action_controller),
         }
     }
 
@@ -181,11 +237,7 @@ where
         let mut retransmission_request_listener =
             self.retransmission_request_listener.take().unwrap();
         let mut sent_notification_listener = self.sent_notification_listener.take().unwrap();
-
-        // TODO: perhaps an extra 'DEBUG' task that would periodically check for stale entries in
-        // pending acks map?
-        // It would only be 'DEBUG' as I don't expect any stale entries to exist there to begin with,
-        // but when can bugs be expected to begin with?
+        let mut action_controller = self.action_controller.take().unwrap();
 
         // the below are log messages are errors as at the current stage we do not expect any of
         // the task to ever finish. This will of course change once we introduce
@@ -210,6 +262,11 @@ where
             error!("The sent notification listener has finished execution!");
             sent_notification_listener
         });
+        let action_controller_fut = tokio::spawn(async move {
+            action_controller.run().await;
+            error!("The controller has finished execution!");
+            action_controller
+        });
 
         // technically we don't have to bring `AcknowledgementController` back to a valid state
         // but we can do it, so why not? Perhaps it might be useful if we wanted to allow
@@ -218,6 +275,7 @@ where
         self.input_message_listener = Some(input_listener_fut.await.unwrap());
         self.retransmission_request_listener = Some(retransmission_req_fut.await.unwrap());
         self.sent_notification_listener = Some(sent_notification_fut.await.unwrap());
+        self.action_controller = Some(action_controller_fut.await.unwrap());
     }
 
     #[allow(dead_code)]

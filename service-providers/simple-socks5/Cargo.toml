@@ -10,12 +10,13 @@ edition = "2018"
 bs58 = "0.3.0"
 clap = "2.33.0"
 futures = "0.3"
-futures-util = { version = "0.3", default-features = false, features = ["async-await", "sink", "std"] }
+futures-util = { version = "0.3", default-features = false, features = ["async-await", "sink", "std"] } # why ?
 log = "0.4"
 pretty_env_logger = "0.3"
 tokio = { version = "0.2", features = ["full"] }
-tokio-tungstenite = "0.10.1"
+tokio-tungstenite = "0.11.0"
 
 nymsphinx = { path = "../../common/nymsphinx" }
 simple-socks5-requests = { path = "simple-socks5-requests" }
+utils = { path = "../../common/utils" }
 websocket-requests = { path = "../../clients/native/websocket-requests" }

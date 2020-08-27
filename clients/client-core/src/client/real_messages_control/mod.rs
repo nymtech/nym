@@ -17,9 +17,9 @@
 // OUTPUT: MixMessage to mix traffic
 
 use self::{
-    acknowlegement_control::AcknowledgementController, real_traffic_stream::OutQueueControl,
+    acknowledgement_control::AcknowledgementController, real_traffic_stream::OutQueueControl,
 };
-use crate::client::real_messages_control::acknowlegement_control::AcknowledgementControllerConnectors;
+use crate::client::real_messages_control::acknowledgement_control::AcknowledgementControllerConnectors;
 use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{
     inbound_messages::InputMessageReceiver, mix_traffic::MixMessageSender,
@@ -36,9 +36,10 @@ use std::time::Duration;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
-mod acknowlegement_control;
+mod acknowledgement_control;
 mod real_traffic_stream;
 
+// TODO: ack_key and self_recipient shouldn't really be part of this config
 pub struct Config {
     ack_key: Arc<AckKey>,
     ack_wait_multiplier: f64,
@@ -102,24 +103,32 @@ impl RealMessagesController<OsRng> {
             ack_receiver,
         );
 
+        let ack_control_config = acknowledgement_control::Config::new(
+            config.ack_wait_addition,
+            config.ack_wait_multiplier,
+            config.average_ack_delay_duration,
+            config.average_packet_delay_duration,
+        );
+
         let ack_control = AcknowledgementController::new(
+            ack_control_config,
             rng,
             topology_access.clone(),
             Arc::clone(&config.ack_key),
             config.self_recipient.clone(),
             reply_key_storage,
-            config.average_packet_delay_duration,
-            config.average_ack_delay_duration,
-            config.ack_wait_multiplier,
-            config.ack_wait_addition,
             ack_controller_connectors,
         );
 
-        let out_queue_control = OutQueueControl::new(
-            Arc::clone(&config.ack_key),
+        let out_queue_config = real_traffic_stream::Config::new(
             config.average_ack_delay_duration,
             config.average_packet_delay_duration,
             config.average_message_sending_delay,
+        );
+
+        let out_queue_control = OutQueueControl::new(
+            out_queue_config,
+            Arc::clone(&config.ack_key),
             sent_notifier_tx,
             mix_sender,
             real_message_receiver,

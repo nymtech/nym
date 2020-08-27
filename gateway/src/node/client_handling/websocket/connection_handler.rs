@@ -327,7 +327,7 @@ impl<S> Handle<S> {
         let (res_sender, res_receiver) = oneshot::channel();
         let clients_handler_request = ClientsHandlerRequest::Register(
             remote_address.clone(),
-            derived_shared_key,
+            derived_shared_key.clone(),
             mix_sender,
             res_sender,
         );
@@ -341,6 +341,9 @@ impl<S> Handle<S> {
             // managed to complete registration handshake)
             ClientsHandlerResponse::Register(status) => {
                 self.remote_address = Some(remote_address);
+                if status {
+                    self.shared_key = Some(derived_shared_key);
+                }
                 ServerResponse::Register { status }
             }
             ClientsHandlerResponse::Error(e) => {

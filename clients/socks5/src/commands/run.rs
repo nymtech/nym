@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::client::config::Config;
 use crate::client::NymClient;
 use crate::commands::override_config;
 use clap::{App, Arg, ArgMatches};
-use client_core::config::Config;
 use config::NymConfig;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
@@ -33,6 +33,11 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .help("Custom path to the nym-mixnet-client configuration file")
             .takes_value(true)
         )
+        .arg(Arg::with_name("provider")
+            .long("provider")
+            .help("Address of the socks5 provider to send messages to.")
+            .takes_value(true)
+        )
         .arg(Arg::with_name("directory")
             .long("directory")
             .help("Address of the directory server the client is getting topology from")
@@ -43,14 +48,10 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .help("Id of the gateway we want to connect to. If overridden, it is user's responsibility to ensure prior registration happened")
             .takes_value(true)
         )
-        .arg(Arg::with_name("disable-socket")
-            .long("disable-socket")
-            .help("Whether to not start the websocket")
-        )
         .arg(Arg::with_name("port")
             .short("p")
             .long("port")
-            .help("Port for the socket (if applicable) to listen on")
+            .help("Port for the socket to listen on")
             .takes_value(true)
         )
 }

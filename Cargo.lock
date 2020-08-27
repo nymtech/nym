@@ -443,7 +443,7 @@ dependencies = [
  "config",
  "crypto",
  "directory-client",
- "dirs",
+ "dirs 2.0.2",
  "futures 0.3.4",
  "gateway-client",
  "gateway-requests",
@@ -721,12 +721,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "dirs-sys"
-version = "0.3.4"
+name = "dirs"
+version = "3.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afa0b23de8fd801745c471deffa6e12d248f962c9fd4b4c33787b055599bde7b"
+checksum = "142995ed02755914747cc6ca76fc7e4583cd18578746716d0508ea6ed558b9ff"
 dependencies = [
- "cfg-if",
+ "dirs-sys",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e93d7f5705de3e49895a2b5e0b8855a1c27f080192ae9c32a6432d50741a57a"
+dependencies = [
  "libc",
  "redox_users",
  "winapi 0.3.8",
@@ -1639,7 +1647,7 @@ dependencies = [
  "config",
  "crypto",
  "directory-client",
- "dirs",
+ "dirs 3.0.1",
  "dotenv",
  "futures 0.3.4",
  "gateway-client",
@@ -1687,7 +1695,7 @@ dependencies = [
  "config",
  "crypto",
  "directory-client",
- "dirs",
+ "dirs 2.0.2",
  "dotenv",
  "futures 0.3.4",
  "gateway-requests",
@@ -1717,7 +1725,7 @@ dependencies = [
  "crypto",
  "curve25519-dalek",
  "directory-client",
- "dirs",
+ "dirs 2.0.2",
  "dotenv",
  "futures 0.3.4",
  "log 0.4.8",
@@ -1742,7 +1750,7 @@ dependencies = [
  "byteorder",
  "clap",
  "config",
- "dirs",
+ "dirs 2.0.2",
  "dotenv",
  "futures 0.3.4",
  "iron",
@@ -2856,6 +2864,7 @@ dependencies = [
  "config",
  "crypto",
  "directory-client",
+ "dirs 3.0.1",
  "dotenv",
  "futures 0.3.4",
  "gateway-client",
@@ -2865,8 +2874,10 @@ dependencies = [
  "pin-project",
  "pretty_env_logger",
  "rand 0.7.3",
+ "serde",
  "simple-socks5-requests",
  "snafu",
+ "tempfile",
  "tokio 0.2.22",
  "topology",
  "url 2.1.1",

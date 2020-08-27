@@ -15,30 +15,13 @@
 use crate::client::config::template::config_template;
 use client_core::config::Config as BaseConfig;
 use config::NymConfig;
+use nymsphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 mod template;
 
-const DEFAULT_LISTENING_PORT: u16 = 1977;
-
-#[derive(Debug, Deserialize, PartialEq, Serialize, Clone, Copy)]
-#[serde(deny_unknown_fields)]
-pub enum SocketType {
-    WebSocket,
-    None,
-}
-
-impl SocketType {
-    pub fn from_string<S: Into<String>>(val: S) -> Self {
-        let mut upper = val.into();
-        upper.make_ascii_uppercase();
-        match upper.as_ref() {
-            "WEBSOCKET" | "WS" => SocketType::WebSocket,
-            _ => SocketType::None,
-        }
-    }
-}
+const DEFAULT_LISTENING_PORT: u16 = 1080;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -46,7 +29,7 @@ pub struct Config {
     #[serde(flatten)]
     base: BaseConfig<Config>,
 
-    socket: Socket,
+    socks5: Socks5,
 }
 
 impl NymConfig for Config {
@@ -62,7 +45,7 @@ impl NymConfig for Config {
         dirs::home_dir()
             .expect("Failed to evaluate $HOME value")
             .join(".nym")
-            .join("clients")
+            .join("socks5-clients")
     }
 
     fn root_directory(&self) -> PathBuf {
@@ -81,26 +64,31 @@ impl NymConfig for Config {
 }
 
 impl Config {
-    pub fn new<S: Into<String>>(id: S) -> Self {
+    pub fn new<S: Into<String>>(id: S, provider_mix_address: S) -> Self {
         Config {
             base: BaseConfig::new(id),
-            socket: Default::default(),
+            socks5: Socks5::new(provider_mix_address),
         }
     }
 
-    pub fn with_socket(mut self, socket_type: SocketType) -> Self {
-        self.socket.socket_type = socket_type;
+    pub fn with_port(mut self, port: u16) -> Self {
+        self.socks5.listening_port = port;
         self
     }
 
-    pub fn with_port(mut self, port: u16) -> Self {
-        self.socket.listening_port = port;
+    pub fn with_provider_mix_address(mut self, address: String) -> Self {
+        self.socks5.provider_mix_address = address;
         self
     }
 
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
+    }
+
+    pub fn get_provider_mix_address(&self) -> Recipient {
+        Recipient::try_from_base58_string(&self.socks5.provider_mix_address)
+            .expect("malformed provider address")
     }
 
     pub fn get_base(&self) -> &BaseConfig<Self> {
@@ -111,27 +99,35 @@ impl Config {
         &mut self.base
     }
 
-    pub fn get_socket_type(&self) -> SocketType {
-        self.socket.socket_type
-    }
-
     pub fn get_listening_port(&self) -> u16 {
-        self.socket.listening_port
+        self.socks5.listening_port
     }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Socket {
-    socket_type: SocketType,
+pub struct Socks5 {
+    /// The port on which the client will be listening for incoming requests
     listening_port: u16,
+
+    /// The mix address of the provider to which all requests are going to be sent.
+    provider_mix_address: String,
 }
 
-impl Default for Socket {
-    fn default() -> Self {
-        Socket {
-            socket_type: SocketType::WebSocket,
+impl Socks5 {
+    pub fn new<S: Into<String>>(provider_mix_address: S) -> Self {
+        Socks5 {
             listening_port: DEFAULT_LISTENING_PORT,
+            provider_mix_address: provider_mix_address.into(),
+        }
+    }
+}
+
+impl Default for Socks5 {
+    fn default() -> Self {
+        Socks5 {
+            listening_port: DEFAULT_LISTENING_PORT,
+            provider_mix_address: "".into(),
         }
     }
 }
@@ -145,7 +141,8 @@ mod client_config {
         // need to figure out how to do something similar but without touching the disk
         // or the file system at all...
         let temp_location = tempfile::tempdir().unwrap().path().join("config.toml");
-        let default_config = Config::new("foomp".to_string());
+        let fake_address = "CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@FioFa8nMmPpQnYi7JyojoTuwGLeyNS8BF4ChPr29zUML";
+        let default_config = Config::new("foomp", fake_address);
         default_config
             .save_to_file(Some(temp_location.clone()))
             .unwrap();

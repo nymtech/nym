@@ -2,7 +2,6 @@ use super::types::{AddrType, ResponseCode, SocksProxyError};
 use super::{utils as socks_utils, SOCKS_VERSION};
 use log::*;
 use std::net::SocketAddr;
-use tokio::net::TcpStream;
 use tokio::prelude::*;
 use utils::read_delay_loop::try_read_data;
 
@@ -17,14 +16,17 @@ pub(crate) struct SocksRequest {
 
 impl SocksRequest {
     /// Parse a SOCKS5 request from a TcpStream
-    pub async fn from_stream(stream: &mut TcpStream) -> Result<Self, SocksProxyError> {
+    pub async fn from_stream<R>(stream: &mut R) -> Result<Self, SocksProxyError>
+    where
+        R: AsyncRead + Unpin,
+    {
         let mut packet = [0u8; 4];
         // Read a byte from the stream and determine the version being requested
         stream.read_exact(&mut packet).await?;
 
         if packet[0] != SOCKS_VERSION {
             warn!("from_stream Unsupported version: SOCKS{}", packet[0]);
-            stream.shutdown();
+            return Err(SocksProxyError::UnsupportedProxyVersion(packet[0]));
         }
 
         // Get command
@@ -36,7 +38,6 @@ impl SocksRequest {
             }
             None => {
                 warn!("Invalid Command");
-                stream.shutdown();
                 Err(ResponseCode::CommandNotSupported)
             }
         }?;
@@ -51,7 +52,6 @@ impl SocksRequest {
             }
             None => {
                 error!("No Addr");
-                stream.shutdown();
                 Err(ResponseCode::AddrTypeNotSupported)
             }
         }?;
@@ -112,10 +112,13 @@ impl SocksRequest {
 
     /// Attempts to read data from the Socks5 request stream. Times out and
     /// returns what it's got if no data is read for the timeout_duration
-    pub(crate) async fn try_read_request_data<R: AsyncRead + Unpin>(
+    pub(crate) async fn try_read_request_data<R>(
         reader: &mut R,
         remote_address: &str,
-    ) -> io::Result<Vec<u8>> {
+    ) -> io::Result<(Vec<u8>, bool)>
+    where
+        R: AsyncRead + Unpin,
+    {
         let timeout_duration = std::time::Duration::from_millis(500);
         try_read_data(timeout_duration, reader, remote_address).await
     }

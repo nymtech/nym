@@ -25,11 +25,13 @@ impl SphinxSocksServer {
     /// Create a new SphinxSocks instance
     pub(crate) fn new(
         port: u16,
-        ip: &str,
         authenticator: Authenticator,
         service_provider: Recipient,
         self_address: Recipient,
     ) -> Self {
+        // hardcode ip as we (presumably) ONLY want to listen locally. If we change it, we can
+        // just modify the config
+        let ip = "127.0.0.1";
         info!("Listening on {}:{}", ip, port);
         SphinxSocksServer {
             authenticator,

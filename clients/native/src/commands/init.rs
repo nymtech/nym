@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::built_info;
+use crate::client::config::Config;
 use crate::commands::override_config;
 use clap::{App, Arg, ArgMatches};
 use client_core::client::key_manager::KeyManager;
@@ -149,48 +150,51 @@ pub fn execute(matches: &ArgMatches) {
     println!("Initialising client...");
 
     let id = matches.value_of("id").unwrap(); // required for now
-    let mut config = client_core::config::Config::new(id);
+    let mut config = Config::new(id);
     let mut rng = OsRng;
 
     config = override_config(config, matches);
     if matches.is_present("fastmode") {
-        config = config.set_high_default_traffic_volume();
+        config.get_base_mut().set_high_default_traffic_volume();
     }
 
     // create identity, encryption and ack keys.
     let mut key_manager = KeyManager::new(&mut rng);
 
     // if there is no gateway chosen, get a random-ish one from the topology
-    if config.get_gateway_id().is_empty() {
+    if config.get_base().get_gateway_id().is_empty() {
         // TODO: is there perhaps a way to make it work without having to spawn entire runtime?
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         let (gateway_id, gateway_listener, shared_key) = rt.block_on(choose_gateway(
-            config.get_directory_server(),
+            config.get_base().get_directory_server(),
             key_manager.identity_keypair(),
         ));
 
-        config = config
-            .with_gateway_id(gateway_id)
+        config.get_base_mut().with_gateway_id(gateway_id);
+        config
+            .get_base_mut()
             .with_gateway_listener(gateway_listener);
 
         key_manager.insert_gateway_shared_key(shared_key)
     }
 
     // we specified our gateway but don't know its physical address
-    if config.get_gateway_listener().is_empty() {
+    if config.get_base().get_gateway_listener().is_empty() {
         // TODO: is there perhaps a way to make it work without having to spawn entire runtime?
         let mut rt = tokio::runtime::Runtime::new().unwrap();
         let gateway_listener = rt
             .block_on(get_gateway_listener(
-                config.get_directory_server(),
-                &config.get_gateway_id(),
+                config.get_base().get_directory_server(),
+                &config.get_base().get_gateway_id(),
             ))
             .expect("No gateway with provided id exists!");
 
-        config = config.with_gateway_listener(gateway_listener);
+        config
+            .get_base_mut()
+            .with_gateway_listener(gateway_listener);
     }
 
-    let pathfinder = ClientKeyPathfinder::new_from_config(&config);
+    let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
     key_manager
         .store_keys(&pathfinder)
         .expect("Failed to generated keys");
@@ -204,7 +208,7 @@ pub fn execute(matches: &ArgMatches) {
 
     println!(
         "Unless overridden in all `nym-client run` we will be talking to the following gateway: {}...",
-        config.get_gateway_id(),
+        config.get_base().get_gateway_id(),
     );
 
     println!("Client configuration completed.\n\n\n")

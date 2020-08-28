@@ -111,12 +111,6 @@ impl ServiceProvider {
                     data,
                     return_address,
                 } => {
-                    // Connect implies it's a fresh connection - register it with our controller
-                    let (mix_sender, mix_receiver) = mpsc::unbounded();
-                    controller_sender
-                        .unbounded_send(ControllerCommand::Insert(conn_id, mix_sender))
-                        .unwrap();
-
                     let controller_sender_clone = controller_sender.clone();
                     // and start the proxy for this connection
                     let mix_input_sender_clone = mix_input_sender.clone();
@@ -139,6 +133,12 @@ impl ServiceProvider {
                                 return;
                             }
                         };
+
+                        // Connect implies it's a fresh connection - register it with our controller
+                        let (mix_sender, mix_receiver) = mpsc::unbounded();
+                        controller_sender_clone
+                            .unbounded_send(ControllerCommand::Insert(conn_id, mix_sender))
+                            .unwrap();
 
                         info!("Starting proxy for {}", remote_addr.clone());
                         conn.run_proxy(mix_receiver, mix_input_sender_clone).await;

@@ -1,9 +1,9 @@
 use super::types::{AddrType, ResponseCode, SocksProxyError};
 use super::{utils as socks_utils, SOCKS_VERSION};
+use available_reader::read_delay_loop::try_read_data;
 use log::*;
 use std::net::SocketAddr;
 use tokio::prelude::*;
-use utils::read_delay_loop::try_read_data;
 
 /// A Socks5 request hitting the proxy.
 pub(crate) struct SocksRequest {

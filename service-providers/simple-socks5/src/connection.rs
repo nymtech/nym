@@ -1,11 +1,11 @@
+use available_reader::connection_controller::ConnectionReceiver;
+use available_reader::proxy_runner::ProxyRunner;
 use futures::channel::mpsc;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use socks5_requests::{ConnectionId, RemoteAddress, Response};
 use tokio::net::TcpStream;
 use tokio::prelude::*;
-use utils::connection_controller::ConnectionReceiver;
-use utils::proxy_runner::ProxyRunner;
 
 /// A TCP connection between the Socks5 service provider, which makes
 /// outbound requests on behalf of users and returns the responses through

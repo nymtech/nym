@@ -177,6 +177,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8aac770f1885fd7e387acedd76065302551364496e46b3dd00860b2f8359b9d"
 
 [[package]]
+name = "available-reader"
+version = "0.1.0"
+dependencies = [
+ "bytes 0.5.4",
+ "futures 0.3.4",
+ "log 0.4.8",
+ "socks5-requests",
+ "tokio 0.2.22",
+ "tokio-test",
+]
+
+[[package]]
 name = "backtrace"
 version = "0.3.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2741,6 +2753,7 @@ dependencies = [
 name = "simple-socks5"
 version = "0.1.0"
 dependencies = [
+ "available-reader",
  "clap",
  "futures 0.3.4",
  "log 0.4.8",
@@ -2749,7 +2762,6 @@ dependencies = [
  "socks5-requests",
  "tokio 0.2.22",
  "tokio-tungstenite",
- "utils",
  "websocket-requests",
 ]
 
@@ -2851,6 +2863,7 @@ dependencies = [
 name = "socks5"
 version = "0.8.0-dev"
 dependencies = [
+ "available-reader",
  "built",
  "clap",
  "client-core",
@@ -2874,7 +2887,6 @@ dependencies = [
  "tokio 0.2.22",
  "topology",
  "url 2.1.1",
- "utils",
 ]
 
 [[package]]
@@ -3452,18 +3464,6 @@ name = "utf-8"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05e42f7c18b8f902290b009cde6d651262f956c98bc51bca4cd1d511c9cd85c7"
-
-[[package]]
-name = "utils"
-version = "0.1.0"
-dependencies = [
- "bytes 0.5.4",
- "futures 0.3.4",
- "log 0.4.8",
- "socks5-requests",
- "tokio 0.2.22",
- "tokio-test",
-]
 
 [[package]]
 name = "validator-client"

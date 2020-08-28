@@ -33,7 +33,7 @@ gateway-requests = { path = "../../gateway/gateway-requests" }
 nymsphinx = { path = "../../common/nymsphinx" }
 socks5-requests = { path = "../../common/socks5/requests" }
 topology = { path = "../../common/topology" }
-utils = { path = "../../common/utils" }
+available-reader = { path = "../../common/socks5/available-reader" }
 
 [build-dependencies]
 built = "0.4.3"

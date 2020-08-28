@@ -4,6 +4,7 @@ use super::{
     mixnet_responses::MixnetResponseListener,
     types::{ResponseCode, SocksProxyError},
 };
+use available_reader::connection_controller::Controller;
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
@@ -11,7 +12,6 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
-use utils::connection_controller::Controller;
 
 /// A Socks5 server that listens for connections.
 pub struct SphinxSocksServer {

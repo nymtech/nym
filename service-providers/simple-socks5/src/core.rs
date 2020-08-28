@@ -1,5 +1,6 @@
 use crate::connection::Connection;
 use crate::websocket;
+use available_reader::connection_controller::{Controller, ControllerCommand};
 use futures::channel::mpsc;
 use futures::stream::SplitSink;
 use futures::{SinkExt, StreamExt};
@@ -9,7 +10,6 @@ use socks5_requests::{Request, Response};
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::WebSocketStream;
-use utils::connection_controller::{Controller, ControllerCommand};
 use websocket::WebsocketConnectionError;
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 

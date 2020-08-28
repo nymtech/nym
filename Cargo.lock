@@ -1931,6 +1931,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "ordered-buffer"
+version = "0.1.0"
+
+[[package]]
 name = "parking_lot"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2877,6 +2881,7 @@ dependencies = [
  "gateway-requests",
  "log 0.4.8",
  "nymsphinx",
+ "ordered-buffer",
  "pin-project",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -2894,6 +2899,7 @@ name = "socks5-requests"
 version = "0.1.0"
 dependencies = [
  "nymsphinx-addressing",
+ "ordered-buffer",
 ]
 
 [[package]]

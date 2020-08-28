@@ -15,6 +15,7 @@ use futures::core_reexport::pin::Pin;
 use futures::task::{Context, Poll};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
+use ordered_buffer::{OrderedMessage, OrderedMessageBuffer, OrderedMessageSender};
 use pin_project::pin_project;
 use rand::RngCore;
 use socks5_requests::{ConnectionId, Request};
@@ -138,6 +139,8 @@ pub(crate) struct SocksClient {
     connection_id: ConnectionId,
     service_provider: Recipient,
     self_address: Recipient,
+    request_sender: OrderedMessageSender,
+    response_buffer: OrderedMessageBuffer,
 }
 
 impl Drop for SocksClient {
@@ -160,6 +163,8 @@ impl SocksClient {
         service_provider: Recipient,
         controller_sender: ControllerSender,
         self_address: Recipient,
+        request_sender: OrderedMessageSender,
+        response_buffer: OrderedMessageBuffer,
     ) -> Self {
         let connection_id = Self::generate_random();
         SocksClient {
@@ -172,6 +177,8 @@ impl SocksClient {
             input_sender,
             service_provider,
             self_address,
+            request_sender,
+            response_buffer,
         }
     }
 
@@ -265,10 +272,12 @@ impl SocksClient {
                 // 'connect' needs to be handled manually due to different structure
                 let (request_data_bytes, _) =
                     SocksRequest::try_read_request_data(&mut self.stream, &client_address).await?;
+                let message: OrderedMessage = self.request_sender.into_message(request_data_bytes);
+
                 let socks_provider_request = Request::new_connect(
                     self.connection_id,
                     remote_address.clone(),
-                    request_data_bytes,
+                    message,
                     self.self_address.clone(),
                 );
 

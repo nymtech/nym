@@ -108,7 +108,7 @@ impl ServiceProvider {
                 Request::Connect {
                     conn_id,
                     remote_addr,
-                    data,
+                    message,
                     return_address,
                 } => {
                     let controller_sender_clone = controller_sender.clone();
@@ -118,7 +118,7 @@ impl ServiceProvider {
                         let mut conn = match Connection::new(
                             conn_id,
                             remote_addr.clone(),
-                            &data,
+                            &message.data, // TODO: we probably need to read this out of the ordered message buffer instead
                             return_address,
                         )
                         .await

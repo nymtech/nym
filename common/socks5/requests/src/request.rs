@@ -1,4 +1,5 @@
 use nymsphinx_addressing::clients::{Recipient, RecipientFormattingError};
+use ordered_buffer::OrderedMessage;
 use std::convert::TryFrom;
 use std::fmt::{self};
 
@@ -76,7 +77,7 @@ pub enum Request {
     Connect {
         conn_id: ConnectionId,
         remote_addr: RemoteAddress,
-        data: Vec<u8>,
+        message: OrderedMessage,
         return_address: Recipient,
     },
 
@@ -89,13 +90,13 @@ impl Request {
     pub fn new_connect(
         conn_id: ConnectionId,
         remote_addr: RemoteAddress,
-        data: Vec<u8>,
+        message: OrderedMessage,
         return_address: Recipient,
     ) -> Request {
         Request::Connect {
             conn_id,
             remote_addr,
-            data,
+            message,
             return_address,
         }
     }
@@ -161,10 +162,14 @@ impl Request {
                 let return_address = Recipient::try_from_bytes(return_bytes)
                     .map_err(|err| RequestError::MalformedReturnAddress(err))?;
 
+                let message =
+                    OrderedMessage::try_from_bytes(recipient_data_bytes[Recipient::LEN..].to_vec())
+                        .unwrap();
+
                 Ok(Request::Connect {
                     conn_id: connection_id,
                     remote_addr: remote_address,
-                    data: recipient_data_bytes[Recipient::LEN..].to_vec(),
+                    message,
                     return_address,
                 })
             }
@@ -186,7 +191,7 @@ impl Request {
             Request::Connect {
                 conn_id,
                 remote_addr,
-                data,
+                message,
                 return_address,
             } => {
                 let remote_address_bytes = remote_addr.into_bytes();
@@ -197,7 +202,7 @@ impl Request {
                     .chain(remote_address_bytes_len.to_be_bytes().iter().cloned())
                     .chain(remote_address_bytes.into_iter())
                     .chain(return_address.to_bytes().iter().cloned())
-                    .chain(data.into_iter())
+                    .chain(message.into_bytes())
                     .collect()
             }
             Request::Send(conn_id, data, local_closed) => std::iter::once(RequestFlag::Send as u8)
@@ -376,6 +381,7 @@ mod request_deserialization_tests {
             let request_bytes: Vec<_> = request_bytes
                 .into_iter()
                 .chain(recipient_bytes.iter().cloned())
+                .chain(vec![0, 0, 0, 0, 0, 0, 0, 1]) // message index 1
                 .collect();
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
@@ -383,7 +389,7 @@ mod request_deserialization_tests {
                 Request::Connect {
                     conn_id,
                     remote_addr,
-                    data,
+                    message,
                     return_address,
                 } => {
                     assert_eq!("foo.com".to_string(), remote_addr);
@@ -392,7 +398,7 @@ mod request_deserialization_tests {
                         return_address.to_bytes().to_vec(),
                         recipient.to_bytes().to_vec()
                     );
-                    assert_eq!(Vec::<u8>::new(), data);
+                    assert_eq!(Vec::<u8>::new(), message.data);
                 }
                 _ => unreachable!(),
             }
@@ -429,6 +435,7 @@ mod request_deserialization_tests {
             let request_bytes: Vec<_> = request_bytes
                 .into_iter()
                 .chain(recipient_bytes.iter().cloned())
+                .chain(vec![0, 0, 0, 0, 0, 0, 0, 1]) // ordered message sequence number 1
                 .chain(vec![255, 255, 255].into_iter())
                 .collect();
 
@@ -437,7 +444,7 @@ mod request_deserialization_tests {
                 Request::Connect {
                     conn_id,
                     remote_addr,
-                    data,
+                    message,
                     return_address,
                 } => {
                     assert_eq!("foo.com".to_string(), remote_addr);
@@ -446,7 +453,8 @@ mod request_deserialization_tests {
                         return_address.to_bytes().to_vec(),
                         recipient.to_bytes().to_vec()
                     );
-                    assert_eq!(vec![255, 255, 255], data);
+                    assert_eq!(1, message.index);
+                    assert_eq!(vec![255, 255, 255], message.data);
                 }
                 _ => unreachable!(),
             }

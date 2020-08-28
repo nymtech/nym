@@ -13,7 +13,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use pin_project::pin_project;
 use rand::RngCore;
-use simple_socks5_requests::{ConnectionId, Request};
+use socks5_requests::{ConnectionId, Request};
 use std::net::{Shutdown, SocketAddr};
 use tokio::prelude::*;
 use tokio::{self, net::TcpStream};

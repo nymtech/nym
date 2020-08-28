@@ -1,7 +1,7 @@
 use futures::channel::mpsc;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use simple_socks5_requests::{ConnectionId, RemoteAddress, Response};
+use socks5_requests::{ConnectionId, RemoteAddress, Response};
 use tokio::net::TcpStream;
 use tokio::prelude::*;
 use utils::connection_controller::ConnectionReceiver;

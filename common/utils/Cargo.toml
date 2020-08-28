@@ -12,7 +12,7 @@ bytes = "0.5"
 tokio = { version = "0.2", features = [ "tcp", "io-util", "sync", "macros", "time" ] }
 futures = "0.3"
 log = "0.4"
-simple-socks5-requests = { path = "../../service-providers/simple-socks5/simple-socks5-requests" }
+socks5-requests = { path = "../../common/socks5/requests" }
 
 [dev-dependencies]
 tokio = { version = "0.2", features = ["rt-threaded"] }

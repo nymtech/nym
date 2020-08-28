@@ -2746,18 +2746,11 @@ dependencies = [
  "log 0.4.8",
  "nymsphinx",
  "pretty_env_logger",
- "simple-socks5-requests",
+ "socks5-requests",
  "tokio 0.2.22",
  "tokio-tungstenite",
  "utils",
  "websocket-requests",
-]
-
-[[package]]
-name = "simple-socks5-requests"
-version = "0.1.0"
-dependencies = [
- "nymsphinx-addressing",
 ]
 
 [[package]]
@@ -2875,13 +2868,20 @@ dependencies = [
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
- "simple-socks5-requests",
  "snafu",
+ "socks5-requests",
  "tempfile",
  "tokio 0.2.22",
  "topology",
  "url 2.1.1",
  "utils",
+]
+
+[[package]]
+name = "socks5-requests"
+version = "0.1.0"
+dependencies = [
+ "nymsphinx-addressing",
 ]
 
 [[package]]
@@ -3460,7 +3460,7 @@ dependencies = [
  "bytes 0.5.4",
  "futures 0.3.4",
  "log 0.4.8",
- "simple-socks5-requests",
+ "socks5-requests",
  "tokio 0.2.22",
  "tokio-test",
 ]

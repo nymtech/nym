@@ -14,7 +14,7 @@
 
 use futures::channel::mpsc;
 use log::*;
-use simple_socks5_requests::ConnectionId;
+use socks5_requests::ConnectionId;
 use std::collections::HashMap;
 use tokio::stream::StreamExt;
 

@@ -30,6 +30,7 @@ members = [
     "common/nymsphinx/params",
     "common/nymsphinx/types",
     "common/pemstore",
+    "common/socks5/requests",
     "common/topology",
     "common/utils",
     "gateway",

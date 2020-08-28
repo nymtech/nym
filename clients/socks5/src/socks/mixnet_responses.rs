@@ -4,7 +4,7 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::receiver::ReconstructedMessage;
-use simple_socks5_requests::Response;
+use socks5_requests::Response;
 use utils::connection_controller::{ControllerCommand, ControllerSender};
 
 pub(crate) struct MixnetResponseListener {

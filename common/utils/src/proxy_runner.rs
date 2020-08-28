@@ -16,7 +16,7 @@ use super::read_delay_loop::try_read_data;
 use crate::connection_controller::ConnectionReceiver;
 use futures::channel::mpsc;
 use log::*;
-use simple_socks5_requests::ConnectionId;
+use socks5_requests::ConnectionId;
 use std::sync::Arc;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;

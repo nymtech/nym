@@ -32,30 +32,6 @@ use web_sys::{CloseEvent, ErrorEvent, MessageEvent, WebSocket};
 
 mod state;
 
-pub struct JSWebsocket {
-    socket: web_sys::WebSocket,
-
-    message_queue: Rc<RefCell<VecDeque<WsMessage>>>,
-
-    /// Waker of a task wanting to read incoming messages.
-    stream_waker: Rc<RefCell<Option<Waker>>>,
-
-    /// Waker of a task wanting to write to the sink.
-    sink_waker: Rc<RefCell<Option<Waker>>>,
-
-    /// Waker of a sink wanting to close the connection.
-    close_waker: Rc<RefCell<Option<Waker>>>,
-
-    // The callback closures. We need to store them as they will invalidate their
-    // corresponding JS callback whenever they are dropped, so if we were to
-    // normally return from `new` then our registered closures will
-    // raise an exception when invoked.
-    _on_open: Closure<dyn FnMut(JsValue)>,
-    _on_error: Closure<dyn FnMut(ErrorEvent)>,
-    _on_close: Closure<dyn FnMut(CloseEvent)>,
-    _on_message: Closure<dyn FnMut(MessageEvent)>,
-}
-
 // Unfortunately this can't be cleanly done with TryFrom/TryInto traits as both are foreign types
 fn try_message_event_into_ws_message(msg_event: MessageEvent) -> Result<WsMessage, WsError> {
     match msg_event.data() {
@@ -81,6 +57,46 @@ fn try_message_event_into_ws_message(msg_event: MessageEvent) -> Result<WsMessag
     }
 }
 
+// Safety: when compiled to wasm32 everything is going to be running on a single thread and so there
+// is no shared memory right now.
+//
+// Eventually it should be made `Send` properly. Wakers should probably be replaced with AtomicWaker
+// and the item queue put behind an Arc<Mutex<...>>.
+// It might also be worth looking at what https://crates.io/crates/send_wrapper could provide.
+// Because I'm not sure Mutex would solve the `Closure` issue. It's the problem for later.
+//
+// ************************************
+// SUPER IMPORTANT TODO: ONCE WASM IN RUST MATURES AND BECOMES MULTI-THREADED THIS MIGHT
+// LEAD TO RUNTIME MEMORY CORRUPTION!!
+// ************************************
+//
+#[cfg(target_arch = "wasm32")]
+unsafe impl Send for JSWebsocket {}
+
+pub struct JSWebsocket {
+    socket: web_sys::WebSocket,
+
+    message_queue: Rc<RefCell<VecDeque<Result<WsMessage, WsError>>>>,
+
+    /// Waker of a task wanting to read incoming messages.
+    stream_waker: Rc<RefCell<Option<Waker>>>,
+
+    /// Waker of a task wanting to write to the sink.
+    sink_waker: Rc<RefCell<Option<Waker>>>,
+
+    /// Waker of a sink wanting to close the connection.
+    close_waker: Rc<RefCell<Option<Waker>>>,
+
+    // The callback closures. We need to store them as they will invalidate their
+    // corresponding JS callback whenever they are dropped, so if we were to
+    // normally return from `new` then our registered closures will
+    // raise an exception when invoked.
+    _on_open: Closure<dyn FnMut(JsValue)>,
+    _on_error: Closure<dyn FnMut(ErrorEvent)>,
+    _on_close: Closure<dyn FnMut(CloseEvent)>,
+    _on_message: Closure<dyn FnMut(MessageEvent)>,
+}
+
 impl JSWebsocket {
     pub fn new(url: &str) -> Result<Self, JsValue> {
         let ws = WebSocket::new(url)?;
@@ -100,13 +116,7 @@ impl JSWebsocket {
         let close_waker_clone = Rc::clone(&close_waker);
 
         let on_message = Closure::wrap(Box::new(move |msg_event| {
-            let ws_message = match try_message_event_into_ws_message(msg_event) {
-                Ok(ws_message) => ws_message,
-                Err(err) => {
-                    console_error!("failed to read socket message - {}", err);
-                    return;
-                }
-            };
+            let ws_message = try_message_event_into_ws_message(msg_event);
             message_queue_clone.borrow_mut().push_back(ws_message);
 
             // if there is a task waiting for messages - wake the executor!
@@ -183,7 +193,7 @@ impl Drop for JSWebsocket {
 }
 
 impl Stream for JSWebsocket {
-    type Item = WsMessage;
+    type Item = Result<WsMessage, WsError>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // if there's anything in the internal queue, keep returning that
@@ -246,7 +256,7 @@ impl Sink<WsMessage> for JSWebsocket {
         }
     }
 
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         // TODO: can we/should we do anything more here?
         Poll::Ready(Ok(()))
     }

@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::models::client::ClientTest;
+use crate::models::client::NymClient;
 use crate::utils::sleep;
 use crate::websocket::JSWebsocket;
-use crypto::asymmetric::encryption;
+use crypto::asymmetric::{encryption, identity};
 use futures::{SinkExt, StreamExt};
+use gateway_requests::registration::handshake::client_handshake;
 use js_sys::Promise;
 pub use models::keys::keygen;
 use rand::rngs::OsRng;
@@ -69,41 +70,74 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[wasm_bindgen]
 pub async fn foomp() {
-    console_log!("foomp was called!");
+    utils::set_panic_hook();
+    // let client = ClientTest {
+    //             version: "0.8".to_string(),
+    //             directory_server: "http://localhost:8080".to_string(),
+    //     gateway_socket: JSWebsocket::new("ws://127.0.0.1:4000").unwrap(),
+    //
+    // };
+    let version = "0.8.0-dev".to_string();
+    let directory_server = "http://localhost:8080".to_string();
 
-    let socket = JSWebsocket::new("ws://echo.websocket.org").unwrap();
+    let mut client = NymClient::new(directory_server, version);
+    client = client.initial_setup().await;
+    // client = client.get_and_update_topology().await;
+    // let gateway = client.choose_gateway();
+    //
+    // let gateway_id = gateway.identity_key.clone();
+    // let gateway_address = gateway.client_listener.clone();
+    //
+    // client.connect_to_gateway(&gateway_address);
 
-    sleep(100).await.unwrap();
+    // let topology = client.get_nym_topology().await;
+    // console_log!("topology: {:#?}", topology);
+    //
+    // console_log!("foomp was called!");
+    // let mut rng = OsRng;
+    //
+    // let mut socket = JSWebsocket::new("ws://127.0.0.1:4000").unwrap();
+    //
+    // let identity = identity::KeyPair::new_with_rng(&mut rng);
+    // let gateway_pubkey =
+    //     identity::PublicKey::from_base58_string("9Ku6ERQV6pmzTiwzZz5ffSazNyu68TtVTZ4n4Dih66cX")
+    //         .unwrap();
+    //
+    // let shared_keys = client_handshake(&mut rng, &mut socket, &identity, gateway_pubkey).await;
+    //
+    // console_log!("got shared key! {:?}", shared_keys);
 
-    let (mut sink, mut stream) = socket.split();
-
-    spawn_local(async move {
-        sink.send(WsMessage::Text("foomp1".into())).await.unwrap();
-        sink.send(WsMessage::Text("foomp2".into())).await.unwrap();
-        sink.send(WsMessage::Text("foomp3".into())).await.unwrap();
-    });
-
-    spawn_local(async move {
-        while let Some(received) = stream.next().await {
-            console_log!("received {} from the socket!", received);
-        }
-        console_log!("won't get anything more")
-    });
-    // just for test to not have to bother with setting it all up
-
+    // sleep(100).await.unwrap();
+    //
+    // let (mut sink, mut stream) = socket.split();
+    //
+    // spawn_local(async move {
+    //     sink.send(WsMessage::Text("foomp1".into())).await.unwrap();
+    //     sink.send(WsMessage::Text("foomp2".into())).await.unwrap();
+    //     sink.send(WsMessage::Text("foomp3".into())).await.unwrap();
+    // });
+    //
+    // spawn_local(async move {
+    //     while let Some(received) = stream.next().await {
+    //         console_log!("received {} from the socket!", received);
+    //     }
+    //     console_log!("won't get anything more")
+    // });
+    // // just for test to not have to bother with setting it all up
+    //
     console_log!("waiting");
     sleep(10000).await.unwrap();
-
-    // let topology = ClientTest::do_foomp().await;
     //
-    // console_log!("{}", topology);
-    //
-    // // spawn_local(async {
-    // //     for i in 0..100 {
-    // //         console_log!("foomp {}", i);
-    // //         sleep(50).await.unwrap();
-    // //     }
-    // // });
+    // // let topology = ClientTest::do_foomp().await;
+    // //
+    // // console_log!("{}", topology);
+    // //
+    // // // spawn_local(async {
+    // // //     for i in 0..100 {
+    // // //         console_log!("foomp {}", i);
+    // // //         sleep(50).await.unwrap();
+    // // //     }
+    // // // });
 
     console_log!("foomp is done");
 }

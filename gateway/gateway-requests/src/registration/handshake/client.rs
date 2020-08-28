@@ -23,7 +23,7 @@ use futures::task::{Context, Poll};
 use futures::{Future, Sink, Stream};
 use rand::{CryptoRng, RngCore};
 use std::pin::Pin;
-use tokio_tungstenite::tungstenite::Message as WsMessage;
+use tungstenite::Message as WsMessage;
 
 pub(crate) struct ClientHandshake<'a> {
     handshake_future: BoxFuture<'a, Result<SharedKeys, HandshakeError>>,

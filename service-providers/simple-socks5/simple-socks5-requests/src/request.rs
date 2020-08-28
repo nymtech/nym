@@ -12,7 +12,7 @@ pub enum RequestFlag {
     Close = 2,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum RequestError {
     AddressLengthTooShort,
     AddressTooShort,
@@ -204,19 +204,19 @@ mod request_deserialization_tests {
         #[test]
         fn returns_error_when_zero_bytes() {
             let request_bytes = Vec::new();
-            assert_eq!(
-                RequestError::NoData,
-                Request::try_from_bytes(&request_bytes).unwrap_err()
-            );
+            match Request::try_from_bytes(&request_bytes).unwrap_err() {
+                RequestError::NoData => {}
+                _ => unreachable!(),
+            }
         }
 
         #[test]
         fn returns_error_when_connection_id_too_short() {
             let request_bytes = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7].to_vec(); // 7 bytes connection id
-            assert_eq!(
-                RequestError::ConnectionIdTooShort,
-                Request::try_from_bytes(&request_bytes).unwrap_err()
-            );
+            match Request::try_from_bytes(&request_bytes).unwrap_err() {
+                RequestError::ConnectionIdTooShort => {}
+                _ => unreachable!(),
+            }
         }
     }
 
@@ -229,24 +229,24 @@ mod request_deserialization_tests {
             let request_bytes1 = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7, 8].to_vec(); // 8 bytes connection id, 0 bytes address length (2 were expected)
             let request_bytes2 = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7, 8, 0].to_vec(); // 8 bytes connection id, 1 bytes address length (2 were expected)
 
-            assert_eq!(
-                RequestError::AddressLengthTooShort,
-                Request::try_from_bytes(&request_bytes1).unwrap_err()
-            );
+            match Request::try_from_bytes(&request_bytes1).unwrap_err() {
+                RequestError::AddressLengthTooShort => {}
+                _ => unreachable!(),
+            }
 
-            assert_eq!(
-                RequestError::AddressLengthTooShort,
-                Request::try_from_bytes(&request_bytes2).unwrap_err()
-            );
+            match Request::try_from_bytes(&request_bytes2).unwrap_err() {
+                RequestError::AddressLengthTooShort => {}
+                _ => unreachable!(),
+            }
         }
 
         #[test]
         fn returns_error_when_address_too_short_for_given_address_length() {
             let request_bytes = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1].to_vec(); // 8 bytes connection id, 2 bytes address length, missing address
-            assert_eq!(
-                RequestError::AddressTooShort,
-                Request::try_from_bytes(&request_bytes).unwrap_err()
-            );
+            match Request::try_from_bytes(&request_bytes).unwrap_err() {
+                RequestError::AddressTooShort => {}
+                _ => unreachable!(),
+            }
         }
 
         #[test]
@@ -282,10 +282,11 @@ mod request_deserialization_tests {
                 .cloned()
                 .chain(recipient_bytes.iter().take(40).cloned())
                 .collect();
-            assert_eq!(
-                RequestError::ReturnAddressTooShort,
-                Request::try_from_bytes(&request_bytes).unwrap_err()
-            );
+
+            match Request::try_from_bytes(&request_bytes).unwrap_err() {
+                RequestError::ReturnAddressTooShort => {}
+                _ => unreachable!(),
+            }
         }
 
         #[test]

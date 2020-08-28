@@ -1093,7 +1093,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "serde_json",
- "tokio-tungstenite",
+ "tungstenite 0.11.1",
 ]
 
 [[package]]
@@ -1897,6 +1897,7 @@ dependencies = [
  "crypto",
  "directory-client",
  "futures 0.3.4",
+ "gateway-requests",
  "js-sys",
  "log 0.4.8",
  "nymsphinx",
@@ -1904,7 +1905,7 @@ dependencies = [
  "serde",
  "serde_json",
  "topology",
- "tungstenite 0.10.1",
+ "tungstenite 0.11.1",
  "wasm-bindgen",
  "wasm-bindgen-futures 0.4.10",
  "wasm-bindgen-test",

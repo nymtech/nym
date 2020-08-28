@@ -32,6 +32,7 @@ crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }
 directory-client = { path = "../../common/client-libs/directory-client" }
+gateway-requests = { path = "../../gateway/gateway-requests" }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
@@ -48,7 +49,7 @@ wee_alloc = { version = "0.4", optional = true }
 
 # we don't want entire tokio-tungstenite, tungstenite itself is just fine - we just want message and error enums
 [dependencies.tungstenite]
-version = "0.10"
+version = "0.11"
 default-features = false
 
 [dependencies.web-sys]

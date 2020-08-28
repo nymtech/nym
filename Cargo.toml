@@ -38,3 +38,12 @@ members = [
     "mixnode",
     "validator",
 ]
+
+default-members = [
+    "clients/native",
+    "clients/socks5",
+#    "clients/webassembly",
+    "gateway",
+    "mixnode",
+    "validator",
+]

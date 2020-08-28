@@ -82,6 +82,11 @@ pub async fn foomp() {
 
     let mut client = NymClient::new(directory_server, version);
     client = client.initial_setup().await;
+
+    let active_native_client = "7yeAtiVGZFz5obya5uJ9ptBjFjkKKRPxaVBgRp33DkMz.CuWpunEFNo424vkEVQDwt45p91xX5JrnKc1htGSF6Wz@DicDxduuh3bKzNDHohikWXEkgqbzBj61EARPreShYK3f".to_string();
+    let message = "hello from wasm!".to_string();
+
+    client = client.send_message(message, active_native_client).await;
     // client = client.get_and_update_topology().await;
     // let gateway = client.choose_gateway();
     //

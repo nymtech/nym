@@ -13,54 +13,87 @@
 // limitations under the License.
 
 #[macro_use]
-use crate::{console_log, console_error};
+use crate::{console_log, console_warn};
 use crate::websocket::JSWebsocket;
-use crypto::asymmetric::identity;
+use crypto::asymmetric::{encryption, identity};
 use directory_client::{DirectoryClient, Topology};
+use futures::SinkExt;
 use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
+use gateway_requests::BinaryRequest;
 use js_sys::Promise;
+use nymsphinx::acknowledgements::AckKey;
+use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::addressing::nodes::NodeIdentity;
+use nymsphinx::preparer::MessagePreparer;
 use rand::rngs::OsRng;
 use std::convert::TryInto;
 use std::future::Future;
+use std::time::Duration;
 use topology::{gateway, NymTopology};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{future_to_promise, spawn_local};
 
 const DEFAULT_RNG: OsRng = OsRng;
 
+const DEFAULT_AVERAGE_PACKET_DELAY: u64 = 200;
+const DEFAULT_AVERAGE_ACK_DELAY: u64 = 200;
+
 struct GatewayClient {
-    gateway_identity: identity::PublicKey,
+    gateway_identity: NodeIdentity,
     address: String,
     shared_key: Option<SharedKeys>,
     socket: Option<JSWebsocket>,
 }
 
 #[wasm_bindgen]
+#[cfg(target_arch = "wasm32")]
 pub struct NymClient {
     version: String,
     directory_server: String,
     identity: identity::KeyPair,
+    encryption_keys: encryption::KeyPair,
+    ack_key: AckKey,
+
+    message_preparer: Option<MessagePreparer<OsRng>>,
 
     topology: Option<NymTopology>,
     gateway_client: Option<GatewayClient>,
 }
 
 #[wasm_bindgen]
+#[cfg(target_arch = "wasm32")]
 impl NymClient {
     pub fn new(directory_server: String, version: String) -> Self {
-        // for time being generate new identity each time...
+        // for time being generate new keys each time...
         let identity = identity::KeyPair::new_with_rng(&mut DEFAULT_RNG);
+        let encryption_keys = encryption::KeyPair::new_with_rng(&mut DEFAULT_RNG);
+        let ack_key = AckKey::new(&mut DEFAULT_RNG);
 
         Self {
             identity,
+            encryption_keys,
+            ack_key,
             version,
             directory_server,
+            message_preparer: None,
             topology: None,
             gateway_client: None,
         }
     }
 
-    pub async fn initial_setup(mut self) -> Self {
+    fn self_recipient(&self) -> Recipient {
+        Recipient::new(
+            self.identity.public_key().clone(),
+            self.encryption_keys.public_key().clone(),
+            self.gateway_client
+                .as_ref()
+                .unwrap()
+                .gateway_identity
+                .clone(),
+        )
+    }
+
+    pub async fn initial_setup(self) -> Self {
         let mut client = self.get_and_update_topology().await;
         client.choose_gateway();
         client.connect_to_gateway();
@@ -70,7 +103,71 @@ impl NymClient {
             client.gateway_client.as_ref().unwrap().shared_key,
             client.gateway_client.as_ref().unwrap().gateway_identity
         );
+        let average_packet_delay = Duration::from_millis(DEFAULT_AVERAGE_PACKET_DELAY);
+        let average_ack_delay = Duration::from_millis(DEFAULT_AVERAGE_ACK_DELAY);
+
+        let message_preparer = MessagePreparer::new(
+            DEFAULT_RNG,
+            client.self_recipient(),
+            average_packet_delay,
+            average_ack_delay,
+        );
+        client.message_preparer = Some(message_preparer);
+
         client
+    }
+
+    // TODO: is it somehow possible to make it work with `&mut self`?
+    pub async fn send_message(mut self, message: String, recipient: String) -> Self {
+        let message_bytes = message.into_bytes();
+        let recipient = Recipient::try_from_base58_string(recipient).unwrap();
+
+        let topology = self
+            .topology
+            .as_ref()
+            .expect("did not obtain topology before");
+
+        let message_preparer = self.message_preparer.as_mut().unwrap();
+
+        let (split_message, _reply_keys) = message_preparer
+            .prepare_and_split_message(message_bytes, false, topology)
+            .expect("failed to split the message");
+
+        let shared_key = self
+            .gateway_client
+            .as_ref()
+            .unwrap()
+            .shared_key
+            .as_ref()
+            .unwrap();
+
+        let mut socket_messages = Vec::with_capacity(split_message.len());
+        for message_chunk in split_message {
+            // don't bother with acks etc. for time being
+            let prepared_fragment = message_preparer
+                .prepare_chunk_for_sending(message_chunk, topology, &self.ack_key, &recipient)
+                .unwrap();
+
+            console_warn!("packet is going to have round trip time of {:?}, but we're not going to do anything for acks anyway ", prepared_fragment.total_delay);
+            let socket_message = Ok(BinaryRequest::new_forward_request(
+                prepared_fragment.first_hop_address,
+                prepared_fragment.sphinx_packet,
+            )
+            .into_ws_message(shared_key));
+            socket_messages.push(socket_message);
+        }
+
+        let socket_ref = self
+            .gateway_client
+            .as_mut()
+            .unwrap()
+            .socket
+            .as_mut()
+            .unwrap();
+
+        let mut send_stream = futures::stream::iter(socket_messages);
+        socket_ref.send_all(&mut send_stream).await.unwrap();
+        self
     }
 
     pub(crate) fn start_cover_traffic(&self) {

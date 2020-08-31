@@ -1,8 +1,8 @@
-use available_reader::connection_controller::ConnectionReceiver;
-use available_reader::proxy_runner::ProxyRunner;
 use futures::channel::mpsc;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
+use proxy_helpers::connection_controller::ConnectionReceiver;
+use proxy_helpers::proxy_runner::ProxyRunner;
 use socks5_requests::{ConnectionId, RemoteAddress, Response};
 use tokio::net::TcpStream;
 use tokio::prelude::*;

@@ -1,7 +1,7 @@
 use super::types::{AddrType, ResponseCode, SocksProxyError};
 use super::{utils as socks_utils, SOCKS_VERSION};
-use available_reader::read_delay_loop::try_read_data;
 use log::*;
+use proxy_helpers::read_delay_loop::try_read_data;
 use std::net::SocketAddr;
 use tokio::prelude::*;
 

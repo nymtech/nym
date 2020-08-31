@@ -4,10 +4,6 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCode, SocksProxyError};
 use super::{RESERVED, SOCKS_VERSION};
-use available_reader::connection_controller::{
-    ConnectionReceiver, ControllerCommand, ControllerSender,
-};
-use available_reader::proxy_runner::ProxyRunner;
 use client_core::client::inbound_messages::InputMessage;
 use client_core::client::inbound_messages::InputMessageSender;
 use futures::channel::mpsc;
@@ -17,6 +13,10 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use ordered_buffer::{OrderedMessage, OrderedMessageBuffer, OrderedMessageSender};
 use pin_project::pin_project;
+use proxy_helpers::connection_controller::{
+    ConnectionReceiver, ControllerCommand, ControllerSender,
+};
+use proxy_helpers::proxy_runner::ProxyRunner;
 use rand::RngCore;
 use socks5_requests::{ConnectionId, Request};
 use std::net::{Shutdown, SocketAddr};

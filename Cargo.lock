@@ -177,18 +177,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8aac770f1885fd7e387acedd76065302551364496e46b3dd00860b2f8359b9d"
 
 [[package]]
-name = "available-reader"
-version = "0.1.0"
-dependencies = [
- "bytes 0.5.4",
- "futures 0.3.4",
- "log 0.4.8",
- "socks5-requests",
- "tokio 0.2.22",
- "tokio-test",
-]
-
-[[package]]
 name = "backtrace"
 version = "0.3.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2278,6 +2266,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "proxy-helpers"
+version = "0.1.0"
+dependencies = [
+ "bytes 0.5.4",
+ "futures 0.3.4",
+ "log 0.4.8",
+ "socks5-requests",
+ "tokio 0.2.22",
+ "tokio-test",
+]
+
+[[package]]
 name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2757,12 +2757,12 @@ dependencies = [
 name = "simple-socks5"
 version = "0.1.0"
 dependencies = [
- "available-reader",
  "clap",
  "futures 0.3.4",
  "log 0.4.8",
  "nymsphinx",
  "pretty_env_logger",
+ "proxy-helpers",
  "socks5-requests",
  "tokio 0.2.22",
  "tokio-tungstenite",
@@ -2867,7 +2867,6 @@ dependencies = [
 name = "socks5"
 version = "0.8.0-dev"
 dependencies = [
- "available-reader",
  "built",
  "clap",
  "client-core",
@@ -2884,6 +2883,7 @@ dependencies = [
  "ordered-buffer",
  "pin-project",
  "pretty_env_logger",
+ "proxy-helpers",
  "rand 0.7.3",
  "serde",
  "snafu",

@@ -1,11 +1,11 @@
 use crate::connection::Connection;
 use crate::websocket;
-use available_reader::connection_controller::{Controller, ControllerCommand};
 use futures::channel::mpsc;
 use futures::stream::SplitSink;
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
+use proxy_helpers::connection_controller::{Controller, ControllerCommand};
 use socks5_requests::{Request, Response};
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::protocol::Message;

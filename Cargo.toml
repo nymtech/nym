@@ -31,7 +31,7 @@ members = [
     "common/nymsphinx/types",
     "common/pemstore",
     "common/socks5/requests",
-    "common/socks5/available-reader",
+    "common/socks5/proxy-helpers",
     "common/topology",
     "gateway",
     "gateway/gateway-requests",

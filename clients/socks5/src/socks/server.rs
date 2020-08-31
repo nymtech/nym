@@ -4,13 +4,13 @@ use super::{
     mixnet_responses::MixnetResponseListener,
     types::{ResponseCode, SocksProxyError},
 };
-use available_reader::connection_controller::Controller;
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use ordered_buffer::{OrderedMessageBuffer, OrderedMessageSender};
+use proxy_helpers::connection_controller::Controller;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 

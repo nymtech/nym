@@ -1,5 +1,5 @@
 [package]
-name = "available-reader"
+name = "proxy-helpers"
 version = "0.1.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2018"

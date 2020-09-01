@@ -1,4 +1,6 @@
 use crate::message::OrderedMessage;
+use log::*;
+use std::collections::HashMap;
 
 /// Stores messages and emits them in order.
 ///
@@ -8,30 +10,44 @@ use crate::message::OrderedMessage;
 #[derive(Debug)]
 pub struct OrderedMessageBuffer {
     next_index: u64,
-    messages: Vec<OrderedMessage>,
+    messages: HashMap<u64, OrderedMessage>,
 }
 
 impl OrderedMessageBuffer {
     pub fn new() -> OrderedMessageBuffer {
-        println!("Creating ordered message buffer.");
+        trace!("Creating ordered message buffer.");
         OrderedMessageBuffer {
             next_index: 0,
-            messages: Vec::new(),
+            // messages: Vec::new(),
+            messages: HashMap::new(),
         }
+    }
+
+    pub fn print_indices(&self) {
+        let indices_len: Vec<_> = self
+            .messages
+            .values()
+            .map(|msg| (msg.index, msg.data.len()))
+            .collect();
+        warn!(
+            "NEXT: {} || Current indices: {:?}",
+            self.next_index, indices_len
+        )
     }
 
     /// Writes a message to the buffer. messages are sort on insertion, so
     /// that later on multiple reads for incomplete sequences don't result in
     /// useless sort work.
     pub fn write(&mut self, message: OrderedMessage) {
-        println!(
+        trace!(
             "Writing message index: {} length {:?} to OrderedMessageBuffer.",
             message.index,
             message.data.len()
         );
 
-        self.messages.push(message);
-        OrderedMessageBuffer::insertion_sort(&mut self.messages);
+        // self.messages.push(message);
+        self.messages.insert(message.index, message);
+        // OrderedMessageBuffer::insertion_sort(&mut self.messages);
     }
 
     /// Returns `Option<Vec<u8>>` where it's `Some(bytes)` if there is gapless
@@ -43,62 +59,33 @@ impl OrderedMessageBuffer {
     /// return `None` until message 3 comes in, at which point 3, 4, and any
     /// further contiguous messages which have arrived will be returned.
     pub fn read(&mut self) -> Option<Vec<u8>> {
-        if self.messages.is_empty() || self.messages.first().unwrap().index > self.next_index {
+        if !self.messages.contains_key(&self.next_index) {
             return None;
-        } else {
-            let index = self.next_index.clone() + 1;
-            let contiguous_messages: Vec<OrderedMessage> = self
-                .messages
-                .iter()
-                .filter(|message| message.index <= index)
-                .cloned()
-                .collect();
-
-            // get rid of all messages we're about to send out of the buffer
-            self.messages.retain(|message| message.index > index);
-
-            // advance the index because we've read stuff up to a new high water mark
-            let high_water = index + contiguous_messages.len() as u64 - 1;
-            self.next_index = high_water;
-            println!("Next high water mark is: {}", high_water);
-
-            // dig out the bytes from inside the struct
-            let data: Vec<u8> = contiguous_messages
-                .iter()
-                .flat_map(|message| message.data.clone())
-                .collect();
-
-            println!("Returning {} bytes from ordered message buffer", data.len());
-            Some(data)
         }
-    }
 
-    /// Sorts inserted message fragments for us. We need it in the current
-    /// implementation because we depend on knowing whether the first message is
-    /// at or below the current high water mark when reading.
-    fn insertion_sort<T>(values: &mut [T])
-    where
-        T: PartialOrd,
-    {
-        for i in 0..values.len() {
-            for j in (0..i).rev() {
-                if values[j] >= values[j + 1] {
-                    values.swap(j, j + 1);
-                } else {
-                    break;
-                }
+        let mut contiguous_messages = Vec::new();
+        let mut index = self.next_index;
+        loop {
+            if let Some(ordered_message) = self.messages.remove(&index) {
+                contiguous_messages.push(ordered_message);
+                index += 1;
+            } else {
+                break;
             }
         }
-    }
-}
 
-// allow to drain the OrderedMessageBuffer into all messages it contains
-impl IntoIterator for OrderedMessageBuffer {
-    type Item = OrderedMessage;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
+        let high_water = index;
+        self.next_index = high_water;
+        warn!("Next high water mark is: {}", high_water);
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.messages.into_iter()
+        // dig out the bytes from inside the struct
+        let data: Vec<u8> = contiguous_messages
+            .into_iter()
+            .flat_map(|message| message.data)
+            .collect();
+
+        trace!("Returning {} bytes from ordered message buffer", data.len());
+        Some(data)
     }
 }
 
@@ -282,6 +269,50 @@ mod test_chunking_and_reassembling {
                 buffer.write(one_message);
                 assert!(buffer.read().is_some());
                 assert_eq!(buffer.next_index, 3);
+            }
+
+            #[test]
+            fn works_with_gaps_bigger_than_one() {
+                let mut buffer = OrderedMessageBuffer::new();
+                let zero_message = OrderedMessage {
+                    data: vec![0, 0, 0, 0],
+                    index: 0,
+                };
+                let one_message = OrderedMessage {
+                    data: vec![2, 2, 2, 2],
+                    index: 1,
+                };
+                let two_message = OrderedMessage {
+                    data: vec![2, 2, 2, 2],
+                    index: 2,
+                };
+                let three_message = OrderedMessage {
+                    data: vec![2, 2, 2, 2],
+                    index: 3,
+                };
+                let four_message = OrderedMessage {
+                    data: vec![2, 2, 2, 2],
+                    index: 4,
+                };
+                buffer.write(zero_message);
+                assert!(buffer.read().is_some());
+                assert_eq!(buffer.next_index, 1);
+
+                buffer.write(four_message);
+                assert!(buffer.read().is_none());
+                assert_eq!(buffer.next_index, 1);
+
+                buffer.write(three_message);
+                assert!(buffer.read().is_none());
+                assert_eq!(buffer.next_index, 1);
+
+                buffer.write(two_message);
+                assert!(buffer.read().is_none());
+                assert_eq!(buffer.next_index, 1);
+
+                buffer.write(one_message);
+                assert!(buffer.read().is_some());
+                assert_eq!(buffer.next_index, 5)
             }
         }
     }

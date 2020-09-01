@@ -18,21 +18,8 @@ impl OrderedMessageBuffer {
         trace!("Creating ordered message buffer.");
         OrderedMessageBuffer {
             next_index: 0,
-            // messages: Vec::new(),
             messages: HashMap::new(),
         }
-    }
-
-    pub fn print_indices(&self) {
-        let indices_len: Vec<_> = self
-            .messages
-            .values()
-            .map(|msg| (msg.index, msg.data.len()))
-            .collect();
-        warn!(
-            "NEXT: {} || Current indices: {:?}",
-            self.next_index, indices_len
-        )
     }
 
     /// Writes a message to the buffer. messages are sort on insertion, so
@@ -45,9 +32,7 @@ impl OrderedMessageBuffer {
             message.data.len()
         );
 
-        // self.messages.push(message);
         self.messages.insert(message.index, message);
-        // OrderedMessageBuffer::insertion_sort(&mut self.messages);
     }
 
     /// Returns `Option<Vec<u8>>` where it's `Some(bytes)` if there is gapless

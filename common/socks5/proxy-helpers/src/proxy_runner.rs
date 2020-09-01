@@ -16,7 +16,7 @@ use crate::available_reader::AvailableReader;
 use crate::connection_controller::ConnectionReceiver;
 use futures::channel::mpsc;
 use log::*;
-use ordered_buffer::{OrderedMessage, OrderedMessageBuffer, OrderedMessageSender};
+use ordered_buffer::OrderedMessageSender;
 use socks5_requests::ConnectionId;
 use std::sync::Arc;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
@@ -55,7 +55,6 @@ pub struct ProxyRunner<S> {
 
     // required for in-order delivery
     message_sender: Option<OrderedMessageSender>,
-    ordered_buffer: Option<OrderedMessageBuffer>,
 }
 
 impl<S> ProxyRunner<S>
@@ -68,7 +67,6 @@ where
         mix_sender: MixProxySender<S>,
         connection_id: ConnectionId,
         message_sender: OrderedMessageSender,
-        ordered_buffer: OrderedMessageBuffer,
     ) -> Self {
         ProxyRunner {
             mix_receiver: Some(mix_receiver),
@@ -76,7 +74,6 @@ where
             socket: Some(socket),
             connection_id,
             message_sender: Some(message_sender),
-            ordered_buffer: Some(ordered_buffer),
         }
     }
 
@@ -102,7 +99,7 @@ where
                 }
                 // try to read from local socket and push everything to mixnet to the remote
                 reading_result = &mut available_reader => {
-                    let read_data = match reading_result {
+                    let (read_data, is_finished) = match reading_result {
                         Ok(data) => data,
                         Err(err) => {
                             error!("failed to read request from the socket - {}", err);
@@ -110,28 +107,25 @@ where
                         }
                     };
 
-                    // available reader will never return empty data unless when the socket
-                    // gets closed
-                    let closed_socket = read_data.is_empty();
-
                     info!(
                         "Going to send {} bytes via mixnet to remote {}. Is local closed: {}",
                         read_data.len(),
                         connection_id,
-                        closed_socket
+                        is_finished
                     );
 
                     // if we're sending through the mixnet increase the sequence number...
                     let ordered_msg = message_sender.wrap_message(read_data.to_vec()).into_bytes();
+                    mix_sender.unbounded_send(adapter_fn(connection_id, ordered_msg, is_finished)).unwrap();
 
-                    mix_sender.unbounded_send(adapter_fn(connection_id, ordered_msg, closed_socket)).unwrap();
-
-                    if closed_socket {
+                    if is_finished {
                         // technically we already informed it when we sent the message to mixnet above
                         info!("The local socket is closed - won't receive any more data. Informing remote about that...");
                         // no point in reading from mixnet if connection is closed!
                         notify_closed.notify();
                         break;
+                    } else {
+                        // delay_for(Duration::from_millis(2)).await;
                     }
                 }
             }
@@ -145,8 +139,7 @@ where
         notify_closed: Arc<Notify>,
         mut mix_receiver: ConnectionReceiver,
         connection_id: ConnectionId,
-        mut ordered_buffer: OrderedMessageBuffer,
-    ) -> (OwnedWriteHalf, ConnectionReceiver, OrderedMessageBuffer) {
+    ) -> (OwnedWriteHalf, ConnectionReceiver) {
         loop {
             tokio::select! {
                 _ = notify_closed.notified() => {
@@ -162,43 +155,30 @@ where
                         notify_closed.notify();
                         break
                     }
-
                     let connection_message = mix_data.unwrap();
-                    let ordered_message = match OrderedMessage::try_from_bytes(connection_message.payload) {
-                        Ok(msg) => msg,
-                        Err(err) => {
-                            error!("Malformed ordered message - {:?}", err);
-                            continue
-                        }
-                    };
 
-                    ordered_buffer.write(ordered_message);
+                    info!(
+                        "Going to write {} bytes received from mixnet to connection {}. Is remote closed: {}",
+                        connection_message.payload.len(),
+                        connection_id,
+                        connection_message.socket_closed
+                    );
 
-                    // try to write [to the socket] next sequence
-                    if let Some(msg) = ordered_buffer.read() {
-                        info!(
-                            "Going to write {} bytes received from mixnet to connection {}. Is remote closed: {}",
-                            msg.len(),
-                            connection_id,
-                            connection_message.socket_closed
-                        );
-
-                        if let Err(err) = writer.write_all(&msg).await {
-                            // the other half is probably going to blow up too (if not, this task also needs to notify the other one!!)
-                            error!("failed to write response back to the socket - {}", err);
-                            break;
-                        }
-                        if connection_message.socket_closed {
-                            info!("Remote socket got closed - closing the local socket too");
-                            notify_closed.notify();
-                            break
-                        }
+                    if let Err(err) = writer.write_all(&connection_message.payload).await {
+                        // the other half is probably going to blow up too (if not, this task also needs to notify the other one!!)
+                        error!("failed to write response back to the socket - {}", err);
+                        break;
+                    }
+                    if connection_message.socket_closed {
+                        info!("Remote socket got closed - closing the local socket too");
+                        notify_closed.notify();
+                        break
                     }
                 }
             }
         }
 
-        (writer, mix_receiver, ordered_buffer)
+        (writer, mix_receiver)
     }
 
     // The `adapter_fn` is used to transform whatever was read into appropriate
@@ -227,7 +207,6 @@ where
             notify_clone,
             self.mix_receiver.take().unwrap(),
             self.connection_id,
-            self.ordered_buffer.take().unwrap(),
         );
 
         // TODO: this shouldn't really have to spawn tasks inside "library" code, but
@@ -244,12 +223,11 @@ where
         }
 
         let (read_half, message_sender) = inbound_result.unwrap();
-        let (write_half, mix_receiver, ordered_buffer) = outbound_result.unwrap();
+        let (write_half, mix_receiver) = outbound_result.unwrap();
 
         self.socket = Some(write_half.reunite(read_half).unwrap());
         self.mix_receiver = Some(mix_receiver);
         self.message_sender = Some(message_sender);
-        self.ordered_buffer = Some(ordered_buffer);
         self
     }
 

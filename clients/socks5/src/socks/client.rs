@@ -233,7 +233,6 @@ impl SocksClient {
     ) {
         let stream = self.stream.run_proxy();
         let connection_id = self.connection_id;
-        let ordered_buffer = OrderedMessageBuffer::new();
         let input_sender = self.input_sender.clone();
 
         let recipient = self.service_provider.clone();
@@ -243,7 +242,6 @@ impl SocksClient {
             input_sender,
             connection_id,
             message_sender,
-            ordered_buffer,
         )
         .run(move |conn_id, read_data, socket_closed| {
             let provider_request = Request::new_send(conn_id, read_data, socket_closed);
@@ -264,8 +262,14 @@ impl SocksClient {
 
         // setup for receiving from the mixnet
         let (mix_sender, mix_receiver) = mpsc::unbounded();
+        let ordered_buffer = OrderedMessageBuffer::new();
+
         self.controller_sender
-            .unbounded_send(ControllerCommand::Insert(self.connection_id, mix_sender))
+            .unbounded_send(ControllerCommand::Insert(
+                self.connection_id,
+                mix_sender,
+                ordered_buffer,
+            ))
             .unwrap();
 
         match request.command {
@@ -280,7 +284,7 @@ impl SocksClient {
 
                 // read whatever we can
                 let available_reader = AvailableReader::new(&mut self.stream);
-                let request_data_bytes = available_reader.await?;
+                let (request_data_bytes, _) = available_reader.await?;
                 let ordered_message = message_sender.wrap_message(request_data_bytes.to_vec());
 
                 let socks_provider_request = Request::new_connect(
@@ -292,8 +296,7 @@ impl SocksClient {
 
                 self.send_request_to_mixnet(socks_provider_request).await;
                 info!("Starting proxy for {}", remote_address.clone());
-                self.run_proxy(mix_receiver, message_sender)
-                    .await;
+                self.run_proxy(mix_receiver, message_sender).await;
                 info!("Proxy for {} is finished", remote_address);
             }
 

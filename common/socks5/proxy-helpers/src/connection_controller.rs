@@ -48,6 +48,9 @@ pub enum ControllerCommand {
 /// Controller represents a way of managing multiple open connections that are used for socks5
 /// proxy.
 pub struct Controller {
+    // TODO: this probably needs to be modified to somehow refer to the ordered buffer
+    // as if the message are unordered and we received 'send' before 'connect', we will lose
+    // packets
     active_connections: HashMap<ConnectionId, ConnectionSender>,
     receiver: ControllerReceiver,
 }

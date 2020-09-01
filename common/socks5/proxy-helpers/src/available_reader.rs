@@ -41,6 +41,8 @@ where
     }
 }
 
+// TODO: change to stream?
+
 impl<'a, R: AsyncRead + Unpin> Future for AvailableReader<'a, R> {
     type Output = io::Result<Bytes>;
 

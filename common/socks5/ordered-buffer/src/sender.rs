@@ -14,7 +14,7 @@ impl OrderedMessageSender {
 
     /// Turns raw bytes into an OrderedMessage containing the original bytes
     /// and a sequence number;
-    pub fn into_message(&mut self, input: Vec<u8>) -> OrderedMessage {
+    pub fn wrap_message(&mut self, input: Vec<u8>) -> OrderedMessage {
         let message = OrderedMessage {
             data: input.to_vec(),
             index: self.next_index,
@@ -40,11 +40,11 @@ mod ordered_message_sender {
             let first_bytes = vec![1, 2, 3, 4];
             let second_bytes = vec![5, 6, 7, 8];
 
-            let first_message = sender.into_message(first_bytes);
+            let first_message = sender.wrap_message(first_bytes);
 
             assert_eq!(first_message.index, 0);
 
-            let second_message = sender.into_message(second_bytes);
+            let second_message = sender.wrap_message(second_bytes);
             assert_eq!(second_message.index, 1);
         }
     }

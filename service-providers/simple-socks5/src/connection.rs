@@ -1,6 +1,7 @@
 use futures::channel::mpsc;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
+use ordered_buffer::{OrderedMessageBuffer, OrderedMessageSender};
 use proxy_helpers::connection_controller::ConnectionReceiver;
 use proxy_helpers::proxy_runner::ProxyRunner;
 use socks5_requests::{ConnectionId, RemoteAddress, Response};
@@ -47,16 +48,25 @@ impl Connection {
         &mut self,
         mix_receiver: ConnectionReceiver,
         mix_sender: mpsc::UnboundedSender<(Response, Recipient)>,
+        ordered_buffer: OrderedMessageBuffer,
     ) {
         let stream = self.conn.take().unwrap();
+        let message_sender = OrderedMessageSender::new();
         let connection_id = self.id;
         let recipient = self.return_address;
-        let (stream, _) = ProxyRunner::new(stream, mix_receiver, mix_sender, connection_id)
-            .run(move |conn_id, read_data, socket_closed| {
-                (Response::new(conn_id, read_data, socket_closed), recipient)
-            })
-            .await
-            .into_inner();
+        let (stream, _) = ProxyRunner::new(
+            stream,
+            mix_receiver,
+            mix_sender,
+            connection_id,
+            message_sender,
+            ordered_buffer,
+        )
+        .run(move |conn_id, read_data, socket_closed| {
+            (Response::new(conn_id, read_data, socket_closed), recipient)
+        })
+        .await
+        .into_inner();
         self.conn = Some(stream);
     }
 }

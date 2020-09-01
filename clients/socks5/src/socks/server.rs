@@ -9,7 +9,6 @@ use client_core::client::{
 };
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use ordered_buffer::{OrderedMessageBuffer, OrderedMessageSender};
 use proxy_helpers::connection_controller::Controller;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
@@ -76,8 +75,6 @@ impl SphinxSocksServer {
                     self.service_provider.clone(),
                     controller_sender.clone(),
                     self.self_address.clone(),
-                    OrderedMessageSender::new(),
-                    OrderedMessageBuffer::new(),
                 );
 
                 tokio::spawn(async move {

@@ -5,6 +5,7 @@ use futures::stream::SplitSink;
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
+use ordered_buffer::OrderedMessageBuffer;
 use proxy_helpers::connection_controller::{Controller, ControllerCommand};
 use socks5_requests::{Request, Response};
 use tokio::net::TcpStream;
@@ -112,13 +113,19 @@ impl ServiceProvider {
                     return_address,
                 } => {
                     let controller_sender_clone = controller_sender.clone();
+                    let mut ordered_buffer = OrderedMessageBuffer::new();
+                    ordered_buffer.write(message);
+                    let init_data = ordered_buffer
+                        .read()
+                        .expect("we received connect request but it wasn't sequence 0!");
+
                     // and start the proxy for this connection
                     let mix_input_sender_clone = mix_input_sender.clone();
                     tokio::spawn(async move {
                         let mut conn = match Connection::new(
                             conn_id,
                             remote_addr.clone(),
-                            &message.data, // TODO: we probably need to read this out of the ordered message buffer instead
+                            &init_data,
                             return_address,
                         )
                         .await
@@ -141,7 +148,8 @@ impl ServiceProvider {
                             .unwrap();
 
                         info!("Starting proxy for {}", remote_addr.clone());
-                        conn.run_proxy(mix_receiver, mix_input_sender_clone).await;
+                        conn.run_proxy(mix_receiver, mix_input_sender_clone, ordered_buffer)
+                            .await;
                         // proxy is done - remove the access channel from the controller
                         controller_sender_clone
                             .unbounded_send(ControllerCommand::Remove(conn_id))

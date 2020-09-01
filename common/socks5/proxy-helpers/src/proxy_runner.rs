@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::read_delay_loop::try_read_data;
+use crate::available_reader::AvailableReader;
 use crate::connection_controller::ConnectionReceiver;
 use futures::channel::mpsc;
 use log::*;
+use ordered_buffer::{OrderedMessage, OrderedMessageBuffer, OrderedMessageSender};
 use socks5_requests::ConnectionId;
 use std::sync::Arc;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
@@ -51,6 +52,10 @@ pub struct ProxyRunner<S> {
 
     socket: Option<TcpStream>,
     connection_id: ConnectionId,
+
+    // required for in-order delivery
+    message_sender: Option<OrderedMessageSender>,
+    ordered_buffer: Option<OrderedMessageBuffer>,
 }
 
 impl<S> ProxyRunner<S>
@@ -62,12 +67,16 @@ where
         mix_receiver: ConnectionReceiver,
         mix_sender: MixProxySender<S>,
         connection_id: ConnectionId,
+        message_sender: OrderedMessageSender,
+        ordered_buffer: OrderedMessageBuffer,
     ) -> Self {
         ProxyRunner {
             mix_receiver: Some(mix_receiver),
             mix_sender,
             socket: Some(socket),
             connection_id,
+            message_sender: Some(message_sender),
+            ordered_buffer: Some(ordered_buffer),
         }
     }
 
@@ -77,14 +86,13 @@ where
         connection_id: ConnectionId,
         mix_sender: MixProxySender<S>,
         adapter_fn: F,
-    ) -> OwnedReadHalf
+        mut message_sender: OrderedMessageSender,
+    ) -> (OwnedReadHalf, OrderedMessageSender)
     where
         F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static,
     {
-        // TODO: to be removed with sequence numbers...
-        let socket_read_timeout_duration = std::time::Duration::from_millis(500);
+        let mut available_reader = AvailableReader::new(&mut reader);
 
-        let address = reader.as_ref().peer_addr().unwrap().to_string();
         loop {
             tokio::select! {
                 _ = notify_closed.notified() => {
@@ -93,8 +101,8 @@ where
                     break
                 }
                 // try to read from local socket and push everything to mixnet to the remote
-                reading_result = try_read_data(socket_read_timeout_duration, &mut reader, &address) => {
-                    let (read_data, timed_out) = match reading_result {
+                reading_result = &mut available_reader => {
+                    let read_data = match reading_result {
                         Ok(data) => data,
                         Err(err) => {
                             error!("failed to read request from the socket - {}", err);
@@ -102,21 +110,23 @@ where
                         }
                     };
 
-                    if read_data.is_empty() && timed_out {
-                        // no point in writing empty data on each timeout
-                        continue
-                    }
+                    // available reader will never return empty data unless when the socket
+                    // gets closed
+                    let closed_socket = read_data.is_empty();
 
                     info!(
                         "Going to send {} bytes via mixnet to remote {}. Is local closed: {}",
                         read_data.len(),
                         connection_id,
-                        !timed_out
+                        closed_socket
                     );
 
-                    mix_sender.unbounded_send(adapter_fn(connection_id, read_data, !timed_out)).unwrap();
+                    // if we're sending through the mixnet increase the sequence number...
+                    let ordered_msg = message_sender.wrap_message(read_data.to_vec()).into_bytes();
 
-                    if !timed_out {
+                    mix_sender.unbounded_send(adapter_fn(connection_id, ordered_msg, closed_socket)).unwrap();
+
+                    if closed_socket {
                         // technically we already informed it when we sent the message to mixnet above
                         info!("The local socket is closed - won't receive any more data. Informing remote about that...");
                         // no point in reading from mixnet if connection is closed!
@@ -127,7 +137,7 @@ where
             }
         }
 
-        reader
+        (reader, message_sender)
     }
 
     async fn run_outbound(
@@ -135,7 +145,8 @@ where
         notify_closed: Arc<Notify>,
         mut mix_receiver: ConnectionReceiver,
         connection_id: ConnectionId,
-    ) -> (OwnedWriteHalf, ConnectionReceiver) {
+        mut ordered_buffer: OrderedMessageBuffer,
+    ) -> (OwnedWriteHalf, ConnectionReceiver, OrderedMessageBuffer) {
         loop {
             tokio::select! {
                 _ = notify_closed.notified() => {
@@ -151,30 +162,43 @@ where
                         notify_closed.notify();
                         break
                     }
+
                     let connection_message = mix_data.unwrap();
+                    let ordered_message = match OrderedMessage::try_from_bytes(connection_message.payload) {
+                        Ok(msg) => msg,
+                        Err(err) => {
+                            error!("Malformed ordered message - {:?}", err);
+                            continue
+                        }
+                    };
 
-                    info!(
-                        "Going to write {} bytes received from mixnet to connection {}. Is remote closed: {}",
-                        connection_message.payload.len(),
-                        connection_id,
-                        connection_message.socket_closed
-                    );
+                    ordered_buffer.write(ordered_message);
 
-                    if let Err(err) = writer.write_all(&connection_message.payload).await {
-                        // the other half is probably going to blow up too (if not, this task also needs to notify the other one!!)
-                        error!("failed to write response back to the socket - {}", err);
-                        break;
-                    }
-                    if connection_message.socket_closed {
-                        info!("Remote socket got closed - closing the local socket too");
-                        notify_closed.notify();
-                        break
+                    // try to write [to the socket] next sequence
+                    if let Some(msg) = ordered_buffer.read() {
+                        info!(
+                            "Going to write {} bytes received from mixnet to connection {}. Is remote closed: {}",
+                            msg.len(),
+                            connection_id,
+                            connection_message.socket_closed
+                        );
+
+                        if let Err(err) = writer.write_all(&msg).await {
+                            // the other half is probably going to blow up too (if not, this task also needs to notify the other one!!)
+                            error!("failed to write response back to the socket - {}", err);
+                            break;
+                        }
+                        if connection_message.socket_closed {
+                            info!("Remote socket got closed - closing the local socket too");
+                            notify_closed.notify();
+                            break
+                        }
                     }
                 }
             }
         }
 
-        (writer, mix_receiver)
+        (writer, mix_receiver, ordered_buffer)
     }
 
     // The `adapter_fn` is used to transform whatever was read into appropriate
@@ -187,7 +211,6 @@ where
         let notify_clone = Arc::clone(&notify_closed);
 
         let (read_half, write_half) = self.socket.take().unwrap().into_split();
-        let mix_receiver = self.mix_receiver.take().unwrap();
 
         // should run until either inbound closes or is notified from outbound
         let inbound_future = Self::run_inbound(
@@ -196,9 +219,16 @@ where
             self.connection_id,
             self.mix_sender.clone(),
             adapter_fn,
+            self.message_sender.take().unwrap(),
         );
-        let outbound_future =
-            Self::run_outbound(write_half, notify_clone, mix_receiver, self.connection_id);
+
+        let outbound_future = Self::run_outbound(
+            write_half,
+            notify_clone,
+            self.mix_receiver.take().unwrap(),
+            self.connection_id,
+            self.ordered_buffer.take().unwrap(),
+        );
 
         // TODO: this shouldn't really have to spawn tasks inside "library" code, but
         // if we used join directly, stuff would have been executed on the same thread
@@ -213,10 +243,13 @@ where
             panic!("TODO: some future error?")
         }
 
-        let (write_half, mix_receiver) = outbound_result.unwrap();
+        let (read_half, message_sender) = inbound_result.unwrap();
+        let (write_half, mix_receiver, ordered_buffer) = outbound_result.unwrap();
 
-        self.socket = Some(write_half.reunite(inbound_result.unwrap()).unwrap());
+        self.socket = Some(write_half.reunite(read_half).unwrap());
         self.mix_receiver = Some(mix_receiver);
+        self.message_sender = Some(message_sender);
+        self.ordered_buffer = Some(ordered_buffer);
         self
     }
 

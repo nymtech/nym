@@ -13,6 +13,7 @@ tokio = { version = "0.2", features = [ "tcp", "io-util", "sync", "macros", "tim
 futures = "0.3"
 log = "0.4"
 socks5-requests = { path = "../requests" }
+ordered-buffer = { path = "../ordered-buffer" }
 
 [dev-dependencies]
 tokio = { version = "0.2", features = ["rt-threaded"] }

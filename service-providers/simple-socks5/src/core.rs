@@ -5,11 +5,12 @@ use futures::stream::SplitSink;
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use simple_socks5_requests::{Request, Response};
+use ordered_buffer::OrderedMessageBuffer;
+use proxy_helpers::connection_controller::{Controller, ControllerCommand};
+use socks5_requests::{Request, Response};
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::WebSocketStream;
-use utils::connection_controller::{Controller, ControllerCommand};
 use websocket::WebsocketConnectionError;
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
@@ -108,17 +109,23 @@ impl ServiceProvider {
                 Request::Connect {
                     conn_id,
                     remote_addr,
-                    data,
+                    message,
                     return_address,
                 } => {
                     let controller_sender_clone = controller_sender.clone();
+                    let mut ordered_buffer = OrderedMessageBuffer::new();
+                    ordered_buffer.write(message);
+                    let init_data = ordered_buffer
+                        .read()
+                        .expect("we received connect request but it wasn't sequence 0!");
+
                     // and start the proxy for this connection
                     let mix_input_sender_clone = mix_input_sender.clone();
                     tokio::spawn(async move {
                         let mut conn = match Connection::new(
                             conn_id,
                             remote_addr.clone(),
-                            &data,
+                            &init_data,
                             return_address,
                         )
                         .await
@@ -137,7 +144,11 @@ impl ServiceProvider {
                         // Connect implies it's a fresh connection - register it with our controller
                         let (mix_sender, mix_receiver) = mpsc::unbounded();
                         controller_sender_clone
-                            .unbounded_send(ControllerCommand::Insert(conn_id, mix_sender))
+                            .unbounded_send(ControllerCommand::Insert(
+                                conn_id,
+                                mix_sender,
+                                ordered_buffer,
+                            ))
                             .unwrap();
 
                         info!("Starting proxy for {}", remote_addr.clone());

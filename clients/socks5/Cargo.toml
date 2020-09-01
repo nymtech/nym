@@ -31,9 +31,10 @@ directory-client = { path = "../../common/client-libs/directory-client" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 nymsphinx = { path = "../../common/nymsphinx" }
-simple-socks5-requests = { path = "../../service-providers/simple-socks5/simple-socks5-requests" }
+ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
+socks5-requests = { path = "../../common/socks5/requests" }
 topology = { path = "../../common/topology" }
-utils = { path = "../../common/utils" }
+proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
 
 [build-dependencies]
 built = "0.4.3"

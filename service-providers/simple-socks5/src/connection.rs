@@ -1,11 +1,12 @@
 use futures::channel::mpsc;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use simple_socks5_requests::{ConnectionId, RemoteAddress, Response};
+use ordered_buffer::OrderedMessageSender;
+use proxy_helpers::connection_controller::ConnectionReceiver;
+use proxy_helpers::proxy_runner::ProxyRunner;
+use socks5_requests::{ConnectionId, RemoteAddress, Response};
 use tokio::net::TcpStream;
 use tokio::prelude::*;
-use utils::connection_controller::ConnectionReceiver;
-use utils::proxy_runner::ProxyRunner;
 
 /// A TCP connection between the Socks5 service provider, which makes
 /// outbound requests on behalf of users and returns the responses through
@@ -49,14 +50,21 @@ impl Connection {
         mix_sender: mpsc::UnboundedSender<(Response, Recipient)>,
     ) {
         let stream = self.conn.take().unwrap();
+        let message_sender = OrderedMessageSender::new();
         let connection_id = self.id;
         let recipient = self.return_address;
-        let (stream, _) = ProxyRunner::new(stream, mix_receiver, mix_sender, connection_id)
-            .run(move |conn_id, read_data, socket_closed| {
-                (Response::new(conn_id, read_data, socket_closed), recipient)
-            })
-            .await
-            .into_inner();
+        let (stream, _) = ProxyRunner::new(
+            stream,
+            mix_receiver,
+            mix_sender,
+            connection_id,
+            message_sender,
+        )
+        .run(move |conn_id, read_data, socket_closed| {
+            (Response::new(conn_id, read_data, socket_closed), recipient)
+        })
+        .await
+        .into_inner();
         self.conn = Some(stream);
     }
 }

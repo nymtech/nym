@@ -3,7 +3,6 @@ use super::{utils as socks_utils, SOCKS_VERSION};
 use log::*;
 use std::net::SocketAddr;
 use tokio::prelude::*;
-use utils::read_delay_loop::try_read_data;
 
 /// A Socks5 request hitting the proxy.
 pub(crate) struct SocksRequest {
@@ -108,19 +107,6 @@ impl SocksRequest {
     /// Convert the request object to a SocketAddr
     pub(crate) fn to_socket(&self) -> Result<Vec<SocketAddr>, SocksProxyError> {
         socks_utils::addr_to_socket(&self.addr_type, &self.addr, self.port)
-    }
-
-    /// Attempts to read data from the Socks5 request stream. Times out and
-    /// returns what it's got if no data is read for the timeout_duration
-    pub(crate) async fn try_read_request_data<R>(
-        reader: &mut R,
-        remote_address: &str,
-    ) -> io::Result<(Vec<u8>, bool)>
-    where
-        R: AsyncRead + Unpin,
-    {
-        let timeout_duration = std::time::Duration::from_millis(500);
-        try_read_data(timeout_duration, reader, remote_address).await
     }
 }
 

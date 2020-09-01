@@ -1,5 +1,5 @@
 [package]
-name = "utils"
+name = "proxy-helpers"
 version = "0.1.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2018"
@@ -12,7 +12,8 @@ bytes = "0.5"
 tokio = { version = "0.2", features = [ "tcp", "io-util", "sync", "macros", "time" ] }
 futures = "0.3"
 log = "0.4"
-simple-socks5-requests = { path = "../../service-providers/simple-socks5/simple-socks5-requests" }
+socks5-requests = { path = "../requests" }
+ordered-buffer = { path = "../ordered-buffer" }
 
 [dev-dependencies]
 tokio = { version = "0.2", features = ["rt-threaded"] }

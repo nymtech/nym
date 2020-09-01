@@ -1919,6 +1919,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ordered-buffer"
+version = "0.1.0"
+dependencies = [
+ "log 0.4.8",
+]
+
+[[package]]
 name = "parking_lot"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2259,6 +2266,19 @@ checksum = "db5473ffa23d2ea3b9046764f1a22149791967aad946b6cbd99601e720afc4d0"
 dependencies = [
  "protobuf",
  "protobuf-codegen",
+]
+
+[[package]]
+name = "proxy-helpers"
+version = "0.1.0"
+dependencies = [
+ "bytes 0.5.4",
+ "futures 0.3.4",
+ "log 0.4.8",
+ "ordered-buffer",
+ "socks5-requests",
+ "tokio 0.2.22",
+ "tokio-test",
 ]
 
 [[package]]
@@ -2745,19 +2765,13 @@ dependencies = [
  "futures 0.3.4",
  "log 0.4.8",
  "nymsphinx",
+ "ordered-buffer",
  "pretty_env_logger",
- "simple-socks5-requests",
+ "proxy-helpers",
+ "socks5-requests",
  "tokio 0.2.22",
  "tokio-tungstenite",
- "utils",
  "websocket-requests",
-]
-
-[[package]]
-name = "simple-socks5-requests"
-version = "0.1.0"
-dependencies = [
- "nymsphinx-addressing",
 ]
 
 [[package]]
@@ -2871,17 +2885,26 @@ dependencies = [
  "gateway-requests",
  "log 0.4.8",
  "nymsphinx",
+ "ordered-buffer",
  "pin-project",
  "pretty_env_logger",
+ "proxy-helpers",
  "rand 0.7.3",
  "serde",
- "simple-socks5-requests",
  "snafu",
+ "socks5-requests",
  "tempfile",
  "tokio 0.2.22",
  "topology",
  "url 2.1.1",
- "utils",
+]
+
+[[package]]
+name = "socks5-requests"
+version = "0.1.0"
+dependencies = [
+ "nymsphinx-addressing",
+ "ordered-buffer",
 ]
 
 [[package]]
@@ -3452,18 +3475,6 @@ name = "utf-8"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05e42f7c18b8f902290b009cde6d651262f956c98bc51bca4cd1d511c9cd85c7"
-
-[[package]]
-name = "utils"
-version = "0.1.0"
-dependencies = [
- "bytes 0.5.4",
- "futures 0.3.4",
- "log 0.4.8",
- "simple-socks5-requests",
- "tokio 0.2.22",
- "tokio-test",
-]
 
 [[package]]
 name = "validator-client"

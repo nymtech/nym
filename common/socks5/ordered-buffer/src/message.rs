@@ -6,7 +6,7 @@ pub enum MessageError {
     IndexTooShort,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OrderedMessage {
     pub data: Vec<u8>,
     pub index: u64,
@@ -45,9 +45,9 @@ impl OrderedMessage {
 }
 
 /// Order messages by their index only, ignoring their data
-impl Ord for OrderedMessage {
-    fn cmp(&self, other: &Self) -> Ordering {
-        (self.index).cmp(&(other.index))
+impl PartialOrd for OrderedMessage {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some((self.index).cmp(&(other.index)))
     }
 }
 
@@ -104,4 +104,24 @@ mod ordered_message_from_bytes {
             OrderedMessage::try_from_bytes(vec![0, 0, 0, 0, 0, 0, 0, 1, 255, 255, 255]).unwrap();
         assert_eq!(expected, result);
     }
+}
+
+#[test]
+fn empty_message_does_not_affect_ordering() {
+    let mut msg1 = OrderedMessage {
+        data: vec![255, 255, 255],
+        index: 1,
+    };
+
+    let mut msg2 = OrderedMessage {
+        data: vec![],
+        index: 2,
+    };
+
+    assert!(msg1 < msg2);
+
+    msg1.index = 2;
+    msg2.index = 1;
+
+    assert!(msg1 > msg2);
 }

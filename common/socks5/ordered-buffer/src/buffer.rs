@@ -78,7 +78,7 @@ impl OrderedMessageBuffer {
     /// at or below the current high water mark when reading.
     fn insertion_sort<T>(values: &mut [T])
     where
-        T: Ord,
+        T: PartialOrd,
     {
         for i in 0..values.len() {
             for j in (0..i).rev() {
@@ -89,6 +89,16 @@ impl OrderedMessageBuffer {
                 }
             }
         }
+    }
+}
+
+// allow to drain the OrderedMessageBuffer into all messages it contains
+impl IntoIterator for OrderedMessageBuffer {
+    type Item = OrderedMessage;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.messages.into_iter()
     }
 }
 
@@ -247,6 +257,31 @@ mod test_chunking_and_reassembling {
 
                 // at this point we should again get back nothing if we try a read
                 assert_eq!(None, buffer.read());
+            }
+
+            #[test]
+            fn filling_the_gap_allows_us_to_get_everything_when_last_element_is_empty() {
+                let mut buffer = OrderedMessageBuffer::new();
+                let zero_message = OrderedMessage {
+                    data: vec![0, 0, 0, 0],
+                    index: 0,
+                };
+                let one_message = OrderedMessage {
+                    data: vec![2, 2, 2, 2],
+                    index: 1,
+                };
+                let two_message = OrderedMessage {
+                    data: vec![],
+                    index: 2,
+                };
+
+                buffer.write(zero_message);
+                assert!(buffer.read().is_some()); // burn the buffer
+
+                buffer.write(two_message);
+                buffer.write(one_message);
+                assert!(buffer.read().is_some());
+                assert_eq!(buffer.next_index, 3);
             }
         }
     }

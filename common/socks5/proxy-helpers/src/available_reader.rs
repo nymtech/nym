@@ -151,27 +151,4 @@ mod tests {
         assert_eq!(read_data, data);
         assert!(is_finished)
     }
-
-    #[tokio::test]
-    async fn available_reader_will_read_more_data_if_received_within_grace_period() {
-        let first_data_chunk = vec![42u8; 100];
-        let second_data_chunk = vec![123u8; 100];
-
-        let mut reader_mock = tokio_test::io::Builder::new()
-            .read(&first_data_chunk)
-            .wait(Duration::from_millis(5)) // delay < GRACE PERIOD
-            .read(&second_data_chunk)
-            .build();
-
-        let available_reader = AvailableReader::new(&mut reader_mock);
-        let (read_data, is_finished) = available_reader.await.unwrap();
-
-        let both_chunks: Vec<_> = first_data_chunk
-            .into_iter()
-            .chain(second_data_chunk.into_iter())
-            .collect();
-
-        assert_eq!(read_data, both_chunks);
-        assert!(is_finished)
-    }
 }

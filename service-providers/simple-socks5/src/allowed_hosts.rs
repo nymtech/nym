@@ -87,6 +87,11 @@ mod requests_to_unknown_hosts {
         let mut filter = setup();
         filter.check(host);
         assert_eq!(1, filter.unknown_hosts.hosts.len());
+        assert_eq!("unknown.com", filter.unknown_hosts.hosts.first().unwrap());
+
+        filter.check(host);
+        assert_eq!(1, filter.unknown_hosts.hosts.len());
+        assert_eq!("unknown.com", filter.unknown_hosts.hosts.first().unwrap());
     }
 }
 

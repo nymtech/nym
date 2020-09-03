@@ -1,12 +1,12 @@
 struct OutboundRequestFilter {
-    allowed_hosts: Persistence,
-    unknown_hosts: Persistence,
+    allowed_hosts: HostsStore,
+    unknown_hosts: HostsStore,
 }
 
 impl OutboundRequestFilter {
     pub(crate) fn new(
-        allowed_hosts: Persistence,
-        unknown_hosts: Persistence,
+        allowed_hosts: HostsStore,
+        unknown_hosts: HostsStore,
     ) -> OutboundRequestFilter {
         OutboundRequestFilter {
             allowed_hosts,
@@ -30,13 +30,13 @@ impl OutboundRequestFilter {
 }
 
 #[derive(Debug)]
-struct Persistence {
+struct HostsStore {
     hosts: Vec<String>,
 }
 
-impl Persistence {
-    fn new(hosts: Vec<String>) -> Persistence {
-        Persistence { hosts }
+impl HostsStore {
+    fn new(hosts: Vec<String>) -> HostsStore {
+        HostsStore { hosts }
     }
 
     fn contains(&self, host: String) -> bool {
@@ -61,8 +61,8 @@ mod requests_to_unknown_hosts {
     use super::*;
 
     fn setup() -> OutboundRequestFilter {
-        let allowed = Persistence::new(vec![]);
-        let unknown = Persistence::new(vec![]);
+        let allowed = HostsStore::new(vec![]);
+        let unknown = HostsStore::new(vec![]);
         OutboundRequestFilter::new(allowed, unknown)
     }
 
@@ -95,8 +95,8 @@ mod requests_to_allowed_hosts {
     use super::*;
 
     fn setup() -> OutboundRequestFilter {
-        let allowed = Persistence::new(vec!["nymtech.net".to_string()]);
-        let unknown = Persistence::new(vec![]);
+        let allowed = HostsStore::new(vec!["nymtech.net".to_string()]);
+        let unknown = HostsStore::new(vec![]);
         OutboundRequestFilter::new(allowed, unknown)
     }
 

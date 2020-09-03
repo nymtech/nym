@@ -1,3 +1,4 @@
+mod allowed_hosts;
 mod connection;
 mod core;
 mod websocket;

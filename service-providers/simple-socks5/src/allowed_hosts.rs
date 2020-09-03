@@ -15,11 +15,10 @@ impl OutboundRequestFilter {
     }
 
     pub(crate) fn check(&mut self, host: &str) -> bool {
-        let hostname = host.to_string().clone();
-        if self.allowed_hosts.contains(hostname.clone()) {
+        if self.allowed_hosts.contains(host) {
             true
         } else {
-            self.unknown_hosts.maybe_add(hostname);
+            self.unknown_hosts.maybe_add(host);
             false
         }
     }
@@ -39,13 +38,13 @@ impl HostsStore {
         HostsStore { hosts }
     }
 
-    fn contains(&self, host: String) -> bool {
-        self.hosts.contains(&host)
+    fn contains(&self, host: &str) -> bool {
+        self.hosts.contains(&host.to_string())
     }
 
-    fn maybe_add(&mut self, host: String) {
-        if !self.contains(host.clone()) {
-            self.hosts.push(host);
+    fn maybe_add(&mut self, host: &str) {
+        if !self.contains(&host) {
+            self.hosts.push(host.to_string());
         }
     }
 

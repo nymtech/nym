@@ -2762,6 +2762,7 @@ name = "simple-socks5"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "dirs 2.0.2",
  "futures 0.3.4",
  "log 0.4.8",
  "nymsphinx",

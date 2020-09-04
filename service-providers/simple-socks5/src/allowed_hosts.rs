@@ -1,6 +1,11 @@
+use fs::File;
 use std::fs::{self};
 use std::path::PathBuf;
 
+/// Filters outbound requests based on what's in an `allowed_hosts` list.
+///
+/// Requests to unknown hosts are automatically written to an `unknown_hosts`
+/// list so that they can be copy/pasted into the `allowed_hosts` list if desired.
 struct OutboundRequestFilter {
     allowed_hosts: HostsStore,
     unknown_hosts: HostsStore,
@@ -31,29 +36,34 @@ impl OutboundRequestFilter {
     }
 }
 
+/// A simple file-based store for information about allowed / unknown hosts.
 #[derive(Debug)]
 struct HostsStore {
-    storefile: String,
+    storefile: PathBuf,
     hosts: Vec<String>,
 }
 
 impl HostsStore {
-    fn new(filename: &str, hosts: Vec<String>) -> HostsStore {
-        let dirpath = HostsStore::setup_storage_path();
-        let filepath = dirpath.join(filename);
-        HostsStore {
-            storefile: filepath.to_str().unwrap().to_string(),
-            hosts,
-        }
+    /// Constructs a new HostsStore
+    fn new(base_dir: PathBuf, filename: PathBuf, hosts: Vec<String>) -> HostsStore {
+        let storefile = HostsStore::setup_storefile(base_dir, filename);
+        HostsStore { storefile, hosts }
+    }
+
+    /// Returns the default base directory for the storefile.
+    ///
+    /// This is split out so we can easily inject our own base_dir for unit tests.
+    pub fn default_base_dir() -> PathBuf {
+        dirs::home_dir()
+            .expect("no home directory known for this OS")
+            .join(".nym")
     }
 
     fn contains(&self, host: &str) -> bool {
         self.hosts.contains(&host.to_string())
     }
 
-    fn ensure_directory_exists(dirpath: &PathBuf) {
-        fs::create_dir_all(dirpath);
-    }
+    fn ensure_storefile_exists(dirpath: &PathBuf) {}
 
     fn maybe_add(&mut self, host: &str) {
         if !self.contains(&host) {
@@ -66,14 +76,18 @@ impl HostsStore {
         fs::write(&self.storefile, host)?;
         Ok(())
     }
-    fn setup_storage_path() -> PathBuf {
-        let os_home_dir = dirs::home_dir().expect("no home directory known for this OS"); // grabs the OS default home dir
-        let dirpath = os_home_dir
-            .join(".nym")
-            .join("service-providers")
-            .join("socks5");
-        HostsStore::ensure_directory_exists(&dirpath);
-        dirpath
+    fn setup_storefile(base_dir: PathBuf, filename: PathBuf) -> PathBuf {
+        let dirpath = base_dir.join("service-providers").join("socks5");
+        fs::create_dir_all(&dirpath).expect(&format!(
+            "could not create storage directory at {:?}",
+            dirpath
+        ));
+        let storefile = dirpath.join(filename);
+        let exists = std::path::Path::new(&storefile).exists();
+        if !exists {
+            File::create(&storefile).unwrap();
+        }
+        storefile
     }
 
     /// Reloads the allowed.list and unknown.list files into memory. Used primarily for testing.
@@ -90,8 +104,11 @@ mod tests {
         use super::*;
 
         fn setup() -> OutboundRequestFilter {
-            let allowed = HostsStore::new(&format!("allowed-{}.list", random_string()), vec![]);
-            let unknown = HostsStore::new(&format!("unknown-{}.list", random_string()), vec![]);
+            let base_dir: PathBuf = ["/tmp/nym-tests"].iter().collect();
+            let allowed_filename = PathBuf::from(format!("allowed-{}.list", random_string()));
+            let unknown_filename = PathBuf::from(&format!("unknown-{}.list", random_string()));
+            let allowed = HostsStore::new(base_dir.clone(), allowed_filename, vec![]);
+            let unknown = HostsStore::new(base_dir.clone(), unknown_filename, vec![]);
             OutboundRequestFilter::new(allowed, unknown)
         }
 
@@ -139,14 +156,17 @@ mod tests {
     mod requests_to_allowed_hosts {
         use super::*;
         fn setup() -> OutboundRequestFilter {
-            let allowed_hosts = HostsStore::new(
-                &format!("allowed-{}.list", random_string()),
+            let base_dir: PathBuf = ["/tmp/nym"].iter().collect();
+            let allowed_filename = PathBuf::from(format!("allowed-{}.list", random_string()));
+            let unknown_filename = PathBuf::from(&format!("unknown-{}.list", random_string()));
+            let allowed = HostsStore::new(
+                base_dir.clone(),
+                allowed_filename,
                 vec!["nymtech.net".to_string()],
             );
-            let unknown_hosts =
-                HostsStore::new(&format!("unknown-{}.list", random_string()), vec![]);
+            let unknown = HostsStore::new(base_dir.clone(), unknown_filename, vec![]);
 
-            OutboundRequestFilter::new(allowed_hosts, unknown_hosts)
+            OutboundRequestFilter::new(allowed, unknown)
         }
         #[test]
         fn are_allowed() {

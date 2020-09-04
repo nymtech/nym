@@ -1,5 +1,10 @@
-use fs::File;
-use std::fs::{self};
+use fs::OpenOptions;
+use io::BufReader;
+use std::fs;
+use std::fs::File;
+use std::io;
+use std::io::BufRead;
+use std::path::Path;
 use std::path::PathBuf;
 
 /// Filters outbound requests based on what's in an `allowed_hosts` list.
@@ -22,6 +27,9 @@ impl OutboundRequestFilter {
         }
     }
 
+    /// Returns `true` if a host is in the `allowed_hosts` list.
+    ///
+    /// If it's not in the list, return `false` and write it to the `unknown_hosts` storefile.
     pub(crate) fn check(&mut self, host: &str) -> bool {
         if self.allowed_hosts.contains(host) {
             true
@@ -29,10 +37,6 @@ impl OutboundRequestFilter {
             self.unknown_hosts.maybe_add(host);
             false
         }
-    }
-
-    pub(crate) fn is_unknown(&self, host: &str) -> bool {
-        !self.allowed_hosts.contains(host)
     }
 }
 
@@ -45,9 +49,37 @@ struct HostsStore {
 
 impl HostsStore {
     /// Constructs a new HostsStore
-    fn new(base_dir: PathBuf, filename: PathBuf, hosts: Vec<String>) -> HostsStore {
+    fn new(base_dir: PathBuf, filename: PathBuf) -> HostsStore {
         let storefile = HostsStore::setup_storefile(base_dir, filename);
+        let hosts = HostsStore::load_from_storefile(&storefile).expect(&format!(
+            "Could not load hosts from storefile at {:?}",
+            storefile
+        ));
         HostsStore { storefile, hosts }
+    }
+
+    fn append(path: &PathBuf, text: &str) {
+        use std::io::Write;
+        let mut file = OpenOptions::new()
+            .write(true)
+            .append(true)
+            .open(path)
+            .unwrap();
+
+        if let Err(e) = writeln!(file, "{}", text) {
+            eprintln!("Couldn't write to file: {}", e);
+        }
+    }
+
+    fn append_to_file(&self, host: &str) {
+        fs::write(&self.storefile, host).expect(&format!(
+            "Could not write to storage file at {:?}",
+            self.storefile
+        ));
+    }
+
+    fn contains(&self, host: &str) -> bool {
+        self.hosts.contains(&host.to_string())
     }
 
     /// Returns the default base directory for the storefile.
@@ -59,12 +91,6 @@ impl HostsStore {
             .join(".nym")
     }
 
-    fn contains(&self, host: &str) -> bool {
-        self.hosts.contains(&host.to_string())
-    }
-
-    fn ensure_storefile_exists(dirpath: &PathBuf) {}
-
     fn maybe_add(&mut self, host: &str) {
         if !self.contains(&host) {
             self.hosts.push(host.to_string());
@@ -72,10 +98,6 @@ impl HostsStore {
         }
     }
 
-    fn append_to_file(&self, host: &str) -> std::io::Result<()> {
-        fs::write(&self.storefile, host)?;
-        Ok(())
-    }
     fn setup_storefile(base_dir: PathBuf, filename: PathBuf) -> PathBuf {
         let dirpath = base_dir.join("service-providers").join("socks5");
         fs::create_dir_all(&dirpath).expect(&format!(
@@ -90,10 +112,17 @@ impl HostsStore {
         storefile
     }
 
-    /// Reloads the allowed.list and unknown.list files into memory. Used primarily for testing.
-    fn reload_from_disk(&self) {}
+    /// Loads the storefile contents into memory.
+    fn load_from_storefile<P>(filename: P) -> io::Result<Vec<String>>
+    where
+        P: AsRef<Path>,
+    {
+        let file = File::open(filename)?;
+        let reader = BufReader::new(&file);
+        let lines: Vec<String> = reader.lines().collect::<Result<_, _>>().unwrap();
+        Ok(lines)
+    }
 }
-// Appender
 
 #[cfg(test)]
 mod tests {
@@ -104,11 +133,11 @@ mod tests {
         use super::*;
 
         fn setup() -> OutboundRequestFilter {
-            let base_dir: PathBuf = ["/tmp/nym-tests"].iter().collect();
+            let base_dir = test_base_dir();
             let allowed_filename = PathBuf::from(format!("allowed-{}.list", random_string()));
             let unknown_filename = PathBuf::from(&format!("unknown-{}.list", random_string()));
-            let allowed = HostsStore::new(base_dir.clone(), allowed_filename, vec![]);
-            let unknown = HostsStore::new(base_dir.clone(), unknown_filename, vec![]);
+            let allowed = HostsStore::new(base_dir.clone(), allowed_filename);
+            let unknown = HostsStore::new(base_dir.clone(), unknown_filename);
             OutboundRequestFilter::new(allowed, unknown)
         }
 
@@ -117,14 +146,6 @@ mod tests {
             let host = "unknown.com";
             let mut filter = setup();
             assert_eq!(false, filter.check(&host));
-        }
-
-        #[test]
-        fn get_saved_to_file() {
-            let host = "unknown.com";
-            let mut filter = setup();
-            filter.check(host);
-            assert!(true, filter.is_unknown(host));
         }
 
         #[test]
@@ -138,64 +159,40 @@ mod tests {
             assert_eq!(1, filter.unknown_hosts.hosts.len());
             assert_eq!("unknown.com", filter.unknown_hosts.hosts.first().unwrap());
         }
-
-        #[test]
-        fn are_written_once_to_file() {
-            let host = "unknown.com";
-            let mut filter = setup();
-            filter.check(host);
-            let lines = lines_from_file(&filter.unknown_hosts.storefile).unwrap();
-            assert_eq!(1, lines.len());
-
-            filter.check(host);
-            let lines = lines_from_file(&filter.unknown_hosts.storefile).unwrap();
-            assert_eq!(1, lines.len());
-        }
     }
     #[cfg(test)]
     mod requests_to_allowed_hosts {
         use super::*;
         fn setup() -> OutboundRequestFilter {
-            let base_dir: PathBuf = ["/tmp/nym"].iter().collect();
-            let allowed_filename = PathBuf::from(format!("allowed-{}.list", random_string()));
-            let unknown_filename = PathBuf::from(&format!("unknown-{}.list", random_string()));
-            let allowed = HostsStore::new(
-                base_dir.clone(),
-                allowed_filename,
-                vec!["nymtech.net".to_string()],
-            );
-            let unknown = HostsStore::new(base_dir.clone(), unknown_filename, vec![]);
+            let (allowed_storefile, base_dir1, allowed_filename) = create_test_storefile();
+            let (_, base_dir2, unknown_filename) = create_test_storefile();
+            HostsStore::append(&allowed_storefile, "nymtech.net");
 
+            let allowed = HostsStore::new(base_dir1, allowed_filename.to_path_buf());
+            let unknown = HostsStore::new(base_dir2, unknown_filename.to_path_buf());
             OutboundRequestFilter::new(allowed, unknown)
         }
         #[test]
         fn are_allowed() {
             let host = "nymtech.net";
+
             let mut filter = setup();
             assert_eq!(true, filter.check(host));
         }
 
         #[test]
-        fn are_not_unknown() {
-            let host = "nymtech.net";
-            let mut filter = setup();
-            assert_eq!(false, filter.is_unknown(host));
-        }
-
-        #[test]
         fn are_not_appended_to_file() {
-            let host = "nymtech.net";
             let mut filter = setup();
 
             // test initial state
-            let lines = lines_from_file(&filter.allowed_hosts.storefile).unwrap();
-            assert_eq!(0, lines.len());
+            let lines = HostsStore::load_from_storefile(&filter.allowed_hosts.storefile).unwrap();
+            assert_eq!(1, lines.len());
 
-            filter.check(host);
+            filter.check("nymtech.net");
 
             // test state after we've checked to make sure no unexpected changes
-            let lines = lines_from_file(&filter.allowed_hosts.storefile).unwrap();
-            assert_eq!(0, lines.len());
+            let lines = HostsStore::load_from_storefile(&filter.allowed_hosts.storefile).unwrap();
+            assert_eq!(1, lines.len());
         }
     }
 
@@ -203,19 +200,34 @@ mod tests {
         format!("{:?}", rand::random::<u32>())
     }
 
-    use io::BufReader;
-    use std::fs::File;
-    use std::io;
-    use std::io::BufRead;
-    use std::path::Path;
+    fn test_base_dir() -> PathBuf {
+        ["/tmp/nym-tests"].iter().collect()
+    }
 
-    fn lines_from_file<P>(filename: P) -> io::Result<Vec<String>>
-    where
-        P: AsRef<Path>,
-    {
-        let file = File::open(filename)?;
-        let reader = BufReader::new(&file);
-        let lines: Vec<String> = reader.lines().collect::<Result<_, _>>().unwrap();
-        Ok(lines)
+    fn create_test_storefile() -> (PathBuf, PathBuf, PathBuf) {
+        let base_dir = test_base_dir();
+        let filename = PathBuf::from(format!("hosts-store-{}.list", random_string()));
+        let dirpath = base_dir.join("service-providers").join("socks5");
+        fs::create_dir_all(&dirpath).expect(&format!(
+            "could not create storage directory at {:?}",
+            dirpath
+        ));
+        let storefile = dirpath.join(&filename);
+        File::create(&storefile).unwrap();
+        (storefile, base_dir, filename)
+    }
+
+    #[cfg(test)]
+    mod creating_a_new_host_store {
+        use super::*;
+        #[test]
+        fn loads_its_host_list_from_storefile() {
+            let (storefile, base_dir, filename) = create_test_storefile();
+            HostsStore::append(&storefile, "nymtech.net");
+            HostsStore::append(&storefile, "edwardsnowden.com");
+
+            let host_store = HostsStore::new(base_dir, filename);
+            assert_eq!(vec!["nymtech.net", "edwardsnowden.com"], host_store.hosts);
+        }
     }
 }

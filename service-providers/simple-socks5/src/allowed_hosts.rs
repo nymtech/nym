@@ -1,5 +1,6 @@
 use fs::OpenOptions;
 use io::BufReader;
+use publicsuffix::{errors, List};
 use std::fs;
 use std::fs::File;
 use std::io;
@@ -11,7 +12,10 @@ use std::path::PathBuf;
 ///
 /// Requests to unknown hosts are automatically written to an `unknown_hosts`
 /// list so that they can be copy/pasted into the `allowed_hosts` list if desired.
-struct OutboundRequestFilter {
+/// This may be handy for service provider node operators who want to be able to look in the
+/// `unknown_hosts` file and allow new hosts (e.g. if a wallet has added a new outbound request
+/// which needs to be allowed).
+pub(crate) struct OutboundRequestFilter {
     allowed_hosts: HostsStore,
     unknown_hosts: HostsStore,
 }
@@ -27,29 +31,50 @@ impl OutboundRequestFilter {
         }
     }
 
-    /// Returns `true` if a host is in the `allowed_hosts` list.
+    /// Returns `true` if a host's domain is in the `allowed_hosts` list.
     ///
     /// If it's not in the list, return `false` and write it to the `unknown_hosts` storefile.
     pub(crate) fn check(&mut self, host: &str) -> bool {
-        if self.allowed_hosts.contains(host) {
+        let trimmed = Self::trim_port(host);
+        let domain_root = Self::get_domain_root(&trimmed).unwrap();
+        if self.allowed_hosts.contains(&domain_root) {
             true
         } else {
-            self.unknown_hosts.maybe_add(host);
+            self.unknown_hosts.maybe_add(&domain_root);
             false
         }
+    }
+
+    fn trim_port(host: &str) -> String {
+        let mut tmp: Vec<&str> = host.split(":").collect();
+        if tmp.len() > 1 {
+            tmp.pop(); // get rid of last element (port)
+            let out = tmp.join(":");
+            out
+        } else {
+            host.to_string()
+        }
+    }
+
+    /// Attempts to get the root domain, shorn of port, subdomains, etc.
+    fn get_domain_root(host: &str) -> Result<String, errors::ErrorKind> {
+        let list = List::fetch()?;
+        let domain = list.parse_domain(host)?;
+        let root = domain.root().unwrap();
+        Ok(root.to_string())
     }
 }
 
 /// A simple file-based store for information about allowed / unknown hosts.
 #[derive(Debug)]
-struct HostsStore {
+pub(crate) struct HostsStore {
     storefile: PathBuf,
     hosts: Vec<String>,
 }
 
 impl HostsStore {
     /// Constructs a new HostsStore
-    fn new(base_dir: PathBuf, filename: PathBuf) -> HostsStore {
+    pub(crate) fn new(base_dir: PathBuf, filename: PathBuf) -> HostsStore {
         let storefile = HostsStore::setup_storefile(base_dir, filename);
         let hosts = HostsStore::load_from_storefile(&storefile).expect(&format!(
             "Could not load hosts from storefile at {:?}",
@@ -72,10 +97,7 @@ impl HostsStore {
     }
 
     fn append_to_file(&self, host: &str) {
-        fs::write(&self.storefile, host).expect(&format!(
-            "Could not write to storage file at {:?}",
-            self.storefile
-        ));
+        HostsStore::append(&self.storefile, host);
     }
 
     fn contains(&self, host: &str) -> bool {
@@ -92,7 +114,7 @@ impl HostsStore {
     }
 
     fn maybe_add(&mut self, host: &str) {
-        if !self.contains(&host) {
+        if !self.contains(host) {
             self.hosts.push(host.to_string());
             self.append_to_file(host);
         }
@@ -127,6 +149,64 @@ impl HostsStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(test)]
+    mod trimming_port_information {
+        use super::*;
+
+        #[test]
+        fn happens_when_port_exists() {
+            let host = "nymtech.net:9999";
+            assert_eq!("nymtech.net", OutboundRequestFilter::trim_port(host));
+        }
+
+        #[test]
+        fn doesnt_happen_when_no_port_exists() {
+            let host = "nymtech.net";
+            assert_eq!("nymtech.net", OutboundRequestFilter::trim_port(host));
+        }
+    }
+
+    #[cfg(test)]
+    mod getting_the_root_domain {
+        use super::*;
+
+        #[test]
+        fn gets_a_com_tld_ok() {
+            let host = "domain.com";
+            assert_eq!(
+                "domain.com",
+                OutboundRequestFilter::get_domain_root(host).unwrap()
+            )
+        }
+
+        #[test]
+        fn trims_subdomains() {
+            let host = "foomp.domain.com";
+            assert_eq!(
+                "domain.com",
+                OutboundRequestFilter::get_domain_root(host).unwrap()
+            )
+        }
+
+        #[test]
+        fn works_for_non_com_roots() {
+            let host = "domain.co.uk";
+            assert_eq!(
+                "domain.co.uk",
+                OutboundRequestFilter::get_domain_root(host).unwrap()
+            )
+        }
+
+        #[test]
+        fn works_for_non_com_roots_with_subdomains() {
+            let host = "foomp.domain.co.uk";
+            assert_eq!(
+                "domain.co.uk",
+                OutboundRequestFilter::get_domain_root(host).unwrap()
+            )
+        }
+    }
 
     #[cfg(test)]
     mod requests_to_unknown_hosts {
@@ -175,6 +255,14 @@ mod tests {
         #[test]
         fn are_allowed() {
             let host = "nymtech.net";
+
+            let mut filter = setup();
+            assert_eq!(true, filter.check(host));
+        }
+
+        #[test]
+        fn are_allowed_for_subdomains() {
+            let host = "foomp.nymtech.net";
 
             let mut filter = setup();
             assert_eq!(true, filter.check(host));

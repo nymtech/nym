@@ -2768,6 +2768,7 @@ dependencies = [
  "ordered-buffer",
  "pretty_env_logger",
  "proxy-helpers",
+ "rand 0.7.3",
  "socks5-requests",
  "tokio 0.2.22",
  "tokio-tungstenite",

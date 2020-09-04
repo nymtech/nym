@@ -85,10 +85,6 @@ impl HostsStore {
 mod tests {
     use super::*;
 
-    fn random_string() -> String {
-        format!("{:?}", rand::random::<u32>())
-    }
-
     #[cfg(test)]
     mod requests_to_unknown_hosts {
         use super::*;
@@ -138,34 +134,19 @@ mod tests {
             let lines = lines_from_file(&filter.unknown_hosts.storefile).unwrap();
             assert_eq!(1, lines.len());
         }
-
-        use io::BufReader;
-        use std::fs::File;
-        use std::io;
-        use std::io::BufRead;
-        use std::path::Path;
-
-        fn lines_from_file<P>(filename: P) -> io::Result<Vec<String>>
-        where
-            P: AsRef<Path>,
-        {
-            let file = File::open(filename)?;
-            let reader = BufReader::new(&file);
-            let lines: Vec<String> = reader.lines().collect::<Result<_, _>>().unwrap();
-            Ok(lines)
-        }
     }
     #[cfg(test)]
     mod requests_to_allowed_hosts {
         use super::*;
         fn setup() -> OutboundRequestFilter {
-            let allowed = HostsStore::new(
+            let allowed_hosts = HostsStore::new(
                 &format!("allowed-{}.list", random_string()),
                 vec!["nymtech.net".to_string()],
             );
-            let unknown = HostsStore::new(&format!("unknown-{}.list", random_string()), vec![]);
+            let unknown_hosts =
+                HostsStore::new(&format!("unknown-{}.list", random_string()), vec![]);
 
-            OutboundRequestFilter::new(allowed, unknown)
+            OutboundRequestFilter::new(allowed_hosts, unknown_hosts)
         }
         #[test]
         fn are_allowed() {
@@ -180,9 +161,41 @@ mod tests {
             let mut filter = setup();
             assert_eq!(false, filter.is_unknown(host));
         }
-        // #[test]
-        // fn are_not_appended_to_file() {
-        //     todo!()
-        // }
+
+        #[test]
+        fn are_not_appended_to_file() {
+            let host = "nymtech.net";
+            let mut filter = setup();
+
+            // test initial state
+            let lines = lines_from_file(&filter.allowed_hosts.storefile).unwrap();
+            assert_eq!(0, lines.len());
+
+            filter.check(host);
+
+            // test state after we've checked to make sure no unexpected changes
+            let lines = lines_from_file(&filter.allowed_hosts.storefile).unwrap();
+            assert_eq!(0, lines.len());
+        }
+    }
+
+    fn random_string() -> String {
+        format!("{:?}", rand::random::<u32>())
+    }
+
+    use io::BufReader;
+    use std::fs::File;
+    use std::io;
+    use std::io::BufRead;
+    use std::path::Path;
+
+    fn lines_from_file<P>(filename: P) -> io::Result<Vec<String>>
+    where
+        P: AsRef<Path>,
+    {
+        let file = File::open(filename)?;
+        let reader = BufReader::new(&file);
+        let lines: Vec<String> = reader.lines().collect::<Result<_, _>>().unwrap();
+        Ok(lines)
     }
 }

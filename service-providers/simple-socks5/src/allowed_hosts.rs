@@ -51,13 +51,18 @@ impl OutboundRequestFilter {
     /// If it's not in the list, return `false` and write it to the `unknown_hosts` storefile.
     pub(crate) fn check(&mut self, host: &str) -> bool {
         let trimmed = Self::trim_port(host);
-        let domain_root = self.get_domain_root(&trimmed).unwrap();
-        if self.allowed_hosts.contains(&domain_root) {
-            true
-        } else {
-            self.unknown_hosts.maybe_add(&domain_root);
-            false
-        }
+        match self.get_domain_root(&trimmed) {
+            Some(domain_root) => {
+                if self.allowed_hosts.contains(&domain_root) {
+                    return true;
+                } else {
+                    // not in allowed list but it's a domain
+                    self.unknown_hosts.maybe_add(&domain_root);
+                    return false;
+                }
+            }
+            None => return false, // the domain was probably nonsense. I've chosen not to log it unknown_hosts for now.
+        };
     }
 
     fn trim_port(host: &str) -> String {
@@ -71,11 +76,15 @@ impl OutboundRequestFilter {
         }
     }
 
-    /// Attempts to get the root domain, shorn of port, subdomains, etc.
-    fn get_domain_root(&self, host: &str) -> Result<String, errors::ErrorKind> {
-        let domain = self.domain_list.parse_domain(host)?;
-        let root = domain.root().unwrap();
-        Ok(root.to_string())
+    /// Attempts to get the root domain, shorn of subdomains, using publicsuffix.
+    fn get_domain_root(&self, host: &str) -> Option<String> {
+        match self.domain_list.parse_domain(host) {
+            Ok(d) => match d.root() {
+                Some(root) => return Some(root.to_string()),
+                None => return None, // no domain root matches
+            },
+            Err(_) => return None, // domain couldn't be parsed
+        }
     }
 }
 
@@ -182,7 +191,7 @@ mod tests {
     }
 
     #[cfg(test)]
-    mod getting_the_root_domain {
+    mod getting_the_domain_root {
         use super::*;
 
         fn setup() -> OutboundRequestFilter {
@@ -197,15 +206,18 @@ mod tests {
         #[test]
         fn leaves_a_com_alone() {
             let filter = setup();
-            assert_eq!("domain.com", filter.get_domain_root("domain.com").unwrap())
+            assert_eq!(
+                Some("domain.com".to_string()),
+                filter.get_domain_root("domain.com")
+            )
         }
 
         #[test]
         fn trims_subdomains_from_com() {
             let filter = setup();
             assert_eq!(
-                "domain.com",
-                filter.get_domain_root("foomp.domain.com").unwrap()
+                Some("domain.com".to_string()),
+                filter.get_domain_root("foomp.domain.com")
             )
         }
 
@@ -213,8 +225,8 @@ mod tests {
         fn works_for_non_com_roots() {
             let filter = setup();
             assert_eq!(
-                "domain.co.uk",
-                filter.get_domain_root("domain.co.uk").unwrap()
+                Some("domain.co.uk".to_string()),
+                filter.get_domain_root("domain.co.uk")
             )
         }
 
@@ -222,9 +234,21 @@ mod tests {
         fn works_for_non_com_roots_with_subdomains() {
             let filter = setup();
             assert_eq!(
-                "domain.co.uk",
-                filter.get_domain_root("foomp.domain.co.uk").unwrap()
+                Some("domain.co.uk".to_string()),
+                filter.get_domain_root("foomp.domain.co.uk")
             )
+        }
+
+        #[test]
+        fn returns_none_on_garbage() {
+            let filter = setup();
+            assert_eq!(None, filter.get_domain_root("::/&&%@"));
+        }
+
+        #[test]
+        fn returns_none_on_nonsense_domains() {
+            let filter = setup();
+            assert_eq!(None, filter.get_domain_root("flappappa"));
         }
     }
 

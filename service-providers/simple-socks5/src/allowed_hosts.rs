@@ -22,8 +22,8 @@ use std::path::PathBuf;
 /// domains as allowed. That list is loaded once at startup from the network.
 pub(crate) struct OutboundRequestFilter {
     allowed_hosts: HostsStore,
-    unknown_hosts: HostsStore,
     domain_list: publicsuffix::List,
+    unknown_hosts: HostsStore,
 }
 
 impl OutboundRequestFilter {
@@ -46,7 +46,7 @@ impl OutboundRequestFilter {
         Ok(publicsuffix::List::fetch()?)
     }
 
-    /// Returns `true` if a host's domain is in the `allowed_hosts` list.
+    /// Returns `true` if a host's root domain is in the `allowed_hosts` list.
     ///
     /// If it's not in the list, return `false` and write it to the `unknown_hosts` storefile.
     pub(crate) fn check(&mut self, host: &str) -> bool {
@@ -57,11 +57,17 @@ impl OutboundRequestFilter {
                     return true;
                 } else {
                     // not in allowed list but it's a domain
+                    log::warn!(
+                        "Blocked outbound connection to {:?}, add it to allowed.list if needed",
+                        &domain_root
+                    );
                     self.unknown_hosts.maybe_add(&domain_root);
-                    return false;
+                    return false; // domain is unknown
                 }
             }
-            None => return false, // the domain was probably nonsense. I've chosen not to log it unknown_hosts for now.
+            None => {
+                return false; // the host was either an IP or nonsense. For this release, we'll ignore it.
+            }
         };
     }
 
@@ -83,7 +89,10 @@ impl OutboundRequestFilter {
                 Some(root) => return Some(root.to_string()),
                 None => return None, // no domain root matches
             },
-            Err(_) => return None, // domain couldn't be parsed
+            Err(_) => {
+                log::warn!("Error parsing domain: {:?}", host);
+                return None; // domain couldn't be parsed
+            }
         }
     }
 }

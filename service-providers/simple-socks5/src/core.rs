@@ -129,6 +129,7 @@ impl ServiceProvider {
                     return_address,
                 } => {
                     if !self.outbound_request_filter.check(&remote_addr) {
+                        log::info!("Domain {:?} failed filter check", remote_addr);
                         continue;
                     }
 

@@ -61,7 +61,7 @@ impl OrderedMessageBuffer {
 
         let high_water = index;
         self.next_index = high_water;
-        warn!("Next high water mark is: {}", high_water);
+        info!("Next high water mark is: {}", high_water);
 
         // dig out the bytes from inside the struct
         let data: Vec<u8> = contiguous_messages

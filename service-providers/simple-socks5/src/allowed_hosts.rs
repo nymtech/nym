@@ -15,6 +15,11 @@ use std::path::PathBuf;
 /// This may be handy for service provider node operators who want to be able to look in the
 /// `unknown_hosts` file and allow new hosts (e.g. if a wallet has added a new outbound request
 /// which needs to be allowed).
+///
+/// We rely on the list of domains at https://publicsuffix.org/ to figure out what the root
+/// domain is for a given request. This allows us to distinguish all the rules for e.g.
+/// .com, .co.uk, .co.jp, uk.com, etc, so that we can distinguish correct root-ish
+/// domains as allowed. That list is loaded once at startup from the network.
 pub(crate) struct OutboundRequestFilter {
     allowed_hosts: HostsStore,
     unknown_hosts: HostsStore,

@@ -18,6 +18,7 @@ use std::path::PathBuf;
 pub(crate) struct OutboundRequestFilter {
     allowed_hosts: HostsStore,
     unknown_hosts: HostsStore,
+    domain_list: publicsuffix::List,
 }
 
 impl OutboundRequestFilter {
@@ -25,10 +26,19 @@ impl OutboundRequestFilter {
         allowed_hosts: HostsStore,
         unknown_hosts: HostsStore,
     ) -> OutboundRequestFilter {
+        let domain_list = match Self::fetch_domain_list() {
+            Ok(list) => list,
+            Err(e) => panic!("Couldn't fetch domain list for request filtering, do you have an internet connection?: {:?}", e),
+        };
         OutboundRequestFilter {
             allowed_hosts,
+            domain_list,
             unknown_hosts,
         }
+    }
+
+    fn fetch_domain_list() -> Result<List, errors::ErrorKind> {
+        Ok(publicsuffix::List::fetch()?)
     }
 
     /// Returns `true` if a host's domain is in the `allowed_hosts` list.
@@ -36,7 +46,7 @@ impl OutboundRequestFilter {
     /// If it's not in the list, return `false` and write it to the `unknown_hosts` storefile.
     pub(crate) fn check(&mut self, host: &str) -> bool {
         let trimmed = Self::trim_port(host);
-        let domain_root = Self::get_domain_root(&trimmed).unwrap();
+        let domain_root = self.get_domain_root(&trimmed).unwrap();
         if self.allowed_hosts.contains(&domain_root) {
             true
         } else {
@@ -49,7 +59,7 @@ impl OutboundRequestFilter {
         let mut tmp: Vec<&str> = host.split(":").collect();
         if tmp.len() > 1 {
             tmp.pop(); // get rid of last element (port)
-            let out = tmp.join(":");
+            let out = tmp.join(":"); //rejoin
             out
         } else {
             host.to_string()
@@ -57,9 +67,8 @@ impl OutboundRequestFilter {
     }
 
     /// Attempts to get the root domain, shorn of port, subdomains, etc.
-    fn get_domain_root(host: &str) -> Result<String, errors::ErrorKind> {
-        let list = List::fetch()?;
-        let domain = list.parse_domain(host)?;
+    fn get_domain_root(&self, host: &str) -> Result<String, errors::ErrorKind> {
+        let domain = self.domain_list.parse_domain(host)?;
         let root = domain.root().unwrap();
         Ok(root.to_string())
     }
@@ -171,39 +180,45 @@ mod tests {
     mod getting_the_root_domain {
         use super::*;
 
-        #[test]
-        fn gets_a_com_tld_ok() {
-            let host = "domain.com";
-            assert_eq!(
-                "domain.com",
-                OutboundRequestFilter::get_domain_root(host).unwrap()
-            )
+        fn setup() -> OutboundRequestFilter {
+            let base_dir = test_base_dir();
+            let allowed_filename = PathBuf::from(format!("allowed-{}.list", random_string()));
+            let unknown_filename = PathBuf::from(&format!("unknown-{}.list", random_string()));
+            let allowed = HostsStore::new(base_dir.clone(), allowed_filename);
+            let unknown = HostsStore::new(base_dir.clone(), unknown_filename);
+            OutboundRequestFilter::new(allowed, unknown)
         }
 
         #[test]
-        fn trims_subdomains() {
-            let host = "foomp.domain.com";
+        fn leaves_a_com_alone() {
+            let filter = setup();
+            assert_eq!("domain.com", filter.get_domain_root("domain.com").unwrap())
+        }
+
+        #[test]
+        fn trims_subdomains_from_com() {
+            let filter = setup();
             assert_eq!(
                 "domain.com",
-                OutboundRequestFilter::get_domain_root(host).unwrap()
+                filter.get_domain_root("foomp.domain.com").unwrap()
             )
         }
 
         #[test]
         fn works_for_non_com_roots() {
-            let host = "domain.co.uk";
+            let filter = setup();
             assert_eq!(
                 "domain.co.uk",
-                OutboundRequestFilter::get_domain_root(host).unwrap()
+                filter.get_domain_root("domain.co.uk").unwrap()
             )
         }
 
         #[test]
         fn works_for_non_com_roots_with_subdomains() {
-            let host = "foomp.domain.co.uk";
+            let filter = setup();
             assert_eq!(
                 "domain.co.uk",
-                OutboundRequestFilter::get_domain_root(host).unwrap()
+                filter.get_domain_root("foomp.domain.co.uk").unwrap()
             )
         }
     }

@@ -50,9 +50,7 @@ public_sphinx_key_file = '{{ mixnode.public_sphinx_key_file }}'
 # Optional address announced to the directory server for the clients to connect to.
 # It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
 # later on by using name resolvable with a DNS query, such as `nymtech.net:8080`.
-# Additionally a custom port can be provided, so both `nymtech.net:8080` and `nymtech.net`
-# are valid announce addresses, while the later will default to whatever port is used for
-# `listening_address`.
+# Additionally a custom port can be provided.
 announce_address = '{{ mixnode.announce_address }}'
 
 # Directory server to which the server will be reporting their presence data.

@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::client::config::Config;
 use crate::client::NymClient;
 use crate::commands::override_config;
 use clap::{App, Arg, ArgMatches};
-use client_core::config::Config;
 use config::NymConfig;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {

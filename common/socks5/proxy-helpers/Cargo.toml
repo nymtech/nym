@@ -1,0 +1,20 @@
+[package]
+name = "proxy-helpers"
+version = "0.1.0"
+authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bytes = "0.5"
+# TODO: "time" feature is only required for the delay loop which is going to go away very soon!
+tokio = { version = "0.2", features = [ "tcp", "io-util", "sync", "macros", "time" ] }
+futures = "0.3"
+log = "0.4"
+socks5-requests = { path = "../requests" }
+ordered-buffer = { path = "../ordered-buffer" }
+
+[dev-dependencies]
+tokio = { version = "0.2", features = ["rt-threaded"] }
+tokio-test = "0.2"

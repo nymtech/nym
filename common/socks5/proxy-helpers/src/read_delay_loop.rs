@@ -24,11 +24,12 @@ use std::io;
 use tokio::io::AsyncRead;
 use tokio::time::Duration;
 
+// It returns data alognside information whether it timed out while reading from the socket
 pub async fn try_read_data<R>(
     timeout: Duration,
     mut reader: R,
     address: &str,
-) -> io::Result<Vec<u8>>
+) -> io::Result<(Vec<u8>, bool)>
 where
     R: AsyncRead + Unpin,
 {
@@ -40,8 +41,10 @@ where
     loop {
         tokio::select! {
             _ = &mut delay => {
-                println!("Timed out. returning {} bytes received from {}", data.len(), address);
-                return Ok(data) // we return all response data on timeout
+                if data.len() > 0 {
+                    println!("Timed out. returning {} bytes received from {}", data.len(), address);
+                }
+                return Ok((data, true)) // we return all response data on timeout
             }
             read_data = &mut available_reader => {
                 match read_data {
@@ -53,7 +56,7 @@ where
                             println!("Connection is closed! Returning {} bytes received from {}", data.len(), address);
                             // we return all we managed to read because
                             // we know no more stuff is coming
-                            return Ok(data)
+                            return Ok((data, false))
                         }
                         let now = tokio::time::Instant::now();
                         let next = now + timeout;

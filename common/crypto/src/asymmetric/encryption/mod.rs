@@ -100,7 +100,7 @@ impl PemStorableKeyPair for KeyPair {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct PublicKey(x25519_dalek::PublicKey);
 
 impl PublicKey {

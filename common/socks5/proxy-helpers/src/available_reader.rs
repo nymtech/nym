@@ -25,6 +25,8 @@ pub struct AvailableReader<'a, R: AsyncRead + Unpin> {
     // TODO: come up with a way to avoid using RefCell (not sure if possible though)
     buf: RefCell<BytesMut>,
     inner: RefCell<&'a mut R>,
+    // idea for the future: tiny delay that allows to prevent unnecessary extra fragmentation
+    // grace_period: Option<Delay>,
 }
 
 impl<'a, R> AvailableReader<'a, R>
@@ -37,12 +39,16 @@ where
         AvailableReader {
             buf: RefCell::new(BytesMut::with_capacity(Self::BUF_INCREMENT)),
             inner: RefCell::new(reader),
+            // grace_period: None,
         }
     }
 }
 
+// TODO: change this guy to a stream? Seems waaay more appropriate considering
+// we're getting new Bytes items regularly rather than calling it once.
+
 impl<'a, R: AsyncRead + Unpin> Future for AvailableReader<'a, R> {
-    type Output = io::Result<Bytes>;
+    type Output = io::Result<(Bytes, bool)>;
 
     // this SHOULD stay mutable, because we rely on runtime checks inside the method
     #[allow(unused_mut)]
@@ -63,7 +69,7 @@ impl<'a, R: AsyncRead + Unpin> Future for AvailableReader<'a, R> {
                     Poll::Pending
                 } else {
                     let buf = self.buf.replace(BytesMut::new());
-                    Poll::Ready(Ok(buf.freeze()))
+                    Poll::Ready(Ok((buf.freeze(), false)))
                 }
             }
             Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
@@ -71,7 +77,7 @@ impl<'a, R: AsyncRead + Unpin> Future for AvailableReader<'a, R> {
                 // if we read a non-0 amount, we're not done yet!
                 if n == 0 {
                     let buf = self.buf.replace(BytesMut::new());
-                    Poll::Ready(Ok(buf.freeze()))
+                    Poll::Ready(Ok((buf.freeze(), true)))
                 } else {
                     // tell the waker we should be polled again!
                     cx.waker().wake_by_ref();
@@ -94,8 +100,10 @@ mod tests {
         let mut reader = Cursor::new(data.clone());
 
         let available_reader = AvailableReader::new(&mut reader);
+        let (read_data, is_finished) = available_reader.await.unwrap();
 
-        assert_eq!(available_reader.await.unwrap(), data)
+        assert_eq!(read_data, data);
+        assert!(is_finished)
     }
 
     #[tokio::test]
@@ -104,8 +112,10 @@ mod tests {
         let mut reader = Cursor::new(data.clone());
 
         let available_reader = AvailableReader::new(&mut reader);
+        let (read_data, is_finished) = available_reader.await.unwrap();
 
-        assert_eq!(available_reader.await.unwrap(), data)
+        assert_eq!(read_data, data);
+        assert!(is_finished)
     }
 
     #[tokio::test]
@@ -120,8 +130,10 @@ mod tests {
             .build();
 
         let available_reader = AvailableReader::new(&mut reader_mock);
+        let (read_data, is_finished) = available_reader.await.unwrap();
 
-        assert_eq!(available_reader.await.unwrap(), first_data_chunk);
+        assert_eq!(read_data, first_data_chunk);
+        assert!(!is_finished)
     }
 
     #[tokio::test]
@@ -134,7 +146,9 @@ mod tests {
             .build();
 
         let available_reader = AvailableReader::new(&mut reader_mock);
+        let (read_data, is_finished) = available_reader.await.unwrap();
 
-        assert_eq!(available_reader.await.unwrap(), data);
+        assert_eq!(read_data, data);
+        assert!(is_finished)
     }
 }

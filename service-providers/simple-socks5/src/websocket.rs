@@ -15,9 +15,9 @@ impl Connection {
 
     pub async fn connect(&self) -> Result<WebSocketStream<TcpStream>, WebsocketConnectionError> {
         match connect_async(&self.uri).await {
-            Ok((ws_stream, _)) => return Ok(ws_stream),
-            Err(_e) => return Err(WebsocketConnectionError::ConnectionNotEstablished),
-        };
+            Ok((ws_stream, _)) => Ok(ws_stream),
+            Err(_e) => Err(WebsocketConnectionError::ConnectionNotEstablished),
+        }
     }
 }
 

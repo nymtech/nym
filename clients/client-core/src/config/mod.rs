@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::template::config_template;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
+use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::time;
 
 pub mod persistence;
-mod template;
 
 // 'CLIENT'
-const DEFAULT_LISTENING_PORT: u16 = 1977;
 const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
@@ -40,29 +38,10 @@ const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: u64 = 5_000; // 5s
 
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: u64 = 1_500; // 1.5s
 
-#[derive(Debug, Deserialize, PartialEq, Serialize, Clone, Copy)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub enum SocketType {
-    WebSocket,
-    None,
-}
-
-impl SocketType {
-    pub fn from_string<S: Into<String>>(val: S) -> Self {
-        let mut upper = val.into();
-        upper.make_ascii_uppercase();
-        match upper.as_ref() {
-            "WEBSOCKET" | "WS" => SocketType::WebSocket,
-            _ => SocketType::None,
-        }
-    }
-}
-
-#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct Config {
-    client: Client,
-    socket: Socket,
+pub struct Config<T> {
+    client: Client<T>,
 
     #[serde(default)]
     logging: Logging,
@@ -70,58 +49,24 @@ pub struct Config {
     debug: Debug,
 }
 
-impl NymConfig for Config {
-    fn template() -> &'static str {
-        config_template()
-    }
-
-    fn config_file_name() -> String {
-        "config.toml".to_string()
-    }
-
-    fn default_root_directory() -> PathBuf {
-        dirs::home_dir()
-            .expect("Failed to evaluate $HOME value")
-            .join(".nym")
-            .join("clients")
-    }
-
-    fn root_directory(&self) -> PathBuf {
-        self.client.nym_root_directory.clone()
-    }
-
-    fn config_directory(&self) -> PathBuf {
-        self.client
-            .nym_root_directory
-            .join(&self.client.id)
-            .join("config")
-    }
-
-    fn data_directory(&self) -> PathBuf {
-        self.client
-            .nym_root_directory
-            .join(&self.client.id)
-            .join("data")
-    }
-}
-
-impl Config {
+impl<T: NymConfig> Config<T> {
     pub fn new<S: Into<String>>(id: S) -> Self {
-        Config::default().with_id(id)
+        let mut cfg = Config::default();
+        cfg.with_id(id);
+        cfg
     }
 
-    // builder methods
-    pub fn with_id<S: Into<String>>(mut self, id: S) -> Self {
+    pub fn with_id<S: Into<String>>(&mut self, id: S) {
         let id = id.into();
 
         // identity key setting
         if self.client.private_identity_key_file.as_os_str().is_empty() {
             self.client.private_identity_key_file =
-                self::Client::default_private_identity_key_file(&id);
+                self::Client::<T>::default_private_identity_key_file(&id);
         }
         if self.client.public_identity_key_file.as_os_str().is_empty() {
             self.client.public_identity_key_file =
-                self::Client::default_public_identity_key_file(&id);
+                self::Client::<T>::default_public_identity_key_file(&id);
         }
 
         // encryption key setting
@@ -132,7 +77,7 @@ impl Config {
             .is_empty()
         {
             self.client.private_encryption_key_file =
-                self::Client::default_private_encryption_key_file(&id);
+                self::Client::<T>::default_private_encryption_key_file(&id);
         }
         if self
             .client
@@ -141,18 +86,18 @@ impl Config {
             .is_empty()
         {
             self.client.public_encryption_key_file =
-                self::Client::default_public_encryption_key_file(&id);
+                self::Client::<T>::default_public_encryption_key_file(&id);
         }
 
         // shared gateway key setting
         if self.client.gateway_shared_key_file.as_os_str().is_empty() {
             self.client.gateway_shared_key_file =
-                self::Client::default_gateway_shared_key_file(&id);
+                self::Client::<T>::default_gateway_shared_key_file(&id);
         }
 
         // ack key setting
         if self.client.ack_key_file.as_os_str().is_empty() {
-            self.client.ack_key_file = self::Client::default_ack_key_file(&id);
+            self.client.ack_key_file = self::Client::<T>::default_ack_key_file(&id);
         }
 
         if self
@@ -162,48 +107,36 @@ impl Config {
             .is_empty()
         {
             self.client.reply_encryption_key_store_path =
-                self::Client::default_reply_encryption_key_store_path(&id);
+                self::Client::<T>::default_reply_encryption_key_store_path(&id);
         }
 
         self.client.id = id;
-        self
     }
 
-    pub fn with_gateway_id<S: Into<String>>(mut self, id: S) -> Self {
+    pub fn with_gateway_id<S: Into<String>>(&mut self, id: S) {
         self.client.gateway_id = id.into();
-        self
     }
 
-    pub fn with_gateway_listener<S: Into<String>>(mut self, gateway_listener: S) -> Self {
+    pub fn with_gateway_listener<S: Into<String>>(&mut self, gateway_listener: S) {
         self.client.gateway_listener = gateway_listener.into();
-        self
     }
 
-    pub fn with_custom_directory<S: Into<String>>(mut self, directory_server: S) -> Self {
+    pub fn with_custom_directory<S: Into<String>>(&mut self, directory_server: S) {
         self.client.directory_server = directory_server.into();
-        self
     }
 
-    pub fn with_socket(mut self, socket_type: SocketType) -> Self {
-        self.socket.socket_type = socket_type;
-        self
-    }
-
-    pub fn with_port(mut self, port: u16) -> Self {
-        self.socket.listening_port = port;
-        self
-    }
-
-    pub fn set_high_default_traffic_volume(mut self) -> Self {
+    pub fn set_high_default_traffic_volume(&mut self) {
         self.debug.average_packet_delay = 10;
         self.debug.loop_cover_traffic_average_delay = 20; // 50 cover messages / s
         self.debug.message_sending_average_delay = 5; // 200 "real" messages / s
-        self
     }
 
-    // getters
-    pub fn get_config_file_save_location(&self) -> PathBuf {
-        self.config_directory().join(Self::config_file_name())
+    pub fn get_id(&self) -> String {
+        self.client.id.clone()
+    }
+
+    pub fn get_nym_root_directory(&self) -> PathBuf {
+        self.client.nym_root_directory.clone()
     }
 
     pub fn get_private_identity_key_file(&self) -> PathBuf {
@@ -246,14 +179,6 @@ impl Config {
         self.client.gateway_listener.clone()
     }
 
-    pub fn get_socket_type(&self) -> SocketType {
-        self.socket.socket_type
-    }
-
-    pub fn get_listening_port(&self) -> u16 {
-        self.socket.listening_port
-    }
-
     // Debug getters
     pub fn get_average_packet_delay(&self) -> time::Duration {
         time::Duration::from_millis(self.debug.average_packet_delay)
@@ -292,9 +217,19 @@ impl Config {
     }
 }
 
+impl<T: NymConfig> Default for Config<T> {
+    fn default() -> Self {
+        Config {
+            client: Client::<T>::default(),
+            logging: Default::default(),
+            debug: Default::default(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Client {
+pub struct Client<T> {
     /// ID specifies the human readable ID of this particular client.
     id: String,
 
@@ -335,9 +270,12 @@ pub struct Client {
     /// nym_home_directory specifies absolute path to the home nym Clients directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
+
+    #[serde(skip)]
+    super_struct: PhantomData<T>,
 }
 
-impl Default for Client {
+impl<T: NymConfig> Default for Client<T> {
     fn default() -> Self {
         // there must be explicit checks for whether id is not empty later
         Client {
@@ -352,54 +290,39 @@ impl Default for Client {
             reply_encryption_key_store_path: Default::default(),
             gateway_id: "".to_string(),
             gateway_listener: "".to_string(),
-            nym_root_directory: Config::default_root_directory(),
+            nym_root_directory: T::default_root_directory(),
+            super_struct: Default::default(),
         }
     }
 }
 
-impl Client {
+impl<T: NymConfig> Client<T> {
     fn default_private_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("private_identity.pem")
+        T::default_data_directory(Some(id)).join("private_identity.pem")
     }
 
     fn default_public_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("public_identity.pem")
+        T::default_data_directory(Some(id)).join("public_identity.pem")
     }
 
     fn default_private_encryption_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("private_encryption.pem")
+        T::default_data_directory(Some(id)).join("private_encryption.pem")
     }
 
     fn default_public_encryption_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("public_encryption.pem")
+        T::default_data_directory(Some(id)).join("public_encryption.pem")
     }
 
     fn default_gateway_shared_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("gateway_shared.pem")
+        T::default_data_directory(Some(id)).join("gateway_shared.pem")
     }
 
     fn default_ack_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("ack_key.pem")
+        T::default_data_directory(Some(id)).join("ack_key.pem")
     }
 
     fn default_reply_encryption_key_store_path(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("reply_key_store")
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct Socket {
-    socket_type: SocketType,
-    listening_port: u16,
-}
-
-impl Default for Socket {
-    fn default() -> Self {
-        Socket {
-            socket_type: SocketType::WebSocket,
-            listening_port: DEFAULT_LISTENING_PORT,
-        }
+        T::default_data_directory(Some(id)).join("reply_key_store")
     }
 }
 
@@ -483,25 +406,5 @@ impl Default for Debug {
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
         }
-    }
-}
-
-#[cfg(test)]
-mod client_config {
-    use super::*;
-
-    #[test]
-    fn after_saving_default_config_the_loaded_one_is_identical() {
-        // need to figure out how to do something similar but without touching the disk
-        // or the file system at all...
-        let temp_location = tempfile::tempdir().unwrap().path().join("config.toml");
-        let default_config = Config::default().with_id("foomp".to_string());
-        default_config
-            .save_to_file(Some(temp_location.clone()))
-            .unwrap();
-
-        let loaded_config = Config::load_from_file(Some(temp_location), None).unwrap();
-
-        assert_eq!(default_config, loaded_config);
     }
 }

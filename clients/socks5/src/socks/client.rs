@@ -1,31 +1,138 @@
 #![forbid(unsafe_code)]
 
-use rand::RngCore;
-use std::{collections::HashMap, net::Shutdown, sync::Arc};
-
-use log::*;
-use tokio::prelude::*;
-use tokio::{self, net::TcpStream};
-
-use nymsphinx::addressing::clients::Recipient;
-
-use client_core::client::inbound_messages::InputMessage;
-use client_core::client::inbound_messages::InputMessageSender;
-use futures::{channel::oneshot, lock::Mutex};
-
 use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCode, SocksProxyError};
 use super::{RESERVED, SOCKS_VERSION};
-use simple_socks5_requests::{ConnectionId, Request};
+use client_core::client::inbound_messages::InputMessage;
+use client_core::client::inbound_messages::InputMessageSender;
+use futures::channel::mpsc;
+use futures::core_reexport::pin::Pin;
+use futures::task::{Context, Poll};
+use log::*;
+use nymsphinx::addressing::clients::Recipient;
+use ordered_buffer::{OrderedMessageBuffer, OrderedMessageSender};
+use pin_project::pin_project;
+use proxy_helpers::available_reader::AvailableReader;
+use proxy_helpers::connection_controller::{
+    ConnectionReceiver, ControllerCommand, ControllerSender,
+};
+use proxy_helpers::proxy_runner::ProxyRunner;
+use rand::RngCore;
+use socks5_requests::{ConnectionId, Request};
+use std::net::{Shutdown, SocketAddr};
+use tokio::prelude::*;
+use tokio::{self, net::TcpStream};
+
+#[pin_project(project = StateProject)]
+enum StreamState {
+    Available(TcpStream),
+    RunningProxy,
+}
+
+impl StreamState {
+    fn finish_proxy(&mut self, stream: TcpStream) {
+        match self {
+            StreamState::RunningProxy => *self = StreamState::Available(stream),
+            StreamState::Available(_) => panic!("invalid state!"),
+        }
+    }
+
+    fn run_proxy(&mut self) -> TcpStream {
+        // It's not the nicest way to do it, but it works
+        #[allow(unused_assignments)]
+        let mut stream = None;
+        *self = match std::mem::replace(self, StreamState::RunningProxy) {
+            StreamState::Available(inner_stream) => {
+                stream = Some(inner_stream);
+                StreamState::RunningProxy
+            }
+            StreamState::RunningProxy => panic!("invalid state"),
+        };
+        stream.unwrap()
+    }
+
+    /// Returns the remote address that this stream is connected to.
+    fn peer_addr(&self) -> io::Result<SocketAddr> {
+        match self {
+            StreamState::RunningProxy => Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "stream is being used to run the proxy",
+            )),
+            StreamState::Available(ref stream) => stream.peer_addr(),
+        }
+    }
+
+    fn shutdown(&self, how: Shutdown) -> io::Result<()> {
+        // shutdown should only be called if proxy is not being run. If it is, there's some bug
+        // somewhere
+        match self {
+            StreamState::RunningProxy => panic!("Tried to shutdown stream while proxy is running"),
+            StreamState::Available(ref stream) => TcpStream::shutdown(stream, how),
+        }
+    }
+}
+
+// convenience implementations
+impl AsyncRead for StreamState {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        match self.project() {
+            StateProject::RunningProxy => Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "stream is being used to run the proxy",
+            ))),
+            StateProject::Available(ref mut stream) => Pin::new(stream).poll_read(cx, buf),
+        }
+    }
+}
+
+impl AsyncWrite for StreamState {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        match self.project() {
+            StateProject::RunningProxy => Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "stream is being used to run the proxy",
+            ))),
+            StateProject::Available(ref mut stream) => Pin::new(stream).poll_write(cx, buf),
+        }
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match self.project() {
+            StateProject::RunningProxy => Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "stream is being used to run the proxy",
+            ))),
+            StateProject::Available(ref mut stream) => Pin::new(stream).poll_flush(cx),
+        }
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        match self.project() {
+            StateProject::RunningProxy => Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "stream is being used to run the proxy",
+            ))),
+            StateProject::Available(ref mut stream) => Pin::new(stream).poll_shutdown(cx),
+        }
+    }
+}
 
 /// A client connecting to the Socks proxy server, because
 /// it wants to make a Nym-protected outbound request. Typically, this is
 /// something like e.g. a wallet app running on your laptop connecting to
 /// SphinxSocksServer.
 pub(crate) struct SocksClient {
-    active_streams: ActiveStreams,
-    stream: TcpStream,
+    controller_sender: ControllerSender,
+    stream: StreamState,
     auth_nmethods: u8,
     authenticator: Authenticator,
     socks_version: u8,
@@ -35,13 +142,14 @@ pub(crate) struct SocksClient {
     self_address: Recipient,
 }
 
-type StreamResponseSender = oneshot::Sender<Vec<u8>>;
-
-pub(crate) type ActiveStreams = Arc<Mutex<HashMap<ConnectionId, StreamResponseSender>>>;
-
 impl Drop for SocksClient {
     fn drop(&mut self) {
-        println!("socksclient is going out of scope - the stream is getting dropped!")
+        // TODO: decrease to debug/trace
+        info!("socksclient is going out of scope - the stream is getting dropped!");
+        info!("Connection {} is getting closed", self.connection_id);
+        self.controller_sender
+            .unbounded_send(ControllerCommand::Remove(self.connection_id))
+            .unwrap();
     }
 }
 
@@ -52,14 +160,14 @@ impl SocksClient {
         authenticator: Authenticator,
         input_sender: InputMessageSender,
         service_provider: Recipient,
-        active_streams: ActiveStreams,
+        controller_sender: ControllerSender,
         self_address: Recipient,
     ) -> Self {
         let connection_id = Self::generate_random();
         SocksClient {
-            active_streams,
+            controller_sender,
             connection_id,
-            stream,
+            stream: StreamState::Available(stream),
             auth_nmethods: 0,
             socks_version: 0,
             authenticator,
@@ -82,7 +190,7 @@ impl SocksClient {
 
     /// Shutdown the TcpStream to the client and end the session
     pub fn shutdown(&mut self) -> Result<(), SocksProxyError> {
-        println!("client is shutting down its TCP stream");
+        info!("client is shutting down its TCP stream");
         self.stream.shutdown(Shutdown::Both)?;
         Ok(())
     }
@@ -118,20 +226,31 @@ impl SocksClient {
         self.send_to_mixnet(request.into_bytes()).await;
     }
 
-    async fn send_request_to_mixnet_and_get_response(&mut self, request: Request) -> Vec<u8> {
-        self.send_to_mixnet(request.into_bytes()).await;
+    async fn run_proxy(
+        &mut self,
+        conn_receiver: ConnectionReceiver,
+        message_sender: OrderedMessageSender,
+    ) {
+        let stream = self.stream.run_proxy();
+        let connection_id = self.connection_id;
+        let input_sender = self.input_sender.clone();
 
-        // refactor idea: crossbeam oneshot channels are faster
-        let (sender, receiver) = oneshot::channel();
-        let mut active_streams_guard = self.active_streams.lock().await;
-        if active_streams_guard
-            .insert(self.connection_id, sender)
-            .is_some()
-        {
-            panic!("there is already an active request with the same id present - it's probably a bug!")
-        };
-        drop(active_streams_guard);
-        receiver.await.unwrap()
+        let recipient = self.service_provider.clone();
+        let (stream, _) = ProxyRunner::new(
+            stream,
+            conn_receiver,
+            input_sender,
+            connection_id,
+            message_sender,
+        )
+        .run(move |conn_id, read_data, socket_closed| {
+            let provider_request = Request::new_send(conn_id, read_data, socket_closed);
+            InputMessage::new_fresh(recipient, provider_request.into_bytes(), false)
+        })
+        .await
+        .into_inner();
+        // recover stream from the proxy
+        self.stream.finish_proxy(stream)
     }
 
     /// Handles a client request.
@@ -141,57 +260,50 @@ impl SocksClient {
         let request = SocksRequest::from_stream(&mut self.stream).await?;
         let remote_address = request.to_string();
 
-        let client_address = self.stream.peer_addr().unwrap().to_string();
+        // setup for receiving from the mixnet
+        let (mix_sender, mix_receiver) = mpsc::unbounded();
+        let ordered_buffer = OrderedMessageBuffer::new();
+
+        self.controller_sender
+            .unbounded_send(ControllerCommand::Insert(
+                self.connection_id,
+                mix_sender,
+                ordered_buffer,
+            ))
+            .unwrap();
+
         match request.command {
             // Use the Proxy to connect to the specified addr/port
             SocksCommand::Connect => {
                 trace!("Connecting to: {:?}", request.to_socket());
                 self.acknowledge_socks5().await;
 
-                let request_data_bytes =
-                    SocksRequest::try_read_request_data(&mut self.stream, &client_address).await?;
+                let mut message_sender = OrderedMessageSender::new();
+                // 'connect' needs to be handled manually due to different structure,
+                // but still needs to have correct sequence number on it!
+
+                // read whatever we can
+                let available_reader = AvailableReader::new(&mut self.stream);
+                let (request_data_bytes, _) = available_reader.await?;
+                let ordered_message = message_sender.wrap_message(request_data_bytes.to_vec());
+
                 let socks_provider_request = Request::new_connect(
                     self.connection_id,
                     remote_address.clone(),
-                    request_data_bytes,
+                    ordered_message,
                     self.self_address.clone(),
                 );
-                let response_data = self
-                    .send_request_to_mixnet_and_get_response(socks_provider_request)
-                    .await;
-                self.stream.write_all(&response_data).await.unwrap();
 
-                loop {
-                    if let Ok(request_data_bytes) =
-                        SocksRequest::try_read_request_data(&mut self.stream, &client_address).await
-                    {
-                        if request_data_bytes.is_empty() {
-                            break;
-                        }
-                        let socks_provider_request =
-                            Request::new_send(self.connection_id, request_data_bytes);
-                        let response_data = self
-                            .send_request_to_mixnet_and_get_response(socks_provider_request)
-                            .await;
-                        if let Err(err) = self.stream.write_all(&response_data).await {
-                            error!(
-                                "tried to write to (presumably) closed connection - {:?}",
-                                err
-                            );
-                            break;
-                        }
-                    } else {
-                        break;
-                    }
-                }
-                let socks_provider_request = Request::new_close(self.connection_id);
                 self.send_request_to_mixnet(socks_provider_request).await;
-                // TODO: where is connection removed from active connection??
+                info!("Starting proxy for {}", remote_address.clone());
+                self.run_proxy(mix_receiver, message_sender).await;
+                info!("Proxy for {} is finished", remote_address);
             }
 
             SocksCommand::Bind => unimplemented!(), // not handled
             SocksCommand::UdpAssociate => unimplemented!(), // not handled
         };
+
         Ok(())
     }
 
@@ -235,7 +347,7 @@ impl SocksClient {
     /// read-a-byte-or-two. The bytes being extracted look like this:
     ///
     /// +----+------+----------+------+------------+
-    //  |ver | ulen |  uname   | plen |  password  |
+    /// |ver | ulen |  uname   | plen |  password  |
     /// +----+------+----------+------+------------+
     /// | 1  |  1   | 1 to 255 |  1   | 1 to 255   |
     /// +----+------+----------+------+------------+

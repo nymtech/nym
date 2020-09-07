@@ -1,17 +1,15 @@
-use serde::Deserialize;
-
 /// Client Authentication Methods
 pub(crate) enum AuthenticationMethods {
     /// No Authentication
     NoAuth = 0x00,
-    // GssApi = 0x01,
+    // GssApi = 0x01, // question to DH: why is this commented?
     /// Authenticate with a username / password
     UserPass = 0x02,
     /// Cannot authenticate
     NoMethods = 0xFF,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
 /// A socks5 user with a matching password.
 pub struct User {
     pub username: String,

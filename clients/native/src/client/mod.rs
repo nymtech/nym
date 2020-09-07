@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::client::config::{Config, SocketType};
 use crate::websocket;
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
@@ -32,7 +33,6 @@ use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use client_core::config::{Config, SocketType};
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use gateway_client::{
@@ -45,6 +45,8 @@ use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::anonymous_replies::ReplySURB;
 use nymsphinx::receiver::ReconstructedMessage;
 use tokio::runtime::Runtime;
+
+pub(crate) mod config;
 
 pub struct NymClient {
     /// Client configuration options, including, among other things, packet sending rates,
@@ -71,7 +73,7 @@ pub struct NymClient {
 
 impl NymClient {
     pub fn new(config: Config) -> Self {
-        let pathfinder = ClientKeyPathfinder::new_from_config(&config);
+        let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
         let key_manager = KeyManager::load_keys(&pathfinder).expect("failed to load stored keys");
 
         NymClient {
@@ -89,7 +91,7 @@ impl NymClient {
             self.key_manager.encryption_keypair().public_key().clone(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
-            NodeIdentity::from_base58_string(self.config.get_gateway_id()).unwrap(),
+            NodeIdentity::from_base58_string(self.config.get_base().get_gateway_id()).unwrap(),
         )
     }
 
@@ -107,9 +109,11 @@ impl NymClient {
             .enter(|| {
                 LoopCoverTrafficStream::new(
                     self.key_manager.ack_key(),
-                    self.config.get_average_ack_delay(),
-                    self.config.get_average_packet_delay(),
-                    self.config.get_loop_cover_traffic_average_delay(),
+                    self.config.get_base().get_average_ack_delay(),
+                    self.config.get_base().get_average_packet_delay(),
+                    self.config
+                        .get_base()
+                        .get_loop_cover_traffic_average_delay(),
                     mix_tx,
                     self.as_mix_recipient(),
                     topology_accessor,
@@ -128,11 +132,11 @@ impl NymClient {
     ) {
         let controller_config = real_messages_control::Config::new(
             self.key_manager.ack_key(),
-            self.config.get_ack_wait_multiplier(),
-            self.config.get_ack_wait_addition(),
-            self.config.get_average_ack_delay(),
-            self.config.get_message_sending_average_delay(),
-            self.config.get_average_packet_delay(),
+            self.config.get_base().get_ack_wait_multiplier(),
+            self.config.get_base().get_ack_wait_addition(),
+            self.config.get_base().get_average_ack_delay(),
+            self.config.get_base().get_message_sending_average_delay(),
+            self.config.get_base().get_average_packet_delay(),
             self.as_mix_recipient(),
         );
 
@@ -176,11 +180,11 @@ impl NymClient {
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
     ) -> GatewayClient<'static, url::Url> {
-        let gateway_id = self.config.get_gateway_id();
+        let gateway_id = self.config.get_base().get_gateway_id();
         if gateway_id.is_empty() {
             panic!("The identity of the gateway is unknown - did you run `nym-client` init?")
         }
-        let gateway_address_str = self.config.get_gateway_listener();
+        let gateway_address_str = self.config.get_base().get_gateway_listener();
         if gateway_address_str.is_empty() {
             panic!("The address of the gateway is unknown - did you run `nym-client` init?")
         }
@@ -200,7 +204,7 @@ impl NymClient {
             Some(self.key_manager.gateway_shared_key()),
             mixnet_message_sender,
             ack_sender,
-            self.config.get_gateway_response_timeout(),
+            self.config.get_base().get_gateway_response_timeout(),
         );
 
         self.runtime.block_on(async {
@@ -217,8 +221,8 @@ impl NymClient {
     // the current global view of topology
     fn start_topology_refresher(&mut self, topology_accessor: TopologyAccessor) {
         let topology_refresher_config = TopologyRefresherConfig::new(
-            self.config.get_directory_server(),
-            self.config.get_topology_refresh_rate(),
+            self.config.get_base().get_directory_server(),
+            self.config.get_base().get_topology_refresh_rate(),
         );
         let mut topology_refresher =
             TopologyRefresher::new_directory_client(topology_refresher_config, topology_accessor);
@@ -226,7 +230,7 @@ impl NymClient {
         // components depending on topology would see a non-empty view
         info!(
             "Obtaining initial network topology from {}",
-            self.config.get_directory_server()
+            self.config.get_base().get_directory_server()
         );
         self.runtime.block_on(topology_refresher.refresh());
 
@@ -357,7 +361,7 @@ impl NymClient {
         let shared_topology_accessor = TopologyAccessor::new();
 
         let reply_key_storage =
-            ReplyKeyStorage::load(self.config.get_reply_encryption_key_store_path())
+            ReplyKeyStorage::load(self.config.get_base().get_reply_encryption_key_store_path())
                 .expect("Failed to load reply key storage!");
 
         // the components are started in very specific order. Unless you know what you are doing,
@@ -413,7 +417,7 @@ impl NymClient {
         );
         info!(
             "Gateway identity public key is: {:?}",
-            self.config.get_gateway_id()
+            self.config.get_base().get_gateway_id()
         );
     }
 }

@@ -1,5 +1,7 @@
 use nymsphinx_addressing::clients::{Recipient, RecipientFormattingError};
+use ordered_buffer::OrderedMessage;
 use std::convert::TryFrom;
+use std::fmt::{self};
 
 pub type ConnectionId = u64;
 pub type RemoteAddress = String;
@@ -9,7 +11,6 @@ pub type RemoteAddress = String;
 pub enum RequestFlag {
     Connect = 0,
     Send = 1,
-    Close = 2,
 }
 
 #[derive(Debug)]
@@ -22,6 +23,28 @@ pub enum RequestError {
     ReturnAddressTooShort,
     MalformedReturnAddress(RecipientFormattingError),
 }
+
+impl fmt::Display for RequestError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RequestError::AddressLengthTooShort => {
+                write!(f, "not enough bytes to recover the lenght of the address")
+            }
+            RequestError::AddressTooShort => write!(f, "not enough bytes to recover the address"),
+            RequestError::ConnectionIdTooShort => {
+                write!(f, "not enough bytes to recover the connection id")
+            }
+            RequestError::NoData => write!(f, "no data provided"),
+            RequestError::UnknownRequestFlag => write!(f, "request of unknown type"),
+            RequestError::ReturnAddressTooShort => write!(f, "too short return address"),
+            RequestError::MalformedReturnAddress(recipient_err) => {
+                write!(f, "malformed return address - {}", recipient_err)
+            }
+        }
+    }
+}
+
+impl std::error::Error for RequestError {}
 
 impl RequestError {
     pub fn is_malformed_return(&self) -> bool {
@@ -39,7 +62,6 @@ impl TryFrom<u8> for RequestFlag {
         match value {
             _ if value == (RequestFlag::Connect as u8) => Ok(Self::Connect),
             _ if value == (RequestFlag::Send as u8) => Ok(Self::Send),
-            _ if value == (RequestFlag::Close as u8) => Ok(Self::Close),
             _ => Err(RequestError::UnknownRequestFlag),
         }
     }
@@ -55,15 +77,12 @@ pub enum Request {
     Connect {
         conn_id: ConnectionId,
         remote_addr: RemoteAddress,
-        data: Vec<u8>,
+        message: OrderedMessage,
         return_address: Recipient,
     },
 
     /// Re-use an existing TCP connection, sending more request data up it.
-    Send(ConnectionId, Vec<u8>),
-
-    /// Close an existing TCP connection.
-    Close(ConnectionId),
+    Send(ConnectionId, Vec<u8>, bool),
 }
 
 impl Request {
@@ -71,25 +90,20 @@ impl Request {
     pub fn new_connect(
         conn_id: ConnectionId,
         remote_addr: RemoteAddress,
-        data: Vec<u8>,
+        message: OrderedMessage,
         return_address: Recipient,
     ) -> Request {
         Request::Connect {
             conn_id,
             remote_addr,
-            data,
+            message,
             return_address,
         }
     }
 
     /// Construct a new Request::Send instance
-    pub fn new_send(conn_id: ConnectionId, data: Vec<u8>) -> Request {
-        Request::Send(conn_id, data)
-    }
-
-    /// Construct a new Request::Close instance
-    pub fn new_close(conn_id: ConnectionId) -> Request {
-        Request::Close(conn_id)
+    pub fn new_send(conn_id: ConnectionId, data: Vec<u8>, local_closed: bool) -> Request {
+        Request::Send(conn_id, data, local_closed)
     }
 
     /// Deserialize the request type, connection id, destination address and port,
@@ -148,15 +162,23 @@ impl Request {
                 let return_address = Recipient::try_from_bytes(return_bytes)
                     .map_err(|err| RequestError::MalformedReturnAddress(err))?;
 
+                let message =
+                    OrderedMessage::try_from_bytes(recipient_data_bytes[Recipient::LEN..].to_vec())
+                        .unwrap();
+
                 Ok(Request::Connect {
                     conn_id: connection_id,
                     remote_addr: remote_address,
-                    data: recipient_data_bytes[Recipient::LEN..].to_vec(),
+                    message,
                     return_address,
                 })
             }
-            RequestFlag::Send => Ok(Request::Send(connection_id, b[9..].as_ref().to_vec())),
-            RequestFlag::Close => Ok(Request::Close(connection_id)),
+            RequestFlag::Send => {
+                let local_closed = b[9] != 0;
+                let data = b[10..].as_ref().to_vec();
+
+                Ok(Request::Send(connection_id, data, local_closed))
+            }
         }
     }
 
@@ -169,7 +191,7 @@ impl Request {
             Request::Connect {
                 conn_id,
                 remote_addr,
-                data,
+                message,
                 return_address,
             } => {
                 let remote_address_bytes = remote_addr.into_bytes();
@@ -180,15 +202,13 @@ impl Request {
                     .chain(remote_address_bytes_len.to_be_bytes().iter().cloned())
                     .chain(remote_address_bytes.into_iter())
                     .chain(return_address.to_bytes().iter().cloned())
-                    .chain(data.into_iter())
+                    .chain(message.into_bytes())
                     .collect()
             }
-            Request::Send(conn_id, data) => std::iter::once(RequestFlag::Send as u8)
+            Request::Send(conn_id, data, local_closed) => std::iter::once(RequestFlag::Send as u8)
                 .chain(conn_id.to_be_bytes().iter().cloned())
+                .chain(std::iter::once(local_closed as u8))
                 .chain(data.into_iter())
-                .collect(),
-            Request::Close(conn_id) => std::iter::once(RequestFlag::Close as u8)
-                .chain(conn_id.to_be_bytes().iter().cloned())
                 .collect(),
         }
     }
@@ -362,6 +382,7 @@ mod request_deserialization_tests {
             let request_bytes: Vec<_> = request_bytes
                 .into_iter()
                 .chain(recipient_bytes.iter().cloned())
+                .chain(vec![0, 0, 0, 0, 0, 0, 0, 1]) // message index 1
                 .collect();
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
@@ -369,7 +390,7 @@ mod request_deserialization_tests {
                 Request::Connect {
                     conn_id,
                     remote_addr,
-                    data,
+                    message,
                     return_address,
                 } => {
                     assert_eq!("foo.com".to_string(), remote_addr);
@@ -378,7 +399,7 @@ mod request_deserialization_tests {
                         return_address.to_bytes().to_vec(),
                         recipient.to_bytes().to_vec()
                     );
-                    assert_eq!(Vec::<u8>::new(), data);
+                    assert_eq!(Vec::<u8>::new(), message.data);
                 }
                 _ => unreachable!(),
             }
@@ -415,6 +436,7 @@ mod request_deserialization_tests {
             let request_bytes: Vec<_> = request_bytes
                 .into_iter()
                 .chain(recipient_bytes.iter().cloned())
+                .chain(vec![0, 0, 0, 0, 0, 0, 0, 1]) // ordered message sequence number 1
                 .chain(vec![255, 255, 255].into_iter())
                 .collect();
 
@@ -423,7 +445,7 @@ mod request_deserialization_tests {
                 Request::Connect {
                     conn_id,
                     remote_addr,
-                    data,
+                    message,
                     return_address,
                 } => {
                     assert_eq!("foo.com".to_string(), remote_addr);
@@ -432,7 +454,8 @@ mod request_deserialization_tests {
                         return_address.to_bytes().to_vec(),
                         recipient.to_bytes().to_vec()
                     );
-                    assert_eq!(vec![255, 255, 255], data);
+                    assert_eq!(1, message.index);
+                    assert_eq!(vec![255, 255, 255], message.data);
                 }
                 _ => unreachable!(),
             }
@@ -445,13 +468,14 @@ mod request_deserialization_tests {
 
         #[test]
         fn works_when_request_is_sized_properly_even_without_data() {
-            // correct 8 bytes of connection_id, and 0 bytes request data
-            let request_bytes = [RequestFlag::Send as u8, 1, 2, 3, 4, 5, 6, 7, 8].to_vec();
+            // correct 8 bytes of connection_id, 1 byte of local_closed and 0 bytes request data
+            let request_bytes = [RequestFlag::Send as u8, 1, 2, 3, 4, 5, 6, 7, 8, 0].to_vec();
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {
-                Request::Send(conn_id, data) => {
+                Request::Send(conn_id, data, local_closed) => {
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
                     assert_eq!(Vec::<u8>::new(), data);
+                    assert!(!local_closed)
                 }
                 _ => unreachable!(),
             }
@@ -459,7 +483,7 @@ mod request_deserialization_tests {
 
         #[test]
         fn works_when_request_is_sized_properly_and_has_data() {
-            // correct 8 bytes of connection_id, and 3 bytes request data (all 255)
+            // correct 8 bytes of connection_id, 1 byte of local_closed and 3 bytes request data (all 255)
             let request_bytes = [
                 RequestFlag::Send as u8,
                 1,
@@ -470,6 +494,7 @@ mod request_deserialization_tests {
                 6,
                 7,
                 8,
+                0,
                 255,
                 255,
                 255,
@@ -478,26 +503,10 @@ mod request_deserialization_tests {
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {
-                Request::Send(conn_id, data) => {
+                Request::Send(conn_id, data, local_closed) => {
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
                     assert_eq!(vec![255, 255, 255], data);
-                }
-                _ => unreachable!(),
-            }
-        }
-    }
-
-    #[cfg(test)]
-    mod connection_close_requests {
-        use super::*;
-
-        #[test]
-        fn can_be_constructed() {
-            let request_bytes = [RequestFlag::Close as u8, 1, 2, 3, 4, 5, 6, 7, 8].to_vec();
-            let request = Request::try_from_bytes(&request_bytes).unwrap();
-            match request {
-                Request::Close(conn_id) => {
-                    assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
+                    assert!(!local_closed)
                 }
                 _ => unreachable!(),
             }

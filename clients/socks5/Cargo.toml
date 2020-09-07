@@ -10,26 +10,20 @@ name = "nym_socks5"
 path = "src/lib.rs"
 
 [dependencies]
-bs58 = "0.3.0"
 clap = "2.33.0"
-curve25519-dalek = "2.0.0"
-dirs = "2.0.2"
+dirs = "3.0" # for determining default store directories in config
 dotenv = "0.15.0"
-futures = "0.3.1"
+futures = "0.3"
 log = "0.4"
-pem = "0.7.0"
+pin-project = "0.4"
 pretty_env_logger = "0.3"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-reqwest = "0.9.22"
-serde = { version = "1.0.104", features = ["derive"] }
-serde_json = "1.0.44"
-sled = "0.33"
+serde = { version = "1.0", features = ["derive"] } # for config serialization/deserialization
 snafu = "0.4.1"
-tokio = { version = "0.2", features = ["full"] }
-tokio-tungstenite = "0.11.0"
+tokio = { version = "0.2", features = ["rt-threaded"] }
 url = "2.1"
 
-## internal
+# internal
 client-core = { path = "../client-core" }
 config = { path = "../../common/config" }
 crypto = { path = "../../common/crypto" }
@@ -37,13 +31,13 @@ directory-client = { path = "../../common/client-libs/directory-client" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 nymsphinx = { path = "../../common/nymsphinx" }
-pemstore = { path = "../../common/pemstore" }
-simple-socks5-requests = { path = "../../service-providers/simple-socks5/simple-socks5-requests" }
+ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
+socks5-requests = { path = "../../common/socks5/requests" }
 topology = { path = "../../common/topology" }
-utils = { path = "../../common/utils" }
+proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
 
 [build-dependencies]
-built = "0.3.2"
+built = "0.4.3"
 
 [dev-dependencies]
 tempfile = "3.1.0"

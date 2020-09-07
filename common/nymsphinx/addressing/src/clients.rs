@@ -58,7 +58,7 @@ impl From<encryption::EncryptionKeyError> for RecipientFormattingError {
 }
 
 // TODO: this should a different home... somewhere, but where?
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Recipient {
     client_identity: ClientIdentity,
     client_encryption_key: ClientEncryptionKey,

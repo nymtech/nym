@@ -1,22 +1,21 @@
 [package]
 name = "simple-socks5"
 version = "0.1.0"
-authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
+authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bs58 = "0.3.0"
 clap = "2.33.0"
 futures = "0.3"
-futures-util = { version = "0.3", default-features = false, features = ["async-await", "sink", "std"] } # why ?
 log = "0.4"
 pretty_env_logger = "0.3"
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "0.2", features = ["stream", "tcp", "rt-threaded", "macros"] }
 tokio-tungstenite = "0.11.0"
 
 nymsphinx = { path = "../../common/nymsphinx" }
-simple-socks5-requests = { path = "simple-socks5-requests" }
-utils = { path = "../../common/utils" }
+ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
+socks5-requests = { path = "../../common/socks5/requests" }
+proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
 websocket-requests = { path = "../../clients/native/websocket-requests" }

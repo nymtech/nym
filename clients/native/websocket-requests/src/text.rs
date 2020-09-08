@@ -23,7 +23,6 @@ use std::convert::{TryFrom, TryInto};
 // local text equivalent of `ClientRequest` for easier serialization + deserialization with serde
 // TODO: figure out if there's an easy way to avoid defining it
 
-#[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub(super) enum ClientRequestText {
@@ -37,7 +36,7 @@ pub(super) enum ClientRequestText {
     #[serde(rename_all = "camelCase")]
     Reply {
         message: String,
-        reply_SURB: String,
+        reply_surb: String,
     },
 }
 
@@ -73,10 +72,10 @@ impl TryInto<ClientRequest> for ClientRequestText {
             ClientRequestText::SelfAddress => Ok(ClientRequest::SelfAddress),
             ClientRequestText::Reply {
                 message,
-                reply_SURB,
+                reply_surb,
             } => {
                 let message_bytes = message.into_bytes();
-                let reply_surb = ReplySURB::from_base58_string(reply_SURB).map_err(|err| {
+                let reply_surb = ReplySURB::from_base58_string(reply_surb).map_err(|err| {
                     Self::Error::new(ErrorKind::MalformedRequest, err.to_string())
                 })?;
 
@@ -92,14 +91,13 @@ impl TryInto<ClientRequest> for ClientRequestText {
 // local text equivalent of `ServerResponse` for easier serialization + deserialization with serde
 // TODO: figure out if there's an easy way to avoid defining it
 
-#[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub(super) enum ServerResponseText {
     #[serde(rename_all = "camelCase")]
     Received {
         message: String,
-        reply_SURB: Option<String>,
+        reply_surb: Option<String>,
     },
     SelfAddress {
         address: String,
@@ -137,8 +135,8 @@ impl From<ServerResponse> for ServerResponseText {
                     // TODO: ask DH what is more appropriate, lossy utf8 conversion or returning error and then
                     // pure binary later
                     message: String::from_utf8_lossy(&reconstructed.message).into_owned(),
-                    reply_SURB: reconstructed
-                        .reply_SURB
+                    reply_surb: reconstructed
+                        .reply_surb
                         .map(|reply_surb| reply_surb.to_base58_string()),
                 }
             }

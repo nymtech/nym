@@ -21,14 +21,13 @@ use nymsphinx_chunking::reconstruction::MessageReconstructor;
 use nymsphinx_params::{PacketEncryptionAlgorithm, PacketHkdfAlgorithm, DEFAULT_NUM_MIX_HOPS};
 
 // TODO: should this live in this file?
-#[allow(non_snake_case)]
 #[derive(Debug)]
 pub struct ReconstructedMessage {
     /// The actual plaintext message that was received.
     pub message: Vec<u8>,
 
     /// Optional ReplySURB to allow for an anonymous reply to the sender.
-    pub reply_SURB: Option<ReplySURB>,
+    pub reply_surb: Option<ReplySURB>,
 }
 
 #[derive(Debug)]
@@ -157,9 +156,8 @@ impl MessageReceiver {
         fragment: Fragment,
     ) -> Result<Option<(ReconstructedMessage, Vec<i32>)>, MessageRecoveryError> {
         if let Some((mut message, used_sets)) = self.reconstructor.insert_new_fragment(fragment) {
-            #[allow(non_snake_case)]
             // Split message into plaintext and reply-SURB
-            let reply_SURB = match self.recover_reply_surb_from_message(&mut message) {
+            let reply_surb = match self.recover_reply_surb_from_message(&mut message) {
                 Ok(reply_surb) => reply_surb,
                 Err(_) => {
                     return Err(MessageRecoveryError::MalformedReconstructedMessage(
@@ -178,7 +176,7 @@ impl MessageReceiver {
             Ok(Some((
                 ReconstructedMessage {
                     message,
-                    reply_SURB,
+                    reply_surb,
                 },
                 used_sets,
             )))

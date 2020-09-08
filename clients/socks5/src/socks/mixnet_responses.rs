@@ -40,7 +40,7 @@ impl MixnetResponseListener {
 
     async fn on_message(&self, reconstructed_message: ReconstructedMessage) {
         let raw_message = reconstructed_message.message;
-        if reconstructed_message.reply_SURB.is_some() {
+        if reconstructed_message.reply_surb.is_some() {
             warn!("this message had a surb - we didn't do anything with it");
         }
 

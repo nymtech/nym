@@ -1,5 +1,5 @@
 [package]
-name = "simple-socks5"
+name = "sphinx-socks"
 version = "0.1.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"

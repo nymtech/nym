@@ -348,7 +348,7 @@ mod tests {
     fn create_test_storefile() -> (PathBuf, PathBuf, PathBuf) {
         let base_dir = test_base_dir();
         let filename = PathBuf::from(format!("hosts-store-{}.list", random_string()));
-        let dirpath = base_dir.join("service-providers").join("socks5");
+        let dirpath = base_dir.join("service-providers").join("sphinx-socks");
         fs::create_dir_all(&dirpath).expect(&format!(
             "could not create storage directory at {:?}",
             dirpath

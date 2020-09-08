@@ -24,8 +24,11 @@ use js_sys::Promise;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
+use nymsphinx::anonymous_replies::SURBEncryptionKey;
 use nymsphinx::preparer::MessagePreparer;
+use nymsphinx::receiver::MessageReceiver;
 use rand::rngs::OsRng;
+use std::collections::HashSet;
 use std::convert::TryInto;
 use std::future::Future;
 use std::time::Duration;
@@ -46,7 +49,7 @@ struct GatewayClient {
 }
 
 #[wasm_bindgen]
-#[cfg(target_arch = "wasm32")]
+// #[cfg(target_arch = "wasm32")]
 pub struct NymClient {
     version: String,
     directory_server: String,
@@ -55,13 +58,17 @@ pub struct NymClient {
     ack_key: AckKey,
 
     message_preparer: Option<MessagePreparer<OsRng>>,
+    message_receiver: MessageReceiver,
+
+    // TODO: this should be stored somewhere persistently
+    received_keys: HashSet<SURBEncryptionKey>,
 
     topology: Option<NymTopology>,
     gateway_client: Option<GatewayClient>,
 }
 
 #[wasm_bindgen]
-#[cfg(target_arch = "wasm32")]
+// #[cfg(target_arch = "wasm32")]
 impl NymClient {
     pub fn new(directory_server: String, version: String) -> Self {
         // for time being generate new keys each time...
@@ -69,17 +76,21 @@ impl NymClient {
         let encryption_keys = encryption::KeyPair::new_with_rng(&mut DEFAULT_RNG);
         let ack_key = AckKey::new(&mut DEFAULT_RNG);
 
-        Self {
-            identity,
-            encryption_keys,
-            ack_key,
-            version,
-            directory_server,
-            message_preparer: None,
-            topology: None,
-            gateway_client: None,
-        }
+        todo!()
+
+        // Self {
+        //     identity,
+        //     encryption_keys,
+        //     ack_key,
+        //     version,
+        //     directory_server,
+        //     message_preparer: None,
+        //     topology: None,
+        //     gateway_client: None,
+        // }
     }
+
+    pub fn listen_for_messages(on_message: &js_sys::Function) {}
 
     fn self_recipient(&self) -> Recipient {
         Recipient::new(

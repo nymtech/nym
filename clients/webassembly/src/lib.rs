@@ -27,6 +27,7 @@ use wasm_bindgen_futures::{spawn_local, JsFuture};
 use web_sys::window;
 
 mod models;
+pub(crate) mod received_buffer;
 mod utils;
 mod websocket;
 

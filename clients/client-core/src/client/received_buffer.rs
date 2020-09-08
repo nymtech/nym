@@ -207,7 +207,7 @@ impl ReceivedMessagesBuffer {
             // TODO: perhaps having to say it doesn't have a surb an indication the type should be changed?
             Some(ReconstructedMessage {
                 message: reply_msg,
-                reply_SURB: None,
+                reply_surb: None,
             })
         }
     }

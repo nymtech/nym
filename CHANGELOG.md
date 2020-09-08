@@ -1,8 +1,8 @@
 # Changelog
 
-## [Unreleased](https://github.com/nymtech/nym/tree/HEAD)
+## [v0.8.0](https://github.com/nymtech/nym/tree/v0.8.0)
 
-[Full Changelog](https://github.com/nymtech/nym/compare/v0.7.0...HEAD)
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.7.0...v0.8.0)
 
 This release introduces, among other things, the following improvements:
 - SURB-acks for significant boost to the mixnet messaging reliability,

@@ -15,3 +15,4 @@ scripts/run_mix.sh
 scripts/start_local_tmux_network.sh
 /.floo
 /.flooignore
+/service-providers/simple-socks5/allowed.list

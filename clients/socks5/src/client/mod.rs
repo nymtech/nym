@@ -339,17 +339,6 @@ impl NymClient {
         self.start_socks5_listener(received_buffer_request_sender, input_sender);
 
         info!("Client startup finished!");
-        info!(
-            "Client identity public key is: {}",
-            self.as_mix_recipient().identity().to_base58_string()
-        );
-        info!(
-            "Client encryption public key is: {}",
-            self.as_mix_recipient().encryption_key().to_base58_string()
-        );
-        info!(
-            "Gateway identity public key is: {:?}",
-            self.config.get_base().get_gateway_id()
-        );
+        info!("The address of this client is: {}", self.as_mix_recipient());
     }
 }

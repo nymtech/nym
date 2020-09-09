@@ -1,7 +1,6 @@
 use super::types::{AddrType, ResponseCode, SocksProxyError};
 use super::{utils as socks_utils, SOCKS_VERSION};
 use log::*;
-use std::net::SocketAddr;
 use tokio::prelude::*;
 
 /// A Socks5 request hitting the proxy.
@@ -102,11 +101,6 @@ impl SocksRequest {
     pub(crate) fn to_string(&self) -> String {
         let address = socks_utils::pretty_print_addr(&self.addr_type, &self.addr);
         format!("{}:{}", address, self.port)
-    }
-
-    /// Convert the request object to a SocketAddr
-    pub(crate) fn to_socket(&self) -> Result<Vec<SocketAddr>, SocksProxyError> {
-        socks_utils::addr_to_socket(&self.addr_type, &self.addr, self.port)
     }
 }
 

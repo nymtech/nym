@@ -1,0 +1,27 @@
+[package]
+name = "network-monitor"
+version = "0.1.0"
+authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures = "0.3.1"
+itertools = "0.8.2"
+log = "0.4.8"
+pretty_env_logger = "0.3"
+rand_os = "0.1"
+rand = "0.7.2"
+serde = "1.0.104"
+serde_derive = "1.0.104"
+tokio = { version = "0.2", features = ["full"] }
+
+## internal
+crypto = { path = "../common/crypto" }
+directory-client = { path = "../common/client-libs/directory-client" }
+gateway-client = { path = "../common/client-libs/gateway-client" }
+nymsphinx = {path = "../common/nymsphinx" }
+topology = {path = "../common/topology" }
+
+[dev-dependencies]

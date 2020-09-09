@@ -771,6 +771,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "either"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd56b59865bce947ac5958779cfa508f6c3b9497cc762b7e24a12d11ccde2c4f"
+
+[[package]]
 name = "encoding_rs"
 version = "0.8.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1299,6 +1305,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f56a2d0bc861f9165be4eb3442afd3c236d8a98afd426f65d92324ae1091a484"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1606,6 +1621,26 @@ dependencies = [
  "cfg-if",
  "libc",
  "winapi 0.3.8",
+]
+
+[[package]]
+name = "network-monitor"
+version = "0.1.0"
+dependencies = [
+ "crypto",
+ "directory-client",
+ "futures 0.3.4",
+ "gateway-client",
+ "itertools",
+ "log 0.4.8",
+ "nymsphinx",
+ "pretty_env_logger",
+ "rand 0.7.3",
+ "rand_os",
+ "serde",
+ "serde_derive",
+ "tokio 0.2.22",
+ "topology",
 ]
 
 [[package]]

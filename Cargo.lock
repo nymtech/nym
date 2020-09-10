@@ -1750,6 +1750,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-socks5-client"
+version = "0.8.0-dev"
+dependencies = [
+ "built",
+ "clap",
+ "client-core",
+ "config",
+ "crypto",
+ "directory-client",
+ "dirs 3.0.1",
+ "dotenv",
+ "futures 0.3.4",
+ "gateway-client",
+ "gateway-requests",
+ "log 0.4.8",
+ "nymsphinx",
+ "ordered-buffer",
+ "pin-project",
+ "pretty_env_logger",
+ "proxy-helpers",
+ "rand 0.7.3",
+ "serde",
+ "snafu",
+ "socks5-requests",
+ "tempfile",
+ "tokio 0.2.22",
+ "topology",
+ "url 2.1.1",
+]
+
+[[package]]
 name = "nym-validator"
 version = "0.8.0-dev"
 dependencies = [
@@ -2872,37 +2903,6 @@ dependencies = [
  "libc",
  "redox_syscall",
  "winapi 0.3.8",
-]
-
-[[package]]
-name = "socks5"
-version = "0.8.0-dev"
-dependencies = [
- "built",
- "clap",
- "client-core",
- "config",
- "crypto",
- "directory-client",
- "dirs 3.0.1",
- "dotenv",
- "futures 0.3.4",
- "gateway-client",
- "gateway-requests",
- "log 0.4.8",
- "nymsphinx",
- "ordered-buffer",
- "pin-project",
- "pretty_env_logger",
- "proxy-helpers",
- "rand 0.7.3",
- "serde",
- "snafu",
- "socks5-requests",
- "tempfile",
- "tokio 0.2.22",
- "topology",
- "url 2.1.1",
 ]
 
 [[package]]

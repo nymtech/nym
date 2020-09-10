@@ -1,6 +1,6 @@
 [package]
 build = "build.rs"
-name = "socks5"
+name = "nym-socks5-client"
 version = "0.8.0-dev"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2018"

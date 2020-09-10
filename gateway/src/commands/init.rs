@@ -104,6 +104,14 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
 }
 
+fn show_incentives_url() {
+    println!("\n##### NOTE #####");
+    println!(
+        "\nIf you would like to join our incentives program, please visit <TODO: INSERT URL HERE>"
+    );
+    println!("\n\n");
+}
+
 pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
     println!("Initialising gateway {}...", id);
@@ -141,5 +149,7 @@ pub fn execute(matches: &ArgMatches) {
         .expect("Failed to save the config file");
     println!("Saved configuration file to {:?}", config_save_location);
 
-    println!("Gateway configuration completed.\n\n\n")
+    println!("Gateway configuration completed.\n\n\n");
+
+    show_incentives_url();
 }

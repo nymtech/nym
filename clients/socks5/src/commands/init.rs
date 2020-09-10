@@ -46,7 +46,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
         .arg(Arg::with_name("gateway")
             .long("gateway")
-            .help("Id of the gateway we are going to connect to")
+            .help("Id of the gateway we are going to connect to. If unsure what to put here - 'D6YaMzLSY7mANtSQRKXsmMZpqgqiVkeiagKM4V4oFPFr' is a safe choice for the testnet")
             .takes_value(true)
             .required(true)
         )

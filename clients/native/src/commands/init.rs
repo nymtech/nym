@@ -13,20 +13,21 @@
 // limitations under the License.
 
 use crate::built_info;
+use crate::client::config::Config;
 use crate::commands::override_config;
-use crate::config::persistence::pathfinder::ClientPathfinder;
 use clap::{App, Arg, ArgMatches};
+use client_core::client::key_manager::KeyManager;
+use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use config::NymConfig;
-use crypto::identity::MixIdentityKeyPair;
-use directory_client::presence::Topology;
-use futures::channel::mpsc;
+use crypto::asymmetric::identity;
+use directory_client::DirectoryClient;
 use gateway_client::GatewayClient;
-use gateway_requests::AuthToken;
-use nymsphinx::DestinationAddressBytes;
-use pemstore::pemstore::PemStore;
+use gateway_requests::registration::handshake::SharedKeys;
+use rand::rngs::OsRng;
+use std::convert::TryInto;
+use std::sync::Arc;
 use std::time::Duration;
-use topology::gateway::Node;
-use topology::NymTopology;
+use topology::{gateway, NymTopology};
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
@@ -39,8 +40,9 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
         .arg(Arg::with_name("gateway")
             .long("gateway")
-            .help("Id of the gateway we have preference to connect to. If left empty, a random gateway will be chosen.")
+            .help("Id of the gateway we are going to connect to. If unsure what to put here - 'D6YaMzLSY7mANtSQRKXsmMZpqgqiVkeiagKM4V4oFPFr' is a safe choice for the testnet")
             .takes_value(true)
+            .required(true)
         )
         .arg(Arg::with_name("directory")
             .long("directory")
@@ -64,93 +66,80 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
 }
 
-async fn try_gateway_registration(
-    gateways: Vec<Node>,
-    our_address: DestinationAddressBytes,
-) -> Option<(String, AuthToken)> {
-    // TODO: having to do something like this suggests that perhaps GatewayClient's constructor
-    // could be improved
-    let (sphinx_tx, _) = mpsc::unbounded();
+async fn register_with_gateway(
+    gateway: &gateway::Node,
+    our_identity: Arc<identity::KeyPair>,
+) -> SharedKeys {
     let timeout = Duration::from_millis(1500);
-    for gateway in gateways {
-        let mut gateway_client = GatewayClient::new(
-            url::Url::parse(&gateway.client_listener).unwrap(),
-            our_address.clone(),
-            None,
-            sphinx_tx.clone(),
-            timeout,
-        );
-        if gateway_client.establish_connection().await.is_ok() {
-            if let Ok(token) = gateway_client.register().await {
-                return Some((gateway.pub_key, token));
-            }
-        }
-    }
-    None
+    let mut gateway_client = GatewayClient::new_init(
+        url::Url::parse(&gateway.client_listener).unwrap(),
+        gateway.identity_key,
+        our_identity.clone(),
+        timeout,
+    );
+    gateway_client
+        .establish_connection()
+        .await
+        .expect("failed to establish connection with the gateway!");
+    gateway_client
+        .register()
+        .await
+        .expect("failed to register with the gateway!")
 }
 
-async fn choose_gateway(
-    directory_server: String,
-    our_address: DestinationAddressBytes,
-) -> (String, AuthToken) {
-    // TODO: once we change to graph topology this here will need to be updated!
-    let topology = Topology::new(directory_server.clone()).await;
-    let version_filtered_topology = topology.filter_system_version(built_info::PKG_VERSION);
-    // don't care about health of the networks as mixes can go up and down any time,
-    // but DO care about gateways
-    let gateways = version_filtered_topology.gateways();
+async fn gateway_details(directory_server: &str, gateway_id: &str) -> gateway::Node {
+    let directory_client_config = directory_client::Config::new(directory_server.to_string());
+    let directory_client = directory_client::Client::new(directory_client_config);
+    let topology = directory_client.get_topology().await.unwrap();
+    let nym_topology: NymTopology = topology.try_into().expect("Invalid topology data!");
+    let version_filtered_topology = nym_topology.filter_system_version(built_info::PKG_VERSION);
 
-    // try to perform registration so that we wouldn't need to do it at startup
-    // + at the same time we'll know if we can actually talk with that gateway
-    let registration_result = try_gateway_registration(gateways, our_address).await;
-    match registration_result {
-        None => {
-            // while technically there's no issue client-side, it will be impossible to execute
-            // `nym-client run` as no gateway is available so it might be best to not finalize
-            // the init and rely on users trying to init another time?
-            panic!(
-                "Currently there are no valid gateways available on the network ({}). \
-                 Please try to run `init` again at later time or change your directory server",
-                directory_server
-            )
-        }
-        Some((gateway_id, auth_token)) => (gateway_id, auth_token),
-    }
+    version_filtered_topology
+        .gateways()
+        .iter()
+        .find(|gateway| gateway.identity_key.to_base58_string() == gateway_id)
+        .expect(&*format!("no gateway with id {} exists!", gateway_id))
+        .clone()
 }
 
 pub fn execute(matches: &ArgMatches) {
     println!("Initialising client...");
 
     let id = matches.value_of("id").unwrap(); // required for now
-    let mut config = crate::config::Config::new(id);
+    let mut config = Config::new(id);
+    let mut rng = OsRng;
 
     config = override_config(config, matches);
     if matches.is_present("fastmode") {
-        config = config.set_high_default_traffic_volume();
+        config.get_base_mut().set_high_default_traffic_volume();
     }
 
-    let mix_identity_keys = MixIdentityKeyPair::new();
+    // create identity, encryption and ack keys.
+    let mut key_manager = KeyManager::new(&mut rng);
 
-    // if there is no gateway chosen, get a random-ish one from the topology
-    if config.get_gateway_id().is_empty() {
-        let our_address = mix_identity_keys.public_key().derive_address();
-        // TODO: is there perhaps a way to make it work without having to spawn entire runtime?
-        let mut rt = tokio::runtime::Runtime::new().unwrap();
-        let (gateway_id, auth_token) =
-            rt.block_on(choose_gateway(config.get_directory_server(), our_address));
+    let gateway_id = matches.value_of("gateway").unwrap();
 
-        // TODO: this isn't really a gateway, but gateway, yet another change to make
-        config = config
-            .with_gateway_id(gateway_id)
-            .with_gateway_auth_token(auth_token);
-    }
+    let registration_fut = async {
+        let gate_details =
+            gateway_details(&config.get_base().get_directory_server(), gateway_id).await;
+        let shared_keys =
+            register_with_gateway(&gate_details, key_manager.identity_keypair()).await;
+        (shared_keys, gate_details.client_listener)
+    };
 
-    let pathfinder = ClientPathfinder::new_from_config(&config);
-    let pem_store = PemStore::new(pathfinder);
-    pem_store
-        .write_identity(mix_identity_keys)
-        .expect("Failed to save identity keys");
-    println!("Saved mixnet identity keypair");
+    // TODO: is there perhaps a way to make it work without having to spawn entire runtime?
+    let mut rt = tokio::runtime::Runtime::new().unwrap();
+    let (shared_keys, gateway_listener) = rt.block_on(registration_fut);
+    config
+        .get_base_mut()
+        .with_gateway_listener(gateway_listener);
+    key_manager.insert_gateway_shared_key(shared_keys);
+
+    let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
+    key_manager
+        .store_keys(&pathfinder)
+        .expect("Failed to generated keys");
+    println!("Saved all generated keys");
 
     let config_save_location = config.get_config_file_save_location();
     config
@@ -160,13 +149,8 @@ pub fn execute(matches: &ArgMatches) {
 
     println!(
         "Unless overridden in all `nym-client run` we will be talking to the following gateway: {}...",
-        config.get_gateway_id(),
+        config.get_base().get_gateway_id(),
     );
-    if config.get_gateway_auth_token().is_some() {
-        println!(
-            "using optional AuthToken: {:?}",
-            config.get_gateway_auth_token().unwrap()
-        )
-    }
+
     println!("Client configuration completed.\n\n\n")
 }

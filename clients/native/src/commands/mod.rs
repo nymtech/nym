@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::{Config, SocketType};
+use crate::client::config::{Config, SocketType};
 use clap::ArgMatches;
 
 pub mod init;
@@ -20,11 +20,11 @@ pub mod run;
 
 pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if let Some(directory) = matches.value_of("directory") {
-        config = config.with_custom_directory(directory);
+        config.get_base_mut().with_custom_directory(directory);
     }
 
     if let Some(gateway_id) = matches.value_of("gateway") {
-        config = config.with_gateway_id(gateway_id);
+        config.get_base_mut().with_gateway_id(gateway_id);
     }
 
     if matches.is_present("disable-socket") {

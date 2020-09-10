@@ -13,15 +13,13 @@
 // limitations under the License.
 
 use crate::node::metrics;
-use crypto::encryption;
+use crypto::asymmetric::encryption;
 use log::*;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx::{
     Delay as SphinxDelay, Error as SphinxError, NodeAddressBytes, ProcessedPacket, SphinxPacket,
 };
 use std::convert::TryFrom;
-use std::net::SocketAddr;
-use std::ops::Deref;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -32,7 +30,7 @@ pub enum MixProcessingError {
 }
 
 pub enum MixProcessingResult {
-    ForwardHop(SocketAddr, SphinxPacket),
+    ForwardHop(NymNodeRoutingAddress, SphinxPacket),
     #[allow(dead_code)]
     LoopMessage,
 }
@@ -72,7 +70,7 @@ impl PacketProcessor {
         }
     }
 
-    pub(crate) fn report_sent(&self, addr: SocketAddr) {
+    pub(crate) fn report_sent(&self, addr: NymNodeRoutingAddress) {
         self.metrics_reporter.report_sent(addr.to_string())
     }
 
@@ -82,7 +80,7 @@ impl PacketProcessor {
         forward_address: NodeAddressBytes,
         delay: SphinxDelay,
     ) -> Result<MixProcessingResult, MixProcessingError> {
-        let next_hop_address: SocketAddr = NymNodeRoutingAddress::try_from(forward_address)?.into();
+        let next_hop_address = NymNodeRoutingAddress::try_from(forward_address)?;
 
         // Delay packet for as long as required
         tokio::time::delay_for(delay.to_duration()).await;
@@ -96,8 +94,7 @@ impl PacketProcessor {
     ) -> Result<MixProcessingResult, MixProcessingError> {
         // we received something resembling a sphinx packet, report it!
         self.metrics_reporter.report_received();
-
-        match packet.process(self.secret_key.deref().inner()) {
+        match packet.process(&self.secret_key.as_ref().into()) {
             Ok(ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay)) => {
                 self.process_forward_hop(packet, address, delay).await
             }

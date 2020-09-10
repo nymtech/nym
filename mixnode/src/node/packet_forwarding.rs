@@ -15,15 +15,14 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use nymsphinx::SphinxPacket;
-use std::net::SocketAddr;
+use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
 use std::time::Duration;
 use tokio::runtime::Handle;
 
 pub(crate) struct PacketForwarder {
     tcp_client: mixnet_client::Client,
-    conn_tx: mpsc::UnboundedSender<(SocketAddr, SphinxPacket)>,
-    conn_rx: mpsc::UnboundedReceiver<(SocketAddr, SphinxPacket)>,
+    conn_tx: mpsc::UnboundedSender<(NymNodeRoutingAddress, SphinxPacket)>,
+    conn_rx: mpsc::UnboundedReceiver<(NymNodeRoutingAddress, SphinxPacket)>,
 }
 
 impl PacketForwarder {
@@ -50,7 +49,7 @@ impl PacketForwarder {
     pub(crate) fn start(
         mut self,
         handle: &Handle,
-    ) -> mpsc::UnboundedSender<(SocketAddr, SphinxPacket)> {
+    ) -> mpsc::UnboundedSender<(NymNodeRoutingAddress, SphinxPacket)> {
         // TODO: what to do with the lost JoinHandle?
         let sender_channel = self.conn_tx.clone();
         handle.spawn(async move {

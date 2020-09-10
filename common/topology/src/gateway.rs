@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use crate::filter;
-use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
-use nymsphinx::Node as SphinxNode;
+use crypto::asymmetric::{encryption, identity};
+use nymsphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
+use nymsphinx_types::Node as SphinxNode;
 use std::convert::TryInto;
 use std::net::SocketAddr;
 
@@ -28,24 +29,15 @@ pub struct Node {
     pub location: String,
     pub client_listener: String,
     pub mixnet_listener: SocketAddr,
-    pub pub_key: String,
-    pub registered_clients: Vec<Client>,
+    pub identity_key: identity::PublicKey,
+    pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
     pub last_seen: u64,
     pub version: String,
 }
 
 impl Node {
-    pub fn get_pub_key_bytes(&self) -> [u8; 32] {
-        let mut key_bytes = [0; 32];
-        bs58::decode(&self.pub_key).into(&mut key_bytes).unwrap();
-        key_bytes
-    }
-
-    pub fn has_client(&self, client_pub_key: String) -> bool {
-        self.registered_clients
-            .iter()
-            .find(|client| client.pub_key == client_pub_key)
-            .is_some()
+    pub fn identity(&self) -> &NodeIdentity {
+        &self.identity_key
     }
 }
 
@@ -55,14 +47,12 @@ impl filter::Versioned for Node {
     }
 }
 
-impl Into<SphinxNode> for Node {
+impl<'a> Into<SphinxNode> for &'a Node {
     fn into(self) -> SphinxNode {
         let node_address_bytes = NymNodeRoutingAddress::from(self.mixnet_listener)
             .try_into()
             .unwrap();
-        let key_bytes = self.get_pub_key_bytes();
-        let key = nymsphinx::key::new(key_bytes);
 
-        SphinxNode::new(node_address_bytes, key)
+        SphinxNode::new(node_address_bytes, (&self.sphinx_key).into())
     }
 }

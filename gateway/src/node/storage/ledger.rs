@@ -12,18 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//use directory_client::presence::providers::MixProviderClient;
-//use log::*;
-//use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
-//use sfw_provider_requests::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
-//use std::path::PathBuf;
-
-use std::path::PathBuf;
-
+use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
+use gateway_requests::authentication::iv::AuthenticationIV;
+use gateway_requests::generic_array::typenum::Unsigned;
+use gateway_requests::registration::handshake::{SharedKeySize, SharedKeys};
 use log::*;
-
-use gateway_requests::auth_token::{AuthToken, AUTH_TOKEN_SIZE};
 use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub(crate) enum ClientLedgerError {
@@ -49,7 +44,7 @@ impl ClientLedger {
         let ledger = ClientLedger { db };
 
         ledger.db.iter().keys().for_each(|key| {
-            println!(
+            trace!(
                 "key: {:?}",
                 ledger
                     .read_destination_address_bytes(key.unwrap())
@@ -60,18 +55,18 @@ impl ClientLedger {
         Ok(ledger)
     }
 
-    fn read_auth_token(&self, raw_token: sled::IVec) -> AuthToken {
-        let token_bytes_ref = raw_token.as_ref();
+    fn read_shared_key(&self, raw_key: sled::IVec) -> SharedKeys {
+        let key_bytes_ref = raw_key.as_ref();
         // if this fails it means we have some database corruption and we
         // absolutely can't continue
-        if token_bytes_ref.len() != AUTH_TOKEN_SIZE {
-            error!("CLIENT LEDGER DATA CORRUPTION - TOKEN HAS INVALID LENGTH");
-            panic!("CLIENT LEDGER DATA CORRUPTION - TOKEN HAS INVALID LENGTH");
+
+        if key_bytes_ref.len() != SharedKeySize::to_usize() {
+            error!("CLIENT LEDGER DATA CORRUPTION - SHARED KEY HAS INVALID LENGTH");
+            panic!("CLIENT LEDGER DATA CORRUPTION - SHARED KEY HAS INVALID LENGTH");
         }
 
-        let mut token_bytes = [0u8; AUTH_TOKEN_SIZE];
-        token_bytes.copy_from_slice(token_bytes_ref);
-        AuthToken::from_bytes(token_bytes)
+        // this can only fail if the bytes have invalid length but we already asserted it
+        SharedKeys::try_from_bytes(key_bytes_ref).unwrap()
     }
 
     fn read_destination_address_bytes(
@@ -91,32 +86,46 @@ impl ClientLedger {
         DestinationAddressBytes::from_bytes(destination_bytes)
     }
 
-    pub(crate) fn verify_token(
+    pub(crate) fn verify_shared_key(
         &self,
-        auth_token: &AuthToken,
         client_address: &DestinationAddressBytes,
+        encrypted_address: &EncryptedAddressBytes,
+        iv: &AuthenticationIV,
     ) -> Result<bool, ClientLedgerError> {
         match self.db.get(&client_address.to_bytes()) {
             Err(e) => Err(ClientLedgerError::DbReadError(e)),
-            Ok(token) => match token {
-                Some(token_ivec) => Ok(&self.read_auth_token(token_ivec) == auth_token),
+            Ok(existing_key) => match existing_key {
+                Some(existing_key_ivec) => {
+                    let shared_key = &self.read_shared_key(existing_key_ivec);
+                    Ok(encrypted_address.verify(client_address, shared_key, iv))
+                }
                 None => Ok(false),
             },
         }
     }
 
-    pub(crate) fn insert_token(
+    pub(crate) fn get_shared_key(
+        &self,
+        client_address: &DestinationAddressBytes,
+    ) -> Result<Option<SharedKeys>, ClientLedgerError> {
+        match self.db.get(&client_address.to_bytes()) {
+            Err(e) => Err(ClientLedgerError::DbReadError(e)),
+            Ok(existing_key) => Ok(existing_key.map(|key_ivec| self.read_shared_key(key_ivec))),
+        }
+    }
+
+    pub(crate) fn insert_shared_key(
         &mut self,
-        auth_token: AuthToken,
+        shared_key: SharedKeys,
         client_address: DestinationAddressBytes,
-    ) -> Result<Option<AuthToken>, ClientLedgerError> {
+    ) -> Result<Option<SharedKeys>, ClientLedgerError> {
         let insertion_result = match self
             .db
-            .insert(&client_address.to_bytes(), &auth_token.to_bytes())
+            .insert(&client_address.to_bytes(), shared_key.to_bytes())
         {
             Err(e) => Err(ClientLedgerError::DbWriteError(e)),
-            Ok(existing_token) => {
-                Ok(existing_token.map(|existing_token| self.read_auth_token(existing_token)))
+            Ok(existing_key) => {
+                Ok(existing_key.map(|existing_key| self.read_shared_key(existing_key)))
             }
         };
 
@@ -125,37 +134,19 @@ impl ClientLedger {
         insertion_result
     }
 
-    pub(crate) fn remove_token(
+    pub(crate) fn remove_shared_key(
         &mut self,
         client_address: &DestinationAddressBytes,
-    ) -> Result<Option<AuthToken>, ClientLedgerError> {
+    ) -> Result<Option<SharedKeys>, ClientLedgerError> {
         let removal_result = match self.db.remove(&client_address.to_bytes()) {
             Err(e) => Err(ClientLedgerError::DbWriteError(e)),
-            Ok(existing_token) => {
-                Ok(existing_token.map(|existing_token| self.read_auth_token(existing_token)))
+            Ok(existing_key) => {
+                Ok(existing_key.map(|existing_key| self.read_shared_key(existing_key)))
             }
         };
 
-        // removing of tokens happens extremely rarely, so flush is also fine here
+        // removal of keys happens extremely rarely, so flush is also fine here
         self.db.flush().unwrap();
         removal_result
-    }
-
-    pub(crate) fn current_clients(
-        &self,
-    ) -> Result<Vec<DestinationAddressBytes>, ClientLedgerError> {
-        let clients = self.db.iter().keys();
-
-        let mut client_vec = Vec::new();
-        for client in clients {
-            match client {
-                Err(e) => return Err(ClientLedgerError::DbWriteError(e)),
-                Ok(client_entry) => {
-                    client_vec.push(self.read_destination_address_bytes(client_entry))
-                }
-            }
-        }
-
-        Ok(client_vec)
     }
 }

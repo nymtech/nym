@@ -16,14 +16,14 @@ use clap::{App, ArgMatches};
 
 pub mod built_info;
 pub mod client;
-mod commands;
-pub mod config;
+pub mod commands;
 pub mod websocket;
 
 fn main() {
     dotenv::dotenv().ok();
     setup_logging();
     println!("{}", banner());
+    println!("\n\nIf unsure which gateway to choose - 'D6YaMzLSY7mANtSQRKXsmMZpqgqiVkeiagKM4V4oFPFr' is a safe choice for the testnet\n\n");
 
     let arg_matches = App::new("Nym Client")
         .version(built_info::PKG_VERSION)

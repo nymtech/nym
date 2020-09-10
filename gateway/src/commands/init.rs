@@ -16,8 +16,7 @@ use crate::commands::override_config;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::encryption;
-use pemstore::pemstore::PemStore;
+use crypto::asymmetric::{encryption, identity};
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
@@ -105,6 +104,14 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
 }
 
+fn show_incentives_url() {
+    println!("\n##### NOTE #####");
+    println!(
+        "\nIf you would like to join our testnet incentives program, please visit https://nymtech.net/incentives"
+    );
+    println!("\n\n");
+}
+
 pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
     println!("Initialising gateway {}...", id);
@@ -113,13 +120,28 @@ pub fn execute(matches: &ArgMatches) {
 
     config = override_config(config, matches);
 
+    let identity_keys = identity::KeyPair::new();
     let sphinx_keys = encryption::KeyPair::new();
     let pathfinder = GatewayPathfinder::new_from_config(&config);
-    let pem_store = PemStore::new(pathfinder);
-    pem_store
-        .write_encryption_keys(sphinx_keys)
-        .expect("Failed to save sphinx keys");
-    println!("Saved mixnet sphinx keypair");
+    pemstore::store_keypair(
+        &sphinx_keys,
+        &pemstore::KeyPairPath::new(
+            pathfinder.private_encryption_key().to_owned(),
+            pathfinder.public_encryption_key().to_owned(),
+        ),
+    )
+    .expect("Failed to save sphinx keys");
+
+    pemstore::store_keypair(
+        &identity_keys,
+        &pemstore::KeyPairPath::new(
+            pathfinder.private_identity_key().to_owned(),
+            pathfinder.public_identity_key().to_owned(),
+        ),
+    )
+    .expect("Failed to save identity keys");
+
+    println!("Saved identity and mixnet sphinx keypairs");
 
     let config_save_location = config.get_config_file_save_location();
     config
@@ -127,5 +149,7 @@ pub fn execute(matches: &ArgMatches) {
         .expect("Failed to save the config file");
     println!("Saved configuration file to {:?}", config_save_location);
 
-    println!("Gateway configuration completed.\n\n\n")
+    println!("Gateway configuration completed.\n\n\n");
+
+    show_incentives_url();
 }

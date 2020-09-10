@@ -11,23 +11,27 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crypto::identity::MixIdentityPublicKey;
-use models::Topology;
-use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
+use crypto::asymmetric::encryption;
+pub use models::keys::keygen;
+use models::topology::Topology;
+use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
+use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 use nymsphinx::Node as SphinxNode;
-use nymsphinx::{delays, Destination, NodeAddressBytes, SphinxPacket};
+use nymsphinx::{delays, NodeAddressBytes, SphinxPacket};
+use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::net::SocketAddr;
 use std::time::Duration;
+use topology::NymTopology;
 use wasm_bindgen::prelude::*;
 
 mod models;
 mod utils;
 
-pub use models::keys::keygen;
-use nymsphinx::addressing::clients::Recipient;
+const DEFAULT_RNG: OsRng = OsRng;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -55,13 +59,15 @@ pub struct NodeData {
 ///
 /// Message chunking is currently not implemented. If the message exceeds the
 /// capacity of a single Sphinx packet, the extra information will be discarded.
+///
 #[wasm_bindgen]
 pub fn create_sphinx_packet(topology_json: &str, msg: &str, recipient: &str) -> Vec<u8> {
     utils::set_panic_hook(); // nicer js errors.
 
-    let recipient = Recipient::try_from_string(recipient).unwrap();
+    let recipient = Recipient::try_from_base58_string(recipient).unwrap();
 
-    let route = sphinx_route_to(topology_json, &recipient.gateway());
+    let route =
+        sphinx_route_to(topology_json, &recipient.gateway()).expect("todo: error handling...");
     let average_delay = Duration::from_secs_f64(0.1);
     let delays = delays::generate_from_average_duration(route.len(), average_delay);
 
@@ -72,8 +78,8 @@ pub fn create_sphinx_packet(topology_json: &str, msg: &str, recipient: &str) -> 
 
     let message = msg.as_bytes().to_vec();
 
-    let destination = Destination::new(recipient.destination(), Default::default());
-    let sphinx_packet = SphinxPacket::new(message, &route, &destination, &delays, None).unwrap();
+    let destination = recipient.as_sphinx_destination();
+    let sphinx_packet = SphinxPacket::new(message, &route, &destination, &delays).unwrap();
     payload(sphinx_packet, route)
 }
 
@@ -102,29 +108,29 @@ fn payload(sphinx_packet: SphinxPacket, route: Vec<SphinxNode>) -> Vec<u8> {
 ///
 /// This function panics if the supplied `raw_route` json string can't be
 /// extracted to a `JsonRoute`.
-fn sphinx_route_to(topology_json: &str, gateway_address: &NodeAddressBytes) -> Vec<SphinxNode> {
+fn sphinx_route_to(
+    topology_json: &str,
+    gateway_identity: &NodeIdentity,
+) -> Option<Vec<SphinxNode>> {
     let topology = Topology::new(topology_json);
-    let route = topology
-        .random_route_to_gateway(gateway_address)
+    let nym_topology: NymTopology = topology.try_into().ok()?;
+    let route = nym_topology
+        .random_route_to_gateway(&mut DEFAULT_RNG, DEFAULT_NUM_MIX_HOPS, gateway_identity)
         .expect("invalid route produced");
     assert_eq!(4, route.len());
-    route
+    Some(route)
 }
 
 impl TryFrom<NodeData> for SphinxNode {
+    // We really should start actually using errors rather than unwrapping on everything
     type Error = ();
 
     fn try_from(node_data: NodeData) -> Result<Self, Self::Error> {
         let addr: SocketAddr = node_data.address.parse().unwrap();
         let address: NodeAddressBytes = NymNodeRoutingAddress::from(addr).try_into().unwrap();
-
-        // this has to be temporarily moved out of separate function as we can't return private types
-        let pub_key = {
-            let src = MixIdentityPublicKey::from_base58_string(node_data.public_key).to_bytes();
-            let mut dest: [u8; 32] = [0; 32];
-            dest.copy_from_slice(&src);
-            nymsphinx::key::new(dest)
-        };
+        let pub_key = encryption::PublicKey::from_base58_string(node_data.public_key)
+            .unwrap()
+            .into();
 
         Ok(SphinxNode { address, pub_key })
     }
@@ -132,8 +138,6 @@ impl TryFrom<NodeData> for SphinxNode {
 
 #[cfg(test)]
 mod test_constructing_a_sphinx_packet {
-    use super::*;
-
     // the below test is no longer true, as the produced length is 1372 bytes + 7 (for IPV4) or + 19 (for IPV6)
     // conceptually everything works as before, only the 0 padding was removed as it served no purpose here
 
@@ -147,22 +151,6 @@ mod test_constructing_a_sphinx_packet {
     //     );
     //     assert_eq!(1404, packet.len());
     // }
-
-    #[test]
-    fn starts_with_a_mix_address() {
-        let mut payload = create_sphinx_packet(
-            topology_fixture(),
-            "foomp",
-            "5pgrc4gPHP2tBQgfezcdJ2ZAjipoAsy6evrqHdxBbVXq@7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
-        );
-        // you don't really need 32 bytes here, but giving too much won't make it fail
-        let mut address_buffer = [0; 32];
-        let _ = payload.split_off(32);
-        address_buffer.copy_from_slice(payload.as_slice());
-        let address = NymNodeRoutingAddress::try_from_bytes(&address_buffer);
-
-        assert!(address.is_ok());
-    }
 }
 
 #[cfg(test)]
@@ -174,11 +162,10 @@ mod building_a_topology_from_json {
     fn panics_on_empty_string() {
         sphinx_route_to(
             "",
-            &NodeAddressBytes::try_from_base58_string(
-                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
-            )
-            .unwrap(),
-        );
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
+        )
+        .unwrap();
     }
 
     #[test]
@@ -186,54 +173,74 @@ mod building_a_topology_from_json {
     fn panics_on_bad_json() {
         sphinx_route_to(
             "bad bad bad not json",
-            &NodeAddressBytes::try_from_base58_string(
-                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
-            )
-            .unwrap(),
-        );
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
+        )
+        .unwrap();
     }
 
     #[test]
     #[should_panic]
     fn panics_when_there_are_no_mixnodes() {
-        let mut topology: Topology = serde_json::from_str(topology_fixture()).unwrap();
-        topology.mix_nodes = vec![];
+        let mut topology = Topology::new(topology_fixture());
+        topology.set_mixnodes(vec![]);
         let json = serde_json::to_string(&topology).unwrap();
         sphinx_route_to(
             &json,
-            &NodeAddressBytes::try_from_base58_string(
-                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
-            )
-            .unwrap(),
-        );
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
+        )
+        .unwrap();
     }
 
     #[test]
     #[should_panic]
     fn panics_when_there_are_not_enough_mixnodes() {
-        let mut topology: Topology = serde_json::from_str(topology_fixture()).unwrap();
-        let node = topology.mix_nodes.first().unwrap().clone();
-        topology.mix_nodes = vec![node]; // 1 mixnode isn't enough. Panic!
+        let mut topology = Topology::new(topology_fixture());
+        let node = topology.get_current_raw_mixnodes().first().unwrap().clone();
+        topology.set_mixnodes(vec![node]); // 1 mixnode isn't enough. Panic!
         let json = serde_json::to_string(&topology).unwrap();
         sphinx_route_to(
             &json,
-            &NodeAddressBytes::try_from_base58_string(
-                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
-            )
-            .unwrap(),
-        );
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
+        )
+        .unwrap();
     }
 
     #[test]
+    #[cfg_attr(feature = "offline-test", ignore)]
     fn test_works_on_happy_json() {
         let route = sphinx_route_to(
             topology_fixture(),
-            &NodeAddressBytes::try_from_base58_string(
-                "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
-            )
-            .unwrap(),
-        );
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
+        )
+        .unwrap();
         assert_eq!(4, route.len());
+    }
+
+    #[test]
+    fn test_works_on_happy_json_when_serialized() {
+        let topology = Topology::new(topology_fixture());
+        let json = serde_json::to_string(&topology).unwrap();
+        let route = sphinx_route_to(
+            &json,
+            &NodeIdentity::from_base58_string("FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3")
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(4, route.len());
+    }
+}
+
+#[cfg(test)]
+mod topology_fixture {
+    use super::*;
+
+    #[test]
+    fn is_valid() {
+        let _nym_topology: NymTopology = Topology::new(topology_fixture()).try_into().unwrap();
     }
 }
 
@@ -297,7 +304,8 @@ fn topology_fixture() -> &'static str {
             {
             "clientListener": "139.162.246.48:9000",
             "mixnetListener": "139.162.246.48:1789",
-            "pubKey": "7vhgER4Gz789QHNTSu4apMpTcpTuUaRiLxJnbz1g2HFh",
+            "identityKey": "FE7zC2sJZrhXgQWvzXXVH8GHi2xXRynX8UWK8rD8ikf3",
+            "sphinxKey": "BnLYqQjb8K6TmW5oFdNZrUTocGxa3rgzBvapQrf8XUbF",
             "version": "0.6.0",
             "location": "London, UK",
             "registeredClients": [
@@ -310,7 +318,8 @@ fn topology_fixture() -> &'static str {
             {
             "clientListener": "127.0.0.1:9000",
             "mixnetListener": "127.0.0.1:1789",
-            "pubKey": "2XK8RDcUTRcJLUWoDfoXc2uP4YViscMLEM5NSzhSi87M",
+            "identityKey": "7hU4RNHtGC1FreLYLoBXXTH8AdaqU913NbqCv5Fu4z1r",
+            "sphinxKey": "3KCpz1HCD8DqnQjemT1uuBZipmHFXM4V5btxLXwvM1gG",
             "version": "0.6.0",
             "location": "unknown",
             "registeredClients": [],

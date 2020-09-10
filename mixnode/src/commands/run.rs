@@ -17,8 +17,7 @@ use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
 use crate::node::MixNode;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::encryption;
-use pemstore::pemstore::PemStore;
+use crypto::asymmetric::encryption;
 
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("run")
@@ -96,12 +95,14 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-fn load_sphinx_keys(config_file: &Config) -> encryption::KeyPair {
-    let sphinx_keypair = PemStore::new(MixNodePathfinder::new_from_config(&config_file))
-        .read_encryption()
-        .expect("Failed to read stored sphinx key files");
+fn load_sphinx_keys(pathfinder: &MixNodePathfinder) -> encryption::KeyPair {
+    let sphinx_keypair: encryption::KeyPair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
+        pathfinder.private_encryption_key().to_owned(),
+        pathfinder.public_encryption_key().to_owned(),
+    ))
+    .expect("Failed to read stored sphinx key files");
     println!(
-        "Public key: {}\n",
+        "Public sphinx key: {}\n",
         sphinx_keypair.public_key().to_base58_string()
     );
     sphinx_keypair
@@ -118,7 +119,8 @@ pub fn execute(matches: &ArgMatches) {
 
     config = override_config(config, matches);
 
-    let sphinx_keypair = load_sphinx_keys(&config);
+    let pathfinder = MixNodePathfinder::new_from_config(&config);
+    let sphinx_keypair = load_sphinx_keys(&pathfinder);
 
     let listening_ip_string = config.get_listening_address().ip().to_string();
     if special_addresses().contains(&listening_ip_string.as_ref()) {

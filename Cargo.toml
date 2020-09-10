@@ -2,23 +2,40 @@
 panic = "abort"
 opt-level = "s"
 
+[profile.dev]
+panic = "abort"
+
 [workspace]
 
 members = [
     "clients/native",
+    "clients/native/websocket-requests",
+    "clients/socks5",
     "clients/webassembly",
+    "clients/client-core",
     "common/client-libs/directory-client",
+    "common/client-libs/directory-client/models",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
     "common/config",
     "common/crypto",
-    "common/healthcheck",
     "common/nymsphinx",
+    "common/nymsphinx/acknowledgements",
+    "common/nymsphinx/addressing",
+    "common/nymsphinx/anonymous-replies",
+    "common/nymsphinx/chunking",
+    "common/nymsphinx/cover",
+    "common/nymsphinx/framing",
+    "common/nymsphinx/params",
+    "common/nymsphinx/types",
     "common/pemstore",
+    "common/socks5/requests",
+    "common/socks5/proxy-helpers",
     "common/topology",
     "gateway",
     "gateway/gateway-requests",
+    "service-providers/sphinx-socks",
     "mixnode",
     "validator",
 ]

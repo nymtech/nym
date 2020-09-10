@@ -12,22 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use futures::{
-    channel::{mpsc, oneshot},
-    SinkExt,
-};
-use log::*;
-use std::convert::TryFrom;
-use tokio::{prelude::*, stream::StreamExt};
-use tokio_tungstenite::{
-    tungstenite::{protocol::Message, Error as WsError},
-    WebSocketStream,
-};
-
-use gateway_requests::auth_token::AuthToken;
-use gateway_requests::types::{BinaryRequest, ClientControlRequest, ServerResponse};
-use nymsphinx::DestinationAddressBytes;
-
 use crate::node::client_handling::clients_handler::{
     ClientsHandlerRequest, ClientsHandlerRequestSender, ClientsHandlerResponse,
 };
@@ -35,6 +19,26 @@ use crate::node::client_handling::websocket::message_receiver::{
     MixMessageReceiver, MixMessageSender,
 };
 use crate::node::mixnet_handling::sender::OutboundMixMessageSender;
+use crypto::asymmetric::identity;
+use futures::{
+    channel::{mpsc, oneshot},
+    SinkExt,
+};
+use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
+use gateway_requests::authentication::iv::AuthenticationIV;
+use gateway_requests::registration::handshake::error::HandshakeError;
+use gateway_requests::registration::handshake::{gateway_handshake, SharedKeys, DEFAULT_RNG};
+use gateway_requests::types::{BinaryRequest, ClientControlRequest, ServerResponse};
+use gateway_requests::BinaryResponse;
+use log::*;
+use nymsphinx::DestinationAddressBytes;
+use std::convert::TryFrom;
+use std::sync::Arc;
+use tokio::{prelude::*, stream::StreamExt};
+use tokio_tungstenite::{
+    tungstenite::{protocol::Message, Error as WsError},
+    WebSocketStream,
+};
 
 //// TODO: note for my future self to consider the following idea:
 //// split the socket connection into sink and stream
@@ -42,39 +46,54 @@ use crate::node::mixnet_handling::sender::OutboundMixMessageSender;
 //// and sink for pumping responses AND mix traffic
 //// but as byproduct this might (or might not) break the clean "SocketStream" enum here
 
-enum SocketStream<S: AsyncRead + AsyncWrite + Unpin> {
+enum SocketStream<S> {
     RawTCP(S),
     UpgradedWebSocket(WebSocketStream<S>),
     Invalid,
 }
 
-pub(crate) struct Handle<S: AsyncRead + AsyncWrite + Unpin> {
-    address: Option<DestinationAddressBytes>,
+impl<S> SocketStream<S> {
+    fn is_websocket(&self) -> bool {
+        match self {
+            SocketStream::UpgradedWebSocket(_) => true,
+            _ => false,
+        }
+    }
+}
+
+pub(crate) struct Handle<S> {
+    remote_address: Option<DestinationAddressBytes>,
+    shared_key: Option<SharedKeys>,
     clients_handler_sender: ClientsHandlerRequestSender,
     outbound_mix_sender: OutboundMixMessageSender,
     socket_connection: SocketStream<S>,
+
+    local_identity: Arc<identity::KeyPair>,
 }
 
-impl<S> Handle<S>
-where
-    S: AsyncRead + AsyncWrite + Unpin,
-{
+impl<S> Handle<S> {
     // for time being we assume handle is always constructed from raw socket.
     // if we decide we want to change it, that's not too difficult
     pub(crate) fn new(
         conn: S,
         clients_handler_sender: ClientsHandlerRequestSender,
         outbound_mix_sender: OutboundMixMessageSender,
+        local_identity: Arc<identity::KeyPair>,
     ) -> Self {
         Handle {
-            address: None,
+            remote_address: None,
+            shared_key: None,
             clients_handler_sender,
             outbound_mix_sender,
             socket_connection: SocketStream::RawTCP(conn),
+            local_identity,
         }
     }
 
-    async fn perform_websocket_handshake(&mut self) -> Result<(), WsError> {
+    async fn perform_websocket_handshake(&mut self) -> Result<(), WsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
         self.socket_connection =
             match std::mem::replace(&mut self.socket_connection, SocketStream::Invalid) {
                 SocketStream::RawTCP(conn) => {
@@ -94,14 +113,42 @@ where
         Ok(())
     }
 
-    async fn next_websocket_request(&mut self) -> Option<Result<Message, WsError>> {
+    async fn perform_registration_handshake(
+        &mut self,
+        init_msg: Vec<u8>,
+    ) -> Result<SharedKeys, HandshakeError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send,
+    {
+        debug_assert!(self.socket_connection.is_websocket());
+        match &mut self.socket_connection {
+            SocketStream::UpgradedWebSocket(ws_stream) => {
+                gateway_handshake(
+                    &mut DEFAULT_RNG,
+                    ws_stream,
+                    self.local_identity.as_ref(),
+                    init_msg,
+                )
+                .await
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    async fn next_websocket_request(&mut self) -> Option<Result<Message, WsError>>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
         match self.socket_connection {
             SocketStream::UpgradedWebSocket(ref mut ws_stream) => ws_stream.next().await,
             _ => panic!("impossible state - websocket handshake was somehow reverted"),
         }
     }
 
-    async fn send_websocket_response(&mut self, msg: Message) -> Result<(), WsError> {
+    async fn send_websocket_response(&mut self, msg: Message) -> Result<(), WsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
         match self.socket_connection {
             // TODO: more closely investigate difference between `Sink::send` and `Sink::send_all`
             // it got something to do with batching and flushing - it might be important if it
@@ -111,13 +158,27 @@ where
         }
     }
 
-    async fn send_websocket_sphinx_packets(
+    // Note that it encrypts each message and slaps a MAC on it
+    async fn send_websocket_unwrapped_sphinx_packets(
         &mut self,
         packets: Vec<Vec<u8>>,
-    ) -> Result<(), WsError> {
+    ) -> Result<(), WsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
+        let shared_key = self
+            .shared_key
+            .as_ref()
+            .expect("no shared key present even though we authenticated the client!");
+
+        // note: into_ws_message encrypts the requests and adds a MAC on it. Perhaps it should
+        // be more explicit in the naming?
         let messages: Vec<Result<Message, WsError>> = packets
             .into_iter()
-            .map(|packet| Ok(Message::Binary(packet)))
+            .map(|received_message| {
+                Ok(BinaryResponse::new_pushed_mix_message(received_message)
+                    .into_ws_message(shared_key))
+            })
             .collect();
         let mut send_stream = futures::stream::iter(messages);
         match self.socket_connection {
@@ -131,17 +192,23 @@ where
     fn disconnect(&self) {
         // if we never established what is the address of the client, its connection was never
         // announced hence we do not need to send 'disconnect' message
-        self.address.as_ref().map(|addr| {
+        if let Some(addr) = self.remote_address.as_ref() {
             self.clients_handler_sender
                 .unbounded_send(ClientsHandlerRequest::Disconnect(addr.clone()))
                 .unwrap();
-        });
+        }
     }
 
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
         trace!("Handling binary message (presumably sphinx packet)");
 
-        match BinaryRequest::try_from_bytes(&bin_msg) {
+        // this function decrypts the request and checks the MAC
+        match BinaryRequest::try_from_encrypted_tagged_bytes(
+            bin_msg,
+            self.shared_key
+                .as_ref()
+                .expect("no shared key present even though we authenticated the client!"),
+        ) {
             Err(e) => ServerResponse::new_error(e.to_string()),
             Ok(request) => match request {
                 // currently only a single type exists
@@ -163,38 +230,54 @@ where
     async fn handle_authenticate(
         &mut self,
         address: String,
-        token: String,
+        enc_address: String,
+        iv: String,
         mix_sender: MixMessageSender,
     ) -> ServerResponse {
         let address = match DestinationAddressBytes::try_from_base58_string(address) {
             Ok(address) => address,
             Err(e) => {
                 trace!("failed to parse received DestinationAddress: {:?}", e);
-                return ServerResponse::new_error("malformed destination address").into();
+                return ServerResponse::new_error("malformed destination address");
             }
         };
-        let token = match AuthToken::try_from_base58_string(token) {
-            Ok(token) => token,
+
+        let encrypted_address = match EncryptedAddressBytes::try_from_base58_string(enc_address) {
+            Ok(address) => address,
             Err(e) => {
-                trace!("failed to parse received AuthToken: {:?}", e);
-                return ServerResponse::new_error("malformed authentication token").into();
+                trace!("failed to parse received encrypted address: {:?}", e);
+                return ServerResponse::new_error("malformed encrypted address");
+            }
+        };
+
+        let iv = match AuthenticationIV::try_from_base58_string(iv) {
+            Ok(iv) => iv,
+            Err(e) => {
+                trace!("failed to parse received IV {:?}", e);
+                return ServerResponse::new_error("malformed iv");
             }
         };
 
         let (res_sender, res_receiver) = oneshot::channel();
-        let clients_handler_request =
-            ClientsHandlerRequest::Authenticate(address.clone(), token, mix_sender, res_sender);
+        let clients_handler_request = ClientsHandlerRequest::Authenticate(
+            address.clone(),
+            encrypted_address,
+            iv,
+            mix_sender,
+            res_sender,
+        );
         self.clients_handler_sender
             .unbounded_send(clients_handler_request)
             .unwrap(); // the receiver MUST BE alive
 
         match res_receiver.await.unwrap() {
-            ClientsHandlerResponse::Authenticate(authenticated) => {
-                if authenticated {
-                    self.address = Some(address);
-                }
-                ServerResponse::Authenticate {
-                    status: authenticated,
+            ClientsHandlerResponse::Authenticate(shared_key) => {
+                if shared_key.is_some() {
+                    self.remote_address = Some(address);
+                    self.shared_key = shared_key;
+                    ServerResponse::Authenticate { status: true }
+                } else {
+                    ServerResponse::Authenticate { status: false }
                 }
             }
             ClientsHandlerResponse::Error(e) => {
@@ -207,37 +290,64 @@ where
         }
     }
 
+    fn extract_remote_identity_from_register_init(init_data: &[u8]) -> Option<identity::PublicKey> {
+        if init_data.len() < identity::PUBLIC_KEY_LENGTH {
+            None
+        } else {
+            identity::PublicKey::from_bytes(&init_data[..identity::PUBLIC_KEY_LENGTH]).ok()
+        }
+    }
+
     async fn handle_register(
         &mut self,
-        address: String,
+        init_data: Vec<u8>,
         mix_sender: MixMessageSender,
-    ) -> ServerResponse {
-        let address = match DestinationAddressBytes::try_from_base58_string(address) {
-            Ok(address) => address,
-            Err(e) => {
-                trace!("failed to parse received DestinationAddress: {:?}", e);
-                return ServerResponse::new_error("malformed destination address").into();
+    ) -> ServerResponse
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send,
+    {
+        // not entirely sure how to it more "nicely"...
+        // hopefully, eventually this will go away once client's identity is known beforehand
+        let remote_identity = match Self::extract_remote_identity_from_register_init(&init_data) {
+            Some(address) => address,
+            None => return ServerResponse::new_error("malformed request"),
+        };
+        let remote_address = remote_identity.derive_destination_address();
+
+        let derived_shared_key = match self.perform_registration_handshake(init_data).await {
+            Ok(shared_key) => shared_key,
+            Err(err) => {
+                return ServerResponse::new_error(format!(
+                    "failed to perform the handshake - {}",
+                    err
+                ))
             }
         };
 
         let (res_sender, res_receiver) = oneshot::channel();
-        let clients_handler_request =
-            ClientsHandlerRequest::Register(address.clone(), mix_sender, res_sender);
+        let clients_handler_request = ClientsHandlerRequest::Register(
+            remote_address.clone(),
+            derived_shared_key.clone(),
+            mix_sender,
+            res_sender,
+        );
+
         self.clients_handler_sender
             .unbounded_send(clients_handler_request)
             .unwrap(); // the receiver MUST BE alive
 
         match res_receiver.await.unwrap() {
             // currently register can't fail (as in if all machines are working correctly and you
-            // send valid address, you will receive a valid token)
-            ClientsHandlerResponse::Register(token) => {
-                self.address = Some(address);
-                ServerResponse::Register {
-                    token: token.to_base58_string(),
+            // managed to complete registration handshake)
+            ClientsHandlerResponse::Register(status) => {
+                self.remote_address = Some(remote_address);
+                if status {
+                    self.shared_key = Some(derived_shared_key);
                 }
+                ServerResponse::Register { status }
             }
             ClientsHandlerResponse::Error(e) => {
-                error!("Authentication unexpectedly failed - {}", e);
+                error!("Post-handshake registration unexpectedly failed - {}", e);
                 ServerResponse::Error {
                     message: "unexpected failure".into(),
                 }
@@ -265,7 +375,44 @@ where
         }
     }
 
-    async fn wait_for_initial_authentication(&mut self) -> Option<MixMessageReceiver> {
+    /// Handles data that resembles request to either start registration handshake or perform
+    /// authentication.
+    async fn handle_initial_authentication_request(
+        &mut self,
+        mix_sender: MixMessageSender,
+        raw_request: String,
+    ) -> ServerResponse
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send,
+    {
+        if let Ok(request) = ClientControlRequest::try_from(raw_request) {
+            match request {
+                ClientControlRequest::Authenticate {
+                    address,
+                    enc_address,
+                    iv,
+                } => {
+                    self.handle_authenticate(address, enc_address, iv, mix_sender)
+                        .await
+                }
+                ClientControlRequest::RegisterHandshakeInitRequest { data } => {
+                    self.handle_register(data, mix_sender).await
+                }
+            }
+        } else {
+            // TODO: is this a malformed request or rather a network error and
+            // connection should be terminated?
+            ServerResponse::new_error("malformed request")
+        }
+    }
+
+    /// Listens for only a subset of possible client requests, i.e. for those that can either
+    /// result in client getting registered or authenticated. All other requests, such as forwarding
+    /// sphinx packets are ignored.
+    async fn wait_for_initial_authentication(&mut self) -> Option<MixMessageReceiver>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send,
+    {
         trace!("Started waiting for authenticate/register request...");
 
         while let Some(msg) = self.next_websocket_request().await {
@@ -287,21 +434,12 @@ where
             let response = match msg {
                 Message::Close(_) => break,
                 Message::Text(text_msg) => {
-                    if let Ok(request) = ClientControlRequest::try_from(text_msg) {
-                        match request {
-                            ClientControlRequest::Authenticate { address, token } => {
-                                self.handle_authenticate(address, token, mix_sender).await
-                            }
-                            ClientControlRequest::Register { address } => {
-                                self.handle_register(address, mix_sender).await
-                            }
-                        }
-                    } else {
-                        ServerResponse::new_error("malformed request")
-                    }
+                    self.handle_initial_authentication_request(mix_sender, text_msg)
+                        .await
                 }
                 Message::Binary(_) => {
                     // perhaps logging level should be reduced here, let's leave it for now and see what happens
+                    // if client is working correctly, this should have never happened
                     warn!("possibly received a sphinx packet without prior authentication. Request is going to be ignored");
                     ServerResponse::new_error("binary request without prior authentication")
                 }
@@ -328,7 +466,13 @@ where
         None
     }
 
-    async fn listen_for_requests(&mut self, mut mix_receiver: MixMessageReceiver) {
+    /// Simultaneously listens for incoming client requests, which realistically should only be
+    /// binary requests to forward sphinx packets, and for sphinx packets received from the mix
+    /// network that should be sent back to the client.
+    async fn listen_for_requests(&mut self, mut mix_receiver: MixMessageReceiver)
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
         trace!("Started listening for ALL incoming requests...");
 
         loop {
@@ -361,8 +505,8 @@ where
                 },
                 mix_messages = mix_receiver.next() => {
                     let mix_messages = mix_messages.expect("sender was unexpectedly closed! this shouldn't have ever happened!");
-                    if let Err(e) = self.send_websocket_sphinx_packets(mix_messages).await {
-                        warn!("failed to send sphinx packets back to the client - {:?}, assuming the connection is dead", e);
+                    if let Err(e) = self.send_websocket_unwrapped_sphinx_packets(mix_messages).await {
+                        warn!("failed to send the unwrapped sphinx packets back to the client - {:?}, assuming the connection is dead", e);
                         break;
                     }
                 }
@@ -373,7 +517,10 @@ where
         trace!("The stream was closed!");
     }
 
-    pub(crate) async fn start_handling(&mut self) {
+    pub(crate) async fn start_handling(&mut self)
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send,
+    {
         if let Err(e) = self.perform_websocket_handshake().await {
             warn!(
                 "Failed to complete WebSocket handshake - {:?}. Stopping the handler",

@@ -20,16 +20,18 @@ use crate::requests::presence_gateways_post::Request as PresenceGatewayPost;
 use crate::requests::presence_mixnodes_post::Request as PresenceMixNodesPost;
 use crate::requests::presence_providers_post::Request as PresenceProvidersPost;
 use crate::requests::presence_topology_get::Request as PresenceTopologyRequest;
-
-use metrics::{MixMetric, PersistedMixMetric};
-use presence::{
+use directory_client_models::metrics::{MixMetric, PersistedMixMetric};
+use directory_client_models::presence::{
     coconodes::CocoPresence, gateways::GatewayPresence, mixnodes::MixNodePresence,
-    providers::MixProviderPresence, Topology,
+    providers::MixProviderPresence,
 };
 use requests::{health_check_get::HealthCheckResponse, DirectoryGetRequest, DirectoryPostRequest};
 
-pub mod metrics;
-pub mod presence;
+pub use directory_client_models::{
+    metrics,
+    presence::{self, Topology},
+};
+
 pub mod requests;
 
 pub struct Config {

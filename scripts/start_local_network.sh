@@ -37,8 +37,8 @@ kill_old
 export RUST_LOG=warning
 # NOTE: If we wanted to suppress stdout and stderr, replace `&` with `> /dev/null 2>&1 &` in the `run`
 
-cargo run --bin nym-gateway -- init --id gateway-local --mix-host 127.0.0.1:10000 --clients-host 127.0.0.1:10001 --directory $DIR
-cargo run --bin nym-gateway -- run --id gateway-local &
+# cargo run --bin nym-gateway -- init --id gateway-local --mix-host 127.0.0.1:10000 --clients-host 127.0.0.1:10001 --directory $DIR
+cargo run --release --bin nym-gateway -- run --id gateway-local &
 
 sleep 1
 
@@ -46,8 +46,8 @@ sleep 1
 # Will make it later either configurable by flags or config file.
 for (( j=0; j<$NUMMIXES; j++ )); do
     let layer=j%MAX_LAYERS+1
-    cargo run --bin nym-mixnode -- init --id mix-local$j --host 127.0.0.1 --port $((9980+$j)) --layer $layer --directory $DIR
-    cargo run --bin nym-mixnode -- run --id mix-local$j &
+    cargo run --release --bin nym-mixnode -- init --id mix-local$j --host 127.0.0.1 --port $((9980+$j)) --layer $layer --directory $DIR
+    cargo run --release --bin nym-mixnode -- run --id mix-local$j &
     sleep 1
 done
 

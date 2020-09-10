@@ -12,55 +12,74 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
-use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
-use crate::client::mix_traffic::{MixMessageReceiver, MixMessageSender, MixTrafficController};
-use crate::client::received_buffer::{
-    ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
+use crate::client::config::{Config, SocketType};
+use crate::websocket;
+use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
+use client_core::client::inbound_messages::{
+    InputMessage, InputMessageReceiver, InputMessageSender,
 };
-use crate::client::topology_control::{
+use client_core::client::key_manager::KeyManager;
+use client_core::client::mix_traffic::{
+    MixMessageReceiver, MixMessageSender, MixTrafficController,
+};
+use client_core::client::real_messages_control;
+use client_core::client::real_messages_control::RealMessagesController;
+use client_core::client::received_buffer::{
+    ReceivedBufferMessage, ReceivedBufferRequestReceiver, ReceivedBufferRequestSender,
+    ReceivedMessagesBufferController, ReconstructedMessagesReceiver,
+};
+use client_core::client::reply_key_storage::ReplyKeyStorage;
+use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
-use crate::config::{Config, SocketType};
-use crate::websocket;
-use crypto::identity::MixIdentityKeyPair;
-use directory_client::presence;
+use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use crypto::asymmetric::identity;
 use futures::channel::mpsc;
-use gateway_client::{GatewayClient, SphinxPacketReceiver, SphinxPacketSender};
-use gateway_requests::auth_token::AuthToken;
+use gateway_client::{
+    AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
+    MixnetMessageSender,
+};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::chunking::split_and_prepare_payloads;
-use nymsphinx::NodeAddressBytes;
-use received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
+use nymsphinx::addressing::nodes::NodeIdentity;
+use nymsphinx::anonymous_replies::ReplySURB;
+use nymsphinx::receiver::ReconstructedMessage;
 use tokio::runtime::Runtime;
-use topology::NymTopology;
 
-mod cover_traffic_stream;
-pub(crate) mod inbound_messages;
-mod mix_traffic;
-mod real_traffic_stream;
-pub(crate) mod received_buffer;
-pub(crate) mod topology_control;
+pub(crate) mod config;
 
 pub struct NymClient {
+    /// Client configuration options, including, among other things, packet sending rates,
+    /// key filepaths, etc.
     config: Config,
-    runtime: Runtime,
-    identity_keypair: MixIdentityKeyPair,
 
-    // to be used by "send" function or socket, etc
+    /// Tokio runtime used for futures execution.
+    // TODO: JS: Personally I think I prefer the implicit way of using it that we've done with the
+    // gateway.
+    runtime: Runtime,
+
+    /// KeyManager object containing smart pointers to all relevant keys used by the client.
+    key_manager: KeyManager,
+
+    /// Channel used for transforming 'raw' messages into sphinx packets and sending them
+    /// through the mix network.
+    /// It is only available if the client started with the websocket listener disabled.
     input_tx: Option<InputMessageSender>,
 
-    // to be used by "receive" function or socket, etc
+    /// Channel used for obtaining reconstructed messages received from the mix network.
+    /// It is only available if the client started with the websocket listener disabled.
     receive_tx: Option<ReconstructedMessagesReceiver>,
 }
 
 impl NymClient {
-    pub fn new(config: Config, identity_keypair: MixIdentityKeyPair) -> Self {
+    pub fn new(config: Config) -> Self {
+        let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
+        let key_manager = KeyManager::load_keys(&pathfinder).expect("failed to load stored keys");
+
         NymClient {
             runtime: Runtime::new().unwrap(),
             config,
-            identity_keypair,
+            key_manager,
             input_tx: None,
             receive_tx: None,
         }
@@ -68,18 +87,19 @@ impl NymClient {
 
     pub fn as_mix_recipient(&self) -> Recipient {
         Recipient::new(
-            self.identity_keypair.public_key.derive_address(),
+            *self.key_manager.identity_keypair().public_key(),
+            self.key_manager.encryption_keypair().public_key().clone(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
-            NodeAddressBytes::try_from_base58_string(self.config.get_gateway_id()).unwrap(),
+            NodeIdentity::from_base58_string(self.config.get_base().get_gateway_id()).unwrap(),
         )
     }
 
     // future constantly pumping loop cover traffic at some specified average rate
     // the pumped traffic goes to the MixTrafficController
-    fn start_cover_traffic_stream<T: 'static + NymTopology>(
+    fn start_cover_traffic_stream(
         &self,
-        topology_accessor: TopologyAccessor<T>,
+        topology_accessor: TopologyAccessor,
         mix_tx: MixMessageSender,
     ) {
         info!("Starting loop cover traffic stream...");
@@ -88,37 +108,53 @@ impl NymClient {
         self.runtime
             .enter(|| {
                 LoopCoverTrafficStream::new(
+                    self.key_manager.ack_key(),
+                    self.config.get_base().get_average_ack_delay(),
+                    self.config.get_base().get_average_packet_delay(),
+                    self.config
+                        .get_base()
+                        .get_loop_cover_traffic_average_delay(),
                     mix_tx,
                     self.as_mix_recipient(),
                     topology_accessor,
-                    self.config.get_loop_cover_traffic_average_delay(),
-                    self.config.get_average_packet_delay(),
                 )
             })
             .start(self.runtime.handle());
     }
 
-    fn start_real_traffic_stream<T: 'static + NymTopology>(
+    fn start_real_traffic_controller(
         &self,
-        topology_accessor: TopologyAccessor<T>,
-        mix_tx: MixMessageSender,
-        input_rx: InputMessageReceiver,
+        topology_accessor: TopologyAccessor,
+        reply_key_storage: ReplyKeyStorage,
+        ack_receiver: AcknowledgementReceiver,
+        input_receiver: InputMessageReceiver,
+        mix_sender: MixMessageSender,
     ) {
+        let controller_config = real_messages_control::Config::new(
+            self.key_manager.ack_key(),
+            self.config.get_base().get_ack_wait_multiplier(),
+            self.config.get_base().get_ack_wait_addition(),
+            self.config.get_base().get_average_ack_delay(),
+            self.config.get_base().get_message_sending_average_delay(),
+            self.config.get_base().get_average_packet_delay(),
+            self.as_mix_recipient(),
+        );
+
         info!("Starting real traffic stream...");
         // we need to explicitly enter runtime due to "next_delay: time::delay_for(Default::default())"
-        // set in the constructor which HAS TO be called within context of a tokio runtime
-        self.runtime
-            .enter(|| {
-                real_traffic_stream::OutQueueControl::new(
-                    mix_tx,
-                    input_rx,
-                    self.as_mix_recipient(),
-                    topology_accessor,
-                    self.config.get_average_packet_delay(),
-                    self.config.get_message_sending_average_delay(),
-                )
-            })
-            .start(self.runtime.handle());
+        // set in the constructor [of OutQueueControl] which HAS TO be called within context of a tokio runtime
+        // When refactoring this restriction should definitely be removed.
+        let real_messages_controller = self.runtime.enter(|| {
+            RealMessagesController::new(
+                controller_config,
+                ack_receiver,
+                input_receiver,
+                mix_sender,
+                topology_accessor,
+                reply_key_storage,
+            )
+        });
+        real_messages_controller.start(self.runtime.handle());
     }
 
     // buffer controlling all messages fetched from provider
@@ -126,91 +162,75 @@ impl NymClient {
     fn start_received_messages_buffer_controller(
         &self,
         query_receiver: ReceivedBufferRequestReceiver,
-        sphinx_receiver: SphinxPacketReceiver,
+        mixnet_receiver: MixnetMessageReceiver,
+        reply_key_storage: ReplyKeyStorage,
     ) {
         info!("Starting received messages buffer controller...");
-        ReceivedMessagesBufferController::new(query_receiver, sphinx_receiver)
-            .start(self.runtime.handle())
+        ReceivedMessagesBufferController::new(
+            self.key_manager.encryption_keypair(),
+            query_receiver,
+            mixnet_receiver,
+            reply_key_storage,
+        )
+        .start(self.runtime.handle())
     }
 
     fn start_gateway_client(
         &mut self,
-        sphinx_packet_sender: SphinxPacketSender,
-        gateway_address: url::Url,
+        mixnet_message_sender: MixnetMessageSender,
+        ack_sender: AcknowledgementSender,
     ) -> GatewayClient<'static, url::Url> {
-        let auth_token = self
-            .config
-            .get_gateway_auth_token()
-            .map(|str_token| AuthToken::try_from_base58_string(str_token).ok())
-            .unwrap_or(None);
+        let gateway_id = self.config.get_base().get_gateway_id();
+        if gateway_id.is_empty() {
+            panic!("The identity of the gateway is unknown - did you run `nym-client` init?")
+        }
+        let gateway_address_str = self.config.get_base().get_gateway_listener();
+        if gateway_address_str.is_empty() {
+            panic!("The address of the gateway is unknown - did you run `nym-client` init?")
+        }
+
+        let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
+            .expect("provided gateway id is invalid!");
+
+        // TODO: since we presumably now get something valid-ish from the `init`, can we just
+        // ditch url::Url and operate on `String`?
+        let gateway_address =
+            url::Url::parse(&gateway_address_str).expect("provided gateway address is invalid!");
 
         let mut gateway_client = GatewayClient::new(
             gateway_address,
-            self.as_mix_recipient().destination(),
-            auth_token,
-            sphinx_packet_sender,
-            self.config.get_gateway_response_timeout(),
+            self.key_manager.identity_keypair(),
+            gateway_identity,
+            Some(self.key_manager.gateway_shared_key()),
+            mixnet_message_sender,
+            ack_sender,
+            self.config.get_base().get_gateway_response_timeout(),
         );
 
-        let auth_token = self.runtime.block_on(async {
+        self.runtime.block_on(async {
             gateway_client
-                .establish_connection()
+                .authenticate_and_start()
                 .await
-                .expect("could not establish initial connection with the gateway");
-            gateway_client
-                .perform_initial_authentication()
-                .await
-                .expect("could not perform initial authentication with the gateway")
+                .expect("could not authenticate and start up the gateway connection")
         });
-
-        // TODO: if we didn't have an auth_token initially, save it to config or something?
-        info!(
-            "Performed initial authentication. Auth token is {:?}",
-            auth_token.to_base58_string()
-        );
 
         gateway_client
     }
 
-    // TODO: this information should be just put in the config on init...
-    async fn get_gateway_address<T: NymTopology>(
-        gateway_id: String,
-        topology_accessor: TopologyAccessor<T>,
-    ) -> url::Url {
-        // we already have our gateway written in the config
-        let gateway_address = topology_accessor
-            .get_gateway_socket_url(&gateway_id)
-            .await
-            .unwrap_or_else(|| {
-                panic!(
-                    "Could not find gateway with id {:?}.\
-             It does not seem to be present in the current network topology.\
-              Are you sure it is still online?\
-               Perhaps try to run `nym-client init` again to obtain a new gateway",
-                    gateway_id
-                )
-            });
-
-        url::Url::parse(&gateway_address).expect("provided gateway address is invalid!")
-    }
-
     // future responsible for periodically polling directory server and updating
     // the current global view of topology
-    fn start_topology_refresher<T: 'static + NymTopology>(
-        &mut self,
-        topology_accessor: TopologyAccessor<T>,
-    ) {
+    fn start_topology_refresher(&mut self, topology_accessor: TopologyAccessor) {
         let topology_refresher_config = TopologyRefresherConfig::new(
-            self.config.get_directory_server(),
-            self.config.get_topology_refresh_rate(),
+            self.config.get_base().get_directory_server(),
+            self.config.get_base().get_topology_refresh_rate(),
         );
         let mut topology_refresher =
-            TopologyRefresher::new(topology_refresher_config, topology_accessor);
+            TopologyRefresher::new_directory_client(topology_refresher_config, topology_accessor);
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
         info!(
             "Obtaining initial network topology from {}",
-            self.config.get_directory_server()
+            self.config.get_base().get_directory_server()
         );
         self.runtime.block_on(topology_refresher.refresh());
 
@@ -242,20 +262,15 @@ impl NymClient {
         MixTrafficController::new(mix_rx, gateway_client).start(self.runtime.handle());
     }
 
-    fn start_websocket_listener<T: 'static + NymTopology>(
+    fn start_websocket_listener(
         &self,
-        topology_accessor: TopologyAccessor<T>,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
     ) {
         info!("Starting websocket listener...");
 
-        let websocket_handler = websocket::Handler::new(
-            msg_input,
-            buffer_requester,
-            self.as_mix_recipient(),
-            topology_accessor,
-        );
+        let websocket_handler =
+            websocket::Handler::new(msg_input, buffer_requester, self.as_mix_recipient());
 
         websocket::Listener::new(self.config.get_listening_port())
             .start(self.runtime.handle(), websocket_handler);
@@ -264,20 +279,27 @@ impl NymClient {
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>) {
-        let split_message = split_and_prepare_payloads(&message);
-        debug!(
-            "Splitting message into {:?} fragments!",
-            split_message.len()
-        );
-        for message_fragment in split_message {
-            let input_msg = InputMessage::new(recipient.clone(), message_fragment);
-            self.input_tx
-                .as_ref()
-                .expect("start method was not called before!")
-                .unbounded_send(input_msg)
-                .unwrap()
-        }
+    pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>, with_reply_surb: bool) {
+        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb);
+
+        self.input_tx
+            .as_ref()
+            .expect("start method was not called before!")
+            .unbounded_send(input_msg)
+            .unwrap();
+    }
+
+    /// EXPERIMENTAL DIRECT RUST API
+    /// It's untested and there are absolutely no guarantees about it (but seems to have worked
+    /// well enough in local tests)
+    pub fn send_reply(&mut self, reply_surb: ReplySURB, message: Vec<u8>) {
+        let input_msg = InputMessage::new_reply(reply_surb, message);
+
+        self.input_tx
+            .as_ref()
+            .expect("start method was not called before!")
+            .unbounded_send(input_msg)
+            .unwrap();
     }
 
     /// EXPERIMENTAL DIRECT RUST API
@@ -285,7 +307,8 @@ impl NymClient {
     /// well enough in local tests)
     /// Note: it waits for the first occurrence of messages being sent to ourselves. If you expect multiple
     /// messages, you might have to call this function repeatedly.
-    pub async fn wait_for_messages(&mut self) -> Vec<Vec<u8>> {
+    // TODO: I guess this should really return something that `impl Stream<Item=ReconstructedMessage>`
+    pub async fn wait_for_messages(&mut self) -> Vec<ReconstructedMessage> {
         use futures::StreamExt;
 
         self.receive_tx
@@ -323,9 +346,9 @@ impl NymClient {
         // sphinx_message_receiver is the receiver used by MixTrafficController that sends the actual traffic
         let (sphinx_message_sender, sphinx_message_receiver) = mpsc::unbounded();
 
-        // unwrapped_sphinx_sender is the transmitter of [unwrapped] sphinx messages received from the gateway
+        // unwrapped_sphinx_sender is the transmitter of mixnet messages received from the gateway
         // unwrapped_sphinx_receiver is the receiver for said messages - used by ReceivedMessagesBuffer
-        let (unwrapped_sphinx_sender, unwrapped_sphinx_receiver) = mpsc::unbounded();
+        let (mixnet_messages_sender, mixnet_messages_receiver) = mpsc::unbounded();
 
         // used for announcing connection or disconnection of a channel for pushing re-assembled messages to
         let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
@@ -333,39 +356,39 @@ impl NymClient {
         // channels responsible for controlling real messages
         let (input_sender, input_receiver) = mpsc::unbounded::<InputMessage>();
 
-        // TODO: when we switch to our graph topology, we need to remember to change 'presence::Topology' type
-        let shared_topology_accessor = TopologyAccessor::<presence::Topology>::new();
+        // channels responsible for controlling ack messages
+        let (ack_sender, ack_receiver) = mpsc::unbounded();
+        let shared_topology_accessor = TopologyAccessor::new();
+
+        let reply_key_storage =
+            ReplyKeyStorage::load(self.config.get_base().get_reply_encryption_key_store_path())
+                .expect("Failed to load reply key storage!");
+
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
         self.start_topology_refresher(shared_topology_accessor.clone());
         self.start_received_messages_buffer_controller(
             received_buffer_request_receiver,
-            unwrapped_sphinx_receiver,
+            mixnet_messages_receiver,
+            reply_key_storage.clone(),
         );
 
-        let gateway_url = self.runtime.block_on(Self::get_gateway_address(
-            self.config.get_gateway_id(),
-            shared_topology_accessor.clone(),
-        ));
-        let gateway_client = self.start_gateway_client(unwrapped_sphinx_sender, gateway_url);
+        let gateway_client = self.start_gateway_client(mixnet_messages_sender, ack_sender);
 
         self.start_mix_traffic_controller(sphinx_message_receiver, gateway_client);
-        self.start_cover_traffic_stream(
+        self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
+            reply_key_storage,
+            ack_receiver,
+            input_receiver,
             sphinx_message_sender.clone(),
         );
-        self.start_real_traffic_stream(
-            shared_topology_accessor.clone(),
-            sphinx_message_sender,
-            input_receiver,
-        );
+        self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
 
         match self.config.get_socket_type() {
-            SocketType::WebSocket => self.start_websocket_listener(
-                shared_topology_accessor,
-                received_buffer_request_sender,
-                input_sender,
-            ),
+            SocketType::WebSocket => {
+                self.start_websocket_listener(received_buffer_request_sender, input_sender)
+            }
             SocketType::None => {
                 // if we did not start the socket, it means we're running (supposedly) in the native mode
                 // and hence we should announce 'ourselves' to the buffer
@@ -384,5 +407,6 @@ impl NymClient {
         }
 
         info!("Client startup finished!");
+        info!("The address of this client is: {}", self.as_mix_recipient());
     }
 }

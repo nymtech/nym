@@ -8,7 +8,13 @@ edition = "2018"
 
 [dependencies]
 bs58 = "0.3"
+futures = "0.3"
+log = "0.4"
 nymsphinx = { path = "../../common/nymsphinx" }
+rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { version = "1.0.104", features = ["derive"] }
 serde_json = "1.0.44"
-tokio-tungstenite = "0.10.1"
+tokio-tungstenite = "0.11.0"
+
+crypto = { path = "../../common/crypto" }
+pemstore = { path = "../../common/pemstore" }

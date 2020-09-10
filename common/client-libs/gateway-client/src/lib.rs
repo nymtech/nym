@@ -12,15 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::error::GatewayClientError;
+use crate::packet_router::PacketRouter;
+pub use crate::packet_router::{
+    AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
+};
+use crypto::asymmetric::identity;
 use futures::stream::{SplitSink, SplitStream};
-use futures::{channel::mpsc, future::BoxFuture, FutureExt, SinkExt, StreamExt};
-use gateway_requests::auth_token::{AuthToken, AuthTokenConversionError};
-use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
+use futures::{future::BoxFuture, FutureExt, SinkExt, Stream, StreamExt};
+use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
+use gateway_requests::authentication::iv::AuthenticationIV;
+use gateway_requests::registration::handshake::{client_handshake, SharedKeys, DEFAULT_RNG};
+use gateway_requests::{BinaryRequest, BinaryResponse, ClientControlRequest, ServerResponse};
 use log::*;
-use nymsphinx::{DestinationAddressBytes, SphinxPacket};
+use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
 use std::convert::TryFrom;
-use std::fmt::{self, Error, Formatter};
-use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
@@ -31,89 +37,27 @@ use tokio_tungstenite::{
     WebSocketStream,
 };
 
-// TODO: combine the duplicate reading procedure, i.e.
-/*
-msg read from conn.next().await:
-    if msg.is_none() {
-        res = Some(Err(GatewayClientError::ConnectionAbruptlyClosed));
-        break;
+pub mod error;
+pub mod packet_router;
+
+/// A helper method to read an underlying message from the stream or return an error.
+async fn read_ws_stream_message<S>(conn: &mut S) -> Result<Message, GatewayClientError>
+where
+    S: Stream<Item = Result<Message, WsError>> + Unpin,
+{
+    match conn.next().await {
+        Some(msg) => match msg {
+            Ok(msg) => Ok(msg),
+            Err(err) => Err(GatewayClientError::NetworkError(err)),
+        },
+        None => Err(GatewayClientError::ConnectionAbruptlyClosed),
     }
-    let msg = match msg.unwrap() {
-        Ok(msg) => msg,
-        Err(err) => {
-            res = Some(Err(GatewayClientError::NetworkError(err)));
-            break;
-        }
-    };
-    match msg {
-        // specific handling
-    }
-*/
+}
 
 // TODO: some batching mechanism to allow reading and sending more than a single packet through
-pub type SphinxPacketSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
-pub type SphinxPacketReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
 
 // type alias for not having to type the whole thing every single time
 type WsConn = WebSocketStream<TcpStream>;
-
-#[derive(Debug)]
-pub enum GatewayClientError {
-    ConnectionNotEstablished,
-    GatewayError(String),
-    NetworkError(WsError),
-    NoAuthTokenAvailable,
-    ConnectionAbruptlyClosed,
-    MalformedResponse,
-    NotAuthenticated,
-    ConnectionInInvalidState,
-    AuthenticationFailure,
-    Timeout,
-}
-
-impl From<WsError> for GatewayClientError {
-    fn from(err: WsError) -> Self {
-        GatewayClientError::NetworkError(err)
-    }
-}
-
-impl From<AuthTokenConversionError> for GatewayClientError {
-    fn from(_err: AuthTokenConversionError) -> Self {
-        GatewayClientError::MalformedResponse
-    }
-}
-
-// better human readable representation of the error, mostly so that GatewayClientError
-// would implement std::error::Error
-impl fmt::Display for GatewayClientError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        match self {
-            GatewayClientError::ConnectionNotEstablished => {
-                write!(f, "connection to the gateway is not established")
-            }
-            GatewayClientError::NoAuthTokenAvailable => {
-                write!(f, "no AuthToken was provided or obtained")
-            }
-            GatewayClientError::NotAuthenticated => write!(f, "client is not authenticated"),
-            GatewayClientError::NetworkError(err) => {
-                write!(f, "there was a network error - {}", err)
-            }
-            GatewayClientError::ConnectionAbruptlyClosed => {
-                write!(f, "connection was abruptly closed")
-            }
-            GatewayClientError::Timeout => write!(f, "timed out"),
-            GatewayClientError::MalformedResponse => write!(f, "received response was malformed"),
-            GatewayClientError::ConnectionInInvalidState => write!(
-                f,
-                "connection is in an invalid state - please send a bug report"
-            ),
-            GatewayClientError::AuthenticationFailure => write!(f, "authentication failure"),
-            GatewayClientError::GatewayError(err) => {
-                write!(f, "gateway returned an error response - {}", err)
-            }
-        }
-    }
-}
 
 // We have ownership over sink half of the connection, but the stream is owned
 // by some other task, however, we can notify it to get the stream back.
@@ -129,9 +73,10 @@ impl<'a> PartiallyDelegated<'a> {
     // TODO: this can be potentially bad as we have no direct restrictions of ensuring it's called
     // within tokio runtime. Perhaps we should use the "old" way of passing explicit
     // runtime handle to the constructor and using that instead?
-    fn split_and_listen_for_sphinx_packets(
+    fn split_and_listen_for_mixnet_messages(
         conn: WsConn,
-        sphinx_packet_sender: SphinxPacketSender,
+        packet_router: PacketRouter,
+        shared_key: Arc<SharedKeys>,
     ) -> Result<Self, GatewayClientError> {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
         // read control request responses.
@@ -140,34 +85,38 @@ impl<'a> PartiallyDelegated<'a> {
 
         let (sink, mut stream) = conn.split();
 
-        let sphinx_receiver_future = async move {
+        let mixnet_receiver_future = async move {
             let mut should_return = false;
             while !should_return {
                 tokio::select! {
                     _ = notify_clone.notified() => {
                         should_return = true;
                     }
-                    msg = stream.next() => {
-                        if msg.is_none() {
-                            return Err(GatewayClientError::ConnectionAbruptlyClosed);
-                        }
-                        let msg = match msg.unwrap() {
-                            Ok(msg) => msg,
-                            Err(err) => {
-                                return Err(GatewayClientError::NetworkError(err));
-                            }
-                        };
-                        match msg {
+                    msg = read_ws_stream_message(&mut stream) => {
+                        match msg? {
                             Message::Binary(bin_msg) => {
+                                // this function decrypts the request and checks the MAC
+                                let plaintext = match BinaryResponse::try_from_encrypted_tagged_bytes(bin_msg, shared_key.as_ref()) {
+                                    Ok(bin_response) => match bin_response {
+                                        BinaryResponse::PushedMixMessage(plaintext) => plaintext,
+                                    },
+                                    Err(err) => {
+                                        warn!("message received from the gateway was malformed! - {:?}", err);
+                                        continue
+                                    }
+                                };
+
                                 // TODO: some batching mechanism to allow reading and sending more than
                                 // one packet at the time, because the receiver can easily handle it
-                                sphinx_packet_sender.unbounded_send(vec![bin_msg]).unwrap()
+                                packet_router.route_received(vec![plaintext])
                             },
                             // I think that in the future we should perhaps have some sequence number system, i.e.
-                            // so each request/reponse pair can be easily identified, so that if messages are
+                            // so each request/response pair can be easily identified, so that if messages are
                             // not ordered (for some peculiar reason) we wouldn't lose anything.
                             // This would also require NOT discarding any text responses here.
-                            Message::Text(_) => debug!("received a text message - probably a response to some previous query!"),
+
+                            // TODO: those can return the "send confirmations" - perhaps it should be somehow worked around?
+                            Message::Text(text) => debug!("received a text message - probably a response to some previous query! - {}", text),
                             _ => (),
                         };
                     }
@@ -176,7 +125,7 @@ impl<'a> PartiallyDelegated<'a> {
             Ok(stream)
         };
 
-        let spawned_boxed_task = tokio::spawn(sphinx_receiver_future)
+        let spawned_boxed_task = tokio::spawn(mixnet_receiver_future)
             .map(|join_handle| {
                 join_handle.expect("task must have not failed to finish its execution!")
             })
@@ -237,47 +186,85 @@ impl<'a> SocketState<'a> {
     }
 }
 
-pub struct GatewayClient<'a, R: IntoClientRequest + Unpin + Clone> {
+pub struct GatewayClient<'a, R> {
     authenticated: bool,
     // can be String, string slices, `url::Url`, `http::Uri`, etc.
     gateway_address: R,
-    our_address: DestinationAddressBytes,
-    auth_token: Option<AuthToken>,
+    gateway_identity: identity::PublicKey,
+    local_identity: Arc<identity::KeyPair>,
+    shared_key: Option<Arc<SharedKeys>>,
     connection: SocketState<'a>,
-    sphinx_packet_sender: SphinxPacketSender,
+    packet_router: PacketRouter,
     response_timeout_duration: Duration,
 }
 
-impl<'a, R: IntoClientRequest + Unpin + Clone> Drop for GatewayClient<'a, R> {
-    fn drop(&mut self) {
-        // TODO to fix forcibly closing connection (although now that I think about it,
-        // I'm not sure this would do it, as to fix the said issue we'd need graceful shutdowns)
-    }
-}
-
-impl<'a, R> GatewayClient<'static, R>
-where
-    R: IntoClientRequest + Unpin + Clone,
-{
+impl<'a, R> GatewayClient<'static, R> {
+    // TODO: put it all in a Config struct
     pub fn new(
         gateway_address: R,
-        our_address: DestinationAddressBytes,
-        auth_token: Option<AuthToken>,
-        sphinx_packet_sender: SphinxPacketSender,
+        local_identity: Arc<identity::KeyPair>,
+        gateway_identity: identity::PublicKey,
+        shared_key: Option<Arc<SharedKeys>>,
+        mixnet_message_sender: MixnetMessageSender,
+        ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
     ) -> Self {
         GatewayClient {
             authenticated: false,
             gateway_address,
-            our_address,
-            auth_token,
+            gateway_identity,
+            local_identity,
+            shared_key,
             connection: SocketState::NotConnected,
-            sphinx_packet_sender,
+            packet_router: PacketRouter::new(ack_sender, mixnet_message_sender),
             response_timeout_duration,
         }
     }
 
-    pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
+    pub fn new_init(
+        gateway_address: R,
+        gateway_identity: identity::PublicKey,
+        local_identity: Arc<identity::KeyPair>,
+        response_timeout_duration: Duration,
+    ) -> Self {
+        use futures::channel::mpsc;
+
+        // note: this packet_router is completely invalid in normal circumstances, but "works"
+        // perfectly fine here, because it's not meant to be used
+        let (ack_tx, _) = mpsc::unbounded();
+        let (mix_tx, _) = mpsc::unbounded();
+        let packet_router = PacketRouter::new(ack_tx, mix_tx);
+
+        GatewayClient {
+            authenticated: false,
+            gateway_address,
+            gateway_identity,
+            local_identity,
+            shared_key: None,
+            connection: SocketState::NotConnected,
+            packet_router,
+            response_timeout_duration,
+        }
+    }
+
+    pub async fn close_connection(&mut self) -> Result<(), GatewayClientError> {
+        if self.connection.is_partially_delegated() {
+            self.recover_socket_connection().await?;
+        }
+
+        match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
+            SocketState::Available(mut socket) => Ok(socket.close(None).await?),
+            SocketState::PartiallyDelegated(_) => {
+                unreachable!("this branch should have never been reached!")
+            }
+            _ => Ok(()), // no need to do anything in those cases
+        }
+    }
+
+    pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError>
+    where
+        R: IntoClientRequest + Unpin + Clone,
+    {
         let ws_stream = match connect_async(self.gateway_address.clone()).await {
             Ok((ws_stream, _)) => ws_stream,
             Err(e) => return Err(GatewayClientError::NetworkError(e)),
@@ -306,21 +293,14 @@ where
                 }
                 // just keep getting through socket buffer until we get to what we want...
                 // (or we time out)
-                msg = conn.next() => {
-                    if msg.is_none() {
-                        res = Some(Err(GatewayClientError::ConnectionAbruptlyClosed));
+                msg = read_ws_stream_message(conn) => {
+                    if let Err(err) = msg {
+                        res = Some(Err(err));
                         break;
                     }
-                    let msg = match msg.unwrap() {
-                        Ok(msg) => msg,
-                        Err(err) => {
-                            res = Some(Err(GatewayClientError::NetworkError(err)));
-                            break;
-                        }
-                    };
-                    match msg {
+                    match msg.unwrap() {
                         Message::Binary(bin_msg) => {
-                            self.sphinx_packet_sender.unbounded_send(vec![bin_msg]).unwrap()
+                            self.packet_router.route_received(vec![bin_msg]);
                         }
                         Message::Text(txt_msg) => {
                             res = Some(ServerResponse::try_from(txt_msg).map_err(|_| GatewayClientError::MalformedResponse));
@@ -340,11 +320,12 @@ where
         &mut self,
         msg: Message,
     ) -> Result<ServerResponse, GatewayClientError> {
-        let mut should_restart_sphinx_listener = false;
-        if self.connection.is_partially_delegated() {
+        let should_restart_mixnet_listener = if self.connection.is_partially_delegated() {
             self.recover_socket_connection().await?;
-            should_restart_sphinx_listener = true;
-        }
+            true
+        } else {
+            false
+        };
 
         let conn = match self.connection {
             SocketState::Available(ref mut conn) => conn,
@@ -354,8 +335,8 @@ where
         conn.send(msg).await?;
         let response = self.read_control_response().await;
 
-        if should_restart_sphinx_listener {
-            self.start_listening_for_sphinx_packets()?;
+        if should_restart_mixnet_listener {
+            self.start_listening_for_mixnet_messages()?;
         }
         response
     }
@@ -374,38 +355,51 @@ where
         }
     }
 
-    pub async fn register(&mut self) -> Result<AuthToken, GatewayClientError> {
+    pub async fn register(&mut self) -> Result<SharedKeys, GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
-        let msg = ClientControlRequest::new_register(self.our_address.clone()).into();
-        let token = match self.send_websocket_message(msg).await? {
-            ServerResponse::Register { token } => {
-                self.authenticated = true;
-                Ok(AuthToken::try_from_base58_string(token)?)
-            }
-            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
+
+        debug_assert!(self.connection.is_available());
+
+        match &mut self.connection {
+            SocketState::Available(ws_stream) => client_handshake(
+                &mut DEFAULT_RNG,
+                ws_stream,
+                self.local_identity.as_ref(),
+                self.gateway_identity,
+            )
+            .await
+            .map_err(GatewayClientError::RegistrationFailure),
             _ => unreachable!(),
-        }?;
-        self.start_listening_for_sphinx_packets()?;
-        Ok(token)
+        }
     }
 
     pub async fn authenticate(
         &mut self,
-        auth_token: Option<AuthToken>,
+        shared_key: Option<SharedKeys>,
     ) -> Result<bool, GatewayClientError> {
-        if auth_token.is_none() && self.auth_token.is_none() {
-            return Err(GatewayClientError::NoAuthTokenAvailable);
+        if shared_key.is_none() && self.shared_key.is_none() {
+            return Err(GatewayClientError::NoSharedKeyAvailable);
         }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
         // because of the previous check one of the unwraps MUST succeed
-        let auth_token = auth_token.unwrap_or_else(|| self.auth_token.unwrap());
+        let shared_key = shared_key
+            .as_ref()
+            .unwrap_or_else(|| self.shared_key.as_ref().unwrap());
+        let iv = AuthenticationIV::new_random(&mut DEFAULT_RNG);
+        let self_address = self
+            .local_identity
+            .as_ref()
+            .public_key()
+            .derive_destination_address();
+        let encrypted_address = EncryptedAddressBytes::new(&self_address, shared_key, &iv);
 
         let msg =
-            ClientControlRequest::new_authenticate(self.our_address.clone(), auth_token).into();
+            ClientControlRequest::new_authenticate(self_address, encrypted_address, iv).into();
+
         let authenticated = match self.send_websocket_message(msg).await? {
             ServerResponse::Authenticate { status } => {
                 self.authenticated = status;
@@ -414,22 +408,21 @@ where
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             _ => unreachable!(),
         }?;
-        self.start_listening_for_sphinx_packets()?;
         Ok(authenticated)
     }
 
-    // just a helper method to either call register or authenticate based on self.auth_token value
+    /// Helper method to either call register or authenticate based on self.shared_key value
     pub async fn perform_initial_authentication(
         &mut self,
-    ) -> Result<AuthToken, GatewayClientError> {
-        if self.auth_token.is_some() {
+    ) -> Result<Arc<SharedKeys>, GatewayClientError> {
+        if self.shared_key.is_some() {
             self.authenticate(None).await?;
         } else {
             self.register().await?;
         }
         if self.authenticated {
-            // if we are authenticated it means we MUST have an associated auth_token
-            Ok(self.auth_token.clone().unwrap())
+            // if we are authenticated it means we MUST have an associated shared_key
+            Ok(Arc::clone(&self.shared_key.as_ref().unwrap()))
         } else {
             Err(GatewayClientError::AuthenticationFailure)
         }
@@ -438,7 +431,7 @@ where
     // TODO: possibly make responses optional
     pub async fn send_sphinx_packet(
         &mut self,
-        address: SocketAddr,
+        address: NymNodeRoutingAddress,
         packet: SphinxPacket,
     ) -> Result<(), GatewayClientError> {
         if !self.authenticated {
@@ -447,7 +440,13 @@ where
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
-        let msg = BinaryRequest::new_forward_request(address, packet).into();
+        // note: into_ws_message encrypts the requests and adds a MAC on it. Perhaps it should
+        // be more explicit in the naming?
+        let msg = BinaryRequest::new_forward_request(address, packet).into_ws_message(
+            self.shared_key
+                .as_ref()
+                .expect("no shared key present even though we're authenticated!"),
+        );
         self.send_websocket_message_without_response(msg).await
     }
 
@@ -468,7 +467,11 @@ where
         Ok(())
     }
 
-    fn start_listening_for_sphinx_packets(&mut self) -> Result<(), GatewayClientError> {
+    // Note: this requires prior authentication
+    pub fn start_listening_for_mixnet_messages(&mut self) -> Result<(), GatewayClientError> {
+        if !self.authenticated {
+            return Err(GatewayClientError::NotAuthenticated);
+        }
         if self.connection.is_partially_delegated() {
             return Ok(());
         }
@@ -479,9 +482,14 @@ where
         let partially_delegated =
             match std::mem::replace(&mut self.connection, SocketState::Invalid) {
                 SocketState::Available(conn) => {
-                    PartiallyDelegated::split_and_listen_for_sphinx_packets(
+                    PartiallyDelegated::split_and_listen_for_mixnet_messages(
                         conn,
-                        self.sphinx_packet_sender.clone(),
+                        self.packet_router.clone(),
+                        Arc::clone(
+                            self.shared_key
+                                .as_ref()
+                                .expect("no shared key present even though we're authenticated!"),
+                        ),
                     )?
                 }
                 _ => unreachable!(),
@@ -489,5 +497,20 @@ where
 
         self.connection = SocketState::PartiallyDelegated(partially_delegated);
         Ok(())
+    }
+
+    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError>
+    where
+        R: IntoClientRequest + Unpin + Clone,
+    {
+        if !self.connection.is_established() {
+            self.establish_connection().await?;
+        }
+        let shared_key = self.perform_initial_authentication().await?;
+
+        // this call is NON-blocking
+        self.start_listening_for_mixnet_messages()?;
+
+        Ok(shared_key)
     }
 }

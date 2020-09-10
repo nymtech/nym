@@ -1,54 +1,107 @@
 use futures::{SinkExt, StreamExt};
-use nym_client::websocket::{ClientRequest, ServerResponse};
-use std::convert::TryFrom;
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
+use serde_json::json;
+use tokio::net::TcpStream;
+use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, WebSocketStream};
 
-#[tokio::main]
-async fn main() {
+// PREFACE: in practice I don't see why you would ever want to use text api while in Rust, but example
+// is here for the completion sake
+
+// just helpers functions that work in this very particular context because we are sending to ourselves
+// and hence will always get a response back (i.e. the message we sent)
+async fn send_message_and_get_json_response(
+    ws_stream: &mut WebSocketStream<TcpStream>,
+    text_req: String,
+) -> serde_json::Value {
+    ws_stream.send(Message::Text(text_req)).await.unwrap();
+    let raw_message = ws_stream.next().await.unwrap().unwrap();
+    match raw_message {
+        Message::Text(txt_msg) => serde_json::from_str(&txt_msg).unwrap(),
+        _ => panic!("received an unexpected response type!"),
+    }
+}
+
+async fn get_self_address(ws_stream: &mut WebSocketStream<TcpStream>) -> String {
+    let self_address_request = json!({ "type": "selfAddress" }).to_string();
+    let response = send_message_and_get_json_response(ws_stream, self_address_request).await;
+
+    response["address"].as_str().unwrap().to_string()
+}
+
+async fn send_text_with_reply() {
     let message = "Hello Nym!".to_string();
 
     let uri = "ws://localhost:1977";
     let (mut ws_stream, _) = connect_async(uri).await.unwrap();
 
-    let self_address_request = ClientRequest::SelfAddress;
-    ws_stream.send(self_address_request.into()).await.unwrap();
+    let recipient = get_self_address(&mut ws_stream).await;
+    println!("our full address is: {}", recipient.to_string());
 
-    let raw_response = ws_stream.next().await.unwrap().unwrap();
-    // what we received now is just a json, but we know it's exact format
-    // so might as well use that
-    let response = match raw_response {
-        Message::Text(txt_msg) => ServerResponse::try_from(txt_msg).unwrap(),
-        _ => panic!("received an unexpected response type!"),
-    };
+    let send_request = json!({
+        "type" : "send",
+        "recipient": recipient,
+        "message": message,
+        "withReplySurb": true,
+    });
 
-    let self_address = match response {
-        ServerResponse::SelfAddress { address } => address,
-        _ => panic!("received an unexpected response type!"),
-    };
-    println!("our address is: {}", self_address.clone());
+    println!(
+        "sending {:?} (*with* reply SURB) over the mix network...",
+        message
+    );
+    let response =
+        send_message_and_get_json_response(&mut ws_stream, send_request.to_string()).await;
 
-    let send_request = ClientRequest::Send {
-        message: message.clone(),
-        recipient: self_address,
-    };
-    println!("sending {:?} over the mix network...", message);
-    ws_stream.send(send_request.into()).await.unwrap();
+    let reply_message = "hello from reply SURB!";
+    let reply_request = json!({
+        "type": "reply",
+        "message": reply_message,
+        "replySurb": response["replySurb"]
+    });
 
-    let raw_send_confirmation = ws_stream.next().await.unwrap().unwrap();
-    let _send_confirmation = match raw_send_confirmation {
-        Message::Text(txt_msg) => match ServerResponse::try_from(txt_msg).unwrap() {
-            ServerResponse::Send => (),
-            _ => panic!("received an unexpected response type!"),
-        },
-        _ => panic!("received an unexpected response type!"),
-    };
+    println!(
+        "sending {:?} (using reply SURB!) over the mix network...",
+        reply_message
+    );
 
-    println!("waiting to receive a message from the mix network...");
-    let raw_message = ws_stream.next().await.unwrap().unwrap();
-    let message = match raw_message {
-        Message::Text(txt_msg) => txt_msg,
-        _ => panic!("received an unexpected response type!"),
-    };
+    let response =
+        send_message_and_get_json_response(&mut ws_stream, reply_request.to_string()).await;
+    println!("received {:#?} from the mix network!", response.to_string());
+}
 
-    println!("received {:?} from the mix network!", message);
+async fn send_text_without_reply() {
+    let message = "Hello Nym!".to_string();
+
+    let uri = "ws://localhost:1977";
+    let (mut ws_stream, _) = connect_async(uri).await.unwrap();
+
+    let recipient = get_self_address(&mut ws_stream).await;
+    println!("our full address is: {}", recipient.to_string());
+
+    let send_request = json!({
+        "type" : "send",
+        "recipient": recipient,
+        "message": message,
+        "withReplySurb": false,
+    });
+
+    println!(
+        "sending {:?} (*without* reply SURB) over the mix network...",
+        message
+    );
+    let response =
+        send_message_and_get_json_response(&mut ws_stream, send_request.to_string()).await;
+
+    println!("received {:#?} from the mix network!", response.to_string());
+}
+
+#[tokio::main]
+async fn main() {
+    println!("#############################");
+    println!("Example without using replies");
+
+    send_text_without_reply().await;
+
+    println!("\n\n#############################");
+    println!("Example using replies");
+
+    send_text_with_reply().await;
 }

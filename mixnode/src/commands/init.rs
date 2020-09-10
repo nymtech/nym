@@ -77,7 +77,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
 fn show_incentives_url() {
     println!("\n##### NOTE #####");
     println!(
-        "\nIf you would like to join our incentives program, please visit <TODO: INSERT URL HERE>"
+        "\nIf you would like to join our testnet incentives program, please visit https://nymtech.net/incentives"
     );
     println!("\n\n");
 }

@@ -25,6 +25,7 @@ This release introduces, among other things, the following improvements:
 
 **Fixed bugs:**
 
+- Socks client no longer logging dns resolved addresses [\#329](https://github.com/nymtech/nym/pull/329) ([jstuczyn](https://github.com/jstuczyn))
 - Bugfix/remove packet buffering [\#300](https://github.com/nymtech/nym/pull/300) ([jstuczyn](https://github.com/jstuczyn))
 
 **Closed issues:**
@@ -44,6 +45,11 @@ This release introduces, among other things, the following improvements:
 
 **Merged pull requests:**
 
+- Recommended testnet gateway [\#335](https://github.com/nymtech/nym/pull/335) ([jstuczyn](https://github.com/jstuczyn))
+- placeholder contact form url [\#334](https://github.com/nymtech/nym/pull/334) ([jstuczyn](https://github.com/jstuczyn))
+- Knocking down delay on message sending default [\#332](https://github.com/nymtech/nym/pull/332) ([futurechimp](https://github.com/futurechimp))
+- Made gateway mandatory during init [\#331](https://github.com/nymtech/nym/pull/331) ([jstuczyn](https://github.com/jstuczyn))
+- Renaming client binary [\#330](https://github.com/nymtech/nym/pull/330) ([futurechimp](https://github.com/futurechimp))
 - Feature/sphinx socks [\#326](https://github.com/nymtech/nym/pull/326) ([futurechimp](https://github.com/futurechimp))
 - Feature/print client address on startup [\#325](https://github.com/nymtech/nym/pull/325) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/temp wasm example removal [\#324](https://github.com/nymtech/nym/pull/324) ([jstuczyn](https://github.com/jstuczyn))
@@ -54,6 +60,7 @@ This release introduces, among other things, the following improvements:
 - Removed unused dependencies [\#315](https://github.com/nymtech/nym/pull/315) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/perf messing [\#311](https://github.com/nymtech/nym/pull/311) ([futurechimp](https://github.com/futurechimp))
 - Upgrades tungstenite libraries to new versions with 64MB message sizes. [\#310](https://github.com/nymtech/nym/pull/310) ([futurechimp](https://github.com/futurechimp))
+- Assigning connection shared key post registration [\#309](https://github.com/nymtech/nym/pull/309) ([jstuczyn](https://github.com/jstuczyn))
 - Assigning connection shared key post registration [\#308](https://github.com/nymtech/nym/pull/308) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/client binary api update [\#306](https://github.com/nymtech/nym/pull/306) ([jstuczyn](https://github.com/jstuczyn))
 - Removes unused Cargo dependencies so we stay slim and trim. [\#305](https://github.com/nymtech/nym/pull/305) ([futurechimp](https://github.com/futurechimp))
@@ -185,6 +192,7 @@ See the [changelog](https://github.com/nymtech/nym/blob/develop/CHANGELOG.md) fo
 - Feature/nym sphinx wasm [\#183](https://github.com/nymtech/nym/pull/183) ([futurechimp](https://github.com/futurechimp))
 - Improvements to sfw-provider - client communcation [\#180](https://github.com/nymtech/nym/pull/180) ([jstuczyn](https://github.com/jstuczyn))
 - Adding Apache 2 license headers to all files [\#178](https://github.com/nymtech/nym/pull/178) ([futurechimp](https://github.com/futurechimp))
+- Feature/tcp client connection timeout [\#176](https://github.com/nymtech/nym/pull/176) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/service persistence [\#171](https://github.com/nymtech/nym/pull/171) ([futurechimp](https://github.com/futurechimp))
 
 ## [v0.6.0](https://github.com/nymtech/nym/tree/v0.6.0) (2020-04-07)
@@ -213,7 +221,6 @@ This  release fixes bugs in v0.5.0. All testnet node operators are advised to up
 
 **Merged pull requests:**
 
-- Feature/tcp client connection timeout [\#176](https://github.com/nymtech/nym/pull/176) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/mixing stats logging [\#175](https://github.com/nymtech/nym/pull/175) ([jstuczyn](https://github.com/jstuczyn))
 - Preventing multiplication overflow for reconnection backoff [\#174](https://github.com/nymtech/nym/pull/174) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/non mandatory debug config [\#173](https://github.com/nymtech/nym/pull/173) ([jstuczyn](https://github.com/jstuczyn))
@@ -223,7 +230,6 @@ This  release fixes bugs in v0.5.0. All testnet node operators are advised to up
 - Yielding tokio task upon creating loop/real traffic message [\#166](https://github.com/nymtech/nym/pull/166) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/minor healthchecker improvements [\#165](https://github.com/nymtech/nym/pull/165) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/packet chunking [\#158](https://github.com/nymtech/nym/pull/158) ([jstuczyn](https://github.com/jstuczyn))
-- removing spooky startup warning message [\#155](https://github.com/nymtech/nym/pull/155) ([futurechimp](https://github.com/futurechimp))
 
 ## [v0.5.0](https://github.com/nymtech/nym/tree/v0.5.0) (2020-03-23)
 
@@ -243,6 +249,7 @@ This  release fixes bugs in v0.5.0. All testnet node operators are advised to up
 
 **Merged pull requests:**
 
+- removing spooky startup warning message [\#155](https://github.com/nymtech/nym/pull/155) ([futurechimp](https://github.com/futurechimp))
 - Some more startup fixes [\#154](https://github.com/nymtech/nym/pull/154) ([futurechimp](https://github.com/futurechimp))
 - Entering runtime context when creating mix traffic controller [\#153](https://github.com/nymtech/nym/pull/153) ([jstuczyn](https://github.com/jstuczyn))
 - Friendlification of startup messages [\#151](https://github.com/nymtech/nym/pull/151) ([futurechimp](https://github.com/futurechimp))
@@ -397,7 +404,6 @@ This release also integrates a health-checker and network topology refresh into 
 **Merged pull requests:**
 
 - Feature/separate presence address [\#59](https://github.com/nymtech/nym/pull/59) ([jstuczyn](https://github.com/jstuczyn))
-- validator: moving sample config files into sample configs directory [\#51](https://github.com/nymtech/nym/pull/51) ([futurechimp](https://github.com/futurechimp))
 
 ## [v0.3.1](https://github.com/nymtech/nym/tree/v0.3.1) (2020-01-16)
 
@@ -428,6 +434,7 @@ This release also integrates a health-checker and network topology refresh into 
 - Feature/client topology filtering [\#54](https://github.com/nymtech/nym/pull/54) ([jstuczyn](https://github.com/jstuczyn))
 - print public key for nym client tools [\#53](https://github.com/nymtech/nym/pull/53) ([mileschet](https://github.com/mileschet))
 - Showing binding warning on binding to localhost, 0.0.0.0 or 127.0.0.1 [\#52](https://github.com/nymtech/nym/pull/52) ([jstuczyn](https://github.com/jstuczyn))
+- validator: moving sample config files into sample configs directory [\#51](https://github.com/nymtech/nym/pull/51) ([futurechimp](https://github.com/futurechimp))
 - Feature/validator health checker [\#50](https://github.com/nymtech/nym/pull/50) ([jstuczyn](https://github.com/jstuczyn))
 - Improving websocket connection errors [\#49](https://github.com/nymtech/nym/pull/49) ([futurechimp](https://github.com/futurechimp))
 - Feature/crypto crate [\#48](https://github.com/nymtech/nym/pull/48) ([jstuczyn](https://github.com/jstuczyn))

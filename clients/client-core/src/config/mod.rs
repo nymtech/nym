@@ -25,18 +25,15 @@ const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
+
+// all delays are in milliseconds
 const DEFAULT_ACK_WAIT_ADDITION: u64 = 800;
 const DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY: u64 = 1000;
-// 1s
-const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: u64 = 500;
-// 0.5s
+const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: u64 = 100;
 const DEFAULT_AVERAGE_PACKET_DELAY: u64 = 200;
-// 0.2s
 const DEFAULT_TOPOLOGY_REFRESH_RATE: u64 = 30_000;
-// 30s
-const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: u64 = 5_000; // 5s
-
-const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: u64 = 1_500; // 1.5s
+const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: u64 = 5_000;
+const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: u64 = 1_500;
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]

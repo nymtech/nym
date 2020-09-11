@@ -812,6 +812,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "error-chain"
+version = "0.12.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d2f06b9cac1506ece98fe3231e3cc9c4410ec3d5b1f24ae1c8946f0742cdefc"
+dependencies = [
+ "version_check 0.9.1",
+]
+
+[[package]]
 name = "extend"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1674,7 +1683,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "0.8.0-dev"
+version = "0.8.0"
 dependencies = [
  "built",
  "clap",
@@ -1723,7 +1732,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "0.8.0-dev"
+version = "0.8.0"
 dependencies = [
  "built",
  "clap",
@@ -1751,7 +1760,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "0.8.0-dev"
+version = "0.8.0"
 dependencies = [
  "bs58",
  "built",
@@ -1776,8 +1785,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-socks5-client"
+version = "0.8.0"
+dependencies = [
+ "built",
+ "clap",
+ "client-core",
+ "config",
+ "crypto",
+ "directory-client",
+ "dirs 3.0.1",
+ "dotenv",
+ "futures 0.3.4",
+ "gateway-client",
+ "gateway-requests",
+ "log 0.4.8",
+ "nymsphinx",
+ "ordered-buffer",
+ "pin-project",
+ "pretty_env_logger",
+ "proxy-helpers",
+ "rand 0.7.3",
+ "serde",
+ "snafu",
+ "socks5-requests",
+ "tempfile",
+ "tokio 0.2.22",
+ "topology",
+ "url 2.1.1",
+]
+
+[[package]]
 name = "nym-validator"
-version = "0.8.0-dev"
+version = "0.8.0"
 dependencies = [
  "abci",
  "bodyparser",
@@ -2317,6 +2357,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "publicsuffix"
+version = "1.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3bbaa49075179162b49acac1c6aa45fb4dafb5f13cf6794276d77bc7fd95757b"
+dependencies = [
+ "error-chain",
+ "idna 0.2.0",
+ "lazy_static",
+ "native-tls",
+ "regex",
+ "url 2.1.1",
+]
+
+[[package]]
 name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2793,23 +2847,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "simple-socks5"
-version = "0.1.0"
-dependencies = [
- "clap",
- "futures 0.3.4",
- "log 0.4.8",
- "nymsphinx",
- "ordered-buffer",
- "pretty_env_logger",
- "proxy-helpers",
- "socks5-requests",
- "tokio 0.2.22",
- "tokio-tungstenite",
- "websocket-requests",
-]
-
-[[package]]
 name = "siphasher"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2904,37 +2941,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "socks5"
-version = "0.8.0-dev"
-dependencies = [
- "built",
- "clap",
- "client-core",
- "config",
- "crypto",
- "directory-client",
- "dirs 3.0.1",
- "dotenv",
- "futures 0.3.4",
- "gateway-client",
- "gateway-requests",
- "log 0.4.8",
- "nymsphinx",
- "ordered-buffer",
- "pin-project",
- "pretty_env_logger",
- "proxy-helpers",
- "rand 0.7.3",
- "serde",
- "snafu",
- "socks5-requests",
- "tempfile",
- "tokio 0.2.22",
- "topology",
- "url 2.1.1",
-]
-
-[[package]]
 name = "socks5-requests"
 version = "0.1.0"
 dependencies = [
@@ -2961,6 +2967,26 @@ dependencies = [
  "rand 0.7.3",
  "rand_distr",
  "sha2",
+]
+
+[[package]]
+name = "sphinx-socks"
+version = "0.8.0"
+dependencies = [
+ "clap",
+ "dirs 2.0.2",
+ "futures 0.3.4",
+ "log 0.4.8",
+ "nymsphinx",
+ "ordered-buffer",
+ "pretty_env_logger",
+ "proxy-helpers",
+ "publicsuffix",
+ "rand 0.7.3",
+ "socks5-requests",
+ "tokio 0.2.22",
+ "tokio-tungstenite",
+ "websocket-requests",
 ]
 
 [[package]]

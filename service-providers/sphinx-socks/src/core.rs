@@ -1,3 +1,4 @@
+use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
 use crate::connection::Connection;
 use crate::websocket;
 use futures::channel::mpsc;
@@ -8,6 +9,7 @@ use nymsphinx::addressing::clients::Recipient;
 use ordered_buffer::OrderedMessageBuffer;
 use proxy_helpers::connection_controller::{Controller, ControllerCommand};
 use socks5_requests::{Request, Response};
+use std::path::PathBuf;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use tokio_tungstenite::WebSocketStream;
@@ -16,11 +18,25 @@ use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
 pub struct ServiceProvider {
     listening_address: String,
+    outbound_request_filter: OutboundRequestFilter,
 }
 
 impl ServiceProvider {
     pub fn new(listening_address: String) -> ServiceProvider {
-        ServiceProvider { listening_address }
+        let allowed_hosts = HostsStore::new(
+            HostsStore::default_base_dir(),
+            PathBuf::from("allowed.list"),
+        );
+
+        let unknown_hosts = HostsStore::new(
+            HostsStore::default_base_dir(),
+            PathBuf::from("unknown.list"),
+        );
+        let outbound_request_filter = OutboundRequestFilter::new(allowed_hosts, unknown_hosts);
+        ServiceProvider {
+            listening_address,
+            outbound_request_filter,
+        }
     }
 
     /// Listens for any messages from `mix_reader` that should be written back to the mix network
@@ -112,6 +128,11 @@ impl ServiceProvider {
                     message,
                     return_address,
                 } => {
+                    if !self.outbound_request_filter.check(&remote_addr) {
+                        log::info!("Domain {:?} failed filter check", remote_addr);
+                        continue;
+                    }
+
                     let controller_sender_clone = controller_sender.clone();
                     let mut ordered_buffer = OrderedMessageBuffer::new();
                     ordered_buffer.write(message);

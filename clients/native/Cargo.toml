@@ -1,7 +1,7 @@
 [package]
 build = "build.rs"
 name = "nym-client"
-version = "0.8.0-dev"
+version = "0.8.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 

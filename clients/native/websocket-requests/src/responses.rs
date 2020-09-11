@@ -50,7 +50,7 @@ impl ServerResponse {
     // RECEIVED_RESPONSE_TAG || with_reply || (surb_len || surb) || msg_len || msg
     fn serialize_received(reconstructed_message: ReconstructedMessage) -> Vec<u8> {
         let message_len_bytes = (reconstructed_message.message.len() as u64).to_be_bytes();
-        if let Some(reply_surb) = reconstructed_message.reply_SURB {
+        if let Some(reply_surb) = reconstructed_message.reply_surb {
             let reply_surb_bytes = reply_surb.to_bytes();
             let surb_len_bytes = (reply_surb_bytes.len() as u64).to_be_bytes();
 
@@ -141,7 +141,7 @@ impl ServerResponse {
 
             Ok(ServerResponse::Received(ReconstructedMessage {
                 message: message.to_vec(),
-                reply_SURB: Some(reply_surb),
+                reply_surb: Some(reply_surb),
             }))
         } else {
             let message_len =
@@ -160,7 +160,7 @@ impl ServerResponse {
 
             Ok(ServerResponse::Received(ReconstructedMessage {
                 message: message.to_vec(),
-                reply_SURB: None,
+                reply_surb: None,
             }))
         }
     }
@@ -341,7 +341,7 @@ mod tests {
 
         let received_with_surb = ServerResponse::Received(ReconstructedMessage {
             message: b"foomp".to_vec(),
-            reply_SURB: Some(ReplySURB::from_base58_string(reply_surb_string).unwrap()),
+            reply_surb: Some(ReplySURB::from_base58_string(reply_surb_string).unwrap()),
         });
         let bytes = received_with_surb.serialize();
         let recovered = ServerResponse::deserialize(&bytes).unwrap();
@@ -349,7 +349,7 @@ mod tests {
             ServerResponse::Received(reconstructed) => {
                 assert_eq!(reconstructed.message, b"foomp".to_vec());
                 assert_eq!(
-                    reconstructed.reply_SURB.unwrap().to_base58_string(),
+                    reconstructed.reply_surb.unwrap().to_base58_string(),
                     reply_surb_string
                 )
             }
@@ -358,14 +358,14 @@ mod tests {
 
         let received_without_surb = ServerResponse::Received(ReconstructedMessage {
             message: b"foomp".to_vec(),
-            reply_SURB: None,
+            reply_surb: None,
         });
         let bytes = received_without_surb.serialize();
         let recovered = ServerResponse::deserialize(&bytes).unwrap();
         match recovered {
             ServerResponse::Received(reconstructed) => {
                 assert_eq!(reconstructed.message, b"foomp".to_vec());
-                assert!(reconstructed.reply_SURB.is_none())
+                assert!(reconstructed.reply_surb.is_none())
             }
             _ => unreachable!(),
         }

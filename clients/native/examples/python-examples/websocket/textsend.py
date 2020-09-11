@@ -55,13 +55,13 @@ async def send_text_with_reply():
         print("received '{}' from the mix network".format(received_message))
 
         # use the received surb to send an anonymous reply!
-        reply_surb = received_message["replySURB"]
+        reply_surb = received_message["replySurb"]
 
         reply_message = "hello from reply SURB!"
         reply = json.dumps({
             "type": "reply",
             "message": reply_message,
-            "replySURB": reply_surb
+            "replySurb": reply_surb
         })
 
         print("sending '{}' (using reply SURB!) over the mix network...".format(reply_message))

@@ -1742,6 +1742,7 @@ dependencies = [
  "nymsphinx",
  "pemstore",
  "pretty_env_logger",
+ "rand 0.7.3",
  "serde",
  "tempfile",
  "tokio 0.2.22",

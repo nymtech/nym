@@ -17,6 +17,7 @@ use crate::config::persistence::pathfinder::MixNodePathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::encryption;
+use rand::{rngs::OsRng, Rng};
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
@@ -38,8 +39,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             Arg::with_name("layer")
                 .long("layer")
                 .help("The mixnet layer of this particular node")
-                .takes_value(true)
-                .required(true),
+                .takes_value(true),
         )
         .arg(
             Arg::with_name("host")
@@ -86,7 +86,14 @@ pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
     println!("Initialising mixnode {}...", id);
 
-    let layer = matches.value_of("layer").unwrap().parse().unwrap();
+    let layer = match matches.value_of("layer") {
+        Some(layer) => layer.parse().unwrap(),
+        None => {
+            let mut rng = OsRng;
+            rng.gen_range(1, 4)
+        }
+    };
+
     let mut config = crate::config::Config::new(id, layer);
 
     config = override_config(config, matches);

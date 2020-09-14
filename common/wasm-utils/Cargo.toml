@@ -1,0 +1,30 @@
+[package]
+name = "wasm-utils"
+version = "0.1.0"
+authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+futures = "0.3"
+js-sys = "0.3"
+wasm-bindgen = "0.2"
+
+# we don't want entire tokio-tungstenite, tungstenite itself is just fine - we just want message and error enums
+[dependencies.tungstenite]
+version = "0.11"
+default-features = false
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+    "BinaryType",
+    "Blob",
+    "CloseEvent",
+    "ErrorEvent",
+    "FileReader",
+    "MessageEvent",
+    "ProgressEvent",
+    "WebSocket",
+]

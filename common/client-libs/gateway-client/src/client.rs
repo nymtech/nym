@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::cleanup_socket_message;
 use crate::error::GatewayClientError;
 use crate::packet_router::PacketRouter;
 pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
-use crate::read_ws_stream_message;
 use crate::socket_state::{PartiallyDelegated, SocketState};
 use crypto::asymmetric::identity;
-use futures::SinkExt;
+use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
 use gateway_requests::registration::handshake::{client_handshake, SharedKeys, DEFAULT_RNG};
@@ -29,25 +29,32 @@ use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio_tungstenite::connect_async;
-use tungstenite::{client::IntoClientRequest, protocol::Message};
+use tungstenite::protocol::Message;
 
-pub struct GatewayClient<'a, R> {
+#[cfg(not(target_arch = "wasm32"))]
+use tokio_tungstenite::connect_async;
+
+#[cfg(target_arch = "wasm32")]
+use wasm_timer;
+#[cfg(target_arch = "wasm32")]
+use wasm_utils::websocket::JSWebsocket;
+
+pub struct GatewayClient {
     authenticated: bool,
     // can be String, string slices, `url::Url`, `http::Uri`, etc.
-    gateway_address: R,
+    gateway_address: String,
     gateway_identity: identity::PublicKey,
     local_identity: Arc<identity::KeyPair>,
     shared_key: Option<Arc<SharedKeys>>,
-    connection: SocketState<'a>,
+    connection: SocketState,
     packet_router: PacketRouter,
     response_timeout_duration: Duration,
 }
 
-impl<'a, R> GatewayClient<'static, R> {
+impl GatewayClient {
     // TODO: put it all in a Config struct
     pub fn new(
-        gateway_address: R,
+        gateway_address: String,
         local_identity: Arc<identity::KeyPair>,
         gateway_identity: identity::PublicKey,
         shared_key: Option<Arc<SharedKeys>>,
@@ -68,7 +75,7 @@ impl<'a, R> GatewayClient<'static, R> {
     }
 
     pub fn new_init(
-        gateway_address: R,
+        gateway_address: String,
         gateway_identity: identity::PublicKey,
         local_identity: Arc<identity::KeyPair>,
         response_timeout_duration: Duration,
@@ -99,7 +106,10 @@ impl<'a, R> GatewayClient<'static, R> {
         }
 
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
+            #[cfg(not(target_arch = "wasm32"))]
             SocketState::Available(mut socket) => Ok(socket.close(None).await?),
+            #[cfg(target_arch = "wasm32")]
+            SocketState::Available(mut socket) => Ok(socket.close(None).await),
             SocketState::PartiallyDelegated(_) => {
                 unreachable!("this branch should have never been reached!")
             }
@@ -107,13 +117,17 @@ impl<'a, R> GatewayClient<'static, R> {
         }
     }
 
-    pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError>
-    where
-        R: IntoClientRequest + Unpin + Clone,
-    {
-        let ws_stream = match connect_async(self.gateway_address.clone()).await {
+    pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
+        #[cfg(not(target_arch = "wasm32"))]
+        let ws_stream = match connect_async(&self.gateway_address).await {
             Ok((ws_stream, _)) => ws_stream,
             Err(e) => return Err(GatewayClientError::NetworkError(e)),
+        };
+
+        #[cfg(target_arch = "wasm32")]
+        let ws_stream = match JSWebsocket::new(&self.gateway_address) {
+            Ok(ws_stream) => ws_stream,
+            Err(e) => return Err(GatewayClientError::NetworkErrorWasm(e)),
         };
 
         self.connection = SocketState::Available(ws_stream);
@@ -129,35 +143,39 @@ impl<'a, R> GatewayClient<'static, R> {
             _ => return Err(GatewayClientError::ConnectionInInvalidState),
         };
 
-        let mut timeout = tokio::time::delay_for(self.response_timeout_duration);
+        #[cfg(not(target_arch = "wasm32"))]
+        let timeout = tokio::time::delay_for(self.response_timeout_duration);
 
-        let mut res = None;
-        while res.is_none() {
-            tokio::select! {
-                _ = &mut timeout => {
-                    res = Some(Err(GatewayClientError::Timeout))
+        // technically the `wasm_timer` also works outside wasm, but unless required,
+        // I really prefer to just stick to tokio
+        #[cfg(target_arch = "wasm32")]
+        let timeout = wasm_timer::Delay::new(self.response_timeout_duration);
+
+        let mut fused_timeout = timeout.fuse();
+        let mut fused_stream = conn.fuse();
+
+        loop {
+            futures::select! {
+                _ = &mut fused_timeout => {
+                    break Err(GatewayClientError::Timeout);
                 }
-                // just keep getting through socket buffer until we get to what we want...
-                // (or we time out)
-                msg = read_ws_stream_message(conn) => {
-                    if let Err(err) = msg {
-                        res = Some(Err(err));
-                        break;
-                    }
-                    match msg.unwrap() {
+                msg = fused_stream.next() => {
+                    let ws_msg = match cleanup_socket_message(msg) {
+                        Err(err) => break Err(err),
+                        Ok(msg) => msg
+                    };
+                    match ws_msg {
                         Message::Binary(bin_msg) => {
                             self.packet_router.route_received(vec![bin_msg]);
                         }
                         Message::Text(txt_msg) => {
-                            res = Some(ServerResponse::try_from(txt_msg).map_err(|_| GatewayClientError::MalformedResponse));
+                            break ServerResponse::try_from(txt_msg).map_err(|_| GatewayClientError::MalformedResponse);
                         }
                         _ => (),
                     }
-                }
+               }
             }
         }
-
-        res.expect("response value should have been written in one of the branches!. If you see this error, please report a bug!")
     }
 
     // If we want to send a message (with response), we need to have a full control over the socket,
@@ -345,10 +363,7 @@ impl<'a, R> GatewayClient<'static, R> {
         Ok(())
     }
 
-    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError>
-    where
-        R: IntoClientRequest + Unpin + Clone,
-    {
+    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError> {
         if !self.connection.is_established() {
             self.establish_connection().await?;
         }

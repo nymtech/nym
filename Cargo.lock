@@ -1015,6 +1015,9 @@ dependencies = [
  "tokio-tungstenite",
  "tungstenite 0.11.1",
  "wasm-bindgen",
+ "wasm-bindgen-futures 0.4.17",
+ "wasm-timer",
+ "wasm-utils",
 ]
 
 [[package]]
@@ -3743,6 +3746,17 @@ dependencies = [
  "pin-utils",
  "wasm-bindgen",
  "wasm-bindgen-futures 0.4.17",
+ "web-sys",
+]
+
+[[package]]
+name = "wasm-utils"
+version = "0.1.0"
+dependencies = [
+ "futures 0.3.5",
+ "js-sys",
+ "tungstenite 0.11.1",
+ "wasm-bindgen",
  "web-sys",
 ]
 

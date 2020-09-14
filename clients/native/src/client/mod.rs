@@ -179,7 +179,7 @@ impl NymClient {
         &mut self,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
-    ) -> GatewayClient<'static, url::Url> {
+    ) -> GatewayClient<url::Url> {
         let gateway_id = self.config.get_base().get_gateway_id();
         if gateway_id.is_empty() {
             panic!("The identity of the gateway is unknown - did you run `nym-client` init?")
@@ -256,7 +256,7 @@ impl NymClient {
     fn start_mix_traffic_controller(
         &mut self,
         mix_rx: MixMessageReceiver,
-        gateway_client: GatewayClient<'static, url::Url>,
+        gateway_client: GatewayClient<url::Url>,
     ) {
         info!("Starting mix traffic controller...");
         MixTrafficController::new(mix_rx, gateway_client).start(self.runtime.handle());

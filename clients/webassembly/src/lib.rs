@@ -23,9 +23,12 @@ pub use models::keys::keygen;
 use rand::rngs::OsRng;
 use tungstenite::{Error as WsError, Message as WsMessage};
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::{spawn_local, JsFuture};
+use wasm_bindgen_futures::{future_to_promise, spawn_local, JsFuture};
 use web_sys::window;
 
+pub(crate) const DEFAULT_RNG: OsRng = OsRng;
+
+mod client;
 mod models;
 pub(crate) mod received_buffer;
 mod utils;
@@ -61,8 +64,6 @@ extern "C" {
     pub fn error(s: &str);
 }
 
-pub const DEFAULT_RNG: OsRng = OsRng;
-
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
 #[cfg(feature = "wee_alloc")]
@@ -78,16 +79,31 @@ pub async fn foomp() {
     //     gateway_socket: JSWebsocket::new("ws://127.0.0.1:4000").unwrap(),
     //
     // };
-    let version = "0.8.0-dev".to_string();
-    let directory_server = "http://localhost:8080".to_string();
 
-    let mut client = NymClient::new(directory_server, version);
-    client = client.initial_setup().await;
+    let foo = async {
+        console_warn!("future start");
+        sleep(1000).await;
+        console_warn!("future end");
+        Ok(JsValue::from(42i32))
+    };
 
-    let active_native_client = "7yeAtiVGZFz5obya5uJ9ptBjFjkKKRPxaVBgRp33DkMz.CuWpunEFNo424vkEVQDwt45p91xX5JrnKc1htGSF6Wz@DicDxduuh3bKzNDHohikWXEkgqbzBj61EARPreShYK3f".to_string();
-    let message = "hello from wasm!".to_string();
+    let promise = future_to_promise(foo);
+    console_log!("going to await promise...");
+    let js_fut = JsFuture::from(promise);
+    let res = js_fut.await.unwrap();
 
-    client = client.send_message(message, active_native_client).await;
+    console_log!("done. result - {:?}", res);
+
+    // let version = "0.8.0-dev".to_string();
+    // let directory_server = "http://localhost:8080".to_string();
+    //
+    // let mut client = NymClient::new(directory_server, version);
+    // client = client.initial_setup().await;
+    //
+    // let active_native_client = "7yeAtiVGZFz5obya5uJ9ptBjFjkKKRPxaVBgRp33DkMz.CuWpunEFNo424vkEVQDwt45p91xX5JrnKc1htGSF6Wz@DicDxduuh3bKzNDHohikWXEkgqbzBj61EARPreShYK3f".to_string();
+    // let message = "hello from wasm!".to_string();
+    //
+    // client = client.send_message(message, active_native_client).await;
     // client = client.get_and_update_topology().await;
     // let gateway = client.choose_gateway();
     //
@@ -131,21 +147,21 @@ pub async fn foomp() {
     // });
     // // just for test to not have to bother with setting it all up
     //
-    console_log!("waiting");
-    sleep(10000).await.unwrap();
+    // console_log!("waiting");
+    // sleep(10000).await.unwrap();
+    // //
+    // // // let topology = ClientTest::do_foomp().await;
+    // // //
+    // // // console_log!("{}", topology);
+    // // //
+    // // // // spawn_local(async {
+    // // // //     for i in 0..100 {
+    // // // //         console_log!("foomp {}", i);
+    // // // //         sleep(50).await.unwrap();
+    // // // //     }
+    // // // // });
     //
-    // // let topology = ClientTest::do_foomp().await;
-    // //
-    // // console_log!("{}", topology);
-    // //
-    // // // spawn_local(async {
-    // // //     for i in 0..100 {
-    // // //         console_log!("foomp {}", i);
-    // // //         sleep(50).await.unwrap();
-    // // //     }
-    // // // });
-
-    console_log!("foomp is done");
+    // console_log!("foomp is done");
 }
 
 // /// Creates a Gateway payload for use in JavaScript applications, using wasm.

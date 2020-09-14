@@ -13,16 +13,35 @@
 // limitations under the License.
 
 import {
-    Client,
-    Identity
-} from "@nymproject/nym-client-wasm/client"
+   NymClient,
+   foomp
+} from "@nymproject/nym-client-wasm"
 
 async function main() {
-    // Set up identity and client
-    let directory = "http://localhost:8080";
-    let identity = new Identity();
+    foomp();
+//    let directory = "http://localhost:8080";
+//    let version = "0.8.0-dev";
+//
+//    let client = new NymClient(directory, version);
+////    client.do_foomp();
+//
+//    client.on_message();
+//
+//    let fn = () => console.log("custom fn in js");
+//    client.set_on_message(fn);
+//
+////    client.on_message();
+//    client.start_foomping();
+//
+//    await client.wait_a_bit();
 
-    console.log(identity);
+
+//    client.on_message = fn;
+//    client.do_foomp();
+
+//    client.do_foomp_with_argument = fn;
+//    client.do_foomp_with_argument("external foomp!2");
+
 
     console.log("should be done!");
 //    let nymClient = new Client(directory, identity, null);

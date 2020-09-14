@@ -14,13 +14,22 @@
 
 use gateway_requests::registration::handshake::error::HandshakeError;
 use std::fmt::{self, Error, Formatter};
-use tokio_tungstenite::tungstenite::Error as WsError;
+use tungstenite::Error as WsError;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsValue;
 
 #[derive(Debug)]
 pub enum GatewayClientError {
     ConnectionNotEstablished,
     GatewayError(String),
+
+    #[cfg(not(target_arch = "wasm32"))]
     NetworkError(WsError),
+
+    // TODO: see if `JsValue` is a reasonable type for this
+    #[cfg(target_arch = "wasm32")]
+    NetworkError(JsValue),
+
     NoSharedKeyAvailable,
     ConnectionAbruptlyClosed,
     MalformedResponse,
@@ -31,8 +40,16 @@ pub enum GatewayClientError {
     Timeout,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl From<WsError> for GatewayClientError {
     fn from(err: WsError) -> Self {
+        GatewayClientError::NetworkError(err)
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl From<JsValue> for GatewayClientError {
+    fn from(err: JsValue) -> Self {
         GatewayClientError::NetworkError(err)
     }
 }
@@ -49,9 +66,16 @@ impl fmt::Display for GatewayClientError {
                 write!(f, "no shared key was provided or obtained")
             }
             GatewayClientError::NotAuthenticated => write!(f, "client is not authenticated"),
+
+            #[cfg(not(target_arch = "wasm32"))]
             GatewayClientError::NetworkError(err) => {
                 write!(f, "there was a network error - {}", err)
             }
+            #[cfg(target_arch = "wasm32")]
+            GatewayClientError::NetworkError(err) => {
+                write!(f, "there was a network error - {:?}", err)
+            }
+
             GatewayClientError::ConnectionAbruptlyClosed => {
                 write!(f, "connection was abruptly closed")
             }

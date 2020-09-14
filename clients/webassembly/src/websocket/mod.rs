@@ -148,6 +148,12 @@ impl JSWebsocket {
                 waker.wake()
             }
 
+            // TODO:
+            // TODO:
+            // TODO:
+            // TODO:
+            // TODO:
+            // TODO:
             // TODO: we should somehow notify sink and stream that no more work can be done
         }) as Box<dyn FnMut(CloseEvent)>);
 

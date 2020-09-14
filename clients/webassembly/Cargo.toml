@@ -32,6 +32,7 @@ crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }
 directory-client = { path = "../../common/client-libs/directory-client" }
+gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by

@@ -14,8 +14,10 @@
 
 #[macro_use]
 use crate::{console_log, console_warn};
+use crate::client::gateway_client::GatewayClient;
 use crate::utils::sleep;
 use crate::websocket::JSWebsocket;
+use crate::DEFAULT_RNG;
 use crypto::asymmetric::{encryption, identity};
 use directory_client::{DirectoryClient, Topology};
 use futures::SinkExt;
@@ -33,32 +35,28 @@ use rand::Rng;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::future::Future;
+use std::sync::Arc;
 use std::time::Duration;
 use topology::{gateway, NymTopology};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{future_to_promise, spawn_local};
 
-const DEFAULT_RNG: OsRng = OsRng;
+mod gateway_client;
 
-const DEFAULT_AVERAGE_PACKET_DELAY: u64 = 200;
-const DEFAULT_AVERAGE_ACK_DELAY: u64 = 200;
-
-struct GatewayClient {
-    gateway_identity: NodeIdentity,
-    address: String,
-    shared_key: Option<SharedKeys>,
-
-    // TODO: change into enum
-    socket: Option<JSWebsocket>,
-}
+const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
+const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 
 #[wasm_bindgen]
 // #[cfg(target_arch = "wasm32")]
-pub struct NymClient {
+pub struct NymClient2 {
     version: String,
     directory_server: String,
-    identity: identity::KeyPair,
-    encryption_keys: encryption::KeyPair,
+
+    // TODO: technically this doesn't need to be an Arc since wasm is run on a single thread
+    // however, once we eventually combine this code with the native-client's, it will make things
+    // easier.
+    identity: Arc<identity::KeyPair>,
+    encryption_keys: Arc<encryption::KeyPair>,
     ack_key: AckKey,
 
     message_preparer: Option<MessagePreparer<OsRng>>,
@@ -75,7 +73,7 @@ pub struct NymClient {
 
 #[wasm_bindgen]
 // #[cfg(target_arch = "wasm32")]
-impl NymClient {
+impl NymClient2 {
     #[wasm_bindgen(constructor)]
     pub fn new(directory_server: String, version: String) -> Self {
         // for time being generate new keys each time...
@@ -84,8 +82,8 @@ impl NymClient {
         let ack_key = AckKey::new(&mut DEFAULT_RNG);
 
         Self {
-            identity,
-            encryption_keys,
+            identity: Arc::new(identity),
+            encryption_keys: Arc::new(encryption_keys),
             ack_key,
             version,
             directory_server,
@@ -172,147 +170,107 @@ impl NymClient {
             self.encryption_keys.public_key().clone(),
             self.gateway_client
                 .as_ref()
-                .unwrap()
-                .gateway_identity
-                .clone(),
+                .expect("gateway connection was not established!")
+                .gateway_identity(),
         )
     }
 
     // Right now it's impossible to have async exported functions to take `&self` rather than self
     pub async fn initial_setup(self) -> Self {
         let mut client = self.get_and_update_topology().await;
-        client.choose_gateway();
-        client.connect_to_gateway();
-        client.derive_shared_gateway_key().await;
-        console_log!(
-            "got shared key! {:?} (its id: {:?})",
-            client.gateway_client.as_ref().unwrap().shared_key,
-            client.gateway_client.as_ref().unwrap().gateway_identity
-        );
-        let average_packet_delay = Duration::from_millis(DEFAULT_AVERAGE_PACKET_DELAY);
-        let average_ack_delay = Duration::from_millis(DEFAULT_AVERAGE_ACK_DELAY);
+        let gateway = client.choose_gateway();
+        let gateway_client =
+            GatewayClient::establish_relation(gateway, Arc::clone(&client.identity))
+                .await
+                .expect("Failed to establish gateway relation");
 
         let message_preparer = MessagePreparer::new(
             DEFAULT_RNG,
             client.self_recipient(),
-            average_packet_delay,
-            average_ack_delay,
+            DEFAULT_AVERAGE_PACKET_DELAY,
+            DEFAULT_AVERAGE_ACK_DELAY,
         );
-        client.message_preparer = Some(message_preparer);
 
+        client.message_preparer = Some(message_preparer);
+        client.gateway_client = Some(gateway_client);
         client
     }
 
-    // Right now it's impossible to have async exported functions to take `&mut self` rather than mut self
-    pub async fn send_message(mut self, message: String, recipient: String) -> Self {
-        let message_bytes = message.into_bytes();
-        let recipient = Recipient::try_from_base58_string(recipient).unwrap();
-
-        let topology = self
-            .topology
-            .as_ref()
-            .expect("did not obtain topology before");
-
-        let message_preparer = self.message_preparer.as_mut().unwrap();
-
-        let (split_message, _reply_keys) = message_preparer
-            .prepare_and_split_message(message_bytes, false, topology)
-            .expect("failed to split the message");
-
-        let shared_key = self
-            .gateway_client
-            .as_ref()
-            .unwrap()
-            .shared_key
-            .as_ref()
-            .unwrap();
-
-        let mut socket_messages = Vec::with_capacity(split_message.len());
-        for message_chunk in split_message {
-            // don't bother with acks etc. for time being
-            let prepared_fragment = message_preparer
-                .prepare_chunk_for_sending(message_chunk, topology, &self.ack_key, &recipient)
-                .unwrap();
-
-            console_warn!("packet is going to have round trip time of {:?}, but we're not going to do anything for acks anyway ", prepared_fragment.total_delay);
-            let socket_message = Ok(BinaryRequest::new_forward_request(
-                prepared_fragment.first_hop_address,
-                prepared_fragment.sphinx_packet,
-            )
-            .into_ws_message(shared_key));
-            socket_messages.push(socket_message);
-        }
-
-        let socket_ref = self
-            .gateway_client
-            .as_mut()
-            .unwrap()
-            .socket
-            .as_mut()
-            .unwrap();
-
-        let mut send_stream = futures::stream::iter(socket_messages);
-        socket_ref.send_all(&mut send_stream).await.unwrap();
-        self
-    }
+    // // Right now it's impossible to have async exported functions to take `&mut self` rather than mut self
+    // pub async fn send_message(mut self, message: String, recipient: String) -> Self {
+    //     let message_bytes = message.into_bytes();
+    //     let recipient = Recipient::try_from_base58_string(recipient).unwrap();
+    //
+    //     let topology = self
+    //         .topology
+    //         .as_ref()
+    //         .expect("did not obtain topology before");
+    //
+    //     let message_preparer = self.message_preparer.as_mut().unwrap();
+    //
+    //     let (split_message, _reply_keys) = message_preparer
+    //         .prepare_and_split_message(message_bytes, false, topology)
+    //         .expect("failed to split the message");
+    //
+    //     let shared_key = self
+    //         .gateway_client
+    //         .as_ref()
+    //         .unwrap()
+    //         .shared_key
+    //         .as_ref()
+    //         .unwrap();
+    //
+    //     let mut socket_messages = Vec::with_capacity(split_message.len());
+    //     for message_chunk in split_message {
+    //         // don't bother with acks etc. for time being
+    //         let prepared_fragment = message_preparer
+    //             .prepare_chunk_for_sending(message_chunk, topology, &self.ack_key, &recipient)
+    //             .unwrap();
+    //
+    //         console_warn!("packet is going to have round trip time of {:?}, but we're not going to do anything for acks anyway ", prepared_fragment.total_delay);
+    //         let socket_message = Ok(BinaryRequest::new_forward_request(
+    //             prepared_fragment.first_hop_address,
+    //             prepared_fragment.sphinx_packet,
+    //         )
+    //         .into_ws_message(shared_key));
+    //         socket_messages.push(socket_message);
+    //     }
+    //
+    //     let socket_ref = self
+    //         .gateway_client
+    //         .as_mut()
+    //         .unwrap()
+    //         .socket
+    //         .as_mut()
+    //         .unwrap();
+    //
+    //     let mut send_stream = futures::stream::iter(socket_messages);
+    //     socket_ref.send_all(&mut send_stream).await.unwrap();
+    //     self
+    // }
 
     pub(crate) fn start_cover_traffic(&self) {
         spawn_local(async move { todo!("here be cover traffic") })
     }
 
-    pub(crate) async fn derive_shared_gateway_key(&mut self) {
-        let gateway_client = self.gateway_client.as_mut().unwrap();
-
-        let mut gateway_socket = gateway_client
-            .socket
-            .as_mut()
-            .expect("did not establish connection to the gateway!");
-        let gateway_identity = gateway_client.gateway_identity;
-
-        let shared_keys = client_handshake(
-            &mut DEFAULT_RNG,
-            &mut gateway_socket,
-            &self.identity,
-            gateway_identity,
-        )
-        .await;
-
-        match shared_keys {
-            Ok(keys) => gateway_client.shared_key = Some(keys),
-            Err(err) => panic!("failed to perform gateway handshake! - {:?}", err),
-        }
-    }
-
-    pub(crate) fn connect_to_gateway(&mut self) {
-        let gateway_client = self.gateway_client.as_mut().unwrap();
-        let gateway_address = gateway_client.address.as_ref();
-        let gateway_socket =
-            JSWebsocket::new(gateway_address).expect("failed to connect to the gateway");
-        gateway_client.socket.replace(gateway_socket);
-    }
-
-    pub(crate) fn choose_gateway(&mut self) {
+    pub(crate) fn choose_gateway(&self) -> &gateway::Node {
         let topology = self
             .topology
             .as_ref()
             .expect("did not obtain topology before");
 
-        console_log!("topology: {:#?}", topology);
-
         // choose the first one available
         assert!(!topology.gateways().is_empty());
-        let gateway = topology.gateways().first().unwrap();
-        self.gateway_client = Some(GatewayClient {
-            address: gateway.client_listener.clone(),
-            gateway_identity: gateway.identity_key,
-            shared_key: None,
-            socket: None,
-        })
+        topology.gateways().first().unwrap()
     }
 
-    // TODO: is it somehow possible to make it work with `&mut self`?
+    // Right now it's impossible to have async exported functions to take `&mut self` rather than mut self
+    // self: Rc<Self>
+    // or this: Rc<RefCell<Self>>
     pub async fn get_and_update_topology(mut self) -> Self {
         let new_topology = self.get_nym_topology().await;
+        console_log!("topology: {:#?}", new_topology);
+
         self.update_topology(new_topology);
         self
     }

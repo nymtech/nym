@@ -1013,6 +1013,8 @@ dependencies = [
  "nymsphinx",
  "tokio 0.2.22",
  "tokio-tungstenite",
+ "tungstenite 0.11.1",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1710,6 +1712,7 @@ dependencies = [
  "crypto",
  "directory-client",
  "futures 0.3.5",
+ "gateway-client",
  "gateway-requests",
  "js-sys",
  "log 0.4.11",

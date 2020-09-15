@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use js_sys::Promise;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsValue;
+use wasm_bindgen_futures::JsFuture;
+use web_sys::window;
 
 pub mod websocket;
 
@@ -44,4 +48,15 @@ extern "C" {
 
     #[wasm_bindgen(js_namespace = console)]
     pub fn error(s: &str);
+}
+
+pub async fn sleep(ms: i32) -> Result<(), JsValue> {
+    let promise = Promise::new(&mut |yes, _| {
+        let win = window().expect("no window available!");
+        win.set_timeout_with_callback_and_timeout_and_arguments_0(&yes, ms)
+            .unwrap();
+    });
+    let js_fut = JsFuture::from(promise);
+    js_fut.await?;
+    Ok(())
 }

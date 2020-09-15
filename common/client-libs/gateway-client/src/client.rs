@@ -100,6 +100,10 @@ impl GatewayClient {
         }
     }
 
+    pub fn identity(&self) -> identity::PublicKey {
+        self.gateway_identity
+    }
+
     pub async fn close_connection(&mut self) -> Result<(), GatewayClientError> {
         if self.connection.is_partially_delegated() {
             self.recover_socket_connection().await?;
@@ -205,6 +209,26 @@ impl GatewayClient {
         response
     }
 
+    async fn batch_send_websocket_messages_without_response(
+        &mut self,
+        messages: Vec<Message>,
+    ) -> Result<(), GatewayClientError> {
+        match self.connection {
+            SocketState::Available(ref mut conn) => {
+                let stream_messages: Vec<_> = messages.into_iter().map(Ok).collect();
+                let mut send_stream = futures::stream::iter(stream_messages);
+                Ok(conn.send_all(&mut send_stream).await?)
+            }
+            SocketState::PartiallyDelegated(ref mut partially_delegated) => {
+                partially_delegated
+                    .batch_send_without_response(messages)
+                    .await
+            }
+            SocketState::NotConnected => Err(GatewayClientError::ConnectionNotEstablished),
+            _ => Err(GatewayClientError::ConnectionInInvalidState),
+        }
+    }
+
     async fn send_websocket_message_without_response(
         &mut self,
         msg: Message,
@@ -226,7 +250,7 @@ impl GatewayClient {
 
         debug_assert!(self.connection.is_available());
 
-        match &mut self.connection {
+        let shared_key = match &mut self.connection {
             SocketState::Available(ws_stream) => client_handshake(
                 &mut DEFAULT_RNG,
                 ws_stream,
@@ -236,7 +260,10 @@ impl GatewayClient {
             .await
             .map_err(GatewayClientError::RegistrationFailure),
             _ => unreachable!(),
-        }
+        }?;
+
+        self.authenticated = true;
+        Ok(shared_key)
     }
 
     pub async fn authenticate(
@@ -282,7 +309,8 @@ impl GatewayClient {
         if self.shared_key.is_some() {
             self.authenticate(None).await?;
         } else {
-            self.register().await?;
+            let shared_key = self.register().await?;
+            self.shared_key = Some(Arc::new(shared_key));
         }
         if self.authenticated {
             // if we are authenticated it means we MUST have an associated shared_key
@@ -290,6 +318,32 @@ impl GatewayClient {
         } else {
             Err(GatewayClientError::AuthenticationFailure)
         }
+    }
+
+    pub async fn batch_send_sphinx_packets(
+        &mut self,
+        packets: Vec<(NymNodeRoutingAddress, SphinxPacket)>,
+    ) -> Result<(), GatewayClientError> {
+        if !self.authenticated {
+            return Err(GatewayClientError::NotAuthenticated);
+        }
+        if !self.connection.is_established() {
+            return Err(GatewayClientError::ConnectionNotEstablished);
+        }
+
+        let messages: Vec<_> = packets
+            .into_iter()
+            .map(|(address, packet)| {
+                BinaryRequest::new_forward_request(address, packet).into_ws_message(
+                    self.shared_key
+                        .as_ref()
+                        .expect("no shared key present even though we're authenticated!"),
+                )
+            })
+            .collect();
+
+        self.batch_send_websocket_messages_without_response(messages)
+            .await
     }
 
     // TODO: possibly make responses optional

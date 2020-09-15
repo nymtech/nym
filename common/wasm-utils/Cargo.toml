@@ -10,6 +10,7 @@ edition = "2018"
 futures = "0.3"
 js-sys = "0.3"
 wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
 
 # we don't want entire tokio-tungstenite, tungstenite itself is just fine - we just want message and error enums
 [dependencies.tungstenite]
@@ -27,4 +28,5 @@ features = [
     "MessageEvent",
     "ProgressEvent",
     "WebSocket",
+    "Window",
 ]

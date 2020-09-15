@@ -16,7 +16,7 @@ use crate::error::GatewayClientError;
 pub use client::GatewayClient;
 pub use packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
-}; // this should be refactored away. the only reason it's used like this is to not break import paths
+};
 use tungstenite::{protocol::Message, Error as WsError};
 
 pub mod client;

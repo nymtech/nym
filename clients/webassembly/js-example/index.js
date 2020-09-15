@@ -19,16 +19,26 @@ import {
 
 async function main() {
     foomp();
-//    let directory = "http://localhost:8080";
-//    let version = "0.8.0-dev";
-//
-//    let client = new NymClient(directory, version);
+    let directory = "http://localhost:8080";
+    let version = "0.8.0-dev";
+    let fn = (msg) => console.log("custom fn in js. Received: ", msg);
+
+    let client = new NymClient(directory, version);
+    client.set_on_message(fn);
+
+    console.log("init setup pre");
+    client = await client.initial_setup();
+
+    let self_address = client.self_address();
+    client = await client.send_message("foomp", self_address);
+    console.log("init setup post");
+
+
 ////    client.do_foomp();
 //
 //    client.on_message();
 //
-//    let fn = () => console.log("custom fn in js");
-//    client.set_on_message(fn);
+
 //
 ////    client.on_message();
 //    client.start_foomping();

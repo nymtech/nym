@@ -12,43 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[macro_use]
-use crate::{console_log, console_warn};
-use crate::client::gateway_client::GatewayClient;
-use crate::utils::sleep;
-use crate::websocket::JSWebsocket;
+use crate::received_processor::ReceivedMessagesProcessor;
 use crate::DEFAULT_RNG;
 use crypto::asymmetric::{encryption, identity};
-use directory_client::{DirectoryClient, Topology};
-use futures::SinkExt;
+use directory_client::DirectoryClient;
+use futures::channel::mpsc;
+use futures::StreamExt;
+use gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
 use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
-use gateway_requests::BinaryRequest;
 use js_sys::Promise;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::anonymous_replies::SURBEncryptionKey;
 use nymsphinx::preparer::MessagePreparer;
-use nymsphinx::receiver::MessageReceiver;
+use nymsphinx::receiver::{MessageReceiver, ReconstructedMessage};
 use rand::rngs::OsRng;
-use rand::Rng;
 use std::collections::HashSet;
 use std::convert::TryInto;
-use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::{gateway, NymTopology};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{future_to_promise, spawn_local};
-
-mod gateway_client;
+use wasm_utils::{console_log, console_warn, sleep};
 
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
-
+const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 #[wasm_bindgen]
 // #[cfg(target_arch = "wasm32")]
-pub struct NymClient2 {
+pub struct NymClient {
     version: String,
     directory_server: String,
 
@@ -73,7 +66,7 @@ pub struct NymClient2 {
 
 #[wasm_bindgen]
 // #[cfg(target_arch = "wasm32")]
-impl NymClient2 {
+impl NymClient {
     #[wasm_bindgen(constructor)]
     pub fn new(directory_server: String, version: String) -> Self {
         // for time being generate new keys each time...
@@ -97,9 +90,6 @@ impl NymClient2 {
     }
 
     pub fn set_on_message(&mut self, on_message: js_sys::Function) {
-        console_log!("going to set on message");
-        let this = JsValue::null();
-        on_message.call0(&this);
         self.on_message = Some(on_message);
     }
 
@@ -171,18 +161,66 @@ impl NymClient2 {
             self.gateway_client
                 .as_ref()
                 .expect("gateway connection was not established!")
-                .gateway_identity(),
+                .identity(),
         )
     }
 
+    pub fn self_address(&self) -> String {
+        self.self_recipient().to_string()
+    }
+
+    // TODO: this needs to have a shutdown signal!
+    async fn start_message_listener(
+        mixnet_messages_receiver: MixnetMessageReceiver,
+        ack_receiver: AcknowledgementReceiver,
+        on_message: js_sys::Function,
+        mut received_processor: ReceivedMessagesProcessor,
+    ) {
+        let mut fused_mixnet_messages_receiver = mixnet_messages_receiver.fuse();
+        let mut fused_ack_receiver = ack_receiver.fuse();
+        let this = JsValue::null();
+
+        loop {
+            futures::select! {
+                mix_msgs = fused_mixnet_messages_receiver.next() => {
+                    for mix_msg in mix_msgs.unwrap() {
+                        if let Some(processed) = received_processor.process_received_fragment(mix_msg) {
+                            let arg1 = JsValue::from_serde(&processed).unwrap();
+                            on_message.call1(&this, &arg1);
+                        }
+                    }
+                }
+                ack = fused_ack_receiver.next() => {
+                    console_log!("received an ack - can't do anything about it yet")
+                }
+            }
+        }
+    }
+
     // Right now it's impossible to have async exported functions to take `&self` rather than self
-    pub async fn initial_setup(self) -> Self {
+    pub async fn initial_setup(mut self) -> Self {
         let mut client = self.get_and_update_topology().await;
         let gateway = client.choose_gateway();
-        let gateway_client =
-            GatewayClient::establish_relation(gateway, Arc::clone(&client.identity))
-                .await
-                .expect("Failed to establish gateway relation");
+
+        let (mixnet_messages_sender, mixnet_messages_receiver) = mpsc::unbounded();
+        let (ack_sender, ack_receiver) = mpsc::unbounded();
+
+        let mut gateway_client = GatewayClient::new(
+            gateway.client_listener.clone(),
+            Arc::clone(&client.identity),
+            gateway.identity_key,
+            None,
+            mixnet_messages_sender,
+            ack_sender,
+            DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
+        );
+
+        gateway_client
+            .authenticate_and_start()
+            .await
+            .expect("could not authenticate and start up the gateway connection");
+
+        client.gateway_client = Some(gateway_client);
 
         let message_preparer = MessagePreparer::new(
             DEFAULT_RNG,
@@ -191,63 +229,61 @@ impl NymClient2 {
             DEFAULT_AVERAGE_ACK_DELAY,
         );
 
+        let received_processor =
+            ReceivedMessagesProcessor::new(Arc::clone(&client.encryption_keys));
+
         client.message_preparer = Some(message_preparer);
-        client.gateway_client = Some(gateway_client);
+
+        spawn_local(Self::start_message_listener(
+            mixnet_messages_receiver,
+            ack_receiver,
+            client.on_message.take().expect("on_message was not set!"),
+            received_processor,
+        ));
+
         client
     }
 
-    // // Right now it's impossible to have async exported functions to take `&mut self` rather than mut self
-    // pub async fn send_message(mut self, message: String, recipient: String) -> Self {
-    //     let message_bytes = message.into_bytes();
-    //     let recipient = Recipient::try_from_base58_string(recipient).unwrap();
-    //
-    //     let topology = self
-    //         .topology
-    //         .as_ref()
-    //         .expect("did not obtain topology before");
-    //
-    //     let message_preparer = self.message_preparer.as_mut().unwrap();
-    //
-    //     let (split_message, _reply_keys) = message_preparer
-    //         .prepare_and_split_message(message_bytes, false, topology)
-    //         .expect("failed to split the message");
-    //
-    //     let shared_key = self
-    //         .gateway_client
-    //         .as_ref()
-    //         .unwrap()
-    //         .shared_key
-    //         .as_ref()
-    //         .unwrap();
-    //
-    //     let mut socket_messages = Vec::with_capacity(split_message.len());
-    //     for message_chunk in split_message {
-    //         // don't bother with acks etc. for time being
-    //         let prepared_fragment = message_preparer
-    //             .prepare_chunk_for_sending(message_chunk, topology, &self.ack_key, &recipient)
-    //             .unwrap();
-    //
-    //         console_warn!("packet is going to have round trip time of {:?}, but we're not going to do anything for acks anyway ", prepared_fragment.total_delay);
-    //         let socket_message = Ok(BinaryRequest::new_forward_request(
-    //             prepared_fragment.first_hop_address,
-    //             prepared_fragment.sphinx_packet,
-    //         )
-    //         .into_ws_message(shared_key));
-    //         socket_messages.push(socket_message);
-    //     }
-    //
-    //     let socket_ref = self
-    //         .gateway_client
-    //         .as_mut()
-    //         .unwrap()
-    //         .socket
-    //         .as_mut()
-    //         .unwrap();
-    //
-    //     let mut send_stream = futures::stream::iter(socket_messages);
-    //     socket_ref.send_all(&mut send_stream).await.unwrap();
-    //     self
-    // }
+    // Right now it's impossible to have async exported functions to take `&mut self` rather than mut self
+    // TODO: try Rc<RefCell<Self>> approach?
+    pub async fn send_message(mut self, message: String, recipient: String) -> Self {
+        console_log!("Sending {} to {}", message, recipient);
+
+        let message_bytes = message.into_bytes();
+        let recipient = Recipient::try_from_base58_string(recipient).unwrap();
+
+        let topology = self
+            .topology
+            .as_ref()
+            .expect("did not obtain topology before");
+
+        let message_preparer = self.message_preparer.as_mut().unwrap();
+
+        let (split_message, _reply_keys) = message_preparer
+            .prepare_and_split_message(message_bytes, false, topology)
+            .expect("failed to split the message");
+
+        let mut socket_messages = Vec::with_capacity(split_message.len());
+        for message_chunk in split_message {
+            // don't bother with acks etc. for time being
+            let prepared_fragment = message_preparer
+                .prepare_chunk_for_sending(message_chunk, topology, &self.ack_key, &recipient)
+                .unwrap();
+
+            console_warn!("packet is going to have round trip time of {:?}, but we're not going to do anything for acks anyway ", prepared_fragment.total_delay);
+            socket_messages.push((
+                prepared_fragment.first_hop_address,
+                prepared_fragment.sphinx_packet,
+            ));
+        }
+        self.gateway_client
+            .as_mut()
+            .unwrap()
+            .batch_send_sphinx_packets(socket_messages)
+            .await
+            .unwrap();
+        self
+    }
 
     pub(crate) fn start_cover_traffic(&self) {
         spawn_local(async move { todo!("here be cover traffic") })

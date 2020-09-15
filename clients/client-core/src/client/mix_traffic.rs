@@ -35,7 +35,7 @@ const MAX_FAILURE_COUNT: usize = 100;
 pub struct MixTrafficController {
     // TODO: most likely to be replaced by some higher level construct as
     // later on gateway_client will need to be accessible by other entities
-    gateway_client: GatewayClient<url::Url>,
+    gateway_client: GatewayClient,
     mix_rx: MixMessageReceiver,
 
     // TODO: this is temporary work-around.
@@ -44,10 +44,7 @@ pub struct MixTrafficController {
 }
 
 impl MixTrafficController {
-    pub fn new(
-        mix_rx: MixMessageReceiver,
-        gateway_client: GatewayClient<url::Url>,
-    ) -> MixTrafficController {
+    pub fn new(mix_rx: MixMessageReceiver, gateway_client: GatewayClient) -> MixTrafficController {
         MixTrafficController {
             gateway_client,
             mix_rx,

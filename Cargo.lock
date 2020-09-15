@@ -447,7 +447,6 @@ dependencies = [
  "tempfile",
  "tokio 0.2.22",
  "topology",
- "url 2.1.1",
 ]
 
 [[package]]
@@ -1729,6 +1728,7 @@ dependencies = [
  "wasm-bindgen-futures 0.4.17",
  "wasm-bindgen-test",
  "wasm-timer",
+ "wasm-utils",
  "web-sys",
  "wee_alloc",
 ]
@@ -3757,6 +3757,7 @@ dependencies = [
  "js-sys",
  "tungstenite 0.11.1",
  "wasm-bindgen",
+ "wasm-bindgen-futures 0.4.17",
  "web-sys",
 ]
 

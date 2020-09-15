@@ -12,56 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::models::client::NymClient;
-use crate::utils::sleep;
-use crate::websocket::JSWebsocket;
-use crypto::asymmetric::{encryption, identity};
-use futures::{SinkExt, StreamExt};
-use gateway_requests::registration::handshake::client_handshake;
-use js_sys::Promise;
-pub use models::keys::keygen;
 use rand::rngs::OsRng;
 use tungstenite::{Error as WsError, Message as WsMessage};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{future_to_promise, spawn_local, JsFuture};
-use web_sys::window;
+use wasm_utils::sleep;
+use wasm_utils::{console_log, console_warn};
 
 pub(crate) const DEFAULT_RNG: OsRng = OsRng;
 
 mod client;
-mod models;
-pub(crate) mod received_buffer;
-mod utils;
-mod websocket;
+pub(crate) mod received_processor;
 
-// will cause messages to be written as if console.log("...") was called
-#[macro_export]
-macro_rules! console_log {
-    ($($t:tt)*) => ($crate::log(&format_args!($($t)*).to_string()))
-}
-
-// will cause messages to be written as if console.warm("...") was called
-#[macro_export]
-macro_rules! console_warn {
-    ($($t:tt)*) => ($crate::warn(&format_args!($($t)*).to_string()))
-}
-
-// will cause messages to be written as if console.error("...") was called
-#[macro_export]
-macro_rules! console_error {
-    ($($t:tt)*) => ($crate::error(&format_args!($($t)*).to_string()))
-}
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    pub fn log(s: &str);
-
-    #[wasm_bindgen(js_namespace = console)]
-    pub fn warn(s: &str);
-
-    #[wasm_bindgen(js_namespace = console)]
-    pub fn error(s: &str);
+pub fn set_panic_hook() {
+    // When the `console_error_panic_hook` feature is enabled, we can call the
+    // `set_panic_hook` function at least once during initialization, and then
+    // we will get better error messages if our code ever panics.
+    //
+    // For more details see
+    // https://github.com/rustwasm/console_error_panic_hook#readme
+    #[cfg(feature = "console_error_panic_hook")]
+    console_error_panic_hook::set_once();
 }
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -72,7 +43,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[wasm_bindgen]
 pub async fn foomp() {
-    utils::set_panic_hook();
+    set_panic_hook();
     // let client = ClientTest {
     //             version: "0.8".to_string(),
     //             directory_server: "http://localhost:8080".to_string(),
@@ -80,19 +51,19 @@ pub async fn foomp() {
     //
     // };
 
-    let foo = async {
-        console_warn!("future start");
-        sleep(1000).await;
-        console_warn!("future end");
-        Ok(JsValue::from(42i32))
-    };
-
-    let promise = future_to_promise(foo);
-    console_log!("going to await promise...");
-    let js_fut = JsFuture::from(promise);
-    let res = js_fut.await.unwrap();
-
-    console_log!("done. result - {:?}", res);
+    // let foo = async {
+    //     console_warn!("future start");
+    //     sleep(1000).await;
+    //     console_warn!("future end");
+    //     Ok(JsValue::from(42i32))
+    // };
+    //
+    // let promise = future_to_promise(foo);
+    // console_log!("going to await promise...");
+    // let js_fut = JsFuture::from(promise);
+    // let res = js_fut.await.unwrap();
+    //
+    // console_log!("done. result - {:?}", res);
 
     // let version = "0.8.0-dev".to_string();
     // let directory_server = "http://localhost:8080".to_string();

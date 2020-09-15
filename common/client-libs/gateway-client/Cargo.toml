@@ -21,6 +21,7 @@ nymsphinx = { path = "../../nymsphinx" }
 version = "0.11"
 default-features = false
 
+# non-wasm-only dependencies
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
 version = "0.2"
 features = ["macros", "rt-core", "stream", "sync", "time"]
@@ -28,6 +29,7 @@ features = ["macros", "rt-core", "stream", "sync", "time"]
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
 version = "0.11"
 
+# wasm-only dependencies
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]
 version = "0.2"
 

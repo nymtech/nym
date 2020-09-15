@@ -152,6 +152,15 @@ impl PartiallyDelegated {
         Ok(self.sink_half.send(msg).await?)
     }
 
+    pub(crate) async fn batch_send_without_response(
+        &mut self,
+        messages: Vec<Message>,
+    ) -> Result<(), GatewayClientError> {
+        let stream_messages: Vec<_> = messages.into_iter().map(Ok).collect();
+        let mut send_stream = futures::stream::iter(stream_messages);
+        Ok(self.sink_half.send_all(&mut send_stream).await?)
+    }
+
     pub(crate) async fn merge(self) -> Result<WsConn, GatewayClientError> {
         let (stream_receiver, notify) = self.delegated_stream;
         notify.send(()).unwrap();

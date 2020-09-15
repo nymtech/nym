@@ -129,12 +129,12 @@ impl HealthCheckResult {
 
         // create entries for all nodes
         let mut score_map = HashMap::new();
-        topology.mix_nodes().into_iter().for_each(|node| {
+        topology.mixes().into_iter().for_each(|node| {
             score_map.insert(node.get_pub_key_bytes(), NodeScore::from_mixnode(node));
         });
 
-        topology.providers().into_iter().for_each(|node| {
-            score_map.insert(node.get_pub_key_bytes(), NodeScore::from_provider(node));
+        topology.gateways().into_iter().for_each(|node| {
+            score_map.insert(node.get_pub_key_bytes(), NodeScore::from_gateway(node));
         });
 
         let providers = topology.providers();

@@ -18,13 +18,14 @@ use std::cmp::Ordering;
 use std::fmt::Error;
 use std::fmt::Formatter;
 use std::net::SocketAddr;
+use topology::gateway;
 use topology::mix;
-use topology::provider;
 
 // TODO: should 'nodetype' really be part of healthcheck::score
 
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Clone, Copy)]
 pub(crate) enum NodeType {
+    Gateway,
     Mix,
     MixProvider,
 }
@@ -110,7 +111,7 @@ impl NodeScore {
     pub(crate) fn from_mixnode(node: mix::Node) -> Self {
         NodeScore {
             typ: NodeType::Mix,
-            pub_key: NodeAddressBytes::from_base58_string(node.pub_key),
+            pub_key: node.pub_key.to_bytes(),
             addresses: vec![node.host],
             version: node.version,
             layer: format!("layer {}", node.layer),
@@ -119,11 +120,11 @@ impl NodeScore {
         }
     }
 
-    pub(crate) fn from_provider(node: provider::Node) -> Self {
+    pub(crate) fn from_gateway(node: gateway::Node) -> Self {
         NodeScore {
-            typ: NodeType::MixProvider,
-            pub_key: NodeAddressBytes::from_base58_string(node.pub_key),
-            addresses: vec![node.mixnet_listener, node.client_listener],
+            typ: NodeType::Gateway,
+            pub_key: node.identity_key.to_bytes(),
+            addresses: vec![node.mixnet_listener, node.client_listener.parse().unwrap()],
             version: node.version,
             layer: "provider".to_string(),
             packets_sent: 0,

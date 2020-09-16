@@ -6,7 +6,6 @@ use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, WebSocket
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
 pub struct Connection {
-    uri: String,
     websocket_stream: WebSocketStream<TcpStream>,
 }
 
@@ -22,7 +21,6 @@ impl Connection {
             }
         };
         Connection {
-            uri: String::from(uri),
             websocket_stream: ws_stream,
         }
     }

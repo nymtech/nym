@@ -1,5 +1,6 @@
 // use futures::stream::SplitSink;
 // use futures::{SinkExt, StreamExt};
+use directory_client::{Client, DirectoryClient};
 use log::info;
 
 mod websocket;
@@ -17,10 +18,12 @@ impl Monitor {
     pub async fn run(self) {
         let connection = websocket::Connection::new(&self.websocket_uri).await;
         let me = connection.get_self_address().await;
-        println!("Retrieved self address:  {:?}", me);
+        info!("Retrieved self address:  {:?}", me.to_string());
 
-        // split the websocket so that we could read and write from separate threads
-        // let (websocket_writer, mut websocket_reader) = websocket_stream.split();
+        let config = directory_client::Config::new("https://directory.nymtech.net".to_string());
+        let directory: Client = DirectoryClient::new(config);
+        let topology = directory.get_topology().await;
+        info!("Topology is: {:?}", topology);
     }
 }
 

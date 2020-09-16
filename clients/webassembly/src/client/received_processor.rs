@@ -36,7 +36,7 @@ impl From<ReconstructedMessage> for ProcessedMessage {
         ProcessedMessage {
             message: String::from_utf8_lossy(&reconstructed.message).into_owned(),
             reply_surb: reconstructed
-                .reply_SURB
+                .reply_surb
                 .map(|reply_surb| reply_surb.to_base58_string()),
         }
     }

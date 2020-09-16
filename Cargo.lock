@@ -1819,7 +1819,6 @@ dependencies = [
  "tempfile",
  "tokio 0.2.22",
  "topology",
- "url 2.1.1",
 ]
 
 [[package]]

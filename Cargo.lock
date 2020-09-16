@@ -1710,6 +1710,7 @@ dependencies = [
 name = "nym-client-wasm"
 version = "0.8.0"
 dependencies = [
+ "built",
  "console_error_panic_hook",
  "crypto",
  "directory-client",

@@ -14,59 +14,39 @@
 
 import {
    NymClient,
-   foomp
+   set_panic_hook
 } from "@nymproject/nym-client-wasm"
 
+// current limitation of rust-wasm for async stuff : (
+let client = null
+
 async function main() {
-    foomp();
-    let directory = "http://localhost:8080";
-    let version = "0.8.0-dev";
-    let fn = (msg) => console.log("custom fn in js. Received: ", msg);
+    // sets up better stack traces in case of in-rust panics
+    set_panic_hook();
 
-    let client = new NymClient(directory, version);
-    client.set_on_message(fn);
+    // directory server we will use to get topology from
+    const directory = "https://qa-directory.nymtech.net"; //"http://localhost:8080";
 
-    console.log("init setup pre");
+    client = new NymClient(directory);
+
+    const on_message = (msg) => displayReceived(msg);
+    const on_connect = () => console.log("Established (and authenticated) gateway connection!");
+
+    client.set_on_message(on_message);
+    client.set_on_gateway_connect(on_connect);
+
+    // this is current limitation of wasm in rust - for async methods you can't take self my reference...
+    // I'm trying to figure out if I can somehow hack my way around it, but for time being you have to re-assign
+    // the object (it's the same one)
     client = await client.initial_setup();
 
-    let self_address = client.self_address();
-    client = await client.send_message("foomp", self_address);
-    console.log("init setup post");
+    const self_address = client.self_address();
+    displaySenderAddress(self_address);
 
-
-////    client.do_foomp();
-//
-//    client.on_message();
-//
-
-//
-////    client.on_message();
-//    client.start_foomping();
-//
-//    await client.wait_a_bit();
-
-
-//    client.on_message = fn;
-//    client.do_foomp();
-
-//    client.do_foomp_with_argument = fn;
-//    client.do_foomp_with_argument("external foomp!2");
-
-
-    console.log("should be done!");
-//    let nymClient = new Client(directory, identity, null);
-//
-//    // Wire up events callbacks
-//    nymClient.onConnect = (_) => displaySenderAddress(nymClient);
-//    nymClient.onText = displayReceived;
-//    nymClient.onErrorResponse = (event) => alert("Received invalid gateway response", event.data);
-//    const sendButton = document.querySelector('#send-button');
-//    sendButton.onclick = function () {
-//        sendMessageTo(nymClient);
-//    }
-//
-//    // Start the Nym client. Connects to a Nym gateway via websocket.
-//    await nymClient.start();
+    const sendButton = document.querySelector('#send-button');
+    sendButton.onclick = function () {
+        sendMessageTo();
+    }
 }
 
 /**
@@ -76,12 +56,13 @@ async function main() {
  *
  * @param {Client} nymClient the nym client to use for message sending
  */
-function sendMessageTo(nymClient) {
-    var message = document.getElementById("message").value;
-    var recipient = document.getElementById("recipient").value;
-    nymClient.sendMessage(message, recipient);
+async function sendMessageTo() {
+    const message = document.getElementById("message").value;
+    const recipient = document.getElementById("recipient").value;
+    client = await client.send_message(message, recipient);
     displaySend(message);
 }
+
 /**
  * Display messages that have been sent up the websocket. Colours them blue.
  *
@@ -89,8 +70,15 @@ function sendMessageTo(nymClient) {
  */
 function displaySend(message) {
     let timestamp = new Date().toISOString().substr(11, 12);
-    let out = "<p style='color: blue; word-break: break-all;'>" + timestamp + " <b>sent</b> >>> " + message + "</p >";
-    document.getElementById("output").innerHTML = out + document.getElementById("output").innerHTML;
+
+    let sendDiv = document.createElement("div")
+    let paragraph = document.createElement("p")
+    paragraph.setAttribute('style', 'color: blue')
+    let paragraphContent = document.createTextNode(timestamp + " sent >>> " + message)
+    paragraph.appendChild(paragraphContent)
+
+    sendDiv.appendChild(paragraph)
+    document.getElementById("output").appendChild(sendDiv)
 }
 
 /**
@@ -99,9 +87,17 @@ function displaySend(message) {
  * @param {string} message
  */
 function displayReceived(message) {
+    const content = message.message
+    const replySurb = message.replySurb
+
     let timestamp = new Date().toISOString().substr(11, 12);
-    let out = "<p style='color: green; word-break: break-all;'>" + timestamp + " <b>received</b> >>> " + message + "</p >";
-    document.getElementById("output").innerHTML = out + document.getElementById("output").innerHTML;
+    let receivedDiv = document.createElement("div")
+    let paragraph = document.createElement("p")
+    paragraph.setAttribute('style', 'color: green')
+    let paragraphContent = document.createTextNode(timestamp + " received >>> " + content + ((replySurb != null) ? "Reply SURB was attached here (but we can't do anything with it yet" : " (NO REPLY-SURB AVAILABLE)"))
+    paragraph.appendChild(paragraphContent)
+    receivedDiv.appendChild(paragraph)
+    document.getElementById("output").appendChild(receivedDiv)
 }
 
 
@@ -110,8 +106,8 @@ function displayReceived(message) {
  *
  * @param {Client} nymClient
  */
-function displaySenderAddress(nymClient) {
-    document.getElementById("sender").value = nymClient.formatAsRecipient();
+function displaySenderAddress(address) {
+    document.getElementById("sender").value = address;
 }
 
 // Let's get started!

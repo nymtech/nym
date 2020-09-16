@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::built_info;
 use crate::received_processor::ReceivedMessagesProcessor;
 use crate::DEFAULT_RNG;
 use crypto::asymmetric::{encryption, identity};
@@ -19,30 +20,26 @@ use directory_client::DirectoryClient;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
-use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
 use js_sys::Promise;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::SURBEncryptionKey;
 use nymsphinx::preparer::MessagePreparer;
-use nymsphinx::receiver::{MessageReceiver, ReconstructedMessage};
 use rand::rngs::OsRng;
-use std::collections::HashSet;
 use std::convert::TryInto;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::{gateway, NymTopology};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{future_to_promise, spawn_local};
-use wasm_utils::{console_log, console_warn, sleep};
+use wasm_utils::{console_log, console_warn};
 
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
+
 #[wasm_bindgen]
 // #[cfg(target_arch = "wasm32")]
 pub struct NymClient {
-    version: String,
     directory_server: String,
 
     // TODO: technically this doesn't need to be an Arc since wasm is run on a single thread
@@ -56,19 +53,20 @@ pub struct NymClient {
     // message_receiver: MessageReceiver,
 
     // TODO: this should be stored somewhere persistently
-    received_keys: HashSet<SURBEncryptionKey>,
-
+    // received_keys: HashSet<SURBEncryptionKey>,
     topology: Option<NymTopology>,
     gateway_client: Option<GatewayClient>,
 
+    // callbacks
     on_message: Option<js_sys::Function>,
+    on_gateway_connect: Option<js_sys::Function>,
 }
 
 #[wasm_bindgen]
 // #[cfg(target_arch = "wasm32")]
 impl NymClient {
     #[wasm_bindgen(constructor)]
-    pub fn new(directory_server: String, version: String) -> Self {
+    pub fn new(directory_server: String) -> Self {
         // for time being generate new keys each time...
         let identity = identity::KeyPair::new_with_rng(&mut DEFAULT_RNG);
         let encryption_keys = encryption::KeyPair::new_with_rng(&mut DEFAULT_RNG);
@@ -78,14 +76,14 @@ impl NymClient {
             identity: Arc::new(identity),
             encryption_keys: Arc::new(encryption_keys),
             ack_key,
-            version,
             directory_server,
             message_preparer: None,
-            received_keys: Default::default(),
+            // received_keys: Default::default(),
             topology: None,
             gateway_client: None,
 
             on_message: None,
+            on_gateway_connect: None,
         }
     }
 
@@ -93,66 +91,10 @@ impl NymClient {
         self.on_message = Some(on_message);
     }
 
-    // TODO: somehow pass a shutdown signal!
-    pub fn start_foomping(&mut self) {
-        let on_message = self.on_message.take().unwrap();
-        spawn_local(async move {
-            loop {
-                console_log!("calling on message!");
-                let this = JsValue::null();
-                on_message.call0(&this);
-
-                console_log!("waiting");
-                sleep(100).await;
-                console_log!("wait done");
-            }
-        })
+    pub fn set_on_gateway_connect(&mut self, on_connect: js_sys::Function) {
+        console_log!("setting on connect...");
+        self.on_gateway_connect = Some(on_connect)
     }
-
-    pub async fn wait_a_bit(self) {
-        sleep(3000).await;
-    }
-
-    pub fn on_message(&self) {
-        match &self.on_message {
-            None => console_warn!("on message was not overwritten!"),
-            Some(on_msg) => {
-                console_log!("calling on message!");
-                let this = JsValue::null();
-                on_msg.call0(&this);
-            }
-        }
-    }
-
-    // pub fn do_foomp(&self) {
-    //     console_log!("foomp from wasm");
-    //     Self::on_message();
-    // }
-    //
-    // pub fn with_js_fn(&self, foo: &js_sys::Function) {
-    //     let foo2 = foo.clone();
-    //     console_log!("wasm");
-    //     let this = JsValue::null();
-    //     foo.call0(&this);
-    // }
-
-    // pub fn do_foomp_with_argument(&self, foomper: String) {
-    //     console_log!("foomp from wasm - {}", foomper);
-    // }
-
-    // pub fn listen_for_messages(on_message: &js_sys::Function) {
-    //     // let foomp: JSWebsocket = todo!();
-    //     spawn_local(async {
-    //         for i in 0i32..30 {
-    //             let str = format!("foomp{}", i);
-    //             sleep(100).await;
-    //
-    //             let this = JsValue::null();
-    //             let x = JsValue::from_str(&str);
-    //             on_message.call1(&this, &x);
-    //         }
-    //     })
-    // }
 
     fn self_recipient(&self) -> Recipient {
         Recipient::new(
@@ -186,7 +128,7 @@ impl NymClient {
                     for mix_msg in mix_msgs.unwrap() {
                         if let Some(processed) = received_processor.process_received_fragment(mix_msg) {
                             let arg1 = JsValue::from_serde(&processed).unwrap();
-                            on_message.call1(&this, &arg1);
+                            on_message.call1(&this, &arg1).expect("on message failed!");
                         }
                     }
                 }
@@ -198,7 +140,7 @@ impl NymClient {
     }
 
     // Right now it's impossible to have async exported functions to take `&self` rather than self
-    pub async fn initial_setup(mut self) -> Self {
+    pub async fn initial_setup(self) -> Self {
         let mut client = self.get_and_update_topology().await;
         let gateway = client.choose_gateway();
 
@@ -221,6 +163,14 @@ impl NymClient {
             .expect("could not authenticate and start up the gateway connection");
 
         client.gateway_client = Some(gateway_client);
+        match client.on_gateway_connect.as_ref() {
+            Some(callback) => {
+                callback
+                    .call0(&JsValue::null())
+                    .expect("on connect callback failed!");
+            }
+            None => console_log!("Gateway connection established - no callback specified"),
+        };
 
         let message_preparer = MessagePreparer::new(
             DEFAULT_RNG,
@@ -285,10 +235,6 @@ impl NymClient {
         self
     }
 
-    pub(crate) fn start_cover_traffic(&self) {
-        spawn_local(async move { todo!("here be cover traffic") })
-    }
-
     pub(crate) fn choose_gateway(&self) -> &gateway::Node {
         let topology = self
             .topology
@@ -305,8 +251,6 @@ impl NymClient {
     // or this: Rc<RefCell<Self>>
     pub async fn get_and_update_topology(mut self) -> Self {
         let new_topology = self.get_nym_topology().await;
-        console_log!("topology: {:#?}", new_topology);
-
         self.update_topology(new_topology);
         self
     }
@@ -315,13 +259,12 @@ impl NymClient {
         self.topology = Some(topology)
     }
 
-    pub fn get_full_topology_string(&self) -> Promise {
+    pub fn get_full_topology_json(&self) -> Promise {
         let directory_client_config = directory_client::Config::new(self.directory_server.clone());
         let directory_client = directory_client::Client::new(directory_client_config);
         future_to_promise(async move {
-            let string_topology =
-                serde_json::to_string(&directory_client.get_topology().await.unwrap()).unwrap();
-            Ok(JsValue::from(string_topology))
+            let topology = &directory_client.get_topology().await.unwrap();
+            Ok(JsValue::from_serde(&topology).unwrap())
         })
     }
 
@@ -336,7 +279,8 @@ impl NymClient {
                     .try_into()
                     .ok()
                     .expect("this is not a NYM topology!");
-                nym_topology.filter_system_version(&self.version)
+                let version = built_info::PKG_VERSION;
+                nym_topology.filter_system_version(&version)
             }
         }
     }

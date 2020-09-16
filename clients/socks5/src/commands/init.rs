@@ -74,7 +74,7 @@ async fn register_with_gateway(
 ) -> SharedKeys {
     let timeout = Duration::from_millis(1500);
     let mut gateway_client = GatewayClient::new_init(
-        url::Url::parse(&gateway.client_listener).unwrap(),
+        gateway.client_listener.clone(),
         gateway.identity_key,
         our_identity.clone(),
         timeout,

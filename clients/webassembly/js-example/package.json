@@ -34,6 +34,6 @@
     "webpack-dev-server": "^3.11.0"
   },
   "dependencies": {
-    "@nymproject/nym-client-wasm": "^0.7.5"
+    "@nymproject/nym-client-wasm": "file:../pkg"
   }
 }

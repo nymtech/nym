@@ -167,23 +167,18 @@ impl NymClient {
         &mut self,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
-    ) -> GatewayClient<'static, url::Url> {
+    ) -> GatewayClient {
         let gateway_id = self.config.get_base().get_gateway_id();
         if gateway_id.is_empty() {
             panic!("The identity of the gateway is unknown - did you run `nym-client` init?")
         }
-        let gateway_address_str = self.config.get_base().get_gateway_listener();
-        if gateway_address_str.is_empty() {
+        let gateway_address = self.config.get_base().get_gateway_listener();
+        if gateway_address.is_empty() {
             panic!("The address of the gateway is unknown - did you run `nym-client` init?")
         }
 
         let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
             .expect("provided gateway id is invalid!");
-
-        // TODO: since we presumably now get something valid-ish from the `init`, can we just
-        // ditch url::Url and operate on `String`?
-        let gateway_address =
-            url::Url::parse(&gateway_address_str).expect("provided gateway address is invalid!");
 
         let mut gateway_client = GatewayClient::new(
             gateway_address,
@@ -244,7 +239,7 @@ impl NymClient {
     fn start_mix_traffic_controller(
         &mut self,
         mix_rx: MixMessageReceiver,
-        gateway_client: GatewayClient<'static, url::Url>,
+        gateway_client: GatewayClient,
     ) {
         info!("Starting mix traffic controller...");
         MixTrafficController::new(mix_rx, gateway_client).start(self.runtime.handle());

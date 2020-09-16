@@ -10,7 +10,8 @@ This client is part of the [Nym](https://nymtech.net/docs) project. It's written
 
 ## Security Status 
 
-From a security point of view, this module is not yet complete. A key missing feature, cover traffic, will be implemented soon. You can build your applications, but don't rely on it for strong anonymity yet if your application needs cover traffic.
+From a security point of view, this module is not yet complete. A key missing features include, but are not limited to: cover traffic, sending packets with delay according to Poisson distribution. 
+They should be implemented soon. You can build your applications, but don't rely on it for strong anonymity yet if your application needs cover traffic.
 
 ## Using it
 
@@ -24,11 +25,11 @@ There's a demo web application in the `js-example` folder. To run it, first make
 
 This is a Rust crate which is set up to automatically cross-compile the contents of `src` to WebAssembly (aka wasm). It's published from the main [Nym platform monorepo](https://github.com/nymtech/nym) in the `clients/webassembly` directory.
 
-First, make sure you've got all the [Rust wasm toolchain](https://rustwasm.github.io/book/game-of-life/setup.html) installed. Cross-compilation sounds scary but the Rust crew have enabled a remarkably simple setup.
+First, make sure you've got all the [Rust wasm toolchain](https://rustwasm.github.io/docs/book/) installed. Cross-compilation sounds scary, but the Rust crew have enabled a remarkably simple setup.
+
+Furthermore, [wasm-bindgen documentation](https://rustwasm.github.io/docs/wasm-bindgen/) provides excellent tips to solving common problems.
 
 Whenever you change any Rust in the `src` directory, run `wasm-pack build --scope nymproject` to update the built wasm artefact in the `pkg` directory.
-
-For now, when you compile `nym-client-wasm` using `wasm-pack build --scope nymproject` you will need to manually copy the file `client.js`  into the `pkg` and `package.json` with entries from `package.json` on the main path. Once [these](https://github.com/rustwasm/wasm-pack/issues/840) [issues](https://github.com/rustwasm/rfcs/pull/8#issuecomment-564725214) get closed, this annoying extra step will go away.
 
 To be clear, this is not something that most JS developers need to worry about, this is only for Nym devs. The packages on NPM have all files in place. Just install and enjoy!
 

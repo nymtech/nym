@@ -18,15 +18,11 @@ offline-test = []
 
 [dependencies]
 futures = "0.3"
-log = "0.4"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 wasm-bindgen = { version = "0.2", features = ["serde-serialize"]  }
 wasm-bindgen-futures = "0.4"
-wasm-timer = "0.2"
 js-sys = "0.3"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-
 
 # internal
 crypto = { path = "../../common/crypto" }
@@ -34,7 +30,6 @@ nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }
 directory-client = { path = "../../common/client-libs/directory-client" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
-gateway-requests = { path = "../../gateway/gateway-requests" }
 wasm-utils = { path = "../../common/wasm-utils" }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
@@ -49,25 +44,6 @@ console_error_panic_hook = { version = "0.1", optional = true }
 #
 # Unfortunately, `wee_alloc` requires nightly Rust when targeting wasm for now.
 wee_alloc = { version = "0.4", optional = true }
-
-# we don't want entire tokio-tungstenite, tungstenite itself is just fine - we just want message and error enums
-[dependencies.tungstenite]
-version = "0.11"
-default-features = false
-
-[dependencies.web-sys]
-version = "0.3"
-features = [
-    "BinaryType",
-    "Blob",
-    "CloseEvent",
-    "ErrorEvent",
-    "FileReader",
-    "MessageEvent",
-    "ProgressEvent",
-    "WebSocket",
-    "Window",
-]
 
 [build-dependencies]
 built = "0.4.3"

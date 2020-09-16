@@ -13,18 +13,16 @@
 // limitations under the License.
 
 use crate::built_info;
-use crate::received_processor::ReceivedMessagesProcessor;
-use crate::DEFAULT_RNG;
 use crypto::asymmetric::{encryption, identity};
 use directory_client::DirectoryClient;
 use futures::channel::mpsc;
-use futures::StreamExt;
-use gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
+use gateway_client::GatewayClient;
 use js_sys::Promise;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::preparer::MessagePreparer;
 use rand::rngs::OsRng;
+use received_processor::ReceivedMessagesProcessor;
 use std::convert::TryInto;
 use std::sync::Arc;
 use std::time::Duration;
@@ -33,12 +31,15 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::{future_to_promise, spawn_local};
 use wasm_utils::{console_log, console_warn};
 
+pub(crate) mod received_processor;
+
+const DEFAULT_RNG: OsRng = OsRng;
+
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 
 #[wasm_bindgen]
-// #[cfg(target_arch = "wasm32")]
 pub struct NymClient {
     directory_server: String,
 
@@ -47,7 +48,7 @@ pub struct NymClient {
     // easier.
     identity: Arc<identity::KeyPair>,
     encryption_keys: Arc<encryption::KeyPair>,
-    ack_key: AckKey,
+    ack_key: Arc<AckKey>,
 
     message_preparer: Option<MessagePreparer<OsRng>>,
     // message_receiver: MessageReceiver,
@@ -63,7 +64,6 @@ pub struct NymClient {
 }
 
 #[wasm_bindgen]
-// #[cfg(target_arch = "wasm32")]
 impl NymClient {
     #[wasm_bindgen(constructor)]
     pub fn new(directory_server: String) -> Self {
@@ -75,7 +75,7 @@ impl NymClient {
         Self {
             identity: Arc::new(identity),
             encryption_keys: Arc::new(encryption_keys),
-            ack_key,
+            ack_key: Arc::new(ack_key),
             directory_server,
             message_preparer: None,
             // received_keys: Default::default(),
@@ -109,34 +109,6 @@ impl NymClient {
 
     pub fn self_address(&self) -> String {
         self.self_recipient().to_string()
-    }
-
-    // TODO: this needs to have a shutdown signal!
-    async fn start_message_listener(
-        mixnet_messages_receiver: MixnetMessageReceiver,
-        ack_receiver: AcknowledgementReceiver,
-        on_message: js_sys::Function,
-        mut received_processor: ReceivedMessagesProcessor,
-    ) {
-        let mut fused_mixnet_messages_receiver = mixnet_messages_receiver.fuse();
-        let mut fused_ack_receiver = ack_receiver.fuse();
-        let this = JsValue::null();
-
-        loop {
-            futures::select! {
-                mix_msgs = fused_mixnet_messages_receiver.next() => {
-                    for mix_msg in mix_msgs.unwrap() {
-                        if let Some(processed) = received_processor.process_received_fragment(mix_msg) {
-                            let arg1 = JsValue::from_serde(&processed).unwrap();
-                            on_message.call1(&this, &arg1).expect("on message failed!");
-                        }
-                    }
-                }
-                ack = fused_ack_receiver.next() => {
-                    console_log!("received an ack - can't do anything about it yet")
-                }
-            }
-        }
     }
 
     // Right now it's impossible to have async exported functions to take `&self` rather than self
@@ -179,16 +151,17 @@ impl NymClient {
             DEFAULT_AVERAGE_ACK_DELAY,
         );
 
-        let received_processor =
-            ReceivedMessagesProcessor::new(Arc::clone(&client.encryption_keys));
+        let received_processor = ReceivedMessagesProcessor::new(
+            Arc::clone(&client.encryption_keys),
+            Arc::clone(&client.ack_key),
+        );
 
         client.message_preparer = Some(message_preparer);
 
-        spawn_local(Self::start_message_listener(
+        spawn_local(received_processor.start_processing(
             mixnet_messages_receiver,
             ack_receiver,
             client.on_message.take().expect("on_message was not set!"),
-            received_processor,
         ));
 
         client

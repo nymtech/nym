@@ -12,14 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
 
-pub(crate) const DEFAULT_RNG: OsRng = OsRng;
-
 pub(crate) mod built_info;
+#[cfg(target_arch = "wasm32")]
 mod client;
-pub(crate) mod received_processor;
 
 #[wasm_bindgen]
 pub fn set_panic_hook() {

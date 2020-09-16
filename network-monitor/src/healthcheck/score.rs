@@ -27,14 +27,13 @@ use topology::mix;
 pub(crate) enum NodeType {
     Gateway,
     Mix,
-    MixProvider,
 }
 
 impl std::fmt::Display for NodeType {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
             NodeType::Mix => write!(f, "Mix"),
-            NodeType::MixProvider => write!(f, "MixProvider"),
+            NodeType::Gateway => write!(f, "Gateway"),
         }
     }
 }
@@ -111,7 +110,7 @@ impl NodeScore {
     pub(crate) fn from_mixnode(node: mix::Node) -> Self {
         NodeScore {
             typ: NodeType::Mix,
-            pub_key: node.pub_key.to_bytes(),
+            pub_key: NodeAddressBytes::from_bytes(node.pub_key.to_bytes()),
             addresses: vec![node.host],
             version: node.version,
             layer: format!("layer {}", node.layer),
@@ -123,7 +122,7 @@ impl NodeScore {
     pub(crate) fn from_gateway(node: gateway::Node) -> Self {
         NodeScore {
             typ: NodeType::Gateway,
-            pub_key: node.identity_key.to_bytes(),
+            pub_key: NodeAddressBytes::from_bytes(node.identity_key.to_bytes()),
             addresses: vec![node.mixnet_listener, node.client_listener.parse().unwrap()],
             version: node.version,
             layer: "provider".to_string(),

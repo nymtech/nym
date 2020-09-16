@@ -43,13 +43,17 @@ impl HealthCheckResult {
 
     fn zero_score(topology: &NymTopology) -> Self {
         warn!("The network is unhealthy, could not send any packets - returning zero score!");
-        let mixes = topology.mix_nodes();
-        let providers = topology.providers();
+        let mut mixes = topology.mixes_as_vec();
+        let gateways = topology.gateways();
 
         let health = mixes
             .into_iter()
-            .map(NodeScore::from_mixnode)
-            .chain(providers.into_iter().map(NodeScore::from_provider))
+            .map(|node| NodeScore::from_mixnode(node.to_owned()))
+            .chain(
+                gateways
+                    .into_iter()
+                    .map(|node| NodeScore::from_gateway(node.to_owned())),
+            )
             .collect();
 
         HealthCheckResult(health)
@@ -63,12 +67,16 @@ impl HealthCheckResult {
             .map(|node| node.score())
     }
 
-    pub fn filter_topology_by_score(&self, topology: &NymTopology, score_threshold: f64) -> T {
+    pub fn filter_topology_by_score(
+        &self,
+        topology: &NymTopology,
+        score_threshold: f64,
+    ) -> NymTopology {
         let filtered_mix_nodes = topology
-            .mixes()
+            .mixes_as_vec()
             .into_iter()
             .filter(|node| {
-                match self.node_score(NodeAddressBytes::from_base58_string(node.pub_key.clone())) {
+                match self.node_score(NodeAddressBytes::from_bytes(node.pub_key.to_bytes())) {
                     None => {
                         error!("Unknown node in topology - {:?}", node);
                         false
@@ -76,13 +84,13 @@ impl HealthCheckResult {
                     Some(score) => score > score_threshold,
                 }
             })
-            .collect();
+            .collect::<_>();
 
         let filtered_gateway_nodes = topology
             .gateways()
             .into_iter()
             .filter(|node| {
-                match self.node_score(NodeAddressBytes::from_base58_string(node.pub_key.clone())) {
+                match self.node_score(NodeAddressBytes::from_bytes(node.identity_key.to_bytes())) {
                     None => {
                         error!("Unknown node in topology - {:?}", node);
                         false
@@ -93,11 +101,11 @@ impl HealthCheckResult {
             .collect();
 
         // coco nodes remain unchanged as no healthcheck is being run on them or time being
-        let filtered_coco_nodes = topology.coco_nodes();
+        let filtered_coco_nodes = topology.coco_nodes().to_owned();
 
-        T::new_from_nodes(
-            filtered_mix_nodes,
+        NymTopology::new(
             filtered_coco_nodes,
+            filtered_mix_nodes,
             filtered_gateway_nodes,
         )
     }
@@ -129,15 +137,15 @@ impl HealthCheckResult {
 
         // create entries for all nodes
         let mut score_map = HashMap::new();
-        topology.mixes().into_iter().for_each(|node| {
-            score_map.insert(node.get_pub_key_bytes(), NodeScore::from_mixnode(node));
+        topology.mixes_as_vec().into_iter().for_each(|node| {
+            score_map.insert(node.pub_key.to_bytes(), NodeScore::from_mixnode(node));
         });
 
         topology.gateways().into_iter().for_each(|node| {
-            score_map.insert(node.get_pub_key_bytes(), NodeScore::from_gateway(node));
+            score_map.insert(node.identity_key.to_bytes(), NodeScore::from_gateway(*node));
         });
 
-        let providers = topology.providers();
+        let providers = vec![];
 
         let mut path_checker =
             PathChecker::new(providers, identity_keys, connection_timeout, check_id).await;

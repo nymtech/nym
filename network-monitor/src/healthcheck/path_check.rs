@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::net::SocketAddr;
 use std::time::Duration;
-use topology::provider;
+use topology::gateway;
 
 pub(crate) type CheckId = [u8; 16];
 
@@ -69,7 +69,7 @@ pub enum PathStatus {
 
 pub(crate) struct PathChecker {
     provider_clients: HashMap<[u8; 32], Option<ProviderClient>>,
-    mixnet_client: multi_tcp_client::Client,
+    mixnet_client: mixnet_client::Client,
     paths_status: HashMap<Vec<u8>, PathStatus>,
     our_destination: Destination,
     check_id: CheckId,
@@ -77,18 +77,18 @@ pub(crate) struct PathChecker {
 
 impl PathChecker {
     pub(crate) async fn new(
-        providers: Vec<provider::Node>,
+        gateways: Vec<gateway::Node>,
         identity_keys: &identity::KeyPair,
         connection_timeout: Duration,
         check_id: CheckId,
     ) -> Self {
-        let mut provider_clients = HashMap::new();
+        let mut gateway_clients = HashMap::new();
 
-        let address = identity_keys.public_key().derive_address();
+        let address = DestinationAddressBytes::from_bytes(identity_keys.public_key().to_bytes());
 
-        for provider in providers {
-            let mut provider_client = ProviderClient::new(
-                provider.client_listener,
+        for gateway in gateways {
+            let mut gateway_client = ProviderClient::new(
+                gateway.client_listener.parse().unwrap(),
                 address.clone(),
                 None,
                 MAX_PROVIDER_RESPONSE_SIZE,
@@ -96,33 +96,36 @@ impl PathChecker {
             // TODO: we might be sending unnecessary register requests since after first healthcheck,
             // we are registered for any subsequent ones (since our address did not change)
 
-            let insertion_result = match provider_client.register().await {
+            let insertion_result = match gateway_client.register().await {
                 Ok(token) => {
-                    debug!("[Healthcheck] registered at provider {}", provider.pub_key);
-                    provider_client.update_token(token);
-                    provider_clients.insert(provider.get_pub_key_bytes(), Some(provider_client))
+                    debug!(
+                        "[Healthcheck] registered at provider {:?}",
+                        gateway.identity_key
+                    );
+                    gateway_client.update_token(token);
+                    gateway_clients.insert(gateway.identity_key.to_bytes(), Some(gateway_client))
                 }
                 Err(ProviderClientError::ClientAlreadyRegisteredError) => {
                     info!("[Healthcheck] We were already registered");
-                    provider_clients.insert(provider.get_pub_key_bytes(), Some(provider_client))
+                    gateway_clients.insert(gateway.identity_key.to_bytes(), Some(gateway_client))
                 }
             };
 
             if insertion_result.is_some() {
-                error!("provider {} already existed!", provider.pub_key);
+                error!("provider {:?} already existed!", gateway.identity_key);
             }
         }
 
         // there's no reconnection allowed - if it fails, then it fails.
-        let mixnet_client_config = multi_tcp_client::Config::new(
+        let mixnet_client_config = mixnet_client::Config::new(
             Duration::from_secs(1_000_000_000),
             Duration::from_secs(1_000_000_000),
             connection_timeout,
         );
 
         PathChecker {
-            provider_clients,
-            mixnet_client: multi_tcp_client::Client::new(mixnet_client_config),
+            provider_clients: gateway_clients,
+            mixnet_client: mixnet_client::Client::new(mixnet_client_config),
             our_destination: Destination::new(address, Default::default()),
             paths_status: HashMap::new(),
             check_id,
@@ -138,7 +141,7 @@ impl PathChecker {
             .chain(std::iter::once(iteration))
             .chain(
                 path.iter()
-                    .map(|node| node.pub_key.to_bytes().to_vec())
+                    .map(|node| node.pub_key.as_bytes().to_vec())
                     .flatten(),
             )
             .collect()
@@ -251,7 +254,8 @@ impl PathChecker {
                     .last()
                     .expect("We checked the path to contain at least one entry")
                     .pub_key
-                    .to_bytes(),
+                    .as_bytes()
+                    .clone(),
             )
             .unwrap();
 
@@ -272,10 +276,8 @@ impl PathChecker {
             .expect("We checked the path to contain at least one entry");
 
         // we generated the bytes data so unwrap is fine
-        let first_node_address: SocketAddr =
-            NymNodeRoutingAddress::try_from(layer_one_mix.address.clone())
-                .unwrap()
-                .into();
+        let first_node_address =
+            NymNodeRoutingAddress::try_from(layer_one_mix.address.clone()).unwrap();
 
         let delays: Vec<_> = path.iter().map(|_| Delay::new_from_nanos(0)).collect();
 
@@ -285,7 +287,6 @@ impl PathChecker {
             &path[..],
             &self.our_destination,
             &delays,
-            None,
         )
         .unwrap();
 
@@ -293,7 +294,7 @@ impl PathChecker {
 
         match self
             .mixnet_client
-            .send(first_node_address, packet.to_bytes(), true)
+            .send(first_node_address, packet, true)
             .await
         {
             Err(err) => {

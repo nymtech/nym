@@ -21,6 +21,7 @@ tokio = { version = "0.2", features = ["full"] }
 crypto = { path = "../common/crypto" }
 directory-client = { path = "../common/client-libs/directory-client" }
 gateway-client = { path = "../common/client-libs/gateway-client" }
+mixnet-client = { path = "../common/client-libs/mixnet-client" }
 nymsphinx = {path = "../common/nymsphinx" }
 topology = {path = "../common/topology" }
 

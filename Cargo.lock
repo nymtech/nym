@@ -1642,6 +1642,7 @@ dependencies = [
  "gateway-client",
  "itertools",
  "log 0.4.8",
+ "mixnet-client",
  "nymsphinx",
  "pretty_env_logger",
  "rand 0.7.3",

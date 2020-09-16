@@ -15,10 +15,9 @@ impl Monitor {
     }
 
     pub async fn run(self) {
-        let mut connection = websocket::Connection::new(&self.websocket_uri);
-        &connection.connect().await;
+        let connection = websocket::Connection::new(&self.websocket_uri).await;
         let me = connection.get_self_address().await;
-        // println!("Retrieved self address:  {:?}", me);
+        println!("Retrieved self address:  {:?}", me);
 
         // split the websocket so that we could read and write from separate threads
         // let (websocket_writer, mut websocket_reader) = websocket_stream.split();

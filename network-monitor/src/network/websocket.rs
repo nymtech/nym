@@ -7,31 +7,27 @@ use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
 pub struct Connection {
     uri: String,
-    websocket_stream: Option<WebSocketStream<TcpStream>>,
+    websocket_stream: WebSocketStream<TcpStream>,
 }
 
 impl Connection {
-    pub fn new(uri: &str) -> Connection {
-        Connection {
-            uri: String::from(uri),
-            websocket_stream: None,
-        }
-    }
-
-    pub async fn connect(&mut self) {
-        let uri = self.uri.clone();
-        match connect_async(&uri).await {
+    pub async fn new(uri: &str) -> Connection {
+        let ws_stream = match connect_async(uri).await {
             Ok((ws_stream, _)) => {
                 info!("* connected to local websocket server at {}", uri);
-                self.websocket_stream = Some(ws_stream);
+                ws_stream
             }
             Err(_e) => {
                 panic!("Error: websocket connection attempt failed, is the Nym client running?");
             }
+        };
+        Connection {
+            uri: String::from(uri),
+            websocket_stream: ws_stream,
         }
     }
 
-    pub async fn get_self_address(&mut self) -> Recipient {
+    pub async fn get_self_address(self) -> Recipient {
         let self_address_request = ClientRequest::SelfAddress.serialize();
         let response = self
             .send_message_and_get_response(self_address_request)
@@ -45,8 +41,8 @@ impl Connection {
 
     // just helpers functions that work in this very particular context because we are sending to ourselves
     // and hence will always get a response back (i.e. the message we sent)
-    async fn send_message_and_get_response(&mut self, req: Vec<u8>) -> ServerResponse {
-        let mut stream = self.websocket_stream.unwrap();
+    async fn send_message_and_get_response(self, req: Vec<u8>) -> ServerResponse {
+        let mut stream = self.websocket_stream;
         stream.send(Message::Binary(req)).await.unwrap();
         let raw_message = stream.next().await.unwrap().unwrap();
         match raw_message {

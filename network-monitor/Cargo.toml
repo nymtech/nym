@@ -15,7 +15,8 @@ rand_os = "0.1"
 rand = "0.7.2"
 serde = "1.0.104"
 serde_derive = "1.0.104"
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "0.2", features = ["stream", "tcp", "rt-threaded", "macros"] }
+tokio-tungstenite = "0.11.0"
 
 ## internal
 crypto = { path = "../common/crypto" }
@@ -24,5 +25,6 @@ gateway-client = { path = "../common/client-libs/gateway-client" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
 nymsphinx = {path = "../common/nymsphinx" }
 topology = {path = "../common/topology" }
+websocket-requests = {path = "../clients/native/websocket-requests"}
 
 [dev-dependencies]

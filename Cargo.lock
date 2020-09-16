@@ -1650,7 +1650,9 @@ dependencies = [
  "serde",
  "serde_derive",
  "tokio 0.2.22",
+ "tokio-tungstenite",
  "topology",
+ "websocket-requests",
 ]
 
 [[package]]

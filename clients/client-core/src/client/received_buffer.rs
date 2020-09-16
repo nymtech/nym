@@ -250,11 +250,6 @@ impl ReceivedMessagesBuffer {
             } else {
                 // otherwise - it's a 'normal' message
                 if let Some(completed_message) = inner_guard.process_received_fragment(msg) {
-                    println!(
-                        "reconstructed {:?}",
-                        String::from_utf8_lossy(&completed_message.message)
-                    );
-
                     completed_messages.push(completed_message)
                 }
             }

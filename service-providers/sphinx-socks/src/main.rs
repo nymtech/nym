@@ -1,6 +1,16 @@
+mod allowed_hosts;
 mod connection;
 mod core;
 mod websocket;
+
+#[tokio::main]
+async fn main() {
+    setup_logging();
+    let uri = "ws://localhost:1977";
+    println!("Starting socks5 service provider:");
+    let mut server = core::ServiceProvider::new(uri.into());
+    server.run().await;
+}
 
 fn setup_logging() {
     let mut log_builder = pretty_env_logger::formatted_timed_builder();
@@ -18,13 +28,4 @@ fn setup_logging() {
         .filter_module("mio", log::LevelFilter::Warn)
         .filter_module("want", log::LevelFilter::Warn)
         .init();
-}
-
-#[tokio::main]
-async fn main() {
-    setup_logging();
-    let uri = "ws://localhost:1977";
-    println!("Starting socks5 service provider:");
-    let mut server = core::ServiceProvider::new(uri.into());
-    server.run().await;
 }

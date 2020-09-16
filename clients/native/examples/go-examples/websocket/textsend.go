@@ -103,13 +103,13 @@ func sendWithReply() {
 	}
 
 	// use the received surb to send an anonymous reply!
-	replySURB := receivedMessageJson["replySURB"]
+	replySurb := receivedMessageJson["replySurb"]
 	replyMessage := "hello from reply SURB!"
 
 	reply, err := json.Marshal(map[string]interface{}{
 		"type":      "reply",
 		"message":   replyMessage,
-		"replySURB": replySURB,
+		"replySurb": replySurb,
 	})
 	if err != nil {
 		panic(err)

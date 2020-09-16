@@ -43,7 +43,6 @@ func makeSendRequest(recipient []byte, message []byte, withReplySurb bool) []byt
 	out = append(out, messageLen...)
 	out = append(out, message...)
 
-	fmt.Println("first send req: ", out[:10])
 	return out
 }
 

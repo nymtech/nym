@@ -54,7 +54,7 @@ async fn send_text_with_reply() {
     let reply_request = json!({
         "type": "reply",
         "message": reply_message,
-        "replySURB": response["replySURB"]
+        "replySurb": response["replySurb"]
     });
 
     println!(

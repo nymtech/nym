@@ -257,7 +257,7 @@ where
             self.config.average_message_sending_delay,
         ));
 
-        info!("Starting out queue controller...");
+        debug!("Starting out queue controller...");
         while let Some(next_message) = self.next().await {
             self.on_message(next_message).await;
         }

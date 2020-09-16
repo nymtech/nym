@@ -275,7 +275,7 @@ impl SocksClient {
         match request.command {
             // Use the Proxy to connect to the specified addr/port
             SocksCommand::Connect => {
-                trace!("Connecting to: {:?}", request.to_socket());
+                trace!("Connecting to: {:?}", remote_address.clone());
                 self.acknowledge_socks5().await;
 
                 let mut message_sender = OrderedMessageSender::new();

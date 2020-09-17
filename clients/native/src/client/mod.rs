@@ -20,7 +20,7 @@ use client_core::client::inbound_messages::{
 };
 use client_core::client::key_manager::KeyManager;
 use client_core::client::mix_traffic::{
-    MixMessageReceiver, MixMessageSender, MixTrafficController,
+    BatchMixMessageReceiver, BatchMixMessageSender, MixTrafficController,
 };
 use client_core::client::real_messages_control;
 use client_core::client::real_messages_control::RealMessagesController;
@@ -100,7 +100,7 @@ impl NymClient {
     fn start_cover_traffic_stream(
         &self,
         topology_accessor: TopologyAccessor,
-        mix_tx: MixMessageSender,
+        mix_tx: BatchMixMessageSender,
     ) {
         info!("Starting loop cover traffic stream...");
         // we need to explicitly enter runtime due to "next_delay: time::delay_for(Default::default())"
@@ -128,7 +128,7 @@ impl NymClient {
         reply_key_storage: ReplyKeyStorage,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
-        mix_sender: MixMessageSender,
+        mix_sender: BatchMixMessageSender,
     ) {
         let controller_config = real_messages_control::Config::new(
             self.key_manager.ack_key(),
@@ -154,7 +154,8 @@ impl NymClient {
                 reply_key_storage,
             )
         });
-        real_messages_controller.start(self.runtime.handle());
+        real_messages_controller
+            .start(self.runtime.handle(), self.config.get_base().get_vpn_mode());
     }
 
     // buffer controlling all messages fetched from provider
@@ -250,7 +251,7 @@ impl NymClient {
     // requests?
     fn start_mix_traffic_controller(
         &mut self,
-        mix_rx: MixMessageReceiver,
+        mix_rx: BatchMixMessageReceiver,
         gateway_client: GatewayClient,
     ) {
         info!("Starting mix traffic controller...");
@@ -330,6 +331,8 @@ impl NymClient {
     }
 
     pub fn start(&mut self) {
+        let vpn_mode = true;
+
         info!("Starting nym client");
         // channels for inter-component communication
         // TODO: make the channels be internally created by the relevant components
@@ -378,7 +381,10 @@ impl NymClient {
             input_receiver,
             sphinx_message_sender.clone(),
         );
-        self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
+
+        if vpn_mode {
+            self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
+        }
 
         match self.config.get_socket_type() {
             SocketType::WebSocket => {

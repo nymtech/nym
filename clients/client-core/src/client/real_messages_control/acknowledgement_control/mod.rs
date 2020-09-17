@@ -18,7 +18,7 @@ use self::{
     retransmission_request_listener::RetransmissionRequestListener,
     sent_notification_listener::SentNotificationListener,
 };
-use super::real_traffic_stream::RealMessageSender;
+use super::real_traffic_stream::BatchRealMessageSender;
 use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{inbound_messages::InputMessageReceiver, topology_control::TopologyAccessor};
 use futures::channel::mpsc;
@@ -87,7 +87,7 @@ impl PendingAcknowledgement {
 pub(super) struct AcknowledgementControllerConnectors {
     /// Channel used for forwarding prepared sphinx messages into the poisson sender
     /// to be sent to the mix network.
-    real_message_sender: RealMessageSender,
+    real_message_sender: BatchRealMessageSender,
 
     /// Channel used for receiving raw messages from a client. The messages need to be put
     /// into sphinx packets first.
@@ -104,7 +104,7 @@ pub(super) struct AcknowledgementControllerConnectors {
 
 impl AcknowledgementControllerConnectors {
     pub(super) fn new(
-        real_message_sender: RealMessageSender,
+        real_message_sender: BatchRealMessageSender,
         input_receiver: InputMessageReceiver,
         sent_notifier: SentPacketNotificationReceiver,
         ack_receiver: AcknowledgementReceiver,

@@ -22,7 +22,7 @@ use self::{
 use crate::client::real_messages_control::acknowledgement_control::AcknowledgementControllerConnectors;
 use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{
-    inbound_messages::InputMessageReceiver, mix_traffic::MixMessageSender,
+    inbound_messages::InputMessageReceiver, mix_traffic::BatchMixMessageSender,
     topology_control::TopologyAccessor,
 };
 use futures::channel::mpsc;
@@ -87,7 +87,7 @@ impl RealMessagesController<OsRng> {
         config: Config,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
-        mix_sender: MixMessageSender,
+        mix_sender: BatchMixMessageSender,
         topology_access: TopologyAccessor,
         reply_key_storage: ReplyKeyStorage,
     ) -> Self {
@@ -143,7 +143,7 @@ impl RealMessagesController<OsRng> {
         }
     }
 
-    pub(super) async fn run(&mut self) {
+    pub(super) async fn run(&mut self, vpn_mode: bool) {
         let mut out_queue_control = self.out_queue_control.take().unwrap();
         let mut ack_control = self.ack_control.take().unwrap();
 
@@ -151,7 +151,7 @@ impl RealMessagesController<OsRng> {
         // the task to ever finish. This will of course change once we introduce
         // graceful shutdowns.
         let out_queue_control_fut = tokio::spawn(async move {
-            out_queue_control.run_out_queue_control().await;
+            out_queue_control.run_out_queue_control(vpn_mode).await;
             error!("The out queue controller has finished execution!");
             out_queue_control
         });
@@ -170,9 +170,9 @@ impl RealMessagesController<OsRng> {
 
     // &Handle is only passed for consistency sake with other client modules, but I think
     // when we get to refactoring, we should apply gateway approach and make it implicit
-    pub fn start(mut self, handle: &Handle) -> JoinHandle<Self> {
+    pub fn start(mut self, handle: &Handle, vpn_mode: bool) -> JoinHandle<Self> {
         handle.spawn(async move {
-            self.run().await;
+            self.run(vpn_mode).await;
             self
         })
     }

@@ -17,7 +17,7 @@ use super::PendingAcknowledgement;
 use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{
     inbound_messages::{InputMessage, InputMessageReceiver},
-    real_messages_control::real_traffic_stream::{RealMessage, RealMessageSender},
+    real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
     topology_control::TopologyAccessor,
 };
 use futures::StreamExt;
@@ -40,7 +40,7 @@ where
     input_receiver: InputMessageReceiver,
     message_preparer: MessagePreparer<R>,
     action_sender: ActionSender,
-    real_message_sender: RealMessageSender,
+    real_message_sender: BatchRealMessageSender,
     topology_access: TopologyAccessor,
     reply_key_storage: ReplyKeyStorage,
 }
@@ -55,7 +55,7 @@ where
         input_receiver: InputMessageReceiver,
         message_preparer: MessagePreparer<R>,
         action_sender: ActionSender,
-        real_message_sender: RealMessageSender,
+        real_message_sender: BatchRealMessageSender,
         topology_access: TopologyAccessor,
         reply_key_storage: ReplyKeyStorage,
     ) -> Self {
@@ -183,11 +183,9 @@ where
         };
 
         // tells real message sender (with the poisson timer) to send this to the mix network
-        for real_message in real_messages {
-            self.real_message_sender
-                .unbounded_send(real_message)
-                .unwrap();
-        }
+        self.real_message_sender
+            .unbounded_send(real_messages)
+            .unwrap();
     }
 
     pub(super) async fn run(&mut self) {

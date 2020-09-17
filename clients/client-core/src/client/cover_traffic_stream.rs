@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client::mix_traffic::{MixMessage, MixMessageSender};
+use crate::client::mix_traffic::{BatchMixMessageSender, MixMessage};
 use crate::client::topology_control::TopologyAccessor;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
@@ -50,7 +50,7 @@ where
 
     /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
-    mix_tx: MixMessageSender,
+    mix_tx: BatchMixMessageSender,
 
     /// Represents full address of this client.
     our_full_destination: Recipient,
@@ -101,7 +101,7 @@ impl LoopCoverTrafficStream<OsRng> {
         average_ack_delay: time::Duration,
         average_packet_delay: time::Duration,
         average_cover_message_sending_delay: time::Duration,
-        mix_tx: MixMessageSender,
+        mix_tx: BatchMixMessageSender,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
     ) -> Self {
@@ -153,7 +153,7 @@ impl LoopCoverTrafficStream<OsRng> {
         // - the receiver channel is closed
         // in either case there's no recovery and we can only panic
         self.mix_tx
-            .unbounded_send(MixMessage::new(cover_message.0, cover_message.1))
+            .unbounded_send(vec![MixMessage::new(cover_message.0, cover_message.1)])
             .unwrap();
 
         // TODO: I'm not entirely sure whether this is really required, because I'm not 100%

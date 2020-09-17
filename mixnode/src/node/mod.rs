@@ -13,25 +13,26 @@
 // limitations under the License.
 
 use crate::config::Config;
-use crate::node::packet_processing::PacketProcessor;
+use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
+use crate::node::listener::connection_handler::{packet_forwarding, ConnectionHandler};
+use crate::node::listener::Listener;
 use crypto::asymmetric::encryption;
 use directory_client::DirectoryClient;
 use futures::channel::mpsc;
 use log::*;
 use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
+use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 mod listener;
 mod metrics;
-mod packet_forwarding;
-pub(crate) mod packet_processing;
 mod presence;
 
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
     runtime: Runtime,
     config: Config,
-    sphinx_keypair: encryption::KeyPair,
+    sphinx_keypair: Arc<encryption::KeyPair>,
 }
 
 impl MixNode {
@@ -39,7 +40,7 @@ impl MixNode {
         MixNode {
             runtime: Runtime::new().unwrap(),
             config,
-            sphinx_keypair,
+            sphinx_keypair: Arc::new(sphinx_keypair),
         }
     }
 
@@ -73,17 +74,15 @@ impl MixNode {
         forwarding_channel: mpsc::UnboundedSender<(NymNodeRoutingAddress, SphinxPacket)>,
     ) {
         info!("Starting socket listener...");
-        // this is the only location where our private key is going to be copied
-        // it will be held in memory owned by `MixNode` and inside an Arc of `PacketProcessor`
-        let packet_processor =
-            PacketProcessor::new(self.sphinx_keypair.private_key().clone(), metrics_reporter);
 
-        listener::run_socket_listener(
-            self.runtime.handle(),
-            self.config.get_listening_address(),
-            packet_processor,
-            forwarding_channel,
-        );
+        let packet_processor =
+            PacketProcessor::new(Arc::clone(&self.sphinx_keypair), metrics_reporter);
+
+        let connection_handler = ConnectionHandler::new(packet_processor, forwarding_channel);
+
+        let listener = Listener::new(self.config.get_listening_address());
+
+        listener.start(self.runtime.handle(), connection_handler);
     }
 
     fn start_packet_forwarder(

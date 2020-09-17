@@ -55,17 +55,17 @@ impl From<NymNodeRoutingAddressError> for MixProcessingError {
 // PacketProcessor contains all data required to correctly unwrap and forward sphinx packets
 #[derive(Clone)]
 pub struct PacketProcessor {
-    secret_key: Arc<encryption::PrivateKey>,
+    encryption_keys: Arc<encryption::KeyPair>,
     metrics_reporter: metrics::MetricsReporter,
 }
 
 impl PacketProcessor {
     pub(crate) fn new(
-        secret_key: encryption::PrivateKey,
+        encryption_keys: Arc<encryption::KeyPair>,
         metrics_reporter: metrics::MetricsReporter,
     ) -> Self {
         PacketProcessor {
-            secret_key: Arc::new(secret_key),
+            encryption_keys,
             metrics_reporter,
         }
     }
@@ -88,13 +88,25 @@ impl PacketProcessor {
         Ok(MixProcessingResult::ForwardHop(next_hop_address, packet))
     }
 
+    // pub(crate) fn perform_initial_processing(
+    //     &self,
+    //     packet: SphinxPacket,
+    // ) -> Result<ProcessedPacket, MixProcessingError> {
+    //     packet
+    //         .process(&self.encryption_keys.private_key().into())
+    //         .map_err(|err| {
+    //             warn!("Failed to unwrap Sphinx packet: {:?}", err);
+    //             MixProcessingError::SphinxProcessingError(err)
+    //         })
+    // }
+
     pub(crate) async fn process_sphinx_packet(
         &self,
         packet: SphinxPacket,
     ) -> Result<MixProcessingResult, MixProcessingError> {
         // we received something resembling a sphinx packet, report it!
         self.metrics_reporter.report_received();
-        match packet.process(&self.secret_key.as_ref().into()) {
+        match packet.process(&self.encryption_keys.private_key().into()) {
             Ok(ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay)) => {
                 self.process_forward_hop(packet, address, delay).await
             }

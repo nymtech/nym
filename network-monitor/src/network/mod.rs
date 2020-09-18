@@ -5,8 +5,7 @@ use gateway_client::GatewayClient;
 use log::error;
 use nymsphinx::{
     acknowledgements::AckKey, addressing::clients::Recipient,
-    addressing::nodes::NymNodeRoutingAddress, preparer::MessagePreparer, Delay, Destination,
-    DestinationAddressBytes, SphinxPacket,
+    addressing::nodes::NymNodeRoutingAddress, preparer::MessagePreparer, SphinxPacket,
 };
 use rand::rngs::OsRng;
 use tokio::runtime::Runtime;
@@ -20,7 +19,6 @@ const DEFAULT_RNG: OsRng = OsRng;
 
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
-const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 
 pub struct Monitor {
     directory_uri: String,
@@ -63,11 +61,6 @@ impl Monitor {
             let config = directory_client::Config::new(self.directory_uri.clone());
             let directory: Client = DirectoryClient::new(config);
             let topology = directory.get_topology().await;
-            println!("Retrieved topology: {:?}", topology);
-
-            println!("Good topology is: {:?}", self.good_topology);
-
-            println!("Finished nym network monitor startup");
 
             self.sanity_check().await;
             self.wait_for_interrupt().await

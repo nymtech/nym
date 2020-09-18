@@ -7,7 +7,6 @@ use super::{RESERVED, SOCKS_VERSION};
 use client_core::client::inbound_messages::InputMessage;
 use client_core::client::inbound_messages::InputMessageSender;
 use futures::channel::mpsc;
-use futures::core_reexport::pin::Pin;
 use futures::task::{Context, Poll};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
@@ -21,6 +20,7 @@ use proxy_helpers::proxy_runner::ProxyRunner;
 use rand::RngCore;
 use socks5_requests::{ConnectionId, Request};
 use std::net::{Shutdown, SocketAddr};
+use std::pin::Pin;
 use tokio::prelude::*;
 use tokio::{self, net::TcpStream};
 

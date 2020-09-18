@@ -33,10 +33,20 @@ members = [
     "common/socks5/requests",
     "common/socks5/proxy-helpers",
     "common/topology",
+    "common/wasm-utils",
     "gateway",
     "gateway/gateway-requests",
     "service-providers/sphinx-socks",
     "mixnode",
     "network-monitor",
+    "validator",
+]
+
+default-members = [
+    "clients/native",
+    "clients/socks5",
+#    "clients/webassembly",
+    "gateway",
+    "mixnode",
     "validator",
 ]

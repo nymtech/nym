@@ -27,7 +27,7 @@ use log::*;
 use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
 use rand::{CryptoRng, RngCore};
 use std::convert::{TryFrom, TryInto};
-use tokio_tungstenite::tungstenite::Message as WsMessage;
+use tungstenite::Message as WsMessage;
 
 /// Handshake state.
 pub(crate) struct State<'a, S> {

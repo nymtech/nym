@@ -1,7 +1,14 @@
-use std::collections::HashMap;
+use std::time::Duration;
 
 use directory_client::{Client, DirectoryClient};
+use gateway_client::GatewayClient;
 use log::error;
+use nymsphinx::{
+    acknowledgements::AckKey, addressing::clients::Recipient,
+    addressing::nodes::NymNodeRoutingAddress, preparer::MessagePreparer, Delay, Destination,
+    DestinationAddressBytes, SphinxPacket,
+};
+use rand::rngs::OsRng;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
@@ -9,28 +16,42 @@ pub(crate) mod clients;
 pub(crate) mod good_topology;
 mod websocket;
 
+const DEFAULT_RNG: OsRng = OsRng;
+
+const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
+const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
+const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
+
 pub struct Monitor {
     directory_uri: String,
+    gateway_client: GatewayClient,
     good_topology: NymTopology,
+    self_address: Option<Recipient>,
     websocket_uri: String,
 }
 
 impl Monitor {
-    pub fn new(directory_uri: &str, good_topology: NymTopology, websocket_uri: &str) -> Monitor {
-        println!("new...");
-
+    pub fn new(
+        directory_uri: &str,
+        good_topology: NymTopology,
+        gateway_client: GatewayClient,
+        websocket_uri: &str,
+    ) -> Monitor {
         Monitor {
             directory_uri: directory_uri.to_string(),
+            gateway_client,
             good_topology,
+            self_address: None,
             websocket_uri: websocket_uri.to_string(),
         }
     }
 
-    pub fn run(&self) {
+    pub fn run(&mut self) {
         let mut runtime = Runtime::new().unwrap();
         runtime.block_on(async {
             let connection = websocket::Connection::new(&self.websocket_uri).await;
             let me = connection.get_self_address().await;
+            self.self_address = Some(me);
             println!("Retrieved self address:  {:?}", me.to_string());
 
             let config = directory_client::Config::new(self.directory_uri.clone());
@@ -41,49 +62,62 @@ impl Monitor {
             println!("Good topology is: {:?}", self.good_topology);
 
             println!("Finished nym network monitor startup");
-            self.sanity_check();
 
+            self.sanity_check().await;
             self.wait_for_interrupt().await
         });
     }
 
     /// Run some initial checks to ensure our subsequent measurements are valid
-    fn sanity_check(&self) {
-        self.check_goodnode_layers();
-        self.ensure_good_path_works();
+    async fn sanity_check(&mut self) {
+        let recipient = self.self_address.clone().unwrap();
+        let messages = self.prepare_messages("hello".to_string(), recipient).await;
+        self.send_messages(messages).await;
     }
 
-    /// For any of this to work, our good mixnodes need to be in layers 1, 2, and 3
-    fn check_goodnode_layers(&self) {
-        // let topology = NymTopology::new(vec![], HashMap::new(), vec![]);
-        // self.good_mixnodes
-        //     .iter()
-        //     .for_each(|node| self.good_mixnodes.clone())
+    pub async fn prepare_messages(
+        &self,
+        message: String,
+        recipient: Recipient,
+    ) -> Vec<(NymNodeRoutingAddress, SphinxPacket)> {
+        let message_bytes = message.into_bytes();
+
+        let topology = &self.good_topology;
+
+        let mut message_preparer = MessagePreparer::new(
+            DEFAULT_RNG,
+            recipient,
+            DEFAULT_AVERAGE_PACKET_DELAY,
+            DEFAULT_AVERAGE_ACK_DELAY,
+        );
+
+        let ack_key: AckKey = AckKey::new(&mut DEFAULT_RNG);
+
+        let (split_message, _reply_keys) = message_preparer
+            .prepare_and_split_message(message_bytes, false, &topology)
+            .expect("failed to split the message");
+
+        let mut socket_messages = Vec::with_capacity(split_message.len());
+        for message_chunk in split_message {
+            // don't bother with acks etc. for time being
+            let prepared_fragment = message_preparer
+                .prepare_chunk_for_sending(message_chunk, &topology, &ack_key, &recipient) //2 was  &self.ack_key
+                .unwrap();
+
+            socket_messages.push((
+                prepared_fragment.first_hop_address,
+                prepared_fragment.sphinx_packet,
+            ));
+        }
+        socket_messages
     }
 
-    // fn build_sphinx_packet(&self, addresses: Vec<&str>, destination: String) -> SphinxPacket {
-    //     let delays = [
-    //         Delay::new_from_nanos(0),
-    //         Delay::new_from_nanos(0),
-    //         Delay::new_from_nanos(0),
-    //     ];
-
-    //     let route: Vec<Node> = vec![];
-    //     addresses.iter().for_each(|address| {
-    //         let add = NodeAddressBytes::try_from_base58_string(*address).unwrap();
-    //         // let key = nymsphinx::PublicKey::route.push(Node::new(add, key));
-    //     });
-
-    //     // all of the data used to create the packet was created by us
-    //     let packet =
-    //         nymsphinx::SphinxPacket::new("hello".as_bytes().to_vec(), &route, destination, delays)
-    //             .unwrap();
-    //     packet
-    // }
-
-    /// Construct a first sphinx packet using our 3 allegedly good nodes, send it, and wait for it to come back to us.
-    /// If it times out, all of our subsequent measurements are going to be invalid, so we might as stop this run.
-    fn ensure_good_path_works(&self) {}
+    async fn send_messages(&mut self, socket_messages: Vec<(NymNodeRoutingAddress, SphinxPacket)>) {
+        self.gateway_client
+            .batch_send_sphinx_packets(socket_messages)
+            .await
+            .unwrap();
+    }
 
     async fn wait_for_interrupt(&self) {
         if let Err(e) = tokio::signal::ctrl_c().await {
@@ -93,42 +127,5 @@ impl Monitor {
             );
         }
         println!("Received SIGINT - the network monitor will terminate now");
-    }
-}
-
-#[cfg(test)]
-mod constructing_monitor {
-    use super::*;
-
-    #[test]
-    fn works() {
-        let network_monitor = Monitor::new(
-            "https://directory.nymtech.net",
-            NymTopology::new(vec![], HashMap::new(), vec![]),
-            "ws://localhost:1977",
-        );
-        assert_eq!(
-            "https://directory.nymtech.net",
-            network_monitor.directory_uri
-        );
-        assert_eq!("ws://localhost:1977", network_monitor.websocket_uri);
-    }
-}
-
-#[cfg(test)]
-mod building_a_sphinx_packet {
-    // use super::*;
-
-    #[test]
-    fn works() {
-        // let network_monitor = Monitor::new(
-        //     "https://directory.nymtech.net",
-        //     NymTopology::new(vec![], HashMap::new(), vec![]),
-        //     "ws://localhost:1977",
-        // );
-        // let address1 = "CQVy5fkf4M7EdmoLvH5MJEygqiPbfavUM3NH9eGDK1kt";
-        // let address2 = "GjpuFBVzk8KiNsydAaiZG3rZKsoDtv7djCRY1QatKkS5";
-        // let address3 = "EV2MTs7DBi95USRNM3hM8QBRiCoYNnXBzs67YHivv3Fh";
-        // let packet = network_monitor.build_sphinx_packet(vec![address1, address2, address3]);
     }
 }

@@ -6,7 +6,7 @@ use crypto::asymmetric::{
 };
 use topology::{gateway, mix, NymTopology};
 
-fn mixnodes() -> Vec<mix::Node> {
+pub(crate) fn mixnodes() -> Vec<mix::Node> {
     let goodnode1 = mix::Node {
         location: "London".to_string(),
         host: "213.52.129.218:1789".parse().unwrap(),

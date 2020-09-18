@@ -6,7 +6,10 @@ fn main() {
     let good_topology = network::good_topology::construct();
 
     println!("Starting network monitor:");
-    let gateway_client = network::clients::new_gateway_client(network::good_topology::gateway());
-    let network_monitor = network::Monitor::new(directory_uri, good_topology, websocket_uri);
+    let mut gateway_client =
+        network::clients::new_gateway_client(network::good_topology::gateway());
+    gateway_client.authenticate_and_start();
+    let mut network_monitor =
+        network::Monitor::new(directory_uri, good_topology, gateway_client, websocket_uri);
     network_monitor.run();
 }

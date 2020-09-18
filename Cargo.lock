@@ -1676,10 +1676,10 @@ version = "0.1.0"
 dependencies = [
  "crypto",
  "directory-client",
- "futures 0.3.4",
+ "futures 0.3.5",
  "gateway-client",
  "itertools",
- "log 0.4.8",
+ "log 0.4.11",
  "mixnet-client",
  "nymsphinx",
  "pretty_env_logger",

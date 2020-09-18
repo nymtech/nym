@@ -5,7 +5,8 @@ use log::error;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
-mod gateway;
+pub(crate) mod clients;
+pub(crate) mod good_topology;
 mod websocket;
 
 pub struct Monitor {

@@ -54,6 +54,12 @@ impl Monitor {
             self.self_address = Some(me);
             println!("Retrieved self address:  {:?}", me.to_string());
 
+            self.gateway_client
+                .authenticate_and_start()
+                .await
+                .expect("Couldn't authenticate with gateway node.");
+            println!("Authenticated to gateway");
+
             let config = directory_client::Config::new(self.directory_uri.clone());
             let directory: Client = DirectoryClient::new(config);
             let topology = directory.get_topology().await;

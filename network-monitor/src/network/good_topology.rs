@@ -62,7 +62,7 @@ pub(crate) fn construct() -> NymTopology {
     let mut layered_mixes = HashMap::new();
 
     for (i, node) in mixnodes().iter().enumerate() {
-        layered_mixes.insert(i as u8, vec![node.clone()]);
+        layered_mixes.insert((i + 1) as u8, vec![node.clone()]);
     }
 
     NymTopology::new(vec![], layered_mixes, vec![gateway()])

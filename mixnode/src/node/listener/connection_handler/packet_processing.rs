@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::node::listener::connection_handler::CachedKeys;
 use crate::node::metrics;
 use crypto::asymmetric::encryption;
 use log::*;
 use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
+use nymsphinx::header::{keys::RoutingKeys, SphinxHeader};
 use nymsphinx::{
-    Delay as SphinxDelay, Error as SphinxError, NodeAddressBytes, ProcessedPacket, SphinxPacket,
+    Delay as SphinxDelay, Error as SphinxError, NodeAddressBytes, ProcessedPacket, SharedSecret,
+    SphinxPacket,
 };
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -55,23 +58,35 @@ impl From<NymNodeRoutingAddressError> for MixProcessingError {
 // PacketProcessor contains all data required to correctly unwrap and forward sphinx packets
 #[derive(Clone)]
 pub struct PacketProcessor {
-    encryption_keys: Arc<encryption::KeyPair>,
+    sphinx_key: Arc<nymsphinx::PrivateKey>,
     metrics_reporter: metrics::MetricsReporter,
 }
 
 impl PacketProcessor {
     pub(crate) fn new(
-        encryption_keys: Arc<encryption::KeyPair>,
+        encryption_key: &encryption::PrivateKey,
         metrics_reporter: metrics::MetricsReporter,
     ) -> Self {
         PacketProcessor {
-            encryption_keys,
+            sphinx_key: Arc::new(encryption_key.into()),
             metrics_reporter,
+        }
+    }
+
+    pub(crate) fn is_vpn_packet(&self, packet: &ProcessedPacket) -> bool {
+        match packet {
+            ProcessedPacket::ForwardHop(_, _, delay) => delay.to_nanos() == 0,
+            ProcessedPacket::FinalHop(..) => false,
         }
     }
 
     pub(crate) fn report_sent(&self, addr: NymNodeRoutingAddress) {
         self.metrics_reporter.report_sent(addr.to_string())
+    }
+
+    async fn delay_packet(&self, delay: SphinxDelay) {
+        // TODO: this should perhaps be replaced with a `DelayQueue`
+        tokio::time::delay_for(delay.to_duration()).await;
     }
 
     async fn process_forward_hop(
@@ -82,41 +97,56 @@ impl PacketProcessor {
     ) -> Result<MixProcessingResult, MixProcessingError> {
         let next_hop_address = NymNodeRoutingAddress::try_from(forward_address)?;
 
-        // Delay packet for as long as required
-        tokio::time::delay_for(delay.to_duration()).await;
+        // Delay packet for as long as required (don't call into the scheduler if it's 0!)
+        if delay.to_nanos() != 0 {
+            self.delay_packet(delay).await;
+        }
 
         Ok(MixProcessingResult::ForwardHop(next_hop_address, packet))
     }
 
-    // pub(crate) fn perform_initial_processing(
-    //     &self,
-    //     packet: SphinxPacket,
-    // ) -> Result<ProcessedPacket, MixProcessingError> {
-    //     packet
-    //         .process(&self.encryption_keys.private_key().into())
-    //         .map_err(|err| {
-    //             warn!("Failed to unwrap Sphinx packet: {:?}", err);
-    //             MixProcessingError::SphinxProcessingError(err)
-    //         })
-    // }
+    pub(crate) fn recompute_routing_keys(&self, initial_secret: &SharedSecret) -> RoutingKeys {
+        SphinxHeader::compute_routing_keys(initial_secret, &self.sphinx_key)
+    }
 
-    pub(crate) async fn process_sphinx_packet(
+    pub(crate) fn perform_initial_processing(
         &self,
         packet: SphinxPacket,
-    ) -> Result<MixProcessingResult, MixProcessingError> {
-        // we received something resembling a sphinx packet, report it!
+    ) -> Result<ProcessedPacket, MixProcessingError> {
         self.metrics_reporter.report_received();
-        match packet.process(&self.encryption_keys.private_key().into()) {
-            Ok(ProcessedPacket::ProcessedPacketForwardHop(packet, address, delay)) => {
+
+        packet.process(&self.sphinx_key).map_err(|err| {
+            warn!("Failed to unwrap Sphinx packet: {:?}", err);
+            MixProcessingError::SphinxProcessingError(err)
+        })
+    }
+
+    pub(crate) fn perform_initial_processing_with_cached_keys(
+        &self,
+        packet: SphinxPacket,
+        keys: &CachedKeys,
+    ) -> Result<ProcessedPacket, MixProcessingError> {
+        self.metrics_reporter.report_received();
+
+        packet
+            .process_with_derived_keys(&keys.0, &keys.1)
+            .map_err(|err| {
+                warn!("Failed to unwrap Sphinx packet: {:?}", err);
+                MixProcessingError::SphinxProcessingError(err)
+            })
+    }
+
+    pub(crate) async fn perform_final_processing(
+        &self,
+        packet: ProcessedPacket,
+    ) -> Result<MixProcessingResult, MixProcessingError> {
+        match packet {
+            ProcessedPacket::ForwardHop(packet, address, delay) => {
                 self.process_forward_hop(packet, address, delay).await
             }
-            Ok(ProcessedPacket::ProcessedPacketFinalHop(_, _, _)) => {
+            ProcessedPacket::FinalHop(..) => {
                 warn!("Received a loop cover message that we haven't implemented yet!");
                 Err(MixProcessingError::ReceivedFinalHopError)
-            }
-            Err(e) => {
-                warn!("Failed to unwrap Sphinx packet: {:?}", e);
-                Err(MixProcessingError::SphinxProcessingError(e))
             }
         }
     }

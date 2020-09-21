@@ -180,11 +180,11 @@ impl PacketProcessor {
         packet: SphinxPacket,
     ) -> Result<(DestinationAddressBytes, Vec<u8>), MixProcessingError> {
         match packet.process(&self.encryption_keys.as_ref().private_key().into()) {
-            Ok(ProcessedPacket::ProcessedPacketForwardHop(_, _, _)) => {
+            Ok(ProcessedPacket::ForwardHop(_, _, _)) => {
                 warn!("Received a forward hop message - those are not implemented for gateways");
                 Err(MixProcessingError::ReceivedForwardHopError)
             }
-            Ok(ProcessedPacket::ProcessedPacketFinalHop(client_address, _surb_id, payload)) => {
+            Ok(ProcessedPacket::FinalHop(client_address, _surb_id, payload)) => {
                 // in our current design, we do not care about the 'surb_id' in the header
                 // as it will always be empty anyway
                 let message = payload.recover_plaintext()?;

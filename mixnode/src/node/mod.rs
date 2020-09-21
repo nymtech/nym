@@ -76,7 +76,7 @@ impl MixNode {
         info!("Starting socket listener...");
 
         let packet_processor =
-            PacketProcessor::new(Arc::clone(&self.sphinx_keypair), metrics_reporter);
+            PacketProcessor::new(self.sphinx_keypair.private_key(), metrics_reporter);
 
         let connection_handler = ConnectionHandler::new(packet_processor, forwarding_channel);
 

@@ -58,7 +58,7 @@ pub(crate) fn gateway() -> gateway::Node {
     }
 }
 
-pub(crate) fn construct() -> NymTopology {
+pub(crate) fn new() -> NymTopology {
     let mut layered_mixes = HashMap::new();
 
     for (i, node) in mixnodes().iter().enumerate() {

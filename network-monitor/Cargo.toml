@@ -16,7 +16,6 @@ rand = "0.7.2"
 serde = "1.0.104"
 serde_derive = "1.0.104"
 tokio = { version = "0.2", features = ["stream", "tcp", "rt-threaded", "macros"] }
-tokio-tungstenite = "0.11.0"
 
 ## internal
 crypto = { path = "../common/crypto" }

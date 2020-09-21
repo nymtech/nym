@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use directory_client::{Client, DirectoryClient};
+use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use gateway_client::GatewayClient;
 use log::error;
 use nymsphinx::{
@@ -13,63 +14,65 @@ use topology::NymTopology;
 
 pub(crate) mod clients;
 pub(crate) mod good_topology;
-mod websocket;
 
 const DEFAULT_RNG: OsRng = OsRng;
 
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 
+type MixnetReceiver = UnboundedReceiver<Vec<Vec<u8>>>;
+type MixnetSender = UnboundedSender<Vec<Vec<u8>>>;
+type AckReceiver = UnboundedReceiver<Vec<Vec<u8>>>;
+type AckSender = UnboundedSender<Vec<Vec<u8>>>;
+
+pub struct Config {
+    pub ack_receiver: AckReceiver,
+    pub directory_uri: String,
+    pub gateway_client: GatewayClient,
+    pub good_topology: NymTopology,
+    pub mixnet_receiver: MixnetReceiver,
+    pub self_address: Recipient,
+}
+
 pub struct Monitor {
-    directory_uri: String,
-    gateway_client: GatewayClient,
-    good_topology: NymTopology,
-    self_address: Option<Recipient>,
-    websocket_uri: String,
+    config: Config,
 }
 
 impl Monitor {
-    pub fn new(
-        directory_uri: &str,
-        good_topology: NymTopology,
-        gateway_client: GatewayClient,
-        websocket_uri: &str,
-    ) -> Monitor {
-        Monitor {
-            directory_uri: directory_uri.to_string(),
-            gateway_client,
-            good_topology,
-            self_address: None,
-            websocket_uri: websocket_uri.to_string(),
-        }
+    pub fn new(config: Config) -> Monitor {
+        Monitor { config }
     }
 
     pub fn run(&mut self) {
         let mut runtime = Runtime::new().unwrap();
         runtime.block_on(async {
-            let connection = websocket::Connection::new(&self.websocket_uri).await;
-            let me = connection.get_self_address().await;
-            self.self_address = Some(me);
-            println!("Retrieved self address:  {:?}", me.to_string());
+            println!(
+                "Self address is:  {:?}",
+                self.config.self_address.to_string()
+            );
 
-            self.gateway_client
+            self.config
+                .gateway_client
                 .authenticate_and_start()
                 .await
                 .expect("Couldn't authenticate with gateway node.");
             println!("Authenticated to gateway");
 
-            let config = directory_client::Config::new(self.directory_uri.clone());
+            let config = directory_client::Config::new(self.config.directory_uri.clone());
             let directory: Client = DirectoryClient::new(config);
-            let topology = directory.get_topology().await;
+            let _topology = directory.get_topology().await;
 
             self.sanity_check().await;
+            println!("Network monitor running.");
             self.wait_for_interrupt().await
         });
     }
 
-    /// Run some initial checks to ensure our subsequent measurements are valid
+    /// Run some initial checks to ensure our subsequent measurements are valid.
+    /// For example, we should be able to send ourselves a Sphinx packet (and receive it
+    /// via the websocket, which currently fails.
     async fn sanity_check(&mut self) {
-        let recipient = self.self_address.clone().unwrap();
+        let recipient = self.config.self_address.clone();
         let messages = self.prepare_messages("hello".to_string(), recipient).await;
         self.send_messages(messages).await;
     }
@@ -81,7 +84,7 @@ impl Monitor {
     ) -> Vec<(NymNodeRoutingAddress, SphinxPacket)> {
         let message_bytes = message.into_bytes();
 
-        let topology = &self.good_topology;
+        let topology = &self.config.good_topology;
 
         let mut message_preparer = MessagePreparer::new(
             DEFAULT_RNG,
@@ -112,7 +115,8 @@ impl Monitor {
     }
 
     async fn send_messages(&mut self, socket_messages: Vec<(NymNodeRoutingAddress, SphinxPacket)>) {
-        self.gateway_client
+        self.config
+            .gateway_client
             .batch_send_sphinx_packets(socket_messages)
             .await
             .unwrap();

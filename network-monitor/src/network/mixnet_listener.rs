@@ -25,9 +25,8 @@ impl MixnetListener {
     }
 
     pub(crate) async fn run(&mut self) {
-        debug!("Started AcknowledgementListener");
+        debug!("Started MixnetListener");
         while let Some(messages) = self.mixnet_receiver.next().await {
-            // realistically we would only be getting one ack at the time
             for message in messages {
                 self.on_message(message).await;
             }

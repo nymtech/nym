@@ -14,8 +14,8 @@
 
 use futures::task::{Context, Poll};
 use futures::Sink;
-use nymsphinx::framing::{SphinxCodec, SphinxCodecError};
-use nymsphinx::SphinxPacket;
+use nymsphinx::framing::codec::{SphinxCodec, SphinxCodecError};
+use nymsphinx::framing::packet::FramedSphinxPacket;
 use std::pin::Pin;
 use tokio_util::codec::Framed;
 
@@ -31,14 +31,14 @@ impl ConnectionWriter {
     }
 }
 
-impl Sink<SphinxPacket> for ConnectionWriter {
+impl Sink<FramedSphinxPacket> for ConnectionWriter {
     type Error = SphinxCodecError;
 
     fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         Pin::new(&mut self.framed_connection).poll_ready(cx)
     }
 
-    fn start_send(mut self: Pin<&mut Self>, item: SphinxPacket) -> Result<(), Self::Error> {
+    fn start_send(mut self: Pin<&mut Self>, item: FramedSphinxPacket) -> Result<(), Self::Error> {
         Pin::new(&mut self.framed_connection).start_send(item)
     }
 

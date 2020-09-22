@@ -14,7 +14,6 @@ use rand::rngs::OsRng;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
-pub(crate) mod clients;
 pub(crate) mod good_topology;
 pub(crate) mod mixnet_listener;
 
@@ -24,9 +23,9 @@ const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 
 type MixnetReceiver = UnboundedReceiver<Vec<Vec<u8>>>;
-type MixnetSender = UnboundedSender<Vec<Vec<u8>>>;
+pub(crate) type MixnetSender = UnboundedSender<Vec<Vec<u8>>>;
 type AckReceiver = UnboundedReceiver<Vec<Vec<u8>>>;
-type AckSender = UnboundedSender<Vec<Vec<u8>>>;
+pub(crate) type AckSender = UnboundedSender<Vec<Vec<u8>>>;
 
 pub struct Config {
     pub ack_receiver: AckReceiver,
@@ -38,7 +37,6 @@ pub struct Config {
 
 pub struct Monitor {
     config: Config,
-    // mixnet_receiver: Arc<MixnetReceiver>,
 }
 
 impl Monitor {

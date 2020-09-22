@@ -21,14 +21,40 @@ use nymsphinx::params::PacketMode;
 use nymsphinx::SphinxPacket;
 use std::time::Duration;
 
+pub type MixForwardingSender = mpsc::UnboundedSender<ForwardedPacket>;
+type MixForwardingReceiver = mpsc::UnboundedReceiver<ForwardedPacket>;
+
 pub struct ForwardedPacket {
     hop_address: NymNodeRoutingAddress,
     packet: SphinxPacket,
     packet_mode: PacketMode,
 }
 
-pub type MixForwardingSender = mpsc::UnboundedSender<ForwardedPacket>;
-type MixForwardingReceiver = mpsc::UnboundedReceiver<ForwardedPacket>;
+impl ForwardedPacket {
+    pub fn new(
+        hop_address: NymNodeRoutingAddress,
+        packet: SphinxPacket,
+        packet_mode: PacketMode,
+    ) -> Self {
+        ForwardedPacket {
+            hop_address,
+            packet,
+            packet_mode,
+        }
+    }
+
+    pub fn hop_adddress(&self) -> NymNodeRoutingAddress {
+        self.hop_address
+    }
+
+    pub fn packet(&self) -> &SphinxPacket {
+        &self.packet
+    }
+
+    pub fn packet_mode(&self) -> PacketMode {
+        self.packet_mode
+    }
+}
 
 /// A specialisation of client such that it forwards any received packets on the channel into the
 /// mix network immediately, i.e. will not try to listen for any responses.

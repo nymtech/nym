@@ -40,6 +40,14 @@ impl FramedSphinxPacket {
             packet,
         }
     }
+
+    pub fn packet_mode(&self) -> PacketMode {
+        self.header.packet_mode
+    }
+
+    pub fn into_inner(self) -> SphinxPacket {
+        self.packet
+    }
 }
 
 // Contains any metadata that might be useful for sending between mix nodes.

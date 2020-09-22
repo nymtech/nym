@@ -15,117 +15,71 @@
 use crate::node::listener::connection_handler::packet_processing::{
     MixProcessingResult, PacketProcessor,
 };
-use dashmap::DashMap;
-use futures::channel::mpsc;
 use log::*;
-use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
-use nymsphinx::framing::SphinxCodec;
-use nymsphinx::{header::keys::RoutingKeys, SharedSecret, SphinxPacket};
+use mixnet_client::forwarder::{ForwardedPacket, MixForwardingSender};
+use nymsphinx::framing::codec::SphinxCodec;
+use nymsphinx::framing::packet::FramedSphinxPacket;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::stream::StreamExt;
 use tokio_util::codec::Framed;
 
-pub(crate) mod packet_forwarding;
 pub(crate) mod packet_processing;
-
-pub(crate) type CachedKeys = (Option<SharedSecret>, RoutingKeys);
 
 pub(crate) struct ConnectionHandler {
     packet_processor: PacketProcessor,
-    // TODO: TYPE ALIAS FOR THIS GUY (or at least for the tuple inside)
-    forwarding_channel: mpsc::UnboundedSender<(NymNodeRoutingAddress, SphinxPacket)>,
-
-    // TODO: method for cache invalidation so that we wouldn't keep all keys for all eternity
-    // we could use our friend DelayQueue. One of tokio's examples is literally using it for
-    // cache invalidation: https://docs.rs/tokio/0.2.22/tokio/time/struct.DelayQueue.html
-    vpn_key_cache: DashMap<SharedSecret, CachedKeys>,
-    // vpn_key_cache: HashMap<SharedSecret, CachedKeys>,
+    forwarding_channel: MixForwardingSender,
 }
 
 impl ConnectionHandler {
     pub(crate) fn new(
         packet_processor: PacketProcessor,
-        forwarding_channel: mpsc::UnboundedSender<(NymNodeRoutingAddress, SphinxPacket)>,
+        forwarding_channel: MixForwardingSender,
     ) -> Self {
         ConnectionHandler {
             packet_processor,
             forwarding_channel,
-            vpn_key_cache: DashMap::new(),
         }
     }
 
     pub(crate) fn clone_without_cache(&self) -> Self {
         ConnectionHandler {
-            packet_processor: self.packet_processor.clone(),
+            packet_processor: self.packet_processor.clone_without_cache(),
             forwarding_channel: self.forwarding_channel.clone(),
-            vpn_key_cache: DashMap::new(),
         }
     }
 
-    async fn handle_received_packet(self: Arc<Self>, sphinx_packet: SphinxPacket) {
-        let shared_secret = sphinx_packet.shared_secret();
+    fn forward_packet(&self, forward_packet: ForwardedPacket) {
+        let routing_address = forward_packet.hop_adddress();
+        // send our data to tcp client for forwarding. If forwarding fails, then it fails,
+        // it's not like we can do anything about it
         //
-        // TODO: here be replay attack detection - it will require similar key cache,
+        // in unbounded_send() failed it means that the receiver channel was disconnected
+        // and hence something weird must have happened without a way of recovering
+        self.forwarding_channel
+            .unbounded_send(forward_packet)
+            .unwrap();
+        self.packet_processor.report_sent(routing_address);
+    }
+
+    async fn handle_received_packet(self: Arc<Self>, framed_sphinx_packet: FramedSphinxPacket) {
+        //
+        // TODO: here be replay attack detection - it will require similar key cache to the one in
+        // packet processor for vpn packets,
         // question: can it also be per connection vs global?
         //
 
-        let pre_processed_packet = if let Some(cached_keys) = self.vpn_key_cache.get(&shared_secret)
-        {
-            match self
-                .packet_processor
-                .perform_initial_processing_with_cached_keys(sphinx_packet, cached_keys.value())
-            {
-                Err(e) => {
-                    debug!("We failed to process received sphinx packet - {:?}", e);
-                    return;
-                }
-                Ok(processed_packet) => processed_packet,
-            }
-        } else {
-            let processed_packet = match self
-                .packet_processor
-                .perform_initial_processing(sphinx_packet)
-            {
-                Err(e) => {
-                    debug!("We failed to process received sphinx packet - {:?}", e);
-                    return;
-                }
-                Ok(processed_packet) => processed_packet,
-            };
-
-            // TODO:
-            // TODO:
-            // TODO: THIS CHECK IS A BAD ONE AS IT WILL NOT WORK IF MIX IS A FINAL HOP (so a gateway)
-            // will be replaced by changing framing and passing some metadata along (somehow...)
-            if self.packet_processor.is_vpn_packet(&processed_packet) {
-                let new_shared_secret = processed_packet.shared_secret();
-                let routing_keys = self.packet_processor.recompute_routing_keys(&shared_secret);
-                self.vpn_key_cache
-                    .insert(shared_secret, (new_shared_secret, routing_keys));
-            }
-            processed_packet
-        };
-
-        // all processing incl. delay was done, the only thing left is to forward it
+        // all processing including delaying, key caching, etc. was done, the only thing left is to forward it
         match self
             .packet_processor
-            .perform_final_processing(pre_processed_packet)
+            .process_received(framed_sphinx_packet)
             .await
         {
             Err(e) => debug!("We failed to process received sphinx packet - {:?}", e),
             Ok(res) => match res {
-                MixProcessingResult::ForwardHop(hop_address, forward_packet) => {
-                    // send our data to tcp client for forwarding. If forwarding fails, then it fails,
-                    // it's not like we can do anything about it
-                    //
-                    // in unbounded_send() failed it means that the receiver channel was disconnected
-                    // and hence something weird must have happened without a way of recovering
-                    self.forwarding_channel
-                        .unbounded_send((hop_address, forward_packet))
-                        .unwrap();
-                    self.packet_processor.report_sent(hop_address);
+                MixProcessingResult::ForwardHop(forward_packet) => {
+                    self.forward_packet(forward_packet)
                 }
                 MixProcessingResult::LoopMessage => {
                     warn!("Somehow processed a loop cover message that we haven't implemented yet!")
@@ -138,9 +92,9 @@ impl ConnectionHandler {
         debug!("Starting connection handler for {:?}", remote);
         let this = Arc::new(self);
         let mut framed_conn = Framed::new(conn, SphinxCodec);
-        while let Some(sphinx_packet) = framed_conn.next().await {
-            match sphinx_packet {
-                Ok(sphinx_packet) => {
+        while let Some(framed_sphinx_packet) = framed_conn.next().await {
+            match framed_sphinx_packet {
+                Ok(framed_sphinx_packet) => {
                     // TODO: benchmark spawning tokio task with full processing vs just processing it
                     // synchronously (without delaying inside of course,
                     // delay could be moved to a per-connection DelayQueue. The delay queue future
@@ -148,9 +102,9 @@ impl ConnectionHandler {
                     // under higher load in single and multi-threaded situation.
                     //
                     // My gut feeling is saying that we might get some nice performance boost
-                    // with the the change
+                    // if we introduced the change
                     let this = Arc::clone(&this);
-                    tokio::spawn(this.handle_received_packet(sphinx_packet));
+                    tokio::spawn(this.handle_received_packet(framed_sphinx_packet));
                 }
                 Err(err) => {
                     error!(

@@ -13,6 +13,8 @@ use topology::gateway;
 mod network;
 
 fn main() {
+    println!("Network monitor starting...");
+
     // Set up topology
     let directory_uri = "https://directory.nymtech.net".to_string();
     let good_topology = network::good_topology::new();
@@ -22,31 +24,34 @@ fn main() {
     let (ack_sender, ack_receiver) = mpsc::unbounded();
     let (mixnet_sender, mixnet_receiver) = mpsc::unbounded();
 
+    // Generate a new set of identity keys. These are ephemeral, and change on each run.
     let identity_keypair = identity::KeyPair::new();
     let encryption_keypair = encryption::KeyPair::new();
 
+    // We need our own address as a Recipient so we can send ourselves test packets
     let self_address = Recipient::new(
         identity_keypair.public_key().clone(),
         encryption_keypair.public_key().clone(),
         gateway.identity_key,
     );
 
-    // inject the info and start things up
-    println!("Starting network monitor...");
     let gateway_client = new_gateway_client(gateway, identity_keypair, ack_sender, mixnet_sender);
 
-    let config = network::Config {
+    // Construct a new `network::Monitor`.
+    let config = network::MonitorConfig {
         ack_receiver,
         directory_uri,
         gateway_client,
         good_topology,
         self_address,
     };
-
     let mut network_monitor = network::Monitor::new(config);
+
+    println!("Network monitor startup complete. Running...");
     network_monitor.run(mixnet_receiver, encryption_keypair);
 }
 
+/// Construct a new gateway client.
 pub fn new_gateway_client(
     gateway: gateway::Node,
     identity_keypair: identity::KeyPair,

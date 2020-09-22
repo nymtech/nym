@@ -27,7 +27,7 @@ pub(crate) type MixnetSender = UnboundedSender<Vec<Vec<u8>>>;
 type AckReceiver = UnboundedReceiver<Vec<Vec<u8>>>;
 pub(crate) type AckSender = UnboundedSender<Vec<Vec<u8>>>;
 
-pub struct Config {
+pub struct MonitorConfig {
     pub ack_receiver: AckReceiver,
     pub directory_uri: String,
     pub gateway_client: GatewayClient,
@@ -36,11 +36,11 @@ pub struct Config {
 }
 
 pub struct Monitor {
-    config: Config,
+    config: MonitorConfig,
 }
 
 impl Monitor {
-    pub fn new(config: Config) -> Monitor {
+    pub fn new(config: MonitorConfig) -> Monitor {
         Monitor { config }
     }
 

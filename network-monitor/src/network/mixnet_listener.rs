@@ -36,17 +36,20 @@ impl MixnetListener {
     }
 
     async fn on_message(&mut self, message: Vec<u8>) {
-        let msg = self
+        let encrypted_bytes = self
             .message_receiver
             .recover_plaintext(self.client_encryption_keypair.private_key(), message)
             .unwrap();
-        let foo = self.message_receiver.recover_fragment(&msg).unwrap();
-        let (bar, _) = self
+        let fragment = self
             .message_receiver
-            .insert_new_fragment(foo)
+            .recover_fragment(&encrypted_bytes)
+            .unwrap();
+        let (recovered, _) = self
+            .message_receiver
+            .insert_new_fragment(fragment)
             .unwrap()
             .unwrap();
-        let recovered = String::from_utf8_lossy(&bar.message);
-        println!("got msg: {:?}", recovered);
+        let message = String::from_utf8_lossy(&recovered.message);
+        println!("got msg: {:?}", message);
     }
 }

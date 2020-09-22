@@ -38,16 +38,16 @@ impl MixnetListener {
         let encrypted_bytes = self
             .message_receiver
             .recover_plaintext(self.client_encryption_keypair.private_key(), message)
-            .unwrap();
+            .expect("could not recover plaintext from test packet");
         let fragment = self
             .message_receiver
             .recover_fragment(&encrypted_bytes)
-            .unwrap();
+            .expect("could not recover fragment from test packet");
         let (recovered, _) = self
             .message_receiver
             .insert_new_fragment(fragment)
-            .unwrap()
-            .unwrap();
+            .expect("error when reconstructing test packet message")
+            .expect("no reconstructed message received from test packet");
         let message = String::from_utf8_lossy(&recovered.message);
         println!("got msg: {:?}", message);
     }

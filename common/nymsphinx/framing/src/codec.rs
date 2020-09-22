@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::packet::{Header, NymSphinxPacket};
+use crate::packet::{FramedSphinxPacket, Header};
 use bytes::{Buf, BufMut, BytesMut};
 use nymsphinx_params::packet_modes::InvalidPacketMode;
 use nymsphinx_params::packet_sizes::{InvalidPacketSize, PacketSize};
@@ -68,10 +68,10 @@ impl From<InvalidPacketMode> for SphinxCodecError {
 // so that all data could be encrypted easily (alternatively we could just slap TLS)
 pub struct SphinxCodec;
 
-impl Encoder<NymSphinxPacket> for SphinxCodec {
+impl Encoder<FramedSphinxPacket> for SphinxCodec {
     type Error = SphinxCodecError;
 
-    fn encode(&mut self, item: NymSphinxPacket, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, item: FramedSphinxPacket, dst: &mut BytesMut) -> Result<(), Self::Error> {
         item.header.encode(dst)?;
         dst.put(item.packet.to_bytes().as_ref());
         Ok(())
@@ -79,7 +79,7 @@ impl Encoder<NymSphinxPacket> for SphinxCodec {
 }
 
 impl Decoder for SphinxCodec {
-    type Item = NymSphinxPacket;
+    type Item = FramedSphinxPacket;
     type Error = SphinxCodecError;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
@@ -116,7 +116,7 @@ impl Decoder for SphinxCodec {
             Err(_) => return Err(SphinxCodecError::MalformedSphinxPacket),
         };
 
-        let nymsphinx_packet = NymSphinxPacket {
+        let nymsphinx_packet = FramedSphinxPacket {
             header,
             packet: sphinx_packet,
         };
@@ -194,7 +194,7 @@ mod packet_encoding {
         let sphinx_packet = make_valid_sphinx_packet(Default::default());
         let sphinx_bytes = sphinx_packet.to_bytes();
 
-        let packet = NymSphinxPacket {
+        let packet = FramedSphinxPacket {
             header,
             packet: sphinx_packet,
         };
@@ -246,7 +246,7 @@ mod packet_encoding {
         #[test]
         fn for_full_frame() {
             // if full frame is used exactly, there should be enough space for header + ack packet
-            let packet = NymSphinxPacket {
+            let packet = FramedSphinxPacket {
                 header: Header::default(),
                 packet: make_valid_sphinx_packet(Default::default()),
             };
@@ -270,7 +270,7 @@ mod packet_encoding {
             ];
 
             for packet_size in packet_sizes {
-                let first_packet = NymSphinxPacket {
+                let first_packet = FramedSphinxPacket {
                     header: Header::default(),
                     packet: make_valid_sphinx_packet(Default::default()),
                 };
@@ -287,12 +287,12 @@ mod packet_encoding {
 
     #[test]
     fn can_decode_two_packets_immediately() {
-        let packet1 = NymSphinxPacket {
+        let packet1 = FramedSphinxPacket {
             header: Header::default(),
             packet: make_valid_sphinx_packet(Default::default()),
         };
 
-        let packet2 = NymSphinxPacket {
+        let packet2 = FramedSphinxPacket {
             header: Header::default(),
             packet: make_valid_sphinx_packet(Default::default()),
         };
@@ -309,12 +309,12 @@ mod packet_encoding {
 
     #[test]
     fn can_decode_two_packets_in_separate_calls() {
-        let packet1 = NymSphinxPacket {
+        let packet1 = FramedSphinxPacket {
             header: Header::default(),
             packet: make_valid_sphinx_packet(Default::default()),
         };
 
-        let packet2 = NymSphinxPacket {
+        let packet2 = FramedSphinxPacket {
             header: Header::default(),
             packet: make_valid_sphinx_packet(Default::default()),
         };

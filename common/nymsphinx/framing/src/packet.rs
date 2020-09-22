@@ -19,7 +19,7 @@ use nymsphinx_params::PacketMode;
 use nymsphinx_types::SphinxPacket;
 use std::convert::TryFrom;
 
-pub struct NymSphinxPacket {
+pub struct FramedSphinxPacket {
     /// Contains any metadata helping receiver to handle the underlying packet.
     pub(crate) header: Header,
 
@@ -27,12 +27,12 @@ pub struct NymSphinxPacket {
     pub(crate) packet: SphinxPacket,
 }
 
-impl NymSphinxPacket {
+impl FramedSphinxPacket {
     pub fn new(packet: SphinxPacket, packet_mode: PacketMode) -> Self {
         // If this fails somebody is using the library in a super incorrect way, because they
         // already managed to somehow create a sphinx packet
         let packet_size = PacketSize::get_type(packet.len()).unwrap();
-        NymSphinxPacket {
+        FramedSphinxPacket {
             header: Header {
                 packet_size,
                 packet_mode,

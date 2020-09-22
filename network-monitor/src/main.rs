@@ -19,10 +19,11 @@ fn main() {
     let local_identity = Arc::new(identity::KeyPair::new_with_rng(&mut DEFAULT_RNG));
     let gateway = gateway();
 
-    let client_encryption_key = encryption::KeyPair::new().public_key().to_owned();
+    let client_encryption_keypair = encryption::KeyPair::new();
+    let client_encryption_pubkey = client_encryption_keypair.public_key().clone();
     let client_identity = local_identity.public_key().clone();
     let gateway_identity = gateway.identity_key;
-    let self_address = Recipient::new(client_identity, client_encryption_key, gateway_identity);
+    let self_address = Recipient::new(client_identity, client_encryption_pubkey, gateway_identity);
 
     // inject the info and start things up
     println!("Starting network monitor...");
@@ -34,10 +35,9 @@ fn main() {
         directory_uri,
         gateway_client,
         good_topology,
-        mixnet_receiver,
         self_address,
     };
 
     let mut network_monitor = network::Monitor::new(config);
-    network_monitor.run();
+    network_monitor.run(mixnet_receiver, client_encryption_keypair);
 }

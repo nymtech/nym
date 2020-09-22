@@ -1,9 +1,11 @@
 use std::time::Duration;
 
+use crypto::asymmetric::encryption::KeyPair;
 use directory_client::{Client, DirectoryClient};
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use gateway_client::GatewayClient;
 use log::error;
+use mixnet_listener::MixnetListener;
 use nymsphinx::{
     acknowledgements::AckKey, addressing::clients::Recipient,
     addressing::nodes::NymNodeRoutingAddress, preparer::MessagePreparer, SphinxPacket,
@@ -14,6 +16,7 @@ use topology::NymTopology;
 
 pub(crate) mod clients;
 pub(crate) mod good_topology;
+pub(crate) mod mixnet_listener;
 
 const DEFAULT_RNG: OsRng = OsRng;
 
@@ -30,12 +33,12 @@ pub struct Config {
     pub directory_uri: String,
     pub gateway_client: GatewayClient,
     pub good_topology: NymTopology,
-    pub mixnet_receiver: MixnetReceiver,
     pub self_address: Recipient,
 }
 
 pub struct Monitor {
     config: Config,
+    // mixnet_receiver: Arc<MixnetReceiver>,
 }
 
 impl Monitor {
@@ -43,7 +46,7 @@ impl Monitor {
         Monitor { config }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self, mixnet_receiver: MixnetReceiver, client_encryption_keypair: KeyPair) {
         let mut runtime = Runtime::new().unwrap();
         runtime.block_on(async {
             println!(
@@ -62,6 +65,12 @@ impl Monitor {
             let directory: Client = DirectoryClient::new(config);
             let _topology = directory.get_topology().await;
 
+            tokio::spawn(async move {
+                let mut listener = MixnetListener::new(mixnet_receiver, client_encryption_keypair);
+                listener.run().await;
+            });
+
+            // spawn a thread here to catch timeouts
             self.sanity_check().await;
             println!("Network monitor running.");
             self.wait_for_interrupt().await

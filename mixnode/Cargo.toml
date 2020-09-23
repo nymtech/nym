@@ -11,7 +11,6 @@ edition = "2018"
 bs58 = "0.3.0"
 clap = "2.33.0"
 curve25519-dalek = "2.0.0"
-dashmap = "3.11.10"
 dirs = "2.0.2"
 dotenv = "0.15.0"
 futures = "0.3.1"
@@ -26,6 +25,7 @@ config = {path = "../common/config"}
 crypto = {path = "../common/crypto"}
 directory-client = { path = "../common/client-libs/directory-client" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
+mixnode-common = { path = "../common/mixnode-common" }
 nymsphinx = {path = "../common/nymsphinx" }
 pemstore = {path = "../common/pemstore"}
 topology = {path = "../common/topology"}

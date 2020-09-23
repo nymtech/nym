@@ -81,7 +81,7 @@ impl ConnectionHandler {
                 MixProcessingResult::ForwardHop(forward_packet) => {
                     self.forward_packet(forward_packet)
                 }
-                MixProcessingResult::LoopMessage => {
+                MixProcessingResult::FinalHop(..) => {
                     warn!("Somehow processed a loop cover message that we haven't implemented yet!")
                 }
             },

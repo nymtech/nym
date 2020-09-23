@@ -50,7 +50,7 @@ impl Listener {
         rt_handle: &runtime::Handle,
         connection_handler: ConnectionHandler,
     ) -> JoinHandle<()> {
-        info!("Running websocket on {:?}", self.address.to_string());
+        info!("Running mix listener on {:?}", self.address.to_string());
 
         rt_handle.spawn(async move { self.run(connection_handler).await })
     }

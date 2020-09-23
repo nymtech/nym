@@ -14,9 +14,9 @@
 
 use crate::node::client_handling::clients_handler::ClientsHandlerRequestSender;
 use crate::node::client_handling::websocket::connection_handler::Handle;
-use crate::node::mixnet_handling::sender::OutboundMixMessageSender;
 use crypto::asymmetric::identity;
 use log::*;
+use mixnet_client::forwarder::MixForwardingSender;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
@@ -37,7 +37,7 @@ impl Listener {
     pub(crate) async fn run(
         &mut self,
         clients_handler_sender: ClientsHandlerRequestSender,
-        outbound_mix_sender: OutboundMixMessageSender,
+        outbound_mix_sender: MixForwardingSender,
     ) {
         info!("Starting websocket listener at {}", self.address);
         let mut tcp_listener = tokio::net::TcpListener::bind(self.address)
@@ -66,7 +66,7 @@ impl Listener {
     pub(crate) fn start(
         mut self,
         clients_handler_sender: ClientsHandlerRequestSender,
-        outbound_mix_sender: OutboundMixMessageSender,
+        outbound_mix_sender: MixForwardingSender,
     ) -> JoinHandle<()> {
         tokio::spawn(async move { self.run(clients_handler_sender, outbound_mix_sender).await })
     }

@@ -18,7 +18,6 @@ use crate::node::client_handling::clients_handler::{
 use crate::node::client_handling::websocket::message_receiver::{
     MixMessageReceiver, MixMessageSender,
 };
-use crate::node::mixnet_handling::sender::OutboundMixMessageSender;
 use crypto::asymmetric::identity;
 use futures::{
     channel::{mpsc, oneshot},
@@ -31,6 +30,7 @@ use gateway_requests::registration::handshake::{gateway_handshake, SharedKeys, D
 use gateway_requests::types::{BinaryRequest, ClientControlRequest, ServerResponse};
 use gateway_requests::BinaryResponse;
 use log::*;
+use mixnet_client::forwarder::MixForwardingSender;
 use nymsphinx::DestinationAddressBytes;
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -65,7 +65,7 @@ pub(crate) struct Handle<S> {
     remote_address: Option<DestinationAddressBytes>,
     shared_key: Option<SharedKeys>,
     clients_handler_sender: ClientsHandlerRequestSender,
-    outbound_mix_sender: OutboundMixMessageSender,
+    outbound_mix_sender: MixForwardingSender,
     socket_connection: SocketStream<S>,
 
     local_identity: Arc<identity::KeyPair>,
@@ -77,7 +77,7 @@ impl<S> Handle<S> {
     pub(crate) fn new(
         conn: S,
         clients_handler_sender: ClientsHandlerRequestSender,
-        outbound_mix_sender: OutboundMixMessageSender,
+        outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
     ) -> Self {
         Handle {
@@ -217,10 +217,11 @@ impl<S> Handle<S> {
                     sphinx_packet,
                 } => {
                     // we know data has correct size (but nothing else besides of it)
-                    self.outbound_mix_sender
-                        .unbounded_send((address, sphinx_packet))
-                        .unwrap();
-                    ServerResponse::Send { status: true }
+
+                    // self.outbound_mix_sender
+                    //     .unbounded_send((address, sphinx_packet))
+                    //     .unwrap();
+                    // ServerResponse::Send { status: true }
                 }
             },
         }

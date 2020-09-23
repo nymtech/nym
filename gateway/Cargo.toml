@@ -10,16 +10,17 @@ edition = "2018"
 [dependencies]
 clap = "2.33.0"
 dirs = "2.0.2"
+dashmap = "3.11.10"
 dotenv = "0.15.0"
 futures = "0.3"
 log = "0.4"
 pretty_env_logger = "0.3"
-rand = "0.7.2"
+rand = "0.7"
 serde = { version = "1.0.104", features = ["derive"] }
 sled = "0.31"
 tokio = { version = "0.2", features = ["full"] }
 tokio-util = { version = "0.3.1", features = ["codec"] }
-tokio-tungstenite = "0.11.0"
+tokio-tungstenite = "0.11"
 
 # internal
 config = { path = "../common/config" }
@@ -27,11 +28,12 @@ crypto = { path = "../common/crypto" }
 directory-client = { path = "../common/client-libs/directory-client" }
 gateway-requests = { path = "gateway-requests" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
+mixnode-common = { path = "../common/mixnode-common" }
 nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
 
 [dependencies.tungstenite]
-version = "0.10.0"
+version = "0.11"
 default-features = false
 
 [build-dependencies]

@@ -15,11 +15,12 @@
 use crate::config::Config;
 use crate::node::client_handling::clients_handler::{ClientsHandler, ClientsHandlerRequestSender};
 use crate::node::client_handling::websocket;
-use crate::node::mixnet_handling::sender::{OutboundMixMessageSender, PacketForwarder};
+use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::storage::{inboxes, ClientLedger};
 use crypto::asymmetric::{encryption, identity};
 use directory_client::DirectoryClient;
 use log::*;
+use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
@@ -65,24 +66,28 @@ impl Gateway {
     fn start_mix_socket_listener(
         &self,
         clients_handler_sender: ClientsHandlerRequestSender,
-        ack_sender: OutboundMixMessageSender,
+        ack_sender: MixForwardingSender,
     ) {
         info!("Starting mix socket listener...");
 
-        let packet_processor = mixnet_handling::PacketProcessor::new(
-            Arc::clone(&self.encryption_keys),
+        let packet_processor =
+            mixnet_handling::PacketProcessor::new(self.encryption_keys.private_key());
+
+        let connection_handler = ConnectionHandler::new(
+            packet_processor,
             clients_handler_sender,
             self.client_inbox_storage.clone(),
             ack_sender,
         );
 
-        mixnet_handling::Listener::new(self.config.get_mix_listening_address())
-            .start(packet_processor);
+        let listener = mixnet_handling::Listener::new(self.config.get_mix_listening_address());
+
+        listener.start(connection_handler);
     }
 
     fn start_client_websocket_listener(
         &self,
-        forwarding_channel: OutboundMixMessageSender,
+        forwarding_channel: MixForwardingSender,
         clients_handler_sender: ClientsHandlerRequestSender,
     ) {
         info!("Starting client [web]socket listener...");
@@ -94,16 +99,17 @@ impl Gateway {
         .start(clients_handler_sender, forwarding_channel);
     }
 
-    fn start_packet_forwarder(&self) -> OutboundMixMessageSender {
+    fn start_packet_forwarder(&self) -> MixForwardingSender {
         info!("Starting mix packet forwarder...");
 
-        let (_, forwarding_channel) = PacketForwarder::new(
+        let (mut packet_forwarder, packet_sender) = PacketForwarder::new(
             self.config.get_packet_forwarding_initial_backoff(),
             self.config.get_packet_forwarding_maximum_backoff(),
             self.config.get_initial_connection_timeout(),
-        )
-        .start();
-        forwarding_channel
+        );
+
+        tokio::spawn(async move { packet_forwarder.run().await });
+        packet_sender
     }
 
     fn start_clients_handler(&self) -> ClientsHandlerRequestSender {

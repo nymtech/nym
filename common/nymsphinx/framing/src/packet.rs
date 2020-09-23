@@ -41,6 +41,10 @@ impl FramedSphinxPacket {
         }
     }
 
+    pub fn packet_size(&self) -> PacketSize {
+        self.header.packet_size
+    }
+
     pub fn packet_mode(&self) -> PacketMode {
         self.header.packet_mode
     }

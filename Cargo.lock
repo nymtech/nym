@@ -1061,7 +1061,7 @@ dependencies = [
  "nymsphinx",
  "tokio 0.2.22",
  "tokio-tungstenite",
- "tungstenite 0.11.1",
+ "tungstenite",
  "wasm-bindgen",
  "wasm-bindgen-futures 0.4.17",
  "wasm-timer",
@@ -1081,7 +1081,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "serde_json",
- "tungstenite 0.11.1",
+ "tungstenite",
 ]
 
 [[package]]
@@ -1643,6 +1643,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "mixnode-common"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "log 0.4.11",
+ "mixnet-client",
+ "nymsphinx-acknowledgements",
+ "nymsphinx-addressing",
+ "nymsphinx-framing",
+ "nymsphinx-params",
+ "nymsphinx-types",
+ "tokio 0.2.22",
+]
+
+[[package]]
 name = "mockito"
 version = "0.23.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1785,6 +1800,7 @@ dependencies = [
  "clap",
  "config",
  "crypto",
+ "dashmap",
  "directory-client",
  "dirs 2.0.2",
  "dotenv",
@@ -1792,6 +1808,7 @@ dependencies = [
  "gateway-requests",
  "log 0.4.11",
  "mixnet-client",
+ "mixnode-common",
  "nymsphinx",
  "pemstore",
  "pretty_env_logger",
@@ -1802,7 +1819,7 @@ dependencies = [
  "tokio 0.2.22",
  "tokio-tungstenite",
  "tokio-util",
- "tungstenite 0.10.1",
+ "tungstenite",
 ]
 
 [[package]]
@@ -1815,13 +1832,13 @@ dependencies = [
  "config",
  "crypto",
  "curve25519-dalek 2.1.0",
- "dashmap",
  "directory-client",
  "dirs 2.0.2",
  "dotenv",
  "futures 0.3.5",
  "log 0.4.11",
  "mixnet-client",
+ "mixnode-common",
  "nymsphinx",
  "pemstore",
  "pretty_env_logger",
@@ -3393,7 +3410,7 @@ dependencies = [
  "log 0.4.11",
  "pin-project",
  "tokio 0.2.22",
- "tungstenite 0.11.1",
+ "tungstenite",
 ]
 
 [[package]]
@@ -3470,25 +3487,6 @@ name = "try-lock"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
-
-[[package]]
-name = "tungstenite"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfea31758bf674f990918962e8e5f07071a3161bd7c4138ed23e416e1ac4264e"
-dependencies = [
- "base64 0.11.0",
- "byteorder",
- "bytes 0.5.6",
- "http",
- "httparse",
- "input_buffer",
- "log 0.4.11",
- "rand 0.7.3",
- "sha-1 0.8.2",
- "url 2.1.1",
- "utf-8",
-]
 
 [[package]]
 name = "tungstenite"
@@ -3815,7 +3813,7 @@ version = "0.1.0"
 dependencies = [
  "futures 0.3.5",
  "js-sys",
- "tungstenite 0.11.1",
+ "tungstenite",
  "wasm-bindgen",
  "wasm-bindgen-futures 0.4.17",
  "web-sys",

@@ -20,6 +20,7 @@ members = [
     "common/client-libs/validator-client",
     "common/config",
     "common/crypto",
+    "common/mixnode-common",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",

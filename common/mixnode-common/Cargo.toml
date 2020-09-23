@@ -1,0 +1,21 @@
+[package]
+name = "mixnode-common"
+version = "0.1.0"
+authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dashmap = "3.11.10"
+log = "0.4"
+nymsphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }
+nymsphinx-addressing = { path = "../nymsphinx/addressing" }
+nymsphinx-framing = { path = "../nymsphinx/framing" }
+nymsphinx-params = { path = "../nymsphinx/params" }
+nymsphinx-types = { path = "../nymsphinx/types" }
+tokio = { version = "0.2", features = ["time"] }
+
+# I'm really not sure how to feel about having to pull in entire mixnet-client just for a single type
+# I think this is a big flag that perhaps something ought to live in different location
+mixnet-client = { path = "../client-libs/mixnet-client" }

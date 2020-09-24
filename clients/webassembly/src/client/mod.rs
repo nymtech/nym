@@ -202,7 +202,7 @@ impl NymClient {
         self.gateway_client
             .as_mut()
             .unwrap()
-            .batch_send_sphinx_packets(socket_messages)
+            .batch_send_mix_packets(socket_messages)
             .await
             .unwrap();
         self

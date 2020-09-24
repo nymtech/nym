@@ -24,13 +24,14 @@ use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADD
 use nymsphinx_anonymous_replies::encryption_key::SURBEncryptionKey;
 use nymsphinx_anonymous_replies::reply_surb::ReplySURB;
 use nymsphinx_chunking::fragment::{Fragment, FragmentIdentifier};
+use nymsphinx_forwarding::packet::MixPacket;
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_params::{
-    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySURBEncryptionAlgorithm,
+    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketMode, ReplySURBEncryptionAlgorithm,
     ReplySURBKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS,
 };
 use nymsphinx_types::builder::SphinxPacketBuilder;
-use nymsphinx_types::{delays, Delay, SphinxPacket};
+use nymsphinx_types::{delays, Delay};
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::time::Duration;
@@ -42,11 +43,10 @@ pub struct PreparedFragment {
     /// until receiving the acknowledgement included inside of it.
     pub total_delay: Delay,
 
-    /// Indicates address of the node to which the message should be sent.
-    pub first_hop_address: NymNodeRoutingAddress,
-
-    /// The actual 'chunk' of the message that is going to go through the mix network.
-    pub sphinx_packet: SphinxPacket,
+    /// Indicates all data required to serialize and forward the data. It contains the actual
+    /// address of the node to which the message should be sent, the actual 'chunk' of the message
+    /// going through the mix network and also the 'mode' of the packet, i.e. VPN or Mix.
+    pub mix_packet: MixPacket,
 }
 
 #[derive(Debug)]
@@ -85,6 +85,10 @@ pub struct MessagePreparer<R: CryptoRng + Rng> {
     /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
     /// Note that it does not include gateway hops.
     num_mix_hops: u8,
+
+    /// Mode of all mix packets created - VPN or Mix. They indicate whether packets should get delayed
+    /// and keys reused.
+    mode: PacketMode,
 }
 
 impl<R> MessagePreparer<R>
@@ -96,6 +100,7 @@ where
         sender_address: Recipient,
         average_packet_delay: Duration,
         average_ack_delay: Duration,
+        mode: PacketMode,
     ) -> Self {
         MessagePreparer {
             rng,
@@ -104,6 +109,7 @@ where
             average_packet_delay,
             average_ack_delay,
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
+            mode,
         }
     }
 
@@ -230,6 +236,16 @@ where
             .generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)?
             .prepare_for_sending();
 
+        // TODO:
+        // TODO:
+        // TODO:
+        // TODO:
+        // TODO: ASK @AP AND @DH WHETHER THOSE KEYS CAN/SHOULD ALSO BE REUSED IN VPN MODE!!
+        // TODO:
+        // TODO:
+        // TODO:
+        // TODO:
+
         // create keys for 'payload' encryption
         let (ephemeral_keypair, shared_key) =
             new_ephemeral_shared_key::<PacketEncryptionAlgorithm, PacketHkdfAlgorithm, _>(
@@ -283,8 +299,7 @@ where
             // the round-trip delay is the sum of delays of all hops on the forward route as
             // well as the total delay of the ack packet.
             total_delay: delays.iter().sum::<Delay>() + ack_delay,
-            first_hop_address,
-            sphinx_packet,
+            mix_packet: MixPacket::new(first_hop_address, sphinx_packet, self.mode),
         })
     }
 
@@ -329,7 +344,7 @@ where
         reply_surb: ReplySURB,
         topology: &NymTopology,
         ack_key: &AckKey,
-    ) -> Result<(FragmentIdentifier, SphinxPacket, NymNodeRoutingAddress), PreparationError> {
+    ) -> Result<(MixPacket, FragmentIdentifier), PreparationError> {
         // there's no chunking in reply-surbs so there's a hard limit on message,
         // we also need to put the key digest into the message (same size as ephemeral key)
         // and need 1 byte to indicate padding length (this is not the case for 'normal' messages
@@ -398,7 +413,7 @@ where
             .apply_surb(&packet_payload, Some(self.packet_size))
             .unwrap();
 
-        Ok((reply_id, packet, first_hop))
+        Ok((MixPacket::new(first_hop, packet, self.mode), reply_id))
     }
 
     #[allow(dead_code)]
@@ -414,6 +429,7 @@ where
             average_packet_delay: Default::default(),
             average_ack_delay: Default::default(),
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
+            mode: Default::default(),
         }
     }
 }

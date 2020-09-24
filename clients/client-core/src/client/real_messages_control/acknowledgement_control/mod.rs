@@ -24,6 +24,7 @@ use crate::client::{inbound_messages::InputMessageReceiver, topology_control::To
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
+use nymsphinx::params::PacketMode;
 use nymsphinx::{
     acknowledgements::AckKey,
     addressing::clients::Recipient,
@@ -131,6 +132,10 @@ pub(super) struct Config {
 
     /// Average delay a data packet is going to get delayed at a single mixnode.
     average_packet_delay: Duration,
+
+    /// Mode of all mix packets created - VPN or Mix. They indicate whether packets should get delayed
+    /// and keys reused.
+    packet_mode: PacketMode,
 }
 
 impl Config {
@@ -139,12 +144,14 @@ impl Config {
         ack_wait_multiplier: f64,
         average_ack_delay: Duration,
         average_packet_delay: Duration,
+        packet_mode: PacketMode,
     ) -> Self {
         Config {
             ack_wait_addition,
             ack_wait_multiplier,
             average_ack_delay,
             average_packet_delay,
+            packet_mode,
         }
     }
 }
@@ -185,6 +192,7 @@ where
             ack_recipient.clone(),
             config.average_packet_delay,
             config.average_ack_delay,
+            config.packet_mode,
         );
 
         // will listen for any acks coming from the network

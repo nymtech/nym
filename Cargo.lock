@@ -1648,9 +1648,9 @@ version = "0.1.0"
 dependencies = [
  "dashmap",
  "log 0.4.11",
- "mixnet-client",
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
+ "nymsphinx-forwarding",
  "nymsphinx-framing",
  "nymsphinx-params",
  "nymsphinx-types",
@@ -1912,6 +1912,7 @@ dependencies = [
  "nymsphinx-anonymous-replies",
  "nymsphinx-chunking",
  "nymsphinx-cover",
+ "nymsphinx-forwarding",
  "nymsphinx-framing",
  "nymsphinx-params",
  "nymsphinx-types",
@@ -1975,10 +1976,20 @@ dependencies = [
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
  "nymsphinx-chunking",
+ "nymsphinx-forwarding",
  "nymsphinx-params",
  "nymsphinx-types",
  "rand 0.7.3",
  "topology",
+]
+
+[[package]]
+name = "nymsphinx-forwarding"
+version = "0.1.0"
+dependencies = [
+ "nymsphinx-addressing",
+ "nymsphinx-params",
+ "nymsphinx-types",
 ]
 
 [[package]]

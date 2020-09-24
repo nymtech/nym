@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client::mix_traffic::{BatchMixMessageSender, MixMessage};
+use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
 use futures::channel::mpsc;
@@ -20,11 +20,11 @@ use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
 use nymsphinx::acknowledgements::AckKey;
-use nymsphinx::addressing::{clients::Recipient, nodes::NymNodeRoutingAddress};
+use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::cover::generate_loop_cover_packet;
+use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::utils::sample_poisson_duration;
-use nymsphinx::SphinxPacket;
 use rand::{CryptoRng, Rng};
 use std::collections::VecDeque;
 use std::pin::Pin;
@@ -97,20 +97,14 @@ where
 }
 
 pub(crate) struct RealMessage {
-    first_hop_address: NymNodeRoutingAddress,
-    packet: SphinxPacket,
+    mix_packet: MixPacket,
     fragment_id: FragmentIdentifier,
 }
 
 impl RealMessage {
-    pub(crate) fn new(
-        first_hop_address: NymNodeRoutingAddress,
-        packet: SphinxPacket,
-        fragment_id: FragmentIdentifier,
-    ) -> Self {
+    pub(crate) fn new(mix_packet: MixPacket, fragment_id: FragmentIdentifier) -> Self {
         RealMessage {
-            first_hop_address,
-            packet,
+            mix_packet,
             fragment_id,
         }
     }
@@ -233,7 +227,7 @@ where
                 }
                 let topology_ref = topology_ref_option.unwrap();
 
-                let cover_message = generate_loop_cover_packet(
+                generate_loop_cover_packet(
                     &mut self.rng,
                     topology_ref,
                     &*self.ack_key,
@@ -241,13 +235,11 @@ where
                     self.config.average_ack_delay,
                     self.config.average_packet_delay,
                 )
-                .expect("Somehow failed to generate a loop cover message with a valid topology");
-
-                MixMessage::new(cover_message.0, cover_message.1)
+                .expect("Somehow failed to generate a loop cover message with a valid topology")
             }
             StreamMessage::Real(real_message) => {
                 self.sent_notify(real_message.fragment_id);
-                MixMessage::new(real_message.first_hop_address, real_message.packet)
+                real_message.mix_packet
             }
         };
 
@@ -266,15 +258,12 @@ where
     }
 
     async fn on_batch_received(&mut self, real_messages: Vec<RealMessage>) {
-        let mut mix_messages = Vec::with_capacity(real_messages.len());
+        let mut mix_packets = Vec::with_capacity(real_messages.len());
         for real_message in real_messages.into_iter() {
             self.sent_notify(real_message.fragment_id);
-            mix_messages.push(MixMessage::new(
-                real_message.first_hop_address,
-                real_message.packet,
-            ));
+            mix_packets.push(real_message.mix_packet);
         }
-        self.mix_tx.unbounded_send(mix_messages).unwrap();
+        self.mix_tx.unbounded_send(mix_packets).unwrap();
     }
 
     // Send messages at certain rate and if no real traffic is available, send cover message.

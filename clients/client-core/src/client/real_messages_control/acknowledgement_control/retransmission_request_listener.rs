@@ -124,8 +124,7 @@ where
         // send to `OutQueueControl` to eventually send to the mix network
         self.real_message_sender
             .unbounded_send(vec![RealMessage::new(
-                prepared_fragment.first_hop_address,
-                prepared_fragment.sphinx_packet,
+                prepared_fragment.mix_packet,
                 frag_id,
             )])
             .unwrap();

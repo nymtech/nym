@@ -15,6 +15,7 @@ nymsphinx-addressing = { path = "addressing" }
 nymsphinx-anonymous-replies = { path = "anonymous-replies" }
 nymsphinx-chunking = { path = "chunking" }
 nymsphinx-cover = { path = "cover" }
+nymsphinx-forwarding = { path = "forwarding" }
 nymsphinx-params = { path = "params" }
 nymsphinx-types = { path = "types" }
 

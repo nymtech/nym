@@ -21,8 +21,9 @@ use crate::node::storage::inboxes::{ClientStorage, StoreData};
 use dashmap::DashMap;
 use futures::channel::oneshot;
 use log::*;
-use mixnet_client::forwarder::{ForwardedPacket, MixForwardingSender};
+use mixnet_client::forwarder::MixForwardingSender;
 use mixnode_common::cached_packet_processor::processor::ProcessedFinalHop;
+use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::framing::codec::SphinxCodec;
 use nymsphinx::framing::packet::FramedSphinxPacket;
 use nymsphinx::DestinationAddressBytes;
@@ -162,16 +163,12 @@ impl ConnectionHandler {
         self.client_store.store_processed_data(store_data).await
     }
 
-    fn forward_ack(
-        &self,
-        forward_ack: Option<ForwardedPacket>,
-        client_address: DestinationAddressBytes,
-    ) {
+    fn forward_ack(&self, forward_ack: Option<MixPacket>, client_address: DestinationAddressBytes) {
         if let Some(forward_ack) = forward_ack {
             trace!(
                 "Sending ack from packet for {} to {}",
                 client_address,
-                forward_ack.hop_adddress()
+                forward_ack.next_hop()
             );
 
             self.ack_sender.unbounded_send(forward_ack).unwrap();

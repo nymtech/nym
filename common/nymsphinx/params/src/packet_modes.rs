@@ -22,20 +22,20 @@ pub struct InvalidPacketMode;
 pub enum PacketMode {
     /// Represents 'normal' packet sent through the network that should be delayed by an appropriate
     /// value at each hop.
-    MixPacket = 0,
+    Mix = 0,
 
     /// Represents a VPN packet that should not be delayed and ideally cached pre-computed keys
     /// should be used for unwrapping data. Note that it does not offer the same level of anonymity.
-    VPNPacket = 1,
+    VPN = 1,
 }
 
 impl PacketMode {
     pub fn is_mix(self) -> bool {
-        self == PacketMode::MixPacket
+        self == PacketMode::Mix
     }
 
     pub fn is_vpn(self) -> bool {
-        self == PacketMode::VPNPacket
+        self == PacketMode::VPN
     }
 }
 
@@ -44,8 +44,8 @@ impl TryFrom<u8> for PacketMode {
 
     fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
         match value {
-            _ if value == (PacketMode::MixPacket as u8) => Ok(Self::MixPacket),
-            _ if value == (PacketMode::VPNPacket as u8) => Ok(Self::VPNPacket),
+            _ if value == (PacketMode::Mix as u8) => Ok(Self::Mix),
+            _ if value == (PacketMode::VPN as u8) => Ok(Self::VPN),
             _ => Err(InvalidPacketMode),
         }
     }
@@ -53,6 +53,6 @@ impl TryFrom<u8> for PacketMode {
 
 impl Default for PacketMode {
     fn default() -> Self {
-        PacketMode::MixPacket
+        PacketMode::Mix
     }
 }

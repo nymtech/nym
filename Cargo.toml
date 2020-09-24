@@ -27,6 +27,7 @@ members = [
     "common/nymsphinx/anonymous-replies",
     "common/nymsphinx/chunking",
     "common/nymsphinx/cover",
+    "common/nymsphinx/forwarding",
     "common/nymsphinx/framing",
     "common/nymsphinx/params",
     "common/nymsphinx/types",

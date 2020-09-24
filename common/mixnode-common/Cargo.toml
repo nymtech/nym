@@ -11,11 +11,8 @@ dashmap = "3.11.10"
 log = "0.4"
 nymsphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }
 nymsphinx-addressing = { path = "../nymsphinx/addressing" }
+nymsphinx-forwarding = { path = "../nymsphinx/forwarding" }
 nymsphinx-framing = { path = "../nymsphinx/framing" }
 nymsphinx-params = { path = "../nymsphinx/params" }
 nymsphinx-types = { path = "../nymsphinx/types" }
 tokio = { version = "0.2", features = ["time"] }
-
-# I'm really not sure how to feel about having to pull in entire mixnet-client just for a single type
-# I think this is a big flag that perhaps something ought to live in different location
-mixnet-client = { path = "../client-libs/mixnet-client" }

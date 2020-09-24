@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client::mix_traffic::{BatchMixMessageSender, MixMessage};
+use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::topology_control::TopologyAccessor;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
@@ -152,9 +152,7 @@ impl LoopCoverTrafficStream<OsRng> {
         // - we run out of memory
         // - the receiver channel is closed
         // in either case there's no recovery and we can only panic
-        self.mix_tx
-            .unbounded_send(vec![MixMessage::new(cover_message.0, cover_message.1)])
-            .unwrap();
+        self.mix_tx.unbounded_send(vec![cover_message]).unwrap();
 
         // TODO: I'm not entirely sure whether this is really required, because I'm not 100%
         // sure how `yield_now()` works - whether it just notifies the scheduler or whether it

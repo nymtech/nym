@@ -25,7 +25,7 @@ use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
 use gateway_requests::registration::handshake::{client_handshake, SharedKeys, DEFAULT_RNG};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
-use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
+use nymsphinx::forwarding::packet::MixPacket;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
@@ -320,9 +320,9 @@ impl GatewayClient {
         }
     }
 
-    pub async fn batch_send_sphinx_packets(
+    pub async fn batch_send_mix_packets(
         &mut self,
-        packets: Vec<(NymNodeRoutingAddress, SphinxPacket)>,
+        packets: Vec<MixPacket>,
     ) -> Result<(), GatewayClientError> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
@@ -333,8 +333,8 @@ impl GatewayClient {
 
         let messages: Vec<_> = packets
             .into_iter()
-            .map(|(address, packet)| {
-                BinaryRequest::new_forward_request(address, packet).into_ws_message(
+            .map(|mix_packet| {
+                BinaryRequest::new_forward_request(mix_packet).into_ws_message(
                     self.shared_key
                         .as_ref()
                         .expect("no shared key present even though we're authenticated!"),
@@ -347,10 +347,9 @@ impl GatewayClient {
     }
 
     // TODO: possibly make responses optional
-    pub async fn send_sphinx_packet(
+    pub async fn send_mix_packet(
         &mut self,
-        address: NymNodeRoutingAddress,
-        packet: SphinxPacket,
+        mix_packet: MixPacket,
     ) -> Result<(), GatewayClientError> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
@@ -360,7 +359,7 @@ impl GatewayClient {
         }
         // note: into_ws_message encrypts the requests and adds a MAC on it. Perhaps it should
         // be more explicit in the naming?
-        let msg = BinaryRequest::new_forward_request(address, packet).into_ws_message(
+        let msg = BinaryRequest::new_forward_request(mix_packet).into_ws_message(
             self.shared_key
                 .as_ref()
                 .expect("no shared key present even though we're authenticated!"),

@@ -16,19 +16,12 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use gateway_client::GatewayClient;
 use log::*;
-use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
+use nymsphinx::forwarding::packet::MixPacket;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
-pub struct MixMessage(NymNodeRoutingAddress, SphinxPacket);
-pub type BatchMixMessageSender = mpsc::UnboundedSender<Vec<MixMessage>>;
-pub type BatchMixMessageReceiver = mpsc::UnboundedReceiver<Vec<MixMessage>>;
-
-impl MixMessage {
-    pub fn new(address: NymNodeRoutingAddress, packet: SphinxPacket) -> Self {
-        MixMessage(address, packet)
-    }
-}
+pub type BatchMixMessageSender = mpsc::UnboundedSender<Vec<MixPacket>>;
+pub type BatchMixMessageReceiver = mpsc::UnboundedReceiver<Vec<MixPacket>>;
 
 const MAX_FAILURE_COUNT: usize = 100;
 
@@ -55,18 +48,15 @@ impl MixTrafficController {
         }
     }
 
-    async fn on_messages(&mut self, mut mix_messages: Vec<MixMessage>) {
-        debug_assert!(!mix_messages.is_empty());
+    async fn on_messages(&mut self, mut mix_packets: Vec<MixPacket>) {
+        debug_assert!(!mix_packets.is_empty());
 
-        let success = if mix_messages.len() == 1 {
-            let mix_message = mix_messages.pop().unwrap();
-            self.gateway_client
-                .send_sphinx_packet(mix_message.0, mix_message.1)
-                .await
+        let success = if mix_packets.len() == 1 {
+            let mix_packet = mix_packets.pop().unwrap();
+            self.gateway_client.send_mix_packet(mix_packet).await
         } else {
-            let messages = mix_messages.into_iter().map(|msg| (msg.0, msg.1)).collect();
             self.gateway_client
-                .batch_send_sphinx_packets(messages)
+                .batch_send_mix_packets(mix_packets)
                 .await
         };
 
@@ -88,8 +78,8 @@ impl MixTrafficController {
     }
 
     pub async fn run(&mut self) {
-        while let Some(mix_messages) = self.mix_rx.next().await {
-            self.on_messages(mix_messages).await;
+        while let Some(mix_packets) = self.mix_rx.next().await {
+            self.on_messages(mix_packets).await;
         }
     }
 

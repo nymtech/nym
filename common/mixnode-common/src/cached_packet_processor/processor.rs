@@ -15,9 +15,9 @@
 use crate::cached_packet_processor::error::MixProcessingError;
 use dashmap::DashMap;
 use log::*;
-use mixnet_client::forwarder::ForwardedPacket; // TODO: ENTIRE dependency is pulled just for this import...
 use nymsphinx_acknowledgements::surb_ack::SURBAck;
 use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
+use nymsphinx_forwarding::packet::MixPacket;
 use nymsphinx_framing::packet::FramedSphinxPacket;
 use nymsphinx_params::{PacketMode, PacketSize};
 use nymsphinx_types::header::keys::RoutingKeys;
@@ -28,7 +28,7 @@ use nymsphinx_types::{
 use std::convert::TryFrom;
 use std::sync::Arc;
 
-type ForwardAck = ForwardedPacket;
+type ForwardAck = MixPacket;
 type CachedKeys = (Option<SharedSecret>, RoutingKeys);
 
 pub struct ProcessedFinalHop {
@@ -38,7 +38,7 @@ pub struct ProcessedFinalHop {
 }
 
 pub enum MixProcessingResult {
-    ForwardHop(ForwardedPacket),
+    ForwardHop(MixPacket),
     FinalHop(ProcessedFinalHop),
 }
 
@@ -168,8 +168,8 @@ impl CachedPacketProcessor {
             self.delay_packet(delay).await;
         }
 
-        let forwarded_packet = ForwardedPacket::new(next_hop_address, packet, packet_mode);
-        Ok(MixProcessingResult::ForwardHop(forwarded_packet))
+        let mix_packet = MixPacket::new(next_hop_address, packet, packet_mode);
+        Ok(MixProcessingResult::ForwardHop(mix_packet))
     }
 
     /// Split data extracted from the final hop sphinx packet into a SURBAck and message
@@ -196,7 +196,7 @@ impl CachedPacketProcessor {
         data: Vec<u8>,
         packet_size: PacketSize,
         packet_mode: PacketMode,
-    ) -> Result<(Option<ForwardedPacket>, Vec<u8>), MixProcessingError> {
+    ) -> Result<(Option<MixPacket>, Vec<u8>), MixProcessingError> {
         match packet_size {
             PacketSize::ACKPacket => {
                 trace!("received an ack packet!");
@@ -206,7 +206,7 @@ impl CachedPacketProcessor {
                 trace!("received a normal packet!");
                 let (ack_data, message) = self.split_hop_data_into_ack_and_message(data)?;
                 let (ack_first_hop, ack_packet) = SURBAck::try_recover_first_hop_packet(&ack_data)?;
-                let forward_ack = ForwardedPacket::new(ack_first_hop, ack_packet, packet_mode);
+                let forward_ack = MixPacket::new(ack_first_hop, ack_packet, packet_mode);
                 Ok((Some(forward_ack), message))
             }
         }
@@ -406,7 +406,7 @@ mod tests {
         assert!(processor.vpn_key_cache.is_empty());
 
         let final_hop = make_valid_final_sphinx_packet(Default::default(), local_keys.1);
-        let framed = FramedSphinxPacket::new(final_hop, PacketMode::VPNPacket);
+        let framed = FramedSphinxPacket::new(final_hop, PacketMode::VPN);
 
         processor.perform_initial_unwrapping(framed).unwrap();
         assert_eq!(processor.vpn_key_cache.len(), 1);
@@ -419,7 +419,7 @@ mod tests {
         assert!(processor.vpn_key_cache.is_empty());
 
         let forward_hop = make_valid_forward_sphinx_packet(Default::default(), local_keys.1);
-        let framed = FramedSphinxPacket::new(forward_hop, PacketMode::VPNPacket);
+        let framed = FramedSphinxPacket::new(forward_hop, PacketMode::VPN);
 
         processor.perform_initial_unwrapping(framed).unwrap();
         assert_eq!(processor.vpn_key_cache.len(), 1);
@@ -432,7 +432,7 @@ mod tests {
         assert!(processor.vpn_key_cache.is_empty());
 
         let final_hop = make_valid_final_sphinx_packet(Default::default(), local_keys.1);
-        let framed = FramedSphinxPacket::new(final_hop, PacketMode::MixPacket);
+        let framed = FramedSphinxPacket::new(final_hop, PacketMode::Mix);
 
         processor.perform_initial_unwrapping(framed).unwrap();
         assert!(processor.vpn_key_cache.is_empty());
@@ -445,7 +445,7 @@ mod tests {
         assert!(processor.vpn_key_cache.is_empty());
 
         let forward_hop = make_valid_forward_sphinx_packet(Default::default(), local_keys.1);
-        let framed = FramedSphinxPacket::new(forward_hop, PacketMode::MixPacket);
+        let framed = FramedSphinxPacket::new(forward_hop, PacketMode::Mix);
 
         processor.perform_initial_unwrapping(framed).unwrap();
         assert!(processor.vpn_key_cache.is_empty());

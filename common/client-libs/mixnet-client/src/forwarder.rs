@@ -16,45 +16,11 @@ use crate::client::{Client, Config};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
-use nymsphinx::params::PacketMode;
-use nymsphinx::SphinxPacket;
+use nymsphinx::forwarding::packet::MixPacket;
 use std::time::Duration;
 
-pub type MixForwardingSender = mpsc::UnboundedSender<ForwardedPacket>;
-type MixForwardingReceiver = mpsc::UnboundedReceiver<ForwardedPacket>;
-
-pub struct ForwardedPacket {
-    hop_address: NymNodeRoutingAddress,
-    packet: SphinxPacket,
-    packet_mode: PacketMode,
-}
-
-impl ForwardedPacket {
-    pub fn new(
-        hop_address: NymNodeRoutingAddress,
-        packet: SphinxPacket,
-        packet_mode: PacketMode,
-    ) -> Self {
-        ForwardedPacket {
-            hop_address,
-            packet,
-            packet_mode,
-        }
-    }
-
-    pub fn hop_adddress(&self) -> NymNodeRoutingAddress {
-        self.hop_address
-    }
-
-    pub fn packet(&self) -> &SphinxPacket {
-        &self.packet
-    }
-
-    pub fn packet_mode(&self) -> PacketMode {
-        self.packet_mode
-    }
-}
+pub type MixForwardingSender = mpsc::UnboundedSender<MixPacket>;
+type MixForwardingReceiver = mpsc::UnboundedReceiver<MixPacket>;
 
 /// A specialisation of client such that it forwards any received packets on the channel into the
 /// mix network immediately, i.e. will not try to listen for any responses.
@@ -87,20 +53,16 @@ impl PacketForwarder {
     }
 
     pub async fn run(&mut self) {
-        while let Some(forwarded_packet) = self.packet_receiver.next().await {
-            trace!(
-                "Going to forward packet to {:?}",
-                forwarded_packet.hop_address
-            );
+        while let Some(mix_packet) = self.packet_receiver.next().await {
+            trace!("Going to forward packet to {:?}", mix_packet.next_hop());
+
+            let next_hop = mix_packet.next_hop();
+            let packet_mode = mix_packet.packet_mode();
+            let sphinx_packet = mix_packet.into_sphinx_packet();
             // we don't care about responses, we just want to fire packets
             // as quickly as possible
             self.mixnet_client
-                .send(
-                    forwarded_packet.hop_address,
-                    forwarded_packet.packet,
-                    forwarded_packet.packet_mode,
-                    false,
-                )
+                .send(next_hop, sphinx_packet, packet_mode, false)
                 .await
                 .unwrap(); // if we're not waiting for response, we MUST get an Ok
         }

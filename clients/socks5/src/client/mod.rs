@@ -43,6 +43,7 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
+use nymsphinx::params::PacketMode;
 use tokio::runtime::Runtime;
 
 pub(crate) mod config;
@@ -118,6 +119,12 @@ impl NymClient {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
     ) {
+        let packet_mode = if self.config.get_base().get_vpn_mode() {
+            PacketMode::VPN
+        } else {
+            PacketMode::Mix
+        };
+
         let controller_config = client_core::client::real_messages_control::Config::new(
             self.key_manager.ack_key(),
             self.config.get_base().get_ack_wait_multiplier(),
@@ -126,6 +133,7 @@ impl NymClient {
             self.config.get_base().get_message_sending_average_delay(),
             self.config.get_base().get_average_packet_delay(),
             self.as_mix_recipient(),
+            packet_mode,
         );
 
         info!("Starting real traffic stream...");

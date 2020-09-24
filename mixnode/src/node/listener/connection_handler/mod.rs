@@ -16,7 +16,8 @@ use crate::node::listener::connection_handler::packet_processing::{
     MixProcessingResult, PacketProcessor,
 };
 use log::*;
-use mixnet_client::forwarder::{ForwardedPacket, MixForwardingSender};
+use mixnet_client::forwarder::MixForwardingSender;
+use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::framing::codec::SphinxCodec;
 use nymsphinx::framing::packet::FramedSphinxPacket;
 use std::net::SocketAddr;
@@ -50,16 +51,14 @@ impl ConnectionHandler {
         }
     }
 
-    fn forward_packet(&self, forward_packet: ForwardedPacket) {
-        let routing_address = forward_packet.hop_adddress();
+    fn forward_packet(&self, mix_packet: MixPacket) {
+        let routing_address = mix_packet.next_hop();
         // send our data to tcp client for forwarding. If forwarding fails, then it fails,
         // it's not like we can do anything about it
         //
         // in unbounded_send() failed it means that the receiver channel was disconnected
         // and hence something weird must have happened without a way of recovering
-        self.forwarding_channel
-            .unbounded_send(forward_packet)
-            .unwrap();
+        self.forwarding_channel.unbounded_send(mix_packet).unwrap();
         self.packet_processor.report_sent(routing_address);
     }
 

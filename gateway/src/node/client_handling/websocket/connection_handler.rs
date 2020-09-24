@@ -212,16 +212,9 @@ impl<S> Handle<S> {
             Err(e) => ServerResponse::new_error(e.to_string()),
             Ok(request) => match request {
                 // currently only a single type exists
-                BinaryRequest::ForwardSphinx {
-                    address,
-                    sphinx_packet,
-                } => {
-                    // we know data has correct size (but nothing else besides of it)
-
-                    // self.outbound_mix_sender
-                    //     .unbounded_send((address, sphinx_packet))
-                    //     .unwrap();
-                    // ServerResponse::Send { status: true }
+                BinaryRequest::ForwardSphinx(mix_packet) => {
+                    self.outbound_mix_sender.unbounded_send(mix_packet).unwrap();
+                    ServerResponse::Send { status: true }
                 }
             },
         }

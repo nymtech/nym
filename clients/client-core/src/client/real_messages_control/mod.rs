@@ -30,6 +30,7 @@ use gateway_client::AcknowledgementReceiver;
 use log::*;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::params::PacketMode;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
@@ -41,13 +42,30 @@ mod real_traffic_stream;
 
 // TODO: ack_key and self_recipient shouldn't really be part of this config
 pub struct Config {
+    /// Key used to decrypt contents of received SURBAcks
     ack_key: Arc<AckKey>,
-    ack_wait_multiplier: f64,
+
+    /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the additive part `b`
     ack_wait_addition: Duration,
+
+    /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the multiplier `a`
+    ack_wait_multiplier: f64,
+
+    /// Address of `this` client.
     self_recipient: Recipient,
-    average_packet_delay_duration: Duration,
-    average_ack_delay_duration: Duration,
+
+    /// Average delay between sending subsequent packets from this client.
     average_message_sending_delay: Duration,
+
+    /// Average delay a data packet is going to get delayed at a single mixnode.
+    average_packet_delay_duration: Duration,
+
+    /// Average delay an acknowledgement packet is going to get delayed at a single mixnode.
+    average_ack_delay_duration: Duration,
+
+    /// Mode of all mix packets created - VPN or Mix. They indicate whether packets should get delayed
+    /// and keys reused.
+    packet_mode: PacketMode,
 }
 
 impl Config {
@@ -59,6 +77,7 @@ impl Config {
         average_message_sending_delay: Duration,
         average_packet_delay_duration: Duration,
         self_recipient: Recipient,
+        packet_mode: PacketMode,
     ) -> Self {
         Config {
             ack_key,
@@ -68,6 +87,7 @@ impl Config {
             average_message_sending_delay,
             ack_wait_multiplier,
             ack_wait_addition,
+            packet_mode,
         }
     }
 }
@@ -108,6 +128,7 @@ impl RealMessagesController<OsRng> {
             config.ack_wait_multiplier,
             config.average_ack_delay_duration,
             config.average_packet_delay_duration,
+            config.packet_mode,
         );
 
         let ack_control = AcknowledgementController::new(

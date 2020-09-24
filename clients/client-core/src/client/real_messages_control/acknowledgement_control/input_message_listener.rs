@@ -86,11 +86,11 @@ where
             .message_preparer
             .prepare_reply_for_use(data, reply_surb, topology, &self.ack_key)
         {
-            Ok((reply_id, sphinx_packet, first_hop)) => {
+            Ok((mix_packet, reply_id)) => {
                 // TODO: later probably write pending ack here
                 // and deal with them....
                 // ... somehow
-                Some(RealMessage::new(first_hop, sphinx_packet, reply_id))
+                Some(RealMessage::new(mix_packet, reply_id))
             }
             Err(err) => {
                 // TODO: should we have some mechanism to indicate to the user that the `reply_surb`
@@ -143,8 +143,7 @@ where
                 .unwrap();
 
             real_messages.push(RealMessage::new(
-                prepared_fragment.first_hop_address,
-                prepared_fragment.sphinx_packet,
+                prepared_fragment.mix_packet,
                 message_chunk.fragment_identifier(),
             ));
 

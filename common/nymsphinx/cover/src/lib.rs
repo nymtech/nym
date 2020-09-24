@@ -77,6 +77,7 @@ where
         COVER_FRAG_ID.to_bytes(),
         average_ack_delay,
         topology,
+        None,
     )?)
 }
 

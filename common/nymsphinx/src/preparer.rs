@@ -317,7 +317,8 @@ where
     ) -> Result<PreparedFragment, NymTopologyError> {
         // create an ack
         let (ack_delay, surb_ack_bytes) = self
-            .generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)?
+            .generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)
+            .await?
             .prepare_for_sending();
 
         // TODO:
@@ -381,7 +382,7 @@ where
             vpn_key
                 .inner
                 .packets_with_current_secret
-                .fetch_add(1, Ordering::SeqCst);
+                .fetch_add(1, Ordering::Relaxed);
 
             SphinxPacketBuilder::new()
                 .with_payload_size(self.packet_size.payload_size())
@@ -421,20 +422,34 @@ where
     }
 
     /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
-    fn generate_surb_ack(
+    async fn generate_surb_ack(
         &mut self,
         fragment_id: FragmentIdentifier,
         topology: &NymTopology,
         ack_key: &AckKey,
     ) -> Result<SURBAck, NymTopologyError> {
-        SURBAck::construct(
-            &mut self.rng,
-            &self.sender_address,
-            ack_key,
-            fragment_id.to_bytes(),
-            self.average_ack_delay,
-            topology,
-        )
+        if let Some(vpn_key) = self.current_vpn_key.as_ref() {
+            let read_permit = vpn_key.inner.current_initial_secret.read().await;
+            SURBAck::construct(
+                &mut self.rng,
+                &self.sender_address,
+                ack_key,
+                fragment_id.to_bytes(),
+                self.average_ack_delay,
+                topology,
+                Some(&read_permit),
+            )
+        } else {
+            SURBAck::construct(
+                &mut self.rng,
+                &self.sender_address,
+                ack_key,
+                fragment_id.to_bytes(),
+                self.average_ack_delay,
+                topology,
+                None,
+            )
+        }
     }
 
     /// Attaches an optional reply-surb and correct padding to the underlying message
@@ -455,7 +470,7 @@ where
     }
 
     // TODO: perhaps the return type could somehow be combined with [`PreparedFragment`] ?
-    pub fn prepare_reply_for_use(
+    pub async fn prepare_reply_for_use(
         &mut self,
         message: Vec<u8>,
         reply_surb: ReplySURB,
@@ -484,7 +499,8 @@ where
         // gateways could not distinguish reply packets from normal messages due to lack of said acks
         // note: the ack delay is irrelevant since we do not know the delay of actual surb
         let (_, surb_ack_bytes) = self
-            .generate_surb_ack(reply_id, topology, ack_key)?
+            .generate_surb_ack(reply_id, topology, ack_key)
+            .await?
             .prepare_for_sending();
 
         let zero_pad_len = self.packet_size.plaintext_size()
@@ -547,8 +563,7 @@ where
             average_ack_delay: Default::default(),
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
             mode: Default::default(),
-            packets_with_current_secret: 0,
-            current_vpn_initial_secret: None,
+            current_vpn_key: None,
         }
     }
 }

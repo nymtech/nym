@@ -85,6 +85,7 @@ where
         match self
             .message_preparer
             .prepare_reply_for_use(data, reply_surb, topology, &self.ack_key)
+            .await
         {
             Ok((mix_packet, reply_id)) => {
                 // TODO: later probably write pending ack here

@@ -62,6 +62,12 @@ impl SURBAck {
         let surb_ack_payload = prepare_identifier(rng, ack_key, marshaled_fragment_id);
 
         // once merged, that's an easy rng injection point for sphinx packets : )
+        // TODO: SECRET INJECTION
+        // TODO: SECRET INJECTION
+        // TODO: SECRET INJECTION
+        // TODO: SECRET INJECTION
+        // TODO: SECRET INJECTION
+        // TODO: SECRET INJECTION
         let surb_ack_packet = SphinxPacketBuilder::new()
             .with_payload_size(PacketSize::ACKPacket.payload_size())
             .build_packet(surb_ack_payload, &route, &destination, &delays)

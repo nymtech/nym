@@ -94,6 +94,7 @@ where
         let prepared_fragment = self
             .message_preparer
             .prepare_chunk_for_sending(chunk_clone, topology_ref, &self.ack_key, packet_recipient)
+            .await
             .unwrap();
 
         // if we have the ONLY strong reference to the ack data, it means it was removed from the

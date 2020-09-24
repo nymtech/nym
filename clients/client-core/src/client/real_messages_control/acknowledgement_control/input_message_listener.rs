@@ -140,6 +140,7 @@ where
             let prepared_fragment = self
                 .message_preparer
                 .prepare_chunk_for_sending(chunk_clone, topology, &self.ack_key, &recipient)
+                .await
                 .unwrap();
 
             real_messages.push(RealMessage::new(

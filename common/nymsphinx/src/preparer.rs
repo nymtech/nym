@@ -31,11 +31,19 @@ use nymsphinx_params::{
     ReplySURBKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS,
 };
 use nymsphinx_types::builder::SphinxPacketBuilder;
-use nymsphinx_types::{delays, Delay};
+use nymsphinx_types::{delays, Delay, EphemeralSecret};
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
+use std::sync::atomic::{AtomicUsize, Ordering};
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::Arc;
 use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::sync::RwLock;
 use topology::{NymTopology, NymTopologyError};
+
+// TODO: PUT THAT IN CONFIG
+const VPN_KEY_REUSE_LIMIT: usize = 1000;
 
 /// Represents fully packed and prepared [`Fragment`] that can be sent through the mix network.
 pub struct PreparedFragment {
@@ -61,10 +69,35 @@ impl From<NymTopologyError> for PreparationError {
     }
 }
 
+#[cfg_attr(not(target_arch = "wasm32"), derive(Clone))]
+struct VPNKey {
+    #[cfg(not(target_arch = "wasm32"))]
+    inner: Arc<VPNKeyInner>,
+    #[cfg(target_arch = "wasm32")]
+    inner: VPNKeyInner,
+}
+
+struct VPNKeyInner {
+    // it has to be behind all of those smart pointers as it's going to be used when packets
+    // are first sent AND also when retransmitted.
+    #[cfg(not(target_arch = "wasm32"))]
+    current_initial_secret: RwLock<EphemeralSecret>,
+
+    #[cfg(target_arch = "wasm32")]
+    // this is a temporary work-around for wasm (which currently does not have retransmission
+    // and hence will not require multi-thread access)
+    current_initial_secret: EphemeralSecret,
+
+    /// If the client is running as VPN it's expected to keep re-using the same initial secret
+    /// for a while so that the mixnodes could cache some secret derivation results. However,
+    /// we should reset it every once in a while.
+    packets_with_current_secret: AtomicUsize,
+}
+
 /// Prepares the message that is to be sent through the mix network by attaching
 /// an optional reply-SURB, padding it to appropriate length, encrypting its content,
 /// and chunking into appropriate size [`Fragment`]s.
-#[derive(Debug, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Clone))]
 pub struct MessagePreparer<R: CryptoRng + Rng> {
     /// Instance of a cryptographically secure random number generator.
     rng: R,
@@ -89,6 +122,10 @@ pub struct MessagePreparer<R: CryptoRng + Rng> {
     /// Mode of all mix packets created - VPN or Mix. They indicate whether packets should get delayed
     /// and keys reused.
     mode: PacketMode,
+
+    /// If the VPN mode is activated, this underlying secret will be used for multiple sphinx
+    /// packets created.
+    current_vpn_key: Option<VPNKey>,
 }
 
 impl<R> MessagePreparer<R>
@@ -96,12 +133,30 @@ where
     R: CryptoRng + Rng,
 {
     pub fn new(
-        rng: R,
+        mut rng: R,
         sender_address: Recipient,
         average_packet_delay: Duration,
         average_ack_delay: Duration,
         mode: PacketMode,
     ) -> Self {
+        let current_vpn_key = if mode.is_vpn() {
+            #[cfg(not(target_arch = "wasm32"))]
+            let inner = Arc::new(VPNKeyInner {
+                current_initial_secret: RwLock::new(EphemeralSecret::new_with_rng(&mut rng)),
+                packets_with_current_secret: AtomicUsize::new(0),
+            });
+
+            #[cfg(target_arch = "wasm32")]
+            let inner = VPNKeyInner {
+                current_initial_secret: EphemeralSecret::new_with_rng(&mut rng),
+                packets_with_current_secret: AtomicUsize::new(0),
+            };
+
+            Some(VPNKey { inner })
+        } else {
+            None
+        };
+
         MessagePreparer {
             rng,
             packet_size: Default::default(),
@@ -110,6 +165,7 @@ where
             average_ack_delay,
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
             mode,
+            current_vpn_key,
         }
     }
 
@@ -123,6 +179,34 @@ where
     pub fn with_packet_size(mut self, packet_size: PacketSize) -> Self {
         self.packet_size = packet_size;
         self
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn rotate_vpn_initial_secret(&mut self) {
+        let new_secret = EphemeralSecret::new_with_rng(&mut self.rng);
+        let vpn_key_inner = &self.current_vpn_key.as_ref().unwrap().inner;
+
+        let mut write_guard = vpn_key_inner.current_initial_secret.write().await;
+
+        // in here we have exclusive lock so we don't have to have restrictive ordering as no
+        // other thread will be able to get here
+        *write_guard = new_secret;
+        vpn_key_inner
+            .packets_with_current_secret
+            .store(0, Ordering::Relaxed);
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    async fn rotate_vpn_initial_secret(&mut self) {
+        let new_secret = EphemeralSecret::new_with_rng(&mut self.rng);
+        let vpn_key_inner = &mut self.current_vpn_key.as_mut().unwrap().inner;
+
+        vpn_key_inner.current_initial_secret = new_secret;
+
+        // wasm is single-threaded so relaxed ordering is also fine here
+        vpn_key_inner
+            .packets_with_current_secret
+            .store(0, Ordering::Relaxed);
     }
 
     /// Length of plaintext (from the sphinx point of view) data that is available per sphinx
@@ -224,7 +308,7 @@ where
     /// - compute vk_b = g^x || v_b
     /// - compute sphinx_plaintext = SURB_ACK || g^x || v_b
     /// - compute sphinx_packet = Sphinx(recipient, sphinx_plaintext)
-    pub fn prepare_chunk_for_sending(
+    pub async fn prepare_chunk_for_sending(
         &mut self,
         fragment: Fragment,
         topology: &NymTopology,
@@ -285,11 +369,44 @@ where
 
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.
-        // note: once merged, that's an easy rng injection point for sphinx packets : )
-        let sphinx_packet = SphinxPacketBuilder::new()
-            .with_payload_size(self.packet_size.payload_size())
-            .build_packet(packet_payload, &route, &destination, &delays)
-            .unwrap();
+        let sphinx_packet = if let Some(vpn_key) = self.current_vpn_key.as_ref() {
+            #[cfg(not(target_arch = "wasm32"))]
+            let read_permit = vpn_key.inner.current_initial_secret.read().await;
+            #[cfg(not(target_arch = "wasm32"))]
+            let initial_secret = &read_permit;
+
+            #[cfg(target_arch = "wasm32")]
+            let initial_secret = &vpn_key.inner.current_initial_secret;
+
+            vpn_key
+                .inner
+                .packets_with_current_secret
+                .fetch_add(1, Ordering::SeqCst);
+
+            SphinxPacketBuilder::new()
+                .with_payload_size(self.packet_size.payload_size())
+                .with_initial_secret(initial_secret)
+                .build_packet(packet_payload, &route, &destination, &delays)
+                .unwrap()
+        } else {
+            SphinxPacketBuilder::new()
+                .with_payload_size(self.packet_size.payload_size())
+                .build_packet(packet_payload, &route, &destination, &delays)
+                .unwrap()
+        };
+
+        if self.mode.is_vpn()
+            && self
+                .current_vpn_key
+                .as_ref()
+                .unwrap()
+                .inner
+                .packets_with_current_secret
+                .load(Ordering::SeqCst)
+                >= VPN_KEY_REUSE_LIMIT
+        {
+            self.rotate_vpn_initial_secret().await
+        }
 
         // from the previously constructed route extract the first hop
         let first_hop_address =
@@ -430,6 +547,8 @@ where
             average_ack_delay: Default::default(),
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
             mode: Default::default(),
+            packets_with_current_secret: 0,
+            current_vpn_initial_secret: None,
         }
     }
 }

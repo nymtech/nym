@@ -28,3 +28,7 @@ topology = { path = "../topology" }
 # net2 via tokio-util -> tokio -> mio -> net2
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nymsphinx-framing]
 path = "framing"
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
+version = "0.2"
+features = ["sync"]

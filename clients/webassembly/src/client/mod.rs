@@ -194,6 +194,7 @@ impl NymClient {
             // don't bother with acks etc. for time being
             let prepared_fragment = message_preparer
                 .prepare_chunk_for_sending(message_chunk, topology, &self.ack_key, &recipient)
+                .await
                 .unwrap();
 
             console_warn!("packet is going to have round trip time of {:?}, but we're not going to do anything for acks anyway ", prepared_fragment.total_delay);

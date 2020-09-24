@@ -16,7 +16,6 @@ use crate::node::listener::connection_handler::ConnectionHandler;
 use log::*;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
-use tokio::runtime;
 use tokio::task::JoinHandle;
 
 pub(crate) mod connection_handler;
@@ -45,13 +44,9 @@ impl Listener {
         }
     }
 
-    pub(crate) fn start(
-        mut self,
-        rt_handle: &runtime::Handle,
-        connection_handler: ConnectionHandler,
-    ) -> JoinHandle<()> {
+    pub(crate) fn start(mut self, connection_handler: ConnectionHandler) -> JoinHandle<()> {
         info!("Running mix listener on {:?}", self.address.to_string());
 
-        rt_handle.spawn(async move { self.run(connection_handler).await })
+        tokio::spawn(async move { self.run(connection_handler).await })
     }
 }

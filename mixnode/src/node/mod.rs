@@ -29,7 +29,6 @@ mod presence;
 
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
-    runtime: Runtime,
     config: Config,
     sphinx_keypair: Arc<encryption::KeyPair>,
 }
@@ -37,7 +36,6 @@ pub struct MixNode {
 impl MixNode {
     pub fn new(config: Config, sphinx_keypair: encryption::KeyPair) -> Self {
         MixNode {
-            runtime: Runtime::new().unwrap(),
             config,
             sphinx_keypair: Arc::new(sphinx_keypair),
         }
@@ -53,7 +51,7 @@ impl MixNode {
             self.config.get_layer(),
             self.config.get_presence_sending_delay(),
         );
-        presence::Notifier::new(notifier_config).start(self.runtime.handle());
+        presence::Notifier::new(notifier_config).start();
     }
 
     fn start_metrics_reporter(&self) -> metrics::MetricsReporter {
@@ -64,7 +62,7 @@ impl MixNode {
             self.config.get_metrics_sending_delay(),
             self.config.get_metrics_running_stats_logging_delay(),
         )
-        .start(self.runtime.handle())
+        .start()
     }
 
     fn start_socket_listener(
@@ -81,7 +79,7 @@ impl MixNode {
 
         let listener = Listener::new(self.config.get_listening_address());
 
-        listener.start(self.runtime.handle(), connection_handler);
+        listener.start(connection_handler);
     }
 
     fn start_packet_forwarder(&mut self) -> MixForwardingSender {
@@ -97,14 +95,11 @@ impl MixNode {
         packet_sender
     }
 
-    fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
+    async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
         let directory_client_config =
             directory_client::Config::new(self.config.get_presence_directory_server());
         let directory_client = directory_client::Client::new(directory_client_config);
-        let topology = self
-            .runtime
-            .block_on(directory_client.get_topology())
-            .ok()?;
+        let topology = directory_client.get_topology().await.ok()?;
         let existing_mixes_presence = topology.mix_nodes;
         existing_mixes_presence
             .iter()
@@ -112,32 +107,38 @@ impl MixNode {
             .map(|node| node.pub_key.clone())
     }
 
-    pub fn run(&mut self) {
-        info!("Starting nym mixnode");
-
-        if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists() {
-            error!(
-                "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
-                duplicate_node_key
-            );
-            return;
-        }
-        let forwarding_channel = self.start_packet_forwarder();
-        let metrics_reporter = self.start_metrics_reporter();
-        self.start_socket_listener(metrics_reporter, forwarding_channel);
-        self.start_presence_notifier();
-
-        info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
-
-        if let Err(e) = self.runtime.block_on(tokio::signal::ctrl_c()) {
+    async fn wait_for_interrupt(&self) {
+        if let Err(e) = tokio::signal::ctrl_c().await {
             error!(
                 "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
                 e
             );
         }
-
         println!(
-            "Received SIGINT - the mixnode will terminate now (threads are not YET nicely stopped)"
+            "Received SIGINT - the gateway will terminate now (threads are not YET nicely stopped)"
         );
+    }
+
+    pub fn run(&mut self) {
+        info!("Starting nym mixnode");
+        let mut runtime = Runtime::new().unwrap();
+
+        runtime.block_on(async {
+            if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists().await {
+                error!(
+                    "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
+                    duplicate_node_key
+                );
+                return;
+            }
+            let forwarding_channel = self.start_packet_forwarder();
+            let metrics_reporter = self.start_metrics_reporter();
+            self.start_socket_listener(metrics_reporter, forwarding_channel);
+            self.start_presence_notifier();
+
+            info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
+
+            self.wait_for_interrupt().await
+        })
     }
 }

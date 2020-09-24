@@ -176,7 +176,6 @@ impl Gateway {
         let mut runtime = Runtime::new().unwrap();
 
         runtime.block_on(async {
-
             if let Some(duplicate_gateway_key) = self.check_if_same_ip_gateway_exists().await {
                 error!(
                     "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
@@ -184,8 +183,6 @@ impl Gateway {
                 );
                 return;
             }
-
-
 
             let mix_forwarding_channel = self.start_packet_forwarder();
             let clients_handler_sender = self.start_clients_handler();

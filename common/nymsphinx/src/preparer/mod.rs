@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use self::vpn_manager::VPNManager;
 use crate::chunking;
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
@@ -35,12 +36,10 @@ use nymsphinx_types::{delays, Delay, EphemeralSecret};
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::sync::atomic::{AtomicUsize, Ordering};
-#[cfg(not(target_arch = "wasm32"))]
-use std::sync::Arc;
 use std::time::Duration;
-#[cfg(not(target_arch = "wasm32"))]
-use tokio::sync::RwLock;
 use topology::{NymTopology, NymTopologyError};
+
+mod vpn_manager;
 
 // TODO: PUT THAT IN CONFIG
 const VPN_KEY_REUSE_LIMIT: usize = 1000;
@@ -67,31 +66,6 @@ impl From<NymTopologyError> for PreparationError {
     fn from(err: NymTopologyError) -> Self {
         PreparationError::TopologyError(err)
     }
-}
-
-#[cfg_attr(not(target_arch = "wasm32"), derive(Clone))]
-struct VPNKey {
-    #[cfg(not(target_arch = "wasm32"))]
-    inner: Arc<VPNKeyInner>,
-    #[cfg(target_arch = "wasm32")]
-    inner: VPNKeyInner,
-}
-
-struct VPNKeyInner {
-    // it has to be behind all of those smart pointers as it's going to be used when packets
-    // are first sent AND also when retransmitted.
-    #[cfg(not(target_arch = "wasm32"))]
-    current_initial_secret: RwLock<EphemeralSecret>,
-
-    #[cfg(target_arch = "wasm32")]
-    // this is a temporary work-around for wasm (which currently does not have retransmission
-    // and hence will not require multi-thread access)
-    current_initial_secret: EphemeralSecret,
-
-    /// If the client is running as VPN it's expected to keep re-using the same initial secret
-    /// for a while so that the mixnodes could cache some secret derivation results. However,
-    /// we should reset it every once in a while.
-    packets_with_current_secret: AtomicUsize,
 }
 
 /// Prepares the message that is to be sent through the mix network by attaching
@@ -125,7 +99,7 @@ pub struct MessagePreparer<R: CryptoRng + Rng> {
 
     /// If the VPN mode is activated, this underlying secret will be used for multiple sphinx
     /// packets created.
-    current_vpn_key: Option<VPNKey>,
+    current_vpn_key: Option<VPNManager>,
 }
 
 impl<R> MessagePreparer<R>
@@ -289,6 +263,50 @@ where
             .into_iter()
             .flat_map(|fragment_set| fragment_set.into_iter())
             .collect()
+    }
+
+    fn make_vpn_sphinx_packet(&self) {
+        let vpn_key = self.current_vpn_key.as_ref().unwrap();
+        //
+        //
+        // let sphinx_packet = if let Some(vpn_key) = self.current_vpn_key.as_ref() {
+        //     #[cfg(not(target_arch = "wasm32"))]
+        //     let read_permit = vpn_key.inner.current_initial_secret.read().await;
+        //     #[cfg(not(target_arch = "wasm32"))]
+        //     let initial_secret = &read_permit;
+        //
+        //     #[cfg(target_arch = "wasm32")]
+        //     let initial_secret = &vpn_key.inner.current_initial_secret;
+        //
+        //     vpn_key
+        //         .inner
+        //         .packets_with_current_secret
+        //         .fetch_add(1, Ordering::Relaxed);
+        //
+        //     SphinxPacketBuilder::new()
+        //         .with_payload_size(self.packet_size.payload_size())
+        //         .with_initial_secret(initial_secret)
+        //         .build_packet(packet_payload, &route, &destination, &delays)
+        //         .unwrap()
+        // } else {
+        //     SphinxPacketBuilder::new()
+        //         .with_payload_size(self.packet_size.payload_size())
+        //         .build_packet(packet_payload, &route, &destination, &delays)
+        //         .unwrap()
+        // };
+        //
+        // if self.mode.is_vpn()
+        //     && self
+        //         .current_vpn_key
+        //         .as_ref()
+        //         .unwrap()
+        //         .inner
+        //         .packets_with_current_secret
+        //         .load(Ordering::SeqCst)
+        //         >= VPN_KEY_REUSE_LIMIT
+        // {
+        //     self.rotate_vpn_initial_secret().await
+        // }
     }
 
     /// Tries to convert this [`Fragment`] into a [`SphinxPacket`] that can be sent through the Nym mix-network,

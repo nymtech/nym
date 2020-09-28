@@ -139,7 +139,6 @@ pub fn execute(matches: &ArgMatches) {
 
     let gateway_id = select_gateway(matches.value_of("gateway"));
     config.get_base_mut().with_gateway_id(gateway_id);
-    println!("Using gateway {}", gateway_id);
 
     let registration_fut = async {
         let gate_details =

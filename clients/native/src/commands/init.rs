@@ -30,6 +30,11 @@ use std::sync::Arc;
 use std::time::Duration;
 use topology::{gateway, NymTopology};
 
+const GOOD_GATEWAYS: [&str; 2] = [
+    "D6YaMzLSY7mANtSQRKXsmMZpqgqiVkeiagKM4V4oFPFr",
+    "5nrYxPR8gt2Gzo2BbHtsGf66KAEQY91WmM1eW78EphNy",
+];
+
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
         .about("Initialise a Nym client. Do this first!")
@@ -103,17 +108,12 @@ async fn gateway_details(directory_server: &str, gateway_id: &str) -> gateway::N
 }
 
 fn select_gateway(arg: Option<&str>) -> &str {
-    if arg.is_some() {
-        println!("Using gateway {}", arg.unwrap().clone(),);
-        return arg.unwrap();
+    if let Some(gateway_id) = arg {
+        gateway_id
     } else {
-        let good_gateways = vec![
-            "D6YaMzLSY7mANtSQRKXsmMZpqgqiVkeiagKM4V4oFPFr",
-            "5nrYxPR8gt2Gzo2BbHtsGf66KAEQY91WmM1eW78EphNy",
-        ];
-        let chosen = good_gateways.choose(&mut rand::thread_rng());
-        println!("Using gateway {}", chosen.unwrap().clone(),);
-        chosen.unwrap()
+        // TODO1: this should only be done on testnet
+        // TODO2: it should probably check if chosen gateway is actually online
+        GOOD_GATEWAYS.choose(&mut rand::thread_rng()).unwrap()
     }
 }
 
@@ -124,6 +124,8 @@ pub fn execute(matches: &ArgMatches) {
     let mut config = Config::new(id);
     let mut rng = OsRng;
 
+    // TODO: ideally that should be the last thing that's being done to config.
+    // However, we are later further overriding it with gateway id
     config = override_config(config, matches);
     if matches.is_present("fastmode") {
         config.get_base_mut().set_high_default_traffic_volume();
@@ -133,7 +135,8 @@ pub fn execute(matches: &ArgMatches) {
     let mut key_manager = KeyManager::new(&mut rng);
 
     let gateway_id = select_gateway(matches.value_of("gateway"));
-    println!("wtf - GATEWAY ID IS {}", gateway_id);
+    config.get_base_mut().with_gateway_id(gateway_id);
+    println!("Using gateway {}", gateway_id);
 
     let registration_fut = async {
         let gate_details =

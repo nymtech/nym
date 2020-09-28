@@ -27,13 +27,13 @@ pub type AcknowledgementSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
 pub type AcknowledgementReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
 
 #[derive(Clone, Debug)]
-pub(super) struct PacketRouter {
+pub struct PacketRouter {
     ack_sender: AcknowledgementSender,
     mixnet_message_sender: MixnetMessageSender,
 }
 
 impl PacketRouter {
-    pub(super) fn new(
+    pub fn new(
         ack_sender: AcknowledgementSender,
         mixnet_message_sender: MixnetMessageSender,
     ) -> Self {
@@ -43,7 +43,7 @@ impl PacketRouter {
         }
     }
 
-    pub(super) fn route_received(&self, unwrapped_packets: Vec<Vec<u8>>) {
+    pub fn route_received(&self, unwrapped_packets: Vec<Vec<u8>>) {
         let mut received_messages = Vec::new();
         let mut received_acks = Vec::new();
 

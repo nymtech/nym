@@ -15,7 +15,6 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { version = "1.0.104", features = ["derive"] }
 sled = "0.33"
 tokio = { version = "0.2", features = ["full"] }
-url = "2.1"
 
 # internal
 config = { path = "../../common/config" }

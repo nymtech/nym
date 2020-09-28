@@ -20,7 +20,7 @@ use crypto::asymmetric::identity;
 use futures::{Sink, Stream};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
-use tokio_tungstenite::tungstenite::{Error as WsError, Message as WsMessage};
+use tungstenite::{Error as WsError, Message as WsMessage};
 
 // for ease of use
 pub const DEFAULT_RNG: OsRng = OsRng;

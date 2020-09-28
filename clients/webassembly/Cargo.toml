@@ -2,7 +2,7 @@
 build = "build.rs"
 name = "nym-client-wasm"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jedrzej Stuczynski <andrew@nymtech.net>"]
-version = "0.8.0"
+version = "0.8.1"
 edition = "2018"
 keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy", "client"]
 license = "Apache-2.0"

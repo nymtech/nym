@@ -14,15 +14,28 @@
 
 use crate::config::Config;
 use clap::ArgMatches;
+use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 
 pub mod init;
 pub mod run;
 
 pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
+    let max_layer = DEFAULT_NUM_MIX_HOPS;
     let mut was_host_overridden = false;
     if let Some(host) = matches.value_of("host") {
         config = config.with_listening_host(host);
         was_host_overridden = true;
+    }
+
+    if let Some(layer) = matches.value_of("layer").map(|layer| layer.parse::<u64>()) {
+        if let Err(err) = layer {
+            // if layer was overridden, it must be parsable
+            panic!("Invalid layer value provided - {:?}", err);
+        }
+        let layer = layer.unwrap();
+        if layer <= max_layer as u64 && layer > 0{
+            config = config.with_layer(layer)
+        }
     }
 
     if let Some(port) = matches.value_of("port").map(|port| port.parse::<u16>()) {

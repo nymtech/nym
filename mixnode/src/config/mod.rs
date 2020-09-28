@@ -84,8 +84,8 @@ impl NymConfig for Config {
 }
 
 impl Config {
-    pub fn new<S: Into<String>>(id: S, layer: u64) -> Self {
-        Config::default().with_id(id).with_layer(layer)
+    pub fn new<S: Into<String>>(id: S) -> Self {
+        Config::default().with_id(id)
     }
 
     // builder methods

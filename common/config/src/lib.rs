@@ -59,6 +59,11 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
             None => fs::create_dir_all(self.config_directory()),
         }?;
 
+        println!(
+            "About to write config: \r\n\r\n{:?}\r\n\r\n",
+            templated_config.clone()
+        );
+
         fs::write(
             custom_location
                 .unwrap_or_else(|| self.config_directory().join(Self::config_file_name())),

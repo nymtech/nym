@@ -24,6 +24,7 @@ use directory_client::DirectoryClient;
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
 use rand::rngs::OsRng;
+use rand::seq::SliceRandom;
 use std::convert::TryInto;
 use std::sync::Arc;
 use std::time::Duration;
@@ -40,9 +41,8 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
         .arg(Arg::with_name("gateway")
             .long("gateway")
-            .help("Id of the gateway we are going to connect to. If unsure what to put here - 'D6YaMzLSY7mANtSQRKXsmMZpqgqiVkeiagKM4V4oFPFr' is a safe choice for the testnet")
+            .help("Id of the gateway we are going to connect to.")
             .takes_value(true)
-            .required(true)
         )
         .arg(Arg::with_name("directory")
             .long("directory")
@@ -102,6 +102,21 @@ async fn gateway_details(directory_server: &str, gateway_id: &str) -> gateway::N
         .clone()
 }
 
+fn select_gateway(arg: Option<&str>) -> &str {
+    if arg.is_some() {
+        println!("Using gateway {}", arg.unwrap().clone(),);
+        return arg.unwrap();
+    } else {
+        let good_gateways = vec![
+            "D6YaMzLSY7mANtSQRKXsmMZpqgqiVkeiagKM4V4oFPFr",
+            "5nrYxPR8gt2Gzo2BbHtsGf66KAEQY91WmM1eW78EphNy",
+        ];
+        let chosen = good_gateways.choose(&mut rand::thread_rng());
+        println!("Using gateway {}", chosen.unwrap().clone(),);
+        chosen.unwrap()
+    }
+}
+
 pub fn execute(matches: &ArgMatches) {
     println!("Initialising client...");
 
@@ -117,7 +132,8 @@ pub fn execute(matches: &ArgMatches) {
     // create identity, encryption and ack keys.
     let mut key_manager = KeyManager::new(&mut rng);
 
-    let gateway_id = matches.value_of("gateway").unwrap();
+    let gateway_id = select_gateway(matches.value_of("gateway"));
+    println!("wtf - GATEWAY ID IS {}", gateway_id);
 
     let registration_fut = async {
         let gate_details =
@@ -146,11 +162,6 @@ pub fn execute(matches: &ArgMatches) {
         .save_to_file(None)
         .expect("Failed to save the config file");
     println!("Saved configuration file to {:?}", config_save_location);
-
-    println!(
-        "Unless overridden in all `nym-client run` we will be talking to the following gateway: {}...",
-        config.get_base().get_gateway_id(),
-    );
-
+    println!("Using gateway: {}", config.get_base().get_gateway_id(),);
     println!("Client configuration completed.\n\n\n")
 }

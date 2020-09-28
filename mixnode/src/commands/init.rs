@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::convert::TryInto;
-use log::*;
 use crate::commands::override_config;
 use crate::config::persistence::pathfinder::MixNodePathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::encryption;
 use directory_client::DirectoryClient;
+use log::*;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
+use std::convert::TryInto;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
@@ -95,8 +95,8 @@ async fn choose_layer(matches: &ArgMatches<'_>, directory_server: String) -> u64
             panic!("Invalid layer value provided - {:?}", err);
         }
         let layer = layer.unwrap();
-        if layer <= max_layer as u64 && layer > 0{
-            return layer
+        if layer <= max_layer as u64 && layer > 0 {
+            return layer;
         }
     }
 

@@ -33,7 +33,7 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
             panic!("Invalid layer value provided - {:?}", err);
         }
         let layer = layer.unwrap();
-        if layer <= max_layer as u64 && layer > 0{
+        if layer <= max_layer as u64 && layer > 0 {
             config = config.with_layer(layer)
         }
     }

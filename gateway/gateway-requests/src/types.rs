@@ -28,7 +28,7 @@ use std::{
     convert::{TryFrom, TryInto},
     fmt::{self, Error, Formatter},
 };
-use tokio_tungstenite::tungstenite::protocol::Message;
+use tungstenite::protocol::Message;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]

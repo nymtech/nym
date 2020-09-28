@@ -1,7 +1,8 @@
 [package]
+build = "build.rs"
 name = "nym-client-wasm"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jedrzej Stuczynski <andrew@nymtech.net>"]
-version = "0.7.5"
+version = "0.8.1"
 edition = "2018"
 keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy", "client"]
 license = "Apache-2.0"
@@ -16,30 +17,42 @@ default = ["console_error_panic_hook"]
 offline-test = []
 
 [dependencies]
-log = "0.4"
+futures = "0.3"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-wasm-bindgen = "0.2"
+wasm-bindgen = { version = "0.2", features = ["serde-serialize"]  }
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 
 # internal
 crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }
-directory-client-models = { path = "../../common/client-libs/directory-client/models" }
+directory-client = { path = "../../common/client-libs/directory-client" }
+gateway-client = { path = "../../common/client-libs/gateway-client" }
+wasm-utils = { path = "../../common/wasm-utils" }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
 # code size when deploying.
-console_error_panic_hook = { version = "0.1.1", optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
 
 # `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
 # compared to the default allocator's ~10K. It is slower than the default
 # allocator, however.
 #
 # Unfortunately, `wee_alloc` requires nightly Rust when targeting wasm for now.
-wee_alloc = { version = "0.4.2", optional = true }
+wee_alloc = { version = "0.4", optional = true }
+
+[build-dependencies]
+built = "0.4.3"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.2"
+
+[package.metadata.wasm-pack.profile.release]
+# this needs to be disabled until https://github.com/rustwasm/wasm-pack/issues/886 is resolved
+wasm-opt = ["-Oz", "--enable-mutable-globals"]
+
+

@@ -1,6 +1,24 @@
 # Changelog
 
-## [v0.8.0](https://github.com/nymtech/nym/tree/v0.8.0)
+## [v0.8.1](https://github.com/nymtech/nym/tree/v0.8.1) (2020-09-28)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.8.0...v0.8.1)
+
+**Closed issues:**
+
+- Hardcode two gateways for `client init` if none provided [\#352](https://github.com/nymtech/nym/issues/352)
+- Make mixnodes take layer with fewest nodes [\#351](https://github.com/nymtech/nym/issues/351)
+- Change default presence/metrics interval for mixnodes/gateways [\#349](https://github.com/nymtech/nym/issues/349)
+- Mixnodes should only be able to enter layers 1, 2, or 3 [\#348](https://github.com/nymtech/nym/issues/348)
+- Docs are inaccurate [\#337](https://github.com/nymtech/nym/issues/337)
+- Figure out the cause of high packet loss on testnet [\#159](https://github.com/nymtech/nym/issues/159)
+- Change Topology to GraphTopology [\#76](https://github.com/nymtech/nym/issues/76)
+
+**Merged pull requests:**
+
+- Feature/wasm update [\#341](https://github.com/nymtech/nym/pull/341) ([jstuczyn](https://github.com/jstuczyn))
+
+## [v0.8.0](https://github.com/nymtech/nym/tree/v0.8.0) (2020-09-10)
 
 [Full Changelog](https://github.com/nymtech/nym/compare/v0.7.0...v0.8.0)
 
@@ -50,6 +68,7 @@ This release introduces, among other things, the following improvements:
 - Knocking down delay on message sending default [\#332](https://github.com/nymtech/nym/pull/332) ([futurechimp](https://github.com/futurechimp))
 - Made gateway mandatory during init [\#331](https://github.com/nymtech/nym/pull/331) ([jstuczyn](https://github.com/jstuczyn))
 - Renaming client binary [\#330](https://github.com/nymtech/nym/pull/330) ([futurechimp](https://github.com/futurechimp))
+- v0.8.0 Changelog update [\#328](https://github.com/nymtech/nym/pull/328) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/sphinx socks [\#326](https://github.com/nymtech/nym/pull/326) ([futurechimp](https://github.com/futurechimp))
 - Feature/print client address on startup [\#325](https://github.com/nymtech/nym/pull/325) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/temp wasm example removal [\#324](https://github.com/nymtech/nym/pull/324) ([jstuczyn](https://github.com/jstuczyn))
@@ -60,7 +79,6 @@ This release introduces, among other things, the following improvements:
 - Removed unused dependencies [\#315](https://github.com/nymtech/nym/pull/315) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/perf messing [\#311](https://github.com/nymtech/nym/pull/311) ([futurechimp](https://github.com/futurechimp))
 - Upgrades tungstenite libraries to new versions with 64MB message sizes. [\#310](https://github.com/nymtech/nym/pull/310) ([futurechimp](https://github.com/futurechimp))
-- Assigning connection shared key post registration [\#309](https://github.com/nymtech/nym/pull/309) ([jstuczyn](https://github.com/jstuczyn))
 - Assigning connection shared key post registration [\#308](https://github.com/nymtech/nym/pull/308) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/client binary api update [\#306](https://github.com/nymtech/nym/pull/306) ([jstuczyn](https://github.com/jstuczyn))
 - Removes unused Cargo dependencies so we stay slim and trim. [\#305](https://github.com/nymtech/nym/pull/305) ([futurechimp](https://github.com/futurechimp))
@@ -192,7 +210,6 @@ See the [changelog](https://github.com/nymtech/nym/blob/develop/CHANGELOG.md) fo
 - Feature/nym sphinx wasm [\#183](https://github.com/nymtech/nym/pull/183) ([futurechimp](https://github.com/futurechimp))
 - Improvements to sfw-provider - client communcation [\#180](https://github.com/nymtech/nym/pull/180) ([jstuczyn](https://github.com/jstuczyn))
 - Adding Apache 2 license headers to all files [\#178](https://github.com/nymtech/nym/pull/178) ([futurechimp](https://github.com/futurechimp))
-- Feature/tcp client connection timeout [\#176](https://github.com/nymtech/nym/pull/176) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/service persistence [\#171](https://github.com/nymtech/nym/pull/171) ([futurechimp](https://github.com/futurechimp))
 
 ## [v0.6.0](https://github.com/nymtech/nym/tree/v0.6.0) (2020-04-07)
@@ -221,6 +238,7 @@ This  release fixes bugs in v0.5.0. All testnet node operators are advised to up
 
 **Merged pull requests:**
 
+- Feature/tcp client connection timeout [\#176](https://github.com/nymtech/nym/pull/176) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/mixing stats logging [\#175](https://github.com/nymtech/nym/pull/175) ([jstuczyn](https://github.com/jstuczyn))
 - Preventing multiplication overflow for reconnection backoff [\#174](https://github.com/nymtech/nym/pull/174) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/non mandatory debug config [\#173](https://github.com/nymtech/nym/pull/173) ([jstuczyn](https://github.com/jstuczyn))

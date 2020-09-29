@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use super::PendingAcknowledgement;
-use crate::client::real_messages_control::acknowledgement_control::ack_delay_queue::AckDelayQueue;
 use crate::client::real_messages_control::acknowledgement_control::RetransmissionRequestSender;
 use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use log::*;
+use nonexhaustive_delayqueue::NonExhaustiveDelayQueue;
 use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::Delay as SphinxDelay;
 use std::collections::HashMap;
@@ -105,7 +105,7 @@ pub(super) struct ActionController {
     // previous version.
     /// DelayQueue with all `PendingAcknowledgement` that are waiting to be either received or
     /// retransmitted if their timer fires up.
-    pending_acks_timers: AckDelayQueue<FragmentIdentifier>,
+    pending_acks_timers: NonExhaustiveDelayQueue<FragmentIdentifier>,
 
     /// Channel for receiving `Action`s from other modules.
     incoming_actions: UnboundedReceiver<Action>,
@@ -124,7 +124,7 @@ impl ActionController {
             ActionController {
                 config,
                 pending_acks_data: HashMap::new(),
-                pending_acks_timers: AckDelayQueue::new(),
+                pending_acks_timers: NonExhaustiveDelayQueue::new(),
                 incoming_actions: receiver,
                 retransmission_sender,
             },

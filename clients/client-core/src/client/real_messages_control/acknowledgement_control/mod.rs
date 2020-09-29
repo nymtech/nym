@@ -39,7 +39,6 @@ use std::{
 };
 use tokio::task::JoinHandle;
 
-mod ack_delay_queue;
 mod acknowledgement_listener;
 mod action_controller;
 mod input_message_listener;

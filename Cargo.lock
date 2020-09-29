@@ -448,6 +448,7 @@ dependencies = [
  "gateway-client",
  "gateway-requests",
  "log 0.4.11",
+ "nonexhaustive-delayqueue",
  "nymsphinx",
  "pemstore",
  "rand 0.7.3",
@@ -1708,6 +1709,13 @@ dependencies = [
  "cfg-if",
  "libc",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "nonexhaustive-delayqueue"
+version = "0.1.0"
+dependencies = [
+ "tokio 0.2.22",
 ]
 
 [[package]]

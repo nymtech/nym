@@ -12,26 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use futures::Stream;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 use std::time::Duration;
+use tokio::stream::Stream;
 use tokio::time::{
     delay_queue::{self, Expired},
     DelayQueue,
 };
 
-// works under assumption that it will be used inside a loop, where we never want a `None`
-// TODO: perhaps this should/could be renamed and moved to common/utils (and expose all inner methods?)
-pub struct AckDelayQueue<T> {
+/// A variant of tokio's `DelayQueue`, such that its `Stream` implementation will never return a 'None'.
+pub struct NonExhaustiveDelayQueue<T> {
     inner: DelayQueue<T>,
     waker: Option<Waker>,
 }
 
 // more methods of underlying DelayQueue will get exposed as we need them
-impl<T> AckDelayQueue<T> {
+impl<T> NonExhaustiveDelayQueue<T> {
     pub fn new() -> Self {
-        AckDelayQueue {
+        NonExhaustiveDelayQueue {
             inner: DelayQueue::new(),
             waker: None,
         }
@@ -46,12 +45,14 @@ impl<T> AckDelayQueue<T> {
         key
     }
 
+    // TODO: it seems like this one can cause panic in very rare edge cases, however,
+    // I can't seem to be able to reproduce it at all.
     pub fn remove(&mut self, key: &delay_queue::Key) -> Expired<T> {
         self.inner.remove(key)
     }
 }
 
-impl<T> Stream for AckDelayQueue<T> {
+impl<T> Stream for NonExhaustiveDelayQueue<T> {
     type Item = <DelayQueue<T> as Stream>::Item;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {

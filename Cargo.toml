@@ -21,6 +21,7 @@ members = [
     "common/config",
     "common/crypto",
     "common/mixnode-common",
+    "common/nonexhaustive-delayqueue",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",

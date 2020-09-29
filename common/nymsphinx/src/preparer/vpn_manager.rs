@@ -15,6 +15,7 @@
 use nymsphinx_types::EphemeralSecret;
 use rand::{CryptoRng, Rng};
 use std::sync::atomic::{AtomicUsize, Ordering};
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::Arc;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::sync::{RwLock, RwLockReadGuard};
@@ -25,9 +26,13 @@ pub(super) type SpinhxKeyRef<'a> = RwLockReadGuard<'a, EphemeralSecret>;
 #[cfg(target_arch = "wasm32")]
 pub(super) type SpinhxKeyRef<'a> = &'a EphemeralSecret;
 
-#[derive(Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Clone))]
 pub(super) struct VPNManager {
+    #[cfg(not(target_arch = "wasm32"))]
     inner: Arc<Inner>,
+
+    #[cfg(target_arch = "wasm32")]
+    inner: Inner,
 }
 
 struct Inner {
@@ -73,11 +78,11 @@ impl VPNManager {
     {
         let initial_secret = EphemeralSecret::new_with_rng(&mut rng);
         VPNManager {
-            inner: Arc::new(Inner {
+            inner: Inner {
                 secret_reuse_limit,
                 current_initial_secret: initial_secret,
                 packets_with_current_secret: AtomicUsize::new(0),
-            }),
+            },
         }
     }
 
@@ -103,11 +108,11 @@ impl VPNManager {
     where
         R: CryptoRng + Rng,
     {
-        let new_secret = EphemeralSecret::new_with_rng(&mut self.rng);
+        let new_secret = EphemeralSecret::new_with_rng(&mut rng);
         self.inner.current_initial_secret = new_secret;
 
         // wasm is single-threaded so relaxed ordering is also fine here
-        vpn_key_inner
+        self.inner
             .packets_with_current_secret
             .store(0, Ordering::Relaxed);
     }

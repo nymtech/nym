@@ -13,10 +13,17 @@
 // limitations under the License.
 
 use nymsphinx_types::EphemeralSecret;
-use std::sync::atomic::AtomicUsize;
+use rand::{CryptoRng, Rng};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 #[cfg(not(target_arch = "wasm32"))]
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockReadGuard};
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(super) type SpinhxKeyRef<'a> = RwLockReadGuard<'a, EphemeralSecret>;
+
+#[cfg(target_arch = "wasm32")]
+pub(super) type SpinhxKeyRef<'a> = &'a EphemeralSecret;
 
 #[derive(Clone)]
 pub(super) struct VPNManager {
@@ -60,5 +67,83 @@ impl VPNManager {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub(super) fn new(secret_reuse_limit: usize) -> Self {}
+    pub(super) fn new<R>(mut rng: R, secret_reuse_limit: usize) -> Self
+    where
+        R: CryptoRng + Rng,
+    {
+        let initial_secret = EphemeralSecret::new_with_rng(&mut rng);
+        VPNManager {
+            inner: Arc::new(Inner {
+                secret_reuse_limit,
+                current_initial_secret: initial_secret,
+                packets_with_current_secret: AtomicUsize::new(0),
+            }),
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn rotate_secret<R>(&mut self, mut rng: R)
+    where
+        R: CryptoRng + Rng,
+    {
+        let new_secret = EphemeralSecret::new_with_rng(&mut rng);
+        let mut write_guard = self.inner.current_initial_secret.write().await;
+
+        *write_guard = new_secret;
+        // in here we have an exclusive lock so we don't have to have restrictive ordering as no
+        // other thread will be able to get here
+        self.inner
+            .packets_with_current_secret
+            .store(0, Ordering::Relaxed)
+    }
+
+    // this method is async for consistency with non-wasm version
+    #[cfg(target_arch = "wasm32")]
+    pub(super) async fn rotate_secret<R>(&mut self, mut rng: R)
+    where
+        R: CryptoRng + Rng,
+    {
+        let new_secret = EphemeralSecret::new_with_rng(&mut self.rng);
+        self.inner.current_initial_secret = new_secret;
+
+        // wasm is single-threaded so relaxed ordering is also fine here
+        vpn_key_inner
+            .packets_with_current_secret
+            .store(0, Ordering::Relaxed);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn current_secret<'a>(&'a self) -> SpinhxKeyRef<'a> {
+        self.inner.current_initial_secret.read().await
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(super) async fn current_secret<'a>(&'a self) -> SpinhxKeyRef<'a> {
+        &self.inner.current_initial_secret
+    }
+
+    fn increment_key_usage(&mut self) {
+        // TODO: is this the appropriate ordering?
+        self.inner
+            .packets_with_current_secret
+            .fetch_add(1, Ordering::SeqCst);
+    }
+
+    fn current_key_usage(&self) -> usize {
+        // TODO: is this the appropriate ordering?
+        self.inner
+            .packets_with_current_secret
+            .load(Ordering::SeqCst)
+    }
+
+    pub(super) async fn use_secret<'a, R>(&'a mut self, rng: R) -> SpinhxKeyRef<'a>
+    where
+        R: CryptoRng + Rng,
+    {
+        if self.current_key_usage() > self.inner.secret_reuse_limit {
+            self.rotate_secret(rng).await;
+        }
+        self.increment_key_usage();
+        self.current_secret().await
+    }
 }

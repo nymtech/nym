@@ -32,10 +32,9 @@ use nymsphinx_params::{
     ReplySURBKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS,
 };
 use nymsphinx_types::builder::SphinxPacketBuilder;
-use nymsphinx_types::{delays, Delay, EphemeralSecret};
+use nymsphinx_types::{delays, Delay};
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use topology::{NymTopology, NymTopologyError};
 
@@ -99,7 +98,7 @@ pub struct MessagePreparer<R: CryptoRng + Rng> {
 
     /// If the VPN mode is activated, this underlying secret will be used for multiple sphinx
     /// packets created.
-    current_vpn_key: Option<VPNManager>,
+    vpn_manager: Option<VPNManager>,
 }
 
 impl<R> MessagePreparer<R>
@@ -113,20 +112,10 @@ where
         average_ack_delay: Duration,
         mode: PacketMode,
     ) -> Self {
-        let current_vpn_key = if mode.is_vpn() {
-            #[cfg(not(target_arch = "wasm32"))]
-            let inner = Arc::new(VPNKeyInner {
-                current_initial_secret: RwLock::new(EphemeralSecret::new_with_rng(&mut rng)),
-                packets_with_current_secret: AtomicUsize::new(0),
-            });
+        let secret_reuse_limit = VPN_KEY_REUSE_LIMIT;
 
-            #[cfg(target_arch = "wasm32")]
-            let inner = VPNKeyInner {
-                current_initial_secret: EphemeralSecret::new_with_rng(&mut rng),
-                packets_with_current_secret: AtomicUsize::new(0),
-            };
-
-            Some(VPNKey { inner })
+        let vpn_manager = if mode.is_vpn() {
+            Some(VPNManager::new(&mut rng, secret_reuse_limit))
         } else {
             None
         };
@@ -139,7 +128,7 @@ where
             average_ack_delay,
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
             mode,
-            current_vpn_key,
+            vpn_manager,
         }
     }
 
@@ -153,34 +142,6 @@ where
     pub fn with_packet_size(mut self, packet_size: PacketSize) -> Self {
         self.packet_size = packet_size;
         self
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    async fn rotate_vpn_initial_secret(&mut self) {
-        let new_secret = EphemeralSecret::new_with_rng(&mut self.rng);
-        let vpn_key_inner = &self.current_vpn_key.as_ref().unwrap().inner;
-
-        let mut write_guard = vpn_key_inner.current_initial_secret.write().await;
-
-        // in here we have exclusive lock so we don't have to have restrictive ordering as no
-        // other thread will be able to get here
-        *write_guard = new_secret;
-        vpn_key_inner
-            .packets_with_current_secret
-            .store(0, Ordering::Relaxed);
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    async fn rotate_vpn_initial_secret(&mut self) {
-        let new_secret = EphemeralSecret::new_with_rng(&mut self.rng);
-        let vpn_key_inner = &mut self.current_vpn_key.as_mut().unwrap().inner;
-
-        vpn_key_inner.current_initial_secret = new_secret;
-
-        // wasm is single-threaded so relaxed ordering is also fine here
-        vpn_key_inner
-            .packets_with_current_secret
-            .store(0, Ordering::Relaxed);
     }
 
     /// Length of plaintext (from the sphinx point of view) data that is available per sphinx
@@ -265,50 +226,6 @@ where
             .collect()
     }
 
-    fn make_vpn_sphinx_packet(&self) {
-        let vpn_key = self.current_vpn_key.as_ref().unwrap();
-        //
-        //
-        // let sphinx_packet = if let Some(vpn_key) = self.current_vpn_key.as_ref() {
-        //     #[cfg(not(target_arch = "wasm32"))]
-        //     let read_permit = vpn_key.inner.current_initial_secret.read().await;
-        //     #[cfg(not(target_arch = "wasm32"))]
-        //     let initial_secret = &read_permit;
-        //
-        //     #[cfg(target_arch = "wasm32")]
-        //     let initial_secret = &vpn_key.inner.current_initial_secret;
-        //
-        //     vpn_key
-        //         .inner
-        //         .packets_with_current_secret
-        //         .fetch_add(1, Ordering::Relaxed);
-        //
-        //     SphinxPacketBuilder::new()
-        //         .with_payload_size(self.packet_size.payload_size())
-        //         .with_initial_secret(initial_secret)
-        //         .build_packet(packet_payload, &route, &destination, &delays)
-        //         .unwrap()
-        // } else {
-        //     SphinxPacketBuilder::new()
-        //         .with_payload_size(self.packet_size.payload_size())
-        //         .build_packet(packet_payload, &route, &destination, &delays)
-        //         .unwrap()
-        // };
-        //
-        // if self.mode.is_vpn()
-        //     && self
-        //         .current_vpn_key
-        //         .as_ref()
-        //         .unwrap()
-        //         .inner
-        //         .packets_with_current_secret
-        //         .load(Ordering::SeqCst)
-        //         >= VPN_KEY_REUSE_LIMIT
-        // {
-        //     self.rotate_vpn_initial_secret().await
-        // }
-    }
-
     /// Tries to convert this [`Fragment`] into a [`SphinxPacket`] that can be sent through the Nym mix-network,
     /// such that it contains required SURB-ACK and public component of the ephemeral key used to
     /// derive the shared key.
@@ -388,23 +305,12 @@ where
 
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.
-        let sphinx_packet = if let Some(vpn_key) = self.current_vpn_key.as_ref() {
-            #[cfg(not(target_arch = "wasm32"))]
-            let read_permit = vpn_key.inner.current_initial_secret.read().await;
-            #[cfg(not(target_arch = "wasm32"))]
-            let initial_secret = &read_permit;
-
-            #[cfg(target_arch = "wasm32")]
-            let initial_secret = &vpn_key.inner.current_initial_secret;
-
-            vpn_key
-                .inner
-                .packets_with_current_secret
-                .fetch_add(1, Ordering::Relaxed);
+        let sphinx_packet = if let Some(vpn_manager) = self.vpn_manager.as_mut() {
+            let initial_secret = vpn_manager.use_secret(&mut self.rng).await;
 
             SphinxPacketBuilder::new()
                 .with_payload_size(self.packet_size.payload_size())
-                .with_initial_secret(initial_secret)
+                .with_initial_secret(&initial_secret)
                 .build_packet(packet_payload, &route, &destination, &delays)
                 .unwrap()
         } else {
@@ -413,19 +319,6 @@ where
                 .build_packet(packet_payload, &route, &destination, &delays)
                 .unwrap()
         };
-
-        if self.mode.is_vpn()
-            && self
-                .current_vpn_key
-                .as_ref()
-                .unwrap()
-                .inner
-                .packets_with_current_secret
-                .load(Ordering::SeqCst)
-                >= VPN_KEY_REUSE_LIMIT
-        {
-            self.rotate_vpn_initial_secret().await
-        }
 
         // from the previously constructed route extract the first hop
         let first_hop_address =
@@ -446,8 +339,8 @@ where
         topology: &NymTopology,
         ack_key: &AckKey,
     ) -> Result<SURBAck, NymTopologyError> {
-        if let Some(vpn_key) = self.current_vpn_key.as_ref() {
-            let read_permit = vpn_key.inner.current_initial_secret.read().await;
+        if let Some(vpn_manager) = self.vpn_manager.as_mut() {
+            let initial_secret = vpn_manager.use_secret(&mut self.rng).await;
             SURBAck::construct(
                 &mut self.rng,
                 &self.sender_address,
@@ -455,7 +348,7 @@ where
                 fragment_id.to_bytes(),
                 self.average_ack_delay,
                 topology,
-                Some(&read_permit),
+                Some(&initial_secret),
             )
         } else {
             SURBAck::construct(
@@ -581,7 +474,7 @@ where
             average_ack_delay: Default::default(),
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
             mode: Default::default(),
-            current_vpn_key: None,
+            vpn_manager: None,
         }
     }
 }

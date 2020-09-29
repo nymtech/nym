@@ -146,6 +146,7 @@ impl NymClient {
             self.config.get_base().get_average_packet_delay(),
             self.as_mix_recipient(),
             packet_mode,
+            self.config.get_base().get_vpn_key_reuse_limit(),
         );
 
         info!("Starting real traffic stream...");

@@ -136,6 +136,10 @@ pub(super) struct Config {
     /// Mode of all mix packets created - VPN or Mix. They indicate whether packets should get delayed
     /// and keys reused.
     packet_mode: PacketMode,
+
+    /// If the mode of the client is set to VPN it specifies number of packets created with the
+    /// same initial secret until it gets rotated.
+    vpn_key_reuse_limit: Option<usize>,
 }
 
 impl Config {
@@ -145,6 +149,7 @@ impl Config {
         average_ack_delay: Duration,
         average_packet_delay: Duration,
         packet_mode: PacketMode,
+        vpn_key_reuse_limit: Option<usize>,
     ) -> Self {
         Config {
             ack_wait_addition,
@@ -152,6 +157,7 @@ impl Config {
             average_ack_delay,
             average_packet_delay,
             packet_mode,
+            vpn_key_reuse_limit,
         }
     }
 }
@@ -193,6 +199,7 @@ where
             config.average_packet_delay,
             config.average_ack_delay,
             config.packet_mode,
+            config.vpn_key_reuse_limit,
         );
 
         // will listen for any acks coming from the network

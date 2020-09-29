@@ -40,9 +40,6 @@ use topology::{NymTopology, NymTopologyError};
 
 mod vpn_manager;
 
-// TODO: PUT THAT IN CONFIG
-const VPN_KEY_REUSE_LIMIT: usize = 1000;
-
 /// Represents fully packed and prepared [`Fragment`] that can be sent through the mix network.
 pub struct PreparedFragment {
     /// Indicates the total expected round-trip time, i.e. delay from the sending of this message
@@ -111,11 +108,13 @@ where
         average_packet_delay: Duration,
         average_ack_delay: Duration,
         mode: PacketMode,
+        vpn_key_reuse_limit: Option<usize>,
     ) -> Self {
-        let secret_reuse_limit = VPN_KEY_REUSE_LIMIT;
-
         let vpn_manager = if mode.is_vpn() {
-            Some(VPNManager::new(&mut rng, secret_reuse_limit))
+            Some(VPNManager::new(
+                &mut rng,
+                vpn_key_reuse_limit.expect("No key reuse limit provided in vpn mode!"),
+            ))
         } else {
             None
         };

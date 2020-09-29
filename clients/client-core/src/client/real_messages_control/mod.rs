@@ -66,6 +66,10 @@ pub struct Config {
     /// Mode of all mix packets created - VPN or Mix. They indicate whether packets should get delayed
     /// and keys reused.
     packet_mode: PacketMode,
+
+    /// If the mode of the client is set to VPN it specifies number of packets created with the
+    /// same initial secret until it gets rotated.
+    vpn_key_reuse_limit: Option<usize>,
 }
 
 impl Config {
@@ -78,6 +82,7 @@ impl Config {
         average_packet_delay_duration: Duration,
         self_recipient: Recipient,
         packet_mode: PacketMode,
+        vpn_key_reuse_limit: Option<usize>,
     ) -> Self {
         Config {
             ack_key,
@@ -88,6 +93,7 @@ impl Config {
             ack_wait_multiplier,
             ack_wait_addition,
             packet_mode,
+            vpn_key_reuse_limit,
         }
     }
 }
@@ -129,6 +135,7 @@ impl RealMessagesController<OsRng> {
             config.average_ack_delay_duration,
             config.average_packet_delay_duration,
             config.packet_mode,
+            config.vpn_key_reuse_limit,
         );
 
         let ack_control = AcknowledgementController::new(

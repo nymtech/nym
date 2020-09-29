@@ -39,7 +39,8 @@ const DEFAULT_RNG: OsRng = OsRng;
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
-const DEFAULT_PACKET_MODE: PacketMode = PacketMode::Mix;
+const DEFAULT_PACKET_MODE: PacketMode = PacketMode::VPN;
+const DEFAULT_VPN_KEY_REUSE_LIMIT: usize = 1000;
 
 #[wasm_bindgen]
 pub struct NymClient {
@@ -152,6 +153,7 @@ impl NymClient {
             DEFAULT_AVERAGE_PACKET_DELAY,
             DEFAULT_AVERAGE_ACK_DELAY,
             DEFAULT_PACKET_MODE,
+            Some(DEFAULT_VPN_KEY_REUSE_LIMIT),
         );
 
         let received_processor = ReceivedMessagesProcessor::new(

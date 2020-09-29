@@ -35,6 +35,7 @@ const DEFAULT_AVERAGE_PACKET_DELAY: u64 = 100;
 const DEFAULT_TOPOLOGY_REFRESH_RATE: u64 = 30_000;
 const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: u64 = 5_000;
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: u64 = 1_500;
+const DEFAULT_VPN_KEY_REUSE_LIMIT: usize = 1000;
 
 const ZERO_DELAY: Duration = Duration::from_nanos(0);
 
@@ -133,6 +134,10 @@ impl<T: NymConfig> Config<T> {
 
     pub fn set_vpn_mode(&mut self, vpn_mode: bool) {
         self.client.vpn_mode = vpn_mode;
+    }
+
+    pub fn set_vpn_key_reuse_limit(&mut self, reuse_limit: usize) {
+        self.debug.vpn_key_reuse_limit = Some(reuse_limit)
     }
 
     pub fn get_id(&self) -> String {
@@ -234,6 +239,17 @@ impl<T: NymConfig> Config<T> {
 
     pub fn get_vpn_mode(&self) -> bool {
         self.client.vpn_mode
+    }
+
+    pub fn get_vpn_key_reuse_limit(&self) -> Option<usize> {
+        match self.get_vpn_mode() {
+            false => None,
+            true => Some(
+                self.debug
+                    .vpn_key_reuse_limit
+                    .unwrap_or_else(|| DEFAULT_VPN_KEY_REUSE_LIMIT),
+            ),
+        }
     }
 }
 
@@ -417,6 +433,10 @@ pub struct Debug {
     /// did not reach its destination.
     /// The provided value is interpreted as milliseconds.
     topology_resolution_timeout: u64,
+
+    /// If the mode of the client is set to VPN it specifies number of packets created with the
+    /// same initial secret until it gets rotated.
+    vpn_key_reuse_limit: Option<usize>,
 }
 
 impl Default for Debug {
@@ -431,6 +451,7 @@ impl Default for Debug {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
+            vpn_key_reuse_limit: None,
         }
     }
 }

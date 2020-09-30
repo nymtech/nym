@@ -277,7 +277,7 @@ impl<S> Handle<S> {
             ClientsHandlerResponse::Error(e) => {
                 error!("Authentication unexpectedly failed - {}", e);
                 ServerResponse::Error {
-                    message: "unexpected failure".into(),
+                    message: format!("Authentication failure - {}", e),
                 }
             }
             _ => panic!("received response to wrong query!"), // this should NEVER happen
@@ -343,7 +343,7 @@ impl<S> Handle<S> {
             ClientsHandlerResponse::Error(e) => {
                 error!("Post-handshake registration unexpectedly failed - {}", e);
                 ServerResponse::Error {
-                    message: "unexpected failure".into(),
+                    message: format!("Registration failure - {}", e),
                 }
             }
             _ => panic!("received response to wrong query!"), // this should NEVER happen

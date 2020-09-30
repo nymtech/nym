@@ -7,5 +7,5 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-#sphinx = { git = "https://github.com/nymtech/sphinx", rev="e822b24da2b555d0f733133f429b1eada079afc7" }
-sphinx = { path = "../../../../sphinx"}
+sphinx = { git = "https://github.com/nymtech/sphinx", rev="283dcc77dec8ee9ed3bed58c2b878e9c18320723" }
+#sphinx = { path = "../../../../sphinx"}

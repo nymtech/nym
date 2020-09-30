@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, convert::TryInto};
 
 use crypto::asymmetric::{
     encryption::{self, PublicKey},
     identity,
 };
+use directory_client::presence::mixnodes::MixNodePresence;
 use topology::{gateway, mix, NymTopology};
 
 pub(crate) fn mixnodes() -> Vec<mix::Node> {
@@ -58,6 +59,7 @@ pub(crate) fn gateway() -> gateway::Node {
     }
 }
 
+/// Returns a new NymTopology composed of known good nodes
 pub(crate) fn new() -> NymTopology {
     let mut layered_mixes = HashMap::new();
 
@@ -66,4 +68,79 @@ pub(crate) fn new() -> NymTopology {
     }
 
     NymTopology::new(vec![], layered_mixes, vec![gateway()])
+}
+
+// Returns a new topology of known good nodes, with one good node replaced with a test node
+pub(crate) fn new_with_node(presence: MixNodePresence) -> NymTopology {
+    let test_node: mix::Node = presence.try_into().unwrap();
+    let mut topology = self::new();
+    topology.set_mixes_in_layer(test_node.layer as u8, vec![test_node]);
+    topology
+}
+
+#[cfg(test)]
+mod good_topology_test {
+    use super::*;
+
+    mod subbing_in_a_node_to_test {
+        use super::*;
+
+        #[test]
+        fn returns_good_topology_with_test_node_in_desired_layer() {
+            let topology = expected_topology_with_test_node();
+            let expected_gateway_key = topology.gateways().first().unwrap().identity_key;
+            let expected_layer_1_mixnode_pubkey =
+                topology.mixes_in_layer(1)[0].pub_key.to_base58_string();
+            let expected_layer_2_mixnode_pubkey =
+                topology.mixes_in_layer(2)[0].pub_key.to_base58_string();
+            let expected_layer_3_mixnode_pubkey =
+                topology.mixes_in_layer(3)[0].pub_key.to_base58_string();
+            let result = new_with_node(test_node());
+            let actual_gateway_key = result.gateways().first().unwrap().identity_key;
+            let actual_layer_1_mixnode_pubkey =
+                result.mixes_in_layer(1)[0].pub_key.to_base58_string();
+            let actual_layer_2_mixnode_pubkey =
+                result.mixes_in_layer(2)[0].pub_key.to_base58_string();
+            let actual_layer_3_mixnode_pubkey =
+                result.mixes_in_layer(3)[0].pub_key.to_base58_string();
+
+            assert_eq!(expected_gateway_key, actual_gateway_key);
+            assert_eq!(
+                expected_layer_1_mixnode_pubkey,
+                actual_layer_1_mixnode_pubkey
+            );
+            assert_eq!(
+                expected_layer_2_mixnode_pubkey,
+                actual_layer_2_mixnode_pubkey
+            );
+            assert_eq!(
+                expected_layer_3_mixnode_pubkey,
+                actual_layer_3_mixnode_pubkey
+            );
+        }
+    }
+
+    fn expected_topology_with_test_node() -> NymTopology {
+        let mut mixes = HashMap::new();
+        let mixnodes = mixnodes();
+        let mix1: mix::Node = test_node().try_into().unwrap(); // this is the one we will test
+        let mix2 = mixnodes[1].clone();
+        let mix3 = mixnodes[2].clone();
+
+        mixes.insert(1, vec![mix1]);
+        mixes.insert(2, vec![mix2]);
+        mixes.insert(3, vec![mix3]);
+        NymTopology::new(vec![], mixes, vec![gateway()])
+    }
+
+    fn test_node() -> MixNodePresence {
+        MixNodePresence {
+            location: "Thunder Bay".to_string(),
+            host: "1.2.3.4:1234".to_string(),
+            pub_key: "9fX1rMaQdBEzjuv6kT7oyPfEabt73QTM5cfuQ9kaxrRQ".to_string(),
+            layer: 1,
+            last_seen: 1234,
+            version: "0.8.1".to_string(),
+        }
+    }
 }

@@ -72,6 +72,11 @@ impl NymTopology {
         mixes
     }
 
+    pub fn mixes_in_layer(&self, layer: u8) -> Vec<mix::Node> {
+        assert!(vec![1, 2, 3].contains(&layer));
+        self.mixes.get(&layer).unwrap().to_owned()
+    }
+
     pub fn gateways(&self) -> &Vec<gateway::Node> {
         &self.gateways
     }
@@ -141,6 +146,11 @@ impl NymTopology {
             .into_iter()
             .chain(std::iter::once(gateway.into()))
             .collect())
+    }
+
+    pub fn set_mixes_in_layer(&mut self, layer: u8, mixes: Vec<mix::Node>) {
+        self.mixes.remove(&layer);
+        self.mixes.insert(layer, mixes);
     }
 
     pub fn can_construct_path_through(&self, num_mix_hops: u8) -> bool {

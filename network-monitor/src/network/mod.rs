@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crypto::asymmetric::encryption::KeyPair;
-use directory_client::{Client, DirectoryClient};
+use directory_client::{Client, DirectoryClient, Topology};
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use gateway_client::GatewayClient;
 use log::error;
@@ -61,7 +61,10 @@ impl Monitor {
 
             let config = directory_client::Config::new(self.config.directory_uri.clone());
             let directory: Client = DirectoryClient::new(config);
-            let _topology = directory.get_topology().await;
+            let big_topology = directory
+                .get_topology()
+                .await
+                .expect("couldn't retrieve topology from the directory server");
 
             tokio::spawn(async move {
                 let mut listener = MixnetListener::new(mixnet_receiver, client_encryption_keypair);
@@ -70,9 +73,20 @@ impl Monitor {
 
             // spawn a thread here to catch timeouts
             self.sanity_check().await;
+            self.run_test(big_topology).await;
+
             println!("Network monitor running.");
             self.wait_for_interrupt().await
         });
+    }
+
+    async fn run_test(&mut self, network_topology: Topology) {
+        let node = network_topology.mix_nodes.first().unwrap();
+        let topology_to_test = good_topology::new_with_node(node.clone());
+        let message = node.clone().pub_key;
+        let me = self.config.self_address.clone();
+        let messages = self.prepare_messages(message, me, &topology_to_test).await;
+        self.send_messages(messages).await;
     }
 
     /// Run some initial checks to ensure our subsequent measurements are valid.
@@ -80,7 +94,11 @@ impl Monitor {
     /// via the websocket, which currently fails.
     async fn sanity_check(&mut self) {
         let me = self.config.self_address.clone();
-        let messages = self.prepare_messages("hello".to_string(), me).await;
+        let topology = &self.config.good_topology;
+
+        let messages = self
+            .prepare_messages("hello".to_string(), me, topology)
+            .await;
         self.send_messages(messages).await;
     }
 
@@ -88,10 +106,9 @@ impl Monitor {
         &self,
         message: String,
         me: Recipient,
+        topology: &NymTopology,
     ) -> Vec<(NymNodeRoutingAddress, SphinxPacket)> {
         let message_bytes = message.into_bytes();
-
-        let topology = &self.config.good_topology;
 
         let mut message_preparer = MessagePreparer::new(
             DEFAULT_RNG,

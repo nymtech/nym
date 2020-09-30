@@ -135,6 +135,8 @@ impl CacheInvalidator {
         }
     }
 
+    /// Handles received action. Return `bool` indicates whether the invalidator
+    /// should terminate.
     fn handle_action(&mut self, action: Option<InvalidatorAction>) -> bool {
         if action.is_none() {
             return true;

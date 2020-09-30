@@ -31,7 +31,7 @@ impl PacketProcessor {
     pub(crate) fn new(
         encryption_key: &encryption::PrivateKey,
         metrics_reporter: metrics::MetricsReporter,
-        cache_entry_ttl: Duration
+        cache_entry_ttl: Duration,
     ) -> Self {
         PacketProcessor {
             inner_processor: CachedPacketProcessor::new(encryption_key.into(), cache_entry_ttl),

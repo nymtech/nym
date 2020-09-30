@@ -115,7 +115,7 @@ impl MixNode {
             );
         }
         println!(
-            "Received SIGINT - the gateway will terminate now (threads are not YET nicely stopped)"
+            "Received SIGINT - the mixnode will terminate now (threads are not YET nicely stopped)"
         );
     }
 

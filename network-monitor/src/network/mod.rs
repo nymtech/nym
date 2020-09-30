@@ -79,15 +79,15 @@ impl Monitor {
     /// For example, we should be able to send ourselves a Sphinx packet (and receive it
     /// via the websocket, which currently fails.
     async fn sanity_check(&mut self) {
-        let recipient = self.config.self_address.clone();
-        let messages = self.prepare_messages("hello".to_string(), recipient).await;
+        let me = self.config.self_address.clone();
+        let messages = self.prepare_messages("hello".to_string(), me).await;
         self.send_messages(messages).await;
     }
 
     pub async fn prepare_messages(
         &self,
         message: String,
-        recipient: Recipient,
+        me: Recipient,
     ) -> Vec<(NymNodeRoutingAddress, SphinxPacket)> {
         let message_bytes = message.into_bytes();
 
@@ -95,7 +95,7 @@ impl Monitor {
 
         let mut message_preparer = MessagePreparer::new(
             DEFAULT_RNG,
-            recipient,
+            me,
             DEFAULT_AVERAGE_PACKET_DELAY,
             DEFAULT_AVERAGE_ACK_DELAY,
         );
@@ -110,7 +110,7 @@ impl Monitor {
         for message_chunk in split_message {
             // don't bother with acks etc. for time being
             let prepared_fragment = message_preparer
-                .prepare_chunk_for_sending(message_chunk, &topology, &ack_key, &recipient) //2 was  &self.ack_key
+                .prepare_chunk_for_sending(message_chunk, &topology, &ack_key, &me) //2 was  &self.ack_key
                 .unwrap();
 
             socket_messages.push((

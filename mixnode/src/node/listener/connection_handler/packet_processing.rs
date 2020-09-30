@@ -19,6 +19,7 @@ use mixnode_common::cached_packet_processor::processor::CachedPacketProcessor;
 pub use mixnode_common::cached_packet_processor::processor::MixProcessingResult;
 use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx::framing::packet::FramedSphinxPacket;
+use tokio::time::Duration;
 
 // PacketProcessor contains all data required to correctly unwrap and forward sphinx packets
 pub struct PacketProcessor {
@@ -30,9 +31,10 @@ impl PacketProcessor {
     pub(crate) fn new(
         encryption_key: &encryption::PrivateKey,
         metrics_reporter: metrics::MetricsReporter,
+        cache_entry_ttl: Duration
     ) -> Self {
         PacketProcessor {
-            inner_processor: CachedPacketProcessor::new(encryption_key.into()),
+            inner_processor: CachedPacketProcessor::new(encryption_key.into(), cache_entry_ttl),
             metrics_reporter,
         }
     }

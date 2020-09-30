@@ -48,14 +48,12 @@ pub struct CachedPacketProcessor {
     vpn_key_cache: KeyCache,
 }
 
-const DEFAULT_TIME_TO_LIVE: Duration = Duration::from_secs(30);
-
 impl CachedPacketProcessor {
     /// Creates new instance of `CachedPacketProcessor`
-    pub fn new(sphinx_key: PrivateKey) -> Self {
+    pub fn new(sphinx_key: PrivateKey, cache_entry_ttl: Duration) -> Self {
         CachedPacketProcessor {
             sphinx_key: Arc::new(sphinx_key),
-            vpn_key_cache: KeyCache::new(DEFAULT_TIME_TO_LIVE),
+            vpn_key_cache: KeyCache::new(cache_entry_ttl),
         }
     }
 
@@ -63,7 +61,7 @@ impl CachedPacketProcessor {
     pub fn clone_without_cache(&self) -> Self {
         CachedPacketProcessor {
             sphinx_key: self.sphinx_key.clone(),
-            vpn_key_cache: KeyCache::new(DEFAULT_TIME_TO_LIVE),
+            vpn_key_cache: KeyCache::new(self.vpn_key_cache.cache_entry_ttl()),
         }
     }
 
@@ -285,7 +283,7 @@ mod tests {
 
     fn fixture() -> CachedPacketProcessor {
         let local_keys = keygen();
-        CachedPacketProcessor::new(local_keys.0)
+        CachedPacketProcessor::new(local_keys.0, Duration::from_secs(30))
     }
 
     fn make_valid_final_sphinx_packet(size: PacketSize, public_key: PublicKey) -> SphinxPacket {
@@ -347,7 +345,7 @@ mod tests {
     #[tokio::test]
     async fn caching_keys_updates_local_state_for_final_hop() {
         let local_keys = keygen();
-        let processor = CachedPacketProcessor::new(local_keys.0);
+        let processor = CachedPacketProcessor::new(local_keys.0, Duration::from_secs(30));
         assert!(processor.vpn_key_cache.is_empty());
 
         let final_hop = make_valid_final_sphinx_packet(Default::default(), local_keys.1);
@@ -371,7 +369,7 @@ mod tests {
     #[tokio::test]
     async fn caching_keys_updates_local_state_for_forward_hop() {
         let local_keys = keygen();
-        let processor = CachedPacketProcessor::new(local_keys.0);
+        let processor = CachedPacketProcessor::new(local_keys.0, Duration::from_secs(30));
         assert!(processor.vpn_key_cache.is_empty());
 
         let forward_hop = make_valid_forward_sphinx_packet(Default::default(), local_keys.1);
@@ -398,7 +396,7 @@ mod tests {
     #[tokio::test]
     async fn performing_initial_unwrapping_caches_keys_if_vpnmode_used_for_final_hop() {
         let local_keys = keygen();
-        let processor = CachedPacketProcessor::new(local_keys.0);
+        let processor = CachedPacketProcessor::new(local_keys.0, Duration::from_secs(30));
         assert!(processor.vpn_key_cache.is_empty());
 
         let final_hop = make_valid_final_sphinx_packet(Default::default(), local_keys.1);
@@ -411,7 +409,7 @@ mod tests {
     #[tokio::test]
     async fn performing_initial_unwrapping_caches_keys_if_vpnmode_used_for_forward_hop() {
         let local_keys = keygen();
-        let processor = CachedPacketProcessor::new(local_keys.0);
+        let processor = CachedPacketProcessor::new(local_keys.0, Duration::from_secs(30));
         assert!(processor.vpn_key_cache.is_empty());
 
         let forward_hop = make_valid_forward_sphinx_packet(Default::default(), local_keys.1);
@@ -424,7 +422,7 @@ mod tests {
     #[tokio::test]
     async fn performing_initial_unwrapping_does_no_caching_for_mix_mode_for_final_hop() {
         let local_keys = keygen();
-        let processor = CachedPacketProcessor::new(local_keys.0);
+        let processor = CachedPacketProcessor::new(local_keys.0, Duration::from_secs(30));
         assert!(processor.vpn_key_cache.is_empty());
 
         let final_hop = make_valid_final_sphinx_packet(Default::default(), local_keys.1);
@@ -437,7 +435,7 @@ mod tests {
     #[tokio::test]
     async fn performing_initial_unwrapping_does_no_caching_for_mix_mode_for_forward_hop() {
         let local_keys = keygen();
-        let processor = CachedPacketProcessor::new(local_keys.0);
+        let processor = CachedPacketProcessor::new(local_keys.0, Duration::from_secs(30));
         assert!(processor.vpn_key_cache.is_empty());
 
         let forward_hop = make_valid_forward_sphinx_packet(Default::default(), local_keys.1);

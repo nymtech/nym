@@ -27,6 +27,7 @@ type CachedKeys = (Option<SharedSecret>, RoutingKeys);
 pub(super) struct KeyCache {
     vpn_key_cache: Arc<DashMap<SharedSecret, CachedKeys>>,
     invalidator_sender: InvalidatorActionSender,
+    cache_entry_ttl: Duration,
 }
 
 impl Drop for KeyCache {
@@ -60,6 +61,7 @@ impl KeyCache {
         KeyCache {
             vpn_key_cache: cache,
             invalidator_sender: sender,
+            cache_entry_ttl,
         }
     }
 
@@ -80,6 +82,10 @@ impl KeyCache {
     // ElementGuard has Deref for CachedKeys so that's fine
     pub(super) fn get(&self, key: &SharedSecret) -> Option<ElementGuard<SharedSecret, CachedKeys>> {
         self.vpn_key_cache.get(key)
+    }
+
+    pub(super) fn cache_entry_ttl(&self) -> Duration {
+        self.cache_entry_ttl
     }
 
     #[cfg(test)]

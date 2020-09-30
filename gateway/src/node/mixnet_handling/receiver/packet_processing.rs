@@ -19,6 +19,7 @@ use mixnode_common::cached_packet_processor::processor::{
     CachedPacketProcessor, ProcessedFinalHop,
 };
 use nymsphinx::framing::packet::FramedSphinxPacket;
+use tokio::time::Duration;
 
 #[derive(Debug)]
 pub enum GatewayProcessingError {
@@ -40,9 +41,9 @@ pub struct PacketProcessor {
 }
 
 impl PacketProcessor {
-    pub(crate) fn new(encryption_key: &encryption::PrivateKey) -> Self {
+    pub(crate) fn new(encryption_key: &encryption::PrivateKey, cache_entry_ttl: Duration) -> Self {
         PacketProcessor {
-            inner_processor: CachedPacketProcessor::new(encryption_key.into()),
+            inner_processor: CachedPacketProcessor::new(encryption_key.into(), cache_entry_ttl),
         }
     }
 

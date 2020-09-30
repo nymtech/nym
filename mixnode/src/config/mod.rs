@@ -36,6 +36,7 @@ const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: u64 = 60_000; // 1min
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: u64 = 10_000; // 10s
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: u64 = 300_000; // 5min
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: u64 = 1_500; // 1.5s
+const DEFAULT_CACHE_ENTRY_TTL: u64 = 30_000;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -257,6 +258,10 @@ impl Config {
     pub fn get_initial_connection_timeout(&self) -> time::Duration {
         time::Duration::from_millis(self.debug.initial_connection_timeout)
     }
+
+    pub fn get_cache_entry_ttl(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.cache_entry_ttl)
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -375,6 +380,10 @@ pub struct Debug {
     /// Timeout for establishing initial connection when trying to forward a sphinx packet.
     /// The provider value is interpreted as milliseconds.
     initial_connection_timeout: u64,
+
+    /// Duration for which a cached vpn processing result is going to get stored for.
+    /// The provided value is interpreted as milliseconds.
+    cache_entry_ttl: u64,
 }
 
 impl Default for Debug {
@@ -386,6 +395,7 @@ impl Default for Debug {
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
+            cache_entry_ttl: DEFAULT_CACHE_ENTRY_TTL,
         }
     }
 }

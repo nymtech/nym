@@ -334,8 +334,8 @@ mod tests {
             .unwrap()
     }
 
-    #[test]
-    fn recomputing_routing_keys_derives_correct_set_of_keys() {
+    #[tokio::test]
+    async fn recomputing_routing_keys_derives_correct_set_of_keys() {
         let processor = fixture();
         let (_, initial_secret) = keygen();
         assert_eq!(
@@ -344,9 +344,8 @@ mod tests {
         )
     }
 
-    #[test]
-    // even though we're not `mut`
-    fn caching_keys_updates_local_state_for_final_hop() {
+    #[tokio::test]
+    async fn caching_keys_updates_local_state_for_final_hop() {
         let local_keys = keygen();
         let processor = CachedPacketProcessor::new(local_keys.0);
         assert!(processor.vpn_key_cache.is_empty());
@@ -369,9 +368,8 @@ mod tests {
         );
     }
 
-    #[test]
-    // even though we're not `mut`
-    fn caching_keys_updates_local_state_for_forward_hop() {
+    #[tokio::test]
+    async fn caching_keys_updates_local_state_for_forward_hop() {
         let local_keys = keygen();
         let processor = CachedPacketProcessor::new(local_keys.0);
         assert!(processor.vpn_key_cache.is_empty());
@@ -397,8 +395,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn performing_initial_unwrapping_caches_keys_if_vpnmode_used_for_final_hop() {
+    #[tokio::test]
+    async fn performing_initial_unwrapping_caches_keys_if_vpnmode_used_for_final_hop() {
         let local_keys = keygen();
         let processor = CachedPacketProcessor::new(local_keys.0);
         assert!(processor.vpn_key_cache.is_empty());
@@ -410,8 +408,8 @@ mod tests {
         assert_eq!(processor.vpn_key_cache.len(), 1);
     }
 
-    #[test]
-    fn performing_initial_unwrapping_caches_keys_if_vpnmode_used_for_forward_hop() {
+    #[tokio::test]
+    async fn performing_initial_unwrapping_caches_keys_if_vpnmode_used_for_forward_hop() {
         let local_keys = keygen();
         let processor = CachedPacketProcessor::new(local_keys.0);
         assert!(processor.vpn_key_cache.is_empty());
@@ -423,8 +421,8 @@ mod tests {
         assert_eq!(processor.vpn_key_cache.len(), 1);
     }
 
-    #[test]
-    fn performing_initial_unwrapping_does_no_caching_for_mix_mode_for_final_hop() {
+    #[tokio::test]
+    async fn performing_initial_unwrapping_does_no_caching_for_mix_mode_for_final_hop() {
         let local_keys = keygen();
         let processor = CachedPacketProcessor::new(local_keys.0);
         assert!(processor.vpn_key_cache.is_empty());
@@ -436,8 +434,8 @@ mod tests {
         assert!(processor.vpn_key_cache.is_empty());
     }
 
-    #[test]
-    fn performing_initial_unwrapping_does_no_caching_for_mix_mode_for_forward_hop() {
+    #[tokio::test]
+    async fn performing_initial_unwrapping_does_no_caching_for_mix_mode_for_forward_hop() {
         let local_keys = keygen();
         let processor = CachedPacketProcessor::new(local_keys.0);
         assert!(processor.vpn_key_cache.is_empty());
@@ -449,8 +447,8 @@ mod tests {
         assert!(processor.vpn_key_cache.is_empty());
     }
 
-    #[test]
-    fn splitting_hop_data_works_for_sufficiently_long_payload() {
+    #[tokio::test]
+    async fn splitting_hop_data_works_for_sufficiently_long_payload() {
         let processor = fixture();
 
         let short_data = vec![42u8];
@@ -473,8 +471,8 @@ mod tests {
         assert_eq!(data.len(), SURBAck::len() * 4)
     }
 
-    #[test]
-    fn splitting_into_ack_and_message_returns_whole_data_for_ack() {
+    #[tokio::test]
+    async fn splitting_into_ack_and_message_returns_whole_data_for_ack() {
         let processor = fixture();
 
         let data = vec![42u8; SURBAck::len() + 10];

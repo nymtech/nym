@@ -64,9 +64,19 @@ impl ConnectionHandler {
     }
 
     pub(crate) fn clone_without_cache(&self) -> Self {
+        // TODO: should this be even cloned?
+        let senders_cache = DashMap::with_capacity(self.available_socket_senders_cache.capacity());
+        for element_guard in self.available_socket_senders_cache.iter() {
+            let (k, v) = element_guard.pair();
+            // TODO: this will be made redundant once there's some cache invalidator mechanism here
+            if !v.is_closed() {
+                senders_cache.insert(k.clone(), v.clone());
+            }
+        }
+
         ConnectionHandler {
             packet_processor: self.packet_processor.clone_without_key_cache(),
-            available_socket_senders_cache: self.available_socket_senders_cache.clone(), // TODO: should this be cloned?
+            available_socket_senders_cache: senders_cache,
             client_store: self.client_store.clone(),
             clients_handler_sender: self.clients_handler_sender.clone(),
             ack_sender: self.ack_sender.clone(),
@@ -91,11 +101,7 @@ impl ConnectionHandler {
     }
 
     fn remove_stale_client_sender(&self, client_address: &DestinationAddressBytes) {
-        if self
-            .available_socket_senders_cache
-            .remove(client_address)
-            .is_none()
-        {
+        if !self.available_socket_senders_cache.remove(client_address) {
             warn!(
                 "Tried to remove stale entry for non-existent client sender: {}",
                 client_address
@@ -140,7 +146,6 @@ impl ConnectionHandler {
         if self
             .available_socket_senders_cache
             .insert(client_address, client_sender.clone())
-            .is_some()
         {
             // this warning is harmless, but I want to see if it's realistically for it to even occur
             warn!("Other thread already updated cache for client sender!")

@@ -31,7 +31,7 @@ const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
 
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
-const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 1500; // 1.5s
+const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 10_000; // 10s
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: u64 = 10_000; // 10s
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: u64 = 300_000; // 5min
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: u64 = 1_500; // 1.5s

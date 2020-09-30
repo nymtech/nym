@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::cached_packet_processor::cache::KeyCache;
 use crate::cached_packet_processor::error::MixProcessingError;
-use dashmap::DashMap;
 use log::*;
 use nymsphinx_acknowledgements::surb_ack::SURBAck;
 use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
@@ -27,6 +27,7 @@ use nymsphinx_types::{
 };
 use std::convert::TryFrom;
 use std::sync::Arc;
+use tokio::time::Duration;
 
 type ForwardAck = MixPacket;
 type CachedKeys = (Option<SharedSecret>, RoutingKeys);
@@ -44,19 +45,17 @@ pub enum MixProcessingResult {
 
 pub struct CachedPacketProcessor {
     sphinx_key: Arc<PrivateKey>,
-
-    // TODO: method for cache invalidation so that we wouldn't keep all keys for all eternity
-    // we could use our friend DelayQueue. One of tokio's examples is literally using it for
-    // cache invalidation: https://docs.rs/tokio/0.2.22/tokio/time/struct.DelayQueue.html
-    vpn_key_cache: DashMap<SharedSecret, CachedKeys>,
+    vpn_key_cache: KeyCache,
 }
+
+const DEFAULT_TIME_TO_LIVE: Duration = Duration::from_secs(30);
 
 impl CachedPacketProcessor {
     /// Creates new instance of `CachedPacketProcessor`
     pub fn new(sphinx_key: PrivateKey) -> Self {
         CachedPacketProcessor {
             sphinx_key: Arc::new(sphinx_key),
-            vpn_key_cache: DashMap::new(),
+            vpn_key_cache: KeyCache::new(DEFAULT_TIME_TO_LIVE),
         }
     }
 
@@ -64,7 +63,7 @@ impl CachedPacketProcessor {
     pub fn clone_without_cache(&self) -> Self {
         CachedPacketProcessor {
             sphinx_key: self.sphinx_key.clone(),
-            vpn_key_cache: DashMap::new(),
+            vpn_key_cache: KeyCache::new(DEFAULT_TIME_TO_LIVE),
         }
     }
 
@@ -111,9 +110,8 @@ impl CachedPacketProcessor {
         if self
             .vpn_key_cache
             .insert(initial_secret, (new_shared_secret, routing_keys))
-            .is_some()
         {
-            warn!("We seem to have some weird replay issue - we already had cached keys for this packet!")
+            debug!("Other thread has already cached keys for this secret!")
         }
     }
 

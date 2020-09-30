@@ -16,10 +16,10 @@ use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 use tokio::stream::Stream;
-use tokio::time::{
-    delay_queue::{self, Expired},
-    DelayQueue,
-};
+pub use tokio::time::delay_queue::Expired;
+use tokio::time::{delay_queue, DelayQueue};
+
+pub type QueueKey = delay_queue::Key;
 
 /// A variant of tokio's `DelayQueue`, such that its `Stream` implementation will never return a 'None'.
 pub struct NonExhaustiveDelayQueue<T> {
@@ -36,7 +36,7 @@ impl<T> NonExhaustiveDelayQueue<T> {
         }
     }
 
-    pub fn insert(&mut self, value: T, timeout: Duration) -> delay_queue::Key {
+    pub fn insert(&mut self, value: T, timeout: Duration) -> QueueKey {
         let key = self.inner.insert(value, timeout);
         if let Some(waker) = self.waker.take() {
             // we were waiting for an item - wake the executor!
@@ -47,7 +47,7 @@ impl<T> NonExhaustiveDelayQueue<T> {
 
     // TODO: it seems like this one can cause panic in very rare edge cases, however,
     // I can't seem to be able to reproduce it at all.
-    pub fn remove(&mut self, key: &delay_queue::Key) -> Expired<T> {
+    pub fn remove(&mut self, key: &QueueKey) -> Expired<T> {
         self.inner.remove(key)
     }
 }
@@ -67,3 +67,10 @@ impl<T> Stream for NonExhaustiveDelayQueue<T> {
         }
     }
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//
+//
+// }

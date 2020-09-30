@@ -15,6 +15,7 @@
 use crate::requests::health_check_get::Request as HealthCheckRequest;
 use crate::requests::metrics_mixes_get::Request as MetricsMixRequest;
 use crate::requests::metrics_mixes_post::Request as MetricsMixPost;
+use crate::requests::mix_mining_status_post::Request as MixMiningStatusPost;
 use crate::requests::presence_coconodes_post::Request as PresenceCocoNodesPost;
 use crate::requests::presence_gateways_post::Request as PresenceGatewayPost;
 use crate::requests::presence_mixnodes_post::Request as PresenceMixNodesPost;
@@ -25,10 +26,11 @@ use directory_client_models::presence::{
     coconodes::CocoPresence, gateways::GatewayPresence, mixnodes::MixNodePresence,
     providers::MixProviderPresence,
 };
+use mixmining::MixStatus;
 use requests::{health_check_get::HealthCheckResponse, DirectoryGetRequest, DirectoryPostRequest};
 
 pub use directory_client_models::{
-    metrics,
+    metrics, mixmining,
     presence::{self, Topology},
 };
 
@@ -120,6 +122,14 @@ impl Client {
         presence: MixNodePresence,
     ) -> reqwest::Result<reqwest::Response> {
         let req = PresenceMixNodesPost::new(&self.base_url, presence);
+        self.post(req).await
+    }
+
+    pub async fn post_mixmining_status(
+        &self,
+        status: MixStatus,
+    ) -> reqwest::Result<reqwest::Response> {
+        let req = MixMiningStatusPost::new(&self.base_url, status);
         self.post(req).await
     }
 

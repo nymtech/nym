@@ -19,19 +19,19 @@ use futures::future::{abortable, AbortHandle};
 use futures::task::Poll;
 use futures::{SinkExt, StreamExt};
 use log::*;
-use nymsphinx::SphinxPacket;
+use nymsphinx::framing::packet::FramedSphinxPacket;
 use std::io;
 use std::net::SocketAddr;
 use std::time::Duration;
-use tokio::runtime::Handle;
 
 mod reconnector;
 mod writer;
 
 pub(crate) type ResponseSender = Option<oneshot::Sender<io::Result<()>>>;
 
-pub(crate) type ConnectionManagerSender = mpsc::UnboundedSender<(SphinxPacket, ResponseSender)>;
-type ConnectionManagerReceiver = mpsc::UnboundedReceiver<(SphinxPacket, ResponseSender)>;
+pub(crate) type ConnectionManagerSender =
+    mpsc::UnboundedSender<(FramedSphinxPacket, ResponseSender)>;
+type ConnectionManagerReceiver = mpsc::UnboundedReceiver<(FramedSphinxPacket, ResponseSender)>;
 
 enum ConnectionState<'a> {
     Writing(ConnectionWriter),
@@ -96,8 +96,8 @@ impl<'a> ConnectionManager<'static> {
 
     async fn run(mut self) {
         while let Some(msg) = self.conn_rx.next().await {
-            let (msg_content, res_ch) = msg;
-            let res = self.handle_new_packet(msg_content).await;
+            let (framed_packet, res_ch) = msg;
+            let res = self.handle_new_packet(framed_packet).await;
             if let Some(res_ch) = res_ch {
                 if let Err(e) = res_ch.send(res) {
                     error!(
@@ -110,11 +110,11 @@ impl<'a> ConnectionManager<'static> {
     }
 
     /// consumes Self and returns channel for communication as well as an `AbortHandle`
-    pub(crate) fn start_abortable(self, handle: &Handle) -> (ConnectionManagerSender, AbortHandle) {
+    pub(crate) fn spawn_abortable(self) -> (ConnectionManagerSender, AbortHandle) {
         let sender_clone = self.conn_tx.clone();
         let (abort_fut, abort_handle) = abortable(self.run());
 
-        handle.spawn(async move { abort_fut.await });
+        tokio::spawn(async move { abort_fut.await });
 
         (sender_clone, abort_handle)
     }
@@ -122,7 +122,7 @@ impl<'a> ConnectionManager<'static> {
     // Possible future TODO: `Framed<...>` is both a Sink and a Stream,
     // so it is possible to read any responses we might receive (it is also duplex, so that could be
     // done while writing packets themselves). But it'd require slight additions to `SphinxCodec`
-    async fn handle_new_packet(&mut self, packet: SphinxPacket) -> io::Result<()> {
+    async fn handle_new_packet(&mut self, packet: FramedSphinxPacket) -> io::Result<()> {
         // we don't do a match here as it's possible to transition from ConnectionState::Reconnecting to ConnectionState::Writing
         // in this function call. And if that happens, we want to send the packet we have received.
         if let ConnectionState::Reconnecting(conn_reconnector) = &mut self.state {
@@ -145,7 +145,7 @@ impl<'a> ConnectionManager<'static> {
         // we must be in writing state if we are here, either by being here from beginning or just
         // transitioning from reconnecting
         if let ConnectionState::Writing(conn_writer) = &mut self.state {
-            if let Err(e) = conn_writer.send(packet).await {
+            return if let Err(e) = conn_writer.send(packet).await {
                 warn!(
                     "Failed to forward message - {:?}. Starting reconnection procedure...",
                     e
@@ -155,13 +155,13 @@ impl<'a> ConnectionManager<'static> {
                     self.reconnection_backoff,
                     self.maximum_reconnection_backoff,
                 ));
-                return Err(io::Error::new(
+                Err(io::Error::new(
                     io::ErrorKind::BrokenPipe,
                     "connection is broken - reconnection is in progress",
-                ));
+                ))
             } else {
-                return Ok(());
-            }
+                Ok(())
+            };
         }
 
         unreachable!();

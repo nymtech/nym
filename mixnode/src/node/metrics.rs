@@ -21,7 +21,6 @@ use log::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
-use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 type SentMetricsMap = HashMap<String, u64>;
@@ -88,8 +87,8 @@ impl MetricsReceiver {
         }
     }
 
-    fn start(mut self, handle: &Handle) -> JoinHandle<()> {
-        handle.spawn(async move {
+    fn start(mut self) -> JoinHandle<()> {
+        tokio::spawn(async move {
             while let Some(metrics_data) = self.metrics_rx.next().await {
                 match metrics_data {
                     MetricEvent::Received => self.metrics.increment_received_metrics().await,
@@ -129,8 +128,8 @@ impl MetricsSender {
         }
     }
 
-    fn start(mut self, handle: &Handle) -> JoinHandle<()> {
-        handle.spawn(async move {
+    fn start(mut self) -> JoinHandle<()> {
+        tokio::spawn(async move {
             loop {
                 // set the deadline in the future
                 let sending_delay = tokio::time::delay_for(self.sending_delay);
@@ -283,10 +282,10 @@ impl MetricsController {
     }
 
     // reporter is how node is going to be accessing the metrics data
-    pub(crate) fn start(self, handle: &Handle) -> MetricsReporter {
+    pub(crate) fn start(self) -> MetricsReporter {
         // TODO: should we do anything with JoinHandle(s) returned by start methods?
-        self.receiver.start(handle);
-        self.sender.start(handle);
+        self.receiver.start();
+        self.sender.start();
         self.reporter
     }
 }

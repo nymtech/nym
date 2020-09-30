@@ -23,7 +23,7 @@ use client_core::client::inbound_messages::{
 };
 use client_core::client::key_manager::KeyManager;
 use client_core::client::mix_traffic::{
-    MixMessageReceiver, MixMessageSender, MixTrafficController,
+    BatchMixMessageReceiver, BatchMixMessageSender, MixTrafficController,
 };
 use client_core::client::real_messages_control::RealMessagesController;
 use client_core::client::received_buffer::{
@@ -43,6 +43,7 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
+use nymsphinx::params::PacketMode;
 use tokio::runtime::Runtime;
 
 pub(crate) mod config;
@@ -88,7 +89,7 @@ impl NymClient {
     fn start_cover_traffic_stream(
         &self,
         topology_accessor: TopologyAccessor,
-        mix_tx: MixMessageSender,
+        mix_tx: BatchMixMessageSender,
     ) {
         info!("Starting loop cover traffic stream...");
         // we need to explicitly enter runtime due to "next_delay: time::delay_for(Default::default())"
@@ -116,8 +117,14 @@ impl NymClient {
         reply_key_storage: ReplyKeyStorage,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
-        mix_sender: MixMessageSender,
+        mix_sender: BatchMixMessageSender,
     ) {
+        let packet_mode = if self.config.get_base().get_vpn_mode() {
+            PacketMode::VPN
+        } else {
+            PacketMode::Mix
+        };
+
         let controller_config = client_core::client::real_messages_control::Config::new(
             self.key_manager.ack_key(),
             self.config.get_base().get_ack_wait_multiplier(),
@@ -126,6 +133,8 @@ impl NymClient {
             self.config.get_base().get_message_sending_average_delay(),
             self.config.get_base().get_average_packet_delay(),
             self.as_mix_recipient(),
+            packet_mode,
+            self.config.get_base().get_vpn_key_reuse_limit(),
         );
 
         info!("Starting real traffic stream...");
@@ -142,7 +151,8 @@ impl NymClient {
                 reply_key_storage,
             )
         });
-        real_messages_controller.start(self.runtime.handle());
+        real_messages_controller
+            .start(self.runtime.handle(), self.config.get_base().get_vpn_mode());
     }
 
     // buffer controlling all messages fetched from provider
@@ -238,7 +248,7 @@ impl NymClient {
     // requests?
     fn start_mix_traffic_controller(
         &mut self,
-        mix_rx: MixMessageReceiver,
+        mix_rx: BatchMixMessageReceiver,
         gateway_client: GatewayClient,
     ) {
         info!("Starting mix traffic controller...");

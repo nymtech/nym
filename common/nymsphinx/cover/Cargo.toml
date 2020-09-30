@@ -14,5 +14,6 @@ nymsphinx-acknowledgements = { path = "../acknowledgements" }
 nymsphinx-addressing = { path = "../addressing" }
 nymsphinx-chunking = { path = "../chunking" }
 nymsphinx-params = { path = "../params" }
+nymsphinx-forwarding = { path = "../forwarding" }
 nymsphinx-types = { path = "../types" }
 topology = { path = "../../topology" }

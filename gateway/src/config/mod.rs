@@ -35,6 +35,7 @@ const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 10_000; // 10s
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: u64 = 10_000; // 10s
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: u64 = 300_000; // 5min
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: u64 = 1_500; // 1.5s
+const DEFAULT_CACHE_ENTRY_TTL: u64 = 30_000;
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: u16 = 5;
@@ -397,6 +398,10 @@ impl Config {
     pub fn get_stored_messages_filename_length(&self) -> u16 {
         self.debug.stored_messages_filename_length
     }
+
+    pub fn get_cache_entry_ttl(&self) -> time::Duration {
+        time::Duration::from_millis(self.debug.cache_entry_ttl)
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -578,6 +583,10 @@ pub struct Debug {
     /// if there are no real messages, dummy ones are create to always return  
     /// `message_retrieval_limit` total messages
     message_retrieval_limit: u16,
+
+    /// Duration for which a cached vpn processing result is going to get stored for.
+    /// The provided value is interpreted as milliseconds.
+    cache_entry_ttl: u64,
 }
 
 impl Default for Debug {
@@ -589,6 +598,7 @@ impl Default for Debug {
             presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
             stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+            cache_entry_ttl: DEFAULT_CACHE_ENTRY_TTL,
         }
     }
 }

@@ -16,7 +16,7 @@ use super::action_controller::{Action, ActionSender};
 use super::PendingAcknowledgement;
 use super::RetransmissionRequestReceiver;
 use crate::client::{
-    real_messages_control::real_traffic_stream::{RealMessage, RealMessageSender},
+    real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
     topology_control::TopologyAccessor,
 };
 use futures::StreamExt;
@@ -35,7 +35,7 @@ where
     ack_recipient: Recipient,
     message_preparer: MessagePreparer<R>,
     action_sender: ActionSender,
-    real_message_sender: RealMessageSender,
+    real_message_sender: BatchRealMessageSender,
     request_receiver: RetransmissionRequestReceiver,
     topology_access: TopologyAccessor,
 }
@@ -49,7 +49,7 @@ where
         ack_recipient: Recipient,
         message_preparer: MessagePreparer<R>,
         action_sender: ActionSender,
-        real_message_sender: RealMessageSender,
+        real_message_sender: BatchRealMessageSender,
         request_receiver: RetransmissionRequestReceiver,
         topology_access: TopologyAccessor,
     ) -> Self {
@@ -94,6 +94,7 @@ where
         let prepared_fragment = self
             .message_preparer
             .prepare_chunk_for_sending(chunk_clone, topology_ref, &self.ack_key, packet_recipient)
+            .await
             .unwrap();
 
         // if we have the ONLY strong reference to the ack data, it means it was removed from the
@@ -123,11 +124,10 @@ where
 
         // send to `OutQueueControl` to eventually send to the mix network
         self.real_message_sender
-            .unbounded_send(RealMessage::new(
-                prepared_fragment.first_hop_address,
-                prepared_fragment.sphinx_packet,
+            .unbounded_send(vec![RealMessage::new(
+                prepared_fragment.mix_packet,
                 frag_id,
-            ))
+            )])
             .unwrap();
     }
 

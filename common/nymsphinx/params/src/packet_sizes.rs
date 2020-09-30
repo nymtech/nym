@@ -28,10 +28,11 @@ const ACK_IV_SIZE: usize = 16;
 const ACK_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + ACK_IV_SIZE + FRAG_ID_LEN;
 const EXTENDED_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 32 * 1024;
 
+#[derive(Debug)]
 pub struct InvalidPacketSize;
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PacketSize {
     RegularPacket = 1,
     // for example instant messaging use case

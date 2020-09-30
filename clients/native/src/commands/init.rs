@@ -64,6 +64,17 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .help("Port for the socket (if applicable) to listen on in all subsequent runs")
             .takes_value(true)
         )
+        .arg(Arg::with_name("vpn-mode")
+            .long("vpn-mode")
+            .help("Set the vpn mode of the client")
+            .long_help(
+                r#" 
+                    Special mode of the system such that all messages are sent as soon as they are received
+                    and no cover traffic is generated. If set all message delays are set to 0 and overwriting
+                    'Debug' values will have no effect.
+                "#
+            )
+        )
         .arg(Arg::with_name("fastmode")
             .long("fastmode")
             .hidden(true) // this will prevent this flag from being displayed in `--help`

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use self::vpn_manager::VPNManager;
 use crate::chunking;
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
@@ -24,17 +25,20 @@ use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADD
 use nymsphinx_anonymous_replies::encryption_key::SURBEncryptionKey;
 use nymsphinx_anonymous_replies::reply_surb::ReplySURB;
 use nymsphinx_chunking::fragment::{Fragment, FragmentIdentifier};
+use nymsphinx_forwarding::packet::MixPacket;
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_params::{
-    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySURBEncryptionAlgorithm,
+    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketMode, ReplySURBEncryptionAlgorithm,
     ReplySURBKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS,
 };
 use nymsphinx_types::builder::SphinxPacketBuilder;
-use nymsphinx_types::{delays, Delay, SphinxPacket};
+use nymsphinx_types::{delays, Delay};
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::time::Duration;
 use topology::{NymTopology, NymTopologyError};
+
+mod vpn_manager;
 
 /// Represents fully packed and prepared [`Fragment`] that can be sent through the mix network.
 pub struct PreparedFragment {
@@ -42,11 +46,10 @@ pub struct PreparedFragment {
     /// until receiving the acknowledgement included inside of it.
     pub total_delay: Delay,
 
-    /// Indicates address of the node to which the message should be sent.
-    pub first_hop_address: NymNodeRoutingAddress,
-
-    /// The actual 'chunk' of the message that is going to go through the mix network.
-    pub sphinx_packet: SphinxPacket,
+    /// Indicates all data required to serialize and forward the data. It contains the actual
+    /// address of the node to which the message should be sent, the actual 'chunk' of the message
+    /// going through the mix network and also the 'mode' of the packet, i.e. VPN or Mix.
+    pub mix_packet: MixPacket,
 }
 
 #[derive(Debug)]
@@ -64,7 +67,7 @@ impl From<NymTopologyError> for PreparationError {
 /// Prepares the message that is to be sent through the mix network by attaching
 /// an optional reply-SURB, padding it to appropriate length, encrypting its content,
 /// and chunking into appropriate size [`Fragment`]s.
-#[derive(Debug, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Clone))]
 pub struct MessagePreparer<R: CryptoRng + Rng> {
     /// Instance of a cryptographically secure random number generator.
     rng: R,
@@ -85,6 +88,14 @@ pub struct MessagePreparer<R: CryptoRng + Rng> {
     /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
     /// Note that it does not include gateway hops.
     num_mix_hops: u8,
+
+    /// Mode of all mix packets created - VPN or Mix. They indicate whether packets should get delayed
+    /// and keys reused.
+    mode: PacketMode,
+
+    /// If the VPN mode is activated, this underlying secret will be used for multiple sphinx
+    /// packets created.
+    vpn_manager: Option<VPNManager>,
 }
 
 impl<R> MessagePreparer<R>
@@ -92,11 +103,22 @@ where
     R: CryptoRng + Rng,
 {
     pub fn new(
-        rng: R,
+        mut rng: R,
         sender_address: Recipient,
         average_packet_delay: Duration,
         average_ack_delay: Duration,
+        mode: PacketMode,
+        vpn_key_reuse_limit: Option<usize>,
     ) -> Self {
+        let vpn_manager = if mode.is_vpn() {
+            Some(VPNManager::new(
+                &mut rng,
+                vpn_key_reuse_limit.expect("No key reuse limit provided in vpn mode!"),
+            ))
+        } else {
+            None
+        };
+
         MessagePreparer {
             rng,
             packet_size: Default::default(),
@@ -104,6 +126,8 @@ where
             average_packet_delay,
             average_ack_delay,
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
+            mode,
+            vpn_manager,
         }
     }
 
@@ -218,7 +242,7 @@ where
     /// - compute vk_b = g^x || v_b
     /// - compute sphinx_plaintext = SURB_ACK || g^x || v_b
     /// - compute sphinx_packet = Sphinx(recipient, sphinx_plaintext)
-    pub fn prepare_chunk_for_sending(
+    pub async fn prepare_chunk_for_sending(
         &mut self,
         fragment: Fragment,
         topology: &NymTopology,
@@ -227,8 +251,19 @@ where
     ) -> Result<PreparedFragment, NymTopologyError> {
         // create an ack
         let (ack_delay, surb_ack_bytes) = self
-            .generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)?
+            .generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)
+            .await?
             .prepare_for_sending();
+
+        // TODO:
+        // TODO:
+        // TODO:
+        // TODO:
+        // TODO: ASK @AP AND @DH WHETHER THOSE KEYS CAN/SHOULD ALSO BE REUSED IN VPN MODE!!
+        // TODO:
+        // TODO:
+        // TODO:
+        // TODO:
 
         // create keys for 'payload' encryption
         let (ephemeral_keypair, shared_key) =
@@ -269,11 +304,20 @@ where
 
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.
-        // note: once merged, that's an easy rng injection point for sphinx packets : )
-        let sphinx_packet = SphinxPacketBuilder::new()
-            .with_payload_size(self.packet_size.payload_size())
-            .build_packet(packet_payload, &route, &destination, &delays)
-            .unwrap();
+        let sphinx_packet = if let Some(vpn_manager) = self.vpn_manager.as_mut() {
+            let initial_secret = vpn_manager.use_secret(&mut self.rng).await;
+
+            SphinxPacketBuilder::new()
+                .with_payload_size(self.packet_size.payload_size())
+                .with_initial_secret(&initial_secret)
+                .build_packet(packet_payload, &route, &destination, &delays)
+                .unwrap()
+        } else {
+            SphinxPacketBuilder::new()
+                .with_payload_size(self.packet_size.payload_size())
+                .build_packet(packet_payload, &route, &destination, &delays)
+                .unwrap()
+        };
 
         // from the previously constructed route extract the first hop
         let first_hop_address =
@@ -283,26 +327,39 @@ where
             // the round-trip delay is the sum of delays of all hops on the forward route as
             // well as the total delay of the ack packet.
             total_delay: delays.iter().sum::<Delay>() + ack_delay,
-            first_hop_address,
-            sphinx_packet,
+            mix_packet: MixPacket::new(first_hop_address, sphinx_packet, self.mode),
         })
     }
 
     /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
-    fn generate_surb_ack(
+    async fn generate_surb_ack(
         &mut self,
         fragment_id: FragmentIdentifier,
         topology: &NymTopology,
         ack_key: &AckKey,
     ) -> Result<SURBAck, NymTopologyError> {
-        SURBAck::construct(
-            &mut self.rng,
-            &self.sender_address,
-            ack_key,
-            fragment_id.to_bytes(),
-            self.average_ack_delay,
-            topology,
-        )
+        if let Some(vpn_manager) = self.vpn_manager.as_mut() {
+            let initial_secret = vpn_manager.use_secret(&mut self.rng).await;
+            SURBAck::construct(
+                &mut self.rng,
+                &self.sender_address,
+                ack_key,
+                fragment_id.to_bytes(),
+                self.average_ack_delay,
+                topology,
+                Some(&initial_secret),
+            )
+        } else {
+            SURBAck::construct(
+                &mut self.rng,
+                &self.sender_address,
+                ack_key,
+                fragment_id.to_bytes(),
+                self.average_ack_delay,
+                topology,
+                None,
+            )
+        }
     }
 
     /// Attaches an optional reply-surb and correct padding to the underlying message
@@ -323,13 +380,13 @@ where
     }
 
     // TODO: perhaps the return type could somehow be combined with [`PreparedFragment`] ?
-    pub fn prepare_reply_for_use(
+    pub async fn prepare_reply_for_use(
         &mut self,
         message: Vec<u8>,
         reply_surb: ReplySURB,
         topology: &NymTopology,
         ack_key: &AckKey,
-    ) -> Result<(FragmentIdentifier, SphinxPacket, NymNodeRoutingAddress), PreparationError> {
+    ) -> Result<(MixPacket, FragmentIdentifier), PreparationError> {
         // there's no chunking in reply-surbs so there's a hard limit on message,
         // we also need to put the key digest into the message (same size as ephemeral key)
         // and need 1 byte to indicate padding length (this is not the case for 'normal' messages
@@ -352,7 +409,8 @@ where
         // gateways could not distinguish reply packets from normal messages due to lack of said acks
         // note: the ack delay is irrelevant since we do not know the delay of actual surb
         let (_, surb_ack_bytes) = self
-            .generate_surb_ack(reply_id, topology, ack_key)?
+            .generate_surb_ack(reply_id, topology, ack_key)
+            .await?
             .prepare_for_sending();
 
         let zero_pad_len = self.packet_size.plaintext_size()
@@ -398,7 +456,7 @@ where
             .apply_surb(&packet_payload, Some(self.packet_size))
             .unwrap();
 
-        Ok((reply_id, packet, first_hop))
+        Ok((MixPacket::new(first_hop, packet, self.mode), reply_id))
     }
 
     #[allow(dead_code)]
@@ -414,6 +472,8 @@ where
             average_packet_delay: Default::default(),
             average_ack_delay: Default::default(),
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
+            mode: Default::default(),
+            vpn_manager: None,
         }
     }
 }

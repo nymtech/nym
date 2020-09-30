@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::time;
+use std::time::Duration;
 
 pub mod persistence;
 
@@ -27,13 +28,16 @@ const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
 
 // all delays are in milliseconds
-const DEFAULT_ACK_WAIT_ADDITION: u64 = 800;
+const DEFAULT_ACK_WAIT_ADDITION: u64 = 1_500;
 const DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY: u64 = 1000;
 const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: u64 = 100;
 const DEFAULT_AVERAGE_PACKET_DELAY: u64 = 100;
 const DEFAULT_TOPOLOGY_REFRESH_RATE: u64 = 30_000;
 const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: u64 = 5_000;
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: u64 = 1_500;
+const DEFAULT_VPN_KEY_REUSE_LIMIT: usize = 1000;
+
+const ZERO_DELAY: Duration = Duration::from_nanos(0);
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -128,6 +132,14 @@ impl<T: NymConfig> Config<T> {
         self.debug.message_sending_average_delay = 5; // 200 "real" messages / s
     }
 
+    pub fn set_vpn_mode(&mut self, vpn_mode: bool) {
+        self.client.vpn_mode = vpn_mode;
+    }
+
+    pub fn set_vpn_key_reuse_limit(&mut self, reuse_limit: usize) {
+        self.debug.vpn_key_reuse_limit = Some(reuse_limit)
+    }
+
     pub fn get_id(&self) -> String {
         self.client.id.clone()
     }
@@ -178,11 +190,19 @@ impl<T: NymConfig> Config<T> {
 
     // Debug getters
     pub fn get_average_packet_delay(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.average_packet_delay)
+        if self.client.vpn_mode {
+            ZERO_DELAY
+        } else {
+            time::Duration::from_millis(self.debug.average_packet_delay)
+        }
     }
 
     pub fn get_average_ack_delay(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.average_ack_delay)
+        if self.client.vpn_mode {
+            ZERO_DELAY
+        } else {
+            time::Duration::from_millis(self.debug.average_ack_delay)
+        }
     }
 
     pub fn get_ack_wait_multiplier(&self) -> f64 {
@@ -198,7 +218,11 @@ impl<T: NymConfig> Config<T> {
     }
 
     pub fn get_message_sending_average_delay(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.message_sending_average_delay)
+        if self.client.vpn_mode {
+            ZERO_DELAY
+        } else {
+            time::Duration::from_millis(self.debug.message_sending_average_delay)
+        }
     }
 
     pub fn get_gateway_response_timeout(&self) -> time::Duration {
@@ -211,6 +235,21 @@ impl<T: NymConfig> Config<T> {
 
     pub fn get_topology_resolution_timeout(&self) -> time::Duration {
         time::Duration::from_millis(self.debug.topology_resolution_timeout)
+    }
+
+    pub fn get_vpn_mode(&self) -> bool {
+        self.client.vpn_mode
+    }
+
+    pub fn get_vpn_key_reuse_limit(&self) -> Option<usize> {
+        match self.get_vpn_mode() {
+            false => None,
+            true => Some(
+                self.debug
+                    .vpn_key_reuse_limit
+                    .unwrap_or_else(|| DEFAULT_VPN_KEY_REUSE_LIMIT),
+            ),
+        }
     }
 }
 
@@ -232,6 +271,11 @@ pub struct Client<T> {
 
     /// URL to the directory server.
     directory_server: String,
+
+    /// Special mode of the system such that all messages are sent as soon as they are received
+    /// and no cover traffic is generated. If set all message delays are set to 0 and overwriting
+    /// 'Debug' values will have no effect.
+    vpn_mode: bool,
 
     /// Path to file containing private identity key.
     private_identity_key_file: PathBuf,
@@ -278,6 +322,7 @@ impl<T: NymConfig> Default for Client<T> {
         Client {
             id: "".to_string(),
             directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
+            vpn_mode: false,
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             private_encryption_key_file: Default::default(),
@@ -388,6 +433,10 @@ pub struct Debug {
     /// did not reach its destination.
     /// The provided value is interpreted as milliseconds.
     topology_resolution_timeout: u64,
+
+    /// If the mode of the client is set to VPN it specifies number of packets created with the
+    /// same initial secret until it gets rotated.
+    vpn_key_reuse_limit: Option<usize>,
 }
 
 impl Default for Debug {
@@ -402,6 +451,7 @@ impl Default for Debug {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
+            vpn_key_reuse_limit: None,
         }
     }
 }

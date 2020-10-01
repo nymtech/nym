@@ -1,7 +1,7 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use crypto::asymmetric::encryption::KeyPair;
-use directory_client::{presence::mixnodes::MixNodePresence, Client, DirectoryClient, Topology};
+use directory_client::{presence::mixnodes::MixNodePresence, Client, DirectoryClient};
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use gateway_client::GatewayClient;
 use log::error;
@@ -11,7 +11,7 @@ use nymsphinx::{
     addressing::nodes::NymNodeRoutingAddress, preparer::MessagePreparer, SphinxPacket,
 };
 use rand::rngs::OsRng;
-use tokio::runtime::Runtime;
+use tokio::{runtime::Runtime, time};
 use topology::NymTopology;
 
 pub(crate) mod good_topology;
@@ -60,31 +60,41 @@ impl Monitor {
             println!("* authenticated to gateway");
 
             let config = directory_client::Config::new(self.config.directory_uri.clone());
-            let directory: Client = DirectoryClient::new(config);
-            let big_topology = directory
-                .get_topology()
-                .await
-                .expect("couldn't retrieve topology from the directory server");
-
+            let directory: Arc<Client> = Arc::new(DirectoryClient::new(config));
+            let listener_client = Arc::clone(&directory);
             tokio::spawn(async move {
-                let mut listener =
-                    MixnetListener::new(mixnet_receiver, client_encryption_keypair, directory);
+                let mut listener = MixnetListener::new(
+                    mixnet_receiver,
+                    client_encryption_keypair,
+                    listener_client,
+                );
                 listener.run().await;
             });
 
-            // spawn a thread here to catch timeouts
             self.sanity_check().await;
-            self.test_all_nodes(big_topology).await;
-
-            println!("Startup complete.\r\n ==============");
+            self.test_all_nodes(directory).await;
             self.wait_for_interrupt().await
         });
     }
 
-    async fn test_all_nodes(&mut self, network_topology: Topology) {
-        let all_mixnodes = network_topology.mix_nodes.clone();
+    async fn test_all_nodes(&mut self, directory: Arc<Client>) {
+        let big_topology = directory
+            .get_topology()
+            .await
+            .expect("couldn't retrieve topology from the directory server");
+
+        let all_mixnodes = big_topology.mix_nodes.clone();
+        let mut interval = time::interval(time::Duration::from_secs(2));
+        let lastnode = all_mixnodes
+            .last()
+            .expect("No nodes in mixnode list. Exiting.")
+            .to_owned();
         for mixnode in all_mixnodes {
+            interval.tick().await;
             self.test_a_node(mixnode.to_owned()).await;
+            if mixnode == lastnode {
+                println!("we hit the last one");
+            }
         }
     }
 

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crypto::asymmetric::encryption::KeyPair;
 use directory_client::mixmining::MixStatus;
 use futures::StreamExt;
@@ -10,14 +12,14 @@ pub(crate) struct MixnetListener {
     client_encryption_keypair: KeyPair,
     message_receiver: MessageReceiver,
     mixnet_receiver: MixnetReceiver,
-    directory_client: directory_client::Client,
+    directory_client: Arc<directory_client::Client>,
 }
 
 impl MixnetListener {
     pub(crate) fn new(
         mixnet_receiver: MixnetReceiver,
         client_encryption_keypair: KeyPair,
-        directory_client: directory_client::Client,
+        directory_client: Arc<directory_client::Client>,
     ) -> MixnetListener {
         let message_receiver = MessageReceiver::new();
         MixnetListener {

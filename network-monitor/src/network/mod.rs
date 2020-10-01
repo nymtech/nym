@@ -5,7 +5,7 @@ use directory_client::{presence::mixnodes::MixNodePresence, Client, DirectoryCli
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use gateway_client::GatewayClient;
 use log::error;
-use mixnet_listener::MixnetListener;
+use notifications::Notifier;
 use nymsphinx::{
     acknowledgements::AckKey, addressing::clients::Recipient,
     addressing::nodes::NymNodeRoutingAddress, preparer::MessagePreparer, SphinxPacket,
@@ -14,13 +14,9 @@ use rand::rngs::OsRng;
 use tokio::{runtime::Runtime, time};
 use topology::NymTopology;
 
+mod chunker;
 pub(crate) mod good_topology;
-pub(crate) mod mixnet_listener;
-
-const DEFAULT_RNG: OsRng = OsRng;
-
-const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
-const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
+pub(crate) mod notifications;
 
 type MixnetReceiver = UnboundedReceiver<Vec<Vec<u8>>>;
 pub(crate) type MixnetSender = UnboundedSender<Vec<Vec<u8>>>;
@@ -63,47 +59,48 @@ impl Monitor {
             let directory: Arc<Client> = Arc::new(DirectoryClient::new(config));
             let listener_client = Arc::clone(&directory);
             tokio::spawn(async move {
-                let mut listener = MixnetListener::new(
-                    mixnet_receiver,
-                    client_encryption_keypair,
-                    listener_client,
-                );
+                let mut listener =
+                    Notifier::new(mixnet_receiver, client_encryption_keypair, listener_client);
                 listener.run().await;
             });
 
+            // tokio::spawn(async move {
+            //     let mut interval = time::interval(time::Duration::from_secs(2));
+            //     loop {
+            //         self.sanity_check().await;
+            //         self.send_packets_to_all_nodes(directory).await;
+            //         interval.tick().await;
+            //     }
+            // });
+
             self.sanity_check().await;
-            self.test_all_nodes(directory).await;
+            self.send_packets_to_all_nodes(directory).await;
+            // interval.tick().await;
+
             self.wait_for_interrupt().await
         });
     }
 
-    async fn test_all_nodes(&mut self, directory: Arc<Client>) {
-        let big_topology = directory
+    async fn send_packets_to_all_nodes(&mut self, directory: Arc<Client>) {
+        let topology = directory
             .get_topology()
             .await
             .expect("couldn't retrieve topology from the directory server");
-
-        let all_mixnodes = big_topology.mix_nodes.clone();
-        let mut interval = time::interval(time::Duration::from_secs(2));
-        let lastnode = all_mixnodes
-            .last()
-            .expect("No nodes in mixnode list. Exiting.")
-            .to_owned();
-        for mixnode in all_mixnodes {
-            interval.tick().await;
-            self.test_a_node(mixnode.to_owned()).await;
+        let lastnode = topology.mix_nodes.last().unwrap().to_owned();
+        for mixnode in topology.mix_nodes {
+            self.test_one_node(mixnode.to_owned()).await;
             if mixnode == lastnode {
                 println!("we hit the last one");
             }
         }
     }
 
-    async fn test_a_node(&mut self, mixnode: MixNodePresence) {
+    async fn test_one_node(&mut self, mixnode: MixNodePresence) {
         println!("Testing mixnode: {}", mixnode.pub_key);
         let me = self.config.self_address.clone();
         let topology_to_test = good_topology::new_with_node(mixnode.clone());
         let message = mixnode.pub_key + ":4";
-        let messages = self.prepare_messages(message, me, &topology_to_test);
+        let messages = chunker::prepare_messages(message, me, &topology_to_test);
         self.send_messages(messages).await;
     }
 
@@ -114,12 +111,11 @@ impl Monitor {
         let me = self.config.self_address.clone();
         let topology = &self.config.good_topology;
 
-        let messages = self.prepare_messages("hello".to_string(), me, topology);
+        let messages = chunker::prepare_messages("hello".to_string(), me, topology);
         self.send_messages(messages).await;
     }
 
     async fn send_messages(&mut self, socket_messages: Vec<(NymNodeRoutingAddress, SphinxPacket)>) {
-        println!("foo");
         self.config
             .gateway_client
             .batch_send_sphinx_packets(socket_messages)

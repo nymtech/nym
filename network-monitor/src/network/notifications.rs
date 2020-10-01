@@ -8,21 +8,21 @@ use nymsphinx::receiver::MessageReceiver;
 
 use super::MixnetReceiver;
 
-pub(crate) struct MixnetListener {
+pub(crate) struct Notifier {
     client_encryption_keypair: KeyPair,
     message_receiver: MessageReceiver,
     mixnet_receiver: MixnetReceiver,
     directory_client: Arc<directory_client::Client>,
 }
 
-impl MixnetListener {
+impl Notifier {
     pub(crate) fn new(
         mixnet_receiver: MixnetReceiver,
         client_encryption_keypair: KeyPair,
         directory_client: Arc<directory_client::Client>,
-    ) -> MixnetListener {
+    ) -> Notifier {
         let message_receiver = MessageReceiver::new();
-        MixnetListener {
+        Notifier {
             client_encryption_keypair,
             message_receiver,
             mixnet_receiver,

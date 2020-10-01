@@ -48,7 +48,7 @@ impl Monitor {
         let mut runtime = Runtime::new().unwrap();
         runtime.block_on(async {
             println!(
-                "Self address is:  {:?}",
+                "* self address is:  {}",
                 self.config.self_address.to_string()
             );
 
@@ -57,7 +57,7 @@ impl Monitor {
                 .authenticate_and_start()
                 .await
                 .expect("Couldn't authenticate with gateway node.");
-            println!("Authenticated to gateway");
+            println!("* authenticated to gateway");
 
             let config = directory_client::Config::new(self.config.directory_uri.clone());
             let directory: Client = DirectoryClient::new(config);
@@ -75,7 +75,7 @@ impl Monitor {
             self.sanity_check().await;
             self.run_test(big_topology).await;
 
-            println!("Network monitor running.");
+            println!("Startup complete.\r\n ==============");
             self.wait_for_interrupt().await
         });
     }

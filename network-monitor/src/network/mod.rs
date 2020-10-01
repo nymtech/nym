@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crypto::asymmetric::encryption::KeyPair;
-use directory_client::{Client, DirectoryClient, Topology};
+use directory_client::{presence::mixnodes::MixNodePresence, Client, DirectoryClient, Topology};
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use gateway_client::GatewayClient;
 use log::error;
@@ -74,19 +74,26 @@ impl Monitor {
 
             // spawn a thread here to catch timeouts
             self.sanity_check().await;
-            self.run_test(big_topology).await;
+            self.test_all_nodes(big_topology).await;
 
             println!("Startup complete.\r\n ==============");
             self.wait_for_interrupt().await
         });
     }
 
-    async fn run_test(&mut self, network_topology: Topology) {
-        let node = network_topology.mix_nodes.first().unwrap();
-        let topology_to_test = good_topology::new_with_node(node.clone());
-        let message = node.clone().pub_key + ":4";
+    async fn test_all_nodes(&mut self, network_topology: Topology) {
+        let all_mixnodes = network_topology.mix_nodes.clone();
+        for mixnode in all_mixnodes {
+            self.test_a_node(mixnode.to_owned()).await;
+        }
+    }
+
+    async fn test_a_node(&mut self, mixnode: MixNodePresence) {
+        println!("Testing mixnode: {}", mixnode.pub_key);
         let me = self.config.self_address.clone();
-        let messages = self.prepare_messages(message, me, &topology_to_test).await;
+        let topology_to_test = good_topology::new_with_node(mixnode.clone());
+        let message = mixnode.pub_key + ":4";
+        let messages = self.prepare_messages(message, me, &topology_to_test);
         self.send_messages(messages).await;
     }
 
@@ -97,13 +104,11 @@ impl Monitor {
         let me = self.config.self_address.clone();
         let topology = &self.config.good_topology;
 
-        let messages = self
-            .prepare_messages("hello".to_string(), me, topology)
-            .await;
+        let messages = self.prepare_messages("hello".to_string(), me, topology);
         self.send_messages(messages).await;
     }
 
-    pub async fn prepare_messages(
+    pub fn prepare_messages(
         &self,
         message: String,
         me: Recipient,
@@ -140,6 +145,7 @@ impl Monitor {
     }
 
     async fn send_messages(&mut self, socket_messages: Vec<(NymNodeRoutingAddress, SphinxPacket)>) {
+        println!("foo");
         self.config
             .gateway_client
             .batch_send_sphinx_packets(socket_messages)

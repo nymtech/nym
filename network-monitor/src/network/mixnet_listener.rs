@@ -1,4 +1,5 @@
 use crypto::asymmetric::encryption::KeyPair;
+use directory_client::mixmining::MixStatus;
 use futures::StreamExt;
 use log::debug;
 use nymsphinx::receiver::MessageReceiver;
@@ -9,18 +10,21 @@ pub(crate) struct MixnetListener {
     client_encryption_keypair: KeyPair,
     message_receiver: MessageReceiver,
     mixnet_receiver: MixnetReceiver,
+    directory_client: directory_client::Client,
 }
 
 impl MixnetListener {
     pub(crate) fn new(
         mixnet_receiver: MixnetReceiver,
         client_encryption_keypair: KeyPair,
+        directory_client: directory_client::Client,
     ) -> MixnetListener {
         let message_receiver = MessageReceiver::new();
         MixnetListener {
             client_encryption_keypair,
             message_receiver,
             mixnet_receiver,
+            directory_client,
         }
     }
 
@@ -50,5 +54,24 @@ impl MixnetListener {
             .expect("no reconstructed message received from test packet");
         let message = String::from_utf8_lossy(&recovered.message);
         println!("got msg: {:?}", message);
+        if message.contains(":") {
+            let split: Vec<&str> = message.split(":").collect();
+            let pub_key = split[0].to_string();
+            let ip_version = split[1].to_string();
+            let status = MixStatus {
+                pub_key,
+                ip_version,
+                up: true,
+            };
+            self.notify_validator(status).await;
+        }
+    }
+
+    async fn notify_validator(&self, status: MixStatus) {
+        println!("Sending status: {:?}", status);
+        self.directory_client
+            .post_mixmining_status(status)
+            .await
+            .unwrap();
     }
 }

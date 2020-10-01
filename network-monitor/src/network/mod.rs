@@ -67,7 +67,8 @@ impl Monitor {
                 .expect("couldn't retrieve topology from the directory server");
 
             tokio::spawn(async move {
-                let mut listener = MixnetListener::new(mixnet_receiver, client_encryption_keypair);
+                let mut listener =
+                    MixnetListener::new(mixnet_receiver, client_encryption_keypair, directory);
                 listener.run().await;
             });
 
@@ -83,7 +84,7 @@ impl Monitor {
     async fn run_test(&mut self, network_topology: Topology) {
         let node = network_topology.mix_nodes.first().unwrap();
         let topology_to_test = good_topology::new_with_node(node.clone());
-        let message = node.clone().pub_key;
+        let message = node.clone().pub_key + ":4";
         let me = self.config.self_address.clone();
         let messages = self.prepare_messages(message, me, &topology_to_test).await;
         self.send_messages(messages).await;

@@ -22,6 +22,7 @@ use socks5_requests::{ConnectionId, Request};
 use std::net::{Shutdown, SocketAddr};
 use std::pin::Pin;
 use tokio::prelude::*;
+use tokio::stream::StreamExt;
 use tokio::{self, net::TcpStream};
 
 #[pin_project(project = StateProject)]
@@ -283,8 +284,11 @@ impl SocksClient {
                 // but still needs to have correct sequence number on it!
 
                 // read whatever we can
-                let available_reader = AvailableReader::new(&mut self.stream);
-                let (request_data_bytes, _) = available_reader.await?;
+                let mut available_reader = AvailableReader::new(&mut self.stream);
+                let request_data_bytes = available_reader
+                    .next()
+                    .await
+                    .ok_or_else(|| SocksProxyError::GenericError("todo".into()))??;
                 let ordered_message = message_sender.wrap_message(request_data_bytes.to_vec());
 
                 let socks_provider_request = Request::new_connect(

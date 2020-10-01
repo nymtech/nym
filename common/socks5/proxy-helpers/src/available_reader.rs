@@ -20,6 +20,8 @@ use std::ops::DerefMut;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io::AsyncRead;
+use tokio::stream::Stream;
+use tokio::time::Delay;
 
 pub struct AvailableReader<'a, R: AsyncRead + Unpin> {
     // TODO: come up with a way to avoid using RefCell (not sure if possible though)
@@ -47,12 +49,11 @@ where
 // TODO: change this guy to a stream? Seems waaay more appropriate considering
 // we're getting new Bytes items regularly rather than calling it once.
 
-impl<'a, R: AsyncRead + Unpin> Future for AvailableReader<'a, R> {
-    type Output = io::Result<(Bytes, bool)>;
+impl<'a, R: AsyncRead + Unpin> Stream for AvailableReader<'a, R> {
+    // todo: remove bool by being able to infer from the option
+    type Item = io::Result<Bytes>;
 
-    // this SHOULD stay mutable, because we rely on runtime checks inside the method
-    #[allow(unused_mut)]
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // if we have no space in buffer left - expand it
         if !self.buf.borrow().has_remaining_mut() {
             self.buf.borrow_mut().reserve(Self::BUF_INCREMENT);
@@ -69,15 +70,19 @@ impl<'a, R: AsyncRead + Unpin> Future for AvailableReader<'a, R> {
                     Poll::Pending
                 } else {
                     let buf = self.buf.replace(BytesMut::new());
-                    Poll::Ready(Ok((buf.freeze(), false)))
+                    Poll::Ready(Some(Ok(buf.freeze())))
                 }
             }
-            Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
+            Poll::Ready(Err(err)) => Poll::Ready(Some(Err(err))),
             Poll::Ready(Ok(n)) => {
                 // if we read a non-0 amount, we're not done yet!
                 if n == 0 {
                     let buf = self.buf.replace(BytesMut::new());
-                    Poll::Ready(Ok((buf.freeze(), true)))
+                    if buf.len() > 0 {
+                        Poll::Ready(Some(Ok(buf.freeze())))
+                    } else {
+                        Poll::Ready(None)
+                    }
                 } else {
                     // tell the waker we should be polled again!
                     cx.waker().wake_by_ref();
@@ -87,23 +92,65 @@ impl<'a, R: AsyncRead + Unpin> Future for AvailableReader<'a, R> {
         }
     }
 }
+//
+// impl<'a, R: AsyncRead + Unpin> Future for AvailableReader<'a, R> {
+//     type Output = io::Result<(Bytes, bool)>;
+//
+//     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+//         // if we have no space in buffer left - expand it
+//         if !self.buf.borrow().has_remaining_mut() {
+//             self.buf.borrow_mut().reserve(Self::BUF_INCREMENT);
+//         }
+//
+//         // note: poll_read_buf calls `buf.advance_mut(n)`
+//         let poll_res = Pin::new(self.inner.borrow_mut().deref_mut())
+//             .poll_read_buf(cx, self.buf.borrow_mut().deref_mut());
+//
+//         match poll_res {
+//             Poll::Pending => {
+//                 // there's nothing for us here, just return whatever we have (assuming we read anything!)
+//                 if self.buf.borrow().is_empty() {
+//                     Poll::Pending
+//                 } else {
+//                     let buf = self.buf.replace(BytesMut::new());
+//                     Poll::Ready(Ok((buf.freeze(), false)))
+//                 }
+//             }
+//             Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
+//             Poll::Ready(Ok(n)) => {
+//                 // if we read a non-0 amount, we're not done yet!
+//                 if n == 0 {
+//                     let buf = self.buf.replace(BytesMut::new());
+//                     Poll::Ready(Ok((buf.freeze(), true)))
+//                 } else {
+//                     // tell the waker we should be polled again!
+//                     cx.waker().wake_by_ref();
+//                     Poll::Pending
+//                 }
+//             }
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::poll;
     use std::io::Cursor;
     use std::time::Duration;
+    use tokio::stream::StreamExt;
+    use tokio_test::assert_pending;
 
     #[tokio::test]
     async fn available_reader_reads_all_available_data_smaller_than_its_buf() {
         let data = vec![42u8; 100];
         let mut reader = Cursor::new(data.clone());
 
-        let available_reader = AvailableReader::new(&mut reader);
-        let (read_data, is_finished) = available_reader.await.unwrap();
+        let mut available_reader = AvailableReader::new(&mut reader);
+        let read_data = available_reader.next().await.unwrap().unwrap();
 
         assert_eq!(read_data, data);
-        assert!(is_finished)
+        assert!(available_reader.next().await.is_none())
     }
 
     #[tokio::test]
@@ -111,11 +158,11 @@ mod tests {
         let data = vec![42u8; AvailableReader::<Cursor<Vec<u8>>>::BUF_INCREMENT + 100];
         let mut reader = Cursor::new(data.clone());
 
-        let available_reader = AvailableReader::new(&mut reader);
-        let (read_data, is_finished) = available_reader.await.unwrap();
+        let mut available_reader = AvailableReader::new(&mut reader);
+        let read_data = available_reader.next().await.unwrap().unwrap();
 
         assert_eq!(read_data, data);
-        assert!(is_finished)
+        assert!(available_reader.next().await.is_none())
     }
 
     #[tokio::test]
@@ -129,11 +176,11 @@ mod tests {
             .read(&second_data_chunk)
             .build();
 
-        let available_reader = AvailableReader::new(&mut reader_mock);
-        let (read_data, is_finished) = available_reader.await.unwrap();
+        let mut available_reader = AvailableReader::new(&mut reader_mock);
+        let read_data = available_reader.next().await.unwrap().unwrap();
 
         assert_eq!(read_data, first_data_chunk);
-        assert!(!is_finished)
+        assert_pending!(poll!(available_reader.next()));
     }
 
     #[tokio::test]
@@ -145,10 +192,10 @@ mod tests {
             .read(&data)
             .build();
 
-        let available_reader = AvailableReader::new(&mut reader_mock);
-        let (read_data, is_finished) = available_reader.await.unwrap();
+        let mut available_reader = AvailableReader::new(&mut reader_mock);
+        let read_data = available_reader.next().await.unwrap().unwrap();
 
         assert_eq!(read_data, data);
-        assert!(is_finished)
+        assert!(available_reader.next().await.is_none())
     }
 }

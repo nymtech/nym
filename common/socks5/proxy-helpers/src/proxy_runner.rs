@@ -98,13 +98,17 @@ where
                     break
                 }
                 // try to read from local socket and push everything to mixnet to the remote
-                reading_result = &mut available_reader => {
+                reading_result = &mut available_reader.next() => {
+
                     let (read_data, is_finished) = match reading_result {
-                        Ok(data) => data,
-                        Err(err) => {
-                            error!("failed to read request from the socket - {}", err);
-                            break;
+                        Some(data) => match data {
+                            Ok(data) => (data, false),
+                            Err(err) => {
+                                error!("failed to read request from the socket - {}", err);
+                                break;
+                            },
                         }
+                        None => (Default::default(), true)
                     };
 
                     info!(

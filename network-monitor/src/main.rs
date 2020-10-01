@@ -40,14 +40,14 @@ fn main() {
     // Construct a new `network::Monitor`.
     let config = network::MonitorConfig {
         ack_receiver,
-        directory_uri,
+        directory_uri: directory_uri.clone(),
         gateway_client,
         good_topology,
         self_address,
     };
     let mut network_monitor = network::Monitor::new(config);
 
-    println!("Network monitor startup complete. Running...");
+    println!("* directory server: {}", directory_uri);
     network_monitor.run(mixnet_receiver, encryption_keypair);
 }
 

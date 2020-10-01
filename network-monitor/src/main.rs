@@ -16,7 +16,7 @@ fn main() {
     println!("Network monitor starting...");
 
     // Set up topology
-    let directory_uri = "https://directory.nymtech.net".to_string();
+    let directory_uri = "https://qa-directory.nymtech.net".to_string();
     let good_topology = network::good_topology::new();
     let gateway = gateway();
 

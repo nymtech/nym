@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap, convert::TryInto};
-
 use crypto::asymmetric::{
     encryption::{self, PublicKey},
     identity,
 };
 use directory_client::presence::mixnodes::MixNodePresence;
+use std::{collections::HashMap, convert::TryInto};
 use topology::{gateway, mix, NymTopology};
 
 pub(crate) fn mixnodes() -> Vec<mix::Node> {

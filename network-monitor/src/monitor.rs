@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::{notifications::Notifier, packet_sender::PacketSender};
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use log::error;
-
 use tokio::{runtime::Runtime, time};
-
-use crate::{notifications::Notifier, packet_sender::PacketSender};
 
 pub(crate) type MixnetReceiver = UnboundedReceiver<Vec<Vec<u8>>>;
 pub(crate) type MixnetSender = UnboundedSender<Vec<Vec<u8>>>;

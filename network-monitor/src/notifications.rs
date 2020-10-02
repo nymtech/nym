@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use super::monitor::MixnetReceiver;
 use crypto::asymmetric::encryption::KeyPair;
 use directory_client::mixmining::MixStatus;
 use futures::StreamExt;
 use log::debug;
 use nymsphinx::receiver::MessageReceiver;
+use std::sync::Arc;
 
 pub(crate) struct Notifier {
     client_encryption_keypair: KeyPair,

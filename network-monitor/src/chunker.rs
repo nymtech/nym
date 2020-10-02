@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::time::Duration;
-
 use nymsphinx::{
     acknowledgements::AckKey,
     addressing::{clients::Recipient, nodes::NymNodeRoutingAddress},
@@ -21,10 +19,10 @@ use nymsphinx::{
     SphinxPacket,
 };
 use rand::rngs::OsRng;
+use std::time::Duration;
 use topology::NymTopology;
 
 const DEFAULT_RNG: OsRng = OsRng;
-
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 

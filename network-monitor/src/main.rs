@@ -12,20 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use crypto::asymmetric::{encryption, identity};
 use directory_client::DirectoryClient;
 use futures::channel::mpsc;
+use gateway_client::GatewayClient;
 use monitor::{AckSender, MixnetSender, Monitor};
 use mpsc::UnboundedReceiver;
 use notifications::Notifier;
 use nymsphinx::addressing::clients::Recipient;
 use packet_sender::PacketSender;
-
+use std::sync::Arc;
 use std::time;
-
-use gateway_client::GatewayClient;
 use topology::{gateway, NymTopology};
 
 mod chunker;

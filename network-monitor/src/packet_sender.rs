@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
+use super::{chunker, good_topology};
 use directory_client::presence::mixnodes::MixNodePresence;
 use gateway_client::GatewayClient;
 use nymsphinx::{
     addressing::{clients::Recipient, nodes::NymNodeRoutingAddress},
     SphinxPacket,
 };
+use std::sync::Arc;
 use topology::NymTopology;
-
-use super::{chunker, good_topology};
 
 pub struct PacketSender {
     directory_client: Arc<directory_client::Client>,

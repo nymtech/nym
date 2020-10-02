@@ -1,12 +1,11 @@
 use std::sync::Arc;
 
+use super::monitor::MixnetReceiver;
 use crypto::asymmetric::encryption::KeyPair;
 use directory_client::mixmining::MixStatus;
 use futures::StreamExt;
 use log::debug;
 use nymsphinx::receiver::MessageReceiver;
-
-use super::MixnetReceiver;
 
 pub(crate) struct Notifier {
     client_encryption_keypair: KeyPair,

@@ -12,7 +12,7 @@ use super::{chunker, good_topology};
 
 pub struct PacketSender {
     directory_client: Arc<directory_client::Client>,
-    gateway_client: Arc<GatewayClient>,
+    gateway_client: GatewayClient,
     good_topology: NymTopology,
     self_address: Recipient,
 }
@@ -22,7 +22,7 @@ impl PacketSender {
         directory_client: Arc<directory_client::Client>,
         good_topology: NymTopology,
         self_address: Recipient,
-        gateway_client: Arc<GatewayClient>,
+        gateway_client: GatewayClient,
     ) -> PacketSender {
         PacketSender {
             directory_client,
@@ -31,13 +31,20 @@ impl PacketSender {
             self_address,
         }
     }
+
+    pub async fn start_gateway_client(&mut self) {
+        self.gateway_client
+            .authenticate_and_start()
+            .await
+            .expect("Couldn't authenticate with gateway node.");
+    }
     /// Run some initial checks to ensure our subsequent measurements are valid.
     /// For example, we should be able to send ourselves a Sphinx packet (and receive it
     /// via the websocket, which currently fails.
     pub async fn sanity_check(&mut self) {
         let me = self.self_address.clone();
         let messages = chunker::prepare_messages("hello".to_string(), me, &self.good_topology);
-        // self.send_messages(messages).await;
+        self.send_messages(messages).await;
     }
 
     pub async fn send_packets_to_all_nodes(&mut self) {
@@ -47,23 +54,23 @@ impl PacketSender {
             .await
             .expect("couldn't retrieve topology from the directory server");
         for mixnode in topology.mix_nodes {
-            self.test_one_node(mixnode.to_owned()).await;
+            self.send_test_packet(mixnode.to_owned()).await;
         }
     }
 
-    // async fn send_messages(&mut self, socket_messages: Vec<(NymNodeRoutingAddress, SphinxPacket)>) {
-    //     self.gateway_client
-    //         .batch_send_sphinx_packets(socket_messages)
-    //         .await
-    //         .unwrap();
-    // }
+    async fn send_messages(&mut self, socket_messages: Vec<(NymNodeRoutingAddress, SphinxPacket)>) {
+        self.gateway_client
+            .batch_send_sphinx_packets(socket_messages)
+            .await
+            .unwrap();
+    }
 
-    async fn test_one_node(&mut self, mixnode: MixNodePresence) {
+    async fn send_test_packet(&mut self, mixnode: MixNodePresence) {
         println!("Testing mixnode: {}", mixnode.pub_key);
         let me = self.self_address.clone();
         let topology_to_test = good_topology::new_with_node(mixnode.clone());
         let message = mixnode.pub_key + ":4";
         let messages = chunker::prepare_messages(message, me, &topology_to_test);
-        // self.send_messages(messages).await;
+        self.send_messages(messages).await;
     }
 }

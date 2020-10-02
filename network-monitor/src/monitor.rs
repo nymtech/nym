@@ -39,10 +39,10 @@ impl Monitor {
         tokio::spawn(async move {
             let mut interval = time::interval(time::Duration::from_secs(10));
             loop {
+                interval.tick().await;
                 println!("starting test run");
                 packet_sender.sanity_check().await;
                 packet_sender.send_packets_to_all_nodes().await;
-                interval.tick().await;
             }
         });
 

@@ -129,7 +129,7 @@ impl Controller {
             active_connection.is_closed |= is_closed;
 
             if let Some(payload) = active_connection.read_from_buf() {
-                active_connection
+                if let Err(err) = active_connection
                     .connection_sender
                     .as_mut()
                     .unwrap()
@@ -137,7 +137,17 @@ impl Controller {
                         payload,
                         socket_closed: active_connection.is_closed,
                     })
-                    .unwrap()
+                {
+                    error!("WTF IS THIS: {:?}", err);
+                }
+
+                // TODO: ABOVE UNWRAP CAUSED A CRASH IN A NORMAL USE!!!!
+                // TODO:
+                // TODO: surprisingly it only happened on socks client, never on nSP
+                // TODO:
+                // TODO:
+                // TODO:
+                // TODO:
             }
         } else {
             error!("no connection exists with id: {:?}", conn_id);

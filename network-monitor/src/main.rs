@@ -31,7 +31,8 @@ mod monitor;
 mod notifications;
 mod packet_sender;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     println!("Network monitor starting...");
 
     // Set up topology
@@ -74,7 +75,8 @@ fn main() {
         self_address,
         gateway_client,
     );
-    network_monitor.run(notifier, packet_sender);
+
+    network_monitor.run(notifier, packet_sender).await;
 }
 
 fn new_packet_sender(

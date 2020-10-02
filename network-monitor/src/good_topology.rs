@@ -76,11 +76,11 @@ pub(crate) fn gateway() -> gateway::Node {
 pub(crate) fn new() -> NymTopology {
     let mut layered_mixes = HashMap::new();
 
-    for (i, node) in mixnodes().iter().enumerate() {
-        layered_mixes.insert((i + 1) as u8, vec![node.clone()]);
+    for (i, node) in mixnodes().into_iter().enumerate() {
+        layered_mixes.insert((i + 1) as u8, vec![node]);
     }
 
-    NymTopology::new(vec![], layered_mixes, vec![gateway()])
+    NymTopology::new(Vec::new(), layered_mixes, vec![gateway()])
 }
 
 // Returns a new topology of known good nodes, with one good node replaced with a test node

@@ -149,7 +149,6 @@ impl NymTopology {
     }
 
     pub fn set_mixes_in_layer(&mut self, layer: u8, mixes: Vec<mix::Node>) {
-        self.mixes.remove(&layer);
         self.mixes.insert(layer, mixes);
     }
 

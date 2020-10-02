@@ -66,7 +66,7 @@ impl PacketSender {
             .await
             .expect("couldn't retrieve topology from the directory server");
         for mixnode in topology.mix_nodes {
-            self.send_test_packet(mixnode.to_owned()).await;
+            self.send_test_packet(mixnode).await;
         }
     }
 
@@ -80,8 +80,8 @@ impl PacketSender {
     async fn send_test_packet(&mut self, mixnode: MixNodePresence) {
         println!("Testing mixnode: {}", mixnode.pub_key);
         let me = self.self_address.clone();
-        let topology_to_test = good_topology::new_with_node(mixnode.clone());
-        let message = mixnode.pub_key + ":4";
+        let message = mixnode.pub_key.clone() + ":4";
+        let topology_to_test = good_topology::new_with_node(mixnode);
         let messages = chunker::prepare_messages(message, me, &topology_to_test);
         self.send_messages(messages).await;
     }

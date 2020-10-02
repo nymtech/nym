@@ -7,22 +7,18 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-futures = "0.3.1"
-itertools = "0.8.2"
-log = "0.4.8"
+futures = "0.3"
+log = "0.4"
 pretty_env_logger = "0.3"
-rand = "0.7.2"
-serde = "1.0.104"
-serde_derive = "1.0.104"
-tokio = { version = "0.2", features = ["stream", "tcp", "rt-threaded", "macros"] }
+rand = "0.7"
+serde = "1.0"
+tokio = { version = "0.2", features = ["signal", "rt-threaded", "macros"] }
 
 ## internal
 crypto = { path = "../common/crypto" }
 directory-client = { path = "../common/client-libs/directory-client" }
 gateway-client = { path = "../common/client-libs/gateway-client" }
-mixnet-client = { path = "../common/client-libs/mixnet-client" }
-nymsphinx = {path = "../common/nymsphinx" }
-topology = {path = "../common/topology" }
-websocket-requests = {path = "../clients/native/websocket-requests"}
+nymsphinx = { path = "../common/nymsphinx" }
+topology = { path = "../common/topology" }
 
 [dev-dependencies]

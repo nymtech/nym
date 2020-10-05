@@ -16,8 +16,7 @@ use crypto::asymmetric::{
     encryption::{self, PublicKey},
     identity,
 };
-use directory_client::presence::mixnodes::MixNodePresence;
-use std::{collections::HashMap, convert::TryInto};
+use std::collections::HashMap;
 use topology::{gateway, mix, NymTopology};
 
 pub(crate) fn mixnodes() -> Vec<mix::Node> {
@@ -84,8 +83,7 @@ pub(crate) fn new() -> NymTopology {
 }
 
 // Returns a new topology of known good nodes, with one good node replaced with a test node
-pub(crate) fn new_with_node(presence: MixNodePresence) -> NymTopology {
-    let test_node: mix::Node = presence.try_into().unwrap();
+pub(crate) fn new_with_node(test_node: mix::Node) -> NymTopology {
     let mut topology = self::new();
     topology.set_mixes_in_layer(test_node.layer as u8, vec![test_node]);
     topology
@@ -136,7 +134,7 @@ mod good_topology_test {
     fn expected_topology_with_test_node() -> NymTopology {
         let mut mixes = HashMap::new();
         let mixnodes = mixnodes();
-        let mix1: mix::Node = test_node().try_into().unwrap(); // this is the one we will test
+        let mix1 = test_node(); // this is the one we will test
         let mix2 = mixnodes[1].clone();
         let mix3 = mixnodes[2].clone();
 
@@ -146,11 +144,14 @@ mod good_topology_test {
         NymTopology::new(vec![], mixes, vec![gateway()])
     }
 
-    fn test_node() -> MixNodePresence {
-        MixNodePresence {
+    fn test_node() -> mix::Node {
+        mix::Node {
             location: "Thunder Bay".to_string(),
-            host: "1.2.3.4:1234".to_string(),
-            pub_key: "9fX1rMaQdBEzjuv6kT7oyPfEabt73QTM5cfuQ9kaxrRQ".to_string(),
+            host: "1.2.3.4:1234".parse().unwrap(),
+            pub_key: encryption::PublicKey::from_base58_string(
+                "9fX1rMaQdBEzjuv6kT7oyPfEabt73QTM5cfuQ9kaxrRQ",
+            )
+            .unwrap(),
             layer: 1,
             last_seen: 1234,
             version: "0.8.1".to_string(),

@@ -14,14 +14,17 @@
 
 use crate::{notifications::Notifier, packet_sender::PacketSender};
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
-use log::error;
-use tokio::time;
+use log::*;
+use tokio::time::{self, Duration};
 
 pub(crate) type MixnetReceiver = UnboundedReceiver<Vec<Vec<u8>>>;
 pub(crate) type MixnetSender = UnboundedSender<Vec<Vec<u8>>>;
 pub(crate) type AckSender = UnboundedSender<Vec<Vec<u8>>>;
 
-pub struct Monitor {}
+pub(crate) const MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(10);
+pub(crate) const NOTIFIER_DELIVERY_TIMEOUT: Duration = Duration::from_secs(6);
+
+pub struct Monitor;
 
 impl Monitor {
     pub fn new() -> Monitor {
@@ -37,12 +40,18 @@ impl Monitor {
 
         packet_sender.start_gateway_client().await;
         tokio::spawn(async move {
-            let mut interval = time::interval(time::Duration::from_secs(10));
+            let mut interval = time::interval(MONITOR_RUN_INTERVAL);
             loop {
                 interval.tick().await;
-                println!("starting test run");
-                packet_sender.sanity_check().await;
-                packet_sender.send_packets_to_all_nodes().await;
+                info!(target: "Monitor", "Starting test run"); // TODO: nonce
+
+                if let Err(err) = packet_sender.run_test().await {
+                    error!("Test run failed! - {:?}", err);
+                }
+                // if let Err(err) = packet_sender.sanity_check().await {
+                //     error!("failed sanity check... - {:?}", err);
+                //     continue;
+                // }
             }
         });
 

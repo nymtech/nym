@@ -35,7 +35,7 @@ pub enum NymTopologyError {
 
 pub type MixLayer = u8;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NymTopology {
     coco_nodes: Vec<coco::Node>,
     mixes: HashMap<MixLayer, Vec<mix::Node>>,

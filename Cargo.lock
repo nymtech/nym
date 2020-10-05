@@ -3893,11 +3893,11 @@ dependencies = [
 
 [[package]]
 name = "x25519-dalek"
-version = "0.6.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "637ff90c9540fa3073bb577e65033069e4bae7c79d49d74aa3ffdf5342a53217"
+checksum = "bc614d95359fd7afc321b66d2107ede58b246b844cf5d8a0adcca413e439f088"
 dependencies = [
- "curve25519-dalek 2.1.0",
+ "curve25519-dalek 3.0.0",
  "rand_core 0.5.1",
  "zeroize",
 ]

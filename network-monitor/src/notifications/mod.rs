@@ -297,10 +297,10 @@ impl Notifier {
 
     async fn notify_validator(&self, status: MixStatus) -> Result<(), NotifierError> {
         debug!("Sending status: {:?}", status);
-        // self.directory_client
-        //     .post_mixmining_status(status)
-        //     .await
-        //     .map_err(|err| NotifierError::DirectoryError(err.to_string()))?;
+        self.directory_client
+            .post_mixmining_status(status)
+            .await
+            .map_err(|err| NotifierError::DirectoryError(err.to_string()))?;
         Ok(())
     }
 
@@ -309,10 +309,10 @@ impl Notifier {
         status: MixStatus,
     ) -> Result<(), NotifierError> {
         debug!("Sending status: {:?}", status);
-        // client
-        //     .post_mixmining_status(status)
-        //     .await
-        //     .map_err(|err| NotifierError::DirectoryError(err.to_string()))?;
+        client
+            .post_mixmining_status(status)
+            .await
+            .map_err(|err| NotifierError::DirectoryError(err.to_string()))?;
         Ok(())
     }
 }

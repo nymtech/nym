@@ -49,4 +49,5 @@ default-members = [
     "gateway",
     "mixnode",
     "validator",
+    "network-monitor",
 ]

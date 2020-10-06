@@ -19,7 +19,7 @@ use crypto::asymmetric::{
 use std::collections::HashMap;
 use topology::{gateway, mix, NymTopology};
 
-pub(crate) fn mixnodes() -> Vec<mix::Node> {
+pub(crate) fn v4_mixnodes() -> Vec<mix::Node> {
     let goodnode1 = mix::Node {
         location: "London".to_string(),
         host: "213.52.129.218:1789".parse().unwrap(),
@@ -53,7 +53,41 @@ pub(crate) fn mixnodes() -> Vec<mix::Node> {
     vec![goodnode1, goodnode2, goodnode3]
 }
 
-pub(crate) fn gateway() -> gateway::Node {
+pub(crate) fn v6_mixnodes() -> Vec<mix::Node> {
+    let goodnode1 = mix::Node {
+        location: "London".to_string(),
+        host: "[2a01:7e00::f03c:92ff:fe16:3dc2]:1789".parse().unwrap(),
+        pub_key: PublicKey::from_base58_string("EJHwrLafqygqctkBCntVZfUkMSDErGUStJjZniQoRoJr")
+            .unwrap(),
+        last_seen: 1600276206950298819,
+        layer: 1,
+        version: "0.8.0".to_string(),
+    };
+
+    let goodnode2 = mix::Node {
+        location: "Frankfurt".to_string(),
+        host: "[2a01:7e01::f03c:92ff:fe16:3d11]:1789".parse().unwrap(),
+        pub_key: PublicKey::from_base58_string("BW7xskYvZyHt8rGFzsmG5bEQ9ViCYYxpFsEWDcNtSYvX")
+            .unwrap(),
+        last_seen: 1600276206950298819,
+        layer: 2,
+        version: "0.8.0".to_string(),
+    };
+
+    let goodnode3 = mix::Node {
+        location: "London".to_string(),
+        host: "[2a01:7e00::f03c:92ff:fe16:3d7b]:1789".parse().unwrap(),
+        pub_key: PublicKey::from_base58_string("BqBGpP4YDH5fRDVKB97Ru7aq2Wbarb3SNfZL5LGaH83e")
+            .unwrap(),
+        layer: 3,
+        last_seen: 1600276206950298819,
+        version: "0.8.0".to_string(),
+    };
+
+    vec![goodnode1, goodnode2, goodnode3]
+}
+
+pub(crate) fn v4_gateway() -> gateway::Node {
     gateway::Node {
         location: "unknown".to_string(),
         client_listener: "ws://139.162.246.48:9000".to_string(),
@@ -71,20 +105,49 @@ pub(crate) fn gateway() -> gateway::Node {
     }
 }
 
-/// Returns a new NymTopology composed of known good nodes
-pub(crate) fn new() -> NymTopology {
+pub(crate) fn v6_gateway() -> gateway::Node {
+    gateway::Node {
+        location: "unknown".to_string(),
+        client_listener: "ws://[2a01:7e00::f03c:92ff:fe16:49f1]:9000".to_string(),
+        mixnet_listener: "[2a01:7e00::f03c:92ff:fe16:49f1]:1789".parse().unwrap(),
+        identity_key: identity::PublicKey::from_base58_string(
+            "D6YaMzLSY7mANtSQRKXsmMZpqgqiVkeiagKM4V4oFPFr",
+        )
+        .unwrap(),
+        sphinx_key: encryption::PublicKey::from_base58_string(
+            "6snGVMCatcTnvjGPaf8Ye7kCnVn6ThEDdCs4TZ7DbDVj",
+        )
+        .unwrap(),
+        last_seen: 1600424297774836793,
+        version: "0.8.0".to_string(),
+    }
+}
+
+/// Returns a new ipv4 NymTopology composed of known good nodes
+pub(crate) fn new_v4() -> NymTopology {
     let mut layered_mixes = HashMap::new();
 
-    for (i, node) in mixnodes().into_iter().enumerate() {
+    for (i, node) in v4_mixnodes().into_iter().enumerate() {
         layered_mixes.insert((i + 1) as u8, vec![node]);
     }
 
-    NymTopology::new(Vec::new(), layered_mixes, vec![gateway()])
+    NymTopology::new(Vec::new(), layered_mixes, vec![v4_gateway()])
+}
+
+/// Returns a new ipv6 NymTopology composed of known good nodes
+pub(crate) fn new_v6() -> NymTopology {
+    let mut layered_mixes = HashMap::new();
+
+    for (i, node) in v6_mixnodes().into_iter().enumerate() {
+        layered_mixes.insert((i + 1) as u8, vec![node]);
+    }
+
+    NymTopology::new(Vec::new(), layered_mixes, vec![v6_gateway()])
 }
 
 // Returns a new topology of known good nodes, with one good node replaced with a test node
-pub(crate) fn new_with_node(test_node: mix::Node) -> NymTopology {
-    let mut topology = self::new();
+pub(crate) fn new_v4_with_node(test_node: mix::Node) -> NymTopology {
+    let mut topology = self::new_v4();
     topology.set_mixes_in_layer(test_node.layer as u8, vec![test_node]);
     topology
 }
@@ -106,7 +169,7 @@ mod good_topology_test {
                 topology.mixes_in_layer(2)[0].pub_key.to_base58_string();
             let expected_layer_3_mixnode_pubkey =
                 topology.mixes_in_layer(3)[0].pub_key.to_base58_string();
-            let result = new_with_node(test_node());
+            let result = new_v4_with_node(test_node());
             let actual_gateway_key = result.gateways().first().unwrap().identity_key;
             let actual_layer_1_mixnode_pubkey =
                 result.mixes_in_layer(1)[0].pub_key.to_base58_string();
@@ -133,7 +196,7 @@ mod good_topology_test {
 
     fn expected_topology_with_test_node() -> NymTopology {
         let mut mixes = HashMap::new();
-        let mixnodes = mixnodes();
+        let mixnodes = v4_mixnodes();
         let mix1 = test_node(); // this is the one we will test
         let mix2 = mixnodes[1].clone();
         let mix3 = mixnodes[2].clone();
@@ -141,7 +204,7 @@ mod good_topology_test {
         mixes.insert(1, vec![mix1]);
         mixes.insert(2, vec![mix2]);
         mixes.insert(3, vec![mix3]);
-        NymTopology::new(vec![], mixes, vec![gateway()])
+        NymTopology::new(vec![], mixes, vec![v4_gateway()])
     }
 
     fn test_node() -> mix::Node {

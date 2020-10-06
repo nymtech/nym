@@ -14,6 +14,7 @@
 
 use crate::monitor::MixnetReceiver;
 use crate::test_run::{TestRunUpdateReceiver, TestRunUpdateSender};
+use crate::tested_network::TestedNetwork;
 use crypto::asymmetric::{encryption, identity};
 use directory_client::DirectoryClient;
 use futures::channel::mpsc;
@@ -25,15 +26,15 @@ use packet_sender::PacketSender;
 use rand::rngs::OsRng;
 use std::sync::Arc;
 use std::time;
-use topology::{gateway, NymTopology};
+use topology::gateway;
 
 mod chunker;
-mod good_topology;
 mod monitor;
 mod notifications;
 mod packet_sender;
 mod test_packet;
 mod test_run;
+mod tested_network;
 
 pub(crate) type DefRng = OsRng;
 pub(crate) const DEFAULT_RNG: DefRng = OsRng;
@@ -67,8 +68,9 @@ async fn main() {
     // Set up topology
     let directory_uri = "https://qa-directory.nymtech.net";
     println!("* directory server: {}", directory_uri);
-    let good_topology = good_topology::new();
-    let gateway = good_topology::gateway();
+
+    // TODO: this might change if it turns out we need both v4 and v6 gateway clients
+    let gateway = tested_network::v4_gateway();
     println!("* gateway: {}", gateway.identity_key.to_base58_string());
 
     // Channels for task communication
@@ -100,30 +102,35 @@ async fn main() {
     );
 
     let gateway_client = new_gateway_client(gateway, identity_keypair, ack_sender, mixnet_sender);
+    let tested_network = new_tested_network(gateway_client).await;
 
     let packet_sender = new_packet_sender(
         directory_client,
-        good_topology,
+        tested_network,
         self_address,
-        gateway_client,
         test_run_sender,
     );
 
     network_monitor.run(notifier, packet_sender).await;
 }
 
+async fn new_tested_network(gateway_client: GatewayClient) -> TestedNetwork {
+    // TODO: possibly change that if it turns out we need two clients (v4 and v6)
+    let mut tested_network = TestedNetwork::new_good(gateway_client);
+    tested_network.start_gateway_client().await;
+    tested_network
+}
+
 fn new_packet_sender(
     directory_client: Arc<directory_client::Client>,
-    good_topology: NymTopology,
+    tested_network: TestedNetwork,
     self_address: Recipient,
-    gateway_client: GatewayClient,
     test_run_sender: TestRunUpdateSender,
 ) -> PacketSender {
     PacketSender::new(
         directory_client,
-        good_topology,
+        tested_network,
         self_address,
-        gateway_client,
         test_run_sender,
     )
 }

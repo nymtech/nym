@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use log::*;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use tokio::time::{delay_for, Delay, Duration};
+use tokio::time::{delay_for, Delay, Duration, Instant};
 
 pub(super) struct TestTimeout {
     delay: Option<Delay>,
@@ -32,6 +33,15 @@ impl TestTimeout {
 
     pub(super) fn clear(&mut self) {
         self.delay = None
+    }
+
+    /// Forces self to fire regardless of internal Delay state
+    pub(super) fn fire(&mut self) {
+        match self.delay.as_mut() {
+            None => error!("Tried to fire non-existent delay!"),
+            // just set the next delay to 0 so it will be polled immediately and be already elapsed
+            Some(delay) => delay.reset(Instant::now()),
+        }
     }
 }
 

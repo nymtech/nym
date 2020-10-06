@@ -21,8 +21,8 @@ pub(crate) type MixnetReceiver = UnboundedReceiver<Vec<Vec<u8>>>;
 pub(crate) type MixnetSender = UnboundedSender<Vec<Vec<u8>>>;
 pub(crate) type AckSender = UnboundedSender<Vec<Vec<u8>>>;
 
-pub(crate) const MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(10);
-pub(crate) const NOTIFIER_DELIVERY_TIMEOUT: Duration = Duration::from_secs(6);
+pub(crate) const MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(60);
+pub(crate) const NOTIFIER_DELIVERY_TIMEOUT: Duration = Duration::from_secs(20);
 
 pub struct Monitor;
 
@@ -38,7 +38,6 @@ impl Monitor {
             notifier.run().await;
         });
 
-        packet_sender.start_gateway_client().await;
         tokio::spawn(async move {
             let mut interval = time::interval(MONITOR_RUN_INTERVAL);
             loop {

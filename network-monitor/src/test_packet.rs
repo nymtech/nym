@@ -51,6 +51,12 @@ impl TryFrom<u8> for IpVersion {
     }
 }
 
+impl IpVersion {
+    pub(crate) fn is_v4(&self) -> bool {
+        *self == IpVersion::V4
+    }
+}
+
 impl Into<String> for IpVersion {
     fn into(self) -> String {
         format!("{}", self)
@@ -70,6 +76,18 @@ pub(crate) struct TestPacket {
     pub_key: encryption::PublicKey, // TODO: eventually this will get replaced with identity::PublicKey
 }
 
+impl Display for TestPacket {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "TestPacket {{ ip: {}, pub_key: {}, nonce: {} }}",
+            self.ip_version,
+            self.pub_key.to_base58_string(),
+            self.nonce
+        )
+    }
+}
+
 impl TestPacket {
     pub(crate) fn new(pub_key: encryption::PublicKey, ip_version: IpVersion, nonce: u64) -> Self {
         TestPacket {
@@ -77,6 +95,10 @@ impl TestPacket {
             ip_version,
             nonce,
         }
+    }
+
+    pub(crate) fn ip_version(&self) -> IpVersion {
+        self.ip_version
     }
 
     pub(crate) fn pub_key_string(&self) -> String {

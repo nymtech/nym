@@ -15,9 +15,9 @@
 use crate::chunker::Chunker;
 use crate::test_packet::{IpVersion, TestPacket};
 use crate::test_run::{RunInfo, TestRunUpdate, TestRunUpdateSender};
+use crate::tested_network::{TestMix, TestedNetwork};
 use directory_client::presence::mixnodes::MixNodePresence;
 use gateway_client::error::GatewayClientError;
-use gateway_client::GatewayClient;
 use log::*;
 use nymsphinx::{
     addressing::{clients::Recipient, nodes::NymNodeRoutingAddress},
@@ -25,21 +25,7 @@ use nymsphinx::{
 };
 use std::convert::TryInto;
 use std::sync::Arc;
-use topology::{mix, NymTopology};
-
-enum TestMix {
-    ValidMix(mix::Node, [TestPacket; 2]),
-    MalformedMix(String),
-}
-
-impl TestMix {
-    fn is_valid(&self) -> bool {
-        match self {
-            TestMix::ValidMix(..) => true,
-            _ => false,
-        }
-    }
-}
+use topology::mix;
 
 #[derive(Debug)]
 pub(crate) enum PacketSenderError {
@@ -56,8 +42,7 @@ impl From<GatewayClientError> for PacketSenderError {
 pub struct PacketSender {
     chunker: Chunker,
     directory_client: Arc<directory_client::Client>,
-    gateway_client: GatewayClient,
-    good_topology: NymTopology,
+    tested_network: TestedNetwork,
     test_run_sender: TestRunUpdateSender,
     nonce: u64,
 }
@@ -65,37 +50,28 @@ pub struct PacketSender {
 impl PacketSender {
     pub(crate) fn new(
         directory_client: Arc<directory_client::Client>,
-        good_topology: NymTopology,
+        tested_network: TestedNetwork,
         self_address: Recipient,
-        gateway_client: GatewayClient,
         test_run_sender: TestRunUpdateSender,
     ) -> Self {
         PacketSender {
             chunker: Chunker::new(self_address),
             directory_client,
-            gateway_client,
-            good_topology,
+            tested_network,
             test_run_sender,
             nonce: 0,
         }
     }
 
-    pub(crate) async fn start_gateway_client(&mut self) {
-        self.gateway_client
-            .authenticate_and_start()
-            .await
-            .expect("Couldn't authenticate with gateway node.");
-    }
-
-    /// Run some initial checks to ensure our subsequent measurements are valid.
-    /// For example, we should be able to send ourselves a Sphinx packet (and receive it
-    /// via the websocket, which currently fails.
-    pub(crate) async fn sanity_check(&mut self) -> Result<(), PacketSenderError> {
-        let messages = self
-            .chunker
-            .prepare_messages(b"hello".to_vec(), &self.good_topology);
-        self.send_messages(messages).await
-    }
+    // /// Run some initial checks to ensure our subsequent measurements are valid.
+    // /// For example, we should be able to send ourselves a Sphinx packet (and receive it
+    // /// via the websocket, which currently fails.
+    // pub(crate) async fn sanity_check(&mut self) -> Result<(), PacketSenderError> {
+    //     let messages = self
+    //         .chunker
+    //         .prepare_messages(b"hello".to_vec(), &self.good_v4_topology);
+    //     self.send_messages(messages).await
+    // }
 
     fn make_test_mix(&self, presence: MixNodePresence) -> TestMix {
         // the reason for that conversion is that I want to operate on concrete types
@@ -151,6 +127,27 @@ impl PacketSender {
     }
 
     // TODO: don't mind return type, it will be replaced after merge with develop
+    fn prepare_node_mix_packets(
+        &mut self,
+        mixnode: mix::Node,
+        test_packets: [TestPacket; 2],
+    ) -> Vec<(NymNodeRoutingAddress, SphinxPacket)> {
+        let mut packets = Vec::with_capacity(2);
+        for test_packet in test_packets.iter() {
+            let topology_to_test = self
+                .tested_network
+                .substitute_node(mixnode.clone(), test_packet.ip_version());
+            let mix_message = test_packet.to_bytes();
+            let mut mix_packet = self
+                .chunker
+                .prepare_messages(mix_message, &topology_to_test);
+            debug_assert_eq!(mix_packet.len(), 1);
+            packets.push(mix_packet.pop().unwrap());
+        }
+        packets
+    }
+
+    // TODO: don't mind return type, it will be replaced after merge with develop
     fn prepare_mix_packets(
         &mut self,
         test_mixes: Vec<TestMix>,
@@ -161,19 +158,8 @@ impl PacketSender {
         for test_mix in test_mixes {
             match test_mix {
                 TestMix::ValidMix(mixnode, test_packets) => {
-                    let mut topology_to_test = self.good_topology.clone();
-                    topology_to_test.set_mixes_in_layer(mixnode.layer as u8, vec![mixnode]);
-
-                    let message1 = test_packets[0].to_bytes();
-                    let message2 = test_packets[1].to_bytes();
-                    let mut packet1 = self.chunker.prepare_messages(message1, &topology_to_test);
-                    let mut packet2 = self.chunker.prepare_messages(message2, &topology_to_test);
-
-                    // such short messages MUST BE converted into single sphinx packet
-                    assert_eq!(packet1.len(), 1,);
-                    assert_eq!(packet2.len(), 1,);
-                    mix_packets.push(packet1.pop().unwrap());
-                    mix_packets.push(packet2.pop().unwrap());
+                    let mut node_mix_packets = self.prepare_node_mix_packets(mixnode, test_packets);
+                    mix_packets.append(&mut node_mix_packets);
                 }
                 _ => continue,
             }
@@ -185,9 +171,7 @@ impl PacketSender {
         &mut self,
         socket_messages: Vec<(NymNodeRoutingAddress, SphinxPacket)>,
     ) -> Result<(), PacketSenderError> {
-        self.gateway_client
-            .batch_send_sphinx_packets(socket_messages)
-            .await?;
+        self.tested_network.send_messages(socket_messages).await?;
         Ok(())
     }
 
@@ -195,6 +179,7 @@ impl PacketSender {
         self.nonce += 1;
 
         let test_mixes = self.get_test_mixes().await?;
+        info!(target: "Monitor", "Going to test {} mixes", test_mixes.len());
         let run_info = self.prepare_run_info(&test_mixes);
         let mix_packets = self.prepare_mix_packets(test_mixes);
 

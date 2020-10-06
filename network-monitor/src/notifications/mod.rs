@@ -24,10 +24,9 @@ use futures::try_join;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::receiver::MessageReceiver;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::mem;
 use std::sync::Arc;
-use tokio::time::Duration;
 
 mod test_timeout;
 
@@ -100,10 +99,63 @@ impl Notifier {
         self.test_run_nonce += 1;
     }
 
+    fn undelivered_summary(&self, undelivered: &HashSet<TestPacket>) {
+        let total_undelivered = undelivered.len();
+        if total_undelivered != 0 {
+            info!(target: "summary", "There are {} undelivered packets!", total_undelivered);
+
+            let mut undelivered_v4 = 0;
+            let mut undelivered_v6 = 0;
+
+            let mut down_nodes = HashMap::new();
+            for undelivered_packet in undelivered {
+                let entry = down_nodes
+                    .entry(undelivered_packet.pub_key_string())
+                    .or_insert((true, true));
+                if undelivered_packet.ip_version().is_v4() {
+                    entry.0 = false;
+                    undelivered_v4 += 1;
+                } else {
+                    entry.1 = false;
+                    undelivered_v6 += 1;
+                }
+            }
+
+            info!(target: "summary", "{} undelivered packets were IpV4, {} were IpV6", undelivered_v4, undelivered_v6);
+
+            let mut non_v4_nodes = 0;
+            let mut non_v6_nodes = 0;
+            let mut messed_up_nodes = 0;
+
+            for (down_node, result) in down_nodes.into_iter() {
+                let down_str = match result {
+                    (true, false) => {
+                        non_v6_nodes += 1;
+                        "failed to route IpV6 packet"
+                    }
+                    (false, true) => {
+                        non_v4_nodes += 1;
+                        "failed to route IpV4 packet"
+                    }
+                    (false, false) => {
+                        messed_up_nodes += 1;
+                        "failed to route BOTH IpV4 AND IpV6 packet"
+                    }
+                    (true, true) => panic!("This result is impossible!"),
+                };
+
+                info!(target: "detailed summary", "{} {}", down_node, down_str);
+            }
+
+            info!(target: "summary", "{} nodes don't speak ipv4 (!), {} nodes don't speak ipv6 and {} nodes don't speak either", non_v4_nodes, non_v6_nodes, messed_up_nodes);
+        } else {
+            info!(target: "summary", "Everything is working perfectly!")
+        }
+    }
+
     async fn on_timeout(&mut self) {
         let undelivered = mem::replace(&mut self.expected_run_packets, HashSet::new());
-
-        info!("There are {} undelivered packets!", undelivered.len());
+        self.undelivered_summary(&undelivered);
 
         // if we have a lot of undelivered packets we don't want to perform all directory calls
         // synchronously. There will be bunch of IO waiting for the network packets to
@@ -193,6 +245,11 @@ impl Notifier {
         if self.expected_run_packets.remove(&test_packet) {
             self.notify_validator(test_packet.into_up_mixstatus())
                 .await?;
+
+            if self.expected_run_packets.is_empty() {
+                self.test_timeout.fire();
+            }
+
             Ok(())
         } else {
             Err(NotifierError::UnexpectedTestPacketReceived(test_packet))
@@ -220,11 +277,11 @@ impl Notifier {
     }
 
     async fn notify_validator(&self, status: MixStatus) -> Result<(), NotifierError> {
-        println!("Sending status: {:?}", status);
-        self.directory_client
-            .post_mixmining_status(status)
-            .await
-            .map_err(|err| NotifierError::DirectoryError(err.to_string()))?;
+        debug!("Sending status: {:?}", status);
+        // self.directory_client
+        //     .post_mixmining_status(status)
+        //     .await
+        //     .map_err(|err| NotifierError::DirectoryError(err.to_string()))?;
         Ok(())
     }
 
@@ -232,11 +289,11 @@ impl Notifier {
         client: &directory_client::Client,
         status: MixStatus,
     ) -> Result<(), NotifierError> {
-        println!("Sending status: {:?}", status);
-        client
-            .post_mixmining_status(status)
-            .await
-            .map_err(|err| NotifierError::DirectoryError(err.to_string()))?;
+        debug!("Sending status: {:?}", status);
+        // client
+        //     .post_mixmining_status(status)
+        //     .await
+        //     .map_err(|err| NotifierError::DirectoryError(err.to_string()))?;
         Ok(())
     }
 }

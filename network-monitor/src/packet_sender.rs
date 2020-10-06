@@ -85,10 +85,17 @@ impl PacketSender {
                 TestMix::MalformedMix(mix_id)
             }
             Ok(mix) => {
-                let v4_test_packet = TestPacket::new(mix.pub_key, IpVersion::V4, self.nonce);
-                let v6_test_packet = TestPacket::new(mix.pub_key, IpVersion::V6, self.nonce);
+                if version_checker::is_minor_version_compatible(
+                    &mix.version,
+                    self.tested_network.system_version(),
+                ) {
+                    let v4_test_packet = TestPacket::new(mix.pub_key, IpVersion::V4, self.nonce);
+                    let v6_test_packet = TestPacket::new(mix.pub_key, IpVersion::V6, self.nonce);
 
-                TestMix::ValidMix(mix, [v4_test_packet, v6_test_packet])
+                    TestMix::ValidMix(mix, [v4_test_packet, v6_test_packet])
+                } else {
+                    TestMix::IncompatibleMix(mix)
+                }
             }
         }
     }
@@ -108,7 +115,8 @@ impl PacketSender {
     fn prepare_run_info(&self, test_mixes: &[TestMix]) -> RunInfo {
         let num_valid = test_mixes.iter().filter(|mix| mix.is_valid()).count();
         let mut test_packets = Vec::with_capacity(num_valid * 2);
-        let mut malformed_mixes = Vec::with_capacity(test_mixes.len() - num_valid);
+        let mut malformed_mixes = Vec::new();
+        let mut incompatible_mixes = Vec::new();
 
         for test_mix in test_mixes {
             match test_mix {
@@ -117,12 +125,16 @@ impl PacketSender {
                     test_packets.push(mix_test_packets[1]);
                 }
                 TestMix::MalformedMix(pub_key) => malformed_mixes.push(pub_key.clone()),
+                TestMix::IncompatibleMix(mix) => {
+                    incompatible_mixes.push((mix.pub_key.to_base58_string(), mix.version.clone()))
+                }
             }
         }
         RunInfo {
             nonce: self.nonce,
             test_packets,
             malformed_mixes,
+            incompatible_mixes,
         }
     }
 

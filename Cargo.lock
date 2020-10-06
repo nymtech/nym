@@ -1657,7 +1657,7 @@ dependencies = [
 
 [[package]]
 name = "network-monitor"
-version = "0.1.0"
+version = "0.8.0"
 dependencies = [
  "crypto",
  "directory-client",
@@ -1670,6 +1670,7 @@ dependencies = [
  "serde",
  "tokio 0.2.22",
  "topology",
+ "version-checker",
 ]
 
 [[package]]

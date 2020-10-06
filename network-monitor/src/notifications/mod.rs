@@ -82,10 +82,29 @@ impl Notifier {
 
         // notify about malformed nodes:
         for malformed_mix in run_info.malformed_mixes {
+            info!(
+                target: "test-run",
+                "{} is malformed", malformed_mix.clone()
+            );
             if let Err(err) = self.notify_down(malformed_mix.clone()).await {
                 error!(
                     "Failed to notify directory about {} being malformed - {:?}",
                     malformed_mix, err
+                )
+            }
+        }
+
+        for old_mix in run_info.incompatible_mixes {
+            info!(
+                target: "test-run",
+                "{} is outdated! It's on {} version",
+                old_mix.0.clone(),
+                old_mix.1
+            );
+            if let Err(err) = self.notify_down(old_mix.0.clone()).await {
+                error!(
+                    "Failed to notify directory about {} being incompatible (hence down) - {:?}",
+                    old_mix.0, err
                 )
             }
         }

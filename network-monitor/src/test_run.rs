@@ -22,6 +22,7 @@ pub(crate) struct RunInfo {
     pub nonce: u64,
     pub test_packets: Vec<TestPacket>,
     pub malformed_mixes: Vec<String>,
+    pub incompatible_mixes: Vec<(String, String)>,
 }
 
 // TODO: need to somehow inform about obviously bad packets too...

@@ -23,6 +23,7 @@ mod good_topology;
 
 pub(crate) enum TestMix {
     ValidMix(mix::Node, [TestPacket; 2]),
+    IncompatibleMix(mix::Node),
     MalformedMix(String),
 }
 
@@ -36,6 +37,7 @@ impl TestMix {
 }
 
 pub(crate) struct TestedNetwork {
+    system_version: String,
     gateway_client: GatewayClient,
     good_v4_topology: NymTopology,
     good_v6_topology: NymTopology,
@@ -47,11 +49,18 @@ pub(crate) fn v4_gateway() -> gateway::Node {
 
 impl TestedNetwork {
     pub(crate) fn new_good(gateway_client: GatewayClient) -> Self {
+        let good_v4_topology = good_topology::new_v4();
+
         TestedNetwork {
+            system_version: good_v4_topology.mixes()[&1][0].version.clone(),
             gateway_client,
-            good_v4_topology: good_topology::new_v4(),
+            good_v4_topology,
             good_v6_topology: good_topology::new_v6(),
         }
+    }
+
+    pub(crate) fn system_version(&self) -> &str {
+        &self.system_version
     }
 
     pub(crate) async fn start_gateway_client(&mut self) {

@@ -1,0 +1,546 @@
+definitions:
+  models.CocoHostInfo:
+    properties:
+      host:
+        type: string
+      location:
+        type: string
+      pubKey:
+        type: string
+      type:
+        type: string
+      version:
+        type: string
+    required:
+    - type
+    - pubKey
+    - version
+    type: object
+  models.CocoPresence:
+    properties:
+      host:
+        type: string
+      lastSeen:
+        type: integer
+      location:
+        type: string
+      pubKey:
+        type: string
+      type:
+        type: string
+      version:
+        type: string
+    required:
+    - pubKey
+    - version
+    - type
+    - lastSeen
+    type: object
+  models.Error:
+    properties:
+      error:
+        type: string
+    type: object
+  models.GatewayHostInfo:
+    properties:
+      clientListener:
+        type: string
+      location:
+        type: string
+      mixnetListener:
+        type: string
+      pubKey:
+        type: string
+      registeredClients:
+        items:
+          $ref: '#/definitions/models.RegisteredClient'
+        type: array
+      version:
+        type: string
+    required:
+    - pubKey
+    - version
+    type: object
+  models.GatewayPresence:
+    properties:
+      clientListener:
+        type: string
+      lastSeen:
+        type: integer
+      location:
+        type: string
+      mixnetListener:
+        type: string
+      pubKey:
+        type: string
+      registeredClients:
+        items:
+          $ref: '#/definitions/models.RegisteredClient'
+        type: array
+      version:
+        type: string
+    required:
+    - lastSeen
+    - pubKey
+    - version
+    type: object
+  models.MixHostInfo:
+    properties:
+      host:
+        type: string
+      layer:
+        type: integer
+      location:
+        type: string
+      pubKey:
+        type: string
+      version:
+        type: string
+    required:
+    - pubKey
+    - version
+    - layer
+    type: object
+  models.MixMetric:
+    properties:
+      pubKey:
+        type: string
+      received:
+        type: integer
+      sent:
+        required:
+        - sent
+        type: object
+    required:
+    - received
+    - pubKey
+    type: object
+  models.MixNodeID:
+    properties:
+      pubKey:
+        type: string
+    type: object
+  models.MixNodePresence:
+    properties:
+      host:
+        type: string
+      lastSeen:
+        type: integer
+      layer:
+        type: integer
+      location:
+        type: string
+      pubKey:
+        type: string
+      version:
+        type: string
+    required:
+    - layer
+    - lastSeen
+    - pubKey
+    - version
+    type: object
+  models.MixProviderPresence:
+    properties:
+      clientListener:
+        type: string
+      lastSeen:
+        type: integer
+      location:
+        type: string
+      mixnetListener:
+        type: string
+      pubKey:
+        type: string
+      registeredClients:
+        items:
+          $ref: '#/definitions/models.RegisteredClient'
+        type: array
+      version:
+        type: string
+    required:
+    - pubKey
+    - version
+    - lastSeen
+    type: object
+  models.RegisteredClient:
+    properties:
+      pubKey:
+        type: string
+    required:
+    - pubKey
+    type: object
+  models.Topology:
+    properties:
+      cocoNodes:
+        items:
+          $ref: '#/definitions/models.CocoPresence'
+        type: array
+      gatewayNodes:
+        items:
+          $ref: '#/definitions/models.GatewayPresence'
+        type: array
+      mixNodes:
+        items:
+          $ref: '#/definitions/models.MixNodePresence'
+        type: array
+      mixProviderNodes:
+        items:
+          $ref: '#/definitions/models.MixProviderPresence'
+        type: array
+    type: object
+info:
+  contact: {}
+  description: This is a temporarily centralized directory/PKI/metrics API to allow
+    us to get the other Nym node types running. Its functionality will eventually
+    be folded into other parts of Nym.
+  license:
+    name: Apache 2.0
+    url: https://github.com/nymtech/nym-directory/license
+  termsOfService: http://swagger.io/terms/
+  title: Nym Directory API
+  version: 0.0.4
+paths:
+  /api/healthcheck:
+    get:
+      consumes:
+      - application/json
+      description: Returns a 200 if the directory server is available. Good route
+        to use for automated monitoring.
+      operationId: healthCheck
+      produces:
+      - application/json
+      responses:
+        "200": {}
+      summary: Lets the directory server tell the world it's alive.
+      tags:
+      - healthcheck
+  /api/metrics/mixes:
+    get:
+      consumes:
+      - application/json
+      description: For demo and debug purposes it gives us the ability to generate
+        useful visualisations of network traffic.
+      operationId: listMixMetrics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.MixMetric'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+      summary: Lists mixnode activity in the past 3 seconds
+      tags:
+      - metrics
+    post:
+      consumes:
+      - application/json
+      description: For demo and debug purposes it gives us the ability to generate
+        useful visualisations of network traffic.
+      operationId: createMixMetric
+      parameters:
+      - description: object
+        in: body
+        name: object
+        required: true
+        schema:
+          $ref: '#/definitions/models.MixMetric'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201": {}
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+      summary: Create a metric detailing how many messages a given mixnode sent and
+        received
+      tags:
+      - metrics
+  /api/presence/allow:
+    post:
+      consumes:
+      - application/json
+      description: Sometimes when a node isn't working we need to temporarily remove
+        it. This allows us to re-enable it once it's working again.
+      operationId: allow
+      parameters:
+      - description: object
+        in: body
+        name: object
+        required: true
+        schema:
+          $ref: '#/definitions/models.MixNodeID'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200": {}
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+      summary: Removes a disallowed node from the disallowed nodes list
+      tags:
+      - presence
+  /api/presence/coconodes:
+    post:
+      consumes:
+      - application/json
+      description: Nym Coconut nodes can ping this method to let the directory server
+        know they're up. We can then use this info to create topologies of the overall
+        Nym network.
+      operationId: addCocoNode
+      parameters:
+      - description: object
+        in: body
+        name: object
+        required: true
+        schema:
+          $ref: '#/definitions/models.CocoHostInfo'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201": {}
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+      summary: Lets a coconut node tell the directory server it's alive
+      tags:
+      - presence
+  /api/presence/disallow:
+    post:
+      consumes:
+      - application/json
+      description: Sometimes when a node isn't working we need to temporarily remove
+        it from use so that it doesn't mess up QoS for the whole network.
+      operationId: disallow
+      parameters:
+      - description: object
+        in: body
+        name: object
+        required: true
+        schema:
+          $ref: '#/definitions/models.MixNodeID'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201": {}
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+      summary: Takes a node out of the regular topology and puts it in the disallowed
+        nodes list
+      tags:
+      - presence
+  /api/presence/disallowed:
+    get:
+      consumes:
+      - application/json
+      description: Sometimes we need to take mixnodes out of the network for repair.
+        This shows which ones are currently disallowed.
+      operationId: disallowed
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.MixNodePresence'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+      summary: Lists Nym mixnodes that are currently disallowed
+      tags:
+      - presence
+  /api/presence/gateways:
+    post:
+      consumes:
+      - application/json
+      description: Nym mix gateways can ping this method to let the directory server
+        know they're up. We can then use this info to create topologies of the overall
+        Nym network.
+      operationId: addGateway
+      parameters:
+      - description: object
+        in: body
+        name: object
+        required: true
+        schema:
+          $ref: '#/definitions/models.GatewayHostInfo'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201": {}
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+      summary: Lets a gateway tell the directory server it's alive
+      tags:
+      - presence
+  /api/presence/mixnodes:
+    post:
+      consumes:
+      - application/json
+      description: Nym mixnodes can ping this method to let the directory server know
+        they're up. We can then use this info to create topologies of the overall
+        Nym network.
+      operationId: addMixNode
+      parameters:
+      - description: object
+        in: body
+        name: object
+        required: true
+        schema:
+          $ref: '#/definitions/models.MixHostInfo'
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201": {}
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+      summary: Lets mixnode a node tell the directory server it's alive
+      tags:
+      - presence
+  /api/presence/topology:
+    get:
+      consumes:
+      - application/json
+      description: Nym nodes periodically ping the directory server to register that
+        they're alive. This method provides a list of nodes which have been most recently
+        seen.
+      operationId: topology
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Topology'
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Error'
+            type: object
+      summary: Lists which Nym mixnodes, providers, gateways, and coconodes are alive
+      tags:
+      - presence
+swagger: "2.0"

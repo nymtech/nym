@@ -5,8 +5,8 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client/context"
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/nymtech/nym/validator/nym/x/nym/types"
 	"github.com/spf13/cobra"
-    "github.com/nymtech/nym/validator/nym/x/nym/types"
 )
 
 func GetCmdListMixnode(queryRoute string, cdc *codec.Codec) *cobra.Command {

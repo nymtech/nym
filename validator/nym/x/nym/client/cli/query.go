@@ -29,7 +29,7 @@ func GetQueryCmd(queryRoute string, cdc *codec.Codec) *cobra.Command {
 
 	nymQueryCmd.AddCommand(
 		flags.GetCommands(
-      // this line is used by starport scaffolding # 1
+			// this line is used by starport scaffolding # 1
 			GetCmdListMixnode(queryRoute, cdc),
 			GetCmdGetMixnode(queryRoute, cdc),
 		)...,

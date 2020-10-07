@@ -2,8 +2,8 @@ package cli
 
 import (
 	"bufio"
-    "strconv"
 	"github.com/spf13/cobra"
+	"strconv"
 
 	"github.com/cosmos/cosmos-sdk/client/context"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -19,13 +19,13 @@ func GetCmdCreateMixnode(cdc *codec.Codec) *cobra.Command {
 		Short: "Creates a new mixnode",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			argsPubKey := string(args[0] )
-			argsLayer, _ := strconv.ParseInt(args[1] , 10, 64)
-			argsVersion := string(args[2] )
-			argsHost := string(args[3] )
-			argsLocation := string(args[4] )
-			argsStake, _ := strconv.ParseInt(args[5] , 10, 64)
-			
+			argsPubKey := string(args[0])
+			argsLayer, _ := strconv.ParseInt(args[1], 10, 64)
+			argsVersion := string(args[2])
+			argsHost := string(args[3])
+			argsLocation := string(args[4])
+			argsStake, _ := strconv.ParseInt(args[5], 10, 64)
+
 			cliCtx := context.NewCLIContext().WithCodec(cdc)
 			inBuf := bufio.NewReader(cmd.InOrStdin())
 			txBldr := auth.NewTxBuilderFromCLI(inBuf).WithTxEncoder(utils.GetTxEncoder(cdc))
@@ -38,7 +38,6 @@ func GetCmdCreateMixnode(cdc *codec.Codec) *cobra.Command {
 		},
 	}
 }
-
 
 func GetCmdSetMixnode(cdc *codec.Codec) *cobra.Command {
 	return &cobra.Command{
@@ -53,7 +52,7 @@ func GetCmdSetMixnode(cdc *codec.Codec) *cobra.Command {
 			argsHost := string(args[4])
 			argsLocation := string(args[5])
 			argsStake, _ := strconv.ParseInt(args[6], 10, 64)
-			
+
 			cliCtx := context.NewCLIContext().WithCodec(cdc)
 			inBuf := bufio.NewReader(cmd.InOrStdin())
 			txBldr := auth.NewTxBuilderFromCLI(inBuf).WithTxEncoder(utils.GetTxEncoder(cdc))

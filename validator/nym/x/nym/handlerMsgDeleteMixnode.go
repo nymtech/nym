@@ -4,8 +4,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
-	"github.com/nymtech/nym/validator/nym/x/nym/types"
 	"github.com/nymtech/nym/validator/nym/x/nym/keeper"
+	"github.com/nymtech/nym/validator/nym/x/nym/types"
 )
 
 // Handle a message to delete name

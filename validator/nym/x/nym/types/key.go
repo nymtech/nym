@@ -17,4 +17,3 @@ const (
 const (
 	MixnodePrefix = "mixnode-"
 )
-		

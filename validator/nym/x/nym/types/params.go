@@ -14,8 +14,8 @@ const (
 
 // Parameter store keys
 var (
-	// TODO: Define your keys for the parameter store
-	// KeyParamName          = []byte("ParamName")
+// TODO: Define your keys for the parameter store
+// KeyParamName          = []byte("ParamName")
 )
 
 // ParamKeyTable for nym module
@@ -30,7 +30,7 @@ type Params struct {
 }
 
 // NewParams creates a new Params object
-func NewParams(/* TODO: Pass in the paramters*/) Params {
+func NewParams( /* TODO: Pass in the paramters*/ ) Params {
 	return Params{
 		// TODO: Create your Params Type
 	}
@@ -40,7 +40,7 @@ func NewParams(/* TODO: Pass in the paramters*/) Params {
 func (p Params) String() string {
 	return fmt.Sprintf(`
 	// TODO: Return all the params as a string
-	`, )
+	`)
 }
 
 // ParamSetPairs - Implements params.ParamSet

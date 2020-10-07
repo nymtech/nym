@@ -4,22 +4,21 @@ import (
 	"net/http"
 
 	"github.com/cosmos/cosmos-sdk/client/context"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/rest"
 	"github.com/cosmos/cosmos-sdk/x/auth/client/utils"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/nymtech/nym/validator/nym/x/nym/types"
 )
 
 type createMixnodeRequest struct {
-	BaseReq rest.BaseReq `json:"base_req"`
-	Creator string `json:"creator"`
-	PubKey string `json:"pubKey"`
-	Layer int32 `json:"layer"`
-	Version string `json:"version"`
-	Host string `json:"host"`
-	Location string `json:"location"`
-	Stake int32 `json:"stake"`
-	
+	BaseReq  rest.BaseReq `json:"base_req"`
+	Creator  string       `json:"creator"`
+	PubKey   string       `json:"pubKey"`
+	Layer    int32        `json:"layer"`
+	Version  string       `json:"version"`
+	Host     string       `json:"host"`
+	Location string       `json:"location"`
+	Stake    int32        `json:"stake"`
 }
 
 func createMixnodeHandler(cliCtx context.CLIContext) http.HandlerFunc {
@@ -38,7 +37,7 @@ func createMixnodeHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			rest.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		msg := types.NewMsgCreateMixnode(creator,  req.PubKey,  req.Layer,  req.Version,  req.Host,  req.Location,  req.Stake, )
+		msg := types.NewMsgCreateMixnode(creator, req.PubKey, req.Layer, req.Version, req.Host, req.Location, req.Stake)
 
 		err = msg.ValidateBasic()
 		if err != nil {
@@ -51,16 +50,15 @@ func createMixnodeHandler(cliCtx context.CLIContext) http.HandlerFunc {
 }
 
 type setMixnodeRequest struct {
-	BaseReq rest.BaseReq `json:"base_req"`
-	ID 		string `json:"id"`
-	Creator string `json:"creator"`
-	PubKey string `json:"pubKey"`
-	Layer int32 `json:"layer"`
-	Version string `json:"version"`
-	Host string `json:"host"`
-	Location string `json:"location"`
-	Stake int32 `json:"stake"`
-	
+	BaseReq  rest.BaseReq `json:"base_req"`
+	ID       string       `json:"id"`
+	Creator  string       `json:"creator"`
+	PubKey   string       `json:"pubKey"`
+	Layer    int32        `json:"layer"`
+	Version  string       `json:"version"`
+	Host     string       `json:"host"`
+	Location string       `json:"location"`
+	Stake    int32        `json:"stake"`
 }
 
 func setMixnodeHandler(cliCtx context.CLIContext) http.HandlerFunc {
@@ -79,7 +77,7 @@ func setMixnodeHandler(cliCtx context.CLIContext) http.HandlerFunc {
 			rest.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		msg := types.NewMsgSetMixnode(creator, req.ID,  req.PubKey,  req.Layer,  req.Version,  req.Host,  req.Location,  req.Stake, )
+		msg := types.NewMsgSetMixnode(creator, req.ID, req.PubKey, req.Layer, req.Version, req.Host, req.Location, req.Stake)
 
 		err = msg.ValidateBasic()
 		if err != nil {
@@ -93,8 +91,8 @@ func setMixnodeHandler(cliCtx context.CLIContext) http.HandlerFunc {
 
 type deleteMixnodeRequest struct {
 	BaseReq rest.BaseReq `json:"base_req"`
-	Creator string `json:"creator"`
-	ID 		string `json:"id"`
+	Creator string       `json:"creator"`
+	ID      string       `json:"id"`
 }
 
 func deleteMixnodeHandler(cliCtx context.CLIContext) http.HandlerFunc {

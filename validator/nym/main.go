@@ -1,8 +1,8 @@
 package main
 
 import (
-	_ "github.com/nymtech/nym-directory/docs"
-	"github.com/nymtech/nym-directory/server"
+	server "github.com/nymtech/nym/validator/nym/directory"
+	_ "github.com/nymtech/nym/validator/nym/directory/docs"
 )
 
 // @title Nym Directory API
@@ -11,7 +11,7 @@ import (
 // @termsOfService http://swagger.io/terms/
 
 // @license.name Apache 2.0
-// @license.url https://github.com/nymtech/nym-directory/license
+// @license.url https://github.com/nymtech/nym/validator/nym/directory/license
 func main() {
 	router := server.New()
 	router.Run(":8081")

@@ -2,8 +2,8 @@ package presence
 
 import (
 	"github.com/BorisBorshevsky/timemock"
-	"github.com/nymtech/nym-directory/models"
-	"github.com/nymtech/nym-directory/presence/mocks"
+	"github.com/nymtech/nym/validator/nym/directory/models"
+	"github.com/nymtech/nym/validator/nym/directory/presence/mocks"
 	. "github.com/onsi/ginkgo"
 	_ "github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"

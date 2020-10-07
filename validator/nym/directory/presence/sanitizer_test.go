@@ -2,7 +2,7 @@ package presence
 
 import (
 	"github.com/microcosm-cc/bluemonday"
-	"github.com/nymtech/nym-directory/presence/fixtures"
+	"github.com/nymtech/nym/validator/nym/directory/presence/fixtures"
 	. "github.com/onsi/ginkgo"
 	"github.com/stretchr/testify/assert"
 )

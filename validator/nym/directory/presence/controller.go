@@ -5,7 +5,7 @@ import (
 
 	"github.com/blang/semver/v4"
 	"github.com/gin-gonic/gin"
-	"github.com/nymtech/nym-directory/models"
+	"github.com/nymtech/nym/validator/nym/directory/models"
 )
 
 // Config for this controller

@@ -1,6 +1,6 @@
 package fixtures
 
-import "github.com/nymtech/nym-directory/models"
+import "github.com/nymtech/nym/validator/nym/directory/models"
 
 // MixStatusesList A list of mix statuses
 func MixStatusesList() []models.PersistedMixStatus {

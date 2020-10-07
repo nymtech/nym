@@ -1,6 +1,6 @@
 package fixtures
 
-import "github.com/nymtech/nym-directory/models"
+import "github.com/nymtech/nym/validator/nym/directory/models"
 
 func MixNodeID() models.MixNodeID {
 	d := models.MixNodeID{
@@ -37,12 +37,12 @@ func GoodMixHost() models.MixHostInfo {
 
 func GoodGatewayHost() models.GatewayHostInfo {
 	good := models.GatewayHostInfo{
-		Location:          "foomplandia",
-		ClientListener:    ":1789",
-		MixnetListener:    ":1790",
-		IdentityKey:       "pubkey",
-		SphinxKey:         "sphinxkey",
-		Version:           "0.1.0",
+		Location:       "foomplandia",
+		ClientListener: ":1789",
+		MixnetListener: ":1790",
+		IdentityKey:    "pubkey",
+		SphinxKey:      "sphinxkey",
+		Version:        "0.1.0",
 	}
 	return good
 }
@@ -75,12 +75,12 @@ func XssMixHost() models.MixHostInfo {
 
 func XssGatewayHost() models.GatewayHostInfo {
 	xss := models.GatewayHostInfo{
-		Location:          "foomplandia",
-		ClientListener:    ":1789",
-		MixnetListener:    ":1790",
-		IdentityKey:       "pubkey<script>alert('gotcha')</script>",
-		SphinxKey:         "sphinxkey",
-		Version:           "0.1.0",
+		Location:       "foomplandia",
+		ClientListener: ":1789",
+		MixnetListener: ":1790",
+		IdentityKey:    "pubkey<script>alert('gotcha')</script>",
+		SphinxKey:      "sphinxkey",
+		Version:        "0.1.0",
 	}
 	return xss
 }

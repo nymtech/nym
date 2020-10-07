@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/user"
 
-	"github.com/nymtech/nym-directory/models"
+	"github.com/nymtech/nym/validator/nym/directory/models"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )

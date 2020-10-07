@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/nymtech/nym-directory/models"
+	"github.com/nymtech/nym/validator/nym/directory/models"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nymtech/nym-directory/mixmining/fixtures"
-	"github.com/nymtech/nym-directory/mixmining/mocks"
+	"github.com/nymtech/nym/validator/nym/directory/mixmining/fixtures"
+	"github.com/nymtech/nym/validator/nym/directory/mixmining/mocks"
 	. "github.com/onsi/ginkgo"
 	"github.com/stretchr/testify/assert"
 )

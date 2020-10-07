@@ -7,19 +7,23 @@ require (
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751
 	github.com/blang/semver/v4 v4.0.0
 	github.com/cosmos/cosmos-sdk v0.39.1
+	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-gonic/gin v1.6.2
 	github.com/golang/mock v1.4.3 // indirect
 	github.com/google/uuid v1.0.0
 	github.com/gorilla/mux v1.7.4
+	github.com/gorilla/websocket v1.4.2
+	github.com/jessevdk/go-assets v0.0.0-20160921144138-4f4301a06e15
 	github.com/jinzhu/gorm v1.9.16
 	github.com/microcosm-cc/bluemonday v1.0.2
-	github.com/nymtech/nym-directory v0.7.0
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.1
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/viper v1.7.0
 	github.com/stretchr/testify v1.6.1
+	github.com/swaggo/files v0.0.0-20190704085106-630677cd5c14
+	github.com/swaggo/gin-swagger v1.2.0
 	github.com/swaggo/swag v1.6.5
 	github.com/tendermint/go-amino v0.15.1
 	github.com/tendermint/tendermint v0.33.7

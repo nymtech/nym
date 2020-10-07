@@ -2,7 +2,7 @@ package presence
 
 import (
 	"github.com/microcosm-cc/bluemonday"
-	"github.com/nymtech/nym-directory/models"
+	"github.com/nymtech/nym/validator/nym/directory/models"
 )
 
 // CocoHostSanitizer cleans untrusted input fields

@@ -7,9 +7,9 @@ import (
 	"net/http/httptest"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nymtech/nym-directory/models"
-	"github.com/nymtech/nym-directory/presence/fixtures"
-	"github.com/nymtech/nym-directory/presence/mocks"
+	"github.com/nymtech/nym/validator/nym/directory/models"
+	"github.com/nymtech/nym/validator/nym/directory/presence/fixtures"
+	"github.com/nymtech/nym/validator/nym/directory/presence/mocks"
 	. "github.com/onsi/ginkgo"
 	"github.com/stretchr/testify/assert"
 )

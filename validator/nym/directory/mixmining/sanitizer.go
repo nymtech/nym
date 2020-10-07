@@ -2,7 +2,7 @@ package mixmining
 
 import (
 	"github.com/microcosm-cc/bluemonday"
-	"github.com/nymtech/nym-directory/models"
+	"github.com/nymtech/nym/validator/nym/directory/models"
 )
 
 // Sanitizer sanitizes untrusted metrics data. It should be used in

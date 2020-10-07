@@ -4,7 +4,7 @@ import (
 	"net"
 
 	"github.com/BorisBorshevsky/timemock"
-	"github.com/nymtech/nym-directory/models"
+	"github.com/nymtech/nym/validator/nym/directory/models"
 )
 
 const defaultLocation = "unknown"

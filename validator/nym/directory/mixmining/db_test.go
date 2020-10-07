@@ -1,8 +1,8 @@
 package mixmining
 
 import (
-	"github.com/nymtech/nym-directory/mixmining/fixtures"
-	"github.com/nymtech/nym-directory/models"
+	"github.com/nymtech/nym/validator/nym/directory/mixmining/fixtures"
+	"github.com/nymtech/nym/validator/nym/directory/models"
 	. "github.com/onsi/ginkgo"
 	"github.com/stretchr/testify/assert"
 )

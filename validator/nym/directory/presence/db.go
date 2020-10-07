@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/BorisBorshevsky/timemock"
-	"github.com/nymtech/nym-directory/models"
+	"github.com/nymtech/nym/validator/nym/directory/models"
 )
 
 // IDb holds presence information

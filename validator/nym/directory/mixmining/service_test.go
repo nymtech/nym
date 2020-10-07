@@ -2,8 +2,8 @@ package mixmining
 
 import (
 	"github.com/BorisBorshevsky/timemock"
-	"github.com/nymtech/nym-directory/mixmining/mocks"
-	"github.com/nymtech/nym-directory/models"
+	"github.com/nymtech/nym/validator/nym/directory/mixmining/mocks"
+	"github.com/nymtech/nym/validator/nym/directory/models"
 	. "github.com/onsi/ginkgo"
 	"gotest.tools/assert"
 )

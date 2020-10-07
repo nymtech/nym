@@ -1,0 +1,4 @@
+vue/node_modules
+vue/dist
+vue/.cache
+build

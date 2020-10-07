@@ -1,0 +1,56 @@
+# This is a basic workflow that is manually triggered
+
+name: nym Pi
+
+# Controls when the action will run. Workflow runs when manually triggered using the UI
+# or API.
+on: [push, pull_request]
+
+
+# This workflow makes a 64 bit Raspberry Pi Ubuntu Server Image.
+# It does not have the security issues mentioned here: https://github.com/tendermint/tendermint/blob/master/docs/tendermint-core/running-in-production.md#validator-signing-on-32-bit-architectures-or-arm
+# Later, more devices will be supported, as well.
+
+
+jobs:
+  build:
+    name: nym Pi Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out nym
+        uses: actions/checkout@v2
+
+      - name: Setup go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.15
+
+      - name: Compile nym
+        run: make
+        env:
+          GOOS: linux
+          GOARCH: arm64
+
+      - name: Upload nym Arm64 Binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: nym arm64
+          path: build/
+
+      - name: Build nym.img
+        run: docker run --rm --privileged -v /dev:/dev -v ${PWD}:/build mkaczanowski/packer-builder-arm build .pi/pibuild.json
+
+      - name: Install PiShrink
+        run: |
+          wget https://raw.githubusercontent.com/Drewsif/PiShrink/master/pishrink.sh
+          chmod +x pishrink.sh
+          sudo mv pishrink.sh /usr/local/bin
+
+      - name: Shrink nym.img
+        run: sudo pishrink.sh -a -Z -v nym.img
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: nym PI
+          path: nym.img.xz

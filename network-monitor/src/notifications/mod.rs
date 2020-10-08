@@ -14,20 +14,17 @@
 
 use super::monitor::MixnetReceiver;
 use crate::monitor::NOTIFIER_DELIVERY_TIMEOUT;
+use crate::notifications::test_run::TestRun;
 use crate::notifications::test_timeout::TestTimeout;
-use crate::test_packet::TestPacket;
 use crate::test_run::{RunInfo, TestRunUpdate, TestRunUpdateReceiver};
 use crypto::asymmetric::encryption::KeyPair;
-use directory_client::mixmining::MixStatus;
-use futures::stream::FuturesUnordered;
-use futures::try_join;
+use directory_client::mixmining::BatchMixStatus;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::receiver::MessageReceiver;
-use std::collections::{HashMap, HashSet};
-use std::mem;
 use std::sync::Arc;
 
+mod test_run;
 mod test_timeout;
 
 #[derive(Debug)]
@@ -35,7 +32,6 @@ enum NotifierError {
     DirectoryError(String),
     MalformedPacketReceived,
     NonTestPacketReceived,
-    UnexpectedTestPacketReceived(TestPacket),
 }
 
 pub(crate) struct Notifier {
@@ -45,9 +41,8 @@ pub(crate) struct Notifier {
     directory_client: Arc<directory_client::Client>,
     test_run_receiver: TestRunUpdateReceiver,
     test_run_nonce: u64,
+    current_test_run: TestRun,
     test_timeout: TestTimeout,
-
-    expected_run_packets: HashSet<TestPacket>,
 }
 
 impl Notifier {
@@ -65,143 +60,22 @@ impl Notifier {
             directory_client,
             test_run_receiver,
             test_run_nonce: 0,
+            current_test_run: TestRun::new(0).with_report(), //.with_detailed_report(),
             test_timeout: TestTimeout::new(),
-            expected_run_packets: HashSet::new(),
         }
     }
 
     async fn on_run_start(&mut self, run_info: RunInfo) {
-        if run_info.nonce != self.test_run_nonce + 1 {
-            error!(
-                "Received unexpected test run info! Got {}, expected: {}",
-                self.test_run_nonce + 1,
-                run_info.nonce
-            );
-            return;
-        }
-
-        // notify about malformed nodes:
-        for malformed_mix in run_info.malformed_mixes {
-            info!(
-                target: "test-run",
-                "{} is malformed", malformed_mix.clone()
-            );
-            if let Err(err) = self.notify_down(malformed_mix.clone()).await {
-                error!(
-                    "Failed to notify directory about {} being malformed - {:?}",
-                    malformed_mix, err
-                )
-            }
-        }
-
-        for old_mix in run_info.incompatible_mixes {
-            info!(
-                target: "test-run",
-                "{} is outdated! It's on {} version",
-                old_mix.0.clone(),
-                old_mix.1
-            );
-            if let Err(err) = self.notify_down(old_mix.0.clone()).await {
-                error!(
-                    "Failed to notify directory about {} being incompatible (hence down) - {:?}",
-                    old_mix.0, err
-                )
-            }
-        }
-
-        // store information about packets that are currently being sent
-        for test_packet in run_info.test_packets {
-            self.expected_run_packets.insert(test_packet);
-        }
-
-        // we already checked that nonce is incremented by one
         self.test_run_nonce += 1;
+
+        self.current_test_run.refresh(self.test_run_nonce);
+        self.current_test_run.start_run(run_info);
     }
 
-    fn undelivered_summary(&self, undelivered: &HashSet<TestPacket>) {
-        let total_undelivered = undelivered.len();
-        if total_undelivered != 0 {
-            info!(target: "summary", "There are {} undelivered packets!", total_undelivered);
-
-            let mut undelivered_v4 = 0;
-            let mut undelivered_v6 = 0;
-
-            let mut down_nodes = HashMap::new();
-            for undelivered_packet in undelivered {
-                let entry = down_nodes
-                    .entry(undelivered_packet.pub_key_string())
-                    .or_insert((true, true));
-                if undelivered_packet.ip_version().is_v4() {
-                    entry.0 = false;
-                    undelivered_v4 += 1;
-                } else {
-                    entry.1 = false;
-                    undelivered_v6 += 1;
-                }
-            }
-
-            info!(target: "summary", "{} undelivered packets were IpV4, {} were IpV6", undelivered_v4, undelivered_v6);
-
-            let mut non_v4_nodes = 0;
-            let mut non_v6_nodes = 0;
-            let mut messed_up_nodes = 0;
-
-            for (down_node, result) in down_nodes.into_iter() {
-                let down_str = match result {
-                    (true, false) => {
-                        non_v6_nodes += 1;
-                        "failed to route IpV6 packet"
-                    }
-                    (false, true) => {
-                        non_v4_nodes += 1;
-                        "failed to route IpV4 packet"
-                    }
-                    (false, false) => {
-                        messed_up_nodes += 1;
-                        "failed to route BOTH IpV4 AND IpV6 packet"
-                    }
-                    (true, true) => panic!("This result is impossible!"),
-                };
-
-                info!(target: "detailed summary", "{} {}", down_node, down_str);
-            }
-
-            info!(target: "summary", "{} nodes don't speak ipv4 (!), {} nodes don't speak ipv6 and {} nodes don't speak either", non_v4_nodes, non_v6_nodes, messed_up_nodes);
-        } else {
-            info!(target: "summary", "Everything is working perfectly!")
-        }
-    }
-
-    async fn on_timeout(&mut self) {
-        let undelivered = mem::replace(&mut self.expected_run_packets, HashSet::new());
-        self.undelivered_summary(&undelivered);
-
-        // if we have a lot of undelivered packets we don't want to perform all directory calls
-        // synchronously. There will be bunch of IO waiting for the network packets to
-        // actually go through. Therefore try to do it concurrently.
-        let mut directory_futures = FuturesUnordered::new();
-
-        for undelivered_packet in undelivered.into_iter() {
-            let dir_client = Arc::clone(&self.directory_client);
-            let mix_id = undelivered_packet.pub_key_string();
-            let future = async move {
-                if let Err(err) = Self::notify_validator_with_client(
-                    &*dir_client,
-                    undelivered_packet.into_down_mixstatus(),
-                )
-                .await
-                {
-                    error!(
-                        "Failed to notify directory about {} being down - {:?}",
-                        mix_id, err
-                    )
-                }
-            };
-            directory_futures.push(future);
-        }
-
-        while !directory_futures.is_empty() {
-            directory_futures.next().await;
+    async fn on_run_end(&mut self) {
+        let batch_status = self.current_test_run.finish_run();
+        if let Err(err) = self.notify_validator(batch_status).await {
+            warn!("Failed to send batch status to validator - {:?}", err)
         }
     }
 
@@ -217,9 +91,9 @@ impl Notifier {
         }
     }
 
-    async fn on_mix_messages(&mut self, messages: Vec<Vec<u8>>) {
+    fn on_mix_messages(&mut self, messages: Vec<Vec<u8>>) {
         for message in messages {
-            if let Err(err) = self.on_message(message).await {
+            if let Err(err) = self.on_message(message) {
                 error!(target: "Mix receiver", "failed to process received mix packet - {:?}", err)
             }
         }
@@ -230,20 +104,20 @@ impl Notifier {
         loop {
             tokio::select! {
                 mix_messages = &mut self.mixnet_receiver.next() => {
-                    self.on_mix_messages(mix_messages.expect("mix channel has failed!")).await;
+                    self.on_mix_messages(mix_messages.expect("mix channel has failed!"));
                 },
                 run_update = &mut self.test_run_receiver.next() => {
                     self.on_test_run_update(run_update.expect("packet sender has died!")).await;
                 }
                 _ = &mut self.test_timeout => {
-                    self.on_timeout().await;
+                    self.on_run_end().await;
                     self.test_timeout.clear();
                 }
             }
         }
     }
 
-    async fn on_message(&mut self, message: Vec<u8>) -> Result<(), NotifierError> {
+    fn on_message(&mut self, message: Vec<u8>) -> Result<(), NotifierError> {
         let encrypted_bytes = self
             .message_receiver
             .recover_plaintext(self.client_encryption_keypair.private_key(), message)
@@ -258,59 +132,16 @@ impl Notifier {
             .map_err(|_| NotifierError::MalformedPacketReceived)?
             .ok_or_else(|| NotifierError::NonTestPacketReceived)?; // if it's a test packet it MUST BE reconstructed with single fragment
 
-        let test_packet = TestPacket::try_from_bytes(&recovered.message)
-            .map_err(|_| NotifierError::NonTestPacketReceived)?;
-
-        if self.expected_run_packets.remove(&test_packet) {
-            self.notify_validator(test_packet.into_up_mixstatus())
-                .await?;
-
-            if self.expected_run_packets.is_empty() {
-                self.test_timeout.fire();
-            }
-
-            Ok(())
-        } else {
-            Err(NotifierError::UnexpectedTestPacketReceived(test_packet))
+        let all_received = self.current_test_run.received_packet(recovered.message);
+        if all_received {
+            self.test_timeout.fire();
         }
-    }
-
-    async fn notify_down(&self, pub_key: String) -> Result<(), NotifierError> {
-        let v4_status = MixStatus {
-            pub_key: pub_key.clone(),
-            ip_version: "4".to_string(),
-            up: false,
-        };
-
-        let v6_status = MixStatus {
-            pub_key,
-            ip_version: "6".to_string(),
-            up: false,
-        };
-
-        let v4_future = self.notify_validator(v4_status);
-        let v6_future = self.notify_validator(v6_status);
-
-        try_join!(v4_future, v6_future)?;
         Ok(())
     }
 
-    async fn notify_validator(&self, status: MixStatus) -> Result<(), NotifierError> {
-        debug!("Sending status: {:?}", status);
+    async fn notify_validator(&self, status: BatchMixStatus) -> Result<(), NotifierError> {
         self.directory_client
-            .post_mixmining_status(status)
-            .await
-            .map_err(|err| NotifierError::DirectoryError(err.to_string()))?;
-        Ok(())
-    }
-
-    async fn notify_validator_with_client(
-        client: &directory_client::Client,
-        status: MixStatus,
-    ) -> Result<(), NotifierError> {
-        debug!("Sending status: {:?}", status);
-        client
-            .post_mixmining_status(status)
+            .post_batch_mixmining_status(status)
             .await
             .map_err(|err| NotifierError::DirectoryError(err.to_string()))?;
         Ok(())

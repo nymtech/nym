@@ -97,6 +97,10 @@ impl TestPacket {
         }
     }
 
+    pub(crate) fn nonce(&self) -> u64 {
+        self.nonce
+    }
+
     pub(crate) fn ip_version(&self) -> IpVersion {
         self.ip_version
     }

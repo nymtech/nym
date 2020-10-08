@@ -42,7 +42,7 @@ impl Monitor {
             let mut interval = time::interval(MONITOR_RUN_INTERVAL);
             loop {
                 interval.tick().await;
-                info!(target: "Monitor", "Starting test run"); // TODO: nonce
+                info!(target: "Monitor", "Starting test run");
 
                 if let Err(err) = packet_sender.run_test().await {
                     error!("Test run failed! - {:?}", err);

@@ -1,12 +1,12 @@
 use super::{DirectoryPostRequest, DirectoryRequest};
-use crate::mixmining::MixStatus;
+use crate::mixmining::BatchMixStatus;
 
-const PATH: &str = "/api/mixmining";
+const PATH: &str = "/api/mixmining/batch";
 
 pub struct Request {
     base_url: String,
     path: String,
-    payload: MixStatus,
+    payload: BatchMixStatus,
 }
 
 impl DirectoryRequest for Request {
@@ -16,7 +16,7 @@ impl DirectoryRequest for Request {
 }
 
 impl DirectoryPostRequest for Request {
-    type Payload = MixStatus;
+    type Payload = BatchMixStatus;
     fn new(base_url: &str, payload: Self::Payload) -> Self {
         Request {
             base_url: base_url.to_string(),
@@ -25,13 +25,13 @@ impl DirectoryPostRequest for Request {
         }
     }
 
-    fn json_payload(&self) -> &MixStatus {
+    fn json_payload(&self) -> &BatchMixStatus {
         &self.payload
     }
 }
 
 #[cfg(test)]
-mod mix_status_post_request {
+mod batch_mix_status_post_request {
     use super::*;
     use crate::client_test_fixture;
     use mockito::mock;
@@ -44,7 +44,9 @@ mod mix_status_post_request {
         async fn it_returns_an_error() {
             let _m = mock("POST", PATH).with_status(400).create();
             let client = client_test_fixture(&mockito::server_url());
-            let result = client.post_mixmining_status(fixtures::new_status()).await;
+            let result = client
+                .post_batch_mixmining_status(fixtures::new_status())
+                .await;
             assert_eq!(400, result.unwrap().status());
             _m.assert();
         }
@@ -53,17 +55,20 @@ mod mix_status_post_request {
     #[cfg(test)]
     mod on_a_201 {
         use super::*;
+
         #[tokio::test]
         async fn it_returns_a_response_with_201() {
             let json = r#"{
                 "ok": true
             }"#;
-            let _m = mock("POST", "/api/mixmining")
+            let _m = mock("POST", "/api/mixmining/batch")
                 .with_status(201)
                 .with_body(json)
                 .create();
             let client = client_test_fixture(&mockito::server_url());
-            let result = client.post_mixmining_status(fixtures::new_status()).await;
+            let result = client
+                .post_batch_mixmining_status(fixtures::new_status())
+                .await;
             assert!(result.is_ok());
             _m.assert();
         }
@@ -71,13 +76,15 @@ mod mix_status_post_request {
 
     #[cfg(test)]
     mod fixtures {
-        use directory_client_models::mixmining::MixStatus;
+        use crate::mixmining::{BatchMixStatus, MixStatus};
 
-        pub fn new_status() -> MixStatus {
-            MixStatus {
-                pub_key: "abc".to_string(),
-                ip_version: "4".to_string(),
-                up: true,
+        pub fn new_status() -> BatchMixStatus {
+            BatchMixStatus {
+                status: vec![MixStatus {
+                    pub_key: "abc".to_string(),
+                    ip_version: "4".to_string(),
+                    up: true,
+                }],
             }
         }
     }

@@ -8,7 +8,7 @@ Mixmining reports are stored in a SQLite database at `~/.nym/mixmining.db`
 
 ## Dependencies
 
-* Go 1.12 or later
+* Go 1.15 or later
 
 ## Building and running
 

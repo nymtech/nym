@@ -808,7 +808,7 @@ var SwaggerInfo = swaggerInfo{
 	Host:        "",
 	BasePath:    "",
 	Schemes:     []string{},
-	Title:       "Nym Directory APIssss",
+	Title:       "Nym Directory API",
 	Description: "A directory API allowing Nym nodes and clients to connect to each other.",
 }
 

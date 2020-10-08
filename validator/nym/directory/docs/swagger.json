@@ -2,7 +2,7 @@
     "swagger": "2.0",
     "info": {
         "description": "A directory API allowing Nym nodes and clients to connect to each other.",
-        "title": "Nym Directory APIssss",
+        "title": "Nym Directory API",
         "termsOfService": "http://swagger.io/terms/",
         "contact": {},
         "license": {

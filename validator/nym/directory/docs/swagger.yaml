@@ -187,7 +187,7 @@ info:
     name: Apache 2.0
     url: https://github.com/nymtech/nym/validator/nym/directory/license
   termsOfService: http://swagger.io/terms/
-  title: Nym Directory APIssss
+  title: Nym Directory API
   version: 0.9.0-dev
 paths:
   /api/healthcheck:

@@ -24,6 +24,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 	"github.com/cosmos/cosmos-sdk/x/staking"
+
+	directoryServer "github.com/nymtech/nym/validator/nym/directory"
+	_ "github.com/nymtech/nym/validator/nym/directory/docs"
 )
 
 const flagInvCheckPeriod = "inv-check-period"
@@ -31,6 +34,10 @@ const flagInvCheckPeriod = "inv-check-period"
 var invCheckPeriod uint
 
 func main() {
+
+	directory := directoryServer.New()
+	go directory.Run(":8081")
+
 	cdc := app.MakeCodec()
 
 	app.SetConfig()

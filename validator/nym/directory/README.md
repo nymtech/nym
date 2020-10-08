@@ -4,6 +4,8 @@ A PKI, presence and mixmining monitoring server.
 
 Nym nodes and clients use it to find each other, and bootstrap the network into existence. 
 
+Mixmining reports are stored in a SQLite database at `~/.nym/mixmining.db`
+
 ## Dependencies
 
 * Go 1.12 or later

@@ -17,6 +17,13 @@ import (
 )
 
 // New returns a new REST API server
+// @title Nym Directory API
+// @version 0.9.0-dev
+// @description A directory API allowing Nym nodes and clients to connect to each other.
+// @termsOfService http://swagger.io/terms/
+
+// @license.name Apache 2.0
+// @license.url https://github.com/nymtech/nym/validator/nym/directory/license
 func New() *gin.Engine {
 	// Set the router as the default one shipped with Gin
 	router := gin.Default()

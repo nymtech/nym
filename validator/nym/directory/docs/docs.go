@@ -48,97 +48,6 @@ var doc = `{
                 }
             }
         },
-        "/api/metrics/mixes": {
-            "get": {
-                "description": "For demo and debug purposes it gives us the ability to generate useful visualisations of network traffic.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "metrics"
-                ],
-                "summary": "Lists mixnode activity in the past 3 seconds",
-                "operationId": "listMixMetrics",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.MixMetric"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "For demo and debug purposes it gives us the ability to generate useful visualisations of network traffic.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "metrics"
-                ],
-                "summary": "Create a metric detailing how many messages a given mixnode sent and received",
-                "operationId": "createMixMetric",
-                "parameters": [
-                    {
-                        "description": "object",
-                        "name": "object",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.MixMetric"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {},
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/models.Error"
-                        }
-                    }
-                }
-            }
-        },
         "/api/mixmining": {
             "post": {
                 "description": "Nym network monitor sends packets through the system and checks if they make it. The network monitor then hits this method to report whether the node was up at a given time.",
@@ -767,28 +676,6 @@ var doc = `{
                 }
             }
         },
-        "models.MixMetric": {
-            "type": "object",
-            "required": [
-                "pubKey",
-                "received",
-                "sent"
-            ],
-            "properties": {
-                "pubKey": {
-                    "type": "string"
-                },
-                "received": {
-                    "type": "integer"
-                },
-                "sent": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "integer"
-                    }
-                }
-            }
-        },
         "models.MixNodeID": {
             "type": "object",
             "properties": {
@@ -921,8 +808,8 @@ var SwaggerInfo = swaggerInfo{
 	Host:        "",
 	BasePath:    "",
 	Schemes:     []string{},
-	Title:       "Nym Directory API",
-	Description: "This is a temporarily centralized directory/PKI/metrics API to allow us to get the other Nym node types running. Its functionality will eventually be folded into other parts of Nym.",
+	Title:       "Nym Directory APIssss",
+	Description: "A directory API allowing Nym nodes and clients to connect to each other.",
 }
 
 type s struct{}

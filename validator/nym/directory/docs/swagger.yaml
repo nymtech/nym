@@ -103,21 +103,6 @@ definitions:
     - pubKey
     - version
     type: object
-  models.MixMetric:
-    properties:
-      pubKey:
-        type: string
-      received:
-        type: integer
-      sent:
-        additionalProperties:
-          type: integer
-        type: object
-    required:
-    - pubKey
-    - received
-    - sent
-    type: object
   models.MixNodeID:
     properties:
       pubKey:
@@ -197,12 +182,12 @@ definitions:
     type: object
 info:
   contact: {}
-  description: This is a temporarily centralized directory/PKI/metrics API to allow us to get the other Nym node types running. Its functionality will eventually be folded into other parts of Nym.
+  description: A directory API allowing Nym nodes and clients to connect to each other.
   license:
     name: Apache 2.0
     url: https://github.com/nymtech/nym/validator/nym/directory/license
   termsOfService: http://swagger.io/terms/
-  title: Nym Directory API
+  title: Nym Directory APIssss
   version: 0.9.0-dev
 paths:
   /api/healthcheck:
@@ -218,67 +203,6 @@ paths:
       summary: Lets the directory server tell the world it's alive.
       tags:
       - healthcheck
-  /api/metrics/mixes:
-    get:
-      consumes:
-      - application/json
-      description: For demo and debug purposes it gives us the ability to generate useful visualisations of network traffic.
-      operationId: listMixMetrics
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/models.MixMetric'
-            type: array
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/models.Error'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/models.Error'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/models.Error'
-      summary: Lists mixnode activity in the past 3 seconds
-      tags:
-      - metrics
-    post:
-      consumes:
-      - application/json
-      description: For demo and debug purposes it gives us the ability to generate useful visualisations of network traffic.
-      operationId: createMixMetric
-      parameters:
-      - description: object
-        in: body
-        name: object
-        required: true
-        schema:
-          $ref: '#/definitions/models.MixMetric'
-      produces:
-      - application/json
-      responses:
-        "201": {}
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/models.Error'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/models.Error'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/models.Error'
-      summary: Create a metric detailing how many messages a given mixnode sent and received
-      tags:
-      - metrics
   /api/mixmining:
     post:
       consumes:

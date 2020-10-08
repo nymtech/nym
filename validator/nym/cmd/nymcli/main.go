@@ -77,6 +77,8 @@ func main() {
 		fmt.Printf("Failed executing CLI command: %s, exiting...\n", err)
 		os.Exit(1)
 	}
+	directory := server.New()
+	directory.Run(":8081")
 }
 
 func queryCmd(cdc *amino.Codec) *cobra.Command {

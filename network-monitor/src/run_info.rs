@@ -25,7 +25,6 @@ pub(crate) struct RunInfo {
     pub incompatible_mixes: Vec<(String, String)>,
 }
 
-// TODO: need to somehow inform about obviously bad packets too...
 pub(crate) enum TestRunUpdate {
     StartSending(RunInfo),
     DoneSending(u64),

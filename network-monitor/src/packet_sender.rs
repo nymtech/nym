@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use crate::chunker::Chunker;
+use crate::run_info::{RunInfo, TestRunUpdate, TestRunUpdateSender};
 use crate::test_packet::{IpVersion, TestPacket};
-use crate::test_run::{RunInfo, TestRunUpdate, TestRunUpdateSender};
 use crate::tested_network::{TestMix, TestedNetwork};
 use directory_client::presence::mixnodes::MixNodePresence;
 use gateway_client::error::GatewayClientError;
@@ -62,16 +62,6 @@ impl PacketSender {
             nonce: 0,
         }
     }
-
-    // /// Run some initial checks to ensure our subsequent measurements are valid.
-    // /// For example, we should be able to send ourselves a Sphinx packet (and receive it
-    // /// via the websocket, which currently fails.
-    // pub(crate) async fn sanity_check(&mut self) -> Result<(), PacketSenderError> {
-    //     let messages = self
-    //         .chunker
-    //         .prepare_messages(b"hello".to_vec(), &self.good_v4_topology);
-    //     self.send_messages(messages).await
-    // }
 
     fn make_test_mix(&self, presence: MixNodePresence) -> TestMix {
         // the reason for that conversion is that I want to operate on concrete types

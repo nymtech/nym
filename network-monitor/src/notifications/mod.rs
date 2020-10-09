@@ -16,7 +16,7 @@ use super::monitor::MixnetReceiver;
 use crate::monitor::NOTIFIER_DELIVERY_TIMEOUT;
 use crate::notifications::test_run::TestRun;
 use crate::notifications::test_timeout::TestTimeout;
-use crate::test_run::{RunInfo, TestRunUpdate, TestRunUpdateReceiver};
+use crate::run_info::{RunInfo, TestRunUpdate, TestRunUpdateReceiver};
 use crypto::asymmetric::encryption::KeyPair;
 use directory_client::mixmining::BatchMixStatus;
 use futures::StreamExt;

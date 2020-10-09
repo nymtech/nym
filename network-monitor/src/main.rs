@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::monitor::MixnetReceiver;
-use crate::test_run::{TestRunUpdateReceiver, TestRunUpdateSender};
+use crate::run_info::{TestRunUpdateReceiver, TestRunUpdateSender};
 use crate::tested_network::TestedNetwork;
 use crypto::asymmetric::{encryption, identity};
 use directory_client::DirectoryClient;
@@ -32,8 +32,8 @@ mod chunker;
 mod monitor;
 mod notifications;
 mod packet_sender;
+mod run_info;
 mod test_packet;
-mod test_run;
 mod tested_network;
 
 pub(crate) type DefRng = OsRng;

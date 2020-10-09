@@ -32,8 +32,8 @@ impl Monitor {
     }
 
     pub(crate) async fn run(&mut self, mut notifier: Notifier, mut packet_sender: PacketSender) {
-        println!("Network monitor running.");
-        println!("--------------------------------------------------");
+        println!("Network monitor running - note: 'good' nodes are hardcoded.");
+        println!("-----------------------------------------------------------");
         tokio::spawn(async move {
             notifier.run().await;
         });
@@ -47,10 +47,6 @@ impl Monitor {
                 if let Err(err) = packet_sender.run_test().await {
                     error!("Test run failed! - {:?}", err);
                 }
-                // if let Err(err) = packet_sender.sanity_check().await {
-                //     error!("failed sanity check... - {:?}", err);
-                //     continue;
-                // }
             }
         });
 

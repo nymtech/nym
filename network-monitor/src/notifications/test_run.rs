@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::run_info::RunInfo;
 use crate::test_packet::TestPacket;
-use crate::test_run::RunInfo;
 use directory_client::mixmining::{BatchMixStatus, MixStatus};
 use log::*;
 use std::collections::{HashMap, HashSet};

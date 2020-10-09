@@ -15,8 +15,7 @@
 use crate::test_packet::{IpVersion, TestPacket};
 use gateway_client::error::GatewayClientError;
 use gateway_client::GatewayClient;
-use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
-use nymsphinx::SphinxPacket;
+use nymsphinx::forwarding::packet::MixPacket;
 use topology::{gateway, mix, NymTopology};
 
 mod good_topology;
@@ -72,10 +71,10 @@ impl TestedNetwork {
 
     pub(crate) async fn send_messages(
         &mut self,
-        socket_messages: Vec<(NymNodeRoutingAddress, SphinxPacket)>,
+        mix_packets: Vec<MixPacket>,
     ) -> Result<(), GatewayClientError> {
         self.gateway_client
-            .batch_send_sphinx_packets(socket_messages)
+            .batch_send_mix_packets(mix_packets)
             .await?;
         Ok(())
     }

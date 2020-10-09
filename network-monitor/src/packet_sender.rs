@@ -19,10 +19,8 @@ use crate::tested_network::{TestMix, TestedNetwork};
 use directory_client::presence::mixnodes::MixNodePresence;
 use gateway_client::error::GatewayClientError;
 use log::*;
-use nymsphinx::{
-    addressing::{clients::Recipient, nodes::NymNodeRoutingAddress},
-    SphinxPacket,
-};
+use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::forwarding::packet::MixPacket;
 use std::convert::TryInto;
 use std::sync::Arc;
 use topology::mix;
@@ -128,12 +126,11 @@ impl PacketSender {
         }
     }
 
-    // TODO: don't mind return type, it will be replaced after merge with develop
-    fn prepare_node_mix_packets(
+    async fn prepare_node_mix_packets(
         &mut self,
         mixnode: mix::Node,
         test_packets: [TestPacket; 2],
-    ) -> Vec<(NymNodeRoutingAddress, SphinxPacket)> {
+    ) -> Vec<MixPacket> {
         let mut packets = Vec::with_capacity(2);
         for test_packet in test_packets.iter() {
             let topology_to_test = self
@@ -142,25 +139,23 @@ impl PacketSender {
             let mix_message = test_packet.to_bytes();
             let mut mix_packet = self
                 .chunker
-                .prepare_messages(mix_message, &topology_to_test);
+                .prepare_messages(mix_message, &topology_to_test)
+                .await;
             debug_assert_eq!(mix_packet.len(), 1);
             packets.push(mix_packet.pop().unwrap());
         }
         packets
     }
 
-    // TODO: don't mind return type, it will be replaced after merge with develop
-    fn prepare_mix_packets(
-        &mut self,
-        test_mixes: Vec<TestMix>,
-    ) -> Vec<(NymNodeRoutingAddress, SphinxPacket)> {
+    async fn prepare_mix_packets(&mut self, test_mixes: Vec<TestMix>) -> Vec<MixPacket> {
         let num_valid = test_mixes.iter().filter(|mix| mix.is_valid()).count();
         let mut mix_packets = Vec::with_capacity(num_valid);
 
         for test_mix in test_mixes {
             match test_mix {
                 TestMix::ValidMix(mixnode, test_packets) => {
-                    let mut node_mix_packets = self.prepare_node_mix_packets(mixnode, test_packets);
+                    let mut node_mix_packets =
+                        self.prepare_node_mix_packets(mixnode, test_packets).await;
                     mix_packets.append(&mut node_mix_packets);
                 }
                 _ => continue,
@@ -171,9 +166,9 @@ impl PacketSender {
 
     async fn send_messages(
         &mut self,
-        socket_messages: Vec<(NymNodeRoutingAddress, SphinxPacket)>,
+        mix_packets: Vec<MixPacket>,
     ) -> Result<(), PacketSenderError> {
-        self.tested_network.send_messages(socket_messages).await?;
+        self.tested_network.send_messages(mix_packets).await?;
         Ok(())
     }
 
@@ -183,7 +178,7 @@ impl PacketSender {
         let test_mixes = self.get_test_mixes().await?;
         info!(target: "Monitor", "Going to test {} mixes", test_mixes.len());
         let run_info = self.prepare_run_info(&test_mixes);
-        let mix_packets = self.prepare_mix_packets(test_mixes);
+        let mix_packets = self.prepare_mix_packets(test_mixes).await;
 
         // inform notifier that we're about to start the test
         self.test_run_sender

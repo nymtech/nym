@@ -1684,7 +1684,7 @@ dependencies = [
 
 [[package]]
 name = "network-monitor"
-version = "0.8.0"
+version = "0.9.0-dev"
 dependencies = [
  "crypto",
  "directory-client",
@@ -1738,7 +1738,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "0.8.1"
+version = "0.9.0-dev"
 dependencies = [
  "built",
  "clap",
@@ -1769,7 +1769,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
-version = "0.8.1"
+version = "0.9.0-dev"
 dependencies = [
  "built",
  "console_error_panic_hook",
@@ -1791,7 +1791,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "0.8.1"
+version = "0.9.0-dev"
 dependencies = [
  "built",
  "clap",
@@ -1821,7 +1821,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "0.8.1"
+version = "0.9.0-dev"
 dependencies = [
  "bs58",
  "built",
@@ -1848,7 +1848,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "0.8.1"
+version = "0.9.0-dev"
 dependencies = [
  "built",
  "clap",
@@ -1878,7 +1878,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator"
-version = "0.8.1"
+version = "0.9.0-dev"
 dependencies = [
  "abci",
  "bodyparser",
@@ -3073,7 +3073,7 @@ dependencies = [
 
 [[package]]
 name = "sphinx-socks"
-version = "0.8.1"
+version = "0.9.0-dev"
 dependencies = [
  "clap",
  "dirs 2.0.2",

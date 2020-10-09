@@ -15,5 +15,5 @@ pub struct MixStatus {
 /// A notification sent to the validators to let them know whether a given set of mixes is
 /// currently up or down (based on whether it's mixing packets)
 pub struct BatchMixStatus {
-    pub status: Vec<MixStatus>
+    pub status: Vec<MixStatus>,
 }

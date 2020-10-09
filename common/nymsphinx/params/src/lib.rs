@@ -11,11 +11,15 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crypto::blake3;
-pub mod packet_sizes;
-
 use crypto::aes_ctr::Aes128Ctr;
+use crypto::blake3;
+
+// Re-export for ease of use
+pub use packet_modes::PacketMode;
 pub use packet_sizes::PacketSize;
+
+pub mod packet_modes;
+pub mod packet_sizes;
 
 // If somebody can provide an argument why it might be reasonable to have more than 255 mix hops,
 // I will change this to [`usize`]

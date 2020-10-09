@@ -21,7 +21,7 @@ use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
 use nymsphinx_types::builder::SphinxPacketBuilder;
 use nymsphinx_types::{
     delays::{self, Delay},
-    SphinxPacket,
+    EphemeralSecret, SphinxPacket,
 };
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
@@ -50,6 +50,7 @@ impl SURBAck {
         marshaled_fragment_id: [u8; 5],
         average_delay: time::Duration,
         topology: &NymTopology,
+        initial_sphinx_secret: Option<&EphemeralSecret>,
     ) -> Result<Self, NymTopologyError>
     where
         R: RngCore + CryptoRng,
@@ -61,9 +62,13 @@ impl SURBAck {
 
         let surb_ack_payload = prepare_identifier(rng, ack_key, marshaled_fragment_id);
 
-        // once merged, that's an easy rng injection point for sphinx packets : )
-        let surb_ack_packet = SphinxPacketBuilder::new()
-            .with_payload_size(PacketSize::ACKPacket.payload_size())
+        let mut surb_builder =
+            SphinxPacketBuilder::new().with_payload_size(PacketSize::ACKPacket.payload_size());
+        if let Some(initial_secret) = initial_sphinx_secret {
+            surb_builder = surb_builder.with_initial_secret(initial_secret);
+        }
+
+        let surb_ack_packet = surb_builder
             .build_packet(surb_ack_payload, &route, &destination, &delays)
             .unwrap();
 

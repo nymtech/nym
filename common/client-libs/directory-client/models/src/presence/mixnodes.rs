@@ -36,7 +36,7 @@ impl From<io::Error> for ConversionError {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MixNodePresence {
     pub location: String,

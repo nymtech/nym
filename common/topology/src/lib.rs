@@ -35,7 +35,7 @@ pub enum NymTopologyError {
 
 pub type MixLayer = u8;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NymTopology {
     coco_nodes: Vec<coco::Node>,
     mixes: HashMap<MixLayer, Vec<mix::Node>>,
@@ -61,6 +61,20 @@ impl NymTopology {
 
     pub fn mixes(&self) -> &HashMap<MixLayer, Vec<mix::Node>> {
         &self.mixes
+    }
+
+    pub fn mixes_as_vec(&self) -> Vec<mix::Node> {
+        let mut mixes: Vec<mix::Node> = vec![];
+
+        for layer in self.mixes().values() {
+            mixes.extend(layer.to_owned())
+        }
+        mixes
+    }
+
+    pub fn mixes_in_layer(&self, layer: u8) -> Vec<mix::Node> {
+        assert!(vec![1, 2, 3].contains(&layer));
+        self.mixes.get(&layer).unwrap().to_owned()
     }
 
     pub fn gateways(&self) -> &Vec<gateway::Node> {
@@ -134,6 +148,10 @@ impl NymTopology {
             .collect())
     }
 
+    pub fn set_mixes_in_layer(&mut self, layer: u8, mixes: Vec<mix::Node>) {
+        self.mixes.insert(layer, mixes);
+    }
+
     pub fn can_construct_path_through(&self, num_mix_hops: u8) -> bool {
         // if there are no gateways present, we can't do anything
         if self.gateways.is_empty() {
@@ -173,6 +191,67 @@ impl NymTopology {
             mixes: self.mixes.filter_by_version(expected_mix_version),
             gateways: self.gateways.filter_by_version(expected_gateway_version),
             coco_nodes: self.coco_nodes.filter_by_version(expected_coco_version),
+        }
+    }
+}
+
+#[cfg(test)]
+mod converting_mixes_to_vec {
+    use super::*;
+
+    #[cfg(test)]
+    mod when_nodes_exist {
+        use crypto::asymmetric::encryption;
+
+        use super::*;
+
+        #[test]
+        fn returns_a_vec_with_hashmap_values() {
+            let node1 = mix::Node {
+                location: "London".to_string(),
+                host: "3.3.3.3:1789".parse().unwrap(),
+                pub_key: encryption::PublicKey::from_base58_string(
+                    "C7cown6dYCLZpLiMFC1PaBmhvLvmJmLDJGeRTbPD45bX",
+                )
+                .unwrap(),
+                layer: 1,
+                last_seen: 123,
+                version: "0.x.0".to_string(),
+            };
+
+            let node2 = mix::Node {
+                location: "Thunder Bay".to_string(),
+                ..node1.clone()
+            };
+
+            let node3 = mix::Node {
+                location: "Warsaw".to_string(),
+                ..node1.clone()
+            };
+
+            let mut mixes: HashMap<MixLayer, Vec<mix::Node>> = HashMap::new();
+            mixes.insert(1, vec![node1, node2]);
+            mixes.insert(2, vec![node3]);
+
+            let topology = NymTopology::new(vec![], mixes, vec![]);
+            let mixvec = topology.mixes_as_vec();
+            assert!(mixvec
+                .iter()
+                .map(|node| node.location.clone())
+                .collect::<Vec<String>>()
+                .contains(&"London".to_string()));
+        }
+    }
+
+    #[cfg(test)]
+    mod when_no_nodes_exist {
+        use super::*;
+
+        #[test]
+        fn returns_an_empty_vec() {
+            let topology = NymTopology::new(vec![], HashMap::new(), vec![]);
+            let mixvec = topology.mixes_as_vec();
+            assert!(mixvec.is_empty());
         }
     }
 }

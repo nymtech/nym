@@ -41,6 +41,7 @@ members = [
     "gateway/gateway-requests",
     "service-providers/sphinx-socks",
     "mixnode",
+    "network-monitor",
     "validator",
 ]
 
@@ -51,4 +52,5 @@ default-members = [
     "gateway",
     "mixnode",
     "validator",
+    "network-monitor",
 ]

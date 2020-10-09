@@ -14,7 +14,7 @@
 
 use crate::monitor::MixnetReceiver;
 use crate::run_info::{TestRunUpdateReceiver, TestRunUpdateSender};
-use crate::tested_network::TestedNetwork;
+use crate::tested_network::{good_topology, TestedNetwork};
 use crypto::asymmetric::{encryption, identity};
 use directory_client::DirectoryClient;
 use futures::channel::mpsc;
@@ -68,9 +68,55 @@ fn setup_logging() {
         .init();
 }
 
+fn check_if_up_to_date() {
+    let monitor_version = env!("CARGO_PKG_VERSION");
+    let good_v4_topology = good_topology::new_v4();
+    for (_, layer_mixes) in good_v4_topology.mixes().into_iter() {
+        for mix in layer_mixes.into_iter() {
+            if !version_checker::is_minor_version_compatible(monitor_version, &*mix.version) {
+                panic!(
+                    "Our good topology is not compatible with monitor! Mix runs {}, we have {}",
+                    mix.version, monitor_version
+                )
+            }
+        }
+    }
+
+    for gateway in good_v4_topology.gateways().into_iter() {
+        if !version_checker::is_minor_version_compatible(monitor_version, &*gateway.version) {
+            panic!(
+                "Our good topology is not compatible with monitor! Gateway runs {}, we have {}",
+                gateway.version, monitor_version
+            )
+        }
+    }
+
+    let good_v6_topology = good_topology::new_v6();
+    for (_, layer_mixes) in good_v6_topology.mixes().into_iter() {
+        for mix in layer_mixes.into_iter() {
+            if !version_checker::is_minor_version_compatible(monitor_version, &*mix.version) {
+                panic!(
+                    "Our good topology is not compatible with monitor! Mix runs {}, we have {}",
+                    mix.version, monitor_version
+                )
+            }
+        }
+    }
+
+    for gateway in good_v6_topology.gateways().into_iter() {
+        if !version_checker::is_minor_version_compatible(monitor_version, &*gateway.version) {
+            panic!(
+                "Our good topology is not compatible with monitor! Gateway runs {}, we have {}",
+                gateway.version, monitor_version
+            )
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     println!("Network monitor starting...");
+    check_if_up_to_date();
     setup_logging();
 
     // Set up topology

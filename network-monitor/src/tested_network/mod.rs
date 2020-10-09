@@ -18,7 +18,7 @@ use gateway_client::GatewayClient;
 use nymsphinx::forwarding::packet::MixPacket;
 use topology::{gateway, mix, NymTopology};
 
-mod good_topology;
+pub(crate) mod good_topology;
 
 pub(crate) enum TestMix {
     ValidMix(mix::Node, [TestPacket; 2]),

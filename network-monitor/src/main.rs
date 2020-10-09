@@ -39,6 +39,14 @@ mod tested_network;
 pub(crate) type DefRng = OsRng;
 pub(crate) const DEFAULT_RNG: DefRng = OsRng;
 
+// CHANGE THIS TO GET COMPLETE LIST OF WHICH NODE IS WORKING OR BROKEN IN PARTICULAR WAY
+// ||
+// \/
+pub const PRINT_DETAILED_REPORT: bool = false;
+// /\
+// ||
+// CHANGE THIS TO GET COMPLETE LIST OF WHICH NODE IS WORKING OR BROKEN IN PARTICULAR WAY
+
 fn setup_logging() {
     let mut log_builder = pretty_env_logger::formatted_timed_builder();
     if let Ok(s) = ::std::env::var("RUST_LOG") {

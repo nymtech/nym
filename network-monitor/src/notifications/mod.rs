@@ -17,6 +17,7 @@ use crate::monitor::NOTIFIER_DELIVERY_TIMEOUT;
 use crate::notifications::test_run::TestRun;
 use crate::notifications::test_timeout::TestTimeout;
 use crate::run_info::{RunInfo, TestRunUpdate, TestRunUpdateReceiver};
+use crate::PRINT_DETAILED_REPORT;
 use crypto::asymmetric::encryption::KeyPair;
 use directory_client::mixmining::BatchMixStatus;
 use futures::StreamExt;
@@ -53,6 +54,10 @@ impl Notifier {
         test_run_receiver: TestRunUpdateReceiver,
     ) -> Notifier {
         let message_receiver = MessageReceiver::new();
+        let mut current_test_run = TestRun::new(0).with_report();
+        if PRINT_DETAILED_REPORT {
+            current_test_run = current_test_run.with_detailed_report();
+        }
         Notifier {
             client_encryption_keypair,
             message_receiver,
@@ -60,7 +65,7 @@ impl Notifier {
             directory_client,
             test_run_receiver,
             test_run_nonce: 0,
-            current_test_run: TestRun::new(0).with_report(), //.with_detailed_report(),
+            current_test_run,
             test_timeout: TestTimeout::new(),
         }
     }

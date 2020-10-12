@@ -266,6 +266,9 @@ impl<T: NymConfig> Default for Config<T> {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Client<T> {
+    /// Version of the client for which this configuration was created.
+    version: String,
+
     /// ID specifies the human readable ID of this particular client.
     id: String,
 
@@ -313,13 +316,14 @@ pub struct Client<T> {
     nym_root_directory: PathBuf,
 
     #[serde(skip)]
-    super_struct: PhantomData<T>,
+    super_struct: PhantomData<*const T>,
 }
 
 impl<T: NymConfig> Default for Client<T> {
     fn default() -> Self {
         // there must be explicit checks for whether id is not empty later
         Client {
+            version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
             vpn_mode: false,

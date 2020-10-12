@@ -26,7 +26,7 @@ fn main() {
     println!("{}", banner());
 
     let arg_matches = App::new("Nym Validator")
-        .version(built_info::PKG_VERSION)
+        .version(env!("CARGO_PKG_VERSION"))
         .author("Nymtech")
         .about("Implementation of Nym Validator")
         .subcommand(commands::init::command_args())

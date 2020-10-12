@@ -50,6 +50,7 @@ default-members = [
     "clients/socks5",
 #    "clients/webassembly",
     "gateway",
+    "service-providers/sphinx-socks",
     "mixnode",
     "validator",
     "network-monitor",

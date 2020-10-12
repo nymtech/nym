@@ -24,6 +24,9 @@ pub(crate) fn config_template() -> &'static str {
 ##### main base mixnode config options #####
 
 [gateway]
+# Version of the gateway for which this configuration was created.
+version = '{{ gateway.version }}'
+
 # Human readable ID of this particular gateway.
 id = '{{ gateway.id }}'
 

@@ -14,7 +14,6 @@
 
 use clap::{App, ArgMatches};
 
-pub mod built_info;
 mod commands;
 mod config;
 mod node;
@@ -25,7 +24,7 @@ fn main() {
     println!("{}", banner());
 
     let arg_matches = App::new("Nym Mixnode")
-        .version(built_info::PKG_VERSION)
+        .version(env!("CARGO_PKG_VERSION"))
         .author("Nymtech")
         .about("Implementation of the Loopix-based Mixnode")
         .subcommand(commands::init::command_args())
@@ -60,7 +59,7 @@ fn banner() -> String {
              (mixnode - version {:})
 
     "#,
-        built_info::PKG_VERSION
+        env!("CARGO_PKG_VERSION")
     )
 }
 

@@ -407,6 +407,9 @@ impl Config {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Gateway {
+    /// Version of the gateway for which this configuration was created.
+    version: String,
+
     /// ID specifies the human readable ID of this particular gateway.
     id: String,
 
@@ -461,6 +464,7 @@ impl Gateway {
 impl Default for Gateway {
     fn default() -> Self {
         Gateway {
+            version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             location: Self::default_location(),
             private_identity_key_file: Default::default(),

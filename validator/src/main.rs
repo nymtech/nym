@@ -14,7 +14,6 @@
 
 use clap::{App, ArgMatches};
 
-pub mod built_info;
 mod commands;
 mod config;
 mod network;
@@ -27,7 +26,7 @@ fn main() {
     println!("{}", banner());
 
     let arg_matches = App::new("Nym Validator")
-        .version(built_info::PKG_VERSION)
+        .version(env!("CARGO_PKG_VERSION"))
         .author("Nymtech")
         .about("Implementation of Nym Validator")
         .subcommand(commands::init::command_args())
@@ -62,7 +61,7 @@ fn banner() -> String {
              (validator - version {:})
 
     "#,
-        built_info::PKG_VERSION
+        env!("CARGO_PKG_VERSION")
     )
 }
 

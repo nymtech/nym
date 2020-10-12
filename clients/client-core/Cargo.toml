@@ -1,5 +1,4 @@
 [package]
-build = "build.rs"
 name = "client-core"
 version = "0.8.0-dev"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
@@ -26,9 +25,6 @@ nonexhaustive-delayqueue = { path = "../../common/nonexhaustive-delayqueue" }
 nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }
-
-[build-dependencies]
-built = "0.4.3"
 
 [dev-dependencies]
 tempfile = "3.1.0"

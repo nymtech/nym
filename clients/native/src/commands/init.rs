@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::built_info;
 use crate::client::config::Config;
 use crate::commands::override_config;
 use clap::{App, Arg, ArgMatches};
@@ -108,7 +107,7 @@ async fn gateway_details(directory_server: &str, gateway_id: &str) -> gateway::N
     let directory_client = directory_client::Client::new(directory_client_config);
     let topology = directory_client.get_topology().await.unwrap();
     let nym_topology: NymTopology = topology.try_into().expect("Invalid topology data!");
-    let version_filtered_topology = nym_topology.filter_system_version(built_info::PKG_VERSION);
+    let version_filtered_topology = nym_topology.filter_system_version(env!("CARGO_PKG_VERSION"));
 
     version_filtered_topology
         .gateways()

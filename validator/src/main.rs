@@ -14,7 +14,6 @@
 
 use clap::{App, ArgMatches};
 
-pub mod built_info;
 mod commands;
 mod config;
 mod network;
@@ -62,7 +61,7 @@ fn banner() -> String {
              (validator - version {:})
 
     "#,
-        built_info::PKG_VERSION
+        env!("CARGO_PKG_VERSION")
     )
 }
 

@@ -324,15 +324,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "476e9cd489f9e121e02ffa6014a8ef220ecb15c05ed23fc34cca13925dc283fb"
 
 [[package]]
-name = "built"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fa7899958f4aa3c40edc1b033d0e956763319e398924abb80a0034dda5bb198"
-dependencies = [
- "cargo-lock",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -365,18 +356,6 @@ name = "bytes"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e4cec68f03f32e44924783795810fa50a7035d8c8ebe78580ad7e6c703fba38"
-
-[[package]]
-name = "cargo-lock"
-version = "4.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8504b63dd1249fd1745b7b4ef9b6f7b107ddeb3c95370043c7dbcc38653a2679"
-dependencies = [
- "semver",
- "serde",
- "toml",
- "url 2.1.1",
-]
 
 [[package]]
 name = "cc"
@@ -430,7 +409,6 @@ dependencies = [
 name = "client-core"
 version = "0.8.0-dev"
 dependencies = [
- "built",
  "config",
  "crypto",
  "directory-client",
@@ -1740,7 +1718,6 @@ dependencies = [
 name = "nym-client"
 version = "0.9.0-dev"
 dependencies = [
- "built",
  "clap",
  "client-core",
  "config",
@@ -1771,7 +1748,6 @@ dependencies = [
 name = "nym-client-wasm"
 version = "0.9.0-dev"
 dependencies = [
- "built",
  "console_error_panic_hook",
  "crypto",
  "directory-client",
@@ -1793,7 +1769,6 @@ dependencies = [
 name = "nym-gateway"
 version = "0.9.0-dev"
 dependencies = [
- "built",
  "clap",
  "config",
  "crypto",
@@ -1824,7 +1799,6 @@ name = "nym-mixnode"
 version = "0.9.0-dev"
 dependencies = [
  "bs58",
- "built",
  "clap",
  "config",
  "crypto",
@@ -1850,7 +1824,6 @@ dependencies = [
 name = "nym-socks5-client"
 version = "0.9.0-dev"
 dependencies = [
- "built",
  "clap",
  "client-core",
  "config",
@@ -1882,7 +1855,6 @@ version = "0.9.0-dev"
 dependencies = [
  "abci",
  "bodyparser",
- "built",
  "byteorder",
  "clap",
  "config",
@@ -2830,7 +2802,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
 dependencies = [
  "semver-parser",
- "serde",
 ]
 
 [[package]]

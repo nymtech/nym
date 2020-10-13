@@ -126,16 +126,16 @@ pub fn execute(matches: &ArgMatches) {
         existing_config = pre_090_upgrade(self_reported_version, existing_config);
     }
 
-    let node_version =
+    let config_version =
         Version::parse(existing_config.get_base().get_version()).unwrap_or_else(|err| {
             eprintln!("failed to parse node version! - {:?}", err);
             process::exit(1)
         });
 
     // here be upgrade path to 0.10.0 and beyond based on version number from config
-    if node_version == current {
+    if config_version == current {
         println!("You're using the most recent version!");
     } else {
-        eprintln!("Cannot perform upgrade from {} to {}. Please let the developers know about this issue!", node_version, current)
+        eprintln!("Cannot perform upgrade from {} to {}. Please let the developers know about this issue!", config_version, current)
     }
 }

@@ -1850,6 +1850,7 @@ dependencies = [
  "tempfile",
  "tokio 0.2.22",
  "topology",
+ "version-checker",
 ]
 
 [[package]]

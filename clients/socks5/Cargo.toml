@@ -33,6 +33,7 @@ ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
 socks5-requests = { path = "../../common/socks5/requests" }
 topology = { path = "../../common/topology" }
 proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
+version-checker = { path = "../../common/version-checker" }
 
 [dev-dependencies]
 tempfile = "3.1.0"

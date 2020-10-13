@@ -1818,6 +1818,7 @@ dependencies = [
  "tokio 0.2.22",
  "tokio-util",
  "topology",
+ "version-checker",
 ]
 
 [[package]]

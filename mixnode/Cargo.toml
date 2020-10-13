@@ -28,6 +28,7 @@ mixnode-common = { path = "../common/mixnode-common" }
 nymsphinx = {path = "../common/nymsphinx" }
 pemstore = {path = "../common/pemstore"}
 topology = {path = "../common/topology"}
+version-checker = { path = "../common/version-checker" }
 
 [dev-dependencies]
 tempfile = "3.1.0"

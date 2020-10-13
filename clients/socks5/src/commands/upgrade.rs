@@ -91,14 +91,14 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
         .arg(
             Arg::with_name("id")
                 .long("id")
-                .help("Id of the nym-client we want to upgrade")
+                .help("Id of the nym-socks5-client we want to upgrade")
                 .takes_value(true)
                 .required(true),
         )
         // the rest of arguments depend on the upgrade path
         .arg(Arg::with_name("current version")
             .long("current-version")
-            .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Self provided version of the nym-client if none is available in the config. NOTE: if provided incorrectly, results may be catastrophic.")
+            .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Self provided version of the nym-socks5-client if none is available in the config. NOTE: if provided incorrectly, results may be catastrophic.")
             .takes_value(true)
         )
 }

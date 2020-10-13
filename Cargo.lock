@@ -1741,6 +1741,7 @@ dependencies = [
  "tokio-tungstenite",
  "topology",
  "url 2.1.1",
+ "version-checker",
  "websocket-requests",
 ]
 

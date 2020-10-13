@@ -21,6 +21,8 @@ use std::time::Duration;
 
 pub mod persistence;
 
+pub const MISSING_VALUE: &str = "MISSING VALUE";
+
 // 'CLIENT'
 const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
 // 'DEBUG'
@@ -38,6 +40,10 @@ const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: u64 = 1_500;
 const DEFAULT_VPN_KEY_REUSE_LIMIT: usize = 1000;
 
 const ZERO_DELAY: Duration = Duration::from_nanos(0);
+
+pub fn missing_string_value() -> String {
+    MISSING_VALUE.to_string()
+}
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -138,6 +144,10 @@ impl<T: NymConfig> Config<T> {
 
     pub fn set_vpn_key_reuse_limit(&mut self, reuse_limit: usize) {
         self.debug.vpn_key_reuse_limit = Some(reuse_limit)
+    }
+
+    pub fn set_custom_version(&mut self, version: &str) {
+        self.client.version = version.to_string();
     }
 
     pub fn get_id(&self) -> String {
@@ -251,6 +261,10 @@ impl<T: NymConfig> Config<T> {
             ),
         }
     }
+
+    pub fn get_version(&self) -> &str {
+        &self.client.version
+    }
 }
 
 impl<T: NymConfig> Default for Config<T> {
@@ -267,6 +281,7 @@ impl<T: NymConfig> Default for Config<T> {
 #[serde(deny_unknown_fields)]
 pub struct Client<T> {
     /// Version of the client for which this configuration was created.
+    #[serde(default = "missing_string_value")]
     version: String,
 
     /// ID specifies the human readable ID of this particular client.
@@ -278,6 +293,7 @@ pub struct Client<T> {
     /// Special mode of the system such that all messages are sent as soon as they are received
     /// and no cover traffic is generated. If set all message delays are set to 0 and overwriting
     /// 'Debug' values will have no effect.
+    #[serde(default)]
     vpn_mode: bool,
 
     /// Path to file containing private identity key.

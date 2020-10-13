@@ -13,10 +13,14 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/bank"
+	directoryServer "github.com/nymtech/nym/validator/nym/directory"
 	"github.com/nymtech/nym/validator/nym/x/nym/client/cli"
 	"github.com/nymtech/nym/validator/nym/x/nym/client/rest"
 	"github.com/nymtech/nym/validator/nym/x/nym/keeper"
 	"github.com/nymtech/nym/validator/nym/x/nym/types"
+
+	// Loads the Swagger documentation
+	_ "github.com/nymtech/nym/validator/nym/directory/docs"
 )
 
 // Type check to ensure the interface is properly implemented
@@ -55,7 +59,10 @@ func (AppModuleBasic) ValidateGenesis(bz json.RawMessage) error {
 }
 
 // RegisterRESTRoutes registers the REST routes for the nym module.
+// This is also the point where the very primitive integration of the old directory server wires in.
 func (AppModuleBasic) RegisterRESTRoutes(ctx context.CLIContext, rtr *mux.Router) {
+	directory := directoryServer.New()
+	go directory.Run(":8081")
 	rest.RegisterRoutes(ctx, rtr)
 }
 

@@ -278,15 +278,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "476e9cd489f9e121e02ffa6014a8ef220ecb15c05ed23fc34cca13925dc283fb"
 
 [[package]]
-name = "built"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fa7899958f4aa3c40edc1b033d0e956763319e398924abb80a0034dda5bb198"
-dependencies = [
- "cargo-lock",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -309,18 +300,6 @@ name = "bytes"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e4cec68f03f32e44924783795810fa50a7035d8c8ebe78580ad7e6c703fba38"
-
-[[package]]
-name = "cargo-lock"
-version = "4.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8504b63dd1249fd1745b7b4ef9b6f7b107ddeb3c95370043c7dbcc38653a2679"
-dependencies = [
- "semver",
- "serde",
- "toml",
- "url",
-]
 
 [[package]]
 name = "cc"
@@ -372,9 +351,8 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "0.8.0-dev"
+version = "0.9.0-dev"
 dependencies = [
- "built",
  "config",
  "crypto",
  "directory-client",
@@ -1492,6 +1470,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "network-monitor"
+version = "0.9.0-dev"
+dependencies = [
+ "crypto",
+ "directory-client",
+ "futures 0.3.5",
+ "gateway-client",
+ "log",
+ "nymsphinx",
+ "pretty_env_logger",
+ "rand",
+ "serde",
+ "tokio",
+ "topology",
+ "version-checker",
+]
+
+[[package]]
 name = "nonexhaustive-delayqueue"
 version = "0.1.0"
 dependencies = [
@@ -1529,9 +1525,8 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "0.8.1"
+version = "0.9.0-dev"
 dependencies = [
- "built",
  "clap",
  "client-core",
  "config",
@@ -1560,9 +1555,8 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
-version = "0.8.1"
+version = "0.9.0-dev"
 dependencies = [
- "built",
  "console_error_panic_hook",
  "crypto",
  "directory-client",
@@ -1582,9 +1576,8 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "0.8.1"
+version = "0.9.0-dev"
 dependencies = [
- "built",
  "clap",
  "config",
  "crypto",
@@ -1612,10 +1605,9 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "0.8.1"
+version = "0.9.0-dev"
 dependencies = [
  "bs58",
- "built",
  "clap",
  "config",
  "crypto",
@@ -1639,9 +1631,8 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "0.8.1"
+version = "0.9.0-dev"
 dependencies = [
- "built",
  "clap",
  "client-core",
  "config",
@@ -2336,7 +2327,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
 dependencies = [
  "semver-parser",
- "serde",
 ]
 
 [[package]]
@@ -2564,7 +2554,7 @@ dependencies = [
 
 [[package]]
 name = "sphinx-socks"
-version = "0.8.1"
+version = "0.9.0-dev"
 dependencies = [
  "clap",
  "dirs 2.0.2",
@@ -3225,11 +3215,11 @@ dependencies = [
 
 [[package]]
 name = "x25519-dalek"
-version = "0.6.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "637ff90c9540fa3073bb577e65033069e4bae7c79d49d74aa3ffdf5342a53217"
+checksum = "bc614d95359fd7afc321b66d2107ede58b246b844cf5d8a0adcca413e439f088"
 dependencies = [
- "curve25519-dalek 2.1.0",
+ "curve25519-dalek 3.0.0",
  "rand_core",
  "zeroize",
 ]

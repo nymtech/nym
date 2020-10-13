@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::built_info;
 use directory_client::DirectoryClient;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
@@ -175,7 +174,7 @@ impl TopologyRefresher {
             }
             Ok(topology) => {
                 let nym_topology: NymTopology = topology.try_into().ok()?;
-                Some(nym_topology.filter_system_version(built_info::PKG_VERSION))
+                Some(nym_topology.filter_system_version(env!("CARGO_PKG_VERSION")))
             }
         }
     }

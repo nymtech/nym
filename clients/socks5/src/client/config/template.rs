@@ -24,6 +24,9 @@ pub(crate) fn config_template() -> &'static str {
 ##### main base client config options #####
 
 [client]
+# Version of the client for which this configuration was created.
+version = '{{ client.version }}'
+
 # Human readable ID of this particular client.
 id = '{{ client.id }}'
 

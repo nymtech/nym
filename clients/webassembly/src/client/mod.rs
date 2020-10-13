@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::built_info;
 use crypto::asymmetric::{encryption, identity};
 use directory_client::DirectoryClient;
 use futures::channel::mpsc;
@@ -255,8 +254,8 @@ impl NymClient {
                     .try_into()
                     .ok()
                     .expect("this is not a NYM topology!");
-                let version = built_info::PKG_VERSION;
-                nym_topology.filter_system_version(&version)
+                let version = env!("CARGO_PKG_VERSION");
+                nym_topology.filter_system_version(version)
             }
         }
     }

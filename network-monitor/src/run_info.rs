@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use wasm_bindgen::prelude::*;
+use crate::test_packet::TestPacket;
+use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 
-#[cfg(target_arch = "wasm32")]
-mod client;
+pub(crate) type TestRunUpdateSender = UnboundedSender<TestRunUpdate>;
+pub(crate) type TestRunUpdateReceiver = UnboundedReceiver<TestRunUpdate>;
 
-#[wasm_bindgen]
-pub fn set_panic_hook() {
-    // When the `console_error_panic_hook` feature is enabled, we can call the
-    // `set_panic_hook` function at least once during initialization, and then
-    // we will get better error messages if our code ever panics.
-    //
-    // For more details see
-    // https://github.com/rustwasm/console_error_panic_hook#readme
-    #[cfg(feature = "console_error_panic_hook")]
-    console_error_panic_hook::set_once();
+pub(crate) struct RunInfo {
+    pub nonce: u64,
+    pub test_packets: Vec<TestPacket>,
+    pub malformed_mixes: Vec<String>,
+    pub incompatible_mixes: Vec<(String, String)>,
+}
+
+pub(crate) enum TestRunUpdate {
+    StartSending(RunInfo),
+    DoneSending(u64),
 }

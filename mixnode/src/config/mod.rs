@@ -267,6 +267,9 @@ impl Config {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MixNode {
+    /// Version of the mixnode for which this configuration was created.
+    version: String,
+
     /// ID specifies the human readable ID of this particular mixnode.
     id: String,
 
@@ -326,6 +329,7 @@ impl MixNode {
 impl Default for MixNode {
     fn default() -> Self {
         MixNode {
+            version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             location: Self::default_location(),
             layer: 0,

@@ -24,6 +24,9 @@ pub(crate) fn config_template() -> &'static str {
 ##### main base mixnode config options #####
 
 [mixnode]
+# Version of the mixnode for which this configuration was created.
+version = '{{ mixnode.version }}'
+    
 # Human readable ID of this particular mixnode.
 id = '{{ mixnode.id }}'
 

@@ -1792,6 +1792,7 @@ dependencies = [
  "tokio-tungstenite",
  "tokio-util",
  "tungstenite",
+ "version-checker",
 ]
 
 [[package]]

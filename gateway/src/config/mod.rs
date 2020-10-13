@@ -24,6 +24,8 @@ use std::time;
 pub mod persistence;
 mod template;
 
+pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
+
 // 'GATEWAY'
 const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
@@ -88,6 +90,10 @@ impl NymConfig for Config {
             .join(&self.gateway.id)
             .join("data")
     }
+}
+
+pub fn missing_string_value() -> String {
+    MISSING_VALUE.to_string()
 }
 
 impl Config {
@@ -322,6 +328,11 @@ impl Config {
         self
     }
 
+    pub fn with_custom_version(mut self, version: &str) -> Self {
+        self.gateway.version = version.to_string();
+        self
+    }
+
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
@@ -402,12 +413,17 @@ impl Config {
     pub fn get_cache_entry_ttl(&self) -> time::Duration {
         time::Duration::from_millis(self.debug.cache_entry_ttl)
     }
+
+    pub fn get_version(&self) -> &str {
+        &self.gateway.version
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Gateway {
     /// Version of the gateway for which this configuration was created.
+    #[serde(default = "missing_string_value")]
     version: String,
 
     /// ID specifies the human readable ID of this particular gateway.

@@ -57,6 +57,8 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
         Version::new(0, 9, 0)
     };
 
+    print_start_upgrade(&from, &to_version);
+
     // this is not extracted to separate function as you only have to manually pass version
     // if upgrading from pre090 version
     let from = match from.strip_prefix("v") {
@@ -83,7 +85,6 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
         process::exit(1)
     }
 
-    print_start_upgrade(&from_version, &to_version);
     if config.get_private_identity_key_file() != missing_string_value::<PathBuf>()
         || config.get_public_identity_key_file() != missing_string_value::<PathBuf>()
     {

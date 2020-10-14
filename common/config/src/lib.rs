@@ -21,21 +21,23 @@ use std::{fs, io};
 pub trait NymConfig: Default + Serialize + DeserializeOwned {
     fn template() -> &'static str;
 
-    fn config_file_name() -> String;
+    fn config_file_name() -> String {
+        "config.toml".to_string()
+    }
 
     fn default_root_directory() -> PathBuf;
 
     // default, most probable, implementations; can be easily overridden where required
-    fn default_config_directory(id: Option<&str>) -> PathBuf {
-        Self::default_root_directory()
-            .join(id.unwrap_or(""))
-            .join("config")
+    fn default_config_directory(id: &str) -> PathBuf {
+        Self::default_root_directory().join(id).join("config")
     }
 
-    fn default_data_directory(id: Option<&str>) -> PathBuf {
-        Self::default_root_directory()
-            .join(id.unwrap_or(""))
-            .join("data")
+    fn default_data_directory(id: &str) -> PathBuf {
+        Self::default_root_directory().join(id).join("data")
+    }
+
+    fn default_config_file_path(id: &str) -> PathBuf {
+        Self::default_config_directory(id).join(Self::config_file_name())
     }
 
     fn root_directory(&self) -> PathBuf;
@@ -66,10 +68,9 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
         )
     }
 
-    fn load_from_file(custom_location: Option<PathBuf>, id: Option<&str>) -> io::Result<Self> {
+    fn load_from_file(custom_location: Option<PathBuf>, id: &str) -> io::Result<Self> {
         let config_contents = fs::read_to_string(
-            custom_location
-                .unwrap_or_else(|| Self::default_config_directory(id).join("config.toml")),
+            custom_location.unwrap_or_else(|| Self::default_config_file_path(id)),
         )?;
 
         toml::from_str(&config_contents)

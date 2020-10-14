@@ -43,6 +43,20 @@ fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
 }
 
 fn pre_090_upgrade(from: &str, config: Config) -> Config {
+    // note: current is guaranteed to not have any `build` information suffix (nor pre-release
+    // information), as this was asserted at the beginning of this command)
+    //
+    // upgrade to current (if it's a 0.9.X) or try to upgrade to 0.9.0 as an intermediate
+    // step in future upgrades (so, for example, we might go 0.8.0 -> 0.9.0 -> 0.10.0)
+    // this way we don't need to have all the crazy paths on how to upgrade from any version to any
+    // other version. We just upgrade one minor version at a time.
+    let current = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+    let to_version = if current.major == 0 && current.minor == 9 {
+        current
+    } else {
+        Version::new(0, 9, 0)
+    };
+
     // this is not extracted to separate function as you only have to manually pass version
     // if upgrading from pre090 version
     let from = match from.strip_prefix("v") {
@@ -59,33 +73,22 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
     if from_version.major == 0 && from_version.minor < 8 {
         // technically this could be implemented, but is there any point in that?
         eprintln!("upgrading node from before v0.8.0 is not supported. Please run `init` with new binary instead");
+        print_failed_upgrade(&from_version, &to_version);
         process::exit(1)
     }
 
     if (from_version.major == 0 && from_version.minor >= 9) || from_version.major >= 1 {
         eprintln!("self reported version is higher than 0.9.0. Those releases should have already contained version numbers in config! Make sure you provided correct version");
+        print_failed_upgrade(&from_version, &to_version);
         process::exit(1)
     }
-
-    // note: current is guaranteed to not have any `build` information suffix (nor pre-release
-    // information), as this was asserted at the beginning of this command)
-    //
-    // upgrade to current (if it's a 0.9.X) or try to upgrade to 0.9.0 as an intermediate
-    // step in future upgrades (so, for example, we might go 0.8.0 -> 0.9.0 -> 0.10.0)
-    // this way we don't need to have all the crazy paths on how to upgrade from any version to any
-    // other version. We just upgrade one minor version at a time.
-    let current = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
-    let to_version = if current.major == 0 && current.minor == 9 {
-        current
-    } else {
-        Version::new(0, 9, 0)
-    };
 
     print_start_upgrade(&from_version, &to_version);
     if config.get_private_identity_key_file() != missing_string_value::<PathBuf>()
         || config.get_public_identity_key_file() != missing_string_value::<PathBuf>()
     {
         eprintln!("existing config seems to have specified identity keys which were only introduced in 0.9.0! Can't perform upgrade.");
+        print_failed_upgrade(&from_version, &to_version);
         process::exit(1);
     }
 

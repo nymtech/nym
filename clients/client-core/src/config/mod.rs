@@ -33,7 +33,7 @@ const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
 const DEFAULT_ACK_WAIT_ADDITION: u64 = 1_500;
 const DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY: u64 = 1000;
 const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: u64 = 100;
-const DEFAULT_AVERAGE_PACKET_DELAY: u64 = 100;
+const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(100);
 const DEFAULT_TOPOLOGY_REFRESH_RATE: u64 = 30_000;
 const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: u64 = 5_000;
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: u64 = 1_500;
@@ -133,7 +133,7 @@ impl<T: NymConfig> Config<T> {
     }
 
     pub fn set_high_default_traffic_volume(&mut self) {
-        self.debug.average_packet_delay = 10;
+        self.debug.average_packet_delay = Duration::from_millis(10);
         self.debug.loop_cover_traffic_average_delay = 20; // 50 cover messages / s
         self.debug.message_sending_average_delay = 5; // 200 "real" messages / s
     }
@@ -203,7 +203,7 @@ impl<T: NymConfig> Config<T> {
         if self.client.vpn_mode {
             ZERO_DELAY
         } else {
-            time::Duration::from_millis(self.debug.average_packet_delay)
+            self.debug.average_packet_delay
         }
     }
 
@@ -211,7 +211,7 @@ impl<T: NymConfig> Config<T> {
         if self.client.vpn_mode {
             ZERO_DELAY
         } else {
-            time::Duration::from_millis(self.debug.average_ack_delay)
+            self.debug.average_ack_delay
         }
     }
 
@@ -406,14 +406,14 @@ pub struct Debug {
     /// So for a packet going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
     /// The provided value is interpreted as milliseconds.
-    average_packet_delay: u64,
+    average_packet_delay: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent acknowledgement is going to be delayed at any given mix node.
     /// So for an ack going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
     /// The provided value is interpreted as milliseconds.
-    average_ack_delay: u64,
+    average_ack_delay: Duration,
 
     /// Value multiplied with the expected round trip time of an acknowledgement packet before
     /// it is assumed it was lost and retransmission of the data packet happens.

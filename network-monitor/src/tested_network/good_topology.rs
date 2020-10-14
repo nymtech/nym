@@ -145,16 +145,17 @@ pub(crate) fn new_v6() -> NymTopology {
     NymTopology::new(Vec::new(), layered_mixes, vec![v6_gateway()])
 }
 
-// Returns a new topology of known good nodes, with one good node replaced with a test node
-pub(crate) fn new_v4_with_node(test_node: mix::Node) -> NymTopology {
-    let mut topology = self::new_v4();
-    topology.set_mixes_in_layer(test_node.layer as u8, vec![test_node]);
-    topology
-}
 
 #[cfg(test)]
 mod good_topology_test {
     use super::*;
+
+    // Returns a new topology of known good nodes, with one good node replaced with a test node
+    fn new_v4_with_node(test_node: mix::Node) -> NymTopology {
+        let mut topology = self::new_v4();
+        topology.set_mixes_in_layer(test_node.layer as u8, vec![test_node]);
+        topology
+    }
 
     mod subbing_in_a_node_to_test {
         use super::*;

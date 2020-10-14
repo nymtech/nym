@@ -16,7 +16,6 @@ use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::path::PathBuf;
-use std::time;
 use std::time::Duration;
 
 pub mod persistence;
@@ -26,17 +25,15 @@ pub const MISSING_VALUE: &str = "MISSING VALUE";
 // 'CLIENT'
 const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
 // 'DEBUG'
-// where applicable, the below are defined in milliseconds
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
 
-// all delays are in milliseconds
-const DEFAULT_ACK_WAIT_ADDITION: u64 = 1_500;
-const DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY: u64 = 1000;
-const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: u64 = 100;
+const DEFAULT_ACK_WAIT_ADDITION: Duration = Duration::from_millis(1_500);
+const DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(1000);
+const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(100);
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(100);
-const DEFAULT_TOPOLOGY_REFRESH_RATE: u64 = 30_000;
-const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: u64 = 5_000;
-const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: u64 = 1_500;
+const DEFAULT_TOPOLOGY_REFRESH_RATE: Duration = Duration::from_millis(30_000);
+const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: Duration = Duration::from_millis(5_000);
+const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_VPN_KEY_REUSE_LIMIT: usize = 1000;
 
 const ZERO_DELAY: Duration = Duration::from_nanos(0);
@@ -134,8 +131,8 @@ impl<T: NymConfig> Config<T> {
 
     pub fn set_high_default_traffic_volume(&mut self) {
         self.debug.average_packet_delay = Duration::from_millis(10);
-        self.debug.loop_cover_traffic_average_delay = 20; // 50 cover messages / s
-        self.debug.message_sending_average_delay = 5; // 200 "real" messages / s
+        self.debug.loop_cover_traffic_average_delay = Duration::from_millis(100); // 10 cover messages / s
+        self.debug.message_sending_average_delay = Duration::from_millis(5); // 200 "real" messages / s
     }
 
     pub fn set_vpn_mode(&mut self, vpn_mode: bool) {
@@ -199,7 +196,7 @@ impl<T: NymConfig> Config<T> {
     }
 
     // Debug getters
-    pub fn get_average_packet_delay(&self) -> time::Duration {
+    pub fn get_average_packet_delay(&self) -> Duration {
         if self.client.vpn_mode {
             ZERO_DELAY
         } else {
@@ -207,7 +204,7 @@ impl<T: NymConfig> Config<T> {
         }
     }
 
-    pub fn get_average_ack_delay(&self) -> time::Duration {
+    pub fn get_average_ack_delay(&self) -> Duration {
         if self.client.vpn_mode {
             ZERO_DELAY
         } else {
@@ -219,32 +216,32 @@ impl<T: NymConfig> Config<T> {
         self.debug.ack_wait_multiplier
     }
 
-    pub fn get_ack_wait_addition(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.ack_wait_addition)
+    pub fn get_ack_wait_addition(&self) -> Duration {
+        self.debug.ack_wait_addition
     }
 
-    pub fn get_loop_cover_traffic_average_delay(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.loop_cover_traffic_average_delay)
+    pub fn get_loop_cover_traffic_average_delay(&self) -> Duration {
+        self.debug.loop_cover_traffic_average_delay
     }
 
-    pub fn get_message_sending_average_delay(&self) -> time::Duration {
+    pub fn get_message_sending_average_delay(&self) -> Duration {
         if self.client.vpn_mode {
             ZERO_DELAY
         } else {
-            time::Duration::from_millis(self.debug.message_sending_average_delay)
+            self.debug.message_sending_average_delay
         }
     }
 
-    pub fn get_gateway_response_timeout(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.gateway_response_timeout)
+    pub fn get_gateway_response_timeout(&self) -> Duration {
+        self.debug.gateway_response_timeout
     }
 
-    pub fn get_topology_refresh_rate(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.topology_refresh_rate)
+    pub fn get_topology_refresh_rate(&self) -> Duration {
+        self.debug.topology_refresh_rate
     }
 
-    pub fn get_topology_resolution_timeout(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.topology_resolution_timeout)
+    pub fn get_topology_resolution_timeout(&self) -> Duration {
+        self.debug.topology_resolution_timeout
     }
 
     pub fn get_vpn_mode(&self) -> bool {
@@ -405,14 +402,14 @@ pub struct Debug {
     /// sent packet is going to be delayed at any given mix node.
     /// So for a packet going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
-    /// The provided value is interpreted as milliseconds.
+    #[serde(with = "humantime_serde")]
     average_packet_delay: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent acknowledgement is going to be delayed at any given mix node.
     /// So for an ack going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
-    /// The provided value is interpreted as milliseconds.
+    #[serde(with = "humantime_serde")]
     average_ack_delay: Duration,
 
     /// Value multiplied with the expected round trip time of an acknowledgement packet before
@@ -423,36 +420,36 @@ pub struct Debug {
     /// Value added to the expected round trip time of an acknowledgement packet before
     /// it is assumed it was lost and retransmission of the data packet happens.
     /// In an ideal network with 0 latency, this value would have been 0.
-    /// The provided value is interpreted as milliseconds.
-    ack_wait_addition: u64,
+    #[serde(with = "humantime_serde")]
+    ack_wait_addition: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take for another loop cover traffic message to be sent.
-    /// The provided value is interpreted as milliseconds.
-    loop_cover_traffic_average_delay: u64,
+    #[serde(with = "humantime_serde")]
+    loop_cover_traffic_average_delay: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take another 'real traffic stream' message to be sent.
     /// If no real packets are available and cover traffic is enabled,
     /// a loop cover message is sent instead in order to preserve the rate.
-    /// The provided value is interpreted as milliseconds.
-    message_sending_average_delay: u64,
+    #[serde(with = "humantime_serde")]
+    message_sending_average_delay: Duration,
 
     /// How long we're willing to wait for a response to a message sent to the gateway,
     /// before giving up on it.
-    /// The provided value is interpreted as milliseconds.
-    gateway_response_timeout: u64,
+    #[serde(with = "humantime_serde")]
+    gateway_response_timeout: Duration,
 
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
-    /// The provided value is interpreted as milliseconds.
-    topology_refresh_rate: u64,
+    #[serde(with = "humantime_serde")]
+    topology_refresh_rate: Duration,
 
     /// During topology refresh, test packets are sent through every single possible network
     /// path. This timeout determines waiting period until it is decided that the packet
     /// did not reach its destination.
-    /// The provided value is interpreted as milliseconds.
-    topology_resolution_timeout: u64,
+    #[serde(with = "humantime_serde")]
+    topology_resolution_timeout: Duration,
 
     /// If the mode of the client is set to VPN it specifies number of packets created with the
     /// same initial secret until it gets rotated.

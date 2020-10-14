@@ -16,7 +16,7 @@ use crate::commands::override_config;
 use crate::config::persistence::pathfinder::MixNodePathfinder;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use crypto::asymmetric::encryption;
+use crypto::asymmetric::{encryption, identity};
 use directory_client::DirectoryClient;
 use log::*;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
@@ -142,8 +142,18 @@ pub fn execute(matches: &ArgMatches) {
         config = config.with_layer(layer);
         debug!("Choosing layer {}", config.get_layer());
 
+        let identity_keys = identity::KeyPair::new();
         let sphinx_keys = encryption::KeyPair::new();
         let pathfinder = MixNodePathfinder::new_from_config(&config);
+        pemstore::store_keypair(
+            &identity_keys,
+            &pemstore::KeyPairPath::new(
+                pathfinder.private_identity_key().to_owned(),
+                pathfinder.public_identity_key().to_owned(),
+            ),
+        )
+        .expect("Failed to save identity keys");
+
         pemstore::store_keypair(
             &sphinx_keys,
             &pemstore::KeyPairPath::new(
@@ -152,7 +162,8 @@ pub fn execute(matches: &ArgMatches) {
             ),
         )
         .expect("Failed to save sphinx keys");
-        println!("Saved mixnet sphinx keypair");
+
+        println!("Saved mixnet identity and sphinx keypairs");
         let config_save_location = config.get_config_file_save_location();
         config
             .save_to_file(None)

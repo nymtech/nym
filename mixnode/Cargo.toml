@@ -13,6 +13,7 @@ curve25519-dalek = "2.0.0"
 dirs = "2.0.2"
 dotenv = "0.15.0"
 futures = "0.3.1"
+humantime-serde = "1.0.1"
 log = "0.4"
 pretty_env_logger = "0.3"
 serde = { version = "1.0.104", features = ["derive"] }
@@ -28,6 +29,7 @@ mixnode-common = { path = "../common/mixnode-common" }
 nymsphinx = {path = "../common/nymsphinx" }
 pemstore = {path = "../common/pemstore"}
 topology = {path = "../common/topology"}
+version-checker = { path = "../common/version-checker" }
 
 [dev-dependencies]
 tempfile = "3.1.0"

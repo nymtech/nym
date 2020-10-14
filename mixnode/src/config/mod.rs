@@ -86,8 +86,8 @@ impl NymConfig for Config {
     }
 }
 
-pub fn missing_string_value() -> String {
-    MISSING_VALUE.to_string()
+pub fn missing_string_value<T: From<String>>() -> T {
+    MISSING_VALUE.to_string().into()
 }
 
 impl Config {
@@ -98,6 +98,20 @@ impl Config {
     // builder methods
     pub fn with_id<S: Into<String>>(mut self, id: S) -> Self {
         let id = id.into();
+        if self
+            .mixnode
+            .private_identity_key_file
+            .as_os_str()
+            .is_empty()
+        {
+            self.mixnode.private_identity_key_file =
+                self::MixNode::default_private_identity_key_file(&id);
+        }
+        if self.mixnode.public_identity_key_file.as_os_str().is_empty() {
+            self.mixnode.public_identity_key_file =
+                self::MixNode::default_public_identity_key_file(&id);
+        }
+
         if self.mixnode.private_sphinx_key_file.as_os_str().is_empty() {
             self.mixnode.private_sphinx_key_file =
                 self::MixNode::default_private_sphinx_key_file(&id);
@@ -106,6 +120,7 @@ impl Config {
             self.mixnode.public_sphinx_key_file =
                 self::MixNode::default_public_sphinx_key_file(&id);
         }
+
         self.mixnode.id = id;
         self
     }
@@ -218,6 +233,14 @@ impl Config {
         self.mixnode.location.clone()
     }
 
+    pub fn get_private_identity_key_file(&self) -> PathBuf {
+        self.mixnode.private_identity_key_file.clone()
+    }
+
+    pub fn get_public_identity_key_file(&self) -> PathBuf {
+        self.mixnode.public_identity_key_file.clone()
+    }
+
     pub fn get_private_sphinx_key_file(&self) -> PathBuf {
         self.mixnode.private_sphinx_key_file.clone()
     }
@@ -277,6 +300,14 @@ impl Config {
     pub fn get_version(&self) -> &str {
         &self.mixnode.version
     }
+
+    // upgrade-specific
+    pub(crate) fn set_default_identity_keypair_paths(&mut self) {
+        self.mixnode.private_identity_key_file =
+            self::MixNode::default_private_identity_key_file(&self.mixnode.id);
+        self.mixnode.public_identity_key_file =
+            self::MixNode::default_public_identity_key_file(&self.mixnode.id);
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -309,6 +340,14 @@ pub struct MixNode {
     /// `listening_address`.
     announce_address: String,
 
+    /// Path to file containing private identity key.
+    #[serde(default = "missing_string_value")]
+    private_identity_key_file: PathBuf,
+
+    /// Path to file containing public identity key.
+    #[serde(default = "missing_string_value")]
+    public_identity_key_file: PathBuf,
+
     /// Path to file containing private sphinx key.
     private_sphinx_key_file: PathBuf,
 
@@ -329,6 +368,14 @@ pub struct MixNode {
 }
 
 impl MixNode {
+    fn default_private_identity_key_file(id: &str) -> PathBuf {
+        Config::default_data_directory(Some(id)).join("private_identity.pem")
+    }
+
+    fn default_public_identity_key_file(id: &str) -> PathBuf {
+        Config::default_data_directory(Some(id)).join("public_identity.pem")
+    }
+
     fn default_private_sphinx_key_file(id: &str) -> PathBuf {
         Config::default_data_directory(Some(id)).join("private_sphinx.pem")
     }
@@ -353,6 +400,8 @@ impl Default for MixNode {
                 .parse()
                 .unwrap(),
             announce_address: format!("127.0.0.1:{}", DEFAULT_LISTENING_PORT),
+            private_identity_key_file: Default::default(),
+            public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
             presence_directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),

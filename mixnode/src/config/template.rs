@@ -43,6 +43,12 @@ layer = {{ mixnode.layer }}
 listening_address = '{{ mixnode.listening_address }}'
 
 # Path to file containing private identity key.
+private_identity_key_file = '{{ mixnode.private_identity_key_file }}'
+
+# Path to file containing public identity key.
+public_identity_key_file = '{{ mixnode.public_identity_key_file }}'
+
+# Path to file containing private identity key.
 private_sphinx_key_file = '{{ mixnode.private_sphinx_key_file }}'
 
 # Path to file containing public sphinx key.

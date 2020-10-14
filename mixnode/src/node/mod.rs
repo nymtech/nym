@@ -16,7 +16,7 @@ use crate::config::Config;
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
-use crypto::asymmetric::encryption;
+use crypto::asymmetric::{encryption, identity};
 use directory_client::DirectoryClient;
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
@@ -30,13 +30,20 @@ mod presence;
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
     config: Config,
+    #[allow(dead_code)]
+    identity_keypair: Arc<identity::KeyPair>,
     sphinx_keypair: Arc<encryption::KeyPair>,
 }
 
 impl MixNode {
-    pub fn new(config: Config, sphinx_keypair: encryption::KeyPair) -> Self {
+    pub fn new(
+        config: Config,
+        identity_keypair: identity::KeyPair,
+        sphinx_keypair: encryption::KeyPair,
+    ) -> Self {
         MixNode {
             config,
+            identity_keypair: Arc::new(identity_keypair),
             sphinx_keypair: Arc::new(sphinx_keypair),
         }
     }

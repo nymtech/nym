@@ -47,72 +47,6 @@ pub const PRINT_DETAILED_REPORT: bool = false;
 // ||
 // CHANGE THIS TO GET COMPLETE LIST OF WHICH NODE IS WORKING OR BROKEN IN PARTICULAR WAY
 
-fn setup_logging() {
-    let mut log_builder = pretty_env_logger::formatted_timed_builder();
-    if let Ok(s) = ::std::env::var("RUST_LOG") {
-        log_builder.parse_filters(&s);
-    } else {
-        // default to 'Info'
-        log_builder.filter(None, log::LevelFilter::Info);
-    }
-
-    log_builder
-        .filter_module("hyper", log::LevelFilter::Warn)
-        .filter_module("tokio_reactor", log::LevelFilter::Warn)
-        .filter_module("reqwest", log::LevelFilter::Warn)
-        .filter_module("mio", log::LevelFilter::Warn)
-        .filter_module("want", log::LevelFilter::Warn)
-        .filter_module("sled", log::LevelFilter::Warn)
-        .filter_module("tungstenite", log::LevelFilter::Warn)
-        .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
-        .init();
-}
-
-fn check_if_up_to_date() {
-    let monitor_version = env!("CARGO_PKG_VERSION");
-    let good_v4_topology = good_topology::new_v4();
-    for (_, layer_mixes) in good_v4_topology.mixes().into_iter() {
-        for mix in layer_mixes.into_iter() {
-            if !version_checker::is_minor_version_compatible(monitor_version, &*mix.version) {
-                panic!(
-                    "Our good topology is not compatible with monitor! Mix runs {}, we have {}",
-                    mix.version, monitor_version
-                )
-            }
-        }
-    }
-
-    for gateway in good_v4_topology.gateways().into_iter() {
-        if !version_checker::is_minor_version_compatible(monitor_version, &*gateway.version) {
-            panic!(
-                "Our good topology is not compatible with monitor! Gateway runs {}, we have {}",
-                gateway.version, monitor_version
-            )
-        }
-    }
-
-    let good_v6_topology = good_topology::new_v6();
-    for (_, layer_mixes) in good_v6_topology.mixes().into_iter() {
-        for mix in layer_mixes.into_iter() {
-            if !version_checker::is_minor_version_compatible(monitor_version, &*mix.version) {
-                panic!(
-                    "Our good topology is not compatible with monitor! Mix runs {}, we have {}",
-                    mix.version, monitor_version
-                )
-            }
-        }
-    }
-
-    for gateway in good_v6_topology.gateways().into_iter() {
-        if !version_checker::is_minor_version_compatible(monitor_version, &*gateway.version) {
-            panic!(
-                "Our good topology is not compatible with monitor! Gateway runs {}, we have {}",
-                gateway.version, monitor_version
-            )
-        }
-    }
-}
-
 #[tokio::main]
 async fn main() {
     println!("Network monitor starting...");
@@ -227,4 +161,70 @@ fn new_notifier(
         directory_client,
         test_run_receiver,
     )
+}
+
+fn setup_logging() {
+    let mut log_builder = pretty_env_logger::formatted_timed_builder();
+    if let Ok(s) = ::std::env::var("RUST_LOG") {
+        log_builder.parse_filters(&s);
+    } else {
+        // default to 'Info'
+        log_builder.filter(None, log::LevelFilter::Info);
+    }
+
+    log_builder
+        .filter_module("hyper", log::LevelFilter::Warn)
+        .filter_module("tokio_reactor", log::LevelFilter::Warn)
+        .filter_module("reqwest", log::LevelFilter::Warn)
+        .filter_module("mio", log::LevelFilter::Warn)
+        .filter_module("want", log::LevelFilter::Warn)
+        .filter_module("sled", log::LevelFilter::Warn)
+        .filter_module("tungstenite", log::LevelFilter::Warn)
+        .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
+        .init();
+}
+
+fn check_if_up_to_date() {
+    let monitor_version = env!("CARGO_PKG_VERSION");
+    let good_v4_topology = good_topology::new_v4();
+    for (_, layer_mixes) in good_v4_topology.mixes().into_iter() {
+        for mix in layer_mixes.into_iter() {
+            if !version_checker::is_minor_version_compatible(monitor_version, &*mix.version) {
+                panic!(
+                    "Our good topology is not compatible with monitor! Mix runs {}, we have {}",
+                    mix.version, monitor_version
+                )
+            }
+        }
+    }
+
+    for gateway in good_v4_topology.gateways().into_iter() {
+        if !version_checker::is_minor_version_compatible(monitor_version, &*gateway.version) {
+            panic!(
+                "Our good topology is not compatible with monitor! Gateway runs {}, we have {}",
+                gateway.version, monitor_version
+            )
+        }
+    }
+
+    let good_v6_topology = good_topology::new_v6();
+    for (_, layer_mixes) in good_v6_topology.mixes().into_iter() {
+        for mix in layer_mixes.into_iter() {
+            if !version_checker::is_minor_version_compatible(monitor_version, &*mix.version) {
+                panic!(
+                    "Our good topology is not compatible with monitor! Mix runs {}, we have {}",
+                    mix.version, monitor_version
+                )
+            }
+        }
+    }
+
+    for gateway in good_v6_topology.gateways().into_iter() {
+        if !version_checker::is_minor_version_compatible(monitor_version, &*gateway.version) {
+            panic!(
+                "Our good topology is not compatible with monitor! Gateway runs {}, we have {}",
+                gateway.version, monitor_version
+            )
+        }
+    }
 }

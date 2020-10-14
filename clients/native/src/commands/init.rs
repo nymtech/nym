@@ -25,6 +25,7 @@ use gateway_requests::registration::handshake::SharedKeys;
 use rand::rngs::OsRng;
 use rand::seq::SliceRandom;
 use std::convert::TryInto;
+use std::process;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::{gateway, NymTopology};
@@ -131,7 +132,14 @@ pub fn execute(matches: &ArgMatches) {
     println!("Initialising client...");
 
     let id = matches.value_of("id").unwrap(); // required for now
+
+    if Config::default_config_file_path(id).exists() {
+        eprintln!("Client \"{}\" was already initialised before! If you wanted to upgrade your client to most recent version, try `upgrade` command instead!", id);
+        process::exit(1);
+    }
+
     let mut config = Config::new(id);
+
     let mut rng = OsRng;
 
     // TODO: ideally that should be the last thing that's being done to config.

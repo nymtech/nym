@@ -14,9 +14,11 @@
 
 use crate::commands::override_config;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
+use crate::config::Config;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
+use std::process;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
@@ -116,7 +118,12 @@ pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
     println!("Initialising gateway {}...", id);
 
-    let mut config = crate::config::Config::new(id);
+    if Config::default_config_file_path(id).exists() {
+        eprintln!("Gateway \"{}\" was already initialised before! If you wanted to upgrade your gateway to most recent version, try `upgrade` command instead!", id);
+        process::exit(1);
+    }
+
+    let mut config = Config::new(id);
 
     config = override_config(config, matches);
 

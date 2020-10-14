@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::{Config, MISSING_VALUE};
+use crate::config::{missing_string_value, Config};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
+use crypto::asymmetric::identity;
 use std::fmt::Display;
+use std::path::PathBuf;
 use std::process;
 use version_checker::{parse_version, Version};
 
@@ -41,6 +43,22 @@ fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
 }
 
 fn pre_090_upgrade(from: &str, config: Config) -> Config {
+    // note: current is guaranteed to not have any `build` information suffix (nor pre-release
+    // information), as this was asserted at the beginning of this command)
+    //
+    // upgrade to current (if it's a 0.9.X) or try to upgrade to 0.9.0 as an intermediate
+    // step in future upgrades (so, for example, we might go 0.8.0 -> 0.9.0 -> 0.10.0)
+    // this way we don't need to have all the crazy paths on how to upgrade from any version to any
+    // other version. We just upgrade one minor version at a time.
+    let current = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+    let to_version = if current.major == 0 && current.minor == 9 {
+        current
+    } else {
+        Version::new(0, 9, 0)
+    };
+
+    print_start_upgrade(&from, &to_version);
+
     // this is not extracted to separate function as you only have to manually pass version
     // if upgrading from pre090 version
     let from = match from.strip_prefix("v") {
@@ -57,31 +75,41 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
     if from_version.major == 0 && from_version.minor < 8 {
         // technically this could be implemented, but is there any point in that?
         eprintln!("upgrading node from before v0.8.0 is not supported. Please run `init` with new binary instead");
+        print_failed_upgrade(&from_version, &to_version);
         process::exit(1)
     }
 
     if (from_version.major == 0 && from_version.minor >= 9) || from_version.major >= 1 {
         eprintln!("self reported version is higher than 0.9.0. Those releases should have already contained version numbers in config! Make sure you provided correct version");
+        print_failed_upgrade(&from_version, &to_version);
         process::exit(1)
     }
 
-    // note: current is guaranteed to not have any `build` information suffix (nor pre-release
-    // information), as this was asserted at the beginning of this command)
-    //
-    // upgrade to current (if it's a 0.9.X) or try to upgrade to 0.9.0 as an intermediate
-    // step in future upgrades (so, for example, we might go 0.8.0 -> 0.9.0 -> 0.10.0)
-    // this way we don't need to have all the crazy paths on how to upgrade from any version to any
-    // other version. We just upgrade one minor version at a time.
-    let current = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
-    let to_version = if current.major == 0 && current.minor == 9 {
-        current
-    } else {
-        Version::new(0, 9, 0)
-    };
+    if config.get_private_identity_key_file() != missing_string_value::<PathBuf>()
+        || config.get_public_identity_key_file() != missing_string_value::<PathBuf>()
+    {
+        eprintln!("existing config seems to have specified identity keys which were only introduced in 0.9.0! Can't perform upgrade.");
+        print_failed_upgrade(&from_version, &to_version);
+        process::exit(1);
+    }
 
-    print_start_upgrade(&from_version, &to_version);
+    let mut upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
 
-    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
+    println!("Generating new identity...");
+    let identity_keys = identity::KeyPair::new();
+    upgraded_config.set_default_identity_keypair_paths();
+
+    if let Err(err) = pemstore::store_keypair(
+        &identity_keys,
+        &pemstore::KeyPairPath::new(
+            upgraded_config.get_private_identity_key_file(),
+            upgraded_config.get_public_identity_key_file(),
+        ),
+    ) {
+        eprintln!("Failed to save new identity key files! - {}", err);
+        process::exit(1);
+    }
+
     // TODO: THIS IS INCOMPLETE AS ONCE PRESENCE IS REMOVED IN 0.9.0 IT WILL ALSO NEED
     // TO BE PURGED FROM CONFIG
 
@@ -135,7 +163,7 @@ pub fn execute(matches: &ArgMatches) {
     });
 
     // versions fields were added in 0.9.0
-    if existing_config.get_version() == MISSING_VALUE {
+    if existing_config.get_version() == missing_string_value::<String>() {
         let self_reported_version = matches.value_of("current version").unwrap_or_else(|| {
             eprintln!(
                 "trying to upgrade from pre v0.9.0 without providing current system version!"

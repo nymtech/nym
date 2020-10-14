@@ -15,7 +15,10 @@
 use crate::config::template::config_template;
 use config::NymConfig;
 use log::*;
-use serde::{Deserialize, Serialize};
+use serde::{
+    de::{self, IntoDeserializer, Visitor},
+    Deserialize, Deserializer, Serialize,
+};
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -90,6 +93,53 @@ impl NymConfig for Config {
             .join(&self.gateway.id)
             .join("data")
     }
+}
+
+// custom function is defined to deserialize based on whether field contains a pre 0.9.0
+// u64 interpreted as milliseconds or proper duration introduced in 0.9.0
+//
+// TODO: when we get to refactoring down the line, this code can just be removed
+// and all Duration fields could just have #[serde(with = "humantime_serde")] instead
+// reason for that is that we don't expect anyone to be upgrading from pre 0.9.0 when we have,
+// for argument sake, 0.11.0 out
+fn deserialize_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct DurationVisitor;
+
+    impl<'de> Visitor<'de> for DurationVisitor {
+        type Value = Duration;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("u64 or a duration")
+        }
+
+        fn visit_i64<E>(self, value: i64) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            self.visit_u64(value as u64)
+        }
+
+        fn visit_u64<E>(self, value: u64) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            Ok(Duration::from_millis(Deserialize::deserialize(
+                value.into_deserializer(),
+            )?))
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            humantime_serde::deserialize(value.into_deserializer())
+        }
+    }
+
+    deserializer.deserialize_any(DurationVisitor)
 }
 
 pub fn missing_string_value() -> String {
@@ -581,20 +631,32 @@ impl Default for Logging {
 pub struct Debug {
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
-    #[serde(with = "humantime_serde")]
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
     packet_forwarding_initial_backoff: Duration,
 
     /// Maximum value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
-    #[serde(with = "humantime_serde")]
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
     packet_forwarding_maximum_backoff: Duration,
 
     /// Timeout for establishing initial connection when trying to forward a sphinx packet.
-    #[serde(with = "humantime_serde")]
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
     initial_connection_timeout: Duration,
 
     /// Delay between each subsequent presence data being sent.
-    #[serde(with = "humantime_serde")]
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
     presence_sending_delay: Duration,
 
     /// Length of filenames for new client messages.
@@ -606,7 +668,10 @@ pub struct Debug {
     message_retrieval_limit: u16,
 
     /// Duration for which a cached vpn processing result is going to get stored for.
-    #[serde(with = "humantime_serde")]
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
     cache_entry_ttl: Duration,
 }
 

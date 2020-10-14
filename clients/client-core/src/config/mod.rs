@@ -13,7 +13,10 @@
 // limitations under the License.
 
 use config::NymConfig;
-use serde::{Deserialize, Serialize};
+use serde::{
+    de::{self, IntoDeserializer, Visitor},
+    Deserialize, Deserializer, Serialize,
+};
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -37,6 +40,53 @@ const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_VPN_KEY_REUSE_LIMIT: usize = 1000;
 
 const ZERO_DELAY: Duration = Duration::from_nanos(0);
+
+// custom function is defined to deserialize based on whether field contains a pre 0.9.0
+// u64 interpreted as milliseconds or proper duration introduced in 0.9.0
+//
+// TODO: when we get to refactoring down the line, this code can just be removed
+// and all Duration fields could just have #[serde(with = "humantime_serde")] instead
+// reason for that is that we don't expect anyone to be upgrading from pre 0.9.0 when we have,
+// for argument sake, 0.11.0 out
+fn deserialize_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct DurationVisitor;
+
+    impl<'de> Visitor<'de> for DurationVisitor {
+        type Value = Duration;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("u64 or a duration")
+        }
+
+        fn visit_i64<E>(self, value: i64) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            self.visit_u64(value as u64)
+        }
+
+        fn visit_u64<E>(self, value: u64) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            Ok(Duration::from_millis(Deserialize::deserialize(
+                value.into_deserializer(),
+            )?))
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            humantime_serde::deserialize(value.into_deserializer())
+        }
+    }
+
+    deserializer.deserialize_any(DurationVisitor)
+}
 
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
@@ -402,14 +452,20 @@ pub struct Debug {
     /// sent packet is going to be delayed at any given mix node.
     /// So for a packet going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
-    #[serde(with = "humantime_serde")]
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
     average_packet_delay: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent acknowledgement is going to be delayed at any given mix node.
     /// So for an ack going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
-    #[serde(with = "humantime_serde")]
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
     average_ack_delay: Duration,
 
     /// Value multiplied with the expected round trip time of an acknowledgement packet before
@@ -420,35 +476,53 @@ pub struct Debug {
     /// Value added to the expected round trip time of an acknowledgement packet before
     /// it is assumed it was lost and retransmission of the data packet happens.
     /// In an ideal network with 0 latency, this value would have been 0.
-    #[serde(with = "humantime_serde")]
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
     ack_wait_addition: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take for another loop cover traffic message to be sent.
-    #[serde(with = "humantime_serde")]
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
     loop_cover_traffic_average_delay: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take another 'real traffic stream' message to be sent.
     /// If no real packets are available and cover traffic is enabled,
     /// a loop cover message is sent instead in order to preserve the rate.
-    #[serde(with = "humantime_serde")]
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
     message_sending_average_delay: Duration,
 
     /// How long we're willing to wait for a response to a message sent to the gateway,
     /// before giving up on it.
-    #[serde(with = "humantime_serde")]
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
     gateway_response_timeout: Duration,
 
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
-    #[serde(with = "humantime_serde")]
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
     topology_refresh_rate: Duration,
 
     /// During topology refresh, test packets are sent through every single possible network
     /// path. This timeout determines waiting period until it is decided that the packet
     /// did not reach its destination.
-    #[serde(with = "humantime_serde")]
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
     topology_resolution_timeout: Duration,
 
     /// If the mode of the client is set to VPN it specifies number of packets created with the

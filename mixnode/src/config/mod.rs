@@ -300,6 +300,14 @@ impl Config {
     pub fn get_version(&self) -> &str {
         &self.mixnode.version
     }
+
+    // upgrade-specific
+    pub(crate) fn set_default_identity_keypair_paths(&mut self) {
+        self.mixnode.private_identity_key_file =
+            self::MixNode::default_private_identity_key_file(&self.mixnode.id);
+        self.mixnode.public_identity_key_file =
+            self::MixNode::default_public_identity_key_file(&self.mixnode.id);
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::{Config, MISSING_VALUE};
+use crate::config::{missing_string_value, Config};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
+use crypto::asymmetric::identity;
 use std::fmt::Display;
+use std::path::PathBuf;
 use std::process;
 use version_checker::{parse_version, Version};
 
@@ -80,8 +82,30 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
     };
 
     print_start_upgrade(&from_version, &to_version);
+    if config.get_private_identity_key_file() != missing_string_value::<PathBuf>()
+        || config.get_public_identity_key_file() != missing_string_value::<PathBuf>()
+    {
+        eprintln!("existing config seems to have specified identity keys which were only introduced in 0.9.0! Can't perform upgrade.");
+        process::exit(1);
+    }
 
-    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
+    let mut upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
+
+    println!("Generating new identity...");
+    let identity_keys = identity::KeyPair::new();
+    upgraded_config.set_default_identity_keypair_paths();
+
+    if let Err(err) = pemstore::store_keypair(
+        &identity_keys,
+        &pemstore::KeyPairPath::new(
+            upgraded_config.get_private_identity_key_file(),
+            upgraded_config.get_public_identity_key_file(),
+        ),
+    ) {
+        eprintln!("Failed to save new identity key files! - {}", err);
+        process::exit(1);
+    }
+
     // TODO: THIS IS INCOMPLETE AS ONCE PRESENCE IS REMOVED IN 0.9.0 IT WILL ALSO NEED
     // TO BE PURGED FROM CONFIG
 
@@ -135,7 +159,7 @@ pub fn execute(matches: &ArgMatches) {
     });
 
     // versions fields were added in 0.9.0
-    if existing_config.get_version() == MISSING_VALUE {
+    if existing_config.get_version() == missing_string_value::<String>() {
         let self_reported_version = matches.value_of("current version").unwrap_or_else(|| {
             eprintln!(
                 "trying to upgrade from pre v0.9.0 without providing current system version!"

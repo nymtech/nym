@@ -31,7 +31,6 @@ const DEFAULT_LISTENING_PORT: u16 = 1789;
 const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
 
 // 'DEBUG'
-// where applicable, the below are defined in milliseconds
 const DEFAULT_PRESENCE_SENDING_DELAY: Duration = Duration::from_millis(10_000);
 const DEFAULT_METRICS_SENDING_DELAY: Duration = Duration::from_millis(5_000);
 const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);

@@ -100,10 +100,10 @@ listening_port = {{ socks5.listening_port }}
 
 [debug]
 
-average_packet_delay = {{ debug.average_packet_delay }}
-average_ack_delay = {{ debug.average_ack_delay }}
-loop_cover_traffic_average_delay = {{ debug.loop_cover_traffic_average_delay }}
-message_sending_average_delay = {{ debug.message_sending_average_delay }}
+average_packet_delay = '{{ debug.average_packet_delay }}'
+average_ack_delay = '{{ debug.average_ack_delay }}'
+loop_cover_traffic_average_delay = '{{ debug.loop_cover_traffic_average_delay }}'
+message_sending_average_delay = '{{ debug.message_sending_average_delay }}'
 
 "#
 }

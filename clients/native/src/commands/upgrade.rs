@@ -60,7 +60,7 @@ fn pre_090_upgrade(from: &str, mut config: Config) -> Config {
         process::exit(1)
     }
 
-    if from_version.minor >= 9 {
+    if (from_version.major == 0 && from_version.minor >= 9) || from_version.major >= 1 {
         eprintln!("self reported version is higher than 0.9.0. Those releases should have already contained version numbers in config! Make sure you provided correct version");
         process::exit(1)
     }

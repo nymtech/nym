@@ -60,8 +60,13 @@ fn pre_090_upgrade(from: &str, mut config: Config) -> Config {
         process::exit(1)
     }
 
-    // basically if we're only 0.9.0-dev or 0.9.0-rc1 or whatever, we should preserve that suffix,
-    // however, if this is an intermediate upgrade step, set it temporarily to 0.9.0
+    // note: current is guaranteed to not have any `build` information suffix (nor pre-release
+    // information), as this was asserted at the beginning of this command)
+    //
+    // upgrade to current (if it's a 0.9.X) or try to upgrade to 0.9.0 as an intermediate
+    // step in future upgrades (so, for example, we might go 0.8.0 -> 0.9.0 -> 0.10.0)
+    // this way we don't need to have all the crazy paths on how to upgrade from any version to any
+    // other version. We just upgrade one minor version at a time.
     let current = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
     let to_version = if current.major == 0 && current.minor == 9 {
         current
@@ -105,6 +110,17 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
 
 pub fn execute(matches: &ArgMatches) {
     let current = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+
+    // technically this is not a correct way of checking it as a released version might contain valid build identifiers
+    // however, we are not using them ourselves at the moment and hence it should be fine.
+    // if we change our mind, we could easily tweak this code
+    if current.is_prerelease() || !current.build.is_empty() {
+        eprintln!(
+            "Trying to upgrade to a non-released version {}. This is not supported!",
+            current
+        );
+        process::exit(1)
+    }
 
     let id = matches.value_of("id").unwrap();
 

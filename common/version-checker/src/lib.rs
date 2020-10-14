@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use semver::Version;
+use semver::SemVerError;
+pub use semver::Version;
 
 /// Checks whether given `version` is compatible with a given semantic version requirement `req`
 /// according to major-minor semver rules. The semantic version requirement can be passed as a full,
@@ -30,6 +31,10 @@ pub fn is_minor_version_compatible(version: &str, req: &str) -> bool {
     };
 
     expected_version.major == req_version.major && expected_version.minor == req_version.minor
+}
+
+pub fn parse_version(raw_version: &str) -> Result<Version, SemVerError> {
+    Version::parse(raw_version)
 }
 
 #[cfg(test)]

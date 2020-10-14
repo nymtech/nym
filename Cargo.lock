@@ -1550,6 +1550,7 @@ dependencies = [
  "tokio-tungstenite",
  "topology",
  "url",
+ "version-checker",
  "websocket-requests",
 ]
 
@@ -1601,6 +1602,7 @@ dependencies = [
  "tokio-tungstenite",
  "tokio-util",
  "tungstenite",
+ "version-checker",
 ]
 
 [[package]]
@@ -1627,6 +1629,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "topology",
+ "version-checker",
 ]
 
 [[package]]
@@ -1656,6 +1659,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "topology",
+ "version-checker",
 ]
 
 [[package]]

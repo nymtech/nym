@@ -14,6 +14,7 @@
 
 use crate::client::config::template::config_template;
 use client_core::config::Config as BaseConfig;
+pub use client_core::config::MISSING_VALUE;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

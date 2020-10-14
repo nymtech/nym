@@ -40,6 +40,7 @@ nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }
 websocket-requests = { path = "websocket-requests" }
+version-checker = { path = "../../common/version-checker" }
 
 [dev-dependencies]
 tempfile = "3.1.0"

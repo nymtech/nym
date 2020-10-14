@@ -138,7 +138,7 @@ pub fn execute(matches: &ArgMatches) {
         println!("Initialising mixnode {}...", id);
 
         if Config::default_config_file_path(id).exists() {
-            eprintln!("Mixnode {} was already initialised before! If you wanted to upgrade your node to most recent version, try `upgrade` command instead!", id);
+            eprintln!("Mixnode \"{}\" was already initialised before! If you wanted to upgrade your node to most recent version, try `upgrade` command instead!", id);
             process::exit(1);
         }
 

@@ -38,10 +38,6 @@ impl NymConfig for Config {
         config_template()
     }
 
-    fn config_file_name() -> String {
-        "config.toml".to_string()
-    }
-
     fn default_root_directory() -> PathBuf {
         dirs::home_dir()
             .expect("Failed to evaluate $HOME value")

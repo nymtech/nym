@@ -14,6 +14,7 @@
 
 use crate::commands::override_config;
 use crate::config::persistence::pathfinder::MixNodePathfinder;
+use crate::config::Config;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
@@ -21,6 +22,7 @@ use directory_client::DirectoryClient;
 use log::*;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 use std::convert::TryInto;
+use std::process;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
@@ -134,7 +136,13 @@ pub fn execute(matches: &ArgMatches) {
     rt.block_on(async {
         let id = matches.value_of("id").unwrap();
         println!("Initialising mixnode {}...", id);
-        let mut config = crate::config::Config::new(id);
+
+        if Config::default_config_file_path(id).exists() {
+            eprintln!("Mixnode \"{}\" was already initialised before! If you wanted to upgrade your node to most recent version, try `upgrade` command instead!", id);
+            process::exit(1);
+        }
+
+        let mut config = Config::new(id);
         config = override_config(config, matches);
         let layer = choose_layer(matches, config.get_presence_directory_server()).await;
         // TODO: I really don't like how we override config and are presumably done with it

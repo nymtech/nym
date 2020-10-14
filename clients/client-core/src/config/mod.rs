@@ -360,31 +360,31 @@ impl<T: NymConfig> Default for Client<T> {
 
 impl<T: NymConfig> Client<T> {
     fn default_private_identity_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("private_identity.pem")
+        T::default_data_directory(id).join("private_identity.pem")
     }
 
     fn default_public_identity_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("public_identity.pem")
+        T::default_data_directory(id).join("public_identity.pem")
     }
 
     fn default_private_encryption_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("private_encryption.pem")
+        T::default_data_directory(id).join("private_encryption.pem")
     }
 
     fn default_public_encryption_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("public_encryption.pem")
+        T::default_data_directory(id).join("public_encryption.pem")
     }
 
     fn default_gateway_shared_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("gateway_shared.pem")
+        T::default_data_directory(id).join("gateway_shared.pem")
     }
 
     fn default_ack_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("ack_key.pem")
+        T::default_data_directory(id).join("ack_key.pem")
     }
 
     fn default_reply_encryption_key_store_path(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("reply_key_store")
+        T::default_data_directory(id).join("reply_key_store")
     }
 }
 

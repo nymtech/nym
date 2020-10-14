@@ -60,6 +60,11 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
         process::exit(1)
     }
 
+    if from_version.minor >= 9 {
+        eprintln!("self reported version is higher than 0.9.0. Those releases should have already contained version numbers in config! Make sure you provided correct version");
+        process::exit(1)
+    }
+
     // note: current is guaranteed to not have any `build` information suffix (nor pre-release
     // information), as this was asserted at the beginning of this command)
     //
@@ -147,10 +152,19 @@ pub fn execute(matches: &ArgMatches) {
         process::exit(1)
     });
 
+    if config_version.is_prerelease() || !config_version.build.is_empty() {
+        eprintln!(
+            "Trying to upgrade to from non-released version {}. This is not supported!",
+            current
+        );
+        process::exit(1)
+    }
+
     // here be upgrade path to 0.10.0 and beyond based on version number from config
     if config_version == current {
         println!("You're using the most recent version!");
     } else {
-        eprintln!("Cannot perform upgrade from {} to {}. Please let the developers know about this issue!", config_version, current)
+        eprintln!("Cannot perform upgrade from {} to {}. Please let the developers know about this issue!", config_version, current);
+        process::exit(1)
     }
 }

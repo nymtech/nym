@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crypto::asymmetric::encryption;
-use crypto::asymmetric::encryption::EncryptionKeyError;
+use crypto::asymmetric::encryption::KeyRecoveryError;
 use directory_client::mixmining::MixStatus;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{self, Display, Formatter};
@@ -26,8 +26,8 @@ pub(crate) enum TestPacketError {
     InvalidNodeKey,
 }
 
-impl From<encryption::EncryptionKeyError> for TestPacketError {
-    fn from(_: EncryptionKeyError) -> Self {
+impl From<encryption::KeyRecoveryError> for TestPacketError {
+    fn from(_: KeyRecoveryError) -> Self {
         TestPacketError::InvalidNodeKey
     }
 }

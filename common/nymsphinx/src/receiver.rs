@@ -34,7 +34,7 @@ pub struct ReconstructedMessage {
 pub enum MessageRecoveryError {
     InvalidSurbPrefixError,
     MalformedSURBError(ReplySURBError),
-    InvalidRemoteEphemeralKey(encryption::EncryptionKeyError),
+    InvalidRemoteEphemeralKey(encryption::KeyRecoveryError),
     MalformedFragmentError,
     InvalidMessagePaddingError,
     MalformedReconstructedMessage(Vec<i32>),
@@ -47,8 +47,8 @@ impl From<ReplySURBError> for MessageRecoveryError {
     }
 }
 
-impl From<encryption::EncryptionKeyError> for MessageRecoveryError {
-    fn from(err: encryption::EncryptionKeyError) -> Self {
+impl From<encryption::KeyRecoveryError> for MessageRecoveryError {
+    fn from(err: encryption::KeyRecoveryError) -> Self {
         MessageRecoveryError::InvalidRemoteEphemeralKey(err)
     }
 }

@@ -24,14 +24,14 @@ pub enum ConversionError {
     InvalidAddress(io::Error),
 }
 
-impl From<identity::SignatureError> for ConversionError {
-    fn from(_: identity::SignatureError) -> Self {
+impl From<identity::KeyRecoveryError> for ConversionError {
+    fn from(_: identity::KeyRecoveryError) -> Self {
         ConversionError::InvalidKeyError
     }
 }
 
-impl From<encryption::EncryptionKeyError> for ConversionError {
-    fn from(_: encryption::EncryptionKeyError) -> Self {
+impl From<encryption::KeyRecoveryError> for ConversionError {
+    fn from(_: encryption::KeyRecoveryError) -> Self {
         ConversionError::InvalidKeyError
     }
 }

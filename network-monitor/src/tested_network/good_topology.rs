@@ -145,7 +145,6 @@ pub(crate) fn new_v6() -> NymTopology {
     NymTopology::new(Vec::new(), layered_mixes, vec![v6_gateway()])
 }
 
-
 #[cfg(test)]
 mod good_topology_test {
     use super::*;

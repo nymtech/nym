@@ -109,11 +109,11 @@ where
             };
 
             info!(
-                "[{} bytes]\t{} → local → mixnet → remote → {} (conn_id: {}). Local closed: {}",
+                target: &*format!("({}) socks5 inbound", connection_id),
+                "[{} bytes]\t{} → local → mixnet → remote → {}. Local closed: {}",
                 read_data.len(),
                 local_destination_address,
                 remote_source_address,
-                connection_id,
                 is_finished
             );
 
@@ -149,11 +149,11 @@ where
             let connection_message = mix_data.unwrap();
 
             info!(
-                "[{} bytes]\t{} → remote → mixnet → local → {} (conn_id: {}). Remote closed: {}",
+                target: &*format!("({}) socks5 outbound", connection_id),
+                "[{} bytes]\t{} → remote → mixnet → local → {} Remote closed: {}",
                 connection_message.payload.len(),
                 remote_source_address,
                 local_destination_address,
-                connection_id,
                 connection_message.socket_closed
             );
 

@@ -1,8 +1,7 @@
 [package]
-build = "build.rs"
 name = "nym-client-wasm"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jedrzej Stuczynski <andrew@nymtech.net>"]
-version = "0.8.1"
+version = "0.9.0-dev"
 edition = "2018"
 keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy", "client"]
 license = "Apache-2.0"
@@ -44,9 +43,6 @@ console_error_panic_hook = { version = "0.1", optional = true }
 #
 # Unfortunately, `wee_alloc` requires nightly Rust when targeting wasm for now.
 wee_alloc = { version = "0.4", optional = true }
-
-[build-dependencies]
-built = "0.4.3"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.2"

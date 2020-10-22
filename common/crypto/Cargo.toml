@@ -15,11 +15,11 @@ generic-array = "0.14"
 hkdf = "0.9"
 hmac = "0.8"
 stream-cipher = "0.4"
-x25519-dalek = "0.6"
-ed25519-dalek = "1.0.0-pre.4"
+x25519-dalek = "1.1"
+ed25519-dalek = "1.0"
 log = "0.4"
 pretty_env_logger = "0.3"
-rand = {version = "0.7.3", features = ["wasm-bindgen"]}
+rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 
 # internal
 nymsphinx-types = { path = "../nymsphinx/types" }

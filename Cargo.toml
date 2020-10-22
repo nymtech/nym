@@ -39,9 +39,9 @@ members = [
     "common/wasm-utils",
     "gateway",
     "gateway/gateway-requests",
-    "service-providers/sphinx-socks",
     "mixnode",
-    "validator",
+    "network-monitor",
+    "service-providers/sphinx-socks",
 ]
 
 default-members = [
@@ -49,6 +49,7 @@ default-members = [
     "clients/socks5",
 #    "clients/webassembly",
     "gateway",
+    "service-providers/sphinx-socks",
     "mixnode",
-    "validator",
+    "network-monitor",
 ]

@@ -13,31 +13,84 @@
 // limitations under the License.
 
 use config::NymConfig;
-use serde::{Deserialize, Serialize};
+use serde::{
+    de::{self, IntoDeserializer, Visitor},
+    Deserialize, Deserializer, Serialize,
+};
 use std::marker::PhantomData;
 use std::path::PathBuf;
-use std::time;
 use std::time::Duration;
 
 pub mod persistence;
 
+pub const MISSING_VALUE: &str = "MISSING VALUE";
+
 // 'CLIENT'
 const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
 // 'DEBUG'
-// where applicable, the below are defined in milliseconds
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
 
-// all delays are in milliseconds
-const DEFAULT_ACK_WAIT_ADDITION: u64 = 1_500;
-const DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY: u64 = 1000;
-const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: u64 = 100;
-const DEFAULT_AVERAGE_PACKET_DELAY: u64 = 100;
-const DEFAULT_TOPOLOGY_REFRESH_RATE: u64 = 30_000;
-const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: u64 = 5_000;
-const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: u64 = 1_500;
+const DEFAULT_ACK_WAIT_ADDITION: Duration = Duration::from_millis(1_500);
+const DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(1000);
+const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(100);
+const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(100);
+const DEFAULT_TOPOLOGY_REFRESH_RATE: Duration = Duration::from_millis(30_000);
+const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: Duration = Duration::from_millis(5_000);
+const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_VPN_KEY_REUSE_LIMIT: usize = 1000;
 
 const ZERO_DELAY: Duration = Duration::from_nanos(0);
+
+// custom function is defined to deserialize based on whether field contains a pre 0.9.0
+// u64 interpreted as milliseconds or proper duration introduced in 0.9.0
+//
+// TODO: when we get to refactoring down the line, this code can just be removed
+// and all Duration fields could just have #[serde(with = "humantime_serde")] instead
+// reason for that is that we don't expect anyone to be upgrading from pre 0.9.0 when we have,
+// for argument sake, 0.11.0 out
+fn deserialize_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct DurationVisitor;
+
+    impl<'de> Visitor<'de> for DurationVisitor {
+        type Value = Duration;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("u64 or a duration")
+        }
+
+        fn visit_i64<E>(self, value: i64) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            self.visit_u64(value as u64)
+        }
+
+        fn visit_u64<E>(self, value: u64) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            Ok(Duration::from_millis(Deserialize::deserialize(
+                value.into_deserializer(),
+            )?))
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            humantime_serde::deserialize(value.into_deserializer())
+        }
+    }
+
+    deserializer.deserialize_any(DurationVisitor)
+}
+
+pub fn missing_string_value() -> String {
+    MISSING_VALUE.to_string()
+}
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -127,9 +180,9 @@ impl<T: NymConfig> Config<T> {
     }
 
     pub fn set_high_default_traffic_volume(&mut self) {
-        self.debug.average_packet_delay = 10;
-        self.debug.loop_cover_traffic_average_delay = 20; // 50 cover messages / s
-        self.debug.message_sending_average_delay = 5; // 200 "real" messages / s
+        self.debug.average_packet_delay = Duration::from_millis(10);
+        self.debug.loop_cover_traffic_average_delay = Duration::from_millis(100); // 10 cover messages / s
+        self.debug.message_sending_average_delay = Duration::from_millis(5); // 200 "real" messages / s
     }
 
     pub fn set_vpn_mode(&mut self, vpn_mode: bool) {
@@ -138,6 +191,10 @@ impl<T: NymConfig> Config<T> {
 
     pub fn set_vpn_key_reuse_limit(&mut self, reuse_limit: usize) {
         self.debug.vpn_key_reuse_limit = Some(reuse_limit)
+    }
+
+    pub fn set_custom_version(&mut self, version: &str) {
+        self.client.version = version.to_string();
     }
 
     pub fn get_id(&self) -> String {
@@ -189,19 +246,19 @@ impl<T: NymConfig> Config<T> {
     }
 
     // Debug getters
-    pub fn get_average_packet_delay(&self) -> time::Duration {
+    pub fn get_average_packet_delay(&self) -> Duration {
         if self.client.vpn_mode {
             ZERO_DELAY
         } else {
-            time::Duration::from_millis(self.debug.average_packet_delay)
+            self.debug.average_packet_delay
         }
     }
 
-    pub fn get_average_ack_delay(&self) -> time::Duration {
+    pub fn get_average_ack_delay(&self) -> Duration {
         if self.client.vpn_mode {
             ZERO_DELAY
         } else {
-            time::Duration::from_millis(self.debug.average_ack_delay)
+            self.debug.average_ack_delay
         }
     }
 
@@ -209,32 +266,32 @@ impl<T: NymConfig> Config<T> {
         self.debug.ack_wait_multiplier
     }
 
-    pub fn get_ack_wait_addition(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.ack_wait_addition)
+    pub fn get_ack_wait_addition(&self) -> Duration {
+        self.debug.ack_wait_addition
     }
 
-    pub fn get_loop_cover_traffic_average_delay(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.loop_cover_traffic_average_delay)
+    pub fn get_loop_cover_traffic_average_delay(&self) -> Duration {
+        self.debug.loop_cover_traffic_average_delay
     }
 
-    pub fn get_message_sending_average_delay(&self) -> time::Duration {
+    pub fn get_message_sending_average_delay(&self) -> Duration {
         if self.client.vpn_mode {
             ZERO_DELAY
         } else {
-            time::Duration::from_millis(self.debug.message_sending_average_delay)
+            self.debug.message_sending_average_delay
         }
     }
 
-    pub fn get_gateway_response_timeout(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.gateway_response_timeout)
+    pub fn get_gateway_response_timeout(&self) -> Duration {
+        self.debug.gateway_response_timeout
     }
 
-    pub fn get_topology_refresh_rate(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.topology_refresh_rate)
+    pub fn get_topology_refresh_rate(&self) -> Duration {
+        self.debug.topology_refresh_rate
     }
 
-    pub fn get_topology_resolution_timeout(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.topology_resolution_timeout)
+    pub fn get_topology_resolution_timeout(&self) -> Duration {
+        self.debug.topology_resolution_timeout
     }
 
     pub fn get_vpn_mode(&self) -> bool {
@@ -251,6 +308,10 @@ impl<T: NymConfig> Config<T> {
             ),
         }
     }
+
+    pub fn get_version(&self) -> &str {
+        &self.client.version
+    }
 }
 
 impl<T: NymConfig> Default for Config<T> {
@@ -266,6 +327,10 @@ impl<T: NymConfig> Default for Config<T> {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Client<T> {
+    /// Version of the client for which this configuration was created.
+    #[serde(default = "missing_string_value")]
+    version: String,
+
     /// ID specifies the human readable ID of this particular client.
     id: String,
 
@@ -275,6 +340,7 @@ pub struct Client<T> {
     /// Special mode of the system such that all messages are sent as soon as they are received
     /// and no cover traffic is generated. If set all message delays are set to 0 and overwriting
     /// 'Debug' values will have no effect.
+    #[serde(default)]
     vpn_mode: bool,
 
     /// Path to file containing private identity key.
@@ -313,13 +379,14 @@ pub struct Client<T> {
     nym_root_directory: PathBuf,
 
     #[serde(skip)]
-    super_struct: PhantomData<T>,
+    super_struct: PhantomData<*const T>,
 }
 
 impl<T: NymConfig> Default for Client<T> {
     fn default() -> Self {
         // there must be explicit checks for whether id is not empty later
         Client {
+            version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
             vpn_mode: false,
@@ -340,31 +407,31 @@ impl<T: NymConfig> Default for Client<T> {
 
 impl<T: NymConfig> Client<T> {
     fn default_private_identity_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("private_identity.pem")
+        T::default_data_directory(id).join("private_identity.pem")
     }
 
     fn default_public_identity_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("public_identity.pem")
+        T::default_data_directory(id).join("public_identity.pem")
     }
 
     fn default_private_encryption_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("private_encryption.pem")
+        T::default_data_directory(id).join("private_encryption.pem")
     }
 
     fn default_public_encryption_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("public_encryption.pem")
+        T::default_data_directory(id).join("public_encryption.pem")
     }
 
     fn default_gateway_shared_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("gateway_shared.pem")
+        T::default_data_directory(id).join("gateway_shared.pem")
     }
 
     fn default_ack_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("ack_key.pem")
+        T::default_data_directory(id).join("ack_key.pem")
     }
 
     fn default_reply_encryption_key_store_path(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("reply_key_store")
+        T::default_data_directory(id).join("reply_key_store")
     }
 }
 
@@ -385,15 +452,21 @@ pub struct Debug {
     /// sent packet is going to be delayed at any given mix node.
     /// So for a packet going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
-    /// The provided value is interpreted as milliseconds.
-    average_packet_delay: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    average_packet_delay: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent acknowledgement is going to be delayed at any given mix node.
     /// So for an ack going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
-    /// The provided value is interpreted as milliseconds.
-    average_ack_delay: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    average_ack_delay: Duration,
 
     /// Value multiplied with the expected round trip time of an acknowledgement packet before
     /// it is assumed it was lost and retransmission of the data packet happens.
@@ -403,36 +476,54 @@ pub struct Debug {
     /// Value added to the expected round trip time of an acknowledgement packet before
     /// it is assumed it was lost and retransmission of the data packet happens.
     /// In an ideal network with 0 latency, this value would have been 0.
-    /// The provided value is interpreted as milliseconds.
-    ack_wait_addition: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    ack_wait_addition: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take for another loop cover traffic message to be sent.
-    /// The provided value is interpreted as milliseconds.
-    loop_cover_traffic_average_delay: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    loop_cover_traffic_average_delay: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take another 'real traffic stream' message to be sent.
     /// If no real packets are available and cover traffic is enabled,
     /// a loop cover message is sent instead in order to preserve the rate.
-    /// The provided value is interpreted as milliseconds.
-    message_sending_average_delay: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    message_sending_average_delay: Duration,
 
     /// How long we're willing to wait for a response to a message sent to the gateway,
     /// before giving up on it.
-    /// The provided value is interpreted as milliseconds.
-    gateway_response_timeout: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    gateway_response_timeout: Duration,
 
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
-    /// The provided value is interpreted as milliseconds.
-    topology_refresh_rate: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    topology_refresh_rate: Duration,
 
     /// During topology refresh, test packets are sent through every single possible network
     /// path. This timeout determines waiting period until it is decided that the packet
     /// did not reach its destination.
-    /// The provided value is interpreted as milliseconds.
-    topology_resolution_timeout: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    topology_resolution_timeout: Duration,
 
     /// If the mode of the client is set to VPN it specifies number of packets created with the
     /// same initial secret until it gets rotated.

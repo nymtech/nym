@@ -14,7 +14,6 @@
 
 use clap::{App, ArgMatches};
 
-pub mod built_info;
 pub mod client;
 mod commands;
 pub mod socks;
@@ -25,11 +24,12 @@ fn main() {
     println!("{}", banner());
 
     let arg_matches = App::new("Nym Socks5 Proxy")
-        .version(built_info::PKG_VERSION)
+        .version(env!("CARGO_PKG_VERSION"))
         .author("Nymtech")
         .about("A Socks5 localhost proxy that converts incoming messages to Sphinx and sends them to a Nym address")
         .subcommand(commands::init::command_args())
         .subcommand(commands::run::command_args())
+        .subcommand(commands::upgrade::command_args())
         .get_matches();
 
     execute(arg_matches);
@@ -39,6 +39,7 @@ fn execute(matches: ArgMatches) {
     match matches.subcommand() {
         ("init", Some(m)) => commands::init::execute(m),
         ("run", Some(m)) => commands::run::execute(m),
+        ("upgrade", Some(m)) => commands::upgrade::execute(m),
         _ => println!("{}", usage()),
     }
 }
@@ -60,7 +61,7 @@ fn banner() -> String {
              (socks5 proxy - version {:})
 
     "#,
-        built_info::PKG_VERSION
+        env!("CARGO_PKG_VERSION")
     )
 }
 

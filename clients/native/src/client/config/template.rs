@@ -24,6 +24,9 @@ pub(crate) fn config_template() -> &'static str {
 ##### main base client config options #####
 
 [client]
+# Version of the client for which this configuration was created.
+version = '{{ client.version }}'
+
 # Human readable ID of this particular client.
 id = '{{ client.id }}'
 
@@ -98,10 +101,10 @@ listening_port = {{ socket.listening_port }}
 
 [debug]
 
-average_packet_delay = {{ debug.average_packet_delay }}
-average_ack_delay = {{ debug.average_ack_delay }}
-loop_cover_traffic_average_delay = {{ debug.loop_cover_traffic_average_delay }}
-message_sending_average_delay = {{ debug.message_sending_average_delay }}
+average_packet_delay = '{{ debug.average_packet_delay }}'
+average_ack_delay = '{{ debug.average_ack_delay }}'
+loop_cover_traffic_average_delay = '{{ debug.loop_cover_traffic_average_delay }}'
+message_sending_average_delay = '{{ debug.message_sending_average_delay }}'
 
 "#
 }

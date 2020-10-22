@@ -15,8 +15,9 @@
 use crate::client::config::Config;
 use clap::ArgMatches;
 
-pub mod init;
-pub mod run;
+pub(crate) mod init;
+pub(crate) mod run;
+pub(crate) mod upgrade;
 
 pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if let Some(directory) = matches.value_of("directory") {

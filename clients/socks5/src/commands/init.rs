@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::built_info;
 use crate::client::config::Config;
 use crate::commands::override_config;
 use clap::{App, Arg, ArgMatches};
@@ -25,6 +24,7 @@ use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
 use rand::{prelude::SliceRandom, rngs::OsRng};
 use std::convert::TryInto;
+use std::process;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::{gateway, NymTopology};
@@ -109,7 +109,7 @@ async fn gateway_details(directory_server: &str, gateway_id: &str) -> gateway::N
     let directory_client = directory_client::Client::new(directory_client_config);
     let topology = directory_client.get_topology().await.unwrap();
     let nym_topology: NymTopology = topology.try_into().expect("Invalid topology data!");
-    let version_filtered_topology = nym_topology.filter_system_version(built_info::PKG_VERSION);
+    let version_filtered_topology = nym_topology.filter_system_version(env!("CARGO_PKG_VERSION"));
 
     version_filtered_topology
         .gateways()
@@ -135,7 +135,13 @@ pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap(); // required for now
     let provider_address = matches.value_of("provider").unwrap();
 
+    if Config::default_config_file_path(id).exists() {
+        eprintln!("Socks5 client \"{}\" was already initialised before! If you wanted to upgrade your client to most recent version, try `upgrade` command instead!", id);
+        process::exit(1);
+    }
+
     let mut config = Config::new(id, provider_address);
+
     let mut rng = OsRng;
 
     // TODO: ideally that should be the last thing that's being done to config.

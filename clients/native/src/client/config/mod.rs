@@ -14,6 +14,7 @@
 
 use crate::client::config::template::config_template;
 use client_core::config::Config as BaseConfig;
+pub use client_core::config::MISSING_VALUE;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -52,10 +53,6 @@ pub struct Config {
 impl NymConfig for Config {
     fn template() -> &'static str {
         config_template()
-    }
-
-    fn config_file_name() -> String {
-        "config.toml".to_string()
     }
 
     fn default_root_directory() -> PathBuf {

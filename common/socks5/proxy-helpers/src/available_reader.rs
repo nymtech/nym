@@ -23,6 +23,9 @@ use tokio::io::AsyncRead;
 use tokio::stream::Stream;
 use tokio::time::{delay_for, Delay, Duration, Instant};
 
+// this only exists due to the fact we stick to using websocket that has maximum message size
+const MAX_READ_AMOUNT: usize = 10 * 1000 * 1000; // 10MB
+
 const GRACE_DURATION: Duration = Duration::from_millis(2);
 
 pub struct AvailableReader<'a, R: AsyncRead + Unpin> {
@@ -101,6 +104,13 @@ impl<'a, R: AsyncRead + Unpin> Stream for AvailableReader<'a, R> {
                 } else {
                     // tell the waker we should be polled again!
                     cx.waker().wake_by_ref();
+
+                    // if we reached our maximum amount - return it
+                    let read_bytes_len = self.buf.borrow().len();
+                    if read_bytes_len >= MAX_READ_AMOUNT {
+                        let buf = self.buf.replace(BytesMut::new());
+                        return Poll::Ready(Some(Ok(buf.freeze())));
+                    }
                     Poll::Pending
                 }
             }

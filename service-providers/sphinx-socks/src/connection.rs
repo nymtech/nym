@@ -51,11 +51,13 @@ impl Connection {
     ) {
         let stream = self.conn.take().unwrap();
         let message_sender = OrderedMessageSender::new();
+        let remote_source_address = "???".to_string(); // we don't know ip address of requester
         let connection_id = self.id;
         let recipient = self.return_address;
         let (stream, _) = ProxyRunner::new(
             stream,
             self.address.clone(),
+            remote_source_address,
             mix_receiver,
             mix_sender,
             connection_id,

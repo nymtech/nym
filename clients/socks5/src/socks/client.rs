@@ -231,9 +231,10 @@ impl SocksClient {
         &mut self,
         conn_receiver: ConnectionReceiver,
         message_sender: OrderedMessageSender,
+        remote_proxy_target: String,
     ) {
         let stream = self.stream.run_proxy();
-        let stream_remote = stream
+        let local_stream_remote = stream
             .peer_addr()
             .expect("failed to extract peer address")
             .to_string();
@@ -243,7 +244,8 @@ impl SocksClient {
         let recipient = self.service_provider.clone();
         let (stream, _) = ProxyRunner::new(
             stream,
-            stream_remote,
+            local_stream_remote,
+            remote_proxy_target,
             conn_receiver,
             input_sender,
             connection_id,
@@ -305,7 +307,8 @@ impl SocksClient {
 
                 self.send_request_to_mixnet(socks_provider_request).await;
                 info!("Starting proxy for {}", remote_address.clone());
-                self.run_proxy(mix_receiver, message_sender).await;
+                self.run_proxy(mix_receiver, message_sender, remote_address.clone())
+                    .await;
                 info!("Proxy for {} is finished", remote_address);
             }
 

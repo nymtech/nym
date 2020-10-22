@@ -15,11 +15,14 @@
 use crate::config::template::config_template;
 use config::NymConfig;
 use log::*;
-use serde::{Deserialize, Serialize};
+use serde::{
+    de::{self, IntoDeserializer, Visitor},
+    Deserialize, Deserializer, Serialize,
+};
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::time;
+use std::time::Duration;
 
 pub mod persistence;
 mod template;
@@ -31,14 +34,13 @@ const DEFAULT_LISTENING_PORT: u16 = 1789;
 const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
 
 // 'DEBUG'
-// where applicable, the below are defined in milliseconds
-const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 10_000; // 10s
-const DEFAULT_METRICS_SENDING_DELAY: u64 = 5_000; // 10s
-const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: u64 = 60_000; // 1min
-const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: u64 = 10_000; // 10s
-const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: u64 = 300_000; // 5min
-const DEFAULT_INITIAL_CONNECTION_TIMEOUT: u64 = 1_500; // 1.5s
-const DEFAULT_CACHE_ENTRY_TTL: u64 = 30_000;
+const DEFAULT_PRESENCE_SENDING_DELAY: Duration = Duration::from_millis(10_000);
+const DEFAULT_METRICS_SENDING_DELAY: Duration = Duration::from_millis(5_000);
+const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
+const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
+const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
+const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
+const DEFAULT_CACHE_ENTRY_TTL: Duration = Duration::from_millis(30_000);
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -80,6 +82,53 @@ impl NymConfig for Config {
             .join(&self.mixnode.id)
             .join("data")
     }
+}
+
+// custom function is defined to deserialize based on whether field contains a pre 0.9.0
+// u64 interpreted as milliseconds or proper duration introduced in 0.9.0
+//
+// TODO: when we get to refactoring down the line, this code can just be removed
+// and all Duration fields could just have #[serde(with = "humantime_serde")] instead
+// reason for that is that we don't expect anyone to be upgrading from pre 0.9.0 when we have,
+// for argument sake, 0.11.0 out
+fn deserialize_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct DurationVisitor;
+
+    impl<'de> Visitor<'de> for DurationVisitor {
+        type Value = Duration;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("u64 or a duration")
+        }
+
+        fn visit_i64<E>(self, value: i64) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            self.visit_u64(value as u64)
+        }
+
+        fn visit_u64<E>(self, value: u64) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            Ok(Duration::from_millis(Deserialize::deserialize(
+                value.into_deserializer(),
+            )?))
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            humantime_serde::deserialize(value.into_deserializer())
+        }
+    }
+
+    deserializer.deserialize_any(DurationVisitor)
 }
 
 pub fn missing_string_value<T: From<String>>() -> T {
@@ -249,20 +298,20 @@ impl Config {
         self.mixnode.presence_directory_server.clone()
     }
 
-    pub fn get_presence_sending_delay(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.presence_sending_delay)
+    pub fn get_presence_sending_delay(&self) -> Duration {
+        self.debug.presence_sending_delay
     }
 
     pub fn get_metrics_directory_server(&self) -> String {
         self.mixnode.metrics_directory_server.clone()
     }
 
-    pub fn get_metrics_sending_delay(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.metrics_sending_delay)
+    pub fn get_metrics_sending_delay(&self) -> Duration {
+        self.debug.metrics_sending_delay
     }
 
-    pub fn get_metrics_running_stats_logging_delay(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.metrics_running_stats_logging_delay)
+    pub fn get_metrics_running_stats_logging_delay(&self) -> Duration {
+        self.debug.metrics_running_stats_logging_delay
     }
 
     pub fn get_layer(&self) -> u64 {
@@ -277,20 +326,20 @@ impl Config {
         self.mixnode.announce_address.clone()
     }
 
-    pub fn get_packet_forwarding_initial_backoff(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.packet_forwarding_initial_backoff)
+    pub fn get_packet_forwarding_initial_backoff(&self) -> Duration {
+        self.debug.packet_forwarding_initial_backoff
     }
 
-    pub fn get_packet_forwarding_maximum_backoff(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.packet_forwarding_maximum_backoff)
+    pub fn get_packet_forwarding_maximum_backoff(&self) -> Duration {
+        self.debug.packet_forwarding_maximum_backoff
     }
 
-    pub fn get_initial_connection_timeout(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.initial_connection_timeout)
+    pub fn get_initial_connection_timeout(&self) -> Duration {
+        self.debug.initial_connection_timeout
     }
 
-    pub fn get_cache_entry_ttl(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.cache_entry_ttl)
+    pub fn get_cache_entry_ttl(&self) -> Duration {
+        self.debug.cache_entry_ttl
     }
 
     pub fn get_version(&self) -> &str {
@@ -365,11 +414,11 @@ pub struct MixNode {
 
 impl MixNode {
     fn default_private_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("private_identity.pem")
+        Config::default_data_directory(id).join("private_identity.pem")
     }
 
     fn default_public_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("public_identity.pem")
+        Config::default_data_directory(id).join("public_identity.pem")
     }
 
     fn default_private_sphinx_key_file(id: &str) -> PathBuf {
@@ -421,34 +470,55 @@ impl Default for Logging {
 #[serde(default, deny_unknown_fields)]
 pub struct Debug {
     /// Delay between each subsequent presence data being sent.
-    /// The provided value is interpreted as milliseconds.
-    presence_sending_delay: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    presence_sending_delay: Duration,
 
     /// Delay between each subsequent metrics data being sent.
-    /// The provided value is interpreted as milliseconds.
-    metrics_sending_delay: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    metrics_sending_delay: Duration,
 
     /// Delay between each subsequent running metrics statistics being logged.
-    /// The provided value is interpreted as milliseconds.
-    metrics_running_stats_logging_delay: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    metrics_running_stats_logging_delay: Duration,
 
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
-    /// The provided value is interpreted as milliseconds.
-    packet_forwarding_initial_backoff: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    packet_forwarding_initial_backoff: Duration,
 
     /// Maximum value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
-    /// The provided value is interpreted as milliseconds.
-    packet_forwarding_maximum_backoff: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    packet_forwarding_maximum_backoff: Duration,
 
     /// Timeout for establishing initial connection when trying to forward a sphinx packet.
-    /// The provider value is interpreted as milliseconds.
-    initial_connection_timeout: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    initial_connection_timeout: Duration,
 
     /// Duration for which a cached vpn processing result is going to get stored for.
-    /// The provided value is interpreted as milliseconds.
-    cache_entry_ttl: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    cache_entry_ttl: Duration,
 }
 
 impl Default for Debug {

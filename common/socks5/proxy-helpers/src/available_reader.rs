@@ -23,8 +23,8 @@ use tokio::io::AsyncRead;
 use tokio::stream::Stream;
 use tokio::time::{delay_for, Delay, Duration, Instant};
 
-const MAX_READ_AMOUNT: usize = 1 * 1000 * 1000; // 1MB
-const GRACE_DURATION: Duration = Duration::from_millis(2);
+const MAX_READ_AMOUNT: usize = 500 * 1000; // 0.5MB
+const GRACE_DURATION: Duration = Duration::from_millis(1);
 
 pub struct AvailableReader<'a, R: AsyncRead + Unpin> {
     // TODO: come up with a way to avoid using RefCell (not sure if possible though due to having to

@@ -75,6 +75,8 @@ pub struct Controller {
     active_connections: HashMap<ConnectionId, ActiveConnection>,
     receiver: ControllerReceiver,
 
+    // TODO: this will need to be either completely removed (from code) or periodically cleaned
+    // to avoid memory issues
     recently_closed: HashSet<ConnectionId>,
 }
 

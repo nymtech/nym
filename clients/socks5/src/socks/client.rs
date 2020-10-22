@@ -233,12 +233,17 @@ impl SocksClient {
         message_sender: OrderedMessageSender,
     ) {
         let stream = self.stream.run_proxy();
+        let stream_remote = stream
+            .peer_addr()
+            .expect("failed to extract peer address")
+            .to_string();
         let connection_id = self.connection_id;
         let input_sender = self.input_sender.clone();
 
         let recipient = self.service_provider.clone();
         let (stream, _) = ProxyRunner::new(
             stream,
+            stream_remote,
             conn_receiver,
             input_sender,
             connection_id,

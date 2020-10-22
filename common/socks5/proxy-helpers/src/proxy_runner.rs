@@ -51,6 +51,7 @@ pub struct ProxyRunner<S> {
     mix_sender: MixProxySender<S>,
 
     socket: Option<TcpStream>,
+    socket_address: String,
     connection_id: ConnectionId,
 
     // required for in-order delivery
@@ -63,6 +64,7 @@ where
 {
     pub fn new(
         socket: TcpStream,
+        socket_address: String, // passed explicitly for better logging
         mix_receiver: ConnectionReceiver,
         mix_sender: MixProxySender<S>,
         connection_id: ConnectionId,
@@ -72,6 +74,7 @@ where
             mix_receiver: Some(mix_receiver),
             mix_sender,
             socket: Some(socket),
+            socket_address,
             connection_id,
             message_sender: Some(message_sender),
         }
@@ -79,6 +82,7 @@ where
 
     async fn run_inbound<F>(
         mut reader: OwnedReadHalf,
+        socket_addr: String,
         notify_closed: Arc<Notify>,
         connection_id: ConnectionId,
         mix_sender: MixProxySender<S>,
@@ -112,8 +116,9 @@ where
                     };
 
                     info!(
-                        "Going to send {} bytes via mixnet to remote {}. Is local closed: {}",
+                        "[{} bytes]\t{} → local → mixnet → remote (conn_id: {}). Local closed: {}",
                         read_data.len(),
+                        socket_addr,
                         connection_id,
                         is_finished
                     );
@@ -140,6 +145,7 @@ where
 
     async fn run_outbound(
         mut writer: OwnedWriteHalf,
+        socket_addr: String,
         notify_closed: Arc<Notify>,
         mut mix_receiver: ConnectionReceiver,
         connection_id: ConnectionId,
@@ -162,8 +168,9 @@ where
                     let connection_message = mix_data.unwrap();
 
                     info!(
-                        "Going to write {} bytes received from mixnet to connection {}. Is remote closed: {}",
+                        "[{} bytes]\tremote → mixnet → local → {} (conn_id: {}). Remote closed: {}",
                         connection_message.payload.len(),
+                        socket_addr,
                         connection_id,
                         connection_message.socket_closed
                     );
@@ -199,6 +206,7 @@ where
         // should run until either inbound closes or is notified from outbound
         let inbound_future = Self::run_inbound(
             read_half,
+            self.socket_address.clone(),
             notify_closed,
             self.connection_id,
             self.mix_sender.clone(),
@@ -208,6 +216,7 @@ where
 
         let outbound_future = Self::run_outbound(
             write_half,
+            self.socket_address.clone(),
             notify_clone,
             self.mix_receiver.take().unwrap(),
             self.connection_id,

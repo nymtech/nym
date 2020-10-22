@@ -55,6 +55,7 @@ impl Connection {
         let recipient = self.return_address;
         let (stream, _) = ProxyRunner::new(
             stream,
+            self.address.clone(),
             mix_receiver,
             mix_sender,
             connection_id,

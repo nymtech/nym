@@ -24,8 +24,8 @@ pub enum ConversionError {
     InvalidAddress(io::Error),
 }
 
-impl From<encryption::EncryptionKeyError> for ConversionError {
-    fn from(_: encryption::EncryptionKeyError) -> Self {
+impl From<encryption::KeyRecoveryError> for ConversionError {
+    fn from(_: encryption::KeyRecoveryError) -> Self {
         ConversionError::InvalidKeyError
     }
 }

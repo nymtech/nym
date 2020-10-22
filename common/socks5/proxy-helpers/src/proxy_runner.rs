@@ -125,7 +125,7 @@ where
 
             if is_finished {
                 // technically we already informed it when we sent the message to mixnet above
-                info!("The local socket is closed - won't receive any more data. Informing remote about that...");
+                info!(target: &*format!("({}) socks5 inbound", connection_id), "The local socket is closed - won't receive any more data. Informing remote about that...");
                 break;
             }
         }
@@ -163,7 +163,8 @@ where
                 break;
             }
             if connection_message.socket_closed {
-                info!("Remote socket got closed - closing the local socket too");
+                info!(target: &*format!("({}) socks5 outbound", connection_id),
+                      "Remote socket got closed - closing the local socket too");
                 break;
             }
         }

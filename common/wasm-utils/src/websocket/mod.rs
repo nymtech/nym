@@ -214,7 +214,7 @@ impl Drop for JSWebsocket {
 impl Stream for JSWebsocket {
     type Item = Result<WsMessage, WsError>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // if there's anything in the internal queue, keep returning that
         let ws_message = self.message_queue.borrow_mut().pop_front();
         match ws_message {
@@ -238,7 +238,7 @@ impl Stream for JSWebsocket {
 impl Sink<WsMessage> for JSWebsocket {
     type Error = WsError;
 
-    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         match self.state() {
             State::Connecting => {
                 // clone the waker to be able to notify the executor once we get connected
@@ -280,7 +280,7 @@ impl Sink<WsMessage> for JSWebsocket {
         Poll::Ready(Ok(()))
     }
 
-    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         match self.state() {
             State::Open | State::Connecting => {
                 // TODO: do we need to wait for closing event here?

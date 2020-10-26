@@ -2959,8 +2959,10 @@ checksum = "05e42f7c18b8f902290b009cde6d651262f956c98bc51bca4cd1d511c9cd85c7"
 name = "validator-client"
 version = "0.1.0"
 dependencies = [
- "log",
- "pretty_env_logger",
+ "crypto",
+ "reqwest",
+ "serde",
+ "topology",
 ]
 
 [[package]]

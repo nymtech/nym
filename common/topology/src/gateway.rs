@@ -19,6 +19,7 @@ use nymsphinx_types::Node as SphinxNode;
 use std::convert::TryInto;
 use std::net::SocketAddr;
 
+// TODO: remove it...
 #[derive(Debug, Clone)]
 pub struct Client {
     pub pub_key: String,

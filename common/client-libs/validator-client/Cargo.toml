@@ -7,5 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = "0.4"
-pretty_env_logger = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+reqwest = { version = "0.10", features = ["json"] }
+
+crypto = { path = "../../crypto" }
+topology = { path = "../../topology" }

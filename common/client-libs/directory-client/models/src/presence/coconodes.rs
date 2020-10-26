@@ -21,8 +21,8 @@ pub enum ConversionError {
     InvalidKeyError,
 }
 
-impl From<identity::SignatureError> for ConversionError {
-    fn from(_: identity::SignatureError) -> Self {
+impl From<identity::KeyRecoveryError> for ConversionError {
+    fn from(_: identity::KeyRecoveryError) -> Self {
         ConversionError::InvalidKeyError
     }
 }

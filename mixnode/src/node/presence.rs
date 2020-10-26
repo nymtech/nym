@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::built_info;
 use directory_client::presence::mixnodes::MixNodePresence;
 use directory_client::DirectoryClient;
 use log::{error, trace};
 use std::time::Duration;
-use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 pub(crate) struct NotifierConfig {
@@ -67,7 +65,7 @@ impl Notifier {
             pub_key: config.pub_key_string,
             layer: config.layer,
             last_seen: 0,
-            version: built_info::PKG_VERSION.to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
         };
         Notifier {
             net_client,
@@ -87,8 +85,8 @@ impl Notifier {
         }
     }
 
-    pub fn start(self, handle: &Handle) -> JoinHandle<()> {
-        handle.spawn(async move {
+    pub fn start(self) -> JoinHandle<()> {
+        tokio::spawn(async move {
             loop {
                 // set the deadline in the future
                 let sending_delay = tokio::time::delay_for(self.sending_delay);

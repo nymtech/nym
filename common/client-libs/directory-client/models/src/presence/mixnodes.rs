@@ -24,8 +24,8 @@ pub enum ConversionError {
     InvalidAddress(io::Error),
 }
 
-impl From<encryption::EncryptionKeyError> for ConversionError {
-    fn from(_: encryption::EncryptionKeyError) -> Self {
+impl From<encryption::KeyRecoveryError> for ConversionError {
+    fn from(_: encryption::KeyRecoveryError) -> Self {
         ConversionError::InvalidKeyError
     }
 }
@@ -36,7 +36,7 @@ impl From<io::Error> for ConversionError {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MixNodePresence {
     pub location: String,

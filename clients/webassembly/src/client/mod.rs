@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::built_info;
 use crypto::asymmetric::{encryption, identity};
 use directory_client::DirectoryClient;
 use futures::channel::mpsc;
@@ -20,6 +19,7 @@ use gateway_client::GatewayClient;
 use js_sys::Promise;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::params::PacketMode;
 use nymsphinx::preparer::MessagePreparer;
 use rand::rngs::OsRng;
 use received_processor::ReceivedMessagesProcessor;
@@ -38,6 +38,8 @@ const DEFAULT_RNG: OsRng = OsRng;
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
+const DEFAULT_PACKET_MODE: PacketMode = PacketMode::VPN;
+const DEFAULT_VPN_KEY_REUSE_LIMIT: usize = 1000;
 
 #[wasm_bindgen]
 pub struct NymClient {
@@ -149,6 +151,8 @@ impl NymClient {
             client.self_recipient(),
             DEFAULT_AVERAGE_PACKET_DELAY,
             DEFAULT_AVERAGE_ACK_DELAY,
+            DEFAULT_PACKET_MODE,
+            Some(DEFAULT_VPN_KEY_REUSE_LIMIT),
         );
 
         let received_processor = ReceivedMessagesProcessor::new(
@@ -186,23 +190,21 @@ impl NymClient {
             .prepare_and_split_message(message_bytes, false, topology)
             .expect("failed to split the message");
 
-        let mut socket_messages = Vec::with_capacity(split_message.len());
+        let mut mix_packets = Vec::with_capacity(split_message.len());
         for message_chunk in split_message {
             // don't bother with acks etc. for time being
             let prepared_fragment = message_preparer
                 .prepare_chunk_for_sending(message_chunk, topology, &self.ack_key, &recipient)
+                .await
                 .unwrap();
 
             console_warn!("packet is going to have round trip time of {:?}, but we're not going to do anything for acks anyway ", prepared_fragment.total_delay);
-            socket_messages.push((
-                prepared_fragment.first_hop_address,
-                prepared_fragment.sphinx_packet,
-            ));
+            mix_packets.push(prepared_fragment.mix_packet);
         }
         self.gateway_client
             .as_mut()
             .unwrap()
-            .batch_send_sphinx_packets(socket_messages)
+            .batch_send_mix_packets(mix_packets)
             .await
             .unwrap();
         self
@@ -252,8 +254,8 @@ impl NymClient {
                     .try_into()
                     .ok()
                     .expect("this is not a NYM topology!");
-                let version = built_info::PKG_VERSION;
-                nym_topology.filter_system_version(&version)
+                let version = env!("CARGO_PKG_VERSION");
+                nym_topology.filter_system_version(version)
             }
         }
     }

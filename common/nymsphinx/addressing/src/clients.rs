@@ -22,9 +22,9 @@ const CLIENT_IDENTITY_SIZE: usize = identity::PUBLIC_KEY_LENGTH;
 #[derive(Debug)]
 pub enum RecipientFormattingError {
     MalformedRecipientError,
-    MalformedIdentityError(identity::SignatureError),
-    MalformedEncryptionKeyError(encryption::EncryptionKeyError),
-    MalformedGatewayError(identity::SignatureError),
+    MalformedIdentityError(identity::KeyRecoveryError),
+    MalformedEncryptionKeyError(encryption::KeyRecoveryError),
+    MalformedGatewayError(identity::KeyRecoveryError),
 }
 
 impl fmt::Display for RecipientFormattingError {
@@ -51,8 +51,8 @@ impl fmt::Display for RecipientFormattingError {
 // since we have Debug and Display might as well slap Error on top of it too
 impl std::error::Error for RecipientFormattingError {}
 
-impl From<encryption::EncryptionKeyError> for RecipientFormattingError {
-    fn from(err: encryption::EncryptionKeyError) -> Self {
+impl From<encryption::KeyRecoveryError> for RecipientFormattingError {
+    fn from(err: encryption::KeyRecoveryError) -> Self {
         RecipientFormattingError::MalformedEncryptionKeyError(err)
     }
 }

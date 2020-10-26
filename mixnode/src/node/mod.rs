@@ -13,33 +13,38 @@
 // limitations under the License.
 
 use crate::config::Config;
-use crate::node::packet_processing::PacketProcessor;
-use crypto::asymmetric::encryption;
+use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
+use crate::node::listener::connection_handler::ConnectionHandler;
+use crate::node::listener::Listener;
+use crypto::asymmetric::{encryption, identity};
 use directory_client::DirectoryClient;
-use futures::channel::mpsc;
 use log::*;
-use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
+use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
+use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 mod listener;
 mod metrics;
-mod packet_forwarding;
-pub(crate) mod packet_processing;
 mod presence;
 
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
-    runtime: Runtime,
     config: Config,
-    sphinx_keypair: encryption::KeyPair,
+    #[allow(dead_code)]
+    identity_keypair: Arc<identity::KeyPair>,
+    sphinx_keypair: Arc<encryption::KeyPair>,
 }
 
 impl MixNode {
-    pub fn new(config: Config, sphinx_keypair: encryption::KeyPair) -> Self {
+    pub fn new(
+        config: Config,
+        identity_keypair: identity::KeyPair,
+        sphinx_keypair: encryption::KeyPair,
+    ) -> Self {
         MixNode {
-            runtime: Runtime::new().unwrap(),
             config,
-            sphinx_keypair,
+            identity_keypair: Arc::new(identity_keypair),
+            sphinx_keypair: Arc::new(sphinx_keypair),
         }
     }
 
@@ -53,7 +58,7 @@ impl MixNode {
             self.config.get_layer(),
             self.config.get_presence_sending_delay(),
         );
-        presence::Notifier::new(notifier_config).start(self.runtime.handle());
+        presence::Notifier::new(notifier_config).start();
     }
 
     fn start_metrics_reporter(&self) -> metrics::MetricsReporter {
@@ -64,51 +69,47 @@ impl MixNode {
             self.config.get_metrics_sending_delay(),
             self.config.get_metrics_running_stats_logging_delay(),
         )
-        .start(self.runtime.handle())
+        .start()
     }
 
     fn start_socket_listener(
         &self,
         metrics_reporter: metrics::MetricsReporter,
-        forwarding_channel: mpsc::UnboundedSender<(NymNodeRoutingAddress, SphinxPacket)>,
+        forwarding_channel: MixForwardingSender,
     ) {
         info!("Starting socket listener...");
-        // this is the only location where our private key is going to be copied
-        // it will be held in memory owned by `MixNode` and inside an Arc of `PacketProcessor`
-        let packet_processor =
-            PacketProcessor::new(self.sphinx_keypair.private_key().clone(), metrics_reporter);
 
-        listener::run_socket_listener(
-            self.runtime.handle(),
-            self.config.get_listening_address(),
-            packet_processor,
-            forwarding_channel,
+        let packet_processor = PacketProcessor::new(
+            self.sphinx_keypair.private_key(),
+            metrics_reporter,
+            self.config.get_cache_entry_ttl(),
         );
+
+        let connection_handler = ConnectionHandler::new(packet_processor, forwarding_channel);
+
+        let listener = Listener::new(self.config.get_listening_address());
+
+        listener.start(connection_handler);
     }
 
-    fn start_packet_forwarder(
-        &mut self,
-    ) -> mpsc::UnboundedSender<(NymNodeRoutingAddress, SphinxPacket)> {
+    fn start_packet_forwarder(&mut self) -> MixForwardingSender {
         info!("Starting packet forwarder...");
-        self.runtime
-            .enter(|| {
-                packet_forwarding::PacketForwarder::new(
-                    self.config.get_packet_forwarding_initial_backoff(),
-                    self.config.get_packet_forwarding_maximum_backoff(),
-                    self.config.get_initial_connection_timeout(),
-                )
-            })
-            .start(self.runtime.handle())
+
+        let (mut packet_forwarder, packet_sender) = PacketForwarder::new(
+            self.config.get_packet_forwarding_initial_backoff(),
+            self.config.get_packet_forwarding_maximum_backoff(),
+            self.config.get_initial_connection_timeout(),
+        );
+
+        tokio::spawn(async move { packet_forwarder.run().await });
+        packet_sender
     }
 
-    fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
+    async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
         let directory_client_config =
             directory_client::Config::new(self.config.get_presence_directory_server());
         let directory_client = directory_client::Client::new(directory_client_config);
-        let topology = self
-            .runtime
-            .block_on(directory_client.get_topology())
-            .ok()?;
+        let topology = directory_client.get_topology().await.ok()?;
         let existing_mixes_presence = topology.mix_nodes;
         existing_mixes_presence
             .iter()
@@ -116,32 +117,38 @@ impl MixNode {
             .map(|node| node.pub_key.clone())
     }
 
-    pub fn run(&mut self) {
-        info!("Starting nym mixnode");
-
-        if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists() {
-            error!(
-                "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
-                duplicate_node_key
-            );
-            return;
-        }
-        let forwarding_channel = self.start_packet_forwarder();
-        let metrics_reporter = self.start_metrics_reporter();
-        self.start_socket_listener(metrics_reporter, forwarding_channel);
-        self.start_presence_notifier();
-
-        info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
-
-        if let Err(e) = self.runtime.block_on(tokio::signal::ctrl_c()) {
+    async fn wait_for_interrupt(&self) {
+        if let Err(e) = tokio::signal::ctrl_c().await {
             error!(
                 "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
                 e
             );
         }
-
         println!(
             "Received SIGINT - the mixnode will terminate now (threads are not YET nicely stopped)"
         );
+    }
+
+    pub fn run(&mut self) {
+        info!("Starting nym mixnode");
+        let mut runtime = Runtime::new().unwrap();
+
+        runtime.block_on(async {
+            if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists().await {
+                error!(
+                    "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
+                    duplicate_node_key
+                );
+                return;
+            }
+            let forwarding_channel = self.start_packet_forwarder();
+            let metrics_reporter = self.start_metrics_reporter();
+            self.start_socket_listener(metrics_reporter, forwarding_channel);
+            self.start_presence_notifier();
+
+            info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
+
+            self.wait_for_interrupt().await
+        })
     }
 }

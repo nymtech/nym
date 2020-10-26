@@ -15,14 +15,19 @@
 use crate::config::template::config_template;
 use config::NymConfig;
 use log::*;
-use serde::{Deserialize, Serialize};
+use serde::{
+    de::{self, IntoDeserializer, Visitor},
+    Deserialize, Deserializer, Serialize,
+};
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::time;
+use std::time::Duration;
 
 pub mod persistence;
 mod template;
+
+pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'GATEWAY'
 const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
@@ -31,10 +36,11 @@ const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
 
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
-const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 10_000; // 10s
-const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: u64 = 10_000; // 10s
-const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: u64 = 300_000; // 5min
-const DEFAULT_INITIAL_CONNECTION_TIMEOUT: u64 = 1_500; // 1.5s
+const DEFAULT_PRESENCE_SENDING_DELAY: Duration = Duration::from_millis(10_000);
+const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
+const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
+const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
+const DEFAULT_CACHE_ENTRY_TTL: Duration = Duration::from_millis(30_000);
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: u16 = 5;
@@ -57,10 +63,6 @@ pub struct Config {
 impl NymConfig for Config {
     fn template() -> &'static str {
         config_template()
-    }
-
-    fn config_file_name() -> String {
-        "config.toml".to_string()
     }
 
     fn default_root_directory() -> PathBuf {
@@ -87,6 +89,57 @@ impl NymConfig for Config {
             .join(&self.gateway.id)
             .join("data")
     }
+}
+
+// custom function is defined to deserialize based on whether field contains a pre 0.9.0
+// u64 interpreted as milliseconds or proper duration introduced in 0.9.0
+//
+// TODO: when we get to refactoring down the line, this code can just be removed
+// and all Duration fields could just have #[serde(with = "humantime_serde")] instead
+// reason for that is that we don't expect anyone to be upgrading from pre 0.9.0 when we have,
+// for argument sake, 0.11.0 out
+fn deserialize_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct DurationVisitor;
+
+    impl<'de> Visitor<'de> for DurationVisitor {
+        type Value = Duration;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("u64 or a duration")
+        }
+
+        fn visit_i64<E>(self, value: i64) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            self.visit_u64(value as u64)
+        }
+
+        fn visit_u64<E>(self, value: u64) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            Ok(Duration::from_millis(Deserialize::deserialize(
+                value.into_deserializer(),
+            )?))
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            humantime_serde::deserialize(value.into_deserializer())
+        }
+    }
+
+    deserializer.deserialize_any(DurationVisitor)
+}
+
+pub fn missing_string_value() -> String {
+    MISSING_VALUE.to_string()
 }
 
 impl Config {
@@ -321,6 +374,11 @@ impl Config {
         self
     }
 
+    pub fn with_custom_version(mut self, version: &str) -> Self {
+        self.gateway.version = version.to_string();
+        self
+    }
+
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
@@ -350,8 +408,8 @@ impl Config {
         self.gateway.presence_directory_server.clone()
     }
 
-    pub fn get_presence_sending_delay(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.presence_sending_delay)
+    pub fn get_presence_sending_delay(&self) -> Duration {
+        self.debug.presence_sending_delay
     }
 
     pub fn get_mix_listening_address(&self) -> SocketAddr {
@@ -378,16 +436,16 @@ impl Config {
         self.clients_endpoint.ledger_path.clone()
     }
 
-    pub fn get_packet_forwarding_initial_backoff(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.packet_forwarding_initial_backoff)
+    pub fn get_packet_forwarding_initial_backoff(&self) -> Duration {
+        self.debug.packet_forwarding_initial_backoff
     }
 
-    pub fn get_packet_forwarding_maximum_backoff(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.packet_forwarding_maximum_backoff)
+    pub fn get_packet_forwarding_maximum_backoff(&self) -> Duration {
+        self.debug.packet_forwarding_maximum_backoff
     }
 
-    pub fn get_initial_connection_timeout(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.initial_connection_timeout)
+    pub fn get_initial_connection_timeout(&self) -> Duration {
+        self.debug.initial_connection_timeout
     }
 
     pub fn get_message_retrieval_limit(&self) -> u16 {
@@ -397,11 +455,23 @@ impl Config {
     pub fn get_stored_messages_filename_length(&self) -> u16 {
         self.debug.stored_messages_filename_length
     }
+
+    pub fn get_cache_entry_ttl(&self) -> Duration {
+        self.debug.cache_entry_ttl
+    }
+
+    pub fn get_version(&self) -> &str {
+        &self.gateway.version
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Gateway {
+    /// Version of the gateway for which this configuration was created.
+    #[serde(default = "missing_string_value")]
+    version: String,
+
     /// ID specifies the human readable ID of this particular gateway.
     id: String,
 
@@ -433,19 +503,19 @@ pub struct Gateway {
 
 impl Gateway {
     fn default_private_sphinx_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("private_sphinx.pem")
+        Config::default_data_directory(id).join("private_sphinx.pem")
     }
 
     fn default_public_sphinx_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("public_sphinx.pem")
+        Config::default_data_directory(id).join("public_sphinx.pem")
     }
 
     fn default_private_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("private_identity.pem")
+        Config::default_data_directory(id).join("private_identity.pem")
     }
 
     fn default_public_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("public_identity.pem")
+        Config::default_data_directory(id).join("public_identity.pem")
     }
 
     fn default_location() -> String {
@@ -456,6 +526,7 @@ impl Gateway {
 impl Default for Gateway {
     fn default() -> Self {
         Gateway {
+            version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             location: Self::default_location(),
             private_identity_key_file: Default::default(),
@@ -520,11 +591,11 @@ pub struct ClientsEndpoint {
 
 impl ClientsEndpoint {
     fn default_inboxes_directory(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("inboxes")
+        Config::default_data_directory(id).join("inboxes")
     }
 
     fn default_ledger_path(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("client_ledger.sled")
+        Config::default_data_directory(id).join("client_ledger.sled")
     }
 }
 
@@ -556,20 +627,33 @@ impl Default for Logging {
 pub struct Debug {
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
-    /// The provided value is interpreted as milliseconds.
-    packet_forwarding_initial_backoff: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    packet_forwarding_initial_backoff: Duration,
 
     /// Maximum value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
-    /// The provided value is interpreted as milliseconds.
-    packet_forwarding_maximum_backoff: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    packet_forwarding_maximum_backoff: Duration,
 
     /// Timeout for establishing initial connection when trying to forward a sphinx packet.
-    /// The provider value is interpreted as milliseconds.
-    initial_connection_timeout: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    initial_connection_timeout: Duration,
 
     /// Delay between each subsequent presence data being sent.
-    presence_sending_delay: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    presence_sending_delay: Duration,
 
     /// Length of filenames for new client messages.
     stored_messages_filename_length: u16,
@@ -578,6 +662,13 @@ pub struct Debug {
     /// if there are no real messages, dummy ones are create to always return  
     /// `message_retrieval_limit` total messages
     message_retrieval_limit: u16,
+
+    /// Duration for which a cached vpn processing result is going to get stored for.
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    cache_entry_ttl: Duration,
 }
 
 impl Default for Debug {
@@ -589,6 +680,7 @@ impl Default for Debug {
             presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
             stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+            cache_entry_ttl: DEFAULT_CACHE_ENTRY_TTL,
         }
     }
 }

@@ -16,19 +16,12 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use gateway_client::GatewayClient;
 use log::*;
-use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
+use nymsphinx::forwarding::packet::MixPacket;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
-pub struct MixMessage(NymNodeRoutingAddress, SphinxPacket);
-pub type MixMessageSender = mpsc::UnboundedSender<MixMessage>;
-pub type MixMessageReceiver = mpsc::UnboundedReceiver<MixMessage>;
-
-impl MixMessage {
-    pub fn new(address: NymNodeRoutingAddress, packet: SphinxPacket) -> Self {
-        MixMessage(address, packet)
-    }
-}
+pub type BatchMixMessageSender = mpsc::UnboundedSender<Vec<MixPacket>>;
+pub type BatchMixMessageReceiver = mpsc::UnboundedReceiver<Vec<MixPacket>>;
 
 const MAX_FAILURE_COUNT: usize = 100;
 
@@ -36,7 +29,7 @@ pub struct MixTrafficController {
     // TODO: most likely to be replaced by some higher level construct as
     // later on gateway_client will need to be accessible by other entities
     gateway_client: GatewayClient,
-    mix_rx: MixMessageReceiver,
+    mix_rx: BatchMixMessageReceiver,
 
     // TODO: this is temporary work-around.
     // in long run `gateway_client` will be moved away from `MixTrafficController` anyway.
@@ -44,7 +37,10 @@ pub struct MixTrafficController {
 }
 
 impl MixTrafficController {
-    pub fn new(mix_rx: MixMessageReceiver, gateway_client: GatewayClient) -> MixTrafficController {
+    pub fn new(
+        mix_rx: BatchMixMessageReceiver,
+        gateway_client: GatewayClient,
+    ) -> MixTrafficController {
         MixTrafficController {
             gateway_client,
             mix_rx,
@@ -52,31 +48,38 @@ impl MixTrafficController {
         }
     }
 
-    async fn on_message(&mut self, mix_message: MixMessage) {
-        debug!("Got a mix_message for {:?}", mix_message.0);
-        match self
-            .gateway_client
-            .send_sphinx_packet(mix_message.0, mix_message.1)
-            .await
-        {
+    async fn on_messages(&mut self, mut mix_packets: Vec<MixPacket>) {
+        debug_assert!(!mix_packets.is_empty());
+
+        let success = if mix_packets.len() == 1 {
+            let mix_packet = mix_packets.pop().unwrap();
+            self.gateway_client.send_mix_packet(mix_packet).await
+        } else {
+            self.gateway_client
+                .batch_send_mix_packets(mix_packets)
+                .await
+        };
+
+        match success {
             Err(e) => {
-                error!("Failed to send sphinx packet to the gateway! - {:?}", e);
+                error!("Failed to send sphinx packet(s) to the gateway! - {:?}", e);
                 self.consecutive_gateway_failure_count += 1;
                 if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
-                    // todo: in the future this should initiate a 'graceful' shutdown
+                    // todo: in the future this should initiate a 'graceful' shutdown or try
+                    // to reconnect?
                     panic!("failed to send sphinx packet to the gateway {} times in a row - assuming the gateway is dead. Can't do anything about it yet :(", MAX_FAILURE_COUNT)
                 }
             }
             Ok(_) => {
-                trace!("We *might* have managed to forward sphinx packet to the gateway!");
+                trace!("We *might* have managed to forward sphinx packet(s) to the gateway!");
                 self.consecutive_gateway_failure_count = 0;
             }
         }
     }
 
     pub async fn run(&mut self) {
-        while let Some(mix_message) = self.mix_rx.next().await {
-            self.on_message(mix_message).await;
+        while let Some(mix_packets) = self.mix_rx.next().await {
+            self.on_messages(mix_packets).await;
         }
     }
 

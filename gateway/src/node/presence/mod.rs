@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::built_info;
 use directory_client::presence::gateways::GatewayPresence;
 use directory_client::DirectoryClient;
 use log::{error, trace};
@@ -87,7 +86,7 @@ impl Notifier {
             identity_key: self.identity.clone(),
             sphinx_key: self.sphinx_key.clone(),
             last_seen: 0,
-            version: built_info::PKG_VERSION.to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
         }
     }
 

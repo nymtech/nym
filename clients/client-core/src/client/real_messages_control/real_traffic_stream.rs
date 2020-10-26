@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::client::mix_traffic::{MixMessage, MixMessageSender};
+use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
 use futures::channel::mpsc;
@@ -20,12 +20,13 @@ use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
 use nymsphinx::acknowledgements::AckKey;
-use nymsphinx::addressing::{clients::Recipient, nodes::NymNodeRoutingAddress};
+use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::cover::generate_loop_cover_packet;
+use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::utils::sample_poisson_duration;
-use nymsphinx::SphinxPacket;
 use rand::{CryptoRng, Rng};
+use std::collections::VecDeque;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -76,11 +77,11 @@ where
 
     /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
-    mix_tx: MixMessageSender,
+    mix_tx: BatchMixMessageSender,
 
     /// Channel used for receiving real, prepared, messages that must be first sufficiently delayed
     /// before being sent out into the network.
-    real_receiver: RealMessageReceiver,
+    real_receiver: BatchRealMessageReceiver,
 
     /// Represents full address of this client.
     our_full_destination: Recipient,
@@ -90,23 +91,20 @@ where
 
     /// Accessor to the common instance of network topology.
     topology_access: TopologyAccessor,
+
+    /// Buffer containing all real messages received. It is first exhausted before more are pulled.
+    received_buffer: VecDeque<RealMessage>,
 }
 
 pub(crate) struct RealMessage {
-    first_hop_address: NymNodeRoutingAddress,
-    packet: SphinxPacket,
+    mix_packet: MixPacket,
     fragment_id: FragmentIdentifier,
 }
 
 impl RealMessage {
-    pub(crate) fn new(
-        first_hop_address: NymNodeRoutingAddress,
-        packet: SphinxPacket,
-        fragment_id: FragmentIdentifier,
-    ) -> Self {
+    pub(crate) fn new(mix_packet: MixPacket, fragment_id: FragmentIdentifier) -> Self {
         RealMessage {
-            first_hop_address,
-            packet,
+            mix_packet,
             fragment_id,
         }
     }
@@ -114,8 +112,8 @@ impl RealMessage {
 
 // messages are already prepared, etc. the real point of it is to forward it to mix_traffic
 // after sufficient delay
-pub(crate) type RealMessageSender = mpsc::UnboundedSender<RealMessage>;
-type RealMessageReceiver = mpsc::UnboundedReceiver<RealMessage>;
+pub(crate) type BatchRealMessageSender = mpsc::UnboundedSender<Vec<RealMessage>>;
+type BatchRealMessageReceiver = mpsc::UnboundedReceiver<Vec<RealMessage>>;
 
 pub(crate) enum StreamMessage {
     Cover,
@@ -145,14 +143,25 @@ where
         let next = now + next_poisson_delay;
         self.next_delay.reset(next);
 
+        // check if we have anything immediately available
+        if let Some(real_available) = self.received_buffer.pop_front() {
+            return Poll::Ready(Some(StreamMessage::Real(real_available)));
+        }
+
         // decide what kind of message to send
         match Pin::new(&mut self.real_receiver).poll_next(cx) {
             // in the case our real message channel stream was closed, we should also indicate we are closed
             // (and whoever is using the stream should panic)
             Poll::Ready(None) => Poll::Ready(None),
 
-            // if there's an actual message - return it
-            Poll::Ready(Some(real_message)) => Poll::Ready(Some(StreamMessage::Real(real_message))),
+            // if there are more messages available, return first one and store the rest
+            Poll::Ready(Some(real_messages)) => {
+                self.received_buffer = real_messages.into();
+                // we MUST HAVE received at least ONE message
+                Poll::Ready(Some(StreamMessage::Real(
+                    self.received_buffer.pop_front().unwrap(),
+                )))
+            }
 
             // otherwise construct a dummy one
             Poll::Pending => Poll::Ready(Some(StreamMessage::Cover)),
@@ -168,8 +177,8 @@ where
         config: Config,
         ack_key: Arc<AckKey>,
         sent_notifier: SentPacketNotificationSender,
-        mix_tx: MixMessageSender,
-        real_receiver: RealMessageReceiver,
+        mix_tx: BatchMixMessageSender,
+        real_receiver: BatchRealMessageReceiver,
         rng: R,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
@@ -184,7 +193,16 @@ where
             our_full_destination,
             rng,
             topology_access,
+            received_buffer: VecDeque::with_capacity(0), // we won't be putting any data into this guy directly
         }
+    }
+
+    fn sent_notify(&self, frag_id: FragmentIdentifier) {
+        // well technically the message was not sent just yet, but now it's up to internal
+        // queues and client load rather than the required delay. So realistically we can treat
+        // whatever is about to happen as negligible additional delay.
+        trace!("{} is about to get sent to the mixnet", frag_id);
+        self.sent_notifier.unbounded_send(frag_id).unwrap();
     }
 
     async fn on_message(&mut self, next_message: StreamMessage) {
@@ -209,7 +227,7 @@ where
                 }
                 let topology_ref = topology_ref_option.unwrap();
 
-                let cover_message = generate_loop_cover_packet(
+                generate_loop_cover_packet(
                     &mut self.rng,
                     topology_ref,
                     &*self.ack_key,
@@ -217,22 +235,11 @@ where
                     self.config.average_ack_delay,
                     self.config.average_packet_delay,
                 )
-                .expect("Somehow failed to generate a loop cover message with a valid topology");
-
-                MixMessage::new(cover_message.0, cover_message.1)
+                .expect("Somehow failed to generate a loop cover message with a valid topology")
             }
             StreamMessage::Real(real_message) => {
-                // well technically the message was not sent just yet, but now it's up to internal
-                // queues and client load rather than the required delay. So realistically we can treat
-                // whatever is about to happen as negligible additional delay.
-                trace!(
-                    "{} is about to get sent to the mixnet",
-                    real_message.fragment_id
-                );
-                self.sent_notifier
-                    .unbounded_send(real_message.fragment_id)
-                    .unwrap();
-                MixMessage::new(real_message.first_hop_address, real_message.packet)
+                self.sent_notify(real_message.fragment_id);
+                real_message.mix_packet
             }
         };
 
@@ -240,7 +247,7 @@ where
         // - we run out of memory
         // - the receiver channel is closed
         // in either case there's no recovery and we can only panic
-        self.mix_tx.unbounded_send(next_message).unwrap();
+        self.mix_tx.unbounded_send(vec![next_message]).unwrap();
 
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
         // the UnboundedReceiver [of mix_rx] will not get a chance to read anything
@@ -250,16 +257,42 @@ where
         tokio::task::yield_now().await;
     }
 
-    pub(crate) async fn run_out_queue_control(&mut self) {
+    async fn on_batch_received(&mut self, real_messages: Vec<RealMessage>) {
+        let mut mix_packets = Vec::with_capacity(real_messages.len());
+        for real_message in real_messages.into_iter() {
+            self.sent_notify(real_message.fragment_id);
+            mix_packets.push(real_message.mix_packet);
+        }
+        self.mix_tx.unbounded_send(mix_packets).unwrap();
+    }
+
+    // Send messages at certain rate and if no real traffic is available, send cover message.
+    async fn run_normal_out_queue(&mut self) {
         // we should set initial delay only when we actually start the stream
         self.next_delay = time::delay_for(sample_poisson_duration(
             &mut self.rng,
             self.config.average_message_sending_delay,
         ));
 
-        debug!("Starting out queue controller...");
         while let Some(next_message) = self.next().await {
             self.on_message(next_message).await;
+        }
+    }
+
+    // Send real message as soon as it's available and don't inject ANY cover traffic.
+    async fn run_vpn_out_queue(&mut self) {
+        while let Some(next_messages) = self.real_receiver.next().await {
+            self.on_batch_received(next_messages).await
+        }
+    }
+
+    pub(crate) async fn run_out_queue_control(&mut self, vpn_mode: bool) {
+        if vpn_mode {
+            debug!("Starting out queue controller in vpn mode...");
+            self.run_vpn_out_queue().await
+        } else {
+            debug!("Starting out queue controller...");
+            self.run_normal_out_queue().await
         }
     }
 }

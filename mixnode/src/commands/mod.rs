@@ -16,8 +16,9 @@ use crate::config::Config;
 use clap::ArgMatches;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 
-pub mod init;
-pub mod run;
+pub(crate) mod init;
+pub(crate) mod run;
+pub(crate) mod upgrade;
 
 pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     let max_layer = DEFAULT_NUM_MIX_HOPS;

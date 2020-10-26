@@ -14,7 +14,6 @@
 
 use wasm_bindgen::prelude::*;
 
-pub(crate) mod built_info;
 #[cfg(target_arch = "wasm32")]
 mod client;
 

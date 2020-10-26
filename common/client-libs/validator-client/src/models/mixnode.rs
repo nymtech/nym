@@ -17,17 +17,18 @@ use crypto::asymmetric::{encryption, identity};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::io;
+use std::net::ToSocketAddrs;
 
 #[derive(Debug)]
 pub enum ConversionError {
     InvalidIdentityKeyError(identity::KeyRecoveryError),
-    InvnalidSphinxKeyError(encryption::KeyRecoveryError),
-    // InvalidAddress(io::Error),
+    InvalidSphinxKeyError(encryption::KeyRecoveryError),
+    InvalidAddress(io::Error),
 }
 
 impl From<encryption::KeyRecoveryError> for ConversionError {
     fn from(err: encryption::KeyRecoveryError) -> Self {
-        ConversionError::InvnalidSphinxKeyError(err)
+        ConversionError::InvalidSphinxKeyError(err)
     }
 }
 
@@ -37,19 +38,13 @@ impl From<identity::KeyRecoveryError> for ConversionError {
     }
 }
 
-// impl From<io::Error> for ConversionError {
-//     fn from(err: io::Error) -> Self {
-//         ConversionError::InvalidAddress(err)
-//     }
-// }
-
 // used for mixnode to register themselves
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MixRegistrationInfo {
     #[serde(flatten)]
-    node_info: NodeInfo,
-    layer: usize,
+    pub(crate) node_info: NodeInfo,
+    pub(crate) layer: u64,
 }
 
 impl MixRegistrationInfo {
@@ -59,7 +54,7 @@ impl MixRegistrationInfo {
         sphinx_key: String,
         version: String,
         location: String,
-        layer: usize,
+        layer: u64,
     ) -> Self {
         MixRegistrationInfo {
             node_info: NodeInfo {
@@ -79,15 +74,42 @@ impl MixRegistrationInfo {
 #[serde(rename_all = "camelCase")]
 pub struct RegisteredMix {
     #[serde(flatten)]
-    mix_info: MixRegistrationInfo,
-    registration_time: i64,
-    reputation: i64,
+    pub(crate) mix_info: MixRegistrationInfo,
+    pub(crate) registration_time: i64,
+    pub(crate) reputation: i64,
 }
 
 impl TryInto<topology::mix::Node> for RegisteredMix {
     type Error = ConversionError;
 
     fn try_into(self) -> Result<topology::mix::Node, Self::Error> {
-        unimplemented!()
+        let resolved_hostname = self
+            .mix_info
+            .node_info
+            .mix_host
+            .to_socket_addrs()
+            .map_err(|err| ConversionError::InvalidAddress(err))?
+            .next()
+            .ok_or_else(|| {
+                ConversionError::InvalidAddress(io::Error::new(
+                    io::ErrorKind::Other,
+                    "no valid socket address",
+                ))
+            })?;
+
+        Ok(topology::mix::Node {
+            location: self.mix_info.node_info.location,
+            host: resolved_hostname,
+            identity_key: identity::PublicKey::from_base58_string(
+                self.mix_info.node_info.identity_key,
+            )?,
+            sphinx_key: encryption::PublicKey::from_base58_string(
+                self.mix_info.node_info.sphinx_key,
+            )?,
+            layer: self.mix_info.layer,
+            registration_time: self.registration_time,
+            reputation: self.reputation,
+            version: self.mix_info.node_info.version,
+        })
     }
 }

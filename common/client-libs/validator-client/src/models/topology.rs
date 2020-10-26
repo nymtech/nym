@@ -12,14 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::models::gateway::RegisteredGateway;
-use crate::models::mixnode::RegisteredMix;
+use crate::models::gateway::{self, RegisteredGateway};
+use crate::models::mixnode::{self, RegisteredMix};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
-use topology::NymTopology;
+use topology::{MixLayer, NymTopology};
 
 #[derive(Debug)]
-pub enum TopologyConversionError {}
+pub enum TopologyConversionError {
+    GatewayError(gateway::ConversionError),
+    MixError(mixnode::ConversionError),
+}
+
+impl From<gateway::ConversionError> for TopologyConversionError {
+    fn from(err: gateway::ConversionError) -> Self {
+        TopologyConversionError::GatewayError(err)
+    }
+}
+
+impl From<mixnode::ConversionError> for TopologyConversionError {
+    fn from(err: mixnode::ConversionError) -> Self {
+        TopologyConversionError::MixError(err)
+    }
+}
 
 // Topology shows us the current state of the overall Nym network
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -33,6 +48,20 @@ impl TryInto<NymTopology> for Topology {
     type Error = TopologyConversionError;
 
     fn try_into(self) -> Result<NymTopology, Self::Error> {
-        unimplemented!()
+        use std::collections::HashMap;
+
+        let mut mixes = HashMap::new();
+        for mix in self.mix_nodes.into_iter() {
+            let layer = mix.mix_info.layer as MixLayer;
+            let layer_entry = mixes.entry(layer).or_insert(Vec::new());
+            layer_entry.push(mix.try_into()?)
+        }
+
+        let mut gateways = Vec::with_capacity(self.gateways.len());
+        for gate in self.gateways.into_iter() {
+            gateways.push(gate.try_into()?)
+        }
+
+        Ok(NymTopology::new(mixes, gateways))
     }
 }

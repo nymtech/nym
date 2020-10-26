@@ -18,7 +18,6 @@ use nymsphinx_types::Node as SphinxNode;
 use rand::Rng;
 use std::collections::HashMap;
 
-pub mod coco;
 mod filter;
 pub mod gateway;
 pub mod mix;
@@ -37,26 +36,13 @@ pub type MixLayer = u8;
 
 #[derive(Debug, Clone)]
 pub struct NymTopology {
-    coco_nodes: Vec<coco::Node>,
     mixes: HashMap<MixLayer, Vec<mix::Node>>,
     gateways: Vec<gateway::Node>,
 }
 
 impl NymTopology {
-    pub fn new(
-        coco_nodes: Vec<coco::Node>,
-        mixes: HashMap<MixLayer, Vec<mix::Node>>,
-        gateways: Vec<gateway::Node>,
-    ) -> Self {
-        NymTopology {
-            coco_nodes,
-            mixes,
-            gateways,
-        }
-    }
-
-    pub fn coco_nodes(&self) -> &Vec<coco::Node> {
-        &self.coco_nodes
+    pub fn new(mixes: HashMap<MixLayer, Vec<mix::Node>>, gateways: Vec<gateway::Node>) -> Self {
+        NymTopology { mixes, gateways }
     }
 
     pub fn mixes(&self) -> &HashMap<MixLayer, Vec<mix::Node>> {
@@ -178,19 +164,17 @@ impl NymTopology {
     }
 
     pub fn filter_system_version(&self, expected_version: &str) -> Self {
-        self.filter_node_versions(expected_version, expected_version, expected_version)
+        self.filter_node_versions(expected_version, expected_version)
     }
 
     pub fn filter_node_versions(
         &self,
         expected_mix_version: &str,
         expected_gateway_version: &str,
-        expected_coco_version: &str,
     ) -> Self {
         NymTopology {
             mixes: self.mixes.filter_by_version(expected_mix_version),
             gateways: self.gateways.filter_by_version(expected_gateway_version),
-            coco_nodes: self.coco_nodes.filter_by_version(expected_coco_version),
         }
     }
 }

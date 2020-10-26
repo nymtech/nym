@@ -17,17 +17,18 @@ use crypto::asymmetric::{encryption, identity};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::io;
+use std::net::ToSocketAddrs;
 
 #[derive(Debug)]
 pub enum ConversionError {
     InvalidIdentityKeyError(identity::KeyRecoveryError),
-    InvnalidSphinxKeyError(encryption::KeyRecoveryError),
-    // InvalidAddress(io::Error),
+    InvalidSphinxKeyError(encryption::KeyRecoveryError),
+    InvalidAddress(io::Error),
 }
 
 impl From<encryption::KeyRecoveryError> for ConversionError {
     fn from(err: encryption::KeyRecoveryError) -> Self {
-        ConversionError::InvnalidSphinxKeyError(err)
+        ConversionError::InvalidSphinxKeyError(err)
     }
 }
 
@@ -37,19 +38,13 @@ impl From<identity::KeyRecoveryError> for ConversionError {
     }
 }
 
-// impl From<io::Error> for ConversionError {
-//     fn from(err: io::Error) -> Self {
-//         ConversionError::InvalidAddress(err)
-//     }
-// }
-
-// used for mixnode to register themselves
+// used for gateways to register themselves
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayRegistrationInfo {
     #[serde(flatten)]
-    node_info: NodeInfo,
-    clients_host: String,
+    pub(crate) node_info: NodeInfo,
+    pub(crate) clients_host: String,
 }
 
 // actual entry in topology
@@ -57,15 +52,42 @@ pub struct GatewayRegistrationInfo {
 #[serde(rename_all = "camelCase")]
 pub struct RegisteredGateway {
     #[serde(flatten)]
-    mix_info: GatewayRegistrationInfo,
-    registration_time: i64,
-    reputation: i64,
+    pub(crate) gateway_info: GatewayRegistrationInfo,
+    pub(crate) registration_time: i64,
+    pub(crate) reputation: i64,
 }
 
 impl TryInto<topology::gateway::Node> for RegisteredGateway {
     type Error = ConversionError;
 
     fn try_into(self) -> Result<topology::gateway::Node, Self::Error> {
-        unimplemented!()
+        let resolved_mix_hostname = self
+            .gateway_info
+            .node_info
+            .mix_host
+            .to_socket_addrs()
+            .map_err(|err| ConversionError::InvalidAddress(err))?
+            .next()
+            .ok_or_else(|| {
+                ConversionError::InvalidAddress(io::Error::new(
+                    io::ErrorKind::Other,
+                    "no valid socket address",
+                ))
+            })?;
+
+        Ok(topology::gateway::Node {
+            location: self.gateway_info.node_info.location,
+            mixnet_listener: resolved_mix_hostname,
+            client_listener: self.gateway_info.clients_host,
+            identity_key: identity::PublicKey::from_base58_string(
+                self.gateway_info.node_info.identity_key,
+            )?,
+            sphinx_key: encryption::PublicKey::from_base58_string(
+                self.gateway_info.node_info.sphinx_key,
+            )?,
+            registration_time: self.registration_time,
+            reputation: self.reputation,
+            version: self.gateway_info.node_info.version,
+        })
     }
 }

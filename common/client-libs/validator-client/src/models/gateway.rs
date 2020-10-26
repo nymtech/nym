@@ -47,6 +47,28 @@ pub struct GatewayRegistrationInfo {
     pub(crate) clients_host: String,
 }
 
+impl GatewayRegistrationInfo {
+    pub fn new(
+        mix_host: String,
+        clients_host: String,
+        identity_key: String,
+        sphinx_key: String,
+        version: String,
+        location: String,
+    ) -> Self {
+        GatewayRegistrationInfo {
+            node_info: NodeInfo {
+                mix_host,
+                identity_key,
+                sphinx_key,
+                version,
+                location,
+            },
+            clients_host,
+        }
+    }
+}
+
 // actual entry in topology
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]

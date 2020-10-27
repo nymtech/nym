@@ -72,9 +72,15 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("directory")
-                .long("directory")
-                .help("Address of the directory server the node is sending presence and metrics to")
+            Arg::with_name("validator")
+                .long("validator")
+                .help("REST endpoint of the validator the node is registering presence with")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("metrics-server")
+                .long("metrics-server")
+                .help("Server to which the node is sending all metrics data")
                 .takes_value(true),
         )
 }
@@ -141,7 +147,7 @@ pub fn execute(matches: &ArgMatches) {
 
         let mut config = Config::new(id);
         config = override_config(config, matches);
-        let layer = choose_layer(matches, config.get_presence_directory_server()).await;
+        let layer = choose_layer(matches, config.get_validator_rest_endpoint()).await;
         // TODO: I really don't like how we override config and are presumably done with it
         // only to change it here
         config = config.with_layer(layer);

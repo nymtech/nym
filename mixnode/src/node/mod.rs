@@ -106,7 +106,7 @@ impl MixNode {
 
     async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
         let validator_client_config =
-            validator_client::Config::new(self.config.get_presence_directory_server());
+            validator_client::Config::new(self.config.get_validator_rest_endpoint());
         let validator_client = validator_client::Client::new(validator_client_config);
         let topology = validator_client
             .get_topology()
@@ -131,7 +131,7 @@ impl MixNode {
         );
         info!("Trying to unregister with the validator...");
         if let Err(err) = presence::unregister_with_validator(
-            self.config.get_presence_directory_server(),
+            self.config.get_validator_rest_endpoint(),
             self.identity_keypair.public_key().to_base58_string(),
         )
         .await
@@ -182,7 +182,7 @@ impl MixNode {
             }
 
             if let Err(err) = presence::register_with_validator(
-                self.config.get_presence_directory_server(),
+                self.config.get_validator_rest_endpoint(),
                 self.config.get_announce_address(),
                 self.identity_keypair.public_key().to_base58_string(),
                 self.sphinx_keypair.public_key().to_base58_string(),

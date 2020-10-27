@@ -47,8 +47,12 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.with_listening_port(port.unwrap());
     }
 
-    if let Some(directory) = matches.value_of("directory") {
-        config = config.with_custom_directory(directory);
+    if let Some(directory) = matches.value_of("validator") {
+        config = config.with_custom_validator(directory);
+    }
+
+    if let Some(metrics_server) = matches.value_of("metrics-server") {
+        config = config.with_custom_metrics_server(metrics_server);
     }
 
     if let Some(announce_host) = matches.value_of("announce-host") {

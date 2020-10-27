@@ -47,19 +47,6 @@ impl MixNode {
         }
     }
 
-    fn start_presence_notifier(&self) {
-        // info!("Starting presence notifier...");
-        // let notifier_config = presence::NotifierConfig::new(
-        //     self.config.get_location(),
-        //     self.config.get_presence_directory_server(),
-        //     self.config.get_announce_address(),
-        //     self.sphinx_keypair.public_key().to_base58_string(),
-        //     self.config.get_layer(),
-        //     self.config.get_presence_sending_delay(),
-        // );
-        // presence::Notifier::new(notifier_config).start();
-    }
-
     fn start_metrics_reporter(&self) -> metrics::MetricsReporter {
         info!("Starting metrics reporter...");
         metrics::MetricsController::new(
@@ -197,7 +184,6 @@ impl MixNode {
             let forwarding_channel = self.start_packet_forwarder();
             let metrics_reporter = self.start_metrics_reporter();
             self.start_socket_listener(metrics_reporter, forwarding_channel);
-            self.start_presence_notifier();
 
             info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
 

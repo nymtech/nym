@@ -16,6 +16,7 @@ use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use log::*;
+use metrics_client::models::metrics::MixMetric;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -101,7 +102,7 @@ impl MetricsReceiver {
 
 struct MetricsSender {
     metrics: MixMetrics,
-    // directory_client: directory_client::Client,
+    metrics_client: metrics_client::Client,
     pub_key_str: String,
     sending_delay: Duration,
     metrics_informer: MetricsInformer,
@@ -110,16 +111,16 @@ struct MetricsSender {
 impl MetricsSender {
     fn new(
         metrics: MixMetrics,
-        directory_server: String,
+        metrics_server: String,
         pub_key_str: String,
         sending_delay: Duration,
         running_logging_delay: Duration,
     ) -> Self {
         MetricsSender {
             metrics,
-            // directory_client: directory_client::Client::new(directory_client::Config::new(
-            //     directory_server,
-            // )),
+            metrics_client: metrics_client::Client::new(metrics_client::Config::new(
+                metrics_server,
+            )),
             pub_key_str,
             sending_delay,
             metrics_informer: MetricsInformer::new(running_logging_delay),
@@ -137,19 +138,18 @@ impl MetricsSender {
                 self.metrics_informer.log_report_stats(received, &sent);
                 self.metrics_informer.try_log_running_stats();
 
-                info!("here be sending metrics to the server");
-                // match self
-                //     .directory_client
-                //     .post_mix_metrics(MixMetric {
-                //         pub_key: self.pub_key_str.clone(),
-                //         received,
-                //         sent,
-                //     })
-                //     .await
-                // {
-                //     Err(err) => error!("failed to send metrics - {:?}", err),
-                //     Ok(_) => debug!("sent metrics information"),
-                // }
+                match self
+                    .metrics_client
+                    .post_mix_metrics(MixMetric {
+                        pub_key: self.pub_key_str.clone(),
+                        received,
+                        sent,
+                    })
+                    .await
+                {
+                    Err(err) => error!("failed to send metrics - {:?}", err),
+                    Ok(_) => debug!("sent metrics information"),
+                }
 
                 // wait for however much is left
                 sending_delay.await;

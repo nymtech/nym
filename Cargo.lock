@@ -1647,6 +1647,7 @@ dependencies = [
  "futures 0.3.5",
  "humantime-serde",
  "log",
+ "metrics-client",
  "mixnet-client",
  "mixnode-common",
  "nymsphinx",

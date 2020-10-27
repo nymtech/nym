@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use directory_client::metrics::MixMetric;
-use directory_client::DirectoryClient;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
@@ -103,7 +101,7 @@ impl MetricsReceiver {
 
 struct MetricsSender {
     metrics: MixMetrics,
-    directory_client: directory_client::Client,
+    // directory_client: directory_client::Client,
     pub_key_str: String,
     sending_delay: Duration,
     metrics_informer: MetricsInformer,
@@ -119,9 +117,9 @@ impl MetricsSender {
     ) -> Self {
         MetricsSender {
             metrics,
-            directory_client: directory_client::Client::new(directory_client::Config::new(
-                directory_server,
-            )),
+            // directory_client: directory_client::Client::new(directory_client::Config::new(
+            //     directory_server,
+            // )),
             pub_key_str,
             sending_delay,
             metrics_informer: MetricsInformer::new(running_logging_delay),
@@ -139,18 +137,19 @@ impl MetricsSender {
                 self.metrics_informer.log_report_stats(received, &sent);
                 self.metrics_informer.try_log_running_stats();
 
-                match self
-                    .directory_client
-                    .post_mix_metrics(MixMetric {
-                        pub_key: self.pub_key_str.clone(),
-                        received,
-                        sent,
-                    })
-                    .await
-                {
-                    Err(err) => error!("failed to send metrics - {:?}", err),
-                    Ok(_) => debug!("sent metrics information"),
-                }
+                info!("here be sending metrics to the server");
+                // match self
+                //     .directory_client
+                //     .post_mix_metrics(MixMetric {
+                //         pub_key: self.pub_key_str.clone(),
+                //         received,
+                //         sent,
+                //     })
+                //     .await
+                // {
+                //     Err(err) => error!("failed to send metrics - {:?}", err),
+                //     Ok(_) => debug!("sent metrics information"),
+                // }
 
                 // wait for however much is left
                 sending_delay.await;

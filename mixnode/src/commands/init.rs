@@ -18,10 +18,8 @@ use crate::config::Config;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
-use directory_client::DirectoryClient;
 use log::*;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
-use std::convert::TryInto;
 use std::process;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
@@ -89,7 +87,7 @@ fn show_incentives_url() {
     println!("\n\n");
 }
 
-async fn choose_layer(matches: &ArgMatches<'_>, directory_server: String) -> u64 {
+async fn choose_layer(matches: &ArgMatches<'_>, validator_server: String) -> u64 {
     let max_layer = DEFAULT_NUM_MIX_HOPS;
     if let Some(layer) = matches.value_of("layer").map(|layer| layer.parse::<u64>()) {
         if let Err(err) = layer {
@@ -102,14 +100,13 @@ async fn choose_layer(matches: &ArgMatches<'_>, directory_server: String) -> u64
         }
     }
 
-    let directory_client_config = directory_client::Config::new(directory_server);
-    let directory_client = directory_client::Client::new(directory_client_config);
-    let topology: NymTopology = directory_client
+    let validator_client_config = validator_client::Config::new(validator_server);
+    let validator_client = validator_client::Client::new(validator_client_config);
+    let topology: NymTopology = validator_client
         .get_topology()
         .await
         .expect("failed to obtain initial network topology!")
-        .try_into()
-        .unwrap();
+        .into();
 
     let mut lowest_layer = (0, usize::max_value());
 

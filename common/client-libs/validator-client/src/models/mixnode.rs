@@ -79,6 +79,16 @@ pub struct RegisteredMix {
     pub(crate) reputation: i64,
 }
 
+impl RegisteredMix {
+    pub fn identity(&self) -> String {
+        self.mix_info.node_info.identity_key.clone()
+    }
+
+    pub fn mix_host(&self) -> String {
+        self.mix_info.node_info.mix_host.clone()
+    }
+}
+
 impl TryInto<topology::mix::Node> for RegisteredMix {
     type Error = ConversionError;
 

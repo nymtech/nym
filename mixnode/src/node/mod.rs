@@ -17,11 +17,11 @@ use crate::node::listener::connection_handler::packet_processing::PacketProcesso
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
 use crypto::asymmetric::{encryption, identity};
-use directory_client::DirectoryClient;
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
+use version_checker::is_minor_version_compatible;
 
 mod listener;
 mod metrics;
@@ -30,7 +30,6 @@ mod presence;
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
     config: Config,
-    #[allow(dead_code)]
     identity_keypair: Arc<identity::KeyPair>,
     sphinx_keypair: Arc<encryption::KeyPair>,
 }
@@ -49,16 +48,16 @@ impl MixNode {
     }
 
     fn start_presence_notifier(&self) {
-        info!("Starting presence notifier...");
-        let notifier_config = presence::NotifierConfig::new(
-            self.config.get_location(),
-            self.config.get_presence_directory_server(),
-            self.config.get_announce_address(),
-            self.sphinx_keypair.public_key().to_base58_string(),
-            self.config.get_layer(),
-            self.config.get_presence_sending_delay(),
-        );
-        presence::Notifier::new(notifier_config).start();
+        // info!("Starting presence notifier...");
+        // let notifier_config = presence::NotifierConfig::new(
+        //     self.config.get_location(),
+        //     self.config.get_presence_directory_server(),
+        //     self.config.get_announce_address(),
+        //     self.sphinx_keypair.public_key().to_base58_string(),
+        //     self.config.get_layer(),
+        //     self.config.get_presence_sending_delay(),
+        // );
+        // presence::Notifier::new(notifier_config).start();
     }
 
     fn start_metrics_reporter(&self) -> metrics::MetricsReporter {
@@ -106,15 +105,18 @@ impl MixNode {
     }
 
     async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
-        let directory_client_config =
-            directory_client::Config::new(self.config.get_presence_directory_server());
-        let directory_client = directory_client::Client::new(directory_client_config);
-        let topology = directory_client.get_topology().await.ok()?;
+        let validator_client_config =
+            validator_client::Config::new(self.config.get_presence_directory_server());
+        let validator_client = validator_client::Client::new(validator_client_config);
+        let topology = validator_client
+            .get_topology()
+            .await
+            .expect("failed to grab network topology");
         let existing_mixes_presence = topology.mix_nodes;
         existing_mixes_presence
             .iter()
-            .find(|node| node.host == self.config.get_announce_address())
-            .map(|node| node.pub_key.clone())
+            .find(|node| node.mix_host() == self.config.get_announce_address())
+            .map(|node| node.identity())
     }
 
     async fn wait_for_interrupt(&self) {
@@ -127,20 +129,71 @@ impl MixNode {
         println!(
             "Received SIGINT - the mixnode will terminate now (threads are not YET nicely stopped)"
         );
+        info!("Trying to unregister with the validator...");
+        if let Err(err) = presence::unregister_with_validator(
+            self.config.get_presence_directory_server(),
+            self.identity_keypair.public_key().to_base58_string(),
+        )
+        .await
+        {
+            error!("failed to unregister with validator... - {:?}", err)
+        }
+    }
+
+    // this only checks compatibility between config the binary. It does not take into consideration
+    // network version. It might do so in the future.
+    fn version_check(&self) -> bool {
+        let binary_version = env!("CARGO_PKG_VERSION");
+        let config_version = self.config.get_version();
+        if binary_version != config_version {
+            warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
+            if is_minor_version_compatible(binary_version, config_version) {
+                info!("but they are still semver compatible. However, consider running the `upgrade` command");
+                true
+            } else {
+                error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
+                false
+            }
+        } else {
+            true
+        }
     }
 
     pub fn run(&mut self) {
         info!("Starting nym mixnode");
+        if !self.version_check() {
+            error!("failed the local version check");
+            return;
+        }
+
         let mut runtime = Runtime::new().unwrap();
 
         runtime.block_on(async {
             if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists().await {
-                error!(
-                    "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
-                    duplicate_node_key
-                );
-                return;
+                if duplicate_node_key == self.identity_keypair.public_key().to_base58_string() {
+                    warn!("We seem to have not unregistered after going offline - there's a node with identical identity and announce-host as us registered.")
+                } else {
+                    error!(
+                        "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
+                        duplicate_node_key
+                    );
+                    return;
+                }
             }
+
+            if let Err(err) = presence::register_with_validator(
+                self.config.get_presence_directory_server(),
+                self.config.get_announce_address(),
+                self.identity_keypair.public_key().to_base58_string(),
+                self.sphinx_keypair.public_key().to_base58_string(),
+                self.config.get_version().to_string(),
+                self.config.get_location(),
+                self.config.get_layer(),
+            ).await {
+                error!("failed to register with the validator - {:?}", err);
+                return
+            }
+
             let forwarding_channel = self.start_packet_forwarder();
             let metrics_reporter = self.start_metrics_reporter();
             self.start_socket_listener(metrics_reporter, forwarding_channel);

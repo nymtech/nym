@@ -153,7 +153,7 @@ pub fn execute(matches: &ArgMatches) {
     );
     println!(
         "Directory server [metrics]: {}",
-        config.get_metrics_directory_server()
+        config.get_metrics_server()
     );
 
     println!(

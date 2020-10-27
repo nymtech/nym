@@ -31,8 +31,8 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'MIXNODE'
 const DEFAULT_LISTENING_PORT: u16 = 1789;
-const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://directory.nymtech.net";
-const DEFAULT_METRICS_SERVER: &str = "https://metrics.nymtech.net";
+pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://directory.nymtech.net";
+pub(crate) const DEFAULT_METRICS_SERVER: &str = "https://metrics.nymtech.net";
 
 // 'DEBUG'
 const DEFAULT_METRICS_SENDING_DELAY: Duration = Duration::from_millis(5_000);
@@ -180,15 +180,6 @@ impl Config {
         self
     }
 
-    // if you want to use distinct servers for metrics and presence
-    // you need to do so in the config.toml file.
-    pub fn with_custom_directory<S: Into<String>>(mut self, directory_server: S) -> Self {
-        let directory_server_string = directory_server.into();
-        self.mixnode.validator_rest_url = directory_server_string.clone();
-        self.mixnode.metrics_server_url = directory_server_string;
-        self
-    }
-
     pub fn with_custom_validator<S: Into<String>>(mut self, validator: S) -> Self {
         self.mixnode.validator_rest_url = validator.into();
         self
@@ -308,7 +299,7 @@ impl Config {
         self.mixnode.validator_rest_url.clone()
     }
 
-    pub fn get_metrics_directory_server(&self) -> String {
+    pub fn get_metrics_server(&self) -> String {
         self.mixnode.metrics_server_url.clone()
     }
 
@@ -362,7 +353,6 @@ impl Config {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct MixNode {
     /// Version of the mixnode for which this configuration was created.
     #[serde(default = "missing_string_value")]
@@ -406,9 +396,11 @@ pub struct MixNode {
     public_sphinx_key_file: PathBuf,
 
     /// Validator server to which the node will be reporting their presence data.
+    #[serde(default = "missing_string_value")]
     validator_rest_url: String,
 
     /// Metrics server to which the node will be reporting their metrics data.
+    #[serde(default = "missing_string_value")]
     metrics_server_url: String,
 
     /// nym_home_directory specifies absolute path to the home nym MixNodes directory.

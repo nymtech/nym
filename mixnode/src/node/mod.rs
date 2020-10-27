@@ -63,7 +63,7 @@ impl MixNode {
     fn start_metrics_reporter(&self) -> metrics::MetricsReporter {
         info!("Starting metrics reporter...");
         metrics::MetricsController::new(
-            self.config.get_metrics_directory_server(),
+            self.config.get_metrics_server(),
             self.sphinx_keypair.public_key().to_base58_string(),
             self.config.get_metrics_sending_delay(),
             self.config.get_metrics_running_stats_logging_delay(),

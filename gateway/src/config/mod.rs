@@ -32,7 +32,7 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 // 'GATEWAY'
 const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
-const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
+pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://directory.nymtech.net";
 
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
@@ -188,8 +188,8 @@ impl Config {
         self
     }
 
-    pub fn with_custom_directory<S: Into<String>>(mut self, directory_server: S) -> Self {
-        self.gateway.presence_directory_server = directory_server.into();
+    pub fn with_custom_validator<S: Into<String>>(mut self, validator: S) -> Self {
+        self.gateway.validator_rest_url = validator.into();
         self
     }
 
@@ -404,12 +404,8 @@ impl Config {
         self.gateway.public_sphinx_key_file.clone()
     }
 
-    pub fn get_presence_directory_server(&self) -> String {
-        self.gateway.presence_directory_server.clone()
-    }
-
-    pub fn get_presence_sending_delay(&self) -> Duration {
-        self.debug.presence_sending_delay
+    pub fn get_validator_rest_endpoint(&self) -> String {
+        self.gateway.validator_rest_url.clone()
     }
 
     pub fn get_mix_listening_address(&self) -> SocketAddr {
@@ -466,7 +462,6 @@ impl Config {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct Gateway {
     /// Version of the gateway for which this configuration was created.
     #[serde(default = "missing_string_value")]
@@ -493,8 +488,9 @@ pub struct Gateway {
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
 
-    /// Directory server to which the server will be reporting their presence data.
-    presence_directory_server: String,
+    /// Validator server to which the node will be reporting their presence data.
+    #[serde(default = "missing_string_value")]
+    validator_rest_url: String,
 
     /// nym_home_directory specifies absolute path to the home nym gateways directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
@@ -533,7 +529,7 @@ impl Default for Gateway {
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
-            presence_directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
+            validator_rest_url: DEFAULT_VALIDATOR_REST_ENDPOINT.to_string(),
             nym_root_directory: Config::default_root_directory(),
         }
     }

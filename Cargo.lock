@@ -1610,7 +1610,6 @@ dependencies = [
  "config",
  "crypto",
  "dashmap",
- "directory-client",
  "dirs 2.0.2",
  "dotenv",
  "futures 0.3.5",
@@ -1630,6 +1629,7 @@ dependencies = [
  "tokio-tungstenite",
  "tokio-util",
  "tungstenite",
+ "validator-client",
  "version-checker",
 ]
 

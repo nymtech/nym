@@ -104,9 +104,9 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("directory")
-                .long("directory")
-                .help("Address of the directory server the gateway is sending presence data to")
+            Arg::with_name("validator")
+                .long("validator")
+                .help("REST endpoint of the validator the node is registering presence with")
                 .takes_value(true),
         )
 }
@@ -178,8 +178,8 @@ pub fn execute(matches: &ArgMatches) {
     }
 
     println!(
-        "Directory server [presence]: {}",
-        config.get_presence_directory_server()
+        "Validator REST endpoint: {}",
+        config.get_validator_rest_endpoint()
     );
 
     println!(

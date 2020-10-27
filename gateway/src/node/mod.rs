@@ -18,11 +18,11 @@ use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::storage::{inboxes, ClientLedger};
 use crypto::asymmetric::{encryption, identity};
-use directory_client::DirectoryClient;
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
+use version_checker::is_minor_version_compatible;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
@@ -124,20 +124,6 @@ impl Gateway {
         clients_handler_sender
     }
 
-    fn start_presence_notifier(&self) {
-        info!("Starting presence notifier...");
-        let notifier_config = presence::NotifierConfig::new(
-            self.config.get_location(),
-            self.config.get_presence_directory_server(),
-            self.config.get_mix_announce_address(),
-            self.config.get_clients_announce_address(),
-            self.identity.public_key().to_base58_string(),
-            self.encryption_keys.public_key().to_base58_string(),
-            self.config.get_presence_sending_delay(),
-        );
-        presence::Notifier::new(notifier_config).start();
-    }
-
     async fn wait_for_interrupt(&self) {
         if let Err(e) = tokio::signal::ctrl_c().await {
             error!(
@@ -148,26 +134,54 @@ impl Gateway {
         println!(
             "Received SIGINT - the gateway will terminate now (threads are not YET nicely stopped)"
         );
+        if let Err(err) = presence::unregister_with_validator(
+            self.config.get_validator_rest_endpoint(),
+            self.identity.public_key().to_base58_string(),
+        )
+        .await
+        {
+            error!("failed to unregister with validator... - {:?}", err)
+        }
     }
 
     async fn check_if_same_ip_gateway_exists(&self) -> Option<String> {
         let announced_mix_host = self.config.get_mix_announce_address();
         let announced_clients_host = self.config.get_clients_announce_address();
-        let directory_client_cfg =
-            directory_client::Config::new(self.config.get_presence_directory_server());
-        let topology = directory_client::Client::new(directory_client_cfg)
+        let validator_client_config =
+            validator_client::Config::new(self.config.get_validator_rest_endpoint());
+        let validator_client = validator_client::Client::new(validator_client_config);
+        let topology = validator_client
             .get_topology()
             .await
-            .expect("Failed to retrieve network topology");
+            .expect("failed to grab network topology");
 
-        let existing_gateways = topology.gateway_nodes;
+        let existing_gateways = topology.gateways;
         existing_gateways
             .iter()
             .find(|node| {
-                node.mixnet_listener == announced_mix_host
-                    || node.client_listener == announced_clients_host
+                node.mixnet_listener() == announced_mix_host
+                    || node.clients_listener() == announced_clients_host
             })
-            .map(|node| node.identity_key.clone())
+            .map(|node| node.identity())
+    }
+
+    // this only checks compatibility between config the binary. It does not take into consideration
+    // network version. It might do so in the future.
+    fn version_check(&self) -> bool {
+        let binary_version = env!("CARGO_PKG_VERSION");
+        let config_version = self.config.get_version();
+        if binary_version != config_version {
+            warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
+            if is_minor_version_compatible(binary_version, config_version) {
+                info!("but they are still semver compatible. However, consider running the `upgrade` command");
+                true
+            } else {
+                error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
+                false
+            }
+        } else {
+            true
+        }
     }
 
     // Rather than starting all futures with explicit `&Handle` argument, let's see how it works
@@ -175,15 +189,37 @@ impl Gateway {
     // Basically more or less equivalent of using #[tokio::main] attribute.
     pub fn run(&mut self) {
         info!("Starting nym gateway!");
+        if !self.version_check() {
+            error!("failed the local version check");
+            return;
+        }
+
         let mut runtime = Runtime::new().unwrap();
 
         runtime.block_on(async {
-            if let Some(duplicate_gateway_key) = self.check_if_same_ip_gateway_exists().await {
-                error!(
-                    "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
-                    duplicate_gateway_key
-                );
-                return;
+            if let Some(duplicate_node_key) = self.check_if_same_ip_gateway_exists().await {
+                if duplicate_node_key == self.identity.public_key().to_base58_string() {
+                    warn!("We seem to have not unregistered after going offline - there's a node with identical identity and announce-host as us registered.")
+                } else {
+                    error!(
+                        "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
+                        duplicate_node_key
+                    );
+                    return;
+                }
+            }
+
+            if let Err(err) = presence::register_with_validator(
+                self.config.get_validator_rest_endpoint(),
+                self.config.get_mix_announce_address(),
+                self.config.get_clients_announce_address(),
+                self.identity.public_key().to_base58_string(),
+                self.encryption_keys.public_key().to_base58_string(),
+                self.config.get_version().to_string(),
+                self.config.get_location(),
+            ).await {
+                error!("failed to register with the validator - {:?}", err);
+                return
             }
 
             let mix_forwarding_channel = self.start_packet_forwarder();
@@ -191,8 +227,6 @@ impl Gateway {
 
             self.start_mix_socket_listener(clients_handler_sender.clone(), mix_forwarding_channel.clone());
             self.start_client_websocket_listener(mix_forwarding_channel, clients_handler_sender);
-
-            self.start_presence_notifier();
 
             info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

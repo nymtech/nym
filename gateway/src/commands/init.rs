@@ -99,9 +99,9 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("directory")
-                .long("directory")
-                .help("Address of the directory server the node is sending presence data to")
+            Arg::with_name("validator")
+                .long("validator")
+                .help("REST endpoint of the validator the node is registering presence with")
                 .takes_value(true),
         )
 }

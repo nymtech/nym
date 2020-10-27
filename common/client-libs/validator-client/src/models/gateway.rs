@@ -79,6 +79,20 @@ pub struct RegisteredGateway {
     pub(crate) reputation: i64,
 }
 
+impl RegisteredGateway {
+    pub fn identity(&self) -> String {
+        self.gateway_info.node_info.identity_key.clone()
+    }
+
+    pub fn mixnet_listener(&self) -> String {
+        self.gateway_info.node_info.mix_host.clone()
+    }
+
+    pub fn clients_listener(&self) -> String {
+        self.gateway_info.clients_host.clone()
+    }
+}
+
 impl TryInto<topology::gateway::Node> for RegisteredGateway {
     type Error = ConversionError;
 

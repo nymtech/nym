@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{DirectoryPostRequest, DirectoryRequest};
 use crate::models::metrics::MixMetric;
 
 const PATH: &str = "/api/metrics/mixes";
@@ -23,24 +22,21 @@ pub struct Request {
     payload: MixMetric,
 }
 
-impl DirectoryRequest for Request {
-    fn url(&self) -> String {
+impl Request {
+    pub(crate) fn url(&self) -> String {
         format!("{}{}", self.base_url, self.path)
     }
-}
 
-impl DirectoryPostRequest for Request {
-    type Payload = MixMetric;
-    fn json_payload(&self) -> &MixMetric {
-        &self.payload
-    }
-
-    fn new(base_url: &str, payload: Self::Payload) -> Self {
+    pub(crate) fn new(base_url: &str, payload: MixMetric) -> Self {
         Request {
             base_url: base_url.to_string(),
             path: PATH.to_string(),
             payload,
         }
+    }
+
+    pub(crate) fn json_payload(&self) -> &MixMetric {
+        &self.payload
     }
 }
 
@@ -83,7 +79,7 @@ mod metrics_post_request {
 
     #[cfg(test)]
     mod fixtures {
-        use crate::metrics::MixMetric;
+        use crate::models::metrics::MixMetric;
 
         pub fn new_metric() -> MixMetric {
             MixMetric {

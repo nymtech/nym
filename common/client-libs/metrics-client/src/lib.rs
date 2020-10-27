@@ -18,7 +18,6 @@ pub mod requests;
 use crate::models::metrics::{MixMetric, PersistedMixMetric};
 use crate::requests::metrics_mixes_get::Request as MetricsMixRequest;
 use crate::requests::metrics_mixes_post::Request as MetricsMixPost;
-use crate::requests::{DirectoryGetRequest, DirectoryPostRequest};
 
 pub struct Config {
     pub base_url: String,
@@ -44,33 +43,30 @@ impl Client {
         }
     }
 
-    async fn post<R: DirectoryPostRequest>(
-        &self,
-        request: R,
-    ) -> reqwest::Result<reqwest::Response> {
+    pub async fn post_mix_metrics(&self, metrics: MixMetric) -> reqwest::Result<reqwest::Response> {
+        let req = MetricsMixPost::new(&self.base_url, metrics);
         self.reqwest_client
-            .post(&request.url())
-            .json(request.json_payload())
+            .post(&req.url())
+            .json(req.json_payload())
             .send()
             .await
     }
 
-    async fn get<R: DirectoryGetRequest>(&self, request: R) -> reqwest::Result<R::JSONResponse> {
+    pub async fn get_mix_metrics(&self) -> reqwest::Result<Vec<PersistedMixMetric>> {
+        let req = MetricsMixRequest::new(&self.base_url);
         self.reqwest_client
-            .get(&request.url())
+            .get(&req.url())
             .send()
             .await?
             .json()
             .await
     }
+}
 
-    pub async fn post_mix_metrics(&self, metrics: MixMetric) -> reqwest::Result<reqwest::Response> {
-        let req = MetricsMixPost::new(&self.base_url, metrics);
-        self.post(req).await
-    }
-
-    pub async fn get_mix_metrics(&self) -> reqwest::Result<Vec<PersistedMixMetric>> {
-        let req = MetricsMixRequest::new(&self.base_url);
-        self.get(req).await
+#[cfg(test)]
+pub(crate) fn client_test_fixture(base_url: &str) -> Client {
+    Client {
+        base_url: base_url.to_string(),
+        reqwest_client: reqwest::Client::new(),
     }
 }

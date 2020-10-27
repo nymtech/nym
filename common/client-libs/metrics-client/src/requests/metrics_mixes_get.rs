@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{DirectoryGetRequest, DirectoryRequest};
-use crate::models::metrics::PersistedMixMetric;
-
 const PATH: &str = "/api/metrics/mixes";
 
 pub struct Request {
@@ -22,20 +19,16 @@ pub struct Request {
     path: String,
 }
 
-impl DirectoryRequest for Request {
-    fn url(&self) -> String {
-        format!("{}{}", self.base_url, self.path)
-    }
-}
-
-impl DirectoryGetRequest for Request {
-    type JSONResponse = Vec<PersistedMixMetric>;
-
-    fn new(base_url: &str) -> Self {
+impl Request {
+    pub(crate) fn new(base_url: &str) -> Self {
         Request {
             base_url: base_url.to_string(),
             path: PATH.to_string(),
         }
+    }
+
+    pub(crate) fn url(&self) -> String {
+        format!("{}{}", self.base_url, self.path)
     }
 }
 

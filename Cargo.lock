@@ -1648,6 +1648,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "topology",
+ "validator-client",
  "version-checker",
 ]
 
@@ -2960,6 +2961,7 @@ name = "validator-client"
 version = "0.1.0"
 dependencies = [
  "crypto",
+ "log",
  "reqwest",
  "serde",
  "topology",

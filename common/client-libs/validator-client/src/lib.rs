@@ -13,12 +13,13 @@
 // limitations under the License.
 
 use crate::models::gateway::GatewayRegistrationInfo;
+use crate::models::mixmining::{BatchMixStatus, MixStatus};
 use crate::models::mixnode::MixRegistrationInfo;
 use crate::models::topology::Topology;
 use crate::rest_requests::{
-    ActiveTopologyGet, ActiveTopologyGetResponse, GatewayRegisterPost, MixRegisterPost,
-    NodeUnregisterDelete, RESTRequest, RESTRequestError, ReputationPatch, TopologyGet,
-    TopologyGetResponse,
+    ActiveTopologyGet, ActiveTopologyGetResponse, BatchMixStatusPost, GatewayRegisterPost,
+    MixRegisterPost, MixStatusPost, NodeUnregisterDelete, RESTRequest, RESTRequestError,
+    ReputationPatch, TopologyGet, TopologyGetResponse,
 };
 use serde::Deserialize;
 
@@ -184,5 +185,29 @@ impl Client {
                 Err(ValidatorClientError::ValidatorError(err.error))
             }
         }
+    }
+
+    pub async fn post_mixmining_status(&self, status: MixStatus) -> Result<()> {
+        let req = MixStatusPost::new(&self.config.base_url, None, None, Some(status))?;
+        match self.make_rest_request(req).await? {
+            DefaultRESTResponse::Ok(_) => Ok(()),
+            DefaultRESTResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+        }
+    }
+
+    pub async fn post_batch_mixmining_status(&self, batch_status: BatchMixStatus) -> Result<()> {
+        let req = BatchMixStatusPost::new(&self.config.base_url, None, None, Some(batch_status))?;
+        match self.make_rest_request(req).await? {
+            DefaultRESTResponse::Ok(_) => Ok(()),
+            DefaultRESTResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn client_test_fixture(base_url: &str) -> Client {
+    Client {
+        config: Config::new(base_url),
+        reqwest_client: reqwest::Client::new(),
     }
 }

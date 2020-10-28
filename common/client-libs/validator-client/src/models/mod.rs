@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod gateway;
+pub mod mixmining;
 pub mod mixnode;
 mod node;
 pub mod topology;

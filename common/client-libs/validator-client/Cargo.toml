@@ -13,3 +13,7 @@ reqwest = { version = "0.10", features = ["json"] }
 
 crypto = { path = "../../crypto" }
 topology = { path = "../../topology" }
+
+[dev-dependencies]
+mockito = "0.23.0"
+tokio = { version = "0.2", features = ["macros"] }

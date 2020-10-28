@@ -1501,7 +1501,6 @@ name = "network-monitor"
 version = "0.9.0-dev"
 dependencies = [
  "crypto",
- "directory-client",
  "futures 0.3.5",
  "gateway-client",
  "log",
@@ -1511,6 +1510,7 @@ dependencies = [
  "serde",
  "tokio",
  "topology",
+ "validator-client",
  "version-checker",
 ]
 
@@ -2972,8 +2972,10 @@ version = "0.1.0"
 dependencies = [
  "crypto",
  "log",
+ "mockito",
  "reqwest",
  "serde",
+ "tokio",
  "topology",
 ]
 

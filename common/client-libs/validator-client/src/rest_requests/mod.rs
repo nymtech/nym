@@ -19,6 +19,8 @@ pub(crate) use active_topology_get::{
     Request as ActiveTopologyGet, Response as ActiveTopologyGetResponse,
 };
 pub(crate) use gateway_register_post::Request as GatewayRegisterPost;
+pub(crate) use mix_mining_batch_status_post::Request as BatchMixStatusPost;
+pub(crate) use mix_mining_status_post::Request as MixStatusPost;
 pub(crate) use mix_register_post::Request as MixRegisterPost;
 pub(crate) use node_unregister_delete::Request as NodeUnregisterDelete;
 pub(crate) use set_reputation_patch::Request as ReputationPatch;
@@ -26,6 +28,8 @@ pub(crate) use topology_get::{Request as TopologyGet, Response as TopologyGetRes
 
 pub mod active_topology_get;
 pub mod gateway_register_post;
+pub mod mix_mining_batch_status_post;
+pub mod mix_mining_status_post;
 pub mod mix_register_post;
 pub mod node_unregister_delete;
 pub mod set_reputation_patch;

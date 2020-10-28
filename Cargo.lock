@@ -355,7 +355,6 @@ version = "0.9.0-dev"
 dependencies = [
  "config",
  "crypto",
- "directory-client",
  "dirs 2.0.2",
  "futures 0.3.5",
  "gateway-client",
@@ -371,6 +370,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "topology",
+ "validator-client",
 ]
 
 [[package]]
@@ -1558,7 +1558,6 @@ dependencies = [
  "client-core",
  "config",
  "crypto",
- "directory-client",
  "dirs 3.0.1",
  "dotenv",
  "futures 0.3.5",
@@ -1577,6 +1576,7 @@ dependencies = [
  "tokio-tungstenite",
  "topology",
  "url",
+ "validator-client",
  "version-checker",
  "websocket-requests",
 ]
@@ -1670,7 +1670,6 @@ dependencies = [
  "client-core",
  "config",
  "crypto",
- "directory-client",
  "dirs 3.0.1",
  "dotenv",
  "futures 0.3.5",
@@ -1689,6 +1688,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "topology",
+ "validator-client",
  "version-checker",
 ]
 

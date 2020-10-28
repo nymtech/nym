@@ -33,13 +33,13 @@ tokio-tungstenite = "0.11.0" # websocket
 client-core = { path = "../client-core" }
 config = { path = "../../common/config" }
 crypto = { path = "../../common/crypto" }
-directory-client = { path = "../../common/client-libs/directory-client" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }
 websocket-requests = { path = "websocket-requests" }
+validator-client = { path = "../../common/client-libs/validator-client" }
 version-checker = { path = "../../common/version-checker" }
 
 [dev-dependencies]

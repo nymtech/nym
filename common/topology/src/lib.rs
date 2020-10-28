@@ -185,7 +185,7 @@ mod converting_mixes_to_vec {
 
     #[cfg(test)]
     mod when_nodes_exist {
-        use crypto::asymmetric::encryption;
+        use crypto::asymmetric::{encryption, identity};
 
         use super::*;
 
@@ -194,12 +194,17 @@ mod converting_mixes_to_vec {
             let node1 = mix::Node {
                 location: "London".to_string(),
                 host: "3.3.3.3:1789".parse().unwrap(),
-                pub_key: encryption::PublicKey::from_base58_string(
+                identity_key: identity::PublicKey::from_base58_string(
+                    "3ebjp1Fb9hdcS1AR6AZihgeJiMHkB5jjJUsvqNnfQwU7",
+                )
+                .unwrap(),
+                sphinx_key: encryption::PublicKey::from_base58_string(
                     "C7cown6dYCLZpLiMFC1PaBmhvLvmJmLDJGeRTbPD45bX",
                 )
                 .unwrap(),
                 layer: 1,
-                last_seen: 123,
+                registration_time: 123,
+                reputation: 0,
                 version: "0.x.0".to_string(),
             };
 
@@ -217,7 +222,7 @@ mod converting_mixes_to_vec {
             mixes.insert(1, vec![node1, node2]);
             mixes.insert(2, vec![node3]);
 
-            let topology = NymTopology::new(vec![], mixes, vec![]);
+            let topology = NymTopology::new(mixes, vec![]);
             let mixvec = topology.mixes_as_vec();
             assert!(mixvec
                 .iter()
@@ -233,7 +238,7 @@ mod converting_mixes_to_vec {
 
         #[test]
         fn returns_an_empty_vec() {
-            let topology = NymTopology::new(vec![], HashMap::new(), vec![]);
+            let topology = NymTopology::new(HashMap::new(), vec![]);
             let mixvec = topology.mixes_as_vec();
             assert!(mixvec.is_empty());
         }

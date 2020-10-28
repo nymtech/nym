@@ -16,10 +16,10 @@ tokio = { version = "0.2", features = ["signal", "rt-threaded", "macros"] }
 
 ## internal
 crypto = { path = "../common/crypto" }
-directory-client = { path = "../common/client-libs/directory-client" }
 gateway-client = { path = "../common/client-libs/gateway-client" }
 nymsphinx = { path = "../common/nymsphinx" }
 topology = { path = "../common/topology" }
+validator-client = { path = "../common/client-libs/validator-client" }
 version-checker = { path = "../common/version-checker" }
 
 [dev-dependencies]

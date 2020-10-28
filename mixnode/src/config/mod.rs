@@ -31,10 +31,10 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'MIXNODE'
 const DEFAULT_LISTENING_PORT: u16 = 1789;
-const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
+pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://directory.nymtech.net";
+pub(crate) const DEFAULT_METRICS_SERVER: &str = "https://metrics.nymtech.net";
 
 // 'DEBUG'
-const DEFAULT_PRESENCE_SENDING_DELAY: Duration = Duration::from_millis(10_000);
 const DEFAULT_METRICS_SENDING_DELAY: Duration = Duration::from_millis(5_000);
 const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
@@ -180,12 +180,13 @@ impl Config {
         self
     }
 
-    // if you want to use distinct servers for metrics and presence
-    // you need to do so in the config.toml file.
-    pub fn with_custom_directory<S: Into<String>>(mut self, directory_server: S) -> Self {
-        let directory_server_string = directory_server.into();
-        self.mixnode.presence_directory_server = directory_server_string.clone();
-        self.mixnode.metrics_directory_server = directory_server_string;
+    pub fn with_custom_validator<S: Into<String>>(mut self, validator: S) -> Self {
+        self.mixnode.validator_rest_url = validator.into();
+        self
+    }
+
+    pub fn with_custom_metrics_server<S: Into<String>>(mut self, server: S) -> Self {
+        self.mixnode.metrics_server_url = server.into();
         self
     }
 
@@ -294,16 +295,12 @@ impl Config {
         self.mixnode.public_sphinx_key_file.clone()
     }
 
-    pub fn get_presence_directory_server(&self) -> String {
-        self.mixnode.presence_directory_server.clone()
+    pub fn get_validator_rest_endpoint(&self) -> String {
+        self.mixnode.validator_rest_url.clone()
     }
 
-    pub fn get_presence_sending_delay(&self) -> Duration {
-        self.debug.presence_sending_delay
-    }
-
-    pub fn get_metrics_directory_server(&self) -> String {
-        self.mixnode.metrics_directory_server.clone()
+    pub fn get_metrics_server(&self) -> String {
+        self.mixnode.metrics_server_url.clone()
     }
 
     pub fn get_metrics_sending_delay(&self) -> Duration {
@@ -356,7 +353,6 @@ impl Config {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct MixNode {
     /// Version of the mixnode for which this configuration was created.
     #[serde(default = "missing_string_value")]
@@ -377,7 +373,7 @@ pub struct MixNode {
     /// Socket address to which this mixnode will bind to and will be listening for packets.
     listening_address: SocketAddr,
 
-    /// Optional address announced to the directory server for the clients to connect to.
+    /// Optional address announced to the validator for the clients to connect to.
     /// It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
     /// later on by using name resolvable with a DNS query, such as `nymtech.net:8080`.
     /// Additionally a custom port can be provided, so both `nymtech.net:8080` and `nymtech.net`
@@ -399,13 +395,13 @@ pub struct MixNode {
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
 
-    // The idea of additional 'directory servers' is to let mixes report their presence
-    // and metrics to separate places
-    /// Directory server to which the server will be reporting their presence data.
-    presence_directory_server: String,
+    /// Validator server to which the node will be reporting their presence data.
+    #[serde(alias = "presence_directory_server")]
+    validator_rest_url: String,
 
-    /// Directory server to which the server will be reporting their metrics data.
-    metrics_directory_server: String,
+    /// Metrics server to which the node will be reporting their metrics data.
+    #[serde(default = "missing_string_value")]
+    metrics_server_url: String,
 
     /// nym_home_directory specifies absolute path to the home nym MixNodes directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
@@ -449,8 +445,8 @@ impl Default for MixNode {
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
-            presence_directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
-            metrics_directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
+            validator_rest_url: DEFAULT_VALIDATOR_REST_ENDPOINT.to_string(),
+            metrics_server_url: DEFAULT_METRICS_SERVER.to_string(),
             nym_root_directory: Config::default_root_directory(),
         }
     }
@@ -469,13 +465,6 @@ impl Default for Logging {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Debug {
-    /// Delay between each subsequent presence data being sent.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
-    presence_sending_delay: Duration,
-
     /// Delay between each subsequent metrics data being sent.
     #[serde(
         deserialize_with = "deserialize_duration",
@@ -524,7 +513,6 @@ pub struct Debug {
 impl Default for Debug {
     fn default() -> Self {
         Debug {
-            presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
             metrics_sending_delay: DEFAULT_METRICS_SENDING_DELAY,
             metrics_running_stats_logging_delay: DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY,
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,

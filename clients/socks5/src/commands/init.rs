@@ -19,11 +19,9 @@ use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use config::NymConfig;
 use crypto::asymmetric::identity;
-use directory_client::DirectoryClient;
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
 use rand::{prelude::SliceRandom, rngs::OsRng};
-use std::convert::TryInto;
 use std::process;
 use std::sync::Arc;
 use std::time::Duration;
@@ -105,10 +103,10 @@ async fn register_with_gateway(
 }
 
 async fn gateway_details(directory_server: &str, gateway_id: &str) -> gateway::Node {
-    let directory_client_config = directory_client::Config::new(directory_server.to_string());
-    let directory_client = directory_client::Client::new(directory_client_config);
-    let topology = directory_client.get_topology().await.unwrap();
-    let nym_topology: NymTopology = topology.try_into().expect("Invalid topology data!");
+    let validator_client_config = validator_client::Config::new(directory_server.to_string());
+    let validator_client = validator_client::Client::new(validator_client_config);
+    let topology = validator_client.get_active_topology().await.unwrap();
+    let nym_topology: NymTopology = topology.into();
     let version_filtered_topology = nym_topology.filter_system_version(env!("CARGO_PKG_VERSION"));
 
     version_filtered_topology
@@ -159,7 +157,7 @@ pub fn execute(matches: &ArgMatches) {
 
     let registration_fut = async {
         let gate_details =
-            gateway_details(&config.get_base().get_directory_server(), gateway_id).await;
+            gateway_details(&config.get_base().get_validator_rest_endpoint(), gateway_id).await;
         let shared_keys =
             register_with_gateway(&gate_details, key_manager.identity_keypair()).await;
         (shared_keys, gate_details.client_listener)

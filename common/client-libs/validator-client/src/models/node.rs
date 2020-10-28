@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod coconodes;
-pub mod gateways;
-pub mod mixnodes;
-pub mod providers;
-pub mod topology;
+use serde::{Deserialize, Serialize};
 
-pub use self::topology::{Topology, TopologyConversionError};
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct NodeInfo {
+    pub(crate) mix_host: String,
+    pub(crate) identity_key: String,
+    pub(crate) sphinx_key: String,
+    pub(crate) version: String,
+    pub(crate) location: String,
+}

@@ -30,8 +30,8 @@ version = '{{ client.version }}'
 # Human readable ID of this particular client.
 id = '{{ client.id }}'
 
-# URL to the directory server.
-directory_server = '{{ client.directory_server }}'
+# URL to the validator server for obtaining network topology.
+validator_rest_url = '{{ client.validator_rest_url }}'
 
 # Special mode of the system such that all messages are sent as soon as they are received
 # and no cover traffic is generated. If set all message delays are set to 0 and overwriting

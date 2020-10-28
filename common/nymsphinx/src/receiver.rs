@@ -216,13 +216,18 @@ mod message_receiver {
             vec![mix::Node {
                 location: "unknown".to_string(),
                 host: "10.20.30.40:1789".parse().unwrap(),
-                pub_key: encryption::PublicKey::from_base58_string(
+                identity_key: identity::PublicKey::from_base58_string(
+                    "3ebjp1Fb9hdcS1AR6AZihgeJiMHkB5jjJUsvqNnfQwU7",
+                )
+                .unwrap(),
+                sphinx_key: encryption::PublicKey::from_base58_string(
                     "B3GzG62aXAZNg14RoMCp3BhELNBrySLr2JqrwyfYFzRc",
                 )
                 .unwrap(),
                 layer: 1,
-                last_seen: 1594812897745695000,
+                registration_time: 1594812897745695000,
                 version: "0.8.0-dev".to_string(),
+                reputation: 100,
             }],
         );
 
@@ -231,13 +236,18 @@ mod message_receiver {
             vec![mix::Node {
                 location: "unknown".to_string(),
                 host: "11.21.31.41:1789".parse().unwrap(),
-                pub_key: encryption::PublicKey::from_base58_string(
+                identity_key: identity::PublicKey::from_base58_string(
+                    "D6YaMzLSY7mANtSQRKXsmMZpqgqiVkeiagKM4V4oFPFr",
+                )
+                .unwrap(),
+                sphinx_key: encryption::PublicKey::from_base58_string(
                     "5Z1VqYwM2xeKxd8H7fJpGWasNiDFijYBAee7MErkZ5QT",
                 )
                 .unwrap(),
                 layer: 2,
-                last_seen: 1594812897745695000,
+                registration_time: 1594812897745695000,
                 version: "0.8.0-dev".to_string(),
+                reputation: 100,
             }],
         );
 
@@ -246,19 +256,23 @@ mod message_receiver {
             vec![mix::Node {
                 location: "unknown".to_string(),
                 host: "12.22.32.42:1789".parse().unwrap(),
-                pub_key: encryption::PublicKey::from_base58_string(
+                identity_key: identity::PublicKey::from_base58_string(
+                    "GkWDysw4AjESv1KiAiVn7JzzCMJeksxNSXVfr1PpX8wD",
+                )
+                .unwrap(),
+                sphinx_key: encryption::PublicKey::from_base58_string(
                     "9EyjhCggr2QEA2nakR88YHmXgpy92DWxoe2draDRkYof",
                 )
                 .unwrap(),
                 layer: 3,
-                last_seen: 1594812897745695000,
+                registration_time: 1594812897745695000,
                 version: "0.8.0-dev".to_string(),
+                reputation: 100,
             }],
         );
 
         NymTopology::new(
             // currently coco_nodes don't really exist so this is still to be determined
-            vec![],
             mixes,
             vec![gateway::Node {
                 location: "unknown".to_string(),
@@ -272,7 +286,8 @@ mod message_receiver {
                     "EB42xvMFMD5rUCstE2CDazgQQJ22zLv8SPm1Luxni44c",
                 )
                 .unwrap(),
-                last_seen: 1594812897745695000,
+                registration_time: 1594812897745695000,
+                reputation: 100,
                 version: "0.8.0-dev".to_string(),
             }],
         )

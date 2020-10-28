@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use validator_client::models::mixnode::MixRegistrationInfo;
+use validator_client::models::gateway::GatewayRegistrationInfo;
 use validator_client::ValidatorClientError;
 
 // there's no point in keeping the validator client persistently as it might be literally hours or days
@@ -20,19 +20,25 @@ use validator_client::ValidatorClientError;
 pub(crate) async fn register_with_validator(
     validator_endpoint: String,
     mix_host: String,
+    clients_host: String,
     identity_key: String,
     sphinx_key: String,
     version: String,
     location: String,
-    layer: u64,
 ) -> Result<(), ValidatorClientError> {
     let config = validator_client::Config::new(validator_endpoint);
     let validator_client = validator_client::Client::new(config);
 
-    let registration_info =
-        MixRegistrationInfo::new(mix_host, identity_key, sphinx_key, version, location, layer);
+    let registration_info = GatewayRegistrationInfo::new(
+        mix_host,
+        clients_host,
+        identity_key,
+        sphinx_key,
+        version,
+        location,
+    );
 
-    validator_client.register_mix(registration_info).await
+    validator_client.register_gateway(registration_info).await
 }
 
 pub(crate) async fn unregister_with_validator(

@@ -64,11 +64,11 @@ public_sphinx_key_file = '{{ mixnode.public_sphinx_key_file }}'
 # `listening_address`.
 announce_address = '{{ mixnode.announce_address }}'
 
-# Directory server to which the server will be reporting their presence data.
-presence_directory_server = '{{ mixnode.presence_directory_server }}'
+# Validator server to which the node will be reporting their presence data.
+validator_rest_url = '{{ mixnode.validator_rest_url }}'
 
-# Directory server to which the server will be reporting their metrics data.
-metrics_directory_server = '{{ mixnode.metrics_directory_server }}'
+# Metrics server to which the node will be reporting their metrics data.
+metrics_server_url = '{{ mixnode.metrics_server_url }}'
 
 ##### advanced configuration options #####
 

@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use directory_client::metrics::MixMetric;
-use directory_client::DirectoryClient;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use log::*;
+use metrics_client::models::metrics::MixMetric;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -103,7 +102,7 @@ impl MetricsReceiver {
 
 struct MetricsSender {
     metrics: MixMetrics,
-    directory_client: directory_client::Client,
+    metrics_client: metrics_client::Client,
     pub_key_str: String,
     sending_delay: Duration,
     metrics_informer: MetricsInformer,
@@ -112,15 +111,15 @@ struct MetricsSender {
 impl MetricsSender {
     fn new(
         metrics: MixMetrics,
-        directory_server: String,
+        metrics_server: String,
         pub_key_str: String,
         sending_delay: Duration,
         running_logging_delay: Duration,
     ) -> Self {
         MetricsSender {
             metrics,
-            directory_client: directory_client::Client::new(directory_client::Config::new(
-                directory_server,
+            metrics_client: metrics_client::Client::new(metrics_client::Config::new(
+                metrics_server,
             )),
             pub_key_str,
             sending_delay,
@@ -140,7 +139,7 @@ impl MetricsSender {
                 self.metrics_informer.try_log_running_stats();
 
                 match self
-                    .directory_client
+                    .metrics_client
                     .post_mix_metrics(MixMetric {
                         pub_key: self.pub_key_str.clone(),
                         received,

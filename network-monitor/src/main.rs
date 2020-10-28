@@ -16,7 +16,6 @@ use crate::monitor::MixnetReceiver;
 use crate::run_info::{TestRunUpdateReceiver, TestRunUpdateSender};
 use crate::tested_network::{good_topology, TestedNetwork};
 use crypto::asymmetric::{encryption, identity};
-use directory_client::DirectoryClient;
 use futures::channel::mpsc;
 use gateway_client::GatewayClient;
 use monitor::{AckSender, MixnetSender, Monitor};
@@ -54,8 +53,8 @@ async fn main() {
     setup_logging();
 
     // Set up topology
-    let directory_uri = "https://qa-directory.nymtech.net";
-    println!("* directory server: {}", directory_uri);
+    let validator_rest_uri = "https://qa-directory.nymtech.net";
+    println!("* validator server: {}", validator_rest_uri);
 
     // TODO: this might change if it turns out we need both v4 and v6 gateway clients
     let gateway = tested_network::v4_gateway();
@@ -78,13 +77,13 @@ async fn main() {
         gateway.identity_key,
     );
 
-    let directory_client = new_directory_client(directory_uri);
+    let validator_client = new_validator_client(validator_rest_uri);
 
     let mut network_monitor = Monitor::new();
 
     let notifier = new_notifier(
         encryption_keypair,
-        Arc::clone(&directory_client),
+        Arc::clone(&validator_client),
         mixnet_receiver,
         test_run_receiver,
     );
@@ -93,7 +92,7 @@ async fn main() {
     let tested_network = new_tested_network(gateway_client).await;
 
     let packet_sender = new_packet_sender(
-        directory_client,
+        validator_client,
         tested_network,
         self_address,
         test_run_sender,
@@ -110,13 +109,13 @@ async fn new_tested_network(gateway_client: GatewayClient) -> TestedNetwork {
 }
 
 fn new_packet_sender(
-    directory_client: Arc<directory_client::Client>,
+    validator_client: Arc<validator_client::Client>,
     tested_network: TestedNetwork,
     self_address: Recipient,
     test_run_sender: TestRunUpdateSender,
 ) -> PacketSender {
     PacketSender::new(
-        directory_client,
+        validator_client,
         tested_network,
         self_address,
         test_run_sender,
@@ -144,21 +143,21 @@ pub fn new_gateway_client(
     )
 }
 
-fn new_directory_client(directory_uri: &str) -> Arc<directory_client::Client> {
-    let config = directory_client::Config::new(directory_uri.to_string());
-    Arc::new(DirectoryClient::new(config))
+fn new_validator_client(validator_rest_uri: &str) -> Arc<validator_client::Client> {
+    let config = validator_client::Config::new(validator_rest_uri.to_string());
+    Arc::new(validator_client::Client::new(config))
 }
 
 fn new_notifier(
     encryption_keypair: encryption::KeyPair,
-    directory_client: Arc<directory_client::Client>,
+    validator_client: Arc<validator_client::Client>,
     mixnet_receiver: MixnetReceiver,
     test_run_receiver: TestRunUpdateReceiver,
 ) -> Notifier {
     Notifier::new(
         mixnet_receiver,
         encryption_keypair,
-        directory_client,
+        validator_client,
         test_run_receiver,
     )
 }

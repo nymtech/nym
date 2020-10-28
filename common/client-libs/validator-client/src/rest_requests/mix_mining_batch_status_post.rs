@@ -1,32 +1,37 @@
-use super::{DirectoryPostRequest, DirectoryRequest};
-use crate::mixmining::BatchMixStatus;
-
-const PATH: &str = "/api/mixmining/batch";
+use crate::models::mixmining::BatchMixStatus;
+use crate::rest_requests::{PathParam, QueryParam, RESTRequest, RESTRequestError};
+use crate::DefaultRESTResponse;
+use reqwest::{Method, Url};
 
 pub struct Request {
-    base_url: String,
-    path: String,
+    url: Url,
     payload: BatchMixStatus,
 }
 
-impl DirectoryRequest for Request {
-    fn url(&self) -> String {
-        format!("{}{}", self.base_url, self.path)
-    }
-}
+impl RESTRequest for Request {
+    const METHOD: Method = Method::POST;
+    const RELATIVE_PATH: &'static str = "/api/mixmining/batch";
+    type JsonPayload = BatchMixStatus;
+    type ExpectedJsonResponse = DefaultRESTResponse;
 
-impl DirectoryPostRequest for Request {
-    type Payload = BatchMixStatus;
-    fn new(base_url: &str, payload: Self::Payload) -> Self {
-        Request {
-            base_url: base_url.to_string(),
-            path: PATH.to_string(),
-            payload,
-        }
+    fn new(
+        base_url: &str,
+        _: Option<Vec<PathParam>>,
+        _: Option<Vec<QueryParam>>,
+        body_payload: Option<Self::JsonPayload>,
+    ) -> Result<Self, RESTRequestError> {
+        let payload = body_payload.ok_or_else(|| RESTRequestError::NoPayloadProvided)?;
+        let url = Url::parse(&format!("{}{}", base_url, Self::RELATIVE_PATH))
+            .map_err(|err| RESTRequestError::MalformedUrl(err.to_string()))?;
+        Ok(Request { url, payload })
     }
 
-    fn json_payload(&self) -> &BatchMixStatus {
-        &self.payload
+    fn url(&self) -> &Url {
+        &self.url
+    }
+
+    fn json_payload(&self) -> Option<&Self::JsonPayload> {
+        Some(&self.payload)
     }
 }
 
@@ -42,12 +47,14 @@ mod batch_mix_status_post_request {
 
         #[tokio::test]
         async fn it_returns_an_error() {
-            let _m = mock("POST", PATH).with_status(400).create();
+            let _m = mock("POST", Request::RELATIVE_PATH)
+                .with_status(400)
+                .create();
             let client = client_test_fixture(&mockito::server_url());
             let result = client
                 .post_batch_mixmining_status(fixtures::new_status())
                 .await;
-            assert_eq!(400, result.unwrap().status());
+            assert!(result.is_err());
             _m.assert();
         }
     }
@@ -76,7 +83,7 @@ mod batch_mix_status_post_request {
 
     #[cfg(test)]
     mod fixtures {
-        use crate::mixmining::{BatchMixStatus, MixStatus};
+        use crate::models::mixmining::{BatchMixStatus, MixStatus};
 
         pub fn new_status() -> BatchMixStatus {
             BatchMixStatus {

@@ -1,22 +1,14 @@
 [package]
-name = "directory-client"
+name = "metrics-client"
 version = "0.1.0"
-authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
+authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[features]
-offline-test = []
-
 [dependencies]
-log = "0.4"
-pretty_env_logger = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 reqwest = { version = "0.10", features = ["json"] }
-
-## internal
-directory-client-models = { path = "models" }
 
 [dev-dependencies]
 mockito = "0.23.0"

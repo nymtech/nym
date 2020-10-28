@@ -82,8 +82,6 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
     print_start_upgrade(&from_version, &to_version);
 
     let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
-    // TODO: THIS IS INCOMPLETE AS ONCE PRESENCE IS REMOVED IN 0.9.0 IT WILL ALSO NEED
-    // TO BE PURGED FROM CONFIG
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);

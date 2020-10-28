@@ -355,7 +355,6 @@ version = "0.9.0-dev"
 dependencies = [
  "config",
  "crypto",
- "directory-client",
  "dirs 2.0.2",
  "futures 0.3.5",
  "gateway-client",
@@ -371,6 +370,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "topology",
+ "validator-client",
 ]
 
 [[package]]
@@ -601,28 +601,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3dd60d1080a57a05ab032377049e0591415d2b31afd7028356dbf3cc6dcb066"
 dependencies = [
  "generic-array 0.14.4",
-]
-
-[[package]]
-name = "directory-client"
-version = "0.1.0"
-dependencies = [
- "directory-client-models",
- "log",
- "mockito",
- "pretty_env_logger",
- "reqwest",
- "serde",
- "tokio",
-]
-
-[[package]]
-name = "directory-client-models"
-version = "0.1.0"
-dependencies = [
- "crypto",
- "serde",
- "topology",
 ]
 
 [[package]]
@@ -1323,6 +1301,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8452105ba047068f40ff7093dd1d9da90898e63dd61736462e9cdda6a90ad3c3"
 
 [[package]]
+name = "metrics-client"
+version = "0.1.0"
+dependencies = [
+ "mockito",
+ "reqwest",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "mime"
 version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1491,7 +1479,6 @@ name = "network-monitor"
 version = "0.9.0-dev"
 dependencies = [
  "crypto",
- "directory-client",
  "futures 0.3.5",
  "gateway-client",
  "log",
@@ -1501,6 +1488,7 @@ dependencies = [
  "serde",
  "tokio",
  "topology",
+ "validator-client",
  "version-checker",
 ]
 
@@ -1548,7 +1536,6 @@ dependencies = [
  "client-core",
  "config",
  "crypto",
- "directory-client",
  "dirs 3.0.1",
  "dotenv",
  "futures 0.3.5",
@@ -1567,6 +1554,7 @@ dependencies = [
  "tokio-tungstenite",
  "topology",
  "url",
+ "validator-client",
  "version-checker",
  "websocket-requests",
 ]
@@ -1577,7 +1565,6 @@ version = "0.9.0-dev"
 dependencies = [
  "console_error_panic_hook",
  "crypto",
- "directory-client",
  "futures 0.3.5",
  "gateway-client",
  "js-sys",
@@ -1585,6 +1572,7 @@ dependencies = [
  "rand",
  "serde",
  "topology",
+ "validator-client",
  "wasm-bindgen",
  "wasm-bindgen-futures 0.4.17",
  "wasm-bindgen-test",
@@ -1600,7 +1588,6 @@ dependencies = [
  "config",
  "crypto",
  "dashmap",
- "directory-client",
  "dirs 2.0.2",
  "dotenv",
  "futures 0.3.5",
@@ -1620,6 +1607,7 @@ dependencies = [
  "tokio-tungstenite",
  "tokio-util",
  "tungstenite",
+ "validator-client",
  "version-checker",
 ]
 
@@ -1632,12 +1620,12 @@ dependencies = [
  "config",
  "crypto",
  "curve25519-dalek 2.1.0",
- "directory-client",
  "dirs 2.0.2",
  "dotenv",
  "futures 0.3.5",
  "humantime-serde",
  "log",
+ "metrics-client",
  "mixnet-client",
  "mixnode-common",
  "nymsphinx",
@@ -1648,6 +1636,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "topology",
+ "validator-client",
  "version-checker",
 ]
 
@@ -1659,7 +1648,6 @@ dependencies = [
  "client-core",
  "config",
  "crypto",
- "directory-client",
  "dirs 3.0.1",
  "dotenv",
  "futures 0.3.5",
@@ -1678,6 +1666,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "topology",
+ "validator-client",
  "version-checker",
 ]
 
@@ -2959,8 +2948,13 @@ checksum = "05e42f7c18b8f902290b009cde6d651262f956c98bc51bca4cd1d511c9cd85c7"
 name = "validator-client"
 version = "0.1.0"
 dependencies = [
+ "crypto",
  "log",
- "pretty_env_logger",
+ "mockito",
+ "reqwest",
+ "serde",
+ "tokio",
+ "topology",
 ]
 
 [[package]]

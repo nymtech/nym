@@ -12,6 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod metrics;
-pub mod mixmining;
-pub mod presence;
+pub mod metrics_mixes_get;
+pub mod metrics_mixes_post;

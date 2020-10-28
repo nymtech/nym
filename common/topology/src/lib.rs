@@ -18,7 +18,6 @@ use nymsphinx_types::Node as SphinxNode;
 use rand::Rng;
 use std::collections::HashMap;
 
-pub mod coco;
 mod filter;
 pub mod gateway;
 pub mod mix;
@@ -37,26 +36,13 @@ pub type MixLayer = u8;
 
 #[derive(Debug, Clone)]
 pub struct NymTopology {
-    coco_nodes: Vec<coco::Node>,
     mixes: HashMap<MixLayer, Vec<mix::Node>>,
     gateways: Vec<gateway::Node>,
 }
 
 impl NymTopology {
-    pub fn new(
-        coco_nodes: Vec<coco::Node>,
-        mixes: HashMap<MixLayer, Vec<mix::Node>>,
-        gateways: Vec<gateway::Node>,
-    ) -> Self {
-        NymTopology {
-            coco_nodes,
-            mixes,
-            gateways,
-        }
-    }
-
-    pub fn coco_nodes(&self) -> &Vec<coco::Node> {
-        &self.coco_nodes
+    pub fn new(mixes: HashMap<MixLayer, Vec<mix::Node>>, gateways: Vec<gateway::Node>) -> Self {
+        NymTopology { mixes, gateways }
     }
 
     pub fn mixes(&self) -> &HashMap<MixLayer, Vec<mix::Node>> {
@@ -178,19 +164,17 @@ impl NymTopology {
     }
 
     pub fn filter_system_version(&self, expected_version: &str) -> Self {
-        self.filter_node_versions(expected_version, expected_version, expected_version)
+        self.filter_node_versions(expected_version, expected_version)
     }
 
     pub fn filter_node_versions(
         &self,
         expected_mix_version: &str,
         expected_gateway_version: &str,
-        expected_coco_version: &str,
     ) -> Self {
         NymTopology {
             mixes: self.mixes.filter_by_version(expected_mix_version),
             gateways: self.gateways.filter_by_version(expected_gateway_version),
-            coco_nodes: self.coco_nodes.filter_by_version(expected_coco_version),
         }
     }
 }
@@ -201,7 +185,7 @@ mod converting_mixes_to_vec {
 
     #[cfg(test)]
     mod when_nodes_exist {
-        use crypto::asymmetric::encryption;
+        use crypto::asymmetric::{encryption, identity};
 
         use super::*;
 
@@ -210,12 +194,17 @@ mod converting_mixes_to_vec {
             let node1 = mix::Node {
                 location: "London".to_string(),
                 host: "3.3.3.3:1789".parse().unwrap(),
-                pub_key: encryption::PublicKey::from_base58_string(
+                identity_key: identity::PublicKey::from_base58_string(
+                    "3ebjp1Fb9hdcS1AR6AZihgeJiMHkB5jjJUsvqNnfQwU7",
+                )
+                .unwrap(),
+                sphinx_key: encryption::PublicKey::from_base58_string(
                     "C7cown6dYCLZpLiMFC1PaBmhvLvmJmLDJGeRTbPD45bX",
                 )
                 .unwrap(),
                 layer: 1,
-                last_seen: 123,
+                registration_time: 123,
+                reputation: 0,
                 version: "0.x.0".to_string(),
             };
 
@@ -233,7 +222,7 @@ mod converting_mixes_to_vec {
             mixes.insert(1, vec![node1, node2]);
             mixes.insert(2, vec![node3]);
 
-            let topology = NymTopology::new(vec![], mixes, vec![]);
+            let topology = NymTopology::new(mixes, vec![]);
             let mixvec = topology.mixes_as_vec();
             assert!(mixvec
                 .iter()
@@ -249,7 +238,7 @@ mod converting_mixes_to_vec {
 
         #[test]
         fn returns_an_empty_vec() {
-            let topology = NymTopology::new(vec![], HashMap::new(), vec![]);
+            let topology = NymTopology::new(HashMap::new(), vec![]);
             let mixvec = topology.mixes_as_vec();
             assert!(mixvec.is_empty());
         }

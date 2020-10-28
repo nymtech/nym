@@ -1,32 +1,37 @@
-use super::{DirectoryPostRequest, DirectoryRequest};
-use crate::mixmining::MixStatus;
-
-const PATH: &str = "/api/mixmining";
+use crate::models::mixmining::MixStatus;
+use crate::rest_requests::{PathParam, QueryParam, RESTRequest, RESTRequestError};
+use crate::DefaultRESTResponse;
+use reqwest::{Method, Url};
 
 pub struct Request {
-    base_url: String,
-    path: String,
+    url: Url,
     payload: MixStatus,
 }
 
-impl DirectoryRequest for Request {
-    fn url(&self) -> String {
-        format!("{}{}", self.base_url, self.path)
-    }
-}
+impl RESTRequest for Request {
+    const METHOD: Method = Method::POST;
+    const RELATIVE_PATH: &'static str = "/api/mixmining";
+    type JsonPayload = MixStatus;
+    type ExpectedJsonResponse = DefaultRESTResponse;
 
-impl DirectoryPostRequest for Request {
-    type Payload = MixStatus;
-    fn new(base_url: &str, payload: Self::Payload) -> Self {
-        Request {
-            base_url: base_url.to_string(),
-            path: PATH.to_string(),
-            payload,
-        }
+    fn new(
+        base_url: &str,
+        _: Option<Vec<PathParam>>,
+        _: Option<Vec<QueryParam>>,
+        body_payload: Option<Self::JsonPayload>,
+    ) -> Result<Self, RESTRequestError> {
+        let payload = body_payload.ok_or_else(|| RESTRequestError::NoPayloadProvided)?;
+        let url = Url::parse(&format!("{}{}", base_url, Self::RELATIVE_PATH))
+            .map_err(|err| RESTRequestError::MalformedUrl(err.to_string()))?;
+        Ok(Request { url, payload })
     }
 
-    fn json_payload(&self) -> &MixStatus {
-        &self.payload
+    fn url(&self) -> &Url {
+        &self.url
+    }
+
+    fn json_payload(&self) -> Option<&Self::JsonPayload> {
+        Some(&self.payload)
     }
 }
 
@@ -42,10 +47,12 @@ mod mix_status_post_request {
 
         #[tokio::test]
         async fn it_returns_an_error() {
-            let _m = mock("POST", PATH).with_status(400).create();
+            let _m = mock("POST", Request::RELATIVE_PATH)
+                .with_status(400)
+                .create();
             let client = client_test_fixture(&mockito::server_url());
             let result = client.post_mixmining_status(fixtures::new_status()).await;
-            assert_eq!(400, result.unwrap().status());
+            assert!(result.is_err());
             _m.assert();
         }
     }
@@ -58,7 +65,7 @@ mod mix_status_post_request {
             let json = r#"{
                 "ok": true
             }"#;
-            let _m = mock("POST", "/api/mixmining")
+            let _m = mock("POST", Request::RELATIVE_PATH)
                 .with_status(201)
                 .with_body(json)
                 .create();
@@ -71,7 +78,7 @@ mod mix_status_post_request {
 
     #[cfg(test)]
     mod fixtures {
-        use directory_client_models::mixmining::MixStatus;
+        use crate::models::mixmining::MixStatus;
 
         pub fn new_status() -> MixStatus {
             MixStatus {

@@ -12,22 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MixProviderPresence {
-    pub location: String,
-    pub client_listener: String,
-    pub mixnet_listener: String,
-    pub pub_key: String,
-    pub registered_clients: Vec<MixProviderClient>,
-    pub last_seen: u64,
-    pub version: String,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MixProviderClient {
-    pub pub_key: String,
-}
+pub mod gateway;
+pub mod mixmining;
+pub mod mixnode;
+mod node;
+pub mod topology;

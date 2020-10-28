@@ -12,40 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::{DirectoryPostRequest, DirectoryRequest};
-use crate::presence::mixnodes::MixNodePresence;
+use crate::models::metrics::MixMetric;
 
-const PATH: &str = "/api/presence/mixnodes";
+const PATH: &str = "/api/metrics/mixes";
 
 pub struct Request {
     base_url: String,
     path: String,
-    payload: MixNodePresence,
+    payload: MixMetric,
 }
 
-impl DirectoryRequest for Request {
-    fn url(&self) -> String {
+impl Request {
+    pub(crate) fn url(&self) -> String {
         format!("{}{}", self.base_url, self.path)
     }
-}
 
-impl DirectoryPostRequest for Request {
-    type Payload = MixNodePresence;
-    fn json_payload(&self) -> &MixNodePresence {
-        &self.payload
-    }
-
-    fn new(base_url: &str, payload: Self::Payload) -> Self {
+    pub(crate) fn new(base_url: &str, payload: MixMetric) -> Self {
         Request {
             base_url: base_url.to_string(),
             path: PATH.to_string(),
             payload,
         }
     }
+
+    pub(crate) fn json_payload(&self) -> &MixMetric {
+        &self.payload
+    }
 }
 
 #[cfg(test)]
-mod presence_mixnodes_post_request {
+mod metrics_post_request {
     use super::*;
     use crate::client_test_fixture;
     use mockito::mock;
@@ -58,8 +54,7 @@ mod presence_mixnodes_post_request {
         async fn it_returns_an_error() {
             let _m = mock("POST", PATH).with_status(400).create();
             let client = client_test_fixture(&mockito::server_url());
-            let presence = fixtures::new_presence();
-            let result = client.post_mixnode_presence(presence).await;
+            let result = client.post_mix_metrics(fixtures::new_metric()).await;
             assert_eq!(400, result.unwrap().status());
             _m.assert();
         }
@@ -69,14 +64,14 @@ mod presence_mixnodes_post_request {
     mod on_a_200 {
         use super::*;
         #[tokio::test]
-        async fn it_returns_a_response_with_201() {
-            let json = r#"{
-                          "ok": true
-                      }"#;
-            let _m = mock("POST", PATH).with_status(201).with_body(json).create();
+        async fn it_returns_a_response_with_200() {
+            let json = fixtures::mix_metrics_response_json();
+            let _m = mock("POST", "/api/metrics/mixes")
+                .with_status(201)
+                .with_body(json)
+                .create();
             let client = client_test_fixture(&mockito::server_url());
-            let presence = fixtures::new_presence();
-            let result = client.post_mixnode_presence(presence).await;
+            let result = client.post_mix_metrics(fixtures::new_metric()).await;
             assert!(result.is_ok());
             _m.assert();
         }
@@ -84,17 +79,30 @@ mod presence_mixnodes_post_request {
 
     #[cfg(test)]
     mod fixtures {
-        use crate::presence::mixnodes::MixNodePresence;
+        use crate::models::metrics::MixMetric;
 
-        pub fn new_presence() -> MixNodePresence {
-            MixNodePresence {
-                location: "foomp".to_string(),
-                host: "foo.com".to_string(),
+        pub fn new_metric() -> MixMetric {
+            MixMetric {
                 pub_key: "abc".to_string(),
-                layer: 1,
-                last_seen: 0,
-                version: "0.1.0".to_string(),
+                received: 666,
+                sent: Default::default(),
             }
+        }
+
+        #[cfg(test)]
+        pub fn mix_metrics_response_json() -> String {
+            r#"
+              {
+                "pubKey": "OwOqwWjh_IlnaWS2PxO6odnhNahOYpRCkju50beQCTA=",
+                "sent": {
+                  "35.178.213.77:1789": 1,
+                  "52.56.99.196:1789": 2
+                },
+                "received": 10,
+                "timestamp": 1576061080635800000
+              }
+            "#
+            .to_string()
         }
     }
 }

@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use directory_client::DirectoryClient;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
-use std::convert::TryInto;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time;
@@ -146,7 +144,7 @@ impl TopologyRefresherConfig {
 }
 
 pub struct TopologyRefresher {
-    directory_client: directory_client::Client,
+    validator_client: validator_client::Client,
     topology_accessor: TopologyAccessor,
     refresh_rate: Duration,
 }
@@ -156,24 +154,24 @@ impl TopologyRefresher {
         cfg: TopologyRefresherConfig,
         topology_accessor: TopologyAccessor,
     ) -> Self {
-        let directory_client_config = directory_client::Config::new(cfg.directory_server);
-        let directory_client = directory_client::Client::new(directory_client_config);
+        let validator_client_config = validator_client::Config::new(cfg.directory_server);
+        let validator_client = validator_client::Client::new(validator_client_config);
 
         TopologyRefresher {
-            directory_client,
+            validator_client,
             topology_accessor,
             refresh_rate: cfg.refresh_rate,
         }
     }
 
     async fn get_current_compatible_topology(&self) -> Option<NymTopology> {
-        match self.directory_client.get_topology().await {
+        match self.validator_client.get_active_topology().await {
             Err(err) => {
-                error!("failed to get network topology! - {:?}", err);
+                error!("failed to get active network topology! - {:?}", err);
                 None
             }
             Ok(topology) => {
-                let nym_topology: NymTopology = topology.try_into().ok()?;
+                let nym_topology: NymTopology = topology.into();
                 Some(nym_topology.filter_system_version(env!("CARGO_PKG_VERSION")))
             }
         }

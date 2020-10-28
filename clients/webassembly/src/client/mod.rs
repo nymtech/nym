@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crypto::asymmetric::{encryption, identity};
-use directory_client::DirectoryClient;
 use futures::channel::mpsc;
 use gateway_client::GatewayClient;
 use js_sys::Promise;
@@ -23,7 +22,6 @@ use nymsphinx::params::PacketMode;
 use nymsphinx::preparer::MessagePreparer;
 use rand::rngs::OsRng;
 use received_processor::ReceivedMessagesProcessor;
-use std::convert::TryInto;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::{gateway, NymTopology};
@@ -43,7 +41,7 @@ const DEFAULT_VPN_KEY_REUSE_LIMIT: usize = 1000;
 
 #[wasm_bindgen]
 pub struct NymClient {
-    directory_server: String,
+    validator_server: String,
 
     // TODO: technically this doesn't need to be an Arc since wasm is run on a single thread
     // however, once we eventually combine this code with the native-client's, it will make things
@@ -78,7 +76,7 @@ impl NymClient {
             identity: Arc::new(identity),
             encryption_keys: Arc::new(encryption_keys),
             ack_key: Arc::new(ack_key),
-            directory_server,
+            validator_server: directory_server,
             message_preparer: None,
             // received_keys: Default::default(),
             topology: None,
@@ -235,25 +233,22 @@ impl NymClient {
     }
 
     pub fn get_full_topology_json(&self) -> Promise {
-        let directory_client_config = directory_client::Config::new(self.directory_server.clone());
-        let directory_client = directory_client::Client::new(directory_client_config);
+        let validator_client_config = validator_client::Config::new(self.validator_server.clone());
+        let validator_client = validator_client::Client::new(validator_client_config);
         future_to_promise(async move {
-            let topology = &directory_client.get_topology().await.unwrap();
+            let topology = &validator_client.get_active_topology().await.unwrap();
             Ok(JsValue::from_serde(&topology).unwrap())
         })
     }
 
     pub(crate) async fn get_nym_topology(&self) -> NymTopology {
-        let directory_client_config = directory_client::Config::new(self.directory_server.clone());
-        let directory_client = directory_client::Client::new(directory_client_config);
+        let validator_client_config = validator_client::Config::new(self.validator_server.clone());
+        let validator_client = validator_client::Client::new(validator_client_config);
 
-        match directory_client.get_topology().await {
+        match validator_client.get_active_topology().await {
             Err(err) => panic!(err),
             Ok(topology) => {
-                let nym_topology: NymTopology = topology
-                    .try_into()
-                    .ok()
-                    .expect("this is not a NYM topology!");
+                let nym_topology: NymTopology = topology.into();
                 let version = env!("CARGO_PKG_VERSION");
                 nym_topology.filter_system_version(version)
             }

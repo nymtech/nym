@@ -604,28 +604,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "directory-client"
-version = "0.1.0"
-dependencies = [
- "directory-client-models",
- "log",
- "mockito",
- "pretty_env_logger",
- "reqwest",
- "serde",
- "tokio",
-]
-
-[[package]]
-name = "directory-client-models"
-version = "0.1.0"
-dependencies = [
- "crypto",
- "serde",
- "topology",
-]
-
-[[package]]
 name = "dirs"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1587,7 +1565,6 @@ version = "0.9.0-dev"
 dependencies = [
  "console_error_panic_hook",
  "crypto",
- "directory-client",
  "futures 0.3.5",
  "gateway-client",
  "js-sys",
@@ -1595,6 +1572,7 @@ dependencies = [
  "rand",
  "serde",
  "topology",
+ "validator-client",
  "wasm-bindgen",
  "wasm-bindgen-futures 0.4.17",
  "wasm-bindgen-test",

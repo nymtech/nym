@@ -27,8 +27,8 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }
-directory-client = { path = "../../common/client-libs/directory-client" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
+validator-client = { path = "../../common/client-libs/validator-client" }
 wasm-utils = { path = "../../common/wasm-utils" }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by

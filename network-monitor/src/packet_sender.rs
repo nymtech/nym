@@ -16,7 +16,6 @@ use crate::chunker::Chunker;
 use crate::run_info::{RunInfo, TestRunUpdate, TestRunUpdateSender};
 use crate::test_packet::{IpVersion, TestPacket};
 use crate::tested_network::{TestMix, TestedNetwork};
-use directory_client::presence::mixnodes::MixNodePresence;
 use gateway_client::error::GatewayClientError;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
@@ -24,10 +23,12 @@ use nymsphinx::forwarding::packet::MixPacket;
 use std::convert::TryInto;
 use std::sync::Arc;
 use topology::mix;
+use validator_client::models::mixnode::RegisteredMix;
+use validator_client::ValidatorClientError;
 
 #[derive(Debug)]
 pub(crate) enum PacketSenderError {
-    DirectoryError(String),
+    ValidatorError(ValidatorClientError),
     GatewayError(GatewayClientError),
 }
 
@@ -39,7 +40,7 @@ impl From<GatewayClientError> for PacketSenderError {
 
 pub struct PacketSender {
     chunker: Chunker,
-    directory_client: Arc<directory_client::Client>,
+    validator_client: Arc<validator_client::Client>,
     tested_network: TestedNetwork,
     test_run_sender: TestRunUpdateSender,
     nonce: u64,
@@ -47,26 +48,26 @@ pub struct PacketSender {
 
 impl PacketSender {
     pub(crate) fn new(
-        directory_client: Arc<directory_client::Client>,
+        validator_client: Arc<validator_client::Client>,
         tested_network: TestedNetwork,
         self_address: Recipient,
         test_run_sender: TestRunUpdateSender,
     ) -> Self {
         PacketSender {
             chunker: Chunker::new(self_address),
-            directory_client,
+            validator_client,
             tested_network,
             test_run_sender,
             nonce: 0,
         }
     }
 
-    fn make_test_mix(&self, presence: MixNodePresence) -> TestMix {
+    fn make_test_mix(&self, mix: RegisteredMix) -> TestMix {
         // the reason for that conversion is that I want to operate on concrete types
         // rather than on "String" everywhere and also this way we remove obviously wrong
         // mixnodes where somebody is sending bullshit presence data.
-        let mix_id = presence.pub_key.clone();
-        let mix: Result<mix::Node, _> = presence.try_into();
+        let mix_id = mix.identity().clone();
+        let mix: Result<mix::Node, _> = mix.try_into();
         match mix {
             Err(err) => {
                 error!("mix {} is malformed - {:?}", mix_id, err);
@@ -77,8 +78,10 @@ impl PacketSender {
                     &mix.version,
                     self.tested_network.system_version(),
                 ) {
-                    let v4_test_packet = TestPacket::new(mix.pub_key, IpVersion::V4, self.nonce);
-                    let v6_test_packet = TestPacket::new(mix.pub_key, IpVersion::V6, self.nonce);
+                    let v4_test_packet =
+                        TestPacket::new(mix.identity_key, IpVersion::V4, self.nonce);
+                    let v6_test_packet =
+                        TestPacket::new(mix.identity_key, IpVersion::V6, self.nonce);
 
                     TestMix::ValidMix(mix, [v4_test_packet, v6_test_packet])
                 } else {
@@ -90,13 +93,13 @@ impl PacketSender {
 
     async fn get_test_mixes(&self) -> Result<Vec<TestMix>, PacketSenderError> {
         Ok(self
-            .directory_client
+            .validator_client
             .get_topology()
             .await
-            .map_err(|err| PacketSenderError::DirectoryError(err.to_string()))?
+            .map_err(|err| PacketSenderError::ValidatorError(err))?
             .mix_nodes
             .into_iter()
-            .map(|presence| self.make_test_mix(presence))
+            .map(|mix| self.make_test_mix(mix))
             .collect())
     }
 
@@ -113,9 +116,8 @@ impl PacketSender {
                     test_packets.push(mix_test_packets[1]);
                 }
                 TestMix::MalformedMix(pub_key) => malformed_mixes.push(pub_key.clone()),
-                TestMix::IncompatibleMix(mix) => {
-                    incompatible_mixes.push((mix.pub_key.to_base58_string(), mix.version.clone()))
-                }
+                TestMix::IncompatibleMix(mix) => incompatible_mixes
+                    .push((mix.identity_key.to_base58_string(), mix.version.clone())),
             }
         }
         RunInfo {

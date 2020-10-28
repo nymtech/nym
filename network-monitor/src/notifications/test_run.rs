@@ -14,10 +14,10 @@
 
 use crate::run_info::RunInfo;
 use crate::test_packet::TestPacket;
-use directory_client::mixmining::{BatchMixStatus, MixStatus};
 use log::*;
 use std::collections::{HashMap, HashSet};
 use std::mem;
+use validator_client::models::mixmining::{BatchMixStatus, MixStatus};
 
 pub(super) struct TestRun {
     print_report: bool,

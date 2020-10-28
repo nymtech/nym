@@ -20,68 +20,88 @@ use std::collections::HashMap;
 use topology::{gateway, mix, NymTopology};
 
 pub(crate) fn v4_mixnodes() -> Vec<mix::Node> {
+    todo!("this needs to be updated during 0.9.0 release when we deploy our 0.9.0 nodes");
+
     let goodnode1 = mix::Node {
         location: "London".to_string(),
         host: "213.52.129.218:1789".parse().unwrap(),
-        pub_key: PublicKey::from_base58_string("EJHwrLafqygqctkBCntVZfUkMSDErGUStJjZniQoRoJr")
-            .unwrap(),
-        last_seen: 1600276206950298819,
+        identity_key: identity::PublicKey::from_base58_string("TODO").unwrap(),
+        sphinx_key: encryption::PublicKey::from_base58_string(
+            "EJHwrLafqygqctkBCntVZfUkMSDErGUStJjZniQoRoJr",
+        )
+        .unwrap(),
+        registration_time: 1600276206950298819,
         layer: 1,
-        version: "0.8.0".to_string(),
+        version: "0.9.0".to_string(),
+        reputation: 100,
     };
 
     let goodnode2 = mix::Node {
         location: "Frankfurt".to_string(),
         host: "172.104.244.117:1789".parse().unwrap(),
-        pub_key: PublicKey::from_base58_string("BW7xskYvZyHt8rGFzsmG5bEQ9ViCYYxpFsEWDcNtSYvX")
+        identity_key: identity::PublicKey::from_base58_string("TODO").unwrap(),
+        sphinx_key: PublicKey::from_base58_string("BW7xskYvZyHt8rGFzsmG5bEQ9ViCYYxpFsEWDcNtSYvX")
             .unwrap(),
-        last_seen: 1600276206950298819,
+        registration_time: 1600276206950298819,
         layer: 2,
-        version: "0.8.0".to_string(),
+        version: "0.9.0".to_string(),
+        reputation: 100,
     };
 
     let goodnode3 = mix::Node {
         location: "London".to_string(),
         host: "178.79.136.231:1789".parse().unwrap(),
-        pub_key: PublicKey::from_base58_string("BqBGpP4YDH5fRDVKB97Ru7aq2Wbarb3SNfZL5LGaH83e")
+        identity_key: identity::PublicKey::from_base58_string("TODO").unwrap(),
+        sphinx_key: PublicKey::from_base58_string("BqBGpP4YDH5fRDVKB97Ru7aq2Wbarb3SNfZL5LGaH83e")
             .unwrap(),
         layer: 3,
-        last_seen: 1600276206950298819,
-        version: "0.8.0".to_string(),
+        registration_time: 1600276206950298819,
+        version: "0.9.0".to_string(),
+        reputation: 100,
     };
 
     vec![goodnode1, goodnode2, goodnode3]
 }
 
 pub(crate) fn v6_mixnodes() -> Vec<mix::Node> {
+    todo!("this needs to be updated during 0.9.0 release when we deploy our 0.9.0 nodes");
+
     let goodnode1 = mix::Node {
         location: "London".to_string(),
         host: "[2a01:7e00::f03c:92ff:fe16:3dc2]:1789".parse().unwrap(),
-        pub_key: PublicKey::from_base58_string("EJHwrLafqygqctkBCntVZfUkMSDErGUStJjZniQoRoJr")
-            .unwrap(),
-        last_seen: 1600276206950298819,
+        identity_key: identity::PublicKey::from_base58_string("TODO").unwrap(),
+        sphinx_key: encryption::PublicKey::from_base58_string(
+            "EJHwrLafqygqctkBCntVZfUkMSDErGUStJjZniQoRoJr",
+        )
+        .unwrap(),
+        registration_time: 1600276206950298819,
         layer: 1,
-        version: "0.8.0".to_string(),
+        version: "0.9.0".to_string(),
+        reputation: 100,
     };
 
     let goodnode2 = mix::Node {
         location: "Frankfurt".to_string(),
         host: "[2a01:7e01::f03c:92ff:fe16:3d11]:1789".parse().unwrap(),
-        pub_key: PublicKey::from_base58_string("BW7xskYvZyHt8rGFzsmG5bEQ9ViCYYxpFsEWDcNtSYvX")
+        identity_key: identity::PublicKey::from_base58_string("TODO").unwrap(),
+        sphinx_key: PublicKey::from_base58_string("BW7xskYvZyHt8rGFzsmG5bEQ9ViCYYxpFsEWDcNtSYvX")
             .unwrap(),
-        last_seen: 1600276206950298819,
+        registration_time: 1600276206950298819,
         layer: 2,
-        version: "0.8.0".to_string(),
+        version: "0.9.0".to_string(),
+        reputation: 100,
     };
 
     let goodnode3 = mix::Node {
         location: "London".to_string(),
         host: "[2a01:7e00::f03c:92ff:fe16:3d7b]:1789".parse().unwrap(),
-        pub_key: PublicKey::from_base58_string("BqBGpP4YDH5fRDVKB97Ru7aq2Wbarb3SNfZL5LGaH83e")
+        identity_key: identity::PublicKey::from_base58_string("TODO").unwrap(),
+        sphinx_key: PublicKey::from_base58_string("BqBGpP4YDH5fRDVKB97Ru7aq2Wbarb3SNfZL5LGaH83e")
             .unwrap(),
         layer: 3,
-        last_seen: 1600276206950298819,
-        version: "0.8.0".to_string(),
+        registration_time: 1600276206950298819,
+        version: "0.9.0".to_string(),
+        reputation: 100,
     };
 
     vec![goodnode1, goodnode2, goodnode3]
@@ -100,8 +120,9 @@ pub(crate) fn v4_gateway() -> gateway::Node {
             "6snGVMCatcTnvjGPaf8Ye7kCnVn6ThEDdCs4TZ7DbDVj",
         )
         .unwrap(),
-        last_seen: 1600424297774836793,
-        version: "0.8.0".to_string(),
+        registration_time: 1600424297774836793,
+        version: "0.9.0".to_string(),
+        reputation: 100,
     }
 }
 
@@ -118,8 +139,9 @@ pub(crate) fn v6_gateway() -> gateway::Node {
             "6snGVMCatcTnvjGPaf8Ye7kCnVn6ThEDdCs4TZ7DbDVj",
         )
         .unwrap(),
-        last_seen: 1600424297774836793,
-        version: "0.8.0".to_string(),
+        registration_time: 1600424297774836793,
+        version: "0.9.0".to_string(),
+        reputation: 100,
     }
 }
 
@@ -131,7 +153,7 @@ pub(crate) fn new_v4() -> NymTopology {
         layered_mixes.insert((i + 1) as u8, vec![node]);
     }
 
-    NymTopology::new(Vec::new(), layered_mixes, vec![v4_gateway()])
+    NymTopology::new(layered_mixes, vec![v4_gateway()])
 }
 
 /// Returns a new ipv6 NymTopology composed of known good nodes
@@ -142,7 +164,7 @@ pub(crate) fn new_v6() -> NymTopology {
         layered_mixes.insert((i + 1) as u8, vec![node]);
     }
 
-    NymTopology::new(Vec::new(), layered_mixes, vec![v6_gateway()])
+    NymTopology::new(layered_mixes, vec![v6_gateway()])
 }
 
 // Returns a new topology of known good nodes, with one good node replaced with a test node
@@ -163,20 +185,23 @@ mod good_topology_test {
         fn returns_good_topology_with_test_node_in_desired_layer() {
             let topology = expected_topology_with_test_node();
             let expected_gateway_key = topology.gateways().first().unwrap().identity_key;
-            let expected_layer_1_mixnode_pubkey =
-                topology.mixes_in_layer(1)[0].pub_key.to_base58_string();
-            let expected_layer_2_mixnode_pubkey =
-                topology.mixes_in_layer(2)[0].pub_key.to_base58_string();
-            let expected_layer_3_mixnode_pubkey =
-                topology.mixes_in_layer(3)[0].pub_key.to_base58_string();
+            let expected_layer_1_mixnode_pubkey = topology.mixes_in_layer(1)[0]
+                .identity_key
+                .to_base58_string();
+            let expected_layer_2_mixnode_pubkey = topology.mixes_in_layer(2)[0]
+                .identity_key
+                .to_base58_string();
+            let expected_layer_3_mixnode_pubkey = topology.mixes_in_layer(3)[0]
+                .identity_key
+                .to_base58_string();
             let result = new_v4_with_node(test_node());
             let actual_gateway_key = result.gateways().first().unwrap().identity_key;
             let actual_layer_1_mixnode_pubkey =
-                result.mixes_in_layer(1)[0].pub_key.to_base58_string();
+                result.mixes_in_layer(1)[0].identity_key.to_base58_string();
             let actual_layer_2_mixnode_pubkey =
-                result.mixes_in_layer(2)[0].pub_key.to_base58_string();
+                result.mixes_in_layer(2)[0].identity_key.to_base58_string();
             let actual_layer_3_mixnode_pubkey =
-                result.mixes_in_layer(3)[0].pub_key.to_base58_string();
+                result.mixes_in_layer(3)[0].identity_key.to_base58_string();
 
             assert_eq!(expected_gateway_key, actual_gateway_key);
             assert_eq!(
@@ -204,20 +229,25 @@ mod good_topology_test {
         mixes.insert(1, vec![mix1]);
         mixes.insert(2, vec![mix2]);
         mixes.insert(3, vec![mix3]);
-        NymTopology::new(vec![], mixes, vec![v4_gateway()])
+        NymTopology::new(mixes, vec![v4_gateway()])
     }
 
     fn test_node() -> mix::Node {
         mix::Node {
             location: "Thunder Bay".to_string(),
             host: "1.2.3.4:1234".parse().unwrap(),
-            pub_key: encryption::PublicKey::from_base58_string(
+            identity_key: identity::PublicKey::from_base58_string(
+                "3ebjp1Fb9hdcS1AR6AZihgeJiMHkB5jjJUsvqNnfQwU7",
+            )
+            .unwrap(),
+            sphinx_key: encryption::PublicKey::from_base58_string(
                 "9fX1rMaQdBEzjuv6kT7oyPfEabt73QTM5cfuQ9kaxrRQ",
             )
             .unwrap(),
             layer: 1,
-            last_seen: 1234,
-            version: "0.8.1".to_string(),
+            registration_time: 1234,
+            version: "0.9.0".to_string(),
+            reputation: 42,
         }
     }
 }

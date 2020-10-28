@@ -155,7 +155,7 @@ pub fn execute(matches: &ArgMatches) {
 
     let registration_fut = async {
         let gate_details =
-            gateway_details(&config.get_base().get_directory_server(), gateway_id).await;
+            gateway_details(&config.get_base().get_validator_rest_endpoint(), gateway_id).await;
         let shared_keys =
             register_with_gateway(&gate_details, key_manager.identity_keypair()).await;
         (shared_keys, gate_details.client_listener)

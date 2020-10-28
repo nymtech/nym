@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::{missing_string_value, Config, DEFAULT_VALIDATOR_REST_ENDPOINT, MISSING_VALUE};
+use crate::config::{missing_string_value, Config, MISSING_VALUE};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use std::fmt::Display;
@@ -81,20 +81,8 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
 
     print_start_upgrade(&from_version, &to_version);
 
-    if config.get_validator_rest_endpoint() != missing_string_value() {
-        eprintln!("existing config seems to have specified new validator endpoinnt which was only introduced in 0.9.0! Can't perform upgrade.");
-        print_failed_upgrade(&from_version, &to_version);
-        process::exit(1);
-    }
-
     let upgraded_config = config
         .with_custom_version(to_version.to_string().as_ref())
-        .with_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT);
-
-    println!(
-        "Setting validator REST endpoint to {}",
-        DEFAULT_VALIDATOR_REST_ENDPOINT
-    );
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);

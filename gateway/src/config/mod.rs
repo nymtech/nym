@@ -489,7 +489,7 @@ pub struct Gateway {
     public_sphinx_key_file: PathBuf,
 
     /// Validator server to which the node will be reporting their presence data.
-    #[serde(default = "missing_string_value")]
+    #[serde(alias = "presence_directory_server")]
     validator_rest_url: String,
 
     /// nym_home_directory specifies absolute path to the home nym gateways directory.

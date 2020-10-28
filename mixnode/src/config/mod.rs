@@ -396,7 +396,7 @@ pub struct MixNode {
     public_sphinx_key_file: PathBuf,
 
     /// Validator server to which the node will be reporting their presence data.
-    #[serde(default = "missing_string_value")]
+    #[serde(alias = "presence_directory_server")]
     validator_rest_url: String,
 
     /// Metrics server to which the node will be reporting their metrics data.

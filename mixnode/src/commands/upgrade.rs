@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::{
-    missing_string_value, Config, DEFAULT_METRICS_SERVER, DEFAULT_VALIDATOR_REST_ENDPOINT,
-};
+use crate::config::{missing_string_value, Config, DEFAULT_METRICS_SERVER};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::identity;
@@ -95,23 +93,16 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
         process::exit(1);
     }
 
-    if config.get_validator_rest_endpoint() != missing_string_value::<String>()
-        || config.get_metrics_server() != missing_string_value::<String>()
-    {
-        eprintln!("existing config seems to have specified new validator and/or metrics-server endpoinnts which were only introduced in 0.9.0! Can't perform upgrade.");
+    if config.get_metrics_server() != missing_string_value::<String>() {
+        eprintln!("existing config seems to have specified new  metrics-server endpoint which was only introduced in 0.9.0! Can't perform upgrade.");
         print_failed_upgrade(&from_version, &to_version);
         process::exit(1);
     }
 
     let mut upgraded_config = config
         .with_custom_version(to_version.to_string().as_ref())
-        .with_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT)
         .with_custom_metrics_server(DEFAULT_METRICS_SERVER);
 
-    println!(
-        "Setting validator REST endpoint to {}",
-        DEFAULT_VALIDATOR_REST_ENDPOINT
-    );
     println!("Setting metrics server to {}", DEFAULT_METRICS_SERVER);
 
     println!("Generating new identity...");

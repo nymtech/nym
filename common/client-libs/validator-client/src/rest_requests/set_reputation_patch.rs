@@ -22,7 +22,7 @@ pub struct Request {
 
 impl RESTRequest for Request {
     const METHOD: Method = Method::PATCH;
-    const RELATIVE_PATH: &'static str = "/api/presence/reputation";
+    const RELATIVE_PATH: &'static str = "/api/mixmining/reputation";
     type JsonPayload = ();
     type ExpectedJsonResponse = DefaultRESTResponse;
 

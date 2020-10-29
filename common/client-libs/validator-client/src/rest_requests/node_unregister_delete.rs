@@ -22,7 +22,7 @@ pub struct Request {
 
 impl RESTRequest for Request {
     const METHOD: Method = Method::DELETE;
-    const RELATIVE_PATH: &'static str = "/api/presence";
+    const RELATIVE_PATH: &'static str = "/api/mixmining/register";
     type JsonPayload = ();
     type ExpectedJsonResponse = DefaultRESTResponse;
 
@@ -37,7 +37,7 @@ impl RESTRequest for Request {
         if path_params.len() != 1 {
             return Err(RESTRequestError::InvalidPathParams);
         }
-        // <base_url>/api/presence/{id}
+        // <base_url>/api/mixmining/register/{id}
         let base = format!("{}{}/{}", base_url, Self::RELATIVE_PATH, path_params[0]);
 
         let url =

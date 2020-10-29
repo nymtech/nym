@@ -24,7 +24,7 @@ pub struct Request {
 
 impl RESTRequest for Request {
     const METHOD: Method = Method::POST;
-    const RELATIVE_PATH: &'static str = "/api/presence/gateway";
+    const RELATIVE_PATH: &'static str = "/api/mixmining/register/gateway";
 
     type JsonPayload = GatewayRegistrationInfo;
     type ExpectedJsonResponse = DefaultRESTResponse;

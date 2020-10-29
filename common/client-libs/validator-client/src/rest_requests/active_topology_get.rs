@@ -31,7 +31,7 @@ pub(crate) enum Response {
 
 impl RESTRequest for Request {
     const METHOD: Method = Method::GET;
-    const RELATIVE_PATH: &'static str = "/api/presence/topology/active";
+    const RELATIVE_PATH: &'static str = "/api/mixmining/topology/active";
 
     type JsonPayload = ();
     type ExpectedJsonResponse = Response;

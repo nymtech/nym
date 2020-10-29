@@ -44,7 +44,7 @@ impl RESTRequest for Request {
             return Err(RESTRequestError::InvalidQueryParams);
         }
 
-        // <base_url>/api/presence/reputation/{id}
+        // <base_url>/api/mixmining/reputation/{id}
         let base = format!("{}{}/{}", base_url, Self::RELATIVE_PATH, path_params[0]);
 
         let url = Url::parse_with_params(&base, query_params)

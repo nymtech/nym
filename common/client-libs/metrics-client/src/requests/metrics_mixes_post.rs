@@ -55,7 +55,7 @@ mod metrics_post_request {
             let _m = mock("POST", PATH).with_status(400).create();
             let client = client_test_fixture(&mockito::server_url());
             let result = client.post_mix_metrics(fixtures::new_metric()).await;
-            assert_eq!(400, result.unwrap().status());
+            assert!(result.is_err());
             _m.assert();
         }
     }
@@ -65,7 +65,7 @@ mod metrics_post_request {
         use super::*;
         #[tokio::test]
         async fn it_returns_a_response_with_200() {
-            let json = fixtures::mix_metrics_response_json();
+            let json = fixtures::metrics_interval_json();
             let _m = mock("POST", "/api/metrics/mixes")
                 .with_status(201)
                 .with_body(json)
@@ -90,17 +90,11 @@ mod metrics_post_request {
         }
 
         #[cfg(test)]
-        pub fn mix_metrics_response_json() -> String {
+        pub fn metrics_interval_json() -> String {
             r#"
-              {
-                "pubKey": "OwOqwWjh_IlnaWS2PxO6odnhNahOYpRCkju50beQCTA=",
-                "sent": {
-                  "35.178.213.77:1789": 1,
-                  "52.56.99.196:1789": 2
-                },
-                "received": 10,
-                "timestamp": 1576061080635800000
-              }
+                {
+                  "nextReportIn": 5
+                }
             "#
             .to_string()
         }

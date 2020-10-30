@@ -31,3 +31,9 @@ pub struct MixMetric {
     pub received: u64,
     pub sent: HashMap<String, u64>,
 }
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MixMetricInterval {
+    pub next_report_in: u64,
+}

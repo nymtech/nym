@@ -15,7 +15,7 @@
 pub mod models;
 pub mod requests;
 
-use crate::models::metrics::{MixMetric, PersistedMixMetric};
+use crate::models::metrics::{MixMetric, MixMetricInterval, PersistedMixMetric};
 use crate::requests::metrics_mixes_get::Request as MetricsMixRequest;
 use crate::requests::metrics_mixes_post::Request as MetricsMixPost;
 
@@ -43,12 +43,14 @@ impl Client {
         }
     }
 
-    pub async fn post_mix_metrics(&self, metrics: MixMetric) -> reqwest::Result<reqwest::Response> {
+    pub async fn post_mix_metrics(&self, metrics: MixMetric) -> reqwest::Result<MixMetricInterval> {
         let req = MetricsMixPost::new(&self.base_url, metrics);
         self.reqwest_client
             .post(&req.url())
             .json(req.json_payload())
             .send()
+            .await?
+            .json()
             .await
     }
 

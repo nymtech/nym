@@ -21,7 +21,6 @@ use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
-use version_checker::is_minor_version_compatible;
 
 mod listener;
 mod metrics;
@@ -52,7 +51,6 @@ impl MixNode {
         metrics::MetricsController::new(
             self.config.get_metrics_server(),
             self.sphinx_keypair.public_key().to_base58_string(),
-            self.config.get_metrics_sending_delay(),
             self.config.get_metrics_running_stats_logging_delay(),
         )
         .start()
@@ -127,31 +125,8 @@ impl MixNode {
         }
     }
 
-    // this only checks compatibility between config the binary. It does not take into consideration
-    // network version. It might do so in the future.
-    fn version_check(&self) -> bool {
-        let binary_version = env!("CARGO_PKG_VERSION");
-        let config_version = self.config.get_version();
-        if binary_version != config_version {
-            warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
-            if is_minor_version_compatible(binary_version, config_version) {
-                info!("but they are still semver compatible. However, consider running the `upgrade` command");
-                true
-            } else {
-                error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
-                false
-            }
-        } else {
-            true
-        }
-    }
-
     pub fn run(&mut self) {
         info!("Starting nym mixnode");
-        if !self.version_check() {
-            error!("failed the local version check");
-            return;
-        }
 
         let mut runtime = Runtime::new().unwrap();
 

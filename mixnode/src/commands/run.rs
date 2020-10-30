@@ -39,12 +39,6 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("config")
-                .long("config")
-                .help("Custom path to the nym-mixnode configuration file")
-                .takes_value(true),
-        )
-        .arg(
             Arg::with_name("layer")
                 .long("layer")
                 .help("The mixnet layer of this particular node")
@@ -153,10 +147,7 @@ pub fn execute(matches: &ArgMatches) {
 
     println!("Starting mixnode {}...", id);
 
-    let mut config = match Config::load_from_file(
-        matches.value_of("config").map(|path| path.into()),
-        Some(id),
-    ) {
+    let mut config = match Config::load_from_file(id) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);

@@ -30,11 +30,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .required(true)
         )
         // the rest of arguments are optional, they are used to override settings in config file
-        .arg(Arg::with_name("config")
-            .long("config")
-            .help("Custom path to the nym-mixnet-client configuration file")
-            .takes_value(true)
-        )
         .arg(Arg::with_name("directory")
             .long("directory")
             .help("Address of the directory server the client is getting topology from")
@@ -90,10 +85,7 @@ fn version_check(cfg: &Config) -> bool {
 pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
 
-    let mut config = match Config::load_from_file(
-        matches.value_of("config").map(|path| path.into()),
-        Some(id),
-    ) {
+    let mut config = match Config::load_from_file(id) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);

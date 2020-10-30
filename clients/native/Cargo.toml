@@ -43,5 +43,4 @@ validator-client = { path = "../../common/client-libs/validator-client" }
 version-checker = { path = "../../common/version-checker" }
 
 [dev-dependencies]
-tempfile = "3.1.0"
 serde_json = "1.0" # for the "textsend" example

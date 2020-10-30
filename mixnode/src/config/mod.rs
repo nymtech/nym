@@ -509,23 +509,3 @@ impl Default for Debug {
         }
     }
 }
-
-#[cfg(test)]
-mod mixnode_config {
-    use super::*;
-
-    #[test]
-    fn after_saving_default_config_the_loaded_one_is_identical() {
-        // need to figure out how to do something similar but without touching the disk
-        // or the file system at all...
-        let temp_location = tempfile::tempdir().unwrap().path().join("config.toml");
-        let default_config = Config::default().with_id("foomp".to_string());
-        default_config
-            .save_to_file(Some(temp_location.clone()))
-            .unwrap();
-
-        let loaded_config = Config::load_from_file(Some(temp_location), None).unwrap();
-
-        assert_eq!(default_config, loaded_config);
-    }
-}

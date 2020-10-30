@@ -70,9 +70,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
 pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
 
-    let mut config =
-        Config::load_from_file(matches.value_of("config").map(|path| path.into()), Some(id))
-            .expect("Failed to load config file");
+    let mut config = Config::load_from_file(id).expect("Failed to load config file");
 
     config = override_config(config, matches);
 

@@ -35,7 +35,6 @@ pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://directory.nymt
 pub(crate) const DEFAULT_METRICS_SERVER: &str = "https://metrics.nymtech.net";
 
 // 'DEBUG'
-const DEFAULT_METRICS_SENDING_DELAY: Duration = Duration::from_millis(5_000);
 const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
@@ -303,10 +302,6 @@ impl Config {
         self.mixnode.metrics_server_url.clone()
     }
 
-    pub fn get_metrics_sending_delay(&self) -> Duration {
-        self.debug.metrics_sending_delay
-    }
-
     pub fn get_metrics_running_stats_logging_delay(&self) -> Duration {
         self.debug.metrics_running_stats_logging_delay
     }
@@ -465,13 +460,6 @@ impl Default for Logging {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Debug {
-    /// Delay between each subsequent metrics data being sent.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
-    metrics_sending_delay: Duration,
-
     /// Delay between each subsequent running metrics statistics being logged.
     #[serde(
         deserialize_with = "deserialize_duration",
@@ -513,7 +501,6 @@ pub struct Debug {
 impl Default for Debug {
     fn default() -> Self {
         Debug {
-            metrics_sending_delay: DEFAULT_METRICS_SENDING_DELAY,
             metrics_running_stats_logging_delay: DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY,
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,

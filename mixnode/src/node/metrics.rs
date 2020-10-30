@@ -22,6 +22,8 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::task::JoinHandle;
 
+const METRICS_FAILURE_BACKOFF: Duration = Duration::from_secs(30);
+
 type SentMetricsMap = HashMap<String, u64>;
 
 pub(crate) enum MetricEvent {
@@ -104,7 +106,6 @@ struct MetricsSender {
     metrics: MixMetrics,
     metrics_client: metrics_client::Client,
     pub_key_str: String,
-    sending_delay: Duration,
     metrics_informer: MetricsInformer,
 }
 
@@ -113,7 +114,6 @@ impl MetricsSender {
         metrics: MixMetrics,
         metrics_server: String,
         pub_key_str: String,
-        sending_delay: Duration,
         running_logging_delay: Duration,
     ) -> Self {
         MetricsSender {
@@ -122,7 +122,6 @@ impl MetricsSender {
                 metrics_server,
             )),
             pub_key_str,
-            sending_delay,
             metrics_informer: MetricsInformer::new(running_logging_delay),
         }
     }
@@ -130,15 +129,15 @@ impl MetricsSender {
     fn start(mut self) -> JoinHandle<()> {
         tokio::spawn(async move {
             loop {
-                // set the deadline in the future
-                let sending_delay = tokio::time::delay_for(self.sending_delay);
+                // // set the deadline in the future
+                // let sending_delay = tokio::time::delay_for(self.sending_delay);
                 let (received, sent) = self.metrics.acquire_and_reset_metrics().await;
 
                 self.metrics_informer.update_running_stats(received, &sent);
                 self.metrics_informer.log_report_stats(received, &sent);
                 self.metrics_informer.try_log_running_stats();
 
-                match self
+                let sending_delay = match self
                     .metrics_client
                     .post_mix_metrics(MixMetric {
                         pub_key: self.pub_key_str.clone(),
@@ -147,9 +146,16 @@ impl MetricsSender {
                     })
                     .await
                 {
-                    Err(err) => error!("failed to send metrics - {:?}", err),
-                    Ok(_) => debug!("sent metrics information"),
-                }
+                    Err(err) => {
+                        error!("failed to send metrics - {:?}", err);
+                        tokio::time::delay_for(METRICS_FAILURE_BACKOFF)
+                    }
+                    Ok(new_interval) => {
+                        debug!("sent metrics information");
+                        println!("received delay: {:?}", new_interval.next_report_in);
+                        tokio::time::delay_for(Duration::from_secs(new_interval.next_report_in))
+                    }
+                };
 
                 // wait for however much is left
                 sending_delay.await;
@@ -261,7 +267,6 @@ impl MetricsController {
     pub(crate) fn new(
         directory_server: String,
         pub_key_str: String,
-        sending_delay: Duration,
         running_stats_logging_delay: Duration,
     ) -> Self {
         let (metrics_tx, metrics_rx) = mpsc::unbounded();
@@ -272,7 +277,6 @@ impl MetricsController {
                 shared_metrics.clone(),
                 directory_server,
                 pub_key_str,
-                sending_delay,
                 running_stats_logging_delay,
             ),
             receiver: MetricsReceiver::new(shared_metrics, metrics_rx),

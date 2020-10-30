@@ -19,6 +19,7 @@ use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
+use version_checker::is_minor_version_compatible;
 
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("run")
@@ -128,6 +129,25 @@ fn load_sphinx_keys(pathfinder: &MixNodePathfinder) -> encryption::KeyPair {
     sphinx_keypair
 }
 
+// this only checks compatibility between config the binary. It does not take into consideration
+// network version. It might do so in the future.
+fn version_check(cfg: &Config) -> bool {
+    let binary_version = env!("CARGO_PKG_VERSION");
+    let config_version = cfg.get_version();
+    if binary_version != config_version {
+        warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
+        if is_minor_version_compatible(binary_version, config_version) {
+            info!("but they are still semver compatible. However, consider running the `upgrade` command");
+            true
+        } else {
+            error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
+            false
+        }
+    } else {
+        true
+    }
+}
+
 pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
 
@@ -145,6 +165,11 @@ pub fn execute(matches: &ArgMatches) {
     };
 
     config = override_config(config, matches);
+
+    if !version_check(&config) {
+        error!("failed the local version check");
+        return;
+    }
 
     let pathfinder = MixNodePathfinder::new_from_config(&config);
     let identity_keypair = load_identity_keys(&pathfinder);

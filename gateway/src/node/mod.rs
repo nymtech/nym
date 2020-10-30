@@ -22,7 +22,6 @@ use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
-use version_checker::is_minor_version_compatible;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
@@ -165,34 +164,11 @@ impl Gateway {
             .map(|node| node.identity())
     }
 
-    // this only checks compatibility between config the binary. It does not take into consideration
-    // network version. It might do so in the future.
-    fn version_check(&self) -> bool {
-        let binary_version = env!("CARGO_PKG_VERSION");
-        let config_version = self.config.get_version();
-        if binary_version != config_version {
-            warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
-            if is_minor_version_compatible(binary_version, config_version) {
-                info!("but they are still semver compatible. However, consider running the `upgrade` command");
-                true
-            } else {
-                error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
-                false
-            }
-        } else {
-            true
-        }
-    }
-
     // Rather than starting all futures with explicit `&Handle` argument, let's see how it works
     // out if we make it implicit using `tokio::spawn` inside Runtime context.
     // Basically more or less equivalent of using #[tokio::main] attribute.
     pub fn run(&mut self) {
         info!("Starting nym gateway!");
-        if !self.version_check() {
-            error!("failed the local version check");
-            return;
-        }
 
         let mut runtime = Runtime::new().unwrap();
 

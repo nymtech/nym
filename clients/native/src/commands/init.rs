@@ -131,10 +131,12 @@ pub fn execute(matches: &ArgMatches) {
 
     let id = matches.value_of("id").unwrap(); // required for now
 
-    if Config::default_config_file_path(id).exists() {
-        eprintln!("Client \"{}\" was already initialised before! If you wanted to upgrade your client to most recent version, try `upgrade` command instead!", id);
-        process::exit(1);
-    }
+    let already_init = if Config::default_config_file_path(id).exists() {
+        println!("Client \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
+        true
+    } else {
+        false
+    };
 
     let mut config = Config::new(id);
 
@@ -147,33 +149,37 @@ pub fn execute(matches: &ArgMatches) {
         config.get_base_mut().set_high_default_traffic_volume();
     }
 
-    // create identity, encryption and ack keys.
-    let mut key_manager = KeyManager::new(&mut rng);
+    // if client was already initialised, don't generate new keys, not re-register with gateway
+    // (because this would create new shared key)
+    if !already_init {
+        // create identity, encryption and ack keys.
+        let mut key_manager = KeyManager::new(&mut rng);
 
-    let gateway_id = select_gateway(matches.value_of("gateway"));
-    config.get_base_mut().with_gateway_id(gateway_id);
+        let gateway_id = select_gateway(matches.value_of("gateway"));
+        config.get_base_mut().with_gateway_id(gateway_id);
 
-    let registration_fut = async {
-        let gate_details =
-            gateway_details(&config.get_base().get_validator_rest_endpoint(), gateway_id).await;
-        let shared_keys =
-            register_with_gateway(&gate_details, key_manager.identity_keypair()).await;
-        (shared_keys, gate_details.client_listener)
-    };
+        let registration_fut = async {
+            let gate_details =
+                gateway_details(&config.get_base().get_validator_rest_endpoint(), gateway_id).await;
+            let shared_keys =
+                register_with_gateway(&gate_details, key_manager.identity_keypair()).await;
+            (shared_keys, gate_details.client_listener)
+        };
 
-    // TODO: is there perhaps a way to make it work without having to spawn entire runtime?
-    let mut rt = tokio::runtime::Runtime::new().unwrap();
-    let (shared_keys, gateway_listener) = rt.block_on(registration_fut);
-    config
-        .get_base_mut()
-        .with_gateway_listener(gateway_listener);
-    key_manager.insert_gateway_shared_key(shared_keys);
+        // TODO: is there perhaps a way to make it work without having to spawn entire runtime?
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let (shared_keys, gateway_listener) = rt.block_on(registration_fut);
+        config
+            .get_base_mut()
+            .with_gateway_listener(gateway_listener);
+        key_manager.insert_gateway_shared_key(shared_keys);
 
-    let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-    key_manager
-        .store_keys(&pathfinder)
-        .expect("Failed to generated keys");
-    println!("Saved all generated keys");
+        let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
+        key_manager
+            .store_keys(&pathfinder)
+            .expect("Failed to generated keys");
+        println!("Saved all generated keys");
+    }
 
     let config_save_location = config.get_config_file_save_location();
     config

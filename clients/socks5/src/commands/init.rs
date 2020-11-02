@@ -52,9 +52,9 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .help("Id of the gateway we are going to connect to.")
             .takes_value(true)
         )
-        .arg(Arg::with_name("directory")
-            .long("directory")
-            .help("Address of the directory server the client is getting topology from")
+        .arg(Arg::with_name("validator")
+            .long("validator")
+            .help("Address of the validator server the client is getting topology from")
             .takes_value(true),
         )
         .arg(Arg::with_name("port")
@@ -102,8 +102,8 @@ async fn register_with_gateway(
         .expect("failed to register with the gateway!")
 }
 
-async fn gateway_details(directory_server: &str, gateway_id: &str) -> gateway::Node {
-    let validator_client_config = validator_client::Config::new(directory_server.to_string());
+async fn gateway_details(validator_server: &str, gateway_id: &str) -> gateway::Node {
+    let validator_client_config = validator_client::Config::new(validator_server.to_string());
     let validator_client = validator_client::Client::new(validator_client_config);
     let topology = validator_client.get_active_topology().await.unwrap();
     let nym_topology: NymTopology = topology.into();

@@ -107,7 +107,7 @@ impl Client {
                 match self.start_new_connection_manager(socket_address).await {
                     Ok(res) => res,
                     Err(err) => {
-                        warn!(
+                        debug!(
                             "failed to establish initial connection to {} - {}",
                             socket_address, err
                         );

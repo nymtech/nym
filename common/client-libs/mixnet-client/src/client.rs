@@ -69,18 +69,19 @@ impl Client {
     async fn start_new_connection_manager(
         &mut self,
         address: SocketAddr,
-    ) -> (ConnectionManagerSender, AbortHandle) {
-        let (sender, abort_handle) = ConnectionManager::new(
+    ) -> Result<(ConnectionManagerSender, AbortHandle), io::Error> {
+        let conn_manager = ConnectionManager::new(
             address,
             self.initial_reconnection_backoff,
             self.maximum_reconnection_backoff,
             self.initial_connection_timeout,
             self.maximum_reconnection_attempts,
         )
-        .await
-        .spawn_abortable();
+        .await?;
 
-        (sender, abort_handle)
+        let (sender, abort_handle) = conn_manager.spawn_abortable();
+
+        Ok((sender, abort_handle))
     }
 
     // if wait_for_response is set to true, we will get information about any possible IO errors
@@ -103,7 +104,17 @@ impl Client {
             );
 
             let (new_manager_sender, abort_handle) =
-                self.start_new_connection_manager(socket_address).await;
+                match self.start_new_connection_manager(socket_address).await {
+                    Ok(res) => res,
+                    Err(err) => {
+                        warn!(
+                            "failed to establish initial connection to {} - {}",
+                            socket_address, err
+                        );
+                        return Err(err);
+                    }
+                };
+
             self.connections_managers
                 .insert(socket_address, (new_manager_sender, abort_handle));
         }

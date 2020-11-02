@@ -64,11 +64,14 @@ impl<'a> ConnectionManager<'static> {
         maximum_reconnection_backoff: Duration,
         connection_timeout: Duration,
         maximum_reconnection_attempts: u32,
-    ) -> ConnectionManager<'a> {
+    ) -> Result<ConnectionManager<'a>, io::Error> {
         let (conn_tx, conn_rx) = mpsc::unbounded();
 
         // the blocking call here is fine as initially we want to wait the timeout interval (at most) anyway:
         let tcp_stream_res = std::net::TcpStream::connect_timeout(&address, connection_timeout);
+
+        // we MUST succeed in making initial connection. We don't want to end up in reconnection
+        // loop to something we have never managed to connect (and possibly never will)
 
         let initial_state = match tcp_stream_res {
             Ok(stream) => {
@@ -76,18 +79,10 @@ impl<'a> ConnectionManager<'static> {
                 debug!("managed to establish initial connection to {}", address);
                 ConnectionState::Writing(ConnectionWriter::new(tokio_stream))
             }
-            Err(e) => {
-                warn!("failed to establish initial connection to {} within {:?} ({}). Going into reconnection mode", address, connection_timeout, e);
-                ConnectionState::Reconnecting(ConnectionReconnector::new(
-                    address,
-                    reconnection_backoff,
-                    maximum_reconnection_backoff,
-                    maximum_reconnection_attempts,
-                ))
-            }
+            Err(err) => return Err(err),
         };
 
-        ConnectionManager {
+        Ok(ConnectionManager {
             conn_tx,
             conn_rx,
             address,
@@ -95,7 +90,7 @@ impl<'a> ConnectionManager<'static> {
             reconnection_backoff,
             maximum_reconnection_attempts,
             state: initial_state,
-        }
+        })
     }
 
     async fn run(mut self) {

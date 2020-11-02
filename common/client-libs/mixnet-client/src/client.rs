@@ -28,6 +28,7 @@ pub struct Config {
     initial_reconnection_backoff: Duration,
     maximum_reconnection_backoff: Duration,
     initial_connection_timeout: Duration,
+    maximum_reconnection_attempts: u32,
 }
 
 impl Config {
@@ -35,11 +36,13 @@ impl Config {
         initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
         initial_connection_timeout: Duration,
+        maximum_reconnection_attempts: u32,
     ) -> Self {
         Config {
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
             initial_connection_timeout,
+            maximum_reconnection_attempts,
         }
     }
 }
@@ -49,6 +52,7 @@ pub struct Client {
     maximum_reconnection_backoff: Duration,
     initial_reconnection_backoff: Duration,
     initial_connection_timeout: Duration,
+    maximum_reconnection_attempts: u32,
 }
 
 impl Client {
@@ -58,6 +62,7 @@ impl Client {
             initial_reconnection_backoff: config.initial_reconnection_backoff,
             maximum_reconnection_backoff: config.maximum_reconnection_backoff,
             initial_connection_timeout: config.initial_connection_timeout,
+            maximum_reconnection_attempts: config.maximum_reconnection_attempts,
         }
     }
 
@@ -70,6 +75,7 @@ impl Client {
             self.initial_reconnection_backoff,
             self.maximum_reconnection_backoff,
             self.initial_connection_timeout,
+            self.maximum_reconnection_attempts,
         )
         .await
         .spawn_abortable();
@@ -106,15 +112,25 @@ impl Client {
 
         let framed_packet = FramedSphinxPacket::new(packet, packet_mode);
 
-        if wait_for_response {
+        let (res_tx, res_rx) = if wait_for_response {
             let (res_tx, res_rx) = oneshot::channel();
-            manager
-                .0
-                .unbounded_send((framed_packet, Some(res_tx)))
-                .unwrap();
+            (Some(res_tx), Some(res_rx))
+        } else {
+            (None, None)
+        };
+
+        if let Err(err) = manager.0.unbounded_send((framed_packet, res_tx)) {
+            warn!(
+                "Connection manager to {} has failed - {}",
+                socket_address, err
+            );
+            self.connections_managers.remove(&socket_address);
+            return Err(io::Error::new(io::ErrorKind::BrokenPipe, err));
+        }
+
+        if let Some(res_rx) = res_rx {
             res_rx.await.unwrap()
         } else {
-            manager.0.unbounded_send((framed_packet, None)).unwrap();
             Ok(())
         }
     }

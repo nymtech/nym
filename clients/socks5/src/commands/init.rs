@@ -22,7 +22,6 @@ use crypto::asymmetric::identity;
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
 use rand::{prelude::SliceRandom, rngs::OsRng};
-use std::process;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::{gateway, NymTopology};

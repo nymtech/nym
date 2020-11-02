@@ -20,7 +20,6 @@ use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
-use std::process;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 

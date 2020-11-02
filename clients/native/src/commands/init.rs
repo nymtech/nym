@@ -23,7 +23,6 @@ use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
 use rand::rngs::OsRng;
 use rand::seq::SliceRandom;
-use std::process;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::{gateway, NymTopology};

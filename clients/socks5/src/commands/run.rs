@@ -40,9 +40,9 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .help("Address of the socks5 provider to send messages to.")
             .takes_value(true)
         )
-        .arg(Arg::with_name("directory")
-            .long("directory")
-            .help("Address of the directory server the client is getting topology from")
+        .arg(Arg::with_name("validator")
+            .long("validator")
+            .help("Address of the validator server the client is getting topology from")
             .takes_value(true),
         )
         .arg(Arg::with_name("gateway")

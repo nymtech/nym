@@ -20,8 +20,8 @@ pub(crate) mod run;
 pub(crate) mod upgrade;
 
 pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
-    if let Some(directory) = matches.value_of("directory") {
-        config.get_base_mut().with_custom_validator(directory);
+    if let Some(validator) = matches.value_of("validator") {
+        config.get_base_mut().with_custom_validator(validator);
     }
 
     if let Some(gateway_id) = matches.value_of("gateway") {

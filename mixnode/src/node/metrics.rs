@@ -152,7 +152,6 @@ impl MetricsSender {
                     }
                     Ok(new_interval) => {
                         debug!("sent metrics information");
-                        println!("received delay: {:?}", new_interval.next_report_in);
                         tokio::time::delay_for(Duration::from_secs(new_interval.next_report_in))
                     }
                 };

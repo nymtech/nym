@@ -18,7 +18,6 @@ use crate::config::Config;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
-use std::process;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
@@ -118,37 +117,42 @@ pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
     println!("Initialising gateway {}...", id);
 
-    if Config::default_config_file_path(id).exists() {
-        eprintln!("Gateway \"{}\" was already initialised before! If you wanted to upgrade your gateway to most recent version, try `upgrade` command instead!", id);
-        process::exit(1);
-    }
+    let already_init = if Config::default_config_file_path(id).exists() {
+        println!("Gateway \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
+        true
+    } else {
+        false
+    };
 
     let mut config = Config::new(id);
 
     config = override_config(config, matches);
 
-    let identity_keys = identity::KeyPair::new();
-    let sphinx_keys = encryption::KeyPair::new();
-    let pathfinder = GatewayPathfinder::new_from_config(&config);
-    pemstore::store_keypair(
-        &sphinx_keys,
-        &pemstore::KeyPairPath::new(
-            pathfinder.private_encryption_key().to_owned(),
-            pathfinder.public_encryption_key().to_owned(),
-        ),
-    )
-    .expect("Failed to save sphinx keys");
+    // if gateway was already initialised, don't generate new keys
+    if !already_init {
+        let identity_keys = identity::KeyPair::new();
+        let sphinx_keys = encryption::KeyPair::new();
+        let pathfinder = GatewayPathfinder::new_from_config(&config);
+        pemstore::store_keypair(
+            &sphinx_keys,
+            &pemstore::KeyPairPath::new(
+                pathfinder.private_encryption_key().to_owned(),
+                pathfinder.public_encryption_key().to_owned(),
+            ),
+        )
+        .expect("Failed to save sphinx keys");
 
-    pemstore::store_keypair(
-        &identity_keys,
-        &pemstore::KeyPairPath::new(
-            pathfinder.private_identity_key().to_owned(),
-            pathfinder.public_identity_key().to_owned(),
-        ),
-    )
-    .expect("Failed to save identity keys");
+        pemstore::store_keypair(
+            &identity_keys,
+            &pemstore::KeyPairPath::new(
+                pathfinder.private_identity_key().to_owned(),
+                pathfinder.public_identity_key().to_owned(),
+            ),
+        )
+        .expect("Failed to save identity keys");
 
-    println!("Saved identity and mixnet sphinx keypairs");
+        println!("Saved identity and mixnet sphinx keypairs");
+    }
 
     let config_save_location = config.get_config_file_save_location();
     config

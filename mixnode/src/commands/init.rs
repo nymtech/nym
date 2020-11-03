@@ -20,7 +20,6 @@ use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
-use std::process;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
@@ -140,10 +139,12 @@ pub fn execute(matches: &ArgMatches) {
         let id = matches.value_of("id").unwrap();
         println!("Initialising mixnode {}...", id);
 
-        if Config::default_config_file_path(id).exists() {
-            eprintln!("Mixnode \"{}\" was already initialised before! If you wanted to upgrade your node to most recent version, try `upgrade` command instead!", id);
-            process::exit(1);
-        }
+        let already_init = if Config::default_config_file_path(id).exists() {
+            println!("Mixnode \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
+            true
+        } else {
+            false
+        };
 
         let mut config = Config::new(id);
         config = override_config(config, matches);
@@ -153,28 +154,32 @@ pub fn execute(matches: &ArgMatches) {
         config = config.with_layer(layer);
         debug!("Choosing layer {}", config.get_layer());
 
-        let identity_keys = identity::KeyPair::new();
-        let sphinx_keys = encryption::KeyPair::new();
-        let pathfinder = MixNodePathfinder::new_from_config(&config);
-        pemstore::store_keypair(
-            &identity_keys,
-            &pemstore::KeyPairPath::new(
-                pathfinder.private_identity_key().to_owned(),
-                pathfinder.public_identity_key().to_owned(),
-            ),
-        )
-        .expect("Failed to save identity keys");
+        // if node was already initialised, don't generate new keys
+        if !already_init {
+            let identity_keys = identity::KeyPair::new();
+            let sphinx_keys = encryption::KeyPair::new();
+            let pathfinder = MixNodePathfinder::new_from_config(&config);
+            pemstore::store_keypair(
+                &identity_keys,
+                &pemstore::KeyPairPath::new(
+                    pathfinder.private_identity_key().to_owned(),
+                    pathfinder.public_identity_key().to_owned(),
+                ),
+            )
+                .expect("Failed to save identity keys");
 
-        pemstore::store_keypair(
-            &sphinx_keys,
-            &pemstore::KeyPairPath::new(
-                pathfinder.private_encryption_key().to_owned(),
-                pathfinder.public_encryption_key().to_owned(),
-            ),
-        )
-        .expect("Failed to save sphinx keys");
+            pemstore::store_keypair(
+                &sphinx_keys,
+                &pemstore::KeyPairPath::new(
+                    pathfinder.private_encryption_key().to_owned(),
+                    pathfinder.public_encryption_key().to_owned(),
+                ),
+            )
+                .expect("Failed to save sphinx keys");
 
-        println!("Saved mixnet identity and sphinx keypairs");
+            println!("Saved mixnet identity and sphinx keypairs");
+        }
+
         let config_save_location = config.get_config_file_save_location();
         config
             .save_to_file(None)

@@ -22,11 +22,14 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
+pub(crate) struct MaximumReconnectionCountReached;
+
 pub(crate) struct ConnectionReconnector<'a> {
     address: SocketAddr,
     connection: BoxFuture<'a, io::Result<tokio::net::TcpStream>>,
 
     current_retry_attempt: u32,
+    maximum_reconnection_attempts: u32,
 
     current_backoff_delay: tokio::time::Delay,
     maximum_reconnection_backoff: Duration,
@@ -39,12 +42,14 @@ impl<'a> ConnectionReconnector<'a> {
         address: SocketAddr,
         initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
+        maximum_reconnection_attempts: u32,
     ) -> ConnectionReconnector<'a> {
         ConnectionReconnector {
             address,
             connection: tokio::net::TcpStream::connect(address).boxed(),
             current_backoff_delay: tokio::time::delay_for(Duration::new(0, 0)), // if we can re-establish connection on first try without any backoff that's perfect
             current_retry_attempt: 0,
+            maximum_reconnection_attempts,
             maximum_reconnection_backoff,
             initial_reconnection_backoff,
         }
@@ -52,7 +57,7 @@ impl<'a> ConnectionReconnector<'a> {
 }
 
 impl<'a> Future for ConnectionReconnector<'a> {
-    type Output = tokio::net::TcpStream;
+    type Output = Result<tokio::net::TcpStream, MaximumReconnectionCountReached>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // see if we are still in exponential backoff
@@ -71,6 +76,11 @@ impl<'a> Future for ConnectionReconnector<'a> {
                     "we failed to re-establish connection to {} - {:?} (attempt {})",
                     self.address, e, self.current_retry_attempt
                 );
+
+                // checked if we reached the maximum attempt count
+                if self.current_retry_attempt == self.maximum_reconnection_attempts {
+                    return Poll::Ready(Err(MaximumReconnectionCountReached));
+                }
 
                 // we failed to re-establish connection - continue exponential backoff
 
@@ -102,7 +112,7 @@ impl<'a> Future for ConnectionReconnector<'a> {
 
                 Poll::Pending
             }
-            Poll::Ready(Ok(conn)) => Poll::Ready(conn),
+            Poll::Ready(Ok(conn)) => Poll::Ready(Ok(conn)),
         }
     }
 }

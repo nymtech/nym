@@ -28,6 +28,7 @@ pub struct Config {
     initial_reconnection_backoff: Duration,
     maximum_reconnection_backoff: Duration,
     initial_connection_timeout: Duration,
+    maximum_reconnection_attempts: u32,
 }
 
 impl Config {
@@ -35,11 +36,13 @@ impl Config {
         initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
         initial_connection_timeout: Duration,
+        maximum_reconnection_attempts: u32,
     ) -> Self {
         Config {
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
             initial_connection_timeout,
+            maximum_reconnection_attempts,
         }
     }
 }
@@ -49,6 +52,7 @@ pub struct Client {
     maximum_reconnection_backoff: Duration,
     initial_reconnection_backoff: Duration,
     initial_connection_timeout: Duration,
+    maximum_reconnection_attempts: u32,
 }
 
 impl Client {
@@ -58,23 +62,26 @@ impl Client {
             initial_reconnection_backoff: config.initial_reconnection_backoff,
             maximum_reconnection_backoff: config.maximum_reconnection_backoff,
             initial_connection_timeout: config.initial_connection_timeout,
+            maximum_reconnection_attempts: config.maximum_reconnection_attempts,
         }
     }
 
     async fn start_new_connection_manager(
         &mut self,
         address: SocketAddr,
-    ) -> (ConnectionManagerSender, AbortHandle) {
-        let (sender, abort_handle) = ConnectionManager::new(
+    ) -> Result<(ConnectionManagerSender, AbortHandle), io::Error> {
+        let conn_manager = ConnectionManager::new(
             address,
             self.initial_reconnection_backoff,
             self.maximum_reconnection_backoff,
             self.initial_connection_timeout,
+            self.maximum_reconnection_attempts,
         )
-        .await
-        .spawn_abortable();
+        .await?;
 
-        (sender, abort_handle)
+        let (sender, abort_handle) = conn_manager.spawn_abortable();
+
+        Ok((sender, abort_handle))
     }
 
     // if wait_for_response is set to true, we will get information about any possible IO errors
@@ -97,7 +104,17 @@ impl Client {
             );
 
             let (new_manager_sender, abort_handle) =
-                self.start_new_connection_manager(socket_address).await;
+                match self.start_new_connection_manager(socket_address).await {
+                    Ok(res) => res,
+                    Err(err) => {
+                        debug!(
+                            "failed to establish initial connection to {} - {}",
+                            socket_address, err
+                        );
+                        return Err(err);
+                    }
+                };
+
             self.connections_managers
                 .insert(socket_address, (new_manager_sender, abort_handle));
         }
@@ -106,15 +123,25 @@ impl Client {
 
         let framed_packet = FramedSphinxPacket::new(packet, packet_mode);
 
-        if wait_for_response {
+        let (res_tx, res_rx) = if wait_for_response {
             let (res_tx, res_rx) = oneshot::channel();
-            manager
-                .0
-                .unbounded_send((framed_packet, Some(res_tx)))
-                .unwrap();
+            (Some(res_tx), Some(res_rx))
+        } else {
+            (None, None)
+        };
+
+        if let Err(err) = manager.0.unbounded_send((framed_packet, res_tx)) {
+            warn!(
+                "Connection manager to {} has failed - {}",
+                socket_address, err
+            );
+            self.connections_managers.remove(&socket_address);
+            return Err(io::Error::new(io::ErrorKind::BrokenPipe, err));
+        }
+
+        if let Some(res_rx) = res_rx {
             res_rx.await.unwrap()
         } else {
-            manager.0.unbounded_send((framed_packet, None)).unwrap();
             Ok(())
         }
     }

@@ -43,6 +43,7 @@ pub(crate) const DEFAULT_RNG: DefRng = OsRng;
 
 const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
 const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
+const VALIDATOR_ARG: &str = "validator";
 
 // CHANGE THIS TO GET COMPLETE LIST OF WHICH NODE IS WORKING OR BROKEN IN PARTICULAR WAY
 // ||
@@ -67,6 +68,12 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .takes_value(true)
                 .required(true),
         )
+        .arg(
+            Arg::with_name(VALIDATOR_ARG)
+                .help("REST endpoint of the validator the monitor will grab nodes to test")
+                .takes_value(true)
+                .required(true),
+        )
         .get_matches()
 }
 
@@ -81,10 +88,11 @@ async fn main() {
     let v4_topology = parse_topology_file(v4_topology_path);
     let v6_topology = parse_topology_file(v6_topology_path);
 
+    let validator_rest_uri = matches.value_of(VALIDATOR_ARG).unwrap();
+
     check_if_up_to_date(&v4_topology, &v6_topology);
     setup_logging();
 
-    let validator_rest_uri = "https://qa-directory.nymtech.net";
     println!("* validator server: {}", validator_rest_uri);
 
     // TODO: THIS MUST BE UPDATED!!

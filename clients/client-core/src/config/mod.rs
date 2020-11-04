@@ -26,7 +26,7 @@ pub mod persistence;
 pub const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'CLIENT'
-const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://directory.nymtech.net";
+pub const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://validator.nymtech.net";
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
@@ -176,7 +176,7 @@ impl<T: NymConfig> Config<T> {
         self.client.gateway_listener = gateway_listener.into();
     }
 
-    pub fn with_custom_validator<S: Into<String>>(&mut self, validator: S) {
+    pub fn set_custom_validator<S: Into<String>>(&mut self, validator: S) {
         self.client.validator_rest_url = validator.into();
     }
 
@@ -335,8 +335,7 @@ pub struct Client<T> {
     id: String,
 
     /// URL to the validator server for obtaining network topology.
-    // before 0.9.0 this was the directory server
-    #[serde(alias = "directory_server")]
+    #[serde(default = "missing_string_value")]
     validator_rest_url: String,
 
     /// Special mode of the system such that all messages are sent as soon as they are received

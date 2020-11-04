@@ -14,6 +14,7 @@
 
 use crate::client::config::{Config, MISSING_VALUE};
 use clap::{App, Arg, ArgMatches};
+use client_core::config::DEFAULT_VALIDATOR_REST_ENDPOINT;
 use config::NymConfig;
 use std::fmt::Display;
 use std::process;
@@ -79,11 +80,26 @@ fn pre_090_upgrade(from: &str, mut config: Config) -> Config {
         Version::new(0, 9, 0)
     };
 
+    if config.get_base().get_validator_rest_endpoint() != MISSING_VALUE {
+        eprintln!("existing config seems to have specified new validator rest endpoint which was only introduced in 0.9.0! Can't perform upgrade.");
+        print_failed_upgrade(&from_version, &to_version);
+        process::exit(1);
+    }
+
     print_start_upgrade(&from_version, &to_version);
 
     config
         .get_base_mut()
         .set_custom_version(to_version.to_string().as_ref());
+
+    println!(
+        "Setting validator REST endpoint to to {}",
+        DEFAULT_VALIDATOR_REST_ENDPOINT
+    );
+
+    config
+        .get_base_mut()
+        .set_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT);
 
     config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);

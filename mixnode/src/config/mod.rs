@@ -31,7 +31,7 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'MIXNODE'
 const DEFAULT_LISTENING_PORT: u16 = 1789;
-pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://directory.nymtech.net";
+pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://validator.nymtech.net";
 pub(crate) const DEFAULT_METRICS_SERVER: &str = "https://metrics.nymtech.net";
 
 // 'DEBUG'
@@ -396,7 +396,7 @@ pub struct MixNode {
     public_sphinx_key_file: PathBuf,
 
     /// Validator server to which the node will be reporting their presence data.
-    #[serde(alias = "presence_directory_server")]
+    #[serde(default = "missing_string_value")]
     validator_rest_url: String,
 
     /// Metrics server to which the node will be reporting their metrics data.

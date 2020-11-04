@@ -14,10 +14,13 @@
 
 use crate::monitor::MixnetReceiver;
 use crate::run_info::{TestRunUpdateReceiver, TestRunUpdateSender};
-use crate::tested_network::{good_topology, TestedNetwork};
+use crate::tested_network::good_topology::parse_topology_file;
+use crate::tested_network::TestedNetwork;
+use clap::{App, Arg, ArgMatches};
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::GatewayClient;
+use log::*;
 use monitor::{AckSender, MixnetSender, Monitor};
 use notifications::Notifier;
 use nymsphinx::addressing::clients::Recipient;
@@ -25,7 +28,7 @@ use packet_sender::PacketSender;
 use rand::rngs::OsRng;
 use std::sync::Arc;
 use std::time;
-use topology::gateway;
+use topology::{gateway, NymTopology};
 
 mod chunker;
 mod monitor;
@@ -38,6 +41,9 @@ mod tested_network;
 pub(crate) type DefRng = OsRng;
 pub(crate) const DEFAULT_RNG: DefRng = OsRng;
 
+const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
+const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
+
 // CHANGE THIS TO GET COMPLETE LIST OF WHICH NODE IS WORKING OR BROKEN IN PARTICULAR WAY
 // ||
 // \/
@@ -46,18 +52,48 @@ pub const PRINT_DETAILED_REPORT: bool = false;
 // ||
 // CHANGE THIS TO GET COMPLETE LIST OF WHICH NODE IS WORKING OR BROKEN IN PARTICULAR WAY
 
+fn parse_args<'a>() -> ArgMatches<'a> {
+    App::new("Nym Network Monitor")
+        .author("Nymtech")
+        .arg(
+            Arg::with_name(V4_TOPOLOGY_ARG)
+                .help("location of .json file containing IPv4 'good' network topology")
+                .takes_value(true)
+                .required(true),
+        )
+        .arg(
+            Arg::with_name(V6_TOPOLOGY_ARG)
+                .help("location of .json file containing IPv6 'good' network topology")
+                .takes_value(true)
+                .required(true),
+        )
+        .get_matches()
+}
+
 #[tokio::main]
 async fn main() {
     println!("Network monitor starting...");
-    check_if_up_to_date();
+    dotenv::dotenv().ok();
+    let matches = parse_args();
+    let v4_topology_path = matches.value_of(V4_TOPOLOGY_ARG).unwrap();
+    let v6_topology_path = matches.value_of(V6_TOPOLOGY_ARG).unwrap();
+
+    let v4_topology = parse_topology_file(v4_topology_path);
+    let v6_topology = parse_topology_file(v6_topology_path);
+
+    check_if_up_to_date(&v4_topology, &v6_topology);
     setup_logging();
 
-    // Set up topology
     let validator_rest_uri = "https://qa-directory.nymtech.net";
     println!("* validator server: {}", validator_rest_uri);
 
+    // TODO: THIS MUST BE UPDATED!!
+    // TODO: THIS MUST BE UPDATED!!
+    // TODO: THIS MUST BE UPDATED!!
+    warn!("using v4 gateway for both topologies!");
+    let gateway = v4_topology.gateways()[0].clone();
+
     // TODO: this might change if it turns out we need both v4 and v6 gateway clients
-    let gateway = tested_network::v4_gateway();
     println!("* gateway: {}", gateway.identity_key.to_base58_string());
 
     // Channels for task communication
@@ -89,7 +125,7 @@ async fn main() {
     );
 
     let gateway_client = new_gateway_client(gateway, identity_keypair, ack_sender, mixnet_sender);
-    let tested_network = new_tested_network(gateway_client).await;
+    let tested_network = new_tested_network(gateway_client, v4_topology, v6_topology).await;
 
     let packet_sender = new_packet_sender(
         validator_client,
@@ -101,9 +137,14 @@ async fn main() {
     network_monitor.run(notifier, packet_sender).await;
 }
 
-async fn new_tested_network(gateway_client: GatewayClient) -> TestedNetwork {
+async fn new_tested_network(
+    gateway_client: GatewayClient,
+    good_v4_topology: NymTopology,
+    good_v6_topology: NymTopology,
+) -> TestedNetwork {
     // TODO: possibly change that if it turns out we need two clients (v4 and v6)
-    let mut tested_network = TestedNetwork::new_good(gateway_client);
+    let mut tested_network =
+        TestedNetwork::new_good(gateway_client, good_v4_topology, good_v6_topology);
     tested_network.start_gateway_client().await;
     tested_network
 }
@@ -183,11 +224,10 @@ fn setup_logging() {
         .init();
 }
 
-fn check_if_up_to_date() {
+fn check_if_up_to_date(v4_topology: &NymTopology, v6_topology: &NymTopology) {
     let monitor_version = env!("CARGO_PKG_VERSION");
-    let good_v4_topology = good_topology::new_v4();
-    for (_, layer_mixes) in good_v4_topology.mixes().into_iter() {
-        for mix in layer_mixes.into_iter() {
+    for (_, layer_mixes) in v4_topology.mixes().iter() {
+        for mix in layer_mixes.iter() {
             if !version_checker::is_minor_version_compatible(monitor_version, &*mix.version) {
                 panic!(
                     "Our good topology is not compatible with monitor! Mix runs {}, we have {}",
@@ -197,7 +237,7 @@ fn check_if_up_to_date() {
         }
     }
 
-    for gateway in good_v4_topology.gateways().into_iter() {
+    for gateway in v4_topology.gateways().iter() {
         if !version_checker::is_minor_version_compatible(monitor_version, &*gateway.version) {
             panic!(
                 "Our good topology is not compatible with monitor! Gateway runs {}, we have {}",
@@ -206,9 +246,8 @@ fn check_if_up_to_date() {
         }
     }
 
-    let good_v6_topology = good_topology::new_v6();
-    for (_, layer_mixes) in good_v6_topology.mixes().into_iter() {
-        for mix in layer_mixes.into_iter() {
+    for (_, layer_mixes) in v6_topology.mixes().iter() {
+        for mix in layer_mixes.iter() {
             if !version_checker::is_minor_version_compatible(monitor_version, &*mix.version) {
                 panic!(
                     "Our good topology is not compatible with monitor! Mix runs {}, we have {}",
@@ -218,7 +257,7 @@ fn check_if_up_to_date() {
         }
     }
 
-    for gateway in good_v6_topology.gateways().into_iter() {
+    for gateway in v6_topology.gateways().iter() {
         if !version_checker::is_minor_version_compatible(monitor_version, &*gateway.version) {
             panic!(
                 "Our good topology is not compatible with monitor! Gateway runs {}, we have {}",

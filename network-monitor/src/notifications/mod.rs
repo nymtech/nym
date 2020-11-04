@@ -17,7 +17,6 @@ use crate::monitor::NOTIFIER_DELIVERY_TIMEOUT;
 use crate::notifications::test_run::TestRun;
 use crate::notifications::test_timeout::TestTimeout;
 use crate::run_info::{RunInfo, TestRunUpdate, TestRunUpdateReceiver};
-use crate::PRINT_DETAILED_REPORT;
 use crypto::asymmetric::encryption::KeyPair;
 use futures::StreamExt;
 use log::*;
@@ -53,10 +52,11 @@ impl Notifier {
         client_encryption_keypair: KeyPair,
         validator_client: Arc<validator_client::Client>,
         test_run_receiver: TestRunUpdateReceiver,
+        with_detailed_report: bool,
     ) -> Notifier {
         let message_receiver = MessageReceiver::new();
         let mut current_test_run = TestRun::new(0).with_report();
-        if PRINT_DETAILED_REPORT {
+        if with_detailed_report {
             current_test_run = current_test_run.with_detailed_report();
         }
         Notifier {

@@ -44,14 +44,7 @@ pub(crate) const DEFAULT_RNG: DefRng = OsRng;
 const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
 const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
 const VALIDATOR_ARG: &str = "validator";
-
-// CHANGE THIS TO GET COMPLETE LIST OF WHICH NODE IS WORKING OR BROKEN IN PARTICULAR WAY
-// ||
-// \/
-pub const PRINT_DETAILED_REPORT: bool = false;
-// /\
-// ||
-// CHANGE THIS TO GET COMPLETE LIST OF WHICH NODE IS WORKING OR BROKEN IN PARTICULAR WAY
+const DETAILED_REPORT_ARG: &str = "detailed-report";
 
 fn parse_args<'a>() -> ArgMatches<'a> {
     App::new("Nym Network Monitor")
@@ -74,6 +67,10 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .takes_value(true)
                 .required(true),
         )
+        .arg(
+            Arg::with_name(DETAILED_REPORT_ARG)
+                .help("specifies whether a detailed report should be printed after each run"),
+        )
         .get_matches()
 }
 
@@ -89,6 +86,7 @@ async fn main() {
     let v6_topology = parse_topology_file(v6_topology_path);
 
     let validator_rest_uri = matches.value_of(VALIDATOR_ARG).unwrap();
+    let detailed_report = matches.is_present(DETAILED_REPORT_ARG);
 
     check_if_up_to_date(&v4_topology, &v6_topology);
     setup_logging();
@@ -130,6 +128,7 @@ async fn main() {
         Arc::clone(&validator_client),
         mixnet_receiver,
         test_run_receiver,
+        detailed_report,
     );
 
     let gateway_client = new_gateway_client(gateway, identity_keypair, ack_sender, mixnet_sender);
@@ -202,12 +201,14 @@ fn new_notifier(
     validator_client: Arc<validator_client::Client>,
     mixnet_receiver: MixnetReceiver,
     test_run_receiver: TestRunUpdateReceiver,
+    with_detailed_report: bool,
 ) -> Notifier {
     Notifier::new(
         mixnet_receiver,
         encryption_keypair,
         validator_client,
         test_run_receiver,
+        with_detailed_report,
     )
 }
 

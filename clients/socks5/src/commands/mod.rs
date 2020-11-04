@@ -21,7 +21,7 @@ pub(crate) mod upgrade;
 
 pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if let Some(validator) = matches.value_of("validator") {
-        config.get_base_mut().with_custom_validator(validator);
+        config.get_base_mut().set_custom_validator(validator);
     }
 
     if let Some(gateway_id) = matches.value_of("gateway") {

@@ -25,12 +25,20 @@ pub(crate) async fn register_with_validator(
     version: String,
     location: String,
     layer: u64,
+    incentives_address: Option<String>,
 ) -> Result<(), ValidatorClientError> {
     let config = validator_client::Config::new(validator_endpoint);
     let validator_client = validator_client::Client::new(config);
 
-    let registration_info =
-        MixRegistrationInfo::new(mix_host, identity_key, sphinx_key, version, location, layer);
+    let registration_info = MixRegistrationInfo::new(
+        mix_host,
+        identity_key,
+        sphinx_key,
+        version,
+        location,
+        layer,
+        incentives_address,
+    );
 
     validator_client.register_mix(registration_info).await
 }

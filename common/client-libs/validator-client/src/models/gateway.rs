@@ -55,6 +55,7 @@ impl GatewayRegistrationInfo {
         sphinx_key: String,
         version: String,
         location: String,
+        incentives_address: Option<String>,
     ) -> Self {
         GatewayRegistrationInfo {
             node_info: NodeInfo {
@@ -63,6 +64,7 @@ impl GatewayRegistrationInfo {
                 sphinx_key,
                 version,
                 location,
+                incentives_address: incentives_address.unwrap_or_else(|| "".to_string()),
             },
             clients_host,
         }

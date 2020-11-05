@@ -55,6 +55,7 @@ impl MixRegistrationInfo {
         version: String,
         location: String,
         layer: u64,
+        incentives_address: Option<String>,
     ) -> Self {
         MixRegistrationInfo {
             node_info: NodeInfo {
@@ -63,6 +64,7 @@ impl MixRegistrationInfo {
                 sphinx_key,
                 version,
                 location,
+                incentives_address: incentives_address.unwrap_or_else(|| "".to_string()),
             },
             layer,
         }

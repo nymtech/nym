@@ -25,6 +25,7 @@ pub(crate) async fn register_with_validator(
     sphinx_key: String,
     version: String,
     location: String,
+    incentives_address: Option<String>,
 ) -> Result<(), ValidatorClientError> {
     let config = validator_client::Config::new(validator_endpoint);
     let validator_client = validator_client::Client::new(config);
@@ -36,6 +37,7 @@ pub(crate) async fn register_with_validator(
         sphinx_key,
         version,
         location,
+        incentives_address,
     );
 
     validator_client.register_gateway(registration_info).await

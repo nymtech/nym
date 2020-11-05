@@ -103,6 +103,12 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .help("REST endpoint of the validator the node is registering presence with")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("incentives-address")
+                .long("incentives-address")
+                .help("Optional, if participating in the incentives program, payment address")
+                .takes_value(true),
+        )
 }
 
 fn show_incentives_url() {

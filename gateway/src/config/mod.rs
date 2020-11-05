@@ -139,6 +139,18 @@ where
     deserializer.deserialize_any(DurationVisitor)
 }
 
+fn deserialize_option_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    if s.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(s))
+    }
+}
+
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
 }
@@ -380,6 +392,11 @@ impl Config {
         self
     }
 
+    pub fn with_incentives_address<S: Into<String>>(mut self, incentives_address: S) -> Self {
+        self.gateway.incentives_address = Some(incentives_address.into());
+        self
+    }
+
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
@@ -464,6 +481,10 @@ impl Config {
     pub fn get_version(&self) -> &str {
         &self.gateway.version
     }
+
+    pub fn get_incentives_address(&self) -> Option<String> {
+        self.gateway.incentives_address.clone()
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -500,6 +521,10 @@ pub struct Gateway {
     /// nym_home_directory specifies absolute path to the home nym gateways directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
+
+    /// Optional, if participating in the incentives program, payment address.
+    #[serde(deserialize_with = "deserialize_option_string")]
+    incentives_address: Option<String>,
 }
 
 impl Gateway {
@@ -536,6 +561,7 @@ impl Default for Gateway {
             public_sphinx_key_file: Default::default(),
             validator_rest_url: DEFAULT_VALIDATOR_REST_ENDPOINT.to_string(),
             nym_root_directory: Config::default_root_directory(),
+            incentives_address: None,
         }
     }
 }

@@ -152,6 +152,7 @@ impl MixNode {
                 self.config.get_version().to_string(),
                 self.config.get_location(),
                 self.config.get_layer(),
+                self.config.get_incentives_address(),
             ).await {
                 error!("failed to register with the validator - {:?}", err);
                 return

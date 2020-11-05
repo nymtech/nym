@@ -194,6 +194,7 @@ impl Gateway {
                 self.encryption_keys.public_key().to_base58_string(),
                 self.config.get_version().to_string(),
                 self.config.get_location(),
+                self.config.get_incentives_address()
             ).await {
                 error!("failed to register with the validator - {:?}", err);
                 return

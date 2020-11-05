@@ -131,6 +131,18 @@ where
     deserializer.deserialize_any(DurationVisitor)
 }
 
+fn deserialize_option_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    if s.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(s))
+    }
+}
+
 pub fn missing_string_value<T: From<String>>() -> T {
     MISSING_VALUE.to_string().into()
 }
@@ -270,6 +282,11 @@ impl Config {
         self
     }
 
+    pub fn with_incentives_address<S: Into<String>>(mut self, incentives_address: S) -> Self {
+        self.mixnode.incentives_address = Some(incentives_address.into());
+        self
+    }
+
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
@@ -343,6 +360,10 @@ impl Config {
         &self.mixnode.version
     }
 
+    pub fn get_incentives_address(&self) -> Option<String> {
+        self.mixnode.incentives_address.clone()
+    }
+
     // upgrade-specific
     pub(crate) fn set_default_identity_keypair_paths(&mut self) {
         self.mixnode.private_identity_key_file =
@@ -406,6 +427,10 @@ pub struct MixNode {
     /// nym_home_directory specifies absolute path to the home nym MixNodes directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
+
+    /// Optional, if participating in the incentives program, payment address.
+    #[serde(deserialize_with = "deserialize_option_string")]
+    incentives_address: Option<String>,
 }
 
 impl MixNode {
@@ -448,6 +473,7 @@ impl Default for MixNode {
             validator_rest_url: DEFAULT_VALIDATOR_REST_ENDPOINT.to_string(),
             metrics_server_url: DEFAULT_METRICS_SERVER.to_string(),
             nym_root_directory: Config::default_root_directory(),
+            incentives_address: None,
         }
     }
 }

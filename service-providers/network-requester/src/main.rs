@@ -1,14 +1,36 @@
+use clap::{App, Arg, ArgMatches};
+
 mod allowed_hosts;
 mod connection;
 mod core;
 mod websocket;
 
+const OPEN_PROXY_ARG: &str = "open-proxy";
+
+fn parse_args<'a>() -> ArgMatches<'a> {
+    App::new("Nym Network Requester")
+        .author("Nymtech")
+        .arg(
+            Arg::with_name(OPEN_PROXY_ARG)
+                .help("specifies whether this network requester should run in 'open-proxy' mode")
+                .long(OPEN_PROXY_ARG)
+                .short("o"),
+        )
+        .get_matches()
+}
+
 #[tokio::main]
 async fn main() {
     setup_logging();
+    let matches = parse_args();
+    let open_proxy = matches.is_present(OPEN_PROXY_ARG);
+    if open_proxy {
+        println!("\n\nYOU HAVE STARTED IN 'OPEN PROXY' MODE. ANYONE WITH YOUR CLIENT ADDRESS CAN MAKE REQUESTS FROM YOUR MACHINE. PLEASE QUIT IF YOU DON'T UNDERSTAND WHAT YOU'RE DOING.\n\n");
+    }
+
     let uri = "ws://localhost:1977";
     println!("Starting socks5 service provider:");
-    let mut server = core::ServiceProvider::new(uri.into());
+    let mut server = core::ServiceProvider::new(uri.into(), open_proxy);
     server.run().await;
 }
 

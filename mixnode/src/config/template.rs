@@ -54,6 +54,9 @@ private_sphinx_key_file = '{{ mixnode.private_sphinx_key_file }}'
 # Path to file containing public sphinx key.
 public_sphinx_key_file = '{{ mixnode.public_sphinx_key_file }}'
 
+# Optional, if participating in the incentives program, payment address.
+incentives_address = '{{ mixnode.incentives_address }}'
+
 ##### additional mixnode config options #####
 
 # Optional address announced to the directory server for the clients to connect to.

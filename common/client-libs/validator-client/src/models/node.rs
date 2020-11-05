@@ -22,4 +22,5 @@ pub(crate) struct NodeInfo {
     pub(crate) sphinx_key: String,
     pub(crate) version: String,
     pub(crate) location: String,
+    pub(crate) incentives_address: String,
 }

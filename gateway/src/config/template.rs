@@ -48,6 +48,9 @@ private_sphinx_key_file = '{{ gateway.private_sphinx_key_file }}'
 # Path to file containing public sphinx key.
 public_sphinx_key_file = '{{ gateway.public_sphinx_key_file }}'
 
+# Optional, if participating in the incentives program, payment address.
+incentives_address = '{{ gateway.incentives_address }}'
+
 # Validator server to which the node will be reporting their presence data.
 validator_rest_url = '{{ gateway.validator_rest_url }}'
 

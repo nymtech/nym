@@ -153,7 +153,7 @@ impl HostsStore {
     }
 
     fn setup_storefile(base_dir: PathBuf, filename: PathBuf) -> PathBuf {
-        let dirpath = base_dir.join("service-providers").join("sphinx-socks");
+        let dirpath = base_dir.join("service-providers").join("network-requester");
         fs::create_dir_all(&dirpath).expect(&format!(
             "could not create storage directory at {:?}",
             dirpath
@@ -348,7 +348,7 @@ mod tests {
     fn create_test_storefile() -> (PathBuf, PathBuf, PathBuf) {
         let base_dir = test_base_dir();
         let filename = PathBuf::from(format!("hosts-store-{}.list", random_string()));
-        let dirpath = base_dir.join("service-providers").join("sphinx-socks");
+        let dirpath = base_dir.join("service-providers").join("network-requester");
         fs::create_dir_all(&dirpath).expect(&format!(
             "could not create storage directory at {:?}",
             dirpath

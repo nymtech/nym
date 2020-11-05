@@ -1496,6 +1496,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "network-requester"
+version = "0.9.0-dev"
+dependencies = [
+ "clap",
+ "dirs 2.0.2",
+ "futures 0.3.5",
+ "log",
+ "nymsphinx",
+ "ordered-buffer",
+ "pretty_env_logger",
+ "proxy-helpers",
+ "publicsuffix",
+ "rand",
+ "socks5-requests",
+ "tokio",
+ "tokio-tungstenite",
+ "websocket-requests",
+]
+
+[[package]]
 name = "nonexhaustive-delayqueue"
 version = "0.1.0"
 dependencies = [
@@ -2561,26 +2581,6 @@ dependencies = [
  "rand",
  "rand_distr",
  "sha2 0.8.2",
-]
-
-[[package]]
-name = "sphinx-socks"
-version = "0.9.0-dev"
-dependencies = [
- "clap",
- "dirs 2.0.2",
- "futures 0.3.5",
- "log",
- "nymsphinx",
- "ordered-buffer",
- "pretty_env_logger",
- "proxy-helpers",
- "publicsuffix",
- "rand",
- "socks5-requests",
- "tokio",
- "tokio-tungstenite",
- "websocket-requests",
 ]
 
 [[package]]

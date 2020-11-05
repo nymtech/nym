@@ -40,7 +40,7 @@ members = [
     "gateway/gateway-requests",
     "mixnode",
     "network-monitor",
-    "service-providers/sphinx-socks",
+    "service-providers/network-requester",
 ]
 
 default-members = [
@@ -48,7 +48,7 @@ default-members = [
     "clients/socks5",
 #    "clients/webassembly",
     "gateway",
-    "service-providers/sphinx-socks",
+    "service-providers/network-requester",
     "mixnode",
     "network-monitor",
 ]

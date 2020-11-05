@@ -19,10 +19,11 @@ use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 pub struct ServiceProvider {
     listening_address: String,
     outbound_request_filter: OutboundRequestFilter,
+    open_proxy: bool,
 }
 
 impl ServiceProvider {
-    pub fn new(listening_address: String) -> ServiceProvider {
+    pub fn new(listening_address: String, open_proxy: bool) -> ServiceProvider {
         let allowed_hosts = HostsStore::new(
             HostsStore::default_base_dir(),
             PathBuf::from("allowed.list"),
@@ -36,6 +37,7 @@ impl ServiceProvider {
         ServiceProvider {
             listening_address,
             outbound_request_filter,
+            open_proxy,
         }
     }
 
@@ -128,7 +130,7 @@ impl ServiceProvider {
                     message,
                     return_address,
                 } => {
-                    if !self.outbound_request_filter.check(&remote_addr) {
+                    if !self.open_proxy && !self.outbound_request_filter.check(&remote_addr) {
                         log::info!("Domain {:?} failed filter check", remote_addr);
                         continue;
                     }

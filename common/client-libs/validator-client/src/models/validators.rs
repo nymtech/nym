@@ -12,9 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod gateway;
-pub mod mixmining;
-pub mod mixnode;
-mod node;
-pub mod topology;
-pub mod validators;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ValidatorsOutput {
+    pub(crate) block_height: i64,
+    pub(crate) validators: Vec<ValidatorOutput>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub(crate) struct ValidatorOutput {
+    pub(crate) address: String,
+    pub(crate) pub_key: String,
+    pub(crate) proposer_priority: i64,
+    pub(crate) voting_power: i64,
+}

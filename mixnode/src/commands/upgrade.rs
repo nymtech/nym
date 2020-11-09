@@ -44,7 +44,7 @@ fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
     );
 }
 
-fn pre_090_upgrade(from: &str, config: Config) -> Config {
+fn pre_090_upgrade(from: &str, config: Config, matches: &ArgMatches) -> Config {
     // note: current is guaranteed to not have any `build` information suffix (nor pre-release
     // information), as this was asserted at the beginning of this command)
     //
@@ -112,6 +112,11 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
         .with_custom_metrics_server(DEFAULT_METRICS_SERVER)
         .with_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT);
 
+    if let Some(incentives_address) = matches.value_of("incentives address") {
+        upgraded_config = upgraded_config.with_incentives_address(incentives_address);
+        println!("Setting incentives address to {}", incentives_address);
+    }
+
     println!("Setting metrics server to {}", DEFAULT_METRICS_SERVER);
     println!(
         "Setting validator REST endpoint to to {}",
@@ -147,16 +152,21 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("upgrade").about("Try to upgrade the mixnode")
         .arg(
-        Arg::with_name("id")
-            .long("id")
-            .help("Id of the nym-mixnode we want to upgrade")
-            .takes_value(true)
-            .required(true),
+            Arg::with_name("id")
+                .long("id")
+                .help("Id of the nym-mixnode we want to upgrade")
+                .takes_value(true)
+                .required(true),
         )
-    // the rest of arguments depend on the upgrade path
+        // the rest of arguments depend on the upgrade path
         .arg(Arg::with_name("current version")
             .long("current-version")
             .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Self provided version of the nym-mixnode if none is available in the config. NOTE: if provided incorrectly, results may be catastrophic.")
+            .takes_value(true)
+        )
+        .arg(Arg::with_name("incentives address")
+            .long("incentives-address")
+            .help("Optional, if participating in the incentives program, payment address")
             .takes_value(true)
         )
 }
@@ -192,7 +202,7 @@ pub fn execute(matches: &ArgMatches) {
         });
 
         // upgrades up to 0.9.0
-        existing_config = pre_090_upgrade(self_reported_version, existing_config);
+        existing_config = pre_090_upgrade(self_reported_version, existing_config, &matches);
     }
 
     let config_version = Version::parse(existing_config.get_version()).unwrap_or_else(|err| {

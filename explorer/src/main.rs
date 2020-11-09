@@ -8,6 +8,7 @@ use std::thread;
 use rocket_contrib::serve::StaticFiles;
 
 pub mod topology;
+pub mod utils;
 
 #[get("/")]
 fn index() -> &'static str {

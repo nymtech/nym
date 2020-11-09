@@ -3,11 +3,12 @@
 #[macro_use]
 extern crate rocket;
 
+use rocket_contrib::serve::StaticFiles;
 use std::thread;
 
-use rocket_contrib::serve::StaticFiles;
 mod jobs;
-pub mod utils;
+mod utils;
+mod websocket;
 
 #[get("/")]
 fn index() -> &'static str {
@@ -20,6 +21,10 @@ async fn main() {
         rocket::ignite()
             .mount("/", StaticFiles::from("public"))
             .launch()
+    });
+
+    tokio::spawn(async move {
+        websocket::start().await;
     });
 
     jobs::start().await;

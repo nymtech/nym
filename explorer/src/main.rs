@@ -7,6 +7,7 @@ use std::thread;
 
 use rocket_contrib::serve::StaticFiles;
 
+pub mod mixmining;
 pub mod topology;
 pub mod utils;
 

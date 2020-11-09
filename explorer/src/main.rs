@@ -21,6 +21,10 @@ async fn main() {
             .mount("/", StaticFiles::from("static"))
             .launch()
     });
+    match mixmining::renew_periodically().await {
+        Err(err) => println!("Error refreshing mixmining report: {}", err),
+        Ok(()) => println!("Refreshed topology"),
+    };
     match topology::renew_periodically().await {
         Err(err) => println!("Error refreshing topology: {}", err),
         Ok(()) => println!("Refreshed topology"),

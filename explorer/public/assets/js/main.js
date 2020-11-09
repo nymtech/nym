@@ -78,7 +78,7 @@ function dealWithStatusReport(report) {
 function updateNodesStatus() {
   console.log("updating node statuses!")
 
-  const reportUrl = directoryUrl() + "/api/mixmining/fullreport";
+  const reportUrl = "/downloads/mixmining.json";
   fetch(reportUrl, {
     method: 'GET'
   })

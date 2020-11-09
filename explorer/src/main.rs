@@ -13,8 +13,9 @@ pub mod utils;
 
 #[get("/")]
 fn index() -> &'static str {
-    "Hello, world!"
+    "Later we will chop this up into multiple routes, but for now we'll just use StaticFiles"
 }
+
 #[tokio::main]
 async fn main() {
     thread::spawn(|| {

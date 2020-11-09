@@ -111,45 +111,6 @@ impl<'a, R: AsyncRead + Unpin> Stream for AvailableReader<'a, R> {
         }
     }
 }
-//
-// impl<'a, R: AsyncRead + Unpin> Future for AvailableReader<'a, R> {
-//     type Output = io::Result<(Bytes, bool)>;
-//
-//     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-//         // if we have no space in buffer left - expand it
-//         if !self.buf.borrow().has_remaining_mut() {
-//             self.buf.borrow_mut().reserve(Self::BUF_INCREMENT);
-//         }
-//
-//         // note: poll_read_buf calls `buf.advance_mut(n)`
-//         let poll_res = Pin::new(self.inner.borrow_mut().deref_mut())
-//             .poll_read_buf(cx, self.buf.borrow_mut().deref_mut());
-//
-//         match poll_res {
-//             Poll::Pending => {
-//                 // there's nothing for us here, just return whatever we have (assuming we read anything!)
-//                 if self.buf.borrow().is_empty() {
-//                     Poll::Pending
-//                 } else {
-//                     let buf = self.buf.replace(BytesMut::new());
-//                     Poll::Ready(Ok((buf.freeze(), false)))
-//                 }
-//             }
-//             Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
-//             Poll::Ready(Ok(n)) => {
-//                 // if we read a non-0 amount, we're not done yet!
-//                 if n == 0 {
-//                     let buf = self.buf.replace(BytesMut::new());
-//                     Poll::Ready(Ok((buf.freeze(), true)))
-//                 } else {
-//                     // tell the waker we should be polled again!
-//                     cx.waker().wake_by_ref();
-//                     Poll::Pending
-//                 }
-//             }
-//         }
-//     }
-// }
 
 #[cfg(test)]
 mod tests {
@@ -246,32 +207,4 @@ mod tests {
         assert_eq!(read_data, combined_chunks);
         assert!(available_reader.next().await.is_none())
     }
-
-    // #[tokio::test]
-    // async fn grace_period_doesnt_invalidate_subsequent_reads() {
-    //     let data = vec![42u8; 100];
-    //     let double_data: Vec<_> = data.iter().cloned().chain(data.iter().cloned()).collect();
-    //
-    //     let mut reader_mock = tokio_test::io::Builder::new()
-    //         .read(&data)
-    //         .wait(Duration::from_millis(1))
-    //         .read(&data)
-    //         .wait(Duration::from_millis(5))
-    //         .read(&data)
-    //         // .wait(Duration::from_millis(5))
-    //         // .read(&data)
-    //         // .wait(Duration::from_millis(5))
-    //         .build();
-    //
-    //     let mut available_reader = AvailableReader {
-    //         buf: RefCell::new(BytesMut::with_capacity(4096)),
-    //         inner: RefCell::new(&mut reader_mock),
-    //         grace_period: Some(delay_for(Duration::from_millis(3))),
-    //     };
-    //
-    //     assert_eq!(double_data, available_reader.next().await.unwrap().unwrap());
-    //     // assert_eq!(data, available_reader.next().await.unwrap().unwrap());
-    //     // assert_eq!(data, available_reader.next().await.unwrap().unwrap());
-    //     // assert!(available_reader.next().await.is_none());
-    // }
 }

@@ -18,7 +18,7 @@ fn index() -> &'static str {
 async fn main() {
     thread::spawn(|| {
         rocket::ignite()
-            .mount("/", StaticFiles::from("static"))
+            .mount("/", StaticFiles::from("public"))
             .launch()
     });
     match mixmining::renew_periodically().await {

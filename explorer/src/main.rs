@@ -6,14 +6,12 @@ extern crate rocket;
 use std::thread;
 
 use rocket_contrib::serve::StaticFiles;
-
-pub mod mixmining;
-pub mod topology;
+mod jobs;
 pub mod utils;
 
 #[get("/")]
 fn index() -> &'static str {
-    "Later we will chop this up into multiple routes, but for now we'll just use StaticFiles"
+    "Later we will chop this up into multiple routes, but for now we'll just use StaticFiles. Leaving this here as a pointer for the future."
 }
 
 #[tokio::main]
@@ -23,12 +21,6 @@ async fn main() {
             .mount("/", StaticFiles::from("public"))
             .launch()
     });
-    match topology::renew_periodically().await {
-        Err(err) => println!("Error refreshing topology: {}", err),
-        Ok(()) => println!("Refreshed topology"),
-    };
-    match mixmining::renew_periodically().await {
-        Err(err) => println!("Error refreshing mixmining report: {}", err),
-        Ok(()) => println!("Refreshed topology"),
-    };
+
+    jobs::start().await;
 }

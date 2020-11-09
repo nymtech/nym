@@ -10,7 +10,7 @@ function websocketUrl() {
 
 function getTopology() {
   console.log("Getting topology...");
-  var topologyUrl = "/topology.json";
+  var topologyUrl = "/downloads/topology.json";
   $.ajax({
     type: 'GET',
     url: topologyUrl,

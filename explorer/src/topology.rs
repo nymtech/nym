@@ -13,6 +13,6 @@ pub async fn renew_periodically() -> Result<(), Error> {
                 .await?
                 .text()
                 .await?;
-        file::save(topology_json, "downloads/topology.json");
+        file::save(topology_json, "public/downloads/topology.json");
     }
 }

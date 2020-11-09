@@ -41,7 +41,7 @@ pub type ControllerSender = mpsc::UnboundedSender<ControllerCommand>;
 pub type ControllerReceiver = mpsc::UnboundedReceiver<ControllerCommand>;
 
 pub enum ControllerCommand {
-    Insert(ConnectionId, ConnectionSender, OrderedMessageBuffer),
+    Insert(ConnectionId, ConnectionSender),
     Remove(ConnectionId),
     Send(ConnectionId, Vec<u8>, bool),
 }
@@ -78,6 +78,13 @@ pub struct Controller {
     // TODO: this will need to be either completely removed (from code) or periodically cleaned
     // to avoid memory issues
     recently_closed: HashSet<ConnectionId>,
+
+    // TODO: this can potentially be abused to ddos and kill provider. Not sure at this point
+    // how to handle it more gracefully
+
+    // buffer for messages received before connection was established due to mixnet being able to
+    // un-order messages. Note we don't ever expect to have more than 1-2 messages per connection here
+    pending_messages: HashMap<ConnectionId, Vec<(Vec<u8>, bool)>>,
 }
 
 impl Controller {
@@ -88,27 +95,28 @@ impl Controller {
                 active_connections: HashMap::new(),
                 receiver,
                 recently_closed: HashSet::new(),
+                pending_messages: HashMap::new(),
             },
             sender,
         )
     }
 
-    fn insert_connection(
-        &mut self,
-        conn_id: ConnectionId,
-        connection_sender: ConnectionSender,
-        ordered_buffer: OrderedMessageBuffer,
-    ) {
+    fn insert_connection(&mut self, conn_id: ConnectionId, connection_sender: ConnectionSender) {
         let active_connection = ActiveConnection {
             is_closed: false,
             connection_sender: Some(connection_sender),
-            ordered_buffer,
+            ordered_buffer: OrderedMessageBuffer::new(),
         };
         if let Some(_active_conn) = self.active_connections.insert(conn_id, active_connection) {
-            // we received 'Send' before 'connect' - drain what we currently accumulated into the fresh
-            // buffer as this new one is going to be used for the connection
-            // TODO: let's only do this if it's actually EVER fired
-            error!("Presumably received 'Send' before 'Connect'!")
+            error!("Received a duplicate 'Connect'!")
+        } else {
+            // check if there were any pending messages
+            if let Some(pending) = self.pending_messages.remove(&conn_id) {
+                debug!("There were some pending messages for {}", conn_id);
+                for (payload, is_closed) in pending {
+                    self.send_to_connection(conn_id, payload, is_closed)
+                }
+            }
         }
     }
 
@@ -152,11 +160,15 @@ impl Controller {
                 // TODO:
             }
         } else {
-            error!("no connection exists with id: {:?}", conn_id);
-            warn!("'lost' bytes: {}", payload.len());
             if !self.recently_closed.contains(&conn_id) {
-                // TODO: let's only do this if it's actually EVER fired
-                error!("Presumably received 'Send' before 'Connect'! - First")
+                warn!("Received a 'Send' before 'Connect' - going to buffer the data");
+                let pending = self.pending_messages.entry(conn_id).or_insert(Vec::new());
+                pending.push((payload, is_closed));
+            } else {
+                error!(
+                    "Tried to write to closed connection ({} bytes were 'lost)",
+                    payload.len()
+                )
             }
         }
     }
@@ -167,8 +179,8 @@ impl Controller {
                 ControllerCommand::Send(conn_id, data, is_closed) => {
                     self.send_to_connection(conn_id, data, is_closed)
                 }
-                ControllerCommand::Insert(conn_id, sender, ordered_buffer) => {
-                    self.insert_connection(conn_id, sender, ordered_buffer)
+                ControllerCommand::Insert(conn_id, sender) => {
+                    self.insert_connection(conn_id, sender)
                 }
                 ControllerCommand::Remove(conn_id) => self.remove_connection(conn_id),
             }

@@ -52,9 +52,6 @@ pub struct ProxyRunner<S> {
     local_destination_address: String,
     remote_source_address: String,
     connection_id: ConnectionId,
-
-    // required for in-order delivery
-    message_sender: Option<OrderedMessageSender>,
 }
 
 impl<S> ProxyRunner<S>
@@ -68,7 +65,6 @@ where
         mix_receiver: ConnectionReceiver,
         mix_sender: MixProxySender<S>,
         connection_id: ConnectionId,
-        message_sender: OrderedMessageSender,
     ) -> Self {
         ProxyRunner {
             mix_receiver: Some(mix_receiver),
@@ -77,7 +73,6 @@ where
             local_destination_address,
             remote_source_address,
             connection_id,
-            message_sender: Some(message_sender),
         }
     }
 
@@ -88,12 +83,12 @@ where
         connection_id: ConnectionId,
         mix_sender: MixProxySender<S>,
         adapter_fn: F,
-        mut message_sender: OrderedMessageSender,
-    ) -> (OwnedReadHalf, OrderedMessageSender)
+    ) -> OwnedReadHalf
     where
         F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static,
     {
         let mut available_reader = AvailableReader::new(&mut reader);
+        let mut message_sender = OrderedMessageSender::new();
 
         loop {
             // try to read from local socket and push everything to mixnet to the remote
@@ -130,7 +125,7 @@ where
             }
         }
 
-        (reader, message_sender)
+        reader
     }
 
     async fn run_outbound(
@@ -188,7 +183,6 @@ where
             self.connection_id,
             self.mix_sender.clone(),
             adapter_fn,
-            self.message_sender.take().unwrap(),
         );
 
         let outbound_future = Self::run_outbound(
@@ -212,12 +206,11 @@ where
             panic!("TODO: some future error?")
         }
 
-        let (read_half, message_sender) = inbound_result.unwrap();
+        let read_half = inbound_result.unwrap();
         let (write_half, mix_receiver) = outbound_result.unwrap();
 
         self.socket = Some(write_half.reunite(read_half).unwrap());
         self.mix_receiver = Some(mix_receiver);
-        self.message_sender = Some(message_sender);
         self
     }
 

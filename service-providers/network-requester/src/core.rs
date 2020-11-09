@@ -7,7 +7,6 @@ use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::receiver::ReconstructedMessage;
-use ordered_buffer::{OrderedMessage, OrderedMessageBuffer};
 use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
 use socks5_requests::{ConnectionId, Request, Response};
 use std::path::PathBuf;
@@ -18,6 +17,7 @@ use tokio_tungstenite::WebSocketStream;
 use websocket::WebsocketConnectionError;
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
+// Since it's an atomic, it's safe to be kept static and shared across threads
 static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
 
 pub struct ServiceProvider {
@@ -101,35 +101,25 @@ impl ServiceProvider {
         conn_id: ConnectionId,
         remote_addr: String,
         return_address: Recipient,
-        mut ordered_buffer: OrderedMessageBuffer,
         controller_sender: ControllerSender,
         mix_input_sender: mpsc::UnboundedSender<(Response, Recipient)>,
     ) {
-        let init_data = ordered_buffer
-            .read()
-            .expect("Received connect request but it wasn't sequence 0!");
-
-        let mut conn =
-            match Connection::new(conn_id, remote_addr.clone(), &init_data, return_address).await {
-                Ok(conn) => conn,
-                Err(err) => {
-                    error!(
-                        "error while connecting to {:?} ! - {:?}",
-                        remote_addr.clone(),
-                        err
-                    );
-                    return;
-                }
-            };
+        let mut conn = match Connection::new(conn_id, remote_addr.clone(), return_address).await {
+            Ok(conn) => conn,
+            Err(err) => {
+                error!(
+                    "error while connecting to {:?} ! - {:?}",
+                    remote_addr.clone(),
+                    err
+                );
+                return;
+            }
+        };
 
         // Connect implies it's a fresh connection - register it with our controller
         let (mix_sender, mix_receiver) = mpsc::unbounded();
         controller_sender
-            .unbounded_send(ControllerCommand::Insert(
-                conn_id,
-                mix_sender,
-                ordered_buffer,
-            ))
+            .unbounded_send(ControllerCommand::Insert(conn_id, mix_sender))
             .unwrap();
 
         let old_count = ACTIVE_PROXIES.fetch_add(1, Ordering::SeqCst);
@@ -161,16 +151,12 @@ impl ServiceProvider {
         mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>,
         conn_id: ConnectionId,
         remote_addr: String,
-        message: OrderedMessage,
         return_address: Recipient,
     ) {
         if !self.open_proxy && !self.outbound_request_filter.check(&remote_addr) {
             log::info!("Domain {:?} failed filter check", remote_addr);
             return;
         }
-
-        let mut ordered_buffer = OrderedMessageBuffer::new();
-        ordered_buffer.write(message);
 
         let controller_sender_clone = controller_sender.clone();
         let mix_input_sender_clone = mix_input_sender.clone();
@@ -181,7 +167,6 @@ impl ServiceProvider {
                 conn_id,
                 remote_addr,
                 return_address,
-                ordered_buffer,
                 controller_sender_clone,
                 mix_input_sender_clone,
             )
@@ -220,14 +205,12 @@ impl ServiceProvider {
             Request::Connect {
                 conn_id,
                 remote_addr,
-                message,
                 return_address,
             } => self.handle_proxy_connect(
                 controller_sender,
                 mix_input_sender,
                 conn_id,
                 remote_addr,
-                message,
                 return_address,
             ),
             Request::Send(conn_id, data, closed) => {

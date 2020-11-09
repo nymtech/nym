@@ -146,8 +146,7 @@ pub(crate) struct SocksClient {
 impl Drop for SocksClient {
     fn drop(&mut self) {
         // TODO: decrease to debug/trace
-        info!("socksclient is going out of scope - the stream is getting dropped!");
-        info!("Connection {} is getting closed", self.connection_id);
+        debug!("Connection {} is getting closed", self.connection_id);
         self.controller_sender
             .unbounded_send(ControllerCommand::Remove(self.connection_id))
             .unwrap();
@@ -306,7 +305,11 @@ impl SocksClient {
                 );
 
                 self.send_request_to_mixnet(socks_provider_request).await;
-                info!("Starting proxy for {}", remote_address.clone());
+                info!(
+                    "Starting proxy for {} (id: {})",
+                    remote_address.clone(),
+                    self.connection_id
+                );
                 self.run_proxy(mix_receiver, message_sender, remote_address.clone())
                     .await;
                 info!("Proxy for {} is finished", remote_address);

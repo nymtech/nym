@@ -29,7 +29,7 @@ impl Connection {
         let mut conn = TcpStream::connect(&address).await?;
 
         // write the initial data to the connection before continuing
-        info!(
+        debug!(
             "Sending initial {} bytes to {}",
             initial_data.len(),
             address

@@ -101,14 +101,14 @@ where
                 Some(data) => match data {
                     Ok(data) => (data, false),
                     Err(err) => {
-                        error!("failed to read request from the socket - {}", err);
+                        error!(target: &*format!("({}) socks5 inbound", connection_id),"failed to read request from the socket - {}", err);
                         break;
                     }
                 },
                 None => (Default::default(), true),
             };
 
-            info!(
+            debug!(
                 target: &*format!("({}) socks5 inbound", connection_id),
                 "[{} bytes]\t{} → local → mixnet → remote → {}. Local closed: {}",
                 read_data.len(),
@@ -125,7 +125,7 @@ where
 
             if is_finished {
                 // technically we already informed it when we sent the message to mixnet above
-                info!(target: &*format!("({}) socks5 inbound", connection_id), "The local socket is closed - won't receive any more data. Informing remote about that...");
+                debug!(target: &*format!("({}) socks5 inbound", connection_id), "The local socket is closed - won't receive any more data. Informing remote about that...");
                 break;
             }
         }
@@ -148,7 +148,7 @@ where
             }
             let connection_message = mix_data.unwrap();
 
-            info!(
+            debug!(
                 target: &*format!("({}) socks5 outbound", connection_id),
                 "[{} bytes]\t{} → remote → mixnet → local → {} Remote closed: {}",
                 connection_message.payload.len(),
@@ -159,11 +159,11 @@ where
 
             if let Err(err) = writer.write_all(&connection_message.payload).await {
                 // the other half is probably going to blow up too (if not, this task also needs to notify the other one!!)
-                error!("failed to write response back to the socket - {}", err);
+                error!(target: &*format!("({}) socks5 outbound", connection_id), "failed to write response back to the socket - {}", err);
                 break;
             }
             if connection_message.socket_closed {
-                info!(target: &*format!("({}) socks5 outbound", connection_id),
+                debug!(target: &*format!("({}) socks5 outbound", connection_id),
                       "Remote socket got closed - closing the local socket too");
                 break;
             }

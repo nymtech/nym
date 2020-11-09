@@ -3,15 +3,25 @@
 #[macro_use]
 extern crate rocket;
 
+use std::thread;
+
 use rocket_contrib::serve::StaticFiles;
+
+pub mod topology;
 
 #[get("/")]
 fn index() -> &'static str {
     "Hello, world!"
 }
-
-fn main() {
-    rocket::ignite()
-        .mount("/", StaticFiles::from("static"))
-        .launch();
+#[tokio::main]
+async fn main() {
+    thread::spawn(|| {
+        rocket::ignite()
+            .mount("/", StaticFiles::from("static"))
+            .launch()
+    });
+    match topology::renew_periodically().await {
+        Err(err) => println!("Error refreshing topology: {}", err),
+        Ok(()) => println!("Refreshed topology"),
+    };
 }

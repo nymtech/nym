@@ -21,15 +21,13 @@ tokio = { version = "0.2", features = ["full"] }
 tokio-util = { version = "0.3.1", features = ["codec"] }
 
 ## internal
-config = {path = "../common/config"}
-crypto = {path = "../common/crypto"}
-directory-client = { path = "../common/client-libs/directory-client" }
+config = { path = "../common/config" }
+crypto = { path = "../common/crypto" }
+metrics-client = { path = "../common/client-libs/metrics-client" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
-nymsphinx = {path = "../common/nymsphinx" }
-pemstore = {path = "../common/pemstore"}
-topology = {path = "../common/topology"}
+nymsphinx = { path = "../common/nymsphinx" }
+pemstore = { path = "../common/pemstore" }
+topology = { path = "../common/topology" }
+validator-client = { path = "../common/client-libs/validator-client" }
 version-checker = { path = "../common/version-checker" }
-
-[dev-dependencies]
-tempfile = "3.1.0"

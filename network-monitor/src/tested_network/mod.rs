@@ -16,7 +16,7 @@ use crate::test_packet::{IpVersion, TestPacket};
 use gateway_client::error::GatewayClientError;
 use gateway_client::GatewayClient;
 use nymsphinx::forwarding::packet::MixPacket;
-use topology::{gateway, mix, NymTopology};
+use topology::{mix, NymTopology};
 
 pub(crate) mod good_topology;
 
@@ -42,19 +42,17 @@ pub(crate) struct TestedNetwork {
     good_v6_topology: NymTopology,
 }
 
-pub(crate) fn v4_gateway() -> gateway::Node {
-    good_topology::v4_gateway()
-}
-
 impl TestedNetwork {
-    pub(crate) fn new_good(gateway_client: GatewayClient) -> Self {
-        let good_v4_topology = good_topology::new_v4();
-
+    pub(crate) fn new_good(
+        gateway_client: GatewayClient,
+        good_v4_topology: NymTopology,
+        good_v6_topology: NymTopology,
+    ) -> Self {
         TestedNetwork {
             system_version: good_v4_topology.mixes()[&1][0].version.clone(),
             gateway_client,
             good_v4_topology,
-            good_v6_topology: good_topology::new_v6(),
+            good_v6_topology,
         }
     }
 

@@ -25,23 +25,31 @@ pub const PUBLIC_KEY_SIZE: usize = 32;
 /// Size of a X25519 shared secret
 pub const SHARED_SECRET_SIZE: usize = 32;
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
-pub enum EncryptionKeyError {
-    InvalidPublicKey,
-    InvalidPrivateKey,
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub enum KeyRecoveryError {
+    InvalidPublicKeyBytes,
+    InvalidPrivateKeyBytes,
+    MalformedString(bs58::decode::Error),
+}
+
+impl From<bs58::decode::Error> for KeyRecoveryError {
+    fn from(err: bs58::decode::Error) -> Self {
+        KeyRecoveryError::MalformedString(err)
+    }
 }
 
 // required for std::error::Error
-impl Display for EncryptionKeyError {
+impl Display for KeyRecoveryError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            EncryptionKeyError::InvalidPrivateKey => write!(f, "Invalid private key"),
-            EncryptionKeyError::InvalidPublicKey => write!(f, "Invalid public key"),
+            KeyRecoveryError::InvalidPrivateKeyBytes => write!(f, "Invalid private key bytes"),
+            KeyRecoveryError::InvalidPublicKeyBytes => write!(f, "Invalid public key bytes"),
+            KeyRecoveryError::MalformedString(err) => write!(f, "malformed string - {}", err),
         }
     }
 }
 
-impl std::error::Error for EncryptionKeyError {}
+impl std::error::Error for KeyRecoveryError {}
 
 pub struct KeyPair {
     pub(crate) private_key: PrivateKey,
@@ -72,7 +80,7 @@ impl KeyPair {
         &self.public_key
     }
 
-    pub fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, EncryptionKeyError> {
+    pub fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, KeyRecoveryError> {
         Ok(KeyPair {
             private_key: PrivateKey::from_bytes(priv_bytes)?,
             public_key: PublicKey::from_bytes(pub_bytes)?,
@@ -108,9 +116,9 @@ impl PublicKey {
         *self.0.as_bytes()
     }
 
-    pub fn from_bytes(b: &[u8]) -> Result<Self, EncryptionKeyError> {
+    pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
         if b.len() != PUBLIC_KEY_SIZE {
-            return Err(EncryptionKeyError::InvalidPublicKey);
+            return Err(KeyRecoveryError::InvalidPublicKeyBytes);
         }
         let mut bytes = [0; PUBLIC_KEY_SIZE];
         bytes.copy_from_slice(&b[..PUBLIC_KEY_SIZE]);
@@ -121,16 +129,14 @@ impl PublicKey {
         bs58::encode(&self.to_bytes()).into_string()
     }
 
-    pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, EncryptionKeyError> {
-        let bytes = bs58::decode(val.into())
-            .into_vec()
-            .expect("TODO: deal with this failure case");
+    pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, KeyRecoveryError> {
+        let bytes = bs58::decode(val.into()).into_vec()?;
         Self::from_bytes(&bytes)
     }
 }
 
 impl PemStorableKey for PublicKey {
-    type Error = EncryptionKeyError;
+    type Error = KeyRecoveryError;
 
     fn pem_type() -> &'static str {
         "X25519 PUBLIC KEY"
@@ -159,9 +165,9 @@ impl PrivateKey {
         self.0.to_bytes()
     }
 
-    pub fn from_bytes(b: &[u8]) -> Result<Self, EncryptionKeyError> {
+    pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
         if b.len() != PRIVATE_KEY_SIZE {
-            return Err(EncryptionKeyError::InvalidPrivateKey);
+            return Err(KeyRecoveryError::InvalidPrivateKeyBytes);
         }
         let mut bytes = [0; 32];
         bytes.copy_from_slice(&b[..PRIVATE_KEY_SIZE]);
@@ -172,10 +178,8 @@ impl PrivateKey {
         bs58::encode(&self.to_bytes()).into_string()
     }
 
-    pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, EncryptionKeyError> {
-        let bytes = bs58::decode(val.into())
-            .into_vec()
-            .expect("TODO: deal with this failure case");
+    pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, KeyRecoveryError> {
+        let bytes = bs58::decode(val.into()).into_vec()?;
         Self::from_bytes(&bytes)
     }
 
@@ -186,7 +190,7 @@ impl PrivateKey {
 }
 
 impl PemStorableKey for PrivateKey {
-    type Error = EncryptionKeyError;
+    type Error = KeyRecoveryError;
 
     fn pem_type() -> &'static str {
         "X25519 PRIVATE KEY"

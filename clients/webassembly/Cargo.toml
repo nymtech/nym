@@ -27,8 +27,8 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }
-directory-client = { path = "../../common/client-libs/directory-client" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
+validator-client = { path = "../../common/client-libs/validator-client" }
 wasm-utils = { path = "../../common/wasm-utils" }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
@@ -48,7 +48,6 @@ wee_alloc = { version = "0.4", optional = true }
 wasm-bindgen-test = "0.2"
 
 [package.metadata.wasm-pack.profile.release]
-# this needs to be disabled until https://github.com/rustwasm/wasm-pack/issues/886 is resolved
-wasm-opt = ["-Oz", "--enable-mutable-globals"]
+wasm-opt = false
 
 

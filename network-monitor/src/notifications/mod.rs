@@ -17,20 +17,20 @@ use crate::monitor::NOTIFIER_DELIVERY_TIMEOUT;
 use crate::notifications::test_run::TestRun;
 use crate::notifications::test_timeout::TestTimeout;
 use crate::run_info::{RunInfo, TestRunUpdate, TestRunUpdateReceiver};
-use crate::PRINT_DETAILED_REPORT;
 use crypto::asymmetric::encryption::KeyPair;
-use directory_client::mixmining::BatchMixStatus;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::receiver::MessageReceiver;
 use std::sync::Arc;
+use validator_client::models::mixmining::BatchMixStatus;
+use validator_client::ValidatorClientError;
 
 mod test_run;
 mod test_timeout;
 
 #[derive(Debug)]
 enum NotifierError {
-    DirectoryError(String),
+    ValidatorError(ValidatorClientError),
     MalformedPacketReceived,
     NonTestPacketReceived,
 }
@@ -39,7 +39,7 @@ pub(crate) struct Notifier {
     client_encryption_keypair: KeyPair,
     message_receiver: MessageReceiver,
     mixnet_receiver: MixnetReceiver,
-    directory_client: Arc<directory_client::Client>,
+    validator_client: Arc<validator_client::Client>,
     test_run_receiver: TestRunUpdateReceiver,
     test_run_nonce: u64,
     current_test_run: TestRun,
@@ -50,19 +50,20 @@ impl Notifier {
     pub(crate) fn new(
         mixnet_receiver: MixnetReceiver,
         client_encryption_keypair: KeyPair,
-        directory_client: Arc<directory_client::Client>,
+        validator_client: Arc<validator_client::Client>,
         test_run_receiver: TestRunUpdateReceiver,
+        with_detailed_report: bool,
     ) -> Notifier {
         let message_receiver = MessageReceiver::new();
         let mut current_test_run = TestRun::new(0).with_report();
-        if PRINT_DETAILED_REPORT {
+        if with_detailed_report {
             current_test_run = current_test_run.with_detailed_report();
         }
         Notifier {
             client_encryption_keypair,
             message_receiver,
             mixnet_receiver,
-            directory_client,
+            validator_client,
             test_run_receiver,
             test_run_nonce: 0,
             current_test_run,
@@ -145,10 +146,10 @@ impl Notifier {
     }
 
     async fn notify_validator(&self, status: BatchMixStatus) -> Result<(), NotifierError> {
-        self.directory_client
+        self.validator_client
             .post_batch_mixmining_status(status)
             .await
-            .map_err(|err| NotifierError::DirectoryError(err.to_string()))?;
+            .map_err(|err| NotifierError::ValidatorError(err))?;
         Ok(())
     }
 }

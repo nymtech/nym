@@ -68,21 +68,8 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
         )
     }
 
-    // Hopefully should get simplified by https://github.com/nymtech/nym/issues/385
-    // so that `custom_location` could be completely removed
-    fn load_from_file(custom_location: Option<PathBuf>, id: Option<&str>) -> io::Result<Self> {
-        if custom_location.is_none() && id.is_none() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "Both custom location and id are unspecified!",
-            ));
-        }
-
-        // unwrap on id can't fail as we just checked whether at least one of custom location or id
-        // is not None
-        let config_contents = fs::read_to_string(
-            custom_location.unwrap_or_else(|| Self::default_config_file_path(id.unwrap())),
-        )?;
+    fn load_from_file(id: &str) -> io::Result<Self> {
+        let config_contents = fs::read_to_string(Self::default_config_file_path(id))?;
 
         toml::from_str(&config_contents)
             .map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))

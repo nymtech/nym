@@ -32,7 +32,7 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 // 'GATEWAY'
 const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
-const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
+pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://validator.nymtech.net";
 
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
@@ -41,6 +41,7 @@ const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_milli
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_CACHE_ENTRY_TTL: Duration = Duration::from_millis(30_000);
+const DEFAULT_MAXIMUM_RECONNECTION_ATTEMPTS: u32 = 20;
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: u16 = 5;
@@ -138,6 +139,18 @@ where
     deserializer.deserialize_any(DurationVisitor)
 }
 
+fn deserialize_option_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    if s.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(s))
+    }
+}
+
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
 }
@@ -188,8 +201,8 @@ impl Config {
         self
     }
 
-    pub fn with_custom_directory<S: Into<String>>(mut self, directory_server: S) -> Self {
-        self.gateway.presence_directory_server = directory_server.into();
+    pub fn with_custom_validator<S: Into<String>>(mut self, validator: S) -> Self {
+        self.gateway.validator_rest_url = validator.into();
         self
     }
 
@@ -379,6 +392,11 @@ impl Config {
         self
     }
 
+    pub fn with_incentives_address<S: Into<String>>(mut self, incentives_address: S) -> Self {
+        self.gateway.incentives_address = Some(incentives_address.into());
+        self
+    }
+
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
@@ -404,12 +422,8 @@ impl Config {
         self.gateway.public_sphinx_key_file.clone()
     }
 
-    pub fn get_presence_directory_server(&self) -> String {
-        self.gateway.presence_directory_server.clone()
-    }
-
-    pub fn get_presence_sending_delay(&self) -> Duration {
-        self.debug.presence_sending_delay
+    pub fn get_validator_rest_endpoint(&self) -> String {
+        self.gateway.validator_rest_url.clone()
     }
 
     pub fn get_mix_listening_address(&self) -> SocketAddr {
@@ -448,6 +462,10 @@ impl Config {
         self.debug.initial_connection_timeout
     }
 
+    pub fn get_packet_forwarding_max_reconnections(&self) -> u32 {
+        self.debug.maximum_reconnection_attempts
+    }
+
     pub fn get_message_retrieval_limit(&self) -> u16 {
         self.debug.message_retrieval_limit
     }
@@ -463,10 +481,13 @@ impl Config {
     pub fn get_version(&self) -> &str {
         &self.gateway.version
     }
+
+    pub fn get_incentives_address(&self) -> Option<String> {
+        self.gateway.incentives_address.clone()
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct Gateway {
     /// Version of the gateway for which this configuration was created.
     #[serde(default = "missing_string_value")]
@@ -493,12 +514,17 @@ pub struct Gateway {
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
 
-    /// Directory server to which the server will be reporting their presence data.
-    presence_directory_server: String,
+    /// Validator server to which the node will be reporting their presence data.
+    #[serde(default = "missing_string_value")]
+    validator_rest_url: String,
 
     /// nym_home_directory specifies absolute path to the home nym gateways directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
+
+    /// Optional, if participating in the incentives program, payment address.
+    #[serde(deserialize_with = "deserialize_option_string")]
+    incentives_address: Option<String>,
 }
 
 impl Gateway {
@@ -533,8 +559,9 @@ impl Default for Gateway {
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
-            presence_directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
+            validator_rest_url: DEFAULT_VALIDATOR_REST_ENDPOINT.to_string(),
             nym_root_directory: Config::default_root_directory(),
+            incentives_address: None,
         }
     }
 }
@@ -655,6 +682,10 @@ pub struct Debug {
     )]
     presence_sending_delay: Duration,
 
+    /// Maximum number of retries node is going to attempt to re-establish existing connection
+    /// to another node when forwarding sphinx packets.
+    maximum_reconnection_attempts: u32,
+
     /// Length of filenames for new client messages.
     stored_messages_filename_length: u16,
 
@@ -678,29 +709,10 @@ impl Default for Debug {
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
+            maximum_reconnection_attempts: DEFAULT_MAXIMUM_RECONNECTION_ATTEMPTS,
             stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
             cache_entry_ttl: DEFAULT_CACHE_ENTRY_TTL,
         }
-    }
-}
-
-#[cfg(test)]
-mod gateway_config {
-    use super::*;
-
-    #[test]
-    fn after_saving_default_config_the_loaded_one_is_identical() {
-        // need to figure out how to do something similar but without touching the disk
-        // or the file system at all...
-        let temp_location = tempfile::tempdir().unwrap().path().join("config.toml");
-        let default_config = Config::default().with_id("foomp".to_string());
-        default_config
-            .save_to_file(Some(temp_location.clone()))
-            .unwrap();
-
-        let loaded_config = Config::load_from_file(Some(temp_location), None).unwrap();
-
-        assert_eq!(default_config, loaded_config);
     }
 }

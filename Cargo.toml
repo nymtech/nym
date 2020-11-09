@@ -13,9 +13,8 @@ members = [
     "clients/socks5",
     "clients/webassembly",
     "clients/client-core",
-    "common/client-libs/directory-client",
-    "common/client-libs/directory-client/models",
     "common/client-libs/gateway-client",
+    "common/client-libs/metrics-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
     "common/config",
@@ -41,7 +40,7 @@ members = [
     "gateway/gateway-requests",
     "mixnode",
     "network-monitor",
-    "service-providers/sphinx-socks",
+    "service-providers/network-requester",
 ]
 
 default-members = [
@@ -49,7 +48,7 @@ default-members = [
     "clients/socks5",
 #    "clients/webassembly",
     "gateway",
-    "service-providers/sphinx-socks",
+    "service-providers/network-requester",
     "mixnode",
     "network-monitor",
 ]

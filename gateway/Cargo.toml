@@ -26,17 +26,14 @@ tokio-tungstenite = "0.11"
 # internal
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
-directory-client = { path = "../common/client-libs/directory-client" }
 gateway-requests = { path = "gateway-requests" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
 nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
+validator-client = { path = "../common/client-libs/validator-client" }
 version-checker = { path = "../common/version-checker" }
 
 [dependencies.tungstenite]
 version = "0.11"
 default-features = false
-
-[dev-dependencies]
-tempfile = "3.1.0"

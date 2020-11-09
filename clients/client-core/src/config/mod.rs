@@ -26,7 +26,8 @@ pub mod persistence;
 pub const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'CLIENT'
-const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
+pub const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://validator.nymtech.net";
+
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
 
@@ -175,8 +176,8 @@ impl<T: NymConfig> Config<T> {
         self.client.gateway_listener = gateway_listener.into();
     }
 
-    pub fn with_custom_directory<S: Into<String>>(&mut self, directory_server: S) {
-        self.client.directory_server = directory_server.into();
+    pub fn set_custom_validator<S: Into<String>>(&mut self, validator: S) {
+        self.client.validator_rest_url = validator.into();
     }
 
     pub fn set_high_default_traffic_volume(&mut self) {
@@ -233,8 +234,8 @@ impl<T: NymConfig> Config<T> {
         self.client.ack_key_file.clone()
     }
 
-    pub fn get_directory_server(&self) -> String {
-        self.client.directory_server.clone()
+    pub fn get_validator_rest_endpoint(&self) -> String {
+        self.client.validator_rest_url.clone()
     }
 
     pub fn get_gateway_id(&self) -> String {
@@ -325,7 +326,6 @@ impl<T: NymConfig> Default for Config<T> {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct Client<T> {
     /// Version of the client for which this configuration was created.
     #[serde(default = "missing_string_value")]
@@ -334,8 +334,9 @@ pub struct Client<T> {
     /// ID specifies the human readable ID of this particular client.
     id: String,
 
-    /// URL to the directory server.
-    directory_server: String,
+    /// URL to the validator server for obtaining network topology.
+    #[serde(default = "missing_string_value")]
+    validator_rest_url: String,
 
     /// Special mode of the system such that all messages are sent as soon as they are received
     /// and no cover traffic is generated. If set all message delays are set to 0 and overwriting
@@ -388,7 +389,7 @@ impl<T: NymConfig> Default for Client<T> {
         Client {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
-            directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
+            validator_rest_url: DEFAULT_VALIDATOR_REST_ENDPOINT.to_string(),
             vpn_mode: false,
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),

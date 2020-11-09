@@ -18,11 +18,8 @@ use crate::config::Config;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
-use directory_client::DirectoryClient;
 use log::*;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
-use std::convert::TryInto;
-use std::process;
 use tokio::runtime::Runtime;
 use topology::NymTopology;
 
@@ -74,9 +71,21 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("directory")
-                .long("directory")
-                .help("Address of the directory server the node is sending presence and metrics to")
+            Arg::with_name("validator")
+                .long("validator")
+                .help("REST endpoint of the validator the node is registering presence with")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("metrics-server")
+                .long("metrics-server")
+                .help("Server to which the node is sending all metrics data")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("incentives-address")
+                .long("incentives-address")
+                .help("Optional, if participating in the incentives program, payment address")
                 .takes_value(true),
         )
 }
@@ -89,7 +98,7 @@ fn show_incentives_url() {
     println!("\n\n");
 }
 
-async fn choose_layer(matches: &ArgMatches<'_>, directory_server: String) -> u64 {
+async fn choose_layer(matches: &ArgMatches<'_>, validator_server: String) -> u64 {
     let max_layer = DEFAULT_NUM_MIX_HOPS;
     if let Some(layer) = matches.value_of("layer").map(|layer| layer.parse::<u64>()) {
         if let Err(err) = layer {
@@ -102,14 +111,13 @@ async fn choose_layer(matches: &ArgMatches<'_>, directory_server: String) -> u64
         }
     }
 
-    let directory_client_config = directory_client::Config::new(directory_server);
-    let directory_client = directory_client::Client::new(directory_client_config);
-    let topology: NymTopology = directory_client
+    let validator_client_config = validator_client::Config::new(validator_server);
+    let validator_client = validator_client::Client::new(validator_client_config);
+    let topology: NymTopology = validator_client
         .get_topology()
         .await
         .expect("failed to obtain initial network topology!")
-        .try_into()
-        .unwrap();
+        .into();
 
     let mut lowest_layer = (0, usize::max_value());
 
@@ -137,41 +145,47 @@ pub fn execute(matches: &ArgMatches) {
         let id = matches.value_of("id").unwrap();
         println!("Initialising mixnode {}...", id);
 
-        if Config::default_config_file_path(id).exists() {
-            eprintln!("Mixnode \"{}\" was already initialised before! If you wanted to upgrade your node to most recent version, try `upgrade` command instead!", id);
-            process::exit(1);
-        }
+        let already_init = if Config::default_config_file_path(id).exists() {
+            println!("Mixnode \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
+            true
+        } else {
+            false
+        };
 
         let mut config = Config::new(id);
         config = override_config(config, matches);
-        let layer = choose_layer(matches, config.get_presence_directory_server()).await;
+        let layer = choose_layer(matches, config.get_validator_rest_endpoint()).await;
         // TODO: I really don't like how we override config and are presumably done with it
         // only to change it here
         config = config.with_layer(layer);
         debug!("Choosing layer {}", config.get_layer());
 
-        let identity_keys = identity::KeyPair::new();
-        let sphinx_keys = encryption::KeyPair::new();
-        let pathfinder = MixNodePathfinder::new_from_config(&config);
-        pemstore::store_keypair(
-            &identity_keys,
-            &pemstore::KeyPairPath::new(
-                pathfinder.private_identity_key().to_owned(),
-                pathfinder.public_identity_key().to_owned(),
-            ),
-        )
-        .expect("Failed to save identity keys");
+        // if node was already initialised, don't generate new keys
+        if !already_init {
+            let identity_keys = identity::KeyPair::new();
+            let sphinx_keys = encryption::KeyPair::new();
+            let pathfinder = MixNodePathfinder::new_from_config(&config);
+            pemstore::store_keypair(
+                &identity_keys,
+                &pemstore::KeyPairPath::new(
+                    pathfinder.private_identity_key().to_owned(),
+                    pathfinder.public_identity_key().to_owned(),
+                ),
+            )
+                .expect("Failed to save identity keys");
 
-        pemstore::store_keypair(
-            &sphinx_keys,
-            &pemstore::KeyPairPath::new(
-                pathfinder.private_encryption_key().to_owned(),
-                pathfinder.public_encryption_key().to_owned(),
-            ),
-        )
-        .expect("Failed to save sphinx keys");
+            pemstore::store_keypair(
+                &sphinx_keys,
+                &pemstore::KeyPairPath::new(
+                    pathfinder.private_encryption_key().to_owned(),
+                    pathfinder.public_encryption_key().to_owned(),
+                ),
+            )
+                .expect("Failed to save sphinx keys");
 
-        println!("Saved mixnet identity and sphinx keypairs");
+            println!("Saved mixnet identity and sphinx keypairs");
+        }
+
         let config_save_location = config.get_config_file_save_location();
         config
             .save_to_file(None)

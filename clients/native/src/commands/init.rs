@@ -19,13 +19,10 @@ use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use config::NymConfig;
 use crypto::asymmetric::identity;
-use directory_client::DirectoryClient;
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
 use rand::rngs::OsRng;
 use rand::seq::SliceRandom;
-use std::convert::TryInto;
-use std::process;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::{gateway, NymTopology};
@@ -49,9 +46,9 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .help("Id of the gateway we are going to connect to.")
             .takes_value(true)
         )
-        .arg(Arg::with_name("directory")
-            .long("directory")
-            .help("Address of the directory server the client is getting topology from")
+        .arg(Arg::with_name("validator")
+            .long("validator")
+            .help("Address of the validator server the client is getting topology from")
             .takes_value(true),
         )
         .arg(Arg::with_name("disable-socket")
@@ -103,11 +100,11 @@ async fn register_with_gateway(
         .expect("failed to register with the gateway!")
 }
 
-async fn gateway_details(directory_server: &str, gateway_id: &str) -> gateway::Node {
-    let directory_client_config = directory_client::Config::new(directory_server.to_string());
-    let directory_client = directory_client::Client::new(directory_client_config);
-    let topology = directory_client.get_topology().await.unwrap();
-    let nym_topology: NymTopology = topology.try_into().expect("Invalid topology data!");
+async fn gateway_details(validator_server: &str, gateway_id: &str) -> gateway::Node {
+    let validator_client_config = validator_client::Config::new(validator_server.to_string());
+    let validator_client = validator_client::Client::new(validator_client_config);
+    let topology = validator_client.get_active_topology().await.unwrap();
+    let nym_topology: NymTopology = topology.into();
     let version_filtered_topology = nym_topology.filter_system_version(env!("CARGO_PKG_VERSION"));
 
     version_filtered_topology
@@ -133,10 +130,12 @@ pub fn execute(matches: &ArgMatches) {
 
     let id = matches.value_of("id").unwrap(); // required for now
 
-    if Config::default_config_file_path(id).exists() {
-        eprintln!("Client \"{}\" was already initialised before! If you wanted to upgrade your client to most recent version, try `upgrade` command instead!", id);
-        process::exit(1);
-    }
+    let already_init = if Config::default_config_file_path(id).exists() {
+        println!("Client \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
+        true
+    } else {
+        false
+    };
 
     let mut config = Config::new(id);
 
@@ -149,33 +148,37 @@ pub fn execute(matches: &ArgMatches) {
         config.get_base_mut().set_high_default_traffic_volume();
     }
 
-    // create identity, encryption and ack keys.
-    let mut key_manager = KeyManager::new(&mut rng);
+    // if client was already initialised, don't generate new keys, not re-register with gateway
+    // (because this would create new shared key)
+    if !already_init {
+        // create identity, encryption and ack keys.
+        let mut key_manager = KeyManager::new(&mut rng);
 
-    let gateway_id = select_gateway(matches.value_of("gateway"));
-    config.get_base_mut().with_gateway_id(gateway_id);
+        let gateway_id = select_gateway(matches.value_of("gateway"));
+        config.get_base_mut().with_gateway_id(gateway_id);
 
-    let registration_fut = async {
-        let gate_details =
-            gateway_details(&config.get_base().get_directory_server(), gateway_id).await;
-        let shared_keys =
-            register_with_gateway(&gate_details, key_manager.identity_keypair()).await;
-        (shared_keys, gate_details.client_listener)
-    };
+        let registration_fut = async {
+            let gate_details =
+                gateway_details(&config.get_base().get_validator_rest_endpoint(), gateway_id).await;
+            let shared_keys =
+                register_with_gateway(&gate_details, key_manager.identity_keypair()).await;
+            (shared_keys, gate_details.client_listener)
+        };
 
-    // TODO: is there perhaps a way to make it work without having to spawn entire runtime?
-    let mut rt = tokio::runtime::Runtime::new().unwrap();
-    let (shared_keys, gateway_listener) = rt.block_on(registration_fut);
-    config
-        .get_base_mut()
-        .with_gateway_listener(gateway_listener);
-    key_manager.insert_gateway_shared_key(shared_keys);
+        // TODO: is there perhaps a way to make it work without having to spawn entire runtime?
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let (shared_keys, gateway_listener) = rt.block_on(registration_fut);
+        config
+            .get_base_mut()
+            .with_gateway_listener(gateway_listener);
+        key_manager.insert_gateway_shared_key(shared_keys);
 
-    let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-    key_manager
-        .store_keys(&pathfinder)
-        .expect("Failed to generated keys");
-    println!("Saved all generated keys");
+        let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
+        key_manager
+            .store_keys(&pathfinder)
+            .expect("Failed to generated keys");
+        println!("Saved all generated keys");
+    }
 
     let config_save_location = config.get_config_file_save_location();
     config

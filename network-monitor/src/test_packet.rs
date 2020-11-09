@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crypto::asymmetric::encryption;
-use crypto::asymmetric::encryption::EncryptionKeyError;
-use directory_client::mixmining::MixStatus;
+use crypto::asymmetric::{encryption, identity};
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{self, Display, Formatter};
+use std::hash::{Hash, Hasher};
 use std::mem;
+use validator_client::models::mixmining::MixStatus;
 
 #[derive(Debug)]
 pub(crate) enum TestPacketError {
@@ -26,8 +26,8 @@ pub(crate) enum TestPacketError {
     InvalidNodeKey,
 }
 
-impl From<encryption::EncryptionKeyError> for TestPacketError {
-    fn from(_: EncryptionKeyError) -> Self {
+impl From<identity::KeyRecoveryError> for TestPacketError {
+    fn from(_: identity::KeyRecoveryError) -> Self {
         TestPacketError::InvalidNodeKey
     }
 }
@@ -69,11 +69,11 @@ impl Display for IpVersion {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub(crate) struct TestPacket {
     ip_version: IpVersion,
     nonce: u64,
-    pub_key: encryption::PublicKey, // TODO: eventually this will get replaced with identity::PublicKey
+    pub_key: identity::PublicKey,
 }
 
 impl Display for TestPacket {
@@ -88,8 +88,16 @@ impl Display for TestPacket {
     }
 }
 
+impl Hash for TestPacket {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.ip_version.hash(state);
+        self.nonce.hash(state);
+        self.pub_key.to_bytes().hash(state);
+    }
+}
+
 impl TestPacket {
-    pub(crate) fn new(pub_key: encryption::PublicKey, ip_version: IpVersion, nonce: u64) -> Self {
+    pub(crate) fn new(pub_key: identity::PublicKey, ip_version: IpVersion, nonce: u64) -> Self {
         TestPacket {
             pub_key,
             ip_version,
@@ -130,7 +138,7 @@ impl TestPacket {
         // this unwrap can't fail as we've already checked for the size
         let nonce = u64::from_be_bytes(b[0..n].try_into().unwrap());
         let ip_version = IpVersion::try_from(b[n])?;
-        let pub_key = encryption::PublicKey::from_bytes(&b[n + 1..])?;
+        let pub_key = identity::PublicKey::from_bytes(&b[n + 1..])?;
 
         Ok(TestPacket {
             ip_version,

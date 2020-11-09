@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::config::DEFAULT_VALIDATOR_REST_ENDPOINT;
 use crate::config::{Config, MISSING_VALUE};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
@@ -81,9 +82,20 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
 
     print_start_upgrade(&from_version, &to_version);
 
-    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
-    // TODO: THIS IS INCOMPLETE AS ONCE PRESENCE IS REMOVED IN 0.9.0 IT WILL ALSO NEED
-    // TO BE PURGED FROM CONFIG
+    if config.get_validator_rest_endpoint() != MISSING_VALUE {
+        eprintln!("existing config seems to have specified new validator rest endpoint which was only introduced in 0.9.0! Can't perform upgrade.");
+        print_failed_upgrade(&from_version, &to_version);
+        process::exit(1);
+    }
+
+    println!(
+        "Setting validator REST endpoint to to {}",
+        DEFAULT_VALIDATOR_REST_ENDPOINT
+    );
+
+    let upgraded_config = config
+        .with_custom_version(to_version.to_string().as_ref())
+        .with_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT);
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
@@ -129,7 +141,7 @@ pub fn execute(matches: &ArgMatches) {
 
     let id = matches.value_of("id").unwrap();
 
-    let mut existing_config = Config::load_from_file(None, Some(id)).unwrap_or_else(|err| {
+    let mut existing_config = Config::load_from_file(id).unwrap_or_else(|err| {
         eprintln!("failed to load existing config file! - {:?}", err);
         process::exit(1)
     });

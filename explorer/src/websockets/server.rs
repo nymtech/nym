@@ -1,16 +1,10 @@
 use futures_util::{SinkExt, StreamExt};
 use log::*;
-use std::{collections::HashMap, io::Error as IoError, net::SocketAddr, sync::Arc};
-use tokio::sync::{broadcast, Mutex};
-use tokio::{
-    net::{TcpListener, TcpStream},
-    sync::mpsc::UnboundedSender,
-};
+use std::{io::Error as IoError, net::SocketAddr};
+use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::broadcast;
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::Message;
-
-type Tx = UnboundedSender<Message>;
-pub type ClientMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
 
 pub struct DashboardWebsocketServer {
     sender: broadcast::Sender<Message>,
@@ -26,8 +20,8 @@ impl DashboardWebsocketServer {
     pub async fn start(self) -> Result<(), IoError> {
         let try_socket = TcpListener::bind(&self.addr).await;
 
-        let mut listener = try_socket.expect("websocket listener startup failed");
-        println!("starting to listen on {}", self.addr);
+        let mut listener = try_socket?;
+        info!("starting to listen on {}", self.addr);
         while let Ok((stream, addr)) = listener.accept().await {
             tokio::spawn(Self::handle_connection(
                 stream,
@@ -58,13 +52,14 @@ impl DashboardWebsocketServer {
         info!("client connected from {}", addr);
         while let Some(message) = receiver.next().await {
             let message = message.expect("the websocket broadcaster is dead!");
-            println!("received subscribed {:?}", message);
             if let Err(err) = ws_stream.send(message).await {
                 warn!(
                     "failed to send subscribed message back to client ({}) - {}",
                     addr, err
                 );
                 return;
+            } else {
+                info!("sent message to {}", addr)
             }
         }
     }

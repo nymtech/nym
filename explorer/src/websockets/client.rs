@@ -12,7 +12,6 @@ pub(crate) type WsItem = Result<Message, WsError>;
 /// A websocket client which subscribes to the metrics centrally collected by the metrics server.
 /// All metrics messages get copied out to this dashboard instance's clients.
 pub(crate) struct MetricsWebsocketClient {
-    metrics_address: String,
     metrics_upstream: WebSocketStream<Stream<TcpStream, TlsStream<TcpStream>>>,
     broadcaster: broadcast::Sender<Message>,
 }
@@ -31,7 +30,6 @@ impl MetricsWebsocketClient {
         info!("Subscribed to metrics websocket at {}", metrics_address);
 
         Ok(MetricsWebsocketClient {
-            metrics_address: metrics_address.to_string(),
             metrics_upstream: ws_stream,
             broadcaster,
         })

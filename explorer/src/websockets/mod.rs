@@ -21,5 +21,8 @@ pub async fn subscribe(metrics_socket: &str, sender: broadcast::Sender<Message>)
 
 pub async fn listen(port: u16, sender: broadcast::Sender<Message>) {
     let server = DashboardWebsocketServer::new(port, sender);
-    server.start().await;
+    if let Err(err) = server.start().await {
+        error!("failed to start dashboard websocket server! - {:?}", err);
+        std::process::exit(1)
+    }
 }

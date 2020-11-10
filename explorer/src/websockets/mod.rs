@@ -1,20 +1,25 @@
-use std::{collections::HashMap, sync::Mutex};
-
 use client::MetricsWebsocketClient;
+use log::*;
 use server::DashboardWebsocketServer;
+use tokio::sync::broadcast;
+use tokio_tungstenite::tungstenite::Message;
 
 pub(crate) mod client;
 mod server;
 
-pub async fn subscribe(metrics_socket: &str) {
-    match MetricsWebsocketClient::connect(metrics_socket).await {
-        Ok(_) => (),
-        Err(e) => println!("metrics websocket failed to connect: {:?}", e),
+pub async fn subscribe(metrics_socket: &str, sender: broadcast::Sender<Message>) {
+    let mut ws_client = match MetricsWebsocketClient::connect(metrics_socket, sender).await {
+        Ok(client) => client,
+        Err(e) => {
+            error!("metrics websocket failed to connect: {:?}", e);
+            std::process::exit(1)
+        }
     };
+
+    ws_client.run().await;
 }
 
-pub async fn listen(port: &str) {
-    let clients = server::ClientMap::new(Mutex::new(HashMap::new()));
-    let server = DashboardWebsocketServer::new(clients, port.to_string());
-    server.start();
+pub async fn listen(port: u16, sender: broadcast::Sender<Message>) {
+    let server = DashboardWebsocketServer::new(port, sender);
+    server.start().await;
 }

@@ -1,6 +1,5 @@
-use std::time::Duration;
-
-use tokio::time;
+use log::*;
+use tokio::time::{self, Duration};
 
 mod mixmining;
 mod topology;
@@ -10,14 +9,12 @@ pub async fn start() {
     loop {
         timer.tick().await;
 
-        match topology::renew_periodically().await {
-            Err(err) => println!("Error refreshing topology: {}", err),
-            Ok(()) => (),
+        if let Err(err) = topology::renew_periodically().await {
+            warn!("Error refreshing topology: {}", err)
         };
 
-        match mixmining::renew_periodically().await {
-            Err(err) => println!("Error refreshing mixmining report: {}", err),
-            Ok(()) => (),
+        if let Err(err) = mixmining::renew_periodically().await {
+            warn!("Error refreshing mixmining report: {}", err)
         };
     }
 }

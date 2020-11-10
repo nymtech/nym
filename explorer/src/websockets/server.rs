@@ -1,43 +1,71 @@
-use std::{
-    collections::HashMap,
-    io::Error as IoError,
-    net::SocketAddr,
-    sync::{Arc, Mutex},
-};
-
+use futures_util::{SinkExt, StreamExt};
+use log::*;
+use std::{collections::HashMap, io::Error as IoError, net::SocketAddr, sync::Arc};
+use tokio::sync::{broadcast, Mutex};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::mpsc::UnboundedSender,
 };
+use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::Message;
 
 type Tx = UnboundedSender<Message>;
 pub type ClientMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
 
 pub struct DashboardWebsocketServer {
-    clients: ClientMap,
+    sender: broadcast::Sender<Message>,
     addr: String,
 }
 
 impl DashboardWebsocketServer {
-    pub fn new(clients: ClientMap, port: String) -> DashboardWebsocketServer {
-        let addr = format!("0.0.0.0:{}", port);
-        DashboardWebsocketServer { clients, addr }
+    pub fn new(port: u16, sender: broadcast::Sender<Message>) -> DashboardWebsocketServer {
+        let addr = format!("[::]:{}", port);
+        DashboardWebsocketServer { addr, sender }
     }
 
-    pub async fn start(&self) -> Result<(), IoError> {
+    pub async fn start(self) -> Result<(), IoError> {
         let try_socket = TcpListener::bind(&self.addr).await;
-        let listener = try_socket.expect("websocket listener startup failed");
+
+        let mut listener = try_socket.expect("websocket listener startup failed");
         println!("starting to listen on {}", self.addr);
         while let Ok((stream, addr)) = listener.accept().await {
-            tokio::spawn(self.handle_connection(self.clients.clone(), stream, addr));
+            tokio::spawn(Self::handle_connection(
+                stream,
+                addr,
+                self.sender.subscribe(),
+            ));
         }
 
         Ok(())
     }
 
-    async fn handle_connection(&self, client: ClientMap, stream: TcpStream, addr: SocketAddr) {
-        println!("client connected");
-        // set up channels so that when something comes from the metrics server it gets copied to this client
+    async fn handle_connection(
+        stream: TcpStream,
+        addr: SocketAddr,
+        mut receiver: broadcast::Receiver<Message>,
+    ) {
+        let mut ws_stream = match accept_async(stream).await {
+            Ok(ws_stream) => ws_stream,
+            Err(err) => {
+                warn!(
+                    "error while performing the websocket handshake with {} - {:?}",
+                    addr, err
+                );
+                return;
+            }
+        };
+
+        info!("client connected from {}", addr);
+        while let Some(message) = receiver.next().await {
+            let message = message.expect("the websocket broadcaster is dead!");
+            println!("received subscribed {:?}", message);
+            if let Err(err) = ws_stream.send(message).await {
+                warn!(
+                    "failed to send subscribed message back to client ({}) - {}",
+                    addr, err
+                );
+                return;
+            }
+        }
     }
 }

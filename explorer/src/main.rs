@@ -4,7 +4,6 @@
 extern crate rocket;
 
 use rocket_contrib::serve::StaticFiles;
-use std::thread;
 use tokio::sync::broadcast;
 
 mod jobs;
@@ -21,7 +20,7 @@ fn index() -> &'static str {
 
 #[tokio::main]
 async fn main() {
-    thread::spawn(|| {
+    tokio::spawn(async move {
         rocket::ignite()
             .mount("/", StaticFiles::from("public"))
             .launch()

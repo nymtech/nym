@@ -10,15 +10,13 @@ use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use ordered_buffer::{OrderedMessageBuffer, OrderedMessageSender};
 use pin_project::pin_project;
-use proxy_helpers::available_reader::AvailableReader;
 use proxy_helpers::connection_controller::{
     ConnectionReceiver, ControllerCommand, ControllerSender,
 };
 use proxy_helpers::proxy_runner::ProxyRunner;
 use rand::RngCore;
-use socks5_requests::{ConnectionId, Request};
+use socks5_requests::{ConnectionId, RemoteAddress, Request};
 use std::net::{Shutdown, SocketAddr};
 use std::pin::Pin;
 use tokio::prelude::*;
@@ -145,8 +143,7 @@ pub(crate) struct SocksClient {
 impl Drop for SocksClient {
     fn drop(&mut self) {
         // TODO: decrease to debug/trace
-        info!("socksclient is going out of scope - the stream is getting dropped!");
-        info!("Connection {} is getting closed", self.connection_id);
+        debug!("Connection {} is getting closed", self.connection_id);
         self.controller_sender
             .unbounded_send(ControllerCommand::Remove(self.connection_id))
             .unwrap();
@@ -222,26 +219,38 @@ impl SocksClient {
         Ok(())
     }
 
-    async fn send_request_to_mixnet(&mut self, request: Request) {
-        self.send_to_mixnet(request.into_bytes()).await;
+    async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
+        let req = Request::new_connect(
+            self.connection_id,
+            remote_address.clone(),
+            self.self_address.clone(),
+        );
+
+        let input_message =
+            InputMessage::new_fresh(self.service_provider.clone(), req.into_bytes(), false);
+        self.input_sender.unbounded_send(input_message).unwrap();
     }
 
-    async fn run_proxy(
-        &mut self,
-        conn_receiver: ConnectionReceiver,
-        message_sender: OrderedMessageSender,
-    ) {
+    async fn run_proxy(&mut self, conn_receiver: ConnectionReceiver, remote_proxy_target: String) {
+        self.send_connect_to_mixnet(remote_proxy_target.clone())
+            .await;
+
         let stream = self.stream.run_proxy();
+        let local_stream_remote = stream
+            .peer_addr()
+            .expect("failed to extract peer address")
+            .to_string();
         let connection_id = self.connection_id;
         let input_sender = self.input_sender.clone();
 
         let recipient = self.service_provider;
         let (stream, _) = ProxyRunner::new(
             stream,
+            local_stream_remote,
+            remote_proxy_target,
             conn_receiver,
             input_sender,
             connection_id,
-            message_sender,
         )
         .run(move |conn_id, read_data, socket_closed| {
             let provider_request = Request::new_send(conn_id, read_data, socket_closed);
@@ -262,14 +271,9 @@ impl SocksClient {
 
         // setup for receiving from the mixnet
         let (mix_sender, mix_receiver) = mpsc::unbounded();
-        let ordered_buffer = OrderedMessageBuffer::new();
 
         self.controller_sender
-            .unbounded_send(ControllerCommand::Insert(
-                self.connection_id,
-                mix_sender,
-                ordered_buffer,
-            ))
+            .unbounded_send(ControllerCommand::Insert(self.connection_id, mix_sender))
             .unwrap();
 
         match request.command {
@@ -278,26 +282,16 @@ impl SocksClient {
                 trace!("Connecting to: {:?}", remote_address.clone());
                 self.acknowledge_socks5().await;
 
-                let mut message_sender = OrderedMessageSender::new();
-                // 'connect' needs to be handled manually due to different structure,
-                // but still needs to have correct sequence number on it!
-
-                // read whatever we can
-                let available_reader = AvailableReader::new(&mut self.stream);
-                let (request_data_bytes, _) = available_reader.await?;
-                let ordered_message = message_sender.wrap_message(request_data_bytes.to_vec());
-
-                let socks_provider_request = Request::new_connect(
-                    self.connection_id,
+                info!(
+                    "Starting proxy for {} (id: {})",
                     remote_address.clone(),
-                    ordered_message,
-                    self.self_address,
+                    self.connection_id
                 );
-
-                self.send_request_to_mixnet(socks_provider_request).await;
-                info!("Starting proxy for {}", remote_address.clone());
-                self.run_proxy(mix_receiver, message_sender).await;
-                info!("Proxy for {} is finished", remote_address);
+                self.run_proxy(mix_receiver, remote_address.clone()).await;
+                info!(
+                    "Proxy for {} is finished (id: {})",
+                    remote_address, self.connection_id
+                );
             }
 
             SocksCommand::Bind => unimplemented!(), // not handled
@@ -305,15 +299,6 @@ impl SocksClient {
         };
 
         Ok(())
-    }
-
-    /// Send serialized Socks5 request bytes to the mixnet. The request stream
-    /// will be chunked up into a series of one or more Sphinx packets and
-    /// reassembled at the destination service provider at the other end, then
-    /// sent onwards anonymously.
-    async fn send_to_mixnet(&self, request_bytes: Vec<u8>) {
-        let input_message = InputMessage::new_fresh(self.service_provider, request_bytes, false);
-        self.input_sender.unbounded_send(input_message).unwrap();
     }
 
     /// Writes a Socks5 header back to the requesting client's TCP stream,

@@ -8,7 +8,7 @@ use std::thread;
 
 mod jobs;
 mod utils;
-mod websocket;
+mod websockets;
 
 #[get("/")]
 fn index() -> &'static str {
@@ -24,7 +24,7 @@ async fn main() {
     });
 
     tokio::spawn(async move {
-        websocket::start().await;
+        websockets::client::subscribe().await;
     });
 
     jobs::start().await;

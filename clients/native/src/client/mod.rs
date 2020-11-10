@@ -340,8 +340,6 @@ impl NymClient {
     }
 
     pub fn start(&mut self) {
-        let vpn_mode = true;
-
         info!("Starting nym client");
         // channels for inter-component communication
         // TODO: make the channels be internally created by the relevant components
@@ -391,7 +389,7 @@ impl NymClient {
             sphinx_message_sender.clone(),
         );
 
-        if vpn_mode {
+        if !self.config.get_base().get_vpn_mode() {
             self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
         }
 

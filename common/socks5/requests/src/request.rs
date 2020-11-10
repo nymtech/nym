@@ -149,6 +149,7 @@ impl Request {
 
                 // just a temporary reference to mid-slice for ease of use
                 let recipient_data_bytes = &connect_request_bytes[address_end..];
+
                 if recipient_data_bytes.len() != Recipient::LEN {
                     return Err(RequestError::ReturnAddressTooShort);
                 }
@@ -371,7 +372,6 @@ mod request_deserialization_tests {
             let request_bytes: Vec<_> = request_bytes
                 .into_iter()
                 .chain(recipient_bytes.iter().cloned())
-                .chain(vec![0, 0, 0, 0, 0, 0, 0, 1]) // message index 1
                 .collect();
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
@@ -423,8 +423,6 @@ mod request_deserialization_tests {
             let request_bytes: Vec<_> = request_bytes
                 .into_iter()
                 .chain(recipient_bytes.iter().cloned())
-                .chain(vec![0, 0, 0, 0, 0, 0, 0, 1]) // ordered message sequence number 1
-                .chain(vec![255, 255, 255].into_iter())
                 .collect();
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();

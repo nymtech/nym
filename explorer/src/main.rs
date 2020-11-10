@@ -24,7 +24,11 @@ async fn main() {
     });
 
     tokio::spawn(async move {
-        websockets::client::subscribe().await;
+        websockets::subscribe("wss://qa-metrics.nymtech.net/ws").await;
+    });
+
+    tokio::spawn(async move {
+        websockets::listen("1234").await;
     });
 
     jobs::start().await;

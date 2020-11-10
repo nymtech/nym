@@ -340,7 +340,9 @@ impl NymClient {
             input_receiver,
             sphinx_message_sender.clone(),
         );
-        self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
+        if !self.config.get_base().get_vpn_mode() {
+            self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
+        }
         self.start_socks5_listener(received_buffer_request_sender, input_sender);
 
         info!("Client startup finished!");

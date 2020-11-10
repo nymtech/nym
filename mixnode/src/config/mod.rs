@@ -429,7 +429,7 @@ pub struct MixNode {
     nym_root_directory: PathBuf,
 
     /// Optional, if participating in the incentives program, payment address.
-    #[serde(deserialize_with = "deserialize_option_string")]
+    #[serde(deserialize_with = "deserialize_option_string", default)]
     incentives_address: Option<String>,
 }
 

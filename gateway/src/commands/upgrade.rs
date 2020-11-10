@@ -41,7 +41,7 @@ fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
     );
 }
 
-fn pre_090_upgrade(from: &str, config: Config) -> Config {
+fn pre_090_upgrade(from: &str, config: Config, matches: &ArgMatches) -> Config {
     // this is not extracted to separate function as you only have to manually pass version
     // if upgrading from pre090 version
     let from = match from.strip_prefix("v") {
@@ -93,9 +93,14 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
         DEFAULT_VALIDATOR_REST_ENDPOINT
     );
 
-    let upgraded_config = config
+    let mut upgraded_config = config
         .with_custom_version(to_version.to_string().as_ref())
         .with_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT);
+
+    if let Some(incentives_address) = matches.value_of("incentives address") {
+        upgraded_config = upgraded_config.with_incentives_address(incentives_address);
+        println!("Setting incentives address to {}", incentives_address);
+    }
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
@@ -121,6 +126,11 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("current version")
             .long("current-version")
             .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Self provided version of the nym-gateway if none is available in the config. NOTE: if provided incorrectly, results may be catastrophic.")
+            .takes_value(true)
+        )
+        .arg(Arg::with_name("incentives address")
+            .long("incentives-address")
+            .help("Optional, if participating in the incentives program, payment address")
             .takes_value(true)
         )
 }
@@ -156,7 +166,7 @@ pub fn execute(matches: &ArgMatches) {
         });
 
         // upgrades up to 0.9.0
-        existing_config = pre_090_upgrade(self_reported_version, existing_config);
+        existing_config = pre_090_upgrade(self_reported_version, existing_config, &matches);
     }
 
     let config_version = Version::parse(existing_config.get_version()).unwrap_or_else(|err| {

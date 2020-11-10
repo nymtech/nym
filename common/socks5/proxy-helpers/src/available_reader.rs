@@ -20,13 +20,18 @@ use std::ops::DerefMut;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io::AsyncRead;
+use tokio::stream::Stream;
+use tokio::time::{delay_for, Delay, Duration, Instant};
+
+const MAX_READ_AMOUNT: usize = 500 * 1000; // 0.5MB
+const GRACE_DURATION: Duration = Duration::from_millis(1);
 
 pub struct AvailableReader<'a, R: AsyncRead + Unpin> {
-    // TODO: come up with a way to avoid using RefCell (not sure if possible though)
+    // TODO: come up with a way to avoid using RefCell (not sure if possible though due to having to
+    // mutably borrow both inner reader and buffer at the same time)
     buf: RefCell<BytesMut>,
     inner: RefCell<&'a mut R>,
-    // idea for the future: tiny delay that allows to prevent unnecessary extra fragmentation
-    // grace_period: Option<Delay>,
+    grace_period: Option<Delay>,
 }
 
 impl<'a, R> AvailableReader<'a, R>
@@ -39,20 +44,15 @@ where
         AvailableReader {
             buf: RefCell::new(BytesMut::with_capacity(Self::BUF_INCREMENT)),
             inner: RefCell::new(reader),
-            // grace_period: None,
+            grace_period: Some(delay_for(GRACE_DURATION)),
         }
     }
 }
 
-// TODO: change this guy to a stream? Seems waaay more appropriate considering
-// we're getting new Bytes items regularly rather than calling it once.
+impl<'a, R: AsyncRead + Unpin> Stream for AvailableReader<'a, R> {
+    type Item = io::Result<Bytes>;
 
-impl<'a, R: AsyncRead + Unpin> Future for AvailableReader<'a, R> {
-    type Output = io::Result<(Bytes, bool)>;
-
-    // this SHOULD stay mutable, because we rely on runtime checks inside the method
-    #[allow(unused_mut)]
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // if we have no space in buffer left - expand it
         if !self.buf.borrow().has_remaining_mut() {
             self.buf.borrow_mut().reserve(Self::BUF_INCREMENT);
@@ -68,19 +68,43 @@ impl<'a, R: AsyncRead + Unpin> Future for AvailableReader<'a, R> {
                 if self.buf.borrow().is_empty() {
                     Poll::Pending
                 } else {
+                    // if exists - check grace period
+                    if let Some(grace_period) = self.grace_period.as_mut() {
+                        if Pin::new(grace_period).poll(cx).is_pending() {
+                            return Poll::Pending;
+                        }
+                    }
+
                     let buf = self.buf.replace(BytesMut::new());
-                    Poll::Ready(Ok((buf.freeze(), false)))
+                    Poll::Ready(Some(Ok(buf.freeze())))
                 }
             }
-            Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
+            Poll::Ready(Err(err)) => Poll::Ready(Some(Err(err))),
             Poll::Ready(Ok(n)) => {
+                // if exists - reset grace period
+                if let Some(grace_period) = self.grace_period.as_mut() {
+                    let now = Instant::now();
+                    grace_period.reset(now + GRACE_DURATION);
+                }
+
                 // if we read a non-0 amount, we're not done yet!
                 if n == 0 {
                     let buf = self.buf.replace(BytesMut::new());
-                    Poll::Ready(Ok((buf.freeze(), true)))
+                    if buf.len() > 0 {
+                        Poll::Ready(Some(Ok(buf.freeze())))
+                    } else {
+                        Poll::Ready(None)
+                    }
                 } else {
                     // tell the waker we should be polled again!
                     cx.waker().wake_by_ref();
+
+                    // if we reached our maximum amount - return it
+                    let read_bytes_len = self.buf.borrow().len();
+                    if read_bytes_len >= MAX_READ_AMOUNT {
+                        let buf = self.buf.replace(BytesMut::new());
+                        return Poll::Ready(Some(Ok(buf.freeze())));
+                    }
                     Poll::Pending
                 }
             }
@@ -91,19 +115,22 @@ impl<'a, R: AsyncRead + Unpin> Future for AvailableReader<'a, R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::poll;
     use std::io::Cursor;
     use std::time::Duration;
+    use tokio::stream::StreamExt;
+    use tokio_test::assert_pending;
 
     #[tokio::test]
     async fn available_reader_reads_all_available_data_smaller_than_its_buf() {
         let data = vec![42u8; 100];
         let mut reader = Cursor::new(data.clone());
 
-        let available_reader = AvailableReader::new(&mut reader);
-        let (read_data, is_finished) = available_reader.await.unwrap();
+        let mut available_reader = AvailableReader::new(&mut reader);
+        let read_data = available_reader.next().await.unwrap().unwrap();
 
         assert_eq!(read_data, data);
-        assert!(is_finished)
+        assert!(available_reader.next().await.is_none())
     }
 
     #[tokio::test]
@@ -111,11 +138,11 @@ mod tests {
         let data = vec![42u8; AvailableReader::<Cursor<Vec<u8>>>::BUF_INCREMENT + 100];
         let mut reader = Cursor::new(data.clone());
 
-        let available_reader = AvailableReader::new(&mut reader);
-        let (read_data, is_finished) = available_reader.await.unwrap();
+        let mut available_reader = AvailableReader::new(&mut reader);
+        let read_data = available_reader.next().await.unwrap().unwrap();
 
         assert_eq!(read_data, data);
-        assert!(is_finished)
+        assert!(available_reader.next().await.is_none())
     }
 
     #[tokio::test]
@@ -129,11 +156,11 @@ mod tests {
             .read(&second_data_chunk)
             .build();
 
-        let available_reader = AvailableReader::new(&mut reader_mock);
-        let (read_data, is_finished) = available_reader.await.unwrap();
+        let mut available_reader = AvailableReader::new(&mut reader_mock);
+        let read_data = available_reader.next().await.unwrap().unwrap();
 
         assert_eq!(read_data, first_data_chunk);
-        assert!(!is_finished)
+        assert_pending!(poll!(available_reader.next()));
     }
 
     #[tokio::test]
@@ -145,10 +172,40 @@ mod tests {
             .read(&data)
             .build();
 
-        let available_reader = AvailableReader::new(&mut reader_mock);
-        let (read_data, is_finished) = available_reader.await.unwrap();
+        let mut available_reader = AvailableReader::new(&mut reader_mock);
+        let read_data = available_reader.next().await.unwrap().unwrap();
 
         assert_eq!(read_data, data);
-        assert!(is_finished)
+        assert!(available_reader.next().await.is_none())
     }
+
+    // perhaps the issue of tokio io builder will be resolved in tokio 0.3?
+    // #[tokio::test]
+    // async fn available_reader_will_wait_for_more_data_if_its_within_grace_period() {
+    //     let first_data_chunk = vec![42u8; 100];
+    //     let second_data_chunk = vec![123u8; 100];
+    //
+    //     let combined_chunks: Vec<_> = first_data_chunk
+    //         .iter()
+    //         .cloned()
+    //         .chain(second_data_chunk.iter().cloned())
+    //         .collect();
+    //
+    //     let mut reader_mock = tokio_test::io::Builder::new()
+    //         .read(&first_data_chunk)
+    //         .wait(Duration::from_millis(2))
+    //         .read(&second_data_chunk)
+    //         .build();
+    //
+    //     let mut available_reader = AvailableReader {
+    //         buf: RefCell::new(BytesMut::with_capacity(4096)),
+    //         inner: RefCell::new(&mut reader_mock),
+    //         grace_period: Some(delay_for(Duration::from_millis(5))),
+    //     };
+    //
+    //     let read_data = available_reader.next().await.unwrap().unwrap();
+    //
+    //     assert_eq!(read_data, combined_chunks);
+    //     assert!(available_reader.next().await.is_none())
+    // }
 }

@@ -1,7 +1,5 @@
 use futures::channel::mpsc;
-use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use ordered_buffer::OrderedMessageSender;
 use proxy_helpers::connection_controller::ConnectionReceiver;
 use proxy_helpers::proxy_runner::ProxyRunner;
 use socks5_requests::{ConnectionId, RemoteAddress, Response};
@@ -23,18 +21,9 @@ impl Connection {
     pub(crate) async fn new(
         id: ConnectionId,
         address: RemoteAddress,
-        initial_data: &[u8],
         return_address: Recipient,
     ) -> io::Result<Self> {
-        let mut conn = TcpStream::connect(&address).await?;
-
-        // write the initial data to the connection before continuing
-        info!(
-            "Sending initial {} bytes to {}",
-            initial_data.len(),
-            address
-        );
-        conn.write_all(initial_data).await?;
+        let conn = TcpStream::connect(&address).await?;
 
         Ok(Connection {
             id,
@@ -50,15 +39,16 @@ impl Connection {
         mix_sender: mpsc::UnboundedSender<(Response, Recipient)>,
     ) {
         let stream = self.conn.take().unwrap();
-        let message_sender = OrderedMessageSender::new();
+        let remote_source_address = "???".to_string(); // we don't know ip address of requester
         let connection_id = self.id;
         let recipient = self.return_address;
         let (stream, _) = ProxyRunner::new(
             stream,
+            self.address.clone(),
+            remote_source_address,
             mix_receiver,
             mix_sender,
             connection_id,
-            message_sender,
         )
         .run(move |conn_id, read_data, socket_closed| {
             (Response::new(conn_id, read_data, socket_closed), recipient)

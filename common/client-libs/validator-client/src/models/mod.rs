@@ -17,3 +17,4 @@ pub mod mixmining;
 pub mod mixnode;
 mod node;
 pub mod topology;
+pub mod validators;

@@ -26,13 +26,10 @@ async fn main() {
             .launch()
     });
 
-    // receiver is irrelevant here, but *MOST NOT BE* completely removed as if last receiver is dropped
-    // broadcast will fail
-
     let (sender, _) = broadcast::channel(BROADCAST_CAPACITY);
-    let sender_clone = sender.clone();
     // the only reason for cloning the sender is that because more receivers can only be created
     // out of senders
+    let sender_clone = sender.clone();
 
     tokio::spawn(async move {
         websockets::subscribe("wss://qa-metrics.nymtech.net/ws", sender).await;

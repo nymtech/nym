@@ -54,10 +54,7 @@ enum SocketStream<S> {
 
 impl<S> SocketStream<S> {
     fn is_websocket(&self) -> bool {
-        match self {
-            SocketStream::UpgradedWebSocket(_) => true,
-            _ => false,
-        }
+        matches!(self, SocketStream::UpgradedWebSocket(_))
     }
 }
 
@@ -194,7 +191,7 @@ impl<S> Handle<S> {
         // announced hence we do not need to send 'disconnect' message
         if let Some(addr) = self.remote_address.as_ref() {
             self.clients_handler_sender
-                .unbounded_send(ClientsHandlerRequest::Disconnect(addr.clone()))
+                .unbounded_send(ClientsHandlerRequest::Disconnect(*addr))
                 .unwrap();
         }
     }
@@ -254,7 +251,7 @@ impl<S> Handle<S> {
 
         let (res_sender, res_receiver) = oneshot::channel();
         let clients_handler_request = ClientsHandlerRequest::Authenticate(
-            address.clone(),
+            address,
             encrypted_address,
             iv,
             mix_sender,
@@ -320,7 +317,7 @@ impl<S> Handle<S> {
 
         let (res_sender, res_receiver) = oneshot::channel();
         let clients_handler_request = ClientsHandlerRequest::Register(
-            remote_address.clone(),
+            remote_address,
             derived_shared_key.clone(),
             mix_sender,
             res_sender,

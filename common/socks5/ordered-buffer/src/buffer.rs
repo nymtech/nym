@@ -50,13 +50,10 @@ impl OrderedMessageBuffer {
 
         let mut contiguous_messages = Vec::new();
         let mut index = self.next_index;
-        loop {
-            if let Some(ordered_message) = self.messages.remove(&index) {
-                contiguous_messages.push(ordered_message);
-                index += 1;
-            } else {
-                break;
-            }
+
+        while let Some(ordered_message) = self.messages.remove(&index) {
+            contiguous_messages.push(ordered_message);
+            index += 1;
         }
 
         let high_water = index;

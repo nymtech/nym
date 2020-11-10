@@ -28,10 +28,7 @@ pub(crate) enum TestMix {
 
 impl TestMix {
     pub(crate) fn is_valid(&self) -> bool {
-        match self {
-            TestMix::ValidMix(..) => true,
-            _ => false,
-        }
+        matches!(self, TestMix::ValidMix(..))
     }
 }
 

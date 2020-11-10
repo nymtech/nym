@@ -288,7 +288,7 @@ mod tests {
         let recipient_string = recipient.to_string();
 
         let send_request_no_surb = ClientRequest::Send {
-            recipient: recipient.clone(),
+            recipient,
             message: b"foomp".to_vec(),
             with_reply_surb: false,
         };

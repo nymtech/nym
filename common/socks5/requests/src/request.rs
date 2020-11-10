@@ -48,10 +48,7 @@ impl std::error::Error for RequestError {}
 
 impl RequestError {
     pub fn is_malformed_return(&self) -> bool {
-        match self {
-            RequestError::MalformedReturnAddress(_) => true,
-            _ => false,
-        }
+        matches!(self, RequestError::MalformedReturnAddress(_))
     }
 }
 
@@ -160,7 +157,7 @@ impl Request {
                 let mut return_bytes = [0u8; Recipient::LEN];
                 return_bytes.copy_from_slice(&recipient_data_bytes[..Recipient::LEN]);
                 let return_address = Recipient::try_from_bytes(return_bytes)
-                    .map_err(|err| RequestError::MalformedReturnAddress(err))?;
+                    .map_err(RequestError::MalformedReturnAddress)?;
 
                 let message =
                     OrderedMessage::try_from_bytes(recipient_data_bytes[Recipient::LEN..].to_vec())

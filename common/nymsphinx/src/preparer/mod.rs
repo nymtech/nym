@@ -321,7 +321,7 @@ where
 
         // from the previously constructed route extract the first hop
         let first_hop_address =
-            NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone()).unwrap();
+            NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 
         Ok(PreparedFragment {
             // the round-trip delay is the sum of delays of all hops on the forward route as

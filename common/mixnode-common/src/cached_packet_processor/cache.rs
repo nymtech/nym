@@ -67,7 +67,7 @@ impl KeyCache {
 
     pub(super) fn insert(&self, key: SharedSecret, cached_keys: CachedKeys) -> bool {
         trace!("inserting {:?} into the cache", key);
-        let insertion_result = self.vpn_key_cache.insert(key.clone(), cached_keys);
+        let insertion_result = self.vpn_key_cache.insert(key, cached_keys);
         if !insertion_result {
             debug!("{:?} was put into the cache", key);
             // this shouldn't really happen, but don't insert entry to invalidator if it was already

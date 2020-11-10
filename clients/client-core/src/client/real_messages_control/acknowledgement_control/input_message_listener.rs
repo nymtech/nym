@@ -152,7 +152,7 @@ where
             pending_acks.push(PendingAcknowledgement::new(
                 message_chunk,
                 prepared_fragment.total_delay,
-                recipient.clone(),
+                recipient,
             ));
         }
 

@@ -69,7 +69,7 @@ impl Display for IpVersion {
     }
 }
 
-#[derive(PartialEq, Eq, Copy, Clone, Debug)]
+#[derive(Eq, Copy, Clone, Debug)]
 pub(crate) struct TestPacket {
     ip_version: IpVersion,
     nonce: u64,
@@ -93,6 +93,14 @@ impl Hash for TestPacket {
         self.ip_version.hash(state);
         self.nonce.hash(state);
         self.pub_key.to_bytes().hash(state);
+    }
+}
+
+impl PartialEq for TestPacket {
+    fn eq(&self, other: &Self) -> bool {
+        self.ip_version == other.ip_version
+            && self.nonce == other.nonce
+            && self.pub_key.to_bytes() == other.pub_key.to_bytes()
     }
 }
 

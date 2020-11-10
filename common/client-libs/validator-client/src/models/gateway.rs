@@ -104,7 +104,7 @@ impl TryInto<topology::gateway::Node> for RegisteredGateway {
             .node_info
             .mix_host
             .to_socket_addrs()
-            .map_err(|err| ConversionError::InvalidAddress(err))?
+            .map_err(ConversionError::InvalidAddress)?
             .next()
             .ok_or_else(|| {
                 ConversionError::InvalidAddress(io::Error::new(

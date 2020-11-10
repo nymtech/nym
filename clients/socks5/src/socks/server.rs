@@ -72,9 +72,9 @@ impl SphinxSocksServer {
                     stream,
                     self.authenticator.clone(),
                     input_sender.clone(),
-                    self.service_provider.clone(),
+                    self.service_provider,
                     controller_sender.clone(),
-                    self.self_address.clone(),
+                    self.self_address,
                 );
 
                 tokio::spawn(async move {

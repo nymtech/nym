@@ -171,7 +171,7 @@ impl LoopCoverTrafficStream<OsRng> {
             self.average_cover_message_sending_delay,
         ));
 
-        while let Some(_) = self.next().await {
+        while self.next().await.is_some() {
             self.on_new_message().await;
         }
     }

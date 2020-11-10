@@ -146,7 +146,7 @@ where
         .unwrap();
 
     let first_hop_address =
-        NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone()).unwrap();
+        NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 
     // if client is running in vpn mode, he won't even be sending cover traffic
     Ok(MixPacket::new(first_hop_address, packet, PacketMode::Mix))

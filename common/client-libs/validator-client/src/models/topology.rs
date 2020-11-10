@@ -47,7 +47,7 @@ impl Into<NymTopology> for Topology {
             }
             let mix_id = mix.mix_info.node_info.identity_key.clone();
 
-            let layer_entry = mixes.entry(layer).or_insert(Vec::new());
+            let layer_entry = mixes.entry(layer).or_insert_with(Vec::new);
             match mix.try_into() {
                 Ok(mix) => layer_entry.push(mix),
                 Err(err) => {

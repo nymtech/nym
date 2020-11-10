@@ -149,7 +149,7 @@ impl Notifier {
         self.validator_client
             .post_batch_mixmining_status(status)
             .await
-            .map_err(|err| NotifierError::ValidatorError(err))?;
+            .map_err(NotifierError::ValidatorError)?;
         Ok(())
     }
 }

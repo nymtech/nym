@@ -103,7 +103,7 @@ impl<'de> Deserialize<'de> for ReplySURB {
                 E: SerdeError,
             {
                 ReplySURB::from_bytes(bytes)
-                    .or_else(|_| Err(SerdeError::invalid_length(bytes.len(), &self)))
+                    .map_err(|_| SerdeError::invalid_length(bytes.len(), &self))
             }
         }
 

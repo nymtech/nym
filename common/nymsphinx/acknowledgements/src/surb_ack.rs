@@ -74,7 +74,7 @@ impl SURBAck {
 
         let expected_total_delay = delays.iter().sum();
         let first_hop_address =
-            NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone()).unwrap();
+            NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 
         Ok(SURBAck {
             surb_ack_packet,

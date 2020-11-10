@@ -54,7 +54,7 @@ impl OutboundRequestFilter {
         match self.get_domain_root(&trimmed) {
             Some(domain_root) => {
                 if self.allowed_hosts.contains(&domain_root) {
-                    return true;
+                    true
                 } else {
                     // not in allowed list but it's a domain
                     log::warn!(
@@ -62,21 +62,20 @@ impl OutboundRequestFilter {
                         &domain_root
                     );
                     self.unknown_hosts.maybe_add(&domain_root);
-                    return false; // domain is unknown
+                    false // domain is unknown
                 }
             }
             None => {
-                return false; // the host was either an IP or nonsense. For this release, we'll ignore it.
+                false // the host was either an IP or nonsense. For this release, we'll ignore it.
             }
-        };
+        }
     }
 
     fn trim_port(host: &str) -> String {
-        let mut tmp: Vec<&str> = host.split(":").collect();
+        let mut tmp: Vec<&str> = host.split(':').collect();
         if tmp.len() > 1 {
             tmp.pop(); // get rid of last element (port)
-            let out = tmp.join(":"); //rejoin
-            out
+            tmp.join(":") //rejoin
         } else {
             host.to_string()
         }
@@ -86,12 +85,12 @@ impl OutboundRequestFilter {
     fn get_domain_root(&self, host: &str) -> Option<String> {
         match self.domain_list.parse_domain(host) {
             Ok(d) => match d.root() {
-                Some(root) => return Some(root.to_string()),
-                None => return None, // no domain root matches
+                Some(root) => Some(root.to_string()),
+                None => None, // no domain root matches
             },
             Err(_) => {
                 log::warn!("Error parsing domain: {:?}", host);
-                return None; // domain couldn't be parsed
+                None // domain couldn't be parsed
             }
         }
     }
@@ -108,10 +107,8 @@ impl HostsStore {
     /// Constructs a new HostsStore
     pub(crate) fn new(base_dir: PathBuf, filename: PathBuf) -> HostsStore {
         let storefile = HostsStore::setup_storefile(base_dir, filename);
-        let hosts = HostsStore::load_from_storefile(&storefile).expect(&format!(
-            "Could not load hosts from storefile at {:?}",
-            storefile
-        ));
+        let hosts = HostsStore::load_from_storefile(&storefile)
+            .unwrap_or_else(|_| panic!("Could not load hosts from storefile at {:?}", storefile));
         HostsStore { storefile, hosts }
     }
 
@@ -154,10 +151,8 @@ impl HostsStore {
 
     fn setup_storefile(base_dir: PathBuf, filename: PathBuf) -> PathBuf {
         let dirpath = base_dir.join("service-providers").join("network-requester");
-        fs::create_dir_all(&dirpath).expect(&format!(
-            "could not create storage directory at {:?}",
-            dirpath
-        ));
+        fs::create_dir_all(&dirpath)
+            .unwrap_or_else(|_| panic!("could not create storage directory at {:?}", dirpath));
         let storefile = dirpath.join(filename);
         let exists = std::path::Path::new(&storefile).exists();
         if !exists {
@@ -208,7 +203,7 @@ mod tests {
             let allowed_filename = PathBuf::from(format!("allowed-{}.list", random_string()));
             let unknown_filename = PathBuf::from(&format!("unknown-{}.list", random_string()));
             let allowed = HostsStore::new(base_dir.clone(), allowed_filename);
-            let unknown = HostsStore::new(base_dir.clone(), unknown_filename);
+            let unknown = HostsStore::new(base_dir, unknown_filename);
             OutboundRequestFilter::new(allowed, unknown)
         }
 
@@ -270,7 +265,7 @@ mod tests {
             let allowed_filename = PathBuf::from(format!("allowed-{}.list", random_string()));
             let unknown_filename = PathBuf::from(&format!("unknown-{}.list", random_string()));
             let allowed = HostsStore::new(base_dir.clone(), allowed_filename);
-            let unknown = HostsStore::new(base_dir.clone(), unknown_filename);
+            let unknown = HostsStore::new(base_dir, unknown_filename);
             OutboundRequestFilter::new(allowed, unknown)
         }
 
@@ -301,8 +296,8 @@ mod tests {
             let (_, base_dir2, unknown_filename) = create_test_storefile();
             HostsStore::append(&allowed_storefile, "nymtech.net");
 
-            let allowed = HostsStore::new(base_dir1, allowed_filename.to_path_buf());
-            let unknown = HostsStore::new(base_dir2, unknown_filename.to_path_buf());
+            let allowed = HostsStore::new(base_dir1, allowed_filename);
+            let unknown = HostsStore::new(base_dir2, unknown_filename);
             OutboundRequestFilter::new(allowed, unknown)
         }
         #[test]
@@ -349,10 +344,8 @@ mod tests {
         let base_dir = test_base_dir();
         let filename = PathBuf::from(format!("hosts-store-{}.list", random_string()));
         let dirpath = base_dir.join("service-providers").join("network-requester");
-        fs::create_dir_all(&dirpath).expect(&format!(
-            "could not create storage directory at {:?}",
-            dirpath
-        ));
+        fs::create_dir_all(&dirpath)
+            .unwrap_or_else(|_| panic!("could not create storage directory at {:?}", dirpath));
         let storefile = dirpath.join(&filename);
         File::create(&storefile).unwrap();
         (storefile, base_dir, filename)

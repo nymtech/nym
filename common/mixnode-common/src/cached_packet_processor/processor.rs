@@ -352,7 +352,7 @@ mod tests {
         let initial_secret = final_hop.shared_secret();
         let processed = final_hop.process(&processor.sphinx_key).unwrap();
 
-        processor.cache_keys(initial_secret.clone(), &processed);
+        processor.cache_keys(initial_secret, &processed);
         let cache_entry = processor.vpn_key_cache.get(&initial_secret).unwrap();
 
         let (cached_secret, cached_routing_keys) = cache_entry.value();
@@ -376,7 +376,7 @@ mod tests {
         let initial_secret = forward_hop.shared_secret();
         let processed = forward_hop.process(&processor.sphinx_key).unwrap();
 
-        processor.cache_keys(initial_secret.clone(), &processed);
+        processor.cache_keys(initial_secret, &processed);
         let cache_entry = processor.vpn_key_cache.get(&initial_secret).unwrap();
 
         let (cached_secret, cached_routing_keys) = cache_entry.value();
@@ -463,7 +463,7 @@ mod tests {
 
         let long_data = vec![42u8; SURBAck::len() * 5];
         let (ack, data) = processor
-            .split_hop_data_into_ack_and_message(long_data.clone())
+            .split_hop_data_into_ack_and_message(long_data)
             .unwrap();
         assert_eq!(ack.len(), SURBAck::len());
         assert_eq!(data.len(), SURBAck::len() * 4)

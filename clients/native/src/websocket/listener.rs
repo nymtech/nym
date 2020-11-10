@@ -28,10 +28,7 @@ enum State {
 
 impl State {
     fn is_connected(&self) -> bool {
-        match self {
-            State::Connected => true,
-            _ => false,
-        }
+        matches!(self, State::Connected)
     }
 }
 

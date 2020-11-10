@@ -77,7 +77,7 @@ impl NymClient {
     pub fn as_mix_recipient(&self) -> Recipient {
         Recipient::new(
             *self.key_manager.identity_keypair().public_key(),
-            self.key_manager.encryption_keypair().public_key().clone(),
+            *self.key_manager.encryption_keypair().public_key(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
             NodeIdentity::from_base58_string(self.config.get_base().get_gateway_id()).unwrap(),

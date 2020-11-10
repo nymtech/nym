@@ -310,12 +310,10 @@ impl ServerResponse {
             RECEIVED_RESPONSE_TAG => Self::deserialize_received(b),
             SELF_ADDRESS_RESPONSE_TAG => Self::deserialize_self_address(b),
             ERROR_RESPONSE_TAG => Self::deserialize_error(b),
-            n => {
-                return Err(error::Error::new(
-                    ErrorKind::UnknownResponse,
-                    format!("type {}", n),
-                ))
-            }
+            n => Err(error::Error::new(
+                ErrorKind::UnknownResponse,
+                format!("type {}", n),
+            )),
         }
     }
 

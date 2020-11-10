@@ -202,6 +202,6 @@ impl ServiceProvider {
                 panic!("Error: websocket connection attempt failed, is the Nym client running?")
             }
         };
-        return ws_stream;
+        ws_stream
     }
 }

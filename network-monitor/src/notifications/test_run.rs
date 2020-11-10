@@ -194,11 +194,7 @@ impl TestRun {
             );
         }
 
-        if self.received_packets.len() == self.expected_run_packets.len() {
-            true
-        } else {
-            false
-        }
+        self.received_packets.len() == self.expected_run_packets.len()
     }
 
     fn produce_summary(&self) -> HashMap<String, NodeResult> {

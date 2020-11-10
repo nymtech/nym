@@ -243,7 +243,7 @@ impl SocksClient {
         let connection_id = self.connection_id;
         let input_sender = self.input_sender.clone();
 
-        let recipient = self.service_provider.clone();
+        let recipient = self.service_provider;
         let (stream, _) = ProxyRunner::new(
             stream,
             local_stream_remote,
@@ -365,27 +365,12 @@ impl SocksClient {
 
             // Username parsing
             let ulen = header[1];
-
-            let mut username = Vec::with_capacity(ulen as usize);
-
-            // For some reason the vector needs to actually be full
-            for _ in 0..ulen {
-                username.push(0);
-            }
-
+            let mut username = vec![0; ulen as usize];
             self.stream.read_exact(&mut username).await?;
 
             // Password Parsing
-            let mut plen = [0u8; 1];
-            self.stream.read_exact(&mut plen).await?;
-
-            let mut password = Vec::with_capacity(plen[0] as usize);
-
-            // For some reason the vector needs to actually be full
-            for _ in 0..plen[0] {
-                password.push(0);
-            }
-
+            let plen = self.stream.read_u8().await?;
+            let mut password = vec![0; plen as usize];
             self.stream.read_exact(&mut password).await?;
 
             let username_str = String::from_utf8(username)?;

@@ -143,7 +143,7 @@ impl RealMessagesController<OsRng> {
             rng,
             topology_access.clone(),
             Arc::clone(&config.ack_key),
-            config.self_recipient.clone(),
+            config.self_recipient,
             reply_key_storage,
             ack_controller_connectors,
         );

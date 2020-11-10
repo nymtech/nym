@@ -114,7 +114,7 @@ impl ClientsHandler {
         // NOTE: THIS IGNORES MESSAGE RETRIEVAL LIMIT AND TAKES EVERYTHING!
         let all_stored_messages = match self
             .clients_inbox_storage
-            .retrieve_all_client_messages(client_address.clone())
+            .retrieve_all_client_messages(client_address)
             .await
         {
             Ok(msgs) => msgs,
@@ -173,7 +173,7 @@ impl ClientsHandler {
 
         if self
             .clients_ledger
-            .insert_shared_key(derived_shared_key, address.clone())
+            .insert_shared_key(derived_shared_key, address)
             .unwrap()
             .is_some()
         {
@@ -181,11 +181,7 @@ impl ClientsHandler {
                 "Client {:?} was already registered before!",
                 address.to_base58_string()
             )
-        } else if let Err(e) = self
-            .clients_inbox_storage
-            .create_storage_dir(address.clone())
-            .await
-        {
+        } else if let Err(e) = self.clients_inbox_storage.create_storage_dir(address).await {
             error!("We failed to create inbox directory for the client -{:?}\nReverting stored shared key...", e);
             // we must revert our changes if this operation failed
             self.clients_ledger.remove_shared_key(&address).unwrap();

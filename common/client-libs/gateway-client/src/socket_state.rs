@@ -183,23 +183,14 @@ pub(crate) enum SocketState {
 
 impl SocketState {
     pub(crate) fn is_available(&self) -> bool {
-        match self {
-            SocketState::Available(_) => true,
-            _ => false,
-        }
+        matches!(self, SocketState::Available(_))
     }
 
     pub(crate) fn is_partially_delegated(&self) -> bool {
-        match self {
-            SocketState::PartiallyDelegated(_) => true,
-            _ => false,
-        }
+        matches!(self, SocketState::PartiallyDelegated(_))
     }
 
     pub(crate) fn is_established(&self) -> bool {
-        match self {
-            SocketState::Available(_) | SocketState::PartiallyDelegated(_) => true,
-            _ => false,
-        }
+        matches!(self, SocketState::Available(_) | SocketState::PartiallyDelegated(_))
     }
 }

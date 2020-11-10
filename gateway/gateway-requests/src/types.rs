@@ -181,10 +181,7 @@ impl ServerResponse {
     }
 
     pub fn is_error(&self) -> bool {
-        match self {
-            ServerResponse::Error { .. } => true,
-            _ => false,
-        }
+        matches!(self, ServerResponse::Error { .. })
     }
 
     pub fn implies_successful_authentication(&self) -> bool {

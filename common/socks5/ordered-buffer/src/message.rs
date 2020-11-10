@@ -27,7 +27,7 @@ impl OrderedMessage {
 
     /// Attempts to deserialize an `OrderedMessage` from bytes.
     pub fn try_from_bytes(data: Vec<u8>) -> Result<OrderedMessage, MessageError> {
-        if data.len() == 0 {
+        if data.is_empty() {
             return Err(MessageError::NoData);
         }
 

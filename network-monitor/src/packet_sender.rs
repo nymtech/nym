@@ -66,7 +66,7 @@ impl PacketSender {
         // the reason for that conversion is that I want to operate on concrete types
         // rather than on "String" everywhere and also this way we remove obviously wrong
         // mixnodes where somebody is sending bullshit presence data.
-        let mix_id = mix.identity().clone();
+        let mix_id = mix.identity();
         let mix: Result<mix::Node, _> = mix.try_into();
         match mix {
             Err(err) => {
@@ -96,7 +96,7 @@ impl PacketSender {
             .validator_client
             .get_topology()
             .await
-            .map_err(|err| PacketSenderError::ValidatorError(err))?
+            .map_err(PacketSenderError::ValidatorError)?
             .mix_nodes
             .into_iter()
             .map(|mix| self.make_test_mix(mix))

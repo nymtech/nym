@@ -194,7 +194,7 @@ where
 
         let message_preparer = MessagePreparer::new(
             rng,
-            ack_recipient.clone(),
+            ack_recipient,
             config.average_packet_delay,
             config.average_ack_delay,
             config.packet_mode,
@@ -211,7 +211,7 @@ where
         // will listen for any new messages from the client
         let input_message_listener = InputMessageListener::new(
             Arc::clone(&ack_key),
-            ack_recipient.clone(),
+            ack_recipient,
             connectors.input_receiver,
             message_preparer.clone(),
             action_sender.clone(),

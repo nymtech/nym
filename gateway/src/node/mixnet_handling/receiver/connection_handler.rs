@@ -70,7 +70,7 @@ impl ConnectionHandler {
             let (k, v) = element_guard.pair();
             // TODO: this will be made redundant once there's some cache invalidator mechanism here
             if !v.is_closed() {
-                senders_cache.insert(k.clone(), v.clone());
+                senders_cache.insert(*k, v.clone());
             }
         }
 
@@ -131,8 +131,7 @@ impl ConnectionHandler {
         // if we got here it means that either we have no sender channel for this client or it's closed
         // so we must refresh it from the source, i.e. ClientsHandler
         let (res_sender, res_receiver) = oneshot::channel();
-        let clients_handler_request =
-            ClientsHandlerRequest::IsOnline(client_address.clone(), res_sender);
+        let clients_handler_request = ClientsHandlerRequest::IsOnline(client_address, res_sender);
         self.clients_handler_sender
             .unbounded_send(clients_handler_request)
             .unwrap(); // the receiver MUST BE alive

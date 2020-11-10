@@ -102,11 +102,11 @@ impl<'de> Deserialize<'de> for Recipient {
                 // this shouldn't panic as we just checked for length
                 recipient_bytes.copy_from_slice(&bytes);
 
-                Recipient::try_from_bytes(recipient_bytes).or_else(|_| {
-                    Err(SerdeError::invalid_value(
+                Recipient::try_from_bytes(recipient_bytes).map_err(|_| {
+                    SerdeError::invalid_value(
                         Unexpected::Other("At least one of the curve points was malformed"),
                         &self,
-                    ))
+                    )
                 })
             }
         }
@@ -251,7 +251,7 @@ mod tests {
 
         let recipient = Recipient::new(
             *client_id_pair.public_key(),
-            client_enc_pair.public_key().clone(),
+            *client_enc_pair.public_key(),
             *gateway_id_pair.public_key(),
         );
 
@@ -281,7 +281,7 @@ mod tests {
 
         let recipient = Recipient::new(
             *client_id_pair.public_key(),
-            client_enc_pair.public_key().clone(),
+            *client_enc_pair.public_key(),
             *gateway_id_pair.public_key(),
         );
 

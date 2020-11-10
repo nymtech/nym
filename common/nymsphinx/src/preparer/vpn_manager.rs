@@ -118,12 +118,12 @@ impl VPNManager {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(super) async fn current_secret<'a>(&'a self) -> SpinhxKeyRef<'a> {
+    pub(super) async fn current_secret(&self) -> SpinhxKeyRef<'_> {
         self.inner.current_initial_secret.read().await
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub(super) async fn current_secret<'a>(&'a self) -> SpinhxKeyRef<'a> {
+    pub(super) async fn current_secret(&self) -> SpinhxKeyRef<'_> {
         &self.inner.current_initial_secret
     }
 

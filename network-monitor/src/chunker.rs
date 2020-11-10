@@ -34,7 +34,7 @@ impl Chunker {
     pub(crate) fn new(me: Recipient) -> Self {
         Chunker {
             rng: DEFAULT_RNG,
-            me: me.clone(),
+            me,
             message_preparer: MessagePreparer::new(
                 DEFAULT_RNG,
                 me,

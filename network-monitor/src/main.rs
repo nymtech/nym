@@ -114,8 +114,8 @@ async fn main() {
 
     // We need our own address as a Recipient so we can send ourselves test packets
     let self_address = Recipient::new(
-        identity_keypair.public_key().clone(),
-        encryption_keypair.public_key().clone(),
+        *identity_keypair.public_key(),
+        *encryption_keypair.public_key(),
         gateway.identity_key,
     );
 

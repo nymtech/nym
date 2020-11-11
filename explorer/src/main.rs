@@ -36,7 +36,7 @@ async fn main() {
     });
 
     tokio::spawn(async move {
-        websockets::listen(1234, sender_clone).await;
+        websockets::listen(8080, sender_clone).await;
     });
 
     jobs::start().await;

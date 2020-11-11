@@ -50,7 +50,7 @@ impl MixNode {
         info!("Starting metrics reporter...");
         metrics::MetricsController::new(
             self.config.get_metrics_server(),
-            self.sphinx_keypair.public_key().to_base58_string(),
+            self.identity_keypair.public_key().to_base58_string(),
             self.config.get_metrics_running_stats_logging_delay(),
         )
         .start()

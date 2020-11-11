@@ -144,6 +144,8 @@ function compareNodes(node1, node2) {
 function createMixnodeRows(mixNodes) {
   mixNodes.sort(compareNodes)
 
+  const currentUnixTime = new Date().getTime() * 1000000;
+
   mixNodes.forEach(node => {
     // because javascript works in mysterious ways, if you sanitize "0", it will return ""
     let purifiedRep = DOMPurify.sanitize(node.reputation)
@@ -151,7 +153,7 @@ function createMixnodeRows(mixNodes) {
       purifiedRep = 0
     }
     var $tr = $('<tr>').append(
-      $('<input type="hidden" id="prev-timestamp-' + node.pubKey + '" value="' + node.timestamp + '"> '),
+      $('<input type="hidden" id="prev-timestamp-' + node.identityKey + '" value="' + currentUnixTime + '"> '),
       $('<td>').html(makeStatusDot(node.identityKey)),
       $('<td>').text(purifiedRep),
       $('<td>').text(DOMPurify.sanitize(node.version)),
@@ -218,7 +220,6 @@ function processMessage(evt) {
     prevTimestamp = updateTimeStampStorage(msg);
 
     timeDiff = (msg.timestamp - prevTimeStamp) / 1000000000;
-
     displayReceivedPackets(msg, timeDiff);
     displaySentPackets(msg, timeDiff);
   }

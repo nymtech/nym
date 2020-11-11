@@ -26,7 +26,7 @@ pub mod persistence;
 pub const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'CLIENT'
-pub const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://validator.nymtech.net";
+pub const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://testnet-validator1.nymtech.net";
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;

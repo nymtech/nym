@@ -32,7 +32,7 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 // 'GATEWAY'
 const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
-pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://validator.nymtech.net";
+pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://testnet-validator1.nymtech.net";
 
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds

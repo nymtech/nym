@@ -1,0 +1,404 @@
+//== Buttons
+//
+//## For each of Bootstrap's buttons, define text, background and border color.
+
+$font-color:                 #66615b !default;
+$fill-font-color:            rgba(255, 255, 255, 0.8);
+$font-family-sans-serif:     'Montserrat', "Helvetica", Arial, sans-serif;
+$sans-serif-family:          'Montserrat', 'Helvetica Neue',  Arial, sans-serif;
+
+
+$none:                       0   !default;
+$border-thin:                1px !default;
+$border-thick:               2px !default;
+
+$white-color:                #FFFFFF !default;
+$white-bg:                   #FFFFFF !default;
+$orange-bg:                  #e95e38 !default;
+
+$smoke-bg:                   #F5F5F5 !default;
+$light-black:                #444    !default;
+
+$black-bg:                   rgba(30,30,30,.97) !default;
+
+$black-color:                #2c2c2c !default;
+$black-hr:                   #444444 !default;
+
+$hr-line:                    rgba(0,0,0, .1) !default;
+
+$light-gray:                 #E3E3E3 !default;
+$medium-gray:                #DDDDDD !default;
+$dark-gray:                  #9A9A9A !default;
+
+$table-line-color:           #ccc !default;
+$muted-color:                #a49e93 !default;
+
+$opacity-gray-3:             rgba(222,222,222, .3) !default;
+$opacity-gray-5:             rgba(222,222,222, .5) !default;
+$opacity-gray-8:             rgba(222,222,222, .8) !default;
+
+
+$opacity-5:                  rgba(255,255,255, .5) !default;
+$opacity-8:                  rgba(255,255,255, .8) !default;
+
+$datepicker-color-days:             rgba(255,255,255, .8)  !default;
+$datepicker-color-old-new-days:     rgba(255,255,255, .4)  !default;
+
+
+$opacity-1:                  rgba(255,255,255, .1) !default;
+$opacity-2:                  rgba(255,255,255, .2) !default;
+
+$transparent-bg:             transparent !default;
+$dark-background:            #555555 !default;
+
+$gray-input-bg:              #fffcf5 !default;
+$danger-input-bg:            #FFC0A4 !default;
+$success-input-bg:           #ABF3CB !default;
+$other-medium-gray:          #A49E93 !default;
+$transparent-bg:             transparent !default;
+
+$placeholder-gray:           rgba(210, 210, 210, 1)  !default;
+
+$default-color:              #66615B !default;
+$default-bg:                 #66615B !default;
+$default-states-color:       #403D39 !default;
+
+$smoke-bg:                   #F5F5F5 !default;
+$pale-bg:                    #FFFCF5 !default;
+$medium-pale-bg:             #F1EAE0 !default;
+$default-body-bg:                 #f4f3ef !default;
+
+$primary-color:              #51cbce !default;
+$primary-states-color:       darken($primary-color, 10%) !default;
+
+$success-color:              #6bd098 !default;
+$success-states-color:       darken($success-color, 10%) !default;
+
+$info-color:                 #51bcda !default;
+$info-states-color:          darken($info-color, 10%) !default;
+
+$warning-color:              #fbc658 !default;
+$warning-states-color:       darken($warning-color, 10%) !default;
+
+$danger-color:               #ef8157 !default;
+$danger-states-color:        darken($danger-color, 8%) !default;
+
+$link-disabled-color:        #666666 !default;
+
+$purple-color:               #c178c1 !default;
+$purple-states-color:        darken($purple-color, 8%) !default;
+
+$medium-pale-bg:             #F1EAE0 !default;
+
+$brown-color:                #dcb285 !default;
+$default-color-opacity:      rgba(182, 182, 182, .6) !default;
+$primary-color-opacity:      rgba(249, 99, 50, .3) !default;
+$success-color-opacity:      rgba(24, 206, 15, .3) !default;
+$info-color-opacity:         rgba(44, 168, 255, .3) !default;
+$warning-color-opacity:      rgba(255, 178, 54, .3) !default;
+$danger-color-opacity:       rgba(255, 54, 54, .3) !default;
+
+$new-blue:            #1DC7EA;
+$new-purple:          #9368E9;
+$new-red:             #FB404B;
+$new-green:           #87CB16;
+$new-orange:          #FFA534;
+$new-dark-blue:       #1F77D0;
+$new-black:           #5e5e5e;
+
+$orange-color:               #f96332 !default;
+$color-red-error: rgb(185, 74, 72) !default;
+$color-grey-arrow: rgba(204, 204, 204, 0.2) !default;
+
+$bg-nude:               #FFFCF5 !default;
+$bg-primary:            lighten($primary-color, 7%) !default;
+$bg-info:               lighten($info-color, 7%) !default;
+$bg-success:            lighten($success-color, 7%) !default;
+$bg-warning:            lighten($warning-color, 7%) !default;
+$bg-danger:             lighten($danger-color, 7%) !default;
+$bg-brown:              lighten($brown-color, 7%) !default;
+$bg-purple:             lighten($purple-color, 7%) !default;
+
+//     brand Colors
+$brand-primary:              $primary-color !default;
+$brand-info:                 $info-color !default;
+$brand-success:              $success-color !default;
+$brand-warning:              $warning-color !default;
+$brand-danger:               $danger-color !default;
+$brand-inverse:              $black-color !default;
+
+$link-disabled-color:        #666666 !default;
+$dark-color:                 #212120 !default;
+//     light colors
+$light-blue:                 rgba($primary-color, .2);
+$light-azure:                rgba($info-color, .2);
+$light-green:                rgba($success-color, .2);
+$light-orange:               rgba($warning-color, .2);
+$light-red:                  rgba($danger-color, .2);
+
+// padding for links inside dropdown menu
+$padding-dropdown-vertical:     10px !default;
+$padding-dropdown-horizontal:   15px !default;
+
+$margin-large-vertical:        30px !default;
+$margin-base-vertical:         15px !default;
+
+// border radius for buttons
+$border-radius-none:             0px !default;
+$border-radius-btn-small:      26px !default;
+$border-radius-btn-base:       20px !default;
+$border-radius-btn-large:      50px !default;
+
+
+$margin-bottom:                0 0 10px 0 !default;
+$border-radius-small:           3px !default;
+$border-radius-base:            4px !default;
+$border-radius-large:           6px !default;
+$border-radius-x-large:         8px !default;
+$border-radius-extreme:         12px !default;
+
+//variables used in cards
+$card-black-color:          #252422 !default;
+$card-muted-color:          #ccc5b9 !default;
+
+$card-background-blue:      #b8d8d8 !default;
+$card-font-blue:            #506568 !default;
+$card-subtitle-blue:        #7a9e9f !default;
+
+$card-background-green:      #d5e5a3 !default;
+$card-font-green:            #60773d !default;
+$card-subtitle-green:        #92ac56 !default;
+
+$card-background-yellow:      #ffe28c !default;
+$card-font-yellow:            #b25825 !default;
+$card-subtitle-yellow:        #d88715 !default;
+
+$card-background-brown:      #d6c1ab !default;
+$card-font-brown:            #75442e !default;
+$card-subtitle-brown:        #a47e65 !default;
+
+$card-background-purple:      #baa9ba !default;
+$card-font-purple:            #3a283d !default;
+$card-subtitle-purple:        #5a283d !default;
+
+$card-background-orange:      #ff8f5e !default;
+$card-font-orange:            #772510 !default;
+$card-subtitle-orange:        #e95e37 !default;
+
+
+
+//== Components
+//
+
+$padding-input-vertical:        11px !default;
+$padding-input-horizontal:      11px !default;
+
+$padding-btn-vertical:         11px !default;
+$padding-btn-horizontal:       22px !default;
+
+$padding-base-vertical:        .5rem !default;
+$padding-base-horizontal:      .7rem !default;
+
+$padding-round-horizontal:     23px !default;
+
+$padding-simple-vertical:      10px !default;
+$padding-simple-horizontal:    17px !default;
+
+$padding-large-vertical:       15px !default;
+$padding-large-horizontal:     48px !default;
+
+$padding-small-vertical:        5px !default;
+$padding-small-horizontal:     15px !default;
+
+// $padding-xs-vertical:           1px !default;
+// $padding-xs-horizontal:         5px !default;
+
+$padding-label-vertical:        2px !default;
+$padding-label-horizontal:     12px !default;
+
+$margin-large-vertical:        30px !default;
+$margin-base-vertical:         15px !default;
+
+$margin-base-horizontal:       15px !default;
+
+$margin-bottom:                 10px        !default;
+$border:                        1px solid   !default;
+$border-radius-extra-small:     0.125rem    !default;
+$border-radius-small:           0.1875rem   !default;
+$border-radius-large:           0.25rem     !default;
+$border-radius-extreme:         0.875rem    !default;
+
+$border-radius-large-top:      $border-radius-large $border-radius-large 0 0 !default;
+$border-radius-large-bottom:   0 0 $border-radius-large $border-radius-large !default;
+
+$btn-round-radius:             30px         !default;
+
+$height-base:                  40px         !default;
+
+$btn-icon-size:                 3.5rem       !default;
+$btn-icon-size-regular:         2.375rem      !default;
+$btn-icon-font-size-regular:    0.9375rem     !default;
+$btn-icon-font-size-small:      0.6875rem      !default;
+$btn-icon-size-small:           1.875rem     !default;
+$btn-icon-font-size-lg:         1.325rem     !default;
+$btn-icon-size-lg:              3.6rem         !default;
+
+$font-size-h1:                 3.5em        !default; // ~ 49px
+$font-size-h2:                 2.5em        !default; // ~ 35px
+$font-size-h3:                 2em          !default; // ~ 28px
+$font-size-h4:                 1.714em      !default; // ~ 24px
+$font-size-h5:                 1.57em       !default; // ~ 22px
+$font-size-h6:                 1em          !default; // ~ 14px
+
+$font-paragraph:               1em          !default;
+$font-size-navbar:             1em          !default;
+$font-size-mini:               0.7142em     !default;
+$font-size-small:              0.8571em     !default;
+$font-size-base:               14px         !default;
+$font-size-large:              1rem         !default;
+$font-size-large-navbar:       20px         !default;
+$font-size-blockquote:         1.1em        !default; // ~ 15px
+$font-size-medium:             16px         !default;
+$font-size-xs:                 12px         !default;
+
+$font-weight-light:             300         !default;
+$font-weight-normal:            400         !default;
+$font-weight-semi:              600         !default;
+$font-weight-bold:              700         !default;
+
+$line-height-general:        1.5            !default;
+$line-height-nav-link:       1.625rem       !default;
+$btn-icon-line-height:       2.4em          !default;
+$line-height:                1.35em         !default;
+$line-height-lg:             54px           !default;
+
+
+$border-radius-top:        10px 10px 0 0     !default;
+$border-radius-bottom:     0 0 10px 10px     !default;
+
+$dropdown-shadow:          1px 2px 7px 1px rgba(0,0,0,.125);
+$box-shadow-raised:        0px 10px 25px 0px rgba(0, 0, 0, 0.3);
+$box-shadow:               0 2px 2px rgba(204, 197, 185, 0.5);
+$sidebar-box-shadow:       0px 2px 22px 0 rgba(0, 0, 0,.20), 0px 2px 30px 0 rgba(0, 0, 0,.35);
+
+$general-transition-time:  300ms             !default;
+
+$slow-transition-time:           370ms       !default;
+$dropdown-coordinates:      29px -50px       !default;
+
+$fast-transition-time:           150ms       !default;
+$select-coordinates:         50% -40px       !default;
+
+$transition-linear:         linear           !default;
+$transition-bezier:         cubic-bezier(0.34, 1.61, 0.7, 1) !default;
+$transition-ease:           ease 0s;
+
+
+//$navbar-padding-a:               9px 13px;
+$navbar-margin-a:                15px 0px;
+
+$padding-social-a:               10px 5px;
+
+$navbar-margin-a-btn:            15px 0px;
+$navbar-margin-a-btn-round:      16px 0px;
+
+$navbar-padding-a-icons:         6px 15px;
+$navbar-margin-a-icons:          6px  3px;
+
+$navbar-padding-base:            0.625rem;
+//$navbar-margin-brand:             5px  0px;
+
+$navbar-margin-brand-icons:      12px auto;
+$navbar-margin-btn:              15px  3px;
+
+$height-icon-sm:				 32px;
+$width-icon-sm:					 32px;
+$padding-icon-sm:			     4px;
+$border-radius-icon-sm:			 7px;
+
+$height-icon-message:			 40px;
+$width-icon-message:			 40px;
+
+$height-icon-message-sm: 		 20px;
+$width-icon-message-sm:			 20px;
+
+$white-navbar:                  rgba(#FFFFFF, .96);
+$primary-navbar:                rgba(#34ACDC, .98);
+$info-navbar:                   rgba(#5BCAFF, .98);
+$success-navbar:                rgba(#4CD964, .98);
+$warning-navbar:                rgba(#FF9500, .98);
+$danger-navbar:                 rgba(#FF4C40, .98);
+
+$topbar-x:             topbar-x !default;
+$topbar-back:          topbar-back !default;
+$bottombar-x:          bottombar-x !default;
+$bottombar-back:       bottombar-back !default;
+
+//Nucleo Icons
+
+$nc-font-path:        '../fonts' !default;
+$nc-font-size-base:   14px !default;
+$nc-css-prefix:       nc !default;
+$nc-background-color:     #eee !default;
+$nc-li-width:         (30em / 14) !default;
+$nc-padding-width:    (1em/3) !default;
+
+// Social icons color
+$social-twitter:                   #55acee !default;
+$social-twitter-state-color:       darken(#55acee, 5%) !default;
+
+$social-facebook: 			       #3b5998 !default;
+$social-facebook-state-color:      darken(#3b5998, 5%) !default;
+
+$social-google: 			       #dd4b39 !default;
+$social-google-state-color:        darken(#dd4b39, 5%) !default;
+
+$social-linkedin: 			         #0077B5 !default;
+$social-linkedin-state-color:        darken(#0077B5, 5%) !default;
+
+// Sidebar variables
+$sidebar-width:              calc(100% - 260px) !default;
+$sidebar-mini-width:         calc(100% - 80px) !default;
+
+
+// Social icons color
+$social-twitter:                   #55acee !default;
+$social-twitter-state-color:       lighten(#55acee, 6%) !default;
+
+$social-facebook: 			       #3b5998 !default;
+$social-facebook-state-color:      lighten(#3b5998, 6%) !default;
+
+$social-google: 			       #dd4b39 !default;
+$social-google-state-color:        lighten(#dd4b39, 6%) !default;
+
+$social-linkedin: 			       #0077B5 !default;
+$social-linkedin-state-color:      lighten(#0077B5, 6%) !default;
+
+$social-pinterest: 			       #cc2127 !default;
+$social-pinterest-state-color:     lighten(#cc2127, 6%) !default;
+
+$social-dribbble: 		           #ea4c89 !default;
+$social-dribbble-state-color:      lighten(#ea4c89, 6%) !default;
+
+$social-github: 		      	   #333333 !default;
+$social-github-state-color:        lighten(#333333, 6%) !default;
+
+$social-youtube: 		    	   #e52d27 !default;
+$social-youtube-state-color:       lighten(#e52d27, 6%) !default;
+
+$social-instagram: 		           #125688 !default;
+$social-instagram-state-color:     lighten(#125688, 6%) !default;
+
+$social-reddit: 		  	       #ff4500 !default;
+$social-reddit-state-color:        lighten(#ff4500, 6%) !default;
+
+$social-tumblr: 			       #35465c !default;
+$social-tumblr-state-color:        lighten(#35465c, 6%) !default;
+
+$social-behance: 			       #1769ff !default;
+$social-behance-state-color:       lighten(#1769ff, 6%) !default;
+
+// Placeholder text color
+$input-color-placeholder: #999 !default;
+
+$zindex-select-dropdown: 1060 !default; // must be higher than a modal background (1050)

@@ -1,0 +1,20 @@
+[package]
+name = "nym-explorer"
+version = "0.1.0"
+authors = ["dave <futurechimp@users.noreply.github.com>", "Jedrzej Stuczynski <andrew@nymtech.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# no point in importing entire futtures crate
+futures-util = "0.3"
+log = "0.4"
+reqwest = "0.10.8"
+rocket = "0.4.5"
+rocket_contrib = "0.4.5"
+tokio = { version = "0.2", features = ["full"] }
+tokio-native-tls = "0.1.0"
+tokio-tungstenite = {version = "0.11", features = ["tls"] }
+
+# tungstenite = "0.11"

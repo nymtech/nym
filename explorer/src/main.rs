@@ -24,14 +24,12 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .long(VALIDATOR_ARG)
                 .help("REST endpoint of the validator that explorer will use to periodically grab topology and node status.")
                 .takes_value(true)
-                .required(true),
         )
         .arg(
             Arg::with_name(METRICS_ARG)
                 .long(METRICS_ARG)
                 .help("websocket endpoint of the metrics server explorer will subscribe to and broadcast to its clients")
                 .takes_value(true)
-                .required(true),
         )
         .get_matches()
 }
@@ -44,8 +42,13 @@ fn index() -> &'static str {
 #[tokio::main]
 async fn main() {
     let matches = parse_args();
-    let validator_base_url = matches.value_of(VALIDATOR_ARG).unwrap();
-    let metrics_websocket_url = matches.value_of(METRICS_ARG).unwrap().to_owned();
+    let validator_base_url = matches
+        .value_of(VALIDATOR_ARG)
+        .unwrap_or_else(|| "http://testnet-validator1.nymtech.net:8081");
+    let metrics_websocket_url = matches
+        .value_of(METRICS_ARG)
+        .unwrap_or_else(|| "wss://testnet-metrics.nymtech.net/ws")
+        .to_owned();
 
     tokio::task::spawn_blocking(|| {
         rocket::ignite()

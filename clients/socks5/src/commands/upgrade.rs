@@ -124,7 +124,7 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
         // the rest of arguments depend on the upgrade path
         .arg(Arg::with_name("current version")
             .long("current-version")
-            .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Self provided version of the nym-socks5-client if none is available in the config. NOTE: if provided incorrectly, results may be catastrophic.")
+            .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Specifies current version of the configuration file to help to determine a valid upgrade path.")
             .takes_value(true)
         )
 }

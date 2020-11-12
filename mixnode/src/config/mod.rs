@@ -31,8 +31,9 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'MIXNODE'
 const DEFAULT_LISTENING_PORT: u16 = 1789;
-pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "https://validator.nymtech.net";
-pub(crate) const DEFAULT_METRICS_SERVER: &str = "https://metrics.nymtech.net";
+pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str =
+    "http://testnet-validator1.nymtech.net:8081";
+pub(crate) const DEFAULT_METRICS_SERVER: &str = "http://testnet-metrics.nymtech.net:8080";
 
 // 'DEBUG'
 const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);

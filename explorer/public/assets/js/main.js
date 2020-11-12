@@ -4,7 +4,7 @@ function websocketUrl() {
   } else if ($(location).attr("href").startsWith("http://qa-explorer")) {
     return "ws://qa-explorer.nymtech.net:1648";
   } else {
-    return "ws://testnet-explorer.nymtech.net:1648";
+    return "wss://testnet-explorer.nymtech.net";
   }
 }
 

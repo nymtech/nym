@@ -1,10 +1,10 @@
 function websocketUrl() {
   if ($(location).attr("href").startsWith("http://localhost")) {
     return "ws://localhost:8080";
-  } else if ($(location).attr("href").startsWith("https://qa-dashboard")) {
-    return "wss://qa-metrics.nymtech.net";
+  } else if ($(location).attr("href").startsWith("http://qa-explorer")) {
+    return "ws://qa-explorer.nymtech.net:8080";
   } else {
-    return "wss://metrics.nymtech.net";
+    return "ws://testnet-explorer.nymtech.net:8080";
   }
 }
 

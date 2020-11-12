@@ -25,7 +25,7 @@ The above copyright notice and this permission notice shall be included in all c
     Nym Network Status
   </title>
   <meta content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, shrink-to-fit=no'
-        name='viewport' />
+    name='viewport' />
   <!--     Fonts and icons     -->
   <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700,200" rel="stylesheet" />
   <link href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css" rel="stylesheet">
@@ -36,59 +36,59 @@ The above copyright notice and this permission notice shall be included in all c
 </head>
 
 <body class="">
-<div class="wrapper ">
-  <div class="sidebar" data-color="white" data-active-color="danger">
-    <!--
+  <div class="wrapper ">
+    <div class="sidebar" data-color="white" data-active-color="danger">
+      <!--
       Tip 1: You can change the color of the sidebar using: data-color="blue | green | orange | red | yellow"
   -->
-    <div class="logo">
-      <!-- <a href="http://www.creative-tim.com" class="simple-text logo-mini">
+      <div class="logo">
+        <!-- <a href="http://www.creative-tim.com" class="simple-text logo-mini">
         <div class="logo-image-small">
           <img alt="logo" src="paper-dashboard/assets/img/logo-small.png">
         </div>
       </a> -->
-      <a href="https://nymtech.net" class="simple-text logo-normal">
-        NYM
-        <!-- <div class="logo-image-big">
+        <a href="https://nymtech.net" class="simple-text logo-normal">
+          NYM
+          <!-- <div class="logo-image-big">
           <img src="paper-dashboard/assets/img/logo-big.png">
         </div> -->
-      </a>
+        </a>
+      </div>
+      <div class="sidebar-wrapper">
+        <ul class="nav">
+          <li>
+            <a href="/">
+              <i class="nc-icon nc-bank"></i>
+              <p>Dashboard</p>
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
-    <div class="sidebar-wrapper">
-      <ul class="nav">
-        <li>
-          <a href="/">
-            <i class="nc-icon nc-bank"></i>
-            <p>Dashboard</p>
-          </a>
-        </li>
-      </ul>
-    </div>
-  </div>
-  <div class="main-panel">
-    <!-- Navbar -->
-    <div id="msg"></div>
-    <div id="log"></div>
-    <nav class="navbar navbar-expand-lg navbar-absolute fixed-top navbar-transparent">
-      <div class="container-fluid">
-        <div class="navbar-wrapper">
-          <div class="navbar-toggle">
-            <button type="button" class="navbar-toggler">
-              <span class="navbar-toggler-bar bar1"></span>
-              <span class="navbar-toggler-bar bar2"></span>
-              <span class="navbar-toggler-bar bar3"></span>
-            </button>
+    <div class="main-panel">
+      <!-- Navbar -->
+      <div id="msg"></div>
+      <div id="log"></div>
+      <nav class="navbar navbar-expand-lg navbar-absolute fixed-top navbar-transparent">
+        <div class="container-fluid">
+          <div class="navbar-wrapper">
+            <div class="navbar-toggle">
+              <button type="button" class="navbar-toggler">
+                <span class="navbar-toggler-bar bar1"></span>
+                <span class="navbar-toggler-bar bar2"></span>
+                <span class="navbar-toggler-bar bar3"></span>
+              </button>
+            </div>
+            <a class="navbar-brand" href="">Nym Network Status</a>
           </div>
-          <a class="navbar-brand" href="">Nym Network Status</a>
-        </div>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navigation"
-                aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-bar navbar-kebab"></span>
-          <span class="navbar-toggler-bar navbar-kebab"></span>
-          <span class="navbar-toggler-bar navbar-kebab"></span>
-        </button>
-        <div class="collapse navbar-collapse justify-content-end" id="navigation">
-          <!-- <form>
+          <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navigation"
+            aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-bar navbar-kebab"></span>
+            <span class="navbar-toggler-bar navbar-kebab"></span>
+            <span class="navbar-toggler-bar navbar-kebab"></span>
+          </button>
+          <div class="collapse navbar-collapse justify-content-end" id="navigation">
+            <!-- <form>
             <div class="input-group no-border">
               <input type="text" value="" class="form-control" placeholder="Search...">
               <div class="input-group-append">
@@ -98,8 +98,8 @@ The above copyright notice and this permission notice shall be included in all c
               </div>
             </div>
           </form> -->
-          <ul class="navbar-nav">
-            <!-- <li class="nav-item">
+            <ul class="navbar-nav">
+              <!-- <li class="nav-item">
               <a class="nav-link btn-magnify" href="">
                 <i class="nc-icon nc-layout-11"></i>
                 <p>
@@ -120,7 +120,7 @@ The above copyright notice and this permission notice shall be included in all c
                 <a class="dropdown-item" href="#">Something else here</a>
               </div>
             </li> -->
-            <!-- <li class="nav-item">
+              <!-- <li class="nav-item">
               <a class="nav-link btn-rotate" href="">
                 <i class="nc-icon nc-settings-gear-65"></i>
                 <p>
@@ -128,195 +128,215 @@ The above copyright notice and this permission notice shall be included in all c
                 </p>
               </a>
             </li> -->
-          </ul>
+            </ul>
+          </div>
         </div>
-      </div>
-    </nav>
-    <!-- End Navbar -->
-    <!-- <div class="panel-header panel-header-sm">
+      </nav>
+      <!-- End Navbar -->
+      <!-- <div class="panel-header panel-header-sm">
 
 
     </div> -->
-    <div class="content">
-      <div class="row">
-        <div class="col-md-12">
-          <div class="card">
-            <div class="card-header">
-              <h4 class="card-title">Mix Node Count</h4>
-            </div>
-            <div class="card-body" id="mixnodes-count">
-              <h2></h2>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-md-12">
-          <div class="card">
-            <div class="card-header">
-              <h4 class="card-title"> Mix Nodes</h4>
-            </div>
-            <div class="card-body">
-              <div class="table-responsive">
-                <table class="table" id="mixnodes-list">
-                  <thead class=" text-primary">
-                  <tr>
-                    <th width=50px>
-                      Status
-                    </th>
-                    <th width=100px>
-                      Reputation
-                    </th>
-                    <th>
-                      Version
-                    </th>
-                    <th>
-                      Identity key
-                    </th>
-                    <th>
-                      Sphinx key
-                    </th>
-                    <th>
-                      Location
-                    </th>
-                    <th>
-                      Host
-                    </th>
-                    <th>
-                      Layer
-                    </th>
-                    <th>
-                      Received
-                    </th>
-                    <th>
-                      Sent
-                    </th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                  </tbody>
-                </table>
+      <div class="content">
+        <div class="row">
+          <div class="col-md-12">
+            <div class="card">
+              <div class="card-header">
+                <h4 class="card-title">Mix Node Count</h4>
+              </div>
+              <div class="card-body">
+                <h2 id="mixnodes-count" class="metadata"></h2>
               </div>
             </div>
           </div>
-        </div>
-
-        <div class="col-md-12">
-          <div class="card">
-            <div class="card-header">
-              <h4 class="card-title"> Gateways</h4>
-            </div>
-            <div class="card-body">
-              <div class="table-responsive">
-                <table class="table" id="gatewaynodes-list">
-                  <thead class=" text-primary">
-                  <tr>
-                    <th width=50px>
-                      Status
-                    </th>
-                    <th width=100px>
-                      Reputation
-                    </th>
-                    <th>
-                      Version
-                    </th>
-                    <th>
-                      Identity key
-                    </th>
-                    <th>
-                      Sphinx key
-                    </th>
-                    <th>
-                      Location
-                    </th>
-                    <th>
-                      Mix Host
-                    </th>
-                    <th>
-                      Clients Host
-                    </th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                  </tbody>
-                </table>
+          <div class="col-md-12">
+            <div class="card">
+              <div class="card-header">
+                <h4 class="card-title">Validators Count</h4>
+              </div>
+              <div class="card-body">
+                <h2 id="validators-count" class="metadata"></h2>
               </div>
             </div>
           </div>
-        </div>
-
-        <div class="col-md-12">
-          <div class="card">
-            <div class="card-header">
-              <h4 class="card-title"> Validators</h4>
+          <div class="col-md-12">
+            <div class="card">
+              <div class="card-header">
+                <h4 class="card-title">Current block height</h4>
+              </div>
+              <div class="card-body">
+                <h2 id="block-height" class="metadata"></h2>
+              </div>
             </div>
-            <div class="card-body">
-              <div class="table-responsive">
-                <table class="table" id="coconodes-list">
-                  <thead class=" text-primary">
-                  <tr>
-                    <th>
-                      Version
-                    </th>
-                    <th>
-                      Location
-                    </th>
-                    <th>
-                      Host
-                    </th>
-                    <th>
-                      Public Verification Key
-                    </th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                  </tbody>
-                </table>
+          </div>
+
+          <div class="col-md-12">
+            <div class="card">
+              <div class="card-header">
+                <h4 class="card-title"> Mix Nodes</h4>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table" id="mixnodes-list">
+                    <thead class=" text-primary">
+                      <tr>
+                        <th width=50px>
+                          Status
+                        </th>
+                        <th width=100px>
+                          Reputation
+                        </th>
+                        <th>
+                          Version
+                        </th>
+                        <th>
+                          Identity key
+                        </th>
+                        <th>
+                          Sphinx key
+                        </th>
+                        <th>
+                          Location
+                        </th>
+                        <th>
+                          Host
+                        </th>
+                        <th>
+                          Layer
+                        </th>
+                        <th>
+                          Received
+                        </th>
+                        <th>
+                          Sent
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="card">
+              <div class="card-header">
+                <h4 class="card-title"> Gateways</h4>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table" id="gatewaynodes-list">
+                    <thead class=" text-primary">
+                      <tr>
+                        <th width=50px>
+                          Status
+                        </th>
+                        <th width=100px>
+                          Reputation
+                        </th>
+                        <th>
+                          Version
+                        </th>
+                        <th>
+                          Identity key
+                        </th>
+                        <th>
+                          Sphinx key
+                        </th>
+                        <th>
+                          Location
+                        </th>
+                        <th>
+                          Mix Host
+                        </th>
+                        <th>
+                          Clients Host
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-12">
+            <div class="card">
+              <div class="card-header">
+                <h4 class="card-title"> Validators</h4>
+              </div>
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="table" id="validator-list">
+                    <thead class=" text-primary">
+                      <tr>
+                        <th>
+                          Address
+                        </th>
+                        <th>
+                          Public Key
+                        </th>
+                        <th>
+                          Proposer Priority
+                        </th>
+                        <th>
+                          Voting Power
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-    <footer class="footer footer-black  footer-white ">
-      <div class="container-fluid">
-        <div class="row">
-          <nav class="footer-nav">
-            <ul>
-              <li>
-                <a href="https://nymtech.net" target="_blank">Nym</a>
-              </li>
-              <li>
-                <a href="https://github.com/nymtech/nym-web-dashboard/license" target="_blank">Licenses</a>
-              </li>
-            </ul>
-          </nav>
-          <div class="credits ml-auto">
+      <footer class="footer footer-black  footer-white ">
+        <div class="container-fluid">
+          <div class="row">
+            <nav class="footer-nav">
+              <ul>
+                <li>
+                  <a href="https://nymtech.net" target="_blank">Nym</a>
+                </li>
+                <li>
+                  <a href="https://github.com/nymtech/nym-web-dashboard/license" target="_blank">Licenses</a>
+                </li>
+              </ul>
+            </nav>
+            <div class="credits ml-auto">
               <span class="copyright">
                 ©
                 <script>
                   document.write(new Date().getFullYear())
                 </script>, made with <i class="fa fa-heart heart"></i> by Nym
               </span>
+            </div>
           </div>
         </div>
-      </div>
-    </footer>
+      </footer>
+    </div>
   </div>
-</div>
-<!--   Core JS Files   -->
-<script src="paper-dashboard/assets/js/core/jquery.min.js"></script>
-<script src="paper-dashboard/assets/js/core/popper.min.js"></script>
-<script src="paper-dashboard/assets/js/core/bootstrap.min.js"></script>
-<script src="paper-dashboard/assets/js/plugins/perfect-scrollbar.jquery.min.js"></script>
-<!-- Chart JS -->
-<script src="paper-dashboard/assets/js/plugins/chartjs.min.js"></script>
-<!--  Notifications Plugin    -->
-<script src="paper-dashboard/assets/js/plugins/bootstrap-notify.js"></script>
-<!-- Control Center for Now Ui Dashboard: parallax effects, scripts for the example pages etc -->
-<script src="paper-dashboard/assets/js/paper-dashboard.min.js?v=2.0.0" type="text/javascript"></script>
-<script src="assets/js/purify.js"></script>
-<script src="assets/js/main.js"></script>
-<script src="assets/js/tablesorter.js"></script>
+  <!--   Core JS Files   -->
+  <script src="paper-dashboard/assets/js/core/jquery.min.js"></script>
+  <script src="paper-dashboard/assets/js/core/popper.min.js"></script>
+  <script src="paper-dashboard/assets/js/core/bootstrap.min.js"></script>
+  <script src="paper-dashboard/assets/js/plugins/perfect-scrollbar.jquery.min.js"></script>
+  <!-- Chart JS -->
+  <script src="paper-dashboard/assets/js/plugins/chartjs.min.js"></script>
+  <!--  Notifications Plugin    -->
+  <script src="paper-dashboard/assets/js/plugins/bootstrap-notify.js"></script>
+  <!-- Control Center for Now Ui Dashboard: parallax effects, scripts for the example pages etc -->
+  <script src="paper-dashboard/assets/js/paper-dashboard.min.js?v=2.0.0" type="text/javascript"></script>
+  <script src="assets/js/purify.js"></script>
+  <script src="assets/js/main.js"></script>
+  <script src="assets/js/tablesorter.js"></script>
 </body>
 
 </html>

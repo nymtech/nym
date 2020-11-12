@@ -7,7 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# no point in importing entire futtures crate
+clap = "2.33"
+# no point in importing entire futures crate
 futures-util = "0.3"
 log = "0.4"
 reqwest = "0.10.8"

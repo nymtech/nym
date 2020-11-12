@@ -3,6 +3,7 @@
 #[macro_use]
 extern crate rocket;
 
+use clap::{App, Arg, ArgMatches};
 use rocket_contrib::serve::StaticFiles;
 use tokio::sync::broadcast;
 
@@ -12,6 +13,19 @@ mod websockets;
 
 // this specifies number of messages that can be held by the channel, not number of the clients.
 const BROADCAST_CAPACITY: usize = 10;
+const VALIDATOR_ARG: &str = "validator";
+
+fn parse_args<'a>() -> ArgMatches<'a> {
+    App::new("Nym Explorer")
+        .author("Nymtech")
+        .arg(
+            Arg::with_name(VALIDATOR_ARG)
+                .help("REST endpoint of the explorer will use to periodically grab topology and node status.")
+                .takes_value(true)
+                .required(true),
+        )
+        .get_matches()
+}
 
 #[get("/")]
 fn index() -> &'static str {
@@ -20,6 +34,9 @@ fn index() -> &'static str {
 
 #[tokio::main]
 async fn main() {
+    let matches = parse_args();
+    let validator_base_url = matches.value_of(VALIDATOR_ARG).unwrap();
+
     tokio::spawn(async move {
         rocket::ignite()
             .mount("/", StaticFiles::from("public"))
@@ -39,5 +56,5 @@ async fn main() {
         websockets::listen(8080, sender_clone).await;
     });
 
-    jobs::start().await;
+    jobs::start(validator_base_url).await;
 }

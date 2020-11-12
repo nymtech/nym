@@ -37,9 +37,15 @@ async fn main() {
     let matches = parse_args();
     let validator_base_url = matches.value_of(VALIDATOR_ARG).unwrap();
 
+    let public_path = std::env::current_exe()
+    .expect("Failed to evaluate current exe path")
+    .parent()
+    .expect("the binary itself has no parent path?!")
+    .join("public");
+
     tokio::task::spawn_blocking(|| {
         rocket::ignite()
-            .mount("/", StaticFiles::from("public"))
+            .mount("/", StaticFiles::from(public_path))
             .launch()
     });
 

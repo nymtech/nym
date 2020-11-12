@@ -1,10 +1,10 @@
 use std::{fs::File, io::Write, path::Path};
 
-pub fn save(text: String, path_str: &str) {
-    let path = Path::new(path_str);
+pub fn save<P: AsRef<Path>>(text: String, path: P) {
+    let path = path.as_ref();
     let display = path.display();
 
-    let mut file = match File::create(&path) {
+    let mut file = match File::create(path) {
         Err(why) => panic!("couldn't open {}: {}", display, why),
         Ok(file) => file,
     };

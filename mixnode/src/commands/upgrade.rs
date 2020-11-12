@@ -161,7 +161,7 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
         // the rest of arguments depend on the upgrade path
         .arg(Arg::with_name("current version")
             .long("current-version")
-            .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Self provided version of the nym-mixnode if none is available in the config. NOTE: if provided incorrectly, results may be catastrophic.")
+            .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Specifies current version of the configuration file to help to determine a valid upgrade path. Valid formats include '0.8.1', 'v0.8.1' or 'V0.8.1'")
             .takes_value(true)
         )
         .arg(Arg::with_name("incentives address")

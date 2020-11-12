@@ -181,9 +181,9 @@ impl<T: NymConfig> Config<T> {
     }
 
     pub fn set_high_default_traffic_volume(&mut self) {
-        self.debug.average_packet_delay = Duration::from_millis(10);
-        self.debug.loop_cover_traffic_average_delay = Duration::from_millis(100); // 10 cover messages / s
-        self.debug.message_sending_average_delay = Duration::from_millis(5); // 200 "real" messages / s
+        self.debug.average_packet_delay = Duration::from_millis(1);
+        self.debug.loop_cover_traffic_average_delay = Duration::from_millis(2000000); // basically don't really send cover messages
+        self.debug.message_sending_average_delay = Duration::from_millis(4); // 250 "real" messages / s
     }
 
     pub fn set_vpn_mode(&mut self, vpn_mode: bool) {

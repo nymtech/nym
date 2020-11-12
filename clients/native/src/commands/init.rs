@@ -28,7 +28,7 @@ use std::time::Duration;
 use topology::{gateway, NymTopology};
 
 const GOOD_GATEWAYS: [&str; 2] = [
-    "D6YaMzLSY7mANtSQRKXsmMZpqgqiVkeiagKM4V4oFPFr",
+    "DiYR9o8KgeQ81woKPYVAu4LNaAEg8SWkiufDCahNnPov",
     "5nrYxPR8gt2Gzo2BbHtsGf66KAEQY91WmM1eW78EphNy",
 ];
 

@@ -37,7 +37,7 @@ async fn main() {
     let matches = parse_args();
     let validator_base_url = matches.value_of(VALIDATOR_ARG).unwrap();
 
-    tokio::spawn(async move {
+    tokio::task::spawn_blocking(|| {
         rocket::ignite()
             .mount("/", StaticFiles::from("public"))
             .launch()

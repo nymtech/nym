@@ -16,6 +16,8 @@ function getTopology() {
     url: topologyUrl,
     success: function (data) {
       createMixnodeCount(data.mixNodes.length);
+      createValidatorCount(data.validators.validators.length);
+      createBlockHeight(data.validators.block_height);
       createDisplayTable(data);
       updateNodesStatus();
     }
@@ -24,7 +26,7 @@ function getTopology() {
 
 function createDisplayTable(data) {
   createMixnodeRows(data.mixNodes);
-  createValidatorRows(data.cocoNodes);
+  createValidatorRows(data.validators.validators);
   createGatewayRows(data.gateways);
 }
 
@@ -118,7 +120,22 @@ function setGatewayStatusDot(nodePubKey) {
 }
 
 function createMixnodeCount(mixNodeCount) {
-  var $h2 = $('h2').text(DOMPurify.sanitize(mixNodeCount)).appendTo("mixnodes-count");
+  // no need to sanitize numbers (count is obtained via .lengnth attribute of an array)
+  $('#mixnodes-count').text(mixNodeCount);
+}
+
+function createValidatorCount(validatorCount) {
+  // no need to sanitize numbers (count is obtained via .lengnth attribute of an array)
+  $('#validators-count').text(validatorCount);
+}
+
+function createBlockHeight(blockHeight) {
+  let purifiedHeight = DOMPurify.sanitize(blockHeight)
+  if (purifiedHeight.length === 0) {
+    purifiedHeight = 0
+  }
+
+  $('#block-height').text(purifiedHeight);
 }
 
 function compareNodes(node1, node2) {
@@ -191,15 +208,15 @@ function createGatewayRows(gatewayNodes) {
   })
 }
 
-function createValidatorRows(cocoNodes) {
-  $.each(cocoNodes, function (_, node) {
+function createValidatorRows(validators) {
+  validators.forEach(validator => {
     var $tr = $('<tr>').append(
-      $('<td>').text(DOMPurify.sanitize(node.version)),
-      $('<td>').text(DOMPurify.sanitize(node.location)),
-      $('<td>').text(DOMPurify.sanitize(node.host)),
-      $('<td>').text(DOMPurify.sanitize(node.pubKey))
-    ).appendTo('#coconodes-list');
-  });
+      $('<td>').text(DOMPurify.sanitize(validator.address)),
+      $('<td>').text(DOMPurify.sanitize(validator.pub_key)),
+      $('<td>').text(DOMPurify.sanitize(validator.proposer_priority)),
+      $('<td>').text(DOMPurify.sanitize(validator.voting_power))
+    ).appendTo('#validator-list');
+  })
 }
 
 function connectWebSocket() {

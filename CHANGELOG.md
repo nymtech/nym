@@ -1,5 +1,113 @@
 # Changelog
 
+## [v0.9.0](https://github.com/nymtech/nym/tree/v0.9.0) (2020-11-13)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.8.1...v0.9.0)
+
+The main features of this release are:
+
+* a reputation tracking system which starts to link node reputation to quality of service
+* a new component, the `nym-network-monitor`, which tracks whether nodes are working properly and providing good service
+* automatic node registration and de-registration at node startup
+* working Cosmos validators with a `nym` token
+* starting to decentralize the old directory server into the validators
+* a new block explorer at https://testnet-explorer.nymtech.net which looks the same as the old dashboard but is the basis of something much more advanced. It can be run by anyone.
+* de-coupling metrics collection from directory services to make the system scale better overall
+* reliability and performance improvements for mixnode networking
+
+See the changelog for detailed release notes.
+
+**Implemented enhancements:**
+
+- Nicer error if trying to run an uninitialised client/node [\#389](https://github.com/nymtech/nym/issues/389)
+- Gateway announcement [\#383](https://github.com/nymtech/nym/issues/383)
+- Add init flag for incentives address [\#382](https://github.com/nymtech/nym/issues/382)
+- Ed25519 Identity Keys for Mixnodes [\#379](https://github.com/nymtech/nym/issues/379)
+- Introduce version field to config files [\#375](https://github.com/nymtech/nym/issues/375)
+- Change `init` to not blow away existing keys \(if exist\) [\#368](https://github.com/nymtech/nym/issues/368)
+- Introduce an explicit `upgrade` command [\#367](https://github.com/nymtech/nym/issues/367)
+- Show remote hostname in socks5 connection messages [\#365](https://github.com/nymtech/nym/issues/365)
+- Make all `const` duration values more explicit. [\#333](https://github.com/nymtech/nym/issues/333)
+- Feature/socks improvements [\#423](https://github.com/nymtech/nym/pull/423) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/instant sending [\#359](https://github.com/nymtech/nym/pull/359) ([jstuczyn](https://github.com/jstuczyn))
+
+**Fixed bugs:**
+
+- React wasm example not compiling [\#394](https://github.com/nymtech/nym/issues/394)
+- Update main.js [\#441](https://github.com/nymtech/nym/pull/441) ([jstuczyn](https://github.com/jstuczyn))
+- Bugfix/metrics fixes [\#434](https://github.com/nymtech/nym/pull/434) ([jstuczyn](https://github.com/jstuczyn))
+- Bugfix/upgrade fix [\#421](https://github.com/nymtech/nym/pull/421) ([jstuczyn](https://github.com/jstuczyn))
+- Explicitly handling base58 key recovery errors [\#396](https://github.com/nymtech/nym/pull/396) ([jstuczyn](https://github.com/jstuczyn))
+- Corrected version on client-core [\#377](https://github.com/nymtech/nym/pull/377) ([jstuczyn](https://github.com/jstuczyn))
+
+**Closed issues:**
+
+- Make validator URL configurable [\#438](https://github.com/nymtech/nym/issues/438)
+- Change default directory location [\#432](https://github.com/nymtech/nym/issues/432)
+- Crank up the default bandwidth settings. [\#429](https://github.com/nymtech/nym/issues/429)
+- Change "sphinx-socks" to "nym-requester" [\#428](https://github.com/nymtech/nym/issues/428)
+- Clients should use only "active" nodes [\#390](https://github.com/nymtech/nym/issues/390)
+- Allow persistently changing config values from command line [\#387](https://github.com/nymtech/nym/issues/387)
+- Remove `--config` flag in `run` [\#385](https://github.com/nymtech/nym/issues/385)
+- Metrics server should return a metrics rate value [\#374](https://github.com/nymtech/nym/issues/374)
+- Integer staking [\#372](https://github.com/nymtech/nym/issues/372)
+- Mixnode and gateway blockchain registration [\#371](https://github.com/nymtech/nym/issues/371)
+- Remove presence notifications [\#370](https://github.com/nymtech/nym/issues/370)
+- Handle invalid base58 encoding for asymmetric key recovery \(encryption and identity\) [\#285](https://github.com/nymtech/nym/issues/285)
+- Socks5 nym client + bitcoin service provider [\#254](https://github.com/nymtech/nym/issues/254)
+- Message reception in webassembly client [\#204](https://github.com/nymtech/nym/issues/204)
+- Simplest possible staking system [\#157](https://github.com/nymtech/nym/issues/157)
+- Validator should hold topology [\#77](https://github.com/nymtech/nym/issues/77)
+
+**Merged pull requests:**
+
+- Removed incentives form url [\#451](https://github.com/nymtech/nym/pull/451) ([jstuczyn](https://github.com/jstuczyn))
+- Removed hardcoded 'good gateways' in favour of pseusorandom choice fr… [\#450](https://github.com/nymtech/nym/pull/450) ([jstuczyn](https://github.com/jstuczyn))
+- Fixed the URL of the websocket [\#449](https://github.com/nymtech/nym/pull/449) ([futurechimp](https://github.com/futurechimp))
+- Extra argument to specify metrics websocket + long attribute [\#448](https://github.com/nymtech/nym/pull/448) ([jstuczyn](https://github.com/jstuczyn))
+- Explorer public folder being relative to the binary [\#447](https://github.com/nymtech/nym/pull/447) ([jstuczyn](https://github.com/jstuczyn))
+- Slightly friendlier upgrade argument description [\#446](https://github.com/nymtech/nym/pull/446) ([jstuczyn](https://github.com/jstuczyn))
+- Updated nym-run gateway id [\#445](https://github.com/nymtech/nym/pull/445) ([jstuczyn](https://github.com/jstuczyn))
+- Adjusted 'fastmode' settings [\#444](https://github.com/nymtech/nym/pull/444) ([jstuczyn](https://github.com/jstuczyn))
+- Added validators to dashboard + validator and block count [\#443](https://github.com/nymtech/nym/pull/443) ([jstuczyn](https://github.com/jstuczyn))
+- Adding keybase to allowed.list.sample [\#442](https://github.com/nymtech/nym/pull/442) ([futurechimp](https://github.com/futurechimp))
+- Spawning rocket as a blocking task [\#440](https://github.com/nymtech/nym/pull/440) ([jstuczyn](https://github.com/jstuczyn))
+- Passing validator base url as an argument [\#439](https://github.com/nymtech/nym/pull/439) ([jstuczyn](https://github.com/jstuczyn))
+- Changing default validator location to make it clear we're testnet [\#437](https://github.com/nymtech/nym/pull/437) ([futurechimp](https://github.com/futurechimp))
+- Added nym prefix to binary names [\#436](https://github.com/nymtech/nym/pull/436) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/explorer [\#431](https://github.com/nymtech/nym/pull/431) ([jstuczyn](https://github.com/jstuczyn))
+- Updated default sending rates [\#430](https://github.com/nymtech/nym/pull/430) ([jstuczyn](https://github.com/jstuczyn))
+- Fixed bunch of clippy warnings [\#427](https://github.com/nymtech/nym/pull/427) ([jstuczyn](https://github.com/jstuczyn))
+- Starting cover traffic stream under correct condition [\#422](https://github.com/nymtech/nym/pull/422) ([jstuczyn](https://github.com/jstuczyn))
+- Updated validator topology [\#420](https://github.com/nymtech/nym/pull/420) ([jstuczyn](https://github.com/jstuczyn))
+- Added option to set incentives address during mix and gateway init [\#419](https://github.com/nymtech/nym/pull/419) ([jstuczyn](https://github.com/jstuczyn))
+- Flag to start network requester in open proxy mode [\#418](https://github.com/nymtech/nym/pull/418) ([jstuczyn](https://github.com/jstuczyn))
+- Renamed 'sphinx-socks' to 'network-requester' [\#417](https://github.com/nymtech/nym/pull/417) ([jstuczyn](https://github.com/jstuczyn))
+- Updated upgrade commands to set new default validator [\#413](https://github.com/nymtech/nym/pull/413) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/network monitor file topology [\#412](https://github.com/nymtech/nym/pull/412) ([jstuczyn](https://github.com/jstuczyn))
+- Removed debug print statement [\#411](https://github.com/nymtech/nym/pull/411) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/controlled reinit [\#410](https://github.com/nymtech/nym/pull/410) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/max retry [\#409](https://github.com/nymtech/nym/pull/409) ([jstuczyn](https://github.com/jstuczyn))
+- Renamed directory arguments to validator [\#408](https://github.com/nymtech/nym/pull/408) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/no run config flag [\#405](https://github.com/nymtech/nym/pull/405) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/error on noninit [\#404](https://github.com/nymtech/nym/pull/404) ([jstuczyn](https://github.com/jstuczyn))
+- Using metrics interval received from server [\#403](https://github.com/nymtech/nym/pull/403) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/validator api update [\#402](https://github.com/nymtech/nym/pull/402) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/directory server transition [\#401](https://github.com/nymtech/nym/pull/401) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/wasm client fix [\#399](https://github.com/nymtech/nym/pull/399) ([futurechimp](https://github.com/futurechimp))
+- Fix compiler warnings for unneeded mut [\#398](https://github.com/nymtech/nym/pull/398) ([ethanfrey](https://github.com/ethanfrey))
+- Feature/fix dependabot alerts [\#393](https://github.com/nymtech/nym/pull/393) ([futurechimp](https://github.com/futurechimp))
+- moved new\_v4\_with\_node to test only section [\#392](https://github.com/nymtech/nym/pull/392) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/duration cleanup [\#391](https://github.com/nymtech/nym/pull/391) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/mix ed25519 identity [\#388](https://github.com/nymtech/nym/pull/388) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/double init prevention [\#386](https://github.com/nymtech/nym/pull/386) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/upgrade command [\#381](https://github.com/nymtech/nym/pull/381) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/remove validator [\#380](https://github.com/nymtech/nym/pull/380) ([futurechimp](https://github.com/futurechimp))
+- Feature/version in config [\#376](https://github.com/nymtech/nym/pull/376) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/network monitor [\#369](https://github.com/nymtech/nym/pull/369) ([jstuczyn](https://github.com/jstuczyn))
+- Added sphinx socks to default workspace members [\#358](https://github.com/nymtech/nym/pull/358) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/wasm update [\#341](https://github.com/nymtech/nym/pull/341) ([jstuczyn](https://github.com/jstuczyn))
+
 ## [v0.8.1](https://github.com/nymtech/nym/tree/v0.8.1) (2020-09-28)
 
 [Full Changelog](https://github.com/nymtech/nym/compare/v0.8.0...v0.8.1)
@@ -16,7 +124,7 @@
 
 **Merged pull requests:**
 
-- Feature/wasm update [\#341](https://github.com/nymtech/nym/pull/341) ([jstuczyn](https://github.com/jstuczyn))
+- Hotfix/0.8.1 [\#357](https://github.com/nymtech/nym/pull/357) ([jstuczyn](https://github.com/jstuczyn))
 
 ## [v0.8.0](https://github.com/nymtech/nym/tree/v0.8.0) (2020-09-10)
 
@@ -332,6 +440,7 @@ This  release fixes bugs in v0.5.0. All testnet node operators are advised to up
 **Merged pull requests:**
 
 - Bugfix/healthcheck on provided topology [\#108](https://github.com/nymtech/nym/pull/108) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/check packet length [\#99](https://github.com/nymtech/nym/pull/99) ([futurechimp](https://github.com/futurechimp))
 
 ## [v0.4.0](https://github.com/nymtech/nym/tree/v0.4.0) (2020-01-28)
 
@@ -382,7 +491,6 @@ This release also integrates a health-checker and network topology refresh into 
 - Feature/base58 [\#102](https://github.com/nymtech/nym/pull/102) ([futurechimp](https://github.com/futurechimp))
 - Feature/panic improvements [\#101](https://github.com/nymtech/nym/pull/101) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/fix sphinx unwraps [\#100](https://github.com/nymtech/nym/pull/100) ([futurechimp](https://github.com/futurechimp))
-- Feature/check packet length [\#99](https://github.com/nymtech/nym/pull/99) ([futurechimp](https://github.com/futurechimp))
 - Feature/version filtering improvements [\#96](https://github.com/nymtech/nym/pull/96) ([futurechimp](https://github.com/futurechimp))
 - Feature/refreshing topology [\#94](https://github.com/nymtech/nym/pull/94) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/consistent logging [\#93](https://github.com/nymtech/nym/pull/93) ([futurechimp](https://github.com/futurechimp))

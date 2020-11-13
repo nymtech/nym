@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::filter;
-use crypto::asymmetric::encryption;
+use crypto::asymmetric::{encryption, identity};
 use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx_types::Node as SphinxNode;
 use std::convert::TryInto;
@@ -23,9 +23,11 @@ use std::net::SocketAddr;
 pub struct Node {
     pub location: String,
     pub host: SocketAddr,
-    pub pub_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
+    pub identity_key: identity::PublicKey,
+    pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
     pub layer: u64,
-    pub last_seen: u64,
+    pub registration_time: i64,
+    pub reputation: i64,
     pub version: String,
 }
 
@@ -39,6 +41,6 @@ impl<'a> Into<SphinxNode> for &'a Node {
     fn into(self) -> SphinxNode {
         let node_address_bytes = NymNodeRoutingAddress::from(self.host).try_into().unwrap();
 
-        SphinxNode::new(node_address_bytes, (&self.pub_key).into())
+        SphinxNode::new(node_address_bytes, (&self.sphinx_key).into())
     }
 }

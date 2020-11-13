@@ -1,8 +1,7 @@
 [package]
-build = "build.rs"
 name = "nym-client-wasm"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jedrzej Stuczynski <andrew@nymtech.net>"]
-version = "0.8.1"
+version = "0.9.0"
 edition = "2018"
 keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy", "client"]
 license = "Apache-2.0"
@@ -28,8 +27,8 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }
-directory-client = { path = "../../common/client-libs/directory-client" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
+validator-client = { path = "../../common/client-libs/validator-client" }
 wasm-utils = { path = "../../common/wasm-utils" }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
@@ -45,14 +44,10 @@ console_error_panic_hook = { version = "0.1", optional = true }
 # Unfortunately, `wee_alloc` requires nightly Rust when targeting wasm for now.
 wee_alloc = { version = "0.4", optional = true }
 
-[build-dependencies]
-built = "0.4.3"
-
 [dev-dependencies]
 wasm-bindgen-test = "0.2"
 
 [package.metadata.wasm-pack.profile.release]
-# this needs to be disabled until https://github.com/rustwasm/wasm-pack/issues/886 is resolved
-wasm-opt = ["-Oz", "--enable-mutable-globals"]
+wasm-opt = false
 
 

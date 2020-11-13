@@ -19,10 +19,13 @@ use nymsphinx_acknowledgements::AckKey;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx_chunking::fragment::COVER_FRAG_ID;
+use nymsphinx_forwarding::packet::MixPacket;
 use nymsphinx_params::packet_sizes::PacketSize;
-use nymsphinx_params::{PacketEncryptionAlgorithm, PacketHkdfAlgorithm, DEFAULT_NUM_MIX_HOPS};
+use nymsphinx_params::{
+    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketMode, DEFAULT_NUM_MIX_HOPS,
+};
 use nymsphinx_types::builder::SphinxPacketBuilder;
-use nymsphinx_types::{delays, Error as SphinxError, SphinxPacket};
+use nymsphinx_types::{delays, Error as SphinxError};
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
 use std::time;
@@ -74,6 +77,7 @@ where
         COVER_FRAG_ID.to_bytes(),
         average_ack_delay,
         topology,
+        None,
     )?)
 }
 
@@ -84,7 +88,7 @@ pub fn generate_loop_cover_packet<R>(
     full_address: &Recipient,
     average_ack_delay: time::Duration,
     average_packet_delay: time::Duration,
-) -> Result<(NymNodeRoutingAddress, SphinxPacket), CoverMessageError>
+) -> Result<MixPacket, CoverMessageError>
 where
     R: RngCore + CryptoRng,
 {
@@ -142,9 +146,10 @@ where
         .unwrap();
 
     let first_hop_address =
-        NymNodeRoutingAddress::try_from(route.first().unwrap().address.clone()).unwrap();
+        NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 
-    Ok((first_hop_address, packet))
+    // if client is running in vpn mode, he won't even be sending cover traffic
+    Ok(MixPacket::new(first_hop_address, packet, PacketMode::Mix))
 }
 
 /// Helper function used to determine if given message represents a loop cover message.

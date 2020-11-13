@@ -15,11 +15,11 @@
 use crate::config::Config;
 use crate::node::client_handling::clients_handler::{ClientsHandler, ClientsHandlerRequestSender};
 use crate::node::client_handling::websocket;
-use crate::node::mixnet_handling::sender::{OutboundMixMessageSender, PacketForwarder};
+use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::storage::{inboxes, ClientLedger};
 use crypto::asymmetric::{encryption, identity};
-use directory_client::DirectoryClient;
 use log::*;
+use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
@@ -65,24 +65,30 @@ impl Gateway {
     fn start_mix_socket_listener(
         &self,
         clients_handler_sender: ClientsHandlerRequestSender,
-        ack_sender: OutboundMixMessageSender,
+        ack_sender: MixForwardingSender,
     ) {
         info!("Starting mix socket listener...");
 
         let packet_processor = mixnet_handling::PacketProcessor::new(
-            Arc::clone(&self.encryption_keys),
+            self.encryption_keys.private_key(),
+            self.config.get_cache_entry_ttl(),
+        );
+
+        let connection_handler = ConnectionHandler::new(
+            packet_processor,
             clients_handler_sender,
             self.client_inbox_storage.clone(),
             ack_sender,
         );
 
-        mixnet_handling::Listener::new(self.config.get_mix_listening_address())
-            .start(packet_processor);
+        let listener = mixnet_handling::Listener::new(self.config.get_mix_listening_address());
+
+        listener.start(connection_handler);
     }
 
     fn start_client_websocket_listener(
         &self,
-        forwarding_channel: OutboundMixMessageSender,
+        forwarding_channel: MixForwardingSender,
         clients_handler_sender: ClientsHandlerRequestSender,
     ) {
         info!("Starting client [web]socket listener...");
@@ -94,16 +100,18 @@ impl Gateway {
         .start(clients_handler_sender, forwarding_channel);
     }
 
-    fn start_packet_forwarder(&self) -> OutboundMixMessageSender {
+    fn start_packet_forwarder(&self) -> MixForwardingSender {
         info!("Starting mix packet forwarder...");
 
-        let (_, forwarding_channel) = PacketForwarder::new(
+        let (mut packet_forwarder, packet_sender) = PacketForwarder::new(
             self.config.get_packet_forwarding_initial_backoff(),
             self.config.get_packet_forwarding_maximum_backoff(),
             self.config.get_initial_connection_timeout(),
-        )
-        .start();
-        forwarding_channel
+            self.config.get_packet_forwarding_max_reconnections(),
+        );
+
+        tokio::spawn(async move { packet_forwarder.run().await });
+        packet_sender
     }
 
     fn start_clients_handler(&self) -> ClientsHandlerRequestSender {
@@ -116,20 +124,6 @@ impl Gateway {
         clients_handler_sender
     }
 
-    fn start_presence_notifier(&self) {
-        info!("Starting presence notifier...");
-        let notifier_config = presence::NotifierConfig::new(
-            self.config.get_location(),
-            self.config.get_presence_directory_server(),
-            self.config.get_mix_announce_address(),
-            self.config.get_clients_announce_address(),
-            self.identity.public_key().to_base58_string(),
-            self.encryption_keys.public_key().to_base58_string(),
-            self.config.get_presence_sending_delay(),
-        );
-        presence::Notifier::new(notifier_config).start();
-    }
-
     async fn wait_for_interrupt(&self) {
         if let Err(e) = tokio::signal::ctrl_c().await {
             error!(
@@ -140,26 +134,35 @@ impl Gateway {
         println!(
             "Received SIGINT - the gateway will terminate now (threads are not YET nicely stopped)"
         );
+        if let Err(err) = presence::unregister_with_validator(
+            self.config.get_validator_rest_endpoint(),
+            self.identity.public_key().to_base58_string(),
+        )
+        .await
+        {
+            error!("failed to unregister with validator... - {:?}", err)
+        }
     }
 
     async fn check_if_same_ip_gateway_exists(&self) -> Option<String> {
         let announced_mix_host = self.config.get_mix_announce_address();
         let announced_clients_host = self.config.get_clients_announce_address();
-        let directory_client_cfg =
-            directory_client::Config::new(self.config.get_presence_directory_server());
-        let topology = directory_client::Client::new(directory_client_cfg)
+        let validator_client_config =
+            validator_client::Config::new(self.config.get_validator_rest_endpoint());
+        let validator_client = validator_client::Client::new(validator_client_config);
+        let topology = validator_client
             .get_topology()
             .await
-            .expect("Failed to retrieve network topology");
+            .expect("failed to grab network topology");
 
-        let existing_gateways = topology.gateway_nodes;
+        let existing_gateways = topology.gateways;
         existing_gateways
             .iter()
             .find(|node| {
-                node.mixnet_listener == announced_mix_host
-                    || node.client_listener == announced_clients_host
+                node.mixnet_listener() == announced_mix_host
+                    || node.clients_listener() == announced_clients_host
             })
-            .map(|node| node.identity_key.clone())
+            .map(|node| node.identity())
     }
 
     // Rather than starting all futures with explicit `&Handle` argument, let's see how it works
@@ -167,27 +170,41 @@ impl Gateway {
     // Basically more or less equivalent of using #[tokio::main] attribute.
     pub fn run(&mut self) {
         info!("Starting nym gateway!");
+
         let mut runtime = Runtime::new().unwrap();
 
         runtime.block_on(async {
-
-            if let Some(duplicate_gateway_key) = self.check_if_same_ip_gateway_exists().await {
-                error!(
-                    "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
-                    duplicate_gateway_key
-                );
-                return;
+            if let Some(duplicate_node_key) = self.check_if_same_ip_gateway_exists().await {
+                if duplicate_node_key == self.identity.public_key().to_base58_string() {
+                    warn!("We seem to have not unregistered after going offline - there's a node with identical identity and announce-host as us registered.")
+                } else {
+                    error!(
+                        "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
+                        duplicate_node_key
+                    );
+                    return;
+                }
             }
 
-
+            if let Err(err) = presence::register_with_validator(
+                self.config.get_validator_rest_endpoint(),
+                self.config.get_mix_announce_address(),
+                self.config.get_clients_announce_address(),
+                self.identity.public_key().to_base58_string(),
+                self.encryption_keys.public_key().to_base58_string(),
+                self.config.get_version().to_string(),
+                self.config.get_location(),
+                self.config.get_incentives_address()
+            ).await {
+                error!("failed to register with the validator - {:?}", err);
+                return
+            }
 
             let mix_forwarding_channel = self.start_packet_forwarder();
             let clients_handler_sender = self.start_clients_handler();
 
             self.start_mix_socket_listener(clients_handler_sender.clone(), mix_forwarding_channel.clone());
             self.start_client_websocket_listener(mix_forwarding_channel, clients_handler_sender);
-
-            self.start_presence_notifier();
 
             info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

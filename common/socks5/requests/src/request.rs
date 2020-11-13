@@ -1,5 +1,4 @@
 use nymsphinx_addressing::clients::{Recipient, RecipientFormattingError};
-use ordered_buffer::OrderedMessage;
 use std::convert::TryFrom;
 use std::fmt::{self};
 
@@ -28,7 +27,7 @@ impl fmt::Display for RequestError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RequestError::AddressLengthTooShort => {
-                write!(f, "not enough bytes to recover the lenght of the address")
+                write!(f, "not enough bytes to recover the length of the address")
             }
             RequestError::AddressTooShort => write!(f, "not enough bytes to recover the address"),
             RequestError::ConnectionIdTooShort => {
@@ -48,10 +47,7 @@ impl std::error::Error for RequestError {}
 
 impl RequestError {
     pub fn is_malformed_return(&self) -> bool {
-        match self {
-            RequestError::MalformedReturnAddress(_) => true,
-            _ => false,
-        }
+        matches!(self, RequestError::MalformedReturnAddress(_))
     }
 }
 
@@ -77,7 +73,6 @@ pub enum Request {
     Connect {
         conn_id: ConnectionId,
         remote_addr: RemoteAddress,
-        message: OrderedMessage,
         return_address: Recipient,
     },
 
@@ -90,13 +85,11 @@ impl Request {
     pub fn new_connect(
         conn_id: ConnectionId,
         remote_addr: RemoteAddress,
-        message: OrderedMessage,
         return_address: Recipient,
     ) -> Request {
         Request::Connect {
             conn_id,
             remote_addr,
-            message,
             return_address,
         }
     }
@@ -153,23 +146,19 @@ impl Request {
 
                 // just a temporary reference to mid-slice for ease of use
                 let recipient_data_bytes = &connect_request_bytes[address_end..];
-                if recipient_data_bytes.len() < Recipient::LEN {
+
+                if recipient_data_bytes.len() != Recipient::LEN {
                     return Err(RequestError::ReturnAddressTooShort);
                 }
 
                 let mut return_bytes = [0u8; Recipient::LEN];
                 return_bytes.copy_from_slice(&recipient_data_bytes[..Recipient::LEN]);
                 let return_address = Recipient::try_from_bytes(return_bytes)
-                    .map_err(|err| RequestError::MalformedReturnAddress(err))?;
-
-                let message =
-                    OrderedMessage::try_from_bytes(recipient_data_bytes[Recipient::LEN..].to_vec())
-                        .unwrap();
+                    .map_err(RequestError::MalformedReturnAddress)?;
 
                 Ok(Request::Connect {
                     conn_id: connection_id,
                     remote_addr: remote_address,
-                    message,
                     return_address,
                 })
             }
@@ -187,11 +176,10 @@ impl Request {
     /// service provider which will make the request.
     pub fn into_bytes(self) -> Vec<u8> {
         match self {
-            // connect is: CONN_FLAG || CONN_ID || REMOTE_LEN || REMOTE || RETURN || DATA
+            // connect is: CONN_FLAG || CONN_ID || REMOTE_LEN || REMOTE || RETURN
             Request::Connect {
                 conn_id,
                 remote_addr,
-                message,
                 return_address,
             } => {
                 let remote_address_bytes = remote_addr.into_bytes();
@@ -202,7 +190,6 @@ impl Request {
                     .chain(remote_address_bytes_len.to_be_bytes().iter().cloned())
                     .chain(remote_address_bytes.into_iter())
                     .chain(return_address.to_bytes().iter().cloned())
-                    .chain(message.into_bytes())
                     .collect()
             }
             Request::Send(conn_id, data, local_closed) => std::iter::once(RequestFlag::Send as u8)
@@ -382,7 +369,6 @@ mod request_deserialization_tests {
             let request_bytes: Vec<_> = request_bytes
                 .into_iter()
                 .chain(recipient_bytes.iter().cloned())
-                .chain(vec![0, 0, 0, 0, 0, 0, 0, 1]) // message index 1
                 .collect();
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
@@ -390,7 +376,6 @@ mod request_deserialization_tests {
                 Request::Connect {
                     conn_id,
                     remote_addr,
-                    message,
                     return_address,
                 } => {
                     assert_eq!("foo.com".to_string(), remote_addr);
@@ -399,7 +384,6 @@ mod request_deserialization_tests {
                         return_address.to_bytes().to_vec(),
                         recipient.to_bytes().to_vec()
                     );
-                    assert_eq!(Vec::<u8>::new(), message.data);
                 }
                 _ => unreachable!(),
             }
@@ -436,8 +420,6 @@ mod request_deserialization_tests {
             let request_bytes: Vec<_> = request_bytes
                 .into_iter()
                 .chain(recipient_bytes.iter().cloned())
-                .chain(vec![0, 0, 0, 0, 0, 0, 0, 1]) // ordered message sequence number 1
-                .chain(vec![255, 255, 255].into_iter())
                 .collect();
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
@@ -445,7 +427,6 @@ mod request_deserialization_tests {
                 Request::Connect {
                     conn_id,
                     remote_addr,
-                    message,
                     return_address,
                 } => {
                     assert_eq!("foo.com".to_string(), remote_addr);
@@ -454,8 +435,6 @@ mod request_deserialization_tests {
                         return_address.to_bytes().to_vec(),
                         recipient.to_bytes().to_vec()
                     );
-                    assert_eq!(1, message.index);
-                    assert_eq!(vec![255, 255, 255], message.data);
                 }
                 _ => unreachable!(),
             }

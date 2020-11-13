@@ -19,19 +19,19 @@ use futures::future::{abortable, AbortHandle};
 use futures::task::Poll;
 use futures::{SinkExt, StreamExt};
 use log::*;
-use nymsphinx::SphinxPacket;
+use nymsphinx::framing::packet::FramedSphinxPacket;
 use std::io;
 use std::net::SocketAddr;
 use std::time::Duration;
-use tokio::runtime::Handle;
 
 mod reconnector;
 mod writer;
 
 pub(crate) type ResponseSender = Option<oneshot::Sender<io::Result<()>>>;
 
-pub(crate) type ConnectionManagerSender = mpsc::UnboundedSender<(SphinxPacket, ResponseSender)>;
-type ConnectionManagerReceiver = mpsc::UnboundedReceiver<(SphinxPacket, ResponseSender)>;
+pub(crate) type ConnectionManagerSender =
+    mpsc::UnboundedSender<(FramedSphinxPacket, ResponseSender)>;
+type ConnectionManagerReceiver = mpsc::UnboundedReceiver<(FramedSphinxPacket, ResponseSender)>;
 
 enum ConnectionState<'a> {
     Writing(ConnectionWriter),
@@ -46,6 +46,7 @@ pub(crate) struct ConnectionManager<'a> {
 
     maximum_reconnection_backoff: Duration,
     reconnection_backoff: Duration,
+    maximum_reconnection_attempts: u32,
 
     state: ConnectionState<'a>,
 }
@@ -62,11 +63,15 @@ impl<'a> ConnectionManager<'static> {
         reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
         connection_timeout: Duration,
-    ) -> ConnectionManager<'a> {
+        maximum_reconnection_attempts: u32,
+    ) -> Result<ConnectionManager<'a>, io::Error> {
         let (conn_tx, conn_rx) = mpsc::unbounded();
 
         // the blocking call here is fine as initially we want to wait the timeout interval (at most) anyway:
         let tcp_stream_res = std::net::TcpStream::connect_timeout(&address, connection_timeout);
+
+        // we MUST succeed in making initial connection. We don't want to end up in reconnection
+        // loop to something we have never managed to connect (and possibly never will)
 
         let initial_state = match tcp_stream_res {
             Ok(stream) => {
@@ -74,47 +79,52 @@ impl<'a> ConnectionManager<'static> {
                 debug!("managed to establish initial connection to {}", address);
                 ConnectionState::Writing(ConnectionWriter::new(tokio_stream))
             }
-            Err(e) => {
-                warn!("failed to establish initial connection to {} within {:?} ({}). Going into reconnection mode", address, connection_timeout, e);
-                ConnectionState::Reconnecting(ConnectionReconnector::new(
-                    address,
-                    reconnection_backoff,
-                    maximum_reconnection_backoff,
-                ))
-            }
+            Err(err) => return Err(err),
         };
 
-        ConnectionManager {
+        Ok(ConnectionManager {
             conn_tx,
             conn_rx,
             address,
             maximum_reconnection_backoff,
             reconnection_backoff,
+            maximum_reconnection_attempts,
             state: initial_state,
-        }
+        })
     }
 
     async fn run(mut self) {
         while let Some(msg) = self.conn_rx.next().await {
-            let (msg_content, res_ch) = msg;
-            let res = self.handle_new_packet(msg_content).await;
-            if let Some(res_ch) = res_ch {
-                if let Err(e) = res_ch.send(res) {
-                    error!(
-                        "failed to send response on the channel to the caller! - {:?}",
-                        e
+            let (framed_packet, res_ch) = msg;
+
+            match self.handle_new_packet(framed_packet).await {
+                None => {
+                    warn!(
+                        "We reached maximum number of attempts trying to reconnect to {}",
+                        self.address
                     );
+                    return;
+                }
+                Some(res) => {
+                    if let Some(res_ch) = res_ch {
+                        if let Err(e) = res_ch.send(res) {
+                            error!(
+                                "failed to send response on the channel to the caller! - {:?}",
+                                e
+                            );
+                        }
+                    }
                 }
             }
         }
     }
 
     /// consumes Self and returns channel for communication as well as an `AbortHandle`
-    pub(crate) fn start_abortable(self, handle: &Handle) -> (ConnectionManagerSender, AbortHandle) {
+    pub(crate) fn spawn_abortable(self) -> (ConnectionManagerSender, AbortHandle) {
         let sender_clone = self.conn_tx.clone();
         let (abort_fut, abort_handle) = abortable(self.run());
 
-        handle.spawn(async move { abort_fut.await });
+        tokio::spawn(async move { abort_fut.await });
 
         (sender_clone, abort_handle)
     }
@@ -122,7 +132,7 @@ impl<'a> ConnectionManager<'static> {
     // Possible future TODO: `Framed<...>` is both a Sink and a Stream,
     // so it is possible to read any responses we might receive (it is also duplex, so that could be
     // done while writing packets themselves). But it'd require slight additions to `SphinxCodec`
-    async fn handle_new_packet(&mut self, packet: SphinxPacket) -> io::Result<()> {
+    async fn handle_new_packet(&mut self, packet: FramedSphinxPacket) -> Option<io::Result<()>> {
         // we don't do a match here as it's possible to transition from ConnectionState::Reconnecting to ConnectionState::Writing
         // in this function call. And if that happens, we want to send the packet we have received.
         if let ConnectionState::Reconnecting(conn_reconnector) = &mut self.state {
@@ -130,22 +140,27 @@ impl<'a> ConnectionManager<'static> {
             let new_connection = match futures::poll(conn_reconnector).await {
                 Poll::Pending => {
                     debug!("The packet is getting dropped - there's nowhere to send it");
-                    return Err(io::Error::new(
+                    return Some(Err(io::Error::new(
                         io::ErrorKind::BrokenPipe,
                         "connection is broken - reconnection is in progress",
-                    ));
+                    )));
                 }
                 Poll::Ready(conn) => conn,
             };
 
-            debug!("Managed to reconnect to {}!", self.address);
-            self.state = ConnectionState::Writing(ConnectionWriter::new(new_connection));
+            match new_connection {
+                Ok(new_conn) => {
+                    debug!("Managed to reconnect to {}!", self.address);
+                    self.state = ConnectionState::Writing(ConnectionWriter::new(new_conn));
+                }
+                Err(_) => return None,
+            }
         }
 
         // we must be in writing state if we are here, either by being here from beginning or just
         // transitioning from reconnecting
         if let ConnectionState::Writing(conn_writer) = &mut self.state {
-            if let Err(e) = conn_writer.send(packet).await {
+            return if let Err(e) = conn_writer.send(packet).await {
                 warn!(
                     "Failed to forward message - {:?}. Starting reconnection procedure...",
                     e
@@ -154,14 +169,15 @@ impl<'a> ConnectionManager<'static> {
                     self.address,
                     self.reconnection_backoff,
                     self.maximum_reconnection_backoff,
+                    self.maximum_reconnection_attempts,
                 ));
-                return Err(io::Error::new(
+                Some(Err(io::Error::new(
                     io::ErrorKind::BrokenPipe,
                     "connection is broken - reconnection is in progress",
-                ));
+                )))
             } else {
-                return Ok(());
-            }
+                Some(Ok(()))
+            };
         }
 
         unreachable!();

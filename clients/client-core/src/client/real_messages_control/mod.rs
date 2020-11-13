@@ -22,7 +22,7 @@ use self::{
 use crate::client::real_messages_control::acknowledgement_control::AcknowledgementControllerConnectors;
 use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{
-    inbound_messages::InputMessageReceiver, mix_traffic::MixMessageSender,
+    inbound_messages::InputMessageReceiver, mix_traffic::BatchMixMessageSender,
     topology_control::TopologyAccessor,
 };
 use futures::channel::mpsc;
@@ -30,6 +30,7 @@ use gateway_client::AcknowledgementReceiver;
 use log::*;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::params::PacketMode;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
@@ -41,13 +42,34 @@ mod real_traffic_stream;
 
 // TODO: ack_key and self_recipient shouldn't really be part of this config
 pub struct Config {
+    /// Key used to decrypt contents of received SURBAcks
     ack_key: Arc<AckKey>,
-    ack_wait_multiplier: f64,
+
+    /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the additive part `b`
     ack_wait_addition: Duration,
+
+    /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the multiplier `a`
+    ack_wait_multiplier: f64,
+
+    /// Address of `this` client.
     self_recipient: Recipient,
-    average_packet_delay_duration: Duration,
-    average_ack_delay_duration: Duration,
+
+    /// Average delay between sending subsequent packets from this client.
     average_message_sending_delay: Duration,
+
+    /// Average delay a data packet is going to get delayed at a single mixnode.
+    average_packet_delay_duration: Duration,
+
+    /// Average delay an acknowledgement packet is going to get delayed at a single mixnode.
+    average_ack_delay_duration: Duration,
+
+    /// Mode of all mix packets created - VPN or Mix. They indicate whether packets should get delayed
+    /// and keys reused.
+    packet_mode: PacketMode,
+
+    /// If the mode of the client is set to VPN it specifies number of packets created with the
+    /// same initial secret until it gets rotated.
+    vpn_key_reuse_limit: Option<usize>,
 }
 
 impl Config {
@@ -59,6 +81,8 @@ impl Config {
         average_message_sending_delay: Duration,
         average_packet_delay_duration: Duration,
         self_recipient: Recipient,
+        packet_mode: PacketMode,
+        vpn_key_reuse_limit: Option<usize>,
     ) -> Self {
         Config {
             ack_key,
@@ -68,6 +92,8 @@ impl Config {
             average_message_sending_delay,
             ack_wait_multiplier,
             ack_wait_addition,
+            packet_mode,
+            vpn_key_reuse_limit,
         }
     }
 }
@@ -87,7 +113,7 @@ impl RealMessagesController<OsRng> {
         config: Config,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
-        mix_sender: MixMessageSender,
+        mix_sender: BatchMixMessageSender,
         topology_access: TopologyAccessor,
         reply_key_storage: ReplyKeyStorage,
     ) -> Self {
@@ -108,6 +134,8 @@ impl RealMessagesController<OsRng> {
             config.ack_wait_multiplier,
             config.average_ack_delay_duration,
             config.average_packet_delay_duration,
+            config.packet_mode,
+            config.vpn_key_reuse_limit,
         );
 
         let ack_control = AcknowledgementController::new(
@@ -115,7 +143,7 @@ impl RealMessagesController<OsRng> {
             rng,
             topology_access.clone(),
             Arc::clone(&config.ack_key),
-            config.self_recipient.clone(),
+            config.self_recipient,
             reply_key_storage,
             ack_controller_connectors,
         );
@@ -143,7 +171,7 @@ impl RealMessagesController<OsRng> {
         }
     }
 
-    pub(super) async fn run(&mut self) {
+    pub(super) async fn run(&mut self, vpn_mode: bool) {
         let mut out_queue_control = self.out_queue_control.take().unwrap();
         let mut ack_control = self.ack_control.take().unwrap();
 
@@ -151,7 +179,7 @@ impl RealMessagesController<OsRng> {
         // the task to ever finish. This will of course change once we introduce
         // graceful shutdowns.
         let out_queue_control_fut = tokio::spawn(async move {
-            out_queue_control.run_out_queue_control().await;
+            out_queue_control.run_out_queue_control(vpn_mode).await;
             error!("The out queue controller has finished execution!");
             out_queue_control
         });
@@ -170,9 +198,9 @@ impl RealMessagesController<OsRng> {
 
     // &Handle is only passed for consistency sake with other client modules, but I think
     // when we get to refactoring, we should apply gateway approach and make it implicit
-    pub fn start(mut self, handle: &Handle) -> JoinHandle<Self> {
+    pub fn start(mut self, handle: &Handle, vpn_mode: bool) -> JoinHandle<Self> {
         handle.spawn(async move {
-            self.run().await;
+            self.run(vpn_mode).await;
             self
         })
     }

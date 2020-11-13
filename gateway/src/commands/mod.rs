@@ -15,8 +15,9 @@
 use crate::config::Config;
 use clap::ArgMatches;
 
-pub mod init;
-pub mod run;
+pub(crate) mod init;
+pub(crate) mod run;
+pub(crate) mod upgrade;
 
 pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     let mut was_mix_host_overridden = false;
@@ -85,8 +86,8 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.with_clients_announce_port(clients_announce_port.unwrap());
     }
 
-    if let Some(directory) = matches.value_of("directory") {
-        config = config.with_custom_directory(directory);
+    if let Some(validator) = matches.value_of("validator") {
+        config = config.with_custom_validator(validator);
     }
 
     if let Some(inboxes_dir) = matches.value_of("inboxes") {
@@ -99,6 +100,10 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
 
     if let Some(location) = matches.value_of("location") {
         config = config.with_location(location);
+    }
+
+    if let Some(incentives_address) = matches.value_of("incentives-address") {
+        config = config.with_incentives_address(incentives_address);
     }
 
     config

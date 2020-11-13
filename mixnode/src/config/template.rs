@@ -24,6 +24,9 @@ pub(crate) fn config_template() -> &'static str {
 ##### main base mixnode config options #####
 
 [mixnode]
+# Version of the mixnode for which this configuration was created.
+version = '{{ mixnode.version }}'
+    
 # Human readable ID of this particular mixnode.
 id = '{{ mixnode.id }}'
 
@@ -40,10 +43,19 @@ layer = {{ mixnode.layer }}
 listening_address = '{{ mixnode.listening_address }}'
 
 # Path to file containing private identity key.
+private_identity_key_file = '{{ mixnode.private_identity_key_file }}'
+
+# Path to file containing public identity key.
+public_identity_key_file = '{{ mixnode.public_identity_key_file }}'
+
+# Path to file containing private identity key.
 private_sphinx_key_file = '{{ mixnode.private_sphinx_key_file }}'
 
 # Path to file containing public sphinx key.
 public_sphinx_key_file = '{{ mixnode.public_sphinx_key_file }}'
+
+# Optional, if participating in the incentives program, payment address.
+incentives_address = '{{ mixnode.incentives_address }}'
 
 ##### additional mixnode config options #####
 
@@ -55,11 +67,11 @@ public_sphinx_key_file = '{{ mixnode.public_sphinx_key_file }}'
 # `listening_address`.
 announce_address = '{{ mixnode.announce_address }}'
 
-# Directory server to which the server will be reporting their presence data.
-presence_directory_server = '{{ mixnode.presence_directory_server }}'
+# Validator server to which the node will be reporting their presence data.
+validator_rest_url = '{{ mixnode.validator_rest_url }}'
 
-# Directory server to which the server will be reporting their metrics data.
-metrics_directory_server = '{{ mixnode.metrics_directory_server }}'
+# Metrics server to which the node will be reporting their metrics data.
+metrics_server_url = '{{ mixnode.metrics_server_url }}'
 
 ##### advanced configuration options #####
 

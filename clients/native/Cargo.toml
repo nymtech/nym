@@ -1,7 +1,6 @@
 [package]
-build = "build.rs"
 name = "nym-client"
-version = "0.8.1"
+version = "0.9.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
@@ -34,17 +33,14 @@ tokio-tungstenite = "0.11.0" # websocket
 client-core = { path = "../client-core" }
 config = { path = "../../common/config" }
 crypto = { path = "../../common/crypto" }
-directory-client = { path = "../../common/client-libs/directory-client" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }
 websocket-requests = { path = "websocket-requests" }
-
-[build-dependencies]
-built = "0.4.3"
+validator-client = { path = "../../common/client-libs/validator-client" }
+version-checker = { path = "../../common/version-checker" }
 
 [dev-dependencies]
-tempfile = "3.1.0"
 serde_json = "1.0" # for the "textsend" example

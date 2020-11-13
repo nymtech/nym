@@ -22,9 +22,9 @@ const CLIENT_IDENTITY_SIZE: usize = identity::PUBLIC_KEY_LENGTH;
 #[derive(Debug)]
 pub enum RecipientFormattingError {
     MalformedRecipientError,
-    MalformedIdentityError(identity::SignatureError),
-    MalformedEncryptionKeyError(encryption::EncryptionKeyError),
-    MalformedGatewayError(identity::SignatureError),
+    MalformedIdentityError(identity::KeyRecoveryError),
+    MalformedEncryptionKeyError(encryption::KeyRecoveryError),
+    MalformedGatewayError(identity::KeyRecoveryError),
 }
 
 impl fmt::Display for RecipientFormattingError {
@@ -51,8 +51,8 @@ impl fmt::Display for RecipientFormattingError {
 // since we have Debug and Display might as well slap Error on top of it too
 impl std::error::Error for RecipientFormattingError {}
 
-impl From<encryption::EncryptionKeyError> for RecipientFormattingError {
-    fn from(err: encryption::EncryptionKeyError) -> Self {
+impl From<encryption::KeyRecoveryError> for RecipientFormattingError {
+    fn from(err: encryption::KeyRecoveryError) -> Self {
         RecipientFormattingError::MalformedEncryptionKeyError(err)
     }
 }
@@ -102,11 +102,11 @@ impl<'de> Deserialize<'de> for Recipient {
                 // this shouldn't panic as we just checked for length
                 recipient_bytes.copy_from_slice(&bytes);
 
-                Recipient::try_from_bytes(recipient_bytes).or_else(|_| {
-                    Err(SerdeError::invalid_value(
+                Recipient::try_from_bytes(recipient_bytes).map_err(|_| {
+                    SerdeError::invalid_value(
                         Unexpected::Other("At least one of the curve points was malformed"),
                         &self,
-                    ))
+                    )
                 })
             }
         }
@@ -251,7 +251,7 @@ mod tests {
 
         let recipient = Recipient::new(
             *client_id_pair.public_key(),
-            client_enc_pair.public_key().clone(),
+            *client_enc_pair.public_key(),
             *gateway_id_pair.public_key(),
         );
 
@@ -281,7 +281,7 @@ mod tests {
 
         let recipient = Recipient::new(
             *client_id_pair.public_key(),
-            client_enc_pair.public_key().clone(),
+            *client_enc_pair.public_key(),
             *gateway_id_pair.public_key(),
         );
 

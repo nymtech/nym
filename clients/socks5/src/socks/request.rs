@@ -1,6 +1,7 @@
 use super::types::{AddrType, ResponseCode, SocksProxyError};
 use super::{utils as socks_utils, SOCKS_VERSION};
 use log::*;
+use std::fmt::{self, Display};
 use tokio::prelude::*;
 
 /// A Socks5 request hitting the proxy.
@@ -95,12 +96,14 @@ impl SocksRequest {
             port,
         })
     }
+}
 
+impl Display for SocksRequest {
     /// Print out the address and port to a String.
     /// This might return domain:port, ipv6:port, or ipv4:port.
-    pub(crate) fn to_string(&self) -> String {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let address = socks_utils::pretty_print_addr(&self.addr_type, &self.addr);
-        format!("{}:{}", address, self.port)
+        write!(f, "{}:{}", address, self.port)
     }
 }
 

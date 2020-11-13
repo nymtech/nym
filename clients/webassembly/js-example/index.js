@@ -24,10 +24,10 @@ async function main() {
     // sets up better stack traces in case of in-rust panics
     set_panic_hook();
 
-    // directory server we will use to get topology from
-    const directory = "https://qa-directory.nymtech.net"; //"http://localhost:8080";
+    // validator server we will use to get topology from
+    const validator = "http://testnet-validator1.nymtech.net:8081"; //"http://localhost:8081";
 
-    client = new NymClient(directory);
+    client = new NymClient(validator);
 
     const on_message = (msg) => displayReceived(msg);
     const on_connect = () => console.log("Established (and authenticated) gateway connection!");

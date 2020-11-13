@@ -19,10 +19,11 @@ use crate::GatewayMacSize;
 use crypto::generic_array::typenum::Unsigned;
 use crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use crypto::symmetric::stream_cipher;
-use nymsphinx::addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
+use nymsphinx::addressing::nodes::NymNodeRoutingAddressError;
+use nymsphinx::forwarding::packet::{MixPacket, MixPacketFormattingError};
 use nymsphinx::params::packet_sizes::PacketSize;
 use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorithm};
-use nymsphinx::{DestinationAddressBytes, SphinxPacket};
+use nymsphinx::DestinationAddressBytes;
 use serde::{Deserialize, Serialize};
 use std::{
     convert::{TryFrom, TryInto},
@@ -73,10 +74,10 @@ pub enum GatewayRequestsError {
     RequestOfInvalidSize(usize),
     MalformedSphinxPacket,
     MalformedEncryption,
+    InvalidPacketMode,
+    InvalidMixPacket(MixPacketFormattingError),
 }
 
-// to use it as `std::error::Error`, and we don't want to just derive is because we want
-// the message to convey meanings of the usize tuple in RequestOfInvalidSize.
 impl fmt::Display for GatewayRequestsError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         use GatewayRequestsError::*;
@@ -92,6 +93,8 @@ impl fmt::Display for GatewayRequestsError {
             ),
             MalformedSphinxPacket => write!(f, "received sphinx packet was malformed"),
             MalformedEncryption => write!(f, "the received encrypted data was malformed"),
+            InvalidPacketMode => write!(f, "provided packet mode is invalid"),
+            InvalidMixPacket(err) => write!(f, "provided mix packet was malformed - {}", err)
         }
     }
 }
@@ -99,6 +102,12 @@ impl fmt::Display for GatewayRequestsError {
 impl From<NymNodeRoutingAddressError> for GatewayRequestsError {
     fn from(_: NymNodeRoutingAddressError) -> Self {
         GatewayRequestsError::IncorrectlyEncodedAddress
+    }
+}
+
+impl From<MixPacketFormattingError> for GatewayRequestsError {
+    fn from(err: MixPacketFormattingError) -> Self {
+        GatewayRequestsError::InvalidMixPacket(err)
     }
 }
 
@@ -172,10 +181,7 @@ impl ServerResponse {
     }
 
     pub fn is_error(&self) -> bool {
-        match self {
-            ServerResponse::Error { .. } => true,
-            _ => false,
-        }
+        matches!(self, ServerResponse::Error { .. })
     }
 
     pub fn implies_successful_authentication(&self) -> bool {
@@ -205,10 +211,7 @@ impl TryFrom<String> for ServerResponse {
 }
 
 pub enum BinaryRequest {
-    ForwardSphinx {
-        address: NymNodeRoutingAddress,
-        sphinx_packet: SphinxPacket,
-    },
+    ForwardSphinx(MixPacket),
 }
 
 // Right now the only valid `BinaryRequest` is a request to forward a sphinx packet.
@@ -249,40 +252,15 @@ impl BinaryRequest {
         );
 
         // right now there's only a single option possible which significantly simplifies the logic
-        // if we decided to allow for more 'binary' messages, the API wouldn't need to change
-        let address = NymNodeRoutingAddress::try_from_bytes(&message_bytes_mut)?;
-        let addr_offset = address.bytes_min_len();
-
-        let sphinx_packet_data = &message_bytes_mut[addr_offset..];
-        let packet_size = sphinx_packet_data.len();
-        if PacketSize::get_type(packet_size).is_err() {
-            // TODO: should this allow AckPacket sizes?
-
-            Err(GatewayRequestsError::RequestOfInvalidSize(packet_size))
-        } else {
-            let sphinx_packet = match SphinxPacket::from_bytes(sphinx_packet_data) {
-                Ok(packet) => packet,
-                Err(_) => return Err(GatewayRequestsError::MalformedSphinxPacket),
-            };
-
-            Ok(BinaryRequest::ForwardSphinx {
-                address,
-                sphinx_packet,
-            })
-        }
+        // if we decided to allow for more 'binary' messages, the API wouldn't need to change.
+        let mix_packet = MixPacket::try_from_bytes(message_bytes_mut)?;
+        Ok(BinaryRequest::ForwardSphinx(mix_packet))
     }
 
     pub fn into_encrypted_tagged_bytes(self, shared_key: &SharedKeys) -> Vec<u8> {
         match self {
-            BinaryRequest::ForwardSphinx {
-                address,
-                sphinx_packet,
-            } => {
-                let forwarding_data: Vec<_> = address
-                    .as_bytes()
-                    .into_iter()
-                    .chain(sphinx_packet.to_bytes().into_iter())
-                    .collect();
+            BinaryRequest::ForwardSphinx(mix_packet) => {
+                let forwarding_data = mix_packet.into_bytes();
 
                 // TODO: it could be theoretically slightly more efficient if the data wasn't taken
                 // by reference because then it makes a copy for encryption rather than do it in place
@@ -292,14 +270,8 @@ impl BinaryRequest {
     }
 
     // TODO: this will be encrypted, etc.
-    pub fn new_forward_request(
-        address: NymNodeRoutingAddress,
-        sphinx_packet: SphinxPacket,
-    ) -> BinaryRequest {
-        BinaryRequest::ForwardSphinx {
-            address,
-            sphinx_packet,
-        }
+    pub fn new_forward_request(mix_packet: MixPacket) -> BinaryRequest {
+        BinaryRequest::ForwardSphinx(mix_packet)
     }
 
     pub fn into_ws_message(self, shared_key: &SharedKeys) -> Message {

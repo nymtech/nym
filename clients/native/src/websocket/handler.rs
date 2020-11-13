@@ -57,7 +57,7 @@ impl Clone for Handler {
         Handler {
             msg_input: self.msg_input.clone(),
             buffer_requester: self.buffer_requester.clone(),
-            self_full_address: self.self_full_address.clone(),
+            self_full_address: self.self_full_address,
             socket: None,
             received_response_type: Default::default(),
         }
@@ -112,7 +112,7 @@ impl Handler {
     }
 
     fn handle_self_address(&self) -> ServerResponse {
-        ServerResponse::SelfAddress(self.self_full_address.clone())
+        ServerResponse::SelfAddress(self.self_full_address)
     }
 
     fn handle_request(&mut self, request: ClientRequest) -> Option<ServerResponse> {

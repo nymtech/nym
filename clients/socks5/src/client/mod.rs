@@ -23,7 +23,7 @@ use client_core::client::inbound_messages::{
 };
 use client_core::client::key_manager::KeyManager;
 use client_core::client::mix_traffic::{
-    MixMessageReceiver, MixMessageSender, MixTrafficController,
+    BatchMixMessageReceiver, BatchMixMessageSender, MixTrafficController,
 };
 use client_core::client::real_messages_control::RealMessagesController;
 use client_core::client::received_buffer::{
@@ -43,6 +43,7 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
+use nymsphinx::params::PacketMode;
 use tokio::runtime::Runtime;
 
 pub(crate) mod config;
@@ -76,7 +77,7 @@ impl NymClient {
     pub fn as_mix_recipient(&self) -> Recipient {
         Recipient::new(
             *self.key_manager.identity_keypair().public_key(),
-            self.key_manager.encryption_keypair().public_key().clone(),
+            *self.key_manager.encryption_keypair().public_key(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
             NodeIdentity::from_base58_string(self.config.get_base().get_gateway_id()).unwrap(),
@@ -88,7 +89,7 @@ impl NymClient {
     fn start_cover_traffic_stream(
         &self,
         topology_accessor: TopologyAccessor,
-        mix_tx: MixMessageSender,
+        mix_tx: BatchMixMessageSender,
     ) {
         info!("Starting loop cover traffic stream...");
         // we need to explicitly enter runtime due to "next_delay: time::delay_for(Default::default())"
@@ -116,8 +117,14 @@ impl NymClient {
         reply_key_storage: ReplyKeyStorage,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
-        mix_sender: MixMessageSender,
+        mix_sender: BatchMixMessageSender,
     ) {
+        let packet_mode = if self.config.get_base().get_vpn_mode() {
+            PacketMode::VPN
+        } else {
+            PacketMode::Mix
+        };
+
         let controller_config = client_core::client::real_messages_control::Config::new(
             self.key_manager.ack_key(),
             self.config.get_base().get_ack_wait_multiplier(),
@@ -126,6 +133,8 @@ impl NymClient {
             self.config.get_base().get_message_sending_average_delay(),
             self.config.get_base().get_average_packet_delay(),
             self.as_mix_recipient(),
+            packet_mode,
+            self.config.get_base().get_vpn_key_reuse_limit(),
         );
 
         info!("Starting real traffic stream...");
@@ -142,7 +151,8 @@ impl NymClient {
                 reply_key_storage,
             )
         });
-        real_messages_controller.start(self.runtime.handle());
+        real_messages_controller
+            .start(self.runtime.handle(), self.config.get_base().get_vpn_mode());
     }
 
     // buffer controlling all messages fetched from provider
@@ -204,7 +214,7 @@ impl NymClient {
     // the current global view of topology
     fn start_topology_refresher(&mut self, topology_accessor: TopologyAccessor) {
         let topology_refresher_config = TopologyRefresherConfig::new(
-            self.config.get_base().get_directory_server(),
+            self.config.get_base().get_validator_rest_endpoint(),
             self.config.get_base().get_topology_refresh_rate(),
         );
         let mut topology_refresher =
@@ -213,7 +223,7 @@ impl NymClient {
         // components depending on topology would see a non-empty view
         info!(
             "Obtaining initial network topology from {}",
-            self.config.get_base().get_directory_server()
+            self.config.get_base().get_validator_rest_endpoint()
         );
         self.runtime.block_on(topology_refresher.refresh());
 
@@ -238,7 +248,7 @@ impl NymClient {
     // requests?
     fn start_mix_traffic_controller(
         &mut self,
-        mix_rx: MixMessageReceiver,
+        mix_rx: BatchMixMessageReceiver,
         gateway_client: GatewayClient,
     ) {
         info!("Starting mix traffic controller...");
@@ -330,7 +340,9 @@ impl NymClient {
             input_receiver,
             sphinx_message_sender.clone(),
         );
-        self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
+        if !self.config.get_base().get_vpn_mode() {
+            self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
+        }
         self.start_socks5_listener(received_buffer_request_sender, input_sender);
 
         info!("Client startup finished!");

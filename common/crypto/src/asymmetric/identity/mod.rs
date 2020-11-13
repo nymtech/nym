@@ -12,13 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use bs58;
 use ed25519_dalek::ed25519::signature::Signature as SignatureTrait;
 pub use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::{Verifier, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
 use nymsphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use rand::{rngs::OsRng, CryptoRng, RngCore};
+use std::fmt::{self, Formatter};
+
+#[derive(Debug)]
+pub enum KeyRecoveryError {
+    MalformedBytes(SignatureError),
+    MalformedString(bs58::decode::Error),
+}
+
+impl From<SignatureError> for KeyRecoveryError {
+    fn from(err: SignatureError) -> Self {
+        KeyRecoveryError::MalformedBytes(err)
+    }
+}
+
+impl From<bs58::decode::Error> for KeyRecoveryError {
+    fn from(err: bs58::decode::Error) -> Self {
+        KeyRecoveryError::MalformedString(err)
+    }
+}
+
+impl fmt::Display for KeyRecoveryError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            KeyRecoveryError::MalformedBytes(err) => write!(f, "malformed bytes - {}", err),
+            KeyRecoveryError::MalformedString(err) => write!(f, "malformed string - {}", err),
+        }
+    }
+}
+
+impl std::error::Error for KeyRecoveryError {}
 
 /// Keypair for usage in ed25519 EdDSA.
 pub struct KeyPair {
@@ -49,7 +78,7 @@ impl KeyPair {
         &self.public_key
     }
 
-    pub fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, SignatureError> {
+    pub fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, KeyRecoveryError> {
         Ok(KeyPair {
             private_key: PrivateKey::from_bytes(priv_bytes)?,
             public_key: PublicKey::from_bytes(pub_bytes)?,
@@ -96,7 +125,7 @@ impl PublicKey {
         self.0.to_bytes()
     }
 
-    pub fn from_bytes(b: &[u8]) -> Result<Self, SignatureError> {
+    pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
         Ok(PublicKey(ed25519_dalek::PublicKey::from_bytes(b)?))
     }
 
@@ -104,10 +133,8 @@ impl PublicKey {
         bs58::encode(&self.to_bytes()).into_string()
     }
 
-    pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, SignatureError> {
-        let bytes = bs58::decode(val.into())
-            .into_vec()
-            .expect("TODO: deal with this failure case");
+    pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, KeyRecoveryError> {
+        let bytes = bs58::decode(val.into()).into_vec()?;
         Self::from_bytes(&bytes)
     }
 
@@ -117,7 +144,7 @@ impl PublicKey {
 }
 
 impl PemStorableKey for PublicKey {
-    type Error = SignatureError;
+    type Error = KeyRecoveryError;
 
     fn pem_type() -> &'static str {
         "ED25519 PUBLIC KEY"
@@ -147,7 +174,7 @@ impl PrivateKey {
         self.0.to_bytes()
     }
 
-    pub fn from_bytes(b: &[u8]) -> Result<Self, SignatureError> {
+    pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
         Ok(PrivateKey(ed25519_dalek::SecretKey::from_bytes(b)?))
     }
 
@@ -155,10 +182,8 @@ impl PrivateKey {
         bs58::encode(&self.to_bytes()).into_string()
     }
 
-    pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, SignatureError> {
-        let bytes = bs58::decode(val.into())
-            .into_vec()
-            .expect("TODO: deal with this failure case");
+    pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, KeyRecoveryError> {
+        let bytes = bs58::decode(val.into()).into_vec()?;
         Self::from_bytes(&bytes)
     }
 
@@ -171,7 +196,7 @@ impl PrivateKey {
 }
 
 impl PemStorableKey for PrivateKey {
-    type Error = SignatureError;
+    type Error = KeyRecoveryError;
 
     fn pem_type() -> &'static str {
         "ED25519 PRIVATE KEY"

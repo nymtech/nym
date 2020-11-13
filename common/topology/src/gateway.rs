@@ -20,18 +20,14 @@ use std::convert::TryInto;
 use std::net::SocketAddr;
 
 #[derive(Debug, Clone)]
-pub struct Client {
-    pub pub_key: String,
-}
-
-#[derive(Debug, Clone)]
 pub struct Node {
     pub location: String,
     pub client_listener: String,
     pub mixnet_listener: SocketAddr,
     pub identity_key: identity::PublicKey,
     pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
-    pub last_seen: u64,
+    pub registration_time: i64,
+    pub reputation: i64,
     pub version: String,
 }
 

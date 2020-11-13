@@ -18,12 +18,13 @@ use self::{
     retransmission_request_listener::RetransmissionRequestListener,
     sent_notification_listener::SentNotificationListener,
 };
-use super::real_traffic_stream::RealMessageSender;
+use super::real_traffic_stream::BatchRealMessageSender;
 use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{inbound_messages::InputMessageReceiver, topology_control::TopologyAccessor};
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
+use nymsphinx::params::PacketMode;
 use nymsphinx::{
     acknowledgements::AckKey,
     addressing::clients::Recipient,
@@ -38,7 +39,6 @@ use std::{
 };
 use tokio::task::JoinHandle;
 
-mod ack_delay_queue;
 mod acknowledgement_listener;
 mod action_controller;
 mod input_message_listener;
@@ -87,7 +87,7 @@ impl PendingAcknowledgement {
 pub(super) struct AcknowledgementControllerConnectors {
     /// Channel used for forwarding prepared sphinx messages into the poisson sender
     /// to be sent to the mix network.
-    real_message_sender: RealMessageSender,
+    real_message_sender: BatchRealMessageSender,
 
     /// Channel used for receiving raw messages from a client. The messages need to be put
     /// into sphinx packets first.
@@ -104,7 +104,7 @@ pub(super) struct AcknowledgementControllerConnectors {
 
 impl AcknowledgementControllerConnectors {
     pub(super) fn new(
-        real_message_sender: RealMessageSender,
+        real_message_sender: BatchRealMessageSender,
         input_receiver: InputMessageReceiver,
         sent_notifier: SentPacketNotificationReceiver,
         ack_receiver: AcknowledgementReceiver,
@@ -131,6 +131,14 @@ pub(super) struct Config {
 
     /// Average delay a data packet is going to get delayed at a single mixnode.
     average_packet_delay: Duration,
+
+    /// Mode of all mix packets created - VPN or Mix. They indicate whether packets should get delayed
+    /// and keys reused.
+    packet_mode: PacketMode,
+
+    /// If the mode of the client is set to VPN it specifies number of packets created with the
+    /// same initial secret until it gets rotated.
+    vpn_key_reuse_limit: Option<usize>,
 }
 
 impl Config {
@@ -139,12 +147,16 @@ impl Config {
         ack_wait_multiplier: f64,
         average_ack_delay: Duration,
         average_packet_delay: Duration,
+        packet_mode: PacketMode,
+        vpn_key_reuse_limit: Option<usize>,
     ) -> Self {
         Config {
             ack_wait_addition,
             ack_wait_multiplier,
             average_ack_delay,
             average_packet_delay,
+            packet_mode,
+            vpn_key_reuse_limit,
         }
     }
 }
@@ -182,9 +194,11 @@ where
 
         let message_preparer = MessagePreparer::new(
             rng,
-            ack_recipient.clone(),
+            ack_recipient,
             config.average_packet_delay,
             config.average_ack_delay,
+            config.packet_mode,
+            config.vpn_key_reuse_limit,
         );
 
         // will listen for any acks coming from the network
@@ -197,7 +211,7 @@ where
         // will listen for any new messages from the client
         let input_message_listener = InputMessageListener::new(
             Arc::clone(&ack_key),
-            ack_recipient.clone(),
+            ack_recipient,
             connectors.input_receiver,
             message_preparer.clone(),
             action_sender.clone(),

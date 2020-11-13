@@ -24,11 +24,19 @@ pub(crate) fn config_template() -> &'static str {
 ##### main base client config options #####
 
 [client]
+# Version of the client for which this configuration was created.
+version = '{{ client.version }}'
+
 # Human readable ID of this particular client.
 id = '{{ client.id }}'
 
-# URL to the directory server.
-directory_server = '{{ client.directory_server }}'
+# URL to the validator server for obtaining network topology.
+validator_rest_url = '{{ client.validator_rest_url }}'
+
+# Special mode of the system such that all messages are sent as soon as they are received
+# and no cover traffic is generated. If set all message delays are set to 0 and overwriting
+# 'Debug' values will have no effect.
+vpn_mode = {{ client.vpn_mode }}
 
 # Path to file containing private identity key.
 private_identity_key_file = '{{ client.private_identity_key_file }}'
@@ -92,10 +100,10 @@ listening_port = {{ socks5.listening_port }}
 
 [debug]
 
-average_packet_delay = {{ debug.average_packet_delay }}
-average_ack_delay = {{ debug.average_ack_delay }}
-loop_cover_traffic_average_delay = {{ debug.loop_cover_traffic_average_delay }}
-message_sending_average_delay = {{ debug.message_sending_average_delay }}
+average_packet_delay = '{{ debug.average_packet_delay }}'
+average_ack_delay = '{{ debug.average_ack_delay }}'
+loop_cover_traffic_average_delay = '{{ debug.loop_cover_traffic_average_delay }}'
+message_sending_average_delay = '{{ debug.message_sending_average_delay }}'
 
 "#
 }

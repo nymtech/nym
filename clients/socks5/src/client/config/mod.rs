@@ -14,6 +14,7 @@
 
 use crate::client::config::template::config_template;
 use client_core::config::Config as BaseConfig;
+pub use client_core::config::MISSING_VALUE;
 use config::NymConfig;
 use nymsphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
@@ -35,10 +36,6 @@ pub struct Config {
 impl NymConfig for Config {
     fn template() -> &'static str {
         config_template()
-    }
-
-    fn config_file_name() -> String {
-        "config.toml".to_string()
     }
 
     fn default_root_directory() -> PathBuf {
@@ -129,26 +126,5 @@ impl Default for Socks5 {
             listening_port: DEFAULT_LISTENING_PORT,
             provider_mix_address: "".into(),
         }
-    }
-}
-
-#[cfg(test)]
-mod client_config {
-    use super::*;
-
-    #[test]
-    fn after_saving_default_config_the_loaded_one_is_identical() {
-        // need to figure out how to do something similar but without touching the disk
-        // or the file system at all...
-        let temp_location = tempfile::tempdir().unwrap().path().join("config.toml");
-        let fake_address = "CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@FioFa8nMmPpQnYi7JyojoTuwGLeyNS8BF4ChPr29zUML";
-        let default_config = Config::new("foomp", fake_address);
-        default_config
-            .save_to_file(Some(temp_location.clone()))
-            .unwrap();
-
-        let loaded_config = Config::load_from_file(Some(temp_location), None).unwrap();
-
-        assert_eq!(default_config, loaded_config);
     }
 }

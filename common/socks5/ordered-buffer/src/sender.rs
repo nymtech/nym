@@ -19,7 +19,7 @@ impl OrderedMessageSender {
             data: input.to_vec(),
             index: self.next_index,
         };
-        self.next_index = self.next_index + 1;
+        self.next_index += 1;
         message
     }
 }

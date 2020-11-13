@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use directory_client::metrics::MixMetric;
-use directory_client::DirectoryClient;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use log::*;
+use metrics_client::models::metrics::MixMetric;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
-use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
+
+const METRICS_FAILURE_BACKOFF: Duration = Duration::from_secs(30);
 
 type SentMetricsMap = HashMap<String, u64>;
 
@@ -88,8 +88,8 @@ impl MetricsReceiver {
         }
     }
 
-    fn start(mut self, handle: &Handle) -> JoinHandle<()> {
-        handle.spawn(async move {
+    fn start(mut self) -> JoinHandle<()> {
+        tokio::spawn(async move {
             while let Some(metrics_data) = self.metrics_rx.next().await {
                 match metrics_data {
                     MetricEvent::Received => self.metrics.increment_received_metrics().await,
@@ -104,44 +104,41 @@ impl MetricsReceiver {
 
 struct MetricsSender {
     metrics: MixMetrics,
-    directory_client: directory_client::Client,
+    metrics_client: metrics_client::Client,
     pub_key_str: String,
-    sending_delay: Duration,
     metrics_informer: MetricsInformer,
 }
 
 impl MetricsSender {
     fn new(
         metrics: MixMetrics,
-        directory_server: String,
+        metrics_server: String,
         pub_key_str: String,
-        sending_delay: Duration,
         running_logging_delay: Duration,
     ) -> Self {
         MetricsSender {
             metrics,
-            directory_client: directory_client::Client::new(directory_client::Config::new(
-                directory_server,
+            metrics_client: metrics_client::Client::new(metrics_client::Config::new(
+                metrics_server,
             )),
             pub_key_str,
-            sending_delay,
             metrics_informer: MetricsInformer::new(running_logging_delay),
         }
     }
 
-    fn start(mut self, handle: &Handle) -> JoinHandle<()> {
-        handle.spawn(async move {
+    fn start(mut self) -> JoinHandle<()> {
+        tokio::spawn(async move {
             loop {
-                // set the deadline in the future
-                let sending_delay = tokio::time::delay_for(self.sending_delay);
+                // // set the deadline in the future
+                // let sending_delay = tokio::time::delay_for(self.sending_delay);
                 let (received, sent) = self.metrics.acquire_and_reset_metrics().await;
 
                 self.metrics_informer.update_running_stats(received, &sent);
                 self.metrics_informer.log_report_stats(received, &sent);
                 self.metrics_informer.try_log_running_stats();
 
-                match self
-                    .directory_client
+                let sending_delay = match self
+                    .metrics_client
                     .post_mix_metrics(MixMetric {
                         pub_key: self.pub_key_str.clone(),
                         received,
@@ -149,9 +146,15 @@ impl MetricsSender {
                     })
                     .await
                 {
-                    Err(err) => error!("failed to send metrics - {:?}", err),
-                    Ok(_) => debug!("sent metrics information"),
-                }
+                    Err(err) => {
+                        error!("failed to send metrics - {:?}", err);
+                        tokio::time::delay_for(METRICS_FAILURE_BACKOFF)
+                    }
+                    Ok(new_interval) => {
+                        debug!("sent metrics information");
+                        tokio::time::delay_for(Duration::from_secs(new_interval.next_report_in))
+                    }
+                };
 
                 // wait for however much is left
                 sending_delay.await;
@@ -263,7 +266,6 @@ impl MetricsController {
     pub(crate) fn new(
         directory_server: String,
         pub_key_str: String,
-        sending_delay: Duration,
         running_stats_logging_delay: Duration,
     ) -> Self {
         let (metrics_tx, metrics_rx) = mpsc::unbounded();
@@ -274,7 +276,6 @@ impl MetricsController {
                 shared_metrics.clone(),
                 directory_server,
                 pub_key_str,
-                sending_delay,
                 running_stats_logging_delay,
             ),
             receiver: MetricsReceiver::new(shared_metrics, metrics_rx),
@@ -283,10 +284,10 @@ impl MetricsController {
     }
 
     // reporter is how node is going to be accessing the metrics data
-    pub(crate) fn start(self, handle: &Handle) -> MetricsReporter {
+    pub(crate) fn start(self) -> MetricsReporter {
         // TODO: should we do anything with JoinHandle(s) returned by start methods?
-        self.receiver.start(handle);
-        self.sender.start(handle);
+        self.receiver.start();
+        self.sender.start();
         self.reporter
     }
 }

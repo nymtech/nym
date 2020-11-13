@@ -24,6 +24,9 @@ pub(crate) fn config_template() -> &'static str {
 ##### main base mixnode config options #####
 
 [gateway]
+# Version of the gateway for which this configuration was created.
+version = '{{ gateway.version }}'
+
 # Human readable ID of this particular gateway.
 id = '{{ gateway.id }}'
 
@@ -45,8 +48,11 @@ private_sphinx_key_file = '{{ gateway.private_sphinx_key_file }}'
 # Path to file containing public sphinx key.
 public_sphinx_key_file = '{{ gateway.public_sphinx_key_file }}'
 
-# Directory server to which the server will be reporting their presence data.
-presence_directory_server = '{{ gateway.presence_directory_server }}'
+# Optional, if participating in the incentives program, payment address.
+incentives_address = '{{ gateway.incentives_address }}'
+
+# Validator server to which the node will be reporting their presence data.
+validator_rest_url = '{{ gateway.validator_rest_url }}'
 
 # nym_home_directory specifies absolute path to the home nym gateway directory.
 # It is expected to use default value and hence .toml file should not redefine this field.

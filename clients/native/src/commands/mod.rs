@@ -15,12 +15,13 @@
 use crate::client::config::{Config, SocketType};
 use clap::ArgMatches;
 
-pub mod init;
-pub mod run;
+pub(crate) mod init;
+pub(crate) mod run;
+pub(crate) mod upgrade;
 
 pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
-    if let Some(directory) = matches.value_of("directory") {
-        config.get_base_mut().with_custom_directory(directory);
+    if let Some(validator) = matches.value_of("validator") {
+        config.get_base_mut().set_custom_validator(validator);
     }
 
     if let Some(gateway_id) = matches.value_of("gateway") {
@@ -29,6 +30,10 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
 
     if matches.is_present("disable-socket") {
         config = config.with_socket(SocketType::None);
+    }
+
+    if matches.is_present("vpn-mode") {
+        config.get_base_mut().set_vpn_mode(true);
     }
 
     if let Some(port) = matches.value_of("port").map(|port| port.parse::<u16>()) {

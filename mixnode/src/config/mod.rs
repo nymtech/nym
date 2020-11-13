@@ -15,27 +15,33 @@
 use crate::config::template::config_template;
 use config::NymConfig;
 use log::*;
-use serde::{Deserialize, Serialize};
+use serde::{
+    de::{self, IntoDeserializer, Visitor},
+    Deserialize, Deserializer, Serialize,
+};
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::time;
+use std::time::Duration;
 
 pub mod persistence;
 mod template;
 
+pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
+
 // 'MIXNODE'
 const DEFAULT_LISTENING_PORT: u16 = 1789;
-const DEFAULT_DIRECTORY_SERVER: &str = "https://directory.nymtech.net";
+pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str =
+    "http://testnet-validator1.nymtech.net:8081";
+pub(crate) const DEFAULT_METRICS_SERVER: &str = "http://testnet-metrics.nymtech.net:8080";
 
 // 'DEBUG'
-// where applicable, the below are defined in milliseconds
-const DEFAULT_PRESENCE_SENDING_DELAY: u64 = 10_000; // 10s
-const DEFAULT_METRICS_SENDING_DELAY: u64 = 5_000; // 10s
-const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: u64 = 60_000; // 1min
-const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: u64 = 10_000; // 10s
-const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: u64 = 300_000; // 5min
-const DEFAULT_INITIAL_CONNECTION_TIMEOUT: u64 = 1_500; // 1.5s
+const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
+const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
+const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
+const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
+const DEFAULT_CACHE_ENTRY_TTL: Duration = Duration::from_millis(30_000);
+const DEFAULT_MAXIMUM_RECONNECTION_ATTEMPTS: u32 = 20;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -51,10 +57,6 @@ pub struct Config {
 impl NymConfig for Config {
     fn template() -> &'static str {
         config_template()
-    }
-
-    fn config_file_name() -> String {
-        "config.toml".to_string()
     }
 
     fn default_root_directory() -> PathBuf {
@@ -83,6 +85,69 @@ impl NymConfig for Config {
     }
 }
 
+// custom function is defined to deserialize based on whether field contains a pre 0.9.0
+// u64 interpreted as milliseconds or proper duration introduced in 0.9.0
+//
+// TODO: when we get to refactoring down the line, this code can just be removed
+// and all Duration fields could just have #[serde(with = "humantime_serde")] instead
+// reason for that is that we don't expect anyone to be upgrading from pre 0.9.0 when we have,
+// for argument sake, 0.11.0 out
+fn deserialize_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    struct DurationVisitor;
+
+    impl<'de> Visitor<'de> for DurationVisitor {
+        type Value = Duration;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("u64 or a duration")
+        }
+
+        fn visit_i64<E>(self, value: i64) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            self.visit_u64(value as u64)
+        }
+
+        fn visit_u64<E>(self, value: u64) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            Ok(Duration::from_millis(Deserialize::deserialize(
+                value.into_deserializer(),
+            )?))
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Duration, E>
+        where
+            E: de::Error,
+        {
+            humantime_serde::deserialize(value.into_deserializer())
+        }
+    }
+
+    deserializer.deserialize_any(DurationVisitor)
+}
+
+fn deserialize_option_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    if s.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(s))
+    }
+}
+
+pub fn missing_string_value<T: From<String>>() -> T {
+    MISSING_VALUE.to_string().into()
+}
+
 impl Config {
     pub fn new<S: Into<String>>(id: S) -> Self {
         Config::default().with_id(id)
@@ -91,6 +156,20 @@ impl Config {
     // builder methods
     pub fn with_id<S: Into<String>>(mut self, id: S) -> Self {
         let id = id.into();
+        if self
+            .mixnode
+            .private_identity_key_file
+            .as_os_str()
+            .is_empty()
+        {
+            self.mixnode.private_identity_key_file =
+                self::MixNode::default_private_identity_key_file(&id);
+        }
+        if self.mixnode.public_identity_key_file.as_os_str().is_empty() {
+            self.mixnode.public_identity_key_file =
+                self::MixNode::default_public_identity_key_file(&id);
+        }
+
         if self.mixnode.private_sphinx_key_file.as_os_str().is_empty() {
             self.mixnode.private_sphinx_key_file =
                 self::MixNode::default_private_sphinx_key_file(&id);
@@ -99,6 +178,7 @@ impl Config {
             self.mixnode.public_sphinx_key_file =
                 self::MixNode::default_public_sphinx_key_file(&id);
         }
+
         self.mixnode.id = id;
         self
     }
@@ -113,12 +193,13 @@ impl Config {
         self
     }
 
-    // if you want to use distinct servers for metrics and presence
-    // you need to do so in the config.toml file.
-    pub fn with_custom_directory<S: Into<String>>(mut self, directory_server: S) -> Self {
-        let directory_server_string = directory_server.into();
-        self.mixnode.presence_directory_server = directory_server_string.clone();
-        self.mixnode.metrics_directory_server = directory_server_string;
+    pub fn with_custom_validator<S: Into<String>>(mut self, validator: S) -> Self {
+        self.mixnode.validator_rest_url = validator.into();
+        self
+    }
+
+    pub fn with_custom_metrics_server<S: Into<String>>(mut self, server: S) -> Self {
+        self.mixnode.metrics_server_url = server.into();
         self
     }
 
@@ -197,6 +278,16 @@ impl Config {
         self
     }
 
+    pub fn with_custom_version(mut self, version: &str) -> Self {
+        self.mixnode.version = version.to_string();
+        self
+    }
+
+    pub fn with_incentives_address<S: Into<String>>(mut self, incentives_address: S) -> Self {
+        self.mixnode.incentives_address = Some(incentives_address.into());
+        self
+    }
+
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
@@ -204,6 +295,14 @@ impl Config {
 
     pub fn get_location(&self) -> String {
         self.mixnode.location.clone()
+    }
+
+    pub fn get_private_identity_key_file(&self) -> PathBuf {
+        self.mixnode.private_identity_key_file.clone()
+    }
+
+    pub fn get_public_identity_key_file(&self) -> PathBuf {
+        self.mixnode.public_identity_key_file.clone()
     }
 
     pub fn get_private_sphinx_key_file(&self) -> PathBuf {
@@ -214,24 +313,16 @@ impl Config {
         self.mixnode.public_sphinx_key_file.clone()
     }
 
-    pub fn get_presence_directory_server(&self) -> String {
-        self.mixnode.presence_directory_server.clone()
+    pub fn get_validator_rest_endpoint(&self) -> String {
+        self.mixnode.validator_rest_url.clone()
     }
 
-    pub fn get_presence_sending_delay(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.presence_sending_delay)
+    pub fn get_metrics_server(&self) -> String {
+        self.mixnode.metrics_server_url.clone()
     }
 
-    pub fn get_metrics_directory_server(&self) -> String {
-        self.mixnode.metrics_directory_server.clone()
-    }
-
-    pub fn get_metrics_sending_delay(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.metrics_sending_delay)
-    }
-
-    pub fn get_metrics_running_stats_logging_delay(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.metrics_running_stats_logging_delay)
+    pub fn get_metrics_running_stats_logging_delay(&self) -> Duration {
+        self.debug.metrics_running_stats_logging_delay
     }
 
     pub fn get_layer(&self) -> u64 {
@@ -246,22 +337,49 @@ impl Config {
         self.mixnode.announce_address.clone()
     }
 
-    pub fn get_packet_forwarding_initial_backoff(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.packet_forwarding_initial_backoff)
+    pub fn get_packet_forwarding_initial_backoff(&self) -> Duration {
+        self.debug.packet_forwarding_initial_backoff
     }
 
-    pub fn get_packet_forwarding_maximum_backoff(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.packet_forwarding_maximum_backoff)
+    pub fn get_packet_forwarding_maximum_backoff(&self) -> Duration {
+        self.debug.packet_forwarding_maximum_backoff
     }
 
-    pub fn get_initial_connection_timeout(&self) -> time::Duration {
-        time::Duration::from_millis(self.debug.initial_connection_timeout)
+    pub fn get_initial_connection_timeout(&self) -> Duration {
+        self.debug.initial_connection_timeout
+    }
+
+    pub fn get_packet_forwarding_max_reconnections(&self) -> u32 {
+        self.debug.maximum_reconnection_attempts
+    }
+
+    pub fn get_cache_entry_ttl(&self) -> Duration {
+        self.debug.cache_entry_ttl
+    }
+
+    pub fn get_version(&self) -> &str {
+        &self.mixnode.version
+    }
+
+    pub fn get_incentives_address(&self) -> Option<String> {
+        self.mixnode.incentives_address.clone()
+    }
+
+    // upgrade-specific
+    pub(crate) fn set_default_identity_keypair_paths(&mut self) {
+        self.mixnode.private_identity_key_file =
+            self::MixNode::default_private_identity_key_file(&self.mixnode.id);
+        self.mixnode.public_identity_key_file =
+            self::MixNode::default_public_identity_key_file(&self.mixnode.id);
     }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct MixNode {
+    /// Version of the mixnode for which this configuration was created.
+    #[serde(default = "missing_string_value")]
+    version: String,
+
     /// ID specifies the human readable ID of this particular mixnode.
     id: String,
 
@@ -277,7 +395,7 @@ pub struct MixNode {
     /// Socket address to which this mixnode will bind to and will be listening for packets.
     listening_address: SocketAddr,
 
-    /// Optional address announced to the directory server for the clients to connect to.
+    /// Optional address announced to the validator for the clients to connect to.
     /// It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
     /// later on by using name resolvable with a DNS query, such as `nymtech.net:8080`.
     /// Additionally a custom port can be provided, so both `nymtech.net:8080` and `nymtech.net`
@@ -285,32 +403,52 @@ pub struct MixNode {
     /// `listening_address`.
     announce_address: String,
 
+    /// Path to file containing private identity key.
+    #[serde(default = "missing_string_value")]
+    private_identity_key_file: PathBuf,
+
+    /// Path to file containing public identity key.
+    #[serde(default = "missing_string_value")]
+    public_identity_key_file: PathBuf,
+
     /// Path to file containing private sphinx key.
     private_sphinx_key_file: PathBuf,
 
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
 
-    // The idea of additional 'directory servers' is to let mixes report their presence
-    // and metrics to separate places
-    /// Directory server to which the server will be reporting their presence data.
-    presence_directory_server: String,
+    /// Validator server to which the node will be reporting their presence data.
+    #[serde(default = "missing_string_value")]
+    validator_rest_url: String,
 
-    /// Directory server to which the server will be reporting their metrics data.
-    metrics_directory_server: String,
+    /// Metrics server to which the node will be reporting their metrics data.
+    #[serde(default = "missing_string_value")]
+    metrics_server_url: String,
 
     /// nym_home_directory specifies absolute path to the home nym MixNodes directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
+
+    /// Optional, if participating in the incentives program, payment address.
+    #[serde(deserialize_with = "deserialize_option_string", default)]
+    incentives_address: Option<String>,
 }
 
 impl MixNode {
+    fn default_private_identity_key_file(id: &str) -> PathBuf {
+        Config::default_data_directory(id).join("private_identity.pem")
+    }
+
+    fn default_public_identity_key_file(id: &str) -> PathBuf {
+        Config::default_data_directory(id).join("public_identity.pem")
+    }
+
     fn default_private_sphinx_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("private_sphinx.pem")
+        Config::default_data_directory(id).join("private_sphinx.pem")
     }
 
     fn default_public_sphinx_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("public_sphinx.pem")
+        Config::default_data_directory(id).join("public_sphinx.pem")
     }
 
     fn default_location() -> String {
@@ -321,6 +459,7 @@ impl MixNode {
 impl Default for MixNode {
     fn default() -> Self {
         MixNode {
+            version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             location: Self::default_location(),
             layer: 0,
@@ -328,11 +467,14 @@ impl Default for MixNode {
                 .parse()
                 .unwrap(),
             announce_address: format!("127.0.0.1:{}", DEFAULT_LISTENING_PORT),
+            private_identity_key_file: Default::default(),
+            public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
-            presence_directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
-            metrics_directory_server: DEFAULT_DIRECTORY_SERVER.to_string(),
+            validator_rest_url: DEFAULT_VALIDATOR_REST_ENDPOINT.to_string(),
+            metrics_server_url: DEFAULT_METRICS_SERVER.to_string(),
             nym_root_directory: Config::default_root_directory(),
+            incentives_address: None,
         }
     }
 }
@@ -350,62 +492,57 @@ impl Default for Logging {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Debug {
-    /// Delay between each subsequent presence data being sent.
-    /// The provided value is interpreted as milliseconds.
-    presence_sending_delay: u64,
-
-    /// Delay between each subsequent metrics data being sent.
-    /// The provided value is interpreted as milliseconds.
-    metrics_sending_delay: u64,
-
     /// Delay between each subsequent running metrics statistics being logged.
-    /// The provided value is interpreted as milliseconds.
-    metrics_running_stats_logging_delay: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    metrics_running_stats_logging_delay: Duration,
 
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
-    /// The provided value is interpreted as milliseconds.
-    packet_forwarding_initial_backoff: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    packet_forwarding_initial_backoff: Duration,
 
     /// Maximum value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
-    /// The provided value is interpreted as milliseconds.
-    packet_forwarding_maximum_backoff: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    packet_forwarding_maximum_backoff: Duration,
 
     /// Timeout for establishing initial connection when trying to forward a sphinx packet.
-    /// The provider value is interpreted as milliseconds.
-    initial_connection_timeout: u64,
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    initial_connection_timeout: Duration,
+
+    /// Maximum number of retries node is going to attempt to re-establish existing connection
+    /// to another node when forwarding sphinx packets.
+    maximum_reconnection_attempts: u32,
+
+    /// Duration for which a cached vpn processing result is going to get stored for.
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    cache_entry_ttl: Duration,
 }
 
 impl Default for Debug {
     fn default() -> Self {
         Debug {
-            presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
-            metrics_sending_delay: DEFAULT_METRICS_SENDING_DELAY,
             metrics_running_stats_logging_delay: DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY,
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
+            maximum_reconnection_attempts: DEFAULT_MAXIMUM_RECONNECTION_ATTEMPTS,
+            cache_entry_ttl: DEFAULT_CACHE_ENTRY_TTL,
         }
-    }
-}
-
-#[cfg(test)]
-mod mixnode_config {
-    use super::*;
-
-    #[test]
-    fn after_saving_default_config_the_loaded_one_is_identical() {
-        // need to figure out how to do something similar but without touching the disk
-        // or the file system at all...
-        let temp_location = tempfile::tempdir().unwrap().path().join("config.toml");
-        let default_config = Config::default().with_id("foomp".to_string());
-        default_config
-            .save_to_file(Some(temp_location.clone()))
-            .unwrap();
-
-        let loaded_config = Config::load_from_file(Some(temp_location), None).unwrap();
-
-        assert_eq!(default_config, loaded_config);
     }
 }

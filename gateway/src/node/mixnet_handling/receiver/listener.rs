@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::node::mixnet_handling::receiver::{
-    connection_handler::Handle, packet_processing::PacketProcessor,
-};
+use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use log::*;
 use std::net::SocketAddr;
 use tokio::task::JoinHandle;
@@ -23,12 +21,13 @@ pub(crate) struct Listener {
     address: SocketAddr,
 }
 
+// TODO: this file is nearly identical to the one in mixnode
 impl Listener {
     pub(crate) fn new(address: SocketAddr) -> Self {
         Listener { address }
     }
 
-    pub(crate) async fn run(&mut self, packet_processor: PacketProcessor) {
+    pub(crate) async fn run(&mut self, connection_handler: ConnectionHandler) {
         info!("Starting mixnet listener at {}", self.address);
         let mut tcp_listener = tokio::net::TcpListener::bind(self.address)
             .await
@@ -37,16 +36,17 @@ impl Listener {
         loop {
             match tcp_listener.accept().await {
                 Ok((socket, remote_addr)) => {
-                    trace!("received a socket connection from {}", remote_addr);
-                    let mut handle = Handle::new(remote_addr, socket, packet_processor.clone());
-                    tokio::spawn(async move { handle.start_handling().await });
+                    let handler = connection_handler.clone_without_cache();
+                    tokio::spawn(handler.handle_connection(socket, remote_addr));
                 }
                 Err(e) => warn!("failed to get client: {:?}", e),
             }
         }
     }
 
-    pub(crate) fn start(mut self, packet_processor: PacketProcessor) -> JoinHandle<()> {
-        tokio::spawn(async move { self.run(packet_processor).await })
+    pub(crate) fn start(mut self, connection_handler: ConnectionHandler) -> JoinHandle<()> {
+        info!("Running mix listener on {:?}", self.address.to_string());
+
+        tokio::spawn(async move { self.run(connection_handler).await })
     }
 }

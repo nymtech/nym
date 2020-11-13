@@ -18,7 +18,6 @@ use crate::node::client_handling::clients_handler::{
 use crate::node::client_handling::websocket::message_receiver::{
     MixMessageReceiver, MixMessageSender,
 };
-use crate::node::mixnet_handling::sender::OutboundMixMessageSender;
 use crypto::asymmetric::identity;
 use futures::{
     channel::{mpsc, oneshot},
@@ -31,6 +30,7 @@ use gateway_requests::registration::handshake::{gateway_handshake, SharedKeys, D
 use gateway_requests::types::{BinaryRequest, ClientControlRequest, ServerResponse};
 use gateway_requests::BinaryResponse;
 use log::*;
+use mixnet_client::forwarder::MixForwardingSender;
 use nymsphinx::DestinationAddressBytes;
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -54,10 +54,7 @@ enum SocketStream<S> {
 
 impl<S> SocketStream<S> {
     fn is_websocket(&self) -> bool {
-        match self {
-            SocketStream::UpgradedWebSocket(_) => true,
-            _ => false,
-        }
+        matches!(self, SocketStream::UpgradedWebSocket(_))
     }
 }
 
@@ -65,7 +62,7 @@ pub(crate) struct Handle<S> {
     remote_address: Option<DestinationAddressBytes>,
     shared_key: Option<SharedKeys>,
     clients_handler_sender: ClientsHandlerRequestSender,
-    outbound_mix_sender: OutboundMixMessageSender,
+    outbound_mix_sender: MixForwardingSender,
     socket_connection: SocketStream<S>,
 
     local_identity: Arc<identity::KeyPair>,
@@ -77,7 +74,7 @@ impl<S> Handle<S> {
     pub(crate) fn new(
         conn: S,
         clients_handler_sender: ClientsHandlerRequestSender,
-        outbound_mix_sender: OutboundMixMessageSender,
+        outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
     ) -> Self {
         Handle {
@@ -194,7 +191,7 @@ impl<S> Handle<S> {
         // announced hence we do not need to send 'disconnect' message
         if let Some(addr) = self.remote_address.as_ref() {
             self.clients_handler_sender
-                .unbounded_send(ClientsHandlerRequest::Disconnect(addr.clone()))
+                .unbounded_send(ClientsHandlerRequest::Disconnect(*addr))
                 .unwrap();
         }
     }
@@ -212,14 +209,8 @@ impl<S> Handle<S> {
             Err(e) => ServerResponse::new_error(e.to_string()),
             Ok(request) => match request {
                 // currently only a single type exists
-                BinaryRequest::ForwardSphinx {
-                    address,
-                    sphinx_packet,
-                } => {
-                    // we know data has correct size (but nothing else besides of it)
-                    self.outbound_mix_sender
-                        .unbounded_send((address, sphinx_packet))
-                        .unwrap();
+                BinaryRequest::ForwardSphinx(mix_packet) => {
+                    self.outbound_mix_sender.unbounded_send(mix_packet).unwrap();
                     ServerResponse::Send { status: true }
                 }
             },
@@ -260,7 +251,7 @@ impl<S> Handle<S> {
 
         let (res_sender, res_receiver) = oneshot::channel();
         let clients_handler_request = ClientsHandlerRequest::Authenticate(
-            address.clone(),
+            address,
             encrypted_address,
             iv,
             mix_sender,
@@ -326,7 +317,7 @@ impl<S> Handle<S> {
 
         let (res_sender, res_receiver) = oneshot::channel();
         let clients_handler_request = ClientsHandlerRequest::Register(
-            remote_address.clone(),
+            remote_address,
             derived_shared_key.clone(),
             mix_sender,
             res_sender,

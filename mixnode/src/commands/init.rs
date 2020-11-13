@@ -90,14 +90,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
 }
 
-fn show_incentives_url() {
-    println!("\n##### NOTE #####");
-    println!(
-        "\nIf you would like to join our testnet incentives program, please visit https://nymtech.net/incentives"
-    );
-    println!("\n\n");
-}
-
 async fn choose_layer(matches: &ArgMatches<'_>, validator_server: String) -> u64 {
     let max_layer = DEFAULT_NUM_MIX_HOPS;
     if let Some(layer) = matches.value_of("layer").map(|layer| layer.parse::<u64>()) {
@@ -192,6 +184,5 @@ pub fn execute(matches: &ArgMatches) {
             .expect("Failed to save the config file");
         println!("Saved configuration file to {:?}", config_save_location);
         println!("Mixnode configuration completed.\n\n\n");
-        show_incentives_url();
     })
 }

@@ -26,11 +26,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use topology::{gateway, NymTopology};
 
-const GOOD_GATEWAYS: [&str; 2] = [
-    "DiYR9o8KgeQ81woKPYVAu4LNaAEg8SWkiufDCahNnPov",
-    "5nrYxPR8gt2Gzo2BbHtsGf66KAEQY91WmM1eW78EphNy",
-];
-
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
         .about("Initialise a Nym client. Do this first!")
@@ -101,28 +96,30 @@ async fn register_with_gateway(
         .expect("failed to register with the gateway!")
 }
 
-async fn gateway_details(validator_server: &str, gateway_id: &str) -> gateway::Node {
+async fn gateway_details(validator_server: &str, chosen_gateway_id: Option<&str>) -> gateway::Node {
     let validator_client_config = validator_client::Config::new(validator_server.to_string());
     let validator_client = validator_client::Client::new(validator_client_config);
     let topology = validator_client.get_active_topology().await.unwrap();
     let nym_topology: NymTopology = topology.into();
     let version_filtered_topology = nym_topology.filter_system_version(env!("CARGO_PKG_VERSION"));
 
-    version_filtered_topology
-        .gateways()
-        .iter()
-        .find(|gateway| gateway.identity_key.to_base58_string() == gateway_id)
-        .expect(&*format!("no gateway with id {} exists!", gateway_id))
-        .clone()
-}
+    // if we have chosen particular gateway - use it, otherwise choose a random one.
+    // (remember that in active topology all gateways have at least 100 reputation so should
+    // be working correctly)
 
-fn select_gateway(arg: Option<&str>) -> &str {
-    if let Some(gateway_id) = arg {
-        gateway_id
+    if let Some(gateway_id) = chosen_gateway_id {
+        version_filtered_topology
+            .gateways()
+            .iter()
+            .find(|gateway| gateway.identity_key.to_base58_string() == gateway_id)
+            .expect(&*format!("no gateway with id {} exists!", gateway_id))
+            .clone()
     } else {
-        // TODO1: this should only be done on testnet
-        // TODO2: it should probably check if chosen gateway is actually online
-        GOOD_GATEWAYS.choose(&mut rand::thread_rng()).unwrap()
+        version_filtered_topology
+            .gateways()
+            .choose(&mut rand::thread_rng())
+            .expect("there are no gateways on the network!")
+            .clone()
     }
 }
 
@@ -156,12 +153,17 @@ pub fn execute(matches: &ArgMatches) {
         // create identity, encryption and ack keys.
         let mut key_manager = KeyManager::new(&mut rng);
 
-        let gateway_id = select_gateway(matches.value_of("gateway"));
-        config.get_base_mut().with_gateway_id(gateway_id);
+        let chosen_gateway_id = matches.value_of("gateway");
 
         let registration_fut = async {
-            let gate_details =
-                gateway_details(&config.get_base().get_validator_rest_endpoint(), gateway_id).await;
+            let gate_details = gateway_details(
+                &config.get_base().get_validator_rest_endpoint(),
+                chosen_gateway_id,
+            )
+            .await;
+            config
+                .get_base_mut()
+                .with_gateway_id(gate_details.identity_key.to_base58_string());
             let shared_keys =
                 register_with_gateway(&gate_details, key_manager.identity_keypair()).await;
             (shared_keys, gate_details.client_listener)

@@ -66,7 +66,7 @@ pub struct NymClient {
 #[wasm_bindgen]
 impl NymClient {
     #[wasm_bindgen(constructor)]
-    pub fn new(directory_server: String) -> Self {
+    pub fn new(validator_server: String) -> Self {
         // for time being generate new keys each time...
         let identity = identity::KeyPair::new_with_rng(&mut DEFAULT_RNG);
         let encryption_keys = encryption::KeyPair::new_with_rng(&mut DEFAULT_RNG);
@@ -76,7 +76,7 @@ impl NymClient {
             identity: Arc::new(identity),
             encryption_keys: Arc::new(encryption_keys),
             ack_key: Arc::new(ack_key),
-            validator_server: directory_server,
+            validator_server,
             message_preparer: None,
             // received_keys: Default::default(),
             topology: None,

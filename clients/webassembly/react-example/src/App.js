@@ -42,8 +42,8 @@ class App extends React.Component {
       const wasm = await import('@nymproject/nym-client-wasm');
       this.setState({ wasm });
       // Set up identity and client
-      let directory = "https://qa-directory.nymtech.net";
-      let _nymClient = new wasm.NymClient(directory);
+      let validator = "http://testnet-validator1.nymtech.net:8081";
+      let _nymClient = new wasm.NymClient(validator);
       _nymClient.set_on_message(this.receivedMessage);
       // Start the Nym client. Connects to a Nym gateway via websocket.
       _nymClient = await _nymClient.initial_setup();

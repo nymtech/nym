@@ -1,3 +1,4 @@
+#!/bin/bash
 
 # Copyright 2020 Nym
 # 
@@ -13,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/bin/bash
 # set CHANGELOG_GITHUB_TOKEN in your .bashrc file
 # For each version, you can add a release summary with text, images, gif animations, etc, and show new features and notes clearly to the user. This is done using GitHub metadata.
 

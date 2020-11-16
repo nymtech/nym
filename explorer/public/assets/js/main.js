@@ -1,4 +1,7 @@
 function websocketUrl() {
+  return "wss://testnet-explorer.nymtech.net";
+
+  
   if ($(location).attr("href").startsWith("http://localhost")) {
     return "ws://localhost:1648";
   } else if ($(location).attr("href").startsWith("http://qa-explorer")) {
@@ -108,6 +111,19 @@ function makeStatusDot(nodePubKey) {
   return dotWrapper;
 }
 
+function tempDisabledStatus(nodePubKey) {
+  let statusText = "Temporarily disabled..."
+  
+  let dotWrapper = document.getElementById(`dotWrapper${nodePubKey}`);
+  dotWrapper.classList.remove('statusDot')
+  let statusIndicator = dotWrapper.children[0];
+  clearStatus(statusIndicator);
+  statusIndicator.setAttribute("active", "")
+
+  dotWrapper.setAttribute("title", statusText)
+}
+
+
 function setGatewayStatusDot(nodePubKey) {
   let statusText = "Data not available..."
   let dotWrapper = document.getElementById(`dotWrapper${nodePubKey}`);
@@ -182,6 +198,8 @@ function createMixnodeRows(mixNodes) {
       $('<td id="' + "received-" + DOMPurify.sanitize(node.identityKey) + '">').text("0"),
       $('<td id="' + "sent-" + DOMPurify.sanitize(node.identityKey) + '">').text("0")
     ).appendTo('#mixnodes-list');
+
+    tempDisabledStatus(node.identityKey);
   })
 }
 
@@ -281,7 +299,7 @@ function updateTimeStampStorage(msg) {
 
 document.addEventListener("DOMContentLoaded", function () {
   // update every minute
-  setInterval(updateNodesStatus, 60000);
+  // setInterval(updateNodesStatus, 60000);
   getTopology();
   connectWebSocket();
 });

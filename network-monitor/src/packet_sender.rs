@@ -151,7 +151,7 @@ impl PacketSender {
 
     async fn prepare_mix_packets(&mut self, test_mixes: Vec<TestMix>) -> Vec<MixPacket> {
         let num_valid = test_mixes.iter().filter(|mix| mix.is_valid()).count();
-        let mut mix_packets = Vec::with_capacity(num_valid);
+        let mut mix_packets = Vec::with_capacity(2 * num_valid);
 
         for test_mix in test_mixes {
             match test_mix {

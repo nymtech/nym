@@ -40,7 +40,9 @@ impl Monitor {
 
         tokio::spawn(async move {
             loop {
-                // only start delay after test run finished
+                // only start delay after test run finished (note: this makes it so that
+                // test runs do not happen after EXACTLY MONITOR_RUN_INTERVAL, but at least
+                // it will be way less likely for multiple test runs to overlap each other)
                 delay_for(MONITOR_RUN_INTERVAL).await;
                 info!(target: "Monitor", "Starting test run");
 

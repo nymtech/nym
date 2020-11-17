@@ -25,6 +25,7 @@ use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
 use gateway_requests::registration::handshake::{client_handshake, SharedKeys, DEFAULT_RNG};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
+use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -39,9 +40,11 @@ use wasm_timer;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 
+const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
+const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
+
 pub struct GatewayClient {
     authenticated: bool,
-    // can be String, string slices, `url::Url`, `http::Uri`, etc.
     gateway_address: String,
     gateway_identity: identity::PublicKey,
     local_identity: Arc<identity::KeyPair>,
@@ -49,6 +52,15 @@ pub struct GatewayClient {
     connection: SocketState,
     packet_router: PacketRouter,
     response_timeout_duration: Duration,
+
+    // reconnection related variables
+    /// Specifies whether client should try to reconnect to gateway on connection failure.
+    should_reconnect_on_failure: bool,
+    /// Specifies maximum number of attempts client will try to reconnect to gateway on failure
+    /// before giving up.
+    reconnection_attempts: usize,
+    /// Delay between each subsequent reconnection attempt.
+    reconnection_backoff: Duration,
 }
 
 impl GatewayClient {
@@ -71,7 +83,23 @@ impl GatewayClient {
             connection: SocketState::NotConnected,
             packet_router: PacketRouter::new(ack_sender, mixnet_message_sender),
             response_timeout_duration,
+            should_reconnect_on_failure: true,
+            reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
+            reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
         }
+    }
+
+    // TODO: later convert into proper builder methods
+    pub fn with_reconnection_on_failure(&mut self, should_reconnect_on_failure: bool) {
+        self.should_reconnect_on_failure = should_reconnect_on_failure
+    }
+
+    pub fn with_reconnection_attempts(&mut self, reconnection_attempts: usize) {
+        self.reconnection_attempts = reconnection_attempts
+    }
+
+    pub fn with_reconnection_backoff(&mut self, backoff: Duration) {
+        self.reconnection_backoff = backoff
     }
 
     pub fn new_init(
@@ -97,6 +125,9 @@ impl GatewayClient {
             connection: SocketState::NotConnected,
             packet_router,
             response_timeout_duration,
+            should_reconnect_on_failure: false,
+            reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
+            reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
         }
     }
 
@@ -136,6 +167,39 @@ impl GatewayClient {
 
         self.connection = SocketState::Available(ws_stream);
         Ok(())
+    }
+
+    // ignore the current socket state (with which we can't do much anyway)
+    // note: the caller MUST ensure that if the stream was delegated, the spawned
+    // future is finished.
+    async fn attempt_reconnection(&mut self) -> Result<(), GatewayClientError> {
+        info!("Attempting gateway reconnection...");
+        self.authenticated = false;
+
+        for i in 1..self.reconnection_attempts {
+            info!("attempt {}...", i);
+            if let Ok(_) = self.authenticate_and_start().await {
+                info!("managed to reconnect!");
+                return Ok(());
+            }
+            tokio::time::delay_for(self.reconnection_backoff).await;
+        }
+
+        // final attempt (done separately to be able to return a proper error)
+        info!("attempt {}", self.reconnection_attempts);
+        match self.authenticate_and_start().await {
+            Ok(_) => {
+                info!("managed to reconnect!");
+                Ok(())
+            }
+            Err(err) => {
+                error!(
+                    "failed to reconnect after {} attempts",
+                    self.reconnection_attempts
+                );
+                Err(err)
+            }
+        }
     }
 
     async fn read_control_response(&mut self) -> Result<ServerResponse, GatewayClientError> {
@@ -220,9 +284,22 @@ impl GatewayClient {
                 Ok(conn.send_all(&mut send_stream).await?)
             }
             SocketState::PartiallyDelegated(ref mut partially_delegated) => {
-                partially_delegated
+                if let Err(err) = partially_delegated
                     .batch_send_without_response(messages)
                     .await
+                {
+                    error!("failed to batch send messages - {}...", err);
+                    // we must ensure we do not leave the task still active
+                    if let Err(err) = self.recover_socket_connection().await {
+                        error!(
+                            "... and the delegated stream has also errored out - {}",
+                            err
+                        )
+                    }
+                    Err(err)
+                } else {
+                    Ok(())
+                }
             }
             SocketState::NotConnected => Err(GatewayClientError::ConnectionNotEstablished),
             _ => Err(GatewayClientError::ConnectionInInvalidState),
@@ -236,7 +313,19 @@ impl GatewayClient {
         match self.connection {
             SocketState::Available(ref mut conn) => Ok(conn.send(msg).await?),
             SocketState::PartiallyDelegated(ref mut partially_delegated) => {
-                partially_delegated.send_without_response(msg).await
+                if let Err(err) = partially_delegated.send_without_response(msg).await {
+                    error!("failed to send message without response - {}...", err);
+                    // we must ensure we do not leave the task still active
+                    if let Err(err) = self.recover_socket_connection().await {
+                        error!(
+                            "... and the delegated stream has also errored out - {}",
+                            err
+                        )
+                    }
+                    Err(err)
+                } else {
+                    Ok(())
+                }
             }
             SocketState::NotConnected => Err(GatewayClientError::ConnectionNotEstablished),
             _ => Err(GatewayClientError::ConnectionInInvalidState),
@@ -342,8 +431,18 @@ impl GatewayClient {
             })
             .collect();
 
-        self.batch_send_websocket_messages_without_response(messages)
+        if let Err(err) = self
+            .batch_send_websocket_messages_without_response(messages)
             .await
+        {
+            if err.is_closed_connection() && self.should_reconnect_on_failure {
+                self.attempt_reconnection().await
+            } else {
+                Err(err)
+            }
+        } else {
+            Ok(())
+        }
     }
 
     // TODO: possibly make responses optional
@@ -364,7 +463,17 @@ impl GatewayClient {
                 .as_ref()
                 .expect("no shared key present even though we're authenticated!"),
         );
-        self.send_websocket_message_without_response(msg).await
+
+        if let Err(err) = self.send_websocket_message_without_response(msg).await {
+            if err.is_closed_connection() && self.should_reconnect_on_failure {
+                info!("Going to attempt a reconnection");
+                self.attempt_reconnection().await
+            } else {
+                Err(err)
+            }
+        } else {
+            Ok(())
+        }
     }
 
     async fn recover_socket_connection(&mut self) -> Result<(), GatewayClientError> {

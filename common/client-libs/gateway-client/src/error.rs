@@ -14,6 +14,7 @@
 
 use gateway_requests::registration::handshake::error::HandshakeError;
 use std::fmt::{self, Error, Formatter};
+use std::io;
 use tungstenite::Error as WsError;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::JsValue;
@@ -41,6 +42,24 @@ pub enum GatewayClientError {
 impl From<WsError> for GatewayClientError {
     fn from(err: WsError) -> Self {
         GatewayClientError::NetworkError(err)
+    }
+}
+
+impl GatewayClientError {
+    pub fn is_closed_connection(&self) -> bool {
+        match self {
+            GatewayClientError::NetworkError(ws_err) => match ws_err {
+                WsError::AlreadyClosed | WsError::ConnectionClosed => true,
+                WsError::Io(io_err) => match io_err.kind() {
+                    io::ErrorKind::ConnectionReset
+                    | io::ErrorKind::ConnectionAborted
+                    | io::ErrorKind::BrokenPipe => true,
+                    _ => false,
+                },
+                _ => false,
+            },
+            _ => false,
+        }
     }
 }
 

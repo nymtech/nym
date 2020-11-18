@@ -162,8 +162,29 @@ impl PartiallyDelegated {
     }
 
     pub(crate) async fn merge(self) -> Result<WsConn, GatewayClientError> {
-        let (stream_receiver, notify) = self.delegated_stream;
-        notify.send(()).unwrap();
+        let (mut stream_receiver, notify) = self.delegated_stream;
+
+        // check if the split stream didn't error out
+        let receive_res = stream_receiver
+            .try_recv()
+            .expect("stream sender was somehow dropped without sending anything!");
+
+        if let Some(res) = receive_res {
+            if let Err(err) = res {
+                // the receiver got an error. most likely a network one.
+                return Err(err);
+            } else {
+                panic!("This should have NEVER happened - returned a stream before receiving notification")
+            }
+        }
+
+        // this call failing is incredibly unlikely, but not impossible.
+        // basically the gateway connection must have failed after executing previous line but
+        // before starting execution of this one.
+        if let Err(_) = notify.send(()) {
+            return Err(GatewayClientError::ConnectionAbruptlyClosed);
+        }
+
         let stream = stream_receiver.await.unwrap()?;
         // the error is thrown when trying to reunite sink and stream that did not originate
         // from the same split which is impossible to happen here

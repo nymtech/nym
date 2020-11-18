@@ -17,6 +17,7 @@ use clap::ArgMatches;
 
 pub(crate) mod init;
 pub(crate) mod run;
+pub(crate) mod unregister;
 pub(crate) mod upgrade;
 
 pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {

@@ -100,19 +100,32 @@ impl TestedNetwork {
 
             // TODO: is it perhaps possible to avoid so many reallocations here?
             loop {
-                let retained = mix_packets.split_off(packets_per_time_chunk);
+                let mut retained = mix_packets.split_off(packets_per_time_chunk);
 
                 let is_last = retained.len() < packets_per_time_chunk;
 
                 debug!(target: "MessageSender", "Sending {} packets...", mix_packets.len());
-                self.gateway_client
-                    .batch_send_mix_packets(mix_packets)
-                    .await?;
+                if mix_packets.len() == 1 {
+                    self.gateway_client
+                        .send_mix_packet(mix_packets.pop().unwrap())
+                        .await?;
+                } else {
+                    self.gateway_client
+                        .batch_send_mix_packets(mix_packets)
+                        .await?;
+                }
+
                 tokio::time::delay_for(TIME_CHUNK_SIZE).await;
 
                 if is_last {
                     debug!(target: "MessageSender", "Sending {} packets...", retained.len());
-                    self.gateway_client.batch_send_mix_packets(retained).await?;
+                    if retained.len() == 1 {
+                        self.gateway_client
+                            .send_mix_packet(retained.pop().unwrap())
+                            .await?;
+                    } else {
+                        self.gateway_client.batch_send_mix_packets(retained).await?;
+                    }
                     break;
                 }
                 mix_packets = retained

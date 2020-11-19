@@ -38,12 +38,12 @@ Description=nym mixnode service
 After=network.target
 
 [Service]
-Type=simple
 User=nym
 Group=nym
-ExecStart=/home/nym/nym-mixnode_linux_x86_64 run --id iamboss
+ExecStart=/home/nym/nym-mixnode run --id iamboss
 Restart=on-abort
-KillSignal=SIGINT
+KillSignal=SIGINT # gracefully kill the process when stopping the service. Allows node to unregister cleanly.
+LimitNOFILE=65535 # this sets a higher ulimit for your mixnode, so it will still work as the network grows
 
 [Install]
 WantedBy=multi-user.target

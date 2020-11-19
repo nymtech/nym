@@ -194,6 +194,7 @@ impl PacketSender {
             .unbounded_send(TestRunUpdate::DoneSending(self.nonce))
             .expect("notifier has crashed!");
 
+        info!(target: "Monitor", "Waiting for the test run to finish...");
         Ok(())
     }
 }

@@ -50,7 +50,7 @@ const GATEWAY_SENDING_RATE_ARG: &str = "gateway-rate";
 
 const DEFAULT_VALIDATOR: &str = "http://testnet-validator1.nymtech.net:8081";
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
-pub(crate) const TIME_CHUNK_SIZE: Duration = Duration::from_millis(200);
+pub(crate) const TIME_CHUNK_SIZE: Duration = Duration::from_millis(100);
 
 fn parse_args<'a>() -> ArgMatches<'a> {
     App::new("Nym Network Monitor")

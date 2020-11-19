@@ -15,7 +15,7 @@
 use crate::{notifications::Notifier, packet_sender::PacketSender};
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 use log::*;
-use tokio::time::{self, Duration};
+use tokio::time::{delay_for, Duration};
 
 pub(crate) type MixnetReceiver = UnboundedReceiver<Vec<Vec<u8>>>;
 pub(crate) type MixnetSender = UnboundedSender<Vec<Vec<u8>>>;
@@ -39,14 +39,17 @@ impl Monitor {
         });
 
         tokio::spawn(async move {
-            let mut interval = time::interval(MONITOR_RUN_INTERVAL);
             loop {
-                interval.tick().await;
                 info!(target: "Monitor", "Starting test run");
 
                 if let Err(err) = packet_sender.run_test().await {
                     error!("Test run failed! - {:?}", err);
                 }
+
+                // only start delay after test run finished (note: this makes it so that
+                // test runs do not happen after EXACTLY MONITOR_RUN_INTERVAL, but at least
+                // it will be way less likely for multiple test runs to overlap each other)
+                delay_for(MONITOR_RUN_INTERVAL).await;
             }
         });
 

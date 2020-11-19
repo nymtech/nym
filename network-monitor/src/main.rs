@@ -28,6 +28,7 @@ use packet_sender::PacketSender;
 use rand::rngs::OsRng;
 use std::sync::Arc;
 use std::time;
+use std::time::Duration;
 use topology::{gateway, NymTopology};
 
 mod chunker;
@@ -45,6 +46,11 @@ const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
 const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
 const VALIDATOR_ARG: &str = "validator";
 const DETAILED_REPORT_ARG: &str = "detailed-report";
+const GATEWAY_SENDING_RATE_ARG: &str = "gateway-rate";
+
+const DEFAULT_VALIDATOR: &str = "http://testnet-validator1.nymtech.net:8081";
+const DEFAULT_GATEWAY_SENDING_RATE: usize = 20;
+pub(crate) const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
 fn parse_args<'a>() -> ArgMatches<'a> {
     App::new("Nym Network Monitor")
@@ -52,24 +58,34 @@ fn parse_args<'a>() -> ArgMatches<'a> {
         .arg(
             Arg::with_name(V4_TOPOLOGY_ARG)
                 .help("location of .json file containing IPv4 'good' network topology")
+                .long(V4_TOPOLOGY_ARG)
                 .takes_value(true)
                 .required(true),
         )
         .arg(
             Arg::with_name(V6_TOPOLOGY_ARG)
                 .help("location of .json file containing IPv6 'good' network topology")
+                .long(V6_TOPOLOGY_ARG)
                 .takes_value(true)
                 .required(true),
         )
         .arg(
             Arg::with_name(VALIDATOR_ARG)
                 .help("REST endpoint of the validator the monitor will grab nodes to test")
+                .long(VALIDATOR_ARG)
                 .takes_value(true)
-                .required(true),
         )
         .arg(
             Arg::with_name(DETAILED_REPORT_ARG)
-                .help("specifies whether a detailed report should be printed after each run"),
+                .help("specifies whether a detailed report should be printed after each run")
+                .long(DETAILED_REPORT_ARG)
+            ,
+        )
+        .arg(Arg::with_name(GATEWAY_SENDING_RATE_ARG)
+            .help("specifies maximum rate (in packets per second) of test packets being sent to gateway")
+            .takes_value(true)
+            .long(GATEWAY_SENDING_RATE_ARG)
+            .short("r")
         )
         .get_matches()
 }
@@ -85,8 +101,14 @@ async fn main() {
     let v4_topology = parse_topology_file(v4_topology_path);
     let v6_topology = parse_topology_file(v6_topology_path);
 
-    let validator_rest_uri = matches.value_of(VALIDATOR_ARG).unwrap();
+    let validator_rest_uri = matches
+        .value_of(VALIDATOR_ARG)
+        .unwrap_or_else(|| DEFAULT_VALIDATOR);
     let detailed_report = matches.is_present(DETAILED_REPORT_ARG);
+    let sending_rate = matches
+        .value_of(GATEWAY_SENDING_RATE_ARG)
+        .map(|v| v.parse().unwrap())
+        .unwrap_or_else(|| DEFAULT_GATEWAY_SENDING_RATE);
 
     check_if_up_to_date(&v4_topology, &v6_topology);
     setup_logging();
@@ -132,7 +154,8 @@ async fn main() {
     );
 
     let gateway_client = new_gateway_client(gateway, identity_keypair, ack_sender, mixnet_sender);
-    let tested_network = new_tested_network(gateway_client, v4_topology, v6_topology).await;
+    let tested_network =
+        new_tested_network(gateway_client, v4_topology, v6_topology, sending_rate).await;
 
     let packet_sender = new_packet_sender(
         validator_client,
@@ -148,10 +171,15 @@ async fn new_tested_network(
     gateway_client: GatewayClient,
     good_v4_topology: NymTopology,
     good_v6_topology: NymTopology,
+    max_sending_rate: usize,
 ) -> TestedNetwork {
     // TODO: possibly change that if it turns out we need two clients (v4 and v6)
-    let mut tested_network =
-        TestedNetwork::new_good(gateway_client, good_v4_topology, good_v6_topology);
+    let mut tested_network = TestedNetwork::new_good(
+        gateway_client,
+        good_v4_topology,
+        good_v6_topology,
+        max_sending_rate,
+    );
     tested_network.start_gateway_client().await;
     tested_network
 }

@@ -77,7 +77,10 @@ impl MixNode {
         listener.start(connection_handler);
     }
 
-    fn start_packet_delay_forwarder(&mut self) -> PacketDelayForwardSender {
+    fn start_packet_delay_forwarder(
+        &mut self,
+        metrics_reporter: metrics::MetricsReporter,
+    ) -> PacketDelayForwardSender {
         info!("Starting packet delay-forwarder...");
 
         let mut packet_forwarder = DelayForwarder::new(
@@ -85,6 +88,7 @@ impl MixNode {
             self.config.get_packet_forwarding_maximum_backoff(),
             self.config.get_initial_connection_timeout(),
             self.config.get_packet_forwarding_max_reconnections(),
+            metrics_reporter,
         );
 
         let packet_sender = packet_forwarder.sender();
@@ -161,8 +165,8 @@ impl MixNode {
                 return;
             }
 
-            let delay_forwarding_channel = self.start_packet_delay_forwarder();
             let metrics_reporter = self.start_metrics_reporter();
+            let delay_forwarding_channel = self.start_packet_delay_forwarder(metrics_reporter.clone());
             self.start_socket_listener(metrics_reporter, delay_forwarding_channel);
 
             info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");

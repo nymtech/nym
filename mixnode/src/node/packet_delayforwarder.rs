@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::node::metrics::MetricsReporter;
 use futures::channel::mpsc;
 use log::*;
 use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
@@ -32,7 +33,7 @@ pub(crate) struct DelayForwarder {
     mixnet_client: mixnet_client::Client,
     packet_sender: PacketDelayForwardSender,
     packet_receiver: PacketDelayForwardReceiver,
-    // i guess metrics here
+    metrics_reporter: MetricsReporter,
 }
 
 impl DelayForwarder {
@@ -41,6 +42,7 @@ impl DelayForwarder {
         maximum_reconnection_backoff: Duration,
         initial_connection_timeout: Duration,
         maximum_reconnection_attempts: u32,
+        metrics_reporter: MetricsReporter,
     ) -> Self {
         let client_config = mixnet_client::Config::new(
             initial_reconnection_backoff,
@@ -56,6 +58,7 @@ impl DelayForwarder {
             mixnet_client: mixnet_client::Client::new(client_config),
             packet_sender,
             packet_receiver,
+            metrics_reporter,
         }
     }
 
@@ -75,8 +78,7 @@ impl DelayForwarder {
         {
             debug!("failed to forward the packet to {} - {}", next_hop, err)
         } else {
-            todo!("metrics")
-            // metrics.
+            self.metrics_reporter.report_sent(next_hop.to_string());
         }
     }
 

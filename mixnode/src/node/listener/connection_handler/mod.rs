@@ -62,9 +62,6 @@ impl ConnectionHandler {
         self.delay_forwarding_channel
             .unbounded_send((mix_packet, forward_instant))
             .expect("the delay-forwarder has died!");
-
-        todo!()
-        // self.packet_processor.report_sent(routing_address);
     }
 
     fn handle_received_packet(&self, framed_sphinx_packet: FramedSphinxPacket) {

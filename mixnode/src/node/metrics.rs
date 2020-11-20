@@ -56,7 +56,7 @@ impl MixMetrics {
         }
     }
 
-    async fn increment_received_metrics(&mut self) {
+    fn increment_received_metrics(&mut self) {
         self.inner.received.fetch_add(1, Ordering::SeqCst);
     }
 
@@ -93,7 +93,7 @@ impl MetricsReceiver {
         tokio::spawn(async move {
             while let Some(metrics_data) = self.metrics_rx.next().await {
                 match metrics_data {
-                    MetricEvent::Received => self.metrics.increment_received_metrics().await,
+                    MetricEvent::Received => self.metrics.increment_received_metrics(),
                     MetricEvent::Sent(destination) => {
                         self.metrics.increment_sent_metrics(destination).await
                     }
@@ -247,6 +247,8 @@ impl MetricsReporter {
             .unwrap()
     }
 
+    // TODO: in the future this could be slightly optimised to get rid of the channel
+    // in favour of incrementing value directly
     pub(crate) fn report_received(&self) {
         // in unbounded_send() failed it means that the receiver channel was disconnected
         // and hence something weird must have happened without a way of recovering

@@ -17,7 +17,6 @@ use crypto::asymmetric::encryption;
 use mixnode_common::cached_packet_processor::error::MixProcessingError;
 use mixnode_common::cached_packet_processor::processor::CachedPacketProcessor;
 pub use mixnode_common::cached_packet_processor::processor::MixProcessingResult;
-use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx::framing::packet::FramedSphinxPacket;
 use tokio::time::Duration;
 
@@ -49,15 +48,11 @@ impl PacketProcessor {
         }
     }
 
-    pub(crate) fn report_sent(&self, address: NymNodeRoutingAddress) {
-        self.metrics_reporter.report_sent(address.to_string())
-    }
-
     pub(crate) fn process_received(
         &self,
         received: FramedSphinxPacket,
     ) -> Result<MixProcessingResult, MixProcessingError> {
-        // self.metrics_reporter.report_received(); -> TODO METRICS!
+        self.metrics_reporter.report_received();
         self.inner_processor.process_received(received)
     }
 }

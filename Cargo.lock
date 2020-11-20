@@ -1608,6 +1608,7 @@ dependencies = [
  "metrics-client",
  "mixnet-client",
  "mixnode-common",
+ "nonexhaustive-delayqueue",
  "nymsphinx",
  "pemstore",
  "pretty_env_logger",

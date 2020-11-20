@@ -17,7 +17,7 @@ use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 use tokio::stream::Stream;
 pub use tokio::time::delay_queue::Expired;
-use tokio::time::{delay_queue, DelayQueue};
+use tokio::time::{delay_queue, DelayQueue, Instant};
 
 pub type QueueKey = delay_queue::Key;
 
@@ -38,6 +38,15 @@ impl<T> NonExhaustiveDelayQueue<T> {
 
     pub fn insert(&mut self, value: T, timeout: Duration) -> QueueKey {
         let key = self.inner.insert(value, timeout);
+        if let Some(waker) = self.waker.take() {
+            // we were waiting for an item - wake the executor!
+            waker.wake()
+        }
+        key
+    }
+
+    pub fn insert_at(&mut self, value: T, when: Instant) -> QueueKey {
+        let key = self.inner.insert_at(value, when);
         if let Some(waker) = self.waker.take() {
             // we were waiting for an item - wake the executor!
             waker.wake()

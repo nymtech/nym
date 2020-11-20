@@ -6,7 +6,10 @@ The platform is composed of multiple Rust crates. Top-level executable binary cr
 
 * nym-mixnode - shuffles [Sphinx](https://github.com/nymtech/sphinx) packets together to provide privacy against network-level attackers.
 * nym-client - an executable which you can build into your own applications. Use it for interacting with Nym nodes.
+* nym-socks5-client - a Socks5 proxy you can run on your machine, and use with existing applications
 * nym-gateway - acts sort of like a mailbox for mixnet messages, removing the need for directly delivery to potentially offline or firewalled devices.
+* nym-network-monitor - sends packets through the full system to check that they are working as expected, and stores node uptime histories as the basis of a rewards system ("mixmining" or "proof-of-mixing").
+* nym-explorer - a (projected) block explorer and (existing) mixnet viewer. 
 
 [![Build Status](https://travis-ci.com/nymtech/nym.svg?branch=develop)](https://travis-ci.com/nymtech/nym)
 

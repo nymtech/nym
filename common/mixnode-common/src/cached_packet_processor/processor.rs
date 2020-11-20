@@ -39,7 +39,7 @@ pub struct ProcessedFinalHop {
 }
 
 pub enum MixProcessingResult {
-    /// Contains unwrapped data that should get first get delayed before being sent to next hop.
+    /// Contains unwrapped data that should first get delayed before being sent to next hop.
     ForwardHop(MixPacket, Option<SphinxDelay>),
 
     /// Contains all data extracted out of the final hop packet that could be forwarded to the destination.

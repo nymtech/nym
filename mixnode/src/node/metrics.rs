@@ -18,6 +18,8 @@ use futures::StreamExt;
 use log::*;
 use metrics_client::models::metrics::MixMetric;
 use std::collections::HashMap;
+use std::ops::DerefMut;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::task::JoinHandle;
@@ -35,41 +37,40 @@ pub(crate) enum MetricEvent {
 // Note: you should NEVER create more than a single instance of this using 'new()'.
 // You should always use .clone() to create additional instances
 struct MixMetrics {
-    inner: Arc<Mutex<MixMetricsInner>>,
+    inner: Arc<MixMetricsInner>,
 }
 
+#[derive(Debug)]
 struct MixMetricsInner {
-    received: u64,
-    sent: SentMetricsMap,
+    received: AtomicU64,
+    sent: Mutex<SentMetricsMap>,
 }
 
 impl MixMetrics {
     pub(crate) fn new() -> Self {
         MixMetrics {
-            inner: Arc::new(Mutex::new(MixMetricsInner {
-                received: 0,
-                sent: HashMap::new(),
-            })),
+            inner: Arc::new(MixMetricsInner {
+                received: AtomicU64::new(0),
+                sent: Mutex::new(HashMap::new()),
+            }),
         }
     }
 
-    async fn increment_received_metrics(&mut self) {
-        let mut unlocked = self.inner.lock().await;
-        unlocked.received += 1;
+    fn increment_received_metrics(&mut self) {
+        self.inner.received.fetch_add(1, Ordering::SeqCst);
     }
 
     async fn increment_sent_metrics(&mut self, destination: String) {
-        let mut unlocked = self.inner.lock().await;
-        let receiver_count = unlocked.sent.entry(destination).or_insert(0);
+        let mut unlocked = self.inner.sent.lock().await;
+        let receiver_count = unlocked.entry(destination).or_insert(0);
         *receiver_count += 1;
     }
 
     async fn acquire_and_reset_metrics(&mut self) -> (u64, SentMetricsMap) {
-        let mut unlocked = self.inner.lock().await;
-        let received = unlocked.received;
+        let mut unlocked = self.inner.sent.lock().await;
+        let received = self.inner.received.swap(0, Ordering::SeqCst);
 
-        let sent = std::mem::replace(&mut unlocked.sent, HashMap::new());
-        unlocked.received = 0;
+        let sent = std::mem::replace(unlocked.deref_mut(), HashMap::new());
 
         (received, sent)
     }
@@ -92,7 +93,7 @@ impl MetricsReceiver {
         tokio::spawn(async move {
             while let Some(metrics_data) = self.metrics_rx.next().await {
                 match metrics_data {
-                    MetricEvent::Received => self.metrics.increment_received_metrics().await,
+                    MetricEvent::Received => self.metrics.increment_received_metrics(),
                     MetricEvent::Sent(destination) => {
                         self.metrics.increment_sent_metrics(destination).await
                     }
@@ -246,6 +247,8 @@ impl MetricsReporter {
             .unwrap()
     }
 
+    // TODO: in the future this could be slightly optimised to get rid of the channel
+    // in favour of incrementing value directly
     pub(crate) fn report_received(&self) {
         // in unbounded_send() failed it means that the receiver channel was disconnected
         // and hence something weird must have happened without a way of recovering

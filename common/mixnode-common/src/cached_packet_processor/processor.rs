@@ -39,12 +39,20 @@ pub struct ProcessedFinalHop {
 }
 
 pub enum MixProcessingResult {
-    ForwardHop(MixPacket),
+    /// Contains unwrapped data that should first get delayed before being sent to next hop.
+    ForwardHop(MixPacket, Option<SphinxDelay>),
+
+    /// Contains all data extracted out of the final hop packet that could be forwarded to the destination.
     FinalHop(ProcessedFinalHop),
 }
 
 pub struct CachedPacketProcessor {
+    /// Private sphinx key of this node required to unwrap received sphinx packet.
     sphinx_key: Arc<PrivateKey>,
+
+    /// Key cache containing derived shared keys for packets using `vpn_mode`.
+    // Note: as discovered this is potentially unsafe as security of Lioness depends on keys never being reused.
+    // So perhaps it should get completely disabled for time being?
     vpn_key_cache: KeyCache,
 }
 
@@ -63,12 +71,6 @@ impl CachedPacketProcessor {
             sphinx_key: self.sphinx_key.clone(),
             vpn_key_cache: KeyCache::new(self.vpn_key_cache.cache_entry_ttl()),
         }
-    }
-
-    /// A naive way of delaying packet.
-    async fn delay_packet(&self, delay: SphinxDelay) {
-        // TODO: this should perhaps be replaced with a `DelayQueue`
-        tokio::time::delay_for(delay.to_duration()).await;
     }
 
     /// Recomputes routing keys for the given initial secret.
@@ -148,10 +150,10 @@ impl CachedPacketProcessor {
         processing_result
     }
 
-    /// Processed received forward hop packet - tries to extract next hop address, delays it
+    /// Processed received forward hop packet - tries to extract next hop address, sets delay,
     /// if it was not a vpn packet and packs all the data in a way that can be easily sent
     /// to the next hop.
-    async fn process_forward_hop(
+    fn process_forward_hop(
         &self,
         packet: SphinxPacket,
         forward_address: NodeAddressBytes,
@@ -160,12 +162,15 @@ impl CachedPacketProcessor {
     ) -> Result<MixProcessingResult, MixProcessingError> {
         let next_hop_address = NymNodeRoutingAddress::try_from(forward_address)?;
 
-        if !packet_mode.is_vpn() {
-            self.delay_packet(delay).await;
-        }
+        // if the packet is set to vpn mode, ignore whatever might have been set as delay
+        let delay = if packet_mode.is_vpn() {
+            None
+        } else {
+            Some(delay)
+        };
 
         let mix_packet = MixPacket::new(next_hop_address, packet, packet_mode);
-        Ok(MixProcessingResult::ForwardHop(mix_packet))
+        Ok(MixProcessingResult::ForwardHop(mix_packet, delay))
     }
 
     /// Split data extracted from the final hop sphinx packet into a SURBAck and message
@@ -232,7 +237,7 @@ impl CachedPacketProcessor {
 
     /// Performs final processing for the unwrapped packet based on whether it was a forward hop
     /// or a final hop.
-    async fn perform_final_processing(
+    fn perform_final_processing(
         &self,
         packet: ProcessedPacket,
         packet_size: PacketSize,
@@ -241,7 +246,6 @@ impl CachedPacketProcessor {
         match packet {
             ProcessedPacket::ForwardHop(packet, address, delay) => {
                 self.process_forward_hop(packet, address, delay, packet_mode)
-                    .await
             }
             // right now there's no use for the surb_id included in the header - probably it should get removed from the
             // sphinx all together?
@@ -251,7 +255,7 @@ impl CachedPacketProcessor {
         }
     }
 
-    pub async fn process_received(
+    pub fn process_received(
         &self,
         received: FramedSphinxPacket,
     ) -> Result<MixProcessingResult, MixProcessingError> {
@@ -262,10 +266,9 @@ impl CachedPacketProcessor {
         // unwrap the sphinx packet and if possible and appropriate, cache keys
         let processed_packet = self.perform_initial_unwrapping(received)?;
 
-        // for forward, non-vpn packets delay for specified amount,
+        // for forward packets, extract next hop and set delay (but do NOT delay here)
         // for final packets, extract SURBAck
         self.perform_final_processing(processed_packet, packet_size, packet_mode)
-            .await
     }
 }
 

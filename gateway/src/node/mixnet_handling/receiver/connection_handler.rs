@@ -214,10 +214,7 @@ impl ConnectionHandler {
         // question: can it also be per connection vs global?
         //
 
-        let processed_final_hop = match self
-            .packet_processor
-            .process_received(framed_sphinx_packet)
-            .await
+        let processed_final_hop = match self.packet_processor.process_received(framed_sphinx_packet)
         {
             Err(e) => {
                 debug!("We failed to process received sphinx packet - {:?}", e);

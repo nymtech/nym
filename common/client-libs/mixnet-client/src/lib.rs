@@ -15,3 +15,5 @@
 pub mod client;
 pub(crate) mod connection_manager;
 pub mod forwarder;
+
+pub use client::{Client, Config};

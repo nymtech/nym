@@ -53,11 +53,11 @@ impl PacketProcessor {
         }
     }
 
-    pub(crate) async fn process_received(
+    pub(crate) fn process_received(
         &self,
         received: FramedSphinxPacket,
     ) -> Result<ProcessedFinalHop, GatewayProcessingError> {
-        match self.inner_processor.process_received(received).await? {
+        match self.inner_processor.process_received(received)? {
             MixProcessingResult::ForwardHop(..) => {
                 Err(GatewayProcessingError::ForwardHopReceivedError)
             }

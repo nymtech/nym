@@ -16,14 +16,15 @@ use crate::config::Config;
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
+use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use crypto::asymmetric::{encryption, identity};
 use log::*;
-use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 mod listener;
 mod metrics;
+pub(crate) mod packet_delayforwarder;
 mod presence;
 
 // the MixNode will live for whole duration of this program
@@ -59,7 +60,7 @@ impl MixNode {
     fn start_socket_listener(
         &self,
         metrics_reporter: metrics::MetricsReporter,
-        forwarding_channel: MixForwardingSender,
+        delay_forwarding_channel: PacketDelayForwardSender,
     ) {
         info!("Starting socket listener...");
 
@@ -69,22 +70,24 @@ impl MixNode {
             self.config.get_cache_entry_ttl(),
         );
 
-        let connection_handler = ConnectionHandler::new(packet_processor, forwarding_channel);
+        let connection_handler = ConnectionHandler::new(packet_processor, delay_forwarding_channel);
 
         let listener = Listener::new(self.config.get_listening_address());
 
         listener.start(connection_handler);
     }
 
-    fn start_packet_forwarder(&mut self) -> MixForwardingSender {
-        info!("Starting packet forwarder...");
+    fn start_packet_delay_forwarder(&mut self) -> PacketDelayForwardSender {
+        info!("Starting packet delay-forwarder...");
 
-        let (mut packet_forwarder, packet_sender) = PacketForwarder::new(
+        let mut packet_forwarder = DelayForwarder::new(
             self.config.get_packet_forwarding_initial_backoff(),
             self.config.get_packet_forwarding_maximum_backoff(),
             self.config.get_initial_connection_timeout(),
             self.config.get_packet_forwarding_max_reconnections(),
         );
+
+        let packet_sender = packet_forwarder.sender();
 
         tokio::spawn(async move { packet_forwarder.run().await });
         packet_sender
@@ -155,12 +158,12 @@ impl MixNode {
                 self.config.get_incentives_address(),
             ).await {
                 error!("failed to register with the validator - {:?}", err);
-                return
+                return;
             }
 
-            let forwarding_channel = self.start_packet_forwarder();
+            let delay_forwarding_channel = self.start_packet_delay_forwarder();
             let metrics_reporter = self.start_metrics_reporter();
-            self.start_socket_listener(metrics_reporter, forwarding_channel);
+            self.start_socket_listener(metrics_reporter, delay_forwarding_channel);
 
             info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
 

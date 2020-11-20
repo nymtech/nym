@@ -23,7 +23,10 @@ use tokio::time::Duration;
 
 // PacketProcessor contains all data required to correctly unwrap and forward sphinx packets
 pub struct PacketProcessor {
+    /// Responsible for performing unwrapping
     inner_processor: CachedPacketProcessor,
+
+    /// Responsible for updating metrics data
     metrics_reporter: metrics::MetricsReporter,
 }
 
@@ -50,11 +53,11 @@ impl PacketProcessor {
         self.metrics_reporter.report_sent(address.to_string())
     }
 
-    pub(crate) async fn process_received(
+    pub(crate) fn process_received(
         &self,
         received: FramedSphinxPacket,
     ) -> Result<MixProcessingResult, MixProcessingError> {
-        self.metrics_reporter.report_received();
-        self.inner_processor.process_received(received).await
+        // self.metrics_reporter.report_received(); -> TODO METRICS!
+        self.inner_processor.process_received(received)
     }
 }

@@ -23,15 +23,16 @@ use tokio::time::{Duration, Error as TimeError, Instant};
 
 // rather than using Duration directly, we use an Instant, this way we minimise skew due to
 // time packet spent waiting in the queue to get delayed
-type PacketSender = mpsc::UnboundedSender<(MixPacket, Instant)>;
-type PacketReceiver = mpsc::UnboundedReceiver<(MixPacket, Instant)>;
+pub(crate) type PacketDelayForwardSender = mpsc::UnboundedSender<(MixPacket, Option<Instant>)>;
+type PacketDelayForwardReceiver = mpsc::UnboundedReceiver<(MixPacket, Option<Instant>)>;
 
 /// Entity responsible for delaying received sphinx packet and forwarding it to next node.
 pub(crate) struct DelayForwarder {
     delay_queue: NonExhaustiveDelayQueue<MixPacket>,
     mixnet_client: mixnet_client::Client,
-    packet_sender: PacketSender,
-    packet_receiver: PacketReceiver,
+    packet_sender: PacketDelayForwardSender,
+    packet_receiver: PacketDelayForwardReceiver,
+    // i guess metrics here
 }
 
 impl DelayForwarder {
@@ -58,8 +59,25 @@ impl DelayForwarder {
         }
     }
 
-    pub(crate) fn sender(&self) -> PacketSender {
+    pub(crate) fn sender(&self) -> PacketDelayForwardSender {
         self.packet_sender.clone()
+    }
+
+    async fn forward_packet(&mut self, packet: MixPacket) {
+        let next_hop = packet.next_hop();
+        let packet_mode = packet.packet_mode();
+        let sphinx_packet = packet.into_sphinx_packet();
+
+        if let Err(err) = self
+            .mixnet_client
+            .send(next_hop, sphinx_packet, packet_mode, false)
+            .await
+        {
+            debug!("failed to forward the packet to {} - {}", next_hop, err)
+        } else {
+            todo!("metrics")
+            // metrics.
+        }
     }
 
     /// Upon packet being finished getting delayed, forward it to the mixnet.
@@ -73,21 +91,17 @@ impl DelayForwarder {
             .expect("Encountered timer issue within the runtime!")
             .into_inner();
 
-        let next_hop = delayed_packet.next_hop();
-        let packet_mode = delayed_packet.packet_mode();
-        let sphinx_packet = delayed_packet.into_sphinx_packet();
-
-        if let Err(err) = self
-            .mixnet_client
-            .send(next_hop, sphinx_packet, packet_mode, false)
-            .await
-        {
-            debug!("failed to forward the packet to {} - {}", next_hop, err)
-        }
+        self.forward_packet(delayed_packet).await
     }
 
-    fn handle_new_packet(&mut self, new_packet: (MixPacket, Instant)) {
-        self.delay_queue.insert_at(new_packet.0, new_packet.1);
+    async fn handle_new_packet(&mut self, new_packet: (MixPacket, Option<Instant>)) {
+        // in case of a zero delay packet, don't bother putting it in the delay queue,
+        // just forward it immediately
+        if let Some(instant) = new_packet.1 {
+            self.delay_queue.insert_at(new_packet.0, instant);
+        } else {
+            self.forward_packet(new_packet.0).await
+        }
     }
 
     pub(crate) async fn run(&mut self) {
@@ -99,7 +113,7 @@ impl DelayForwarder {
                 new_packet = self.packet_receiver.next() => {
                     // this one is impossible to ever panic - the object itself contains a sender
                     // and hence it can't happen that ALL senders are dropped
-                    self.handle_new_packet(new_packet.unwrap())
+                    self.handle_new_packet(new_packet.unwrap()).await
                 }
             }
         }

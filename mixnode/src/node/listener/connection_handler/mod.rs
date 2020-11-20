@@ -15,71 +15,72 @@
 use crate::node::listener::connection_handler::packet_processing::{
     MixProcessingResult, PacketProcessor,
 };
+use crate::node::packet_delayforwarder::PacketDelayForwardSender;
 use log::*;
-use mixnet_client::forwarder::MixForwardingSender;
 use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::framing::codec::SphinxCodec;
 use nymsphinx::framing::packet::FramedSphinxPacket;
+use nymsphinx::Delay as SphinxDelay;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::stream::StreamExt;
+use tokio::time::Instant;
 use tokio_util::codec::Framed;
 
-pub(crate) mod packet_delayforwarder;
 pub(crate) mod packet_processing;
 
 pub(crate) struct ConnectionHandler {
     packet_processor: PacketProcessor,
-    forwarding_channel: MixForwardingSender,
+    delay_forwarding_channel: PacketDelayForwardSender,
 }
 
 impl ConnectionHandler {
     pub(crate) fn new(
         packet_processor: PacketProcessor,
-        forwarding_channel: MixForwardingSender,
+        delay_forwarding_channel: PacketDelayForwardSender,
     ) -> Self {
         ConnectionHandler {
             packet_processor,
-            forwarding_channel,
+            delay_forwarding_channel,
         }
     }
 
     pub(crate) fn clone_without_cache(&self) -> Self {
         ConnectionHandler {
             packet_processor: self.packet_processor.clone_without_cache(),
-            forwarding_channel: self.forwarding_channel.clone(),
+            delay_forwarding_channel: self.delay_forwarding_channel.clone(),
         }
     }
 
-    fn forward_packet(&self, mix_packet: MixPacket) {
-        let routing_address = mix_packet.next_hop();
-        // send our data to tcp client for forwarding. If forwarding fails, then it fails,
-        // it's not like we can do anything about it
-        //
-        // in unbounded_send() failed it means that the receiver channel was disconnected
+    fn delay_and_forward_packet(&self, mix_packet: MixPacket, delay: Option<SphinxDelay>) {
+        // determine instant at which packet should get forwarded. this way we minimise effect of
+        // being stuck in the queue [of the channel] to get inserted into the delay queue
+        let forward_instant = delay.map(|delay| Instant::now() + delay.to_duration());
+
+        // if unbounded_send() failed it means that the receiver channel was disconnected
         // and hence something weird must have happened without a way of recovering
-        self.forwarding_channel.unbounded_send(mix_packet).unwrap();
-        self.packet_processor.report_sent(routing_address);
+        self.delay_forwarding_channel
+            .unbounded_send((mix_packet, forward_instant))
+            .expect("the delay-forwarder has died!");
+
+        todo!()
+        // self.packet_processor.report_sent(routing_address);
     }
 
-    async fn handle_received_packet(self: Arc<Self>, framed_sphinx_packet: FramedSphinxPacket) {
+    fn handle_received_packet(&self, framed_sphinx_packet: FramedSphinxPacket) {
         //
         // TODO: here be replay attack detection - it will require similar key cache to the one in
         // packet processor for vpn packets,
         // question: can it also be per connection vs global?
         //
 
-        // all processing including delaying, key caching, etc. was done, the only thing left is to forward it
-        match self
-            .packet_processor
-            .process_received(framed_sphinx_packet)
-            .await
-        {
+        // all processing such, key caching, etc. was done.
+        // however, if it was a forward hop, we still need to delay it
+        match self.packet_processor.process_received(framed_sphinx_packet) {
             Err(e) => debug!("We failed to process received sphinx packet - {:?}", e),
             Ok(res) => match res {
-                MixProcessingResult::ForwardHop(forward_packet) => {
-                    self.forward_packet(forward_packet)
+                MixProcessingResult::ForwardHop(forward_packet, delay) => {
+                    self.delay_and_forward_packet(forward_packet, delay)
                 }
                 MixProcessingResult::FinalHop(..) => {
                     warn!("Somehow processed a loop cover message that we haven't implemented yet!")
@@ -90,21 +91,19 @@ impl ConnectionHandler {
 
     pub(crate) async fn handle_connection(self, conn: TcpStream, remote: SocketAddr) {
         debug!("Starting connection handler for {:?}", remote);
-        let this = Arc::new(self);
         let mut framed_conn = Framed::new(conn, SphinxCodec);
         while let Some(framed_sphinx_packet) = framed_conn.next().await {
             match framed_sphinx_packet {
                 Ok(framed_sphinx_packet) => {
                     // TODO: benchmark spawning tokio task with full processing vs just processing it
                     // synchronously (without delaying inside of course,
-                    // delay could be moved to a per-connection DelayQueue. The delay queue future
-                    // could automatically just forward packet that is done being delayed)
+                    // delay is moved to a global DelayQueue)
                     // under higher load in single and multi-threaded situation.
-                    //
-                    // My gut feeling is saying that we might get some nice performance boost
-                    // if we introduced the change
-                    let this = Arc::clone(&this);
-                    tokio::spawn(this.handle_received_packet(framed_sphinx_packet));
+
+                    // in theory we could process multiple sphinx packet from the same connection in parallel,
+                    // but we already handle multiple concurrent connections so if anything, making
+                    // that change would only slow things down
+                    self.handle_received_packet(framed_sphinx_packet);
                 }
                 Err(err) => {
                     error!(

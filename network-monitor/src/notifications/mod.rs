@@ -140,6 +140,8 @@ impl Notifier {
 
         let all_received = self.current_test_run.received_packet(recovered.message);
         if all_received {
+            // TODO: look why this is sometimes fired even though test run is not finished
+            // (and timer does not exist!)
             self.test_timeout.fire();
         }
         Ok(())

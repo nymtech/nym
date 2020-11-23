@@ -87,7 +87,6 @@ impl MixNode {
             self.config.get_packet_forwarding_initial_backoff(),
             self.config.get_packet_forwarding_maximum_backoff(),
             self.config.get_initial_connection_timeout(),
-            self.config.get_packet_forwarding_max_reconnections(),
             metrics_reporter,
         );
 

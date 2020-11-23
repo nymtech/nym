@@ -34,13 +34,11 @@ impl PacketForwarder {
         initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
         initial_connection_timeout: Duration,
-        maximum_reconnection_attempts: u32,
     ) -> (PacketForwarder, MixForwardingSender) {
         let client_config = Config::new(
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
             initial_connection_timeout,
-            maximum_reconnection_attempts,
         );
 
         let (packet_sender, packet_receiver) = mpsc::unbounded();
@@ -64,10 +62,9 @@ impl PacketForwarder {
             // we don't care about responses, we just want to fire packets
             // as quickly as possible
 
-            if let Err(err) = self
-                .mixnet_client
-                .send(next_hop, sphinx_packet, packet_mode, false)
-                .await
+            if let Err(err) =
+                self.mixnet_client
+                    .send_without_response(next_hop, sphinx_packet, packet_mode)
             {
                 debug!("failed to forward the packet - {}", err)
             }

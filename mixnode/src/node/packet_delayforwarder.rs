@@ -41,14 +41,14 @@ impl DelayForwarder {
         initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
         initial_connection_timeout: Duration,
-        maximum_reconnection_attempts: u32,
+        maximum_connection_buffer_size: usize,
         metrics_reporter: MetricsReporter,
     ) -> Self {
         let client_config = mixnet_client::Config::new(
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
             initial_connection_timeout,
-            maximum_reconnection_attempts,
+            maximum_connection_buffer_size,
         );
 
         let (packet_sender, packet_receiver) = mpsc::unbounded();
@@ -66,15 +66,14 @@ impl DelayForwarder {
         self.packet_sender.clone()
     }
 
-    async fn forward_packet(&mut self, packet: MixPacket) {
+    fn forward_packet(&mut self, packet: MixPacket) {
         let next_hop = packet.next_hop();
         let packet_mode = packet.packet_mode();
         let sphinx_packet = packet.into_sphinx_packet();
 
-        if let Err(err) = self
-            .mixnet_client
-            .send(next_hop, sphinx_packet, packet_mode, false)
-            .await
+        if let Err(err) =
+            self.mixnet_client
+                .send_without_response(next_hop, sphinx_packet, packet_mode)
         {
             debug!("failed to forward the packet to {} - {}", next_hop, err)
         } else {
@@ -83,26 +82,23 @@ impl DelayForwarder {
     }
 
     /// Upon packet being finished getting delayed, forward it to the mixnet.
-    async fn handle_done_delaying(
-        &mut self,
-        packet: Option<Result<Expired<MixPacket>, TimeError>>,
-    ) {
+    fn handle_done_delaying(&mut self, packet: Option<Result<Expired<MixPacket>, TimeError>>) {
         // those are critical errors that I don't think can be recovered from.
         let delayed = packet.expect("the queue has unexpectedly terminated!");
         let delayed_packet = delayed
             .expect("Encountered timer issue within the runtime!")
             .into_inner();
 
-        self.forward_packet(delayed_packet).await
+        self.forward_packet(delayed_packet)
     }
 
-    async fn handle_new_packet(&mut self, new_packet: (MixPacket, Option<Instant>)) {
+    fn handle_new_packet(&mut self, new_packet: (MixPacket, Option<Instant>)) {
         // in case of a zero delay packet, don't bother putting it in the delay queue,
         // just forward it immediately
         if let Some(instant) = new_packet.1 {
             self.delay_queue.insert_at(new_packet.0, instant);
         } else {
-            self.forward_packet(new_packet.0).await
+            self.forward_packet(new_packet.0)
         }
     }
 
@@ -110,12 +106,12 @@ impl DelayForwarder {
         loop {
             tokio::select! {
                 delayed = self.delay_queue.next() => {
-                    self.handle_done_delaying(delayed).await;
+                    self.handle_done_delaying(delayed);
                 }
                 new_packet = self.packet_receiver.next() => {
                     // this one is impossible to ever panic - the object itself contains a sender
                     // and hence it can't happen that ALL senders are dropped
-                    self.handle_new_packet(new_packet.unwrap()).await
+                    self.handle_new_packet(new_packet.unwrap())
                 }
             }
         }

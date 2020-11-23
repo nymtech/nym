@@ -41,7 +41,7 @@ const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_milli
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_CACHE_ENTRY_TTL: Duration = Duration::from_millis(30_000);
-const DEFAULT_MAXIMUM_RECONNECTION_ATTEMPTS: u32 = 20;
+const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 32;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -349,8 +349,8 @@ impl Config {
         self.debug.initial_connection_timeout
     }
 
-    pub fn get_packet_forwarding_max_reconnections(&self) -> u32 {
-        self.debug.maximum_reconnection_attempts
+    pub fn get_maximum_connection_buffer_size(&self) -> usize {
+        self.debug.maximum_connection_buffer_size
     }
 
     pub fn get_cache_entry_ttl(&self) -> Duration {
@@ -490,7 +490,7 @@ impl Default for Logging {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
 pub struct Debug {
     /// Delay between each subsequent running metrics statistics being logged.
     #[serde(
@@ -522,9 +522,8 @@ pub struct Debug {
     )]
     initial_connection_timeout: Duration,
 
-    /// Maximum number of retries node is going to attempt to re-establish existing connection
-    /// to another node when forwarding sphinx packets.
-    maximum_reconnection_attempts: u32,
+    /// Maximum number of packets that can be stored waiting to get sent to a particular connection.
+    maximum_connection_buffer_size: usize,
 
     /// Duration for which a cached vpn processing result is going to get stored for.
     #[serde(
@@ -541,7 +540,7 @@ impl Default for Debug {
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
-            maximum_reconnection_attempts: DEFAULT_MAXIMUM_RECONNECTION_ATTEMPTS,
+            maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
             cache_entry_ttl: DEFAULT_CACHE_ENTRY_TTL,
         }
     }

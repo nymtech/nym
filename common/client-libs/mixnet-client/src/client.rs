@@ -33,6 +33,7 @@ pub struct Config {
     initial_reconnection_backoff: Duration,
     maximum_reconnection_backoff: Duration,
     initial_connection_timeout: Duration,
+    maximum_connection_buffer_size: usize,
 }
 
 impl Config {
@@ -40,16 +41,16 @@ impl Config {
         initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
         initial_connection_timeout: Duration,
+        maximum_connection_buffer_size: usize,
     ) -> Self {
         Config {
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
             initial_connection_timeout,
+            maximum_connection_buffer_size,
         }
     }
 }
-
-const MAX_CONN_BUF: usize = 32;
 
 pub struct Client {
     conn_new: HashMap<NymNodeRoutingAddress, ConnectionSender>,
@@ -151,7 +152,7 @@ impl Client {
     }
 
     fn make_connection(&mut self, address: NymNodeRoutingAddress) {
-        let (sender, receiver) = mpsc::channel(MAX_CONN_BUF);
+        let (sender, receiver) = mpsc::channel(self.config.maximum_connection_buffer_size);
 
         // if we already tried to connect to `address` before, grab the current attempt count
         let current_reconnection_attempt = if let Some(existing) = self.conn_new.get_mut(&address) {

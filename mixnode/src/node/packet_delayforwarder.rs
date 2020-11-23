@@ -41,12 +41,14 @@ impl DelayForwarder {
         initial_reconnection_backoff: Duration,
         maximum_reconnection_backoff: Duration,
         initial_connection_timeout: Duration,
+        maximum_connection_buffer_size: usize,
         metrics_reporter: MetricsReporter,
     ) -> Self {
         let client_config = mixnet_client::Config::new(
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
             initial_connection_timeout,
+            maximum_connection_buffer_size,
         );
 
         let (packet_sender, packet_receiver) = mpsc::unbounded();

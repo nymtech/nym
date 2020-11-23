@@ -42,6 +42,7 @@ const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_milli
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_CACHE_ENTRY_TTL: Duration = Duration::from_millis(30_000);
+const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 32;
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: u16 = 5;
@@ -462,6 +463,10 @@ impl Config {
         self.debug.initial_connection_timeout
     }
 
+    pub fn get_maximum_connection_buffer_size(&self) -> usize {
+        self.debug.maximum_connection_buffer_size
+    }
+
     pub fn get_message_retrieval_limit(&self) -> u16 {
         self.debug.message_retrieval_limit
     }
@@ -671,6 +676,9 @@ pub struct Debug {
     )]
     initial_connection_timeout: Duration,
 
+    /// Maximum number of packets that can be stored waiting to get sent to a particular connection.
+    maximum_connection_buffer_size: usize,
+
     /// Delay between each subsequent presence data being sent.
     #[serde(
         deserialize_with = "deserialize_duration",
@@ -701,6 +709,7 @@ impl Default for Debug {
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             presence_sending_delay: DEFAULT_PRESENCE_SENDING_DELAY,
+            maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
             stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
             cache_entry_ttl: DEFAULT_CACHE_ENTRY_TTL,

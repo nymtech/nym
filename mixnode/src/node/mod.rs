@@ -120,7 +120,7 @@ impl MixNode {
             );
         }
         println!(
-            "Received SIGINT - the mixnode will terminate now (threads are not YET nicely stopped)"
+            "Received SIGINT - the mixnode will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
         );
         info!("Trying to unregister with the validator...");
         if let Err(err) = presence::unregister_with_validator(

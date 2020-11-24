@@ -335,7 +335,7 @@ impl NymClient {
         }
 
         println!(
-            "Received SIGINT - the client will terminate now (threads are not YET nicely stopped)"
+            "Received SIGINT - the client will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
         );
     }
 

@@ -132,7 +132,7 @@ impl Gateway {
             );
         }
         println!(
-            "Received SIGINT - the gateway will terminate now (threads are not YET nicely stopped)"
+            "Received SIGINT - the gateway will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
         );
         if let Err(err) = presence::unregister_with_validator(
             self.config.get_validator_rest_endpoint(),

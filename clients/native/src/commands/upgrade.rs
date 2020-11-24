@@ -224,8 +224,8 @@ pub fn execute(matches: &ArgMatches) {
 
     if config_version.is_prerelease() || !config_version.build.is_empty() {
         eprintln!(
-            "Trying to upgrade to from non-released version {}. This is not supported!",
-            current
+            "Trying to upgrade from non-released version {}. This is not supported!",
+            config_version
         );
         process::exit(1)
     }

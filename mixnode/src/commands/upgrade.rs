@@ -278,7 +278,7 @@ pub fn execute(matches: &ArgMatches) {
         process::exit(1)
     }
 
-    // here be upgrade path to 0.10.0 and beyond based on version number from config
+    // here be upgrade path to 0.9.X and beyond based on version number from config
     if config_version == current {
         println!("You're using the most recent version!");
     } else {

@@ -113,6 +113,37 @@ fn pre_090_upgrade(from: &str, config: Config, matches: &ArgMatches) -> Config {
     upgraded_config
 }
 
+fn patch_09x_upgrade(config: Config, matches: &ArgMatches) -> Config {
+    // this call must succeed as it was already called before
+    let from_version = Version::parse(config.get_version()).unwrap();
+    let to_version = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+
+    print_start_upgrade(&from_version, &to_version);
+
+    // 0.9.1 upgrade:
+    let mut upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
+
+    // not strictly part of the upgrade, but since people had problems with it and I've got a feeling
+    // they might try to use it, just allow changing incentives address here again...
+    if let Some(incentives_address) = matches.value_of("incentives address") {
+        upgraded_config = upgraded_config.with_incentives_address(incentives_address);
+        println!(
+            "Setting incentives address to {}. Old value will be overwritten",
+            incentives_address
+        );
+    }
+
+    upgraded_config.save_to_file(None).unwrap_or_else(|err| {
+        eprintln!("failed to overwrite config file! - {:?}", err);
+        print_failed_upgrade(&from_version, &to_version);
+        process::exit(1);
+    });
+
+    print_successful_upgrade(from_version, to_version);
+
+    upgraded_config
+}
+
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("upgrade").about("Try to upgrade the gateway")
         .arg(
@@ -133,6 +164,35 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
             .help("Optional, if participating in the incentives program, payment address")
             .takes_value(true)
         )
+}
+
+fn unsupported_upgrade(current_version: Version, config_version: Version) -> ! {
+    eprintln!("Cannot perform upgrade from {} to {}. Please let the developers know about this issue if you expected it to work!", config_version, current_version);
+    process::exit(1)
+}
+
+fn do_upgrade(mut config: Config, matches: &ArgMatches) {
+    let current = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+
+    loop {
+        let config_version = Version::parse(config.get_version()).unwrap_or_else(|err| {
+            eprintln!("failed to parse node version! - {:?}", err);
+            process::exit(1)
+        });
+
+        if config_version == current {
+            println!("You're using the most recent version!");
+            return;
+        }
+
+        config = match config_version.major {
+            0 => match config_version.minor {
+                9 => patch_09x_upgrade(config, &matches),
+                _ => unsupported_upgrade(current, config_version),
+            },
+            _ => unsupported_upgrade(current, config_version),
+        }
+    }
 }
 
 pub fn execute(matches: &ArgMatches) {
@@ -176,17 +236,16 @@ pub fn execute(matches: &ArgMatches) {
 
     if config_version.is_prerelease() || !config_version.build.is_empty() {
         eprintln!(
-            "Trying to upgrade to from non-released version {}. This is not supported!",
+            "Trying to upgrade from non-released version {}. This is not supported!",
             current
         );
         process::exit(1)
     }
 
-    // here be upgrade path to 0.10.0 and beyond based on version number from config
+    // here be upgrade path to 0.9.X and beyond based on version number from config
     if config_version == current {
         println!("You're using the most recent version!");
     } else {
-        eprintln!("Cannot perform upgrade from {} to {}. Please let the developers know about this issue!", config_version, current);
-        process::exit(1)
+        do_upgrade(existing_config, matches)
     }
 }

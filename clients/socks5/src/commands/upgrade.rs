@@ -22,7 +22,7 @@ use version_checker::{parse_version, Version};
 
 fn print_start_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
     println!(
-        "\n==================\nTrying to upgrade mixnode from {} to {} ...",
+        "\n==================\nTrying to upgrade client from {} to {} ...",
         from, to
     );
 }
@@ -57,7 +57,7 @@ fn pre_090_upgrade(from: &str, mut config: Config) -> Config {
     let from_version = parse_version(from).expect("invalid version provided!");
     if from_version.major == 0 && from_version.minor < 8 {
         // technically this could be implemented, but is there any point in that?
-        eprintln!("upgrading node from before v0.8.0 is not supported. Please run `init` with new binary instead");
+        eprintln!("upgrading client from before v0.8.0 is not supported. Please run `init` with new binary instead");
         process::exit(1)
     }
 
@@ -112,8 +112,31 @@ fn pre_090_upgrade(from: &str, mut config: Config) -> Config {
     config
 }
 
+fn patch_09x_upgrade(mut config: Config, _matches: &ArgMatches) -> Config {
+    // this call must succeed as it was already called before
+    let from_version = Version::parse(config.get_base().get_version()).unwrap();
+    let to_version = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+
+    print_start_upgrade(&from_version, &to_version);
+
+    // 0.9.1 upgrade:
+    config
+        .get_base_mut()
+        .set_custom_version(to_version.to_string().as_ref());
+
+    config.save_to_file(None).unwrap_or_else(|err| {
+        eprintln!("failed to overwrite config file! - {:?}", err);
+        print_failed_upgrade(&from_version, &to_version);
+        process::exit(1);
+    });
+
+    print_successful_upgrade(from_version, to_version);
+
+    config
+}
+
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {
-    App::new("upgrade").about("Try to upgrade the mixnode")
+    App::new("upgrade").about("Try to upgrade the client")
         .arg(
             Arg::with_name("id")
                 .long("id")
@@ -127,6 +150,36 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
             .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Specifies current version of the configuration file to help to determine a valid upgrade path. Valid formats include '0.8.1', 'v0.8.1' or 'V0.8.1'")
             .takes_value(true)
         )
+}
+
+fn unsupported_upgrade(current_version: Version, config_version: Version) -> ! {
+    eprintln!("Cannot perform upgrade from {} to {}. Please let the developers know about this issue if you expected it to work!", config_version, current_version);
+    process::exit(1)
+}
+
+fn do_upgrade(mut config: Config, matches: &ArgMatches) {
+    let current = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+
+    loop {
+        let config_version =
+            Version::parse(config.get_base().get_version()).unwrap_or_else(|err| {
+                eprintln!("failed to parse client version! - {:?}", err);
+                process::exit(1)
+            });
+
+        if config_version == current {
+            println!("You're using the most recent version!");
+            return;
+        }
+
+        config = match config_version.major {
+            0 => match config_version.minor {
+                9 => patch_09x_upgrade(config, &matches),
+                _ => unsupported_upgrade(current, config_version),
+            },
+            _ => unsupported_upgrade(current, config_version),
+        }
+    }
 }
 
 pub fn execute(matches: &ArgMatches) {
@@ -165,7 +218,7 @@ pub fn execute(matches: &ArgMatches) {
 
     let config_version =
         Version::parse(existing_config.get_base().get_version()).unwrap_or_else(|err| {
-            eprintln!("failed to parse node version! - {:?}", err);
+            eprintln!("failed to parse client version! - {:?}", err);
             process::exit(1)
         });
 
@@ -177,11 +230,10 @@ pub fn execute(matches: &ArgMatches) {
         process::exit(1)
     }
 
-    // here be upgrade path to 0.10.0 and beyond based on version number from config
+    // here be upgrade path to 0.9.X and beyond based on version number from config
     if config_version == current {
         println!("You're using the most recent version!");
     } else {
-        eprintln!("Cannot perform upgrade from {} to {}. Please let the developers know about this issue!", config_version, current);
-        process::exit(1)
+        do_upgrade(existing_config, matches)
     }
 }

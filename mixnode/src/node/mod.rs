@@ -130,6 +130,8 @@ impl MixNode {
         .await
         {
             error!("failed to unregister with validator... - {:?}", err)
+        } else {
+            info!("unregistration was successful!")
         }
     }
 

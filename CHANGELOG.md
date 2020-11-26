@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.9.2](https://github.com/nymtech/nym/tree/v0.9.2) (2020-11-26)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.9.1...v0.9.2)
+
+This release brings networking improvements, eliminating blocking calls and improving mixnode and gateway scalability.
+
+**Fixed bugs:**
+
+- Putting initial packet onto the queue when establishing connection [\#471](https://github.com/nymtech/nym/pull/471) ([jstuczyn](https://github.com/jstuczyn))
+
+**Merged pull requests:**
+
+- Minor mixnet client code simplification and optimization [\#472](https://github.com/nymtech/nym/pull/472) ([jstuczyn](https://github.com/jstuczyn))
+
 ## [v0.9.1](https://github.com/nymtech/nym/tree/v0.9.1) (2020-11-24)
 
 [Full Changelog](https://github.com/nymtech/nym/compare/v0.9.0...v0.9.1)
@@ -33,6 +47,7 @@ See the changelog for detailed release notes.
 - Gateway reconnections \(simple\) [\#457](https://github.com/nymtech/nym/issues/457)
 - Slow down network monitor sending rate [\#455](https://github.com/nymtech/nym/issues/455)
 - Deploy the new explorer on the same box as metrics. [\#433](https://github.com/nymtech/nym/issues/433)
+- Too many open files [\#366](https://github.com/nymtech/nym/issues/366)
 - nym-mixnode doesn't bind to any port \(Ubuntu 20.04\) [\#290](https://github.com/nymtech/nym/issues/290)
 
 **Merged pull requests:**
@@ -249,6 +264,7 @@ This release introduces, among other things, the following improvements:
 - could not count to ten properly [\#262](https://github.com/nymtech/nym/pull/262) ([ststefa](https://github.com/ststefa))
 - build\(deps\): bump websocket-extensions from 0.1.3 to 0.1.4 in /clients/webassembly/js-example [\#261](https://github.com/nymtech/nym/pull/261) ([dependabot[bot]](https://github.com/apps/dependabot))
 - add disabling feature 'offline-test' for network-dependent tests [\#260](https://github.com/nymtech/nym/pull/260) ([hyperfekt](https://github.com/hyperfekt))
+- Filtering compatible node versions [\#259](https://github.com/nymtech/nym/pull/259) ([jstuczyn](https://github.com/jstuczyn))
 
 ## [v0.7.0](https://github.com/nymtech/nym/tree/v0.7.0) (2020-06-08)
 
@@ -312,7 +328,6 @@ See the [changelog](https://github.com/nymtech/nym/blob/develop/CHANGELOG.md) fo
 
 **Merged pull requests:**
 
-- Filtering compatible node versions [\#259](https://github.com/nymtech/nym/pull/259) ([jstuczyn](https://github.com/jstuczyn))
 - systemd service unit example [\#257](https://github.com/nymtech/nym/pull/257) ([ststefa](https://github.com/ststefa))
 - renaming desktop to native client [\#251](https://github.com/nymtech/nym/pull/251) ([futurechimp](https://github.com/futurechimp))
 - Adding a pipenv dependencies file to the python client example [\#250](https://github.com/nymtech/nym/pull/250) ([futurechimp](https://github.com/futurechimp))

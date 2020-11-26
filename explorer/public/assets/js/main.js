@@ -1,13 +1,26 @@
 function websocketUrl() {
-  return "wss://testnet-explorer.nymtech.net";
-
-  
   if ($(location).attr("href").startsWith("http://localhost")) {
     return "ws://localhost:1648";
   } else if ($(location).attr("href").startsWith("http://qa-explorer")) {
     return "ws://qa-explorer.nymtech.net:1648";
   } else {
     return "wss://testnet-explorer.nymtech.net";
+  }
+}
+
+function parseVersion(str) {
+  if (typeof (str) != 'string') { return false; }
+
+  var arr = str.split('.');
+
+  // parse int or default to 0
+  var maj = parseInt(arr[0]) || 0;
+  var min = parseInt(arr[1]) || 0;
+  var rest = parseInt(arr[2]) || 0;
+  return {
+    major: maj,
+    minor: min,
+    patch: rest
   }
 }
 
@@ -41,6 +54,11 @@ function clearStatus(element) {
 }
 
 function setNodeStatus(dotWrapper, reportData) {
+  // don't do anything to pre 0.9.2 nodes which have status 'active'
+  if (dotWrapper.children[0].hasAttribute("active")) {
+    return
+  }
+
   let statusIndicator = dotWrapper.children[0];
   clearStatus(statusIndicator)
 
@@ -111,9 +129,9 @@ function makeStatusDot(nodePubKey) {
   return dotWrapper;
 }
 
-function tempDisabledStatus(nodePubKey) {
-  let statusText = "Temporarily disabled..."
-  
+function outdatedStatus(nodePubKey) {
+  let statusText = "Out of date"
+
   let dotWrapper = document.getElementById(`dotWrapper${nodePubKey}`);
   dotWrapper.classList.remove('statusDot')
   let statusIndicator = dotWrapper.children[0];
@@ -185,11 +203,14 @@ function createMixnodeRows(mixNodes) {
     if (purifiedRep.length === 0) {
       purifiedRep = 0
     }
+
+    let purifiedVersion = DOMPurify.sanitize(node.version)
+
     var $tr = $('<tr>').append(
       $('<input type="hidden" id="prev-timestamp-' + node.identityKey + '" value="' + currentUnixTime + '"> '),
       $('<td>').html(makeStatusDot(node.identityKey)),
       $('<td>').text(purifiedRep),
-      $('<td>').text(DOMPurify.sanitize(node.version)),
+      $('<td>').text(purifiedVersion),
       $('<td>').text(DOMPurify.sanitize(node.identityKey)),
       $('<td>').text(DOMPurify.sanitize(node.sphinxKey)),
       $('<td>').text(DOMPurify.sanitize(node.location)),
@@ -199,7 +220,13 @@ function createMixnodeRows(mixNodes) {
       $('<td id="' + "sent-" + DOMPurify.sanitize(node.identityKey) + '">').text("0")
     ).appendTo('#mixnodes-list');
 
-    tempDisabledStatus(node.identityKey);
+    let version = parseVersion(purifiedVersion)
+
+    if (version.major >= 1 || version.minor >= 10 || (version.minor == 9 && version.patch >= 2)) {
+      makeStatusDot(node.identityKey);
+    } else {
+      outdatedStatus(node.identityKey);
+    }
   })
 }
 
@@ -299,7 +326,7 @@ function updateTimeStampStorage(msg) {
 
 document.addEventListener("DOMContentLoaded", function () {
   // update every minute
-  // setInterval(updateNodesStatus, 60000);
+  setInterval(updateNodesStatus, 60000);
   getTopology();
   connectWebSocket();
 });

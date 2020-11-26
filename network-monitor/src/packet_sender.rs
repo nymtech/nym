@@ -62,6 +62,31 @@ impl PacketSender {
         }
     }
 
+    fn check_version_compatibility(&self, mix_version: &str) -> bool {
+        let semver_compatibility = version_checker::is_minor_version_compatible(
+            mix_version,
+            self.tested_network.system_version(),
+        );
+
+        if semver_compatibility {
+            // this can't fail as we know it's semver compatible
+            let version = version_checker::parse_version(mix_version).unwrap();
+            if version.major >= 1 {
+                return true;
+            }
+            if version.major == 0 && version.minor >= 10 {
+                return true;
+            }
+            if version.minor >= 9 && version.patch >= 2 {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
     fn make_test_mix(&self, mix: RegisteredMix) -> TestMix {
         // the reason for that conversion is that I want to operate on concrete types
         // rather than on "String" everywhere and also this way we remove obviously wrong
@@ -74,10 +99,7 @@ impl PacketSender {
                 TestMix::MalformedMix(mix_id)
             }
             Ok(mix) => {
-                if version_checker::is_minor_version_compatible(
-                    &mix.version,
-                    self.tested_network.system_version(),
-                ) {
+                if self.check_version_compatibility(&mix.version) {
                     let v4_test_packet =
                         TestPacket::new(mix.identity_key, IpVersion::V4, self.nonce);
                     let v6_test_packet =

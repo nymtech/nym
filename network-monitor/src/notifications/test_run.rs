@@ -14,6 +14,7 @@
 
 use crate::run_info::RunInfo;
 use crate::test_packet::TestPacket;
+use crate::PENALISE_OUTDATED;
 use log::*;
 use std::collections::{HashMap, HashSet};
 use std::mem;
@@ -252,10 +253,16 @@ impl TestRun {
             self.test_report.print(self.print_detailed_report);
         }
 
-        let mut mix_status = Vec::with_capacity(
-            2 * (self.test_report.malformed.len() + self.test_report.outdated.len())
-                + self.expected_run_packets.len(),
-        );
+        let mut mix_status = if PENALISE_OUTDATED {
+            Vec::with_capacity(
+                2 * (self.test_report.malformed.len() + self.test_report.outdated.len())
+                    + self.expected_run_packets.len(),
+            )
+        } else {
+            Vec::with_capacity(
+                2 * (self.test_report.malformed.len()) + self.expected_run_packets.len(),
+            )
+        };
 
         // firstly we know all malformed and outdated nodes are definitely down - we haven't sent
         // any test packets for those
@@ -263,9 +270,13 @@ impl TestRun {
             let mut down_status = self.down_status(malformed.clone());
             mix_status.append(&mut down_status);
         }
-        for outdated in self.test_report.outdated.iter() {
-            let mut down_status = self.down_status(outdated.0.clone());
-            mix_status.append(&mut down_status);
+
+        // but don't inform validator about outdated nodes for now!
+        if PENALISE_OUTDATED {
+            for outdated in self.test_report.outdated.iter() {
+                let mut down_status = self.down_status(outdated.0.clone());
+                mix_status.append(&mut down_status);
+            }
         }
 
         let mut undelivered = mem::replace(&mut self.expected_run_packets, HashSet::new());

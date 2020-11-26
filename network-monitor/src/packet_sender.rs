@@ -71,6 +71,12 @@ impl PacketSender {
         if semver_compatibility {
             // this can't fail as we know it's semver compatible
             let version = version_checker::parse_version(mix_version).unwrap();
+            if version.major >= 1 {
+                return true;
+            }
+            if version.major == 0 && version.minor >= 10 {
+                return true;
+            }
             if version.minor >= 9 && version.patch >= 2 {
                 true
             } else {

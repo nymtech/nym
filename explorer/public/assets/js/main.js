@@ -54,6 +54,11 @@ function clearStatus(element) {
 }
 
 function setNodeStatus(dotWrapper, reportData) {
+  // don't do anything to pre 0.9.2 nodes which have status 'active'
+  if (dotWrapper.children[0].hasAttribute("active")) {
+    return
+  }
+
   let statusIndicator = dotWrapper.children[0];
   clearStatus(statusIndicator)
 
@@ -321,7 +326,7 @@ function updateTimeStampStorage(msg) {
 
 document.addEventListener("DOMContentLoaded", function () {
   // update every minute
-  // setInterval(updateNodesStatus, 60000);
+  setInterval(updateNodesStatus, 60000);
   getTopology();
   connectWebSocket();
 });

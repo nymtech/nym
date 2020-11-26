@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use futures::channel::mpsc;
-use futures::SinkExt;
+use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::framing::codec::SphinxCodec;
 use nymsphinx::framing::packet::FramedSphinxPacket;
@@ -25,7 +25,6 @@ use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::stream::StreamExt;
 use tokio::time::delay_for;
 use tokio_util::codec::Framed;
 
@@ -81,11 +80,11 @@ impl Client {
 
     async fn manage_connection(
         address: SocketAddr,
-        mut receiver: mpsc::Receiver<FramedSphinxPacket>,
+        receiver: mpsc::Receiver<FramedSphinxPacket>,
         connection_timeout: Duration,
         current_reconnection: &AtomicU32,
     ) -> io::Result<()> {
-        let mut conn = match std::net::TcpStream::connect_timeout(&address, connection_timeout) {
+        let conn = match std::net::TcpStream::connect_timeout(&address, connection_timeout) {
             Ok(stream) => {
                 let tokio_stream = tokio::net::TcpStream::from_std(stream).unwrap();
                 debug!("Managed to establish connection to {}", address);
@@ -107,22 +106,15 @@ impl Client {
             }
         };
 
-        while let Some(packet) = receiver.next().await {
-            if let Err(err) = conn.send(packet).await {
-                // I've put this as a warning rather than debug because this implies we managed
-                // to connect to this destination but it failed later
-                warn!("Failed to forward packet to {} - {:?}", address, err);
-                // there's no point in draining the channel, it's incredibly unlikely further
-                // messages might succeed
-                break;
-            } else {
-                trace!("managed to forward packet to {}", address)
-            }
+        // Take whatever the receiver channel produces and put it on the connection.
+        // We could have as well used conn.send_all(receiver.map(Ok)), but considering we don't care
+        // about neither receiver nor the connection, it doesn't matter which one gets consumed
+        if let Err(err) = receiver.map(Ok).forward(conn).await {
+            warn!("Failed to forward packets to {} - {:?}", address, err);
         }
 
-        // if we got here it means the mixnet client was dropped
         debug!(
-            "connection manager to {} is finished. Presumably mixnet client got dropped",
+            "connection manager to {} is finished. Either the connection failed or mixnet client got dropped",
             address
         );
         Ok(())

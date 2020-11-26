@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use futures::channel::mpsc;
-use futures::{SinkExt, StreamExt};
+use futures::StreamExt;
 use log::*;
 use nymsphinx::framing::codec::SphinxCodec;
 use nymsphinx::framing::packet::FramedSphinxPacket;
@@ -25,6 +25,7 @@ use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::net::TcpStream;
 use tokio::time::delay_for;
 use tokio_util::codec::Framed;
 
@@ -83,17 +84,26 @@ impl Client {
         receiver: mpsc::Receiver<FramedSphinxPacket>,
         connection_timeout: Duration,
         current_reconnection: &AtomicU32,
-    ) -> io::Result<()> {
-        let conn = match std::net::TcpStream::connect_timeout(&address, connection_timeout) {
-            Ok(stream) => {
-                let tokio_stream = tokio::net::TcpStream::from_std(stream).unwrap();
-                debug!("Managed to establish connection to {}", address);
-                // if we managed to connect, reset the reconnection count (whatever it might have been)
-                current_reconnection.store(0, Ordering::Release);
+    ) {
+        let connection_fut = TcpStream::connect(address);
 
-                Framed::new(tokio_stream, SphinxCodec)
-            }
-            Err(err) => {
+        let conn = match tokio::time::timeout(connection_timeout, connection_fut).await {
+            Ok(stream_res) => match stream_res {
+                Ok(stream) => {
+                    debug!("Managed to establish connection to {}", address);
+                    // if we managed to connect, reset the reconnection count (whatever it might have been)
+                    current_reconnection.store(0, Ordering::Release);
+                    Framed::new(stream, SphinxCodec)
+                }
+                Err(err) => {
+                    debug!(
+                        "failed to establish connection to {} (err: {})",
+                        address, err
+                    );
+                    return;
+                }
+            },
+            Err(_) => {
                 debug!(
                     "failed to connect to {} within {:?}",
                     address, connection_timeout
@@ -101,8 +111,7 @@ impl Client {
 
                 // we failed to connect - increase reconnection attempt
                 current_reconnection.fetch_add(1, Ordering::SeqCst);
-
-                return Err(err);
+                return;
             }
         };
 
@@ -117,7 +126,6 @@ impl Client {
             "connection manager to {} is finished. Either the connection failed or mixnet client got dropped",
             address
         );
-        Ok(())
     }
 
     /// If we're trying to reconnect, determine how long we should wait.

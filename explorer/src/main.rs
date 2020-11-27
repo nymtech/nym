@@ -51,12 +51,12 @@ async fn main() {
         .to_owned();
 
     let public_path = std::env::current_exe()
-    .expect("Failed to evaluate current exe path")
-    .parent()
-    .expect("the binary itself has no parent path?!")
-    .join("public");
+        .expect("Failed to evaluate current exe path")
+        .parent()
+        .expect("the binary itself has no parent path?!")
+        .join("public");
 
-    tokio::task::spawn_blocking(|| {
+    std::thread::spawn(|| {
         rocket::ignite()
             .mount("/", StaticFiles::from(public_path))
             .launch()

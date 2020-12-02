@@ -15,7 +15,7 @@
 use crate::utils::file;
 use reqwest::Error;
 
-const RELATIVE_PATH: &str = "api/mixmining/topology";
+const RELATIVE_PATH: &str = "api/mixmining/topology/removed";
 
 pub async fn renew_periodically(validator_base_url: &str) -> Result<(), Error> {
     let url = format!("{}/{}", validator_base_url, RELATIVE_PATH);
@@ -28,7 +28,7 @@ pub async fn renew_periodically(validator_base_url: &str) -> Result<(), Error> {
         .expect("the binary itself has no parent path?!")
         .join("public")
         .join("downloads")
-        .join("topology.json");
+        .join("topology_removed.json");
 
     file::save(topology_json, save_path);
     Ok(())

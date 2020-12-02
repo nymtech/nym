@@ -42,7 +42,7 @@ async function getTopology() {
 async function dealWithInitialTopology() {
   const fullTopology = await getTopology();
   const activeTopology = await getActiveTopology();
-  // const removedTopology = await getRemovedTopology();
+  const removedTopology = await getRemovedTopology();
 
   let activeMixes = new Set()
   activeTopology.mixNodes.forEach(activeMix => {
@@ -61,7 +61,7 @@ async function dealWithInitialTopology() {
   createValidatorCount(fullTopology.validators.validators.length);
   createBlockHeight(fullTopology.validators.block_height);
 
-  createDisplayTable(activeTopology, standbyMixes, standbyGateways, null)//, removedTopology.mixNodes)
+  createDisplayTable(activeTopology, standbyMixes, standbyGateways, removedTopology.mixNodes)
 }
 
 function createDisplayTable(activeTopology, standbyMixes, standbyGateways, removedMixes) {
@@ -81,8 +81,8 @@ function clearStatus(element) {
 }
 
 function setNodeStatus(dotWrapper, reportData) {
-  // don't do anything to pre 0.9.2 nodes which have status 'active'
-  if (dotWrapper.children[0].hasAttribute("active")) {
+  // don't do anything to removed nodes
+  if (dotWrapper.children[0].hasAttribute("removed")) {
     return
   }
 
@@ -160,6 +160,18 @@ function outdatedStatus(nodePubKey) {
   let statusIndicator = dotWrapper.children[0];
   clearStatus(statusIndicator);
   statusIndicator.setAttribute("active", "")
+
+  dotWrapper.setAttribute("title", statusText)
+}
+
+function removedStatus(nodePubKey) {
+  let statusText = "Removed due to being outdated or providing bad-quality service"
+
+  let dotWrapper = document.getElementById(`dotWrapper${nodePubKey}`);
+  dotWrapper.classList.remove('statusDot')
+  let statusIndicator = dotWrapper.children[0];
+  clearStatus(statusIndicator);
+  statusIndicator.setAttribute("removed", "")
 
   dotWrapper.setAttribute("title", statusText)
 }
@@ -276,6 +288,8 @@ function createStandbyMixnodeRows(mixNodes) {
 }
 
 function createRemovedMixnodeRows(mixNodes) {
+  mixNodes.sort(compareNodes)
+
   mixNodes.forEach(node => {
     // because javascript works in mysterious ways, if you sanitize "0", it will return ""
     let purifiedRep = DOMPurify.sanitize(node.reputation)
@@ -284,17 +298,19 @@ function createRemovedMixnodeRows(mixNodes) {
     }
 
     let purifiedVersion = DOMPurify.sanitize(node.version)
-
+    let purifiedIdentity = DOMPurify.sanitize(node.identityKey)
     var $tr = $('<tr>').append(
       $('<td>').html(makeInitialStatusDot(node.identityKey)),
       $('<td>').text(purifiedRep),
       $('<td>').text(purifiedVersion),
-      $('<td>').text(DOMPurify.sanitize(node.identityKey)),
+      $('<td>').text(purifiedIdentity),
       $('<td>').text(DOMPurify.sanitize(node.sphinxKey)),
       $('<td>').text(DOMPurify.sanitize(node.location)),
       $('<td>').text(DOMPurify.sanitize(node.mixHost)),
       $('<td>').text(DOMPurify.sanitize(node.layer)),
     ).appendTo('#removed-mixnodes-list');
+
+    removedStatus(purifiedIdentity)
   })
 }
 

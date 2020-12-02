@@ -9,6 +9,7 @@ const OPEN_PROXY_ARG: &str = "open-proxy";
 
 fn parse_args<'a>() -> ArgMatches<'a> {
     App::new("Nym Network Requester")
+        .version(env!("CARGO_PKG_VERSION"))
         .author("Nymtech")
         .arg(
             Arg::with_name(OPEN_PROXY_ARG)

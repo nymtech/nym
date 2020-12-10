@@ -1,3 +1,6 @@
+// Copyright 2019 Creative Tim (https://www.creative-tim.com)
+// SPDX-License-Identifier: MIT
+
 // =========================================================
 //  Paper Dashboard 2 - v2.0.0
 // =========================================================

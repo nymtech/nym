@@ -104,7 +104,7 @@ impl ClientsHandler {
         // i.e. be stored on the disk rather than pushed to the client, reason for this is as follows:
         // now we push all stored messages from client's inbox to its websocket connection
         // however, say, at the same time there's new message to the client - it gets stored on the disk!
-        // And only after this methods exits, mix receivers will become aware of the client
+        // And only after this method exists, mix receivers will become aware of the client
         // connection going online and being able to forward traffic there.
         //
         // possible solution: spawn a future to empty inbox in X seconds rather than immediately

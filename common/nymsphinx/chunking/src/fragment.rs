@@ -957,7 +957,7 @@ mod fragment_header {
             // note for anyone reading this test in the future: choice of '3' here is arbitrary.
             header_bytes_high[0] |= 1 << 3;
 
-            // This will have cause an error as there will be a value in the first byte
+            // This will have caused an error as there will be a value in the first byte
             assert!(FragmentHeader::try_from_bytes(&header_bytes_high).is_err());
         }
 

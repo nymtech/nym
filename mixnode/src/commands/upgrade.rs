@@ -119,7 +119,7 @@ fn pre_090_upgrade(from: &str, config: Config, matches: &ArgMatches) -> Config {
 
     println!("Setting metrics server to {}", DEFAULT_METRICS_SERVER);
     println!(
-        "Setting validator REST endpoint to to {}",
+        "Setting validator REST endpoint to {}",
         DEFAULT_VALIDATOR_REST_ENDPOINT
     );
 

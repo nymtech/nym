@@ -326,7 +326,7 @@ impl SocksClient {
     /// username and password from the stream, then check with the Authenticator
     /// to see if the resulting user is allowed.
     ///
-    /// A lot of this could probably be put into the the `SocksRequest::from_stream()`
+    /// A lot of this could probably be put into the `SocksRequest::from_stream()`
     /// constructor, and/or cleaned up with tokio::codec. It's mostly just
     /// read-a-byte-or-two. The bytes being extracted look like this:
     ///

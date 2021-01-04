@@ -526,7 +526,7 @@ impl GatewayClient {
                                 .as_ref()
                                 .expect("no shared key present even though we're authenticated!"),
                         ),
-                    )?
+                    )
                 }
                 _ => unreachable!(),
             };

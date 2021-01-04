@@ -206,11 +206,11 @@ impl ClientRequest {
     }
 
     // SELF_ADDRESS_REQUEST_TAG
-    fn deserialize_self_address(b: &[u8]) -> Result<Self, error::Error> {
+    fn deserialize_self_address(b: &[u8]) -> Self {
         // this MUST match because it was called by 'deserialize'
         debug_assert_eq!(b[0], SELF_ADDRESS_REQUEST_TAG);
 
-        Ok(ClientRequest::SelfAddress)
+        ClientRequest::SelfAddress
     }
 
     pub fn serialize(self) -> Vec<u8> {
@@ -255,7 +255,7 @@ impl ClientRequest {
         match request_tag {
             SEND_REQUEST_TAG => Self::deserialize_send(b),
             REPLY_REQUEST_TAG => Self::deserialize_reply(b),
-            SELF_ADDRESS_REQUEST_TAG => Self::deserialize_self_address(b),
+            SELF_ADDRESS_REQUEST_TAG => Ok(Self::deserialize_self_address(b)),
             n => Err(error::Error::new(
                 ErrorKind::UnknownRequest,
                 format!("type {}", n),

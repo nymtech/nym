@@ -97,7 +97,7 @@ impl PartiallyDelegated {
         conn: WsConn,
         packet_router: PacketRouter,
         shared_key: Arc<SharedKeys>,
-    ) -> Result<Self, GatewayClientError> {
+    ) -> Self {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
         // read control request responses.
         let (notify_sender, notify_receiver) = oneshot::channel();
@@ -137,10 +137,10 @@ impl PartiallyDelegated {
         #[cfg(not(target_arch = "wasm32"))]
         tokio::spawn(mixnet_receiver_future);
 
-        Ok(PartiallyDelegated {
+        PartiallyDelegated {
             sink_half: sink,
             delegated_stream: (stream_receiver, notify_sender),
-        })
+        }
     }
 
     // if we want to send a message and don't care about response, we can don't need to reunite the split,

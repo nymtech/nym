@@ -72,7 +72,7 @@ impl Encoder<FramedSphinxPacket> for SphinxCodec {
     type Error = SphinxCodecError;
 
     fn encode(&mut self, item: FramedSphinxPacket, dst: &mut BytesMut) -> Result<(), Self::Error> {
-        item.header.encode(dst)?;
+        item.header.encode(dst);
         dst.put(item.packet.to_bytes().as_ref());
         Ok(())
     }

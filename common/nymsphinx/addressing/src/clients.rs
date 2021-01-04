@@ -87,7 +87,7 @@ impl<'de> Deserialize<'de> for Recipient {
             type Value = Recipient;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-                write!(formatter, "A recipient is 96-byte sequence containing two ed25519 public keys an one x25519 public key all in compressed forms.")
+                write!(formatter, "A recipient is 96-byte sequence containing two ed25519 public keys and one x25519 public key all in compressed forms.")
             }
 
             fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Self::Value, E>

@@ -249,7 +249,7 @@ impl Config {
         // since it might not necessarily be a valid SocketAddr (say `nymtech.net:8080` is a valid
         // announce address, yet invalid SocketAddr`
 
-        // first lets see if we received host:port or just host part of an address
+        // first let's see if we received host:port or just host part of an address
         let host = host.into();
         let split_host: Vec<_> = host.split(':').collect();
         match split_host.len() {
@@ -332,7 +332,7 @@ impl Config {
         // since it might not necessarily be a valid SocketAddr (say `nymtech.net:8080` is a valid
         // announce address, yet invalid SocketAddr`
 
-        // first lets see if we received host:port or just host part of an address
+        // first let's see if we received host:port or just host part of an address
         let host = host.into();
         let split_host: Vec<_> = host.split(':').collect();
         match split_host.len() {
@@ -690,7 +690,7 @@ pub struct Debug {
     stored_messages_filename_length: u16,
 
     /// Number of messages client gets on each request
-    /// if there are no real messages, dummy ones are create to always return  
+    /// if there are no real messages, dummy ones are created to always return  
     /// `message_retrieval_limit` total messages
     message_retrieval_limit: u16,
 

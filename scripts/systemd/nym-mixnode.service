@@ -14,7 +14,7 @@
 #     sudo useradd -U -m -s /sbin/nologin nym
 #  2. Start a new bash session with your nym user:
 #     sudo -u nym bash
-#  3. Change to the users home directory:
+#  3. Change to the user's home directory:
 #     cd
 #  4. Obtain the current mixnode binary from the nym release page and make it
 #     executable:

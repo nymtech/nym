@@ -178,7 +178,7 @@ impl GatewayClient {
 
         for i in 1..self.reconnection_attempts {
             info!("attempt {}...", i);
-            if let Ok(_) = self.authenticate_and_start().await {
+            if self.authenticate_and_start().await.is_ok() {
                 info!("managed to reconnect!");
                 return Ok(());
             }

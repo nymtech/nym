@@ -90,7 +90,7 @@ impl<'a, R: AsyncRead + Unpin> Stream for AvailableReader<'a, R> {
                 // if we read a non-0 amount, we're not done yet!
                 if n == 0 {
                     let buf = self.buf.replace(BytesMut::new());
-                    if buf.len() > 0 {
+                    if !buf.is_empty() {
                         Poll::Ready(Some(Ok(buf.freeze())))
                     } else {
                         Poll::Ready(None)

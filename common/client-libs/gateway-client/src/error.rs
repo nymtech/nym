@@ -50,12 +50,12 @@ impl GatewayClientError {
         match self {
             GatewayClientError::NetworkError(ws_err) => match ws_err {
                 WsError::AlreadyClosed | WsError::ConnectionClosed => true,
-                WsError::Io(io_err) => match io_err.kind() {
+                WsError::Io(io_err) => matches!(
+                    io_err.kind(),
                     io::ErrorKind::ConnectionReset
-                    | io::ErrorKind::ConnectionAborted
-                    | io::ErrorKind::BrokenPipe => true,
-                    _ => false,
-                },
+                        | io::ErrorKind::ConnectionAborted
+                        | io::ErrorKind::BrokenPipe
+                ),
                 _ => false,
             },
             _ => false,

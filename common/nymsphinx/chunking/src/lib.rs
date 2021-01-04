@@ -115,21 +115,21 @@ pub fn number_of_required_fragments(
 
             // we must be careful with the last set as it might be the case that it only
             // consists of a single, linked, non-full fragment
-            if final_set_message_len < max_linked {
-                return (without_last + 1, max_linked - final_set_message_len);
-            } else if final_set_message_len == max_linked {
-                return (without_last + 1, 0);
-            }
+            match final_set_message_len {
+                n if n < max_linked => (without_last + 1, max_linked - final_set_message_len),
+                n if n == max_linked => (without_last + 1, 0),
+                _ => {
+                    let remaining_len = final_set_message_len - max_linked;
 
-            let remaining_len = final_set_message_len - max_linked;
+                    let quot = remaining_len / max_unlinked;
+                    let rem = remaining_len % max_unlinked;
 
-            let quot = remaining_len / max_unlinked;
-            let rem = remaining_len % max_unlinked;
-
-            if rem == 0 {
-                (without_last + quot + 1, 0)
-            } else {
-                (without_last + quot + 2, max_unlinked - rem)
+                    if rem == 0 {
+                        (without_last + quot + 1, 0)
+                    } else {
+                        (without_last + quot + 2, max_unlinked - rem)
+                    }
+                }
             }
         }
     }

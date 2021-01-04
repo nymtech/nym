@@ -129,6 +129,12 @@ impl TopologyAccessor {
     }
 }
 
+impl Default for TopologyAccessor {
+    fn default() -> Self {
+        TopologyAccessor::new()
+    }
+}
+
 pub struct TopologyRefresherConfig {
     directory_server: String,
     refresh_rate: time::Duration,

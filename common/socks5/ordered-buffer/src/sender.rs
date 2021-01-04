@@ -24,6 +24,12 @@ impl OrderedMessageSender {
     }
 }
 
+impl Default for OrderedMessageSender {
+    fn default() -> Self {
+        OrderedMessageSender::new()
+    }
+}
+
 #[cfg(test)]
 mod ordered_message_sender {
     use super::*;

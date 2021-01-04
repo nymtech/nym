@@ -159,17 +159,18 @@ impl Controller {
                 // TODO:
                 // TODO:
             }
+        } else if !self.recently_closed.contains(&conn_id) {
+            warn!("Received a 'Send' before 'Connect' - going to buffer the data");
+            let pending = self
+                .pending_messages
+                .entry(conn_id)
+                .or_insert_with(Vec::new);
+            pending.push((payload, is_closed));
         } else {
-            if !self.recently_closed.contains(&conn_id) {
-                warn!("Received a 'Send' before 'Connect' - going to buffer the data");
-                let pending = self.pending_messages.entry(conn_id).or_insert(Vec::new());
-                pending.push((payload, is_closed));
-            } else {
-                error!(
-                    "Tried to write to closed connection ({} bytes were 'lost)",
-                    payload.len()
-                )
-            }
+            error!(
+                "Tried to write to closed connection ({} bytes were 'lost)",
+                payload.len()
+            )
         }
     }
 

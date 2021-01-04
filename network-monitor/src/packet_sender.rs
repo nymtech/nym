@@ -77,11 +77,7 @@ impl PacketSender {
             if version.major == 0 && version.minor >= 10 {
                 return true;
             }
-            if version.minor >= 9 && version.patch >= 2 {
-                true
-            } else {
-                false
-            }
+            version.minor >= 9 && version.patch >= 2
         } else {
             false
         }
@@ -96,7 +92,7 @@ impl PacketSender {
         match mix {
             Err(err) => {
                 error!("mix {} is malformed - {:?}", mix_id, err);
-                TestMix::MalformedMix(mix_id)
+                TestMix::Malformed(mix_id)
             }
             Ok(mix) => {
                 if self.check_version_compatibility(&mix.version) {
@@ -105,9 +101,9 @@ impl PacketSender {
                     let v6_test_packet =
                         TestPacket::new(mix.identity_key, IpVersion::V6, self.nonce);
 
-                    TestMix::ValidMix(mix, [v4_test_packet, v6_test_packet])
+                    TestMix::Valid(mix, [v4_test_packet, v6_test_packet])
                 } else {
-                    TestMix::IncompatibleMix(mix)
+                    TestMix::Incompatible(mix)
                 }
             }
         }
@@ -133,12 +129,12 @@ impl PacketSender {
 
         for test_mix in test_mixes {
             match test_mix {
-                TestMix::ValidMix(.., mix_test_packets) => {
+                TestMix::Valid(.., mix_test_packets) => {
                     test_packets.push(mix_test_packets[0]);
                     test_packets.push(mix_test_packets[1]);
                 }
-                TestMix::MalformedMix(pub_key) => malformed_mixes.push(pub_key.clone()),
-                TestMix::IncompatibleMix(mix) => incompatible_mixes
+                TestMix::Malformed(pub_key) => malformed_mixes.push(pub_key.clone()),
+                TestMix::Incompatible(mix) => incompatible_mixes
                     .push((mix.identity_key.to_base58_string(), mix.version.clone())),
             }
         }
@@ -177,7 +173,7 @@ impl PacketSender {
 
         for test_mix in test_mixes {
             match test_mix {
-                TestMix::ValidMix(mixnode, test_packets) => {
+                TestMix::Valid(mixnode, test_packets) => {
                     let mut node_mix_packets =
                         self.prepare_node_mix_packets(mixnode, test_packets).await;
                     mix_packets.append(&mut node_mix_packets);

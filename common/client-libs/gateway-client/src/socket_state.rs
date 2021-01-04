@@ -181,7 +181,7 @@ impl PartiallyDelegated {
         // this call failing is incredibly unlikely, but not impossible.
         // basically the gateway connection must have failed after executing previous line but
         // before starting execution of this one.
-        if let Err(_) = notify.send(()) {
+        if notify.send(()).is_err() {
             return Err(GatewayClientError::ConnectionAbruptlyClosed);
         }
 

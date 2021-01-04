@@ -224,11 +224,7 @@ mod converting_mixes_to_vec {
 
             let topology = NymTopology::new(mixes, vec![]);
             let mixvec = topology.mixes_as_vec();
-            assert!(mixvec
-                .iter()
-                .map(|node| node.location.clone())
-                .collect::<Vec<String>>()
-                .contains(&"London".to_string()));
+            assert!(mixvec.iter().any(|node| node.location == "London"));
         }
     }
 

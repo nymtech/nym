@@ -154,8 +154,10 @@ pub fn execute(matches: &ArgMatches) {
 
         // if node was already initialised, don't generate new keys
         if !already_init {
-            let identity_keys = identity::KeyPair::new();
-            let sphinx_keys = encryption::KeyPair::new();
+            let mut rng = rand::rngs::OsRng;
+
+            let identity_keys = identity::KeyPair::new(&mut rng);
+            let sphinx_keys = encryption::KeyPair::new(&mut rng);
             let pathfinder = MixNodePathfinder::new_from_config(&config);
             pemstore::store_keypair(
                 &identity_keys,

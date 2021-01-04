@@ -173,6 +173,9 @@ impl<R> OutQueueControl<R>
 where
     R: CryptoRng + Rng + Unpin,
 {
+    // at this point I'm not entirely sure how to deal with this warning without
+    // some considerable refactoring
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: Config,
         ack_key: Arc<AckKey>,

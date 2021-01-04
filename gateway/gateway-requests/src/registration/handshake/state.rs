@@ -56,7 +56,7 @@ impl<'a, S> State<'a, S> {
         identity: &'a identity::KeyPair,
         remote_pubkey: Option<identity::PublicKey>,
     ) -> Self {
-        let ephemeral_keypair = encryption::KeyPair::new_with_rng(rng);
+        let ephemeral_keypair = encryption::KeyPair::new(rng);
         State {
             ws_stream,
             ephemeral_keypair,

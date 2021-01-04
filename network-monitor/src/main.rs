@@ -133,8 +133,10 @@ async fn main() {
 
     // Generate a new set of identity keys. These are ephemeral, and change on each run.
     // JS: do they? or rather should they?
-    let identity_keypair = identity::KeyPair::new();
-    let encryption_keypair = encryption::KeyPair::new();
+    let mut rng = rand::rngs::OsRng;
+
+    let identity_keypair = identity::KeyPair::new(&mut rng);
+    let encryption_keypair = encryption::KeyPair::new(&mut rng);
 
     // We need our own address as a Recipient so we can send ourselves test packets
     let self_address = Recipient::new(

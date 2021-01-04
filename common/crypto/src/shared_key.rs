@@ -32,7 +32,7 @@ where
     D::OutputSize: ArrayLength<u8>,
     R: RngCore + CryptoRng,
 {
-    let ephemeral_keypair = encryption::KeyPair::new_with_rng(rng);
+    let ephemeral_keypair = encryption::KeyPair::new(rng);
 
     // after performing diffie-hellman we don't care about the private component anymore
     let dh_result = ephemeral_keypair.private_key().diffie_hellman(remote_key);

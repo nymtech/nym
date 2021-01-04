@@ -245,9 +245,11 @@ mod tests {
 
     #[test]
     fn string_conversion_works() {
-        let client_id_pair = identity::KeyPair::new();
-        let client_enc_pair = encryption::KeyPair::new();
-        let gateway_id_pair = identity::KeyPair::new();
+        let mut rng = rand::thread_rng();
+
+        let client_id_pair = identity::KeyPair::new(&mut rng);
+        let client_enc_pair = encryption::KeyPair::new(&mut rng);
+        let gateway_id_pair = identity::KeyPair::new(&mut rng);
 
         let recipient = Recipient::new(
             *client_id_pair.public_key(),
@@ -275,9 +277,11 @@ mod tests {
 
     #[test]
     fn bytes_conversion_works() {
-        let client_id_pair = identity::KeyPair::new();
-        let client_enc_pair = encryption::KeyPair::new();
-        let gateway_id_pair = identity::KeyPair::new();
+        let mut rng = rand::thread_rng();
+
+        let client_id_pair = identity::KeyPair::new(&mut rng);
+        let client_enc_pair = encryption::KeyPair::new(&mut rng);
+        let gateway_id_pair = identity::KeyPair::new(&mut rng);
 
         let recipient = Recipient::new(
             *client_id_pair.public_key(),

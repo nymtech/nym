@@ -341,7 +341,7 @@ impl GatewayClient {
         debug_assert!(self.connection.is_available());
 
         // it's fine to instantiate it here as it's only used once (during authentication or registration)
-        // and putting it into the GatewayClient struct would be a hassle 
+        // and putting it into the GatewayClient struct would be a hassle
         let mut rng = OsRng;
 
         let shared_key = match &mut self.connection {
@@ -363,7 +363,7 @@ impl GatewayClient {
     pub async fn authenticate(
         &mut self,
         shared_key: Option<SharedKeys>,
-    ) -> Result<bool, GatewayClientError> {       
+    ) -> Result<bool, GatewayClientError> {
         if shared_key.is_none() && self.shared_key.is_none() {
             return Err(GatewayClientError::NoSharedKeyAvailable);
         }
@@ -372,7 +372,7 @@ impl GatewayClient {
         }
 
         // it's fine to instantiate it here as it's only used once (during authentication or registration)
-        // and putting it into the GatewayClient struct would be a hassle 
+        // and putting it into the GatewayClient struct would be a hassle
         let mut rng = OsRng;
 
         // because of the previous check one of the unwraps MUST succeed

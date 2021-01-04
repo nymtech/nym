@@ -70,8 +70,10 @@ pub(crate) struct Handle<R, S> {
     local_identity: Arc<identity::KeyPair>,
 }
 
-impl<R, S> Handle<R, S> 
-where R: Rng + CryptoRng {
+impl<R, S> Handle<R, S>
+where
+    R: Rng + CryptoRng,
+{
     // for time being we assume handle is always constructed from raw socket.
     // if we decide we want to change it, that's not too difficult
     pub(crate) fn new(

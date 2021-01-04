@@ -889,6 +889,7 @@ dependencies = [
  "gateway-requests",
  "log",
  "nymsphinx",
+ "rand",
  "tokio",
  "tokio-tungstenite",
  "tungstenite",

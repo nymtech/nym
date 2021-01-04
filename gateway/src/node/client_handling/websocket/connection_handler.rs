@@ -26,12 +26,13 @@ use futures::{
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
 use gateway_requests::registration::handshake::error::HandshakeError;
-use gateway_requests::registration::handshake::{gateway_handshake, SharedKeys, DEFAULT_RNG};
+use gateway_requests::registration::handshake::{gateway_handshake, SharedKeys};
 use gateway_requests::types::{BinaryRequest, ClientControlRequest, ServerResponse};
 use gateway_requests::BinaryResponse;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use nymsphinx::DestinationAddressBytes;
+use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::sync::Arc;
 use tokio::{prelude::*, stream::StreamExt};
@@ -58,7 +59,8 @@ impl<S> SocketStream<S> {
     }
 }
 
-pub(crate) struct Handle<S> {
+pub(crate) struct Handle<R, S> {
+    rng: R,
     remote_address: Option<DestinationAddressBytes>,
     shared_key: Option<SharedKeys>,
     clients_handler_sender: ClientsHandlerRequestSender,
@@ -68,16 +70,19 @@ pub(crate) struct Handle<S> {
     local_identity: Arc<identity::KeyPair>,
 }
 
-impl<S> Handle<S> {
+impl<R, S> Handle<R, S> 
+where R: Rng + CryptoRng {
     // for time being we assume handle is always constructed from raw socket.
     // if we decide we want to change it, that's not too difficult
     pub(crate) fn new(
+        rng: R,
         conn: S,
         clients_handler_sender: ClientsHandlerRequestSender,
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
     ) -> Self {
         Handle {
+            rng,
             remote_address: None,
             shared_key: None,
             clients_handler_sender,
@@ -121,7 +126,7 @@ impl<S> Handle<S> {
         match &mut self.socket_connection {
             SocketStream::UpgradedWebSocket(ws_stream) => {
                 gateway_handshake(
-                    &mut DEFAULT_RNG,
+                    &mut self.rng,
                     ws_stream,
                     self.local_identity.as_ref(),
                     init_msg,

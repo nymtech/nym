@@ -23,10 +23,11 @@ use crypto::asymmetric::identity;
 use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
-use gateway_requests::registration::handshake::{client_handshake, SharedKeys, DEFAULT_RNG};
+use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
+use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
@@ -339,9 +340,13 @@ impl GatewayClient {
 
         debug_assert!(self.connection.is_available());
 
+        // it's fine to instantiate it here as it's only used once (during authentication or registration)
+        // and putting it into the GatewayClient struct would be a hassle 
+        let mut rng = OsRng;
+
         let shared_key = match &mut self.connection {
             SocketState::Available(ws_stream) => client_handshake(
-                &mut DEFAULT_RNG,
+                &mut rng,
                 ws_stream,
                 self.local_identity.as_ref(),
                 self.gateway_identity,
@@ -358,18 +363,23 @@ impl GatewayClient {
     pub async fn authenticate(
         &mut self,
         shared_key: Option<SharedKeys>,
-    ) -> Result<bool, GatewayClientError> {
+    ) -> Result<bool, GatewayClientError> {       
         if shared_key.is_none() && self.shared_key.is_none() {
             return Err(GatewayClientError::NoSharedKeyAvailable);
         }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
+
+        // it's fine to instantiate it here as it's only used once (during authentication or registration)
+        // and putting it into the GatewayClient struct would be a hassle 
+        let mut rng = OsRng;
+
         // because of the previous check one of the unwraps MUST succeed
         let shared_key = shared_key
             .as_ref()
             .unwrap_or_else(|| self.shared_key.as_ref().unwrap());
-        let iv = AuthenticationIV::new_random(&mut DEFAULT_RNG);
+        let iv = AuthenticationIV::new_random(&mut rng);
         let self_address = self
             .local_identity
             .as_ref()

@@ -212,6 +212,9 @@ impl SocketState {
     }
 
     pub(crate) fn is_established(&self) -> bool {
-        matches!(self, SocketState::Available(_) | SocketState::PartiallyDelegated(_))
+        matches!(
+            self,
+            SocketState::Available(_) | SocketState::PartiallyDelegated(_)
+        )
     }
 }

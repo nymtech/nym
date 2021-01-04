@@ -25,7 +25,6 @@ use monitor::{AckSender, MixnetSender, Monitor};
 use notifications::Notifier;
 use nymsphinx::addressing::clients::Recipient;
 use packet_sender::PacketSender;
-use rand::rngs::OsRng;
 use std::sync::Arc;
 use std::time;
 use std::time::Duration;
@@ -38,9 +37,6 @@ mod packet_sender;
 mod run_info;
 mod test_packet;
 mod tested_network;
-
-pub(crate) type DefRng = OsRng;
-pub(crate) const DEFAULT_RNG: DefRng = OsRng;
 
 const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
 const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";

@@ -100,8 +100,7 @@ async fn main() {
     let v6_topology = parse_topology_file(v6_topology_path);
 
     let validator_rest_uri = matches
-        .value_of(VALIDATOR_ARG)
-        .unwrap_or_else(|| DEFAULT_VALIDATOR);
+        .value_of(VALIDATOR_ARG).unwrap_or(DEFAULT_VALIDATOR);
     let detailed_report = matches.is_present(DETAILED_REPORT_ARG);
     let sending_rate = matches
         .value_of(GATEWAY_SENDING_RATE_ARG)

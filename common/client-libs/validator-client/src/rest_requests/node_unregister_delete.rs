@@ -33,7 +33,7 @@ impl RESTRequest for Request {
         _: Option<Self::JsonPayload>,
     ) -> Result<Self, RESTRequestError> {
         // node unregister requires single path param - the node id
-        let path_params = path_params.ok_or_else(|| RESTRequestError::InvalidPathParams)?;
+        let path_params = path_params.ok_or(RESTRequestError::InvalidPathParams)?;
         if path_params.len() != 1 {
             return Err(RESTRequestError::InvalidPathParams);
         }

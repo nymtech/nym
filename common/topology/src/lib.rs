@@ -124,8 +124,7 @@ impl NymTopology {
         R: Rng + ?Sized,
     {
         let gateway = self
-            .get_gateway(gateway_identity)
-            .ok_or_else(|| NymTopologyError::NonExistentGatewayError)?;
+            .get_gateway(gateway_identity).ok_or(NymTopologyError::NonExistentGatewayError)?;
 
         Ok(self
             .random_mix_route(rng, num_mix_hops)?

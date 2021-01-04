@@ -143,8 +143,7 @@ impl Client {
                 std::cmp::min(
                     self.config
                         .initial_reconnection_backoff
-                        .checked_mul(2_u32.pow(current_attempt))
-                        .unwrap_or_else(|| self.config.maximum_reconnection_backoff),
+                        .checked_mul(2_u32.pow(current_attempt)).unwrap_or(self.config.maximum_reconnection_backoff),
                     self.config.maximum_reconnection_backoff,
                 ),
             ))

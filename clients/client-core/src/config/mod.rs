@@ -304,8 +304,7 @@ impl<T: NymConfig> Config<T> {
             false => None,
             true => Some(
                 self.debug
-                    .vpn_key_reuse_limit
-                    .unwrap_or_else(|| DEFAULT_VPN_KEY_REUSE_LIMIT),
+                    .vpn_key_reuse_limit.unwrap_or(DEFAULT_VPN_KEY_REUSE_LIMIT),
             ),
         }
     }

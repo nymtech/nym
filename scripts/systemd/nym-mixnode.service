@@ -34,16 +34,21 @@
 #     sudo systemctl start nym-mixnode
 
 [Unit]
-Description=nym mixnode service
+Description=nym mixnode
 After=network.target
 
 [Service]
 User=nym
 Group=nym
 ExecStart=/home/nym/nym-mixnode run --id iamboss
-Restart=on-abort
-KillSignal=SIGINT # gracefully kill the process when stopping the service. Allows node to unregister cleanly.
-LimitNOFILE=65535 # this sets a higher ulimit for your mixnode, so it will still work as the network grows
+Restart=on-failure
+RestartSec=30
+StartLimitInterval=350
+StartLimitBurst=10
+# gracefully kill the process when stopping the service. Allows node to unregister cleanly.
+KillSignal=SIGINT
+# this sets a higher ulimit for your mixnode, so it will still work as the network grows
+LimitNOFILE=65535
 
 [Install]
 WantedBy=multi-user.target

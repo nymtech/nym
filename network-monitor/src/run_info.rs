@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::gateways_reader::GatewayChannel;
 use crate::test_packet::TestPacket;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 
@@ -20,12 +21,31 @@ pub(crate) type TestRunUpdateReceiver = UnboundedReceiver<TestRunUpdate>;
 
 pub(crate) struct RunInfo {
     pub nonce: u64,
-    pub test_packets: Vec<TestPacket>,
+    pub mix_test_packets: Vec<TestPacket>,
     pub malformed_mixes: Vec<String>,
     pub incompatible_mixes: Vec<(String, String)>,
+    // // each gateway receives 2 packets, one ipv4, one ipv6
+    // // TODO: probably need to pass gateway channels?
+    // pub gateway_test_packets: HashMap<String, [TestPacket; 2]>,
+    // pub malformed_gateways: Vec<String>,
+    // pub incompatible_gateways: Vec<(String, String)>,
 }
 
 pub(crate) enum TestRunUpdate {
     StartSending(RunInfo),
     DoneSending(u64),
+}
+
+pub(crate) struct MixesInfo {
+    pub mix_test_packets: Vec<TestPacket>,
+    pub malformed_mixes: Vec<String>,
+    pub incompatible_mixes: Vec<(String, String)>,
+}
+
+pub(crate) struct GatewaysInfo {
+    // each gateway receives 2 packets, one ipv4, one ipv6
+    // TODO: probably need to pass gateway channels?
+    pub tested_gateways: Vec<(GatewayChannel, [TestPacket; 2])>,
+    pub malformed_gateways: Vec<String>,
+    pub incompatible_gateways: Vec<(String, String)>,
 }

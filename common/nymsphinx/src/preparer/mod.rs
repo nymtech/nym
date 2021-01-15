@@ -143,6 +143,11 @@ where
         self
     }
 
+    /// Overwrites existing sender address with the provided value.
+    pub fn set_sender_address(&mut self, sender_address: Recipient) {
+        self.sender_address = sender_address;
+    }
+
     /// Length of plaintext (from the sphinx point of view) data that is available per sphinx
     /// packet.
     fn available_plaintext_per_packet(&self) -> usize {

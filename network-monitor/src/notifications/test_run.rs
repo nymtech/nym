@@ -26,8 +26,11 @@ pub(super) struct TestRun {
     test_report: TestReport,
 
     run_nonce: u64,
-    expected_run_packets: HashSet<TestPacket>,
-    received_packets: Vec<TestPacket>,
+    expected_run_mix_packets: HashSet<TestPacket>,
+    received_mix_packets: Vec<TestPacket>,
+
+    expected_run_gateway_packets: HashMap<String, [TestPacket; 2]>,
+    received_gateway_packets: HashMap<String, Vec<TestPacket>>,
 }
 
 #[derive(Default)]
@@ -36,6 +39,7 @@ struct NodeResult {
     ip_v6_compatible: bool,
 }
 
+// TODO: duplicate for gateways?
 #[derive(Default)]
 struct TestReport {
     total_sent: usize,
@@ -90,14 +94,15 @@ impl TestReport {
 
 impl TestRun {
     pub(super) fn new(run_nonce: u64) -> Self {
-        TestRun {
-            print_report: false,
-            print_detailed_report: false,
-            test_report: Default::default(),
-            run_nonce,
-            expected_run_packets: Default::default(),
-            received_packets: vec![],
-        }
+        todo!()
+        // TestRun {
+        //     print_report: false,
+        //     print_detailed_report: false,
+        //     test_report: Default::default(),
+        //     run_nonce,
+        //     expected_run_mix_packets: Default::default(),
+        //     received_mix_packets: vec![],
+        // }
     }
 
     pub(super) fn with_report(mut self) -> Self {
@@ -114,8 +119,8 @@ impl TestRun {
     pub(super) fn refresh(&mut self, new_nonce: u64) {
         self.test_report = Default::default();
         self.run_nonce = new_nonce;
-        self.expected_run_packets = Default::default();
-        self.received_packets = Default::default();
+        self.expected_run_mix_packets = Default::default();
+        self.received_mix_packets = Default::default();
     }
 
     fn down_status(&self, pub_key: String) -> Vec<MixStatus> {
@@ -166,13 +171,13 @@ impl TestRun {
             self.test_report.outdated.push(old_mix);
         }
 
-        self.test_report.total_sent = run_info.test_packets.len();
+        self.test_report.total_sent = run_info.mix_test_packets.len();
 
         // store information about packets that are currently being sent
-        self.expected_run_packets
-            .reserve(run_info.test_packets.len());
-        for test_packet in run_info.test_packets {
-            self.expected_run_packets.insert(test_packet);
+        self.expected_run_mix_packets
+            .reserve(run_info.mix_test_packets.len());
+        for test_packet in run_info.mix_test_packets {
+            self.expected_run_mix_packets.insert(test_packet);
         }
     }
 
@@ -186,7 +191,7 @@ impl TestRun {
         };
 
         if test_packet.nonce() == self.run_nonce {
-            self.received_packets.push(test_packet);
+            self.received_mix_packets.push(test_packet);
         } else {
             warn!(
                 "Received test packet for different test run! (Got {}, expected {})",
@@ -195,7 +200,7 @@ impl TestRun {
             );
         }
 
-        self.received_packets.len() == self.expected_run_packets.len()
+        self.received_mix_packets.len() == self.expected_run_mix_packets.len()
     }
 
     fn produce_summary(&self) -> HashMap<String, NodeResult> {
@@ -203,7 +208,7 @@ impl TestRun {
         let mut summary: HashMap<String, NodeResult> = HashMap::new();
 
         // update based on data we actually get
-        for received_status in self.received_packets.iter() {
+        for received_status in self.received_mix_packets.iter() {
             let entry = summary.entry(received_status.pub_key_string()).or_default();
             if received_status.ip_version().is_v4() {
                 entry.ip_v4_compatible = true
@@ -213,7 +218,7 @@ impl TestRun {
         }
 
         // and then insert entries we didn't get but should have
-        for expected in self.expected_run_packets.iter() {
+        for expected in self.expected_run_mix_packets.iter() {
             summary.entry(expected.pub_key_string()).or_default();
         }
 
@@ -246,7 +251,7 @@ impl TestRun {
     }
 
     pub(super) fn finish_run(&mut self) -> BatchMixStatus {
-        self.test_report.total_received = self.received_packets.len();
+        self.test_report.total_received = self.received_mix_packets.len();
 
         if self.print_report {
             self.finalize_report();
@@ -256,11 +261,11 @@ impl TestRun {
         let mut mix_status = if PENALISE_OUTDATED {
             Vec::with_capacity(
                 2 * (self.test_report.malformed.len() + self.test_report.outdated.len())
-                    + self.expected_run_packets.len(),
+                    + self.expected_run_mix_packets.len(),
             )
         } else {
             Vec::with_capacity(
-                2 * (self.test_report.malformed.len()) + self.expected_run_packets.len(),
+                2 * (self.test_report.malformed.len()) + self.expected_run_mix_packets.len(),
             )
         };
 
@@ -279,10 +284,10 @@ impl TestRun {
             }
         }
 
-        let mut undelivered = mem::replace(&mut self.expected_run_packets, HashSet::new());
+        let mut undelivered = mem::replace(&mut self.expected_run_mix_packets, HashSet::new());
 
         // then create status for packets we actually received
-        for received in mem::replace(&mut self.received_packets, Vec::new()) {
+        for received in mem::replace(&mut self.received_mix_packets, Vec::new()) {
             undelivered.remove(&received);
             mix_status.push(received.into_up_mixstatus())
         }

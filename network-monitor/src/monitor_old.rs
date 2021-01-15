@@ -12,14 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{notifications::Notifier, packet_sender::PacketSender};
-use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
+use crate::{notifications::Notifier, packet_sender::PacketSenderOld};
 use log::*;
 use tokio::time::{delay_for, Duration};
-
-pub(crate) type MixnetReceiver = UnboundedReceiver<Vec<Vec<u8>>>;
-pub(crate) type MixnetSender = UnboundedSender<Vec<Vec<u8>>>;
-pub(crate) type AckSender = UnboundedSender<Vec<Vec<u8>>>;
 
 pub(crate) const MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(60);
 pub(crate) const NOTIFIER_DELIVERY_TIMEOUT: Duration = Duration::from_secs(20);
@@ -31,7 +26,7 @@ impl Monitor {
         Monitor {}
     }
 
-    pub(crate) async fn run(&mut self, mut notifier: Notifier, mut packet_sender: PacketSender) {
+    pub(crate) async fn run(&mut self, mut notifier: Notifier, mut packet_sender: PacketSenderOld) {
         println!("Network monitor running - note: 'good' nodes are hardcoded.");
         println!("-----------------------------------------------------------");
         tokio::spawn(async move {

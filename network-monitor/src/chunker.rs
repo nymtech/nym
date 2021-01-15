@@ -46,7 +46,20 @@ impl Chunker {
         }
     }
 
-    pub(crate) async fn prepare_messages(
+    pub(crate) async fn prepare_packets_from(
+        &mut self,
+        message: Vec<u8>,
+        topology: &NymTopology,
+        packet_sender: Recipient,
+    ) -> Vec<MixPacket> {
+        // I really dislike how we have to overwrite the parameter of the `MessagePreparer` on each run
+        // but without some significant API changes in the `MessagePreparer` this was the easiest
+        // way to being able to have variable sender address.
+        self.message_preparer.set_sender_address(packet_sender);
+        self.prepare_packets(message, topology).await
+    }
+
+    async fn prepare_packets(
         &mut self,
         message: Vec<u8>,
         topology: &NymTopology,

@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use super::monitor::MixnetReceiver;
-use crate::monitor::NOTIFIER_DELIVERY_TIMEOUT;
+use crate::monitor_old::NOTIFIER_DELIVERY_TIMEOUT;
 use crate::notifications::test_run::TestRun;
 use crate::notifications::test_timeout::TestTimeout;
 use crate::run_info::{RunInfo, TestRunUpdate, TestRunUpdateReceiver};
 use crypto::asymmetric::encryption::KeyPair;
 use futures::StreamExt;
+use gateway_client::MixnetMessageReceiver;
 use log::*;
 use nymsphinx::receiver::MessageReceiver;
 use std::sync::Arc;
@@ -38,7 +38,7 @@ enum NotifierError {
 pub(crate) struct Notifier {
     client_encryption_keypair: KeyPair,
     message_receiver: MessageReceiver,
-    mixnet_receiver: MixnetReceiver,
+    mixnet_receiver: MixnetMessageReceiver,
     validator_client: Arc<validator_client::Client>,
     test_run_receiver: TestRunUpdateReceiver,
     test_run_nonce: u64,
@@ -48,7 +48,7 @@ pub(crate) struct Notifier {
 
 impl Notifier {
     pub(crate) fn new(
-        mixnet_receiver: MixnetReceiver,
+        mixnet_receiver: MixnetMessageReceiver,
         client_encryption_keypair: KeyPair,
         validator_client: Arc<validator_client::Client>,
         test_run_receiver: TestRunUpdateReceiver,

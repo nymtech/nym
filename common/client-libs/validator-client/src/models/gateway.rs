@@ -17,7 +17,7 @@ use crypto::asymmetric::{encryption, identity};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::io;
-use std::net::ToSocketAddrs;
+use std::net::{SocketAddr, ToSocketAddrs};
 
 #[derive(Debug)]
 pub enum ConversionError {
@@ -93,13 +93,17 @@ impl RegisteredGateway {
     pub fn clients_listener(&self) -> String {
         self.gateway_info.clients_host.clone()
     }
-}
 
-impl TryInto<topology::gateway::Node> for RegisteredGateway {
-    type Error = ConversionError;
+    pub fn version(&self) -> String {
+        self.gateway_info.node_info.version.clone()
+    }
 
-    fn try_into(self) -> Result<topology::gateway::Node, Self::Error> {
-        let resolved_mix_hostname = self
+    pub fn version_ref(&self) -> &str {
+        &self.gateway_info.node_info.version
+    }
+
+    fn resolve_hostname(&self) -> Result<SocketAddr, ConversionError> {
+        Ok(self
             .gateway_info
             .node_info
             .mix_host
@@ -111,11 +115,17 @@ impl TryInto<topology::gateway::Node> for RegisteredGateway {
                     io::ErrorKind::Other,
                     "no valid socket address",
                 ))
-            })?;
+            })?)
+    }
+}
 
+impl TryInto<topology::gateway::Node> for RegisteredGateway {
+    type Error = ConversionError;
+
+    fn try_into(self) -> Result<topology::gateway::Node, Self::Error> {
         Ok(topology::gateway::Node {
+            mixnet_listener: self.resolve_hostname()?,
             location: self.gateway_info.node_info.location,
-            mixnet_listener: resolved_mix_hostname,
             client_listener: self.gateway_info.clients_host,
             identity_key: identity::PublicKey::from_base58_string(
                 self.gateway_info.node_info.identity_key,
@@ -126,6 +136,27 @@ impl TryInto<topology::gateway::Node> for RegisteredGateway {
             registration_time: self.registration_time,
             reputation: self.reputation,
             version: self.gateway_info.node_info.version,
+        })
+    }
+}
+
+impl<'a> TryInto<topology::gateway::Node> for &'a RegisteredGateway {
+    type Error = ConversionError;
+
+    fn try_into(self) -> Result<topology::gateway::Node, Self::Error> {
+        Ok(topology::gateway::Node {
+            mixnet_listener: self.resolve_hostname()?,
+            location: self.gateway_info.node_info.location.clone(),
+            client_listener: self.gateway_info.clients_host.clone(),
+            identity_key: identity::PublicKey::from_base58_string(
+                &self.gateway_info.node_info.identity_key,
+            )?,
+            sphinx_key: encryption::PublicKey::from_base58_string(
+                &self.gateway_info.node_info.sphinx_key,
+            )?,
+            registration_time: self.registration_time,
+            reputation: self.reputation,
+            version: self.gateway_info.node_info.version.clone(),
         })
     }
 }

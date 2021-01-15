@@ -105,11 +105,28 @@ impl PartialEq for TestPacket {
 }
 
 impl TestPacket {
+    #[deprecated]
     pub(crate) fn new(pub_key: identity::PublicKey, ip_version: IpVersion, nonce: u64) -> Self {
         TestPacket {
             pub_key,
             ip_version,
             nonce,
+        }
+    }
+
+    pub(crate) fn new_v4(pub_key: identity::PublicKey, nonce: u64) -> Self {
+        TestPacket {
+            ip_version: IpVersion::V4,
+            nonce,
+            pub_key,
+        }
+    }
+
+    pub(crate) fn new_v6(pub_key: identity::PublicKey, nonce: u64) -> Self {
+        TestPacket {
+            ip_version: IpVersion::V6,
+            nonce,
+            pub_key,
         }
     }
 
@@ -119,6 +136,10 @@ impl TestPacket {
 
     pub(crate) fn ip_version(&self) -> IpVersion {
         self.ip_version
+    }
+
+    pub(crate) fn pub_key(&self) -> identity::PublicKey {
+        self.pub_key
     }
 
     pub(crate) fn pub_key_string(&self) -> String {

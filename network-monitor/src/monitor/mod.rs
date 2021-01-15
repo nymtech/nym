@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::monitor::preparer::PacketPreparer;
+use crate::monitor::preparer::{PacketPreparer, PreparedPackets};
 use crate::monitor::processor::ReceivedProcessor;
 use crate::monitor::sender::PacketSender;
 use crate::monitor::summary_producer::SummaryProducer;
+use crypto::asymmetric::identity;
 use log::*;
+use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::time::{delay_for, Duration};
 use validator_client::models::mixmining::BatchMixStatus;
@@ -60,13 +62,22 @@ impl Monitor {
     // while it might have been cleaner to put this into a separate `Notifier` structure,
     // I don't see much point considering it's only a single, small, method
     async fn notify_validator(&self, status: BatchMixStatus) {
-        if let Err(err) = self
-            .validator_client
-            .post_batch_mixmining_status(status)
-            .await
-        {
-            warn!("Failed to send batch status to validator - {:?}", err)
-        }
+        info!("here be validator notification");
+        // if let Err(err) = self
+        //     .validator_client
+        //     .post_batch_mixmining_status(status)
+        //     .await
+        // {
+        //     warn!("Failed to send batch status to validator - {:?}", err)
+        // }
+    }
+
+    fn all_run_gateways(&self, prepared_packets: &PreparedPackets) -> HashSet<String> {
+        prepared_packets
+            .packets
+            .iter()
+            .map(|packets| packets.gateway_address().to_base58_string())
+            .collect()
     }
 
     async fn test_run(&mut self) {
@@ -80,6 +91,7 @@ impl Monitor {
                 return;
             }
         };
+        let all_gateways = self.all_run_gateways(&prepared_packets);
 
         self.received_processor.set_new_expected(self.nonce).await;
 
@@ -96,6 +108,7 @@ impl Monitor {
             prepared_packets.tested_nodes,
             received,
             prepared_packets.invalid_nodes,
+            all_gateways,
         );
 
         self.notify_validator(batch_status).await;

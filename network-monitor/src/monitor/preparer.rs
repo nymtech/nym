@@ -38,6 +38,7 @@ pub(super) enum PacketPreparerError {
 type Version = String;
 type Id = String;
 
+#[derive(Clone)]
 pub(crate) enum InvalidNode {
     OutdatedMix(Id, Version),
     MalformedMix(Id),
@@ -327,7 +328,7 @@ impl PacketPreparer {
         let gateways = self.prepare_gateways(nonce, &topology);
 
         // get the keys of all nodes that will get tested this round
-        let tested_nodes = self
+        let tested_nodes: Vec<_> = self
             .tested_nodes(&mixes)
             .into_iter()
             .chain(self.tested_nodes(&gateways).into_iter())

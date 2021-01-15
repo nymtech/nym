@@ -17,7 +17,7 @@ use crate::test_packet::TestPacket;
 use crate::PENALISE_OUTDATED;
 use crypto::asymmetric::identity;
 use log::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use validator_client::models::mixmining::{BatchMixStatus, MixStatus};
 
 #[derive(Default)]
@@ -67,6 +67,7 @@ impl TestReport {
         info!(target: "Test Report", "Sent total of {} packets", self.total_sent);
         info!(target: "Test Report", "Received total of {} packets", self.total_received);
         info!(target: "Test Report", "{} nodes are invalid", self.malformed.len());
+
         info!(target: "Test Report", "{} mixnodes speak ONLY IPv4 (NO IPv6 connectivity)", self.only_ipv4_compatible_mixes.len());
         info!(target: "Test Report", "{} mixnodes speak ONLY IPv6 (NO IPv4 connectivity)", self.only_ipv6_compatible_mixes.len());
         info!(target: "Test Report", "{} mixnodes are totally unroutable!", self.completely_unroutable_mixes.len());
@@ -116,6 +117,38 @@ impl TestReport {
             }
         }
     }
+
+    fn parse_summary(
+        &mut self,
+        summary: &HashMap<String, NodeResult>,
+        all_gateways: HashSet<String>,
+    ) {
+        let is_gateway = |key: &str| all_gateways.contains(key);
+
+        for (node, result) in summary.iter() {
+            if is_gateway(&node) {
+                if result.ip_v4_compatible && result.ip_v6_compatible {
+                    self.fully_working_gateways.push(node.clone())
+                } else if result.ip_v4_compatible {
+                    self.only_ipv4_compatible_gateways.push(node.clone())
+                } else if result.ip_v6_compatible {
+                    self.only_ipv6_compatible_gateways.push(node.clone())
+                } else {
+                    self.completely_unroutable_gateways.push(node.clone())
+                }
+            } else {
+                if result.ip_v4_compatible && result.ip_v6_compatible {
+                    self.fully_working_mixes.push(node.clone())
+                } else if result.ip_v4_compatible {
+                    self.only_ipv4_compatible_mixes.push(node.clone())
+                } else if result.ip_v6_compatible {
+                    self.only_ipv6_compatible_mixes.push(node.clone())
+                } else {
+                    self.completely_unroutable_mixes.push(node.clone())
+                }
+            }
+        }
+    }
 }
 
 #[derive(Default)]
@@ -160,8 +193,9 @@ impl SummaryProducer {
         expected_nodes: Vec<identity::PublicKey>,
         received_packets: Vec<TestPacket>,
         invalid_nodes: Vec<InvalidNode>,
+        all_gateways: HashSet<String>,
     ) -> BatchMixStatus {
-        // TODO: make it also print (if applicable) the report
+        let mut report = TestReport::default();
 
         // contains map of all (seemingly valid) nodes and whether they speak ipv4/ipv6
         let mut summary: HashMap<String, NodeResult> = HashMap::new();
@@ -193,6 +227,14 @@ impl SummaryProducer {
                     summary.insert(id.to_string(), Default::default());
                 }
             }
+        }
+
+        if self.print_report {
+            report.total_sent = expected_nodes.len() * 2; // we sent two packets per node (one ipv4 and one ipv6)
+            report.total_received = received_packets.len();
+            report.malformed = invalid_nodes.clone();
+            report.parse_summary(&summary, all_gateways);
+            report.print(self.print_detailed_report);
         }
 
         let status = summary

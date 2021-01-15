@@ -54,6 +54,10 @@ impl GatewayPackets {
             packets,
         }
     }
+
+    pub(super) fn gateway_address(&self) -> identity::PublicKey {
+        self.pub_key
+    }
 }
 
 // struct consisting of all external data required to construct a fresh gateway client

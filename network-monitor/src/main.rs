@@ -158,8 +158,11 @@ async fn main() {
         *identity_keypair.public_key(),
         *encryption_keypair.public_key(),
     );
-    let packet_sender =
-        new_packet_sender(gateway_status_update_sender, Arc::clone(&identity_keypair));
+    let packet_sender = new_packet_sender(
+        gateway_status_update_sender,
+        Arc::clone(&identity_keypair),
+        sending_rate,
+    );
     let received_processor = new_received_processor(
         received_processor_receiver_channel,
         Arc::clone(&encryption_keypair),
@@ -214,12 +217,14 @@ fn new_packet_preparer(
 fn new_packet_sender(
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
+    max_sending_rate: usize,
 ) -> PacketSender {
     PacketSender::new(
         gateways_status_updater,
         local_identity,
         GATEWAY_RESPONSE_TIMEOUT,
         MAX_CONCURRENT_GATEWAY_CLIENTS,
+        max_sending_rate,
     )
 }
 

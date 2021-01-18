@@ -13,11 +13,13 @@
 // limitations under the License.
 
 use crate::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
+use crate::TIME_CHUNK_SIZE;
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
 use futures::task::Context;
 use futures::{Future, Stream};
+use gateway_client::error::GatewayClientError;
 use gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
@@ -80,6 +82,7 @@ pub(crate) struct PacketSender {
 
     fresh_gateway_client_data: Arc<FreshGatewayClientData>,
     max_concurrent_clients: Option<usize>,
+    max_sending_rate: usize,
 }
 
 impl PacketSender {
@@ -88,6 +91,7 @@ impl PacketSender {
         local_identity: Arc<identity::KeyPair>,
         gateway_response_timeout: Duration,
         max_concurrent_clients: Option<usize>,
+        max_sending_rate: usize,
     ) -> Self {
         PacketSender {
             active_gateway_clients: HashMap::new(),
@@ -97,6 +101,7 @@ impl PacketSender {
                 gateway_response_timeout,
             }),
             max_concurrent_clients,
+            max_sending_rate,
         }
     }
 
@@ -128,23 +133,74 @@ impl PacketSender {
         )
     }
 
+    async fn attempt_to_send_packets(
+        client: &mut GatewayClient,
+        mut mix_packets: Vec<MixPacket>,
+        max_sending_rate: usize,
+    ) -> Result<(), GatewayClientError> {
+        let gateway_id = client.gateway_identity().to_base58_string();
+        info!(target: "MessageSender", "Got {} packets to send to gateway {}", mix_packets.len(), gateway_id);
+
+        if mix_packets.len() <= max_sending_rate {
+            debug!(target: "MessageSender", "Everything is going to get sent as one.");
+            client.batch_send_mix_packets(mix_packets).await?;
+        } else {
+            let packets_per_time_chunk =
+                (max_sending_rate as f64 * TIME_CHUNK_SIZE.as_secs_f64()) as usize;
+
+            let total_expected_time =
+                Duration::from_secs_f64(mix_packets.len() as f64 / max_sending_rate as f64);
+            info!(target: "MessageSender",
+                  "With our rate of {} packets/s it should take around {:?} to send it all to {} ...",
+                  max_sending_rate, total_expected_time, gateway_id
+            );
+
+            fn split_off_vec(vec: &mut Vec<MixPacket>, at: usize) -> Option<Vec<MixPacket>> {
+                if vec.is_empty() {
+                    None
+                } else {
+                    if at >= vec.len() {
+                        return Some(Vec::new());
+                    }
+                    Some(vec.split_off(at))
+                }
+            }
+
+            // TODO future consideration: perhaps allow gateway client to take the packets by reference?
+            // this way we won't have to do reallocations in here as they're unavoidable when
+            // splitting a vector into multiple vectors
+            while let Some(retained) = split_off_vec(&mut mix_packets, packets_per_time_chunk) {
+                debug!(target: "MessageSender", "Sending {} packets...", mix_packets.len());
+
+                if mix_packets.len() == 1 {
+                    client.send_mix_packet(mix_packets.pop().unwrap()).await?;
+                } else {
+                    client.batch_send_mix_packets(mix_packets).await?;
+                }
+
+                tokio::time::delay_for(TIME_CHUNK_SIZE).await;
+
+                mix_packets = retained;
+            }
+            debug!(target: "MessageSender", "Done sending");
+        }
+
+        Ok(())
+    }
+
     // TODO: perhaps it should be spawned as a task to execute it in parallel rather
     // than just concurrently?
     async fn send_gateway_packets(
         packets: GatewayPackets,
         fresh_gateway_client_data: Arc<FreshGatewayClientData>,
         client: Option<GatewayClient>,
+        max_sending_rate: usize,
     ) -> Option<GatewayClient> {
         let was_present = client.is_some();
 
         let (mut client, gateway_channels) = if let Some(client) = client {
             (client, None)
         } else {
-            error!(
-                "making new gateway client to {}",
-                packets.pub_key.to_base58_string(),
-            );
-
             let (mut new_client, (message_receiver, ack_receiver)) = Self::new_gateway_client(
                 packets.clients_address,
                 packets.pub_key,
@@ -162,7 +218,9 @@ impl PacketSender {
         };
 
         // TODO: change and introduce rate limiting like in the old code
-        if let Err(err) = client.batch_send_mix_packets(packets.packets).await {
+        if let Err(err) =
+            Self::attempt_to_send_packets(&mut client, packets.packets, max_sending_rate).await
+        {
             warn!(
                 "failed to send packets to {} - {:?}",
                 packets.pub_key.to_base58_string(),
@@ -200,6 +258,7 @@ impl PacketSender {
         // and then put them back in, this way we remove the need for having locks instead, like
         // Arc<RwLock<HashMap<key, Mutex<GatewayClient>>>>
         let max_concurrent_clients = self.max_concurrent_clients;
+        let max_sending_rate = self.max_sending_rate;
 
         // can't chain it all nicely together as there's no adapter method defined on Stream directly
         // for ForEachConcurrentClientUse
@@ -218,7 +277,7 @@ impl PacketSender {
             stream,
             max_concurrent_clients,
             |(packets, fresh_data, client)| async move {
-                Self::send_gateway_packets(packets, fresh_data, client).await
+                Self::send_gateway_packets(packets, fresh_data, client, max_sending_rate).await
             },
         )
         .await
@@ -227,13 +286,13 @@ impl PacketSender {
             if let Some(client) = client {
                 if let Some(existing) = self
                     .active_gateway_clients
-                    .insert(client.identity().to_bytes(), client)
+                    .insert(client.gateway_identity().to_bytes(), client)
                 {
                     // TODO: perhaps panic instead? getting here implies there's some serious logic
                     // error somewhere and our assumptions no longer hold
                     error!(
                         "we got duplicate gateway client for {}!",
-                        existing.identity().to_base58_string()
+                        existing.gateway_identity().to_base58_string()
                     );
                 }
             }

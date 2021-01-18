@@ -201,16 +201,15 @@ impl PemStorableKey for PrivateKey {
 }
 
 // compatibility with sphinx keys:
-
-impl Into<nymsphinx_types::PublicKey> for PublicKey {
-    fn into(self) -> nymsphinx_types::PublicKey {
-        nymsphinx_types::PublicKey::from(self.to_bytes())
+impl From<PublicKey> for nymsphinx_types::PublicKey {
+    fn from(key: PublicKey) -> Self {
+        nymsphinx_types::PublicKey::from(key.to_bytes())
     }
 }
 
-impl<'a> Into<nymsphinx_types::PublicKey> for &'a PublicKey {
-    fn into(self) -> nymsphinx_types::PublicKey {
-        nymsphinx_types::PublicKey::from(self.to_bytes())
+impl<'a> From<&'a PublicKey> for nymsphinx_types::PublicKey {
+    fn from(key: &'a PublicKey) -> Self {
+        nymsphinx_types::PublicKey::from(key.to_bytes())
     }
 }
 
@@ -220,15 +219,15 @@ impl From<nymsphinx_types::PublicKey> for PublicKey {
     }
 }
 
-impl Into<nymsphinx_types::PrivateKey> for PrivateKey {
-    fn into(self) -> nymsphinx_types::PrivateKey {
-        nymsphinx_types::PrivateKey::from(self.to_bytes())
+impl From<PrivateKey> for nymsphinx_types::PrivateKey {
+    fn from(key: PrivateKey) -> Self {
+        nymsphinx_types::PrivateKey::from(key.to_bytes())
     }
 }
 
-impl<'a> Into<nymsphinx_types::PrivateKey> for &'a PrivateKey {
-    fn into(self) -> nymsphinx_types::PrivateKey {
-        nymsphinx_types::PrivateKey::from(self.to_bytes())
+impl<'a> From<&'a PrivateKey> for nymsphinx_types::PrivateKey {
+    fn from(key: &'a PrivateKey) -> Self {
+        nymsphinx_types::PrivateKey::from(key.to_bytes())
     }
 }
 

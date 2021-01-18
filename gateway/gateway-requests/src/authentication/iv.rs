@@ -73,8 +73,8 @@ impl AuthenticationIV {
     }
 }
 
-impl Into<String> for AuthenticationIV {
-    fn into(self) -> String {
-        self.to_base58_string()
+impl From<AuthenticationIV> for String {
+    fn from(iv: AuthenticationIV) -> Self {
+        iv.to_base58_string()
     }
 }

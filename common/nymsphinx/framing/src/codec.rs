@@ -35,9 +35,9 @@ impl From<io::Error> for SphinxCodecError {
     }
 }
 
-impl Into<io::Error> for SphinxCodecError {
-    fn into(self) -> io::Error {
-        match self {
+impl From<SphinxCodecError> for io::Error {
+    fn from(err: SphinxCodecError) -> Self {
+        match err {
             SphinxCodecError::InvalidPacketSize => {
                 io::Error::new(io::ErrorKind::InvalidInput, "invalid packet size")
             }

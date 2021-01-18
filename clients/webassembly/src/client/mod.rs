@@ -31,8 +31,6 @@ use wasm_utils::{console_log, console_warn};
 
 pub(crate) mod received_processor;
 
-const DEFAULT_RNG: OsRng = OsRng;
-
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
@@ -67,10 +65,11 @@ pub struct NymClient {
 impl NymClient {
     #[wasm_bindgen(constructor)]
     pub fn new(validator_server: String) -> Self {
+        let mut rng = OsRng;
         // for time being generate new keys each time...
-        let identity = identity::KeyPair::new_with_rng(&mut DEFAULT_RNG);
-        let encryption_keys = encryption::KeyPair::new_with_rng(&mut DEFAULT_RNG);
-        let ack_key = AckKey::new(&mut DEFAULT_RNG);
+        let identity = identity::KeyPair::new_with_rng(&mut rng);
+        let encryption_keys = encryption::KeyPair::new_with_rng(&mut rng);
+        let ack_key = AckKey::new(&mut rng);
 
         Self {
             identity: Arc::new(identity),
@@ -145,7 +144,7 @@ impl NymClient {
         };
 
         let message_preparer = MessagePreparer::new(
-            DEFAULT_RNG,
+            &mut rand::rngs::OsRng,
             client.self_recipient(),
             DEFAULT_AVERAGE_PACKET_DELAY,
             DEFAULT_AVERAGE_ACK_DELAY,

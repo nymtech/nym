@@ -58,7 +58,7 @@ async function dealWithInitialTopology() {
   // lets ignore removed gateways for time being (at least until network monitor actually sends packets to them)
 
   createMixnodeCount(`${activeTopology.mixNodes.length} + ${standbyMixes.length} standby`)
-  createValidatorCount(fullTopology.validators.validators.length);
+  createValidatorCount(fullTopology.validators.validators.length || 0);
   createBlockHeight(fullTopology.validators.block_height);
 
   createDisplayTable(activeTopology, standbyMixes, standbyGateways, removedTopology.mixNodes)

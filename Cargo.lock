@@ -889,6 +889,7 @@ dependencies = [
  "gateway-requests",
  "log",
  "nymsphinx",
+ "rand",
  "tokio",
  "tokio-tungstenite",
  "tungstenite",
@@ -1612,6 +1613,7 @@ dependencies = [
  "nymsphinx",
  "pemstore",
  "pretty_env_logger",
+ "rand",
  "serde",
  "tokio",
  "tokio-util",
@@ -1731,6 +1733,7 @@ version = "0.1.0"
 dependencies = [
  "crypto",
  "nymsphinx-types",
+ "rand",
  "serde",
 ]
 

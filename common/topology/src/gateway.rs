@@ -43,12 +43,12 @@ impl filter::Versioned for Node {
     }
 }
 
-impl<'a> Into<SphinxNode> for &'a Node {
-    fn into(self) -> SphinxNode {
-        let node_address_bytes = NymNodeRoutingAddress::from(self.mixnet_listener)
+impl<'a> From<&'a Node> for SphinxNode {
+    fn from(node: &'a Node) -> Self {
+        let node_address_bytes = NymNodeRoutingAddress::from(node.mixnet_listener)
             .try_into()
             .unwrap();
 
-        SphinxNode::new(node_address_bytes, (&self.sphinx_key).into())
+        SphinxNode::new(node_address_bytes, (&node.sphinx_key).into())
     }
 }

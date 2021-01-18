@@ -389,7 +389,7 @@ mod tests {
         }
     }
 
-    fn verify_correct_link(left: &FragmentSet, right: &FragmentSet) {
+    fn verify_correct_link(left: &[Fragment], right: &[Fragment]) {
         let first_id = left[0].id();
         let post_id = left[254].next_fragments_set_id().unwrap();
 

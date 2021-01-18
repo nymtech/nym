@@ -143,7 +143,7 @@ impl MixNode {
         runtime.block_on(async {
             if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists().await {
                 if duplicate_node_key == self.identity_keypair.public_key().to_base58_string() {
-                    warn!("We seem to have not unregistered after going offline - there's a node with identical identity and announce-host as us registered.")
+                    warn!("We seem to have not unregistered after going offline - there's a node with identical identity and announce-host us as registered.")
                 } else {
                     error!(
                         "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
@@ -154,14 +154,9 @@ impl MixNode {
             }
 
             if let Err(err) = presence::register_with_validator(
-                self.config.get_validator_rest_endpoint(),
-                self.config.get_announce_address(),
+&self.config,
                 self.identity_keypair.public_key().to_base58_string(),
                 self.sphinx_keypair.public_key().to_base58_string(),
-                self.config.get_version().to_string(),
-                self.config.get_location(),
-                self.config.get_layer(),
-                self.config.get_incentives_address(),
             ).await {
                 error!("failed to register with the validator - {:?}", err);
                 return;

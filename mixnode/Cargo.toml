@@ -16,6 +16,7 @@ futures = "0.3.1"
 humantime-serde = "1.0.1"
 log = "0.4"
 pretty_env_logger = "0.3"
+rand = "0.7"
 serde = { version = "1.0.104", features = ["derive"] }
 tokio = { version = "0.2", features = ["full"] }
 tokio-util = { version = "0.3.1", features = ["codec"] }

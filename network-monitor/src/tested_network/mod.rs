@@ -24,14 +24,14 @@ use topology::{gateway, mix, NymTopology};
 pub(crate) mod good_topology;
 
 pub(crate) enum TestMix {
-    ValidMix(mix::Node, [TestPacket; 2]),
-    IncompatibleMix(mix::Node),
-    MalformedMix(String),
+    Valid(mix::Node, [TestPacket; 2]),
+    Incompatible(mix::Node),
+    Malformed(String),
 }
 
 impl TestMix {
     pub(crate) fn is_valid(&self) -> bool {
-        matches!(self, TestMix::ValidMix(..))
+        matches!(self, TestMix::Valid(..))
     }
 }
 

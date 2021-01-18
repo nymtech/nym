@@ -22,9 +22,9 @@ use std::path::PathBuf;
 
 #[derive(Debug)]
 pub(crate) enum ClientLedgerError {
-    DbReadError(sled::Error),
-    DbWriteError(sled::Error),
-    DbOpenError(sled::Error),
+    Read(sled::Error),
+    Write(sled::Error),
+    Open(sled::Error),
 }
 
 #[derive(Debug, Clone)]
@@ -37,7 +37,7 @@ pub(crate) struct ClientLedger {
 impl ClientLedger {
     pub(crate) fn load(file: PathBuf) -> Result<Self, ClientLedgerError> {
         let db = match sled::open(file) {
-            Err(e) => return Err(ClientLedgerError::DbOpenError(e)),
+            Err(e) => return Err(ClientLedgerError::Open(e)),
             Ok(db) => db,
         };
 
@@ -93,7 +93,7 @@ impl ClientLedger {
         iv: &AuthenticationIV,
     ) -> Result<bool, ClientLedgerError> {
         match self.db.get(&client_address.to_bytes()) {
-            Err(e) => Err(ClientLedgerError::DbReadError(e)),
+            Err(e) => Err(ClientLedgerError::Read(e)),
             Ok(existing_key) => match existing_key {
                 Some(existing_key_ivec) => {
                     let shared_key = &self.read_shared_key(existing_key_ivec);
@@ -109,7 +109,7 @@ impl ClientLedger {
         client_address: &DestinationAddressBytes,
     ) -> Result<Option<SharedKeys>, ClientLedgerError> {
         match self.db.get(&client_address.to_bytes()) {
-            Err(e) => Err(ClientLedgerError::DbReadError(e)),
+            Err(e) => Err(ClientLedgerError::Read(e)),
             Ok(existing_key) => Ok(existing_key.map(|key_ivec| self.read_shared_key(key_ivec))),
         }
     }
@@ -123,7 +123,7 @@ impl ClientLedger {
             .db
             .insert(&client_address.to_bytes(), shared_key.to_bytes())
         {
-            Err(e) => Err(ClientLedgerError::DbWriteError(e)),
+            Err(e) => Err(ClientLedgerError::Write(e)),
             Ok(existing_key) => {
                 Ok(existing_key.map(|existing_key| self.read_shared_key(existing_key)))
             }
@@ -139,7 +139,7 @@ impl ClientLedger {
         client_address: &DestinationAddressBytes,
     ) -> Result<Option<SharedKeys>, ClientLedgerError> {
         let removal_result = match self.db.remove(&client_address.to_bytes()) {
-            Err(e) => Err(ClientLedgerError::DbWriteError(e)),
+            Err(e) => Err(ClientLedgerError::Write(e)),
             Ok(existing_key) => {
                 Ok(existing_key.map(|existing_key| self.read_shared_key(existing_key)))
             }

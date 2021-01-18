@@ -35,7 +35,7 @@ impl RESTRequest for Request {
         _: Option<Vec<QueryParam>>,
         body_payload: Option<Self::JsonPayload>,
     ) -> Result<Self, RESTRequestError> {
-        let payload = body_payload.ok_or_else(|| RESTRequestError::NoPayloadProvided)?;
+        let payload = body_payload.ok_or(RESTRequestError::NoPayloadProvided)?;
         let url = Url::parse(&format!("{}{}", base_url, Self::RELATIVE_PATH))
             .map_err(|err| RESTRequestError::MalformedUrl(err.to_string()))?;
 

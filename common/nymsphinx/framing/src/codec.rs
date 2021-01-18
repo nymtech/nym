@@ -35,9 +35,9 @@ impl From<io::Error> for SphinxCodecError {
     }
 }
 
-impl Into<io::Error> for SphinxCodecError {
-    fn into(self) -> io::Error {
-        match self {
+impl From<SphinxCodecError> for io::Error {
+    fn from(err: SphinxCodecError) -> Self {
+        match err {
             SphinxCodecError::InvalidPacketSize => {
                 io::Error::new(io::ErrorKind::InvalidInput, "invalid packet size")
             }
@@ -72,7 +72,7 @@ impl Encoder<FramedSphinxPacket> for SphinxCodec {
     type Error = SphinxCodecError;
 
     fn encode(&mut self, item: FramedSphinxPacket, dst: &mut BytesMut) -> Result<(), Self::Error> {
-        item.header.encode(dst)?;
+        item.header.encode(dst);
         dst.put(item.packet.to_bytes().as_ref());
         Ok(())
     }
@@ -236,7 +236,7 @@ mod packet_encoding {
                     packet_mode: Default::default(),
                 };
                 let mut bytes = BytesMut::new();
-                header.encode(&mut bytes).unwrap();
+                header.encode(&mut bytes);
                 assert!(SphinxCodec.decode(&mut bytes).unwrap().is_none());
 
                 assert_eq!(bytes.capacity(), Header::SIZE + packet_size.size())

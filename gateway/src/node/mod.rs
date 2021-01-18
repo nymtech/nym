@@ -189,14 +189,9 @@ impl Gateway {
             }
 
             if let Err(err) = presence::register_with_validator(
-                self.config.get_validator_rest_endpoint(),
-                self.config.get_mix_announce_address(),
-                self.config.get_clients_announce_address(),
+                &self.config,
                 self.identity.public_key().to_base58_string(),
                 self.encryption_keys.public_key().to_base58_string(),
-                self.config.get_version().to_string(),
-                self.config.get_location(),
-                self.config.get_incentives_address()
             ).await {
                 error!("failed to register with the validator - {:?}", err);
                 return

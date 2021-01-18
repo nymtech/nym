@@ -89,8 +89,8 @@ impl EncryptedAddressBytes {
     }
 }
 
-impl Into<String> for EncryptedAddressBytes {
-    fn into(self) -> String {
-        self.to_base58_string()
+impl From<EncryptedAddressBytes> for String {
+    fn from(val: EncryptedAddressBytes) -> Self {
+        val.to_base58_string()
     }
 }

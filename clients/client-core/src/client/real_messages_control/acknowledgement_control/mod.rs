@@ -56,7 +56,7 @@ type RetransmissionRequestReceiver = mpsc::UnboundedReceiver<Weak<PendingAcknowl
 pub(super) type SentPacketNotificationSender = mpsc::UnboundedSender<FragmentIdentifier>;
 
 /// Channel used for receiving signals about the particular `Fragment` (associated with the `FragmentIdentifier`)
-/// that it is about to be sent to tbe mix network and its timeout timer should be started.
+/// that it is about to be sent to the mix network and its timeout timer should be started.
 type SentPacketNotificationReceiver = mpsc::UnboundedReceiver<FragmentIdentifier>;
 
 /// Structure representing a data `Fragment` that is on-route to the specified `Recipient`

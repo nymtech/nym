@@ -128,8 +128,10 @@ pub fn execute(matches: &ArgMatches) {
 
     // if gateway was already initialised, don't generate new keys
     if !already_init {
-        let identity_keys = identity::KeyPair::new();
-        let sphinx_keys = encryption::KeyPair::new();
+        let mut rng = rand::rngs::OsRng;
+
+        let identity_keys = identity::KeyPair::new(&mut rng);
+        let sphinx_keys = encryption::KeyPair::new(&mut rng);
         let pathfinder = GatewayPathfinder::new_from_config(&config);
         pemstore::store_keypair(
             &sphinx_keys,

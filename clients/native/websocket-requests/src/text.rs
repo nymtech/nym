@@ -115,15 +115,15 @@ impl TryFrom<String> for ServerResponseText {
     }
 }
 
-impl Into<String> for ServerResponseText {
-    fn into(self) -> String {
+impl From<ServerResponseText> for String {
+    fn from(res: ServerResponseText) -> Self {
         // per serde_json docs:
         /*
         /// Serialization can fail if `T`'s implementation of `Serialize` decides to
         /// fail, or if `T` contains a map with non-string keys.
          */
         // this is not the case here.
-        serde_json::to_string(&self).unwrap()
+        serde_json::to_string(&res).unwrap()
     }
 }
 

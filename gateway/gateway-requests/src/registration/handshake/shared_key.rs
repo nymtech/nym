@@ -149,9 +149,9 @@ impl SharedKeys {
     }
 }
 
-impl Into<String> for SharedKeys {
-    fn into(self) -> String {
-        self.to_base58_string()
+impl From<SharedKeys> for String {
+    fn from(keys: SharedKeys) -> Self {
+        keys.to_base58_string()
     }
 }
 

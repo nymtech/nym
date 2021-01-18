@@ -34,12 +34,12 @@ impl RESTRequest for Request {
     ) -> Result<Self, RESTRequestError> {
         // set reputation requires single path param - the node id
         // and single query param - what reputation should it be set to
-        let path_params = path_params.ok_or_else(|| RESTRequestError::InvalidPathParams)?;
+        let path_params = path_params.ok_or(RESTRequestError::InvalidPathParams)?;
         if path_params.len() != 1 {
             return Err(RESTRequestError::InvalidPathParams);
         }
 
-        let query_params = query_params.ok_or_else(|| RESTRequestError::InvalidQueryParams)?;
+        let query_params = query_params.ok_or(RESTRequestError::InvalidQueryParams)?;
         if query_params.len() != 1 {
             return Err(RESTRequestError::InvalidQueryParams);
         }

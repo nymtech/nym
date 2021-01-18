@@ -93,7 +93,7 @@ fn pre_090_upgrade(from: &str, mut config: Config) -> Config {
         .set_custom_version(to_version.to_string().as_ref());
 
     println!(
-        "Setting validator REST endpoint to to {}",
+        "Setting validator REST endpoint to {}",
         DEFAULT_VALIDATOR_REST_ENDPOINT
     );
 

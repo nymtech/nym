@@ -26,7 +26,7 @@ pub enum MixProcessingError {
 }
 
 impl From<SphinxError> for MixProcessingError {
-    // for time being just have a single error instance for all possible results of SphinxError
+    // for the time being just have a single error instance for all possible results of SphinxError
     fn from(err: SphinxError) -> Self {
         use MixProcessingError::*;
 

@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{DefRng, DEFAULT_RNG};
 use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::params::PacketMode;
 use nymsphinx::{
     acknowledgements::AckKey, addressing::clients::Recipient, preparer::MessagePreparer,
 };
+use rand::rngs::OsRng;
 use std::time::Duration;
 use topology::NymTopology;
 
@@ -25,18 +25,18 @@ const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 
 pub(crate) struct Chunker {
-    rng: DefRng,
+    rng: OsRng,
     me: Recipient,
-    message_preparer: MessagePreparer<DefRng>,
+    message_preparer: MessagePreparer<OsRng>,
 }
 
 impl Chunker {
     pub(crate) fn new(me: Recipient) -> Self {
         Chunker {
-            rng: DEFAULT_RNG,
+            rng: OsRng,
             me,
             message_preparer: MessagePreparer::new(
-                DEFAULT_RNG,
+                OsRng,
                 me,
                 DEFAULT_AVERAGE_PACKET_DELAY,
                 DEFAULT_AVERAGE_ACK_DELAY,

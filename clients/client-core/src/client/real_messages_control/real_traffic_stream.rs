@@ -117,7 +117,7 @@ type BatchRealMessageReceiver = mpsc::UnboundedReceiver<Vec<RealMessage>>;
 
 pub(crate) enum StreamMessage {
     Cover,
-    Real(RealMessage),
+    Real(Box<RealMessage>),
 }
 
 impl<R> Stream for OutQueueControl<R>
@@ -145,7 +145,7 @@ where
 
         // check if we have anything immediately available
         if let Some(real_available) = self.received_buffer.pop_front() {
-            return Poll::Ready(Some(StreamMessage::Real(real_available)));
+            return Poll::Ready(Some(StreamMessage::Real(Box::new(real_available))));
         }
 
         // decide what kind of message to send
@@ -158,9 +158,9 @@ where
             Poll::Ready(Some(real_messages)) => {
                 self.received_buffer = real_messages.into();
                 // we MUST HAVE received at least ONE message
-                Poll::Ready(Some(StreamMessage::Real(
+                Poll::Ready(Some(StreamMessage::Real(Box::new(
                     self.received_buffer.pop_front().unwrap(),
-                )))
+                ))))
             }
 
             // otherwise construct a dummy one
@@ -173,6 +173,9 @@ impl<R> OutQueueControl<R>
 where
     R: CryptoRng + Rng + Unpin,
 {
+    // at this point I'm not entirely sure how to deal with this warning without
+    // some considerable refactoring
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: Config,
         ack_key: Arc<AckKey>,

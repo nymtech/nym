@@ -136,7 +136,7 @@ impl Notifier {
             .message_receiver
             .insert_new_fragment(fragment)
             .map_err(|_| NotifierError::MalformedPacketReceived)?
-            .ok_or_else(|| NotifierError::NonTestPacketReceived)?; // if it's a test packet it MUST BE reconstructed with single fragment
+            .ok_or(NotifierError::NonTestPacketReceived)?; // if it's a test packet it MUST BE reconstructed with single fragment
 
         let all_received = self.current_test_run.received_packet(recovered.message);
         if all_received {

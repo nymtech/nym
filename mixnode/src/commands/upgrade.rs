@@ -119,12 +119,14 @@ fn pre_090_upgrade(from: &str, config: Config, matches: &ArgMatches) -> Config {
 
     println!("Setting metrics server to {}", DEFAULT_METRICS_SERVER);
     println!(
-        "Setting validator REST endpoint to to {}",
+        "Setting validator REST endpoint to {}",
         DEFAULT_VALIDATOR_REST_ENDPOINT
     );
 
     println!("Generating new identity...");
-    let identity_keys = identity::KeyPair::new();
+    let mut rng = rand::rngs::OsRng;
+
+    let identity_keys = identity::KeyPair::new(&mut rng);
     upgraded_config.set_default_identity_keypair_paths();
 
     if let Err(err) = pemstore::store_keypair(

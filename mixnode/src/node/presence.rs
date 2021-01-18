@@ -12,32 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::config::Config;
 use validator_client::models::mixnode::MixRegistrationInfo;
 use validator_client::ValidatorClientError;
 
 // there's no point in keeping the validator client persistently as it might be literally hours or days
 // before it's used again
 pub(crate) async fn register_with_validator(
-    validator_endpoint: String,
-    mix_host: String,
+    mixnode_config: &Config,
     identity_key: String,
     sphinx_key: String,
-    version: String,
-    location: String,
-    layer: u64,
-    incentives_address: Option<String>,
 ) -> Result<(), ValidatorClientError> {
-    let config = validator_client::Config::new(validator_endpoint);
+    let config = validator_client::Config::new(mixnode_config.get_validator_rest_endpoint());
     let validator_client = validator_client::Client::new(config);
 
     let registration_info = MixRegistrationInfo::new(
-        mix_host,
+        mixnode_config.get_announce_address(),
         identity_key,
         sphinx_key,
-        version,
-        location,
-        layer,
-        incentives_address,
+        mixnode_config.get_version().to_string(),
+        mixnode_config.get_location(),
+        mixnode_config.get_layer(),
+        mixnode_config.get_incentives_address(),
     );
 
     validator_client.register_mix(registration_info).await

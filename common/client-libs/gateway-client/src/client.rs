@@ -132,7 +132,7 @@ impl GatewayClient {
         }
     }
 
-    pub fn identity(&self) -> identity::PublicKey {
+    pub fn gateway_identity(&self) -> identity::PublicKey {
         self.gateway_identity
     }
 

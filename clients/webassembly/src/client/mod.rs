@@ -102,7 +102,7 @@ impl NymClient {
             self.gateway_client
                 .as_ref()
                 .expect("gateway connection was not established!")
-                .identity(),
+                .gateway_identity(),
         )
     }
 

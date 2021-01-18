@@ -97,7 +97,7 @@ impl ReceivedProcessorInner {
             .message_receiver
             .insert_new_fragment(fragment)
             .map_err(|_| ProcessingError::MalformedPacketReceived)?
-            .ok_or_else(|| ProcessingError::NonTestPacketReceived)?; // if it's a test packet it MUST BE reconstructed with single fragment
+            .ok_or(ProcessingError::NonTestPacketReceived)?; // if it's a test packet it MUST BE reconstructed with single fragment
         let test_packet = TestPacket::try_from_bytes(&recovered.message)
             .map_err(|_| ProcessingError::MalformedPacketReceived)?;
 
@@ -184,8 +184,8 @@ impl ReceivedProcessor {
             ) -> MutexGuard<'a, ReceivedProcessorInner> {
                 loop {
                     match permit_change.next().await.unwrap() {
-                        // TODO: this is really an undefined state so should we rather panic here?
-                        LockPermit::Release => error!(
+                        // we should only ever get this on the very first run
+                        LockPermit::Release => debug!(
                             "somehow got request to drop our lock permit while we do not hold it!"
                         ),
                         LockPermit::Free => return inner.lock().await,

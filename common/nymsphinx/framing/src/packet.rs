@@ -106,7 +106,7 @@ mod header_encoding {
     fn header_can_be_decoded_from_a_valid_encoded_instance() {
         let header = Header::default();
         let mut bytes = BytesMut::new();
-        header.encode(&mut bytes).unwrap();
+        header.encode(&mut bytes);
         let decoded = Header::decode(&mut bytes).unwrap().unwrap();
         assert_eq!(decoded, header);
     }
@@ -157,7 +157,7 @@ mod header_encoding {
                 packet_mode: Default::default(),
             };
             let mut bytes = BytesMut::new();
-            header.encode(&mut bytes).unwrap();
+            header.encode(&mut bytes);
             assert_eq!(bytes.capacity(), bytes.len() + packet_size.size())
         }
     }

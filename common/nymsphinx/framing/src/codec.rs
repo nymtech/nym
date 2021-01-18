@@ -236,7 +236,7 @@ mod packet_encoding {
                     packet_mode: Default::default(),
                 };
                 let mut bytes = BytesMut::new();
-                header.encode(&mut bytes).unwrap();
+                header.encode(&mut bytes);
                 assert!(SphinxCodec.decode(&mut bytes).unwrap().is_none());
 
                 assert_eq!(bytes.capacity(), Header::SIZE + packet_size.size())

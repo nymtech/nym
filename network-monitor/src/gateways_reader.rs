@@ -15,7 +15,7 @@
 use crypto::asymmetric::identity;
 use futures::stream::{FuturesUnordered, Stream};
 use futures::task::Context;
-use gateway_client::MixnetMessageReceiver;
+use gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
 use log::*;
 use std::pin::Pin;
 use std::task::{Poll, Waker};
@@ -30,15 +30,21 @@ pub(crate) type GatewayMessages = Vec<Vec<u8>>;
 
 pub(crate) struct GatewayChannel {
     id: identity::PublicKey,
-    channel: MixnetMessageReceiver,
+    message_receiver: MixnetMessageReceiver,
+    ack_receiver: AcknowledgementReceiver,
     is_closed: bool,
 }
 
 impl GatewayChannel {
-    pub(crate) fn new(id: identity::PublicKey, channel: MixnetMessageReceiver) -> Self {
+    pub(crate) fn new(
+        id: identity::PublicKey,
+        message_receiver: MixnetMessageReceiver,
+        ack_receiver: AcknowledgementReceiver,
+    ) -> Self {
         GatewayChannel {
             id,
-            channel,
+            message_receiver,
+            ack_receiver,
             is_closed: false,
         }
     }
@@ -52,15 +58,22 @@ impl Stream for GatewayChannel {
             return Poll::Ready(None);
         }
 
-        // if we managed to get an item, try to also read the next one
-        let item = futures::ready!(Pin::new(&mut self.channel).poll_next(cx));
-
         let mut polled = 0;
+
+        // empty the ack channel if anything is on it (we don't care about the content at all at the
+        // moment)
+        while let Poll::Ready(_ack) = Pin::new(&mut self.ack_receiver).poll_next(cx) {
+            polled += 1;
+        }
+
+        let item = futures::ready!(Pin::new(&mut self.message_receiver).poll_next(cx));
 
         match item {
             None => Poll::Ready(None),
+            // if we managed to get an item, try to also read additional ones
             Some(mut messages) => {
-                while let Poll::Ready(new_item) = Pin::new(&mut self.channel).poll_next(cx) {
+                while let Poll::Ready(new_item) = Pin::new(&mut self.message_receiver).poll_next(cx)
+                {
                     polled += 1;
                     match new_item {
                         None => {

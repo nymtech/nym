@@ -334,22 +334,25 @@ impl PacketPreparer {
             .chain(self.tested_nodes(&gateways).into_iter())
             .collect();
 
+        // those packets are going to go to our 'main' gateway
         let mix_packets = self
             .create_mixnode_mix_packets(mixes, &mut invalid_nodes)
             .await;
 
-        let main_gateway = self.tested_network.main_v4_gateway();
-        let main_gateway_packets = GatewayPackets::new(
-            main_gateway.client_listener.clone(),
-            main_gateway.identity_key,
-            mix_packets,
-        );
+        let main_gateway_id = self.tested_network.main_v4_gateway().identity_key;
 
         let mut gateway_packets = self
             .create_gateway_mix_packets(gateways, &mut invalid_nodes)
             .await;
 
-        gateway_packets.push(main_gateway_packets);
+        // right now make it a requirement for the main gateway to be in the topology the whole time
+        // this might change down the line
+        let tested_main_gateway_packets = gateway_packets
+            .iter_mut()
+            .find(|gateway| gateway.gateway_address() == main_gateway_id)
+            .expect("our 'good' gateway does not seem to be present in the topology!");
+
+        tested_main_gateway_packets.push_packets(mix_packets);
 
         Ok(PreparedPackets {
             packets: gateway_packets,

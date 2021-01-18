@@ -95,9 +95,15 @@ impl Monitor {
 
         self.received_processor.set_new_expected(self.nonce).await;
 
+        debug!("starting to send all the packets...");
         self.packet_sender
             .send_packets(prepared_packets.packets)
             .await;
+
+        debug!(
+            "sending is over, waiting for {:?} before checking what we received",
+            PACKET_DELIVERY_TIMEOUT
+        );
 
         // give the packets some time to traverse the network
         delay_for(PACKET_DELIVERY_TIMEOUT).await;
@@ -117,8 +123,6 @@ impl Monitor {
     }
 
     pub(crate) async fn run(&mut self) {
-        // TODO: I guess spawn receiver here?
-
         loop {
             let run_deadline = delay_for(MONITOR_RUN_INTERVAL);
             self.test_run().await;

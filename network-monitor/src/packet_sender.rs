@@ -235,46 +235,47 @@ impl PacketSenderOld {
         &self,
         test_gateways: &[TestGateway],
     ) -> (GatewaysInfo, Vec<GatewaySender>) {
-        let num_valid = test_gateways
-            .iter()
-            .filter(|gateway| gateway.is_valid())
-            .count();
-
-        let mut gateway_senders = Vec::with_capacity(num_valid);
-        let mut tested_gateways = Vec::with_capacity(num_valid);
-
-        let mut malformed_gateways = Vec::new();
-        let mut incompatible_gateways = Vec::new();
-
-        for test_gateway in test_gateways {
-            match test_gateway {
-                TestGateway::ValidGateway(gateway, gateway_test_packets) => {
-                    let (sender, receiver) = mpsc::unbounded();
-                    let gateway_channel = GatewayChannel::new(gateway.identity_key, receiver);
-
-                    tested_gateways.push((gateway_channel, *gateway_test_packets));
-                    gateway_senders.push(GatewaySender {
-                        gateway: gateway.clone(),
-                        message_sender: sender,
-                        packets: *gateway_test_packets,
-                    });
-                }
-                TestGateway::MalformedGateway(pub_key) => malformed_gateways.push(pub_key.clone()),
-                TestGateway::IncompatibleGateway(gateway) => incompatible_gateways.push((
-                    gateway.identity_key.to_base58_string(),
-                    gateway.version.clone(),
-                )),
-            }
-        }
-
-        (
-            GatewaysInfo {
-                tested_gateways,
-                malformed_gateways,
-                incompatible_gateways,
-            },
-            gateway_senders,
-        )
+        todo!()
+        // let num_valid = test_gateways
+        //     .iter()
+        //     .filter(|gateway| gateway.is_valid())
+        //     .count();
+        //
+        // let mut gateway_senders = Vec::with_capacity(num_valid);
+        // let mut tested_gateways = Vec::with_capacity(num_valid);
+        //
+        // let mut malformed_gateways = Vec::new();
+        // let mut incompatible_gateways = Vec::new();
+        //
+        // for test_gateway in test_gateways {
+        //     match test_gateway {
+        //         TestGateway::ValidGateway(gateway, gateway_test_packets) => {
+        //             let (sender, receiver) = mpsc::unbounded();
+        //             let gateway_channel = GatewayChannel::new(gateway.identity_key, receiver);
+        //
+        //             tested_gateways.push((gateway_channel, *gateway_test_packets));
+        //             gateway_senders.push(GatewaySender {
+        //                 gateway: gateway.clone(),
+        //                 message_sender: sender,
+        //                 packets: *gateway_test_packets,
+        //             });
+        //         }
+        //         TestGateway::MalformedGateway(pub_key) => malformed_gateways.push(pub_key.clone()),
+        //         TestGateway::IncompatibleGateway(gateway) => incompatible_gateways.push((
+        //             gateway.identity_key.to_base58_string(),
+        //             gateway.version.clone(),
+        //         )),
+        //     }
+        // }
+        //
+        // (
+        //     GatewaysInfo {
+        //         tested_gateways,
+        //         malformed_gateways,
+        //         incompatible_gateways,
+        //     },
+        //     gateway_senders,
+        // )
     }
 
     fn prepare_run_info(&self, test_mixes: &[TestMix], test_gateways: &[TestGateway]) -> RunInfo {

@@ -18,7 +18,7 @@ use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
 use futures::task::Context;
 use futures::{Future, Stream};
-use gateway_client::{GatewayClient, MixnetMessageReceiver};
+use gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
 use pin_project::pin_project;
@@ -53,6 +53,10 @@ impl GatewayPackets {
             pub_key,
             packets,
         }
+    }
+
+    pub(super) fn push_packets(&mut self, mut packets: Vec<MixPacket>) {
+        self.packets.append(&mut packets)
     }
 
     pub(super) fn gateway_address(&self) -> identity::PublicKey {
@@ -100,12 +104,16 @@ impl PacketSender {
         address: String,
         identity: identity::PublicKey,
         fresh_gateway_client_data: &FreshGatewayClientData,
-    ) -> (GatewayClient, MixnetMessageReceiver) {
+    ) -> (
+        GatewayClient,
+        (MixnetMessageReceiver, AcknowledgementReceiver),
+    ) {
         // TODO: future optimization: if we're remaking client for a gateway to which we used to be connected in the past,
         // use old shared keys
         let (message_sender, message_receiver) = mpsc::unbounded();
-        // currently we do not care about acks at all
-        let (ack_sender, _) = mpsc::unbounded();
+        // currently we do not care about acks at all, but we must keep the channel alive
+        // so that the gateway client would not crash
+        let (ack_sender, ack_receiver) = mpsc::unbounded();
         (
             GatewayClient::new(
                 address,
@@ -116,7 +124,7 @@ impl PacketSender {
                 ack_sender,
                 fresh_gateway_client_data.gateway_response_timeout,
             ),
-            message_receiver,
+            (message_receiver, ack_receiver),
         )
     }
 
@@ -129,15 +137,28 @@ impl PacketSender {
     ) -> Option<GatewayClient> {
         let was_present = client.is_some();
 
-        let (mut client, message_receiver) = if let Some(client) = client {
+        let (mut client, gateway_channels) = if let Some(client) = client {
             (client, None)
         } else {
-            let (new_client, message_receiver) = Self::new_gateway_client(
+            error!(
+                "making new gateway client to {}",
+                packets.pub_key.to_base58_string(),
+            );
+
+            let (mut new_client, (message_receiver, ack_receiver)) = Self::new_gateway_client(
                 packets.clients_address,
                 packets.pub_key,
                 &fresh_gateway_client_data,
             );
-            (new_client, Some(message_receiver))
+            if let Err(err) = new_client.authenticate_and_start().await {
+                warn!(
+                    "failed to authenticate with new gateway ({}) - {}",
+                    packets.pub_key.to_base58_string(),
+                    err
+                );
+                return None;
+            }
+            (new_client, Some((message_receiver, ack_receiver)))
         };
 
         // TODO: change and introduce rate limiting like in the old code
@@ -162,7 +183,8 @@ impl PacketSender {
                 .gateways_status_updater
                 .unbounded_send(GatewayClientUpdate::New(
                     packets.pub_key,
-                    message_receiver.expect("we created a new client, yet the channel is a None!"),
+                    gateway_channels
+                        .expect("we created a new client, yet the channels are a None!"),
                 ))
                 .expect("packet receiver seems to have died!")
         }

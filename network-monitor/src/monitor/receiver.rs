@@ -17,7 +17,7 @@ use crate::monitor::processor::ReceivedProcessorSender;
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use futures::stream;
-use gateway_client::MixnetMessageReceiver;
+use gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
 use tokio::stream::StreamExt;
 
 pub(crate) type GatewayClientUpdateSender = mpsc::UnboundedSender<GatewayClientUpdate>;
@@ -25,7 +25,10 @@ pub(crate) type GatewayClientUpdateReceiver = mpsc::UnboundedReceiver<GatewayCli
 
 pub(crate) enum GatewayClientUpdate {
     Failure(identity::PublicKey),
-    New(identity::PublicKey, MixnetMessageReceiver),
+    New(
+        identity::PublicKey,
+        (MixnetMessageReceiver, AcknowledgementReceiver),
+    ),
 }
 
 pub(crate) struct PacketReceiver {
@@ -48,8 +51,8 @@ impl PacketReceiver {
 
     fn process_gateway_update(&mut self, update: GatewayClientUpdate) {
         match update {
-            GatewayClientUpdate::New(id, receiver) => {
-                let channel = GatewayChannel::new(id, receiver);
+            GatewayClientUpdate::New(id, (message_receiver, ack_receiver)) => {
+                let channel = GatewayChannel::new(id, message_receiver, ack_receiver);
                 self.gateways_reader.insert_channel(channel);
             }
             GatewayClientUpdate::Failure(id) => self.gateways_reader.remove_by_key(id),

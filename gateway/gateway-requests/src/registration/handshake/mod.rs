@@ -18,12 +18,8 @@ use self::gateway::GatewayHandshake;
 pub use self::shared_key::{SharedKeySize, SharedKeys};
 use crypto::asymmetric::identity;
 use futures::{Sink, Stream};
-use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use tungstenite::{Error as WsError, Message as WsMessage};
-
-// for ease of use
-pub const DEFAULT_RNG: OsRng = OsRng;
 
 pub(crate) type WsItem = Result<WsMessage, WsError>;
 

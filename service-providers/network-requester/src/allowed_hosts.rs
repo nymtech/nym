@@ -112,7 +112,7 @@ impl HostsStore {
         HostsStore { storefile, hosts }
     }
 
-    fn append(path: &PathBuf, text: &str) {
+    fn append(path: &Path, text: &str) {
         use std::io::Write;
         let mut file = OpenOptions::new()
             .write(true)

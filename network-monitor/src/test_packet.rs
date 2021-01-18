@@ -57,9 +57,9 @@ impl IpVersion {
     }
 }
 
-impl Into<String> for IpVersion {
-    fn into(self) -> String {
-        format!("{}", self)
+impl From<IpVersion> for String {
+    fn from(ipv: IpVersion) -> Self {
+        format!("{}", ipv)
     }
 }
 

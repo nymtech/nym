@@ -139,9 +139,9 @@ impl From<SocketAddr> for NymNodeRoutingAddress {
 
 /// Considering `NymNodeRoutingAddress` is equivalent to a `SocketAddr` at this point,
 /// it makes perfect sense to allow the bilateral transformation.
-impl Into<SocketAddr> for NymNodeRoutingAddress {
-    fn into(self) -> SocketAddr {
-        self.0
+impl From<NymNodeRoutingAddress> for SocketAddr {
+    fn from(addr: NymNodeRoutingAddress) -> Self {
+        addr.0
     }
 }
 

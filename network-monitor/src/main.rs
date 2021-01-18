@@ -25,7 +25,6 @@ use monitor::{AckSender, MixnetSender, Monitor};
 use notifications::Notifier;
 use nymsphinx::addressing::clients::Recipient;
 use packet_sender::PacketSender;
-use rand::rngs::OsRng;
 use std::sync::Arc;
 use std::time;
 use std::time::Duration;
@@ -38,9 +37,6 @@ mod packet_sender;
 mod run_info;
 mod test_packet;
 mod tested_network;
-
-pub(crate) type DefRng = OsRng;
-pub(crate) const DEFAULT_RNG: DefRng = OsRng;
 
 const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
 const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
@@ -103,9 +99,7 @@ async fn main() {
     let v4_topology = parse_topology_file(v4_topology_path);
     let v6_topology = parse_topology_file(v6_topology_path);
 
-    let validator_rest_uri = matches
-        .value_of(VALIDATOR_ARG)
-        .unwrap_or_else(|| DEFAULT_VALIDATOR);
+    let validator_rest_uri = matches.value_of(VALIDATOR_ARG).unwrap_or(DEFAULT_VALIDATOR);
     let detailed_report = matches.is_present(DETAILED_REPORT_ARG);
     let sending_rate = matches
         .value_of(GATEWAY_SENDING_RATE_ARG)
@@ -133,8 +127,10 @@ async fn main() {
 
     // Generate a new set of identity keys. These are ephemeral, and change on each run.
     // JS: do they? or rather should they?
-    let identity_keypair = identity::KeyPair::new();
-    let encryption_keypair = encryption::KeyPair::new();
+    let mut rng = rand::rngs::OsRng;
+
+    let identity_keypair = identity::KeyPair::new(&mut rng);
+    let encryption_keypair = encryption::KeyPair::new(&mut rng);
 
     // We need our own address as a Recipient so we can send ourselves test packets
     let self_address = Recipient::new(

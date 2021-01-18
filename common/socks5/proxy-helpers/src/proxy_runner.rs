@@ -29,11 +29,11 @@ pub struct ProxyMessage {
     pub socket_closed: bool,
 }
 
-impl Into<ProxyMessage> for (Vec<u8>, bool) {
-    fn into(self) -> ProxyMessage {
+impl From<(Vec<u8>, bool)> for ProxyMessage {
+    fn from(data: (Vec<u8>, bool)) -> Self {
         ProxyMessage {
-            data: self.0,
-            socket_closed: self.1,
+            data: data.0,
+            socket_closed: data.1,
         }
     }
 }

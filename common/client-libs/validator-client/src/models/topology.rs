@@ -31,12 +31,12 @@ pub struct Topology {
 
 // changed from `TryInto`. reason being is that we should not fail entire topology
 // conversion if there's one invalid node on the network screwing around
-impl Into<NymTopology> for Topology {
-    fn into(self) -> NymTopology {
+impl From<Topology> for NymTopology {
+    fn from(topology: Topology) -> Self {
         use std::collections::HashMap;
 
         let mut mixes = HashMap::new();
-        for mix in self.mix_nodes.into_iter() {
+        for mix in topology.mix_nodes.into_iter() {
             let layer = mix.mix_info.layer as MixLayer;
             if layer == 0 || layer > 3 {
                 warn!(
@@ -57,8 +57,8 @@ impl Into<NymTopology> for Topology {
             }
         }
 
-        let mut gateways = Vec::with_capacity(self.gateways.len());
-        for gate in self.gateways.into_iter() {
+        let mut gateways = Vec::with_capacity(topology.gateways.len());
+        for gate in topology.gateways.into_iter() {
             let gate_id = gate.gateway_info.node_info.identity_key.clone();
             match gate.try_into() {
                 Ok(gate) => gateways.push(gate),

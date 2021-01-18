@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
-use rand::{rngs::OsRng, CryptoRng, RngCore};
+use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
 
 /// Size of a X25519 private key
@@ -57,12 +57,7 @@ pub struct KeyPair {
 }
 
 impl KeyPair {
-    pub fn new() -> Self {
-        let mut rng = OsRng;
-        Self::new_with_rng(&mut rng)
-    }
-
-    pub fn new_with_rng<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+    pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
         let private_key = x25519_dalek::StaticSecret::new(rng);
         let public_key = (&private_key).into();
 
@@ -206,16 +201,15 @@ impl PemStorableKey for PrivateKey {
 }
 
 // compatibility with sphinx keys:
-
-impl Into<nymsphinx_types::PublicKey> for PublicKey {
-    fn into(self) -> nymsphinx_types::PublicKey {
-        nymsphinx_types::PublicKey::from(self.to_bytes())
+impl From<PublicKey> for nymsphinx_types::PublicKey {
+    fn from(key: PublicKey) -> Self {
+        nymsphinx_types::PublicKey::from(key.to_bytes())
     }
 }
 
-impl<'a> Into<nymsphinx_types::PublicKey> for &'a PublicKey {
-    fn into(self) -> nymsphinx_types::PublicKey {
-        nymsphinx_types::PublicKey::from(self.to_bytes())
+impl<'a> From<&'a PublicKey> for nymsphinx_types::PublicKey {
+    fn from(key: &'a PublicKey) -> Self {
+        nymsphinx_types::PublicKey::from(key.to_bytes())
     }
 }
 
@@ -225,15 +219,15 @@ impl From<nymsphinx_types::PublicKey> for PublicKey {
     }
 }
 
-impl Into<nymsphinx_types::PrivateKey> for PrivateKey {
-    fn into(self) -> nymsphinx_types::PrivateKey {
-        nymsphinx_types::PrivateKey::from(self.to_bytes())
+impl From<PrivateKey> for nymsphinx_types::PrivateKey {
+    fn from(key: PrivateKey) -> Self {
+        nymsphinx_types::PrivateKey::from(key.to_bytes())
     }
 }
 
-impl<'a> Into<nymsphinx_types::PrivateKey> for &'a PrivateKey {
-    fn into(self) -> nymsphinx_types::PrivateKey {
-        nymsphinx_types::PrivateKey::from(self.to_bytes())
+impl<'a> From<&'a PrivateKey> for nymsphinx_types::PrivateKey {
+    fn from(key: &'a PrivateKey) -> Self {
+        nymsphinx_types::PrivateKey::from(key.to_bytes())
     }
 }
 
@@ -253,8 +247,10 @@ mod sphinx_key_conversion {
 
     #[test]
     fn works_for_forward_conversion() {
+        let mut rng = rand::rngs::OsRng;
+
         for _ in 0..NUM_ITERATIONS {
-            let keys = KeyPair::new();
+            let keys = KeyPair::new(&mut rng);
             let private = keys.private_key;
             let public = keys.public_key;
 

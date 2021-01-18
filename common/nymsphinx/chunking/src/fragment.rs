@@ -169,25 +169,19 @@ impl Fragment {
                 if payload.len() != linked_fragment_payload_max_len(max_plaintext_size) {
                     return Err(ChunkingError::InvalidPayloadLengthError);
                 }
-            } else {
-                if payload.len() > linked_fragment_payload_max_len(max_plaintext_size) {
-                    return Err(ChunkingError::InvalidPayloadLengthError);
-                }
+            } else if payload.len() > linked_fragment_payload_max_len(max_plaintext_size) {
+                return Err(ChunkingError::InvalidPayloadLengthError);
             }
         } else if next_fragments_set_id.is_some() {
             if payload.len() != linked_fragment_payload_max_len(max_plaintext_size) {
                 return Err(ChunkingError::InvalidPayloadLengthError);
             }
-        } else {
-            if total_fragments != current_fragment {
-                if payload.len() != unlinked_fragment_payload_max_len(max_plaintext_size) {
-                    return Err(ChunkingError::InvalidPayloadLengthError);
-                }
-            } else {
-                if payload.len() > unlinked_fragment_payload_max_len(max_plaintext_size) {
-                    return Err(ChunkingError::InvalidPayloadLengthError);
-                }
+        } else if total_fragments != current_fragment {
+            if payload.len() != unlinked_fragment_payload_max_len(max_plaintext_size) {
+                return Err(ChunkingError::InvalidPayloadLengthError);
             }
+        } else if payload.len() > unlinked_fragment_payload_max_len(max_plaintext_size) {
+            return Err(ChunkingError::InvalidPayloadLengthError);
         }
 
         Ok(Fragment {
@@ -453,7 +447,7 @@ impl FragmentHeader {
 // everything below are tests
 
 #[cfg(test)]
-mod fragment {
+mod fragment_tests {
     use super::*;
     use nymsphinx_params::packet_sizes::PacketSize;
     use rand::{thread_rng, RngCore};
@@ -952,7 +946,7 @@ mod fragment_header {
             // clear the fragmentation flag
             header_bytes_low[0] &= !(1 << 7);
 
-            let mut header_bytes_high = header_bytes_low.clone();
+            let mut header_bytes_high = header_bytes_low;
             // make sure first byte of id is non-empty (apart from the fragmentation flag)
             // note for anyone reading this test in the future: choice of '3' here is arbitrary.
             header_bytes_high[0] |= 1 << 3;

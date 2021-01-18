@@ -75,14 +75,13 @@ pub struct Header {
 impl Header {
     pub(crate) const SIZE: usize = 2;
 
-    pub(crate) fn encode(&self, dst: &mut BytesMut) -> Result<(), SphinxCodecError> {
+    pub(crate) fn encode(&self, dst: &mut BytesMut) {
         // we reserve one byte for `packet_size` and the other for `mode`
         dst.reserve(Self::SIZE);
         dst.put_u8(self.packet_size as u8);
         dst.put_u8(self.packet_mode as u8);
         // reserve bytes for the actual packet
         dst.reserve(self.packet_size.size());
-        Ok(())
     }
 
     pub(crate) fn decode(src: &mut BytesMut) -> Result<Option<Self>, SphinxCodecError> {
@@ -107,7 +106,7 @@ mod header_encoding {
     fn header_can_be_decoded_from_a_valid_encoded_instance() {
         let header = Header::default();
         let mut bytes = BytesMut::new();
-        header.encode(&mut bytes).unwrap();
+        header.encode(&mut bytes);
         let decoded = Header::decode(&mut bytes).unwrap().unwrap();
         assert_eq!(decoded, header);
     }
@@ -158,7 +157,7 @@ mod header_encoding {
                 packet_mode: Default::default(),
             };
             let mut bytes = BytesMut::new();
-            header.encode(&mut bytes).unwrap();
+            header.encode(&mut bytes);
             assert_eq!(bytes.capacity(), bytes.len() + packet_size.size())
         }
     }

@@ -125,7 +125,7 @@ impl NymTopology {
     {
         let gateway = self
             .get_gateway(gateway_identity)
-            .ok_or_else(|| NymTopologyError::NonExistentGatewayError)?;
+            .ok_or(NymTopologyError::NonExistentGatewayError)?;
 
         Ok(self
             .random_mix_route(rng, num_mix_hops)?
@@ -224,11 +224,7 @@ mod converting_mixes_to_vec {
 
             let topology = NymTopology::new(mixes, vec![]);
             let mixvec = topology.mixes_as_vec();
-            assert!(mixvec
-                .iter()
-                .map(|node| node.location.clone())
-                .collect::<Vec<String>>()
-                .contains(&"London".to_string()));
+            assert!(mixvec.iter().any(|node| node.location == "London"));
         }
     }
 

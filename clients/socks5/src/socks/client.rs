@@ -220,14 +220,9 @@ impl SocksClient {
     }
 
     async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
-        let req = Request::new_connect(
-            self.connection_id,
-            remote_address.clone(),
-            self.self_address.clone(),
-        );
+        let req = Request::new_connect(self.connection_id, remote_address, self.self_address);
 
-        let input_message =
-            InputMessage::new_fresh(self.service_provider.clone(), req.into_bytes(), false);
+        let input_message = InputMessage::new_fresh(self.service_provider, req.into_bytes(), false);
         self.input_sender.unbounded_send(input_message).unwrap();
     }
 

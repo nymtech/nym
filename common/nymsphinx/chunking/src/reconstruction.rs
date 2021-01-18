@@ -456,8 +456,9 @@ mod reconstruction_buffer {
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
                 .collect();
-        for i in 0..254 {
-            buf.insert_fragment(Fragment::try_from_bytes(&raw_fragments[i]).unwrap());
+
+        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize - 1) {
+            buf.insert_fragment(Fragment::try_from_bytes(&raw_fragment).unwrap());
         }
 
         assert!(!buf.is_complete);
@@ -536,12 +537,13 @@ mod message_reconstructor {
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
                 .collect();
+
         // first set is fully inserted
-        for i in 0..255 {
+        for raw_fragment in raw_fragments.iter() {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
-                        .recover_fragment(raw_fragments[i].clone())
+                        .recover_fragment(raw_fragment.clone())
                         .unwrap()
                 )
                 .is_none())
@@ -572,15 +574,17 @@ mod message_reconstructor {
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
                 .collect();
-        for i in 0..254 {
+
+        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
-                        .recover_fragment(raw_fragments[i].clone())
+                        .recover_fragment(raw_fragment.clone())
                         .unwrap()
                 )
                 .is_none());
         }
+
         // finish next set for good measure
         assert!(reconstructor
             .insert_new_fragment(
@@ -619,11 +623,11 @@ mod message_reconstructor {
                 .collect();
 
         // note that first set is not fully inserted
-        for i in 0..254 {
+        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize - 1) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
-                        .recover_fragment(raw_fragments[i].clone())
+                        .recover_fragment(raw_fragment.clone())
                         .unwrap()
                 )
                 .is_none());
@@ -664,11 +668,12 @@ mod message_reconstructor {
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
                 .collect();
-        for i in 0..255 {
+
+        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
-                        .recover_fragment(raw_fragments[i].clone())
+                        .recover_fragment(raw_fragment.clone())
                         .unwrap()
                 )
                 .is_none());
@@ -705,11 +710,12 @@ mod message_reconstructor {
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
                 .collect();
-        for i in 0..255 {
+
+        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
-                        .recover_fragment(raw_fragments[i].clone())
+                        .recover_fragment(raw_fragment.clone())
                         .unwrap()
                 )
                 .is_none());
@@ -744,11 +750,11 @@ mod message_reconstructor {
                 .collect();
 
         // note that first set is not fully inserted
-        for i in 0..254 {
+        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize - 1) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
-                        .recover_fragment(raw_fragments[i].clone())
+                        .recover_fragment(raw_fragment.clone())
                         .unwrap()
                 )
                 .is_none());
@@ -784,11 +790,12 @@ mod message_reconstructor {
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
                 .collect();
-        for i in 0..(u8::max_value() as usize) * 2 {
+
+        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize * 2) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
-                        .recover_fragment(raw_fragments[i].clone())
+                        .recover_fragment(raw_fragment.clone())
                         .unwrap()
                 )
                 .is_none());
@@ -825,12 +832,17 @@ mod message_reconstructor {
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
                 .collect();
+
         // note that first set is not fully inserted
-        for i in 1..(u8::max_value() as usize) * 2 {
+        for raw_fragment in raw_fragments
+            .iter()
+            .skip(1)
+            .take(u8::max_value() as usize * 2 - 1)
+        {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
-                        .recover_fragment(raw_fragments[i].clone())
+                        .recover_fragment(raw_fragment.clone())
                         .unwrap()
                 )
                 .is_none());
@@ -896,11 +908,11 @@ mod message_reconstructor {
                 .collect();
 
         // note that first set is not fully inserted
-        for i in 0..254 {
+        for raw_fragment in raw_fragments1.iter().take(u8::max_value() as usize - 1) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
-                        .recover_fragment(raw_fragments1[i].clone())
+                        .recover_fragment(raw_fragment.clone())
                         .unwrap()
                 )
                 .is_none());
@@ -930,11 +942,11 @@ mod message_reconstructor {
                 .map(|x| x.into_bytes())
                 .collect();
 
-        for i in 0..255 {
+        for raw_fragment in raw_fragments2.iter().take(u8::max_value() as usize) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
-                        .recover_fragment(raw_fragments2[i].clone())
+                        .recover_fragment(raw_fragment.clone())
                         .unwrap()
                 )
                 .is_none());
@@ -969,11 +981,12 @@ mod message_reconstructor {
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
                 .collect();
-        for i in 0..255 {
+
+        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
-                        .recover_fragment(raw_fragments[i].clone())
+                        .recover_fragment(raw_fragment.clone())
                         .unwrap()
                 )
                 .is_none());
@@ -1265,8 +1278,9 @@ mod message_reconstructor {
                 .flat_map(|fragment_set| fragment_set.into_iter())
                 .map(|x| x.into_bytes())
                 .collect();
-        for i in 0..255 {
-            set_buf1.insert_fragment(Fragment::try_from_bytes(&raw_fragments[i]).unwrap());
+
+        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize) {
+            set_buf1.insert_fragment(Fragment::try_from_bytes(&raw_fragment).unwrap());
         }
 
         set_buf2.insert_fragment(Fragment::try_from_bytes(&raw_fragments[255]).unwrap());
@@ -1496,11 +1510,12 @@ mod message_reconstruction {
             assert_eq!(fragments.len(), 30);
 
             let mut message_reconstructor = MessageReconstructor::default();
-            for i in 0..29 {
+
+            for fragment in fragments.iter().take(fragments.len() - 1) {
                 assert!(message_reconstructor
                     .insert_new_fragment(
                         message_reconstructor
-                            .recover_fragment(fragments[i].clone())
+                            .recover_fragment(fragment.clone())
                             .unwrap()
                     )
                     .is_none());
@@ -1538,11 +1553,11 @@ mod message_reconstruction {
             fragments.shuffle(&mut rng);
 
             let mut message_reconstructor = MessageReconstructor::default();
-            for i in 0..29 {
+            for fragment in fragments.iter().take(fragments.len() - 1) {
                 assert!(message_reconstructor
                     .insert_new_fragment(
                         message_reconstructor
-                            .recover_fragment(fragments[i].clone())
+                            .recover_fragment(fragment.clone())
                             .unwrap()
                     )
                     .is_none());

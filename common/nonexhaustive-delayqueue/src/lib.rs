@@ -61,6 +61,12 @@ impl<T> NonExhaustiveDelayQueue<T> {
     }
 }
 
+impl<T> Default for NonExhaustiveDelayQueue<T> {
+    fn default() -> Self {
+        NonExhaustiveDelayQueue::new()
+    }
+}
+
 impl<T> Stream for NonExhaustiveDelayQueue<T> {
     type Item = <DelayQueue<T> as Stream>::Item;
 

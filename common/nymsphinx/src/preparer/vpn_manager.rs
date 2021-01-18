@@ -141,7 +141,7 @@ impl VPNManager {
             .load(Ordering::SeqCst)
     }
 
-    pub(super) async fn use_secret<'a, R>(&'a mut self, rng: R) -> SpinhxKeyRef<'a>
+    pub(super) async fn use_secret<R>(&mut self, rng: R) -> SpinhxKeyRef<'_>
     where
         R: CryptoRng + Rng,
     {

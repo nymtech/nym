@@ -124,7 +124,9 @@ fn pre_090_upgrade(from: &str, config: Config, matches: &ArgMatches) -> Config {
     );
 
     println!("Generating new identity...");
-    let identity_keys = identity::KeyPair::new();
+    let mut rng = rand::rngs::OsRng;
+
+    let identity_keys = identity::KeyPair::new(&mut rng);
     upgraded_config.set_default_identity_keypair_paths();
 
     if let Err(err) = pemstore::store_keypair(

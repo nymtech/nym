@@ -17,6 +17,7 @@ use crate::node::client_handling::websocket::connection_handler::Handle;
 use crypto::asymmetric::identity;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
+use rand::rngs::OsRng;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
@@ -51,6 +52,7 @@ impl Listener {
                     // TODO: I think we *REALLY* need a mechanism for having a maximum number of connected
                     // clients or spawned tokio tasks -> perhaps a worker system?
                     let mut handle = Handle::new(
+                        OsRng,
                         socket,
                         clients_handler_sender.clone(),
                         outbound_mix_sender.clone(),

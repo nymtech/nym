@@ -23,7 +23,7 @@ use nymsphinx::forwarding::packet::MixPacket;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use std::sync::Arc;
-use topology::{gateway, mix, NymTopology};
+use topology::{gateway, mix};
 use validator_client::models::gateway::RegisteredGateway;
 use validator_client::models::mixnode::RegisteredMix;
 use validator_client::models::topology::Topology;
@@ -140,11 +140,7 @@ impl PacketPreparer {
                 return true;
             }
             // if it's 0.9.Z, ensure Z >= 2
-            if version.minor == 9 && version.patch >= 2 {
-                true
-            } else {
-                false
-            }
+            version.minor == 9 && version.patch >= 2
         } else {
             false
         }
@@ -176,7 +172,7 @@ impl PacketPreparer {
         registered_gateway: &RegisteredGateway,
     ) -> PreparedNode {
         if !self.check_version_compatibility(registered_gateway.version_ref()) {
-            return PreparedNode::Invalid(InvalidNode::OutdatedMix(
+            return PreparedNode::Invalid(InvalidNode::OutdatedGateway(
                 registered_gateway.identity(),
                 registered_gateway.version(),
             ));

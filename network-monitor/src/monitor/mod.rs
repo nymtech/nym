@@ -16,11 +16,10 @@ use crate::monitor::preparer::{PacketPreparer, PreparedPackets};
 use crate::monitor::processor::ReceivedProcessor;
 use crate::monitor::sender::PacketSender;
 use crate::monitor::summary_producer::SummaryProducer;
-use crypto::asymmetric::identity;
 use log::*;
 use std::collections::HashSet;
 use std::sync::Arc;
-use tokio::time::{delay_for, Duration};
+use tokio::time::{delay_for, interval_at, Duration, Instant};
 use validator_client::models::mixmining::BatchMixStatus;
 
 pub(crate) mod preparer;
@@ -83,6 +82,7 @@ impl Monitor {
     async fn test_run(&mut self) {
         info!(target: "Monitor", "Starting test run no. {}", self.nonce);
 
+        debug!(target: "Monitor", "preparing mix packets to all nodes...");
         let prepared_packets = match self.packet_preparer.prepare_test_packets(self.nonce).await {
             Ok(packets) => packets,
             Err(err) => {
@@ -95,15 +95,12 @@ impl Monitor {
 
         self.received_processor.set_new_expected(self.nonce).await;
 
-        debug!("starting to send all the packets...");
+        debug!(target: "Monitor", "starting to send all the packets...");
         self.packet_sender
             .send_packets(prepared_packets.packets)
             .await;
 
-        debug!(
-            "sending is over, waiting for {:?} before checking what we received",
-            PACKET_DELIVERY_TIMEOUT
-        );
+        debug!(target: "Monitor", "sending is over, waiting for {:?} before checking what we received", PACKET_DELIVERY_TIMEOUT);
 
         // give the packets some time to traverse the network
         delay_for(PACKET_DELIVERY_TIMEOUT).await;
@@ -123,10 +120,12 @@ impl Monitor {
     }
 
     pub(crate) async fn run(&mut self) {
+        let mut interval = interval_at(Instant::now(), MONITOR_RUN_INTERVAL);
         loop {
-            let run_deadline = delay_for(MONITOR_RUN_INTERVAL);
+            // let run_deadline = delay_for(MONITOR_RUN_INTERVAL);
             self.test_run().await;
-            run_deadline.await;
+            interval.tick().await;
+            // run_deadline.await;
         }
     }
 }

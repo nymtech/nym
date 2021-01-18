@@ -136,16 +136,14 @@ impl TestReport {
                 } else {
                     self.completely_unroutable_gateways.push(node.clone())
                 }
+            } else if result.ip_v4_compatible && result.ip_v6_compatible {
+                self.fully_working_mixes.push(node.clone())
+            } else if result.ip_v4_compatible {
+                self.only_ipv4_compatible_mixes.push(node.clone())
+            } else if result.ip_v6_compatible {
+                self.only_ipv6_compatible_mixes.push(node.clone())
             } else {
-                if result.ip_v4_compatible && result.ip_v6_compatible {
-                    self.fully_working_mixes.push(node.clone())
-                } else if result.ip_v4_compatible {
-                    self.only_ipv4_compatible_mixes.push(node.clone())
-                } else if result.ip_v6_compatible {
-                    self.only_ipv6_compatible_mixes.push(node.clone())
-                } else {
-                    self.completely_unroutable_mixes.push(node.clone())
-                }
+                self.completely_unroutable_mixes.push(node.clone())
             }
         }
     }
@@ -167,25 +165,6 @@ impl SummaryProducer {
         self.print_report = true;
         self.print_detailed_report = true;
         self
-    }
-
-    fn down_status(&self, pub_key: String) -> Vec<MixStatus> {
-        let v4_status = MixStatus {
-            pub_key: pub_key.clone(),
-            ip_version: "4".to_string(),
-            up: false,
-        };
-
-        let v6_status = MixStatus {
-            pub_key,
-            ip_version: "6".to_string(),
-            up: false,
-        };
-
-        let mut vec = Vec::with_capacity(2);
-        vec.push(v4_status);
-        vec.push(v6_status);
-        vec
     }
 
     pub(super) fn produce_summary(
@@ -232,7 +211,7 @@ impl SummaryProducer {
         if self.print_report {
             report.total_sent = expected_nodes.len() * 2; // we sent two packets per node (one ipv4 and one ipv6)
             report.total_received = received_packets.len();
-            report.malformed = invalid_nodes.clone();
+            report.malformed = invalid_nodes;
             report.parse_summary(&summary, all_gateways);
             report.print(self.print_detailed_report);
         }

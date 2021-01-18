@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crypto::asymmetric::identity;
-use futures::stream::{FuturesUnordered, Stream};
+use futures::stream::Stream;
 use futures::task::Context;
 use gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
 use log::*;

@@ -17,7 +17,6 @@ use std::convert::{TryFrom, TryInto};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
-use validator_client::models::mixmining::MixStatus;
 
 #[derive(Debug)]
 pub(crate) enum TestPacketError {
@@ -105,15 +104,6 @@ impl PartialEq for TestPacket {
 }
 
 impl TestPacket {
-    #[deprecated]
-    pub(crate) fn new(pub_key: identity::PublicKey, ip_version: IpVersion, nonce: u64) -> Self {
-        TestPacket {
-            pub_key,
-            ip_version,
-            nonce,
-        }
-    }
-
     pub(crate) fn new_v4(pub_key: identity::PublicKey, nonce: u64) -> Self {
         TestPacket {
             ip_version: IpVersion::V4,
@@ -136,10 +126,6 @@ impl TestPacket {
 
     pub(crate) fn ip_version(&self) -> IpVersion {
         self.ip_version
-    }
-
-    pub(crate) fn pub_key(&self) -> identity::PublicKey {
-        self.pub_key
     }
 
     pub(crate) fn pub_key_string(&self) -> String {
@@ -174,21 +160,5 @@ impl TestPacket {
             nonce,
             pub_key,
         })
-    }
-
-    pub(crate) fn into_up_mixstatus(self) -> MixStatus {
-        MixStatus {
-            pub_key: self.pub_key.to_base58_string(),
-            ip_version: self.ip_version.into(),
-            up: true,
-        }
-    }
-
-    pub(crate) fn into_down_mixstatus(self) -> MixStatus {
-        MixStatus {
-            pub_key: self.pub_key.to_base58_string(),
-            ip_version: self.ip_version.into(),
-            up: false,
-        }
     }
 }

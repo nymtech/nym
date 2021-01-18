@@ -123,8 +123,8 @@ impl Monitor {
         let mut interval = interval_at(Instant::now(), MONITOR_RUN_INTERVAL);
         loop {
             // let run_deadline = delay_for(MONITOR_RUN_INTERVAL);
-            self.test_run().await;
             interval.tick().await;
+            self.test_run().await;
             // run_deadline.await;
         }
     }

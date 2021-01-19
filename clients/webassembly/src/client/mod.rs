@@ -67,8 +67,8 @@ impl NymClient {
     pub fn new(validator_server: String) -> Self {
         let mut rng = OsRng;
         // for time being generate new keys each time...
-        let identity = identity::KeyPair::new_with_rng(&mut rng);
-        let encryption_keys = encryption::KeyPair::new_with_rng(&mut rng);
+        let identity = identity::KeyPair::new(&mut rng);
+        let encryption_keys = encryption::KeyPair::new(&mut rng);
         let ack_key = AckKey::new(&mut rng);
 
         Self {
@@ -143,8 +143,9 @@ impl NymClient {
             None => console_log!("Gateway connection established - no callback specified"),
         };
 
+        let rng = rand::rngs::OsRng;
         let message_preparer = MessagePreparer::new(
-            &mut rand::rngs::OsRng,
+            rng,
             client.self_recipient(),
             DEFAULT_AVERAGE_PACKET_DELAY,
             DEFAULT_AVERAGE_ACK_DELAY,

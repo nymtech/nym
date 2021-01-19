@@ -49,7 +49,7 @@ impl Monitor {
         validator_client: Arc<validator_client::Client>,
     ) -> Self {
         Monitor {
-            nonce: 0,
+            nonce: 1,
             packet_preparer,
             packet_sender,
             received_processor,
@@ -61,14 +61,13 @@ impl Monitor {
     // while it might have been cleaner to put this into a separate `Notifier` structure,
     // I don't see much point considering it's only a single, small, method
     async fn notify_validator(&self, status: BatchMixStatus) {
-        info!("here be validator notification");
-        // if let Err(err) = self
-        //     .validator_client
-        //     .post_batch_mixmining_status(status)
-        //     .await
-        // {
-        //     warn!("Failed to send batch status to validator - {:?}", err)
-        // }
+        if let Err(err) = self
+            .validator_client
+            .post_batch_mixmining_status(status)
+            .await
+        {
+            warn!("Failed to send batch status to validator - {:?}", err)
+        }
     }
 
     fn all_run_gateways(&self, prepared_packets: &PreparedPackets) -> HashSet<String> {

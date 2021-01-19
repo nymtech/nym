@@ -341,14 +341,26 @@ impl PacketPreparer {
             .create_gateway_mix_packets(gateways, &mut invalid_nodes)
             .await;
 
-        // right now make it a requirement for the main gateway to be in the topology the whole time
-        // this might change down the line
-        let tested_main_gateway_packets = gateway_packets
+        // check whether our 'good' gateway is being tested
+        if let Some(tested_main_gateway_packets) = gateway_packets
             .iter_mut()
             .find(|gateway| gateway.gateway_address() == main_gateway_id)
-            .expect("our 'good' gateway does not seem to be present in the topology!");
-
-        tested_main_gateway_packets.push_packets(mix_packets);
+        {
+            // we are testing the gateway we specified in our 'good' topology
+            tested_main_gateway_packets.push_packets(mix_packets);
+        } else {
+            // we are not testing the gateway from our 'good' topology -> it's probably
+            // situation similar to using 'good' qa-topology but testing testnet nodes.
+            let main_gateway_packets = GatewayPackets::new(
+                self.tested_network
+                    .main_v4_gateway()
+                    .client_listener
+                    .clone(),
+                main_gateway_id,
+                mix_packets,
+            );
+            gateway_packets.push(main_gateway_packets);
+        }
 
         Ok(PreparedPackets {
             packets: gateway_packets,

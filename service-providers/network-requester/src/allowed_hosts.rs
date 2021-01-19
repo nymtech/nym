@@ -1,6 +1,8 @@
 use fs::OpenOptions;
 use io::BufReader;
+use ipnet::IpNet;
 use publicsuffix::{errors, List};
+use std::collections::HashSet;
 use std::fs;
 use std::fs::File;
 use std::io;
@@ -50,10 +52,12 @@ impl OutboundRequestFilter {
     ///
     /// If it's not in the list, return `false` and write it to the `unknown_hosts` storefile.
     pub(crate) fn check(&mut self, host: &str) -> bool {
+        // check if it's an ip address first
+
         let trimmed = Self::trim_port(host);
         match self.get_domain_root(&trimmed) {
             Some(domain_root) => {
-                if self.allowed_hosts.contains(&domain_root) {
+                if self.allowed_hosts.contains_domain(&domain_root) {
                     true
                 } else {
                     // not in allowed list but it's a domain
@@ -96,11 +100,48 @@ impl OutboundRequestFilter {
     }
 }
 
+enum Host {
+    Domain(String),
+    Ip(IpNet),
+}
+
+impl From<String> for Host {
+    fn from(raw: String) -> Self {
+        if let Ok(ipnet) = raw.parse() {
+            Host::Ip(ipnet)
+        } else {
+            Host::Domain(raw)
+        }
+    }
+}
+
+impl Host {
+    fn is_domain(&self) -> bool {
+        matches!(self, Host::Domain(..))
+    }
+
+    fn extract_domain(self) -> String {
+        match self {
+            Host::Domain(domain) => domain,
+            _ => panic!("called extract domain on an ipnet!"),
+        }
+    }
+
+    fn extract_ipnet(self) -> IpNet {
+        match self {
+            Host::Ip(ipnet) => ipnet,
+            _ => panic!("called extract ipnet on a domain!"),
+        }
+    }
+}
+
 /// A simple file-based store for information about allowed / unknown hosts.
 #[derive(Debug)]
 pub(crate) struct HostsStore {
     storefile: PathBuf,
-    hosts: Vec<String>,
+
+    domains: HashSet<String>,
+    ip_nets: Vec<IpNet>,
 }
 
 impl HostsStore {
@@ -109,7 +150,17 @@ impl HostsStore {
         let storefile = HostsStore::setup_storefile(base_dir, filename);
         let hosts = HostsStore::load_from_storefile(&storefile)
             .unwrap_or_else(|_| panic!("Could not load hosts from storefile at {:?}", storefile));
-        HostsStore { storefile, hosts }
+
+        let (domains, ip_nets): (Vec<_>, Vec<_>) =
+            hosts.into_iter().partition(|host| host.is_domain());
+
+        HostsStore {
+            storefile,
+            domains: domains.into_iter().map(Host::extract_domain).collect(),
+            ip_nets: ip_nets.into_iter().map(Host::extract_ipnet).collect(),
+        }
+
+        // HostsStore { storefile, hosts }
     }
 
     fn append(path: &Path, text: &str) {
@@ -129,8 +180,8 @@ impl HostsStore {
         HostsStore::append(&self.storefile, host);
     }
 
-    fn contains(&self, host: &str) -> bool {
-        self.hosts.contains(&host.to_string())
+    fn contains_domain(&self, host: &str) -> bool {
+        self.domains.contains(&host.to_string())
     }
 
     /// Returns the default base directory for the storefile.
@@ -143,8 +194,8 @@ impl HostsStore {
     }
 
     fn maybe_add(&mut self, host: &str) {
-        if !self.contains(host) {
-            self.hosts.push(host.to_string());
+        if !self.contains_domain(host) {
+            self.domains.insert(host.to_string());
             self.append_to_file(host);
         }
     }
@@ -162,14 +213,16 @@ impl HostsStore {
     }
 
     /// Loads the storefile contents into memory.
-    fn load_from_storefile<P>(filename: P) -> io::Result<Vec<String>>
+    fn load_from_storefile<P>(filename: P) -> io::Result<Vec<Host>>
     where
         P: AsRef<Path>,
     {
         let file = File::open(filename)?;
         let reader = BufReader::new(&file);
-        let lines: Vec<String> = reader.lines().collect::<Result<_, _>>().unwrap();
-        Ok(lines)
+        Ok(reader
+            .lines()
+            .map(|line| Host::from(line.expect("failed to read input file line!")))
+            .collect())
     }
 }
 
@@ -281,30 +334,36 @@ mod tests {
             let host = "unknown.com";
             let mut filter = setup();
             filter.check(host);
-            assert_eq!(1, filter.unknown_hosts.hosts.len());
-            assert_eq!("unknown.com", filter.unknown_hosts.hosts.first().unwrap());
+            assert_eq!(1, filter.unknown_hosts.domains.len());
+            assert!(filter.unknown_hosts.domains.contains("unknown.com"));
             filter.check(host);
-            assert_eq!(1, filter.unknown_hosts.hosts.len());
-            assert_eq!("unknown.com", filter.unknown_hosts.hosts.first().unwrap());
+            assert_eq!(1, filter.unknown_hosts.domains.len());
+            assert!(filter.unknown_hosts.domains.contains("unknown.com"));
         }
     }
+
     #[cfg(test)]
     mod requests_to_allowed_hosts {
         use super::*;
-        fn setup() -> OutboundRequestFilter {
+
+        fn setup(allowed: &[&str]) -> OutboundRequestFilter {
             let (allowed_storefile, base_dir1, allowed_filename) = create_test_storefile();
             let (_, base_dir2, unknown_filename) = create_test_storefile();
-            HostsStore::append(&allowed_storefile, "nymtech.net");
+
+            for allowed_host in allowed {
+                HostsStore::append(&allowed_storefile, &*allowed_host)
+            }
 
             let allowed = HostsStore::new(base_dir1, allowed_filename);
             let unknown = HostsStore::new(base_dir2, unknown_filename);
             OutboundRequestFilter::new(allowed, unknown)
         }
+
         #[test]
         fn are_allowed() {
             let host = "nymtech.net";
 
-            let mut filter = setup();
+            let mut filter = setup(&["nymtech.net"]);
             assert_eq!(true, filter.check(host));
         }
 
@@ -312,13 +371,13 @@ mod tests {
         fn are_allowed_for_subdomains() {
             let host = "foomp.nymtech.net";
 
-            let mut filter = setup();
+            let mut filter = setup(&["nymtech.net"]);
             assert_eq!(true, filter.check(host));
         }
 
         #[test]
         fn are_not_appended_to_file() {
-            let mut filter = setup();
+            let mut filter = setup(&["nymtech.net"]);
 
             // test initial state
             let lines = HostsStore::load_from_storefile(&filter.allowed_hosts.storefile).unwrap();
@@ -330,6 +389,25 @@ mod tests {
             let lines = HostsStore::load_from_storefile(&filter.allowed_hosts.storefile).unwrap();
             assert_eq!(1, lines.len());
         }
+
+        // #[test]
+        // fn are_allowed_for_ipv4_addresses() {
+        //     let address1 = "1.1.1.1";
+        //     let address2 = "1.1.1.1:1234";
+        //
+        //     let mut filter = setup(&["1.1.1.1"]);
+        //     assert_eq!(true, filter.check(address1));
+        //     assert_eq!(true, filter.check(address2));
+        // }
+        //
+        // #[test]
+        // fn are_allowed_for_ipv6_addresses() {}
+        //
+        // #[test]
+        // fn are_allowed_for_ipv4_address_ranges() {}
+        //
+        // #[test]
+        // fn are_allowed_for_ipv6_address_ranges() {}
     }
 
     fn random_string() -> String {
@@ -354,6 +432,7 @@ mod tests {
     #[cfg(test)]
     mod creating_a_new_host_store {
         use super::*;
+
         #[test]
         fn loads_its_host_list_from_storefile() {
             let (storefile, base_dir, filename) = create_test_storefile();
@@ -361,7 +440,8 @@ mod tests {
             HostsStore::append(&storefile, "edwardsnowden.com");
 
             let host_store = HostsStore::new(base_dir, filename);
-            assert_eq!(vec!["nymtech.net", "edwardsnowden.com"], host_store.hosts);
+            assert!(host_store.domains.contains("nymtech.net"));
+            assert!(host_store.domains.contains("edwardsnowden.com"));
         }
     }
 }

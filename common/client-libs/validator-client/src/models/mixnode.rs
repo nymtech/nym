@@ -112,8 +112,7 @@ impl RegisteredMix {
     }
 
     fn resolve_hostname(&self) -> Result<SocketAddr, ConversionError> {
-        Ok(self
-            .mix_info
+        self.mix_info
             .node_info
             .mix_host
             .to_socket_addrs()
@@ -124,7 +123,7 @@ impl RegisteredMix {
                     io::ErrorKind::Other,
                     "no valid socket address",
                 ))
-            })?)
+            })
     }
 }
 

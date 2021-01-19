@@ -178,6 +178,9 @@ impl ReceivedProcessor {
                 }
             }
 
+            // this lint really looks like a false positive because when lifetimes are elided,
+            // the compiler can't figure out appropriate lifetime bounds
+            #[allow(clippy::needless_lifetimes)]
             async fn wait_for_permit<'a>(
                 permit_change: &mut mpsc::Receiver<LockPermit>,
                 inner: &'a Mutex<ReceivedProcessorInner>,

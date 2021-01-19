@@ -103,8 +103,7 @@ impl RegisteredGateway {
     }
 
     fn resolve_hostname(&self) -> Result<SocketAddr, ConversionError> {
-        Ok(self
-            .gateway_info
+        self.gateway_info
             .node_info
             .mix_host
             .to_socket_addrs()
@@ -115,7 +114,7 @@ impl RegisteredGateway {
                     io::ErrorKind::Other,
                     "no valid socket address",
                 ))
-            })?)
+            })
     }
 }
 

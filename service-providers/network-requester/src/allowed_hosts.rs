@@ -56,32 +56,43 @@ impl OutboundRequestFilter {
         // first check if it's a socket address (ip:port)
         // (this check is performed to not incorrectly strip what we think might be a port
         // from ipv6 address, as for example ::1 contains colons but has no port
-        let check_res = if let Ok(socketaddr) = host.parse::<SocketAddr>() {
-            self.allowed_hosts.contains_ip_address(socketaddr.ip())
+        let allowed = if let Ok(socketaddr) = host.parse::<SocketAddr>() {
+            if !self.allowed_hosts.contains_ip_address(socketaddr.ip()) {
+                self.unknown_hosts.maybe_add_ip(socketaddr.ip());
+                return false;
+            }
+            true
         } else if let Ok(ipaddr) = host.parse::<IpAddr>() {
             // then check if it was an ip address
-            self.allowed_hosts.contains_ip_address(ipaddr)
+            if !self.allowed_hosts.contains_ip_address(ipaddr) {
+                self.unknown_hosts.maybe_add_ip(ipaddr);
+                return false;
+            }
+            true
         } else {
             // finally, then assume it might be a domain
             let trimmed = Self::trim_port(host);
             if let Some(domain_root) = self.get_domain_root(&trimmed) {
                 // it's a domain
-                self.allowed_hosts.contains_domain(&domain_root)
+                if !self.allowed_hosts.contains_domain(&domain_root) {
+                    self.unknown_hosts.maybe_add_domain(&trimmed);
+                    return false;
+                }
+                true
             } else {
                 // it's something else, no idea what, probably some nonsense
                 false
             }
         };
 
-        if !check_res {
+        if !allowed {
             log::warn!(
                 "Blocked outbound connection to {:?}, add it to allowed.list if needed",
                 &host
             );
-            self.unknown_hosts.maybe_add(&host);
         }
 
-        check_res
+        allowed
     }
 
     fn trim_port(host: &str) -> String {
@@ -109,13 +120,15 @@ impl OutboundRequestFilter {
     }
 }
 
+// used for parsing file content
 enum Host {
     Domain(String),
     IpNetwork(IpNetwork),
-    // IP
-    // but what if you wanted filtering on cidr + ip?
 }
 
+// TODO: perphaps in the future it should do some domain validation?
+// so for example if somebody put some nonsense in the whitelist file like "foomp", it would get
+// rejected?
 impl From<String> for Host {
     fn from(raw: String) -> Self {
         if let Ok(ipnet) = raw.parse() {
@@ -173,8 +186,6 @@ impl HostsStore {
             domains: domains.into_iter().map(Host::extract_domain).collect(),
             ip_nets: ip_nets.into_iter().map(Host::extract_ipnetwork).collect(),
         }
-
-        // HostsStore { storefile, hosts }
     }
 
     fn append(path: &Path, text: &str) {
@@ -220,15 +231,18 @@ impl HostsStore {
             .join(".nym")
     }
 
-    fn maybe_add(&mut self, host: &str) {
-        // TODO
+    fn maybe_add_ip(&mut self, ip: IpAddr) {
+        if !self.contains_ip_address(ip) {
+            self.ip_nets.push(ip.into());
+            self.append_to_file(&ip.to_string());
+        }
+    }
 
-        log::error!("need to finish 'maybe add'")
-
-        // if !self.contains_domain(host) {
-        //     self.domains.insert(host.to_string());
-        //     self.append_to_file(host);
-        // }
+    fn maybe_add_domain(&mut self, domain: &str) {
+        if !self.contains_domain(domain) {
+            self.domains.insert(domain.to_string());
+            self.append_to_file(domain);
+        }
     }
 
     fn setup_storefile(base_dir: PathBuf, filename: PathBuf) -> PathBuf {

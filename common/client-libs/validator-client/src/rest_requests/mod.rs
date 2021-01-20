@@ -69,8 +69,8 @@ impl Display for RESTRequestError {
 }
 
 pub(crate) trait RESTRequest {
-    const METHOD: Method;
     // 'GET', 'POST', 'DELETE', etc.
+    const METHOD: Method;
     const RELATIVE_PATH: &'static str;
 
     type JsonPayload: Serialize + Sized;

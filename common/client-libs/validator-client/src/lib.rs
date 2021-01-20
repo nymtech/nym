@@ -113,7 +113,7 @@ impl Display for ValidatorClientError {
                 } else {
                     write!(
                         f,
-                        "received data was completely unexpected. got: {}",
+                        "received data was completely unexpected. got: {}...",
                         received
                             .chars()
                             .take(MAX_SANE_UNEXPECTED_PRINT)

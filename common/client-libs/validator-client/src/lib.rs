@@ -22,12 +22,35 @@ use crate::rest_requests::{
     ReputationPatch, TopologyGet, TopologyGetResponse,
 };
 use serde::Deserialize;
+use std::fmt::{self, Display, Formatter};
 
 pub mod models;
 pub mod rest_requests;
 
 // for ease of use
 type Result<T> = std::result::Result<T, ValidatorClientError>;
+
+const MAX_SANE_UNEXPECTED_PRINT: usize = 100;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", untagged)]
+pub(crate) enum ErrorResponses {
+    Error(ErrorResponse),
+    Unexpected(String),
+}
+
+impl From<ErrorResponses> for ValidatorClientError {
+    fn from(err: ErrorResponses) -> Self {
+        match err {
+            ErrorResponses::Error(err_message) => {
+                ValidatorClientError::ValidatorError(err_message.error)
+            }
+            ErrorResponses::Unexpected(received) => {
+                ValidatorClientError::UnexpectedResponse(received)
+            }
+        }
+    }
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,7 +68,7 @@ struct OkResponse {
 #[serde(rename_all = "camelCase", untagged)]
 pub(crate) enum DefaultRESTResponse {
     Ok(OkResponse),
-    Error(ErrorResponse),
+    Error(ErrorResponses),
 }
 
 #[derive(Debug)]
@@ -53,6 +76,7 @@ pub enum ValidatorClientError {
     RESTRequestError(RESTRequestError),
     ReqwestClientError(reqwest::Error),
     ValidatorError(String),
+    UnexpectedResponse(String),
 }
 
 impl From<RESTRequestError> for ValidatorClientError {
@@ -64,6 +88,40 @@ impl From<RESTRequestError> for ValidatorClientError {
 impl From<reqwest::Error> for ValidatorClientError {
     fn from(err: reqwest::Error) -> Self {
         ValidatorClientError::ReqwestClientError(err)
+    }
+}
+
+impl Display for ValidatorClientError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            ValidatorClientError::RESTRequestError(err) => {
+                write!(f, "could not prepare the REST request - {}", err)
+            }
+            ValidatorClientError::ReqwestClientError(err) => {
+                write!(f, "there was an issue with the REST request - {}", err)
+            }
+            ValidatorClientError::ValidatorError(err) => {
+                write!(f, "there was an issue with the validator client - {}", err)
+            }
+            ValidatorClientError::UnexpectedResponse(received) => {
+                if received.len() < MAX_SANE_UNEXPECTED_PRINT {
+                    write!(
+                        f,
+                        "received data was completely unexpected. got: {}",
+                        received
+                    )
+                } else {
+                    write!(
+                        f,
+                        "received data was completely unexpected. got: {}",
+                        received
+                            .chars()
+                            .take(MAX_SANE_UNEXPECTED_PRINT)
+                            .collect::<String>()
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -117,7 +175,7 @@ impl Client {
         )?;
         match self.make_rest_request(req).await? {
             DefaultRESTResponse::Ok(_) => Ok(()),
-            DefaultRESTResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+            DefaultRESTResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -141,7 +199,7 @@ impl Client {
                     ))
                 }
             }
-            DefaultRESTResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+            DefaultRESTResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -159,7 +217,7 @@ impl Client {
                     ))
                 }
             }
-            DefaultRESTResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+            DefaultRESTResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -189,7 +247,7 @@ impl Client {
                     ))
                 }
             }
-            DefaultRESTResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+            DefaultRESTResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -197,7 +255,7 @@ impl Client {
         let req = TopologyGet::new(&self.config.base_url, None, None, None)?;
         match self.make_rest_request(req).await? {
             TopologyGetResponse::Ok(topology) => Ok(topology),
-            TopologyGetResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+            TopologyGetResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -205,9 +263,7 @@ impl Client {
         let req = ActiveTopologyGet::new(&self.config.base_url, None, None, None)?;
         match self.make_rest_request(req).await? {
             ActiveTopologyGetResponse::Ok(topology) => Ok(topology),
-            ActiveTopologyGetResponse::Error(err) => {
-                Err(ValidatorClientError::ValidatorError(err.error))
-            }
+            ActiveTopologyGetResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -223,7 +279,7 @@ impl Client {
                     ))
                 }
             }
-            DefaultRESTResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+            DefaultRESTResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -239,7 +295,7 @@ impl Client {
                     ))
                 }
             }
-            DefaultRESTResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+            DefaultRESTResponse::Error(err) => Err(err.into()),
         }
     }
 }

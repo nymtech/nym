@@ -14,6 +14,7 @@
 
 use reqwest::{Method, Url};
 use serde::{de::DeserializeOwned, Serialize};
+use std::fmt::{self, Display, Formatter};
 
 pub(crate) use active_topology_get::{
     Request as ActiveTopologyGet, Response as ActiveTopologyGetResponse,
@@ -46,8 +47,30 @@ pub enum RESTRequestError {
     MalformedUrl(String),
 }
 
+impl Display for RESTRequestError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            RESTRequestError::InvalidPathParams => write!(
+                f,
+                "invalid number of path parameters was provided or they were malformed"
+            ),
+            RESTRequestError::InvalidQueryParams => write!(
+                f,
+                "invalid number of query parameters was provided or they were malformed"
+            ),
+            RESTRequestError::NoPayloadProvided => {
+                write!(f, "no request payload was provided while it was expected")
+            }
+            RESTRequestError::MalformedUrl(url) => {
+                write!(f, "tried to make request to malformed url ({})", url)
+            }
+        }
+    }
+}
+
 pub(crate) trait RESTRequest {
-    const METHOD: Method; // 'GET', 'POST', 'DELETE', etc.
+    const METHOD: Method;
+    // 'GET', 'POST', 'DELETE', etc.
     const RELATIVE_PATH: &'static str;
 
     type JsonPayload: Serialize + Sized;

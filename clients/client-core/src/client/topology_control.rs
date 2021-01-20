@@ -153,6 +153,8 @@ pub struct TopologyRefresher {
     validator_client: validator_client::Client,
     topology_accessor: TopologyAccessor,
     refresh_rate: Duration,
+
+    was_latest_valid: bool,
 }
 
 impl TopologyRefresher {
@@ -167,6 +169,7 @@ impl TopologyRefresher {
             validator_client,
             topology_accessor,
             refresh_rate: cfg.refresh_rate,
+            was_latest_valid: true,
         }
     }
 
@@ -186,6 +189,16 @@ impl TopologyRefresher {
     pub async fn refresh(&mut self) {
         trace!("Refreshing the topology");
         let new_topology = self.get_current_compatible_topology().await;
+
+        if new_topology.is_none() && self.was_latest_valid {
+            // if we failed to grab this topology, but the one before it was alright, let's assume
+            // validator had a tiny hiccup and use the old data
+            warn!("we're going to keep on using the old topology for this iteration");
+            self.was_latest_valid = false;
+            return;
+        } else if new_topology.is_some() {
+            self.was_latest_valid = true;
+        }
 
         self.topology_accessor
             .update_global_topology(new_topology)

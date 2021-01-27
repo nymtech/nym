@@ -72,7 +72,8 @@ impl SURBAck {
             .build_packet(surb_ack_payload, &route, &destination, &delays)
             .unwrap();
 
-        let expected_total_delay = delays.iter().sum();
+        // in our case, the last hop is a gateway that does NOT do any delays
+        let expected_total_delay = delays.iter().take(delays.len() - 1).sum();
         let first_hop_address =
             NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 

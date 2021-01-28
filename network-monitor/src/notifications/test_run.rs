@@ -131,10 +131,7 @@ impl TestRun {
             up: false,
         };
 
-        let mut vec = Vec::with_capacity(2);
-        vec.push(v4_status);
-        vec.push(v6_status);
-        vec
+        vec![v4_status, v6_status]
     }
 
     /// Update state of self based on the received `RunInfo`

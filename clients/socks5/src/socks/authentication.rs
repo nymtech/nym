@@ -51,9 +51,10 @@ mod tests {
 
     #[test]
     fn constructor_works() {
-        let mut auth_methods: Vec<u8> = Vec::new();
-        auth_methods.push(AuthenticationMethods::NoAuth as u8);
-        auth_methods.push(AuthenticationMethods::UserPass as u8);
+        let auth_methods = vec![
+            AuthenticationMethods::NoAuth as u8,
+            AuthenticationMethods::UserPass as u8,
+        ];
 
         let admin = User {
             username: "foo".to_string(),
@@ -98,8 +99,7 @@ mod tests {
 
         #[test]
         fn allowed_user_passes_authentication_check() {
-            let mut auth_methods: Vec<u8> = Vec::new();
-            auth_methods.push(AuthenticationMethods::UserPass as u8);
+            let auth_methods = vec![AuthenticationMethods::UserPass as u8];
 
             let admin = User {
                 username: "foo".to_string(),
@@ -115,8 +115,7 @@ mod tests {
 
         #[test]
         fn disallowed_user_fails_authentication_check() {
-            let mut auth_methods: Vec<u8> = Vec::new();
-            auth_methods.push(AuthenticationMethods::UserPass as u8);
+            let auth_methods = vec![AuthenticationMethods::UserPass as u8];
 
             let bad_user = User {
                 username: "ashy".to_string(),

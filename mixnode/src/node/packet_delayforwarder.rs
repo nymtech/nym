@@ -96,7 +96,13 @@ impl DelayForwarder {
         // in case of a zero delay packet, don't bother putting it in the delay queue,
         // just forward it immediately
         if let Some(instant) = new_packet.1 {
-            self.delay_queue.insert_at(new_packet.0, instant);
+            // check if the delay has already expired, if so, don't bother putting it through
+            // the delay queue only to retrieve it immediately. Just forward it.
+            if instant.checked_duration_since(Instant::now()).is_none() {
+                self.forward_packet(new_packet.0)
+            } else {
+                self.delay_queue.insert_at(new_packet.0, instant);
+            }
         } else {
             self.forward_packet(new_packet.0)
         }

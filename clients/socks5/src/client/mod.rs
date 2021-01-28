@@ -261,7 +261,7 @@ impl NymClient {
         msg_input: InputMessageSender,
     ) {
         info!("Starting socks5 listener...");
-        let auth_methods: Vec<u8> = vec![AuthenticationMethods::NoAuth as u8];
+        let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
         let allowed_users: Vec<User> = Vec::new();
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);

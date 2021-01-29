@@ -19,6 +19,7 @@ use crate::node::listener::Listener;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use crypto::asymmetric::{encryption, identity};
 use log::*;
+use std::process;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
@@ -101,10 +102,14 @@ impl MixNode {
         let validator_client_config =
             validator_client::Config::new(self.config.get_validator_rest_endpoint());
         let validator_client = validator_client::Client::new(validator_client_config);
-        let topology = validator_client
-            .get_topology()
-            .await
-            .expect("failed to grab network topology");
+        let topology = match validator_client.get_topology().await {
+            Ok(topology) => topology,
+            Err(err) => {
+                error!("failed to grab initial network topology - {}\n Please try to startup again in few minutes", err);
+                process::exit(1);
+            }
+        };
+
         let existing_mixes_presence = topology.mix_nodes;
         existing_mixes_presence
             .iter()
@@ -129,7 +134,7 @@ impl MixNode {
         )
         .await
         {
-            error!("failed to unregister with validator... - {:?}", err)
+            error!("failed to unregister with validator... - {}", err)
         } else {
             info!("unregistration was successful!")
         }
@@ -146,7 +151,7 @@ impl MixNode {
                     warn!("We seem to have not unregistered after going offline - there's a node with identical identity and announce-host us as registered.")
                 } else {
                     error!(
-                        "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
+                        "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
                         duplicate_node_key
                     );
                     return;
@@ -154,11 +159,11 @@ impl MixNode {
             }
 
             if let Err(err) = presence::register_with_validator(
-&self.config,
+                &self.config,
                 self.identity_keypair.public_key().to_base58_string(),
                 self.sphinx_keypair.public_key().to_base58_string(),
             ).await {
-                error!("failed to register with the validator - {:?}", err);
+                error!("failed to register with the validator - {}.\nPlease try again in few minutes.", err);
                 return;
             }
 

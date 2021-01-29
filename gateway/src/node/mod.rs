@@ -20,6 +20,7 @@ use crate::node::storage::{inboxes, ClientLedger};
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
+use std::process;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
@@ -140,7 +141,7 @@ impl Gateway {
         )
         .await
         {
-            error!("failed to unregister with validator... - {:?}", err)
+            error!("failed to unregister with validator... - {}", err)
         } else {
             info!("unregistration was successful!")
         }
@@ -152,10 +153,13 @@ impl Gateway {
         let validator_client_config =
             validator_client::Config::new(self.config.get_validator_rest_endpoint());
         let validator_client = validator_client::Client::new(validator_client_config);
-        let topology = validator_client
-            .get_topology()
-            .await
-            .expect("failed to grab network topology");
+        let topology = match validator_client.get_topology().await {
+            Ok(topology) => topology,
+            Err(err) => {
+                error!("failed to grab initial network topology - {}\n Please try to startup again in few minutes", err);
+                process::exit(1);
+            }
+        };
 
         let existing_gateways = topology.gateways;
         existing_gateways
@@ -181,7 +185,7 @@ impl Gateway {
                     warn!("We seem to have not unregistered after going offline - there's a node with identical identity and announce-host as us registered.")
                 } else {
                     error!(
-                        "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
+                        "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
                         duplicate_node_key
                     );
                     return;
@@ -193,7 +197,7 @@ impl Gateway {
                 self.identity.public_key().to_base58_string(),
                 self.encryption_keys.public_key().to_base58_string(),
             ).await {
-                error!("failed to register with the validator - {:?}", err);
+                error!("failed to register with the validator - {}.\nPlease try again in few minutes.", err);
                 return
             }
 

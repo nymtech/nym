@@ -14,7 +14,7 @@
 
 use crate::models::topology::Topology;
 use crate::rest_requests::{PathParam, QueryParam, RESTRequest, RESTRequestError};
-use crate::ErrorResponse;
+use crate::ErrorResponses;
 use reqwest::{Method, Url};
 use serde::Deserialize;
 
@@ -26,7 +26,7 @@ pub struct Request {
 #[serde(rename_all = "camelCase", untagged)]
 pub(crate) enum Response {
     Ok(Topology),
-    Error(ErrorResponse),
+    Error(ErrorResponses),
 }
 
 impl RESTRequest for Request {

@@ -1,4 +1,4 @@
-// Copyright 2020 Nym Technologies SA
+// Copyright 2021 Nym Technologies SA
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@
 use crate::traits::{PemStorableKey, PemStorableKeyPair};
 use pem::{self, Pem};
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
-use std::{fs, io};
 
 pub mod traits;
 
@@ -107,6 +106,7 @@ fn write_pem_file(filepath: &Path, data: Vec<u8>, tag: &str) -> io::Result<()> {
     // which I feel is too open.
     #[cfg(target_family = "unix")]
     {
+        use std::fs;
         use std::os::unix::fs::PermissionsExt;
 
         let mut permissions = file.metadata()?.permissions();

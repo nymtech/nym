@@ -133,7 +133,11 @@ impl Controller {
 
     fn send_to_connection(&mut self, conn_id: ConnectionId, payload: Vec<u8>, is_closed: bool) {
         if let Some(active_connection) = self.active_connections.get_mut(&conn_id) {
-            active_connection.write_to_buf(payload);
+            if !payload.is_empty() {
+                active_connection.write_to_buf(payload);
+            } else if !is_closed {
+                error!("Tried to write an empty message to a not-closing connection. Please let us know if you see this message");
+            }
             // if messages get unordered, make sure we don't lose information about
             // remote socket getting closed!
             active_connection.is_closed |= is_closed;

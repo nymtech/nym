@@ -14,9 +14,9 @@
 use crate::traits::{PemStorableKey, PemStorableKeyPair};
 use pem::{self, Pem};
 use std::fs::File;
-use std::io;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 pub mod traits;
 
@@ -98,5 +98,21 @@ fn write_pem_file(filepath: &Path, data: Vec<u8>, tag: &str) -> io::Result<()> {
     let key = pem::encode(&pem);
 
     let mut file = File::create(filepath)?;
-    file.write_all(key.as_bytes())
+    file.write_all(key.as_bytes())?;
+
+    // note: this is only supported on unix (on different systems, like Windows, it will just
+    // be ignored)
+    // TODO: a possible consideration would be to use `permission.set_readonly(true)`,
+    // which would work on both platforms, but that would leave keys on unix with 0444,
+    // which I feel is too open.
+    #[cfg(target_family = "unix")]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut permissions = file.metadata()?.permissions();
+        permissions.set_mode(0o600);
+        fs::set_permissions(filepath, permissions)?;
+    }
+
+    Ok(())
 }

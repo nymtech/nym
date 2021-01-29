@@ -160,7 +160,7 @@ impl Controller {
                 // TODO:
             }
         } else if !self.recently_closed.contains(&conn_id) {
-            warn!("Received a 'Send' before 'Connect' - going to buffer the data");
+            debug!("Received a 'Send' before 'Connect' - going to buffer the data");
             let pending = self
                 .pending_messages
                 .entry(conn_id)

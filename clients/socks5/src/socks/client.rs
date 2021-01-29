@@ -147,8 +147,8 @@ impl Drop for SocksClient {
         // if we never managed to start a proxy, the entry will not exist in the controller
         if self.started_proxy {
             self.controller_sender
-            .unbounded_send(ControllerCommand::Remove(self.connection_id))
-            .unwrap();
+                .unbounded_send(ControllerCommand::Remove(self.connection_id))
+                .unwrap();
         }
     }
 }
@@ -210,17 +210,15 @@ impl SocksClient {
         // Handle SOCKS4 requests
         if header[0] != SOCKS_VERSION {
             warn!("Init: Unsupported version: SOCKS{}", self.socks_version);
-            self.shutdown()?;
+            self.shutdown()
         }
         // Valid SOCKS5
         else {
             // Authenticate w/ client
             self.authenticate().await?;
             // Handle requests
-            self.handle_request().await?;
+            self.handle_request().await
         }
-
-        Ok(())
     }
 
     async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {

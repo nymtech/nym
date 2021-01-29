@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-use std::{sync::Arc, time::Duration};
 use crate::connection_controller::ConnectionReceiver;
 use futures::channel::mpsc;
 use socks5_requests::ConnectionId;
+use std::{sync::Arc, time::Duration};
 use tokio::{net::TcpStream, sync::Notify};
 
 mod inbound;
 mod outbound;
 
 // TODO: make this configurable
-const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(60);
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug)]
 pub struct ProxyMessage {
@@ -42,6 +41,8 @@ impl From<(Vec<u8>, bool)> for ProxyMessage {
 
 pub type MixProxySender<S> = mpsc::UnboundedSender<S>;
 
+// TODO: when we finally get to implementing graceful shutdown,
+// on Drop this guy should tell the remote that it's closed now
 #[derive(Debug)]
 pub struct ProxyRunner<S> {
     /// receives data from the mix network and sends that into the socket

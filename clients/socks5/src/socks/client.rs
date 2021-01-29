@@ -138,15 +138,18 @@ pub(crate) struct SocksClient {
     connection_id: ConnectionId,
     service_provider: Recipient,
     self_address: Recipient,
+    started_proxy: bool,
 }
 
 impl Drop for SocksClient {
     fn drop(&mut self) {
-        // TODO: decrease to debug/trace
         debug!("Connection {} is getting closed", self.connection_id);
-        self.controller_sender
+        // if we never managed to start a proxy, the entry will not exist in the controller
+        if self.started_proxy {
+            self.controller_sender
             .unbounded_send(ControllerCommand::Remove(self.connection_id))
             .unwrap();
+        }
     }
 }
 
@@ -171,6 +174,7 @@ impl SocksClient {
             input_sender,
             service_provider,
             self_address,
+            started_proxy: false,
         }
     }
 
@@ -267,15 +271,16 @@ impl SocksClient {
         // setup for receiving from the mixnet
         let (mix_sender, mix_receiver) = mpsc::unbounded();
 
-        self.controller_sender
-            .unbounded_send(ControllerCommand::Insert(self.connection_id, mix_sender))
-            .unwrap();
-
         match request.command {
             // Use the Proxy to connect to the specified addr/port
             SocksCommand::Connect => {
                 trace!("Connecting to: {:?}", remote_address.clone());
                 self.acknowledge_socks5().await;
+
+                self.started_proxy = true;
+                self.controller_sender
+                    .unbounded_send(ControllerCommand::Insert(self.connection_id, mix_sender))
+                    .unwrap();
 
                 info!(
                     "Starting proxy for {} (id: {})",

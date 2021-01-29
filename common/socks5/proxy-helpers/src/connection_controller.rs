@@ -166,11 +166,13 @@ impl Controller {
                 .entry(conn_id)
                 .or_insert_with(Vec::new);
             pending.push((payload, is_closed));
-        } else {
+        } else if !is_closed {
             error!(
                 "Tried to write to closed connection ({} bytes were 'lost)",
                 payload.len()
-            )
+            );
+        } else {
+            debug!("Tried to write to closed connection, but remote is already closed")
         }
     }
 

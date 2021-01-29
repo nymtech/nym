@@ -331,7 +331,8 @@ where
         Ok(PreparedFragment {
             // the round-trip delay is the sum of delays of all hops on the forward route as
             // well as the total delay of the ack packet.
-            total_delay: delays.iter().sum::<Delay>() + ack_delay,
+            // note that the last hop of the packet is a gateway that does not do any delays
+            total_delay: delays.iter().take(delays.len() - 1).sum::<Delay>() + ack_delay,
             mix_packet: MixPacket::new(first_hop_address, sphinx_packet, self.mode),
         })
     }

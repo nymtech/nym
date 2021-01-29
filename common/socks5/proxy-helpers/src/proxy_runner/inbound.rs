@@ -12,18 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{io, sync::Arc};
-use futures::FutureExt;
-use tokio::{net::tcp::{OwnedReadHalf}, sync::Notify, time::delay_for};
 use super::MixProxySender;
+use super::SHUTDOWN_TIMEOUT;
 use crate::available_reader::AvailableReader;
+use bytes::Bytes;
+use futures::FutureExt;
 use log::*;
 use ordered_buffer::OrderedMessageSender;
 use socks5_requests::ConnectionId;
-use tokio::stream::StreamExt;
+use std::{io, sync::Arc};
 use tokio::select;
-use super::SHUTDOWN_TIMEOUT;
-use bytes::Bytes;
+use tokio::stream::StreamExt;
+use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::delay_for};
+
+fn send_empty_close<F, S>(
+    connection_id: ConnectionId,
+    message_sender: &mut OrderedMessageSender,
+    mix_sender: &MixProxySender<S>,
+    adapter_fn: F,
+) where
+    F: Fn(ConnectionId, Vec<u8>, bool) -> S,
+{
+    let ordered_msg = message_sender.wrap_message(Vec::new()).into_bytes();
+    mix_sender
+        .unbounded_send(adapter_fn(connection_id, ordered_msg, true))
+        .unwrap();
+}
 
 fn deal_with_data<F, S>(
     read_data: Option<io::Result<Bytes>>,
@@ -100,6 +114,9 @@ where
             }
             _ = &mut shutdown_future => {
                 debug!("closing inbound proxy after outbound was closed {:?} ago", SHUTDOWN_TIMEOUT);
+                // inform remote just in case it was closed because of lack of heartbeat.
+                // worst case the remote will just have couple of false negatives
+                send_empty_close(connection_id, &mut message_sender, &mix_sender, &adapter_fn);
                 break;
             }
         }

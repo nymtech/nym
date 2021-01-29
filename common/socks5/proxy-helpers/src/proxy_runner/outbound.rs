@@ -12,16 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
+use super::SHUTDOWN_TIMEOUT;
 use crate::connection_controller::{ConnectionMessage, ConnectionReceiver};
 use futures::FutureExt;
 use log::*;
 use socks5_requests::ConnectionId;
-use tokio::{net::tcp::{OwnedWriteHalf}, sync::Notify, time::delay_for};
+use std::{sync::Arc, time::Duration};
 use tokio::prelude::*;
-use tokio::stream::StreamExt;
 use tokio::select;
-use super::SHUTDOWN_TIMEOUT;
+use tokio::stream::StreamExt;
+use tokio::{
+    net::tcp::OwnedWriteHalf,
+    sync::Notify,
+    time::{delay_for, Instant},
+};
+
+const MIX_TTL: Duration = Duration::from_secs(5 * 60);
 
 async fn deal_with_message(
     connection_message: ConnectionMessage,
@@ -66,6 +72,8 @@ pub(super) async fn run_outbound(
 
     tokio::pin!(shutdown_future);
 
+    let mut mix_timeout = delay_for(MIX_TTL);
+
     loop {
         select! {
             connection_message = &mut mix_receiver.next() => {
@@ -73,10 +81,16 @@ pub(super) async fn run_outbound(
                     if deal_with_message(connection_message, &mut writer, &local_destination_address, &remote_source_address, connection_id).await {
                         break;
                     }
+                    mix_timeout.reset(Instant::now() + MIX_TTL);
                 } else {
                     warn!("mix receiver is none so we already got removed somewhere. This isn't really a warning, but shouldn't happen to begin with, so please say if you see this message");
                     break;
                 }
+            }
+            _ = &mut mix_timeout => {
+                warn!("didn't get anything from the client on {} mixnet in {:?}. Shutting down the proxy.", connection_id, MIX_TTL);
+                // If they were online it's kinda their fault they didn't send any heartbeat messages.
+                break;
             }
             _ = &mut shutdown_future => {
                 debug!("closing outbound proxy after inbound was closed {:?} ago", SHUTDOWN_TIMEOUT);

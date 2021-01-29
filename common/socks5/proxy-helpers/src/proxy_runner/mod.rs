@@ -13,13 +13,17 @@
 // limitations under the License.
 
 
+use std::{sync::Arc, time::Duration};
 use crate::connection_controller::ConnectionReceiver;
 use futures::channel::mpsc;
 use socks5_requests::ConnectionId;
-use tokio::net::TcpStream;
+use tokio::{net::TcpStream, sync::Notify};
 
 mod inbound;
 mod outbound;
+
+// TODO: make this configurable
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[derive(Debug)]
 pub struct ProxyMessage {
@@ -81,6 +85,7 @@ where
         F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static,
     {
         let (read_half, write_half) = self.socket.take().unwrap().into_split();
+        let shutdown_notify = Arc::new(Notify::new());
 
         // should run until either inbound closes or is notified from outbound
         let inbound_future = inbound::run_inbound(
@@ -90,6 +95,7 @@ where
             self.connection_id,
             self.mix_sender.clone(),
             adapter_fn,
+            Arc::clone(&shutdown_notify),
         );
 
         let outbound_future = outbound::run_outbound(
@@ -98,6 +104,7 @@ where
             self.remote_source_address.clone(),
             self.mix_receiver.take().unwrap(),
             self.connection_id,
+            shutdown_notify,
         );
 
         // TODO: this shouldn't really have to spawn tasks inside "library" code, but

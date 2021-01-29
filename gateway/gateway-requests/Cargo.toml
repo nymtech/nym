@@ -1,3 +1,6 @@
+# Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
 [package]
 name = "gateway-requests"
 version = "0.1.0"

@@ -1,3 +1,6 @@
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use futures::channel::mpsc;
 use nymsphinx::addressing::clients::Recipient;
 use proxy_helpers::connection_controller::ConnectionReceiver;

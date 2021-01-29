@@ -1,0 +1,9 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: nym
+Upstream-Contact: Nym Technologies SA <contact@nymtech.net>
+Source: https://github.com/nymtech/nym
+
+
+Files: *clients/* *common/* *explorer/*
+Copyright: 2020, Nym Technologies SA <contact@nymtech.net>
+License: Apache-2.0

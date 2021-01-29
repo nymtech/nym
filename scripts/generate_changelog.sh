@@ -1,3 +1,7 @@
+# Copyright 2020 - The Nym Mixnet Authors
+# SPDX-License-Identifier: Apache-2.0
+
+
 #!/bin/bash
 
 # Copyright 2020 Nym

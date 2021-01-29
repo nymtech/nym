@@ -26,18 +26,16 @@ const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 
 pub(crate) struct Chunker {
     rng: OsRng,
-    me: Recipient,
     message_preparer: MessagePreparer<OsRng>,
 }
 
 impl Chunker {
-    pub(crate) fn new(me: Recipient) -> Self {
+    pub(crate) fn new(tested_mix_me: Recipient) -> Self {
         Chunker {
             rng: OsRng,
-            me,
             message_preparer: MessagePreparer::new(
                 OsRng,
-                me,
+                tested_mix_me,
                 DEFAULT_AVERAGE_PACKET_DELAY,
                 DEFAULT_AVERAGE_ACK_DELAY,
                 PacketMode::Mix,
@@ -46,10 +44,24 @@ impl Chunker {
         }
     }
 
-    pub(crate) async fn prepare_messages(
+    pub(crate) async fn prepare_packets_from(
         &mut self,
         message: Vec<u8>,
         topology: &NymTopology,
+        packet_sender: Recipient,
+    ) -> Vec<MixPacket> {
+        // I really dislike how we have to overwrite the parameter of the `MessagePreparer` on each run
+        // but without some significant API changes in the `MessagePreparer` this was the easiest
+        // way to being able to have variable sender address.
+        self.message_preparer.set_sender_address(packet_sender);
+        self.prepare_packets(message, topology, packet_sender).await
+    }
+
+    async fn prepare_packets(
+        &mut self,
+        message: Vec<u8>,
+        topology: &NymTopology,
+        packet_sender: Recipient,
     ) -> Vec<MixPacket> {
         let ack_key: AckKey = AckKey::new(&mut self.rng);
 
@@ -63,7 +75,7 @@ impl Chunker {
             // don't bother with acks etc. for time being
             let prepared_fragment = self
                 .message_preparer
-                .prepare_chunk_for_sending(message_chunk, &topology, &ack_key, &self.me)
+                .prepare_chunk_for_sending(message_chunk, &topology, &ack_key, &packet_sender)
                 .await
                 .unwrap();
 

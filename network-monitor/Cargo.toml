@@ -11,6 +11,7 @@ clap = "2.33.0"
 dotenv = "0.15.0"
 futures = "0.3"
 log = "0.4"
+pin-project = "1.0"
 pretty_env_logger = "0.3"
 rand = "0.7"
 serde = "1.0"
@@ -20,6 +21,7 @@ tokio = { version = "0.2", features = ["signal", "rt-threaded", "macros"] }
 ## internal
 crypto = { path = "../common/crypto" }
 gateway-client = { path = "../common/client-libs/gateway-client" }
+gateway-requests = { path = "../gateway/gateway-requests" }
 nymsphinx = { path = "../common/nymsphinx" }
 topology = { path = "../common/topology" }
 validator-client = { path = "../common/client-libs/validator-client" }

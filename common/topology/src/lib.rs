@@ -77,6 +77,10 @@ impl NymTopology {
         self.get_gateway(gateway_identity).is_some()
     }
 
+    pub fn set_gateways(&mut self, gateways: Vec<gateway::Node>) {
+        self.gateways = gateways
+    }
+
     pub fn random_mix_route<R>(
         &self,
         rng: &mut R,

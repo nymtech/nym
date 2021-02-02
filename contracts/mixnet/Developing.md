@@ -1,7 +1,6 @@
 # Developing
 
-If you have recently created a contract with this template, you probably could use some
-help on how to build and test the contract, as well as prepare it for production. This
+You probably could use some help on how to build and test the contract, as well as prepare it for production. This
 file attempts to provide a brief overview, assuming you have installed a recent
 version of Rust already (eg. 1.47.0+).
 

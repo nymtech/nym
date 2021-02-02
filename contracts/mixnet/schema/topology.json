@@ -3,12 +3,19 @@
   "title": "Topology",
   "type": "object",
   "required": [
-    "count"
+    "count",
+    "nodes"
   ],
   "properties": {
     "count": {
       "type": "integer",
       "format": "int32"
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   }
 }

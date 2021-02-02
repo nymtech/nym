@@ -4,12 +4,19 @@
   "type": "object",
   "required": [
     "count",
+    "nodes",
     "owner"
   ],
   "properties": {
     "count": {
       "type": "integer",
       "format": "int32"
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     },
     "owner": {
       "$ref": "#/definitions/CanonicalAddr"

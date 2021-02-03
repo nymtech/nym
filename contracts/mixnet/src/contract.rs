@@ -15,8 +15,8 @@ pub fn init(
     msg: InitMsg,
 ) -> Result<InitResponse, ContractError> {
     let state = State {
-        count: 0,
-        nodes: vec![],
+        mix_node_count: 0,
+        mix_nodes: vec![],
         owner: deps.api.canonical_address(&info.sender)?,
     };
     config(deps.storage).save(&state)?;
@@ -38,8 +38,8 @@ pub fn handle(
 
 pub fn try_add_mixnode(deps: DepsMut, ip: String) -> Result<HandleResponse, ContractError> {
     config(deps.storage).update(|mut state| -> Result<_, ContractError> {
-        state.count += 1;
-        state.nodes.push(ip);
+        state.mix_node_count += 1;
+        state.mix_nodes.push(ip);
         Ok(state)
     })?;
 
@@ -55,8 +55,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 fn query_count(deps: Deps) -> StdResult<Topology> {
     let state = config_read(deps.storage).load()?;
     Ok(Topology {
-        count: state.count,
-        mix_nodes: state.nodes,
+        mix_node_count: state.mix_node_count,
+        mix_nodes: state.mix_nodes,
     })
 }
 
@@ -71,7 +71,7 @@ mod tests {
         let mut deps = mock_dependencies(&[]);
 
         let msg = InitMsg {};
-        let info = mock_info("creator", &coins(1000, "earth"));
+        let info = mock_info("creator", &coins(1000, "unym"));
 
         // we can just call .unwrap() to assert this was a success
         let res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -79,8 +79,8 @@ mod tests {
 
         // it worked, let's query the state
         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
-        let value: Topology = from_binary(&res).unwrap();
-        assert_eq!(0, value.count); // there are no mixnodes in the topology when it's just been initialized
+        let topology: Topology = from_binary(&res).unwrap();
+        assert_eq!(0, topology.mix_node_count); // there are no mixnodes in the topology when it's just been initialized
     }
 
     #[test]

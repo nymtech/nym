@@ -8,9 +8,9 @@ pub static CONFIG_KEY: &[u8] = b"config";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
-    pub count: i32,
+    pub mix_node_count: i32,
     pub owner: CanonicalAddr,
-    pub nodes: Vec<String>,
+    pub mix_nodes: Vec<String>,
 }
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {

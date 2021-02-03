@@ -32,7 +32,7 @@ pub fn handle(
     msg: HandleMsg,
 ) -> Result<HandleResponse, ContractError> {
     match msg {
-        HandleMsg::Announce { ip } => try_add_mixnode(deps, ip),
+        HandleMsg::RegisterMixnode { ip } => try_add_mixnode(deps, ip),
     }
 }
 
@@ -56,52 +56,52 @@ fn query_count(deps: Deps) -> StdResult<Topology> {
     let state = config_read(deps.storage).load()?;
     Ok(Topology {
         count: state.count,
-        nodes: state.nodes,
+        mix_nodes: state.nodes,
     })
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-//     use cosmwasm_std::{coins, from_binary};
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::{coins, from_binary};
 
-//     #[test]
-//     fn proper_initialization() {
-//         let mut deps = mock_dependencies(&[]);
+    #[test]
+    fn proper_initialization() {
+        let mut deps = mock_dependencies(&[]);
 
-//         let msg = InitMsg { count: 17 };
-//         let info = mock_info("creator", &coins(1000, "earth"));
+        let msg = InitMsg {};
+        let info = mock_info("creator", &coins(1000, "earth"));
 
-//         // we can just call .unwrap() to assert this was a success
-//         let res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
-//         assert_eq!(0, res.messages.len());
+        // we can just call .unwrap() to assert this was a success
+        let res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(0, res.messages.len());
 
-//         // it worked, let's query the state
-//         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-//         let value: CountResponse = from_binary(&res).unwrap();
-//         assert_eq!(17, value.count);
-//     }
+        // it worked, let's query the state
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
+        let value: Topology = from_binary(&res).unwrap();
+        assert_eq!(0, value.count); // there are no mixnodes in the topology when it's just been initialized
+    }
 
-//     #[test]
-//     fn increment() {
-//         let mut deps = mock_dependencies(&coins(2, "token"));
+    #[test]
+    fn increment() {
+        // let mut deps = mock_dependencies(&coins(2, "token"));
 
-//         let msg = InitMsg { count: 17 };
-//         let info = mock_info("creator", &coins(2, "token"));
-//         let _res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
+        // let msg = InitMsg { count: 17 };
+        // let info = mock_info("creator", &coins(2, "token"));
+        // let _res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-//         // beneficiary can release it
-//         let info = mock_info("anyone", &coins(2, "token"));
-//         let msg = HandleMsg::Increment {};
-//         let _res = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+        // // beneficiary can release it
+        // let info = mock_info("anyone", &coins(2, "token"));
+        // let msg = HandleMsg::Increment {};
+        // let _res = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-//         // should increase counter by 1
-//         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-//         let value: CountResponse = from_binary(&res).unwrap();
-//         assert_eq!(18, value.count);
-//     }
-
+        // // should increase counter by 1
+        // let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
+        // let value: CountResponse = from_binary(&res).unwrap();
+        // assert_eq!(18, value.count);
+    }
+}
 //     #[test]
 //     fn reset() {
 //         let mut deps = mock_dependencies(&coins(2, "token"));

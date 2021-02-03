@@ -4,14 +4,14 @@
   "type": "object",
   "required": [
     "count",
-    "nodes"
+    "mix_nodes"
   ],
   "properties": {
     "count": {
       "type": "integer",
       "format": "int32"
     },
-    "nodes": {
+    "mix_nodes": {
       "type": "array",
       "items": {
         "type": "string"

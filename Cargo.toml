@@ -5,7 +5,7 @@
 panic = "abort"
 opt-level = "s"
 
-[profile.release.package.nym_mixnet_contracts]
+[profile.release.package.mixnet-contracts]
 opt-level = 3
 debug = false
 #rpath = false

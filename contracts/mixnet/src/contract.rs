@@ -1,10 +1,10 @@
-use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, HandleResponse, InitResponse, MessageInfo, StdResult,
-};
-
 use crate::error::ContractError;
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, Topology};
 use crate::state::{config, config_read, State};
+use cosmwasm_std::{
+    to_binary, Binary, Deps, DepsMut, Env, HandleResponse, InitResponse, MessageInfo, StdResult,
+};
+use validator_client::models::mixnode::RegisteredMix;
 
 // Note, you can use StdResult in some functions where you do not
 // make use of the custom errors
@@ -32,14 +32,17 @@ pub fn handle(
     msg: HandleMsg,
 ) -> Result<HandleResponse, ContractError> {
     match msg {
-        HandleMsg::RegisterMixnode { ip } => try_add_mixnode(deps, ip),
+        HandleMsg::RegisterMixnode { mixnode } => try_add_mixnode(deps, mixnode),
     }
 }
 
-pub fn try_add_mixnode(deps: DepsMut, ip: String) -> Result<HandleResponse, ContractError> {
+pub fn try_add_mixnode(
+    deps: DepsMut,
+    mixnode: RegisteredMix,
+) -> Result<HandleResponse, ContractError> {
     config(deps.storage).update(|mut state| -> Result<_, ContractError> {
         state.mix_node_count += 1;
-        state.mix_nodes.push(ip);
+        state.mix_nodes.push(mixnode);
         Ok(state)
     })?;
 
@@ -67,7 +70,7 @@ mod tests {
     use cosmwasm_std::{coins, from_binary};
 
     #[test]
-    fn proper_initialization() {
+    fn initialize_contract() {
         let mut deps = mock_dependencies(&[]);
 
         let msg = InitMsg {};

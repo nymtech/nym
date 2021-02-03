@@ -8,8 +8,9 @@ edition = "2018"
 
 [dependencies]
 log = "0.4"
-serde = { version = "1.0", features = ["derive"] }
 reqwest = { version = "0.10", features = ["json"] }
+schemars = "0.7.6"
+serde = { version = "1.0", features = ["derive"] }
 
 crypto = { path = "../../crypto" }
 topology = { path = "../../topology" }

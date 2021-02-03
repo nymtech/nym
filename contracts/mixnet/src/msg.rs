@@ -1,7 +1,7 @@
 use cosmwasm_std::HumanAddr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use topology::mix;
+use validator_client::models::mixnode::RegisteredMix;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {}
@@ -9,7 +9,7 @@ pub struct InitMsg {}
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    RegisterMixnode { ip: String }, // mixnode: mix::Node },
+    RegisterMixnode { mixnode: RegisteredMix },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -21,6 +21,6 @@ pub enum QueryMsg {
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Topology {
-    pub mix_nodes: Vec<String>,
+    pub mix_nodes: Vec<RegisteredMix>,
     pub mix_node_count: i32,
 }

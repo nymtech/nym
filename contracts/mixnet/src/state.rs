@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use validator_client::models::mixnode::RegisteredMix;
 
 use cosmwasm_std::{CanonicalAddr, Storage};
 use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
@@ -10,7 +11,7 @@ pub static CONFIG_KEY: &[u8] = b"config";
 pub struct State {
     pub mix_node_count: i32,
     pub owner: CanonicalAddr,
-    pub mix_nodes: Vec<String>,
+    pub mix_nodes: Vec<RegisteredMix>,
 }
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {

@@ -9,7 +9,6 @@ pub static CONFIG_KEY: &[u8] = b"config";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
-    pub mix_node_count: i32,
     pub owner: CanonicalAddr,
     pub mix_nodes: Vec<RegisteredMix>,
 }

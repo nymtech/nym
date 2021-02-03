@@ -22,5 +22,4 @@ pub enum QueryMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Topology {
     pub mix_nodes: Vec<RegisteredMix>,
-    pub mix_node_count: i32,
 }

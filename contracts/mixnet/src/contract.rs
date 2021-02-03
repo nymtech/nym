@@ -15,7 +15,6 @@ pub fn init(
     msg: InitMsg,
 ) -> Result<InitResponse, ContractError> {
     let state = State {
-        mix_node_count: 0,
         mix_nodes: vec![],
         owner: deps.api.canonical_address(&info.sender)?,
     };
@@ -41,7 +40,6 @@ pub fn try_add_mixnode(
     mixnode: RegisteredMix,
 ) -> Result<HandleResponse, ContractError> {
     config(deps.storage).update(|mut state| -> Result<_, ContractError> {
-        state.mix_node_count += 1;
         state.mix_nodes.push(mixnode);
         Ok(state)
     })?;
@@ -58,7 +56,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 fn query_count(deps: Deps) -> StdResult<Topology> {
     let state = config_read(deps.storage).load()?;
     Ok(Topology {
-        mix_node_count: state.mix_node_count,
         mix_nodes: state.mix_nodes,
     })
 }
@@ -83,7 +80,7 @@ mod tests {
         // it worked, let's query the state
         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
         let topology: Topology = from_binary(&res).unwrap();
-        assert_eq!(0, topology.mix_node_count); // there are no mixnodes in the topology when it's just been initialized
+        assert_eq!(0, topology.mix_nodes.len()); // there are no mixnodes in the topology when it's just been initialized
     }
 
     #[test]

@@ -1461,18 +1461,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mixnet"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "schemars",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "mixnet-client"
 version = "0.1.0"
 dependencies = [
@@ -1481,6 +1469,19 @@ dependencies = [
  "nymsphinx",
  "tokio",
  "tokio-util",
+]
+
+[[package]]
+name = "mixnet-contracts"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "schemars",
+ "serde",
+ "thiserror",
+ "topology",
 ]
 
 [[package]]

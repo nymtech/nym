@@ -49,11 +49,11 @@ pub fn try_add_mixnode(
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetTopology {} => to_binary(&query_count(deps)?),
+        QueryMsg::GetTopology {} => to_binary(&query_get_topology(deps)?),
     }
 }
 
-fn query_count(deps: Deps) -> StdResult<Topology> {
+fn query_get_topology(deps: Deps) -> StdResult<Topology> {
     let state = config_read(deps.storage).load()?;
     Ok(Topology {
         mix_nodes: state.mix_nodes,

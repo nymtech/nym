@@ -36,7 +36,7 @@ async function main() {
     console.log("* querying initial state");
     await getTopology(contractAddress, dave.client);
     // var handles = [];
-    for (let index = 1; index < 1000; index++) {
+    for (let index = 1; index < 10; index++) {
         const ip1 = `192.168.1.${index}`;
         const ip2 = `192.168.2.${index}`;
         const ip3 = `192.168.3.${index}`;

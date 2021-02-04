@@ -30,21 +30,17 @@ async function main() {
     const initMsg = {};
     const { contractAddress } = await dave.client.instantiate(dave.address, codeId, initMsg, "mixnode contract", { memo: "v0.1.0", transferAmount: [{ denom: "unym", amount: "50000" }] });
 
-
     // Use it
     console.log("Now the big moment we've all been waiting for...");
     console.log("Initial topology:");
     await getTopology(contractAddress, dave.client);
-    const ip1 = `192.168.1.1`;
-    const ip2 = `192.168.2.1`;
-    const ip3 = `192.168.3.1`;
-    const handle1 = addNode(ip1, dave, contractAddress).catch(err => {
+    const handle1 = addNode("192.168.1.1", dave, contractAddress).catch(err => {
         console.log(`Error while adding node: ${err}`);
     });
-    const handle2 = addNode(ip2, fred, contractAddress).catch(err => {
+    const handle2 = addNode("192.168.2.1", fred, contractAddress).catch(err => {
         console.log(`Error while adding node: ${err}`);
     });
-    const handle3 = addNode(ip3, bob, contractAddress).catch(err => {
+    const handle3 = addNode("192.168.3.1", bob, contractAddress).catch(err => {
         console.log(`Error while adding node: ${err}`);
     });
 

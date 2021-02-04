@@ -3,7 +3,8 @@ import { Bip39, Random } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import * as fs from "fs";
 import axios from 'axios';
-import { GasPrice, logs } from "@cosmjs/launchpad";
+import { GasLimits, GasPrice, logs } from "@cosmjs/launchpad";
+import { CosmWasmFeeTable } from "@cosmjs/cosmwasm";
 
 export { connect, getAttribute, loadMnemonic };
 
@@ -14,6 +15,15 @@ interface Options {
     gasPrice: number;
     bech32prefix: string;
 }
+
+const nymGasLimits: GasLimits<CosmWasmFeeTable> = {
+    upload: 2_500_000,
+    init: 500_000,
+    migrate: 200_000,
+    exec: 200_000,
+    send: 80_000,
+    changeAdmin: 80_000,
+};
 
 const defaultOptions: Options = {
     httpUrl: "http://localhost:26657",
@@ -35,6 +45,7 @@ const connect = async (
     const [{ address }] = await wallet.getAccounts();
     const signerOptions: SigningCosmWasmClientOptions = {
         gasPrice: GasPrice.fromString("0.025unym"),
+        gasLimits: nymGasLimits,
     };
     const client = await SigningCosmWasmClient.connectWithSigner(options.httpUrl, wallet, signerOptions);
     return { client, address }

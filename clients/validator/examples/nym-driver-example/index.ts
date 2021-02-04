@@ -33,31 +33,26 @@ async function main() {
 
     // Use it
     console.log("Now the big moment we've all been waiting for...");
-    console.log("* querying initial state");
+    console.log("Initial topology:");
     await getTopology(contractAddress, dave.client);
-    // var handles = [];
-    for (let index = 1; index < 10; index++) {
-        const ip1 = `192.168.1.${index}`;
-        const ip2 = `192.168.2.${index}`;
-        const ip3 = `192.168.3.${index}`;
-        const handle1 = addNode(ip1, dave, contractAddress).catch(err => {
-            console.log(`Error while adding node: ${err}`);
-        });
-        const handle2 = addNode(ip2, fred, contractAddress).catch(err => {
-            console.log(`Error while adding node: ${err}`);
-        });
-        const handle3 = addNode(ip3, bob, contractAddress).catch(err => {
-            console.log(`Error while adding node: ${err}`);
-        });
+    const ip1 = `192.168.1.1`;
+    const ip2 = `192.168.2.1`;
+    const ip3 = `192.168.3.1`;
+    const handle1 = addNode(ip1, dave, contractAddress).catch(err => {
+        console.log(`Error while adding node: ${err}`);
+    });
+    const handle2 = addNode(ip2, fred, contractAddress).catch(err => {
+        console.log(`Error while adding node: ${err}`);
+    });
+    const handle3 = addNode(ip3, bob, contractAddress).catch(err => {
+        console.log(`Error while adding node: ${err}`);
+    });
 
-        let handles = [handle1, handle2, handle3]
-        const combine = Promise.all(handles);
-        await combine;
-        await getTopology(contractAddress, dave.client);
-    }
+    let handles = [handle1, handle2, handle3]
+    const combine = Promise.all(handles);
+    await combine;
 
-
-    console.log("* querying end state");
+    console.log("Final topology:");
     await getTopology(contractAddress, dave.client);
 }
 
@@ -71,7 +66,7 @@ async function addNode(ip: string, account: Account, contractAddress: string) {
     };
 
     await account.client.execute(account.address, contractAddress, { register_mixnode: { mix_node: node } });
-    console.log(`added ip ${ip}`);
+    console.log(`account ${account.name} added mixnode with ${ip}`);
 }
 
 async function queryAccount(account: Account) {

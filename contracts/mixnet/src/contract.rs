@@ -4,7 +4,7 @@ use crate::state::{config, config_read, State};
 use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Env, HandleResponse, InitResponse, MessageInfo, StdResult,
 };
-use validator_client::models::mixnode::RegisteredMix;
+// use validator_client::models::mixnode::RegisteredMix;
 
 // Note, you can use StdResult in some functions where you do not
 // make use of the custom errors
@@ -31,16 +31,13 @@ pub fn handle(
     msg: HandleMsg,
 ) -> Result<HandleResponse, ContractError> {
     match msg {
-        HandleMsg::RegisterMixnode { mixnode } => try_add_mixnode(deps, mixnode),
+        HandleMsg::RegisterMixnode { ip } => try_add_mixnode(deps, ip),
     }
 }
 
-pub fn try_add_mixnode(
-    deps: DepsMut,
-    mixnode: RegisteredMix,
-) -> Result<HandleResponse, ContractError> {
+pub fn try_add_mixnode(deps: DepsMut, ip: String) -> Result<HandleResponse, ContractError> {
     config(deps.storage).update(|mut state| -> Result<_, ContractError> {
-        state.mix_nodes.push(mixnode);
+        state.mix_nodes.push(ip);
         Ok(state)
     })?;
 
@@ -60,62 +57,63 @@ fn query_get_topology(deps: Deps) -> StdResult<Topology> {
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary};
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+//     use cosmwasm_std::{coins, from_binary};
 
-    #[test]
-    fn initialize_contract() {
-        let mut deps = mock_dependencies(&coins(2000, "unym"));
+//     #[test]
+//     fn initialize_contract() {
+//         let mut deps = mock_dependencies(&coins(2000, "unym"));
 
-        let msg = InitMsg {};
-        let info = mock_info("creator", &coins(1000, "unym"));
-        // we can just call .unwrap() to assert this was a success
-        let res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
-        println!("res is: {:?}", res);
-        // println!("FOO: {:?}", contract_address);
+//         let msg = InitMsg {};
+//         let info = mock_info("creator", &coins(1000, "unym"));
+//         // we can just call .unwrap() to assert this was a success
+//         let res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
+//         println!("res is: {:?}", res);
+//         // println!("FOO: {:?}", contract_address);
 
-        assert_eq!(0, res.messages.len());
+//         assert_eq!(0, res.messages.len());
 
-        // it worked, let's query the state
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
-        let topology: Topology = from_binary(&res).unwrap();
-        assert_eq!(0, topology.mix_nodes.len()); // there are no mixnodes in the topology when it's just been initialized
+//         // it worked, let's query the state
+//         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
+//         let topology: Topology = from_binary(&res).unwrap();
+//         assert_eq!(0, topology.mix_nodes.len()); // there are no mixnodes in the topology when it's just been initialized
 
-        // OK, this is the question: how do I get the contract address so that I can then query to figure out what its balance is?
-        assert_eq!(
-            1000u128,
-            deps.as_ref()
-                .querier
-                .query_balance("creator", "unym")
-                .unwrap()
-                .amount
-                .into()
-        );
-    }
+//         // OK, this is the question: how do I get the contract address so that I can then query to figure out what its balance is?
+//         assert_eq!(
+//             1000u128,
+//             deps.as_ref()
+//                 .querier
+//                 .query_balance("creator", "unym")
+//                 .unwrap()
+//                 .amount
+//                 .into()
+//         );
+//     }
 
-    mod adding_a_mixnode {
-        // use super::*;
+//     #[cfg(test)]
+//     mod adding_a_mixnode {
+//         // use super::*;
 
-        // #[test]
-        // fn works() {
-        //     let mut deps = mock_dependencies(&coins(2, "token"));
-        //     let msg = InitMsg {};
-        //     let info = mock_info("creator", &coins(2, "token"));
-        //     let _res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
-        //     // beneficiary can release it
-        //     let info = mock_info("anyone", &coins(2, "token"));
-        //     let msg = HandleMsg::Increment {};
-        //     let _res = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
-        //     // should increase counter by 1
-        //     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-        //     let value: CountResponse = from_binary(&res).unwrap();
-        //     assert_eq!(18, value.count);
-        // }
-    }
-}
+//         // #[test]
+//         // fn works() {
+//         //     let mut deps = mock_dependencies(&coins(2, "token"));
+//         //     let msg = InitMsg {};
+//         //     let info = mock_info("creator", &coins(2, "token"));
+//         //     let _res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
+//         //     // beneficiary can release it
+//         //     let info = mock_info("anyone", &coins(2, "token"));
+//         //     let msg = HandleMsg::Increment {};
+//         //     let _res = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+//         //     // should increase counter by 1
+//         //     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
+//         //     let value: CountResponse = from_binary(&res).unwrap();
+//         //     assert_eq!(18, value.count);
+//         // }
+//     }
+// }
 
 // #[test]
 // fn increment() {

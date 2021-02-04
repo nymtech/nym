@@ -19,10 +19,10 @@ async function main() {
     await queryAccount(bob);
 
     // Upload a new copy of the option contract
-    let wasm = fs.readFileSync("../../../../target/wasm32-unknown-unknown/release/mixnet_contracts.wasm");
+    let wasm = fs.readFileSync("../../../../contracts/mixnet/target/wasm32-unknown-unknown/release/mixnet_contracts.wasm");
 
     // dave can upload (note: nobody else can)
-    const uploadResult = await dave.client.upload(dave.address, wasm, undefined, "mixnode contract");
+    const uploadResult = await dave.client.upload(dave.address, wasm, undefined, "mixnet contract");
     console.log("Upload from dave succeeded: " + uploadResult.codeId);
 
     // Instantiate the copy of the option contract
@@ -62,7 +62,7 @@ async function main() {
 }
 
 async function addNode(ip: string, account: Account, contractAddress: string) {
-    await account.client.execute(account.address, contractAddress, { announce: { ip: ip } });
+    await account.client.execute(account.address, contractAddress, { register_mixnode: { ip: ip } });
     console.log(`added ip ${ip}`);
 }
 
@@ -73,7 +73,7 @@ async function queryAccount(account: Account) {
 
 async function getTopology(contractAddress: string, client: SigningCosmWasmClient) {
     let topology = await client.queryContractSmart(contractAddress, { get_topology: {} });
-    console.log(topology.count);
+    console.log(topology.mix_nodes);
 }
 
 async function buildAccount(name: string): Promise<Account> {

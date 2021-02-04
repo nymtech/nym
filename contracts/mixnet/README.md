@@ -2,6 +2,12 @@
 
 This is the [cosmwasm](https://www.cosmwasm.com) smart contract which runs the Nym mixnet.
 
+## Compiling in development
+
+```
+RUSTFLAGS='-C link-arg=-s' cargo wasm
+```
+
 ## CI Support
 
 We have template configurations for both [GitHub Actions](.github/workflows/Basic.yml)

@@ -50,7 +50,6 @@ members = [
     "common/socks5/proxy-helpers",
     "common/topology",
     "common/wasm-utils",
-    "contracts/mixnet",
     "gateway",
     "gateway/gateway-requests",
     "mixnode",

@@ -1,5 +1,5 @@
 {
-  "name": "validator-client",
+  "name": "nym-validator-client",
   "version": "0.1.0",
   "description": "A TypeScript client for interacting with CosmWasm smart contracts in Nym validators",
   "repository": "https://code.constructiveproof.com/dave/validator-client",

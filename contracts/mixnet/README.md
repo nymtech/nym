@@ -1,4 +1,4 @@
-# CosmWasm Starter Pack
+# Nym Mixnet Contract
 
 This is the [cosmwasm](https://www.cosmwasm.com) smart contract which runs the Nym mixnet.
 

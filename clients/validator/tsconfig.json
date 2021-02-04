@@ -8,8 +8,9 @@
         "outDir": "./dist"
     },
     "exclude": [
-        "tests",
         "dist",
+        "examples",
+        "tests",
         "node_modules"
     ]
 }

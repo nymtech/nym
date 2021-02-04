@@ -38,7 +38,7 @@ schemars = "0.7"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.23" }
 
-# local dependendencies
+# local
 validator-client = { path = "../../common/client-libs/validator-client" }
 
 [dev-dependencies]

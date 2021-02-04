@@ -62,7 +62,15 @@ async function main() {
 }
 
 async function addNode(ip: string, account: Account, contractAddress: string) {
-    await account.client.execute(account.address, contractAddress, { register_mixnode: { ip: ip } });
+    let node = {
+        host: ip,
+        layer: 1,
+        location: "the internet",
+        sphinx_key: "mysphinxkey",
+        version: "0.9.2",
+    };
+
+    await account.client.execute(account.address, contractAddress, { register_mixnode: { mix_node: node } });
     console.log(`added ip ${ip}`);
 }
 

@@ -1,6 +1,7 @@
 use crate::error::ContractError;
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, Topology};
 use crate::state::{config, config_read, State};
+use crate::types::MixNode;
 use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Env, HandleResponse, InitResponse, MessageInfo, StdResult,
 };
@@ -31,13 +32,13 @@ pub fn handle(
     msg: HandleMsg,
 ) -> Result<HandleResponse, ContractError> {
     match msg {
-        HandleMsg::RegisterMixnode { ip } => try_add_mixnode(deps, ip),
+        HandleMsg::RegisterMixnode { mix_node } => try_add_mixnode(deps, mix_node),
     }
 }
 
-pub fn try_add_mixnode(deps: DepsMut, ip: String) -> Result<HandleResponse, ContractError> {
+pub fn try_add_mixnode(deps: DepsMut, mix_node: MixNode) -> Result<HandleResponse, ContractError> {
     config(deps.storage).update(|mut state| -> Result<_, ContractError> {
-        state.mix_nodes.push(ip);
+        state.mix_nodes.push(mix_node);
         Ok(state)
     })?;
 

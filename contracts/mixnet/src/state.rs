@@ -1,3 +1,4 @@
+use crate::types::MixNode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 // use validator_client::models::mixnode::RegisteredMix;
@@ -10,7 +11,7 @@ pub static CONFIG_KEY: &[u8] = b"config";
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
     pub owner: CanonicalAddr,
-    pub mix_nodes: Vec<String>,
+    pub mix_nodes: Vec<MixNode>,
 }
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {

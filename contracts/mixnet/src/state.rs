@@ -1,17 +1,15 @@
-use crate::types::MixNode;
+use crate::types::MixNodeBond;
+use cosmwasm_std::{HumanAddr, Storage};
+use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-// use validator_client::models::mixnode::RegisteredMix;
-
-use cosmwasm_std::{CanonicalAddr, Storage};
-use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
 
 pub static CONFIG_KEY: &[u8] = b"config";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
-    pub owner: CanonicalAddr,
-    pub mix_nodes: Vec<MixNode>,
+    pub owner: HumanAddr,
+    pub mix_node_bonds: Vec<MixNodeBond>,
 }
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {

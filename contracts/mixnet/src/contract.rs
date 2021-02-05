@@ -2,29 +2,29 @@ use crate::error::ContractError;
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, Topology};
 use crate::state::{config, config_read, State};
 use crate::types::MixNode;
+use crate::types::MixNodeBond;
+use cosmwasm_std::coins;
 use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Env, HandleResponse, InitResponse, MessageInfo, StdResult,
 };
-// use validator_client::models::mixnode::RegisteredMix;
 
-// Note, you can use StdResult in some functions where you do not
-// make use of the custom errors
+/// `deps` contains Storage, API and Querier
+/// `env` contains block, message and contract info
+/// `msg` is the contract initialization message, sort of like a constructor call.
 pub fn init(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    msg: InitMsg,
+    _msg: InitMsg,
 ) -> Result<InitResponse, ContractError> {
     let state = State {
-        mix_nodes: vec![],
-        owner: deps.api.canonical_address(&info.sender)?,
+        mix_node_bonds: vec![],
+        owner: info.sender,
     };
     config(deps.storage).save(&state)?;
-
     Ok(InitResponse::default())
 }
 
-// And declare a custom Error variant for the ones where you will want to make use of it
 pub fn handle(
     deps: DepsMut,
     _env: Env,
@@ -32,13 +32,27 @@ pub fn handle(
     msg: HandleMsg,
 ) -> Result<HandleResponse, ContractError> {
     match msg {
-        HandleMsg::RegisterMixnode { mix_node } => try_add_mixnode(deps, mix_node),
+        HandleMsg::RegisterMixnode { mix_node } => try_add_mixnode(deps, info, mix_node),
     }
 }
 
-pub fn try_add_mixnode(deps: DepsMut, mix_node: MixNode) -> Result<HandleResponse, ContractError> {
+pub fn try_add_mixnode(
+    deps: DepsMut,
+    info: MessageInfo,
+    mix_node: MixNode,
+) -> Result<HandleResponse, ContractError> {
     config(deps.storage).update(|mut state| -> Result<_, ContractError> {
-        state.mix_nodes.push(mix_node);
+        // check that we have at least 1_000_000_000 unyms in our bond (1000 nym)
+        if info.sent_funds[0].amount < coins(1000_000000, "unym")[0].amount {
+            return Err(ContractError::InsufficientBond {});
+        }
+
+        let bond = MixNodeBond {
+            amount: info.sent_funds,
+            owner: info.sender,
+            mix_node,
+        };
+        state.mix_node_bonds.push(bond);
         Ok(state)
     })?;
 
@@ -54,45 +68,46 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 fn query_get_topology(deps: Deps) -> StdResult<Topology> {
     let state = config_read(deps.storage).load()?;
     Ok(Topology {
-        mix_nodes: state.mix_nodes,
+        mix_node_bonds: state.mix_node_bonds,
     })
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-//     use cosmwasm_std::{coins, from_binary};
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::{coins, from_binary};
 
-//     #[test]
-//     fn initialize_contract() {
-//         let mut deps = mock_dependencies(&coins(2000, "unym"));
+    #[test]
+    fn initialize_contract() {
+        let mut deps = mock_dependencies(&coins(2000, "unym"));
 
-//         let msg = InitMsg {};
-//         let info = mock_info("creator", &coins(1000, "unym"));
-//         // we can just call .unwrap() to assert this was a success
-//         let res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
-//         println!("res is: {:?}", res);
-//         // println!("FOO: {:?}", contract_address);
+        let msg = InitMsg {};
+        let info = mock_info("creator", &coins(1000, "unym"));
+        // we can just call .unwrap() to assert this was a success
+        let res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
+        println!("res is: {:?}", res);
+        // println!("FOO: {:?}", contract_address);
 
-//         assert_eq!(0, res.messages.len());
+        assert_eq!(0, res.messages.len());
 
-//         // it worked, let's query the state
-//         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
-//         let topology: Topology = from_binary(&res).unwrap();
-//         assert_eq!(0, topology.mix_nodes.len()); // there are no mixnodes in the topology when it's just been initialized
+        // it worked, let's query the state
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
+        let topology: Topology = from_binary(&res).unwrap();
+        assert_eq!(0, topology.mix_node_bonds.len()); // there are no mixnodes in the topology when it's just been initialized
 
-//         // OK, this is the question: how do I get the contract address so that I can then query to figure out what its balance is?
-//         assert_eq!(
-//             1000u128,
-//             deps.as_ref()
-//                 .querier
-//                 .query_balance("creator", "unym")
-//                 .unwrap()
-//                 .amount
-//                 .into()
-//         );
-//     }
+        // OK, this is the question: how do I get the contract address so that I can then query to figure out what its balance is?
+        assert_eq!(
+            1000u128,
+            deps.as_ref()
+                .querier
+                .query_balance("creator", "unym")
+                .unwrap()
+                .amount
+                .into()
+        );
+    }
+}
 
 //     #[cfg(test)]
 //     mod adding_a_mixnode {
@@ -141,9 +156,9 @@ fn query_get_topology(deps: Deps) -> StdResult<Topology> {
 //         let _res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //         // beneficiary can release it
-//         let unauth_info = mock_info("anyone", &coins(2, "token"));
+//         let unauthorized_info = mock_info("anyone", &coins(2, "token"));
 //         let msg = HandleMsg::Reset { count: 5 };
-//         let res = handle(deps.as_mut(), mock_env(), unauth_info, msg);
+//         let res = handle(deps.as_mut(), mock_env(), unauthorized_info, msg);
 //         match res {
 //             Err(ContractError::Unauthorized {}) => {}
 //             _ => panic!("Must return unauthorized error"),

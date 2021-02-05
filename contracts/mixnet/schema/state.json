@@ -3,32 +3,92 @@
   "title": "State",
   "type": "object",
   "required": [
-    "count",
-    "nodes",
+    "mix_node_bonds",
     "owner"
   ],
   "properties": {
-    "count": {
-      "type": "integer",
-      "format": "int32"
-    },
-    "nodes": {
+    "mix_node_bonds": {
       "type": "array",
       "items": {
-        "type": "string"
+        "$ref": "#/definitions/MixNodeBond"
       }
     },
     "owner": {
-      "$ref": "#/definitions/CanonicalAddr"
+      "$ref": "#/definitions/HumanAddr"
     }
   },
   "definitions": {
-    "Binary": {
-      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+    "Coin": {
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      }
+    },
+    "HumanAddr": {
       "type": "string"
     },
-    "CanonicalAddr": {
-      "$ref": "#/definitions/Binary"
+    "MixNode": {
+      "type": "object",
+      "required": [
+        "host",
+        "layer",
+        "location",
+        "sphinx_key",
+        "version"
+      ],
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "layer": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "location": {
+          "type": "string"
+        },
+        "sphinx_key": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "MixNodeBond": {
+      "type": "object",
+      "required": [
+        "amount",
+        "mix_node",
+        "owner"
+      ],
+      "properties": {
+        "amount": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Coin"
+          }
+        },
+        "mix_node": {
+          "$ref": "#/definitions/MixNode"
+        },
+        "owner": {
+          "$ref": "#/definitions/HumanAddr"
+        }
+      }
+    },
+    "Uint128": {
+      "type": "string"
     }
   }
 }

@@ -8,7 +8,7 @@ async function main() {
     const fred = await buildAccount("fred");
     const bob = await buildAccount("bob");
 
-    const coins = [{ amount: "50000000", denom: "unym" }];
+    const coins = [{ amount: "5000000000", denom: "unym" }];
 
     console.log("Sending coins from dave to fred");
     await dave.client.sendTokens(dave.address, fred.address, coins, "Some love for fred!");
@@ -50,6 +50,13 @@ async function main() {
 
     console.log("Final topology:");
     await getTopology(contractAddress, dave.client);
+
+    console.log("Let's see what is in the contract:");
+    let balance = await fred.client.getBalance(contractAddress, "unym");
+    console.log(`the mixnet contract currently has: ${balance.amount}${balance.denom}`);
+
+    // our next challenge: how can dave, bob, and fred send funds into the contract when they register a mixnode? 
+    // How can they get their funds back out when they de-register? 
 }
 
 async function addNode(ip: string, account: Account, contractAddress: string) {
@@ -61,7 +68,8 @@ async function addNode(ip: string, account: Account, contractAddress: string) {
         version: "0.9.2",
     };
 
-    await account.client.execute(account.address, contractAddress, { register_mixnode: { mix_node: node } });
+    const bond = [{ amount: "100000000", denom: "unym" }];
+    await account.client.execute(account.address, contractAddress, { register_mixnode: { mix_node: node } }, "adding mixnode", bond);
     console.log(`account ${account.name} added mixnode with ${ip}`);
 }
 
@@ -72,7 +80,7 @@ async function queryAccount(account: Account) {
 
 async function getTopology(contractAddress: string, client: SigningCosmWasmClient) {
     let topology = await client.queryContractSmart(contractAddress, { get_topology: {} });
-    console.log(topology.mix_nodes);
+    console.log(topology.mix_node_bonds);
 }
 
 async function buildAccount(name: string): Promise<Account> {

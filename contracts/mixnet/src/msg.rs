@@ -1,5 +1,6 @@
-use crate::types::MixNode;
 // use cosmwasm_std::HumanAddr;
+use crate::types::MixNode;
+use crate::types::MixNodeBond;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -23,5 +24,5 @@ pub enum QueryMsg {
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Topology {
-    pub mix_nodes: Vec<MixNode>,
+    pub mix_node_bonds: Vec<MixNodeBond>,
 }

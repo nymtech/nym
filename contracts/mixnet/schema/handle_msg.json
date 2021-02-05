@@ -11,15 +11,46 @@
         "register_mixnode": {
           "type": "object",
           "required": [
-            "ip"
+            "mix_node"
           ],
           "properties": {
-            "ip": {
-              "type": "string"
+            "mix_node": {
+              "$ref": "#/definitions/MixNode"
             }
           }
         }
       }
     }
-  ]
+  ],
+  "definitions": {
+    "MixNode": {
+      "type": "object",
+      "required": [
+        "host",
+        "layer",
+        "location",
+        "sphinx_key",
+        "version"
+      ],
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "layer": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "location": {
+          "type": "string"
+        },
+        "sphinx_key": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    }
+  }
 }

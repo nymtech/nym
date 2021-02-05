@@ -7,6 +7,7 @@ async function main() {
     const dave = await buildAccount("dave");
     const fred = await buildAccount("fred");
     const bob = await buildAccount("bob");
+    const thief = await buildAccount("thief");
 
     const coins = [{ amount: "5000000000", denom: "unym" }];
 
@@ -17,6 +18,10 @@ async function main() {
     console.log("Sending coins from dave to bob");
     await dave.client.sendTokens(dave.address, bob.address, coins, "Some love for bob!");
     await queryAccount(bob);
+
+    console.log("Sending coins from dave to thief");
+    await dave.client.sendTokens(dave.address, thief.address, coins, "Some love for thief!");
+    await queryAccount(thief);
 
     // Upload a new copy of the option contract
     let wasm = fs.readFileSync("../../../../contracts/mixnet/target/wasm32-unknown-unknown/release/mixnet_contracts.wasm");

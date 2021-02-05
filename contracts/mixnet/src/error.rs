@@ -13,6 +13,9 @@ pub enum ContractError {
     #[error("Not enough funds sent for mixnode bond")]
     InsufficientBond {},
 
+    #[error("Account does not own any mixnode bonds")]
+    MixNodeBondNotFound {},
+
     #[error("Unauthorized")]
     Unauthorized {},
 

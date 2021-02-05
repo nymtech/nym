@@ -78,7 +78,7 @@ pub fn try_remove_mixnode(
 
     // find the bond
     let mixnode_bond = match state.mix_node_bonds.iter().find(|b| b.owner == info.sender) {
-        None => return Err(ContractError::Unauthorized {}), // TODO: change to a more specific error type
+        None => return Err(ContractError::MixNodeBondNotFound {}),
         Some(bond) => bond,
     };
     // send bonded funds back to the bond owner

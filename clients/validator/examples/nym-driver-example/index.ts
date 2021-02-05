@@ -76,6 +76,11 @@ async function main() {
 
     console.log("has the node been removed from the topology?");
     await getTopology(contractAddress, dave.client);
+
+    console.log("trying to unbond a node with an account that doesn't own a mixnode bond");
+    await thief.client.execute(thief.address, contractAddress, { un_register_mixnode: {} }).catch(err => {
+        console.log(`Error unbonding node: ${err}`)
+    });
 }
 
 async function addNode(ip: string, account: Account, contractAddress: string) {

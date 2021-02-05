@@ -4,7 +4,7 @@
   "main": "./dist/index.js",
   "author": "Dave Hrycyszyn",
   "license": "MIT",
-  "description": "The simplest comsjs typescript client to work as a driver program",
+  "description": "The simplest cosmjs typescript client to work as an example driver program",
   "repository": "https://github.com/nymtech/nym",
   "scripts": {
     "build": "tsc"

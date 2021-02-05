@@ -1,15 +1,21 @@
 use cosmwasm_std::StdError;
 use thiserror::Error;
 
+/// Custom errors for contract failure conditions.
+///
+/// Add any other custom errors you like here.
+/// Look at https://docs.rs/thiserror/1.0.21/thiserror/ for details.
 #[derive(Error, Debug)]
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
-    #[error("Unauthorized")]
-    Unauthorized {},
-    // Add any other custom errors you like here.
-    // Look at https://docs.rs/thiserror/1.0.21/thiserror/ for details.
     #[error("Not enough funds sent for mixnode bond")]
     InsufficientBond {},
+
+    #[error("Unauthorized")]
+    Unauthorized {},
+
+    #[error("Wrong coin denomination, you must send unym")]
+    WrongDenom {},
 }

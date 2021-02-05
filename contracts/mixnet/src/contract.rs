@@ -42,8 +42,14 @@ pub fn try_add_mixnode(
     mix_node: MixNode,
 ) -> Result<HandleResponse, ContractError> {
     config(deps.storage).update(|mut state| -> Result<_, ContractError> {
-        // check that we have at least 1_000_000_000 unyms in our bond (1000 nym)
-        if info.sent_funds[0].amount < coins(1000_000000, "unym")[0].amount {
+        let incoming = &info.sent_funds[0];
+
+        // check that the denomination is correct
+        if incoming.denom != "unym" {
+            return Err(ContractError::WrongDenom {});
+        }
+        // check that we have at least 1000 nym in our bond
+        if incoming.amount < coins(1000_000000, "unym")[0].amount {
             return Err(ContractError::InsufficientBond {});
         }
 

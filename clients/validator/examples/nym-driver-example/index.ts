@@ -51,12 +51,17 @@ async function main() {
     console.log("Final topology:");
     await getTopology(contractAddress, dave.client);
 
-    console.log("Let's see what is in the contract:");
+    console.log("Let's see what is in the contract after we've added the three nodes:");
     let balance = await fred.client.getBalance(contractAddress, "unym");
     console.log(`the mixnet contract currently has: ${balance.amount}${balance.denom}`);
 
-    // our next challenge: how can dave, bob, and fred send funds into the contract when they register a mixnode? 
-    // How can they get their funds back out when they de-register? 
+    console.log(`before unbonding, Dave's balance is: ${queryAccount(dave)}`);
+    console.log("Now let's try unbonding dave's node");
+    await dave.client.execute(dave.address, contractAddress, { un_register_mixnode: {} });
+    console.log("Unbonding succeeded");
+    console.log(`Dave's account now has: ${queryAccount(dave)}`);
+
+
 }
 
 async function addNode(ip: string, account: Account, contractAddress: string) {
@@ -68,7 +73,7 @@ async function addNode(ip: string, account: Account, contractAddress: string) {
         version: "0.9.2",
     };
 
-    const bond = [{ amount: "100000000", denom: "unym" }];
+    const bond = [{ amount: "1000000000", denom: "unym" }];
     await account.client.execute(account.address, contractAddress, { register_mixnode: { mix_node: node } }, "adding mixnode", bond);
     console.log(`account ${account.name} added mixnode with ${ip}`);
 }

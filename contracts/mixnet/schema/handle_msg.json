@@ -20,6 +20,17 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "un_register_mixnode"
+      ],
+      "properties": {
+        "un_register_mixnode": {
+          "type": "object"
+        }
+      }
     }
   ],
   "definitions": {

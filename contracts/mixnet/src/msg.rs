@@ -13,6 +13,7 @@ pub struct InitMsg {}
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
     RegisterMixnode { mix_node: MixNode },
+    UnRegisterMixnode {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

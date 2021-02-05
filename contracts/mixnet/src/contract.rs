@@ -4,8 +4,10 @@ use crate::state::{config, config_read, State};
 use crate::types::MixNode;
 use crate::types::MixNodeBond;
 use cosmwasm_std::coins;
+use cosmwasm_std::BankMsg;
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, HandleResponse, InitResponse, MessageInfo, StdResult,
+    attr, to_binary, Binary, Deps, DepsMut, Env, HandleResponse, InitResponse, MessageInfo,
+    StdResult,
 };
 
 /// `deps` contains Storage, API and Querier
@@ -27,12 +29,13 @@ pub fn init(
 
 pub fn handle(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: HandleMsg,
 ) -> Result<HandleResponse, ContractError> {
     match msg {
         HandleMsg::RegisterMixnode { mix_node } => try_add_mixnode(deps, info, mix_node),
+        HandleMsg::UnRegisterMixnode {} => try_remove_mixnode(deps, info, env),
     }
 }
 
@@ -63,6 +66,47 @@ pub fn try_add_mixnode(
     })?;
 
     Ok(HandleResponse::default())
+}
+
+pub fn try_remove_mixnode(
+    deps: DepsMut,
+    info: MessageInfo,
+    env: Env,
+) -> Result<HandleResponse, ContractError> {
+    // load state
+    let state = config(deps.storage).load()?;
+
+    // find the bond
+    let mixnode_bond = match state.mix_node_bonds.iter().find(|b| b.owner == info.sender) {
+        None => return Err(ContractError::Unauthorized {}), // TODO: change to a more specific error type
+        Some(bond) => bond,
+    };
+    // send bonded funds back to the bond owner
+    let messages = vec![BankMsg::Send {
+        from_address: env.contract.address.clone(),
+        to_address: info.sender.clone(),
+        amount: mixnode_bond.amount.clone(),
+    }
+    .into()];
+
+    // remove the bond from the list of bonded mixnodes
+    config(deps.storage).update(|mut state| -> Result<_, ContractError> {
+        state.mix_node_bonds.retain(|mnb| mnb.owner != info.sender);
+        Ok(state)
+    })?;
+
+    // log our actions
+    let attributes = vec![
+        attr("action", "unbond"),
+        attr("tokens", mixnode_bond.amount[0].amount),
+        attr("account", mixnode_bond.owner.clone()),
+    ];
+
+    Ok(HandleResponse {
+        messages,
+        attributes,
+        data: None,
+    })
 }
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {

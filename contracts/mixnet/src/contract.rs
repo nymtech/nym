@@ -131,31 +131,29 @@ mod tests {
     #[test]
     fn initialize_contract() {
         let mut deps = mock_dependencies(&coins(2000, "unym"));
-
+        let env = mock_env();
         let msg = InitMsg {};
-        let info = mock_info("creator", &coins(1000, "unym"));
-        // we can just call .unwrap() to assert this was a success
-        let res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
-        println!("res is: {:?}", res);
-        // println!("FOO: {:?}", contract_address);
-
+        let info = mock_info("creator", &[]);
+        let res = init(deps.as_mut(), env.clone(), info, msg).unwrap();
         assert_eq!(0, res.messages.len());
+        // save the contract address for querying
+        let contract_address = env.contract.address;
 
-        // it worked, let's query the state
+        // state should be empty after initialization
         let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
         let topology: Topology = from_binary(&res).unwrap();
         assert_eq!(0, topology.mix_node_bonds.len()); // there are no mixnodes in the topology when it's just been initialized
 
-        // OK, this is the question: how do I get the contract address so that I can then query to figure out what its balance is?
-        assert_eq!(
-            1000u128,
-            deps.as_ref()
-                .querier
-                .query_balance("creator", "unym")
-                .unwrap()
-                .amount
-                .into()
-        );
+        // Contract balance should match what we initialized it as
+        let initial_balance = deps
+            .as_ref()
+            .querier
+            .query_balance(contract_address, "unym")
+            .unwrap()
+            .amount
+            .into();
+
+        assert_eq!(2000u128, initial_balance);
     }
 }
 

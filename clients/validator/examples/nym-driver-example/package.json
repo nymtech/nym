@@ -2,7 +2,7 @@
   "name": "nym-driver-example",
   "version": "1.0.0",
   "main": "./dist/index.js",
-  "author": "Dave",
+  "author": "Dave Hrycyszyn",
   "license": "MIT",
   "description": "The simplest comsjs typescript client to work as a driver program",
   "repository": "https://github.com/nymtech/nym",

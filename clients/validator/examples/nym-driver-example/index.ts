@@ -51,17 +51,26 @@ async function main() {
     console.log("Final topology:");
     await getTopology(contractAddress, dave.client);
 
-    console.log("Let's see what is in the contract after we've added the three nodes:");
+    console.log("Let's see what is in the topology after we've added the three nodes:");
     let balance = await fred.client.getBalance(contractAddress, "unym");
     console.log(`the mixnet contract currently has: ${balance.amount}${balance.denom}`);
 
-    console.log(`before unbonding, Dave's balance is: ${queryAccount(dave)}`);
-    console.log("Now let's try unbonding dave's node");
+    const before_unbond_balance = await dave.client.getBalance(dave.address, "unym");
+
+    console.log(`Before unbonding, dave's balance is: ${before_unbond_balance.amount}. Now let's try unbonding dave's node`);
+
     await dave.client.execute(dave.address, contractAddress, { un_register_mixnode: {} });
     console.log("Unbonding succeeded");
-    console.log(`Dave's account now has: ${queryAccount(dave)}`);
+
+    const after_unbond_balance = await dave.client.getBalance(dave.address, "unym");
 
 
+    console.log(`Dave's account now has: ${after_unbond_balance.amount}`);
+    const unbonded_from_dave: number = Number(after_unbond_balance.amount) - Number(before_unbond_balance.amount);
+    console.log(`dave's account had ${unbonded_from_dave} restored to it`);
+
+    console.log("has the node been removed from the topology?");
+    await getTopology(contractAddress, dave.client);
 }
 
 async function addNode(ip: string, account: Account, contractAddress: string) {

@@ -11,17 +11,24 @@ async function main() {
 
     const coins = [{ amount: "5000000000", denom: "unym" }];
 
+    let transfers = [];
+
     console.log("Sending coins from dave to fred");
-    await dave.client.sendTokens(dave.address, fred.address, coins, "Some love for fred!");
-    await queryAccount(fred);
+    transfers.push(dave.client.sendTokens(dave.address, fred.address, coins, "Some love for fred!"));
 
     console.log("Sending coins from dave to bob");
-    await dave.client.sendTokens(dave.address, bob.address, coins, "Some love for bob!");
-    await queryAccount(bob);
+    transfers.push(dave.client.sendTokens(dave.address, bob.address, coins, "Some love for bob!"));
 
     console.log("Sending coins from dave to thief");
-    await dave.client.sendTokens(dave.address, thief.address, coins, "Some love for thief!");
-    await queryAccount(thief);
+    transfers.push(dave.client.sendTokens(dave.address, thief.address, coins, "Some love for thief!"));
+
+    await Promise.all(transfers);
+
+    const queries = [];
+
+    queries.push(queryAccount(fred));
+    queries.push(queryAccount(bob));
+    queries.push(queryAccount(thief));
 
     // Upload a new copy of the option contract
     let wasm = fs.readFileSync("../../../../contracts/mixnet/target/wasm32-unknown-unknown/release/mixnet_contracts.wasm");
@@ -41,19 +48,19 @@ async function main() {
     await getTopology(contractAddress, dave.client);
 
     console.log("Adding 3 nodes from dave, bob, and fred...");
-    const handle1 = addNode("192.168.1.1", dave, contractAddress).catch(err => {
-        console.log(`Error while adding node: ${err}`);
-    });
-    const handle2 = addNode("192.168.2.1", fred, contractAddress).catch(err => {
-        console.log(`Error while adding node: ${err}`);
-    });
-    const handle3 = addNode("192.168.3.1", bob, contractAddress).catch(err => {
-        console.log(`Error while adding node: ${err}`);
-    });
+    const addNodes = [];
 
-    let handles = [handle1, handle2, handle3]
-    const combine = Promise.all(handles);
-    await combine;
+    addNodes.push(addNode("192.168.1.1", dave, contractAddress).catch(err => {
+        console.log(`Error while adding node: ${err}`);
+    }));
+    addNodes.push(addNode("192.168.2.1", fred, contractAddress).catch(err => {
+        console.log(`Error while adding node: ${err}`);
+    }));
+    addNodes.push(addNode("192.168.3.1", bob, contractAddress).catch(err => {
+        console.log(`Error while adding node: ${err}`);
+    }));
+
+    await Promise.all(addNodes);
 
     console.log("Let's see what is in the topology after we've added the three nodes:");
     await getTopology(contractAddress, dave.client);

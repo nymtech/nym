@@ -125,7 +125,12 @@ fn query_get_topology(deps: Deps) -> StdResult<Topology> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cosmwasm_std::testing::MockApi;
+    use cosmwasm_std::testing::MockQuerier;
+    use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::HumanAddr;
+    use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::{coins, from_binary};
 
     #[test]
@@ -136,48 +141,84 @@ mod tests {
         let info = mock_info("creator", &[]);
         let res = init(deps.as_mut(), env.clone(), info, msg).unwrap();
         assert_eq!(0, res.messages.len());
-        // save the contract address for querying
-        let contract_address = env.contract.address;
 
-        // state should be empty after initialization
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
+        // mix_node_bonds should be empty after initialization
+        let res = query(deps.as_ref(), env.clone(), QueryMsg::GetTopology {}).unwrap();
         let topology: Topology = from_binary(&res).unwrap();
         assert_eq!(0, topology.mix_node_bonds.len()); // there are no mixnodes in the topology when it's just been initialized
 
         // Contract balance should match what we initialized it as
-        let initial_balance = deps
-            .as_ref()
-            .querier
-            .query_balance(contract_address, "unym")
+        assert_eq!(2000u128, query_balance(env.contract.address, deps));
+    }
+
+    #[cfg(test)]
+    mod adding_a_mixnode {
+        use super::*;
+
+        #[test]
+        fn works_if_1000_nym_are_sent() {
+            let mut deps = mock_dependencies(&[]);
+            let msg = InitMsg {};
+            let info = mock_info("creator", &[]);
+            let _res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+            let info = mock_info("anyone", &coins(1000_000000, "unym"));
+            let msg = HandleMsg::RegisterMixnode {
+                mix_node: mix_node_fixture(),
+            };
+            let _res = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+            let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
+            let topology: Topology = from_binary(&res).unwrap();
+            assert_eq!(1, topology.mix_node_bonds.len());
+            assert_eq!(
+                mix_node_fixture().location,
+                topology.mix_node_bonds[0].mix_node.location
+            )
+        }
+
+        #[test]
+        fn fails_if_less_than_1000_nym_are_sent() {
+            let mut deps = mock_dependencies(&[]);
+            let msg = InitMsg {};
+            let info = mock_info("creator", &[]);
+            let _res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+            let info = mock_info("anyone", &coins(999_999999, "unym"));
+            let msg = HandleMsg::RegisterMixnode {
+                mix_node: mix_node_fixture(),
+            };
+            let result = handle(deps.as_mut(), mock_env(), info, msg);
+            assert_eq!(result, Err(ContractError::InsufficientBond {}));
+
+            let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
+            let topology: Topology = from_binary(&res).unwrap();
+            assert_eq!(0, topology.mix_node_bonds.len());
+        }
+    }
+
+    fn query_balance(
+        address: HumanAddr,
+        deps: OwnedDeps<MockStorage, MockApi, MockQuerier>,
+    ) -> u128 {
+        let querier = deps.as_ref().querier;
+        querier
+            .query_balance(address, "unym")
             .unwrap()
             .amount
-            .into();
+            .into()
+    }
 
-        assert_eq!(2000u128, initial_balance);
+    fn mix_node_fixture() -> MixNode {
+        MixNode {
+            host: "mix.node.org".to_string(),
+            layer: 1,
+            location: "Sweden".to_string(),
+            sphinx_key: "sphinxsphinxsphinx".to_string(),
+            version: "0.10.0".to_string(),
+        }
     }
 }
-
-//     #[cfg(test)]
-//     mod adding_a_mixnode {
-//         // use super::*;
-
-//         // #[test]
-//         // fn works() {
-//         //     let mut deps = mock_dependencies(&coins(2, "token"));
-//         //     let msg = InitMsg {};
-//         //     let info = mock_info("creator", &coins(2, "token"));
-//         //     let _res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
-//         //     // beneficiary can release it
-//         //     let info = mock_info("anyone", &coins(2, "token"));
-//         //     let msg = HandleMsg::Increment {};
-//         //     let _res = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
-//         //     // should increase counter by 1
-//         //     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-//         //     let value: CountResponse = from_binary(&res).unwrap();
-//         //     assert_eq!(18, value.count);
-//         // }
-//     }
-// }
 
 // #[test]
 // fn increment() {

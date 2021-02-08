@@ -28,17 +28,19 @@ async function main() {
 
     // dave can upload (note: nobody else can)
     const uploadResult = await dave.client.upload(dave.address, wasm, undefined, "mixnet contract");
-    console.log("Upload from dave succeeded: " + uploadResult.codeId);
+    console.log("Upload from dave succeeded, codeId is: " + uploadResult.codeId);
 
     // Instantiate the copy of the option contract
     const { codeId } = uploadResult;
     const initMsg = {};
-    const { contractAddress } = await dave.client.instantiate(dave.address, codeId, initMsg, "mixnode contract", { memo: "v0.1.0", transferAmount: [{ denom: "unym", amount: "50000" }] });
+    const { contractAddress } = await dave.client.instantiate(dave.address, codeId, initMsg, "mixnet contract", { memo: "v0.1.0", transferAmount: [{ denom: "unym", amount: "50000" }] });
 
     // Use it
     console.log("Now the big moment we've all been waiting for...");
     console.log("Initial topology:");
     await getTopology(contractAddress, dave.client);
+
+    console.log("Adding 3 nodes from dave, bob, and fred...");
     const handle1 = addNode("192.168.1.1", dave, contractAddress).catch(err => {
         console.log(`Error while adding node: ${err}`);
     });
@@ -53,10 +55,9 @@ async function main() {
     const combine = Promise.all(handles);
     await combine;
 
-    console.log("Final topology:");
+    console.log("Let's see what is in the topology after we've added the three nodes:");
     await getTopology(contractAddress, dave.client);
 
-    console.log("Let's see what is in the topology after we've added the three nodes:");
     let balance = await fred.client.getBalance(contractAddress, "unym");
     console.log(`the mixnet contract currently has: ${balance.amount}${balance.denom}`);
 

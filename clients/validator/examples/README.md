@@ -13,6 +13,12 @@ mv nymd $GOBIN
 
 That will build and install the `nymd` binary in Go's bin directory; assuming that's in your $PATH, the commands in this repo will work. 
 
+There's an examples folder inside the validator client, which will set up Cosmos-based accounts, then initialize and start a local Cosmos blockchain for development purposes. First, from the top-level `nym` directory:
+
+```
+cd clients/validator/examples
+```
+
 (Re)generate accounts by running the following. NOTE: it's destructive, it'll wipe your previous wasm accounts!
 
 ```
@@ -33,7 +39,9 @@ Start it with:
 
 Congratulations! You now have a running CosmWasm blockchain that you can upload contract code into. 
 
-## Doing it in TypeScript
+## Using it in TypeScript
+
+From the `clients/validators/examples` directory:
 
 ```
 cd nym-driver-example

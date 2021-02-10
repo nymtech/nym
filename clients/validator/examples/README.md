@@ -41,6 +41,6 @@ npm install
 npx nodemon --exec ts-node ./index.ts  --watch . --ext .ts
 ```
 
-That will give you a running daemon that watches for changes in TypeScript files. 
+That will give you a running daemon that watches for changes in TypeScript files. It will execute a series of actions in the blockchain and explain what it's doing in the console, so you can see how things work.
 
 Running `ts-node` on the index file would do basically the same thing, without a watcher. 

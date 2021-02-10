@@ -11,7 +11,7 @@ go build -o nymd -mod=readonly -tags "netgo,ledger" -ldflags '-X github.com/cosm
 mv nymd $GOBIN
 ```
 
-That will build and install the `nymd` binary in Go's bin directory; assuming that's in your $PATH, the commands in this repo will work. 
+That will build and install the `nymd` binary in Go's bin directory; assuming that's in your $PATH, the commands below will work. 
 
 There's an examples folder inside the validator client, which will set up Cosmos-based accounts, then initialize and start a local Cosmos blockchain for development purposes. First, from the top-level `nym` directory:
 

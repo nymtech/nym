@@ -9,58 +9,66 @@ async function main() {
     const bob = await buildAccount("bob");
     const thief = await buildAccount("thief");
 
-    const coins = [{ amount: "5000000000", denom: "unym" }];
 
-    let transfers = [];
+    // const coins = [{ amount: "3000000000000", denom: "unym" }];
 
-    console.log("Sending coins from dave to fred");
-    transfers.push(dave.client.sendTokens(dave.address, fred.address, coins, "Some love for fred!"));
+    // // let transfers = [];
 
-    console.log("Sending coins from dave to bob");
-    transfers.push(dave.client.sendTokens(dave.address, bob.address, coins, "Some love for bob!"));
+    // console.log("Sending coins from dave to fred");
+    // await dave.client.sendTokens(dave.address, fred.address, coins, "Some love for fred!");
 
-    console.log("Sending coins from dave to thief");
-    transfers.push(dave.client.sendTokens(dave.address, thief.address, coins, "Some love for thief!"));
+    // console.log("Sending coins from dave to bob");
+    // await dave.client.sendTokens(dave.address, bob.address, coins, "Some love for bob!");
 
-    await Promise.all(transfers);
+    // console.log("Sending coins from dave to thief");
+    // await dave.client.sendTokens(dave.address, thief.address, coins, "Some love for thief!");
 
-    const queries = [];
+    // const queries = [];
 
-    queries.push(queryAccount(fred));
-    queries.push(queryAccount(bob));
-    queries.push(queryAccount(thief));
+    await queryAccount(fred);
+    await queryAccount(bob);
+    await queryAccount(thief);
+    // await Promise.all(queries);
 
     // Upload a new copy of the option contract
-    let wasm = fs.readFileSync("../../../../contracts/mixnet/target/wasm32-unknown-unknown/release/mixnet_contracts.wasm");
+    // let wasm = fs.readFileSync("../../../../contracts/mixnet/target/wasm32-unknown-unknown/release/mixnet_contracts.wasm");
 
     // dave can upload (note: nobody else can)
-    const uploadResult = await dave.client.upload(dave.address, wasm, undefined, "mixnet contract");
-    console.log("Upload from dave succeeded, codeId is: " + uploadResult.codeId);
+    // const uploadResult = await dave.client.upload(dave.address, wasm, undefined, "mixnet contract");
+    // console.log("Upload from dave succeeded, codeId is: " + uploadResult.codeId);
 
     // Instantiate the copy of the option contract
-    const { codeId } = uploadResult;
-    const initMsg = {};
-    const { contractAddress } = await dave.client.instantiate(dave.address, codeId, initMsg, "mixnet contract", { memo: "v0.1.0", transferAmount: [{ denom: "unym", amount: "50000" }] });
+    // const { codeId } = uploadResult;
+    // const initMsg = {};
+    // const { contractAddress } = await dave.client.instantiate(dave.address, codeId, initMsg, "mixnet contract", { memo: "v0.1.0", transferAmount: [{ denom: "unym", amount: "50000" }] });
+    // console.log(`mixnet contract ${contractAddress} instantiated successfully`)
+
+    const contractAddress = "nym1tndcaqxkpc5ce9qee5ggqf430mr2z3ped2xc4z";
 
     // Use it
     console.log("Now the big moment we've all been waiting for...");
     console.log("Initial topology:");
-    await getTopology(contractAddress, dave.client);
+    let initialTopology = await getTopology(contractAddress, dave.client);
 
-    console.log("Adding 3 nodes from dave, bob, and fred...");
-    const addNodes = [];
 
-    addNodes.push(addNode("192.168.1.1", dave, contractAddress).catch(err => {
-        console.log(`Error while adding node: ${err}`);
-    }));
-    addNodes.push(addNode("192.168.2.1", fred, contractAddress).catch(err => {
-        console.log(`Error while adding node: ${err}`);
-    }));
-    addNodes.push(addNode("192.168.3.1", bob, contractAddress).catch(err => {
-        console.log(`Error while adding node: ${err}`);
-    }));
+    console.log("Adding nodes from dave, bob, and fred...");
 
-    await Promise.all(addNodes);
+
+    for (var i = 1; i < 3000; i++) {
+        // const addNodes = [];
+        await addNode("192.168.1.1", dave, contractAddress).catch(err => {
+            console.log(`Error while adding node: ${err}`);
+        });
+        await addNode("192.168.2.1", fred, contractAddress).catch(err => {
+            console.log(`Error while adding node: ${err}`);
+        });
+        await addNode("192.168.3.1", bob, contractAddress).catch(err => {
+            console.log(`Error while adding node: ${err}`);
+        });
+
+        // await Promise.all(addNodes);
+    }
+
 
     console.log("Let's see what is in the topology after we've added the three nodes:");
     await getTopology(contractAddress, dave.client);
@@ -110,9 +118,10 @@ async function queryAccount(account: Account) {
     console.log(`${account.name} (${account.address}) has: ${balance?.amount}${balance?.denom}`);
 }
 
-async function getTopology(contractAddress: string, client: SigningCosmWasmClient) {
+async function getTopology(contractAddress: string, client: SigningCosmWasmClient) {// : Promise<Topology> {
     let topology = await client.queryContractSmart(contractAddress, { get_topology: {} });
     console.log(topology.mix_node_bonds);
+    console.log(`length is: ${topology.mix_node_bonds.length}.`);
 }
 
 async function buildAccount(name: string): Promise<Account> {
@@ -123,6 +132,10 @@ async function buildAccount(name: string): Promise<Account> {
 
 class Account {
     constructor(readonly name: string, readonly client: SigningCosmWasmClient, readonly address: string) { };
+}
+
+class Topology {
+    constructor(readonly mixNodes: [], readonly validators: []) { };
 }
 
 main();

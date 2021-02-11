@@ -6,6 +6,8 @@ use cosmwasm_std::{
     MessageInfo, StdResult,
 };
 
+/// Instantiate the contract.
+///
 /// `deps` contains Storage, API and Querier
 /// `env` contains block, message and contract info
 /// `msg` is the contract initialization message, sort of like a constructor call.

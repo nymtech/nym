@@ -128,6 +128,8 @@ fn query_get_nodes(deps: Deps) -> StdResult<Vec<MixNodeBond>> {
 
 #[cfg(test)]
 mod tests {
+    use crate::state::mixnodes;
+
     use super::*;
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
@@ -212,7 +214,21 @@ mod tests {
         let nodes: Vec<MixNodeBond> = from_binary(&result).unwrap();
         assert_eq!(0, nodes.len());
 
-        // let's add a couple of nodes
+        // let's add a node
+        let node = MixNodeBond {
+            amount: coins(50, "unym"),
+            owner: HumanAddr::from("foo"),
+            mix_node: mix_node_fixture(),
+        };
+        mixnodes(&mut deps.storage)
+            .save("foo".as_bytes(), &node)
+            .unwrap();
+
+        // is the node there?
+        let result = query(deps.as_ref(), mock_env(), QueryMsg::GetNodes {}).unwrap();
+        let nodes: Vec<MixNodeBond> = from_binary(&result).unwrap();
+        assert_eq!(1, nodes.len());
+        assert_eq!(mix_node_fixture().host, nodes[0].mix_node.host);
     }
 
     fn query_balance(

@@ -94,4 +94,16 @@ mod tests {
         let all_nodes = mixnodes_all(&storage).unwrap();
         assert_eq!(2, all_nodes.len());
     }
+
+    #[test]
+    fn mixnodes_retrieval_works_with_large_numbers_of_nodes() {
+        let mut storage = MockStorage::new();
+        for n in 0..10000 {
+            let key = format!("bond{}", n);
+            let node = mixnode_bond_fixture();
+            mixnodes(&mut storage).save(key.as_bytes(), &node).unwrap();
+        }
+        let all_nodes = mixnodes_all(&storage).unwrap();
+        assert_eq!(10000, all_nodes.len());
+    }
 }

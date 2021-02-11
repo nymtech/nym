@@ -1,10 +1,7 @@
-// use cosmwasm_std::HumanAddr;
-use crate::types::MixNode;
-use crate::types::MixNodeBond;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-// use validator_client::models::mixnode::RegisteredMix;
+use crate::state::{MixNode, MixNodeBond};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {}

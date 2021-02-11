@@ -1,6 +1,9 @@
-use crate::types::MixNodeBond;
+use cosmwasm_std::{Coin, Order, StdError, StdResult};
 use cosmwasm_std::{HumanAddr, Storage};
-use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
+use cosmwasm_storage::{
+    bucket, bucket_read, prefixed_read, singleton, singleton_read, Bucket, ReadonlyBucket,
+    ReadonlySingleton, Singleton,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -41,3 +44,33 @@ pub struct MixNode {
     pub(crate) version: String,
 }
 
+pub fn mixnodes(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
+    bucket(storage, PREFIX_MIXNODES)
+}
+
+pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
+    bucket_read(storage, PREFIX_MIXNODES)
+}
+
+pub fn mixnodes_all(storage: &dyn Storage) -> StdResult<Vec<String>> {
+    prefixed_read(storage, PREFIX_MIXNODES)
+        .range(None, None, Order::Ascending)
+        .map(|(k, _)| {
+            // from_binary(v.into())
+            String::from_utf8(k).map_err(|_| StdError::invalid_utf8("parsing mix node bond key"))
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::testing::MockStorage;
+
+    #[test]
+    fn empty_on_init() {
+        let storage = MockStorage::new();
+        let all_nodes = mixnodes_all(&storage).unwrap();
+        assert_eq!(0, all_nodes.len());
+    }
+}

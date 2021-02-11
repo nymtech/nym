@@ -1,13 +1,9 @@
 use crate::error::ContractError;
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, Topology};
-use crate::state::{config, config_read, State};
-use crate::types::MixNode;
-use crate::types::MixNodeBond;
-use cosmwasm_std::coins;
-use cosmwasm_std::BankMsg;
+use crate::state::{config, config_read, MixNode, MixNodeBond, State};
 use cosmwasm_std::{
-    attr, to_binary, Binary, Deps, DepsMut, Env, HandleResponse, InitResponse, MessageInfo,
-    StdResult,
+    attr, coins, to_binary, BankMsg, Binary, Deps, DepsMut, Env, HandleResponse, InitResponse,
+    MessageInfo, StdResult,
 };
 
 /// `deps` contains Storage, API and Querier

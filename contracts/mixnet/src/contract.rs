@@ -79,7 +79,7 @@ pub fn try_remove_mixnode(
     };
     // send bonded funds back to the bond owner
     let messages = vec![BankMsg::Send {
-        from_address: env.contract.address.clone(),
+        from_address: env.contract.address,
         to_address: info.sender.clone(),
         amount: mixnode_bond.amount.clone(),
     }

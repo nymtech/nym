@@ -210,7 +210,7 @@ mod tests {
             host: "mix.node.org".to_string(),
             layer: 1,
             location: "Sweden".to_string(),
-            sphinx_key: "sphinxsphinxsphinx".to_string(),
+            sphinx_key: "sphinx".to_string(),
             version: "0.10.0".to_string(),
         }
     }

@@ -1,8 +1,8 @@
-use cosmwasm_std::{Coin, Order, StdError, StdResult};
+use cosmwasm_std::{Coin, Order, StdResult, KV};
 use cosmwasm_std::{HumanAddr, Storage};
 use cosmwasm_storage::{
-    bucket, bucket_read, prefixed_read, singleton, singleton_read, Bucket, ReadonlyBucket,
-    ReadonlySingleton, Singleton,
+    bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
+    Singleton,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -52,14 +52,9 @@ pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
     bucket_read(storage, PREFIX_MIXNODES)
 }
 
-pub fn mixnodes_all(storage: &dyn Storage) -> StdResult<Vec<String>> {
-    prefixed_read(storage, PREFIX_MIXNODES)
-        .range(None, None, Order::Ascending)
-        .map(|(k, _)| {
-            // from_binary(v.into())
-            String::from_utf8(k).map_err(|_| StdError::invalid_utf8("parsing mix node bond key"))
-        })
-        .collect()
+pub fn mixnodes_all(storage: &dyn Storage) -> StdResult<Vec<KV<MixNodeBond>>> {
+    let bucket = bucket_read::<MixNodeBond>(storage, PREFIX_MIXNODES);
+    bucket.range(None, None, Order::Ascending).collect()
 }
 
 #[cfg(test)]
@@ -90,7 +85,7 @@ mod tests {
     }
 
     #[test]
-    fn mixnodes_retrieval_works() {
+    fn mixnodes_range_retrieval_works() {
         let mut storage = MockStorage::new();
         let bond1 = mixnode_bond_fixture();
         let bond2 = mixnode_bond_fixture();

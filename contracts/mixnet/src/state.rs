@@ -65,12 +65,42 @@ pub fn mixnodes_all(storage: &dyn Storage) -> StdResult<Vec<String>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::testing::MockStorage;
+    use cosmwasm_std::{coins, testing::MockStorage};
+
+    fn mixnode_bond_fixture() -> MixNodeBond {
+        let mix_node = MixNode {
+            host: "1.1.1.1".to_string(),
+            layer: 1,
+            location: "London".to_string(),
+            sphinx_key: "1234".to_string(),
+            version: "0.10.0".to_string(),
+        };
+        MixNodeBond {
+            amount: coins(50, "unym"),
+            owner: HumanAddr::from("foo"),
+            mix_node,
+        }
+    }
 
     #[test]
-    fn empty_on_init() {
+    fn mixnodes_empty_on_init() {
         let storage = MockStorage::new();
         let all_nodes = mixnodes_all(&storage).unwrap();
         assert_eq!(0, all_nodes.len());
+    }
+
+    #[test]
+    fn mixnodes_retrieval_works() {
+        let mut storage = MockStorage::new();
+        let bond1 = mixnode_bond_fixture();
+        let bond2 = mixnode_bond_fixture();
+        mixnodes(&mut storage)
+            .save("bond1".as_bytes(), &bond1)
+            .unwrap();
+        mixnodes(&mut storage)
+            .save("bond2".as_bytes(), &bond2)
+            .unwrap();
+        let all_nodes = mixnodes_all(&storage).unwrap();
+        assert_eq!(2, all_nodes.len());
     }
 }

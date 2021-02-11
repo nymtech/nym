@@ -111,7 +111,7 @@ pub fn try_remove_mixnode(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetTopology {} => to_binary(&query_get_topology(deps)?),
-        // QueryMsg::GetNodes {} => to_binary(&query_get_nodes(deps)?),
+        QueryMsg::GetNodes {} => to_binary(&query_get_nodes(deps)?),
     }
 }
 
@@ -122,9 +122,9 @@ fn query_get_topology(deps: Deps) -> StdResult<Topology> {
     })
 }
 
-// fn query_get_nodes(deps: Deps) -> StdResult<Vec<MixNodeBond>> {
-//     mixnodes_all(deps.storage)
-// }
+fn query_get_nodes(deps: Deps) -> StdResult<Vec<MixNodeBond>> {
+    mixnodes_all(deps.storage)
+}
 
 #[cfg(test)]
 mod tests {
@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn initialize_contract() {
-        let mut deps = mock_dependencies(&coins(2000, "unym"));
+        let mut deps = mock_dependencies(&[]);
         let env = mock_env();
         let msg = InitMsg {};
         let info = mock_info("creator", &[]);
@@ -152,7 +152,7 @@ mod tests {
         assert_eq!(0, topology.mix_node_bonds.len()); // there are no mixnodes in the topology when it's just been initialized
 
         // Contract balance should match what we initialized it as
-        assert_eq!(2000u128, query_balance(env.contract.address, deps));
+        assert_eq!(0, query_balance(env.contract.address, deps));
     }
 
     #[cfg(test)]
@@ -186,7 +186,7 @@ mod tests {
             let mut deps = mock_dependencies(&[]);
             let msg = InitMsg {};
             let info = mock_info("creator", &[]);
-            let _res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
+            init(deps.as_mut(), mock_env(), info, msg).unwrap();
 
             let info = mock_info("anyone", &coins(999_999999, "unym"));
             let msg = HandleMsg::RegisterMixnode {
@@ -199,6 +199,20 @@ mod tests {
             let topology: Topology = from_binary(&res).unwrap();
             assert_eq!(0, topology.mix_node_bonds.len());
         }
+    }
+
+    #[test]
+    fn query_mixnodes_works() {
+        let mut deps = mock_dependencies(&[]);
+        let msg = InitMsg {};
+        let info = mock_info("creator", &[]);
+        init(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        let result = query(deps.as_ref(), mock_env(), QueryMsg::GetNodes {}).unwrap();
+        let nodes: Vec<MixNodeBond> = from_binary(&result).unwrap();
+        assert_eq!(0, nodes.len());
+
+        // let's add a couple of nodes
     }
 
     fn query_balance(

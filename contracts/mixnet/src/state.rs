@@ -54,11 +54,8 @@ pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
 
 pub fn mixnodes_all(storage: &dyn Storage) -> StdResult<Vec<MixNodeBond>> {
     let bucket = bucket_read::<MixNodeBond>(storage, PREFIX_MIXNODES);
-    let query_result: Vec<(Vec<u8>, MixNodeBond)> = bucket
-        .range(None, None, Order::Ascending)
-        .collect::<StdResult<Vec<(Vec<u8>, MixNodeBond)>>>(
-    )?;
-    let node_tuples = query_result;
+    let res = bucket.range(None, None, Order::Ascending);
+    let node_tuples = res.collect::<StdResult<Vec<(Vec<u8>, MixNodeBond)>>>()?;
     let nodes = node_tuples.into_iter().map(|item| item.1).collect();
     Ok(nodes)
 }

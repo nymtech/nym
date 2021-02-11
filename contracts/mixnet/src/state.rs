@@ -89,12 +89,8 @@ mod tests {
         let mut storage = MockStorage::new();
         let bond1 = mixnode_bond_fixture();
         let bond2 = mixnode_bond_fixture();
-        mixnodes(&mut storage)
-            .save("bond1".as_bytes(), &bond1)
-            .unwrap();
-        mixnodes(&mut storage)
-            .save("bond2".as_bytes(), &bond2)
-            .unwrap();
+        mixnodes(&mut storage).save(b"bond1", &bond1).unwrap();
+        mixnodes(&mut storage).save(b"bond2", &bond2).unwrap();
         let all_nodes = mixnodes_all(&storage).unwrap();
         assert_eq!(2, all_nodes.len());
     }

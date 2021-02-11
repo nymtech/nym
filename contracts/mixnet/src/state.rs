@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, Order, StdResult, KV};
+use cosmwasm_std::{Coin, Order, StdResult};
 use cosmwasm_std::{HumanAddr, Storage};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
@@ -52,9 +52,13 @@ pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
     bucket_read(storage, PREFIX_MIXNODES)
 }
 
-pub fn mixnodes_all(storage: &dyn Storage) -> StdResult<Vec<KV<MixNodeBond>>> {
+pub fn mixnodes_all(storage: &dyn Storage) -> Vec<MixNodeBond> {
     let bucket = bucket_read::<MixNodeBond>(storage, PREFIX_MIXNODES);
-    bucket.range(None, None, Order::Ascending).collect()
+    let query_result: StdResult<Vec<(Vec<u8>, MixNodeBond)>> =
+        bucket.range(None, None, Order::Ascending).collect();
+    let thing = query_result.unwrap();
+    let last = thing.into_iter().map(|item| item.1).collect();
+    last
 }
 
 #[cfg(test)]
@@ -80,7 +84,7 @@ mod tests {
     #[test]
     fn mixnodes_empty_on_init() {
         let storage = MockStorage::new();
-        let all_nodes = mixnodes_all(&storage).unwrap();
+        let all_nodes = mixnodes_all(&storage);
         assert_eq!(0, all_nodes.len());
     }
 
@@ -91,7 +95,7 @@ mod tests {
         let bond2 = mixnode_bond_fixture();
         mixnodes(&mut storage).save(b"bond1", &bond1).unwrap();
         mixnodes(&mut storage).save(b"bond2", &bond2).unwrap();
-        let all_nodes = mixnodes_all(&storage).unwrap();
+        let all_nodes = mixnodes_all(&storage);
         assert_eq!(2, all_nodes.len());
     }
 
@@ -103,7 +107,7 @@ mod tests {
             let node = mixnode_bond_fixture();
             mixnodes(&mut storage).save(key.as_bytes(), &node).unwrap();
         }
-        let all_nodes = mixnodes_all(&storage).unwrap();
+        let all_nodes = mixnodes_all(&storage);
         assert_eq!(10000, all_nodes.len());
     }
 }

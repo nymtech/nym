@@ -1,6 +1,6 @@
-use crate::error::ContractError;
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, Topology};
 use crate::state::{config, config_read, MixNode, MixNodeBond, State};
+use crate::{error::ContractError, state::mixnodes_all};
 use cosmwasm_std::{
     attr, coins, to_binary, BankMsg, Binary, Deps, DepsMut, Env, HandleResponse, InitResponse,
     MessageInfo, StdResult,
@@ -25,6 +25,7 @@ pub fn init(
     Ok(InitResponse::default())
 }
 
+/// Handle an incoming message
 pub fn handle(
     deps: DepsMut,
     env: Env,
@@ -110,6 +111,7 @@ pub fn try_remove_mixnode(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetTopology {} => to_binary(&query_get_topology(deps)?),
+        // QueryMsg::GetNodes {} => to_binary(&query_get_nodes(deps)?),
     }
 }
 
@@ -119,6 +121,10 @@ fn query_get_topology(deps: Deps) -> StdResult<Topology> {
         mix_node_bonds: state.mix_node_bonds,
     })
 }
+
+// fn query_get_nodes(deps: Deps) -> StdResult<Vec<MixNodeBond>> {
+//     mixnodes_all(deps.storage)
+// }
 
 #[cfg(test)]
 mod tests {
@@ -166,8 +172,8 @@ mod tests {
             };
             handle(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-            let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
-            let topology: Topology = from_binary(&res).unwrap();
+            let response = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
+            let topology: Topology = from_binary(&response).unwrap();
             assert_eq!(1, topology.mix_node_bonds.len());
             assert_eq!(
                 mix_node_fixture().location,

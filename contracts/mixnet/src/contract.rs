@@ -156,13 +156,13 @@ mod tests {
             let mut deps = mock_dependencies(&[]);
             let msg = InitMsg {};
             let info = mock_info("creator", &[]);
-            let _res = init(deps.as_mut(), mock_env(), info, msg).unwrap();
+            init(deps.as_mut(), mock_env(), info, msg).unwrap();
 
             let info = mock_info("anyone", &coins(1000_000000, "unym"));
             let msg = HandleMsg::RegisterMixnode {
                 mix_node: mix_node_fixture(),
             };
-            let _res = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+            handle(deps.as_mut(), mock_env(), info, msg).unwrap();
 
             let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
             let topology: Topology = from_binary(&res).unwrap();

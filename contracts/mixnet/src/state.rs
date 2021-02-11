@@ -56,9 +56,9 @@ pub fn mixnodes_all(storage: &dyn Storage) -> Vec<MixNodeBond> {
     let bucket = bucket_read::<MixNodeBond>(storage, PREFIX_MIXNODES);
     let query_result: StdResult<Vec<(Vec<u8>, MixNodeBond)>> =
         bucket.range(None, None, Order::Ascending).collect();
-    let thing = query_result.unwrap();
-    let last = thing.into_iter().map(|item| item.1).collect();
-    last
+    let node_tuples = query_result.unwrap();
+    let nodes = node_tuples.into_iter().map(|item| item.1).collect();
+    nodes
 }
 
 #[cfg(test)]

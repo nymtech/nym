@@ -1,3 +1,6 @@
+# Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
 # This is an example systemd service unit illustrating how to make a mixnode
 # start and stop automatically on a Linux box which runs on systemd.
 # To determine if it is applicable to your system simply run "ps 1". If the

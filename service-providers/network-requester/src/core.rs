@@ -1,3 +1,6 @@
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
 use crate::connection::Connection;
 use crate::websocket;
@@ -112,6 +115,12 @@ impl ServiceProvider {
                     remote_addr.clone(),
                     err
                 );
+
+                // inform the remote that the connection is closed before it even was established
+                mix_input_sender
+                    .unbounded_send((Response::new(conn_id, Vec::new(), true), return_address))
+                    .unwrap();
+
                 return;
             }
         };

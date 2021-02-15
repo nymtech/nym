@@ -133,7 +133,11 @@ impl Controller {
 
     fn send_to_connection(&mut self, conn_id: ConnectionId, payload: Vec<u8>, is_closed: bool) {
         if let Some(active_connection) = self.active_connections.get_mut(&conn_id) {
-            active_connection.write_to_buf(payload);
+            if !payload.is_empty() {
+                active_connection.write_to_buf(payload);
+            } else if !is_closed {
+                error!("Tried to write an empty message to a not-closing connection. Please let us know if you see this message");
+            }
             // if messages get unordered, make sure we don't lose information about
             // remote socket getting closed!
             active_connection.is_closed |= is_closed;
@@ -160,17 +164,19 @@ impl Controller {
                 // TODO:
             }
         } else if !self.recently_closed.contains(&conn_id) {
-            warn!("Received a 'Send' before 'Connect' - going to buffer the data");
+            debug!("Received a 'Send' before 'Connect' - going to buffer the data");
             let pending = self
                 .pending_messages
                 .entry(conn_id)
                 .or_insert_with(Vec::new);
             pending.push((payload, is_closed));
-        } else {
+        } else if !is_closed {
             error!(
                 "Tried to write to closed connection ({} bytes were 'lost)",
                 payload.len()
-            )
+            );
+        } else {
+            debug!("Tried to write to closed connection, but remote is already closed")
         }
     }
 

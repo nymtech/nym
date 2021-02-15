@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
 use config::NymConfig;
@@ -42,7 +31,7 @@ const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_milli
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_CACHE_ENTRY_TTL: Duration = Duration::from_millis(30_000);
-const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 32;
+const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 128;
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: u16 = 5;

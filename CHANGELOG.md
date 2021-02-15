@@ -1,3 +1,8 @@
+<!--
+Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # Changelog
 
 ## [v0.9.2](https://github.com/nymtech/nym/tree/v0.9.2) (2020-11-26)

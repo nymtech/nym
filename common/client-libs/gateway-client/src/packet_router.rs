@@ -50,10 +50,10 @@ impl PacketRouter {
         // remember: gateway removes final layer of sphinx encryption and from the unwrapped
         // data he takes the SURB-ACK and first hop address.
         // currently SURB-ACKs are attached in EVERY packet, even cover, so this is always true
-        let ack_overhead = PacketSize::ACKPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN;
+        let ack_overhead = PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN;
 
         for received_packet in unwrapped_packets {
-            if received_packet.len() == PacketSize::ACKPacket.plaintext_size() {
+            if received_packet.len() == PacketSize::AckPacket.plaintext_size() {
                 received_acks.push(received_packet);
             } else if received_packet.len()
                 == PacketSize::RegularPacket.plaintext_size() - ack_overhead

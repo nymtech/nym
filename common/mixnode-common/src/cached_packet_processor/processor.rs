@@ -15,7 +15,7 @@
 use crate::cached_packet_processor::cache::KeyCache;
 use crate::cached_packet_processor::error::MixProcessingError;
 use log::*;
-use nymsphinx_acknowledgements::surb_ack::SURBAck;
+use nymsphinx_acknowledgements::surb_ack::SurbAck;
 use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx_forwarding::packet::MixPacket;
 use nymsphinx_framing::packet::FramedSphinxPacket;
@@ -181,11 +181,11 @@ impl CachedPacketProcessor {
     ) -> Result<(Vec<u8>, Vec<u8>), MixProcessingError> {
         // in theory it's impossible for this to fail since it managed to go into correct `match`
         // branch at the caller
-        if extracted_data.len() < SURBAck::len() {
-            return Err(MixProcessingError::NoSURBAckInFinalHop);
+        if extracted_data.len() < SurbAck::len() {
+            return Err(MixProcessingError::NoSurbAckInFinalHop);
         }
 
-        let message = extracted_data.split_off(SURBAck::len());
+        let message = extracted_data.split_off(SurbAck::len());
         let ack_data = extracted_data;
         Ok((ack_data, message))
     }
@@ -199,14 +199,14 @@ impl CachedPacketProcessor {
         packet_mode: PacketMode,
     ) -> Result<(Option<MixPacket>, Vec<u8>), MixProcessingError> {
         match packet_size {
-            PacketSize::ACKPacket => {
+            PacketSize::AckPacket => {
                 trace!("received an ack packet!");
                 Ok((None, data))
             }
             PacketSize::RegularPacket | PacketSize::ExtendedPacket => {
                 trace!("received a normal packet!");
                 let (ack_data, message) = self.split_hop_data_into_ack_and_message(data)?;
-                let (ack_first_hop, ack_packet) = SURBAck::try_recover_first_hop_packet(&ack_data)?;
+                let (ack_first_hop, ack_packet) = SurbAck::try_recover_first_hop_packet(&ack_data)?;
                 let forward_ack = MixPacket::new(ack_first_hop, ack_packet, packet_mode);
                 Ok((Some(forward_ack), message))
             }
@@ -403,7 +403,7 @@ mod tests {
         assert!(processor.vpn_key_cache.is_empty());
 
         let final_hop = make_valid_final_sphinx_packet(Default::default(), local_keys.1);
-        let framed = FramedSphinxPacket::new(final_hop, PacketMode::VPN);
+        let framed = FramedSphinxPacket::new(final_hop, PacketMode::Vpn);
 
         processor.perform_initial_unwrapping(framed).unwrap();
         assert_eq!(processor.vpn_key_cache.len(), 1);
@@ -416,7 +416,7 @@ mod tests {
         assert!(processor.vpn_key_cache.is_empty());
 
         let forward_hop = make_valid_forward_sphinx_packet(Default::default(), local_keys.1);
-        let framed = FramedSphinxPacket::new(forward_hop, PacketMode::VPN);
+        let framed = FramedSphinxPacket::new(forward_hop, PacketMode::Vpn);
 
         processor.perform_initial_unwrapping(framed).unwrap();
         assert_eq!(processor.vpn_key_cache.len(), 1);
@@ -457,28 +457,28 @@ mod tests {
             .split_hop_data_into_ack_and_message(short_data)
             .is_err());
 
-        let sufficient_data = vec![42u8; SURBAck::len()];
+        let sufficient_data = vec![42u8; SurbAck::len()];
         let (ack, data) = processor
             .split_hop_data_into_ack_and_message(sufficient_data.clone())
             .unwrap();
         assert_eq!(sufficient_data, ack);
         assert!(data.is_empty());
 
-        let long_data = vec![42u8; SURBAck::len() * 5];
+        let long_data = vec![42u8; SurbAck::len() * 5];
         let (ack, data) = processor
             .split_hop_data_into_ack_and_message(long_data)
             .unwrap();
-        assert_eq!(ack.len(), SURBAck::len());
-        assert_eq!(data.len(), SURBAck::len() * 4)
+        assert_eq!(ack.len(), SurbAck::len());
+        assert_eq!(data.len(), SurbAck::len() * 4)
     }
 
     #[tokio::test]
     async fn splitting_into_ack_and_message_returns_whole_data_for_ack() {
         let processor = fixture();
 
-        let data = vec![42u8; SURBAck::len() + 10];
+        let data = vec![42u8; SurbAck::len() + 10];
         let (ack, message) = processor
-            .split_into_ack_and_message(data.clone(), PacketSize::ACKPacket, Default::default())
+            .split_into_ack_and_message(data.clone(), PacketSize::AckPacket, Default::default())
             .unwrap();
         assert!(ack.is_none());
         assert_eq!(data, message)

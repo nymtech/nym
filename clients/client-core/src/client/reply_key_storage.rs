@@ -14,8 +14,8 @@
 
 use log::*;
 use nymsphinx::anonymous_replies::{
-    encryption_key::EncryptionKeyDigest, encryption_key::Unsigned, SURBEncryptionKey,
-    SURBEncryptionKeySize,
+    encryption_key::EncryptionKeyDigest, encryption_key::Unsigned, SurbEncryptionKey,
+    SurbEncryptionKeySize,
 };
 use std::path::Path;
 
@@ -49,24 +49,24 @@ impl ReplyKeyStorage {
         Ok(ReplyKeyStorage { db })
     }
 
-    fn read_encryption_key(&self, raw_key: sled::IVec) -> SURBEncryptionKey {
+    fn read_encryption_key(&self, raw_key: sled::IVec) -> SurbEncryptionKey {
         let key_bytes_ref = raw_key.as_ref();
         // if this fails it means we have some database corruption and we
         // absolutely can't continue
 
-        if key_bytes_ref.len() != SURBEncryptionKeySize::to_usize() {
+        if key_bytes_ref.len() != SurbEncryptionKeySize::to_usize() {
             error!("REPLY KEY STORAGE DATA CORRUPTION - ENCRYPTION KEY HAS INVALID LENGTH");
             panic!("REPLY KEY STORAGE DATA CORRUPTION - ENCRYPTION KEY HAS INVALID LENGTH");
         }
 
         // this can only fail if the bytes have invalid length but we already asserted it
-        SURBEncryptionKey::try_from_bytes(key_bytes_ref).unwrap()
+        SurbEncryptionKey::try_from_bytes(key_bytes_ref).unwrap()
     }
 
     // TOOD: perhaps we could also store some part of original message here too?
     pub fn insert_encryption_key(
         &mut self,
-        encryption_key: SURBEncryptionKey,
+        encryption_key: SurbEncryptionKey,
     ) -> Result<(), ReplyKeyStorageError> {
         let digest = encryption_key.compute_digest();
 
@@ -89,7 +89,7 @@ impl ReplyKeyStorage {
     pub fn get_and_remove_encryption_key(
         &self,
         key_digest: EncryptionKeyDigest,
-    ) -> Result<Option<SURBEncryptionKey>, ReplyKeyStorageError> {
+    ) -> Result<Option<SurbEncryptionKey>, ReplyKeyStorageError> {
         let removal_result = match self.db.remove(&key_digest.to_vec()) {
             Err(e) => Err(ReplyKeyStorageError::DbReadError(e)),
             Ok(existing_key) => {

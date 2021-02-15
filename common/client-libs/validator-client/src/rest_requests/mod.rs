@@ -40,35 +40,35 @@ type PathParam<'a> = &'a str;
 type QueryParam<'a> = (&'a str, &'a str);
 
 #[derive(Debug)]
-pub enum RESTRequestError {
+pub enum RestRequestError {
     InvalidPathParams,
     InvalidQueryParams,
     NoPayloadProvided,
     MalformedUrl(String),
 }
 
-impl Display for RESTRequestError {
+impl Display for RestRequestError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            RESTRequestError::InvalidPathParams => write!(
+            RestRequestError::InvalidPathParams => write!(
                 f,
                 "invalid number of path parameters was provided or they were malformed"
             ),
-            RESTRequestError::InvalidQueryParams => write!(
+            RestRequestError::InvalidQueryParams => write!(
                 f,
                 "invalid number of query parameters was provided or they were malformed"
             ),
-            RESTRequestError::NoPayloadProvided => {
+            RestRequestError::NoPayloadProvided => {
                 write!(f, "no request payload was provided while it was expected")
             }
-            RESTRequestError::MalformedUrl(url) => {
+            RestRequestError::MalformedUrl(url) => {
                 write!(f, "tried to make request to malformed url ({})", url)
             }
         }
     }
 }
 
-pub(crate) trait RESTRequest {
+pub(crate) trait RestRequest {
     // 'GET', 'POST', 'DELETE', etc.
     const METHOD: Method;
     const RELATIVE_PATH: &'static str;
@@ -81,7 +81,7 @@ pub(crate) trait RESTRequest {
         path_params: Option<Vec<PathParam>>,
         query_params: Option<Vec<QueryParam>>,
         body_payload: Option<Self::JsonPayload>,
-    ) -> Result<Self, RESTRequestError>
+    ) -> Result<Self, RestRequestError>
     where
         Self: Sized;
 

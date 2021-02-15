@@ -19,9 +19,13 @@ use rand::{CryptoRng, RngCore};
 
 type NonceSize = <GatewayEncryptionAlgorithm as NewStreamCipher>::NonceSize;
 
+// I think 'IV' looks better than 'Iv', feel free to change that.
+#[allow(clippy::upper_case_acronyms)]
 pub struct AuthenticationIV(IV<GatewayEncryptionAlgorithm>);
 
 #[derive(Debug)]
+// I think 'IV' looks better than 'Iv', feel free to change that.
+#[allow(clippy::upper_case_acronyms)]
 pub enum IVConversionError {
     DecodeError(bs58::decode::Error),
     BytesOfInvalidLengthError,

@@ -18,7 +18,7 @@
 use crate::error::{self, ErrorKind};
 use crate::text::ClientRequestText;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::ReplySURB;
+use nymsphinx::anonymous_replies::ReplySurb;
 use std::convert::{TryFrom, TryInto};
 use std::mem::size_of;
 
@@ -42,7 +42,7 @@ pub enum ClientRequest {
     },
     Reply {
         message: Vec<u8>,
-        reply_surb: ReplySURB,
+        reply_surb: ReplySurb,
     },
     SelfAddress,
 }
@@ -119,7 +119,7 @@ impl ClientRequest {
     }
 
     // REPLY_REQUEST_TAG || surb_len || surb || message_len || message
-    fn serialize_reply(message: Vec<u8>, reply_surb: ReplySURB) -> Vec<u8> {
+    fn serialize_reply(message: Vec<u8>, reply_surb: ReplySurb) -> Vec<u8> {
         let reply_surb_bytes = reply_surb.to_bytes();
         let surb_len_bytes = (reply_surb_bytes.len() as u64).to_be_bytes();
         let message_len_bytes = (message.len() as u64).to_be_bytes();
@@ -164,7 +164,7 @@ impl ClientRequest {
         let surb_bound = 1 + size_of::<u64>() + reply_surb_len as usize;
 
         let reply_surb_bytes = &b[1 + size_of::<u64>()..surb_bound];
-        let reply_surb = match ReplySURB::from_bytes(reply_surb_bytes) {
+        let reply_surb = match ReplySurb::from_bytes(reply_surb_bytes) {
             Ok(reply_surb) => reply_surb,
             Err(err) => {
                 return Err(error::Error::new(
@@ -333,7 +333,7 @@ mod tests {
     #[test]
     fn reply_request_serialization_works() {
         let reply_surb_string = "CjfVbHbfAjbC3W1BvNHGXmM8KNAnDNYGaHMLqVDxRYeo352csAihstup9bvqXam4dTWgfHak6KYwL9STaxWJ47E8XFZbSEvs7hEsfCkxr6K9WJuSBPK84GDDEvad8ZAuMCoaXsAd5S2Lj9a5eYyzG4SL1jHzhSMni55LyJwumxo1ZTGZNXggxw1RREosvyzNrW9Rsi3owyPqLCwXpiei2tHZty8w8midVvg8vDa7ZEJD842CLv8D4ohynSG7gDpqTrhkRaqYAuz7dzqNbMXLJRM7v823Jn16fA1L7YQxmcaUdUigyRSgTdb4i9ebiLGSyJ1iDe6Acz613PQZh6Ua3bZ2zVKq3dSycpDm9ngarRK4zJrAaUxRkdih8YzW3BY4nL9eqkfKA4N1TWCLaRU7zpSaf8yMEwrAZReU3d5zLV8c5KBfa2w8R5anhQeBojduZEGEad8kkHuKU52Zg93FeWHvH1qgZaEJMHH4nN7gKXz9mvWDhYwyF4vt3Uy2NhCHC3N5pL1gMme27YcoPcTEia1fxKZtnt6rtEozzTrAgCJGswigkFbkafiV5QaJwLKTUxtzhkZ57eEuLPte9UvJHzhhXUQ2CV7R2BUkJjYZy3Zsx6YYvdYWiAFFkWUwNEGA4QpShUHciBfsQVHQ7pN41YcyYUhbywQDFnTVgEmdUZ1XCBi3gyK5U3tDQmFzP1u9m3mWrUA8qB9mRDE7ptNDm5c3c1458L6uXLUth7sdMaa1Was5LCmCdmNDtvNpCDAEt1in6q6mrZFR85aCSU9b1baNGwZoCqPpPvydkVe63gXWoi8ebvdyxARrqACFrSB3ZdY3uJBw8CTMNkKK6MvcefMkSVVsbLd36TQAtYSCqrpiMc5dQuKcEu5QfciwvWYXYx8WFNAgKwP2mv49KCTvfozNDUCbjzDwSx92Zv5zjG8HbFpB13bY9UZGeyTPvv7gGxCzjGjJGbW6FRAheRQaaje5fUgCNM95Tv7wBmAMRHHFgWafeK1sdFH7dtCX9u898HucGTaboSKLsVh8J78gbbkHErwjMh7y9YRkceq5TTYS5da4kHnyNKYWSbxgZrmFg44XGKoeYcqoHB3XTZrdsf7F5fFeNwnihkmADvhAcaxXUmVqq4rQFZH84a1iC3WBWXYcqiZH2L7ujGWV7mMDT4HBEerDYjc8rNY4xGTPfivCrBCJW1i14aqW8xRdsdgTM88eTksvC3WPJLJ7iMzfKXeL7fMW1Ek6QGyQtLBW98vEESpdcDg6DeZ5rMz6VqjTGGqcCaFGfHoqtfxMDaBAEsyQ8h7XDX6dg1wq9wH6j4Tw7Tj1MEv1b8uj5NJkozZdzVdYA2QyE2Dp8vuurQG6uVdTDNww2d88RBQ8sVgjxN8gR45y4woJLhFAaNTAtrY6wDTxyXST13ni6oyqdYxjFVk9Am4v3DzH7Y2K8iRVSHfTk4FRbPULyaeK6wt2anvMJH1XdvVRgc14h67MnBxMgMD1UFk8AErN7CDj26fppe3c5G6KozJe4cSqQUGbBjVzBnrHCruqrfZBn5hNZHTV37bQiomqhRQXohxhuKEnNrGbAe1xNvJr9X";
-        let reply_surb = ReplySURB::from_base58_string(reply_surb_string).unwrap();
+        let reply_surb = ReplySurb::from_base58_string(reply_surb_string).unwrap();
         let reply_request = ClientRequest::Reply {
             message: b"foomp".to_vec(),
             reply_surb,

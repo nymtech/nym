@@ -12,6 +12,9 @@ pub use stream_cipher::{Key, NewStreamCipher};
 // means that for, for example, 128-bit security, after generating 2^64 IVs
 // we are going to have 50% chance of collision. But perhaps that's fine?
 // TODO2: ask @AP if what I wrote here even makes sense in the context of what we're doing.
+
+// I think 'IV' looks better than 'Iv', feel free to change that.
+#[allow(clippy::upper_case_acronyms)]
 pub type IV<C> = Nonce<C>;
 
 pub fn generate_key<C, R>(rng: &mut R) -> Key<C>

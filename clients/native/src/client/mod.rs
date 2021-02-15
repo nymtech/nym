@@ -42,7 +42,7 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
-use nymsphinx::anonymous_replies::ReplySURB;
+use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::params::PacketMode;
 use nymsphinx::receiver::ReconstructedMessage;
 use tokio::runtime::Runtime;
@@ -132,7 +132,7 @@ impl NymClient {
         mix_sender: BatchMixMessageSender,
     ) {
         let packet_mode = if self.config.get_base().get_vpn_mode() {
-            PacketMode::VPN
+            PacketMode::Vpn
         } else {
             PacketMode::Mix
         };
@@ -297,7 +297,7 @@ impl NymClient {
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub fn send_reply(&mut self, reply_surb: ReplySURB, message: Vec<u8>) {
+    pub fn send_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) {
         let input_msg = InputMessage::new_reply(reply_surb, message);
 
         self.input_tx

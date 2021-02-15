@@ -453,7 +453,7 @@ mod fragment_tests {
     use rand::{thread_rng, RngCore};
 
     fn max_plaintext_size() -> usize {
-        PacketSize::default().plaintext_size() - PacketSize::ACKPacket.size()
+        PacketSize::default().plaintext_size() - PacketSize::AckPacket.size()
     }
 
     #[test]

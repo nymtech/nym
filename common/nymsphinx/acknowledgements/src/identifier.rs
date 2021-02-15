@@ -41,7 +41,7 @@ pub fn recover_identifier(
 ) -> Option<SerializedFragmentIdentifier> {
     // The content of an 'ACK' packet consists of AckEncryptionAlgorithm::IV followed by
     // serialized FragmentIdentifier
-    if iv_id_ciphertext.len() != PacketSize::ACKPacket.plaintext_size() {
+    if iv_id_ciphertext.len() != PacketSize::AckPacket.plaintext_size() {
         return None;
     }
 

@@ -38,7 +38,7 @@ pub enum PacketSize {
     RegularPacket = 1,
 
     // for sending SURB-ACKs
-    ACKPacket = 2,
+    AckPacket = 2,
 
     // for example for streaming fast and furious in uncompressed 10bit 4K HDR quality
     ExtendedPacket = 3,
@@ -50,7 +50,7 @@ impl TryFrom<u8> for PacketSize {
     fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
         match value {
             _ if value == (PacketSize::RegularPacket as u8) => Ok(Self::RegularPacket),
-            _ if value == (PacketSize::ACKPacket as u8) => Ok(Self::ACKPacket),
+            _ if value == (PacketSize::AckPacket as u8) => Ok(Self::AckPacket),
             _ if value == (PacketSize::ExtendedPacket as u8) => Ok(Self::ExtendedPacket),
             _ => Err(InvalidPacketSize),
         }
@@ -61,7 +61,7 @@ impl PacketSize {
     pub fn size(self) -> usize {
         match self {
             PacketSize::RegularPacket => REGULAR_PACKET_SIZE,
-            PacketSize::ACKPacket => ACK_PACKET_SIZE,
+            PacketSize::AckPacket => ACK_PACKET_SIZE,
             PacketSize::ExtendedPacket => EXTENDED_PACKET_SIZE,
         }
     }
@@ -77,8 +77,8 @@ impl PacketSize {
     pub fn get_type(size: usize) -> std::result::Result<Self, InvalidPacketSize> {
         if PacketSize::RegularPacket.size() == size {
             Ok(PacketSize::RegularPacket)
-        } else if PacketSize::ACKPacket.size() == size {
-            Ok(PacketSize::ACKPacket)
+        } else if PacketSize::AckPacket.size() == size {
+            Ok(PacketSize::AckPacket)
         } else if PacketSize::ExtendedPacket.size() == size {
             Ok(PacketSize::ExtendedPacket)
         } else {

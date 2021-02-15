@@ -48,7 +48,7 @@ use tokio_tungstenite::{
 //// but as byproduct this might (or might not) break the clean "SocketStream" enum here
 
 enum SocketStream<S> {
-    RawTCP(S),
+    RawTcp(S),
     UpgradedWebSocket(WebSocketStream<S>),
     Invalid,
 }
@@ -89,7 +89,7 @@ where
             shared_key: None,
             clients_handler_sender,
             outbound_mix_sender,
-            socket_connection: SocketStream::RawTCP(conn),
+            socket_connection: SocketStream::RawTcp(conn),
             local_identity,
         }
     }
@@ -100,7 +100,7 @@ where
     {
         self.socket_connection =
             match std::mem::replace(&mut self.socket_connection, SocketStream::Invalid) {
-                SocketStream::RawTCP(conn) => {
+                SocketStream::RawTcp(conn) => {
                     // TODO: perhaps in the future, rather than panic here (and uncleanly shut tcp stream)
                     // return a result with an error?
                     let ws_stream = match tokio_tungstenite::accept_async(conn).await {

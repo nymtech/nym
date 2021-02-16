@@ -214,7 +214,7 @@ mod tests {
         let topology: Topology = from_binary(&res).unwrap();
         let first_node = &topology.mix_node_bonds[0];
         assert_eq!(1, topology.mix_node_bonds.len());
-        assert_eq!(HumanAddr::from("bob"), first_node.owner);
+        assert_eq!("bob", first_node.owner);
 
         // add a node owned by fred
         let fred_bond = coins(1666_000000, "unym");

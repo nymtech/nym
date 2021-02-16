@@ -145,137 +145,119 @@ mod tests {
         );
     }
 
-    #[cfg(test)]
-    mod adding_a_mixnode {
-        use super::*;
+    #[test]
+    fn mixnode_add() {
+        let mut deps = helpers::init_contract();
 
-        #[test]
-        fn works_if_1000_nym_are_sent() {
-            let mut deps = helpers::init_contract();
+        // if we don't send enough funds
+        let info = mock_info("anyone", &coins(999_999999, "unym"));
+        let msg = HandleMsg::RegisterMixnode {
+            mix_node: helpers::mix_node_fixture(),
+        };
 
-            let info = mock_info("anyone", &coins(1000_000000, "unym"));
-            let msg = HandleMsg::RegisterMixnode {
-                mix_node: helpers::mix_node_fixture(),
-            };
+        // we are informed that we didn't send enough funds
+        let result = handle(deps.as_mut(), mock_env(), info, msg);
+        assert_eq!(result, Err(ContractError::InsufficientBond {}));
 
-            // we get back a message telling us everything was OK
-            let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
-            assert_eq!(HandleResponse::default(), handle_response);
+        // no mixnode was inserted into the topology
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
+        let topology: Topology = from_binary(&res).unwrap();
+        assert_eq!(0, topology.mix_node_bonds.len());
 
-            // we can query topology and the new node is there
-            let query_response =
-                query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
-            let topology: Topology = from_binary(&query_response).unwrap();
-            assert_eq!(1, topology.mix_node_bonds.len());
-            assert_eq!(
-                helpers::mix_node_fixture().location,
-                topology.mix_node_bonds[0].mix_node.location
-            )
-        }
+        // if we send enough funds
+        let info = mock_info("anyone", &coins(1000_000000, "unym"));
+        let msg = HandleMsg::RegisterMixnode {
+            mix_node: helpers::mix_node_fixture(),
+        };
 
-        #[test]
-        fn fails_if_less_than_1000_nym_are_sent() {
-            let mut deps = helpers::init_contract();
+        // we get back a message telling us everything was OK
+        let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(HandleResponse::default(), handle_response);
 
-            let info = mock_info("anyone", &coins(999_999999, "unym"));
-            let msg = HandleMsg::RegisterMixnode {
-                mix_node: helpers::mix_node_fixture(),
-            };
-
-            // we are informed that we didn't send enough funds
-            let result = handle(deps.as_mut(), mock_env(), info, msg);
-            assert_eq!(result, Err(ContractError::InsufficientBond {}));
-
-            // no mixnode was inserted into the topology
-            let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
-            let topology: Topology = from_binary(&res).unwrap();
-            assert_eq!(0, topology.mix_node_bonds.len());
-        }
-    }
-
-    #[cfg(test)]
-    mod removing_a_mixnode {
-        use super::*;
-
-        #[test]
-        fn returns_node_not_found_when_no_mixnodes_exist() {
-            let mut deps = helpers::init_contract();
-
-            let info = mock_info("anyone", &coins(999_9999, "unym"));
-            let msg = HandleMsg::UnRegisterMixnode {};
-
-            let result = handle(deps.as_mut(), mock_env(), info, msg);
-            assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
-        }
-
-        #[test]
-        fn returns_node_not_found_when_no_mixnodes_exist_for_account() {
-            let mut deps = helpers::init_contract();
-
-            // let's add a node owned by bob
-            helpers::add_mixnode("bob", coins(1000_000000, "unym"), &mut deps);
-
-            // attempt to un-register fred's node, which doesn't exist
-            let info = mock_info("fred", &coins(999_9999, "unym"));
-            let msg = HandleMsg::UnRegisterMixnode {};
-            let result = handle(deps.as_mut(), mock_env(), info, msg);
-            assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
-
-            // bob's node is still there
-            let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
-            let topology: Topology = from_binary(&res).unwrap();
-            let first_node = &topology.mix_node_bonds[0];
-            assert_eq!(1, topology.mix_node_bonds.len());
-            assert_eq!(HumanAddr::from("bob"), first_node.owner);
-        }
-
-        #[test]
-        fn removes_correct_node_when_account_has_a_mixnode() {
-            let env = mock_env();
-            let mut deps = mock_dependencies(&[]);
-            let msg = InitMsg {};
-            let info = mock_info("creator", &[]);
-            init(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-            // add a node owned by bob
-            helpers::add_mixnode("bob", coins(1000_000000, "unym"), &mut deps);
-
-            // add a node owned by fred
-            let fred_bond = coins(1666_000000, "unym");
-            helpers::add_mixnode("fred", fred_bond.clone(), &mut deps);
-
-            // un-register fred's node
-            let info = mock_info("fred", &coins(999_9999, "unym"));
-            let msg = HandleMsg::UnRegisterMixnode {};
-
-            // we should see log messages come back showing an unbond message
-            let expected_attributes = vec![
-                attr("action", "unbond"),
-                attr("tokens", fred_bond.clone()[0].amount),
-                attr("account", "fred"),
-            ];
-
-            // we should see a transfer from the contract back to fred
-            let expected_messages = vec![BankMsg::Send {
-                from_address: env.contract.address,
-                to_address: info.sender.clone(),
-                amount: fred_bond,
-            }
-            .into()];
-
-            let expected = HandleResponse {
-                messages: expected_messages,
-                attributes: expected_attributes,
-                data: None,
-            };
-
-            let result = handle(deps.as_mut(), mock_env(), info, msg);
-            assert_eq!(result.unwrap(), expected);
-        }
+        // we can query topology and the new node is there
+        let query_response = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
+        let topology: Topology = from_binary(&query_response).unwrap();
+        assert_eq!(1, topology.mix_node_bonds.len());
+        assert_eq!(
+            helpers::mix_node_fixture().location,
+            topology.mix_node_bonds[0].mix_node.location
+        )
     }
 
     #[test]
-    fn query_mixnodes_works() {
+    fn mixnode_remove() {
+        let env = mock_env();
+        let mut deps = mock_dependencies(&[]);
+        let msg = InitMsg {};
+        let info = mock_info("creator", &[]);
+        init(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+        // try un-registering when no nodes exist yet
+        let info = mock_info("anyone", &coins(999_9999, "unym"));
+        let msg = HandleMsg::UnRegisterMixnode {};
+        let result = handle(deps.as_mut(), mock_env(), info, msg);
+
+        // we're told that there is no node for our address
+        assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
+
+        // let's add a node owned by bob
+        helpers::add_mixnode("bob", coins(1000_000000, "unym"), &mut deps);
+
+        // attempt to un-register fred's node, which doesn't exist
+        let info = mock_info("fred", &coins(999_9999, "unym"));
+        let msg = HandleMsg::UnRegisterMixnode {};
+        let result = handle(deps.as_mut(), mock_env(), info, msg);
+        assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
+
+        // bob's node is still there
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
+        let topology: Topology = from_binary(&res).unwrap();
+        let first_node = &topology.mix_node_bonds[0];
+        assert_eq!(1, topology.mix_node_bonds.len());
+        assert_eq!(HumanAddr::from("bob"), first_node.owner);
+
+        // add a node owned by fred
+        let fred_bond = coins(1666_000000, "unym");
+        helpers::add_mixnode("fred", fred_bond.clone(), &mut deps);
+
+        // let's make sure we now have 2 nodes:
+        assert_eq!(2, helpers::get_topology(&mut deps).mix_node_bonds.len());
+
+        // un-register fred's node
+        let info = mock_info("fred", &coins(999_9999, "unym"));
+        let msg = HandleMsg::UnRegisterMixnode {};
+
+        // we should see log messages come back showing an unbond message
+        let expected_attributes = vec![
+            attr("action", "unbond"),
+            attr("tokens", fred_bond.clone()[0].amount),
+            attr("account", "fred"),
+        ];
+
+        // we should see a transfer from the contract back to fred
+        let expected_messages = vec![BankMsg::Send {
+            from_address: env.contract.address,
+            to_address: info.sender.clone(),
+            amount: fred_bond,
+        }
+        .into()];
+
+        let expected = HandleResponse {
+            messages: expected_messages,
+            attributes: expected_attributes,
+            data: None,
+        };
+
+        // run the handler and check that we got back the correct results
+        let result = handle(deps.as_mut(), mock_env(), info, msg);
+        assert_eq!(result.unwrap(), expected);
+
+        // only 1 node now exists:
+        assert_eq!(1, helpers::get_topology(&mut deps).mix_node_bonds.len());
+    }
+
+    #[test]
+    fn query_mixnodes() {
         let mut deps = helpers::init_contract();
 
         let result = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
@@ -312,6 +294,12 @@ mod tests {
         ) {
             let info = mock_info(pubkey, &stake);
             try_add_mixnode(deps.as_mut(), info, helpers::mix_node_fixture()).unwrap();
+        }
+
+        pub fn get_topology(deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>) -> Topology {
+            let result = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
+            let topology: Topology = from_binary(&result).unwrap();
+            topology
         }
 
         pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {

@@ -1,5 +1,5 @@
 import { SigningCosmWasmClient } from "nym-validator-client"; // maybe change to a NymClient which wraps this guy?
-import { connect, loadMnemonic } from "nym-validator-client"; // these could then both go in NymClient. Connect could accept a validator URL.
+import { connect, loadMnemonic, randomMnemonic, mnemonicToAddress } from "nym-validator-client"; // these could then both go in NymClient. Connect could accept a validator URL.
 import * as fs from "fs";
 
 async function main() {
@@ -10,25 +10,20 @@ async function main() {
     const thief = await buildAccount("thief");
 
 
-    // const coins = [{ amount: "3000000000000", denom: "unym" }];
-
-    // // let transfers = [];
+    const coins2000_nym = [{ amount: "2000000000", denom: "unym" }];
 
     // console.log("Sending coins from dave to fred");
-    // await dave.client.sendTokens(dave.address, fred.address, coins, "Some love for fred!");
+    // await dave.client.sendTokens(dave.address, fred.address, coins2000_nym, "Some love for fred!");
 
     // console.log("Sending coins from dave to bob");
-    // await dave.client.sendTokens(dave.address, bob.address, coins, "Some love for bob!");
+    // await dave.client.sendTokens(dave.address, bob.address, coins2000_nym, "Some love for bob!");
 
     // console.log("Sending coins from dave to thief");
-    // await dave.client.sendTokens(dave.address, thief.address, coins, "Some love for thief!");
+    // await dave.client.sendTokens(dave.address, thief.address, coins2000_nym, "Some love for thief!");
 
-    // const queries = [];
-
-    await queryAccount(fred);
-    await queryAccount(bob);
-    await queryAccount(thief);
-    // await Promise.all(queries);
+    // await queryAccount(fred);
+    // await queryAccount(bob);
+    // await queryAccount(thief);
 
     // Upload a new copy of the option contract
     // let wasm = fs.readFileSync("../../../../contracts/mixnet/target/wasm32-unknown-unknown/release/mixnet_contracts.wasm");
@@ -43,38 +38,32 @@ async function main() {
     // const { contractAddress } = await dave.client.instantiate(dave.address, codeId, initMsg, "mixnet contract", { memo: "v0.1.0", transferAmount: [{ denom: "unym", amount: "50000" }] });
     // console.log(`mixnet contract ${contractAddress} instantiated successfully`)
 
-    const contractAddress = "nym1tndcaqxkpc5ce9qee5ggqf430mr2z3ped2xc4z";
+    const contractAddress = "nym10pyejy66429refv3g35g2t7am0was7ya69su6d";
 
     // Use it
     console.log("Now the big moment we've all been waiting for...");
     console.log("Initial topology:");
-    let initialTopology = await getTopology(contractAddress, dave.client);
-
+    await getTopology(contractAddress, dave.client);
 
     console.log("Adding nodes from dave, bob, and fred...");
 
 
     for (var i = 1; i < 3000; i++) {
-        // const addNodes = [];
-        await addNode("192.168.1.1", dave, contractAddress).catch(err => {
-            console.log(`Error while adding node: ${err}`);
-        });
-        await addNode("192.168.2.1", fred, contractAddress).catch(err => {
-            console.log(`Error while adding node: ${err}`);
-        });
-        await addNode("192.168.3.1", bob, contractAddress).catch(err => {
-            console.log(`Error while adding node: ${err}`);
-        });
+        let mnemonic = await randomMnemonic();
+        let account = await newAccount(mnemonic);
 
-        // await Promise.all(addNodes);
+        await dave.client.sendTokens(dave.address, account.address, coins2000_nym, `Token send to random address`);
+        await addNode("192.168.1.1", account, contractAddress).catch(err => {
+            console.log(`Error while adding node: ${err}`);
+        });
     }
 
 
     console.log("Let's see what is in the topology after we've added the three nodes:");
     await getTopology(contractAddress, dave.client);
 
-    let balance = await fred.client.getBalance(contractAddress, "unym");
-    console.log(`the mixnet contract currently has: ${balance.amount}${balance.denom}`);
+    // let balance = await fred.client.getBalance(contractAddress, "unym");
+    // console.log(`the mixnet contract currently has: ${balance.amount}${balance.denom}`);
 
     const before_unbond_balance = await dave.client.getBalance(dave.address, "unym");
 
@@ -110,7 +99,7 @@ async function addNode(ip: string, account: Account, contractAddress: string) {
 
     const bond = [{ amount: "1000000000", denom: "unym" }];
     await account.client.execute(account.address, contractAddress, { register_mixnode: { mix_node: node } }, "adding mixnode", bond);
-    console.log(`account ${account.name} added mixnode with ${ip}`);
+    console.log(`account ${account.address} added mixnode with ${ip}`);
 }
 
 async function queryAccount(account: Account) {
@@ -128,6 +117,12 @@ async function buildAccount(name: string): Promise<Account> {
     const mnemonic = loadMnemonic(`../accounts/${name}.key`);
     const { client, address } = await connect(mnemonic, {})
     return new Account(name, client, address);
+}
+
+async function newAccount(mnemonic: string): Promise<Account> {
+    const { client, address } = await connect(mnemonic, {});
+    return new Account(address, client, address);
+
 }
 
 class Account {

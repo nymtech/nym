@@ -162,7 +162,12 @@ mod tests {
             let msg = HandleMsg::RegisterMixnode {
                 mix_node: helpers::mix_node_fixture(),
             };
+
+            // we get back a message telling us everything was OK
             let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+            assert_eq!(HandleResponse::default(), handle_response);
+
+            // we can query for topology and the new node is there
             let query_response =
                 query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
             let topology: Topology = from_binary(&query_response).unwrap();
@@ -183,9 +188,12 @@ mod tests {
             let msg = HandleMsg::RegisterMixnode {
                 mix_node: helpers::mix_node_fixture(),
             };
+
+            // we are informed that we didn't send enough funds
             let result = handle(deps.as_mut(), mock_env(), info, msg);
             assert_eq!(result, Err(ContractError::InsufficientBond {}));
 
+            // no mixnode was inserted into the topology
             let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
             let topology: Topology = from_binary(&res).unwrap();
             assert_eq!(0, topology.mix_node_bonds.len());

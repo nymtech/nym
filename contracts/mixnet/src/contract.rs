@@ -239,7 +239,7 @@ mod tests {
             // let's add a node owned by bob
             let node = MixNodeBond {
                 amount: coins(50, "unym"),
-                owner: HumanAddr::from("foo"),
+                owner: HumanAddr::from("bob"),
                 mix_node: mix_node_fixture(),
             };
             mixnodes(&mut deps.storage)

@@ -1,5 +1,5 @@
 use crate::msg::{HandleMsg, InitMsg, QueryMsg, Topology};
-use crate::state::{config, config_read, MixNode, MixNodeBond, State};
+use crate::state::{config, MixNode, MixNodeBond, State};
 use crate::{error::ContractError, state::mixnodes, state::mixnodes_all, state::mixnodes_read};
 use cosmwasm_std::{
     attr, coins, to_binary, BankMsg, Binary, Deps, DepsMut, Env, HandleResponse, InitResponse,
@@ -57,8 +57,7 @@ pub fn try_add_mixnode(
         mix_node,
     };
 
-    let res = mixnodes(deps.storage).save(info.sender.as_bytes(), &bond)?;
-
+    mixnodes(deps.storage).save(info.sender.as_bytes(), &bond)?;
     Ok(HandleResponse::default())
 }
 
@@ -67,9 +66,6 @@ pub fn try_remove_mixnode(
     info: MessageInfo,
     env: Env,
 ) -> Result<HandleResponse, ContractError> {
-    // load contract state
-    let state = config(deps.storage).load()?;
-
     // find the bond, return ContractError::MixNodeBondNotFound if it doesn't exist
     let mixnode_bond = match mixnodes_read(deps.storage).may_load(info.sender.as_bytes())? {
         None => return Err(ContractError::MixNodeBondNotFound {}),

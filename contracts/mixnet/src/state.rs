@@ -14,7 +14,6 @@ pub static CONFIG_KEY: &[u8] = b"config";
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
     pub owner: HumanAddr,
-    pub mix_node_bonds: Vec<MixNodeBond>, // TODO: whack this, we need to use a range instead
 }
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {

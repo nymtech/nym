@@ -1,6 +1,9 @@
-use crate::msg::{HandleMsg, InitMsg, QueryMsg, Topology};
 use crate::state::{config, config_read, MixNode, MixNodeBond, State};
 use crate::{error::ContractError, state::mixnodes_all};
+use crate::{
+    msg::{HandleMsg, InitMsg, QueryMsg, Topology},
+    state::mixnodes,
+};
 use cosmwasm_std::{
     attr, coins, to_binary, BankMsg, Binary, Deps, DepsMut, Env, HandleResponse, InitResponse,
     MessageInfo, StdResult,
@@ -17,10 +20,7 @@ pub fn init(
     info: MessageInfo,
     _msg: InitMsg,
 ) -> Result<InitResponse, ContractError> {
-    let state = State {
-        mix_node_bonds: vec![],
-        owner: info.sender,
-    };
+    let state = State { owner: info.sender };
     config(deps.storage).save(&state)?;
     Ok(InitResponse::default())
 }
@@ -43,26 +43,24 @@ pub fn try_add_mixnode(
     info: MessageInfo,
     mix_node: MixNode,
 ) -> Result<HandleResponse, ContractError> {
-    config(deps.storage).update(|mut state| -> Result<_, ContractError> {
-        let incoming = &info.sent_funds[0];
+    let stake = &info.sent_funds[0];
 
-        // check that the denomination is correct
-        if incoming.denom != "unym" {
-            return Err(ContractError::WrongDenom {});
-        }
-        // check that we have at least 1000 nym in our bond
-        if incoming.amount < coins(1000_000000, "unym")[0].amount {
-            return Err(ContractError::InsufficientBond {});
-        }
+    // check that the denomination is correct
+    if stake.denom != "unym" {
+        return Err(ContractError::WrongDenom {});
+    }
+    // check that we have at least 1000 nym in our bond
+    if stake.amount < coins(1000_000000, "unym")[0].amount {
+        return Err(ContractError::InsufficientBond {});
+    }
 
-        let bond = MixNodeBond {
-            amount: info.sent_funds,
-            owner: info.sender,
-            mix_node,
-        };
-        state.mix_node_bonds.push(bond);
-        Ok(state)
-    })?;
+    let bond = MixNodeBond {
+        amount: info.sent_funds,
+        owner: info.sender.clone(),
+        mix_node,
+    };
+
+    let res = mixnodes(deps.storage).save(info.sender.as_bytes(), &bond)?;
 
     Ok(HandleResponse::default())
 }
@@ -76,34 +74,41 @@ pub fn try_remove_mixnode(
     let state = config(deps.storage).load()?;
 
     // find the bond
-    let mixnode_bond = match state.mix_node_bonds.iter().find(|b| b.owner == info.sender) {
-        None => return Err(ContractError::MixNodeBondNotFound {}),
-        Some(bond) => bond,
-    };
+    // let mixnode_bond = match state.mix_node_bonds.iter().find(|b| b.owner == info.sender) {
+    //     None => return Err(ContractError::MixNodeBondNotFound {}),
+    //     Some(bond) => bond,
+    // };
+
     // send bonded funds back to the bond owner
-    let messages = vec![BankMsg::Send {
-        from_address: env.contract.address,
-        to_address: info.sender.clone(),
-        amount: mixnode_bond.amount.clone(),
-    }
-    .into()];
+    // let messages = vec![BankMsg::Send {
+    //     from_address: env.contract.address,
+    //     to_address: info.sender.clone(),
+    //     amount: mixnode_bond.amount.clone(),
+    // }
+    // .into()];
 
     // remove the bond from the list of bonded mixnodes
-    config(deps.storage).update(|mut state| -> Result<_, ContractError> {
-        state.mix_node_bonds.retain(|mnb| mnb.owner != info.sender);
-        Ok(state)
-    })?;
+    // config(deps.storage).update(|mut state| -> Result<_, ContractError> {
+    //     state.mix_node_bonds.retain(|mnb| mnb.owner != info.sender);
+    //     Ok(state)
+    // })?;
 
     // log our actions
-    let attributes = vec![
-        attr("action", "unbond"),
-        attr("tokens", mixnode_bond.amount[0].amount),
-        attr("account", mixnode_bond.owner.clone()),
-    ];
+    // let attributes = vec![
+    //     attr("action", "unbond"),
+    //     attr("tokens", mixnode_bond.amount[0].amount),
+    //     attr("account", mixnode_bond.owner.clone()),
+    // ];
+
+    // Ok(HandleResponse {
+    //     messages,
+    //     attributes,
+    //     data: None,
+    // })
 
     Ok(HandleResponse {
-        messages,
-        attributes,
+        messages: vec![],
+        attributes: vec![],
         data: None,
     })
 }
@@ -116,9 +121,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 fn query_get_topology(deps: Deps) -> StdResult<Topology> {
-    let state = config_read(deps.storage).load()?;
+    let mix_nodes = mixnodes_all(deps.storage)?;
     Ok(Topology {
-        mix_node_bonds: state.mix_node_bonds,
+        mix_node_bonds: mix_nodes,
     })
 }
 
@@ -172,10 +177,12 @@ mod tests {
             let msg = HandleMsg::RegisterMixnode {
                 mix_node: mix_node_fixture(),
             };
-            handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+            let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+            let query_response =
+                query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
+            let topology: Topology = from_binary(&query_response).unwrap();
 
-            let response = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
-            let topology: Topology = from_binary(&response).unwrap();
+            assert_eq!(HandleResponse::default(), handle_response);
             assert_eq!(1, topology.mix_node_bonds.len());
             assert_eq!(
                 mix_node_fixture().location,

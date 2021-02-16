@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: clients/webassembly
+        working-directory: ./clients/webassembly
     steps:
       - uses: actions/checkout@v2
 
@@ -26,11 +26,13 @@ jobs:
         with:
           command: build
           args: --target wasm32-unknown-unknown
+        working-directory: ./clients/webassembly
 
       - uses: actions-rs/cargo@v1
         with:
           command: test
           args: --target wasm32-unknown-unknown
+        working-directory: ./clients/webassembly
 
       - run: wasm-pack test --headless --chrome
       - run: wasm-pack test --headless --firefox
@@ -39,8 +41,11 @@ jobs:
         with:
           command: fmt
           args: -- --check
+        working-directory: ./clients/webassembly
+
 
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
           args: --target wasm32-unknown-unknown -- -D warnings
+        working-directory: ./clients/webassembly

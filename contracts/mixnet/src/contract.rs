@@ -216,7 +216,7 @@ mod tests {
         use super::*;
 
         #[test]
-        fn returns_node_not_found_when_no_mixnodes_exist_for_account() {
+        fn returns_node_not_found_when_no_mixnodes_exist() {
             let mut deps = mock_dependencies(&[]);
             let msg = InitMsg {};
             let info = mock_info("creator", &[]);

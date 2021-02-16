@@ -235,9 +235,12 @@ mod tests {
             let result = handle(deps.as_mut(), mock_env(), info, msg);
             assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
 
+            // bob's node is still there
             let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
             let topology: Topology = from_binary(&res).unwrap();
+            let first_node = &topology.mix_node_bonds[0];
             assert_eq!(1, topology.mix_node_bonds.len());
+            assert_eq!(HumanAddr::from("bob"), first_node.owner);
         }
 
         #[test]

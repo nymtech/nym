@@ -134,6 +134,7 @@ mod tests {
         let env = mock_env();
         let msg = InitMsg {};
         let info = mock_info("creator", &[]);
+
         let res = init(deps.as_mut(), env.clone(), info, msg).unwrap();
         assert_eq!(0, res.messages.len());
 
@@ -143,7 +144,10 @@ mod tests {
         assert_eq!(0, topology.mix_node_bonds.len()); // there are no mixnodes in the topology when it's just been initialized
 
         // Contract balance should match what we initialized it as
-        assert_eq!(coins(0, "unym"), query_balance(env.contract.address, deps));
+        assert_eq!(
+            coins(0, "unym"),
+            helpers::query_contract_balance(env.contract.address, deps)
+        );
     }
 
     #[cfg(test)]
@@ -152,14 +156,11 @@ mod tests {
 
         #[test]
         fn works_if_1000_nym_are_sent() {
-            let mut deps = mock_dependencies(&[]);
-            let msg = InitMsg {};
-            let info = mock_info("creator", &[]);
-            init(deps.as_mut(), mock_env(), info, msg).unwrap();
+            let mut deps = helpers::init_contract();
 
             let info = mock_info("anyone", &coins(1000_000000, "unym"));
             let msg = HandleMsg::RegisterMixnode {
-                mix_node: mix_node_fixture(),
+                mix_node: helpers::mix_node_fixture(),
             };
             let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
             let query_response =
@@ -169,21 +170,18 @@ mod tests {
             assert_eq!(HandleResponse::default(), handle_response);
             assert_eq!(1, topology.mix_node_bonds.len());
             assert_eq!(
-                mix_node_fixture().location,
+                helpers::mix_node_fixture().location,
                 topology.mix_node_bonds[0].mix_node.location
             )
         }
 
         #[test]
         fn fails_if_less_than_1000_nym_are_sent() {
-            let mut deps = mock_dependencies(&[]);
-            let msg = InitMsg {};
-            let info = mock_info("creator", &[]);
-            init(deps.as_mut(), mock_env(), info, msg).unwrap();
+            let mut deps = helpers::init_contract();
 
             let info = mock_info("anyone", &coins(999_999999, "unym"));
             let msg = HandleMsg::RegisterMixnode {
-                mix_node: mix_node_fixture(),
+                mix_node: helpers::mix_node_fixture(),
             };
             let result = handle(deps.as_mut(), mock_env(), info, msg);
             assert_eq!(result, Err(ContractError::InsufficientBond {}));
@@ -200,10 +198,7 @@ mod tests {
 
         #[test]
         fn returns_node_not_found_when_no_mixnodes_exist() {
-            let mut deps = mock_dependencies(&[]);
-            let msg = InitMsg {};
-            let info = mock_info("creator", &[]);
-            init(deps.as_mut(), mock_env(), info, msg).unwrap();
+            let mut deps = helpers::init_contract();
 
             let info = mock_info("anyone", &coins(999_9999, "unym"));
             let msg = HandleMsg::UnRegisterMixnode {};
@@ -214,16 +209,13 @@ mod tests {
 
         #[test]
         fn returns_node_not_found_when_no_mixnodes_exist_for_account() {
-            let mut deps = mock_dependencies(&[]);
-            let msg = InitMsg {};
-            let info = mock_info("creator", &[]);
-            init(deps.as_mut(), mock_env(), info, msg).unwrap();
+            let mut deps = helpers::init_contract();
 
             // let's add a node owned by bob
             let node = MixNodeBond {
                 amount: coins(50, "unym"),
                 owner: HumanAddr::from("bob"),
-                mix_node: mix_node_fixture(),
+                mix_node: helpers::mix_node_fixture(),
             };
             mixnodes(&mut deps.storage)
                 .save("bob".as_bytes(), &node)
@@ -255,7 +247,7 @@ mod tests {
             let node = MixNodeBond {
                 amount: coins(50, "unym"),
                 owner: HumanAddr::from("bob"),
-                mix_node: mix_node_fixture(),
+                mix_node: helpers::mix_node_fixture(),
             };
             mixnodes(&mut deps.storage)
                 .save("bob".as_bytes(), &node)
@@ -265,7 +257,7 @@ mod tests {
             let node = MixNodeBond {
                 amount: coins(66, "unym"),
                 owner: HumanAddr::from("fred"),
-                mix_node: mix_node_fixture(),
+                mix_node: helpers::mix_node_fixture(),
             };
             mixnodes(&mut deps.storage)
                 .save("fred".as_bytes(), &node)
@@ -303,10 +295,7 @@ mod tests {
 
     #[test]
     fn query_mixnodes_works() {
-        let mut deps = mock_dependencies(&[]);
-        let msg = InitMsg {};
-        let info = mock_info("creator", &[]);
-        init(deps.as_mut(), mock_env(), info, msg).unwrap();
+        let mut deps = helpers::init_contract();
 
         let result = query(deps.as_ref(), mock_env(), QueryMsg::GetNodes {}).unwrap();
         let nodes: Vec<MixNodeBond> = from_binary(&result).unwrap();
@@ -316,7 +305,7 @@ mod tests {
         let node = MixNodeBond {
             amount: coins(50, "unym"),
             owner: HumanAddr::from("foo"),
-            mix_node: mix_node_fixture(),
+            mix_node: helpers::mix_node_fixture(),
         };
         mixnodes(&mut deps.storage)
             .save("foo".as_bytes(), &node)
@@ -326,24 +315,39 @@ mod tests {
         let result = query(deps.as_ref(), mock_env(), QueryMsg::GetNodes {}).unwrap();
         let nodes: Vec<MixNodeBond> = from_binary(&result).unwrap();
         assert_eq!(1, nodes.len());
-        assert_eq!(mix_node_fixture().host, nodes[0].mix_node.host);
+        assert_eq!(helpers::mix_node_fixture().host, nodes[0].mix_node.host);
     }
 
-    fn query_balance(
-        address: HumanAddr,
-        deps: OwnedDeps<MockStorage, MockApi, MockQuerier>,
-    ) -> Vec<Coin> {
-        let querier = deps.as_ref().querier;
-        vec![querier.query_balance(address, "unym").unwrap()]
-    }
+    mod helpers {
+        use cosmwasm_std::{Empty, MemoryStorage};
 
-    fn mix_node_fixture() -> MixNode {
-        MixNode {
-            host: "mix.node.org".to_string(),
-            layer: 1,
-            location: "Sweden".to_string(),
-            sphinx_key: "sphinx".to_string(),
-            version: "0.10.0".to_string(),
+        use super::*;
+
+        pub fn query_contract_balance(
+            address: HumanAddr,
+            deps: OwnedDeps<MockStorage, MockApi, MockQuerier>,
+        ) -> Vec<Coin> {
+            let querier = deps.as_ref().querier;
+            vec![querier.query_balance(address, "unym").unwrap()]
+        }
+
+        pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
+            let mut deps = mock_dependencies(&[]);
+            let msg = InitMsg {};
+            let env = mock_env();
+            let info = mock_info("creator", &[]);
+            init(deps.as_mut(), env.clone(), info, msg).unwrap();
+            return deps;
+        }
+
+        pub fn mix_node_fixture() -> MixNode {
+            MixNode {
+                host: "mix.node.org".to_string(),
+                layer: 1,
+                location: "Sweden".to_string(),
+                sphinx_key: "sphinx".to_string(),
+                version: "0.10.0".to_string(),
+            }
         }
     }
 }

@@ -72,12 +72,13 @@ pub fn try_remove_mixnode(
 ) -> Result<HandleResponse, ContractError> {
     // load state
     let state = config(deps.storage).load()?;
+    let mixnodes = mixnodes_all(deps.storage)?;
 
     // find the bond
-    // let mixnode_bond = match state.mix_node_bonds.iter().find(|b| b.owner == info.sender) {
-    //     None => return Err(ContractError::MixNodeBondNotFound {}),
-    //     Some(bond) => bond,
-    // };
+    let mixnode_bond = match mixnodes.iter().find(|b| b.owner == info.sender) {
+        None => return Err(ContractError::MixNodeBondNotFound {}),
+        Some(bond) => bond,
+    };
 
     // send bonded funds back to the bond owner
     // let messages = vec![BankMsg::Send {
@@ -207,6 +208,25 @@ mod tests {
             let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
             let topology: Topology = from_binary(&res).unwrap();
             assert_eq!(0, topology.mix_node_bonds.len());
+        }
+    }
+
+    #[cfg(test)]
+    mod removing_a_mixnode {
+        use super::*;
+
+        #[test]
+        fn returns_node_not_found_when_no_mixnodes_exist_for_account() {
+            let mut deps = mock_dependencies(&[]);
+            let msg = InitMsg {};
+            let info = mock_info("creator", &[]);
+            init(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+            let info = mock_info("anyone", &coins(999_9999, "unym"));
+            let msg = HandleMsg::UnRegisterMixnode {};
+
+            let result = handle(deps.as_mut(), mock_env(), info, msg);
+            assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
         }
     }
 

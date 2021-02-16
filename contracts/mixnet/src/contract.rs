@@ -35,7 +35,7 @@ pub fn handle(
     }
 }
 
-pub fn try_add_mixnode(
+fn try_add_mixnode(
     deps: DepsMut,
     info: MessageInfo,
     mix_node: MixNode,
@@ -61,7 +61,7 @@ pub fn try_add_mixnode(
     Ok(HandleResponse::default())
 }
 
-pub fn try_remove_mixnode(
+fn try_remove_mixnode(
     deps: DepsMut,
     info: MessageInfo,
     env: Env,

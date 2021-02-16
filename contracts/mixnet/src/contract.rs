@@ -120,13 +120,13 @@ mod tests {
     use crate::state::mixnodes;
 
     use super::*;
-    use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::HumanAddr;
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::{coins, from_binary};
+    use cosmwasm_std::{testing::MockApi, Coin};
 
     #[test]
     fn initialize_contract() {
@@ -143,7 +143,7 @@ mod tests {
         assert_eq!(0, topology.mix_node_bonds.len()); // there are no mixnodes in the topology when it's just been initialized
 
         // Contract balance should match what we initialized it as
-        assert_eq!(0, query_balance(env.contract.address, deps));
+        assert_eq!(coins(0, "unym"), query_balance(env.contract.address, deps));
     }
 
     #[cfg(test)]
@@ -332,13 +332,9 @@ mod tests {
     fn query_balance(
         address: HumanAddr,
         deps: OwnedDeps<MockStorage, MockApi, MockQuerier>,
-    ) -> u128 {
+    ) -> Vec<Coin> {
         let querier = deps.as_ref().querier;
-        querier
-            .query_balance(address, "unym")
-            .unwrap()
-            .amount
-            .into()
+        vec![querier.query_balance(address, "unym").unwrap()]
     }
 
     fn mix_node_fixture() -> MixNode {

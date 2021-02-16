@@ -232,6 +232,8 @@ mod tests {
             // attempt to un-register fred's node, which doesn't exist
             let info = mock_info("fred", &coins(999_9999, "unym"));
             let msg = HandleMsg::UnRegisterMixnode {};
+            let result = handle(deps.as_mut(), mock_env(), info, msg);
+            assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
 
             let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
             let topology: Topology = from_binary(&res).unwrap();

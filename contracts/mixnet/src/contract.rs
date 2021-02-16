@@ -301,7 +301,7 @@ mod tests {
         let result = query(deps.as_ref(), mock_env(), QueryMsg::GetNodes {}).unwrap();
         let nodes: Vec<MixNodeBond> = from_binary(&result).unwrap();
         assert_eq!(1, nodes.len());
-        assert_eq!(helpers::mix_node_fixture().host, nodes[0].mix_node.host);
+        assert_eq!(helpers::mix_node_fixture(), nodes[0].mix_node);
     }
 
     mod helpers {

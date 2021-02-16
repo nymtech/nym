@@ -167,12 +167,10 @@ mod tests {
             let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
             assert_eq!(HandleResponse::default(), handle_response);
 
-            // we can query for topology and the new node is there
+            // we can query topology and the new node is there
             let query_response =
                 query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
             let topology: Topology = from_binary(&query_response).unwrap();
-
-            assert_eq!(HandleResponse::default(), handle_response);
             assert_eq!(1, topology.mix_node_bonds.len());
             assert_eq!(
                 helpers::mix_node_fixture().location,
@@ -252,41 +250,28 @@ mod tests {
             init(deps.as_mut(), env.clone(), info, msg).unwrap();
 
             // add a node owned by bob
-            let node = MixNodeBond {
-                amount: coins(50, "unym"),
-                owner: HumanAddr::from("bob"),
-                mix_node: helpers::mix_node_fixture(),
-            };
-            mixnodes(&mut deps.storage)
-                .save("bob".as_bytes(), &node)
-                .unwrap();
+            helpers::add_mixnode("bob", coins(1000_000000, "unym"), &mut deps);
 
             // add a node owned by fred
-            let node = MixNodeBond {
-                amount: coins(66, "unym"),
-                owner: HumanAddr::from("fred"),
-                mix_node: helpers::mix_node_fixture(),
-            };
-            mixnodes(&mut deps.storage)
-                .save("fred".as_bytes(), &node)
-                .unwrap();
+            let fred_bond = coins(1666_000000, "unym");
+            helpers::add_mixnode("fred", fred_bond.clone(), &mut deps);
 
             // un-register fred's node
             let info = mock_info("fred", &coins(999_9999, "unym"));
             let msg = HandleMsg::UnRegisterMixnode {};
 
-            // what do we expect to happen?
-            let expected_amount = coins(66, "unym");
+            // we should see log messages come back showing an unbond message
             let expected_attributes = vec![
                 attr("action", "unbond"),
-                attr("tokens", expected_amount[0].amount),
+                attr("tokens", fred_bond.clone()[0].amount),
                 attr("account", "fred"),
             ];
 
+            // we should see a transfer from the contract back to fred
             let expected_messages = vec![BankMsg::Send {
                 from_address: env.contract.address,
                 to_address: info.sender.clone(),
-                amount: expected_amount,
+                amount: fred_bond,
             }
             .into()];
 
@@ -329,6 +314,15 @@ mod tests {
     mod helpers {
         use super::*;
         use cosmwasm_std::{Empty, MemoryStorage};
+
+        pub fn add_mixnode(
+            pubkey: &str,
+            stake: Vec<Coin>,
+            deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
+        ) {
+            let info = mock_info(pubkey, &stake);
+            try_add_mixnode(deps.as_mut(), info, helpers::mix_node_fixture()).unwrap();
+        }
 
         pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
             let mut deps = mock_dependencies(&[]);

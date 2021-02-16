@@ -1,9 +1,6 @@
+use crate::msg::{HandleMsg, InitMsg, QueryMsg, Topology};
 use crate::state::{config, config_read, MixNode, MixNodeBond, State};
-use crate::{error::ContractError, state::mixnodes_all};
-use crate::{
-    msg::{HandleMsg, InitMsg, QueryMsg, Topology},
-    state::mixnodes,
-};
+use crate::{error::ContractError, state::mixnodes, state::mixnodes_all, state::mixnodes_read};
 use cosmwasm_std::{
     attr, coins, to_binary, BankMsg, Binary, Deps, DepsMut, Env, HandleResponse, InitResponse,
     MessageInfo, StdResult,
@@ -70,46 +67,36 @@ pub fn try_remove_mixnode(
     info: MessageInfo,
     env: Env,
 ) -> Result<HandleResponse, ContractError> {
-    // load state
+    // load contract state
     let state = config(deps.storage).load()?;
-    let mixnodes = mixnodes_all(deps.storage)?;
 
-    // find the bond
-    let mixnode_bond = match mixnodes.iter().find(|b| b.owner == info.sender) {
+    // find the bond, return ContractError::MixNodeBondNotFound if it doesn't exist
+    let mixnode_bond = match mixnodes_read(deps.storage).may_load(info.sender.as_bytes())? {
         None => return Err(ContractError::MixNodeBondNotFound {}),
         Some(bond) => bond,
     };
 
     // send bonded funds back to the bond owner
-    // let messages = vec![BankMsg::Send {
-    //     from_address: env.contract.address,
-    //     to_address: info.sender.clone(),
-    //     amount: mixnode_bond.amount.clone(),
-    // }
-    // .into()];
+    let messages = vec![BankMsg::Send {
+        from_address: env.contract.address,
+        to_address: info.sender.clone(),
+        amount: mixnode_bond.amount.clone(),
+    }
+    .into()];
 
     // remove the bond from the list of bonded mixnodes
-    // config(deps.storage).update(|mut state| -> Result<_, ContractError> {
-    //     state.mix_node_bonds.retain(|mnb| mnb.owner != info.sender);
-    //     Ok(state)
-    // })?;
+    mixnodes(deps.storage).remove(mixnode_bond.owner.as_bytes());
 
     // log our actions
-    // let attributes = vec![
-    //     attr("action", "unbond"),
-    //     attr("tokens", mixnode_bond.amount[0].amount),
-    //     attr("account", mixnode_bond.owner.clone()),
-    // ];
-
-    // Ok(HandleResponse {
-    //     messages,
-    //     attributes,
-    //     data: None,
-    // })
+    let attributes = vec![
+        attr("action", "unbond"),
+        attr("tokens", mixnode_bond.amount[0].amount),
+        attr("account", mixnode_bond.owner.clone()),
+    ];
 
     Ok(HandleResponse {
-        messages: vec![],
-        attributes: vec![],
+        messages,
+        attributes,
         data: None,
     })
 }
@@ -255,8 +242,61 @@ mod tests {
             assert_eq!(1, topology.mix_node_bonds.len());
         }
 
+        #[test]
+        fn removes_correct_node_when_account_has_a_mixnode() {
+            let env = mock_env();
+            let mut deps = mock_dependencies(&[]);
+            let msg = InitMsg {};
+            let info = mock_info("creator", &[]);
+            init(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+            // add a node owned by bob
+            let node = MixNodeBond {
+                amount: coins(50, "unym"),
+                owner: HumanAddr::from("bob"),
+                mix_node: mix_node_fixture(),
+            };
+            mixnodes(&mut deps.storage)
+                .save("bob".as_bytes(), &node)
+                .unwrap();
+
+            // add a node owned by fred
+            let node = MixNodeBond {
+                amount: coins(66, "unym"),
+                owner: HumanAddr::from("fred"),
+                mix_node: mix_node_fixture(),
+            };
+            mixnodes(&mut deps.storage)
+                .save("fred".as_bytes(), &node)
+                .unwrap();
+
+            // un-register fred's node
+            let info = mock_info("fred", &coins(999_9999, "unym"));
+            let msg = HandleMsg::UnRegisterMixnode {};
+
+            // what do we expect to happen?
+            let expected_amount = coins(66, "unym");
+            let expected_attributes = vec![
+                attr("action", "unbond"),
+                attr("tokens", expected_amount[0].amount), // TODO: this is ropey, should be a coin!;
+                attr("account", "fred"),
+            ];
+
+            let expected_messages = vec![BankMsg::Send {
+                from_address: env.contract.address,
+                to_address: info.sender.clone(),
+                amount: expected_amount,
+            }
+            .into()];
+
+            let expected = HandleResponse {
+                messages: expected_messages,
+                attributes: expected_attributes,
+                data: None,
+            };
+
             let result = handle(deps.as_mut(), mock_env(), info, msg);
-            assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
+            assert_eq!(result.unwrap(), expected);
         }
     }
 

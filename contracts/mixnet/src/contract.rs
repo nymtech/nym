@@ -226,6 +226,7 @@ mod tests {
         // un-register fred's node
         let info = mock_info("fred", &coins(999_9999, "unym"));
         let msg = HandleMsg::UnRegisterMixnode {};
+        let remove_fred = handle(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
         // we should see log messages come back showing an unbond message
         let expected_attributes = vec![
@@ -234,26 +235,26 @@ mod tests {
             attr("account", "fred"),
         ];
 
-        // we should see a transfer from the contract back to fred
+        // we should see a funds transfer from the contract back to fred
         let expected_messages = vec![BankMsg::Send {
             from_address: env.contract.address,
-            to_address: info.sender.clone(),
+            to_address: info.sender,
             amount: fred_bond,
         }
         .into()];
 
+        // run the handler and check that we got back the correct results
         let expected = HandleResponse {
             messages: expected_messages,
             attributes: expected_attributes,
             data: None,
         };
+        assert_eq!(remove_fred, expected);
 
-        // run the handler and check that we got back the correct results
-        let result = handle(deps.as_mut(), mock_env(), info, msg);
-        assert_eq!(result.unwrap(), expected);
-
-        // only 1 node now exists:
-        assert_eq!(1, helpers::get_topology(&mut deps).mix_node_bonds.len());
+        // only 1 node now exists, owned by bob:
+        let topology = helpers::get_topology(&mut deps);
+        assert_eq!(1, topology.mix_node_bonds.len());
+        assert_eq!("bob", topology.mix_node_bonds[0].owner);
     }
 
     #[test]

@@ -327,17 +327,8 @@ mod tests {
     }
 
     mod helpers {
-        use cosmwasm_std::{Empty, MemoryStorage};
-
         use super::*;
-
-        pub fn query_contract_balance(
-            address: HumanAddr,
-            deps: OwnedDeps<MockStorage, MockApi, MockQuerier>,
-        ) -> Vec<Coin> {
-            let querier = deps.as_ref().querier;
-            vec![querier.query_balance(address, "unym").unwrap()]
-        }
+        use cosmwasm_std::{Empty, MemoryStorage};
 
         pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
             let mut deps = mock_dependencies(&[]);
@@ -356,6 +347,14 @@ mod tests {
                 sphinx_key: "sphinx".to_string(),
                 version: "0.10.0".to_string(),
             }
+        }
+
+        pub fn query_contract_balance(
+            address: HumanAddr,
+            deps: OwnedDeps<MockStorage, MockApi, MockQuerier>,
+        ) -> Vec<Coin> {
+            let querier = deps.as_ref().querier;
+            vec![querier.query_balance(address, "unym").unwrap()]
         }
     }
 }

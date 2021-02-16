@@ -279,7 +279,7 @@ mod tests {
             let expected_amount = coins(66, "unym");
             let expected_attributes = vec![
                 attr("action", "unbond"),
-                attr("tokens", expected_amount[0].amount), // TODO: this is ropey, should be a coin!;
+                attr("tokens", expected_amount[0].amount),
                 attr("account", "fred"),
             ];
 

@@ -98,6 +98,20 @@ mod tests {
     }
 
     #[test]
+    fn mixnode_single_read_retrieval() {
+        let mut storage = MockStorage::new();
+        let bond1 = mixnode_bond_fixture();
+        let bond2 = mixnode_bond_fixture();
+        mixnodes(&mut storage).save(b"bond1", &bond1).unwrap();
+        mixnodes(&mut storage).save(b"bond2", &bond2).unwrap();
+
+        let res1 = mixnodes_read(&storage).load(b"bond1").unwrap();
+        let res2 = mixnodes_read(&storage).load(b"bond2").unwrap();
+        assert_eq!(bond1, res1);
+        assert_eq!(bond2, res2);
+    }
+
+    #[test]
     fn mixnodes_retrieval_works_with_large_numbers_of_nodes() {
         let mut storage = MockStorage::new();
         for n in 0..10000 {

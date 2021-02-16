@@ -250,6 +250,11 @@ mod tests {
             let info = mock_info("fred", &coins(999_9999, "unym"));
             let msg = HandleMsg::UnRegisterMixnode {};
 
+            let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
+            let topology: Topology = from_binary(&res).unwrap();
+            assert_eq!(1, topology.mix_node_bonds.len());
+        }
+
             let result = handle(deps.as_mut(), mock_env(), info, msg);
             assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
         }

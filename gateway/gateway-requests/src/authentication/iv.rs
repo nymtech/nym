@@ -1,6 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(clippy::unknown_clippy_lints)] // `clippy::upper_case_acronyms` does not exist on stable just yet
 use crypto::generic_array::{typenum::Unsigned, GenericArray};
 use crypto::symmetric::stream_cipher::{random_iv, NewStreamCipher, IV};
 use nymsphinx::params::GatewayEncryptionAlgorithm;

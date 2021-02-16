@@ -228,6 +228,31 @@ mod tests {
             let result = handle(deps.as_mut(), mock_env(), info, msg);
             assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
         }
+
+        #[test]
+        fn returns_node_not_found_when_no_mixnodes_exist_for_account() {
+            let mut deps = mock_dependencies(&[]);
+            let msg = InitMsg {};
+            let info = mock_info("creator", &[]);
+            init(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+            // let's add a node owned by bob
+            let node = MixNodeBond {
+                amount: coins(50, "unym"),
+                owner: HumanAddr::from("foo"),
+                mix_node: mix_node_fixture(),
+            };
+            mixnodes(&mut deps.storage)
+                .save("bob".as_bytes(), &node)
+                .unwrap();
+
+            // attempt to un-register fred's node, which doesn't exist
+            let info = mock_info("fred", &coins(999_9999, "unym"));
+            let msg = HandleMsg::UnRegisterMixnode {};
+
+            let result = handle(deps.as_mut(), mock_env(), info, msg);
+            assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
+        }
     }
 
     #[test]

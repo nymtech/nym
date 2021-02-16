@@ -100,7 +100,6 @@ fn try_remove_mixnode(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetTopology {} => to_binary(&query_get_topology(deps)?),
-        QueryMsg::GetNodes {} => to_binary(&query_get_nodes(deps)?),
     }
 }
 
@@ -109,10 +108,6 @@ fn query_get_topology(deps: Deps) -> StdResult<Topology> {
     Ok(Topology {
         mix_node_bonds: mix_nodes,
     })
-}
-
-fn query_get_nodes(deps: Deps) -> StdResult<Vec<MixNodeBond>> {
-    mixnodes_all(deps.storage)
 }
 
 #[cfg(test)]
@@ -283,8 +278,9 @@ mod tests {
     fn query_mixnodes_works() {
         let mut deps = helpers::init_contract();
 
-        let result = query(deps.as_ref(), mock_env(), QueryMsg::GetNodes {}).unwrap();
-        let nodes: Vec<MixNodeBond> = from_binary(&result).unwrap();
+        let result = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
+        let topology: Topology = from_binary(&result).unwrap();
+        let nodes: Vec<MixNodeBond> = topology.mix_node_bonds;
         assert_eq!(0, nodes.len());
 
         // let's add a node
@@ -298,8 +294,9 @@ mod tests {
             .unwrap();
 
         // is the node there?
-        let result = query(deps.as_ref(), mock_env(), QueryMsg::GetNodes {}).unwrap();
-        let nodes: Vec<MixNodeBond> = from_binary(&result).unwrap();
+        let result = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
+        let topology: Topology = from_binary(&result).unwrap();
+        let nodes: Vec<MixNodeBond> = topology.mix_node_bonds;
         assert_eq!(1, nodes.len());
         assert_eq!(helpers::mix_node_fixture(), nodes[0].mix_node);
     }

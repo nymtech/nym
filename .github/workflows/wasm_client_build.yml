@@ -5,6 +5,9 @@ on: [push, pull_request]
 jobs:
   ci:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clients/webassembly
     steps:
       - uses: actions/checkout@v2
 
@@ -16,22 +19,28 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - name: Install
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: ---manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown
+          args: --target wasm32-unknown-unknown
 
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: ---manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown
+          args: --target wasm32-unknown-unknown
+
+      - run: wasm-pack test --headless --chrome
+      - run: wasm-pack test --headless --firefox
 
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: ---manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown -- --check
+          args: -- --check
 
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown -- -D warnings
+          args: --target wasm32-unknown-unknown -- -D warnings

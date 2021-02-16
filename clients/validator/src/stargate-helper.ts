@@ -6,7 +6,7 @@ import axios from 'axios';
 import { GasLimits, GasPrice, logs } from "@cosmjs/launchpad";
 import { CosmWasmFeeTable } from "@cosmjs/cosmwasm";
 
-export { connect, getAttribute, loadMnemonic };
+export { connect, getAttribute, loadMnemonic, randomMnemonic, mnemonicToAddress };
 
 interface Options {
     httpUrl: string;
@@ -65,9 +65,11 @@ const buildWallet = (mnemonic: string): Promise<DirectSecp256k1HdWallet> => {
     return DirectSecp256k1HdWallet.fromMnemonic(mnemonic, undefined, defaultOptions.bech32prefix);
 }
 
-const randomAddress = async (): Promise<string> => {
-    const mnemonic = Bip39.encode(Random.getBytes(16)).toString()
-    return mnemonicToAddress(mnemonic)
+
+
+const randomMnemonic = async (): Promise<string> => {
+    const mnemonic = Bip39.encode(Random.getBytes(16)).toString();
+    return mnemonic;
 }
 
 const mnemonicToAddress = async (mnemonic: string): Promise<string> => {

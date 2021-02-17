@@ -45,7 +45,7 @@ async function main() {
     console.log("Initial topology:");
     await getTopology(contractAddress, dave.client);
 
-    console.log("Adding nodes from dave, bob, and fred...");
+    console.log("Adding nodes from many different users...");
 
 
     for (var i = 1; i < 3000; i++) {

@@ -20,9 +20,17 @@ describe("Validator network client", () => {
             it("Should return an empty list", () => {
                 let client = new NetClient();
 
-                var result: MixNode[] = client.GetMixnodes(1, 2);
+                var result: MixNode[] = client.getMixnodes(1, 2);
                 assert.deepEqual([], result);
             });
+        })
+        context("a populated list", () => {
+            it("Should return the list", () => {
+                let client = new NetClient();
+
+                var result: MixNode[] = client.getMixnodes(1, 2);
+
+            })
         })
     })
 });

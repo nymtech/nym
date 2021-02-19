@@ -1,2 +1,25 @@
-export { connect, loadMnemonic, randomMnemonic, mnemonicToAddress } from "./stargate-helper";
-export { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+import { MixNode } from "./types";
+
+export { ValidatorClient }
+
+class ValidatorClient {
+
+    url: string;
+    mixNodes: MixNode[];
+
+    constructor(url: string) {
+        this.url = url;
+        this.mixNodes = [];
+    }
+
+    connect() { }
+
+    loadMnemonic() { }
+
+    randomMnemonic() { }
+
+    mnemonicToAddress() { }
+
+    refreshMixNodes() { }
+
+}

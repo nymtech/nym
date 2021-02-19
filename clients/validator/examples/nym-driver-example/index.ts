@@ -38,7 +38,8 @@ async function main() {
     // const { contractAddress } = await dave.client.instantiate(dave.address, codeId, initMsg, "mixnet contract", { memo: "v0.1.0", transferAmount: [{ denom: "unym", amount: "50000" }] });
     // console.log(`mixnet contract ${contractAddress} instantiated successfully`)
 
-    const contractAddress = "nym10pyejy66429refv3g35g2t7am0was7ya69su6d";
+    const contractAddress = "nym10pyejy66429refv3g35g2t7am0was7ya69su6d"; // IMPORTANT: this is the one with 6000 nodes in it!
+    // const contractAddress = "nym1sh36qn08g4cqg685cfzmyxqv2952q6r8vj25yn"; // IMPORTANT: this is the one with less nodes in it!
 
     // Use it
     console.log("Now the big moment we've all been waiting for...");

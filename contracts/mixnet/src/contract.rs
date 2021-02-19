@@ -182,6 +182,9 @@ mod tests {
             helpers::mix_node_fixture().location,
             topology.mix_node_bonds[0].mix_node.location
         )
+
+        // adding another node from another account, but with the same IP, should fail (or we would have a weird state). Is that right? Think about this, not sure yet.
+        // if we attempt to register a second node from the same address, should we get an error? It would probably be polite.
     }
 
     #[test]

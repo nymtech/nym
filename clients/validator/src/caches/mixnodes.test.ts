@@ -3,7 +3,7 @@ import { assert } from 'chai';
 import INetClient from '../net-client';
 import { Fixtures } from '../../tests/fixtures'
 import { Mock } from 'moq.ts';
-import { ChainCache } from './chaincache'
+import { ChainCache } from './mixnodes'
 
 describe("Retrieving mixnodes, when the validator returns", () => {
     context("an empty list", () => {

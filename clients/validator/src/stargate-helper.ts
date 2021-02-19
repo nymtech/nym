@@ -65,8 +65,6 @@ const buildWallet = (mnemonic: string): Promise<DirectSecp256k1HdWallet> => {
     return DirectSecp256k1HdWallet.fromMnemonic(mnemonic, undefined, defaultOptions.bech32prefix);
 }
 
-
-
 const randomMnemonic = async (): Promise<string> => {
     const mnemonic = Bip39.encode(Random.getBytes(16)).toString();
     return mnemonic;

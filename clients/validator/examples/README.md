@@ -4,8 +4,8 @@ They work with CosmWasm v0.14.x. To set up a local node, you'll first need to ch
 
 ```
 cd ~/Desktop
-git clone git@github.com:CosmWasm/wasmd.git
-cd wasmd
+git clone git@github.com:nymtech/nymd.git
+cd nymd
 git checkout v0.14.1
 go build -o nymd -mod=readonly -tags "netgo,ledger" -ldflags '-X github.com/cosmos/cosmos-sdk/version.Name=nymd -X github.com/cosmos/cosmos-sdk/version.AppName=nymd -X github.com/CosmWasm/wasmd/app.NodeDir=.nymd -X github.com/cosmos/cosmos-sdk/version.Version=0.14.1 -X github.com/cosmos/cosmos-sdk/version.Commit=1920f80d181adbeaedac1eeea1c1c6e1704d3e49 -X github.com/CosmWasm/wasmd/app.Bech32Prefix=nym -X "github.com/cosmos/cosmos-sdk/version.BuildTags=netgo,ledger"' -trimpath ./cmd/wasmd
 mv nymd $GOBIN

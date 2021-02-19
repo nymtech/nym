@@ -5,11 +5,12 @@ import { Fixtures } from '../../tests/fixtures'
 import { Mock } from 'moq.ts';
 import { MixnodesCache } from './mixnodes'
 
-describe("Retrieving mixnodes, when the validator returns", () => {
+describe("Retrieving mixnodes: when the validator returns", () => {
     context("an empty list", () => {
         it("Should hold an empty list", () => {
-            const mockClient = new Mock<INetClient>().setup(instance => instance.getMixnodes(1, 100)).returns([]);
-            const chainCache = new MixnodesCache(mockClient.object());
+            const perPage = 100;
+            const mockClient = new Mock<INetClient>().setup(instance => instance.getMixnodes(1, perPage)).returns([]);
+            const chainCache = new MixnodesCache(mockClient.object(), perPage);
 
             chainCache.refreshMixNodes();
 
@@ -19,8 +20,9 @@ describe("Retrieving mixnodes, when the validator returns", () => {
     })
     context("a list of nodes that fits in a page", () => {
         it("Should return the list", () => {
-            const mockClient = new Mock<INetClient>().setup(instance => instance.getMixnodes(1, 100)).returns(Fixtures.nodeList2());
-            const cache = new MixnodesCache(mockClient.object());
+            const perPage = 100;
+            const mockClient = new Mock<INetClient>().setup(instance => instance.getMixnodes(1, perPage)).returns(Fixtures.nodeList2());
+            const cache = new MixnodesCache(mockClient.object(), perPage);
 
             cache.refreshMixNodes();
 
@@ -31,9 +33,9 @@ describe("Retrieving mixnodes, when the validator returns", () => {
 
     context("a list of nodes that is longer than one page", () => {
         it("Should return the list", () => {
-            // What should we mock here? 
-            const mockClient = new Mock<INetClient>().setup(instance => instance.getMixnodes(1, 100)).returns(Fixtures.nodeList2());
-            const cache = new MixnodesCache(mockClient.object());
+            const perPage = 100;
+            const mockClient = new Mock<INetClient>().setup(instance => instance.getMixnodes(1, perPage)).returns(Fixtures.nodeList2());
+            const cache = new MixnodesCache(mockClient.object(), perPage);
 
             cache.refreshMixNodes();
 

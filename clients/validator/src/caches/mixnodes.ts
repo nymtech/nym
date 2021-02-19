@@ -9,10 +9,10 @@ export default class MixnodesCache {
     netClient: INetClient
     perPage: number
 
-    constructor(netClient: INetClient) {
+    constructor(netClient: INetClient, perPage: number) {
         this.netClient = netClient;
         this.mixNodes = [];
-        this.perPage = 100; // this can probably be set in the constructor
+        this.perPage = perPage;
     }
 
     refreshMixNodes() {

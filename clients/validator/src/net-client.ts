@@ -1,4 +1,3 @@
-import * as rest from 'typed-rest-client/RestClient'
 import { MixNode } from './types'
 
 export default class NetClient {

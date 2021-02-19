@@ -31,6 +31,6 @@
     "@cosmjs/crypto": "^0.24.0-alpha.18",
     "@cosmjs/launchpad": "^0.24.0-alpha.18",
     "@cosmjs/proto-signing": "^0.24.0-alpha.18",
-    "axios": "^0.21.1"
+    "typed-rest-client": "^1.8.1"
   }
 }

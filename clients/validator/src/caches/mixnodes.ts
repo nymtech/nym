@@ -2,9 +2,9 @@ import NetClient from "../net-client";
 import { MixNode } from "../types";
 import { INetClient } from "../net-client"
 
-export { ChainCache };
+export { MixnodesCache };
 
-export default class ChainCache {
+export default class MixnodesCache {
     mixNodes: MixNode[]
     netClient: INetClient
     perPage: number
@@ -12,7 +12,7 @@ export default class ChainCache {
     constructor(netClient: INetClient) {
         this.netClient = netClient;
         this.mixNodes = [];
-        this.perPage = 100;
+        this.perPage = 100; // this can probably be set in the constructor
     }
 
     refreshMixNodes() {

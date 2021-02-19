@@ -22,4 +22,6 @@ class ValidatorClient {
 
     refreshMixNodes() { }
 
+    send() { }
+
 }

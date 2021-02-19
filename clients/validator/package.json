@@ -14,6 +14,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/chai": "^4.2.15",
     "@types/expect": "^24.3.0",
     "@types/mocha": "^8.2.1",
     "@typescript-eslint/eslint-plugin": "^4.14.0",
@@ -21,6 +22,7 @@
     "chai": "^4.2.0",
     "eslint": "^7.18.0",
     "mocha": "^8.2.1",
+    "moq.ts": "^7.2.0",
     "nyc": "^15.1.0",
     "ts-mocha": "^8.0.0",
     "typescript": "^4.1.3"

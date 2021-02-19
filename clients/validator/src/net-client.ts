@@ -1,9 +1,13 @@
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { MixNode } from './types'
 
-export default class NetClient {
+export interface INetClient {
+    getMixnodes(page: number, perPage: number): MixNode[];
+}
 
-    cosmos: SigningCosmWasmClient;
+export default class NetClient implements INetClient {
+
+    private cosmos: SigningCosmWasmClient;
 
     constructor(cosmos: SigningCosmWasmClient) {
         this.cosmos = cosmos;

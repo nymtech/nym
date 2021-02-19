@@ -1,9 +1,9 @@
 import { Test } from 'mocha';
 import { assert } from 'chai';
-import INetClient from '../src/net-client';
-import { Fixtures } from './fixtures'
+import INetClient from '../net-client';
+import { Fixtures } from '../../tests/fixtures'
 import { Mock } from 'moq.ts';
-import { ChainCache } from '../src/chaincache'
+import { ChainCache } from './chaincache'
 
 describe("Retrieving mixnodes, when the validator returns", () => {
     context("an empty list", () => {

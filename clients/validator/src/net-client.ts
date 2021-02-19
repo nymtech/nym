@@ -1,4 +1,4 @@
-import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-launchpad';
+import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { MixNode } from './types'
 
 export default class NetClient {

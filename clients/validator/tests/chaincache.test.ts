@@ -2,12 +2,9 @@ import { Test } from 'mocha';
 import { assert } from 'chai';
 import INetClient from '../src/net-client';
 import { Fixtures } from './fixtures'
-import { Mock, It, Times } from 'moq.ts';
+import { Mock } from 'moq.ts';
 import { ChainCache } from '../src/chaincache'
 
-
-
-// describe("Caching the current network state", () => {
 describe("Retrieving mixnodes, when the validator returns", () => {
     context("an empty list", () => {
         it("Should hold an empty list", () => {

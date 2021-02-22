@@ -23,3 +23,8 @@ cargo watch -s "cd clients/validator && npm test"
 ```
 
 It's ugly but works fine if you have Cargo installed. TypeScript setup help happily accepted here. 
+
+Generating Documentation
+------------------------
+
+You can generate docs by running `npm run docs`. Generated output will appear in the `docs` directory. 

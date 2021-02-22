@@ -1,4 +1,3 @@
-import NetClient from "../net-client";
 import { MixNode } from "../types";
 import { INetClient } from "../net-client"
 

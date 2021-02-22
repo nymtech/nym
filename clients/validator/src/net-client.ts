@@ -1,8 +1,8 @@
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
-import { MixNode } from './types'
+import { MixNode, MixNodesResponse } from './types'
 
 export interface INetClient {
-    getMixnodes(page: number, perPage: number): MixNode[];
+    getMixnodes(page: number, perPage: number): Promise<MixNodesResponse>;
 }
 
 export default class NetClient implements INetClient {
@@ -13,8 +13,14 @@ export default class NetClient implements INetClient {
         this.cosmos = cosmos;
     }
 
-    public getMixnodes(page: number, perPage: number): MixNode[] {
-        return [];
+    public async getMixnodes(page: number, perPage: number): Promise<MixNodesResponse> {
+        return {
+            nodes: [],
+            totalPages: 1,
+            totalCount: 0,
+            currentPage: page,
+            perPage: perPage,
+        };
     }
 
 }

@@ -1,49 +1,49 @@
-import { Test } from 'mocha';
 import { assert } from 'chai';
 import INetClient from '../../src/net-client';
 import { Fixtures } from '../fixtures'
-import { Mock } from 'moq.ts';
+import { Mock, Times } from 'moq.ts';
 import { MixnodesCache } from '../../src/caches/mixnodes'
 
-describe("Retrieving mixnodes: when the validator returns", () => {
+describe("Caching mixnodes: when the validator returns", () => {
     context("an empty list", () => {
-        it("Should hold an empty list", () => {
+        it("Should hold an empty list", async () => {
             const perPage = 100;
-            const mockClient = new Mock<INetClient>().setup(instance => instance.getMixnodes(1, perPage)).returns([]);
-            const chainCache = new MixnodesCache(mockClient.object(), perPage);
+            const mockResponse = Fixtures.MixNodesResp.empty();
+            const mockPromise = Promise.resolve(mockResponse);
+            const mockClient = new Mock<INetClient>().setup(instance => instance.getMixnodes(1, perPage)).returns(mockPromise);
+            const mixnodesCache = new MixnodesCache(mockClient.object(), perPage);
 
-            chainCache.refreshMixNodes();
+            await mixnodesCache.refreshMixNodes();
 
-            let result = chainCache.mixNodes;
-            assert.deepEqual([], result);
+            assert.deepEqual([], mixnodesCache.mixNodes);
         });
     })
     context("a list of nodes that fits in a page", () => {
-        it("Should return the list", () => {
-            const perPage = 100;
-            const mockClient = new Mock<INetClient>().setup(instance => instance.getMixnodes(1, perPage)).returns(Fixtures.nodeList2());
+        it("Should return that one page list", async () => {
+            const perPage = 2;
+            const onePageResult = Promise.resolve(Fixtures.MixNodesResp.onePage());
+            const mockClient = new Mock<INetClient>().setup(instance => instance.getMixnodes(1, perPage)).returns(onePageResult);
             const cache = new MixnodesCache(mockClient.object(), perPage);
 
-            cache.refreshMixNodes();
+            await cache.refreshMixNodes();
 
-            let result = cache.mixNodes;
-            assert.deepEqual(Fixtures.nodeList2(), result);
+            mockClient.verify(instance => instance.getMixnodes(1, perPage), Times.Exactly(1));
+            assert.deepEqual(Fixtures.MixNodes.list2(), cache.mixNodes);
         })
     })
 
     context("a list of nodes that is longer than one page", () => {
-        it("Should return the list", () => {
-            // What should we mock here? Maybe change perPage to like 2, and return some different sized lists? 
-            // We need to add in some kind of total pages variable in the response we get from the validator
-            // then test that we make multiple requests if that's not 1
-            const perPage = 100;
-            const mockClient = new Mock<INetClient>().setup(instance => instance.getMixnodes(1, perPage)).returns(Fixtures.nodeList2());
+        it("Should return the full list", async () => {
+            const perPage = 2; // we get back 2 per page
+            const partialResult = Promise.resolve(Fixtures.MixNodesResp.partial());
+            const mockClient = new Mock<INetClient>().setup(instance => instance.getMixnodes(1, perPage)).returns(partialResult);
             const cache = new MixnodesCache(mockClient.object(), perPage);
 
-            cache.refreshMixNodes();
+            await cache.refreshMixNodes(); // makes multiple paginated requests
+            mockClient.verify(instance => instance.getMixnodes(1, 2), Times.Exactly(1));
+            mockClient.verify(instance => instance.getMixnodes(2, 2), Times.Exactly(1));
 
-            let result = cache.mixNodes;
-            assert.deepEqual(Fixtures.nodeList2(), result);
+            assert.deepEqual(Fixtures.MixNodes.list3(), cache.mixNodes); // there are a total of 3 nodes in the validator lists, we get them all back
         })
     })
 });

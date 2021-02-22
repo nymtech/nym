@@ -8,7 +8,8 @@
     "build": "tsc",
     "test": "ts-mocha tests/**/*.test.ts",
     "coverage": "nyc npm test",
-    "lint": "eslint \"**/*.ts\""
+    "lint": "eslint \"**/*.ts\"",
+    "docs": "typedoc --out docs src/index.ts"
   },
   "keywords": [],
   "author": "",

@@ -15,7 +15,6 @@ export namespace Fixtures {
             return [MixNodes.single()]
         }
 
-
         static list2(): MixNode[] {
             return [MixNodes.single(), MixNodes.single()]
         }
@@ -27,7 +26,6 @@ export namespace Fixtures {
         static list4(): MixNode[] {
             return [MixNodes.single(), MixNodes.single(), MixNodes.single(), MixNodes.single()]
         }
-
     }
 
     export class MixNodesResp {

@@ -17,6 +17,7 @@ pub enum HandleMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     GetTopology {},
+    GetMixNodes {},
 }
 
 // We define a custom struct for each query response

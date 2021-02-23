@@ -17,16 +17,16 @@ export default class MixnodesCache {
 
     async refreshMixNodes() {
         const firstPage = await this.netClient.getMixnodes(1, this.perPage);
-        if (firstPage.totalPages > 1) {
-            const responses = await this.makeAdditionalPagedRequests(firstPage).then(responses => {
-                responses.forEach(response => {
-                    console.log(`HEY FUCKER ${response}`);
-                    this.mixNodes.concat(response.nodes);
-                });
+        this.mixNodes = firstPage.nodes;
 
+        if (firstPage.totalPages > 1) {
+            const responses = await this.makeAdditionalPagedRequests(firstPage);
+            console.log(`response is: ${responses[0].nodes.length}`)
+            responses.forEach(response => {
+                console.log(`this.mixNodes.length: ${this.mixNodes.length}`)
+                this.mixNodes = [...this.mixNodes, ...response.nodes];
+                console.log(this.mixNodes.length)
             });
-        } else {
-            this.mixNodes = firstPage.nodes;
         }
     }
 
@@ -35,8 +35,8 @@ export default class MixnodesCache {
         const numRequests = firstPage.totalPages - 1;
         let nextPage = 2;
         for (let i = 0; i < numRequests; i++) {
-            const responsePromise = await this.netClient.getMixnodes(nextPage, this.perPage);
-            additionalRequests.push(responsePromise);
+            const req = await this.netClient.getMixnodes(nextPage, this.perPage);
+            additionalRequests.push(req);
             nextPage++;
         }
         return await Promise.all(additionalRequests)

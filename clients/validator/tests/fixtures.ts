@@ -11,6 +11,11 @@ export namespace Fixtures {
             };
         }
 
+        static list1(): MixNode[] {
+            return [MixNodes.single()]
+        }
+
+
         static list2(): MixNode[] {
             return [MixNodes.single(), MixNodes.single()]
         }
@@ -42,9 +47,19 @@ export namespace Fixtures {
             }
         }
 
-        static partial(): MixNodesResponse {
+        static page1of2(): MixNodesResponse {
             return {
                 nodes: MixNodes.list2(),
+                perPage: 2,
+                totalPages: 2,
+                currentPage: 1,
+                totalCount: 3,
+            }
+        }
+
+        static halfPage2of2(): MixNodesResponse {
+            return {
+                nodes: MixNodes.list1(),
                 perPage: 2,
                 totalPages: 2,
                 currentPage: 1,

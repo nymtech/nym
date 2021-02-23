@@ -22,5 +22,4 @@ export default class NetClient implements INetClient {
             perPage: perPage,
         };
     }
-
 }

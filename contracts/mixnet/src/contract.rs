@@ -1,4 +1,4 @@
-use crate::msg::{HandleMsg, InitMsg, QueryMsg, Topology};
+use crate::msg::{HandleMsg, InitMsg, QueryMsg};
 use crate::state::{config, MixNode, MixNodeBond, State};
 use crate::{error::ContractError, state::mixnodes, state::mixnodes_all, state::mixnodes_read};
 use cosmwasm_std::{
@@ -99,16 +99,8 @@ fn try_remove_mixnode(
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetTopology {} => to_binary(&query_get_topology(deps)?),
         QueryMsg::GetMixNodes {} => to_binary(&query_get_mixnodes(deps)?),
     }
-}
-
-fn query_get_topology(deps: Deps) -> StdResult<Topology> {
-    let mix_nodes = mixnodes_all(deps.storage)?;
-    Ok(Topology {
-        mix_node_bonds: mix_nodes,
-    })
 }
 
 fn query_get_mixnodes(deps: Deps) -> StdResult<Vec<MixNodeBond>> {
@@ -140,9 +132,9 @@ mod tests {
         assert_eq!(0, res.messages.len());
 
         // mix_node_bonds should be empty after initialization
-        let res = query(deps.as_ref(), env.clone(), QueryMsg::GetTopology {}).unwrap();
-        let topology: Topology = from_binary(&res).unwrap();
-        assert_eq!(0, topology.mix_node_bonds.len()); // there are no mixnodes in the topology when it's just been initialized
+        let res = query(deps.as_ref(), env.clone(), QueryMsg::GetMixNodes {}).unwrap();
+        let mix_node_bonds: Vec<MixNodeBond> = from_binary(&res).unwrap();
+        assert_eq!(0, mix_node_bonds.len()); // there are no mixnodes in the list when it's just been initialized
 
         // Contract balance should match what we initialized it as
         assert_eq!(
@@ -166,9 +158,9 @@ mod tests {
         assert_eq!(result, Err(ContractError::InsufficientBond {}));
 
         // no mixnode was inserted into the topology
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
-        let topology: Topology = from_binary(&res).unwrap();
-        assert_eq!(0, topology.mix_node_bonds.len());
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetMixNodes {}).unwrap();
+        let mix_node_bonds: Vec<MixNodeBond> = from_binary(&res).unwrap();
+        assert_eq!(0, mix_node_bonds.len());
 
         // if we send enough funds
         let info = mock_info("anyone", &coins(1000_000000, "unym"));
@@ -181,12 +173,12 @@ mod tests {
         assert_eq!(HandleResponse::default(), handle_response);
 
         // we can query topology and the new node is there
-        let query_response = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
-        let topology: Topology = from_binary(&query_response).unwrap();
-        assert_eq!(1, topology.mix_node_bonds.len());
+        let query_response = query(deps.as_ref(), mock_env(), QueryMsg::GetMixNodes {}).unwrap();
+        let mix_node_bonds: Vec<MixNodeBond> = from_binary(&query_response).unwrap();
+        assert_eq!(1, mix_node_bonds.len());
         assert_eq!(
             helpers::mix_node_fixture().location,
-            topology.mix_node_bonds[0].mix_node.location
+            mix_node_bonds[0].mix_node.location
         )
 
         // adding another node from another account, but with the same IP, should fail (or we would have a weird state). Is that right? Think about this, not sure yet.
@@ -219,10 +211,10 @@ mod tests {
         assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
 
         // bob's node is still there
-        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
-        let topology: Topology = from_binary(&res).unwrap();
-        let first_node = &topology.mix_node_bonds[0];
-        assert_eq!(1, topology.mix_node_bonds.len());
+        let res = query(deps.as_ref(), mock_env(), QueryMsg::GetMixNodes {}).unwrap();
+        let mix_node_bonds: Vec<MixNodeBond> = from_binary(&res).unwrap();
+        let first_node = &mix_node_bonds[0];
+        assert_eq!(1, mix_node_bonds.len());
         assert_eq!("bob", first_node.owner);
 
         // add a node owned by fred
@@ -230,7 +222,7 @@ mod tests {
         helpers::add_mixnode("fred", fred_bond.clone(), &mut deps);
 
         // let's make sure we now have 2 nodes:
-        assert_eq!(2, helpers::get_topology(&mut deps).mix_node_bonds.len());
+        assert_eq!(2, helpers::get_mix_nodes(&mut deps).len());
 
         // un-register fred's node
         let info = mock_info("fred", &coins(999_9999, "unym"));
@@ -261,18 +253,17 @@ mod tests {
         assert_eq!(remove_fred, expected);
 
         // only 1 node now exists, owned by bob:
-        let topology = helpers::get_topology(&mut deps);
-        assert_eq!(1, topology.mix_node_bonds.len());
-        assert_eq!("bob", topology.mix_node_bonds[0].owner);
+        let mix_node_bonds = helpers::get_mix_nodes(&mut deps);
+        assert_eq!(1, mix_node_bonds.len());
+        assert_eq!("bob", mix_node_bonds[0].owner);
     }
 
     #[test]
     fn query_mixnodes() {
         let mut deps = helpers::init_contract();
 
-        let result = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
-        let topology: Topology = from_binary(&result).unwrap();
-        let nodes: Vec<MixNodeBond> = topology.mix_node_bonds;
+        let result = query(deps.as_ref(), mock_env(), QueryMsg::GetMixNodes {}).unwrap();
+        let nodes: Vec<MixNodeBond> = from_binary(&result).unwrap();
         assert_eq!(0, nodes.len());
 
         // let's add a node
@@ -305,10 +296,11 @@ mod tests {
             try_add_mixnode(deps.as_mut(), info, helpers::mix_node_fixture()).unwrap();
         }
 
-        pub fn get_topology(deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>) -> Topology {
-            let result = query(deps.as_ref(), mock_env(), QueryMsg::GetTopology {}).unwrap();
-            let topology: Topology = from_binary(&result).unwrap();
-            topology
+        pub fn get_mix_nodes(
+            deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
+        ) -> Vec<MixNodeBond> {
+            let result = query(deps.as_ref(), mock_env(), QueryMsg::GetMixNodes {}).unwrap();
+            from_binary(&result).unwrap()
         }
 
         pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {

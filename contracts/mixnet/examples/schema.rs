@@ -3,8 +3,11 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use mixnet_contracts::msg::{HandleMsg, InitMsg, QueryMsg, Topology};
 use mixnet_contracts::state::State;
+use mixnet_contracts::{
+    msg::{HandleMsg, InitMsg, QueryMsg},
+    state::MixNodeBond,
+};
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
@@ -16,5 +19,5 @@ fn main() {
     export_schema(&schema_for!(HandleMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
     export_schema(&schema_for!(State), &out_dir);
-    export_schema(&schema_for!(Topology), &out_dir);
+    export_schema(&schema_for!(MixNodeBond), &out_dir);
 }

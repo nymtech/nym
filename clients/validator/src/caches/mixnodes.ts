@@ -14,18 +14,14 @@ export default class MixnodesCache {
         this.perPage = perPage;
     }
 
-
     async refreshMixNodes() {
         const firstPage = await this.netClient.getMixnodes(1, this.perPage);
         this.mixNodes = firstPage.nodes;
 
         if (firstPage.totalPages > 1) {
             const responses = await this.makeAdditionalPagedRequests(firstPage);
-            console.log(`response is: ${responses[0].nodes.length}`)
             responses.forEach(response => {
-                console.log(`this.mixNodes.length: ${this.mixNodes.length}`)
                 this.mixNodes = [...this.mixNodes, ...response.nodes];
-                console.log(this.mixNodes.length)
             });
         }
     }

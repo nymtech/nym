@@ -24,6 +24,10 @@ export namespace Fixtures {
             return [MixNodes.single(), MixNodes.single(), MixNodes.single()]
         }
 
+        static list4(): MixNode[] {
+            return [MixNodes.single(), MixNodes.single(), MixNodes.single(), MixNodes.single()]
+        }
+
     }
 
     export class MixNodesResp {
@@ -62,8 +66,18 @@ export namespace Fixtures {
                 nodes: MixNodes.list1(),
                 perPage: 2,
                 totalPages: 2,
-                currentPage: 1,
+                currentPage: 2,
                 totalCount: 3,
+            }
+        }
+
+        static fullPage2of2(): MixNodesResponse {
+            return {
+                nodes: MixNodes.list2(),
+                perPage: 2,
+                totalPages: 2,
+                currentPage: 2,
+                totalCount: 4,
             }
         }
     }

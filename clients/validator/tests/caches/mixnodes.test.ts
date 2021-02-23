@@ -48,4 +48,21 @@ describe("Caching mixnodes: when the validator returns", () => {
             assert.deepEqual(Fixtures.MixNodes.list3(), cache.mixNodes); // there are a total of 3 nodes in the validator lists, we get them all back
         })
     })
+
+    context("a list of nodes that is two filled pages", () => {
+        it("Should return the full list assembled from all pages", async () => {
+            const perPage = 2; // we get back 2 per page
+            const fullPageResult1 = Promise.resolve(Fixtures.MixNodesResp.page1of2());
+            const fullPageResult2 = Promise.resolve(Fixtures.MixNodesResp.fullPage2of2());
+            const mockClient = new Mock<INetClient>().setup(instance => instance.getMixnodes(1, perPage)).returns(fullPageResult1);
+            mockClient.setup(instance => instance.getMixnodes(2, perPage)).returns(fullPageResult2);
+            const cache = new MixnodesCache(mockClient.object(), perPage);
+
+            await cache.refreshMixNodes(); // should make multiple paginated requests because there are two pages in the response fixture
+            mockClient.verify(instance => instance.getMixnodes(1, 2), Times.Exactly(1));
+            mockClient.verify(instance => instance.getMixnodes(2, 2), Times.Exactly(1));
+
+            assert.deepEqual(Fixtures.MixNodes.list4(), cache.mixNodes); // there are a total of 3 nodes in the validator lists, we get them all back
+        })
+    })
 });

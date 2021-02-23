@@ -6,7 +6,7 @@ import { MixnodesCache } from '../../src/caches/mixnodes'
 
 describe("Caching mixnodes: when the validator returns", () => {
     context("an empty list", () => {
-        it("Should hold an empty list", async () => {
+        it("Should return an empty list", async () => {
             const perPage = 100;
             const mockResponse = Fixtures.MixNodesResp.empty();
             const mockPromise = Promise.resolve(mockResponse);
@@ -33,7 +33,7 @@ describe("Caching mixnodes: when the validator returns", () => {
     })
 
     context("a list of nodes that is longer than one page", () => {
-        it("Should return the full list", async () => {
+        it("Should return the full list assembled from all pages", async () => {
             const perPage = 2; // we get back 2 per page
             const fullPageResult = Promise.resolve(Fixtures.MixNodesResp.page1of2());
             const halfPageResult = Promise.resolve(Fixtures.MixNodesResp.halfPage2of2());

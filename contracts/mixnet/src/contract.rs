@@ -420,10 +420,8 @@ pub mod tests {
     }
 
     #[test]
+    fn mixnodes_paged_retrieval_has_default_limit_10() {}
 
     #[test]
-    fn mixnodes_paged_retrieval_has_default_limit() {}
-
-    #[test]
-    fn mixnodes_paged_retrieval_has_max_limit() {}
+    fn mixnodes_paged_retrieval_has_max_limit_30() {}
 }

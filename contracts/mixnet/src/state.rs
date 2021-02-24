@@ -70,10 +70,4 @@ mod tests {
         assert_eq!(bond1, res1);
         assert_eq!(bond2, res2);
     }
-
-    #[test]
-    fn mixnodes_paged_retrieval_has_default_limit() {}
-
-    #[test]
-    fn mixnodes_paged_retrieval_has_max_limit() {}
 }

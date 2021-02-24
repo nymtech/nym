@@ -16,10 +16,16 @@ pub fn query_mixnodes_paged(
     limit: Option<u32>,
 ) -> StdResult<Vec<MixNodeBond>> {
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-    let start = start_after.as_ref().map(|addr| addr.as_bytes());
+    let start = start_after.as_ref().map(|addr| {
+        let mut thing = addr.as_bytes().to_owned();
+        thing.push(0);
+        thing
+    });
 
     let bucket = bucket_read::<MixNodeBond>(deps.storage, PREFIX_MIXNODES);
-    let res = bucket.range(start, None, Order::Ascending).take(limit);
+    let res = bucket
+        .range(start.as_deref(), None, Order::Ascending)
+        .take(limit);
     let node_tuples = res.collect::<StdResult<Vec<(Vec<u8>, MixNodeBond)>>>()?;
     let nodes = node_tuples.into_iter().map(|item| item.1).collect();
     Ok(nodes)
@@ -87,5 +93,63 @@ mod tests {
         // we default to a decent sized upper bound instead
         let expected_limit = 30;
         assert_eq!(expected_limit, page1.len() as u32);
+    }
+
+    #[test]
+    fn pagination_works() {
+        let mut deps = helpers::init_contract();
+        let node = helpers::mixnode_bond_fixture();
+        mixnodes(&mut deps.storage)
+            .save("1".as_bytes(), &node)
+            .unwrap();
+
+        let per_page = 2;
+        let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+
+        // page should have 1 result on it
+        assert_eq!(1, page1.len());
+
+        // save another
+        mixnodes(&mut deps.storage)
+            .save("2".as_bytes(), &node)
+            .unwrap();
+
+        // page1 should have 2 results on it
+        let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+        assert_eq!(2, page1.len());
+
+        mixnodes(&mut deps.storage)
+            .save("3".as_bytes(), &node)
+            .unwrap();
+
+        // page1 still has 2 results
+        let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+        assert_eq!(2, page1.len());
+
+        // retrieving the next page should start after the last key on this page
+        let start_after = HumanAddr::from("2");
+        let page2 = query_mixnodes_paged(
+            deps.as_ref(),
+            Option::from(start_after),
+            Option::from(per_page),
+        )
+        .unwrap();
+
+        assert_eq!(1, page2.len());
+
+        // save another one
+        mixnodes(&mut deps.storage)
+            .save("4".as_bytes(), &node)
+            .unwrap();
+
+        let start_after = HumanAddr::from("2");
+        let page2 = query_mixnodes_paged(
+            deps.as_ref(),
+            Option::from(start_after),
+            Option::from(per_page),
+        )
+        .unwrap();
+
+        assert_eq!(2, page2.len());
     }
 }

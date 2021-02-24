@@ -158,6 +158,7 @@ mod tests {
         )
         .unwrap();
 
+        // now we have 2 pages, with 2 results on the second page
         assert_eq!(2, page2.len());
     }
 }

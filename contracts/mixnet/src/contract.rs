@@ -1,10 +1,12 @@
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
+use crate::state::PREFIX_MIXNODES;
 use crate::state::{config, MixNode, MixNodeBond, State};
-use crate::{error::ContractError, state::mixnodes, state::mixnodes_paged, state::mixnodes_read};
+use crate::{error::ContractError, state::mixnodes, state::mixnodes_read};
 use cosmwasm_std::{
     attr, coins, to_binary, BankMsg, Binary, Deps, DepsMut, Env, HandleResponse, HumanAddr,
-    InitResponse, MessageInfo, StdResult,
+    InitResponse, MessageInfo, Order, StdResult,
 };
+use cosmwasm_storage::bucket_read;
 
 /// Instantiate the contract.
 ///
@@ -110,12 +112,31 @@ fn query_get_mixnodes(
     start_after: Option<HumanAddr>,
     limit: Option<u32>,
 ) -> StdResult<Vec<MixNodeBond>> {
-    let mix_nodes = mixnodes_paged(deps.storage, start_after, limit)?;
+    let mix_nodes = mixnodes_paged(deps, start_after, limit)?;
     Ok(mix_nodes)
 }
 
+// settings for pagination
+const MAX_LIMIT: u32 = 30;
+const DEFAULT_LIMIT: u32 = 10;
+
+pub fn mixnodes_paged(
+    deps: Deps,
+    start_after: Option<HumanAddr>,
+    limit: Option<u32>,
+) -> StdResult<Vec<MixNodeBond>> {
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+    let start = start_after.as_ref().map(|addr| addr.as_bytes());
+
+    let bucket = bucket_read::<MixNodeBond>(deps.storage, PREFIX_MIXNODES);
+    let res = bucket.range(start, None, Order::Ascending).take(limit);
+    let node_tuples = res.collect::<StdResult<Vec<(Vec<u8>, MixNodeBond)>>>()?;
+    let nodes = node_tuples.into_iter().map(|item| item.1).collect();
+    Ok(nodes)
+}
+
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use crate::state::mixnodes;
 
     use super::*;
@@ -297,7 +318,7 @@ mod tests {
     }
 
     #[test]
-    fn query_mixnodes_one_start_after() {
+    fn query_mixnodes_one_page() {
         let mut deps = helpers::init_contract();
 
         let result = query(
@@ -338,7 +359,7 @@ mod tests {
     }
 
     #[test]
-    fn query_mixnodes_two_start_afters() {
+    fn query_mixnodes_two_pages() {
         let mut deps = helpers::init_contract();
 
         let result = query(
@@ -378,7 +399,41 @@ mod tests {
         assert_eq!(helpers::mix_node_fixture(), nodes[0].mix_node);
     }
 
-    mod helpers {
+    #[test]
+    fn mixnodes_empty_on_init() {
+        let deps = helpers::init_contract();
+        let all_nodes = mixnodes_paged(deps.as_ref(), None, Option::from(2)).unwrap();
+        assert_eq!(0, all_nodes.len());
+    }
+
+    #[test]
+    fn mixnodes_paged_retrieval_obeys_limits() {
+        let mut deps = helpers::init_contract();
+        let storage = deps.as_mut().storage;
+        let limit = 2;
+        for n in 0..10000 {
+            let key = format!("bond{}", n);
+            let node = helpers::mixnode_bond_fixture();
+            mixnodes(storage).save(key.as_bytes(), &node).unwrap();
+        }
+
+        let page1 = mixnodes_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
+        assert_eq!(limit, page1.len() as u32);
+    }
+
+    #[test]
+    fn mixnodes_range_retrieval() {
+        let mut deps = helpers::init_contract();
+        let storage = deps.as_mut().storage;
+        let bond1 = helpers::mixnode_bond_fixture();
+        let bond2 = helpers::mixnode_bond_fixture();
+        mixnodes(storage).save(b"bond1", &bond1).unwrap();
+        mixnodes(storage).save(b"bond2", &bond2).unwrap();
+        let all_nodes = mixnodes_paged(deps.as_ref(), None, Option::from(2)).unwrap();
+        assert_eq!(2, all_nodes.len());
+    }
+
+    pub mod helpers {
         use super::*;
         use cosmwasm_std::{Empty, MemoryStorage};
 
@@ -422,6 +477,21 @@ mod tests {
                 location: "Sweden".to_string(),
                 sphinx_key: "sphinx".to_string(),
                 version: "0.10.0".to_string(),
+            }
+        }
+
+        pub fn mixnode_bond_fixture() -> MixNodeBond {
+            let mix_node = MixNode {
+                host: "1.1.1.1".to_string(),
+                layer: 1,
+                location: "London".to_string(),
+                sphinx_key: "1234".to_string(),
+                version: "0.10.0".to_string(),
+            };
+            MixNodeBond {
+                amount: coins(50, "unym"),
+                owner: HumanAddr::from("foo"),
+                mix_node,
             }
         }
 

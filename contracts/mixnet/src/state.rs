@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, Order, StdResult};
+use cosmwasm_std::Coin;
 use cosmwasm_std::{HumanAddr, Storage};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
@@ -51,61 +51,11 @@ pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
     bucket_read(storage, PREFIX_MIXNODES)
 }
 
-// settings for pagination
-const MAX_LIMIT: u32 = 30;
-const DEFAULT_LIMIT: u32 = 10;
-
-pub fn mixnodes_paged(
-    storage: &dyn Storage,
-    start_after: Option<HumanAddr>,
-    limit: Option<u32>,
-) -> StdResult<Vec<MixNodeBond>> {
-    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-
-    let bucket = bucket_read::<MixNodeBond>(storage, PREFIX_MIXNODES);
-    let res = bucket.range(None, None, Order::Ascending).take(limit);
-    let node_tuples = res.collect::<StdResult<Vec<(Vec<u8>, MixNodeBond)>>>()?;
-    let nodes = node_tuples.into_iter().map(|item| item.1).collect();
-    Ok(nodes)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::{coins, testing::MockStorage};
-
-    fn mixnode_bond_fixture() -> MixNodeBond {
-        let mix_node = MixNode {
-            host: "1.1.1.1".to_string(),
-            layer: 1,
-            location: "London".to_string(),
-            sphinx_key: "1234".to_string(),
-            version: "0.10.0".to_string(),
-        };
-        MixNodeBond {
-            amount: coins(50, "unym"),
-            owner: HumanAddr::from("foo"),
-            mix_node,
-        }
-    }
-
-    #[test]
-    fn mixnodes_empty_on_init() {
-        let storage = MockStorage::new();
-        let all_nodes = mixnodes_paged(&storage, None, Option::from(2)).unwrap();
-        assert_eq!(0, all_nodes.len());
-    }
-
-    #[test]
-    fn mixnodes_range_retrieval() {
-        let mut storage = MockStorage::new();
-        let bond1 = mixnode_bond_fixture();
-        let bond2 = mixnode_bond_fixture();
-        mixnodes(&mut storage).save(b"bond1", &bond1).unwrap();
-        mixnodes(&mut storage).save(b"bond2", &bond2).unwrap();
-        let all_nodes = mixnodes_paged(&storage, None, Option::from(2)).unwrap();
-        assert_eq!(2, all_nodes.len());
-    }
+    use crate::contract::tests::helpers::mixnode_bond_fixture;
+    use cosmwasm_std::testing::MockStorage;
 
     #[test]
     fn mixnode_single_read_retrieval() {
@@ -119,19 +69,6 @@ mod tests {
         let res2 = mixnodes_read(&storage).load(b"bond2").unwrap();
         assert_eq!(bond1, res1);
         assert_eq!(bond2, res2);
-    }
-
-    #[test]
-    fn mixnodes_paged_retrieval_obeys_limits() {
-        let limit = 2;
-        let mut storage = MockStorage::new();
-        for n in 0..10000 {
-            let key = format!("bond{}", n);
-            let node = mixnode_bond_fixture();
-            mixnodes(&mut storage).save(key.as_bytes(), &node).unwrap();
-        }
-        let page1 = mixnodes_paged(&storage, None, Option::from(limit)).unwrap();
-        assert_eq!(limit, page1.len() as u32);
     }
 
     #[test]

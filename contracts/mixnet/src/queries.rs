@@ -32,12 +32,11 @@ pub fn query_mixnodes_paged(
 fn calculate_start_value(
     start_after: std::option::Option<cosmwasm_std::HumanAddr>,
 ) -> Option<Vec<u8>> {
-    let terminated = start_after.as_ref().map(|addr| {
+    start_after.as_ref().map(|addr| {
         let mut bytes = addr.as_bytes().to_owned();
         bytes.push(0);
         bytes
-    });
-    terminated
+    })
 }
 
 #[cfg(test)]

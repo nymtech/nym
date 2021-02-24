@@ -51,13 +51,19 @@ pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
     bucket_read(storage, PREFIX_MIXNODES)
 }
 
+// settings for pagination
+const MAX_LIMIT: u32 = 30;
+const DEFAULT_LIMIT: u32 = 10;
+
 pub fn mixnodes_paged(
     storage: &dyn Storage,
     start_after: Option<HumanAddr>,
     limit: Option<u32>,
 ) -> StdResult<Vec<MixNodeBond>> {
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+
     let bucket = bucket_read::<MixNodeBond>(storage, PREFIX_MIXNODES);
-    let res = bucket.range(None, None, Order::Ascending);
+    let res = bucket.range(None, None, Order::Ascending).take(limit);
     let node_tuples = res.collect::<StdResult<Vec<(Vec<u8>, MixNodeBond)>>>()?;
     let nodes = node_tuples.into_iter().map(|item| item.1).collect();
     Ok(nodes)
@@ -91,7 +97,7 @@ mod tests {
     }
 
     #[test]
-    fn mixnodes_range_retrieval_works() {
+    fn mixnodes_range_retrieval() {
         let mut storage = MockStorage::new();
         let bond1 = mixnode_bond_fixture();
         let bond2 = mixnode_bond_fixture();
@@ -116,14 +122,21 @@ mod tests {
     }
 
     #[test]
-    fn mixnodes_retrieval_works_with_large_numbers_of_nodes() {
+    fn mixnodes_paged_retrieval_obeys_limits() {
+        let limit = 2;
         let mut storage = MockStorage::new();
         for n in 0..10000 {
             let key = format!("bond{}", n);
             let node = mixnode_bond_fixture();
             mixnodes(&mut storage).save(key.as_bytes(), &node).unwrap();
         }
-        let all_nodes = mixnodes_paged(&storage, None, Option::from(2)).unwrap();
-        assert_eq!(10000, all_nodes.len());
+        let page1 = mixnodes_paged(&storage, None, Option::from(limit)).unwrap();
+        assert_eq!(limit, page1.len() as u32);
     }
+
+    #[test]
+    fn mixnodes_paged_retrieval_has_default_limit() {}
+
+    #[test]
+    fn mixnodes_paged_retrieval_has_max_limit() {}
 }

@@ -102,25 +102,16 @@ fn try_remove_mixnode(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetMixNodes { start_after, limit } => {
-            to_binary(&query_get_mixnodes(deps, start_after, limit)?)
+            to_binary(&query_mixnodes_paged(deps, start_after, limit)?)
         }
     }
-}
-
-fn query_get_mixnodes(
-    deps: Deps,
-    start_after: Option<HumanAddr>,
-    limit: Option<u32>,
-) -> StdResult<Vec<MixNodeBond>> {
-    let mix_nodes = mixnodes_paged(deps, start_after, limit)?;
-    Ok(mix_nodes)
 }
 
 // settings for pagination
 const MAX_LIMIT: u32 = 30;
 const DEFAULT_LIMIT: u32 = 10;
 
-pub fn mixnodes_paged(
+fn query_mixnodes_paged(
     deps: Deps,
     start_after: Option<HumanAddr>,
     limit: Option<u32>,
@@ -400,7 +391,7 @@ pub mod tests {
     #[test]
     fn mixnodes_empty_on_init() {
         let deps = helpers::init_contract();
-        let all_nodes = mixnodes_paged(deps.as_ref(), None, Option::from(2)).unwrap();
+        let all_nodes = query_mixnodes_paged(deps.as_ref(), None, Option::from(2)).unwrap();
         assert_eq!(0, all_nodes.len());
     }
 
@@ -415,7 +406,7 @@ pub mod tests {
             mixnodes(storage).save(key.as_bytes(), &node).unwrap();
         }
 
-        let page1 = mixnodes_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
+        let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
         assert_eq!(limit, page1.len() as u32);
     }
 

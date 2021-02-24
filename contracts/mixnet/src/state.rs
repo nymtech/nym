@@ -54,7 +54,7 @@ pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contract::tests::helpers::mixnode_bond_fixture;
+    use crate::support::tests::helpers::mixnode_bond_fixture;
     use cosmwasm_std::testing::MockStorage;
 
     #[test]

@@ -54,7 +54,21 @@ mod tests {
     }
 
     #[test]
-    fn mixnodes_paged_retrieval_has_default_limit_10() {}
+    fn mixnodes_paged_retrieval_has_default_limit() {
+        let mut deps = helpers::init_contract();
+        let storage = deps.as_mut().storage;
+        for n in 0..100 {
+            let key = format!("bond{}", n);
+            let node = helpers::mixnode_bond_fixture();
+            mixnodes(storage).save(key.as_bytes(), &node).unwrap();
+        }
+
+        // query without explicitly setting a limit
+        let page1 = query_mixnodes_paged(deps.as_ref(), None, None).unwrap();
+
+        let expected_limit = 10;
+        assert_eq!(expected_limit, page1.len() as u32);
+    }
 
     #[test]
     fn mixnodes_paged_retrieval_has_max_limit_30() {}

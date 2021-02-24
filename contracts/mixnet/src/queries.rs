@@ -16,11 +16,7 @@ pub fn query_mixnodes_paged(
     limit: Option<u32>,
 ) -> StdResult<Vec<MixNodeBond>> {
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-    let start = start_after.as_ref().map(|addr| {
-        let mut thing = addr.as_bytes().to_owned();
-        thing.push(0);
-        thing
-    });
+    let start = calculate_start_value(start_after);
 
     let bucket = bucket_read::<MixNodeBond>(deps.storage, PREFIX_MIXNODES);
     let res = bucket
@@ -29,6 +25,19 @@ pub fn query_mixnodes_paged(
     let node_tuples = res.collect::<StdResult<Vec<(Vec<u8>, MixNodeBond)>>>()?;
     let nodes = node_tuples.into_iter().map(|item| item.1).collect();
     Ok(nodes)
+}
+
+/// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm
+/// to get the succeeding key as the start of the next page.
+fn calculate_start_value(
+    start_after: std::option::Option<cosmwasm_std::HumanAddr>,
+) -> Option<Vec<u8>> {
+    let terminated = start_after.as_ref().map(|addr| {
+        let mut bytes = addr.as_bytes().to_owned();
+        bytes.push(0);
+        bytes
+    });
+    terminated
 }
 
 #[cfg(test)]

@@ -51,7 +51,11 @@ pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
     bucket_read(storage, PREFIX_MIXNODES)
 }
 
-pub fn mixnodes_all(storage: &dyn Storage) -> StdResult<Vec<MixNodeBond>> {
+pub fn mixnodes_paged(
+    storage: &dyn Storage,
+    start_after: Option<HumanAddr>,
+    limit: Option<u32>,
+) -> StdResult<Vec<MixNodeBond>> {
     let bucket = bucket_read::<MixNodeBond>(storage, PREFIX_MIXNODES);
     let res = bucket.range(None, None, Order::Ascending);
     let node_tuples = res.collect::<StdResult<Vec<(Vec<u8>, MixNodeBond)>>>()?;
@@ -82,7 +86,7 @@ mod tests {
     #[test]
     fn mixnodes_empty_on_init() {
         let storage = MockStorage::new();
-        let all_nodes = mixnodes_all(&storage).unwrap();
+        let all_nodes = mixnodes_paged(&storage, None, Option::from(2)).unwrap();
         assert_eq!(0, all_nodes.len());
     }
 
@@ -93,7 +97,7 @@ mod tests {
         let bond2 = mixnode_bond_fixture();
         mixnodes(&mut storage).save(b"bond1", &bond1).unwrap();
         mixnodes(&mut storage).save(b"bond2", &bond2).unwrap();
-        let all_nodes = mixnodes_all(&storage).unwrap();
+        let all_nodes = mixnodes_paged(&storage, None, Option::from(2)).unwrap();
         assert_eq!(2, all_nodes.len());
     }
 
@@ -119,7 +123,7 @@ mod tests {
             let node = mixnode_bond_fixture();
             mixnodes(&mut storage).save(key.as_bytes(), &node).unwrap();
         }
-        let all_nodes = mixnodes_all(&storage).unwrap();
+        let all_nodes = mixnodes_paged(&storage, None, Option::from(2)).unwrap();
         assert_eq!(10000, all_nodes.len());
     }
 }

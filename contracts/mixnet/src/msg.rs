@@ -1,3 +1,4 @@
+use cosmwasm_std::HumanAddr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -16,5 +17,8 @@ pub enum HandleMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    GetMixNodes {},
+    GetMixNodes {
+        limit: Option<u32>,
+        start_after: Option<HumanAddr>,
+    },
 }

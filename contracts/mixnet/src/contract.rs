@@ -109,6 +109,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::queries::PagedResponse;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
@@ -134,8 +135,8 @@ pub mod tests {
             },
         )
         .unwrap();
-        let mix_node_bonds: Vec<MixNodeBond> = from_binary(&res).unwrap();
-        assert_eq!(0, mix_node_bonds.len()); // there are no mixnodes in the list when it's just been initialized
+        let page: PagedResponse = from_binary(&res).unwrap();
+        assert_eq!(0, page.nodes.len()); // there are no mixnodes in the list when it's just been initialized
 
         // Contract balance should match what we initialized it as
         assert_eq!(
@@ -168,8 +169,8 @@ pub mod tests {
             },
         )
         .unwrap();
-        let mix_node_bonds: Vec<MixNodeBond> = from_binary(&res).unwrap();
-        assert_eq!(0, mix_node_bonds.len());
+        let page: PagedResponse = from_binary(&res).unwrap();
+        assert_eq!(0, page.nodes.len());
 
         // if we send enough funds
         let info = mock_info("anyone", &coins(1000_000000, "unym"));
@@ -191,11 +192,11 @@ pub mod tests {
             },
         )
         .unwrap();
-        let mix_node_bonds: Vec<MixNodeBond> = from_binary(&query_response).unwrap();
-        assert_eq!(1, mix_node_bonds.len());
+        let page: PagedResponse = from_binary(&query_response).unwrap();
+        assert_eq!(1, page.nodes.len());
         assert_eq!(
             helpers::mix_node_fixture().location,
-            mix_node_bonds[0].mix_node.location
+            page.nodes[0].mix_node.location
         )
 
         // adding another node from another account, but with the same IP, should fail (or we would have a weird state). Is that right? Think about this, not sure yet.
@@ -237,9 +238,9 @@ pub mod tests {
             },
         )
         .unwrap();
-        let mix_node_bonds: Vec<MixNodeBond> = from_binary(&res).unwrap();
-        let first_node = &mix_node_bonds[0];
-        assert_eq!(1, mix_node_bonds.len());
+        let page: PagedResponse = from_binary(&res).unwrap();
+        let first_node = &page.nodes[0];
+        assert_eq!(1, page.nodes.len());
         assert_eq!("bob", first_node.owner);
 
         // add a node owned by fred

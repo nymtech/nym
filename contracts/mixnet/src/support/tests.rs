@@ -6,6 +6,7 @@ pub mod helpers {
     use crate::contract::try_add_mixnode;
     use crate::msg::InitMsg;
     use crate::msg::QueryMsg;
+    use crate::queries::PagedResponse;
     use crate::state::MixNode;
     use crate::state::MixNodeBond;
     use cosmwasm_std::coins;
@@ -42,7 +43,9 @@ pub mod helpers {
             },
         )
         .unwrap();
-        from_binary(&result).unwrap()
+
+        let page: PagedResponse = from_binary(&result).unwrap();
+        page.nodes
     }
 
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {

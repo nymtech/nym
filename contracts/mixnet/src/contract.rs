@@ -420,16 +420,6 @@ pub mod tests {
     }
 
     #[test]
-    fn mixnodes_range_retrieval() {
-        let mut deps = helpers::init_contract();
-        let storage = deps.as_mut().storage;
-        let bond1 = helpers::mixnode_bond_fixture();
-        let bond2 = helpers::mixnode_bond_fixture();
-        mixnodes(storage).save(b"bond1", &bond1).unwrap();
-        mixnodes(storage).save(b"bond2", &bond2).unwrap();
-        let all_nodes = mixnodes_paged(deps.as_ref(), None, Option::from(2)).unwrap();
-        assert_eq!(2, all_nodes.len());
-    }
 
     #[test]
     fn mixnodes_paged_retrieval_has_default_limit() {}

@@ -7,11 +7,13 @@ export default class MixnodesCache {
     mixNodes: MixNode[]
     netClient: INetClient
     perPage: number
+    requestCount: number;
 
     constructor(netClient: INetClient, perPage: number) {
         this.netClient = netClient;
         this.mixNodes = [];
         this.perPage = perPage;
+        this.requestCount = 0;
     }
 
     async refreshMixNodes() {

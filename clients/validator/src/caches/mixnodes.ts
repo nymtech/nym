@@ -13,13 +13,11 @@ export default class MixnodesCache {
     mixNodes: MixNode[]
     netClient: INetClient
     perPage: number
-    requestCount: number;
 
     constructor(netClient: INetClient, perPage: number) {
         this.netClient = netClient;
         this.mixNodes = [];
         this.perPage = perPage;
-        this.requestCount = 0;
     }
 
     /// Makes repeated requests to assemble a full list of nodes. 
@@ -46,7 +44,6 @@ export default class MixnodesCache {
         let nextExists: boolean = (next != null && next != undefined && next != "");
         let fullPage: boolean = response.nodes.length == this.perPage;
         if (fullPage && nextExists) {
-            this.requestCount++;
             return true;
         } else {
             return false;

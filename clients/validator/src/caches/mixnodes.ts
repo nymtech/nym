@@ -1,6 +1,5 @@
 import { MixNode } from "../types";
 import { INetClient, PagedResponse } from "../net-client"
-import { log } from "../utils"
 
 export { MixnodesCache };
 

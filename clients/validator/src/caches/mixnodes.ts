@@ -17,11 +17,22 @@ export default class MixnodesCache {
 
     async refreshMixNodes() {
         let response: PagedResponse;
-        let start_after;
+        let next: string | undefined;
         do {
-            response = await this.netClient.getMixNodes(this.perPage, start_after);
+            response = await this.netClient.getMixNodes(this.perPage, next);
             response.nodes.forEach(node => this.mixNodes.push(node));
-            start_after = response.start_next_after;
-        } while (start_after != null)
+            next = response.start_next_after;
+        } while (this.shouldMakeAnotherRequest(response))
+    }
+    shouldMakeAnotherRequest(response: PagedResponse): boolean {
+        let next = response.start_next_after;
+        let nextExists: boolean = (next != null && next != undefined && next != "");
+        let fullPage: boolean = response.nodes.length == this.perPage;
+        if (fullPage && nextExists) {
+            this.requestCount++;
+            return true;
+        } else {
+            return false;
+        }
     }
 }

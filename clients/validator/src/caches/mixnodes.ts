@@ -1,5 +1,6 @@
 import { MixNode } from "../types";
 import { INetClient, PagedResponse } from "../net-client"
+import { log } from "../utils"
 
 export { MixnodesCache };
 
@@ -15,26 +16,12 @@ export default class MixnodesCache {
     }
 
     async refreshMixNodes() {
-        const firstPage = await this.netClient.getMixNodes();
-        this.mixNodes = firstPage.nodes;
-
-        // if (firstPage.totalPages > 1) {
-        //     const responses = await this.makeAdditionalPagedRequests(firstPage);
-        //     responses.forEach(response => {
-        //         this.mixNodes = [...this.mixNodes, ...response.nodes];
-        //     });
-        // }
+        let response: PagedResponse;
+        let start_after;
+        do {
+            response = await this.netClient.getMixNodes(this.perPage, start_after);
+            response.nodes.forEach(node => this.mixNodes.push(node));
+            start_after = response.start_next_after;
+        } while (start_after != null)
     }
-
-    // async makeAdditionalPagedRequests(firstPage: PagedResponse): Promise<PagedResponse[]> {
-    //     const additionalRequests = [];
-    //     const numRequests = firstPage.totalPages - 1;
-    //     let nextPage = 2;
-    //     for (let i = 0; i < numRequests; i++) {
-    //         const req = await this.netClient.getMixnodes(nextPage, this.perPage);
-    //         additionalRequests.push(req);
-    //         nextPage++;
-    //     }
-    //     return await Promise.all(additionalRequests)
-    // }
 }

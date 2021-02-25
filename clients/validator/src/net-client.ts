@@ -4,12 +4,8 @@ import { connect as connectHelper } from "./stargate-helper";
 
 
 export interface INetClient {
-    getMixNodes(): Promise<PagedResponse>;
+    getMixNodes(limit: number, start_after?: string): Promise<PagedResponse>;
 }
-
-// interface INetClientStatic {
-//     connect(contractAddress: string, mnemonic: string, url: string): Promise<INetClient>;
-// }
 
 export default class NetClient implements INetClient {
     private clientAddress: string;
@@ -26,8 +22,12 @@ export default class NetClient implements INetClient {
         return netClient;
     }
 
-    public getMixNodes(): Promise<PagedResponse> {
-        return this.cosmClient.queryContractSmart(this.clientAddress, { get_mix_nodes: {} });
+    public getMixNodes(limit: number, start_after?: string): Promise<PagedResponse> {
+        if (start_after == undefined) {
+            return this.cosmClient.queryContractSmart(this.clientAddress, { get_mix_nodes: { limit } });
+        } else {
+            return this.cosmClient.queryContractSmart(this.clientAddress, { get_mix_nodes: { limit, start_after } });
+        }
     }
 }
 

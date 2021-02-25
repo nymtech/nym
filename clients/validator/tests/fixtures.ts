@@ -1,13 +1,20 @@
-import { MixNode, MixNodesResponse } from '../src/types'
+import { coins } from '@cosmjs/launchpad';
+import { PagedResponse } from '../src/net-client';
+import { MixNode } from '../src/types'
 
 export namespace Fixtures {
-
     export class MixNodes {
         static single(): MixNode {
             return {
-                stake: 1,
-                layer: 1,
-                pubKey: "foo"
+                amount: coins(666, "unym"),
+                owner: "bob",
+                mix_node: {
+                    host: "1.1.1.1",
+                    layer: 1,
+                    location: "London, UK",
+                    sphinx_key: "foo",
+                    version: "0.10.0",
+                }
             };
         }
 
@@ -29,53 +36,44 @@ export namespace Fixtures {
     }
 
     export class MixNodesResp {
-        static empty(): MixNodesResponse {
+        static empty(): PagedResponse {
             return {
                 nodes: [],
-                perPage: 2,
-                totalPages: 1,
-                currentPage: 1,
-                totalCount: 0,
+                per_page: 2,
+                start_next_after: null,
             }
         }
 
-        static onePage(): MixNodesResponse {
+        static onePage(): PagedResponse {
             return {
                 nodes: MixNodes.list2(),
-                perPage: 2,
-                totalPages: 1,
-                currentPage: 1,
-                totalCount: 2,
+                per_page: 2,
+                start_next_after: null
             }
         }
 
-        static page1of2(): MixNodesResponse {
+        static page1of2(): PagedResponse {
             return {
                 nodes: MixNodes.list2(),
-                perPage: 2,
-                totalPages: 2,
-                currentPage: 1,
-                totalCount: 3,
+                per_page: 2,
+                start_next_after: "2"
             }
         }
 
-        static halfPage2of2(): MixNodesResponse {
+        static halfPage2of2(): PagedResponse {
             return {
                 nodes: MixNodes.list1(),
-                perPage: 2,
-                totalPages: 2,
-                currentPage: 2,
-                totalCount: 3,
+                per_page: 2,
+                start_next_after: null
+
             }
         }
 
-        static fullPage2of2(): MixNodesResponse {
+        static fullPage2of2(): PagedResponse {
             return {
                 nodes: MixNodes.list2(),
-                perPage: 2,
-                totalPages: 2,
-                currentPage: 2,
-                totalCount: 4,
+                per_page: 2,
+                start_next_after: null,
             }
         }
     }

@@ -1,25 +1,38 @@
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
-import { MixNode, MixNodesResponse } from './types'
+import { MixNode } from './types'
+import { connect as connectHelper } from "./stargate-helper";
+
 
 export interface INetClient {
-    getMixnodes(page: number, perPage: number): Promise<MixNodesResponse>;
+    getMixNodes(): Promise<PagedResponse>;
 }
 
+// interface INetClientStatic {
+//     connect(contractAddress: string, mnemonic: string, url: string): Promise<INetClient>;
+// }
+
 export default class NetClient implements INetClient {
+    private clientAddress: string;
+    private cosmClient: SigningCosmWasmClient;
 
-    private cosmos: SigningCosmWasmClient;
-
-    constructor(cosmos: SigningCosmWasmClient) {
-        this.cosmos = cosmos;
+    private constructor(clientAddress: string, cosmClient: SigningCosmWasmClient) {
+        this.clientAddress = clientAddress;
+        this.cosmClient = cosmClient;
     }
 
-    public async getMixnodes(page: number, perPage: number): Promise<MixNodesResponse> {
-        return {
-            nodes: [],
-            totalPages: 1,
-            totalCount: 0,
-            currentPage: page,
-            perPage: perPage,
-        };
+    public static async connect(contractAddress: string, mnemonic: string, url: string): Promise<INetClient> {
+        let { client, address } = await connectHelper(mnemonic, {});
+        let netClient = new NetClient(address, client);
+        return netClient;
     }
+
+    public getMixNodes(): Promise<PagedResponse> {
+        return this.cosmClient.queryContractSmart(this.clientAddress, { get_mix_nodes: {} });
+    }
+}
+
+export interface PagedResponse {
+    nodes: MixNode[],
+    per_page: number, // TODO: camelCase
+    start_next_after: string, // TODO: camelCase
 }

@@ -1,4 +1,4 @@
-import NetClient, { INetClient } from "./net-client";
+import NetClient, { INetClient, PagedResponse } from "./net-client";
 import { MixNode, MixNodeBond } from "./types";
 import * as fs from "fs";
 import { Bip39, Random } from "@cosmjs/crypto";
@@ -78,10 +78,12 @@ export default class ValidatorClient {
     /**
      * Get or refresh the list of mixnodes in the network. 
      * 
+     * @returns an array containing all known `MixNodeBond`s.
+     * 
      * TODO: We will want to put this puppy on a timer, but for the moment we can
      * just get things strung together and refresh it manually. 
      */
-    refreshMixNodes(): Promise<void> {
+    refreshMixNodes(): Promise<MixNodeBond[]> {
         return this.mixNodesCache.refreshMixNodes(this.contractAddress);
     }
 

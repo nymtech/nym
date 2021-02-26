@@ -31,6 +31,7 @@ export default class MixnodesCache {
             response.nodes.forEach(node => this.mixNodes.push(node));
             next = response.start_next_after;
         } while (this.shouldMakeAnotherRequest(response))
+        return this.mixNodes;
     }
 
     /// The paging interface on the smart contracts is a bit gross at the moment.

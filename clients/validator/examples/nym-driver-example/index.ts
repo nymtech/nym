@@ -42,13 +42,10 @@ async function main(upload: boolean, addNodes: boolean) {
     let client = await ValidatorClient.connect(contractAddress, mnemonic, validatorUrl);
     console.log("maybe connected. using client address: " + client.address);
 
-    await client.refreshMixNodes().catch(err => {
+    console.log("Now the big moment we've all been waiting for. Let's retrieve the mixnodes from the validator.");
+    await client.refreshMixNodes().then(response => console.log(response)).catch(err => {
         console.log(err);
     });
-
-    console.log("Now the big moment we've all been waiting for. Let's retrieve the current mixnodes.");
-    console.log(client.mixNodes());
-
 
     if (addNodes) {
         console.log("Adding nodes from many different users...");
@@ -173,4 +170,4 @@ async function buildKeyPath(name: string): Promise<string> {
 //     constructor(readonly mixNodes: [], readonly validators: []) { };
 // }
 
-main(true, true);
+main(false, false);

@@ -6,6 +6,7 @@ use cosmwasm_storage::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 
 // Contract-level stuff
 
@@ -32,6 +33,16 @@ pub struct MixNodeBond {
     pub(crate) amount: Vec<Coin>,
     pub(crate) owner: HumanAddr,
     pub(crate) mix_node: MixNode,
+}
+
+impl Display for MixNodeBond {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        // Write strictly the first element into the supplied output
+        // stream: `f`. Returns `fmt::Result` which indicates whether the
+        // operation succeeded or failed. Note that `write!` uses syntax which
+        // is very similar to `println!`.
+        write!(f, "amount: {:?}, owner: {}", self.amount, self.owner)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]

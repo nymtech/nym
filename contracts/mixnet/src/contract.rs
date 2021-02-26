@@ -85,11 +85,7 @@ fn try_remove_mixnode(
     mixnodes(deps.storage).remove(info.sender.as_bytes());
 
     // log our actions
-    let attributes = vec![
-        attr("action", "unbond"),
-        attr("tokens", mixnode_bond.amount[0].amount),
-        attr("account", mixnode_bond.owner.clone()),
-    ];
+    let attributes = vec![attr("action", "unbond"), attr("mixnode_bond", mixnode_bond)];
 
     Ok(HandleResponse {
         messages,

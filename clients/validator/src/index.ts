@@ -6,7 +6,8 @@ import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
 import { Coin } from "@cosmjs/launchpad";
 import { BroadcastTxResponse } from "@cosmjs/stargate/types"
-import { InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
+import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
+import log from "./utils"
 
 export default class ValidatorClient {
     url: string;
@@ -96,7 +97,7 @@ export default class ValidatorClient {
         return this.mixNodesCache.mixNodes
     }
 
-    unbond() { // TODO: we need an UnbondResponse here so the user knows WTF happened.
+    unbond(): Promise<ExecuteResult> { // TODO: we need an UnbondResponse here so the user knows WTF happened.
         return this.netClient.executeContract(this.address, this.contractAddress, { un_register_mixnode: {} })
     }
 

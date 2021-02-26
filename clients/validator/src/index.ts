@@ -85,7 +85,12 @@ export default class ValidatorClient {
         return this.mixNodesCache.refreshMixNodes(this.contractAddress);
     }
 
-    mixNodes(): MixNodeBond[] {
+    /**
+     * Get mixnodes from the local client cache. 
+     * 
+     * @returns an array containing all `MixNodeBond`s in the client's local cache.
+     */
+    getMixNodes(): MixNodeBond[] {
         return this.mixNodesCache.mixNodes
     }
 

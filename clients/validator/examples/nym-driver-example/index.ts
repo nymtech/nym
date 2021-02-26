@@ -75,7 +75,7 @@ async function main(upload: boolean, addNodes: boolean) {
     await client.refreshMixNodes().catch(err => {
         console.log(err);
     });
-    console.log(client.mixNodes());
+    console.log(client.getMixNodes());
 
     const fredKey = await buildKeyPath("fred");
     const fredMnemonic = ValidatorClient.loadMnemonic(fredKey);

@@ -71,6 +71,10 @@ export default class ValidatorClient {
         return DirectSecp256k1HdWallet.fromMnemonic(mnemonic, undefined, "nym");
     }
 
+    getBalance(address: string): Promise<Coin | null> {
+        return this.netClient.getBalance(address);
+    }
+
     /**
      * Get or refresh the list of mixnodes in the network. 
      * 

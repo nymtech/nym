@@ -10,6 +10,7 @@ import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, Uploa
 
 
 export interface INetClient {
+    getBalance(address: string): Promise<Coin | null>;
     getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedResponse>;
     executeContract(senderAddress: string, contractAddress: string, handleMsg: Record<string, unknown>, memo?: string, transferAmount?: readonly Coin[]): Promise<ExecuteResult>;
     instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult>;
@@ -53,6 +54,10 @@ export default class NetClient implements INetClient {
         } else {
             return this.cosmClient.queryContractSmart(contractAddress, { get_mix_nodes: { limit, start_after } });
         }
+    }
+
+    public getBalance(address: string): Promise<Coin | null> {
+        return this.cosmClient.getBalance(address, "unym");
     }
 
 

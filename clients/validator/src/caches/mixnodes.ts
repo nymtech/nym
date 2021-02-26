@@ -24,6 +24,7 @@ export default class MixnodesCache {
     /// Requests continue to be make as long as `shouldMakeAnotherRequest()`
     // returns true. 
     async refreshMixNodes(contractAddress: string) {
+        this.mixNodes = [];
         let response: PagedResponse;
         let next: string | undefined;
         do {

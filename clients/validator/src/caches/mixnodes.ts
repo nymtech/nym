@@ -1,4 +1,4 @@
-import { MixNode } from "../types";
+import { MixNodeBond } from "../types";
 import { INetClient, PagedResponse } from "../net-client"
 
 export { MixnodesCache };
@@ -10,7 +10,7 @@ export { MixnodesCache };
  *  available for querying.
  *  */
 export default class MixnodesCache {
-    mixNodes: MixNode[]
+    mixNodes: MixNodeBond[]
     netClient: INetClient
     perPage: number
 

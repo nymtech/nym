@@ -1,5 +1,5 @@
 import { SigningCosmWasmClient, SigningCosmWasmClientOptions } from '@cosmjs/cosmwasm-stargate';
-import { MixNode } from './types'
+import { MixNodeBond } from './types'
 // import { connect as connectHelper } from "./stargate-helper";
 import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
 import { GasPrice } from '@cosmjs/launchpad';
@@ -91,7 +91,7 @@ export default class NetClient implements INetClient {
 ///
 /// TODO: more robust error handling on the "deleted key" case.
 export interface PagedResponse {
-    nodes: MixNode[],
+    nodes: MixNodeBond[],
     per_page: number, // TODO: camelCase
     start_next_after: string, // TODO: camelCase
 }

@@ -1,5 +1,5 @@
 import NetClient, { INetClient } from "./net-client";
-import { MixNode } from "./types";
+import { MixNode, MixNodeBond } from "./types";
 import * as fs from "fs";
 import { Bip39, Random } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
@@ -84,7 +84,7 @@ export default class ValidatorClient {
         return this.mixNodesCache.refreshMixNodes(this.contractAddress);
     }
 
-    mixNodes(): MixNode[] {
+    mixNodes(): MixNodeBond[] {
         return this.mixNodesCache.mixNodes
     }
 
@@ -106,18 +106,10 @@ export default class ValidatorClient {
     /**
      *  Announce a mixnode, paying a fee.
      */
-    async announce() {
-        let node = {
-            host: "1.1.1.1",
-            layer: 1,
-            location: "the internet",
-            sphinx_key: "mysphinxkey",
-            version: "0.9.2",
-        };
-
+    async announce(mixNode: MixNode) {
         const bond = [{ amount: "1000000000", denom: "unym" }];
-        await this.netClient.executeContract(this.address, this.contractAddress, { register_mixnode: { mix_node: node } }, "adding mixnode", bond);
-        console.log(`account ${this.address} added mixnode with ${node.host}`);
+        await this.netClient.executeContract(this.address, this.contractAddress, { register_mixnode: { mix_node: mixNode } }, "adding mixnode", bond);
+        console.log(`account ${this.address} added mixnode with ${mixNode.host}`);
     }
 
 }

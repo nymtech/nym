@@ -1,10 +1,10 @@
 import { coins } from '@cosmjs/launchpad';
 import { PagedResponse } from '../src/net-client';
-import { MixNode } from '../src/types'
+import { MixNodeBond } from '../src/types'
 
 export namespace Fixtures {
     export class MixNodes {
-        static single(): MixNode {
+        static single(): MixNodeBond {
             return {
                 amount: coins(666, "unym"),
                 owner: "bob",
@@ -18,19 +18,19 @@ export namespace Fixtures {
             };
         }
 
-        static list1(): MixNode[] {
+        static list1(): MixNodeBond[] {
             return [MixNodes.single()]
         }
 
-        static list2(): MixNode[] {
+        static list2(): MixNodeBond[] {
             return [MixNodes.single(), MixNodes.single()]
         }
 
-        static list3(): MixNode[] {
+        static list3(): MixNodeBond[] {
             return [MixNodes.single(), MixNodes.single(), MixNodes.single()]
         }
 
-        static list4(): MixNode[] {
+        static list4(): MixNodeBond[] {
             return [MixNodes.single(), MixNodes.single(), MixNodes.single(), MixNodes.single()]
         }
     }

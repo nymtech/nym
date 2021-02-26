@@ -1,5 +1,6 @@
 import ValidatorClient from "nym-validator-client";
 import * as fs from "fs";
+import { MixNode } from "../../dist/types";
 
 
 async function main(upload: boolean) {
@@ -51,16 +52,24 @@ async function main(upload: boolean) {
     console.log(client.mixNodes());
 
 
-    // console.log("Adding nodes from many different users...");
+    if (addNodes) {
+        console.log("Adding nodes from many different users...");
+        for (var i = 1; i < 3; i++) {
+            let mnemonic = ValidatorClient.randomMnemonic();
+            let newAccount = await ValidatorClient.connect(contractAddress, mnemonic, validatorUrl);
 
-    for (var i = 1; i < 25; i++) {
-        let mnemonic = ValidatorClient.randomMnemonic();
-        let newAccount = await ValidatorClient.connect(contractAddress, mnemonic, validatorUrl);
-
-        await client.send(client.address, newAccount.address, coins2000_nym, `Token send to random address`);
-        await newAccount.announce().catch(err => {
-            console.log(`Error while adding node: ${err}`);
-        });
+            await client.send(client.address, newAccount.address, coins2000_nym, `Token send to random address`);
+            const mixNode: MixNode = {
+                host: "1.1.1.1",
+                layer: 1,
+                location: "London, UK",
+                sphinx_key: "sphinx",
+                version: "0.10.0",
+            };
+            await newAccount.announce(mixNode).catch(err => {
+                console.log(`Error while adding node: ${err}`);
+            });
+        }
     }
 
 

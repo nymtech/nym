@@ -2,6 +2,7 @@ import ValidatorClient from "nym-validator-client";
 import * as fs from "fs";
 import { MixNode } from "../../dist/types";
 
+main(true, false);
 
 async function main(upload: boolean, addNodes: boolean) {
     // get our users set up
@@ -35,7 +36,7 @@ async function main(upload: boolean, addNodes: boolean) {
         console.log(`mixnet contract ${contractAddress} instantiated successfully`)
 
     } else {
-        contractAddress = "nym1uul3yzm2lgskp3dxpj0zg558hppxk6ptydwxms";
+        contractAddress = "nym127gs5ej23jd69685a3lyetnhlfe9nwegpjx5a9";
     }
 
     console.log(`let's test contract existence. Contract address is: ${contractAddress}`);
@@ -104,6 +105,8 @@ async function main(upload: boolean, addNodes: boolean) {
     console.log("Let's see how much is currently stored in the mixnet contract itself:");
     console.log(await client.getBalance(contractAddress));
 
+    log("Nodes in the contract are now", await fredClient.refreshMixNodes());
+
     console.log("Let's make sure fred's mixnode is actually in the list of mixnodes");
     let fredPresence = false;
     let fredNodes = await fredClient.refreshMixNodes();
@@ -115,8 +118,10 @@ async function main(upload: boolean, addNodes: boolean) {
     console.log("Alright, so now fred will unbond his mixnode.")
     console.log("We should see money come out of the contract and back to fred");
     console.log("unbonding...");
-    await fredClient.unbond();
-    console.log("unbonding complete");
+    let unbondResult = await fredClient.unbond();
+    log("unbonding complete", unbondResult);
+
+    log("Nodes in the contract are now", await fredClient.refreshMixNodes());
 
 
     console.log("fred should have unbonded. Do we find fred's node in the refreshed list of mixnodes?");
@@ -135,7 +140,7 @@ async function main(upload: boolean, addNodes: boolean) {
     console.log(await fredClient.getBalance(fredClient.address));
 
     console.log(`fred's address is ${fredClient.address}`);
-    console.log(fredNodes);
+    // console.log(fredNodes);
 
     // await dave.client.execute(dave.address, contractAddress, { un_register_mixnode: {} });
     // console.log("Unbonding succeeded");
@@ -199,4 +204,7 @@ async function buildKeyPath(name: string): Promise<string> {
 //     constructor(readonly mixNodes: [], readonly validators: []) { };
 // }
 
-main(false, false);
+function log(text: string, thing: any) {
+    let msg = JSON.stringify(thing);
+    console.log(`${text}: ${msg}`);
+}

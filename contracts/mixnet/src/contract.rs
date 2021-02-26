@@ -82,7 +82,7 @@ fn try_remove_mixnode(
     .into()];
 
     // remove the bond from the list of bonded mixnodes
-    mixnodes(deps.storage).remove(mixnode_bond.owner.as_bytes());
+    mixnodes(deps.storage).remove(info.sender.as_bytes());
 
     // log our actions
     let attributes = vec![

@@ -8,9 +8,6 @@ import { Coin } from "@cosmjs/launchpad";
 import { BroadcastTxResponse } from "@cosmjs/stargate/types"
 import { InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
 
-
-// export { ValidatorClient }
-
 export default class ValidatorClient {
     url: string;
     private netClient: INetClient;

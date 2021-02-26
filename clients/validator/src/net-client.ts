@@ -95,7 +95,7 @@ export default class NetClient implements INetClient {
 ///   which has just been deleted from the database.
 ///
 /// TODO: more robust error handling on the "deleted key" case.
-export interface PagedResponse {
+export type PagedResponse = {
     nodes: MixNodeBond[],
     per_page: number, // TODO: camelCase
     start_next_after: string, // TODO: camelCase

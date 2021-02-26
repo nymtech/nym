@@ -36,7 +36,7 @@ export default class ValidatorClient {
      * Loads a named mnemonic from the system's keystore.
      * 
      * @param keyName the name of the key in the keystore
-     * @returns 
+     * @returns the mnemonic as a string
      */
     static loadMnemonic(keyPath: string) {
         try {

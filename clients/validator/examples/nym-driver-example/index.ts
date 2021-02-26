@@ -3,7 +3,7 @@ import * as fs from "fs";
 import { MixNode } from "../../dist/types";
 
 
-async function main(upload: boolean) {
+async function main(upload: boolean, addNodes: boolean) {
     // get our users set up
 
     const daveKey = await buildKeyPath("dave");
@@ -46,8 +46,6 @@ async function main(upload: boolean) {
         console.log(err);
     });
 
-
-    // Use it
     console.log("Now the big moment we've all been waiting for. Let's retrieve the current mixnodes.");
     console.log(client.mixNodes());
 
@@ -73,10 +71,40 @@ async function main(upload: boolean) {
     }
 
 
-    // console.log("Let's see what is in the topology after we've added the three nodes:");
-    // await getTopology(contractAddress, dave.client);
+    console.log("Let's see what is in the topology after we've added nodes:");
+    await client.refreshMixNodes().catch(err => {
+        console.log(err);
+    });
+    console.log(client.mixNodes());
 
-    // // let balance = await fred.client.getBalance(contractAddress, "unym");
+    const fredKey = await buildKeyPath("fred");
+    const fredMnemonic = ValidatorClient.loadMnemonic(fredKey);
+    const fredClient = await ValidatorClient.connect(contractAddress, fredMnemonic, validatorUrl);
+    console.log("fred's balance before receiving cash is");
+    console.log(await fredClient.getBalance(fredClient.address));
+
+
+    console.log("let's slide some cash from dave to fred");
+    await client.send(client.address, fredClient.address, coins2000_nym, "Sliding some cash to fred!");
+
+    console.log("fred's balance after receiving cash is");
+    console.log(await fredClient.getBalance(fredClient.address));
+
+    console.log("let's have fred announce a node");
+
+    const fredNode: MixNode = {
+        host: "1.1.1.1",
+        layer: 1,
+        location: "Fred's house",
+        sphinx_key: "sphinx",
+        version: "0.10.0",
+    };
+
+    await fredClient.announce(fredNode);
+    console.log("fred's balance after announcing a node is");
+    console.log(await fredClient.getBalance(fredClient.address));
+
+    // let balance = await fred.client.getBalance(contractAddress, "unym");
     // // console.log(`the mixnet contract currently has: ${balance.amount}${balance.denom}`);
 
     // const before_unbond_balance = await dave.client.getBalance(dave.address, "unym");
@@ -145,4 +173,4 @@ async function buildKeyPath(name: string): Promise<string> {
 //     constructor(readonly mixNodes: [], readonly validators: []) { };
 // }
 
-main(false);
+main(true, true);

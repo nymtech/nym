@@ -1,16 +1,30 @@
-import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
+import { SigningCosmWasmClient, SigningCosmWasmClientOptions } from '@cosmjs/cosmwasm-stargate';
 import { MixNode } from './types'
-import { connect as connectHelper } from "./stargate-helper";
+// import { connect as connectHelper } from "./stargate-helper";
+import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
+import { GasPrice } from '@cosmjs/launchpad';
+import { Coin } from "@cosmjs/launchpad"
+import { BroadcastTxResponse } from "@cosmjs/stargate/types"
+import { Options, nymGasLimits, defaultOptions } from "./stargate-helper"
+import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from '@cosmjs/cosmwasm';
 
 
 export interface INetClient {
-    getMixNodes(limit: number, start_after?: string): Promise<PagedResponse>;
+    getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedResponse>;
+    executeContract(senderAddress: string, contractAddress: string, handleMsg: Record<string, unknown>, memo?: string, transferAmount?: readonly Coin[]): Promise<ExecuteResult>;
+    instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult>;
+    sendTokens(senderAddress: string, recipientAddress: string, transferAmount: readonly Coin[], memo?: string): Promise<BroadcastTxResponse>;
+    upload(senderAddress: string, wasmCode: Uint8Array, meta?: UploadMeta, memo?: string): Promise<UploadResult>;
 }
 
-
-/// Takes care of network communication between this code and the validator
-/// Depends on `SigningCosmWasClient`, which signs all requests using keypairs
-/// derived from on bech32 mnemonics.
+/**
+ * Takes care of network communication between this code and the validator. 
+ * Depends on `SigningCosmWasClient`, which signs all requests using keypairs 
+ * derived from on bech32 mnemonics.
+ * 
+ * Wraps several methods from CosmWasmSigningClient so we can mock them for
+ * unit testing.
+ */
 export default class NetClient implements INetClient {
     private clientAddress: string;
     private cosmClient: SigningCosmWasmClient;
@@ -20,18 +34,42 @@ export default class NetClient implements INetClient {
         this.cosmClient = cosmClient;
     }
 
-    public static async connect(contractAddress: string, mnemonic: string, url: string): Promise<INetClient> {
-        let { client, address } = await connectHelper(mnemonic, {});
+    public static async connect(contractAddress: string, wallet: DirectSecp256k1HdWallet, url?: string, opts?: Partial<Options>): Promise<INetClient> {
+        const options: Options = { ...defaultOptions, ...opts }
+        const [{ address }] = await wallet.getAccounts();
+        const signerOptions: SigningCosmWasmClientOptions = {
+            gasPrice: GasPrice.fromString("0.025unym"),
+            gasLimits: nymGasLimits,
+        };
+        const client = await SigningCosmWasmClient.connectWithSigner(options.httpUrl, wallet, signerOptions);
+
         let netClient = new NetClient(address, client);
         return netClient;
     }
 
-    public getMixNodes(limit: number, start_after?: string): Promise<PagedResponse> {
-        if (start_after == undefined) {
-            return this.cosmClient.queryContractSmart(this.clientAddress, { get_mix_nodes: { limit } });
+    public getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedResponse> {
+        if (start_after == undefined) { // TODO: check if we can take this out, I'm not sure what will happen if we send an "undefined" so I'm playing it safe here.
+            return this.cosmClient.queryContractSmart(contractAddress, { get_mix_nodes: { limit } });
         } else {
-            return this.cosmClient.queryContractSmart(this.clientAddress, { get_mix_nodes: { limit, start_after } });
+            return this.cosmClient.queryContractSmart(contractAddress, { get_mix_nodes: { limit, start_after } });
         }
+    }
+
+
+    public executeContract(senderAddress: string, contractAddress: string, handleMsg: Record<string, unknown>, memo?: string, transferAmount?: readonly Coin[]): Promise<ExecuteResult> {
+        return this.cosmClient.execute(senderAddress, contractAddress, handleMsg, memo, transferAmount);
+    }
+
+    public sendTokens(senderAddress: string, recipientAddress: string, transferAmount: readonly Coin[], memo?: string): Promise<BroadcastTxResponse> {
+        return this.cosmClient.sendTokens(senderAddress, recipientAddress, transferAmount, memo);
+    }
+
+    public upload(senderAddress: string, wasmCode: Uint8Array, meta?: UploadMeta, memo?: string): Promise<UploadResult> {
+        return this.cosmClient.upload(senderAddress, wasmCode, meta, memo);
+    }
+
+    public instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult> {
+        return this.cosmClient.instantiate(senderAddress, codeId, initMsg, label, options);
     }
 }
 

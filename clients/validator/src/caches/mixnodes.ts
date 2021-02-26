@@ -23,11 +23,11 @@ export default class MixnodesCache {
     /// Makes repeated requests to assemble a full list of nodes. 
     /// Requests continue to be make as long as `shouldMakeAnotherRequest()`
     // returns true. 
-    async refreshMixNodes() {
+    async refreshMixNodes(contractAddress: string) {
         let response: PagedResponse;
         let next: string | undefined;
         do {
-            response = await this.netClient.getMixNodes(this.perPage, next);
+            response = await this.netClient.getMixNodes(contractAddress, this.perPage, next);
             response.nodes.forEach(node => this.mixNodes.push(node));
             next = response.start_next_after;
         } while (this.shouldMakeAnotherRequest(response))

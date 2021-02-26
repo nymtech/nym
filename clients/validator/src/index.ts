@@ -1,34 +1,124 @@
 import NetClient, { INetClient } from "./net-client";
 import { MixNode } from "./types";
+import * as fs from "fs";
+import { Bip39, Random } from "@cosmjs/crypto";
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import MixnodesCache from "./caches/mixnodes";
+import { Coin } from "@cosmjs/launchpad";
+import { BroadcastTxResponse } from "@cosmjs/stargate/types"
+import { InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
 
-export { ValidatorClient }
 
-class ValidatorClient {
+// export { ValidatorClient }
 
+export default class ValidatorClient {
     url: string;
-    mixNodes: MixNode[];
-    mnemonic: string;
-    netClient: INetClient;
+    private netClient: INetClient;
+    private mixNodesCache: MixnodesCache;
+    private wallet: DirectSecp256k1HdWallet
+    readonly address: string;
+    private contractAddress: string;
 
-    constructor(url: string, netClient: INetClient, mnemonic: string) {
+    private constructor(url: string, netClient: INetClient, wallet: DirectSecp256k1HdWallet, address: string, contractAddress: string) {
         this.url = url;
-        this.mixNodes = [];
-        this.mnemonic = mnemonic;
         this.netClient = netClient;
+        this.mixNodesCache = new MixnodesCache(netClient, 100);
+        this.address = address;
+        this.wallet = wallet;
+        this.contractAddress = contractAddress;
     }
 
-    connect(contractAddress: string, url: string) {
-        NetClient.connect(contractAddress, this.mnemonic, url);
+    static async connect(contractAddress: string, mnemonic: string, url: string,) {
+        const wallet = await ValidatorClient.buildWallet(mnemonic);
+        const [{ address }] = await wallet.getAccounts();
+        const netClient = await NetClient.connect(contractAddress, wallet, url);
+        return new ValidatorClient(url, netClient, wallet, address, contractAddress);
     }
 
-    static loadMnemonic() { }
+    /**
+     * Loads a named mnemonic from the system's keystore.
+     * 
+     * @param keyName the name of the key in the keystore
+     * @returns 
+     */
+    static loadMnemonic(keyPath: string) {
+        try {
+            const mnemonic = fs.readFileSync(keyPath, "utf8");
+            return mnemonic.trim();
+        } catch (err) {
+            console.log(err);
+            return "fight with type system later";
+        }
+    }
 
-    static randomMnemonic() { }
+    /**
+     * Generates a random mnemonic, useful for creating new accounts.
+     * @returns a fresh mnemonic.
+     */
+    static randomMnemonic(): string {
+        const mnemonic = Bip39.encode(Random.getBytes(16)).toString();
+        return mnemonic;
+    }
 
-    mnemonicToAddress() { }
+    /**
+     * @param mnemonic A mnemonic from which to generate a public/private keypair.
+     * @returns the address for this client wallet
+     */
+    async mnemonicToAddress(mnemonic: string): Promise<string> {
+        const wallet = await ValidatorClient.buildWallet(mnemonic);
+        const [{ address }] = await wallet.getAccounts()
+        return address
+    }
 
-    refreshMixNodes() { }
+    static async buildWallet(mnemonic: string): Promise<DirectSecp256k1HdWallet> {
+        return DirectSecp256k1HdWallet.fromMnemonic(mnemonic, undefined, "nym");
+    }
 
-    send() { }
+    /**
+     * Get or refresh the list of mixnodes in the network. 
+     * 
+     * TODO: We will want to put this puppy on a timer, but for the moment we can
+     * just get things strung together and refresh it manually. 
+     */
+    refreshMixNodes(): Promise<void> {
+        return this.mixNodesCache.refreshMixNodes(this.contractAddress);
+    }
+
+    mixNodes(): MixNode[] {
+        return this.mixNodesCache.mixNodes
+    }
+
+    /**
+     * Send funds from one address to another.
+     */
+    async send(senderAddress: string, recipientAddress: string, coins: readonly Coin[], memo?: string): Promise<BroadcastTxResponse> {
+        return this.netClient.sendTokens(senderAddress, recipientAddress, coins, memo);
+    }
+
+    async upload(senderAddress: string, wasmCode: Uint8Array, meta?: UploadMeta, memo?: string): Promise<UploadResult> {
+        return this.netClient.upload(senderAddress, wasmCode, meta, memo);
+    }
+
+    public instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult> {
+        return this.netClient.instantiate(senderAddress, codeId, initMsg, label, options);
+    }
+
+    /**
+     *  Announce a mixnode, paying a fee.
+     */
+    async announce() {
+        let node = {
+            host: "1.1.1.1",
+            layer: 1,
+            location: "the internet",
+            sphinx_key: "mysphinxkey",
+            version: "0.9.2",
+        };
+
+        const bond = [{ amount: "1000000000", denom: "unym" }];
+        await this.netClient.executeContract(this.address, this.contractAddress, { register_mixnode: { mix_node: node } }, "adding mixnode", bond);
+        console.log(`account ${this.address} added mixnode with ${node.host}`);
+    }
 
 }
+

@@ -96,6 +96,10 @@ export default class ValidatorClient {
         return this.mixNodesCache.mixNodes
     }
 
+    unbond() { // TODO: we need an UnbondResponse here so the user knows WTF happened.
+        return this.netClient.executeContract(this.address, this.contractAddress, { un_register_mixnode: {} })
+    }
+
     /**
      * Send funds from one address to another.
      */
@@ -111,10 +115,11 @@ export default class ValidatorClient {
         return this.netClient.instantiate(senderAddress, codeId, initMsg, label, options);
     }
 
+    // TODO: changing this to Bond would make sense I think. Then we have bond/unbond, delegate/undelegate.
     /**
      *  Announce a mixnode, paying a fee.
      */
-    async announce(mixNode: MixNode) {
+    async announce(mixNode: MixNode) { // TODO: we need a BondResponse here so the user knows WTF happened.
         const bond = [{ amount: "1000000000", denom: "unym" }];
         await this.netClient.executeContract(this.address, this.contractAddress, { register_mixnode: { mix_node: mixNode } }, "adding mixnode", bond);
         console.log(`account ${this.address} added mixnode with ${mixNode.host}`);

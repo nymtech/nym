@@ -101,12 +101,41 @@ async function main(upload: boolean, addNodes: boolean) {
     console.log("fred's balance after announcing a node is");
     console.log(await fredClient.getBalance(fredClient.address));
 
-    // let balance = await fred.client.getBalance(contractAddress, "unym");
-    // // console.log(`the mixnet contract currently has: ${balance.amount}${balance.denom}`);
+    console.log("Let's see how much is currently stored in the mixnet contract itself:");
+    console.log(await client.getBalance(contractAddress));
 
-    // const before_unbond_balance = await dave.client.getBalance(dave.address, "unym");
+    console.log("Let's make sure fred's mixnode is actually in the list of mixnodes");
+    let fredPresence = false;
+    let fredNodes = await fredClient.refreshMixNodes();
+    fredNodes.forEach(node => { if (node.owner == fredClient.address) fredPresence = true })
 
-    // console.log(`Before unbonding, dave's balance is: ${before_unbond_balance.amount}. Now let's try unbonding dave's node`);
+    console.log(fredPresence);
+
+
+    console.log("Alright, so now fred will unbond his mixnode.")
+    console.log("We should see money come out of the contract and back to fred");
+    console.log("unbonding...");
+    await fredClient.unbond();
+    console.log("unbonding complete");
+
+
+    console.log("fred should have unbonded. Do we find fred's node in the refreshed list of mixnodes?");
+    fredNodes = await fredClient.refreshMixNodes();
+
+    fredPresence = false;
+    fredNodes.forEach(node => { if (node.owner == fredClient.address) fredPresence = true })
+    console.log(fredPresence);
+
+
+    console.log("Let's see how much is currently stored in the mixnet contract:");
+    console.log(await client.getBalance(contractAddress));
+
+
+    console.log("fred's balance after unbonding the node is");
+    console.log(await fredClient.getBalance(fredClient.address));
+
+    console.log(`fred's address is ${fredClient.address}`);
+    console.log(fredNodes);
 
     // await dave.client.execute(dave.address, contractAddress, { un_register_mixnode: {} });
     // console.log("Unbonding succeeded");

@@ -22,7 +22,7 @@ use crate::client::{
 };
 use futures::StreamExt;
 use log::*;
-use nymsphinx::anonymous_replies::ReplySURB;
+use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
@@ -75,7 +75,7 @@ where
     }
 
     // we require topology for replies to generate surb_acks
-    async fn handle_reply(&mut self, reply_surb: ReplySURB, data: Vec<u8>) -> Option<RealMessage> {
+    async fn handle_reply(&mut self, reply_surb: ReplySurb, data: Vec<u8>) -> Option<RealMessage> {
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match topology_permit.try_get_valid_topology_ref(&self.ack_recipient, None) {
             Some(topology_ref) => topology_ref,

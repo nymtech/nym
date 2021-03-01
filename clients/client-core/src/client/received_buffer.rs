@@ -21,8 +21,8 @@ use futures::lock::Mutex;
 use futures::StreamExt;
 use gateway_client::MixnetMessageReceiver;
 use log::*;
-use nymsphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SURBEncryptionKey};
-use nymsphinx::params::{ReplySURBEncryptionAlgorithm, ReplySURBKeyDigestAlgorithm};
+use nymsphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SurbEncryptionKey};
+use nymsphinx::params::{ReplySurbEncryptionAlgorithm, ReplySurbKeyDigestAlgorithm};
 use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -191,11 +191,11 @@ impl ReceivedMessagesBuffer {
 
     fn process_received_reply(
         reply_ciphertext: &[u8],
-        reply_key: SURBEncryptionKey,
+        reply_key: SurbEncryptionKey,
     ) -> Option<ReconstructedMessage> {
-        let zero_iv = stream_cipher::zero_iv::<ReplySURBEncryptionAlgorithm>();
+        let zero_iv = stream_cipher::zero_iv::<ReplySurbEncryptionAlgorithm>();
 
-        let mut reply_msg = stream_cipher::decrypt::<ReplySURBEncryptionAlgorithm>(
+        let mut reply_msg = stream_cipher::decrypt::<ReplySurbEncryptionAlgorithm>(
             &reply_key.inner(),
             &zero_iv,
             reply_ciphertext,
@@ -221,7 +221,7 @@ impl ReceivedMessagesBuffer {
         let mut completed_messages = Vec::new();
         let mut inner_guard = self.inner.lock().await;
 
-        let reply_surb_digest_size = ReplySURBKeyDigestAlgorithm::output_size();
+        let reply_surb_digest_size = ReplySurbKeyDigestAlgorithm::output_size();
 
         // first check if this is a reply or a chunked message
         // TODO: verify with @AP if this way of doing it is safe or whether it could

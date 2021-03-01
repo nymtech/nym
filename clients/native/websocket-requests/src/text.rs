@@ -16,7 +16,7 @@ use crate::error::ErrorKind;
 use crate::requests::ClientRequest;
 use crate::responses::ServerResponse;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::ReplySURB;
+use nymsphinx::anonymous_replies::ReplySurb;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 
@@ -75,7 +75,7 @@ impl TryInto<ClientRequest> for ClientRequestText {
                 reply_surb,
             } => {
                 let message_bytes = message.into_bytes();
-                let reply_surb = ReplySURB::from_base58_string(reply_surb).map_err(|err| {
+                let reply_surb = ReplySurb::from_base58_string(reply_surb).map_err(|err| {
                     Self::Error::new(ErrorKind::MalformedRequest, err.to_string())
                 })?;
 

@@ -120,7 +120,7 @@ impl NymClient {
         mix_sender: BatchMixMessageSender,
     ) {
         let packet_mode = if self.config.get_base().get_vpn_mode() {
-            PacketMode::VPN
+            PacketMode::Vpn
         } else {
             PacketMode::Mix
         };

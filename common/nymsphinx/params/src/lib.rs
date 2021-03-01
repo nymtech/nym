@@ -40,7 +40,7 @@ pub type PacketHkdfAlgorithm = blake3::Hasher;
 pub type GatewaySharedKeyHkdfAlgorithm = blake3::Hasher;
 
 /// Hashing algorithm used when computing digest of a reply SURB encryption key.
-pub type ReplySURBKeyDigestAlgorithm = blake3::Hasher;
+pub type ReplySurbKeyDigestAlgorithm = blake3::Hasher;
 
 /// Hashing algorithm used when computing integrity (H)Mac for message exchanged between client and gateway.
 // TODO: if updated, the pem type defined in gateway\gateway-requests\src\registration\handshake\shared_key
@@ -67,4 +67,4 @@ pub type PacketEncryptionAlgorithm = Aes128Ctr;
 /// Encryption algorithm used for end-to-end encryption of reply messages constructed using ReplySURBs.
 // TODO: I don't see any reason for it to be different than what is used for regular packets. Perhaps
 // it could be potentially insecure to use anything else?
-pub type ReplySURBEncryptionAlgorithm = PacketEncryptionAlgorithm;
+pub type ReplySurbEncryptionAlgorithm = PacketEncryptionAlgorithm;

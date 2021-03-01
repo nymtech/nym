@@ -1,6 +1,6 @@
 use futures::channel::mpsc;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::ReplySURB;
+use nymsphinx::anonymous_replies::ReplySurb;
 
 pub type InputMessageSender = mpsc::UnboundedSender<InputMessage>;
 pub type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
@@ -13,7 +13,7 @@ pub enum InputMessage {
         with_reply_surb: bool,
     },
     Reply {
-        reply_surb: ReplySURB,
+        reply_surb: ReplySurb,
         data: Vec<u8>,
     },
 }
@@ -27,7 +27,7 @@ impl InputMessage {
         }
     }
 
-    pub fn new_reply(reply_surb: ReplySURB, data: Vec<u8>) -> Self {
+    pub fn new_reply(reply_surb: ReplySurb, data: Vec<u8>) -> Self {
         InputMessage::Reply { reply_surb, data }
     }
 }

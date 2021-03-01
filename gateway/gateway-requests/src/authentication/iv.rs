@@ -1,6 +1,9 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(renamed_and_removed_lints)]
+#![allow(unknown_lints)] // beta-nightly
+#![allow(clippy::unknown_clippy_lints)] // `clippy::upper_case_acronyms` does not exist on stable just yet
 use crypto::generic_array::{typenum::Unsigned, GenericArray};
 use crypto::symmetric::stream_cipher::{random_iv, NewStreamCipher, IV};
 use nymsphinx::params::GatewayEncryptionAlgorithm;
@@ -8,9 +11,13 @@ use rand::{CryptoRng, RngCore};
 
 type NonceSize = <GatewayEncryptionAlgorithm as NewStreamCipher>::NonceSize;
 
+// I think 'IV' looks better than 'Iv', feel free to change that.
+#[allow(clippy::upper_case_acronyms)]
 pub struct AuthenticationIV(IV<GatewayEncryptionAlgorithm>);
 
 #[derive(Debug)]
+// I think 'IV' looks better than 'Iv', feel free to change that.
+#[allow(clippy::upper_case_acronyms)]
 pub enum IVConversionError {
     DecodeError(bs58::decode::Error),
     BytesOfInvalidLengthError,

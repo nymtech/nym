@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use crate::encryption_key::{
-    SURBEncryptionKey, SURBEncryptionKeyError, SURBEncryptionKeySize, Unsigned,
+    SurbEncryptionKey, SurbEncryptionKeyError, SurbEncryptionKeySize, Unsigned,
 };
 use crypto::Digest;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nymsphinx_params::packet_sizes::PacketSize;
-use nymsphinx_params::{ReplySURBKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
+use nymsphinx_params::{ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nymsphinx_types::{delays, Error as SphinxError, SURBMaterial, SphinxPacket, SURB};
 use rand::{CryptoRng, RngCore};
 use serde::de::{Error as SerdeError, Visitor};
@@ -30,26 +30,26 @@ use std::time;
 use topology::{NymTopology, NymTopologyError};
 
 #[derive(Debug)]
-pub enum ReplySURBError {
+pub enum ReplySurbError {
     UnpaddedMessageError,
     MalformedStringError(bs58::decode::Error),
     RecoveryError(SphinxError),
-    InvalidEncryptionKeyData(SURBEncryptionKeyError),
+    InvalidEncryptionKeyData(SurbEncryptionKeyError),
 }
 
-impl fmt::Display for ReplySURBError {
+impl fmt::Display for ReplySurbError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ReplySURBError::UnpaddedMessageError => {
+            ReplySurbError::UnpaddedMessageError => {
                 write!(f, "tried to use reply SURB with an unpadded message")
             }
-            ReplySURBError::MalformedStringError(decode_err) => {
+            ReplySurbError::MalformedStringError(decode_err) => {
                 write!(f, "reply SURB is incorrectly formatted: {}", decode_err)
             }
-            ReplySURBError::RecoveryError(sphinx_err) => {
+            ReplySurbError::RecoveryError(sphinx_err) => {
                 write!(f, "failed to recover reply SURB from bytes: {}", sphinx_err)
             }
-            ReplySURBError::InvalidEncryptionKeyData(surb_key_err) => write!(
+            ReplySurbError::InvalidEncryptionKeyData(surb_key_err) => write!(
                 f,
                 "failed to recover reply SURB encryption key from bytes: {}",
                 surb_key_err
@@ -59,23 +59,23 @@ impl fmt::Display for ReplySURBError {
 }
 
 // since we have Debug and Display might as well slap Error on top of it too
-impl std::error::Error for ReplySURBError {}
+impl std::error::Error for ReplySurbError {}
 
-impl From<SURBEncryptionKeyError> for ReplySURBError {
-    fn from(err: SURBEncryptionKeyError) -> Self {
-        ReplySURBError::InvalidEncryptionKeyData(err)
+impl From<SurbEncryptionKeyError> for ReplySurbError {
+    fn from(err: SurbEncryptionKeyError) -> Self {
+        ReplySurbError::InvalidEncryptionKeyData(err)
     }
 }
 
 #[derive(Debug)]
-pub struct ReplySURB {
+pub struct ReplySurb {
     surb: SURB,
-    encryption_key: SURBEncryptionKey,
+    encryption_key: SurbEncryptionKey,
 }
 
 // Serialize + Deserialize is not really used anymore (it was for a CBOR experiment)
 // however, if we decided we needed it again, it's already here
-impl Serialize for ReplySURB {
+impl Serialize for ReplySurb {
     fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
     where
         S: Serializer,
@@ -84,15 +84,15 @@ impl Serialize for ReplySURB {
     }
 }
 
-impl<'de> Deserialize<'de> for ReplySURB {
+impl<'de> Deserialize<'de> for ReplySurb {
     fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
     where
         D: Deserializer<'de>,
     {
-        struct ReplySURBVisitor;
+        struct ReplySurbVisitor;
 
-        impl<'de> Visitor<'de> for ReplySURBVisitor {
-            type Value = ReplySURB;
+        impl<'de> Visitor<'de> for ReplySurbVisitor {
+            type Value = ReplySurb;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
                 write!(formatter, "A replySURB must contain a valid symmetric encryption key and a correctly formed sphinx header")
@@ -102,20 +102,20 @@ impl<'de> Deserialize<'de> for ReplySURB {
             where
                 E: SerdeError,
             {
-                ReplySURB::from_bytes(bytes)
+                ReplySurb::from_bytes(bytes)
                     .map_err(|_| SerdeError::invalid_length(bytes.len(), &self))
             }
         }
 
-        deserializer.deserialize_bytes(ReplySURBVisitor)
+        deserializer.deserialize_bytes(ReplySurbVisitor)
     }
 }
 
-impl ReplySURB {
+impl ReplySurb {
     pub fn max_msg_len(packet_size: PacketSize) -> usize {
         // For detailed explanation (of ack overhead) refer to common\nymsphinx\src\preparer.rs::available_plaintext_per_packet()
-        let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::ACKPacket.size();
-        packet_size.plaintext_size() - ack_overhead - ReplySURBKeyDigestAlgorithm::output_size() - 1
+        let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::AckPacket.size();
+        packet_size.plaintext_size() - ack_overhead - ReplySurbKeyDigestAlgorithm::output_size() - 1
     }
 
     // TODO: should this return `ReplySURBError` for consistency sake
@@ -137,9 +137,9 @@ impl ReplySURB {
         let surb_material = SURBMaterial::new(route, delays, destination);
 
         // this can't fail as we know we have a valid route to gateway and have correct number of delays
-        Ok(ReplySURB {
+        Ok(ReplySurb {
             surb: surb_material.construct_SURB().unwrap(),
-            encryption_key: SURBEncryptionKey::new(rng),
+            encryption_key: SurbEncryptionKey::new(rng),
         })
     }
 
@@ -150,13 +150,13 @@ impl ReplySURB {
 
         // the SURB itself consists of SURB_header, first hop address and set of payload keys
         // (note extra 1 for the gateway)
-        SURBEncryptionKeySize::to_usize()
+        SurbEncryptionKeySize::to_usize()
             + HEADER_SIZE
             + NODE_ADDRESS_LENGTH
             + (1 + mix_hops as usize) * PAYLOAD_KEY_SIZE
     }
 
-    pub fn encryption_key(&self) -> &SURBEncryptionKey {
+    pub fn encryption_key(&self) -> &SurbEncryptionKey {
         &self.encryption_key
     }
 
@@ -169,16 +169,16 @@ impl ReplySURB {
             .collect()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, ReplySURBError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, ReplySurbError> {
         let encryption_key =
-            SURBEncryptionKey::try_from_bytes(&bytes[..SURBEncryptionKeySize::to_usize()])?;
+            SurbEncryptionKey::try_from_bytes(&bytes[..SurbEncryptionKeySize::to_usize()])?;
 
-        let surb = match SURB::from_bytes(&bytes[SURBEncryptionKeySize::to_usize()..]) {
-            Err(err) => return Err(ReplySURBError::RecoveryError(err)),
+        let surb = match SURB::from_bytes(&bytes[SurbEncryptionKeySize::to_usize()..]) {
+            Err(err) => return Err(ReplySurbError::RecoveryError(err)),
             Ok(surb) => surb,
         };
 
-        Ok(ReplySURB {
+        Ok(ReplySurb {
             surb,
             encryption_key,
         })
@@ -188,10 +188,10 @@ impl ReplySURB {
         bs58::encode(&self.to_bytes()).into_string()
     }
 
-    pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, ReplySURBError> {
+    pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, ReplySurbError> {
         let bytes = match bs58::decode(val.into()).into_vec() {
             Ok(decoded) => decoded,
-            Err(err) => return Err(ReplySURBError::MalformedStringError(err)),
+            Err(err) => return Err(ReplySurbError::MalformedStringError(err)),
         };
         Self::from_bytes(&bytes)
     }
@@ -206,11 +206,11 @@ impl ReplySURB {
         self,
         message: &[u8],
         packet_size: Option<PacketSize>,
-    ) -> Result<(SphinxPacket, NymNodeRoutingAddress), ReplySURBError> {
+    ) -> Result<(SphinxPacket, NymNodeRoutingAddress), ReplySurbError> {
         let packet_size = packet_size.unwrap_or_else(Default::default);
 
         if message.len() != packet_size.plaintext_size() {
-            return Err(ReplySURBError::UnpaddedMessageError);
+            return Err(ReplySurbError::UnpaddedMessageError);
         }
 
         // this can realistically only fail on too long messages and we just checked for that

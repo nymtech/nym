@@ -58,7 +58,7 @@ impl TryInto<String> for RegistrationHandshake {
 #[derive(Debug)]
 pub enum GatewayRequestsError {
     TooShortRequest,
-    InvalidMAC,
+    InvalidMac,
     IncorrectlyEncodedAddress,
     RequestOfInvalidSize(usize),
     MalformedSphinxPacket,
@@ -72,13 +72,13 @@ impl fmt::Display for GatewayRequestsError {
         use GatewayRequestsError::*;
         match self {
             TooShortRequest => write!(f, "the request is too short"),
-            InvalidMAC => write!(f, "provided MAC is invalid"),
+            InvalidMac => write!(f, "provided MAC is invalid"),
             IncorrectlyEncodedAddress => write!(f, "address field was incorrectly encoded"),
             RequestOfInvalidSize(actual) =>
                 write!(
                 f,
                 "received request had invalid size. (actual: {}, but expected one of: {} (ACK), {} (REGULAR), {} (EXTENDED))",
-                actual, PacketSize::ACKPacket.size(), PacketSize::RegularPacket.size(), PacketSize::ExtendedPacket.size()
+                actual, PacketSize::AckPacket.size(), PacketSize::RegularPacket.size(), PacketSize::ExtendedPacket.size()
             ),
             MalformedSphinxPacket => write!(f, "received sphinx packet was malformed"),
             MalformedEncryption => write!(f, "the received encrypted data was malformed"),
@@ -226,7 +226,7 @@ impl BinaryRequest {
             message_bytes,
             mac_tag,
         ) {
-            return Err(GatewayRequestsError::InvalidMAC);
+            return Err(GatewayRequestsError::InvalidMac);
         }
 
         // couldn't have made the first borrow mutable as you can't have an immutable borrow
@@ -291,7 +291,7 @@ impl BinaryResponse {
             message_bytes,
             mac_tag,
         ) {
-            return Err(GatewayRequestsError::InvalidMAC);
+            return Err(GatewayRequestsError::InvalidMac);
         }
 
         let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();

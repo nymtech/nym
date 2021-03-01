@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use nymsphinx_acknowledgements::surb_ack::SURBAckRecoveryError;
+use nymsphinx_acknowledgements::surb_ack::SurbAckRecoveryError;
 use nymsphinx_addressing::nodes::NymNodeRoutingAddressError;
 use nymsphinx_types::Error as SphinxError;
 use std::fmt::{self, Display, Formatter};
@@ -21,8 +21,8 @@ use std::fmt::{self, Display, Formatter};
 pub enum MixProcessingError {
     SphinxProcessingError(SphinxError),
     InvalidHopAddress(NymNodeRoutingAddressError),
-    NoSURBAckInFinalHop,
-    MalformedSURBAck(SURBAckRecoveryError),
+    NoSurbAckInFinalHop,
+    MalformedSurbAck(SurbAckRecoveryError),
 }
 
 impl From<SphinxError> for MixProcessingError {
@@ -42,11 +42,11 @@ impl From<NymNodeRoutingAddressError> for MixProcessingError {
     }
 }
 
-impl From<SURBAckRecoveryError> for MixProcessingError {
-    fn from(err: SURBAckRecoveryError) -> Self {
+impl From<SurbAckRecoveryError> for MixProcessingError {
+    fn from(err: SurbAckRecoveryError) -> Self {
         use MixProcessingError::*;
 
-        MalformedSURBAck(err)
+        MalformedSurbAck(err)
     }
 }
 
@@ -59,10 +59,10 @@ impl Display for MixProcessingError {
             MixProcessingError::InvalidHopAddress(address_err) => {
                 write!(f, "Invalid Hop Address - {:?}", address_err)
             }
-            MixProcessingError::NoSURBAckInFinalHop => {
+            MixProcessingError::NoSurbAckInFinalHop => {
                 write!(f, "No SURBAck present in the final hop data")
             }
-            MixProcessingError::MalformedSURBAck(surb_ack_err) => {
+            MixProcessingError::MalformedSurbAck(surb_ack_err) => {
                 write!(f, "Malformed SURBAck - {:?}", surb_ack_err)
             }
         }

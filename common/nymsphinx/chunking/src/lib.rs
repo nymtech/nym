@@ -147,7 +147,7 @@ mod tests {
         // plaintext len should not affect this at all, but let's test it with something tiny
         // and reasonable
         let used_plaintext_len = PacketSize::default().plaintext_size()
-            - PacketSize::ACKPacket.size()
+            - PacketSize::AckPacket.size()
             - MAX_NODE_ADDRESS_UNPADDED_LEN;
 
         let plaintext_lens = vec![17, used_plaintext_len, 20, 42, 10000];

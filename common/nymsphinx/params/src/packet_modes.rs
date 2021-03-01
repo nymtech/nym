@@ -26,7 +26,7 @@ pub enum PacketMode {
 
     /// Represents a VPN packet that should not be delayed and ideally cached pre-computed keys
     /// should be used for unwrapping data. Note that it does not offer the same level of anonymity.
-    VPN = 1,
+    Vpn = 1,
 }
 
 impl PacketMode {
@@ -35,7 +35,7 @@ impl PacketMode {
     }
 
     pub fn is_vpn(self) -> bool {
-        self == PacketMode::VPN
+        self == PacketMode::Vpn
     }
 }
 
@@ -45,7 +45,7 @@ impl TryFrom<u8> for PacketMode {
     fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
         match value {
             _ if value == (PacketMode::Mix as u8) => Ok(Self::Mix),
-            _ if value == (PacketMode::VPN as u8) => Ok(Self::VPN),
+            _ if value == (PacketMode::Vpn as u8) => Ok(Self::Vpn),
             _ => Err(InvalidPacketMode),
         }
     }

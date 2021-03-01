@@ -26,7 +26,7 @@ export default class ValidatorClient {
         this.contractAddress = contractAddress;
     }
 
-    static async connect(contractAddress: string, mnemonic: string, url: string,) {
+    static async connect(contractAddress: string, mnemonic: string, url: string,): Promise<ValidatorClient> {
         const wallet = await ValidatorClient.buildWallet(mnemonic);
         const [{ address }] = await wallet.getAccounts();
         const netClient = await NetClient.connect(contractAddress, wallet, url);
@@ -102,7 +102,7 @@ export default class ValidatorClient {
  */
     async bond(mixNode: MixNode) {
         const bond = [{ amount: "1000000000", denom: "unym" }];
-        await this.netClient.executeContract(this.address, this.contractAddress, { register_mixnode: { mix_node: mixNode } }, "adding mixnode", bond);
+        await this.netClient.executeContract(this.address, this.contractAddress, { bond_mixnode: { mix_node: mixNode } }, "adding mixnode", bond);
         console.log(`account ${this.address} added mixnode with ${mixNode.host}`);
     }
 
@@ -110,7 +110,7 @@ export default class ValidatorClient {
      * Unbond a mixnode, removing it from the network and reclaiming staked coins
      */
     unbond(): Promise<ExecuteResult> { // TODO: we need an UnbondResponse here so the user knows WTF happened.
-        return this.netClient.executeContract(this.address, this.contractAddress, { un_register_mixnode: {} })
+        return this.netClient.executeContract(this.address, this.contractAddress, { un_bond_mixnode: {} })
     }
 
 

@@ -31,8 +31,8 @@ pub fn handle(
     msg: HandleMsg,
 ) -> Result<HandleResponse, ContractError> {
     match msg {
-        HandleMsg::RegisterMixnode { mix_node } => try_add_mixnode(deps, info, mix_node),
-        HandleMsg::UnRegisterMixnode {} => try_remove_mixnode(deps, info, env),
+        HandleMsg::BondMixnode { mix_node } => try_add_mixnode(deps, info, mix_node),
+        HandleMsg::UnBondMixnode {} => try_remove_mixnode(deps, info, env),
     }
 }
 
@@ -147,7 +147,7 @@ pub mod tests {
 
         // if we don't send enough funds
         let info = mock_info("anyone", &coins(999_999999, "unym"));
-        let msg = HandleMsg::RegisterMixnode {
+        let msg = HandleMsg::BondMixnode {
             mix_node: helpers::mix_node_fixture(),
         };
 
@@ -170,7 +170,7 @@ pub mod tests {
 
         // if we send enough funds
         let info = mock_info("anyone", &coins(1000_000000, "unym"));
-        let msg = HandleMsg::RegisterMixnode {
+        let msg = HandleMsg::BondMixnode {
             mix_node: helpers::mix_node_fixture(),
         };
 
@@ -209,7 +209,7 @@ pub mod tests {
 
         // try un-registering when no nodes exist yet
         let info = mock_info("anyone", &coins(999_9999, "unym"));
-        let msg = HandleMsg::UnRegisterMixnode {};
+        let msg = HandleMsg::UnBondMixnode {};
         let result = handle(deps.as_mut(), mock_env(), info, msg);
 
         // we're told that there is no node for our address
@@ -220,7 +220,7 @@ pub mod tests {
 
         // attempt to un-register fred's node, which doesn't exist
         let info = mock_info("fred", &coins(999_9999, "unym"));
-        let msg = HandleMsg::UnRegisterMixnode {};
+        let msg = HandleMsg::UnBondMixnode {};
         let result = handle(deps.as_mut(), mock_env(), info, msg);
         assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
 
@@ -248,7 +248,7 @@ pub mod tests {
 
         // un-register fred's node
         let info = mock_info("fred", &coins(999_9999, "unym"));
-        let msg = HandleMsg::UnRegisterMixnode {};
+        let msg = HandleMsg::UnBondMixnode {};
         let remove_fred = handle(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
         // we should see log messages come back showing an unbond message

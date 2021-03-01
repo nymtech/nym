@@ -19,8 +19,8 @@ impl Response {
     /// Constructor for responses
     pub fn new(connection_id: ConnectionId, data: Vec<u8>, is_closed: bool) -> Self {
         Response {
-            connection_id,
             data,
+            connection_id,
             is_closed,
         }
     }

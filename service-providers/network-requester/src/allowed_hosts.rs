@@ -111,10 +111,7 @@ impl OutboundRequestFilter {
     /// Attempts to get the root domain, shorn of subdomains, using publicsuffix.
     fn get_domain_root(&self, host: &str) -> Option<String> {
         match self.domain_list.parse_domain(host) {
-            Ok(d) => match d.root() {
-                Some(root) => Some(root.to_string()),
-                None => None, // no domain root matches
-            },
+            Ok(d) => d.root().map(|root| root.to_string()),
             Err(_) => {
                 log::warn!("Error parsing domain: {:?}", host);
                 None // domain couldn't be parsed

@@ -89,12 +89,12 @@ impl Config {
     ) -> Self {
         Config {
             ack_key,
+            ack_wait_addition,
+            ack_wait_multiplier,
             self_recipient,
+            average_message_sending_delay,
             average_packet_delay_duration,
             average_ack_delay_duration,
-            average_message_sending_delay,
-            ack_wait_multiplier,
-            ack_wait_addition,
             packet_mode,
             vpn_key_reuse_limit,
         }

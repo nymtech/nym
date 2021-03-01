@@ -26,7 +26,7 @@ func getSelfAddress(conn *websocket.Conn) string {
 	return responseJSON["address"].(string)
 }
 
-func sendWithoutReply() {
+func sendTextWithoutReply() {
 	message := "Hello Nym!"
 
 	uri := "ws://localhost:1977"
@@ -62,7 +62,7 @@ func sendWithoutReply() {
 	fmt.Printf("received %v from the mix network!\n", string(receivedMessage))
 }
 
-func sendWithReply() {
+func sendTextWithReply() {
 	message := "Hello Nym!"
 
 	uri := "ws://localhost:1977"
@@ -97,13 +97,13 @@ func sendWithReply() {
 	}
 	fmt.Printf("received %v from the mix network!\n", string(receivedMessage))
 
-	receivedMessageJson := make(map[string]interface{})
-	if err := json.Unmarshal(receivedMessage, &receivedMessageJson); err != nil {
+	receivedMessageJSON := make(map[string]interface{})
+	if err := json.Unmarshal(receivedMessage, &receivedMessageJSON); err != nil {
 		panic(err)
 	}
 
 	// use the received surb to send an anonymous reply!
-	replySurb := receivedMessageJson["replySurb"]
+	replySurb := receivedMessageJSON["replySurb"]
 	replyMessage := "hello from reply SURB!"
 
 	reply, err := json.Marshal(map[string]interface{}{
@@ -129,6 +129,6 @@ func sendWithReply() {
 }
 
 func main() {
-	// sendWithoutReply()
-	sendWithReply()
+	// sendTextWithoutReply()
+	sendTextWithReply()
 }

@@ -22,7 +22,7 @@ use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::ReplySURB;
+use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::receiver::ReconstructedMessage;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
@@ -100,9 +100,9 @@ impl Handler {
         None
     }
 
-    fn handle_reply(&mut self, reply_surb: ReplySURB, message: Vec<u8>) -> Option<ServerResponse> {
-        if message.len() > ReplySURB::max_msg_len(Default::default()) {
-            return Some(ServerResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySURB::max_msg_len(Default::default()))));
+    fn handle_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) -> Option<ServerResponse> {
+        if message.len() > ReplySurb::max_msg_len(Default::default()) {
+            return Some(ServerResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySurb::max_msg_len(Default::default()))));
         }
 
         let input_msg = InputMessage::new_reply(reply_surb, message);

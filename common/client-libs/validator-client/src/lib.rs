@@ -18,8 +18,8 @@ use crate::models::mixnode::MixRegistrationInfo;
 use crate::models::topology::Topology;
 use crate::rest_requests::{
     ActiveTopologyGet, ActiveTopologyGetResponse, BatchMixStatusPost, GatewayRegisterPost,
-    MixRegisterPost, MixStatusPost, NodeUnregisterDelete, RESTRequest, RESTRequestError,
-    ReputationPatch, TopologyGet, TopologyGetResponse,
+    MixRegisterPost, MixStatusPost, NodeUnregisterDelete, ReputationPatch, RestRequest,
+    RestRequestError, TopologyGet, TopologyGetResponse,
 };
 use serde::Deserialize;
 use std::fmt::{self, Display, Formatter};
@@ -66,22 +66,22 @@ struct OkResponse {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", untagged)]
-pub(crate) enum DefaultRESTResponse {
+pub(crate) enum DefaultRestResponse {
     Ok(OkResponse),
     Error(ErrorResponses),
 }
 
 #[derive(Debug)]
 pub enum ValidatorClientError {
-    RESTRequestError(RESTRequestError),
+    RestRequestError(RestRequestError),
     ReqwestClientError(reqwest::Error),
     ValidatorError(String),
     UnexpectedResponse(String),
 }
 
-impl From<RESTRequestError> for ValidatorClientError {
-    fn from(err: RESTRequestError) -> Self {
-        ValidatorClientError::RESTRequestError(err)
+impl From<RestRequestError> for ValidatorClientError {
+    fn from(err: RestRequestError) -> Self {
+        ValidatorClientError::RestRequestError(err)
     }
 }
 
@@ -94,7 +94,7 @@ impl From<reqwest::Error> for ValidatorClientError {
 impl Display for ValidatorClientError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ValidatorClientError::RESTRequestError(err) => {
+            ValidatorClientError::RestRequestError(err) => {
                 write!(f, "could not prepare the REST request - {}", err)
             }
             ValidatorClientError::ReqwestClientError(err) => {
@@ -151,7 +151,7 @@ impl Client {
         }
     }
 
-    async fn make_rest_request<R: RESTRequest>(
+    async fn make_rest_request<R: RestRequest>(
         &self,
         request: R,
     ) -> Result<R::ExpectedJsonResponse> {
@@ -174,8 +174,8 @@ impl Client {
             Some(mix_registration_info),
         )?;
         match self.make_rest_request(req).await? {
-            DefaultRESTResponse::Ok(_) => Ok(()),
-            DefaultRESTResponse::Error(err) => Err(err.into()),
+            DefaultRestResponse::Ok(_) => Ok(()),
+            DefaultRestResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -190,7 +190,7 @@ impl Client {
             Some(gateway_registration_info),
         )?;
         match self.make_rest_request(req).await? {
-            DefaultRESTResponse::Ok(ok_res) => {
+            DefaultRestResponse::Ok(ok_res) => {
                 if ok_res.ok {
                     Ok(())
                 } else {
@@ -199,7 +199,7 @@ impl Client {
                     ))
                 }
             }
-            DefaultRESTResponse::Error(err) => Err(err.into()),
+            DefaultRestResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -208,7 +208,7 @@ impl Client {
             NodeUnregisterDelete::new(&self.config.base_url, Some(vec![node_id]), None, None)?;
 
         match self.make_rest_request(req).await? {
-            DefaultRESTResponse::Ok(ok_res) => {
+            DefaultRestResponse::Ok(ok_res) => {
                 if ok_res.ok {
                     Ok(())
                 } else {
@@ -217,7 +217,7 @@ impl Client {
                     ))
                 }
             }
-            DefaultRESTResponse::Error(err) => Err(err.into()),
+            DefaultRestResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -238,7 +238,7 @@ impl Client {
             None,
         )?;
         match self.make_rest_request(req).await? {
-            DefaultRESTResponse::Ok(ok_res) => {
+            DefaultRestResponse::Ok(ok_res) => {
                 if ok_res.ok {
                     Ok(())
                 } else {
@@ -247,7 +247,7 @@ impl Client {
                     ))
                 }
             }
-            DefaultRESTResponse::Error(err) => Err(err.into()),
+            DefaultRestResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -270,7 +270,7 @@ impl Client {
     pub async fn post_mixmining_status(&self, status: MixStatus) -> Result<()> {
         let req = MixStatusPost::new(&self.config.base_url, None, None, Some(status))?;
         match self.make_rest_request(req).await? {
-            DefaultRESTResponse::Ok(ok_res) => {
+            DefaultRestResponse::Ok(ok_res) => {
                 if ok_res.ok {
                     Ok(())
                 } else {
@@ -279,14 +279,14 @@ impl Client {
                     ))
                 }
             }
-            DefaultRESTResponse::Error(err) => Err(err.into()),
+            DefaultRestResponse::Error(err) => Err(err.into()),
         }
     }
 
     pub async fn post_batch_mixmining_status(&self, batch_status: BatchMixStatus) -> Result<()> {
         let req = BatchMixStatusPost::new(&self.config.base_url, None, None, Some(batch_status))?;
         match self.make_rest_request(req).await? {
-            DefaultRESTResponse::Ok(ok_res) => {
+            DefaultRestResponse::Ok(ok_res) => {
                 if ok_res.ok {
                     Ok(())
                 } else {
@@ -295,7 +295,7 @@ impl Client {
                     ))
                 }
             }
-            DefaultRESTResponse::Error(err) => Err(err.into()),
+            DefaultRestResponse::Error(err) => Err(err.into()),
         }
     }
 }

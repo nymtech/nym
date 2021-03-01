@@ -35,7 +35,7 @@ impl Gateway {
         identity: identity::KeyPair,
     ) -> Self {
         let registered_clients_ledger = match ClientLedger::load(config.get_clients_ledger_path()) {
-            Err(e) => panic!(format!("Failed to load the ledger - {:?}", e)),
+            Err(e) => panic!("Failed to load the ledger - {:?}", e),
             Ok(ledger) => ledger,
         };
         let client_inbox_storage = inboxes::ClientStorage::new(

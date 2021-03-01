@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::models::topology::Topology;
-use crate::rest_requests::{PathParam, QueryParam, RESTRequest, RESTRequestError};
+use crate::rest_requests::{PathParam, QueryParam, RestRequest, RestRequestError};
 use crate::ErrorResponses;
 use reqwest::{Method, Url};
 use serde::Deserialize;
@@ -29,7 +29,7 @@ pub(crate) enum Response {
     Error(ErrorResponses),
 }
 
-impl RESTRequest for Request {
+impl RestRequest for Request {
     const METHOD: Method = Method::GET;
     const RELATIVE_PATH: &'static str = "/api/mixmining/topology/active";
 
@@ -41,9 +41,9 @@ impl RESTRequest for Request {
         _: Option<Vec<PathParam>>,
         _: Option<Vec<QueryParam>>,
         _: Option<Self::JsonPayload>,
-    ) -> Result<Self, RESTRequestError> {
+    ) -> Result<Self, RestRequestError> {
         let url = Url::parse(&format!("{}{}", base_url, Self::RELATIVE_PATH))
-            .map_err(|err| RESTRequestError::MalformedUrl(err.to_string()))?;
+            .map_err(|err| RestRequestError::MalformedUrl(err.to_string()))?;
 
         Ok(Request { url })
     }

@@ -311,7 +311,7 @@ mod tests {
     use nymsphinx_params::packet_sizes::PacketSize;
 
     fn max_plaintext_size() -> usize {
-        PacketSize::default().plaintext_size() - PacketSize::ACKPacket.size()
+        PacketSize::default().plaintext_size() - PacketSize::AckPacket.size()
     }
 
     fn verify_unlinked_set_payload(mut set: FragmentSet, payload: &[u8]) {

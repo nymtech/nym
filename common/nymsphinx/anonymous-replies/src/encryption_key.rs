@@ -19,52 +19,52 @@ use crypto::{
     symmetric::stream_cipher::{generate_key, Key, NewStreamCipher},
     Digest,
 };
-use nymsphinx_params::{ReplySURBEncryptionAlgorithm, ReplySURBKeyDigestAlgorithm};
+use nymsphinx_params::{ReplySurbEncryptionAlgorithm, ReplySurbKeyDigestAlgorithm};
 use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
 
 pub type EncryptionKeyDigest =
-    GenericArray<u8, <ReplySURBKeyDigestAlgorithm as Digest>::OutputSize>;
+    GenericArray<u8, <ReplySurbKeyDigestAlgorithm as Digest>::OutputSize>;
 
-pub type SURBEncryptionKeySize = <ReplySURBEncryptionAlgorithm as NewStreamCipher>::KeySize;
+pub type SurbEncryptionKeySize = <ReplySurbEncryptionAlgorithm as NewStreamCipher>::KeySize;
 
 #[derive(Clone, Debug)]
-pub struct SURBEncryptionKey(Key<ReplySURBEncryptionAlgorithm>);
+pub struct SurbEncryptionKey(Key<ReplySurbEncryptionAlgorithm>);
 
 #[derive(Debug)]
-pub enum SURBEncryptionKeyError {
+pub enum SurbEncryptionKeyError {
     BytesOfInvalidLengthError,
 }
 
-impl Display for SURBEncryptionKeyError {
+impl Display for SurbEncryptionKeyError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            SURBEncryptionKeyError::BytesOfInvalidLengthError => {
+            SurbEncryptionKeyError::BytesOfInvalidLengthError => {
                 write!(f, "provided bytes have invalid length")
             }
         }
     }
 }
 
-impl std::error::Error for SURBEncryptionKeyError {}
+impl std::error::Error for SurbEncryptionKeyError {}
 
-impl SURBEncryptionKey {
+impl SurbEncryptionKey {
     /// Generates fresh pseudorandom key that is going to be used by the recipient of the message
     /// to encrypt payload of the reply. It is only generated when reply-SURB is attached.
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
-        SURBEncryptionKey(generate_key::<ReplySURBEncryptionAlgorithm, _>(rng))
+        SurbEncryptionKey(generate_key::<ReplySurbEncryptionAlgorithm, _>(rng))
     }
 
-    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, SURBEncryptionKeyError> {
-        if bytes.len() != SURBEncryptionKeySize::to_usize() {
-            return Err(SURBEncryptionKeyError::BytesOfInvalidLengthError);
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, SurbEncryptionKeyError> {
+        if bytes.len() != SurbEncryptionKeySize::to_usize() {
+            return Err(SurbEncryptionKeyError::BytesOfInvalidLengthError);
         }
 
-        Ok(SURBEncryptionKey(GenericArray::clone_from_slice(bytes)))
+        Ok(SurbEncryptionKey(GenericArray::clone_from_slice(bytes)))
     }
 
     pub fn compute_digest(&self) -> EncryptionKeyDigest {
-        crypto_hash::compute_digest::<ReplySURBKeyDigestAlgorithm>(&self.0)
+        crypto_hash::compute_digest::<ReplySurbKeyDigestAlgorithm>(&self.0)
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -75,7 +75,7 @@ impl SURBEncryptionKey {
         self.0.as_ref()
     }
 
-    pub fn inner(&self) -> &Key<ReplySURBEncryptionAlgorithm> {
+    pub fn inner(&self) -> &Key<ReplySurbEncryptionAlgorithm> {
         &self.0
     }
 }

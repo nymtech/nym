@@ -147,7 +147,7 @@ mod header_encoding {
     #[test]
     fn header_encoding_reserves_enough_bytes_for_full_sphinx_packet() {
         let packet_sizes = vec![
-            PacketSize::ACKPacket,
+            PacketSize::AckPacket,
             PacketSize::RegularPacket,
             PacketSize::ExtendedPacket,
         ];

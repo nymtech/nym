@@ -18,6 +18,7 @@
     "@types/chai": "^4.2.15",
     "@types/expect": "^24.3.0",
     "@types/mocha": "^8.2.1",
+    "@types/readline-sync": "^1.4.3",
     "@typescript-eslint/eslint-plugin": "^4.14.0",
     "@typescript-eslint/parser": "^4.14.0",
     "chai": "^4.2.0",
@@ -34,6 +35,7 @@
     "@cosmjs/cosmwasm-stargate": "^0.24.0-alpha.18",
     "@cosmjs/crypto": "^0.24.0-alpha.18",
     "@cosmjs/launchpad": "^0.24.0-alpha.18",
-    "@cosmjs/proto-signing": "^0.24.0-alpha.18"
+    "@cosmjs/proto-signing": "^0.24.0-alpha.18",
+    "readline-sync": "^1.4.10"
   }
 }

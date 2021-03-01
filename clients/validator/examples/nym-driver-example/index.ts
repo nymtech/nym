@@ -2,10 +2,15 @@ import ValidatorClient from "nym-validator-client";
 import * as fs from "fs";
 import { MixNode } from "../../dist/types";
 
+import readlineSync from "readline-sync";
+import { Console } from "console";
+
 main(true, false);
 
 async function main(upload: boolean, addNodes: boolean) {
     // get our users set up
+
+    console.log("Setting up users");
 
     const daveKey = await buildKeyPath("dave");
     console.log("daveKey: " + daveKey);
@@ -17,7 +22,18 @@ async function main(upload: boolean, addNodes: boolean) {
     let validatorUrl = "http://localhost:26557";
 
     const coins2000_nym = [{ amount: "2000000000", denom: "unym" }];
+
+    console.log("User dave has been set up.");
+
+    readlineSync.keyIn('Hit any key to continue');
+
+
+
     if (upload) {
+
+        console.log("Starting contract upload");
+        readlineSync.keyIn('Hit any key to continue');
+
         // instantiate a client we can use to upload. We don't have a contract address yet, so let's just fake it.
         let uploadClient = await ValidatorClient.connect(contractAddress, mnemonic, validatorUrl);
 
@@ -35,18 +51,27 @@ async function main(upload: boolean, addNodes: boolean) {
         contractAddress = instantiateResult.contractAddress;
         console.log(`mixnet contract ${contractAddress} instantiated successfully`)
 
+        readlineSync.keyIn('Hit any key to continue');
+
+
     } else {
         contractAddress = "nym127gs5ej23jd69685a3lyetnhlfe9nwegpjx5a9";
     }
 
-    console.log(`let's test contract existence. Contract address is: ${contractAddress}`);
+    console.log(`Let's test contract existence. Contract address is: ${contractAddress}`);
     let client = await ValidatorClient.connect(contractAddress, mnemonic, validatorUrl);
-    console.log("maybe connected. using client address: " + client.address);
+    console.log("Connected to the validator. Using client address: " + client.address);
+
+    readlineSync.keyIn('Hit any key to continue');
+
 
     console.log("Now the big moment we've all been waiting for. Let's retrieve the mixnodes from the validator.");
     await client.refreshMixNodes().then(response => console.log(response)).catch(err => {
         console.log(err);
     });
+
+    readlineSync.keyIn('Hit any key to continue');
+
 
     if (addNodes) {
         console.log("Adding nodes from many different users...");
@@ -74,6 +99,10 @@ async function main(upload: boolean, addNodes: boolean) {
         console.log(err);
     });
     console.log(client.getMixNodes());
+    readlineSync.keyIn('Hit any key to continue');
+
+
+    console.log("Adding user fred");
 
     const fredKey = await buildKeyPath("fred");
     const fredMnemonic = ValidatorClient.loadMnemonic(fredKey);
@@ -88,7 +117,10 @@ async function main(upload: boolean, addNodes: boolean) {
     console.log("fred's balance after receiving cash is");
     console.log(await fredClient.getBalance(fredClient.address));
 
-    console.log("let's have fred announce a node");
+    readlineSync.keyIn('Hit any key to continue');
+
+
+    console.log("Let's have fred bond a node");
 
     const fredNode: MixNode = {
         host: "1.1.1.1",
@@ -105,7 +137,14 @@ async function main(upload: boolean, addNodes: boolean) {
     console.log("Let's see how much is currently stored in the mixnet contract itself:");
     console.log(await client.getBalance(contractAddress));
 
+    readlineSync.keyIn('Hit any key to continue');
+
+
+
     log("Nodes in the contract are now", await fredClient.refreshMixNodes());
+
+    readlineSync.keyIn('Hit any key to continue');
+
 
     console.log("Let's make sure fred's mixnode is actually in the list of mixnodes");
     let fredPresence = false;
@@ -114,6 +153,7 @@ async function main(upload: boolean, addNodes: boolean) {
 
     console.log(fredPresence);
 
+    readlineSync.keyIn('Hit any key to continue');
 
     console.log("Alright, so now fred will unbond his mixnode.")
     console.log("We should see money come out of the contract and back to fred");
@@ -131,6 +171,8 @@ async function main(upload: boolean, addNodes: boolean) {
     fredNodes.forEach(node => { if (node.owner == fredClient.address) fredPresence = true })
     console.log(fredPresence);
 
+    readlineSync.keyIn('Hit any key to continue');
+
 
     console.log("Let's see how much is currently stored in the mixnet contract:");
     console.log(await client.getBalance(contractAddress));
@@ -140,6 +182,7 @@ async function main(upload: boolean, addNodes: boolean) {
     console.log(await fredClient.getBalance(fredClient.address));
 
     console.log(`fred's address is ${fredClient.address}`);
+
     // console.log(fredNodes);
 
     // await dave.client.execute(dave.address, contractAddress, { un_register_mixnode: {} });

@@ -98,8 +98,8 @@ export default class ValidatorClient {
     }
 
     /**
- *  Announce a mixnode, paying a fee.
- */
+    *  Announce a mixnode, paying a fee.
+    */
     async bond(mixNode: MixNode) {
         const bond = [{ amount: "1000000000", denom: "unym" }];
         await this.netClient.executeContract(this.address, this.contractAddress, { register_mixnode: { mix_node: mixNode } }, "adding mixnode", bond);

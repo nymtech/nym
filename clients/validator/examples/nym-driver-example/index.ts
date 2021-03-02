@@ -6,7 +6,9 @@ main(true, false);
 
 async function main(upload: boolean, addNodes: boolean) {
 
-    const testAccountsDir = "/home/dave/.nym-test-accounts/";
+    // the reset_accounts.sh script stuck some keys and addresses in:
+    const testAccountsDir = "../accounts/";
+
     // get our users set up
 
     const daveKey = await buildKeyPath("dave", testAccountsDir);

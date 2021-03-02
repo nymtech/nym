@@ -5,9 +5,11 @@ import { MixNode } from "../../dist/types";
 main(true, false);
 
 async function main(upload: boolean, addNodes: boolean) {
+
+    const testAccountsDir = "/home/dave/.nym-test-accounts/";
     // get our users set up
 
-    const daveKey = await buildKeyPath("dave");
+    const daveKey = await buildKeyPath("dave", testAccountsDir);
     console.log("daveKey: " + daveKey);
 
     const mnemonic = ValidatorClient.loadMnemonic(daveKey);
@@ -75,7 +77,7 @@ async function main(upload: boolean, addNodes: boolean) {
     });
     console.log(client.getMixNodes());
 
-    const fredKey = await buildKeyPath("fred");
+    const fredKey = await buildKeyPath("fred", testAccountsDir);
     const fredMnemonic = ValidatorClient.loadMnemonic(fredKey);
     const fredClient = await ValidatorClient.connect(contractAddress, fredMnemonic, validatorUrl);
     console.log("fred's balance before receiving cash is");
@@ -186,8 +188,8 @@ async function main(upload: boolean, addNodes: boolean) {
 //     console.log(`length is: ${pagedResponse.nodes.length}.`);
 // }
 
-async function buildKeyPath(name: string): Promise<string> {
-    return `/home/dave/.nym-test-accounts/${name}.key`;
+async function buildKeyPath(name: string, testAccountsDir: string): Promise<string> {
+    return `${testAccountsDir}${name}.key`;
 }
 
 // async function newAccount(mnemonic: string): Promise<Account> {

@@ -27,6 +27,7 @@ async function main(upload: boolean, addNodes: boolean) {
 
         // Upload a new copy of the option contract
         let wasm = fs.readFileSync("../../../../contracts/mixnet/target/wasm32-unknown-unknown/release/mixnet_contracts.wasm");
+        console.log("wasm loaded");
 
         // dave can upload (note: nobody else can)
         const uploadResult = await uploadClient.upload(uploadClient.address, wasm, undefined, "mixnet contract");
@@ -38,9 +39,10 @@ async function main(upload: boolean, addNodes: boolean) {
         let instantiateResult = await uploadClient.instantiate(uploadClient.address, codeId, initMsg, "mixnet contract", { memo: "v0.1.0", transferAmount: [{ denom: "unym", amount: "50000" }] });
         contractAddress = instantiateResult.contractAddress;
         console.log(`mixnet contract ${contractAddress} instantiated successfully`)
+        fs.writeFileSync("current-contract.txt", contractAddress);
 
     } else {
-        contractAddress = "nym127gs5ej23jd69685a3lyetnhlfe9nwegpjx5a9";
+        contractAddress = fs.readFileSync("current-contract.txt").toString();
     }
 
     console.log(`let's test contract existence. Contract address is: ${contractAddress}`);

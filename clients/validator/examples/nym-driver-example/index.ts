@@ -62,7 +62,7 @@ async function main(upload: boolean, addNodes: boolean) {
                 sphinx_key: "sphinx",
                 version: "0.10.0",
             };
-            await newAccount.announce(mixNode).catch(err => {
+            await newAccount.bond(mixNode).catch(err => {
                 console.log(`Error while adding node: ${err}`);
             });
         }
@@ -98,7 +98,7 @@ async function main(upload: boolean, addNodes: boolean) {
         version: "0.10.0",
     };
 
-    await fredClient.announce(fredNode);
+    await fredClient.bond(fredNode);
     console.log("fred's balance after announcing a node is");
     console.log(await fredClient.getBalance(fredClient.address));
 

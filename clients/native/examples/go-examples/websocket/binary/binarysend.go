@@ -9,21 +9,21 @@ import (
 )
 
 // request tags
-const SEND_REQUEST_TAG = 0x00
-const REPLY_REQUEST_TAG = 0x01
-const SELF_ADDRESS_REQUEST_TAG = 0x02
+const sendRequestTag = 0x00
+const replyRequestTag = 0x01
+const selfAddressRequestTag = 0x02
 
 // response tags
-const ERROR_RESPONSE_TAG = 0x00
-const RECEIVED_RESPONSE_TAG = 0x01
-const SELF_ADDRESS_RESPONSE_TAG = 0x02
+const errorResponseTag = 0x00
+const receivedResponseTag = 0x01
+const selfAddressResponseTag = 0x02
 
 func makeSelfAddressRequest() []byte {
-	return []byte{SELF_ADDRESS_REQUEST_TAG}
+	return []byte{selfAddressRequestTag}
 }
 
 func parseSelfAddressResponse(rawResponse []byte) []byte {
-	if len(rawResponse) != 97 || rawResponse[0] != SELF_ADDRESS_RESPONSE_TAG {
+	if len(rawResponse) != 97 || rawResponse[0] != selfAddressResponseTag {
 		panic("Received invalid response")
 	}
 	return rawResponse[1:]
@@ -38,7 +38,7 @@ func makeSendRequest(recipient []byte, message []byte, withReplySurb bool) []byt
 		surbByte = 1
 	}
 
-	out := []byte{SEND_REQUEST_TAG, surbByte}
+	out := []byte{sendRequestTag, surbByte}
 	out = append(out, recipient...)
 	out = append(out, messageLen...)
 	out = append(out, message...)
@@ -53,7 +53,7 @@ func makeReplyRequest(message []byte, replySURB []byte) []byte {
 	surbLen := make([]byte, 8)
 	binary.BigEndian.PutUint64(surbLen, uint64(len(replySURB)))
 
-	out := []byte{REPLY_REQUEST_TAG}
+	out := []byte{replyRequestTag}
 	out = append(out, surbLen...)
 	out = append(out, replySURB...)
 	out = append(out, messageLen...)
@@ -63,7 +63,7 @@ func makeReplyRequest(message []byte, replySURB []byte) []byte {
 }
 
 func parseReceived(rawResponse []byte) ([]byte, []byte) {
-	if rawResponse[0] != RECEIVED_RESPONSE_TAG {
+	if rawResponse[0] != receivedResponseTag {
 		panic("Received invalid response!")
 	}
 
@@ -103,7 +103,7 @@ func parseReceived(rawResponse []byte) ([]byte, []byte) {
 	}
 }
 
-func sendWithoutReply() {
+func sendBinaryWithoutReply() {
 	uri := "ws://localhost:1977"
 
 	conn, _, err := websocket.DefaultDialer.Dial(uri, nil)
@@ -122,12 +122,12 @@ func sendWithoutReply() {
 	}
 	selfAddress := parseSelfAddressResponse(receivedResponse)
 
-	read_data, err := ioutil.ReadFile("dummy_file")
+	readData, err := ioutil.ReadFile("dummy_file")
 	if err != nil {
 		panic(err)
 	}
 
-	sendRequest := makeSendRequest(selfAddress, read_data, false)
+	sendRequest := makeSendRequest(selfAddress, readData, false)
 	fmt.Printf("sending content of 'dummy file' over the mix network...\n")
 	if err = conn.WriteMessage(websocket.BinaryMessage, sendRequest); err != nil {
 		panic(err)
@@ -144,10 +144,10 @@ func sendWithoutReply() {
 		panic("did not expect a replySURB!")
 	}
 	fmt.Printf("writing the file back to the disk!\n")
-	ioutil.WriteFile("received_file_noreply", fileData, 0644)
+	ioutil.WriteFile("received_file_no_reply", fileData, 0644)
 }
 
-func sendWithReply() {
+func sendBinaryWithReply() {
 	uri := "ws://localhost:1977"
 
 	conn, _, err := websocket.DefaultDialer.Dial(uri, nil)
@@ -212,6 +212,6 @@ func sendWithReply() {
 }
 
 func main() {
-	// sendWithoutReply()
-	sendWithReply()
+	// sendBinaryWithoutReply()
+	sendBinaryWithReply()
 }

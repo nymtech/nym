@@ -4,11 +4,11 @@ import * as fs from "fs";
 import { Bip39, Random } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
-import { Coin } from "@cosmjs/launchpad";
+import { Coin, coins } from "@cosmjs/launchpad";
 import { BroadcastTxResponse } from "@cosmjs/stargate/types"
 import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
-import log from "./utils"
 
+export { coins };
 export default class ValidatorClient {
     url: string;
     private netClient: INetClient;
@@ -100,17 +100,20 @@ export default class ValidatorClient {
     /**
     *  Announce a mixnode, paying a fee.
     */
-    async bond(mixNode: MixNode) {
+    async bond(mixNode: MixNode): Promise<ExecuteResult> {
         const bond = [{ amount: "1000000000", denom: "unym" }];
-        await this.netClient.executeContract(this.address, this.contractAddress, { register_mixnode: { mix_node: mixNode } }, "adding mixnode", bond);
+        const result = await this.netClient.executeContract(this.address, this.contractAddress, { register_mixnode: { mix_node: mixNode } }, "adding mixnode", bond);
         console.log(`account ${this.address} added mixnode with ${mixNode.host}`);
+        return result;
     }
 
     /**
      * Unbond a mixnode, removing it from the network and reclaiming staked coins
      */
-    unbond(): Promise<ExecuteResult> { // TODO: we need an UnbondResponse here so the user knows WTF happened.
-        return this.netClient.executeContract(this.address, this.contractAddress, { un_register_mixnode: {} })
+    async unbond(): Promise<ExecuteResult> {
+        const result = await this.netClient.executeContract(this.address, this.contractAddress, { un_register_mixnode: {} })
+        console.log(`account ${this.address} unbonded mixnode`);
+        return result;
     }
 
 

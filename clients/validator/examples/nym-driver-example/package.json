@@ -17,8 +17,9 @@
   "dependencies": {
     "@types/node": "^14.14.22",
     "nodemon": "^2.0.7",
+    "nym-validator-client": "file:../../",
     "save-dev": "0.0.1-security",
-    "ts-node": "^9.1.1",
-    "nym-validator-client": "file:../../"
+    "tasktimer": "^3.0.0",
+    "ts-node": "^9.1.1"
   }
 }

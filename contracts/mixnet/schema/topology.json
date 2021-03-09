@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Topology",
+  "type": "object",
+  "required": [
+    "mix_node_bonds"
+  ],
+  "properties": {
+    "mix_node_bonds": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/MixNodeBond"
+      }
+    }
+  },
+  "definitions": {
+    "Coin": {
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      }
+    },
+    "HumanAddr": {
+      "type": "string"
+    },
+    "MixNode": {
+      "type": "object",
+      "required": [
+        "host",
+        "layer",
+        "location",
+        "sphinx_key",
+        "version"
+      ],
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "layer": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "location": {
+          "type": "string"
+        },
+        "sphinx_key": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "MixNodeBond": {
+      "type": "object",
+      "required": [
+        "amount",
+        "mix_node",
+        "owner"
+      ],
+      "properties": {
+        "amount": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Coin"
+          }
+        },
+        "mix_node": {
+          "$ref": "#/definitions/MixNode"
+        },
+        "owner": {
+          "$ref": "#/definitions/HumanAddr"
+        }
+      }
+    },
+    "Uint128": {
+      "type": "string"
+    }
+  }
+}

@@ -32,9 +32,9 @@ impl MixnetResponseListener {
             .unwrap();
 
         MixnetResponseListener {
-            controller_sender,
             buffer_requester,
             mix_response_receiver,
+            controller_sender,
         }
     }
 

@@ -5,6 +5,14 @@
 panic = "abort"
 opt-level = "s"
 
+[profile.release.package.mixnet-contracts]
+opt-level = 3
+debug = false
+debug-assertions = false
+codegen-units = 1
+incremental = false
+overflow-checks = true
+
 [profile.dev]
 panic = "abort"
 

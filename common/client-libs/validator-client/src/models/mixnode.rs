@@ -14,6 +14,7 @@
 
 use crate::models::node::NodeInfo;
 use crypto::asymmetric::{encryption, identity};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::io;
@@ -40,7 +41,7 @@ impl From<identity::KeyRecoveryError> for ConversionError {
 }
 
 // used for mixnode to register themselves
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MixRegistrationInfo {
     #[serde(flatten)]
@@ -73,7 +74,7 @@ impl MixRegistrationInfo {
 }
 
 // actual entry in topology
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct RegisteredMix {
     #[serde(flatten)]

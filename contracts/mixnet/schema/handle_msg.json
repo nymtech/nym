@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HandleMsg",
+  "anyOf": [
+    {
+      "type": "object",
+      "required": [
+        "register_mixnode"
+      ],
+      "properties": {
+        "register_mixnode": {
+          "type": "object",
+          "required": [
+            "mix_node"
+          ],
+          "properties": {
+            "mix_node": {
+              "$ref": "#/definitions/MixNode"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "un_register_mixnode"
+      ],
+      "properties": {
+        "un_register_mixnode": {
+          "type": "object"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "MixNode": {
+      "type": "object",
+      "required": [
+        "host",
+        "layer",
+        "location",
+        "sphinx_key",
+        "version"
+      ],
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "layer": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "location": {
+          "type": "string"
+        },
+        "sphinx_key": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

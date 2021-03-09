@@ -1,13 +1,11 @@
 import { SigningCosmWasmClient, SigningCosmWasmClientOptions } from '@cosmjs/cosmwasm-stargate';
 import { MixNodeBond } from './types'
-// import { connect as connectHelper } from "./stargate-helper";
 import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
 import { GasPrice } from '@cosmjs/launchpad';
 import { Coin } from "@cosmjs/launchpad"
 import { BroadcastTxResponse } from "@cosmjs/stargate/types"
 import { Options, nymGasLimits, defaultOptions } from "./stargate-helper"
 import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from '@cosmjs/cosmwasm';
-
 
 export interface INetClient {
     getBalance(address: string): Promise<Coin | null>;

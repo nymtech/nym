@@ -43,7 +43,7 @@ export default class MixnodesCache {
     /// otherwise returns false.
     shouldMakeAnotherRequest(response: PagedResponse): boolean {
         let next = response.start_next_after;
-        let nextExists: boolean = (next != null && next != undefined && next != "");
+        let nextExists: boolean = (next !== null && next !== undefined && next !== "");
         let fullPage: boolean = response.nodes.length == this.perPage;
         if (fullPage && nextExists) {
             return true;

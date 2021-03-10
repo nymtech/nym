@@ -254,8 +254,10 @@ pub mod tests {
         // we should see log messages come back showing an unbond message
         let expected_attributes = vec![
             attr("action", "unbond"),
-            attr("tokens", fred_bond.clone()[0].amount),
-            attr("account", "fred"),
+            attr(
+                "mixnode_bond",
+                "amount: [Coin { denom: \"unym\", amount: Uint128(1666000000) }], owner: fred",
+            ),
         ];
 
         // we should see a funds transfer from the contract back to fred

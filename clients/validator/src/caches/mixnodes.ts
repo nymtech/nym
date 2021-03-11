@@ -23,7 +23,7 @@ export default class MixnodesCache {
     /// Makes repeated requests to assemble a full list of nodes. 
     /// Requests continue to be make as long as `shouldMakeAnotherRequest()`
     // returns true. 
-    async refreshMixNodes(contractAddress: string) {
+    async refreshMixNodes(contractAddress: string): Promise<MixNodeBond[]> {
         this.mixNodes = [];
         let response: PagedResponse;
         let next: string | undefined;
@@ -42,13 +42,9 @@ export default class MixnodesCache {
     /// so if both these things are true we should make another request);
     /// otherwise returns false.
     shouldMakeAnotherRequest(response: PagedResponse): boolean {
-        let next = response.start_next_after;
-        let nextExists: boolean = (next !== null && next !== undefined && next !== "");
-        let fullPage: boolean = response.nodes.length == this.perPage;
-        if (fullPage && nextExists) {
-            return true;
-        } else {
-            return false;
-        }
+        const next = response.start_next_after;
+        const nextExists: boolean = (next !== null && next !== undefined && next !== "");
+        const fullPage: boolean = response.nodes.length == this.perPage;
+        return fullPage && nextExists;
     }
 }

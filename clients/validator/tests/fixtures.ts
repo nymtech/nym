@@ -1,6 +1,6 @@
-import { coins } from '@cosmjs/launchpad';
-import { PagedResponse } from '../src/net-client';
-import { MixNodeBond } from '../src/types'
+import { coins } from "@cosmjs/launchpad";
+import { PagedResponse } from "../src/net-client";
+import { MixNodeBond } from "../src/types"
 
 export namespace Fixtures {
     export class MixNodes {

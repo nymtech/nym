@@ -1,8 +1,8 @@
-import { assert } from 'chai';
-import INetClient from '../../src/net-client';
-import { Fixtures } from '../fixtures'
-import { Mock, Times } from 'moq.ts';
-import { MixnodesCache } from '../../src/caches/mixnodes'
+import { assert } from "chai";
+import INetClient from "../../src/net-client";
+import { Fixtures } from "../fixtures"
+import { Mock, Times } from "moq.ts";
+import { MixnodesCache } from "../../src/caches/mixnodes"
 
 describe("Caching mixnodes: when the validator returns", () => {
     context("an empty list", () => {

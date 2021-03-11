@@ -14,7 +14,7 @@ use crate::{error::ContractError, state::mixnodes, state::mixnodes_read};
 const GATEWAY_BONDING_STAKE: Uint128 = Uint128(1000_000000); // 1000 nym
 
 /// Constant specifying denomination of the coin used for bonding
-const STAKE_DENOM: &'static str = "unym";
+const STAKE_DENOM: &str = "unym";
 
 /// Instantiate the contract.
 ///

@@ -31,7 +31,10 @@ pub fn query_mixnodes_paged(
         .range(start.as_deref(), None, Order::Ascending)
         .take(limit);
     let node_tuples = res.collect::<StdResult<Vec<(Vec<u8>, MixNodeBond)>>>()?;
-    let nodes = node_tuples.into_iter().map(|item| item.1).collect();
+    let nodes = node_tuples
+        .into_iter()
+        .map(|item| item.1)
+        .collect::<Vec<_>>();
     let start_next_after = last_node_owner(&nodes);
 
     let response = PagedResponse {
@@ -84,7 +87,7 @@ fn calculate_start_value(
     })
 }
 
-fn last_node_owner(nodes: &Vec<MixNodeBond>) -> Option<HumanAddr> {
+fn last_node_owner(nodes: &[MixNodeBond]) -> Option<HumanAddr> {
     match nodes.last() {
         None => None,
         Some(node) => Some(node.owner.clone()),

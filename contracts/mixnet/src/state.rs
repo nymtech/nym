@@ -97,6 +97,8 @@ impl Display for GatewayBond {
     }
 }
 
+// TODO: I'm not entirely sure what's up with clippy::field_reassign_with_default
+// since it's not present in almost identical MixNode struct
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct Gateway {
     pub(crate) mix_host: String,

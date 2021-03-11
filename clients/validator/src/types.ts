@@ -1,4 +1,3 @@
-import MixnodesCache from "./caches/mixnodes";
 import { Coin } from "@cosmjs/launchpad/";
 
 export type MixNodeBond = { // TODO: change name to MixNodeBond

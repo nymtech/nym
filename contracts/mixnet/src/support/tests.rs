@@ -1,14 +1,14 @@
 #[cfg(test)]
 pub mod helpers {
     use super::*;
-    use crate::contract::init;
     use crate::contract::query;
     use crate::contract::try_add_mixnode;
+    use crate::contract::{init, try_add_gateway};
     use crate::msg::InitMsg;
     use crate::msg::QueryMsg;
-    use crate::queries::PagedResponse;
-    use crate::state::MixNode;
+    use crate::queries::{PagedGatewayResponse, PagedResponse};
     use crate::state::MixNodeBond;
+    use crate::state::{Gateway, GatewayBond, MixNode};
     use cosmwasm_std::coins;
     use cosmwasm_std::from_binary;
     use cosmwasm_std::testing::mock_dependencies;
@@ -48,6 +48,32 @@ pub mod helpers {
         page.nodes
     }
 
+    pub fn add_gateway(
+        pubkey: &str,
+        stake: Vec<Coin>,
+        deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
+    ) {
+        let info = mock_info(pubkey, &stake);
+        try_add_gateway(deps.as_mut(), info, helpers::gateway_fixture()).unwrap();
+    }
+
+    pub fn get_gateways(
+        deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
+    ) -> Vec<GatewayBond> {
+        let result = query(
+            deps.as_ref(),
+            mock_env(),
+            QueryMsg::GetGateways {
+                start_after: None,
+                limit: None,
+            },
+        )
+        .unwrap();
+
+        let page: PagedGatewayResponse = from_binary(&result).unwrap();
+        page.nodes
+    }
+
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies(&[]);
         let msg = InitMsg {};
@@ -79,6 +105,33 @@ pub mod helpers {
             amount: coins(50, "unym"),
             owner: HumanAddr::from("foo"),
             mix_node,
+        }
+    }
+
+    pub fn gateway_fixture() -> Gateway {
+        Gateway {
+            mix_host: "1.1.1.1:1234".to_string(),
+            clients_host: "ws://1.1.1.1:1235".to_string(),
+            location: "Sweden".to_string(),
+            sphinx_key: "sphinx".to_string(),
+            identity_key: "identity".to_string(),
+            version: "0.10.0".to_string(),
+        }
+    }
+
+    pub fn gateway_bond_fixture() -> GatewayBond {
+        let gateway = Gateway {
+            mix_host: "1.1.1.1:1234".to_string(),
+            clients_host: "ws://1.1.1.1:1235".to_string(),
+            location: "London".to_string(),
+            sphinx_key: "sphinx".to_string(),
+            identity_key: "identity".to_string(),
+            version: "0.10.0".to_string(),
+        };
+        GatewayBond {
+            amount: coins(50, "unym"),
+            owner: HumanAddr::from("foo"),
+            gateway,
         }
     }
 

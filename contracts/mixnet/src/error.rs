@@ -1,4 +1,4 @@
-use cosmwasm_std::StdError;
+use cosmwasm_std::{HumanAddr, StdError};
 use thiserror::Error;
 
 /// Custom errors for contract failure conditions.
@@ -11,14 +11,25 @@ pub enum ContractError {
     Std(#[from] StdError),
 
     #[error("Not enough funds sent for mixnode bond")]
-    InsufficientBond {},
+    InsufficientMixNodeBond {},
 
     #[error("Account does not own any mixnode bonds")]
     MixNodeBondNotFound {},
+
+    #[error(
+        "Not enough funds sent for gateway bond. (received {received:?}, minimum {minimum:?})"
+    )]
+    InsufficientGatewayBond { received: u128, minimum: u128 },
+
+    #[error("Account ({account:?}) does not own any gateway bonds")]
+    GatewayBondNotFound { account: HumanAddr },
 
     #[error("Unauthorized")]
     Unauthorized {},
 
     #[error("Wrong coin denomination, you must send unym")]
     WrongDenom {},
+
+    #[error("No coin was sent for the staking, you must send unym")]
+    NoStakeFound,
 }

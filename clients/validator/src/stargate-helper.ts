@@ -1,9 +1,5 @@
-import { SigningCosmWasmClient, SigningCosmWasmClientOptions } from "@cosmjs/cosmwasm-stargate";
-import { Bip39, Random } from "@cosmjs/crypto";
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
-import * as fs from "fs";
-import axios from 'axios';
-import { GasLimits, GasPrice, logs } from "@cosmjs/launchpad";
+import axios from "axios";
+import { GasLimits } from "@cosmjs/launchpad";
 import { CosmWasmFeeTable } from "@cosmjs/cosmwasm";
 
 
@@ -32,7 +28,7 @@ export const defaultOptions: Options = {
     bech32prefix: "nym",
 };
 
-const downloadWasm = async (url: string): Promise<Uint8Array> => {
+export const downloadWasm = async (url: string): Promise<Uint8Array> => {
     const r = await axios.get(url, { responseType: "arraybuffer" });
     if (r.status !== 200) {
         throw new Error(`Download error: ${r.status}`);

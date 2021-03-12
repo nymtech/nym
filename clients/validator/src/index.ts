@@ -1,12 +1,12 @@
-import NetClient, { INetClient, PagedResponse } from "./net-client";
-import { MixNode, MixNodeBond } from "./types";
+import NetClient, {INetClient} from "./net-client";
+import {MixNode, MixNodeBond} from "./types";
 import * as fs from "fs";
-import { Bip39, Random } from "@cosmjs/crypto";
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import {Bip39, Random} from "@cosmjs/crypto";
+import {DirectSecp256k1HdWallet} from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
-import { Coin, coins } from "@cosmjs/launchpad";
-import { BroadcastTxResponse } from "@cosmjs/stargate/types"
-import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
+import {Coin, coins} from "@cosmjs/launchpad";
+import {BroadcastTxResponse} from "@cosmjs/stargate/types"
+import {ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult} from "@cosmjs/cosmwasm";
 
 export { coins };
 export default class ValidatorClient {
@@ -26,7 +26,7 @@ export default class ValidatorClient {
         this.contractAddress = contractAddress;
     }
 
-    static async connect(contractAddress: string, mnemonic: string, url: string,) {
+    static async connect(contractAddress: string, mnemonic: string, url: string): Promise<ValidatorClient> {
         const wallet = await ValidatorClient.buildWallet(mnemonic);
         const [{ address }] = await wallet.getAccounts();
         const netClient = await NetClient.connect(contractAddress, wallet, url);
@@ -35,11 +35,11 @@ export default class ValidatorClient {
 
     /**
      * Loads a named mnemonic from the system's keystore.
-     * 
-     * @param keyName the name of the key in the keystore
+     *
+     * @param keyPath the name of the key in the keystore
      * @returns the mnemonic as a string
      */
-    static loadMnemonic(keyPath: string) {
+    static loadMnemonic(keyPath: string): string {
         try {
             const mnemonic = fs.readFileSync(keyPath, "utf8");
             return mnemonic.trim();
@@ -54,8 +54,7 @@ export default class ValidatorClient {
      * @returns a fresh mnemonic.
      */
     static randomMnemonic(): string {
-        const mnemonic = Bip39.encode(Random.getBytes(16)).toString();
-        return mnemonic;
+        return Bip39.encode(Random.getBytes(16)).toString();
     }
 
     /**
@@ -77,20 +76,20 @@ export default class ValidatorClient {
     }
 
     /**
-     * Get or refresh the list of mixnodes in the network. 
-     * 
+     * Get or refresh the list of mixnodes in the network.
+     *
      * @returns an array containing all known `MixNodeBond`s.
-     * 
+     *
      * TODO: We will want to put this puppy on a timer, but for the moment we can
-     * just get things strung together and refresh it manually. 
+     * just get things strung together and refresh it manually.
      */
     refreshMixNodes(): Promise<MixNodeBond[]> {
         return this.mixNodesCache.refreshMixNodes(this.contractAddress);
     }
 
     /**
-     * Get mixnodes from the local client cache. 
-     * 
+     * Get mixnodes from the local client cache.
+     *
      * @returns an array containing all `MixNodeBond`s in the client's local cache.
      */
     getMixNodes(): MixNodeBond[] {

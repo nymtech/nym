@@ -10,7 +10,8 @@ async function newClient(mnemonic: string): Promise<ValidatorClient> {
 }
 
 async function main() {
-    let adminPass = "jar travel copy apology neglect disease water fruit gaze possible session normal exclude onion carry matter object dumb tackle assist inspire kind airport crowd";
+    let adminKey = await buildKeyPath("dave", "../accounts");
+    let adminPass = fs.readFileSync(adminKey).toString();
     let admin = await newClient(adminPass);
     console.log("dave address: ", admin.address);
 

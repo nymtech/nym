@@ -1,26 +1,32 @@
 import NetClient, {INetClient} from "./net-client";
-import {MixNode, MixNodeBond} from "./types";
+import {Gateway, GatewayBond, MixNode, MixNodeBond} from "./types";
 import * as fs from "fs";
 import {Bip39, Random} from "@cosmjs/crypto";
 import {DirectSecp256k1HdWallet} from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
-import {Coin, coins} from "@cosmjs/launchpad";
+import {Coin, coins,  coin} from "@cosmjs/launchpad";
 import {BroadcastTxResponse} from "@cosmjs/stargate/types"
 import {ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult} from "@cosmjs/cosmwasm";
+import GatewaysCache from "./caches/gateways";
 
 export { coins };
 export default class ValidatorClient {
+    private readonly stakeDenom: string = "unym"
+    private readonly gatewayBondingStake: number = 1000_000000
+
     url: string;
     private netClient: INetClient;
     private mixNodesCache: MixnodesCache;
+    private gatewayCache: GatewaysCache
     private wallet: DirectSecp256k1HdWallet
     readonly address: string;
-    private contractAddress: string;
+    private readonly contractAddress: string;
 
     private constructor(url: string, netClient: INetClient, wallet: DirectSecp256k1HdWallet, address: string, contractAddress: string) {
         this.url = url;
         this.netClient = netClient;
         this.mixNodesCache = new MixnodesCache(netClient, 100);
+        this.gatewayCache = new GatewaysCache(netClient, 100);
         this.address = address;
         this.wallet = wallet;
         this.contractAddress = contractAddress;
@@ -114,6 +120,54 @@ export default class ValidatorClient {
         console.log(`account ${this.address} unbonded mixnode`);
         return result;
     }
+    
+    /**
+     * Get or refresh the list of gateways in the network.
+     *
+     * @returns an array containing all known `GatewayBond`s.
+     *
+     * TODO: Similarly to mixnode bonds, this should probably be put on a timer somewhere.
+     */
+    refreshGateways(): Promise<GatewayBond[]> {
+        return this.gatewayCache.refreshGateways(this.contractAddress);
+    }
+
+    /**
+     * Get gateways from the local client cache.
+     *
+     * @returns an array containing all `GatewayBond`s in the client's local cache.
+     */
+    getGateways(): GatewayBond[] {
+        return this.gatewayCache.gateways
+    }
+
+    /**
+     * Generate a minimum gateway bond required to create a fresh gateway.
+     *
+     * @returns a `Coin` instance containing minimum amount of `unym` to stake a gateway.
+     */
+    minimumGatewayBond = (): Coin => {
+        return coin(this.gatewayBondingStake, this.stakeDenom)
+    }
+
+    /**
+     *  Announce a gateway, paying a fee.
+     */
+    async bondGateway(gateway: Gateway): Promise<ExecuteResult> {
+        const bond = this.minimumGatewayBond()
+        const result = await this.netClient.executeContract(this.address, this.contractAddress, { bond_gateway: { gateway: gateway } }, "adding gateway", [bond]);
+        console.log(`account ${this.address} added gateway with ${gateway.mix_host}`);
+        return result;
+    }
+
+    /**
+     * Unbond a gateway, removing it from the network and reclaiming staked coins
+     */
+    async unbondGateway(): Promise<ExecuteResult> {
+        const result = await this.netClient.executeContract(this.address, this.contractAddress, { unbond_gateway: {} })
+        console.log(`account ${this.address} unbonded gateway`);
+        return result;
+    }
 
 
     // TODO: if we just keep a reference to the SigningCosmWasmClient somewhere we can probably go direct
@@ -133,8 +187,5 @@ export default class ValidatorClient {
     public instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult> {
         return this.netClient.instantiate(senderAddress, codeId, initMsg, label, options);
     }
-
-
-
 }
 

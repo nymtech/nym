@@ -9,6 +9,8 @@ import { BroadcastTxResponse } from "@cosmjs/stargate/types"
 import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
 
 export { coins };
+export { Coin };
+
 export default class ValidatorClient {
     private readonly stakeDenom: string = "unym"
     private readonly gatewayBondingStake: number = 1000_000000

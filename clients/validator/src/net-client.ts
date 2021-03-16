@@ -1,15 +1,15 @@
-import { SigningCosmWasmClient, SigningCosmWasmClientOptions } from "@cosmjs/cosmwasm-stargate";
-import { MixNodeBond } from "./types"
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
-import { GasPrice } from "@cosmjs/launchpad";
-import { Coin } from "@cosmjs/launchpad"
-import { BroadcastTxResponse } from "@cosmjs/stargate/types"
-import { Options, nymGasLimits, defaultOptions } from "./stargate-helper"
-import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
+import {SigningCosmWasmClient, SigningCosmWasmClientOptions} from "@cosmjs/cosmwasm-stargate";
+import {GatewayBond, MixNodeBond} from "./types"
+import {DirectSecp256k1HdWallet} from "@cosmjs/proto-signing";
+import {Coin, GasPrice} from "@cosmjs/launchpad";
+import {BroadcastTxResponse} from "@cosmjs/stargate/types"
+import {defaultOptions, nymGasLimits, Options} from "./stargate-helper"
+import {ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult} from "@cosmjs/cosmwasm";
 
 export interface INetClient {
     getBalance(address: string): Promise<Coin | null>;
     getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedResponse>;
+    getGateways(contractAddress: string, limit: number, start_after?: string): Promise<PagedGatewayResponse>;
     executeContract(senderAddress: string, contractAddress: string, handleMsg: Record<string, unknown>, memo?: string, transferAmount?: readonly Coin[]): Promise<ExecuteResult>;
     instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult>;
     sendTokens(senderAddress: string, recipientAddress: string, transferAmount: readonly Coin[], memo?: string): Promise<BroadcastTxResponse>;
@@ -42,8 +42,7 @@ export default class NetClient implements INetClient {
         };
         const client = await SigningCosmWasmClient.connectWithSigner(options.httpUrl, wallet, signerOptions);
 
-        const netClient = new NetClient(address, client);
-        return netClient;
+        return new NetClient(address, client);
     }
 
     public getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedResponse> {
@@ -51,6 +50,14 @@ export default class NetClient implements INetClient {
             return this.cosmClient.queryContractSmart(contractAddress, { get_mix_nodes: { limit } });
         } else {
             return this.cosmClient.queryContractSmart(contractAddress, { get_mix_nodes: { limit, start_after } });
+        }
+    }
+
+    public getGateways(contractAddress: string, limit: number, start_after?: string): Promise<PagedGatewayResponse> {
+        if (start_after == undefined) { // TODO: check if we can take this out, I'm not sure what will happen if we send an "undefined" so I'm playing it safe here.
+            return this.cosmClient.queryContractSmart(contractAddress, { get_gateways: { limit } });
+        } else {
+            return this.cosmClient.queryContractSmart(contractAddress, { get_gateways: { limit, start_after } });
         }
     }
 
@@ -95,6 +102,14 @@ export default class NetClient implements INetClient {
 /// TODO: more robust error handling on the "deleted key" case.
 export type PagedResponse = {
     nodes: MixNodeBond[],
+    per_page: number, // TODO: camelCase
+    start_next_after: string, // TODO: camelCase
+}
+
+// a temporary way of achieving the same paging behaviour for the gateways
+// the same points made for `PagedResponse` stand here.
+export type PagedGatewayResponse = {
+    nodes: GatewayBond[],
     per_page: number, // TODO: camelCase
     start_next_after: string, // TODO: camelCase
 }

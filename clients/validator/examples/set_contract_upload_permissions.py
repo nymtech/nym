@@ -1,10 +1,12 @@
 #!/usr/bin/python
 import json
+import os
 
 # This script alters the genesis file so that only user account "dave"
 # can upload smart contracts.
 
-genesis_filename = "/home/dave/.nymd/config/genesis.json"
+home_dir = os.path.expanduser('~')
+genesis_filename = home_dir + "/.nymd/config/genesis.json"
 dave_address_filename = "./accounts/dave.address"
 
 with open(dave_address_filename, "r") as dave_address_file:

@@ -1,13 +1,12 @@
-import NetClient, {INetClient} from "./net-client";
-import {Gateway, GatewayBond, MixNode, MixNodeBond} from "./types";
-import * as fs from "fs";
-import {Bip39, Random} from "@cosmjs/crypto";
-import {DirectSecp256k1HdWallet} from "@cosmjs/proto-signing";
+import NetClient, { INetClient } from "./net-client";
+import { MixNode, MixNodeBond } from "./types";
+// import * as fs from "fs";
+import { Bip39, Random } from "@cosmjs/crypto";
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
-import {Coin, coins,  coin} from "@cosmjs/launchpad";
-import {BroadcastTxResponse} from "@cosmjs/stargate/types"
-import {ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult} from "@cosmjs/cosmwasm";
-import GatewaysCache from "./caches/gateways";
+import { Coin, coins } from "@cosmjs/launchpad";
+import { BroadcastTxResponse } from "@cosmjs/stargate/types"
+import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
 
 export { coins };
 export default class ValidatorClient {
@@ -40,20 +39,23 @@ export default class ValidatorClient {
     }
 
     /**
+     * TODO: re-enable this once we move back to client-side wallets running on people's machines
+     * instead of the web wallet. 
+     * 
      * Loads a named mnemonic from the system's keystore.
      *
      * @param keyPath the name of the key in the keystore
      * @returns the mnemonic as a string
      */
-    static loadMnemonic(keyPath: string): string {
-        try {
-            const mnemonic = fs.readFileSync(keyPath, "utf8");
-            return mnemonic.trim();
-        } catch (err) {
-            console.log(err);
-            return "fight with type system later";
-        }
-    }
+    // static loadMnemonic(keyPath: string): string {
+    //     try {
+    //         const mnemonic = fs.readFileSync(keyPath, "utf8");
+    //         return mnemonic.trim();
+    //     } catch (err) {
+    //         console.log(err);
+    //         return "fight with type system later";
+    //     }
+    // }
 
     /**
      * Generates a random mnemonic, useful for creating new accounts.

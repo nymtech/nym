@@ -14,3 +14,18 @@ export type MixNode = {
     sphinx_key: string, // TODO: camelCase this later once everything else works
     version: string,
 }
+
+export type GatewayBond = {
+    owner: string
+    gateway: Gateway,
+    amount: Coin[],
+}
+
+export type Gateway = {
+    mix_host: string,
+    clients_host: string,
+    location: string,
+    sphinx_key: string,
+    identity_key: string,
+    version: string
+}

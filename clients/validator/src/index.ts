@@ -1,15 +1,18 @@
 import NetClient, { INetClient } from "./net-client";
-import { MixNode, MixNodeBond } from "./types";
+import { Gateway, GatewayBond, MixNode, MixNodeBond } from "./types";
 // import * as fs from "fs";
 import { Bip39, Random } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
-import { Coin, coins } from "@cosmjs/launchpad";
+import { coin, Coin, coins } from "@cosmjs/launchpad";
 import { BroadcastTxResponse } from "@cosmjs/stargate/types"
 import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
+import { CoinMap, displayAmountToNative, MappedCoin, nativeCoinToDisplay, printableBalance, printableCoin } from "./currency";
+import GatewaysCache from "./caches/gateways";
 
 export { coins };
 export { Coin };
+export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBalance, MappedCoin, CoinMap }
 
 export default class ValidatorClient {
     private readonly stakeDenom: string = "unym"
@@ -124,7 +127,7 @@ export default class ValidatorClient {
         console.log(`account ${this.address} unbonded mixnode`);
         return result;
     }
-    
+
     /**
      * Get or refresh the list of gateways in the network.
      *

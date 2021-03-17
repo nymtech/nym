@@ -1,12 +1,9 @@
 use cosmwasm_std::{Coin, HumanAddr};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
-#[cfg(target_arch = "wasm32")]
-use schemars::JsonSchema;
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[cfg_attr(target_arch = "wasm32", derive(JsonSchema))]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNode {
     pub(crate) host: String,
     pub(crate) layer: u64,
@@ -15,8 +12,7 @@ pub struct MixNode {
     pub(crate) version: String,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[cfg_attr(target_arch = "wasm32", derive(JsonSchema))]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
     pub(crate) amount: Vec<Coin>,
     pub(crate) owner: HumanAddr,
@@ -55,8 +51,7 @@ impl Display for MixNodeBond {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[cfg_attr(target_arch = "wasm32", derive(JsonSchema))]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct Gateway {
     pub(crate) mix_host: String,
     pub(crate) clients_host: String,
@@ -67,8 +62,7 @@ pub struct Gateway {
     pub(crate) version: String,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[cfg_attr(target_arch = "wasm32", derive(JsonSchema))]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct GatewayBond {
     pub(crate) amount: Vec<Coin>,
     pub(crate) owner: HumanAddr,

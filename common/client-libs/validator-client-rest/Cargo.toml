@@ -1,7 +1,7 @@
 [package]
 name = "validator-client-rest"
 version = "0.1.0"
-authors = ["Jędrzej Stuczyński <jedrzej.stuczynski@gmail.com>"]
+authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -13,5 +13,3 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 reqwest = { version = "0.11", features = ["json"] }
 
-[dev-dependencies]
-tokio = { version = "1", features = ["full"] }

@@ -1,8 +1,39 @@
-use mixnet_contract::{HumanAddr, PagedGatewayResponse, PagedResponse};
-use reqwest::Method;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Deserializer, Serialize};
-use std::str::FromStr;
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::models::{QueryRequest, QueryResponse};
+use crate::ValidatorClientError::ValidatorError;
+use core::fmt::{self, Display, Formatter};
+use mixnet_contract::{GatewayBond, HumanAddr, MixNodeBond, PagedGatewayResponse, PagedResponse};
+use serde::Deserialize;
+
+mod models;
+pub(crate) mod serde_helpers;
+
+#[derive(Debug)]
+pub enum ValidatorClientError {
+    ReqwestClientError(reqwest::Error),
+    ValidatorError(String),
+}
+
+impl From<reqwest::Error> for ValidatorClientError {
+    fn from(err: reqwest::Error) -> Self {
+        ValidatorClientError::ReqwestClientError(err)
+    }
+}
+
+impl Display for ValidatorClientError {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            ValidatorClientError::ReqwestClientError(err) => {
+                write!(f, "there was an issue with the REST request - {}", err)
+            }
+            ValidatorClientError::ValidatorError(err) => {
+                write!(f, "there was an issue with the validator client - {}", err)
+            }
+        }
+    }
+}
 
 pub struct Config {
     rpc_server_base_url: String,
@@ -53,115 +84,90 @@ impl Client {
         )
     }
 
-    async fn get_mix_nodes_paged(&self, start_after: Option<HumanAddr>) {
+    async fn query_validator<T>(&self, query: String) -> Result<T, ValidatorClientError>
+    where
+        for<'a> T: Deserialize<'a>,
+    {
+        let query_url = format!("{}/{}?encoding=base64", self.base_query_path(), query);
+
+        let query_response: QueryResponse<T> = self
+            .reqwest_client
+            .get(query_url)
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        match query_response {
+            QueryResponse::Ok(smart_res) => Ok(smart_res.result.smart),
+            QueryResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+            QueryResponse::CodedError(err) => Err(ValidatorError(format!("{}", err))),
+        }
+    }
+
+    async fn get_mix_nodes_paged(
+        &self,
+        start_after: Option<HumanAddr>,
+    ) -> Result<PagedResponse, ValidatorClientError> {
         let query_content_json = serde_json::to_string(&QueryRequest::GetMixNodes {
             limit: self.config.mixnode_page_limit,
             start_after,
         })
         .expect("serde was incorrectly implemented on QueryRequest::GetMixNodes!");
 
-        println!("req json: {}", query_content_json);
-
+        // we need to encode our json request
         let query_content = base64::encode(query_content_json);
 
-        let query_url = format!(
-            "{}/{}?encoding=base64",
-            self.base_query_path(),
-            query_content
-        );
-
-        let res = self.reqwest_client.get(query_url).send().await;
-
-        println!("{:?}", res);
-        let a: SmartQueryResult<PagedResponse> = res.unwrap().json().await.unwrap();
-        // let a = res.unwrap().text().await.unwrap();
-        // let foo: SmartQueryResult = serde_json::from_str(&a).unwrap();
-        println!("got {:?}", a)
-        // let mut req_builder = self.reqwest_client.request(Method::GET)
+        self.query_validator(query_content).await
     }
 
-    pub async fn get_mix_nodes(&self) {}
+    pub async fn get_mix_nodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
+        let mut mixnodes = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self.get_mix_nodes_paged(start_after.take()).await?;
+            mixnodes.append(&mut paged_response.nodes);
 
-    async fn get_gateways_paged(&self) {}
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
 
-    pub async fn get_gateways(&self) {}
-}
+        Ok(mixnodes)
+    }
 
-// TODO: this is really a duplicate code but it really does not feel
-// like it belongs in the common crate because it's TOO contract specific...
-// I'm not entirely sure what to do about it now.
-#[derive(Serialize)]
-#[serde(rename_all = "snake_case")]
-enum QueryRequest {
-    GetMixNodes {
-        limit: Option<u32>,
+    async fn get_gateways_paged(
+        &self,
         start_after: Option<HumanAddr>,
-    },
-    GetGateways {
-        start_after: Option<HumanAddr>,
-        limit: Option<u32>,
-    },
-}
+    ) -> Result<PagedGatewayResponse, ValidatorClientError> {
+        let query_content_json = serde_json::to_string(&QueryRequest::GetGateways {
+            limit: self.config.gateway_page_limit,
+            start_after,
+        })
+        .expect("serde was incorrectly implemented on QueryRequest::GetGateways!");
 
-// #[derive(Deserialize, Debug)]
-// #[serde(untagged)]
-// enum QueryResponse {
-//     MixNodes(PagedResponse),
-//     Gateways(PagedGatewayResponse),
-// }
+        // we need to encode our json request
+        let query_content = base64::encode(query_content_json);
 
-#[derive(Deserialize, Debug)]
-#[serde(bound = "for<'a> T: Deserialize<'a>")]
-struct SmartResult<T>
-where
-    for<'a> T: Deserialize<'a>,
-{
-    #[serde(deserialize_with = "de_paged_query_response_from_str")]
-    smart: T,
-}
+        self.query_validator(query_content).await
+    }
 
-#[derive(Deserialize, Debug)]
-#[serde(bound = "for<'a> T: Deserialize<'a>")]
-struct SmartQueryResult<T>
-where
-    for<'a> T: Deserialize<'a>,
-{
-    #[serde(deserialize_with = "de_i64_from_str")]
-    height: i64,
-    result: SmartResult<T>,
-}
+    pub async fn get_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+        let mut gateways = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self.get_gateways_paged(start_after.take()).await?;
+            gateways.append(&mut paged_response.nodes);
 
-fn de_paged_query_response_from_str<'de, D, T>(deserializer: D) -> Result<T, D::Error>
-where
-    D: Deserializer<'de>,
-    T: DeserializeOwned,
-{
-    let s = String::deserialize(deserializer)?;
-    let b64_decoded = base64::decode(&s).map_err(serde::de::Error::custom)?;
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
 
-    let json_string = String::from_utf8(b64_decoded).map_err(serde::de::Error::custom)?;
-    serde_json::from_str(&json_string).map_err(serde::de::Error::custom)
-}
-
-fn de_i64_from_str<'de, D>(deserializer: D) -> Result<i64, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s = String::deserialize(deserializer)?;
-    i64::from_str(&s).map_err(serde::de::Error::custom)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn foo() {
-        let base_url = "http://localhost:1317";
-        let contract = "nym10pyejy66429refv3g35g2t7am0was7ya69su6d";
-
-        let client = Client::new(Config::new(base_url, contract));
-
-        client.get_mix_nodes_paged(None).await;
+        Ok(gateways)
     }
 }

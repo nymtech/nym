@@ -205,14 +205,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 #[cfg(test)]
 pub mod tests {
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary};
-
-    use crate::queries::{PagedGatewayResponse, PagedResponse};
+    use super::*;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::*;
-
-    use super::*;
+    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::{coins, from_binary};
+    use mixnet_contract::{PagedGatewayResponse, PagedResponse};
 
     #[test]
     fn initialize_contract() {
@@ -293,7 +291,7 @@ pub mod tests {
         .unwrap();
         let page: PagedResponse = from_binary(&query_response).unwrap();
         assert_eq!(1, page.nodes.len());
-        assert_eq!(helpers::mix_node_fixture(), page.nodes[0].mix_node())
+        assert_eq!(&helpers::mix_node_fixture(), page.nodes[0].mix_node())
 
         // adding another node from another account, but with the same IP, should fail (or we would have a weird state). Is that right? Think about this, not sure yet.
         // if we attempt to register a second node from the same address, should we get an error? It would probably be polite.
@@ -379,7 +377,7 @@ pub mod tests {
         // only 1 node now exists, owned by bob:
         let mix_node_bonds = helpers::get_mix_nodes(&mut deps);
         assert_eq!(1, mix_node_bonds.len());
-        assert_eq!("bob", mix_node_bonds[0].owner);
+        assert_eq!("bob", mix_node_bonds[0].owner());
     }
 
     fn good_gateway_stake() -> Vec<Coin> {
@@ -481,7 +479,7 @@ pub mod tests {
         .unwrap();
         let page: PagedGatewayResponse = from_binary(&query_response).unwrap();
         assert_eq!(1, page.nodes.len());
-        assert_eq!(helpers::gateway_fixture(), page.nodes[0].gateway());
+        assert_eq!(&helpers::gateway_fixture(), page.nodes[0].gateway());
 
         // if there was already a gateway bonded by particular user
         let info = mock_info("foomper", &good_gateway_stake());
@@ -545,7 +543,7 @@ pub mod tests {
         assert_eq!(1, nodes.len());
 
         let first_node = &nodes[0];
-        assert_eq!("bob", first_node.owner);
+        assert_eq!("bob", first_node.owner());
 
         // add a node owned by fred
         let fred_bond = good_gateway_stake();
@@ -585,6 +583,6 @@ pub mod tests {
         // only 1 node now exists, owned by bob:
         let gateway_bonds = helpers::get_gateways(&mut deps);
         assert_eq!(1, gateway_bonds.len());
-        assert_eq!("bob", gateway_bonds[0].owner);
+        assert_eq!("bob", gateway_bonds[0].owner());
     }
 }

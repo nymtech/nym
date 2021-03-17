@@ -12,6 +12,24 @@ pub struct MixNode {
     pub(crate) version: String,
 }
 
+impl MixNode {
+    pub fn new(
+        host: String,
+        layer: u64,
+        location: String,
+        sphinx_key: String,
+        version: String,
+    ) -> Self {
+        MixNode {
+            host,
+            layer,
+            location,
+            sphinx_key,
+            version,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
     pub(crate) amount: Vec<Coin>,
@@ -60,6 +78,26 @@ pub struct Gateway {
     /// Base58 encoded ed25519 EdDSA public key of the gateway used to derive shared keys with clients
     pub(crate) identity_key: String,
     pub(crate) version: String,
+}
+
+impl Gateway {
+    pub fn new(
+        mix_host: String,
+        clients_host: String,
+        location: String,
+        sphinx_key: String,
+        identity_key: String,
+        version: String,
+    ) -> Self {
+        Gateway {
+            mix_host,
+            clients_host,
+            location,
+            sphinx_key,
+            identity_key,
+            version,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]

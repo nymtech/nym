@@ -5,19 +5,10 @@ use cosmwasm_std::HumanAddr;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
 use cosmwasm_storage::bucket_read;
-use mixnet_contract::{GatewayBond, MixNodeBond};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use mixnet_contract::{GatewayBond, MixNodeBond, PagedGatewayResponse, PagedResponse};
 
 const MAX_LIMIT: u32 = 30;
 const DEFAULT_LIMIT: u32 = 10;
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct PagedResponse {
-    pub nodes: Vec<MixNodeBond>,
-    pub per_page: usize,
-    pub start_next_after: Option<HumanAddr>,
-}
 
 pub fn query_mixnodes_paged(
     deps: Deps,
@@ -38,19 +29,8 @@ pub fn query_mixnodes_paged(
         .collect::<Vec<_>>();
     let start_next_after = last_node_owner(&nodes);
 
-    let response = PagedResponse {
-        nodes,
-        per_page: limit,
-        start_next_after,
-    };
+    let response = PagedResponse::new(nodes, limit, start_next_after);
     Ok(response)
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct PagedGatewayResponse {
-    pub(crate) nodes: Vec<GatewayBond>,
-    pub(crate) per_page: usize,
-    pub(crate) start_next_after: Option<HumanAddr>,
 }
 
 pub(crate) fn query_gateways_paged(
@@ -69,11 +49,7 @@ pub(crate) fn query_gateways_paged(
 
     let start_next_after = nodes.last().map(|node| node.owner().clone());
 
-    Ok(PagedGatewayResponse {
-        nodes,
-        per_page: limit,
-        start_next_after,
-    })
+    Ok(PagedGatewayResponse::new(nodes, limit, start_next_after))
 }
 
 /// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm

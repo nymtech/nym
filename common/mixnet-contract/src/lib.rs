@@ -104,3 +104,45 @@ impl Display for GatewayBond {
         }
     }
 }
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct PagedResponse {
+    pub nodes: Vec<MixNodeBond>,
+    pub per_page: usize,
+    pub start_next_after: Option<HumanAddr>,
+}
+
+impl PagedResponse {
+    pub fn new(
+        nodes: Vec<MixNodeBond>,
+        per_page: usize,
+        start_next_after: Option<HumanAddr>,
+    ) -> Self {
+        PagedResponse {
+            nodes,
+            per_page,
+            start_next_after,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct PagedGatewayResponse {
+    pub nodes: Vec<GatewayBond>,
+    pub per_page: usize,
+    pub start_next_after: Option<HumanAddr>,
+}
+
+impl PagedGatewayResponse {
+    pub fn new(
+        nodes: Vec<GatewayBond>,
+        per_page: usize,
+        start_next_after: Option<HumanAddr>,
+    ) -> Self {
+        PagedGatewayResponse {
+            nodes,
+            per_page,
+            start_next_after,
+        }
+    }
+}

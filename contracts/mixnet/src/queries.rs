@@ -1,10 +1,11 @@
 // settings for pagination
-use crate::state::{gateways_read, GatewayBond, MixNodeBond, PREFIX_MIXNODES};
+use crate::state::{gateways_read, PREFIX_MIXNODES};
 use cosmwasm_std::Deps;
 use cosmwasm_std::HumanAddr;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
 use cosmwasm_storage::bucket_read;
+use mixnet_contract::{GatewayBond, MixNodeBond};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -66,7 +67,7 @@ pub(crate) fn query_gateways_paged(
         .map(|res| res.map(|item| item.1))
         .collect::<StdResult<Vec<GatewayBond>>>()?;
 
-    let start_next_after = nodes.last().map(|node| node.owner.clone());
+    let start_next_after = nodes.last().map(|node| node.owner().clone());
 
     Ok(PagedGatewayResponse {
         nodes,
@@ -90,7 +91,7 @@ fn calculate_start_value(
 fn last_node_owner(nodes: &[MixNodeBond]) -> Option<HumanAddr> {
     match nodes.last() {
         None => None,
-        Some(node) => Some(node.owner.clone()),
+        Some(node) => Some(node.owner().clone()),
     }
 }
 

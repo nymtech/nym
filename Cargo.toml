@@ -30,6 +30,7 @@ members = [
     "common/client-libs/validator-client",
     "common/config",
     "common/crypto",
+    "common/mixnet-contract",
     "common/mixnode-common",
     "common/nonexhaustive-delayqueue",
     "common/nymsphinx",

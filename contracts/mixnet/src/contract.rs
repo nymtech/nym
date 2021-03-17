@@ -1,14 +1,12 @@
+use crate::msg::{HandleMsg, InitMsg, QueryMsg};
+use crate::queries::{query_gateways_paged, query_mixnodes_paged};
+use crate::state::{config, gateways, gateways_read, State};
+use crate::{error::ContractError, state::mixnodes, state::mixnodes_read};
 use cosmwasm_std::{
     attr, coins, to_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, HandleResponse,
     InitResponse, MessageInfo, StdResult, Uint128,
 };
-
-use crate::msg::{HandleMsg, InitMsg, QueryMsg};
-use crate::queries::{query_gateways_paged, query_mixnodes_paged};
-use crate::state::{
-    config, gateways, gateways_read, Gateway, GatewayBond, MixNode, MixNodeBond, State,
-};
-use crate::{error::ContractError, state::mixnodes, state::mixnodes_read};
+use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond};
 
 /// Constant specifying minimum of `unym` required to bond a gateway
 const GATEWAY_BONDING_STAKE: Uint128 = Uint128(1000_000000); // 1000 nym
@@ -63,11 +61,7 @@ pub fn try_add_mixnode(
         return Err(ContractError::InsufficientMixNodeBond {});
     }
 
-    let bond = MixNodeBond {
-        amount: info.sent_funds,
-        owner: info.sender.clone(),
-        mix_node,
-    };
+    let bond = MixNodeBond::new(info.sent_funds, info.sender.clone(), mix_node);
 
     mixnodes(deps.storage).save(info.sender.as_bytes(), &bond)?;
     Ok(HandleResponse::default())
@@ -88,7 +82,7 @@ fn try_remove_mixnode(
     let messages = vec![BankMsg::Send {
         from_address: env.contract.address,
         to_address: info.sender.clone(),
-        amount: mixnode_bond.amount.clone(),
+        amount: mixnode_bond.amount().to_vec(),
     }
     .into()];
 
@@ -177,7 +171,7 @@ fn try_remove_gateway(
     let messages = vec![BankMsg::Send {
         from_address: env.contract.address,
         to_address: info.sender.clone(),
-        amount: gateway_bond.amount.clone(),
+        amount: gateway_bond.amount().to_vec(),
     }
     .into()];
 
@@ -299,10 +293,7 @@ pub mod tests {
         .unwrap();
         let page: PagedResponse = from_binary(&query_response).unwrap();
         assert_eq!(1, page.nodes.len());
-        assert_eq!(
-            helpers::mix_node_fixture().location,
-            page.nodes[0].mix_node.location
-        )
+        assert_eq!(helpers::mix_node_fixture(), page.nodes[0].mix_node())
 
         // adding another node from another account, but with the same IP, should fail (or we would have a weird state). Is that right? Think about this, not sure yet.
         // if we attempt to register a second node from the same address, should we get an error? It would probably be polite.
@@ -346,7 +337,7 @@ pub mod tests {
         let page: PagedResponse = from_binary(&res).unwrap();
         let first_node = &page.nodes[0];
         assert_eq!(1, page.nodes.len());
-        assert_eq!("bob", first_node.owner);
+        assert_eq!("bob", first_node.owner());
 
         // add a node owned by fred
         let fred_bond = coins(1666_000000, "unym");
@@ -490,7 +481,7 @@ pub mod tests {
         .unwrap();
         let page: PagedGatewayResponse = from_binary(&query_response).unwrap();
         assert_eq!(1, page.nodes.len());
-        assert_eq!(helpers::gateway_fixture(), page.nodes[0].gateway);
+        assert_eq!(helpers::gateway_fixture(), page.nodes[0].gateway());
 
         // if there was already a gateway bonded by particular user
         let info = mock_info("foomper", &good_gateway_stake());

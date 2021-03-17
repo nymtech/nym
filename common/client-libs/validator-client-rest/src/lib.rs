@@ -1,5 +1,6 @@
 use mixnet_contract::{HumanAddr, PagedGatewayResponse, PagedResponse};
 use reqwest::Method;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::str::FromStr;
 
@@ -72,7 +73,7 @@ impl Client {
         let res = self.reqwest_client.get(query_url).send().await;
 
         println!("{:?}", res);
-        let a: SmartQueryResult = res.unwrap().json().await.unwrap();
+        let a: SmartQueryResult<PagedResponse> = res.unwrap().json().await.unwrap();
         // let a = res.unwrap().text().await.unwrap();
         // let foo: SmartQueryResult = serde_json::from_str(&a).unwrap();
         println!("got {:?}", a)
@@ -102,29 +103,38 @@ enum QueryRequest {
     },
 }
 
+// #[derive(Deserialize, Debug)]
+// #[serde(untagged)]
+// enum QueryResponse {
+//     MixNodes(PagedResponse),
+//     Gateways(PagedGatewayResponse),
+// }
+
 #[derive(Deserialize, Debug)]
-#[serde(untagged)]
-enum QueryResponse {
-    MixNodes(PagedResponse),
-    Gateways(PagedGatewayResponse),
+#[serde(bound = "for<'a> T: Deserialize<'a>")]
+struct SmartResult<T>
+where
+    for<'a> T: Deserialize<'a>,
+{
+    #[serde(deserialize_with = "de_paged_query_response_from_str")]
+    smart: T,
 }
 
 #[derive(Deserialize, Debug)]
-struct SmartResult {
-    #[serde(deserialize_with = "de_query_response_from_str")]
-    smart: QueryResponse,
-}
-
-#[derive(Deserialize, Debug)]
-struct SmartQueryResult {
+#[serde(bound = "for<'a> T: Deserialize<'a>")]
+struct SmartQueryResult<T>
+where
+    for<'a> T: Deserialize<'a>,
+{
     #[serde(deserialize_with = "de_i64_from_str")]
     height: i64,
-    result: SmartResult,
+    result: SmartResult<T>,
 }
 
-fn de_query_response_from_str<'de, D>(deserializer: D) -> Result<QueryResponse, D::Error>
+fn de_paged_query_response_from_str<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
     D: Deserializer<'de>,
+    T: DeserializeOwned,
 {
     let s = String::deserialize(deserializer)?;
     let b64_decoded = base64::decode(&s).map_err(serde::de::Error::custom)?;

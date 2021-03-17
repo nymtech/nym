@@ -7,8 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# using 4.0.0 release candidate as it's faster than 3.X and more importantly it resolves edge cases deadlocks
-dashmap = "4.0.0-rc6"
+dashmap = "4.0"
 futures = "0.3"
 log = "0.4"
 nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }

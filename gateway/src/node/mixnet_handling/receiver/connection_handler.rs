@@ -90,7 +90,11 @@ impl ConnectionHandler {
     }
 
     fn remove_stale_client_sender(&self, client_address: &DestinationAddressBytes) {
-        if !self.available_socket_senders_cache.remove(client_address) {
+        if self
+            .available_socket_senders_cache
+            .remove(client_address)
+            .is_none()
+        {
             warn!(
                 "Tried to remove stale entry for non-existent client sender: {}",
                 client_address
@@ -134,6 +138,7 @@ impl ConnectionHandler {
         if self
             .available_socket_senders_cache
             .insert(client_address, client_sender.clone())
+            .is_some()
         {
             // this warning is harmless, but I want to see if it's realistically for it to even occur
             warn!("Other thread already updated cache for client sender!")

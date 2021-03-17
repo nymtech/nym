@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use dashmap::{DashMap, ElementGuard};
+use dashmap::mapref::one::Ref;
+use dashmap::DashMap;
 use futures::channel::mpsc;
 use log::*;
 use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
@@ -67,7 +68,7 @@ impl KeyCache {
 
     pub(super) fn insert(&self, key: SharedSecret, cached_keys: CachedKeys) -> bool {
         trace!("inserting {:?} into the cache", key);
-        let insertion_result = self.vpn_key_cache.insert(key, cached_keys);
+        let insertion_result = self.vpn_key_cache.insert(key, cached_keys).is_some();
         if !insertion_result {
             debug!("{:?} was put into the cache", key);
             // this shouldn't really happen, but don't insert entry to invalidator if it was already
@@ -80,7 +81,7 @@ impl KeyCache {
     }
 
     // ElementGuard has Deref for CachedKeys so that's fine
-    pub(super) fn get(&self, key: &SharedSecret) -> Option<ElementGuard<SharedSecret, CachedKeys>> {
+    pub(super) fn get(&self, key: &SharedSecret) -> Option<Ref<SharedSecret, CachedKeys>> {
         self.vpn_key_cache.get(key)
     }
 
@@ -136,7 +137,11 @@ impl CacheInvalidator {
             expired_entry.get_ref()
         );
 
-        if !self.vpn_key_cache.remove(&expired_entry.into_inner()) {
+        if self
+            .vpn_key_cache
+            .remove(&expired_entry.into_inner())
+            .is_none()
+        {
             error!("Tried to remove vpn cache entry for non-existent key!")
         }
     }

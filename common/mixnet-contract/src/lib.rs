@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, HumanAddr};
+pub use cosmwasm_std::{Coin, HumanAddr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;

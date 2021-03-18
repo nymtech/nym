@@ -92,10 +92,6 @@ fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
         pathfinder.public_identity_key().to_owned(),
     ))
     .expect("Failed to read stored identity key files");
-    println!(
-        "Public identity key: {}\n",
-        identity_keypair.public_key().to_base58_string()
-    );
     identity_keypair
 }
 
@@ -105,10 +101,6 @@ fn load_sphinx_keys(pathfinder: &MixNodePathfinder) -> encryption::KeyPair {
         pathfinder.public_encryption_key().to_owned(),
     ))
     .expect("Failed to read stored sphinx key files");
-    println!(
-        "Public sphinx key: {}\n",
-        sphinx_keypair.public_key().to_base58_string()
-    );
     sphinx_keypair
 }
 
@@ -176,6 +168,23 @@ pub fn execute(matches: &ArgMatches) {
     println!(
         "Announcing the following socket address: {}",
         config.get_announce_address()
+    );
+
+    println!(
+        "\nTo bond your mixnode you will need to provide the following:
+    Identity key: {}
+    Sphinx key: {}
+    Host: {}
+    Layer: {}
+    Location: {}
+    Version: {}
+    ",
+        identity_keypair.public_key().to_base58_string(),
+        sphinx_keypair.public_key().to_base58_string(),
+        config.get_announce_address(),
+        config.get_layer(),
+        config.get_location(),
+        config.get_version(),
     );
 
     MixNode::new(config, identity_keypair, sphinx_keypair).run();

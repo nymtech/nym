@@ -6,9 +6,6 @@ pub mod helpers {
     use crate::contract::{init, try_add_gateway};
     use crate::msg::InitMsg;
     use crate::msg::QueryMsg;
-    use crate::queries::{PagedGatewayResponse, PagedResponse};
-    use crate::state::MixNodeBond;
-    use crate::state::{Gateway, GatewayBond, MixNode};
     use cosmwasm_std::coins;
     use cosmwasm_std::from_binary;
     use cosmwasm_std::testing::mock_dependencies;
@@ -21,6 +18,9 @@ pub mod helpers {
     use cosmwasm_std::HumanAddr;
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::{Empty, MemoryStorage};
+    use mixnet_contract::{
+        Gateway, GatewayBond, MixNode, MixNodeBond, PagedGatewayResponse, PagedResponse,
+    };
 
     pub fn add_mixnode(
         pubkey: &str,
@@ -84,55 +84,47 @@ pub mod helpers {
     }
 
     pub fn mix_node_fixture() -> MixNode {
-        MixNode {
-            host: "mix.node.org".to_string(),
-            layer: 1,
-            location: "Sweden".to_string(),
-            sphinx_key: "sphinx".to_string(),
-            version: "0.10.0".to_string(),
-        }
+        MixNode::new(
+            "mix.node.org".to_string(),
+            1,
+            "Sweden".to_string(),
+            "sphinx".to_string(),
+            "0.10.0".to_string(),
+        )
     }
 
     pub fn mixnode_bond_fixture() -> MixNodeBond {
-        let mix_node = MixNode {
-            host: "1.1.1.1".to_string(),
-            layer: 1,
-            location: "London".to_string(),
-            sphinx_key: "1234".to_string(),
-            version: "0.10.0".to_string(),
-        };
-        MixNodeBond {
-            amount: coins(50, "unym"),
-            owner: HumanAddr::from("foo"),
-            mix_node,
-        }
+        let mix_node = MixNode::new(
+            "1.1.1.1".to_string(),
+            1,
+            "London".to_string(),
+            "1234".to_string(),
+            "0.10.0".to_string(),
+        );
+        MixNodeBond::new(coins(50, "unym"), HumanAddr::from("foo"), mix_node)
     }
 
     pub fn gateway_fixture() -> Gateway {
-        Gateway {
-            mix_host: "1.1.1.1:1234".to_string(),
-            clients_host: "ws://1.1.1.1:1235".to_string(),
-            location: "Sweden".to_string(),
-            sphinx_key: "sphinx".to_string(),
-            identity_key: "identity".to_string(),
-            version: "0.10.0".to_string(),
-        }
+        Gateway::new(
+            "1.1.1.1:1234".to_string(),
+            "ws://1.1.1.1:1235".to_string(),
+            "Sweden".to_string(),
+            "sphinx".to_string(),
+            "identity".to_string(),
+            "0.10.0".to_string(),
+        )
     }
 
     pub fn gateway_bond_fixture() -> GatewayBond {
-        let gateway = Gateway {
-            mix_host: "1.1.1.1:1234".to_string(),
-            clients_host: "ws://1.1.1.1:1235".to_string(),
-            location: "London".to_string(),
-            sphinx_key: "sphinx".to_string(),
-            identity_key: "identity".to_string(),
-            version: "0.10.0".to_string(),
-        };
-        GatewayBond {
-            amount: coins(50, "unym"),
-            owner: HumanAddr::from("foo"),
-            gateway,
-        }
+        let gateway = Gateway::new(
+            "1.1.1.1:1234".to_string(),
+            "ws://1.1.1.1:1235".to_string(),
+            "London".to_string(),
+            "sphinx".to_string(),
+            "identity".to_string(),
+            "0.10.0".to_string(),
+        );
+        GatewayBond::new(coins(50, "unym"), HumanAddr::from("foo"), gateway)
     }
 
     pub fn query_contract_balance(

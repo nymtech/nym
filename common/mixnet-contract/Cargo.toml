@@ -1,0 +1,12 @@
+[package]
+name = "mixnet-contract"
+version = "0.1.0"
+authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cosmwasm-std = { version = "0.13.2" }
+serde = { version = "1.0", features = ["derive"] }
+schemars = "0.7"

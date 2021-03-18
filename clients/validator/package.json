@@ -30,11 +30,11 @@
     "typescript": "^4.1.3"
   },
   "dependencies": {
-    "@cosmjs/cosmwasm": "^0.24.0-alpha.18",
-    "@cosmjs/cosmwasm-stargate": "^0.24.0-alpha.18",
-    "@cosmjs/crypto": "^0.24.0-alpha.18",
-    "@cosmjs/launchpad": "^0.24.0-alpha.18",
-    "@cosmjs/proto-signing": "^0.24.0-alpha.18",
-    "@cosmjs/math": "^0.24.0-alpha.18"
+    "@cosmjs/cosmwasm": "^0.24.1",
+    "@cosmjs/cosmwasm-stargate": "^0.24.1",
+    "@cosmjs/crypto": "^0.24.1",
+    "@cosmjs/launchpad": "^0.24.1",
+    "@cosmjs/proto-signing": "^0.24.1",
+    "@cosmjs/math": "^0.24.1"
   }
 }

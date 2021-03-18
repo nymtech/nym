@@ -89,6 +89,7 @@ pub mod helpers {
             1,
             "Sweden".to_string(),
             "sphinx".to_string(),
+            "identity".to_string(),
             "0.10.0".to_string(),
         )
     }
@@ -99,6 +100,7 @@ pub mod helpers {
             1,
             "London".to_string(),
             "1234".to_string(),
+            "aaaa".to_string(),
             "0.10.0".to_string(),
         );
         MixNodeBond::new(coins(50, "unym"), HumanAddr::from("foo"), mix_node)

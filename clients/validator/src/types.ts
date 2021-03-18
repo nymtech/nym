@@ -12,6 +12,7 @@ export type MixNode = {
     layer: number,
     location: string,
     sphinx_key: string, // TODO: camelCase this later once everything else works
+    identity_key: string,
     version: string,
 }
 

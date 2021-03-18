@@ -9,6 +9,8 @@ pub struct MixNode {
     pub(crate) layer: u64,
     pub(crate) location: String,
     pub(crate) sphinx_key: String,
+    /// Base58 encoded ed25519 EdDSA public key.
+    pub(crate) identity_key: String,
     pub(crate) version: String,
 }
 
@@ -18,6 +20,7 @@ impl MixNode {
         layer: u64,
         location: String,
         sphinx_key: String,
+        identity_key: String,
         version: String,
     ) -> Self {
         MixNode {
@@ -25,6 +28,7 @@ impl MixNode {
             layer,
             location,
             sphinx_key,
+            identity_key,
             version,
         }
     }

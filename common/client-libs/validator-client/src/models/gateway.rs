@@ -133,7 +133,6 @@ impl TryInto<topology::gateway::Node> for RegisteredGateway {
                 self.gateway_info.node_info.sphinx_key,
             )?,
             registration_time: self.registration_time,
-            reputation: self.reputation,
             version: self.gateway_info.node_info.version,
         })
     }
@@ -154,7 +153,6 @@ impl<'a> TryInto<topology::gateway::Node> for &'a RegisteredGateway {
                 &self.gateway_info.node_info.sphinx_key,
             )?,
             registration_time: self.registration_time,
-            reputation: self.reputation,
             version: self.gateway_info.node_info.version.clone(),
         })
     }

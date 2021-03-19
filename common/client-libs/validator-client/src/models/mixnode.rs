@@ -143,7 +143,6 @@ impl TryInto<topology::mix::Node> for RegisteredMix {
             )?,
             layer: self.mix_info.layer,
             registration_time: self.registration_time,
-            reputation: self.reputation,
             version: self.mix_info.node_info.version,
         })
     }
@@ -164,7 +163,6 @@ impl<'a> TryInto<topology::mix::Node> for &'a RegisteredMix {
             )?,
             layer: self.mix_info.layer,
             registration_time: self.registration_time,
-            reputation: self.reputation,
             version: self.mix_info.node_info.version.clone(),
         })
     }

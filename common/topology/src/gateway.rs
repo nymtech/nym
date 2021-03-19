@@ -27,7 +27,6 @@ pub struct Node {
     pub identity_key: identity::PublicKey,
     pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
     pub registration_time: i64,
-    pub reputation: i64,
     pub version: String,
 }
 

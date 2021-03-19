@@ -1,7 +1,7 @@
 use cosmwasm_std::{Coin, HumanAddr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 use std::fmt::Display;
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};

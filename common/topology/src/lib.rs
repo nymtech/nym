@@ -209,8 +209,6 @@ mod converting_mixes_to_vec {
                 )
                 .unwrap(),
                 layer: 1,
-                registration_time: 123,
-                reputation: 0,
                 version: "0.x.0".to_string(),
             };
 

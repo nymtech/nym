@@ -225,9 +225,7 @@ mod message_receiver {
                 )
                 .unwrap(),
                 layer: 1,
-                registration_time: 1594812897745695000,
                 version: "0.8.0-dev".to_string(),
-                reputation: 100,
             }],
         );
 
@@ -245,9 +243,7 @@ mod message_receiver {
                 )
                 .unwrap(),
                 layer: 2,
-                registration_time: 1594812897745695000,
                 version: "0.8.0-dev".to_string(),
-                reputation: 100,
             }],
         );
 
@@ -265,9 +261,7 @@ mod message_receiver {
                 )
                 .unwrap(),
                 layer: 3,
-                registration_time: 1594812897745695000,
                 version: "0.8.0-dev".to_string(),
-                reputation: 100,
             }],
         );
 
@@ -286,8 +280,6 @@ mod message_receiver {
                     "EB42xvMFMD5rUCstE2CDazgQQJ22zLv8SPm1Luxni44c",
                 )
                 .unwrap(),
-                registration_time: 1594812897745695000,
-                reputation: 100,
                 version: "0.8.0-dev".to_string(),
             }],
         )

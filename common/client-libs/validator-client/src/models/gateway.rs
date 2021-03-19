@@ -132,7 +132,6 @@ impl TryInto<topology::gateway::Node> for RegisteredGateway {
             sphinx_key: encryption::PublicKey::from_base58_string(
                 self.gateway_info.node_info.sphinx_key,
             )?,
-            registration_time: self.registration_time,
             version: self.gateway_info.node_info.version,
         })
     }
@@ -152,7 +151,6 @@ impl<'a> TryInto<topology::gateway::Node> for &'a RegisteredGateway {
             sphinx_key: encryption::PublicKey::from_base58_string(
                 &self.gateway_info.node_info.sphinx_key,
             )?,
-            registration_time: self.registration_time,
             version: self.gateway_info.node_info.version.clone(),
         })
     }

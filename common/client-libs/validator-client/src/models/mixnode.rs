@@ -142,7 +142,6 @@ impl TryInto<topology::mix::Node> for RegisteredMix {
                 self.mix_info.node_info.sphinx_key,
             )?,
             layer: self.mix_info.layer,
-            registration_time: self.registration_time,
             version: self.mix_info.node_info.version,
         })
     }
@@ -162,7 +161,6 @@ impl<'a> TryInto<topology::mix::Node> for &'a RegisteredMix {
                 &self.mix_info.node_info.sphinx_key,
             )?,
             layer: self.mix_info.layer,
-            registration_time: self.registration_time,
             version: self.mix_info.node_info.version.clone(),
         })
     }

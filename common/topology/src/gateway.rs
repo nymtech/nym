@@ -17,7 +17,28 @@ use crypto::asymmetric::{encryption, identity};
 use nymsphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
 use nymsphinx_types::Node as SphinxNode;
 use std::convert::TryInto;
+use std::io;
 use std::net::SocketAddr;
+
+#[derive(Debug)]
+pub enum GatewayConversionError {
+    InvalidIdentityKey(identity::KeyRecoveryError),
+    InvalidSphinxKey(encryption::KeyRecoveryError),
+    InvalidAddress(io::Error),
+    Other(Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl From<encryption::KeyRecoveryError> for GatewayConversionError {
+    fn from(err: encryption::KeyRecoveryError) -> Self {
+        GatewayConversionError::InvalidSphinxKey(err)
+    }
+}
+
+impl From<identity::KeyRecoveryError> for GatewayConversionError {
+    fn from(err: identity::KeyRecoveryError) -> Self {
+        GatewayConversionError::InvalidIdentityKey(err)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Node {
@@ -26,7 +47,6 @@ pub struct Node {
     pub mixnet_listener: SocketAddr,
     pub identity_key: identity::PublicKey,
     pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
-    pub registration_time: i64,
     pub version: String,
 }
 

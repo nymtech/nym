@@ -1566,6 +1566,7 @@ dependencies = [
  "cosmwasm-std",
  "schemars",
  "serde",
+ "topology",
 ]
 
 [[package]]

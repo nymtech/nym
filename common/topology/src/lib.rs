@@ -17,10 +17,12 @@ use nymsphinx_addressing::nodes::NodeIdentity;
 use nymsphinx_types::Node as SphinxNode;
 use rand::Rng;
 use std::collections::HashMap;
-
 mod filter;
+
 pub mod gateway;
 pub mod mix;
+
+pub use crypto::asymmetric;
 
 #[derive(Debug)]
 pub enum NymTopologyError {

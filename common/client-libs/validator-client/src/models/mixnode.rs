@@ -19,26 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
-use topology::mix::Node;
-
-#[derive(Debug)]
-pub enum ConversionError {
-    InvalidIdentityKeyError(identity::KeyRecoveryError),
-    InvalidSphinxKeyError(encryption::KeyRecoveryError),
-    InvalidAddress(io::Error),
-}
-
-impl From<encryption::KeyRecoveryError> for ConversionError {
-    fn from(err: encryption::KeyRecoveryError) -> Self {
-        ConversionError::InvalidSphinxKeyError(err)
-    }
-}
-
-impl From<identity::KeyRecoveryError> for ConversionError {
-    fn from(err: identity::KeyRecoveryError) -> Self {
-        ConversionError::InvalidIdentityKeyError(err)
-    }
-}
+use topology::mix::{MixnodeConversionError, Node};
 
 // used for mixnode to register themselves
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
@@ -112,15 +93,15 @@ impl RegisteredMix {
         self.mix_info.node_info.incentives_address.clone()
     }
 
-    fn resolve_hostname(&self) -> Result<SocketAddr, ConversionError> {
+    fn resolve_hostname(&self) -> Result<SocketAddr, MixnodeConversionError> {
         self.mix_info
             .node_info
             .mix_host
             .to_socket_addrs()
-            .map_err(ConversionError::InvalidAddress)?
+            .map_err(MixnodeConversionError::InvalidAddress)?
             .next()
             .ok_or_else(|| {
-                ConversionError::InvalidAddress(io::Error::new(
+                MixnodeConversionError::InvalidAddress(io::Error::new(
                     io::ErrorKind::Other,
                     "no valid socket address",
                 ))
@@ -129,7 +110,7 @@ impl RegisteredMix {
 }
 
 impl TryInto<topology::mix::Node> for RegisteredMix {
-    type Error = ConversionError;
+    type Error = MixnodeConversionError;
 
     fn try_into(self) -> Result<topology::mix::Node, Self::Error> {
         Ok(topology::mix::Node {
@@ -148,7 +129,7 @@ impl TryInto<topology::mix::Node> for RegisteredMix {
 }
 
 impl<'a> TryInto<topology::mix::Node> for &'a RegisteredMix {
-    type Error = ConversionError;
+    type Error = MixnodeConversionError;
 
     fn try_into(self) -> Result<Node, Self::Error> {
         Ok(topology::mix::Node {

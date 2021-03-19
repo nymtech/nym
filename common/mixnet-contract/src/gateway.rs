@@ -121,7 +121,16 @@ impl<'a> TryFrom<&'a GatewayBond> for gateway::Node {
     type Error = GatewayConversionError;
 
     fn try_from(bond: &'a GatewayBond) -> Result<Self, Self::Error> {
+        if bond.amount.len() > 1 {
+            return Err(GatewayConversionError::InvalidStake);
+        }
         Ok(gateway::Node {
+            owner: bond.owner.0.clone(),
+            stake: bond
+                .amount
+                .first()
+                .map(|stake| stake.amount.into())
+                .unwrap_or(0),
             location: bond.gateway.location.clone(),
             client_listener: bond.gateway.clients_host.clone(),
             mixnet_listener: bond.gateway.resolve_hostname()?,

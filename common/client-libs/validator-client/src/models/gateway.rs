@@ -105,6 +105,8 @@ impl TryInto<topology::gateway::Node> for RegisteredGateway {
 
     fn try_into(self) -> Result<topology::gateway::Node, Self::Error> {
         Ok(topology::gateway::Node {
+            owner: "N/A".to_string(),
+            stake: 0,
             mixnet_listener: self.resolve_hostname()?,
             location: self.gateway_info.node_info.location,
             client_listener: self.gateway_info.clients_host,
@@ -124,6 +126,8 @@ impl<'a> TryInto<topology::gateway::Node> for &'a RegisteredGateway {
 
     fn try_into(self) -> Result<topology::gateway::Node, Self::Error> {
         Ok(topology::gateway::Node {
+            owner: "N/A".to_string(),
+            stake: 0,
             mixnet_listener: self.resolve_hostname()?,
             location: self.gateway_info.node_info.location.clone(),
             client_listener: self.gateway_info.clients_host.clone(),

@@ -117,7 +117,16 @@ impl<'a> TryFrom<&'a MixNodeBond> for mix::Node {
     type Error = MixnodeConversionError;
 
     fn try_from(bond: &'a MixNodeBond) -> Result<Self, Self::Error> {
+        if bond.amount.len() > 1 {
+            return Err(MixnodeConversionError::InvalidStake);
+        }
         Ok(mix::Node {
+            owner: bond.owner.0.clone(),
+            stake: bond
+                .amount
+                .first()
+                .map(|stake| stake.amount.into())
+                .unwrap_or(0),
             location: bond.mix_node.location.clone(),
             host: bond.mix_node.resolve_hostname()?,
             identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,

@@ -25,6 +25,7 @@ pub enum MixnodeConversionError {
     InvalidIdentityKey(identity::KeyRecoveryError),
     InvalidSphinxKey(encryption::KeyRecoveryError),
     InvalidAddress(io::Error),
+    InvalidStake,
     Other(Box<dyn std::error::Error + Send + Sync>),
 }
 
@@ -42,6 +43,10 @@ impl From<identity::KeyRecoveryError> for MixnodeConversionError {
 
 #[derive(Debug, Clone)]
 pub struct Node {
+    pub owner: String,
+    // somebody correct me if I'm wrong, but we should only ever have a single denom of currency
+    // on the network at a type, right?
+    pub stake: u128,
     pub location: String,
     pub host: SocketAddr,
     pub identity_key: identity::PublicKey,

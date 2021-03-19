@@ -114,6 +114,8 @@ impl TryInto<topology::mix::Node> for RegisteredMix {
 
     fn try_into(self) -> Result<topology::mix::Node, Self::Error> {
         Ok(topology::mix::Node {
+            owner: "N/A".to_string(),
+            stake: 0,
             host: self.resolve_hostname()?,
             location: self.mix_info.node_info.location,
             identity_key: identity::PublicKey::from_base58_string(
@@ -133,6 +135,8 @@ impl<'a> TryInto<topology::mix::Node> for &'a RegisteredMix {
 
     fn try_into(self) -> Result<Node, Self::Error> {
         Ok(topology::mix::Node {
+            owner: "N/A".to_string(),
+            stake: 0,
             host: self.resolve_hostname()?,
             location: self.mix_info.node_info.location.clone(),
             identity_key: identity::PublicKey::from_base58_string(

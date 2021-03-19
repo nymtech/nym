@@ -39,7 +39,7 @@ export default class ValidatorClient {
     static async connect(contractAddress: string, mnemonic: string, url: string): Promise<ValidatorClient> {
         const wallet = await ValidatorClient.buildWallet(mnemonic);
         const [{ address }] = await wallet.getAccounts();
-        const netClient = await NetClient.connect(contractAddress, wallet, url);
+        const netClient = await NetClient.connect(wallet, url);
         return new ValidatorClient(url, netClient, wallet, address, contractAddress);
     }
 

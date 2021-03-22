@@ -23,12 +23,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
         // the rest of arguments are optional, they are used to override settings in config file
         .arg(
-            Arg::with_name("location")
-                .long("location")
-                .help("Optional geographical location of this gateway")
-                .takes_value(true),
-        )
-        .arg(
             Arg::with_name("config")
                 .long("config")
                 .help("Custom path to the nym gateway configuration file")

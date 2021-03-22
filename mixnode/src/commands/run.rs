@@ -22,12 +22,6 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
         )
         // the rest of arguments are optional, they are used to override settings in config file
         .arg(
-            Arg::with_name("location")
-                .long("location")
-                .help("Optional geographical location of this node")
-                .takes_value(true),
-        )
-        .arg(
             Arg::with_name("layer")
                 .long("layer")
                 .help("The mixnet layer of this particular node")
@@ -189,7 +183,7 @@ pub fn execute(matches: &ArgMatches) {
         sphinx_keypair.public_key().to_base58_string(),
         config.get_announce_address(),
         config.get_layer(),
-        config.get_location(),
+        "[physical location of your node's server]",
         config.get_version(),
     );
 

@@ -19,12 +19,6 @@ version = '{{ gateway.version }}'
 # Human readable ID of this particular gateway.
 id = '{{ gateway.id }}'
 
-# Completely optional value specifying geographical location of this particular node.
-# Currently it's used entirely for debug purposes, as there are no mechanisms implemented
-# to verify correctness of the information provided. However, feel free to fill in
-# this field with as much accuracy as you wish to share.
-location = '{{ gateway.location }}'
-
 # Path to file containing private identity key.
 private_identity_key_file = '{{ gateway.private_identity_key_file }}'
 

@@ -23,12 +23,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .required(true),
         )
         .arg(
-            Arg::with_name("location")
-                .long("location")
-                .help("Optional geographical location of this node")
-                .takes_value(true),
-        )
-        .arg(
             Arg::with_name("layer")
                 .long("layer")
                 .help("The mixnet layer of this particular node")

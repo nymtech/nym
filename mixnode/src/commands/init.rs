@@ -71,12 +71,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .help("Server to which the node is sending all metrics data")
                 .takes_value(true),
         )
-        .arg(
-            Arg::with_name("incentives-address")
-                .long("incentives-address")
-                .help("Optional, if participating in the incentives program, payment address")
-                .takes_value(true),
-        )
 }
 
 async fn choose_layer(

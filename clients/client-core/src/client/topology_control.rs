@@ -22,7 +22,7 @@ use std::time::Duration;
 use tokio::runtime::Handle;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::task::JoinHandle;
-use topology::NymTopology;
+use topology::{nym_topology_from_bonds, NymTopology};
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before
 #[derive(Debug)]
@@ -136,21 +136,28 @@ impl Default for TopologyAccessor {
 }
 
 pub struct TopologyRefresherConfig {
-    directory_server: String,
+    validator_rcp_base_url: String,
+    mixnet_contract_address: String,
     refresh_rate: time::Duration,
 }
 
 impl TopologyRefresherConfig {
-    pub fn new(directory_server: String, refresh_rate: time::Duration) -> Self {
+    pub fn new(
+        validator_rcp_base_url: String,
+        mixnet_contract_address: String,
+        refresh_rate: time::Duration,
+    ) -> Self {
         TopologyRefresherConfig {
-            directory_server,
+            validator_rcp_base_url,
+            mixnet_contract_address,
             refresh_rate,
         }
     }
 }
 
 pub struct TopologyRefresher {
-    validator_client: validator_client::Client,
+    validator_client: validator_client_rest::Client,
+
     topology_accessor: TopologyAccessor,
     refresh_rate: Duration,
 
@@ -158,12 +165,12 @@ pub struct TopologyRefresher {
 }
 
 impl TopologyRefresher {
-    pub fn new_directory_client(
-        cfg: TopologyRefresherConfig,
-        topology_accessor: TopologyAccessor,
-    ) -> Self {
-        let validator_client_config = validator_client::Config::new(cfg.directory_server);
-        let validator_client = validator_client::Client::new(validator_client_config);
+    pub fn new(cfg: TopologyRefresherConfig, topology_accessor: TopologyAccessor) -> Self {
+        let validator_client_config = validator_client_rest::Config::new(
+            cfg.validator_rcp_base_url,
+            cfg.mixnet_contract_address,
+        );
+        let validator_client = validator_client_rest::Client::new(validator_client_config);
 
         TopologyRefresher {
             validator_client,
@@ -174,16 +181,31 @@ impl TopologyRefresher {
     }
 
     async fn get_current_compatible_topology(&self) -> Option<NymTopology> {
-        match self.validator_client.get_active_topology().await {
+        // TODO: optimization for the future:
+        // only refresh mixnodes on timer and refresh gateways only when
+        // we have to send to a new, unknown, gateway
+
+        let mixnodes = match self.validator_client.get_mix_nodes().await {
             Err(err) => {
-                error!("failed to get active network topology! - {:?}", err);
-                None
+                error!("failed to get network mixnodes - {}", err);
+                return None;
             }
-            Ok(topology) => {
-                let nym_topology: NymTopology = topology.into();
-                Some(nym_topology.filter_system_version(env!("CARGO_PKG_VERSION")))
+            Ok(mixes) => mixes,
+        };
+
+        let gateways = match self.validator_client.get_gateways().await {
+            Err(err) => {
+                error!("failed to get network gateways - {}", err);
+                return None;
             }
-        }
+            Ok(gateways) => gateways,
+        };
+
+        let topology = nym_topology_from_bonds(mixnodes, gateways);
+
+        // TODO: I didn't want to change it now, but the expected system version should rather be put in config
+        // rather than pulled from package version of `client_core`
+        Some(topology.filter_system_version(env!("CARGO_PKG_VERSION")))
     }
 
     pub async fn refresh(&mut self) {

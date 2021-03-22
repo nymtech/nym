@@ -62,6 +62,9 @@ validator_rest_url = '{{ mixnode.validator_rest_url }}'
 # Metrics server to which the node will be reporting their metrics data.
 metrics_server_url = '{{ mixnode.metrics_server_url }}'
 
+# Address of the validator contract managing the network.
+mixnet_contract_address = '{{ mixnode.mixnet_contract_address }}'
+
 ##### advanced configuration options #####
 
 # Absolute path to the home Nym Clients directory.

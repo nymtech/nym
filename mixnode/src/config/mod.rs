@@ -23,6 +23,8 @@ const DEFAULT_LISTENING_PORT: u16 = 1789;
 pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str =
     "http://testnet-validator1.nymtech.net:8081";
 pub(crate) const DEFAULT_METRICS_SERVER: &str = "http://testnet-metrics.nymtech.net:8080";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str =
+    "TODO: THIS NEEDS TO BE FILLED WITH SOME REASONABLE VALUE!";
 
 // 'DEBUG'
 const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
@@ -187,6 +189,11 @@ impl Config {
         self
     }
 
+    pub fn with_custom_mixnet_contract<S: Into<String>>(mut self, mixnet_contract: S) -> Self {
+        self.mixnode.mixnet_contract_address = mixnet_contract.into();
+        self
+    }
+
     pub fn with_custom_metrics_server<S: Into<String>>(mut self, server: S) -> Self {
         self.mixnode.metrics_server_url = server.into();
         self
@@ -306,6 +313,10 @@ impl Config {
         self.mixnode.validator_rest_url.clone()
     }
 
+    pub fn get_validator_mixnet_contract_address(&self) -> String {
+        self.mixnode.mixnet_contract_address.clone()
+    }
+
     pub fn get_metrics_server(&self) -> String {
         self.mixnode.metrics_server_url.clone()
     }
@@ -410,6 +421,10 @@ pub struct MixNode {
     #[serde(default = "missing_string_value")]
     validator_rest_url: String,
 
+    /// Address of the validator contract managing the network.
+    #[serde(default = "missing_string_value")]
+    mixnet_contract_address: String,
+
     /// Metrics server to which the node will be reporting their metrics data.
     #[serde(default = "missing_string_value")]
     metrics_server_url: String,
@@ -461,6 +476,7 @@ impl Default for MixNode {
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
             validator_rest_url: DEFAULT_VALIDATOR_REST_ENDPOINT.to_string(),
+            mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
             metrics_server_url: DEFAULT_METRICS_SERVER.to_string(),
             nym_root_directory: Config::default_root_directory(),
             incentives_address: None,

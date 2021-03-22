@@ -14,9 +14,11 @@
 
 use crate::filter;
 use crypto::asymmetric::{encryption, identity};
+use mixnet_contract::GatewayBond;
 use nymsphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
 use nymsphinx_types::Node as SphinxNode;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
+use std::fmt::{self, Display, Formatter};
 use std::io;
 use std::net::SocketAddr;
 
@@ -38,6 +40,40 @@ impl From<encryption::KeyRecoveryError> for GatewayConversionError {
 impl From<identity::KeyRecoveryError> for GatewayConversionError {
     fn from(err: identity::KeyRecoveryError) -> Self {
         GatewayConversionError::InvalidIdentityKey(err)
+    }
+}
+
+impl Display for GatewayConversionError {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            GatewayConversionError::InvalidIdentityKey(err) => write!(
+                f,
+                "failed to convert gateway due to invalid identity key - {}",
+                err
+            ),
+            GatewayConversionError::InvalidSphinxKey(err) => write!(
+                f,
+                "failed to convert gateway due to invalid sphinx key - {}",
+                err
+            ),
+            GatewayConversionError::InvalidAddress(err) => {
+                write!(
+                    f,
+                    "failed to convert gateway due to invalid address - {}",
+                    err
+                )
+            }
+            GatewayConversionError::InvalidStake => {
+                write!(f, "failed to convert gateway due to invalid stake")
+            }
+            GatewayConversionError::Other(err) => {
+                write!(
+                    f,
+                    "failed to convert gateway due to another error - {}",
+                    err
+                )
+            }
+        }
     }
 }
 
@@ -74,5 +110,40 @@ impl<'a> From<&'a Node> for SphinxNode {
             .unwrap();
 
         SphinxNode::new(node_address_bytes, (&node.sphinx_key).into())
+    }
+}
+
+impl<'a> TryFrom<&'a GatewayBond> for Node {
+    type Error = GatewayConversionError;
+
+    fn try_from(bond: &'a GatewayBond) -> Result<Self, Self::Error> {
+        if bond.amount.len() > 1 {
+            return Err(GatewayConversionError::InvalidStake);
+        }
+        Ok(Node {
+            owner: bond.owner.0.clone(),
+            stake: bond
+                .amount
+                .first()
+                .map(|stake| stake.amount.into())
+                .unwrap_or(0),
+            location: bond.gateway.location.clone(),
+            client_listener: bond.gateway.clients_host.clone(),
+            mixnet_listener: bond
+                .gateway
+                .try_resolve_hostname()
+                .map_err(GatewayConversionError::InvalidAddress)?,
+            identity_key: identity::PublicKey::from_base58_string(&bond.gateway.identity_key)?,
+            sphinx_key: encryption::PublicKey::from_base58_string(&bond.gateway.sphinx_key)?,
+            version: bond.gateway.version.clone(),
+        })
+    }
+}
+
+impl TryFrom<GatewayBond> for Node {
+    type Error = GatewayConversionError;
+
+    fn try_from(bond: GatewayBond) -> Result<Self, Self::Error> {
+        Node::try_from(&bond)
     }
 }

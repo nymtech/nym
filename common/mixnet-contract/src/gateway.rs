@@ -1,23 +1,19 @@
 use cosmwasm_std::{Coin, HumanAddr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
 use std::fmt::Display;
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
-use topology::asymmetric::{encryption, identity};
-use topology::gateway;
-use topology::gateway::GatewayConversionError;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct Gateway {
-    pub(crate) mix_host: String,
-    pub(crate) clients_host: String,
-    pub(crate) location: String,
-    pub(crate) sphinx_key: String,
+    pub mix_host: String,
+    pub clients_host: String,
+    pub location: String,
+    pub sphinx_key: String,
     /// Base58 encoded ed25519 EdDSA public key of the gateway used to derive shared keys with clients
-    pub(crate) identity_key: String,
-    pub(crate) version: String,
+    pub identity_key: String,
+    pub version: String,
 }
 
 impl Gateway {
@@ -39,25 +35,19 @@ impl Gateway {
         }
     }
 
-    fn resolve_hostname(&self) -> Result<SocketAddr, GatewayConversionError> {
+    pub fn try_resolve_hostname(&self) -> Result<SocketAddr, io::Error> {
         self.mix_host
-            .to_socket_addrs()
-            .map_err(GatewayConversionError::InvalidAddress)?
+            .to_socket_addrs()?
             .next()
-            .ok_or_else(|| {
-                GatewayConversionError::InvalidAddress(io::Error::new(
-                    io::ErrorKind::Other,
-                    "no valid socket address",
-                ))
-            })
+            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no valid socket address"))
     }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct GatewayBond {
-    pub(crate) amount: Vec<Coin>,
-    pub(crate) owner: HumanAddr,
-    pub(crate) gateway: Gateway,
+    pub amount: Vec<Coin>,
+    pub owner: HumanAddr,
+    pub gateway: Gateway,
 }
 
 impl GatewayBond {
@@ -114,37 +104,5 @@ impl PagedGatewayResponse {
             per_page,
             start_next_after,
         }
-    }
-}
-
-impl<'a> TryFrom<&'a GatewayBond> for gateway::Node {
-    type Error = GatewayConversionError;
-
-    fn try_from(bond: &'a GatewayBond) -> Result<Self, Self::Error> {
-        if bond.amount.len() > 1 {
-            return Err(GatewayConversionError::InvalidStake);
-        }
-        Ok(gateway::Node {
-            owner: bond.owner.0.clone(),
-            stake: bond
-                .amount
-                .first()
-                .map(|stake| stake.amount.into())
-                .unwrap_or(0),
-            location: bond.gateway.location.clone(),
-            client_listener: bond.gateway.clients_host.clone(),
-            mixnet_listener: bond.gateway.resolve_hostname()?,
-            identity_key: identity::PublicKey::from_base58_string(&bond.gateway.identity_key)?,
-            sphinx_key: encryption::PublicKey::from_base58_string(&bond.gateway.sphinx_key)?,
-            version: bond.gateway.version.clone(),
-        })
-    }
-}
-
-impl TryFrom<GatewayBond> for gateway::Node {
-    type Error = GatewayConversionError;
-
-    fn try_from(bond: GatewayBond) -> Result<Self, Self::Error> {
-        gateway::Node::try_from(&bond)
     }
 }

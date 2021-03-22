@@ -1,23 +1,19 @@
 use cosmwasm_std::{Coin, HumanAddr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
 use std::fmt::Display;
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
-use topology::asymmetric::{encryption, identity};
-use topology::mix;
-use topology::mix::MixnodeConversionError;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNode {
-    pub(crate) host: String,
-    pub(crate) layer: u64,
-    pub(crate) location: String,
-    pub(crate) sphinx_key: String,
+    pub host: String,
+    pub layer: u64,
+    pub location: String,
+    pub sphinx_key: String,
     /// Base58 encoded ed25519 EdDSA public key.
-    pub(crate) identity_key: String,
-    pub(crate) version: String,
+    pub identity_key: String,
+    pub version: String,
 }
 
 impl MixNode {
@@ -39,25 +35,19 @@ impl MixNode {
         }
     }
 
-    fn resolve_hostname(&self) -> Result<SocketAddr, MixnodeConversionError> {
+    pub fn try_resolve_hostname(&self) -> Result<SocketAddr, io::Error> {
         self.host
-            .to_socket_addrs()
-            .map_err(MixnodeConversionError::InvalidAddress)?
+            .to_socket_addrs()?
             .next()
-            .ok_or_else(|| {
-                MixnodeConversionError::InvalidAddress(io::Error::new(
-                    io::ErrorKind::Other,
-                    "no valid socket address",
-                ))
-            })
+            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no valid socket address"))
     }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
-    pub(crate) amount: Vec<Coin>,
-    pub(crate) owner: HumanAddr,
-    pub(crate) mix_node: MixNode,
+    pub amount: Vec<Coin>,
+    pub owner: HumanAddr,
+    pub mix_node: MixNode,
 }
 
 impl MixNodeBond {
@@ -110,37 +100,5 @@ impl PagedResponse {
             per_page,
             start_next_after,
         }
-    }
-}
-
-impl<'a> TryFrom<&'a MixNodeBond> for mix::Node {
-    type Error = MixnodeConversionError;
-
-    fn try_from(bond: &'a MixNodeBond) -> Result<Self, Self::Error> {
-        if bond.amount.len() > 1 {
-            return Err(MixnodeConversionError::InvalidStake);
-        }
-        Ok(mix::Node {
-            owner: bond.owner.0.clone(),
-            stake: bond
-                .amount
-                .first()
-                .map(|stake| stake.amount.into())
-                .unwrap_or(0),
-            location: bond.mix_node.location.clone(),
-            host: bond.mix_node.resolve_hostname()?,
-            identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,
-            sphinx_key: encryption::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)?,
-            layer: bond.mix_node.layer,
-            version: bond.mix_node.version.clone(),
-        })
-    }
-}
-
-impl TryFrom<MixNodeBond> for mix::Node {
-    type Error = MixnodeConversionError;
-
-    fn try_from(bond: MixNodeBond) -> Result<Self, Self::Error> {
-        mix::Node::try_from(&bond)
     }
 }

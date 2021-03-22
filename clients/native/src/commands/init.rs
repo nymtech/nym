@@ -23,9 +23,10 @@ use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
 use rand::rngs::OsRng;
 use rand::seq::SliceRandom;
+use std::convert::TryInto;
 use std::sync::Arc;
 use std::time::Duration;
-use topology::{gateway, NymTopology};
+use topology::{filter::VersionFilterable, gateway};
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
@@ -100,26 +101,34 @@ async fn register_with_gateway(
         .expect("failed to register with the gateway!")
 }
 
-async fn gateway_details(validator_server: &str, chosen_gateway_id: Option<&str>) -> gateway::Node {
-    let validator_client_config = validator_client::Config::new(validator_server.to_string());
-    let validator_client = validator_client::Client::new(validator_client_config);
-    let topology = validator_client.get_active_topology().await.unwrap();
-    let nym_topology: NymTopology = topology.into();
-    let version_filtered_topology = nym_topology.filter_system_version(env!("CARGO_PKG_VERSION"));
+async fn gateway_details(
+    validator_server: &str,
+    mixnet_contract: &str,
+    chosen_gateway_id: Option<&str>,
+) -> gateway::Node {
+    let validator_client_config =
+        validator_client_rest::Config::new(validator_server, mixnet_contract);
+    let validator_client = validator_client_rest::Client::new(validator_client_config);
+
+    let gateways = validator_client.get_gateways().await.unwrap();
+    let valid_gateways = gateways
+        .into_iter()
+        .filter_map(|gateway| gateway.try_into().ok())
+        .collect::<Vec<gateway::Node>>();
+
+    let filtered_gateways = valid_gateways.filter_by_version(env!("CARGO_PKG_VERSION"));
 
     // if we have chosen particular gateway - use it, otherwise choose a random one.
     // (remember that in active topology all gateways have at least 100 reputation so should
     // be working correctly)
     if let Some(gateway_id) = chosen_gateway_id {
-        version_filtered_topology
-            .gateways()
+        filtered_gateways
             .iter()
             .find(|gateway| gateway.identity_key.to_base58_string() == gateway_id)
             .expect(&*format!("no gateway with id {} exists!", gateway_id))
             .clone()
     } else {
-        version_filtered_topology
-            .gateways()
+        filtered_gateways
             .choose(&mut rand::thread_rng())
             .expect("there are no gateways on the network!")
             .clone()
@@ -160,6 +169,7 @@ pub fn execute(matches: &ArgMatches) {
         let registration_fut = async {
             let gate_details = gateway_details(
                 &config.get_base().get_validator_rest_endpoint(),
+                &config.get_base().get_validator_mixnet_contract_address(),
                 chosen_gateway_id,
             )
             .await;

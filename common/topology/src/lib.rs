@@ -21,7 +21,7 @@ use rand::Rng;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
-mod filter;
+pub mod filter;
 pub mod gateway;
 pub mod mix;
 

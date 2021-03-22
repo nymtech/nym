@@ -86,6 +86,7 @@ impl MixNode {
         packet_sender
     }
 
+    // TODO: ask DH whether this function still makes sense in ^0.10
     async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
         let validator_client_config = validator_client_rest::Config::new(
             self.config.get_validator_rest_endpoint(),

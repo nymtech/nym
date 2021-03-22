@@ -33,7 +33,7 @@ mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
 nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
-validator-client = { path = "../common/client-libs/validator-client" }
+validator-client-rest = { path = "../common/client-libs/validator-client-rest" }
 version-checker = { path = "../common/version-checker" }
 
 [dependencies.tungstenite]

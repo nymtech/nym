@@ -93,6 +93,12 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true),
         )
         .arg(
+            Arg::with_name("mixnet-contract")
+                .long("mixnet-contract")
+                .help("Address of the validator contract managing the network")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("incentives-address")
                 .long("incentives-address")
                 .help("Optional, if participating in the incentives program, payment address")

@@ -43,6 +43,9 @@ incentives_address = '{{ gateway.incentives_address }}'
 # Validator server to which the node will be reporting their presence data.
 validator_rest_url = '{{ gateway.validator_rest_url }}'
 
+# Address of the validator contract managing the network.
+mixnet_contract_address = '{{ gateway.mixnet_contract_address }}'
+
 # nym_home_directory specifies absolute path to the home nym gateway directory.
 # It is expected to use default value and hence .toml file should not redefine this field.
 nym_root_directory = '{{ gateway.nym_root_directory }}'

@@ -23,6 +23,8 @@ const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
 pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str =
     "http://testnet-validator1.nymtech.net:8081";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str =
+    "TODO: THIS NEEDS TO BE FILLED WITH SOME REASONABLE VALUE!";
 
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
@@ -193,6 +195,11 @@ impl Config {
 
     pub fn with_custom_validator<S: Into<String>>(mut self, validator: S) -> Self {
         self.gateway.validator_rest_url = validator.into();
+        self
+    }
+
+    pub fn with_custom_mixnet_contract<S: Into<String>>(mut self, mixnet_contract: S) -> Self {
+        self.gateway.mixnet_contract_address = mixnet_contract.into();
         self
     }
 
@@ -416,6 +423,10 @@ impl Config {
         self.gateway.validator_rest_url.clone()
     }
 
+    pub fn get_validator_mixnet_contract_address(&self) -> String {
+        self.gateway.mixnet_contract_address.clone()
+    }
+
     pub fn get_mix_listening_address(&self) -> SocketAddr {
         self.mixnet_endpoint.listening_address
     }
@@ -508,6 +519,10 @@ pub struct Gateway {
     #[serde(default = "missing_string_value")]
     validator_rest_url: String,
 
+    /// Address of the validator contract managing the network.
+    #[serde(default = "missing_string_value")]
+    mixnet_contract_address: String,
+
     /// nym_home_directory specifies absolute path to the home nym gateways directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
@@ -550,6 +565,7 @@ impl Default for Gateway {
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
             validator_rest_url: DEFAULT_VALIDATOR_REST_ENDPOINT.to_string(),
+            mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
             nym_root_directory: Config::default_root_directory(),
             incentives_address: None,
         }

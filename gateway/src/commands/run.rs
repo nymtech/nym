@@ -100,6 +100,12 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .help("REST endpoint of the validator the node is registering presence with")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("mixnet-contract")
+                .long("mixnet-contract")
+                .help("Address of the validator contract managing the network")
+                .takes_value(true),
+        )
 }
 
 fn show_binding_warning(address: String) {

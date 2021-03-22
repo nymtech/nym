@@ -46,6 +46,11 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .help("Address of the validator server the client is getting topology from")
             .takes_value(true),
         )
+        .arg(Arg::with_name("mixnet-contract")
+                 .long("mixnet-contract")
+                 .help("Address of the validator contract managing the network")
+                 .takes_value(true),
+        )
         .arg(Arg::with_name("disable-socket")
             .long("disable-socket")
             .help("Whether to not start the websocket")
@@ -105,7 +110,6 @@ async fn gateway_details(validator_server: &str, chosen_gateway_id: Option<&str>
     // if we have chosen particular gateway - use it, otherwise choose a random one.
     // (remember that in active topology all gateways have at least 100 reputation so should
     // be working correctly)
-
     if let Some(gateway_id) = chosen_gateway_id {
         version_filtered_topology
             .gateways()

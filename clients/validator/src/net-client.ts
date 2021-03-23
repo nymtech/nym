@@ -1,10 +1,10 @@
-import {SigningCosmWasmClient, SigningCosmWasmClientOptions} from "@cosmjs/cosmwasm-stargate";
-import {GatewayBond, MixNodeBond} from "./types"
-import {DirectSecp256k1HdWallet} from "@cosmjs/proto-signing";
-import {Coin, GasPrice} from "@cosmjs/launchpad";
-import {BroadcastTxResponse} from "@cosmjs/stargate/types"
-import {defaultOptions, nymGasLimits, Options} from "./stargate-helper"
-import {ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult} from "@cosmjs/cosmwasm";
+import { SigningCosmWasmClient, SigningCosmWasmClientOptions } from "@cosmjs/cosmwasm-stargate";
+import { GatewayBond, MixNodeBond } from "./types"
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import { Coin, GasPrice } from "@cosmjs/launchpad";
+import { BroadcastTxResponse } from "@cosmjs/stargate/types"
+import { defaultOptions, nymGasLimits, Options } from "./stargate-helper"
+import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
 
 export interface INetClient {
     getBalance(address: string): Promise<Coin | null>;
@@ -33,15 +33,13 @@ export default class NetClient implements INetClient {
         this.cosmClient = cosmClient;
     }
 
-    public static async connect(contractAddress: string, wallet: DirectSecp256k1HdWallet, url?: string, opts?: Partial<Options>): Promise<INetClient> {
-        const options: Options = { ...defaultOptions, ...opts }
+    public static async connect(wallet: DirectSecp256k1HdWallet, url: string, opts?: Partial<Options>): Promise<INetClient> {
         const [{ address }] = await wallet.getAccounts();
         const signerOptions: SigningCosmWasmClientOptions = {
             gasPrice: GasPrice.fromString("0.025unym"),
             gasLimits: nymGasLimits,
         };
-        const client = await SigningCosmWasmClient.connectWithSigner(options.httpUrl, wallet, signerOptions);
-
+        const client = await SigningCosmWasmClient.connectWithSigner(url, wallet, signerOptions);
         return new NetClient(address, client);
     }
 

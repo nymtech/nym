@@ -2,7 +2,7 @@ import { SigningCosmWasmClient, SigningCosmWasmClientOptions } from "@cosmjs/cos
 import { GatewayBond, MixNodeBond } from "./types"
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { Coin, GasPrice } from "@cosmjs/launchpad";
-import { BroadcastTxResponse } from "@cosmjs/stargate/types"
+import { BroadcastTxResponse } from "@cosmjs/stargate"
 import { defaultOptions, nymGasLimits, Options } from "./stargate-helper"
 import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
 
@@ -27,20 +27,22 @@ export interface INetClient {
 export default class NetClient implements INetClient {
     private clientAddress: string;
     private cosmClient: SigningCosmWasmClient;
+    private stakeDenom: string;
 
-    private constructor(clientAddress: string, cosmClient: SigningCosmWasmClient) {
+    private constructor(clientAddress: string, cosmClient: SigningCosmWasmClient, stakeDenom: string) {
         this.clientAddress = clientAddress;
         this.cosmClient = cosmClient;
+        this.stakeDenom = stakeDenom;
     }
 
-    public static async connect(wallet: DirectSecp256k1HdWallet, url: string, opts?: Partial<Options>): Promise<INetClient> {
+    public static async connect(wallet: DirectSecp256k1HdWallet, url: string, stakeDenom: string): Promise<INetClient> {
         const [{ address }] = await wallet.getAccounts();
         const signerOptions: SigningCosmWasmClientOptions = {
-            gasPrice: GasPrice.fromString("0.025unym"),
+            gasPrice: GasPrice.fromString(`0.025${stakeDenom}`),
             gasLimits: nymGasLimits,
         };
         const client = await SigningCosmWasmClient.connectWithSigner(url, wallet, signerOptions);
-        return new NetClient(address, client);
+        return new NetClient(address, client, stakeDenom);
     }
 
     public getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedResponse> {
@@ -60,7 +62,7 @@ export default class NetClient implements INetClient {
     }
 
     public getBalance(address: string): Promise<Coin | null> {
-        return this.cosmClient.getBalance(address, "unym");
+        return this.cosmClient.getBalance(address, this.stakeDenom);
     }
 
 

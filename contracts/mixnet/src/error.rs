@@ -1,3 +1,4 @@
+use crate::contract::STAKE_DENOM;
 use cosmwasm_std::{HumanAddr, StdError};
 use thiserror::Error;
 
@@ -27,9 +28,9 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
-    #[error("Wrong coin denomination, you must send unym")]
+    #[error("Wrong coin denomination, you must send {}", STAKE_DENOM)]
     WrongDenom {},
 
-    #[error("No coin was sent for the staking, you must send unym")]
+    #[error("No coin was sent for the staking, you must send {}", STAKE_DENOM)]
     NoStakeFound,
 }

@@ -176,14 +176,13 @@ pub fn execute(matches: &ArgMatches) {
     Sphinx key: {}
     Host: {}
     Layer: {}
-    Location: {}
+    Location: [physical location of your node's server]
     Version: {}
     ",
         identity_keypair.public_key().to_base58_string(),
         sphinx_keypair.public_key().to_base58_string(),
         config.get_announce_address(),
         config.get_layer(),
-        "[physical location of your node's server]",
         config.get_version(),
     );
 

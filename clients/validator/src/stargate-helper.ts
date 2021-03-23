@@ -6,7 +6,6 @@ import { CosmWasmFeeTable } from "@cosmjs/cosmwasm";
 export interface Options {
     httpUrl: string;
     networkId: string;
-    feeToken: string;
     gasPrice: number;
     bech32prefix: string;
 }
@@ -23,9 +22,8 @@ export const nymGasLimits: GasLimits<CosmWasmFeeTable> = {
 export const defaultOptions: Options = {
     httpUrl: "http://localhost:26657",
     networkId: "nymnet",
-    feeToken: "unym",
     gasPrice: 0.025,
-    bech32prefix: "nym",
+    bech32prefix: "hal",
 };
 
 export const downloadWasm = async (url: string): Promise<Uint8Array> => {

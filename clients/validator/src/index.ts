@@ -5,7 +5,7 @@ import { Bip39, Random } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
 import { coin, Coin, coins } from "@cosmjs/launchpad";
-import { BroadcastTxResponse } from "@cosmjs/stargate/types"
+import { BroadcastTxResponse } from "@cosmjs/stargate"
 import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
 import { CoinMap, displayAmountToNative, MappedCoin, nativeCoinToDisplay, printableBalance, printableCoin } from "./currency";
 import GatewaysCache from "./caches/gateways";
@@ -15,7 +15,8 @@ export { Coin };
 export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBalance, MappedCoin, CoinMap }
 
 export default class ValidatorClient {
-    private readonly stakeDenom: string = "unym"
+
+    private readonly stakeDenom: string;
     private readonly gatewayBondingStake: number = 1000_000000
 
     url: string;
@@ -26,7 +27,7 @@ export default class ValidatorClient {
     readonly address: string;
     private readonly contractAddress: string;
 
-    private constructor(url: string, netClient: INetClient, wallet: DirectSecp256k1HdWallet, address: string, contractAddress: string) {
+    private constructor(url: string, netClient: INetClient, wallet: DirectSecp256k1HdWallet, address: string, contractAddress: string, stakeDenom: string) {
         this.url = url;
         this.netClient = netClient;
         this.mixNodesCache = new MixnodesCache(netClient, 100);
@@ -34,13 +35,14 @@ export default class ValidatorClient {
         this.address = address;
         this.wallet = wallet;
         this.contractAddress = contractAddress;
+        this.stakeDenom = stakeDenom;
     }
 
-    static async connect(contractAddress: string, mnemonic: string, url: string): Promise<ValidatorClient> {
+    static async connect(contractAddress: string, mnemonic: string, url: string, stakeDenom: string): Promise<ValidatorClient> {
         const wallet = await ValidatorClient.buildWallet(mnemonic);
         const [{ address }] = await wallet.getAccounts();
-        const netClient = await NetClient.connect(wallet, url);
-        return new ValidatorClient(url, netClient, wallet, address, contractAddress);
+        const netClient = await NetClient.connect(wallet, url, stakeDenom);
+        return new ValidatorClient(url, netClient, wallet, address, contractAddress, stakeDenom);
     }
 
     /**
@@ -81,7 +83,7 @@ export default class ValidatorClient {
     }
 
     static async buildWallet(mnemonic: string): Promise<DirectSecp256k1HdWallet> {
-        return DirectSecp256k1HdWallet.fromMnemonic(mnemonic, undefined, "nym");
+        return DirectSecp256k1HdWallet.fromMnemonic(mnemonic, undefined, "hal");
     }
 
     getBalance(address: string): Promise<Coin | null> {
@@ -113,7 +115,7 @@ export default class ValidatorClient {
     *  Announce a mixnode, paying a fee.
     */
     async bond(mixNode: MixNode): Promise<ExecuteResult> {
-        const bond = [{ amount: "1000000000", denom: "unym" }];
+        const bond = [{ amount: "1000000000", denom: this.stakeDenom }];
         const result = await this.netClient.executeContract(this.address, this.contractAddress, { register_mixnode: { mix_node: mixNode } }, "adding mixnode", bond);
         console.log(`account ${this.address} added mixnode with ${mixNode.host}`);
         return result;
@@ -151,7 +153,7 @@ export default class ValidatorClient {
     /**
      * Generate a minimum gateway bond required to create a fresh gateway.
      *
-     * @returns a `Coin` instance containing minimum amount of `unym` to stake a gateway.
+     * @returns a `Coin` instance containing minimum amount of coins to stake a gateway.
      */
     minimumGatewayBond = (): Coin => {
         return coin(this.gatewayBondingStake, this.stakeDenom)

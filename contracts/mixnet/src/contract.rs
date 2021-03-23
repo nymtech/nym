@@ -8,11 +8,11 @@ use cosmwasm_std::{
 };
 use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond};
 
-/// Constant specifying minimum of `unym` required to bond a gateway
+/// Constant specifying minimum of coin required to bond a gateway
 const GATEWAY_BONDING_STAKE: Uint128 = Uint128(1000_000000); // 1000 nym
 
 /// Constant specifying denomination of the coin used for bonding
-const STAKE_DENOM: &str = "unym";
+pub const STAKE_DENOM: &str = "uhal";
 
 /// Instantiate the contract.
 ///
@@ -53,11 +53,11 @@ pub fn try_add_mixnode(
     let stake = &info.sent_funds[0];
 
     // check that the denomination is correct
-    if stake.denom != "unym" {
+    if stake.denom != STAKE_DENOM {
         return Err(ContractError::WrongDenom {});
     }
     // check that we have at least 1000 nym in our bond
-    if stake.amount < coins(1000_000000, "unym")[0].amount {
+    if stake.amount < coins(1000_000000, STAKE_DENOM)[0].amount {
         return Err(ContractError::InsufficientMixNodeBond {});
     }
 
@@ -237,7 +237,7 @@ pub mod tests {
 
         // Contract balance should match what we initialized it as
         assert_eq!(
-            coins(0, "unym"),
+            coins(0, STAKE_DENOM),
             query_contract_balance(env.contract.address, deps)
         );
     }
@@ -247,7 +247,7 @@ pub mod tests {
         let mut deps = helpers::init_contract();
 
         // if we don't send enough funds
-        let info = mock_info("anyone", &coins(999_999999, "unym"));
+        let info = mock_info("anyone", &coins(999_999999, STAKE_DENOM));
         let msg = HandleMsg::RegisterMixnode {
             mix_node: helpers::mix_node_fixture(),
         };
@@ -270,7 +270,7 @@ pub mod tests {
         assert_eq!(0, page.nodes.len());
 
         // if we send enough funds
-        let info = mock_info("anyone", &coins(1000_000000, "unym"));
+        let info = mock_info("anyone", &coins(1000_000000, STAKE_DENOM));
         let msg = HandleMsg::RegisterMixnode {
             mix_node: helpers::mix_node_fixture(),
         };
@@ -306,7 +306,7 @@ pub mod tests {
         init(deps.as_mut(), env.clone(), info, msg).unwrap();
 
         // try un-registering when no nodes exist yet
-        let info = mock_info("anyone", &coins(999_9999, "unym"));
+        let info = mock_info("anyone", &coins(999_9999, STAKE_DENOM));
         let msg = HandleMsg::UnRegisterMixnode {};
         let result = handle(deps.as_mut(), mock_env(), info, msg);
 
@@ -314,10 +314,10 @@ pub mod tests {
         assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
 
         // let's add a node owned by bob
-        helpers::add_mixnode("bob", coins(1000_000000, "unym"), &mut deps);
+        helpers::add_mixnode("bob", coins(1000_000000, STAKE_DENOM), &mut deps);
 
         // attempt to un-register fred's node, which doesn't exist
-        let info = mock_info("fred", &coins(999_9999, "unym"));
+        let info = mock_info("fred", &coins(999_9999, STAKE_DENOM));
         let msg = HandleMsg::UnRegisterMixnode {};
         let result = handle(deps.as_mut(), mock_env(), info, msg);
         assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
@@ -338,14 +338,14 @@ pub mod tests {
         assert_eq!("bob", first_node.owner());
 
         // add a node owned by fred
-        let fred_bond = coins(1666_000000, "unym");
+        let fred_bond = coins(1666_000000, STAKE_DENOM);
         helpers::add_mixnode("fred", fred_bond.clone(), &mut deps);
 
         // let's make sure we now have 2 nodes:
         assert_eq!(2, helpers::get_mix_nodes(&mut deps).len());
 
         // un-register fred's node
-        let info = mock_info("fred", &coins(999_9999, "unym"));
+        let info = mock_info("fred", &coins(999_9999, STAKE_DENOM));
         let msg = HandleMsg::UnRegisterMixnode {};
         let remove_fred = handle(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
@@ -354,7 +354,7 @@ pub mod tests {
             attr("action", "unbond"),
             attr(
                 "mixnode_bond",
-                "amount: [Coin { denom: \"unym\", amount: Uint128(1666000000) }], owner: fred",
+                "amount: [Coin { denom: \"uhal\", amount: Uint128(1666000000) }], owner: fred",
             ),
         ];
 
@@ -561,7 +561,10 @@ pub mod tests {
         let expected_attributes = vec![
             attr("action", "unbond"),
             attr("address", "fred"),
-            attr("gateway_bond", "amount: 1000000000 unym, owner: fred"),
+            attr(
+                "gateway_bond",
+                format!("amount: 1000000000 {}, owner: fred", STAKE_DENOM),
+            ),
         ];
 
         // we should see a funds transfer from the contract back to fred

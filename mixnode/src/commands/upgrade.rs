@@ -33,7 +33,7 @@ fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
     );
 }
 
-fn pre_090_upgrade(from: &str, config: Config, matches: &ArgMatches) -> Config {
+fn pre_090_upgrade(from: &str, config: Config, _matches: &ArgMatches) -> Config {
     // note: current is guaranteed to not have any `build` information suffix (nor pre-release
     // information), as this was asserted at the beginning of this command)
     //
@@ -101,11 +101,6 @@ fn pre_090_upgrade(from: &str, config: Config, matches: &ArgMatches) -> Config {
         .with_custom_metrics_server(DEFAULT_METRICS_SERVER)
         .with_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT);
 
-    if let Some(incentives_address) = matches.value_of("incentives address") {
-        upgraded_config = upgraded_config.with_incentives_address(incentives_address);
-        println!("Setting incentives address to {}", incentives_address);
-    }
-
     println!("Setting metrics server to {}", DEFAULT_METRICS_SERVER);
     println!(
         "Setting validator REST endpoint to {}",
@@ -140,7 +135,7 @@ fn pre_090_upgrade(from: &str, config: Config, matches: &ArgMatches) -> Config {
     upgraded_config
 }
 
-fn patch_09x_upgrade(config: Config, matches: &ArgMatches) -> Config {
+fn patch_09x_upgrade(config: Config, _matches: &ArgMatches) -> Config {
     // this call must succeed as it was already called before
     let from_version = Version::parse(config.get_version()).unwrap();
     let to_version = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
@@ -148,17 +143,7 @@ fn patch_09x_upgrade(config: Config, matches: &ArgMatches) -> Config {
     print_start_upgrade(&from_version, &to_version);
 
     // 0.9.1 upgrade:
-    let mut upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
-
-    // not strictly part of the upgrade, but since people had problems with it and I've got a feeling
-    // they might try to use it, just allow changing incentives address here again...
-    if let Some(incentives_address) = matches.value_of("incentives address") {
-        upgraded_config = upgraded_config.with_incentives_address(incentives_address);
-        println!(
-            "Setting incentives address to {}. Old value will be overwritten",
-            incentives_address
-        );
-    }
+    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
@@ -184,11 +169,6 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("current version")
             .long("current-version")
             .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Specifies current version of the configuration file to help to determine a valid upgrade path. Valid formats include '0.8.1', 'v0.8.1' or 'V0.8.1'")
-            .takes_value(true)
-        )
-        .arg(Arg::with_name("incentives address")
-            .long("incentives-address")
-            .help("Optional, if participating in the incentives program, payment address")
             .takes_value(true)
         )
 }

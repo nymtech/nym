@@ -27,6 +27,8 @@ pub const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'CLIENT'
 pub const DEFAULT_VALIDATOR_REST_ENDPOINT: &str = "http://testnet-validator1.nymtech.net:8081";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str =
+    "TODO: THIS NEEDS TO BE FILLED WITH SOME REASONABLE VALUE!";
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
@@ -180,6 +182,10 @@ impl<T: NymConfig> Config<T> {
         self.client.validator_rest_url = validator.into();
     }
 
+    pub fn set_mixnet_contract<S: Into<String>>(&mut self, contract_address: S) {
+        self.client.mixnet_contract_address = contract_address.into();
+    }
+
     pub fn set_high_default_traffic_volume(&mut self) {
         self.debug.average_packet_delay = Duration::from_millis(10);
         self.debug.loop_cover_traffic_average_delay = Duration::from_millis(2000000); // basically don't really send cover messages
@@ -236,6 +242,10 @@ impl<T: NymConfig> Config<T> {
 
     pub fn get_validator_rest_endpoint(&self) -> String {
         self.client.validator_rest_url.clone()
+    }
+
+    pub fn get_validator_mixnet_contract_address(&self) -> String {
+        self.client.mixnet_contract_address.clone()
     }
 
     pub fn get_gateway_id(&self) -> String {
@@ -338,6 +348,10 @@ pub struct Client<T> {
     #[serde(default = "missing_string_value")]
     validator_rest_url: String,
 
+    /// Address of the validator contract managing the network.
+    #[serde(default = "missing_string_value")]
+    mixnet_contract_address: String,
+
     /// Special mode of the system such that all messages are sent as soon as they are received
     /// and no cover traffic is generated. If set all message delays are set to 0 and overwriting
     /// 'Debug' values will have no effect.
@@ -390,6 +404,7 @@ impl<T: NymConfig> Default for Client<T> {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             validator_rest_url: DEFAULT_VALIDATOR_REST_ENDPOINT.to_string(),
+            mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
             vpn_mode: false,
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),

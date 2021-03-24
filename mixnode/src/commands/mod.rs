@@ -7,7 +7,6 @@ use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 
 pub(crate) mod init;
 pub(crate) mod run;
-pub(crate) mod unregister;
 pub(crate) mod upgrade;
 
 pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
@@ -41,6 +40,10 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.with_custom_validator(validator);
     }
 
+    if let Some(contract_address) = matches.value_of("mixnet-contract") {
+        config = config.with_custom_mixnet_contract(contract_address)
+    }
+
     if let Some(metrics_server) = matches.value_of("metrics-server") {
         config = config.with_custom_metrics_server(metrics_server);
     }
@@ -61,14 +64,6 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
             panic!("Invalid port value provided - {:?}", err);
         }
         config = config.with_announce_port(announce_port.unwrap());
-    }
-
-    if let Some(location) = matches.value_of("location") {
-        config = config.with_location(location);
-    }
-
-    if let Some(incentives_address) = matches.value_of("incentives-address") {
-        config = config.with_incentives_address(incentives_address);
     }
 
     config

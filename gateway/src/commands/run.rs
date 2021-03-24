@@ -23,12 +23,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
         // the rest of arguments are optional, they are used to override settings in config file
         .arg(
-            Arg::with_name("location")
-                .long("location")
-                .help("Optional geographical location of this gateway")
-                .takes_value(true),
-        )
-        .arg(
             Arg::with_name("config")
                 .long("config")
                 .help("Custom path to the nym gateway configuration file")
@@ -98,6 +92,12 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             Arg::with_name("validator")
                 .long("validator")
                 .help("REST endpoint of the validator the node is registering presence with")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("mixnet-contract")
+                .long("mixnet-contract")
+                .help("Address of the validator contract managing the network")
                 .takes_value(true),
         )
 }

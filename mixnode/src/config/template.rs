@@ -18,13 +18,7 @@ version = '{{ mixnode.version }}'
     
 # Human readable ID of this particular mixnode.
 id = '{{ mixnode.id }}'
-
-# Completely optional value specifying geographical location of this particular node.
-# Currently it's used entirely for debug purposes, as there are no mechanisms implemented
-# to verify correctness of the information provided. However, feel free to fill in
-# this field with as much accuracy as you wish to share.
-location = '{{ mixnode.location }}'
-    
+   
 # Layer of this particular mixnode determining its position in the network.
 layer = {{ mixnode.layer }}
 
@@ -43,9 +37,6 @@ private_sphinx_key_file = '{{ mixnode.private_sphinx_key_file }}'
 # Path to file containing public sphinx key.
 public_sphinx_key_file = '{{ mixnode.public_sphinx_key_file }}'
 
-# Optional, if participating in the incentives program, payment address.
-incentives_address = '{{ mixnode.incentives_address }}'
-
 ##### additional mixnode config options #####
 
 # Optional address announced to the directory server for the clients to connect to.
@@ -61,6 +52,9 @@ validator_rest_url = '{{ mixnode.validator_rest_url }}'
 
 # Metrics server to which the node will be reporting their metrics data.
 metrics_server_url = '{{ mixnode.metrics_server_url }}'
+
+# Address of the validator contract managing the network.
+mixnet_contract_address = '{{ mixnode.mixnet_contract_address }}'
 
 ##### advanced configuration options #####
 

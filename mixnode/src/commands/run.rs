@@ -22,12 +22,6 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
         )
         // the rest of arguments are optional, they are used to override settings in config file
         .arg(
-            Arg::with_name("location")
-                .long("location")
-                .help("Optional geographical location of this node")
-                .takes_value(true),
-        )
-        .arg(
             Arg::with_name("layer")
                 .long("layer")
                 .help("The mixnet layer of this particular node")
@@ -61,6 +55,12 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
             Arg::with_name("validator")
                 .long("validator")
                 .help("REST endpoint of the validator the node is registering presence with")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("mixnet-contract")
+                .long("mixnet-contract")
+                .help("Address of the validator contract managing the network")
                 .takes_value(true),
         )
         .arg(
@@ -176,14 +176,13 @@ pub fn execute(matches: &ArgMatches) {
     Sphinx key: {}
     Host: {}
     Layer: {}
-    Location: {}
+    Location: [physical location of your node's server]
     Version: {}
     ",
         identity_keypair.public_key().to_base58_string(),
         sphinx_keypair.public_key().to_base58_string(),
         config.get_announce_address(),
         config.get_layer(),
-        config.get_location(),
         config.get_version(),
     );
 

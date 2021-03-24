@@ -43,9 +43,9 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new<S: Into<String>>(base_url: S, mixnet_contract_address: S) -> Self {
+    pub fn new<S: Into<String>>(rpc_server_base_url: S, mixnet_contract_address: S) -> Self {
         Config {
-            rpc_server_base_url: base_url.into(),
+            rpc_server_base_url: rpc_server_base_url.into(),
             mixnet_contract_address: mixnet_contract_address.into(),
             mixnode_page_limit: None,
             gateway_page_limit: None,

@@ -15,7 +15,6 @@ use tokio::runtime::Runtime;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
-mod presence;
 pub(crate) mod storage;
 
 pub struct Gateway {
@@ -124,40 +123,34 @@ impl Gateway {
         println!(
             "Received SIGINT - the gateway will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
         );
-        if let Err(err) = presence::unregister_with_validator(
-            self.config.get_validator_rest_endpoint(),
-            self.identity.public_key().to_base58_string(),
-        )
-        .await
-        {
-            error!("failed to unregister with validator... - {}", err)
-        } else {
-            info!("unregistration was successful!")
-        }
     }
 
+    // TODO: ask DH whether this function still makes sense in ^0.10
     async fn check_if_same_ip_gateway_exists(&self) -> Option<String> {
         let announced_mix_host = self.config.get_mix_announce_address();
         let announced_clients_host = self.config.get_clients_announce_address();
-        let validator_client_config =
-            validator_client::Config::new(self.config.get_validator_rest_endpoint());
-        let validator_client = validator_client::Client::new(validator_client_config);
-        let topology = match validator_client.get_topology().await {
-            Ok(topology) => topology,
+
+        let validator_client_config = validator_client_rest::Config::new(
+            self.config.get_validator_rest_endpoint(),
+            self.config.get_validator_mixnet_contract_address(),
+        );
+        let validator_client = validator_client_rest::Client::new(validator_client_config);
+
+        let existing_gateways = match validator_client.get_gateways().await {
+            Ok(gateways) => gateways,
             Err(err) => {
-                error!("failed to grab initial network topology - {}\n Please try to startup again in few minutes", err);
+                error!("failed to grab initial network gateways - {}\n Please try to startup again in few minutes", err);
                 process::exit(1);
             }
         };
 
-        let existing_gateways = topology.gateways;
         existing_gateways
             .iter()
             .find(|node| {
-                node.mixnet_listener() == announced_mix_host
-                    || node.clients_listener() == announced_clients_host
+                node.gateway.mix_host == announced_mix_host
+                    || node.gateway.clients_host == announced_clients_host
             })
-            .map(|node| node.identity())
+            .map(|node| node.gateway().identity_key.clone())
     }
 
     // Rather than starting all futures with explicit `&Handle` argument, let's see how it works
@@ -179,15 +172,6 @@ impl Gateway {
                     );
                     return;
                 }
-            }
-
-            if let Err(err) = presence::register_with_validator(
-                &self.config,
-                self.identity.public_key().to_base58_string(),
-                self.encryption_keys.public_key().to_base58_string(),
-            ).await {
-                error!("failed to register with the validator - {}.\nPlease try again in few minutes.", err);
-                return
             }
 
             let mix_forwarding_channel = self.start_packet_forwarder();

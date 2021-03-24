@@ -1,9 +1,10 @@
 {
-  "name": "nym-validator-client",
+  "name": "@nymproject/nym-validator-client",
   "version": "0.10.0-rc1",
   "description": "A TypeScript client for interacting with smart contracts in Nym validators",
   "repository": "https://github.com/nymtech/nym",
   "main": "./dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "test": "ts-mocha tests/**/*.test.ts",

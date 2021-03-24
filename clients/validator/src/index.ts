@@ -69,14 +69,14 @@ export default class ValidatorClient {
      * @returns a fresh mnemonic.
      */
     static randomMnemonic(): string {
-        return Bip39.encode(Random.getBytes(16)).toString();
+        return Bip39.encode(Random.getBytes(32)).toString();
     }
 
     /**
      * @param mnemonic A mnemonic from which to generate a public/private keypair.
      * @returns the address for this client wallet
      */
-    async mnemonicToAddress(mnemonic: string): Promise<string> {
+    static async mnemonicToAddress(mnemonic: string): Promise<string> {
         const wallet = await ValidatorClient.buildWallet(mnemonic);
         const [{ address }] = await wallet.getAccounts()
         return address

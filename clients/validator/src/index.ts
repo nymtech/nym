@@ -76,7 +76,7 @@ export default class ValidatorClient {
      * @param mnemonic A mnemonic from which to generate a public/private keypair.
      * @returns the address for this client wallet
      */
-    async mnemonicToAddress(mnemonic: string): Promise<string> {
+    static async mnemonicToAddress(mnemonic: string): Promise<string> {
         const wallet = await ValidatorClient.buildWallet(mnemonic);
         const [{ address }] = await wallet.getAccounts()
         return address

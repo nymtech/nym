@@ -25,7 +25,7 @@ nonexhaustive-delayqueue = { path = "../../common/nonexhaustive-delayqueue" }
 nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }
-validator-client = { path = "../../common/client-libs/validator-client" }
+validator-client-rest = { path = "../../common/client-libs/validator-client-rest" }
 
 [dev-dependencies]
 tempfile = "3.1.0"

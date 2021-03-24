@@ -6,7 +6,6 @@ use clap::ArgMatches;
 
 pub(crate) mod init;
 pub(crate) mod run;
-pub(crate) mod unregister;
 pub(crate) mod upgrade;
 
 pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
@@ -80,20 +79,16 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.with_custom_validator(validator);
     }
 
+    if let Some(contract_address) = matches.value_of("mixnet-contract") {
+        config = config.with_custom_mixnet_contract(contract_address)
+    }
+
     if let Some(inboxes_dir) = matches.value_of("inboxes") {
         config = config.with_custom_clients_inboxes(inboxes_dir);
     }
 
     if let Some(clients_ledger) = matches.value_of("clients-ledger") {
         config = config.with_custom_clients_ledger(clients_ledger);
-    }
-
-    if let Some(location) = matches.value_of("location") {
-        config = config.with_location(location);
-    }
-
-    if let Some(incentives_address) = matches.value_of("incentives-address") {
-        config = config.with_incentives_address(incentives_address);
     }
 
     config

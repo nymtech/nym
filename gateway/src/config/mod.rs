@@ -23,6 +23,8 @@ const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
 pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str =
     "http://testnet-validator1.nymtech.net:8081";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str =
+    "TODO: THIS NEEDS TO BE FILLED WITH SOME REASONABLE VALUE!";
 
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
@@ -129,18 +131,6 @@ where
     deserializer.deserialize_any(DurationVisitor)
 }
 
-fn deserialize_option_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s = String::deserialize(deserializer)?;
-    if s.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(s))
-    }
-}
-
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
 }
@@ -196,8 +186,8 @@ impl Config {
         self
     }
 
-    pub fn with_location<S: Into<String>>(mut self, location: S) -> Self {
-        self.gateway.location = location.into();
+    pub fn with_custom_mixnet_contract<S: Into<String>>(mut self, mixnet_contract: S) -> Self {
+        self.gateway.mixnet_contract_address = mixnet_contract.into();
         self
     }
 
@@ -382,18 +372,9 @@ impl Config {
         self
     }
 
-    pub fn with_incentives_address<S: Into<String>>(mut self, incentives_address: S) -> Self {
-        self.gateway.incentives_address = Some(incentives_address.into());
-        self
-    }
-
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
-    }
-
-    pub fn get_location(&self) -> String {
-        self.gateway.location.clone()
     }
 
     pub fn get_private_identity_key_file(&self) -> PathBuf {
@@ -414,6 +395,10 @@ impl Config {
 
     pub fn get_validator_rest_endpoint(&self) -> String {
         self.gateway.validator_rest_url.clone()
+    }
+
+    pub fn get_validator_mixnet_contract_address(&self) -> String {
+        self.gateway.mixnet_contract_address.clone()
     }
 
     pub fn get_mix_listening_address(&self) -> SocketAddr {
@@ -471,10 +456,6 @@ impl Config {
     pub fn get_version(&self) -> &str {
         &self.gateway.version
     }
-
-    pub fn get_incentives_address(&self) -> Option<String> {
-        self.gateway.incentives_address.clone()
-    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -485,12 +466,6 @@ pub struct Gateway {
 
     /// ID specifies the human readable ID of this particular gateway.
     id: String,
-
-    /// Completely optional value specifying geographical location of this particular gateway.
-    /// Currently it's used entirely for debug purposes, as there are no mechanisms implemented
-    /// to verify correctness of the information provided. However, feel free to fill in
-    /// this field with as much accuracy as you wish to share.
-    location: String,
 
     /// Path to file containing private identity key.
     private_identity_key_file: PathBuf,
@@ -508,13 +483,13 @@ pub struct Gateway {
     #[serde(default = "missing_string_value")]
     validator_rest_url: String,
 
+    /// Address of the validator contract managing the network.
+    #[serde(default = "missing_string_value")]
+    mixnet_contract_address: String,
+
     /// nym_home_directory specifies absolute path to the home nym gateways directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
-
-    /// Optional, if participating in the incentives program, payment address.
-    #[serde(deserialize_with = "deserialize_option_string", default)]
-    incentives_address: Option<String>,
 }
 
 impl Gateway {
@@ -533,10 +508,6 @@ impl Gateway {
     fn default_public_identity_key_file(id: &str) -> PathBuf {
         Config::default_data_directory(id).join("public_identity.pem")
     }
-
-    fn default_location() -> String {
-        "unknown".into()
-    }
 }
 
 impl Default for Gateway {
@@ -544,14 +515,13 @@ impl Default for Gateway {
         Gateway {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
-            location: Self::default_location(),
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
             validator_rest_url: DEFAULT_VALIDATOR_REST_ENDPOINT.to_string(),
+            mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
             nym_root_directory: Config::default_root_directory(),
-            incentives_address: None,
         }
     }
 }

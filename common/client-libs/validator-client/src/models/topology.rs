@@ -14,7 +14,6 @@
 
 use crate::models::gateway::RegisteredGateway;
 use crate::models::mixnode::RegisteredMix;
-use crate::models::validators::ValidatorsOutput;
 use log::*;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
@@ -26,7 +25,6 @@ use topology::{MixLayer, NymTopology};
 pub struct Topology {
     pub mix_nodes: Vec<RegisteredMix>,
     pub gateways: Vec<RegisteredGateway>,
-    pub validators: ValidatorsOutput,
 }
 
 // changed from `TryInto`. reason being is that we should not fail entire topology

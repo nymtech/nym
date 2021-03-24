@@ -15,7 +15,6 @@ use tokio::runtime::Runtime;
 mod listener;
 mod metrics;
 pub(crate) mod packet_delayforwarder;
-mod presence;
 
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
@@ -87,23 +86,26 @@ impl MixNode {
         packet_sender
     }
 
+    // TODO: ask DH whether this function still makes sense in ^0.10
     async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
-        let validator_client_config =
-            validator_client::Config::new(self.config.get_validator_rest_endpoint());
-        let validator_client = validator_client::Client::new(validator_client_config);
-        let topology = match validator_client.get_topology().await {
-            Ok(topology) => topology,
+        let validator_client_config = validator_client_rest::Config::new(
+            self.config.get_validator_rest_endpoint(),
+            self.config.get_validator_mixnet_contract_address(),
+        );
+        let validator_client = validator_client_rest::Client::new(validator_client_config);
+
+        let existing_nodes = match validator_client.get_mix_nodes().await {
+            Ok(nodes) => nodes,
             Err(err) => {
-                error!("failed to grab initial network topology - {}\n Please try to startup again in few minutes", err);
+                error!("failed to grab initial network mixnodes - {}\n Please try to startup again in few minutes", err);
                 process::exit(1);
             }
         };
 
-        let existing_mixes_presence = topology.mix_nodes;
-        existing_mixes_presence
+        existing_nodes
             .iter()
-            .find(|node| node.mix_host() == self.config.get_announce_address())
-            .map(|node| node.identity())
+            .find(|node| node.mix_node.host == self.config.get_announce_address())
+            .map(|node| node.mix_node.identity_key.clone())
     }
 
     async fn wait_for_interrupt(&self) {
@@ -116,17 +118,6 @@ impl MixNode {
         println!(
             "Received SIGINT - the mixnode will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
         );
-        info!("Trying to unregister with the validator...");
-        if let Err(err) = presence::unregister_with_validator(
-            self.config.get_validator_rest_endpoint(),
-            self.identity_keypair.public_key().to_base58_string(),
-        )
-        .await
-        {
-            error!("failed to unregister with validator... - {}", err)
-        } else {
-            info!("unregistration was successful!")
-        }
     }
 
     pub fn run(&mut self) {
@@ -145,15 +136,6 @@ impl MixNode {
                     );
                     return;
                 }
-            }
-
-            if let Err(err) = presence::register_with_validator(
-                &self.config,
-                self.identity_keypair.public_key().to_base58_string(),
-                self.sphinx_keypair.public_key().to_base58_string(),
-            ).await {
-                error!("failed to register with the validator - {}.\nPlease try again in few minutes.", err);
-                return;
             }
 
             let metrics_reporter = self.start_metrics_reporter();

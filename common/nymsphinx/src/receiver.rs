@@ -214,6 +214,8 @@ mod message_receiver {
         mixes.insert(
             1,
             vec![mix::Node {
+                owner: "foomp1".to_string(),
+                stake: 123,
                 location: "unknown".to_string(),
                 host: "10.20.30.40:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -225,15 +227,15 @@ mod message_receiver {
                 )
                 .unwrap(),
                 layer: 1,
-                registration_time: 1594812897745695000,
                 version: "0.8.0-dev".to_string(),
-                reputation: 100,
             }],
         );
 
         mixes.insert(
             2,
             vec![mix::Node {
+                owner: "foomp2".to_string(),
+                stake: 123,
                 location: "unknown".to_string(),
                 host: "11.21.31.41:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -245,15 +247,15 @@ mod message_receiver {
                 )
                 .unwrap(),
                 layer: 2,
-                registration_time: 1594812897745695000,
                 version: "0.8.0-dev".to_string(),
-                reputation: 100,
             }],
         );
 
         mixes.insert(
             3,
             vec![mix::Node {
+                owner: "foomp3".to_string(),
+                stake: 123,
                 location: "unknown".to_string(),
                 host: "12.22.32.42:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -265,9 +267,7 @@ mod message_receiver {
                 )
                 .unwrap(),
                 layer: 3,
-                registration_time: 1594812897745695000,
                 version: "0.8.0-dev".to_string(),
-                reputation: 100,
             }],
         );
 
@@ -275,6 +275,8 @@ mod message_receiver {
             // currently coco_nodes don't really exist so this is still to be determined
             mixes,
             vec![gateway::Node {
+                owner: "foomp4".to_string(),
+                stake: 123,
                 location: "unknown".to_string(),
                 client_listener: "ws://1.2.3.4:9000".to_string(),
                 mixnet_listener: "1.2.3.4:1789".parse().unwrap(),
@@ -286,8 +288,6 @@ mod message_receiver {
                     "EB42xvMFMD5rUCstE2CDazgQQJ22zLv8SPm1Luxni44c",
                 )
                 .unwrap(),
-                registration_time: 1594812897745695000,
-                reputation: 100,
                 version: "0.8.0-dev".to_string(),
             }],
         )

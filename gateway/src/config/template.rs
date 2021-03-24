@@ -19,12 +19,6 @@ version = '{{ gateway.version }}'
 # Human readable ID of this particular gateway.
 id = '{{ gateway.id }}'
 
-# Completely optional value specifying geographical location of this particular node.
-# Currently it's used entirely for debug purposes, as there are no mechanisms implemented
-# to verify correctness of the information provided. However, feel free to fill in
-# this field with as much accuracy as you wish to share.
-location = '{{ gateway.location }}'
-
 # Path to file containing private identity key.
 private_identity_key_file = '{{ gateway.private_identity_key_file }}'
 
@@ -37,11 +31,11 @@ private_sphinx_key_file = '{{ gateway.private_sphinx_key_file }}'
 # Path to file containing public sphinx key.
 public_sphinx_key_file = '{{ gateway.public_sphinx_key_file }}'
 
-# Optional, if participating in the incentives program, payment address.
-incentives_address = '{{ gateway.incentives_address }}'
-
 # Validator server to which the node will be reporting their presence data.
 validator_rest_url = '{{ gateway.validator_rest_url }}'
+
+# Address of the validator contract managing the network.
+mixnet_contract_address = '{{ gateway.mixnet_contract_address }}'
 
 # nym_home_directory specifies absolute path to the home nym gateway directory.
 # It is expected to use default value and hence .toml file should not redefine this field.

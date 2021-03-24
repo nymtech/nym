@@ -24,6 +24,10 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config.get_base_mut().set_custom_validator(validator);
     }
 
+    if let Some(contract_address) = matches.value_of("mixnet-contract") {
+        config.get_base_mut().set_mixnet_contract(contract_address)
+    }
+
     if let Some(gateway_id) = matches.value_of("gateway") {
         config.get_base_mut().with_gateway_id(gateway_id);
     }

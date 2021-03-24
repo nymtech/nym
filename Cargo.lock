@@ -390,7 +390,7 @@ dependencies = [
  "tempfile",
  "tokio 0.2.22",
  "topology",
- "validator-client",
+ "validator-client-rest",
 ]
 
 [[package]]
@@ -1702,7 +1702,7 @@ dependencies = [
  "tokio-tungstenite",
  "topology",
  "url",
- "validator-client",
+ "validator-client-rest",
  "version-checker",
  "websocket-requests",
 ]
@@ -1754,7 +1754,7 @@ dependencies = [
  "tokio-tungstenite",
  "tokio-util 0.3.1",
  "tungstenite",
- "validator-client",
+ "validator-client-rest",
  "version-checker",
 ]
 
@@ -1784,7 +1784,7 @@ dependencies = [
  "tokio 0.2.22",
  "tokio-util 0.3.1",
  "topology",
- "validator-client",
+ "validator-client-rest",
  "version-checker",
 ]
 
@@ -1857,7 +1857,7 @@ dependencies = [
  "socks5-requests",
  "tokio 0.2.22",
  "topology",
- "validator-client",
+ "validator-client-rest",
  "version-checker",
 ]
 
@@ -3157,6 +3157,7 @@ dependencies = [
  "bs58",
  "crypto",
  "log",
+ "mixnet-contract",
  "nymsphinx-addressing",
  "nymsphinx-types",
  "pretty_env_logger",

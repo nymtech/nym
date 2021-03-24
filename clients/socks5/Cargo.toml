@@ -32,5 +32,5 @@ ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
 socks5-requests = { path = "../../common/socks5/requests" }
 topology = { path = "../../common/topology" }
 proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
-validator-client = { path = "../../common/client-libs/validator-client" }
+validator-client-rest = { path = "../../common/client-libs/validator-client-rest" }
 version-checker = { path = "../../common/version-checker" }

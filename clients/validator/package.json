@@ -1,8 +1,8 @@
 {
   "name": "nym-validator-client",
-  "version": "0.1.0",
-  "description": "A TypeScript client for interacting with CosmWasm smart contracts in Nym validators",
-  "repository": "https://code.constructiveproof.com/dave/validator-client",
+  "version": "0.10.0-rc1",
+  "description": "A TypeScript client for interacting with smart contracts in Nym validators",
+  "repository": "https://github.com/nymtech/nym",
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc",
@@ -12,8 +12,12 @@
     "docs": "typedoc --out docs src/index.ts"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Nym Technologies SA (https://nymtech.net)",
+  "contributors": [
+    "Dave Hrycyszyn (https://constructiveproof.com/)",
+    "Jędrzej Stuczynski"
+  ],
+  "license": "Apache-2.0",
   "devDependencies": {
     "@types/chai": "^4.2.15",
     "@types/expect": "^24.3.0",

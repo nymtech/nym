@@ -105,3 +105,9 @@ impl PagedResponse {
         }
     }
 }
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct MixOwnershipResponse {
+    pub address: HumanAddr,
+    pub has_node: bool,
+}

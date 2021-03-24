@@ -109,3 +109,9 @@ impl PagedGatewayResponse {
         }
     }
 }
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct GatewayOwnershipResponse {
+    pub address: HumanAddr,
+    pub has_gateway: bool,
+}

@@ -1,5 +1,7 @@
 use crate::msg::{HandleMsg, InitMsg, QueryMsg};
-use crate::queries::{query_gateways_paged, query_mixnodes_paged};
+use crate::queries::{
+    query_gateways_paged, query_mixnodes_paged, query_owns_gateway, query_owns_mixnode,
+};
 use crate::state::{config, gateways, gateways_read, State};
 use crate::{error::ContractError, state::mixnodes, state::mixnodes_read};
 use cosmwasm_std::{
@@ -200,6 +202,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetGateways { limit, start_after } => {
             to_binary(&query_gateways_paged(deps, start_after, limit)?)
         }
+        QueryMsg::OwnsMixnode { address } => to_binary(&query_owns_mixnode(deps, address)?),
+        QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
     }
 }
 

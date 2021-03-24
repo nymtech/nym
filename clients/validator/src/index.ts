@@ -69,7 +69,7 @@ export default class ValidatorClient {
      * @returns a fresh mnemonic.
      */
     static randomMnemonic(): string {
-        return Bip39.encode(Random.getBytes(16)).toString();
+        return Bip39.encode(Random.getBytes(32)).toString();
     }
 
     /**

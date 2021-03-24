@@ -26,4 +26,10 @@ pub enum QueryMsg {
         start_after: Option<HumanAddr>,
         limit: Option<u32>,
     },
+    OwnsMixnode {
+        address: HumanAddr,
+    },
+    OwnsGateway {
+        address: HumanAddr,
+    },
 }

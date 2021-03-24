@@ -188,3 +188,15 @@ impl PagedGatewayResponse {
         }
     }
 }
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct MixOwnershipResponse {
+    pub address: HumanAddr,
+    pub has_node: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct GatewayOwnershipResponse {
+    pub address: HumanAddr,
+    pub has_gateway: bool,
+}

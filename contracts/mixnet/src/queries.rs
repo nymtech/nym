@@ -1,11 +1,14 @@
 // settings for pagination
-use crate::state::{gateways_read, PREFIX_MIXNODES};
+use crate::state::{gateways_read, mixnodes_read, PREFIX_MIXNODES};
 use cosmwasm_std::Deps;
 use cosmwasm_std::HumanAddr;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
 use cosmwasm_storage::bucket_read;
-use mixnet_contract::{GatewayBond, MixNodeBond, PagedGatewayResponse, PagedResponse};
+use mixnet_contract::{
+    GatewayBond, GatewayOwnershipResponse, MixNodeBond, MixOwnershipResponse, PagedGatewayResponse,
+    PagedResponse,
+};
 
 const MAX_LIMIT: u32 = 30;
 const DEFAULT_LIMIT: u32 = 10;
@@ -50,6 +53,29 @@ pub(crate) fn query_gateways_paged(
     let start_next_after = nodes.last().map(|node| node.owner().clone());
 
     Ok(PagedGatewayResponse::new(nodes, limit, start_next_after))
+}
+
+pub(crate) fn query_owns_mixnode(
+    deps: Deps,
+    address: HumanAddr,
+) -> StdResult<MixOwnershipResponse> {
+    let has_node = mixnodes_read(deps.storage)
+        .may_load(address.as_ref())?
+        .is_some();
+    Ok(MixOwnershipResponse { address, has_node })
+}
+
+pub(crate) fn query_owns_gateway(
+    deps: Deps,
+    address: HumanAddr,
+) -> StdResult<GatewayOwnershipResponse> {
+    let has_gateway = gateways_read(deps.storage)
+        .may_load(address.as_ref())?
+        .is_some();
+    Ok(GatewayOwnershipResponse {
+        address,
+        has_gateway,
+    })
 }
 
 /// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm
@@ -305,5 +331,69 @@ mod tests {
 
         // now we have 2 pages, with 2 results on the second page
         assert_eq!(2, page2.nodes.len());
+    }
+
+    #[test]
+    fn query_for_mixnode_owner_works() {
+        let mut deps = helpers::init_contract();
+
+        // "fred" does not own a mixnode if there are no mixnodes
+        let res = query_owns_mixnode(deps.as_ref(), "fred".into()).unwrap();
+        assert!(!res.has_node);
+
+        // mixnode was added to "bob", "fred" still does not own one
+        let node = helpers::mixnode_bond_fixture();
+        mixnodes(&mut deps.storage)
+            .save("bob".as_bytes(), &node)
+            .unwrap();
+
+        let res = query_owns_mixnode(deps.as_ref(), "fred".into()).unwrap();
+        assert!(!res.has_node);
+
+        // "fred" now owns a mixnode!
+        let node2 = helpers::mixnode_bond_fixture();
+        mixnodes(&mut deps.storage)
+            .save("fred".as_bytes(), &node2)
+            .unwrap();
+
+        let res = query_owns_mixnode(deps.as_ref(), "fred".into()).unwrap();
+        assert!(res.has_node);
+
+        // but after unbonding it, he doesn't own one anymore
+        mixnodes(&mut deps.storage).remove("fred".as_bytes());
+        let res = query_owns_mixnode(deps.as_ref(), "fred".into()).unwrap();
+        assert!(!res.has_node);
+    }
+
+    #[test]
+    fn query_for_gateway_owner_works() {
+        let mut deps = helpers::init_contract();
+
+        // "fred" does not own a mixnode if there are no mixnodes
+        let res = query_owns_gateway(deps.as_ref(), "fred".into()).unwrap();
+        assert!(!res.has_gateway);
+
+        // mixnode was added to "bob", "fred" still does not own one
+        let node = helpers::gateway_bond_fixture();
+        gateways(&mut deps.storage)
+            .save("bob".as_bytes(), &node)
+            .unwrap();
+
+        let res = query_owns_gateway(deps.as_ref(), "fred".into()).unwrap();
+        assert!(!res.has_gateway);
+
+        // "fred" now owns a mixnode!
+        let node2 = helpers::gateway_bond_fixture();
+        gateways(&mut deps.storage)
+            .save("fred".as_bytes(), &node2)
+            .unwrap();
+
+        let res = query_owns_gateway(deps.as_ref(), "fred".into()).unwrap();
+        assert!(res.has_gateway);
+
+        // but after unbonding it, he doesn't own one anymore
+        gateways(&mut deps.storage).remove("fred".as_bytes());
+        let res = query_owns_gateway(deps.as_ref(), "fred".into()).unwrap();
+        assert!(!res.has_gateway);
     }
 }

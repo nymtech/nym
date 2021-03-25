@@ -1,5 +1,6 @@
 import { MixNodeBond } from "../types";
 import { INetClient, PagedResponse } from "../net-client"
+import {IQueryClient} from "../query-client";
 
 export { MixnodesCache };
 
@@ -11,11 +12,11 @@ export { MixnodesCache };
  *  */
 export default class MixnodesCache {
     mixNodes: MixNodeBond[]
-    netClient: INetClient
+    client: INetClient | IQueryClient
     perPage: number
 
-    constructor(netClient: INetClient, perPage: number) {
-        this.netClient = netClient;
+    constructor(client: INetClient | IQueryClient, perPage: number) {
+        this.client = client;
         this.mixNodes = [];
         this.perPage = perPage;
     }
@@ -28,7 +29,7 @@ export default class MixnodesCache {
         let response: PagedResponse;
         let next: string | undefined;
         do {
-            response = await this.netClient.getMixNodes(contractAddress, this.perPage, next);
+            response = await this.client.getMixNodes(contractAddress, this.perPage, next);
             response.nodes.forEach(node => this.mixNodes.push(node));
             next = response.start_next_after;
         } while (this.shouldMakeAnotherRequest(response))

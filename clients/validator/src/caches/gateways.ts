@@ -1,5 +1,6 @@
 import { GatewayBond } from "../types";
 import {INetClient, PagedGatewayResponse} from "../net-client"
+import {IQueryClient} from "../query-client";
 
 
 /**
@@ -10,11 +11,11 @@ import {INetClient, PagedGatewayResponse} from "../net-client"
  **/
 export default class GatewaysCache {
     gateways: GatewayBond[]
-    netClient: INetClient
+    client: INetClient | IQueryClient
     perPage: number
 
-    constructor(netClient: INetClient, perPage: number) {
-        this.netClient = netClient;
+    constructor(client: INetClient | IQueryClient, perPage: number) {
+        this.client = client;
         this.gateways = [];
         this.perPage = perPage;
     }
@@ -27,7 +28,7 @@ export default class GatewaysCache {
         let response: PagedGatewayResponse;
         let next: string | undefined = undefined;
         do {
-            response = await this.netClient.getGateways(contractAddress, this.perPage, next);
+            response = await this.client.getGateways(contractAddress, this.perPage, next);
             newGateways = newGateways.concat(response.nodes)
             next = response.start_next_after;
         } while (this.shouldMakeAnotherRequest(response))

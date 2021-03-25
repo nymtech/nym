@@ -34,6 +34,6 @@ Packaging
 
 If you're a Nym platform developer who's made changes to the client and wants to re-publish the package to NPM, here's how you do it: 
 
-1. `wasm-pack build --scope nymproject` builds the wasm binaries into the `pkg` directory (not in source control)
-2. bump version numbers as necessary for SemVer
-3. `wasm-pack publish --access=public` will publish your changed package to NPM
+1. Bump the version number (use SemVer)
+1. `npm run build`
+1. `npm login` (if you haven't already)

@@ -10,6 +10,8 @@ export interface INetClient {
     getBalance(address: string): Promise<Coin | null>;
     getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedResponse>;
     getGateways(contractAddress: string, limit: number, start_after?: string): Promise<PagedGatewayResponse>;
+    ownsMixNode(contractAddress: string, address: string): Promise<MixOwnershipResponse>;
+    ownsGateway(contractAddress: string, address: string): Promise<GatewayOwnershipResponse>;
     executeContract(senderAddress: string, contractAddress: string, handleMsg: Record<string, unknown>, memo?: string, transferAmount?: readonly Coin[]): Promise<ExecuteResult>;
     instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult>;
     sendTokens(senderAddress: string, recipientAddress: string, transferAmount: readonly Coin[], memo?: string): Promise<BroadcastTxResponse>;
@@ -61,10 +63,17 @@ export default class NetClient implements INetClient {
         }
     }
 
+    public ownsMixNode(contractAddress: string, address: string): Promise<MixOwnershipResponse> {
+        return this.cosmClient.queryContractSmart(contractAddress, { owns_mixnode: { address } });
+    }
+
+    public ownsGateway(contractAddress: string, address: string): Promise<GatewayOwnershipResponse> {
+        return this.cosmClient.queryContractSmart(contractAddress, { owns_gateway: { address } });
+    }
+
     public getBalance(address: string): Promise<Coin | null> {
         return this.cosmClient.getBalance(address, this.stakeDenom);
     }
-
 
     public executeContract(senderAddress: string, contractAddress: string, handleMsg: Record<string, unknown>, memo?: string, transferAmount?: readonly Coin[]): Promise<ExecuteResult> {
         return this.cosmClient.execute(senderAddress, contractAddress, handleMsg, memo, transferAmount);
@@ -112,4 +121,14 @@ export type PagedGatewayResponse = {
     nodes: GatewayBond[],
     per_page: number, // TODO: camelCase
     start_next_after: string, // TODO: camelCase
+}
+
+export type MixOwnershipResponse = {
+    address: string,
+    has_node: boolean,
+}
+
+export type GatewayOwnershipResponse = {
+    address: string,
+    has_gateway: boolean,
 }

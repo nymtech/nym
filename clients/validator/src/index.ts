@@ -131,6 +131,22 @@ export default class ValidatorClient {
     }
 
     /**
+     * Checks whether there is already a bonded mixnode associated with this client's address
+     */
+    async ownsMixNode(): Promise<boolean> {
+        const result = await this.netClient.ownsMixNode(this.contractAddress, this.address)
+        return result.has_node
+    }
+
+    /**
+     * Checks whether there is already a bonded gateway associated with this client's address
+     */
+    async ownsGateway(): Promise<boolean> {
+        const result = await this.netClient.ownsGateway(this.contractAddress, this.address)
+        return result.has_gateway
+    }
+
+    /**
      * Get or refresh the list of gateways in the network.
      *
      * @returns an array containing all known `GatewayBond`s.

@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 aes-ctr = "0.4"
-bs58 = "0.3.0"
+bs58 = "0.4"
 blake3 = "0.3.5"
 digest = "0.9"
 generic-array = "0.14"
@@ -18,7 +18,6 @@ stream-cipher = "0.4"
 x25519-dalek = "1.1"
 ed25519-dalek = "1.0"
 log = "0.4"
-pretty_env_logger = "0.3"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 
 # internal

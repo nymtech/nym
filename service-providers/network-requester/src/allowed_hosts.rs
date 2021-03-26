@@ -48,8 +48,8 @@ impl OutboundRequestFilter {
         }
     }
 
-    fn fetch_domain_list() -> Result<List, errors::ErrorKind> {
-        Ok(publicsuffix::List::fetch()?)
+    fn fetch_domain_list() -> Result<List, errors::Error> {
+        publicsuffix::List::fetch()
     }
 
     /// Returns `true` if a host's root domain is in the `allowed_hosts` list.

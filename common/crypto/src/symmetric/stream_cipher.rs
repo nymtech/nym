@@ -4,12 +4,12 @@
 #![allow(renamed_and_removed_lints)]
 #![allow(unknown_lints)] // beta-nightly
 #![allow(clippy::unknown_clippy_lints)] // `clippy::upper_case_acronyms` does not exist on stable just yet
+use cipher::stream::{Nonce, StreamCipher, SyncStreamCipher};
 use generic_array::{typenum::Unsigned, GenericArray};
 use rand::{CryptoRng, RngCore};
-use stream_cipher::{Nonce, StreamCipher, SyncStreamCipher};
 
 // re-export this for ease of use
-pub use stream_cipher::{Key, NewStreamCipher};
+pub use cipher::stream::{Key, NewStreamCipher};
 
 // TODO: note that this is not the most secure approach here
 // we are not using nonces properly but instead "kinda" thinking of them as IVs.

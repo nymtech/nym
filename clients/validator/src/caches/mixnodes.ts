@@ -1,6 +1,7 @@
 import { MixNodeBond } from "../types";
-import { INetClient, PagedResponse } from "../net-client"
+import { INetClient } from "../net-client"
 import {IQueryClient} from "../query-client";
+import {PagedResponse} from "../index";
 
 export { MixnodesCache };
 

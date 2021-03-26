@@ -1,6 +1,7 @@
 import { GatewayBond } from "../types";
-import {INetClient, PagedGatewayResponse} from "../net-client"
+import {INetClient} from "../net-client"
 import {IQueryClient} from "../query-client";
+import {PagedGatewayResponse} from "../index";
 
 
 /**

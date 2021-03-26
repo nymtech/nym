@@ -1,13 +1,15 @@
 import { SigningCosmWasmClient, SigningCosmWasmClientOptions } from "@cosmjs/cosmwasm-stargate";
-import { GatewayBond, MixNodeBond } from "./types"
+import {GatewayOwnershipResponse, MixOwnershipResponse, PagedGatewayResponse, PagedResponse} from "./index";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { Coin, GasPrice } from "@cosmjs/launchpad";
 import { BroadcastTxResponse } from "@cosmjs/stargate"
-import { defaultOptions, nymGasLimits, Options } from "./stargate-helper"
+import { nymGasLimits } from "./stargate-helper"
 import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
 
 export interface INetClient {
-    getBalance(address: string): Promise<Coin | null>;
+    clientAddress: string;
+
+    getBalance(address: string, stakeDenom: string): Promise<Coin | null>;
     getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedResponse>;
     getGateways(contractAddress: string, limit: number, start_after?: string): Promise<PagedGatewayResponse>;
     ownsMixNode(contractAddress: string, address: string): Promise<MixOwnershipResponse>;
@@ -27,7 +29,7 @@ export interface INetClient {
  * unit testing.
  */
 export default class NetClient implements INetClient {
-    private clientAddress: string;
+    clientAddress: string;
     private cosmClient: SigningCosmWasmClient;
     private stakeDenom: string;
 
@@ -71,8 +73,8 @@ export default class NetClient implements INetClient {
         return this.cosmClient.queryContractSmart(contractAddress, { owns_gateway: { address } });
     }
 
-    public getBalance(address: string): Promise<Coin | null> {
-        return this.cosmClient.getBalance(address, this.stakeDenom);
+    public getBalance(address: string, stakeDenom: string): Promise<Coin | null> {
+        return this.cosmClient.getBalance(address, stakeDenom);
     }
 
     public executeContract(senderAddress: string, contractAddress: string, handleMsg: Record<string, unknown>, memo?: string, transferAmount?: readonly Coin[]): Promise<ExecuteResult> {
@@ -90,45 +92,4 @@ export default class NetClient implements INetClient {
     public instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult> {
         return this.cosmClient.instantiate(senderAddress, codeId, initMsg, label, options);
     }
-}
-
-/// One page of a possible multi-page set of mixnodes. The paging interface is quite
-/// inconvenient, as we don't have the two pieces of information we need to know
-/// in order to do paging nicely (namely `currentPage` and `totalPages` parameters). 
-///
-/// Instead, we have only `start_next_page_after`, i.e. the key of the last record
-/// on this page. In order to get the *next* page, CosmWasm looks at that value, 
-/// finds the next record, and builds the next page starting there. This happens
-/// **in series** rather than **in parallel** (!). 
-///
-/// So we have some consistency problems: 
-///
-/// * we can't make requests at a given block height, so the result set
-///    which we assemble over time may change while requests are being made.
-/// * at some point we will make a request for a `start_next_page_after` key 
-///   which has just been deleted from the database.
-///
-/// TODO: more robust error handling on the "deleted key" case.
-export type PagedResponse = {
-    nodes: MixNodeBond[],
-    per_page: number, // TODO: camelCase
-    start_next_after: string, // TODO: camelCase
-}
-
-// a temporary way of achieving the same paging behaviour for the gateways
-// the same points made for `PagedResponse` stand here.
-export type PagedGatewayResponse = {
-    nodes: GatewayBond[],
-    per_page: number, // TODO: camelCase
-    start_next_after: string, // TODO: camelCase
-}
-
-export type MixOwnershipResponse = {
-    address: string,
-    has_node: boolean,
-}
-
-export type GatewayOwnershipResponse = {
-    address: string,
-    has_gateway: boolean,
 }

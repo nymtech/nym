@@ -1,13 +1,15 @@
 use futures::{SinkExt, StreamExt};
 use nymsphinx::addressing::clients::Recipient;
 use tokio::net::TcpStream;
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, WebSocketStream};
+use tokio_tungstenite::{
+    connect_async, tungstenite::protocol::Message, MaybeTlsStream, WebSocketStream,
+};
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
 // just helpers functions that work in this very particular context because we are sending to ourselves
 // and hence will always get a response back (i.e. the message we sent)
 async fn send_message_and_get_response(
-    ws_stream: &mut WebSocketStream<TcpStream>,
+    ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
     req: Vec<u8>,
 ) -> ServerResponse {
     ws_stream.send(Message::Binary(req)).await.unwrap();
@@ -18,7 +20,7 @@ async fn send_message_and_get_response(
     }
 }
 
-async fn get_self_address(ws_stream: &mut WebSocketStream<TcpStream>) -> Recipient {
+async fn get_self_address(ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>) -> Recipient {
     let self_address_request = ClientRequest::SelfAddress.serialize();
     let response = send_message_and_get_response(ws_stream, self_address_request).await;
 

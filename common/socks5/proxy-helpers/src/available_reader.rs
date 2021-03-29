@@ -122,6 +122,7 @@ mod tests {
     use futures::{poll, StreamExt};
     use std::io::Cursor;
     use std::time::Duration;
+    use tokio::io::AsyncReadExt;
     use tokio_test::assert_pending;
 
     #[tokio::test]
@@ -164,6 +165,10 @@ mod tests {
 
         assert_eq!(read_data, first_data_chunk);
         assert_pending!(poll!(available_reader.next()));
+
+        // before dropping the mock, we need to empty it
+        let mut buf = vec![0u8; second_data_chunk.len()];
+        reader_mock.read(&mut buf).await.unwrap();
     }
 
     #[tokio::test]

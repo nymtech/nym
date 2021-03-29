@@ -10,7 +10,7 @@ import { CoinMap, displayAmountToNative, MappedCoin, nativeCoinToDisplay, printa
 import GatewaysCache from "./caches/gateways";
 import QueryClient, { IQueryClient } from "./query-client";
 
-export { coins };
+export { coins, coin };
 export { Coin };
 export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBalance, MappedCoin, CoinMap }
 

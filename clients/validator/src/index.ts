@@ -8,7 +8,7 @@ import { BroadcastTxResponse } from "@cosmjs/stargate"
 import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
 import { CoinMap, displayAmountToNative, MappedCoin, nativeCoinToDisplay, printableBalance, printableCoin } from "./currency";
 import GatewaysCache from "./caches/gateways";
-import QueryClient, {IQueryClient} from "./query-client";
+import QueryClient, { IQueryClient } from "./query-client";
 
 export { coins };
 export { Coin };

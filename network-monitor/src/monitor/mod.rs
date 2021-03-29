@@ -8,7 +8,7 @@ use crate::monitor::summary_producer::SummaryProducer;
 use log::*;
 use std::collections::HashSet;
 use std::sync::Arc;
-use tokio::time::{delay_for, interval_at, Duration, Instant};
+use tokio::time::{interval_at, sleep, Duration, Instant};
 use validator_client::models::mixmining::BatchMixStatus;
 
 pub(crate) mod preparer;
@@ -91,7 +91,7 @@ impl Monitor {
         debug!(target: "Monitor", "sending is over, waiting for {:?} before checking what we received", PACKET_DELIVERY_TIMEOUT);
 
         // give the packets some time to traverse the network
-        delay_for(PACKET_DELIVERY_TIMEOUT).await;
+        sleep(PACKET_DELIVERY_TIMEOUT).await;
 
         let received = self.received_processor.return_received().await;
 

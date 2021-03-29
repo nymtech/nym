@@ -13,9 +13,8 @@
 // limitations under the License.
 
 use crate::AckKey;
-use crypto::aes_ctr::stream_cipher::NewStreamCipher;
 use crypto::generic_array::typenum::Unsigned;
-use crypto::symmetric::stream_cipher::{self, encrypt, iv_from_slice, random_iv};
+use crypto::symmetric::stream_cipher::{self, encrypt, iv_from_slice, random_iv, NewStreamCipher};
 use nymsphinx_params::{
     packet_sizes::PacketSize, AckEncryptionAlgorithm, SerializedFragmentIdentifier, FRAG_ID_LEN,
 };

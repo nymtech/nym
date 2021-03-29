@@ -15,13 +15,13 @@
 use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
 use futures::channel::mpsc;
+use futures::StreamExt;
 use log::*;
-use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
+use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, TimerError};
 use nymsphinx_types::header::keys::RoutingKeys;
 use nymsphinx_types::SharedSecret;
 use std::sync::Arc;
-use tokio::stream::StreamExt;
-use tokio::time::{Duration, Error as TimeError};
+use tokio::time::Duration;
 
 type CachedKeys = (Option<SharedSecret>, RoutingKeys);
 
@@ -128,7 +128,7 @@ impl CacheInvalidator {
     // pros: the lock situation will be spread more in time
     // cons: possibly less efficient?
 
-    fn handle_expired(&mut self, expired: Option<Result<Expired<SharedSecret>, TimeError>>) {
+    fn handle_expired(&mut self, expired: Option<Result<Expired<SharedSecret>, TimerError>>) {
         let expired = expired.expect("the queue has unexpectedly terminated!");
         let expired_entry = expired.expect("Encountered timer issue within the runtime!");
 

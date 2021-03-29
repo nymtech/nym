@@ -27,7 +27,7 @@ use tungstenite::Message;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
-use tokio_tungstenite::WebSocketStream;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures;
@@ -37,7 +37,7 @@ use wasm_utils::websocket::JSWebsocket;
 // type alias for not having to type the whole thing every single time (and now it makes it easier
 // to use different types based on compilation target)
 #[cfg(not(target_arch = "wasm32"))]
-type WsConn = WebSocketStream<TcpStream>;
+type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 #[cfg(target_arch = "wasm32")]
 type WsConn = JSWebsocket;
@@ -124,11 +124,14 @@ impl PartiallyDelegated {
                 };
             };
 
-            match ret_err {
+            if match ret_err {
                 Err(err) => stream_sender.send(Err(err)),
                 Ok(_) => stream_sender.send(Ok(stream)),
             }
-            .unwrap();
+            .is_err()
+            {
+                panic!("failed to send back `mixnet_receiver_future` result on the oneshot channel")
+            }
         };
 
         #[cfg(target_arch = "wasm32")]

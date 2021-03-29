@@ -19,7 +19,7 @@ impl Listener {
     }
 
     async fn run(&mut self, connection_handler: ConnectionHandler) {
-        let mut listener = TcpListener::bind(self.address)
+        let listener = TcpListener::bind(self.address)
             .await
             .expect("Failed to create TCP listener");
         loop {

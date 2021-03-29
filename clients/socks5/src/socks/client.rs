@@ -17,9 +17,10 @@ use proxy_helpers::connection_controller::{
 use proxy_helpers::proxy_runner::ProxyRunner;
 use rand::RngCore;
 use socks5_requests::{ConnectionId, RemoteAddress, Request};
-use std::net::{Shutdown, SocketAddr};
+use std::io;
+use std::net::SocketAddr;
 use std::pin::Pin;
-use tokio::prelude::*;
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::{self, net::TcpStream};
 
 #[pin_project(project = StateProject)]
@@ -61,12 +62,12 @@ impl StreamState {
         }
     }
 
-    fn shutdown(&self, how: Shutdown) -> io::Result<()> {
+    async fn shutdown(&mut self) -> io::Result<()> {
         // shutdown should only be called if proxy is not being run. If it is, there's some bug
         // somewhere
         match self {
             StreamState::RunningProxy => panic!("Tried to shutdown stream while proxy is running"),
-            StreamState::Available(ref stream) => TcpStream::shutdown(stream, how),
+            StreamState::Available(ref mut stream) => TcpStream::shutdown(stream).await,
         }
     }
 }
@@ -76,8 +77,8 @@ impl AsyncRead for StreamState {
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
-        buf: &mut [u8],
-    ) -> Poll<io::Result<usize>> {
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
         match self.project() {
             StateProject::RunningProxy => Poll::Ready(Err(io::Error::new(
                 io::ErrorKind::NotFound,
@@ -190,9 +191,9 @@ impl SocksClient {
     }
 
     /// Shutdown the TcpStream to the client and end the session
-    pub fn shutdown(&mut self) -> Result<(), SocksProxyError> {
+    pub async fn shutdown(&mut self) -> Result<(), SocksProxyError> {
         info!("client is shutting down its TCP stream");
-        self.stream.shutdown(Shutdown::Both)?;
+        self.stream.shutdown().await?;
         Ok(())
     }
 
@@ -210,7 +211,7 @@ impl SocksClient {
         // Handle SOCKS4 requests
         if header[0] != SOCKS_VERSION {
             warn!("Init: Unsupported version: SOCKS{}", self.socks_version);
-            self.shutdown()
+            self.shutdown().await
         }
         // Valid SOCKS5
         else {
@@ -390,7 +391,7 @@ impl SocksClient {
                 self.stream.write_all(&response).await?;
 
                 // Shutdown
-                self.shutdown()?;
+                self.shutdown().await?;
             }
 
             Ok(())
@@ -404,7 +405,7 @@ impl SocksClient {
             warn!("Client has no suitable authentication methods!");
             response[1] = AuthenticationMethods::NoMethods as u8;
             self.stream.write_all(&response).await?;
-            self.shutdown()?;
+            self.shutdown().await?;
             Err(ResponseCode::Failure.into())
         }
     }

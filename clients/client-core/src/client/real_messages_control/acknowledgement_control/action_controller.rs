@@ -15,21 +15,19 @@
 use super::PendingAcknowledgement;
 use crate::client::real_messages_control::acknowledgement_control::RetransmissionRequestSender;
 use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use futures::StreamExt;
 use log::*;
-use nonexhaustive_delayqueue::NonExhaustiveDelayQueue;
+use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, QueueKey, TimerError};
 use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::Delay as SphinxDelay;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::stream::StreamExt;
-use tokio::time::delay_queue::{self, Expired};
-use tokio::time::Error as TimerError;
 
 pub(crate) type ActionSender = UnboundedSender<Action>;
 
 // The actual data being sent off as well as potential key to the delay queue
-type PendingAckEntry = (Arc<PendingAcknowledgement>, Option<delay_queue::Key>);
+type PendingAckEntry = (Arc<PendingAcknowledgement>, Option<QueueKey>);
 
 // we can either:
 // - have a completely new set of packets we just sent and need to create entries for

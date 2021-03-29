@@ -14,10 +14,8 @@
 
 use super::handler::Handler;
 use log::*;
-use std::{
-    net::{Shutdown, SocketAddr},
-    sync::Arc,
-};
+use std::{net::SocketAddr, sync::Arc};
+use tokio::io::AsyncWriteExt;
 use tokio::runtime;
 use tokio::{sync::Notify, task::JoinHandle};
 
@@ -47,7 +45,7 @@ impl Listener {
     }
 
     pub(crate) async fn run(&mut self, handler: Handler) {
-        let mut tcp_listener = tokio::net::TcpListener::bind(self.address)
+        let tcp_listener = tokio::net::TcpListener::bind(self.address)
             .await
             .expect("Failed to start websocket listener");
 
@@ -61,7 +59,7 @@ impl Listener {
                 }
                 new_conn = tcp_listener.accept() => {
                     match new_conn {
-                        Ok((socket, remote_addr)) => {
+                        Ok((mut socket, remote_addr)) => {
                             debug!("Received connection from {:?}", remote_addr);
                             if self.state.is_connected() {
                                 warn!("tried to duplicate!");
@@ -70,7 +68,7 @@ impl Listener {
                                 // while we only ever want to accept a single connection, we don't want
                                 // to leave clients hanging (and also allow for reconnection if it somehow
                                 // was dropped)
-                                match socket.shutdown(Shutdown::Both) {
+                                match socket.shutdown().await {
                                     Ok(_) => trace!(
                                         "closed the connection between attempting websocket handshake"
                                     ),
@@ -84,7 +82,7 @@ impl Listener {
                                 let fresh_handler = handler.clone();
                                 tokio::spawn(async move {
                                     fresh_handler.handle_connection(socket).await;
-                                    notify_clone.notify();
+                                    notify_clone.notify_one();
                                 });
                                 self.state = State::Connected;
                             }

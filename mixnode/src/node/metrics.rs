@@ -138,11 +138,11 @@ impl MetricsSender {
                 {
                     Err(err) => {
                         error!("failed to send metrics - {:?}", err);
-                        tokio::time::delay_for(METRICS_FAILURE_BACKOFF)
+                        tokio::time::sleep(METRICS_FAILURE_BACKOFF)
                     }
                     Ok(new_interval) => {
                         debug!("sent metrics information");
-                        tokio::time::delay_for(Duration::from_secs(new_interval.next_report_in))
+                        tokio::time::sleep(Duration::from_secs(new_interval.next_report_in))
                     }
                 };
 

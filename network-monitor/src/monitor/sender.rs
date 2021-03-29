@@ -167,7 +167,7 @@ impl PacketSender {
                     client.batch_send_mix_packets(mix_packets).await?;
                 }
 
-                tokio::time::delay_for(TIME_CHUNK_SIZE).await;
+                tokio::time::sleep(TIME_CHUNK_SIZE).await;
 
                 mix_packets = retained;
             }

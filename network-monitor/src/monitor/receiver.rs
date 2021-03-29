@@ -5,8 +5,8 @@ use crate::gateways_reader::{GatewayChannel, GatewayMessages, GatewaysReader};
 use crate::monitor::processor::ReceivedProcessorSender;
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
+use futures::StreamExt;
 use gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
-use tokio::stream::StreamExt;
 
 pub(crate) type GatewayClientUpdateSender = mpsc::UnboundedSender<GatewayClientUpdate>;
 pub(crate) type GatewayClientUpdateReceiver = mpsc::UnboundedReceiver<GatewayClientUpdate>;

@@ -30,7 +30,7 @@ impl Listener {
         outbound_mix_sender: MixForwardingSender,
     ) {
         info!("Starting websocket listener at {}", self.address);
-        let mut tcp_listener = tokio::net::TcpListener::bind(self.address)
+        let tcp_listener = tokio::net::TcpListener::bind(self.address)
             .await
             .expect("Failed to start websocket listener");
 

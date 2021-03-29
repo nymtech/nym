@@ -1,12 +1,11 @@
+use futures_util::StreamExt;
 use log::*;
 use tokio::net::TcpStream;
-use tokio::stream::StreamExt;
 use tokio::sync::broadcast;
-use tokio::time::{delay_for, Duration};
-use tokio_native_tls::TlsStream;
+use tokio::time::{sleep, Duration};
 use tokio_tungstenite::tungstenite::{Error as WsError, Message};
 use tokio_tungstenite::WebSocketStream;
-use tokio_tungstenite::{connect_async, stream::Stream};
+use tokio_tungstenite::{connect_async, MaybeTlsStream};
 
 pub(crate) type WsItem = Result<Message, WsError>;
 const MAX_RECONNECTION_ATTEMPTS: u32 = 10;
@@ -16,7 +15,8 @@ const RECONNECTION_BACKOFF: Duration = Duration::from_secs(10);
 /// All metrics messages get copied out to this dashboard instance's clients.
 pub(crate) struct MetricsWebsocketClient {
     metrics_address: String,
-    metrics_upstream: WebSocketStream<Stream<TcpStream, TlsStream<TcpStream>>>,
+    // metrics_upstream: WebSocketStream<Stream<TcpStream, TlsStream<TcpStream>>>,
+    metrics_upstream: WebSocketStream<MaybeTlsStream<TcpStream>>,
     broadcaster: broadcast::Sender<Message>,
 
     reconnection_attempt: u32,
@@ -52,7 +52,7 @@ impl MetricsWebsocketClient {
         }
 
         // use linear backoff to try to reconnect asap
-        delay_for(RECONNECTION_BACKOFF * self.reconnection_attempt).await;
+        sleep(RECONNECTION_BACKOFF * self.reconnection_attempt).await;
 
         let ws_stream = match connect_async(&self.metrics_address).await {
             Ok((ws_stream, _)) => ws_stream,

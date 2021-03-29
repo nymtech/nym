@@ -26,7 +26,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
-use tokio::time::delay_for;
+use tokio::time::sleep;
 use tokio_util::codec::Framed;
 
 pub struct Config {
@@ -185,7 +185,7 @@ impl Client {
             // before executing the manager, wait for what was specified, if anything
             if let Some(backoff) = backoff {
                 trace!("waiting for {:?} before attempting connection", backoff);
-                delay_for(backoff).await;
+                sleep(backoff).await;
             }
 
             Self::manage_connection(

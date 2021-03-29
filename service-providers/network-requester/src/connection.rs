@@ -6,8 +6,8 @@ use nymsphinx::addressing::clients::Recipient;
 use proxy_helpers::connection_controller::ConnectionReceiver;
 use proxy_helpers::proxy_runner::ProxyRunner;
 use socks5_requests::{ConnectionId, RemoteAddress, Response};
+use std::io;
 use tokio::net::TcpStream;
-use tokio::prelude::*;
 
 /// A TCP connection between the Socks5 service provider, which makes
 /// outbound requests on behalf of users and returns the responses through

@@ -19,16 +19,16 @@ gateway-requests = { path = "../../../gateway/gateway-requests" }
 nymsphinx = { path = "../../nymsphinx" }
 
 [dependencies.tungstenite]
-version = "0.11"
+version = "0.13"
 default-features = false
 
 # non-wasm-only dependencies
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
-version = "0.2"
-features = ["macros", "rt-core", "stream", "sync", "time"]
+version = "1.4"
+features = ["macros", "rt", "net", "sync", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
-version = "0.11"
+version = "0.14"
 
 # wasm-only dependencies
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]
@@ -43,6 +43,15 @@ path = "../../wasm-utils"
 # only import it in wasm. Prefer proper tokio timer in non-wasm
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-timer]
 version = "0.2"
+
+# this is due to tungstenite using `rand` 0.8 and associated changes in `getrandom` crate
+# which now does not support wasm32-unknown-unknown target by default.
+# using the below, we assume our client is going to be run in environment
+# containing javascript (such as a web browser or node.js).
+# refer to https://docs.rs/getrandom/0.2.2/getrandom/#webassembly-support for more information
+[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom]
+version = "0.2"
+features = ["js"]
 
 [dev-dependencies]
 # for tests

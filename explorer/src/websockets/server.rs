@@ -3,6 +3,7 @@ use log::*;
 use std::{io::Error as IoError, net::SocketAddr};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::broadcast;
+use tokio_stream::wrappers::BroadcastStream;
 use tokio_tungstenite::accept_async;
 use tokio_tungstenite::tungstenite::Message;
 
@@ -14,13 +15,13 @@ pub struct DashboardWebsocketServer {
 impl DashboardWebsocketServer {
     pub fn new(port: u16, sender: broadcast::Sender<Message>) -> DashboardWebsocketServer {
         let addr = format!("[::]:{}", port);
-        DashboardWebsocketServer { addr, sender }
+        DashboardWebsocketServer { sender, addr }
     }
 
     pub async fn start(self) -> Result<(), IoError> {
         let try_socket = TcpListener::bind(&self.addr).await;
 
-        let mut listener = try_socket?;
+        let listener = try_socket?;
         info!("starting to listen on {}", self.addr);
         while let Ok((stream, addr)) = listener.accept().await {
             tokio::spawn(Self::handle_connection(
@@ -36,7 +37,7 @@ impl DashboardWebsocketServer {
     async fn handle_connection(
         stream: TcpStream,
         addr: SocketAddr,
-        mut receiver: broadcast::Receiver<Message>,
+        receiver: broadcast::Receiver<Message>,
     ) {
         let mut ws_stream = match accept_async(stream).await {
             Ok(ws_stream) => ws_stream,
@@ -50,7 +51,8 @@ impl DashboardWebsocketServer {
         };
 
         info!("client connected from {}", addr);
-        while let Some(message) = receiver.next().await {
+        let mut broadcast_stream = BroadcastStream::new(receiver);
+        while let Some(message) = broadcast_stream.next().await {
             let message = message.expect("the websocket broadcaster is dead!");
             if let Err(err) = ws_stream.send(message).await {
                 warn!(

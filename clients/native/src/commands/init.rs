@@ -182,7 +182,7 @@ pub fn execute(matches: &ArgMatches) {
         };
 
         // TODO: is there perhaps a way to make it work without having to spawn entire runtime?
-        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new().unwrap();
         let (shared_keys, gateway_listener) = rt.block_on(registration_fut);
         config
             .get_base_mut()

@@ -234,7 +234,7 @@ impl TopologyRefresher {
     pub fn start(mut self, handle: &Handle) -> JoinHandle<()> {
         handle.spawn(async move {
             loop {
-                tokio::time::delay_for(self.refresh_rate).await;
+                tokio::time::sleep(self.refresh_rate).await;
                 self.refresh().await;
             }
         })

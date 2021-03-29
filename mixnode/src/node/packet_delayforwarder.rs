@@ -3,11 +3,11 @@
 
 use crate::node::metrics::MetricsReporter;
 use futures::channel::mpsc;
+use futures::StreamExt;
 use log::*;
-use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
+use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, TimerError};
 use nymsphinx::forwarding::packet::MixPacket;
-use tokio::stream::StreamExt;
-use tokio::time::{Duration, Error as TimeError, Instant};
+use tokio::time::{Duration, Instant};
 
 // Delay + MixPacket vs Instant + MixPacket
 
@@ -71,7 +71,7 @@ impl DelayForwarder {
     }
 
     /// Upon packet being finished getting delayed, forward it to the mixnet.
-    fn handle_done_delaying(&mut self, packet: Option<Result<Expired<MixPacket>, TimeError>>) {
+    fn handle_done_delaying(&mut self, packet: Option<Result<Expired<MixPacket>, TimerError>>) {
         // those are critical errors that I don't think can be recovered from.
         let delayed = packet.expect("the queue has unexpectedly terminated!");
         let delayed_packet = delayed

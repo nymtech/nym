@@ -48,7 +48,7 @@ impl SphinxSocksServer {
         input_sender: InputMessageSender,
         buffer_requester: ReceivedBufferRequestSender,
     ) -> Result<(), SocksProxyError> {
-        let mut listener = TcpListener::bind(self.listening_address).await.unwrap();
+        let listener = TcpListener::bind(self.listening_address).await.unwrap();
         info!("Serving Connections...");
 
         // controller for managing all active connections
@@ -100,7 +100,7 @@ impl SphinxSocksServer {
                                 if client.error(response).await.is_err() {
                                     warn!("Failed to send error code");
                                 };
-                                if client.shutdown().is_err() {
+                                if client.shutdown().await.is_err() {
                                     warn!("Failed to shutdown TcpStream");
                                 };
                             }

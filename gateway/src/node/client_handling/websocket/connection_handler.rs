@@ -10,7 +10,7 @@ use crate::node::client_handling::websocket::message_receiver::{
 use crypto::asymmetric::identity;
 use futures::{
     channel::{mpsc, oneshot},
-    SinkExt,
+    SinkExt, StreamExt,
 };
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
@@ -24,7 +24,7 @@ use nymsphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::sync::Arc;
-use tokio::{prelude::*, stream::StreamExt};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::{
     tungstenite::{protocol::Message, Error as WsError},
     WebSocketStream,

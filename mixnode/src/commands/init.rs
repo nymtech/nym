@@ -131,7 +131,7 @@ async fn choose_layer(
 pub fn execute(matches: &ArgMatches) {
     // TODO: this should probably be made implicit by slapping `#[tokio::main]` on our main method
     // and then removing runtime from mixnode itself in `run`
-    let mut rt = Runtime::new().unwrap();
+    let rt = Runtime::new().unwrap();
     rt.block_on(async {
         let id = matches.value_of("id").unwrap();
         println!("Initialising mixnode {}...", id);

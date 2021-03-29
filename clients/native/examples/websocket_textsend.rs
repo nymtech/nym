@@ -1,7 +1,9 @@
 use futures::{SinkExt, StreamExt};
 use serde_json::json;
 use tokio::net::TcpStream;
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, WebSocketStream};
+use tokio_tungstenite::{
+    connect_async, tungstenite::protocol::Message, MaybeTlsStream, WebSocketStream,
+};
 
 // PREFACE: in practice I don't see why you would ever want to use text api while in Rust, but example
 // is here for the completion sake
@@ -9,7 +11,7 @@ use tokio_tungstenite::{connect_async, tungstenite::protocol::Message, WebSocket
 // just helpers functions that work in this very particular context because we are sending to ourselves
 // and hence will always get a response back (i.e. the message we sent)
 async fn send_message_and_get_json_response(
-    ws_stream: &mut WebSocketStream<TcpStream>,
+    ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
     text_req: String,
 ) -> serde_json::Value {
     ws_stream.send(Message::Text(text_req)).await.unwrap();
@@ -20,7 +22,7 @@ async fn send_message_and_get_json_response(
     }
 }
 
-async fn get_self_address(ws_stream: &mut WebSocketStream<TcpStream>) -> String {
+async fn get_self_address(ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>) -> String {
     let self_address_request = json!({ "type": "selfAddress" }).to_string();
     let response = send_message_and_get_json_response(ws_stream, self_address_request).await;
 

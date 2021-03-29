@@ -94,21 +94,20 @@ impl NymClient {
         info!("Starting loop cover traffic stream...");
         // we need to explicitly enter runtime due to "next_delay: time::delay_for(Default::default())"
         // set in the constructor which HAS TO be called within context of a tokio runtime
-        self.runtime
-            .enter(|| {
-                LoopCoverTrafficStream::new(
-                    self.key_manager.ack_key(),
-                    self.config.get_base().get_average_ack_delay(),
-                    self.config.get_base().get_average_packet_delay(),
-                    self.config
-                        .get_base()
-                        .get_loop_cover_traffic_average_delay(),
-                    mix_tx,
-                    self.as_mix_recipient(),
-                    topology_accessor,
-                )
-            })
-            .start(self.runtime.handle());
+        let _guard = self.runtime.enter();
+
+        LoopCoverTrafficStream::new(
+            self.key_manager.ack_key(),
+            self.config.get_base().get_average_ack_delay(),
+            self.config.get_base().get_average_packet_delay(),
+            self.config
+                .get_base()
+                .get_loop_cover_traffic_average_delay(),
+            mix_tx,
+            self.as_mix_recipient(),
+            topology_accessor,
+        )
+        .start(self.runtime.handle());
     }
 
     fn start_real_traffic_controller(
@@ -141,18 +140,17 @@ impl NymClient {
         // we need to explicitly enter runtime due to "next_delay: time::delay_for(Default::default())"
         // set in the constructor [of OutQueueControl] which HAS TO be called within context of a tokio runtime
         // When refactoring this restriction should definitely be removed.
-        let real_messages_controller = self.runtime.enter(|| {
-            RealMessagesController::new(
-                controller_config,
-                ack_receiver,
-                input_receiver,
-                mix_sender,
-                topology_accessor,
-                reply_key_storage,
-            )
-        });
-        real_messages_controller
-            .start(self.runtime.handle(), self.config.get_base().get_vpn_mode());
+        let _guard = self.runtime.enter();
+
+        RealMessagesController::new(
+            controller_config,
+            ack_receiver,
+            input_receiver,
+            mix_sender,
+            topology_accessor,
+            reply_key_storage,
+        )
+        .start(self.runtime.handle(), self.config.get_base().get_vpn_mode());
     }
 
     // buffer controlling all messages fetched from provider

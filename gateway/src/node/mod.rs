@@ -159,7 +159,7 @@ impl Gateway {
     pub fn run(&mut self) {
         info!("Starting nym gateway!");
 
-        let mut runtime = Runtime::new().unwrap();
+        let runtime = Runtime::new().unwrap();
 
         runtime.block_on(async {
             if let Some(duplicate_node_key) = self.check_if_same_ip_gateway_exists().await {

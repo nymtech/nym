@@ -14,10 +14,10 @@
 
 use crate::asymmetric::encryption;
 use crate::hkdf;
+use cipher::stream::{Key, NewStreamCipher, SyncStreamCipher};
 use digest::{BlockInput, FixedOutput, Reset, Update};
 use generic_array::{typenum::Unsigned, ArrayLength};
 use rand::{CryptoRng, RngCore};
-use stream_cipher::{Key, NewStreamCipher, SyncStreamCipher};
 
 /// Generate an ephemeral encryption keypair and perform diffie-hellman to establish
 /// shared key with the remote.

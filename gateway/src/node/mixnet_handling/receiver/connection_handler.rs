@@ -9,6 +9,7 @@ use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::node::storage::inboxes::{ClientStorage, StoreData};
 use dashmap::DashMap;
 use futures::channel::oneshot;
+use futures::StreamExt;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use mixnode_common::cached_packet_processor::processor::ProcessedFinalHop;
@@ -16,11 +17,10 @@ use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::framing::codec::SphinxCodec;
 use nymsphinx::framing::packet::FramedSphinxPacket;
 use nymsphinx::DestinationAddressBytes;
+use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpStream;
-use tokio::prelude::*;
-use tokio::stream::StreamExt;
 use tokio_util::codec::Framed;
 
 pub(crate) struct ConnectionHandler {

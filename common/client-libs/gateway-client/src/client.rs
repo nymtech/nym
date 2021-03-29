@@ -244,7 +244,7 @@ impl GatewayClient {
         let timeout = tokio::time::sleep(self.response_timeout_duration);
         #[cfg(not(target_arch = "wasm32"))]
         tokio::pin!(timeout);
-        
+
         // technically the `wasm_timer` also works outside wasm, but unless required,
         // I really prefer to just stick to tokio
         #[cfg(target_arch = "wasm32")]

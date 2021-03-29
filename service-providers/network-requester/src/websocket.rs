@@ -5,7 +5,7 @@ use tokio::net::TcpStream;
 use tokio_tungstenite::WebSocketStream;
 use tokio_tungstenite::{connect_async, MaybeTlsStream};
 
-#[allow()(clippy::upper_case_acronyms)]
+#[allow(clippy::upper_case_acronyms)]
 pub(crate) type TSWebsocketStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 pub struct Connection {

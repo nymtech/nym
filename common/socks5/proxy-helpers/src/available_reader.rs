@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use bytes::{BufMut, Bytes, BytesMut};
+use futures::Stream;
 use std::cell::RefCell;
 use std::future::Future;
 use std::io;
@@ -20,8 +21,8 @@ use std::ops::DerefMut;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio::io::AsyncRead;
-use tokio::stream::Stream;
-use tokio::time::{delay_for, Delay, Duration, Instant};
+use tokio::time::{sleep, Duration, Instant, Sleep};
+use tokio_util::io::poll_read_buf;
 
 const MAX_READ_AMOUNT: usize = 500 * 1000; // 0.5MB
 const GRACE_DURATION: Duration = Duration::from_millis(1);
@@ -31,7 +32,7 @@ pub struct AvailableReader<'a, R: AsyncRead + Unpin> {
     // mutably borrow both inner reader and buffer at the same time)
     buf: RefCell<BytesMut>,
     inner: RefCell<&'a mut R>,
-    grace_period: Option<Delay>,
+    grace_period: Option<Pin<Box<Sleep>>>,
 }
 
 impl<'a, R> AvailableReader<'a, R>
@@ -44,7 +45,7 @@ where
         AvailableReader {
             buf: RefCell::new(BytesMut::with_capacity(Self::BUF_INCREMENT)),
             inner: RefCell::new(reader),
-            grace_period: Some(delay_for(GRACE_DURATION)),
+            grace_period: Some(Box::pin(sleep(GRACE_DURATION))),
         }
     }
 }
@@ -59,8 +60,11 @@ impl<'a, R: AsyncRead + Unpin> Stream for AvailableReader<'a, R> {
         }
 
         // note: poll_read_buf calls `buf.advance_mut(n)`
-        let poll_res = Pin::new(self.inner.borrow_mut().deref_mut())
-            .poll_read_buf(cx, self.buf.borrow_mut().deref_mut());
+        let poll_res = poll_read_buf(
+            Pin::new(self.inner.borrow_mut().deref_mut()),
+            cx,
+            self.buf.borrow_mut().deref_mut(),
+        );
 
         match poll_res {
             Poll::Pending => {
@@ -84,7 +88,7 @@ impl<'a, R: AsyncRead + Unpin> Stream for AvailableReader<'a, R> {
                 // if exists - reset grace period
                 if let Some(grace_period) = self.grace_period.as_mut() {
                     let now = Instant::now();
-                    grace_period.reset(now + GRACE_DURATION);
+                    grace_period.as_mut().reset(now + GRACE_DURATION);
                 }
 
                 // if we read a non-0 amount, we're not done yet!
@@ -115,10 +119,9 @@ impl<'a, R: AsyncRead + Unpin> Stream for AvailableReader<'a, R> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::poll;
+    use futures::{poll, StreamExt};
     use std::io::Cursor;
     use std::time::Duration;
-    use tokio::stream::StreamExt;
     use tokio_test::assert_pending;
 
     #[tokio::test]

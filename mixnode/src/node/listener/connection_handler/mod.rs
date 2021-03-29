@@ -5,6 +5,7 @@ use crate::node::listener::connection_handler::packet_processing::{
     MixProcessingResult, PacketProcessor,
 };
 use crate::node::packet_delayforwarder::PacketDelayForwardSender;
+use futures::StreamExt;
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::framing::codec::SphinxCodec;
@@ -12,7 +13,6 @@ use nymsphinx::framing::packet::FramedSphinxPacket;
 use nymsphinx::Delay as SphinxDelay;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
-use tokio::stream::StreamExt;
 use tokio::time::Instant;
 use tokio_util::codec::Framed;
 

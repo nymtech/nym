@@ -18,7 +18,7 @@ impl Listener {
 
     pub(crate) async fn run(&mut self, connection_handler: ConnectionHandler) {
         info!("Starting mixnet listener at {}", self.address);
-        let mut tcp_listener = tokio::net::TcpListener::bind(self.address)
+        let tcp_listener = tokio::net::TcpListener::bind(self.address)
             .await
             .expect("Failed to start mixnet listener");
 

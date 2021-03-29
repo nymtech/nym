@@ -17,13 +17,13 @@ use super::SHUTDOWN_TIMEOUT;
 use crate::available_reader::AvailableReader;
 use bytes::Bytes;
 use futures::FutureExt;
+use futures::StreamExt;
 use log::*;
 use ordered_buffer::OrderedMessageSender;
 use socks5_requests::ConnectionId;
 use std::{io, sync::Arc};
 use tokio::select;
-use tokio::stream::StreamExt;
-use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::delay_for};
+use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::sleep};
 
 fn send_empty_close<F, S>(
     connection_id: ConnectionId,
@@ -99,9 +99,7 @@ where
 {
     let mut available_reader = AvailableReader::new(&mut reader);
     let mut message_sender = OrderedMessageSender::new();
-    let shutdown_future = shutdown_notify
-        .notified()
-        .then(|_| delay_for(SHUTDOWN_TIMEOUT));
+    let shutdown_future = shutdown_notify.notified().then(|_| sleep(SHUTDOWN_TIMEOUT));
 
     tokio::pin!(shutdown_future);
 
@@ -122,7 +120,7 @@ where
         }
     }
     trace!("{} - inbound closed", connection_id);
-    shutdown_notify.notify();
+    shutdown_notify.notify_one();
 
     reader
 }

@@ -14,7 +14,7 @@ wasm-bindgen-futures = "0.4"
 
 # we don't want entire tokio-tungstenite, tungstenite itself is just fine - we just want message and error enums
 [dependencies.tungstenite]
-version = "0.11"
+version = "0.13"
 default-features = false
 
 [dependencies.web-sys]

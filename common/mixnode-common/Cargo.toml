@@ -17,4 +17,4 @@ nymsphinx-forwarding = { path = "../nymsphinx/forwarding" }
 nymsphinx-framing = { path = "../nymsphinx/framing" }
 nymsphinx-params = { path = "../nymsphinx/params" }
 nymsphinx-types = { path = "../nymsphinx/types" }
-tokio = { version = "0.2", features = ["time", "macros", "rt-core"] }
+tokio = { version = "1.4", features = ["time", "macros", "rt"] }

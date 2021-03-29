@@ -30,5 +30,5 @@ topology = { path = "../topology" }
 path = "framing"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
-version = "0.2"
+version = "1.4"
 features = ["sync"]

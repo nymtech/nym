@@ -15,17 +15,13 @@
 use super::SHUTDOWN_TIMEOUT;
 use crate::connection_controller::{ConnectionMessage, ConnectionReceiver};
 use futures::FutureExt;
+use futures::StreamExt;
 use log::*;
 use socks5_requests::ConnectionId;
 use std::{sync::Arc, time::Duration};
-use tokio::prelude::*;
+use tokio::io::AsyncWriteExt;
 use tokio::select;
-use tokio::stream::StreamExt;
-use tokio::{
-    net::tcp::OwnedWriteHalf,
-    sync::Notify,
-    time::{delay_for, Instant},
-};
+use tokio::{net::tcp::OwnedWriteHalf, sync::Notify, time::sleep, time::Instant};
 
 const MIX_TTL: Duration = Duration::from_secs(5 * 60);
 
@@ -66,13 +62,10 @@ pub(super) async fn run_outbound(
     connection_id: ConnectionId,
     shutdown_notify: Arc<Notify>,
 ) -> (OwnedWriteHalf, ConnectionReceiver) {
-    let shutdown_future = shutdown_notify
-        .notified()
-        .then(|_| delay_for(SHUTDOWN_TIMEOUT));
-
+    let shutdown_future = shutdown_notify.notified().then(|_| sleep(SHUTDOWN_TIMEOUT));
     tokio::pin!(shutdown_future);
 
-    let mut mix_timeout = delay_for(MIX_TTL);
+    let mut mix_timeout = Box::pin(sleep(MIX_TTL));
 
     loop {
         select! {
@@ -81,7 +74,7 @@ pub(super) async fn run_outbound(
                     if deal_with_message(connection_message, &mut writer, &local_destination_address, &remote_source_address, connection_id).await {
                         break;
                     }
-                    mix_timeout.reset(Instant::now() + MIX_TTL);
+                    mix_timeout.as_mut().reset(Instant::now() + MIX_TTL);
                 } else {
                     warn!("mix receiver is none so we already got removed somewhere. This isn't really a warning, but shouldn't happen to begin with, so please say if you see this message");
                     break;
@@ -100,7 +93,7 @@ pub(super) async fn run_outbound(
     }
 
     trace!("{} - outbound closed", connection_id);
-    shutdown_notify.notify();
+    shutdown_notify.notify_one();
 
     (writer, mix_receiver)
 }

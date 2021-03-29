@@ -12,7 +12,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs;
 use tokio::fs::File;
-use tokio::prelude::*;
+use tokio::io::AsyncWriteExt;
+use tokio_stream::wrappers::ReadDirStream;
 
 fn dummy_message() -> ClientFile {
     ClientFile {
@@ -135,8 +136,7 @@ impl ClientStorage {
         }
 
         let mut msgs = Vec::new();
-        let mut read_dir = fs::read_dir(full_store_dir).await?;
-
+        let mut read_dir = ReadDirStream::new(fs::read_dir(full_store_dir).await?);
         while let Some(dir_entry) = read_dir.next().await {
             if let Ok(dir_entry) = dir_entry {
                 if !Self::is_valid_file(&dir_entry).await {

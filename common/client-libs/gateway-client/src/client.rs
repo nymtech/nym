@@ -203,7 +203,7 @@ impl GatewayClient {
             }
 
             #[cfg(not(target_arch = "wasm32"))]
-            tokio::time::delay_for(self.reconnection_backoff).await;
+            tokio::time::sleep(self.reconnection_backoff).await;
 
             #[cfg(target_arch = "wasm32")]
             if let Err(err) = wasm_timer::Delay::new(self.reconnection_backoff).await {
@@ -241,8 +241,10 @@ impl GatewayClient {
         };
 
         #[cfg(not(target_arch = "wasm32"))]
-        let timeout = tokio::time::delay_for(self.response_timeout_duration);
-
+        let timeout = tokio::time::sleep(self.response_timeout_duration);
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::pin!(timeout);
+        
         // technically the `wasm_timer` also works outside wasm, but unless required,
         // I really prefer to just stick to tokio
         #[cfg(target_arch = "wasm32")]

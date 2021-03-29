@@ -11,11 +11,9 @@ clap = "2.33"
 # no point in importing entire futures crate
 futures-util = "0.3"
 log = "0.4"
-reqwest = "0.10.8"
-rocket = "0.4.5"
-rocket_contrib = "0.4.5"
-tokio = { version = "0.2", features = ["full"] }
-tokio-native-tls = "0.1.0"
-tokio-tungstenite = {version = "0.11", features = ["tls"] }
-
-# tungstenite = "0.11"
+reqwest = "0.11"
+rocket = "0.4"
+rocket_contrib = "0.4"
+tokio = { version = "1.4", features = ["net", "rt-multi-thread", "macros"] }
+tokio-tungstenite = {version = "0.14", features = ["native-tls"] }
+tokio-stream = { version = "0.1", features = [ "sync" ] }

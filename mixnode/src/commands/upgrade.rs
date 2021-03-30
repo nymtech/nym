@@ -192,29 +192,8 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
     upgraded_config
 }
 
-fn patch_09x_upgrade(config: Config, _matches: &ArgMatches) -> Config {
-    // this call must succeed as it was already called before
-    let from_version = Version::parse(config.get_version()).unwrap();
-    let to_version = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
-
-    print_start_upgrade(&from_version, &to_version);
-
-    // 0.9.1 upgrade:
-    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
-
-    upgraded_config.save_to_file(None).unwrap_or_else(|err| {
-        eprintln!("failed to overwrite config file! - {:?}", err);
-        print_failed_upgrade(&from_version, &to_version);
-        process::exit(1);
-    });
-
-    print_successful_upgrade(from_version, to_version);
-
-    upgraded_config
-}
-
 fn minor_010_upgrade(
-    mut config: Config,
+    config: Config,
     _matches: &ArgMatches,
     config_version: &Version,
     package_version: &Version,

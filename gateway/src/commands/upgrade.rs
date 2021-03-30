@@ -1,10 +1,8 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{
-    missing_string_value, DEFAULT_MIXNET_CONTRACT_ADDRESS, DEFAULT_VALIDATOR_REST_ENDPOINT,
-};
 use crate::config::{Config, MISSING_VALUE};
+use crate::config::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DEFAULT_VALIDATOR_REST_ENDPOINT};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use std::fmt::Display;

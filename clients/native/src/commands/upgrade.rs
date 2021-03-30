@@ -168,29 +168,6 @@ fn pre_090_upgrade(from: &str, mut config: Config) -> Config {
     config
 }
 
-// fn patch_09x_upgrade(mut config: Config, _matches: &ArgMatches) -> Config {
-//     // this call must succeed as it was already called before
-//     let from_version = Version::parse(config.get_base().get_version()).unwrap();
-//     let to_version = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
-//
-//     print_start_upgrade(&from_version, &to_version);
-//
-//     // 0.9.1 upgrade:
-//     config
-//         .get_base_mut()
-//         .set_custom_version(to_version.to_string().as_ref());
-//
-//     config.save_to_file(None).unwrap_or_else(|err| {
-//         eprintln!("failed to overwrite config file! - {:?}", err);
-//         print_failed_upgrade(&from_version, &to_version);
-//         process::exit(1);
-//     });
-//
-//     print_successful_upgrade(from_version, to_version);
-//
-//     config
-// }
-
 /*
 changes:
 - introduction of mixnet contract address field

@@ -8,9 +8,9 @@ import { BroadcastTxResponse } from "@cosmjs/stargate"
 import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
 import { CoinMap, displayAmountToNative, MappedCoin, nativeCoinToDisplay, printableBalance, printableCoin } from "./currency";
 import GatewaysCache from "./caches/gateways";
-import QueryClient, {IQueryClient} from "./query-client";
+import QueryClient, { IQueryClient } from "./query-client";
 
-export { coins };
+export { coins, coin };
 export { Coin };
 export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBalance, MappedCoin, CoinMap }
 
@@ -115,7 +115,7 @@ export default class ValidatorClient {
     async bond(mixNode: MixNode): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
             const bond = [{ amount: "1000000000", denom: this.stakeDenom }];
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {register_mixnode: {mix_node: mixNode}}, "adding mixnode", bond);
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { register_mixnode: { mix_node: mixNode } }, "adding mixnode", bond);
             console.log(`account ${this.client.clientAddress} added mixnode with ${mixNode.host}`);
             return result;
         } else {
@@ -129,7 +129,7 @@ export default class ValidatorClient {
      */
     async unbond(): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {un_register_mixnode: {}})
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { un_register_mixnode: {} })
             console.log(`account ${this.client.clientAddress} unbonded mixnode`);
             return result;
         } else {
@@ -196,7 +196,7 @@ export default class ValidatorClient {
     async bondGateway(gateway: Gateway): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
             const bond = this.minimumGatewayBond()
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {bond_gateway: {gateway: gateway}}, "adding gateway", [bond]);
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { bond_gateway: { gateway: gateway } }, "adding gateway", [bond]);
             console.log(`account ${this.client.clientAddress} added gateway with ${gateway.mix_host}`);
             return result;
         } else {
@@ -209,7 +209,7 @@ export default class ValidatorClient {
      */
     async unbondGateway(): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {unbond_gateway: {}})
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { unbond_gateway: {} })
             console.log(`account ${this.client.clientAddress} unbonded gateway`);
             return result;
         } else {

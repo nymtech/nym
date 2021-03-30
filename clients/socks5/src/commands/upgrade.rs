@@ -34,6 +34,13 @@ fn print_failed_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
     );
 }
 
+fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
+    println!(
+        "Upgrade from {} to {} was successful!\n==================\n",
+        from, to
+    );
+}
+
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("upgrade").about("Try to upgrade the client")
         .arg(
@@ -88,13 +95,6 @@ fn parse_package_version() -> Version {
     }
 
     version
-}
-
-fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    println!(
-        "Upgrade from {} to {} was successful!\n==================\n",
-        from, to
-    );
 }
 
 fn pre_090_upgrade(from: &str, mut config: Config) -> Config {

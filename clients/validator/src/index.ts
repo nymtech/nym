@@ -43,6 +43,14 @@ export default class ValidatorClient {
         return new ValidatorClient(url, queryClient, contractAddress, stakeDenom)
     }
 
+    public get address(): string {
+        if (this.client instanceof NetClient) {
+            return this.client.clientAddress
+        } else {
+            return ""
+        }
+    }
+
     /**
      * TODO: re-enable this once we move back to client-side wallets running on people's machines
      * instead of the web wallet.

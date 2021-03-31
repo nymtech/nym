@@ -21,6 +21,15 @@ export function printableBalance(balance?: readonly Coin[]): string {
     return balance.map(printableCoin).join(", ");
 }
 
+// converts display amount, such as "12.0346" to its native token representation,
+// with 6 fractional digits. So in that case it would result in "12034600"
+// Basically does the same job as `displayAmountToNative` but without the requirement
+// of having the coinMap
+export function printableBalanceToNative(amountToDisplay: string): string  {
+    const decimalAmount = Decimal.fromUserInput(amountToDisplay, 6);
+    return decimalAmount.atomics;
+}
+
 export interface MappedCoin {
     readonly denom: string;
     readonly fractionalDigits: number;

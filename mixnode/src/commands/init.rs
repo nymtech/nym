@@ -128,6 +128,48 @@ async fn choose_layer(
     *layer_with_fewest
 }
 
+fn show_bonding_info(config: &Config) {
+    fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
+        let identity_keypair: identity::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_identity_key().to_owned(),
+                pathfinder.public_identity_key().to_owned(),
+            ))
+            .expect("Failed to read stored identity key files");
+        identity_keypair
+    }
+
+    fn load_sphinx_keys(pathfinder: &MixNodePathfinder) -> encryption::KeyPair {
+        let sphinx_keypair: encryption::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_encryption_key().to_owned(),
+                pathfinder.public_encryption_key().to_owned(),
+            ))
+            .expect("Failed to read stored sphinx key files");
+        sphinx_keypair
+    }
+
+    let pathfinder = MixNodePathfinder::new_from_config(&config);
+    let identity_keypair = load_identity_keys(&pathfinder);
+    let sphinx_keypair = load_sphinx_keys(&pathfinder);
+
+    println!(
+        "\nTo bond your mixnode you will need to provide the following:
+    Identity key: {}
+    Sphinx key: {}
+    Host: {}
+    Layer: {}
+    Location: [physical location of your node's server]
+    Version: {}
+    ",
+        identity_keypair.public_key().to_base58_string(),
+        sphinx_keypair.public_key().to_base58_string(),
+        config.get_announce_address(),
+        config.get_layer(),
+        config.get_version(),
+    );
+}
+
 pub fn execute(matches: &ArgMatches) {
     // TODO: this should probably be made implicit by slapping `#[tokio::main]` on our main method
     // and then removing runtime from mixnode itself in `run`
@@ -185,5 +227,7 @@ pub fn execute(matches: &ArgMatches) {
             .expect("Failed to save the config file");
         println!("Saved configuration file to {:?}", config_save_location);
         println!("Mixnode configuration completed.\n\n\n");
+
+        show_bonding_info(&config)
     })
 }

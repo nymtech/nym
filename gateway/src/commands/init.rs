@@ -94,6 +94,56 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
 }
 
+fn show_bonding_info(config: &Config) {
+    fn load_sphinx_keys(pathfinder: &GatewayPathfinder) -> encryption::KeyPair {
+        let sphinx_keypair: encryption::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_encryption_key().to_owned(),
+                pathfinder.public_encryption_key().to_owned(),
+            ))
+            .expect("Failed to read stored sphinx key files");
+        println!(
+            "Public sphinx key: {}\n",
+            sphinx_keypair.public_key().to_base58_string()
+        );
+        sphinx_keypair
+    }
+
+    fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
+        let identity_keypair: identity::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_identity_key().to_owned(),
+                pathfinder.public_identity_key().to_owned(),
+            ))
+            .expect("Failed to read stored identity key files");
+        println!(
+            "Public identity key: {}\n",
+            identity_keypair.public_key().to_base58_string()
+        );
+        identity_keypair
+    }
+
+    let pathfinder = GatewayPathfinder::new_from_config(&config);
+    let identity_keypair = load_identity_keys(&pathfinder);
+    let sphinx_keypair = load_sphinx_keys(&pathfinder);
+
+    println!(
+        "\nTo bond your gateway you will [most likely] need to provide the following:
+    Identity key: {}
+    Sphinx key: {}
+    Mix Host: {}
+    Clients Host: {}
+    Location: [physical location of your node's server]
+    Version: {}
+    ",
+        identity_keypair.public_key().to_base58_string(),
+        sphinx_keypair.public_key().to_base58_string(),
+        config.get_mix_announce_address(),
+        config.get_clients_announce_address(),
+        config.get_version(),
+    );
+}
+
 pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
     println!("Initialising gateway {}...", id);
@@ -144,4 +194,5 @@ pub fn execute(matches: &ArgMatches) {
     println!("Saved configuration file to {:?}", config_save_location);
 
     println!("Gateway configuration completed.\n\n\n");
+    show_bonding_info(&config);
 }

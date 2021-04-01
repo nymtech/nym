@@ -37,3 +37,4 @@ If you're a Nym platform developer who's made changes to the client and wants to
 1. Bump the version number (use SemVer)
 1. `npm run build`
 1. `npm login` (if you haven't already)
+1. `npm publish`

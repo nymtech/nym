@@ -21,10 +21,9 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 // 'MIXNODE'
 const DEFAULT_LISTENING_PORT: u16 = 1789;
 pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str =
-    "http://testnet-validator1.nymtech.net:8081";
+    "http://testnet-finney-validator.nymtech.net:1317";
 pub(crate) const DEFAULT_METRICS_SERVER: &str = "http://testnet-metrics.nymtech.net:8080";
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str =
-    "TODO: THIS NEEDS TO BE FILLED WITH SOME REASONABLE VALUE!";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1tndcaqxkpc5ce9qee5ggqf430mr2z3pev9mf39";
 
 // 'DEBUG'
 const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);

@@ -22,9 +22,8 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
 pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str =
-    "http://testnet-validator1.nymtech.net:8081";
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str =
-    "TODO: THIS NEEDS TO BE FILLED WITH SOME REASONABLE VALUE!";
+    "http://testnet-finney-validator.nymtech.net:1317";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1tndcaqxkpc5ce9qee5ggqf430mr2z3pev9mf39";
 
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds

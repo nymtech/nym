@@ -5,7 +5,7 @@ import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
 import { coin, Coin, coins } from "@cosmjs/launchpad";
 import { BroadcastTxResponse } from "@cosmjs/stargate"
-import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
+import { ExecuteResult, InstantiateOptions, InstantiateResult, MigrateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
 import { CoinMap, displayAmountToNative, MappedCoin, nativeCoinToDisplay, printableBalance, printableCoin } from "./currency";
 import GatewaysCache from "./caches/gateways";
 import QueryClient, { IQueryClient } from "./query-client";
@@ -253,6 +253,14 @@ export default class ValidatorClient {
             return this.client.instantiate(senderAddress, codeId, initMsg, label, options);
         } else {
             throw new Error("Tried to instantiate with a query client");
+        }
+    }
+
+    public migrate(senderAddress: string, contractAddress: string, codeId: number, migrateMsg: Record<string, unknown>, memo?: string): Promise<MigrateResult> {
+        if (this.client instanceof NetClient) {
+            return this.client.migrate(senderAddress, contractAddress, codeId, migrateMsg, memo)
+        } else {
+            throw new Error("Tried to migrate with a query client");
         }
     }
 }

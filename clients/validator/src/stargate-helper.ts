@@ -14,7 +14,7 @@ export const nymGasLimits: GasLimits<CosmWasmFeeTable> = {
     upload: 2_500_000,
     init: 500_000,
     migrate: 200_000,
-    exec: 9_000_000_000,
+    exec: 250_000,
     send: 80_000,
     changeAdmin: 80_000,
 };

@@ -1,4 +1,4 @@
-use crate::msg::{HandleMsg, InitMsg, QueryMsg};
+use crate::msg::{HandleMsg, InitMsg, MigrateMsg, QueryMsg};
 use crate::queries::{
     query_gateways_paged, query_mixnodes_paged, query_owns_gateway, query_owns_mixnode,
 };
@@ -6,7 +6,7 @@ use crate::state::{config, gateways, gateways_read, State};
 use crate::{error::ContractError, state::mixnodes, state::mixnodes_read};
 use cosmwasm_std::{
     attr, coins, to_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, HandleResponse,
-    InitResponse, MessageInfo, StdResult, Uint128,
+    InitResponse, MessageInfo, MigrateResponse, StdResult, Uint128,
 };
 use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond};
 
@@ -205,6 +205,15 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::OwnsMixnode { address } => to_binary(&query_owns_mixnode(deps, address)?),
         QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
     }
+}
+
+pub fn migrate(
+    _deps: DepsMut,
+    _env: Env,
+    _info: MessageInfo,
+    _msg: MigrateMsg,
+) -> Result<MigrateResponse, ContractError> {
+    Ok(Default::default())
 }
 
 #[cfg(test)]

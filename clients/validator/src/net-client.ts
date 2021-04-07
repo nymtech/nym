@@ -4,7 +4,7 @@ import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { Coin, GasPrice } from "@cosmjs/launchpad";
 import { BroadcastTxResponse } from "@cosmjs/stargate"
 import { nymGasLimits } from "./stargate-helper"
-import { ExecuteResult, InstantiateOptions, InstantiateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
+import { ExecuteResult, InstantiateOptions, InstantiateResult, MigrateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
 
 export interface INetClient {
     clientAddress: string;
@@ -91,5 +91,9 @@ export default class NetClient implements INetClient {
 
     public instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult> {
         return this.cosmClient.instantiate(senderAddress, codeId, initMsg, label, options);
+    }
+
+    public migrate(senderAddress: string, contractAddress: string, codeId: number, migrateMsg: Record<string, unknown>, memo?: string): Promise<MigrateResult> {
+        return this.cosmClient.migrate(senderAddress, contractAddress, codeId, migrateMsg, memo)
     }
 }

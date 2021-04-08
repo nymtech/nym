@@ -3,10 +3,10 @@ use crate::queries::{
     query_gateways_paged, query_mixnodes_paged, query_owns_gateway, query_owns_mixnode,
 };
 use crate::state::{config, config_read, gateways, gateways_read, State, StateParams};
-use crate::{error::ContractError, state::mixnodes, state::mixnodes_read, transactions};
+use crate::{error::ContractError, queries, state::mixnodes, state::mixnodes_read, transactions};
 use cosmwasm_std::{
     attr, to_binary, BankMsg, Binary, Coin, Decimal, Deps, DepsMut, Env, HandleResponse,
-    InitResponse, MessageInfo, MigrateResponse, StdResult, Uint128,
+    InitResponse, MessageInfo, MigrateResponse, QueryResponse, StdResult, Uint128,
 };
 use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond};
 
@@ -73,17 +73,19 @@ pub fn handle(
     }
 }
 
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
+    let query_res = match msg {
         QueryMsg::GetMixNodes { start_after, limit } => {
-            to_binary(&query_mixnodes_paged(deps, start_after, limit)?)
+            &queries::query_mixnodes_paged(deps, start_after, limit)?
         }
         QueryMsg::GetGateways { limit, start_after } => {
-            to_binary(&query_gateways_paged(deps, start_after, limit)?)
+            &queries::query_gateways_paged(deps, start_after, limit)?
         }
-        QueryMsg::OwnsMixnode { address } => to_binary(&query_owns_mixnode(deps, address)?),
-        QueryMsg::OwnsGateway { address } => to_binary(&query_owns_gateway(deps, address)?),
-    }
+        QueryMsg::OwnsMixnode { address } => &queries::query_owns_mixnode(deps, address)?,
+        QueryMsg::OwnsGateway { address } => &queries::query_owns_gateway(deps, address)?,
+    };
+
+    Ok(to_binary(query_res)?)
 }
 
 pub fn migrate(

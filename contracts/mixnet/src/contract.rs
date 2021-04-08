@@ -11,10 +11,10 @@ use cosmwasm_std::{
 use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond};
 
 /// Constant specifying minimum of coin required to bond a gateway
-const GATEWAY_BONDING_STAKE: Uint128 = Uint128(100_000000); // 100 hals
+const GATEWAY_BOND: Uint128 = Uint128(100_000000); // 100 hals
 
 /// Constant specifying minimum of coin required to bond a mixnode
-const MIXNODE_BONDING_STAKE: Uint128 = Uint128(100_000000); // 100 hals
+const MIXNODE_BOND: Uint128 = Uint128(100_000000); // 100 hals
 
 /// Constant specifying denomination of the coin used for bonding
 pub const STAKE_DENOM: &str = "uhal";
@@ -66,10 +66,10 @@ fn validate_mixnode_stake(stake: &[Coin]) -> Result<(), ContractError> {
     }
 
     // check that we have at least MIXNODE_BONDING_STAKE hals in our bond
-    if stake[0].amount < MIXNODE_BONDING_STAKE {
+    if stake[0].amount < MIXNODE_BOND {
         return Err(ContractError::InsufficientMixNodeBond {
             received: stake[0].amount.into(),
-            minimum: GATEWAY_BONDING_STAKE.into(),
+            minimum: GATEWAY_BOND.into(),
         });
     }
 
@@ -150,10 +150,10 @@ fn validate_gateway_stake(stake: &[Coin]) -> Result<(), ContractError> {
     }
 
     // check that we have at least 100 hal in our bond
-    if stake[0].amount < GATEWAY_BONDING_STAKE {
+    if stake[0].amount < GATEWAY_BOND {
         return Err(ContractError::InsufficientGatewayBond {
             received: stake[0].amount.into(),
-            minimum: GATEWAY_BONDING_STAKE.into(),
+            minimum: GATEWAY_BOND.into(),
         });
     }
 
@@ -291,7 +291,7 @@ pub mod tests {
     fn good_mixnode_stake() -> Vec<Coin> {
         vec![Coin {
             denom: STAKE_DENOM.to_string(),
-            amount: MIXNODE_BONDING_STAKE,
+            amount: MIXNODE_BOND,
         }]
     }
 
@@ -303,19 +303,19 @@ pub mod tests {
 
         // you must send at least 100 hals...
         let mut stake = good_mixnode_stake();
-        stake[0].amount = (MIXNODE_BONDING_STAKE - Uint128(1)).unwrap();
+        stake[0].amount = (MIXNODE_BOND - Uint128(1)).unwrap();
         let result = validate_mixnode_stake(&stake);
         assert_eq!(
             result,
             Err(ContractError::InsufficientMixNodeBond {
-                received: Into::<u128>::into(MIXNODE_BONDING_STAKE) - 1,
-                minimum: MIXNODE_BONDING_STAKE.into(),
+                received: Into::<u128>::into(MIXNODE_BOND) - 1,
+                minimum: MIXNODE_BOND.into(),
             })
         );
 
         // more than that is still fine
         let mut stake = good_mixnode_stake();
-        stake[0].amount = MIXNODE_BONDING_STAKE + Uint128(1);
+        stake[0].amount = MIXNODE_BOND + Uint128(1);
         let result = validate_mixnode_stake(&stake);
         assert!(result.is_ok());
 
@@ -336,7 +336,7 @@ pub mod tests {
         let mut deps = helpers::init_contract();
 
         // if we don't send enough funds
-        let insufficient_bond = Into::<u128>::into(MIXNODE_BONDING_STAKE) - 1;
+        let insufficient_bond = Into::<u128>::into(MIXNODE_BOND) - 1;
         let info = mock_info("anyone", &coins(insufficient_bond, STAKE_DENOM));
         let msg = HandleMsg::RegisterMixnode {
             mix_node: helpers::mix_node_fixture(),
@@ -348,7 +348,7 @@ pub mod tests {
             result,
             Err(ContractError::InsufficientMixNodeBond {
                 received: insufficient_bond,
-                minimum: GATEWAY_BONDING_STAKE.into(),
+                minimum: GATEWAY_BOND.into(),
             })
         );
 
@@ -468,10 +468,7 @@ pub mod tests {
             attr("action", "unbond"),
             attr(
                 "mixnode_bond",
-                format!(
-                    "amount: {} {}, owner: fred",
-                    MIXNODE_BONDING_STAKE, STAKE_DENOM
-                ),
+                format!("amount: {} {}, owner: fred", MIXNODE_BOND, STAKE_DENOM),
             ),
         ];
 
@@ -500,7 +497,7 @@ pub mod tests {
     fn good_gateway_stake() -> Vec<Coin> {
         vec![Coin {
             denom: STAKE_DENOM.to_string(),
-            amount: GATEWAY_BONDING_STAKE,
+            amount: GATEWAY_BOND,
         }]
     }
 
@@ -512,19 +509,19 @@ pub mod tests {
 
         // you must send at least 100 hals...
         let mut stake = good_gateway_stake();
-        stake[0].amount = (GATEWAY_BONDING_STAKE - Uint128(1)).unwrap();
+        stake[0].amount = (GATEWAY_BOND - Uint128(1)).unwrap();
         let result = validate_gateway_stake(&stake);
         assert_eq!(
             result,
             Err(ContractError::InsufficientGatewayBond {
-                received: Into::<u128>::into(GATEWAY_BONDING_STAKE) - 1,
-                minimum: GATEWAY_BONDING_STAKE.into(),
+                received: Into::<u128>::into(GATEWAY_BOND) - 1,
+                minimum: GATEWAY_BOND.into(),
             })
         );
 
         // more than that is still fine
         let mut stake = good_gateway_stake();
-        stake[0].amount = GATEWAY_BONDING_STAKE + Uint128(1);
+        stake[0].amount = GATEWAY_BOND + Uint128(1);
         let result = validate_gateway_stake(&stake);
         assert!(result.is_ok());
 
@@ -545,7 +542,7 @@ pub mod tests {
         let mut deps = helpers::init_contract();
 
         // if we fail validation (by say not sending enough funds
-        let insufficient_bond = Into::<u128>::into(GATEWAY_BONDING_STAKE) - 1;
+        let insufficient_bond = Into::<u128>::into(GATEWAY_BOND) - 1;
         let info = mock_info("anyone", &coins(insufficient_bond, STAKE_DENOM));
         let msg = HandleMsg::BondGateway {
             gateway: helpers::gateway_fixture(),
@@ -557,7 +554,7 @@ pub mod tests {
             result,
             Err(ContractError::InsufficientGatewayBond {
                 received: insufficient_bond,
-                minimum: GATEWAY_BONDING_STAKE.into(),
+                minimum: GATEWAY_BOND.into(),
             })
         );
 
@@ -680,10 +677,7 @@ pub mod tests {
             attr("address", "fred"),
             attr(
                 "gateway_bond",
-                format!(
-                    "amount: {} {}, owner: fred",
-                    GATEWAY_BONDING_STAKE, STAKE_DENOM
-                ),
+                format!("amount: {} {}, owner: fred", GATEWAY_BOND, STAKE_DENOM),
             ),
         ];
 

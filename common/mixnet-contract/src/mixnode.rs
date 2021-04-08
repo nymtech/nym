@@ -81,7 +81,15 @@ impl Display for MixNodeBond {
         // stream: `f`. Returns `fmt::Result` which indicates whether the
         // operation succeeded or failed. Note that `write!` uses syntax which
         // is very similar to `println!`.
-        write!(f, "amount: {:?}, owner: {}", self.amount, self.owner)
+        if self.amount.len() != 1 {
+            write!(f, "amount: {:?}, owner: {}", self.amount, self.owner)
+        } else {
+            write!(
+                f,
+                "amount: {} {}, owner: {}",
+                self.amount[0].amount, self.amount[0].denom, self.owner
+            )
+        }
     }
 }
 

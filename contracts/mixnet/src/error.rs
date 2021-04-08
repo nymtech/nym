@@ -1,4 +1,4 @@
-use crate::contract::STAKE_DENOM;
+use crate::contract::DENOM;
 use cosmwasm_std::{HumanAddr, StdError};
 use thiserror::Error;
 
@@ -11,8 +11,10 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
-    #[error("Not enough funds sent for mixnode bond")]
-    InsufficientMixNodeBond {},
+    #[error(
+        "Not enough funds sent for mixnode bond. (received {received:?}, minimum {minimum:?})"
+    )]
+    InsufficientMixNodeBond { received: u128, minimum: u128 },
 
     #[error("Account does not own any mixnode bonds")]
     MixNodeBondNotFound {},
@@ -31,6 +33,6 @@ pub enum ContractError {
     #[error("Wrong coin denomination, you must send {}", STAKE_DENOM)]
     WrongDenom {},
 
-    #[error("No coin was sent for the staking, you must send {}", STAKE_DENOM)]
-    NoStakeFound,
+    #[error("No coin was sent for the bonding, you must send {}", STAKE_DENOM)]
+    NoBondFound,
 }

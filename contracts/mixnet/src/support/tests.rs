@@ -22,7 +22,7 @@ pub mod helpers {
         Gateway, GatewayBond, MixNode, MixNodeBond, PagedGatewayResponse, PagedResponse,
     };
 
-    use crate::contract::STAKE_DENOM;
+    use crate::contract::DENOM;
 
     pub fn add_mixnode(
         pubkey: &str,
@@ -105,7 +105,7 @@ pub mod helpers {
             "aaaa".to_string(),
             "0.10.0".to_string(),
         );
-        MixNodeBond::new(coins(50, STAKE_DENOM), HumanAddr::from("foo"), mix_node)
+        MixNodeBond::new(coins(50, DENOM), HumanAddr::from("foo"), mix_node)
     }
 
     pub fn gateway_fixture() -> Gateway {
@@ -128,7 +128,7 @@ pub mod helpers {
             "identity".to_string(),
             "0.10.0".to_string(),
         );
-        GatewayBond::new(coins(50, STAKE_DENOM), HumanAddr::from("foo"), gateway)
+        GatewayBond::new(coins(50, DENOM), HumanAddr::from("foo"), gateway)
     }
 
     pub fn query_contract_balance(
@@ -136,6 +136,6 @@ pub mod helpers {
         deps: OwnedDeps<MockStorage, MockApi, MockQuerier>,
     ) -> Vec<Coin> {
         let querier = deps.as_ref().querier;
-        vec![querier.query_balance(address, STAKE_DENOM).unwrap()]
+        vec![querier.query_balance(address, DENOM).unwrap()]
     }
 }

@@ -1,4 +1,4 @@
-use cosmwasm_std::{HumanAddr, Storage};
+use cosmwasm_std::{Decimal, HumanAddr, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -13,13 +13,17 @@ pub static CONFIG_KEY: &[u8] = b"config";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
-    pub owner: HumanAddr,              // only the owner account can update state
+    pub owner: HumanAddr, // only the owner account can update state
+
+    pub params: StateParams,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct StateParams {
     pub minimum_mixnode_bond: Uint128, // minimum amount a mixnode must bond to get into the system
     pub minimum_gateway_bond: Uint128, // minimum amount a gateway must bond to get into the system
-    pub mixnode_bond_reward_rate: cosmwasm_std::math::Decimal, // epoch reward rate, expressed as a decimal like 1.25
-    pub gateway_bond_reward_rate: cosmwasm_std::math::Decimal, // epoch reward rate, expressed as a decimal like 1.25
-    pub mixnode_delegated_stake_reward_rate: cosmwasm_std::math::Decimal, // ibid
-    pub gateway_delegated_stake_reward_rate: cosmwasm_std::math::Decimal, // ibid,
+    pub mixnode_bond_reward_rate: Decimal, // epoch reward rate, expressed as a decimal like 1.25
+    pub gateway_bond_reward_rate: Decimal, // epoch reward rate, expressed as a decimal like 1.25
     pub mixnode_active_set_size: u32,
 }
 

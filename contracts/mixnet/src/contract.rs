@@ -11,13 +11,13 @@ use cosmwasm_std::{
 use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond};
 
 /// Constant specifying minimum of coin required to bond a gateway
-const GATEWAY_BOND: Uint128 = Uint128(100_000000); // 100 hals
+const GATEWAY_BOND: Uint128 = Uint128(100_000000);
 
 /// Constant specifying minimum of coin required to bond a mixnode
-const MIXNODE_BOND: Uint128 = Uint128(100_000000); // 100 hals
+const MIXNODE_BOND: Uint128 = Uint128(100_000000);
 
 /// Constant specifying denomination of the coin used for bonding
-pub const STAKE_DENOM: &str = "uhal";
+pub const DENOM: &str = "uhal";
 
 /// Instantiate the contract.
 ///
@@ -50,25 +50,25 @@ pub fn handle(
     }
 }
 
-fn validate_mixnode_stake(stake: &[Coin]) -> Result<(), ContractError> {
-    // check if anything was put as stake
-    if stake.is_empty() {
-        return Err(ContractError::NoStakeFound);
+fn validate_mixnode_bond(bond: &[Coin]) -> Result<(), ContractError> {
+    // check if anything was put as bond
+    if bond.is_empty() {
+        return Err(ContractError::NoBondFound);
     }
 
-    if stake.len() > 1 {
+    if bond.len() > 1 {
         // TODO: ask DH what would be an appropriate action here
     }
 
     // check that the denomination is correct
-    if stake[0].denom != STAKE_DENOM {
+    if bond[0].denom != DENOM {
         return Err(ContractError::WrongDenom {});
     }
 
-    // check that we have at least MIXNODE_BONDING_STAKE hals in our bond
-    if stake[0].amount < MIXNODE_BOND {
+    // check that we have at least MIXNODE_BOND coins in our bond
+    if bond[0].amount < MIXNODE_BOND {
         return Err(ContractError::InsufficientMixNodeBond {
-            received: stake[0].amount.into(),
+            received: bond[0].amount.into(),
             minimum: GATEWAY_BOND.into(),
         });
     }
@@ -81,7 +81,7 @@ pub fn try_add_mixnode(
     info: MessageInfo,
     mix_node: MixNode,
 ) -> Result<HandleResponse, ContractError> {
-    validate_mixnode_stake(&info.sent_funds)?;
+    validate_mixnode_bond(&info.sent_funds)?;
 
     let bond = MixNodeBond::new(info.sent_funds, info.sender.clone(), mix_node);
 
@@ -134,25 +134,25 @@ fn try_remove_mixnode(
     })
 }
 
-fn validate_gateway_stake(stake: &[Coin]) -> Result<(), ContractError> {
-    // check if anything was put as stake
-    if stake.is_empty() {
-        return Err(ContractError::NoStakeFound);
+fn validate_gateway_bond(bond: &[Coin]) -> Result<(), ContractError> {
+    // check if anything was put as bond
+    if bond.is_empty() {
+        return Err(ContractError::NoBondFound);
     }
 
-    if stake.len() > 1 {
+    if bond.len() > 1 {
         // TODO: ask DH what would be an appropriate action here
     }
 
     // check that the denomination is correct
-    if stake[0].denom != STAKE_DENOM {
+    if bond[0].denom != DENOM {
         return Err(ContractError::WrongDenom {});
     }
 
-    // check that we have at least 100 hal in our bond
-    if stake[0].amount < GATEWAY_BOND {
+    // check that we have at least 100 coins in our bond
+    if bond[0].amount < GATEWAY_BOND {
         return Err(ContractError::InsufficientGatewayBond {
-            received: stake[0].amount.into(),
+            received: bond[0].amount.into(),
             minimum: GATEWAY_BOND.into(),
         });
     }
@@ -165,7 +165,7 @@ pub(crate) fn try_add_gateway(
     info: MessageInfo,
     gateway: Gateway,
 ) -> Result<HandleResponse, ContractError> {
-    validate_gateway_stake(&info.sent_funds)?;
+    validate_gateway_bond(&info.sent_funds)?;
 
     let bond = GatewayBond::new(info.sent_funds, info.sender.clone(), gateway);
 
@@ -283,28 +283,28 @@ pub mod tests {
 
         // Contract balance should match what we initialized it as
         assert_eq!(
-            coins(0, STAKE_DENOM),
+            coins(0, DENOM),
             query_contract_balance(env.contract.address, deps)
         );
     }
 
-    fn good_mixnode_stake() -> Vec<Coin> {
+    fn good_mixnode_bond() -> Vec<Coin> {
         vec![Coin {
-            denom: STAKE_DENOM.to_string(),
+            denom: DENOM.to_string(),
             amount: MIXNODE_BOND,
         }]
     }
 
     #[test]
-    fn validating_mixnode_stake() {
+    fn validating_mixnode_bond() {
         // you must send SOME funds
-        let result = validate_mixnode_stake(&[]);
-        assert_eq!(result, Err(ContractError::NoStakeFound));
+        let result = validate_mixnode_bond(&[]);
+        assert_eq!(result, Err(ContractError::NoBondFound));
 
-        // you must send at least 100 hals...
-        let mut stake = good_mixnode_stake();
-        stake[0].amount = (MIXNODE_BOND - Uint128(1)).unwrap();
-        let result = validate_mixnode_stake(&stake);
+        // you must send at least 100 coins...
+        let mut bond = good_mixnode_bond();
+        bond[0].amount = (MIXNODE_BOND - Uint128(1)).unwrap();
+        let result = validate_mixnode_bond(&bond);
         assert_eq!(
             result,
             Err(ContractError::InsufficientMixNodeBond {
@@ -314,20 +314,20 @@ pub mod tests {
         );
 
         // more than that is still fine
-        let mut stake = good_mixnode_stake();
-        stake[0].amount = MIXNODE_BOND + Uint128(1);
-        let result = validate_mixnode_stake(&stake);
+        let mut bond = good_mixnode_bond();
+        bond[0].amount = MIXNODE_BOND + Uint128(1);
+        let result = validate_mixnode_bond(&bond);
         assert!(result.is_ok());
 
-        // it must be sent as unym!
-        let mut stake = good_mixnode_stake();
-        stake[0].denom = "nym".to_string();
-        let result = validate_mixnode_stake(&stake);
+        // it must be sent in the defined denom!
+        let mut bond = good_mixnode_bond();
+        bond[0].denom = "baddenom".to_string();
+        let result = validate_mixnode_bond(&bond);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
 
-        let mut stake = good_mixnode_stake();
-        stake[0].denom = "foomp".to_string();
-        let result = validate_mixnode_stake(&stake);
+        let mut bond = good_mixnode_bond();
+        bond[0].denom = "foomp".to_string();
+        let result = validate_mixnode_bond(&bond);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
     }
 
@@ -337,7 +337,7 @@ pub mod tests {
 
         // if we don't send enough funds
         let insufficient_bond = Into::<u128>::into(MIXNODE_BOND) - 1;
-        let info = mock_info("anyone", &coins(insufficient_bond, STAKE_DENOM));
+        let info = mock_info("anyone", &coins(insufficient_bond, DENOM));
         let msg = HandleMsg::RegisterMixnode {
             mix_node: helpers::mix_node_fixture(),
         };
@@ -366,7 +366,7 @@ pub mod tests {
         assert_eq!(0, page.nodes.len());
 
         // if we send enough funds
-        let info = mock_info("anyone", &coins(1000_000000, STAKE_DENOM));
+        let info = mock_info("anyone", &coins(1000_000000, DENOM));
         let msg = HandleMsg::RegisterMixnode {
             mix_node: helpers::mix_node_fixture(),
         };
@@ -390,7 +390,7 @@ pub mod tests {
         assert_eq!(&helpers::mix_node_fixture(), page.nodes[0].mix_node());
 
         // if there was already a mixnode bonded by particular user
-        let info = mock_info("foomper", &good_mixnode_stake());
+        let info = mock_info("foomper", &good_mixnode_bond());
         let msg = HandleMsg::BondGateway {
             gateway: helpers::gateway_fixture(),
         };
@@ -398,7 +398,7 @@ pub mod tests {
         let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(handle_response.attributes[0], attr("overwritten", false));
 
-        let info = mock_info("foomper", &good_mixnode_stake());
+        let info = mock_info("foomper", &good_mixnode_bond());
         let msg = HandleMsg::BondGateway {
             gateway: helpers::gateway_fixture(),
         };
@@ -420,7 +420,7 @@ pub mod tests {
         init(deps.as_mut(), env.clone(), info, msg).unwrap();
 
         // try un-registering when no nodes exist yet
-        let info = mock_info("anyone", &coins(999_9999, STAKE_DENOM));
+        let info = mock_info("anyone", &coins(999_9999, DENOM));
         let msg = HandleMsg::UnRegisterMixnode {};
         let result = handle(deps.as_mut(), mock_env(), info, msg);
 
@@ -428,10 +428,10 @@ pub mod tests {
         assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
 
         // let's add a node owned by bob
-        helpers::add_mixnode("bob", coins(1000_000000, STAKE_DENOM), &mut deps);
+        helpers::add_mixnode("bob", coins(1000_000000, DENOM), &mut deps);
 
         // attempt to un-register fred's node, which doesn't exist
-        let info = mock_info("fred", &coins(999_9999, STAKE_DENOM));
+        let info = mock_info("fred", &coins(999_9999, DENOM));
         let msg = HandleMsg::UnRegisterMixnode {};
         let result = handle(deps.as_mut(), mock_env(), info, msg);
         assert_eq!(result, Err(ContractError::MixNodeBondNotFound {}));
@@ -452,14 +452,14 @@ pub mod tests {
         assert_eq!("bob", first_node.owner());
 
         // add a node owned by fred
-        let fred_bond = good_mixnode_stake();
+        let fred_bond = good_mixnode_bond();
         helpers::add_mixnode("fred", fred_bond.clone(), &mut deps);
 
         // let's make sure we now have 2 nodes:
         assert_eq!(2, helpers::get_mix_nodes(&mut deps).len());
 
         // un-register fred's node
-        let info = mock_info("fred", &coins(999_9999, STAKE_DENOM));
+        let info = mock_info("fred", &coins(999_9999, DENOM));
         let msg = HandleMsg::UnRegisterMixnode {};
         let remove_fred = handle(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
@@ -468,7 +468,7 @@ pub mod tests {
             attr("action", "unbond"),
             attr(
                 "mixnode_bond",
-                format!("amount: {} {}, owner: fred", MIXNODE_BOND, STAKE_DENOM),
+                format!("amount: {} {}, owner: fred", MIXNODE_BOND, DENOM),
             ),
         ];
 
@@ -494,23 +494,23 @@ pub mod tests {
         assert_eq!("bob", mix_node_bonds[0].owner());
     }
 
-    fn good_gateway_stake() -> Vec<Coin> {
+    fn good_gateway_bond() -> Vec<Coin> {
         vec![Coin {
-            denom: STAKE_DENOM.to_string(),
+            denom: DENOM.to_string(),
             amount: GATEWAY_BOND,
         }]
     }
 
     #[test]
-    fn validating_gateway_stake() {
+    fn validating_gateway_bond() {
         // you must send SOME funds
-        let result = validate_gateway_stake(&[]);
-        assert_eq!(result, Err(ContractError::NoStakeFound));
+        let result = validate_gateway_bond(&[]);
+        assert_eq!(result, Err(ContractError::NoBondFound));
 
-        // you must send at least 100 hals...
-        let mut stake = good_gateway_stake();
-        stake[0].amount = (GATEWAY_BOND - Uint128(1)).unwrap();
-        let result = validate_gateway_stake(&stake);
+        // you must send at least 100 coins...
+        let mut bond = good_gateway_bond();
+        bond[0].amount = (GATEWAY_BOND - Uint128(1)).unwrap();
+        let result = validate_gateway_bond(&bond);
         assert_eq!(
             result,
             Err(ContractError::InsufficientGatewayBond {
@@ -520,20 +520,20 @@ pub mod tests {
         );
 
         // more than that is still fine
-        let mut stake = good_gateway_stake();
-        stake[0].amount = GATEWAY_BOND + Uint128(1);
-        let result = validate_gateway_stake(&stake);
+        let mut bond = good_gateway_bond();
+        bond[0].amount = GATEWAY_BOND + Uint128(1);
+        let result = validate_gateway_bond(&bond);
         assert!(result.is_ok());
 
-        // it must be sent as unym!
-        let mut stake = good_gateway_stake();
-        stake[0].denom = "nym".to_string();
-        let result = validate_gateway_stake(&stake);
+        // it must be sent in the defined denom!
+        let mut bond = good_gateway_bond();
+        bond[0].denom = "baddenom".to_string();
+        let result = validate_gateway_bond(&bond);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
 
-        let mut stake = good_gateway_stake();
-        stake[0].denom = "foomp".to_string();
-        let result = validate_gateway_stake(&stake);
+        let mut bond = good_gateway_bond();
+        bond[0].denom = "foomp".to_string();
+        let result = validate_gateway_bond(&bond);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
     }
 
@@ -543,7 +543,7 @@ pub mod tests {
 
         // if we fail validation (by say not sending enough funds
         let insufficient_bond = Into::<u128>::into(GATEWAY_BOND) - 1;
-        let info = mock_info("anyone", &coins(insufficient_bond, STAKE_DENOM));
+        let info = mock_info("anyone", &coins(insufficient_bond, DENOM));
         let msg = HandleMsg::BondGateway {
             gateway: helpers::gateway_fixture(),
         };
@@ -572,7 +572,7 @@ pub mod tests {
         assert_eq!(0, page.nodes.len());
 
         // if we send enough funds
-        let info = mock_info("anyone", &good_gateway_stake());
+        let info = mock_info("anyone", &good_gateway_bond());
         let msg = HandleMsg::BondGateway {
             gateway: helpers::gateway_fixture(),
         };
@@ -596,7 +596,7 @@ pub mod tests {
         assert_eq!(&helpers::gateway_fixture(), page.nodes[0].gateway());
 
         // if there was already a gateway bonded by particular user
-        let info = mock_info("foomper", &good_gateway_stake());
+        let info = mock_info("foomper", &good_gateway_bond());
         let msg = HandleMsg::BondGateway {
             gateway: helpers::gateway_fixture(),
         };
@@ -604,7 +604,7 @@ pub mod tests {
         let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(handle_response.attributes[0], attr("overwritten", false));
 
-        let info = mock_info("foomper", &good_gateway_stake());
+        let info = mock_info("foomper", &good_gateway_bond());
         let msg = HandleMsg::BondGateway {
             gateway: helpers::gateway_fixture(),
         };
@@ -639,7 +639,7 @@ pub mod tests {
         );
 
         // let's add a node owned by bob
-        helpers::add_gateway("bob", good_gateway_stake(), &mut deps);
+        helpers::add_gateway("bob", good_gateway_bond(), &mut deps);
 
         // attempt to unbond fred's node, which doesn't exist
         let info = mock_info("fred", &[]);
@@ -660,7 +660,7 @@ pub mod tests {
         assert_eq!("bob", first_node.owner());
 
         // add a node owned by fred
-        let fred_bond = good_gateway_stake();
+        let fred_bond = good_gateway_bond();
         helpers::add_gateway("fred", fred_bond.clone(), &mut deps);
 
         // let's make sure we now have 2 nodes:
@@ -677,7 +677,7 @@ pub mod tests {
             attr("address", "fred"),
             attr(
                 "gateway_bond",
-                format!("amount: {} {}, owner: fred", GATEWAY_BOND, STAKE_DENOM),
+                format!("amount: {} {}, owner: fred", GATEWAY_BOND, DENOM),
             ),
         ];
 

@@ -1,4 +1,4 @@
-use crate::contract::STAKE_DENOM;
+use crate::contract::DENOM;
 use cosmwasm_std::{HumanAddr, StdError};
 use thiserror::Error;
 
@@ -33,6 +33,6 @@ pub enum ContractError {
     #[error("Wrong coin denomination, you must send {}", STAKE_DENOM)]
     WrongDenom {},
 
-    #[error("No coin was sent for the staking, you must send {}", STAKE_DENOM)]
-    NoStakeFound,
+    #[error("No coin was sent for the bonding, you must send {}", STAKE_DENOM)]
+    NoBondFound,
 }

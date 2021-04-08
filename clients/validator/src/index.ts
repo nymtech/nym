@@ -16,7 +16,9 @@ export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBal
 
 export default class ValidatorClient {
     private readonly stakeDenom: string;
-    private readonly gatewayBondingStake: number = 1000_000000
+    private readonly defaultGatewayBondingStake: number = 100_000000
+    private readonly defaultMixnodeBondingStake: number = 100_000000
+
     url: string;
     private readonly client: INetClient | IQueryClient
     private mixNodesCache: MixnodesCache;
@@ -123,11 +125,20 @@ export default class ValidatorClient {
     }
 
     /**
+     * Generate a minimum gateway bond required to create a fresh mixnode.
+     *
+     * @returns a `Coin` instance containing minimum amount of coins to stake a gateway.
+     */
+    minimumMixnodeBond = (): Coin => {
+        return coin(this.defaultMixnodeBondingStake, this.stakeDenom)
+    }
+
+    /**
     *  Announce a mixnode, paying a fee.
     */
     async bond(mixNode: MixNode): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const bond = [{ amount: "1000000000", denom: this.stakeDenom }];
+            const bond = [this.minimumMixnodeBond()];
             const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { register_mixnode: { mix_node: mixNode } }, "adding mixnode", bond);
             console.log(`account ${this.client.clientAddress} added mixnode with ${mixNode.host}`);
             return result;
@@ -200,7 +211,7 @@ export default class ValidatorClient {
      * @returns a `Coin` instance containing minimum amount of coins to stake a gateway.
      */
     minimumGatewayBond = (): Coin => {
-        return coin(this.gatewayBondingStake, this.stakeDenom)
+        return coin(this.defaultGatewayBondingStake, this.stakeDenom)
     }
 
     /**

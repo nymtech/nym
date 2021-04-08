@@ -123,7 +123,7 @@ export default class ValidatorClient {
     async bond(mixNode: MixNode): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
             const bond = [{ amount: "1000000000", denom: this.stakeDenom }];
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { register_mixnode: { mix_node: mixNode } }, "adding mixnode", bond);
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { bond_mixnode: { mix_node: mixNode } }, "adding mixnode", bond);
             console.log(`account ${this.client.clientAddress} added mixnode with ${mixNode.host}`);
             return result;
         } else {
@@ -137,7 +137,7 @@ export default class ValidatorClient {
      */
     async unbond(): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { un_register_mixnode: {} })
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { unbond_mixnode: {} })
             console.log(`account ${this.client.clientAddress} unbonded mixnode`);
             return result;
         } else {

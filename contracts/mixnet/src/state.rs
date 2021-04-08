@@ -13,7 +13,14 @@ pub static CONFIG_KEY: &[u8] = b"config";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
-    pub owner: HumanAddr,
+    pub owner: HumanAddr,              // only the owner account can update state
+    pub minimum_mixnode_bond: Uint128, // minimum amount a mixnode must bond to get into the system
+    pub minimum_gateway_bond: Uint128, // minimum amount a gateway must bond to get into the system
+    pub mixnode_bond_reward_rate: cosmwasm_std::math::Decimal, // epoch reward rate, expressed as a decimal like 1.25
+    pub gateway_bond_reward_rate: cosmwasm_std::math::Decimal, // epoch reward rate, expressed as a decimal like 1.25
+    pub mixnode_delegated_stake_reward_rate: cosmwasm_std::math::Decimal, // ibid
+    pub gateway_delegated_stake_reward_rate: cosmwasm_std::math::Decimal, // ibid,
+    pub mixnode_active_set_size: u32,
 }
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {

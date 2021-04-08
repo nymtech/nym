@@ -11,8 +11,10 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
-    #[error("Not enough funds sent for mixnode bond")]
-    InsufficientMixNodeBond {},
+    #[error(
+        "Not enough funds sent for mixnode bond. (received {received:?}, minimum {minimum:?})"
+    )]
+    InsufficientMixNodeBond { received: u128, minimum: u128 },
 
     #[error("Account does not own any mixnode bonds")]
     MixNodeBondNotFound {},

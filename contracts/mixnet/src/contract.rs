@@ -5,13 +5,16 @@ use crate::queries::{
 use crate::state::{config, gateways, gateways_read, State};
 use crate::{error::ContractError, state::mixnodes, state::mixnodes_read};
 use cosmwasm_std::{
-    attr, coins, to_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, HandleResponse,
-    InitResponse, MessageInfo, MigrateResponse, StdResult, Uint128,
+    attr, to_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, HandleResponse, InitResponse,
+    MessageInfo, MigrateResponse, StdResult, Uint128,
 };
 use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond};
 
 /// Constant specifying minimum of coin required to bond a gateway
-const GATEWAY_BONDING_STAKE: Uint128 = Uint128(1000_000000); // 1000 nym
+const GATEWAY_BONDING_STAKE: Uint128 = Uint128(10_000000); // 10 hals
+
+/// Constant specifying minimum of coin required to bond a mixnode
+const MIXNODE_BONDING_STAKE: Uint128 = Uint128(10_000000); // 10 hals
 
 /// Constant specifying denomination of the coin used for bonding
 pub const STAKE_DENOM: &str = "uhal";
@@ -47,26 +50,56 @@ pub fn handle(
     }
 }
 
+fn validate_mixnode_stake(stake: &[Coin]) -> Result<(), ContractError> {
+    // check if anything was put as stake
+    if stake.is_empty() {
+        return Err(ContractError::NoStakeFound);
+    }
+
+    if stake.len() > 1 {
+        // TODO: ask DH what would be an appropriate action here
+    }
+
+    // check that the denomination is correct
+    if stake[0].denom != STAKE_DENOM {
+        return Err(ContractError::WrongDenom {});
+    }
+
+    // check that we have at least MIXNODE_BONDING_STAKE hals in our bond
+    if stake[0].amount < MIXNODE_BONDING_STAKE {
+        return Err(ContractError::InsufficientMixNodeBond {
+            received: stake[0].amount.into(),
+            minimum: GATEWAY_BONDING_STAKE.into(),
+        });
+    }
+
+    Ok(())
+}
+
 pub fn try_add_mixnode(
     deps: DepsMut,
     info: MessageInfo,
     mix_node: MixNode,
 ) -> Result<HandleResponse, ContractError> {
-    let stake = &info.sent_funds[0];
-
-    // check that the denomination is correct
-    if stake.denom != STAKE_DENOM {
-        return Err(ContractError::WrongDenom {});
-    }
-    // check that we have at least 1000 nym in our bond
-    if stake.amount < coins(1000_000000, STAKE_DENOM)[0].amount {
-        return Err(ContractError::InsufficientMixNodeBond {});
-    }
+    validate_mixnode_stake(&info.sent_funds)?;
 
     let bond = MixNodeBond::new(info.sent_funds, info.sender.clone(), mix_node);
 
-    mixnodes(deps.storage).save(info.sender.as_bytes(), &bond)?;
-    Ok(HandleResponse::default())
+    let sender_bytes = info.sender.as_bytes();
+    let was_present = mixnodes_read(deps.storage)
+        .may_load(sender_bytes)?
+        .is_some();
+
+    // TODO: do attributes also go back to the client or does this need to be put into `data`?
+    let attributes = vec![attr("overwritten", was_present)];
+
+    mixnodes(deps.storage).save(sender_bytes, &bond)?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        attributes,
+        data: None,
+    })
 }
 
 fn try_remove_mixnode(
@@ -255,19 +288,69 @@ pub mod tests {
         );
     }
 
+    fn good_mixnode_stake() -> Vec<Coin> {
+        vec![Coin {
+            denom: STAKE_DENOM.to_string(),
+            amount: MIXNODE_BONDING_STAKE,
+        }]
+    }
+
+    #[test]
+    fn validating_mixnode_stake() {
+        // you must send SOME funds
+        let result = validate_mixnode_stake(&[]);
+        assert_eq!(result, Err(ContractError::NoStakeFound));
+
+        // you must send at least 10 hals...
+        let mut stake = good_mixnode_stake();
+        stake[0].amount = (MIXNODE_BONDING_STAKE - Uint128(1)).unwrap();
+        let result = validate_mixnode_stake(&stake);
+        assert_eq!(
+            result,
+            Err(ContractError::InsufficientMixNodeBond {
+                received: Into::<u128>::into(MIXNODE_BONDING_STAKE) - 1,
+                minimum: MIXNODE_BONDING_STAKE.into(),
+            })
+        );
+
+        // more than that is still fine
+        let mut stake = good_mixnode_stake();
+        stake[0].amount = MIXNODE_BONDING_STAKE + Uint128(1);
+        let result = validate_mixnode_stake(&stake);
+        assert!(result.is_ok());
+
+        // it must be sent as unym!
+        let mut stake = good_mixnode_stake();
+        stake[0].denom = "nym".to_string();
+        let result = validate_mixnode_stake(&stake);
+        assert_eq!(result, Err(ContractError::WrongDenom {}));
+
+        let mut stake = good_mixnode_stake();
+        stake[0].denom = "foomp".to_string();
+        let result = validate_mixnode_stake(&stake);
+        assert_eq!(result, Err(ContractError::WrongDenom {}));
+    }
+
     #[test]
     fn mixnode_add() {
         let mut deps = helpers::init_contract();
 
         // if we don't send enough funds
-        let info = mock_info("anyone", &coins(999_999999, STAKE_DENOM));
+        let insufficient_bond = Into::<u128>::into(MIXNODE_BONDING_STAKE) - 1;
+        let info = mock_info("anyone", &coins(insufficient_bond, STAKE_DENOM));
         let msg = HandleMsg::RegisterMixnode {
             mix_node: helpers::mix_node_fixture(),
         };
 
         // we are informed that we didn't send enough funds
         let result = handle(deps.as_mut(), mock_env(), info, msg);
-        assert_eq!(result, Err(ContractError::InsufficientMixNodeBond {}));
+        assert_eq!(
+            result,
+            Err(ContractError::InsufficientMixNodeBond {
+                received: insufficient_bond,
+                minimum: GATEWAY_BONDING_STAKE.into(),
+            })
+        );
 
         // no mixnode was inserted into the topology
         let res = query(
@@ -289,8 +372,8 @@ pub mod tests {
         };
 
         // we get back a message telling us everything was OK
-        let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
-        assert_eq!(HandleResponse::default(), handle_response);
+        let handle_response = handle(deps.as_mut(), mock_env(), info, msg);
+        assert!(handle_response.is_ok());
 
         // we can query topology and the new node is there
         let query_response = query(
@@ -304,7 +387,25 @@ pub mod tests {
         .unwrap();
         let page: PagedResponse = from_binary(&query_response).unwrap();
         assert_eq!(1, page.nodes.len());
-        assert_eq!(&helpers::mix_node_fixture(), page.nodes[0].mix_node())
+        assert_eq!(&helpers::mix_node_fixture(), page.nodes[0].mix_node());
+
+        // if there was already a mixnode bonded by particular user
+        let info = mock_info("foomper", &good_mixnode_stake());
+        let msg = HandleMsg::BondGateway {
+            gateway: helpers::gateway_fixture(),
+        };
+
+        let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(handle_response.attributes[0], attr("overwritten", false));
+
+        let info = mock_info("foomper", &good_mixnode_stake());
+        let msg = HandleMsg::BondGateway {
+            gateway: helpers::gateway_fixture(),
+        };
+
+        // we get a log message about it (TODO: does it get back to the user?)
+        let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(handle_response.attributes[0], attr("overwritten", true));
 
         // adding another node from another account, but with the same IP, should fail (or we would have a weird state). Is that right? Think about this, not sure yet.
         // if we attempt to register a second node from the same address, should we get an error? It would probably be polite.
@@ -406,7 +507,7 @@ pub mod tests {
         let result = validate_gateway_stake(&[]);
         assert_eq!(result, Err(ContractError::NoStakeFound));
 
-        // you must send at least 1000 nym...
+        // you must send at least 10 hals...
         let mut stake = good_gateway_stake();
         stake[0].amount = (GATEWAY_BONDING_STAKE - Uint128(1)).unwrap();
         let result = validate_gateway_stake(&stake);
@@ -576,7 +677,7 @@ pub mod tests {
             attr("address", "fred"),
             attr(
                 "gateway_bond",
-                format!("amount: 1000000000 {}, owner: fred", STAKE_DENOM),
+                format!("amount: 10000000 {}, owner: fred", STAKE_DENOM),
             ),
         ];
 

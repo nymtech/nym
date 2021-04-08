@@ -346,9 +346,12 @@ export type GatewayOwnershipResponse = {
 }
 
 export type StateParams = {
-    minimum_mixnode_bond: number,
-    minimum_gateway_bond: number,
-    mixnode_bond_reward_rate: number,
-    gateway_bond_reward_rate: number,
+    // ideally I'd want to define those as `number` rather than `string`, but
+    // rust-side they are defined as Uint128 and Decimal that don't have
+    // native javascript representations and therefore are interpreted as strings after deserialization
+    minimum_mixnode_bond: string,
+    minimum_gateway_bond: string,
+    mixnode_bond_reward_rate: string,
+    gateway_bond_reward_rate: string,
     mixnode_active_set_size: number,
 }

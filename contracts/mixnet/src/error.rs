@@ -30,9 +30,9 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
-    #[error("Wrong coin denomination, you must send {}", STAKE_DENOM)]
+    #[error("Wrong coin denomination, you must send {}", DENOM)]
     WrongDenom {},
 
-    #[error("No coin was sent for the bonding, you must send {}", STAKE_DENOM)]
+    #[error("No coin was sent for the bonding, you must send {}", DENOM)]
     NoBondFound,
 }

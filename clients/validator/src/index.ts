@@ -5,8 +5,22 @@ import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
 import { coin, Coin, coins } from "@cosmjs/launchpad";
 import { BroadcastTxResponse } from "@cosmjs/stargate"
-import { ExecuteResult, InstantiateOptions, InstantiateResult, MigrateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
-import { CoinMap, displayAmountToNative, MappedCoin, nativeCoinToDisplay, printableBalance, printableCoin } from "./currency";
+import {
+    ExecuteResult,
+    InstantiateOptions,
+    InstantiateResult,
+    MigrateResult,
+    UploadMeta,
+    UploadResult
+} from "@cosmjs/cosmwasm";
+import {
+    CoinMap,
+    displayAmountToNative,
+    MappedCoin,
+    nativeCoinToDisplay,
+    printableBalance,
+    printableCoin
+} from "./currency";
 import GatewaysCache from "./caches/gateways";
 import QueryClient, { IQueryClient } from "./query-client";
 
@@ -86,7 +100,7 @@ export default class ValidatorClient {
      */
     static async mnemonicToAddress(mnemonic: string): Promise<string> {
         const wallet = await ValidatorClient.buildWallet(mnemonic);
-        const [{ address }] = await wallet.getAccounts()
+        const [{address}] = await wallet.getAccounts()
         return address
     }
 
@@ -134,12 +148,12 @@ export default class ValidatorClient {
     }
 
     /**
-    *  Announce a mixnode, paying a fee.
-    */
+     *  Announce a mixnode, paying a fee.
+     */
     async bond(mixNode: MixNode): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
             const bond = [this.minimumMixnodeBond()];
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { register_mixnode: { mix_node: mixNode } }, "adding mixnode", bond);
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {register_mixnode: {mix_node: mixNode}}, "adding mixnode", bond);
             console.log(`account ${this.client.clientAddress} added mixnode with ${mixNode.host}`);
             return result;
         } else {
@@ -153,7 +167,7 @@ export default class ValidatorClient {
      */
     async unbond(): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { un_register_mixnode: {} })
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {un_register_mixnode: {}})
             console.log(`account ${this.client.clientAddress} unbonded mixnode`);
             return result;
         } else {
@@ -220,7 +234,7 @@ export default class ValidatorClient {
     async bondGateway(gateway: Gateway): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
             const bond = this.minimumGatewayBond()
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { bond_gateway: { gateway: gateway } }, "adding gateway", [bond]);
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {bond_gateway: {gateway: gateway}}, "adding gateway", [bond]);
             console.log(`account ${this.client.clientAddress} added gateway with ${gateway.mix_host}`);
             return result;
         } else {
@@ -233,7 +247,7 @@ export default class ValidatorClient {
      */
     async unbondGateway(): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { unbond_gateway: {} })
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {unbond_gateway: {}})
             console.log(`account ${this.client.clientAddress} unbonded gateway`);
             return result;
         } else {
@@ -241,6 +255,14 @@ export default class ValidatorClient {
         }
     }
 
+    async updateStateParams(newParams: StateParams): Promise<ExecuteResult> {
+        if (this.client instanceof NetClient) {
+            return await this.client.executeContract(this.client.clientAddress, this.contractAddress, {update_state_params: newParams}, "updating contract state");
+        } else {
+            throw new Error("Tried to update state params with a query client")
+        }
+
+    }
 
     // TODO: if we just keep a reference to the SigningCosmWasmClient somewhere we can probably go direct
     // to it in the case of these methods below.

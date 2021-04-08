@@ -1,4 +1,5 @@
-use cosmwasm_std::HumanAddr;
+use crate::state::StateParams;
+use cosmwasm_std::{Decimal, HumanAddr, Uint128};
 use mixnet_contract::{Gateway, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -13,6 +14,7 @@ pub enum HandleMsg {
     UnRegisterMixnode {},
     BondGateway { gateway: Gateway },
     UnbondGateway {},
+    UpdateStateParams(StateParams),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

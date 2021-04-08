@@ -2,19 +2,25 @@ use crate::msg::{HandleMsg, InitMsg, MigrateMsg, QueryMsg};
 use crate::queries::{
     query_gateways_paged, query_mixnodes_paged, query_owns_gateway, query_owns_mixnode,
 };
-use crate::state::{config, gateways, gateways_read, State};
+use crate::state::{config, config_read, gateways, gateways_read, State, StateParams};
 use crate::{error::ContractError, state::mixnodes, state::mixnodes_read};
 use cosmwasm_std::{
-    attr, to_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, HandleResponse, InitResponse,
-    MessageInfo, MigrateResponse, StdResult, Uint128,
+    attr, to_binary, BankMsg, Binary, Coin, Decimal, Deps, DepsMut, Env, HandleResponse,
+    InitResponse, MessageInfo, MigrateResponse, StdResult, Uint128,
 };
 use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond};
 
 /// Constant specifying minimum of coin required to bond a gateway
-const GATEWAY_BOND: Uint128 = Uint128(100_000000);
+const INITIAL_GATEWAY_BOND: Uint128 = Uint128(100_000000);
 
 /// Constant specifying minimum of coin required to bond a mixnode
-const MIXNODE_BOND: Uint128 = Uint128(100_000000);
+const INITIAL_MIXNODE_BOND: Uint128 = Uint128(100_000000);
+
+const INITIAL_MIXNODE_BOND_REWARD_RATE: Decimal = Decimal::one();
+
+const INITIAL_GATEWAY_BOND_REWARD_RATE: Decimal = Decimal::one();
+
+const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 
 /// Constant specifying denomination of the coin used for bonding
 pub const DENOM: &str = "uhal";
@@ -30,7 +36,19 @@ pub fn init(
     info: MessageInfo,
     _msg: InitMsg,
 ) -> Result<InitResponse, ContractError> {
-    let state = State { owner: info.sender };
+    // TODO: to discuss with DH, should the initial state be set as it is right now, i.e.
+    // using the defined constants, or should it rather be all based on whatever is sent
+    // in `InitMsg`?
+    let state = State {
+        owner: info.sender,
+        params: StateParams {
+            minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
+            minimum_gateway_bond: INITIAL_GATEWAY_BOND,
+            mixnode_bond_reward_rate: INITIAL_MIXNODE_BOND_REWARD_RATE,
+            gateway_bond_reward_rate: INITIAL_GATEWAY_BOND_REWARD_RATE,
+            mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
+        },
+    };
     config(deps.storage).save(&state)?;
     Ok(InitResponse::default())
 }
@@ -47,6 +65,7 @@ pub fn handle(
         HandleMsg::UnRegisterMixnode {} => try_remove_mixnode(deps, info, env),
         HandleMsg::BondGateway { gateway } => try_add_gateway(deps, info, gateway),
         HandleMsg::UnbondGateway {} => try_remove_gateway(deps, info, env),
+        HandleMsg::UpdateStateParams(params) => try_update_state_params(deps, info, params),
     }
 }
 
@@ -66,10 +85,10 @@ fn validate_mixnode_bond(bond: &[Coin]) -> Result<(), ContractError> {
     }
 
     // check that we have at least MIXNODE_BOND coins in our bond
-    if bond[0].amount < MIXNODE_BOND {
+    if bond[0].amount < INITIAL_MIXNODE_BOND {
         return Err(ContractError::InsufficientMixNodeBond {
             received: bond[0].amount.into(),
-            minimum: GATEWAY_BOND.into(),
+            minimum: INITIAL_GATEWAY_BOND.into(),
         });
     }
 
@@ -150,10 +169,10 @@ fn validate_gateway_bond(bond: &[Coin]) -> Result<(), ContractError> {
     }
 
     // check that we have at least 100 coins in our bond
-    if bond[0].amount < GATEWAY_BOND {
+    if bond[0].amount < INITIAL_GATEWAY_BOND {
         return Err(ContractError::InsufficientGatewayBond {
             received: bond[0].amount.into(),
-            minimum: GATEWAY_BOND.into(),
+            minimum: INITIAL_GATEWAY_BOND.into(),
         });
     }
 
@@ -227,6 +246,27 @@ fn try_remove_gateway(
     })
 }
 
+fn try_update_state_params(
+    deps: DepsMut,
+    info: MessageInfo,
+    params: StateParams,
+) -> Result<HandleResponse, ContractError> {
+    // note: In any other case, I wouldn't have attempted to unwrap this result, but in here
+    // if we fail to load the stored state we would already be in the undefined behaviour land,
+    // so we better just blow up immediately.
+    let mut state = config_read(deps.storage).load().unwrap();
+
+    // check if this is executed by the owner, if not reject the transaction
+    if info.sender != state.owner {
+        return Err(ContractError::Unauthorized);
+    }
+
+    state.params = params;
+    config(deps.storage).save(&state)?;
+
+    Ok(HandleResponse::default())
+}
+
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetMixNodes { start_after, limit } => {
@@ -291,7 +331,7 @@ pub mod tests {
     fn good_mixnode_bond() -> Vec<Coin> {
         vec![Coin {
             denom: DENOM.to_string(),
-            amount: MIXNODE_BOND,
+            amount: INITIAL_MIXNODE_BOND,
         }]
     }
 
@@ -303,19 +343,19 @@ pub mod tests {
 
         // you must send at least 100 coins...
         let mut bond = good_mixnode_bond();
-        bond[0].amount = (MIXNODE_BOND - Uint128(1)).unwrap();
+        bond[0].amount = (INITIAL_MIXNODE_BOND - Uint128(1)).unwrap();
         let result = validate_mixnode_bond(&bond);
         assert_eq!(
             result,
             Err(ContractError::InsufficientMixNodeBond {
-                received: Into::<u128>::into(MIXNODE_BOND) - 1,
-                minimum: MIXNODE_BOND.into(),
+                received: Into::<u128>::into(INITIAL_MIXNODE_BOND) - 1,
+                minimum: INITIAL_MIXNODE_BOND.into(),
             })
         );
 
         // more than that is still fine
         let mut bond = good_mixnode_bond();
-        bond[0].amount = MIXNODE_BOND + Uint128(1);
+        bond[0].amount = INITIAL_MIXNODE_BOND + Uint128(1);
         let result = validate_mixnode_bond(&bond);
         assert!(result.is_ok());
 
@@ -336,7 +376,7 @@ pub mod tests {
         let mut deps = helpers::init_contract();
 
         // if we don't send enough funds
-        let insufficient_bond = Into::<u128>::into(MIXNODE_BOND) - 1;
+        let insufficient_bond = Into::<u128>::into(INITIAL_MIXNODE_BOND) - 1;
         let info = mock_info("anyone", &coins(insufficient_bond, DENOM));
         let msg = HandleMsg::RegisterMixnode {
             mix_node: helpers::mix_node_fixture(),
@@ -348,7 +388,7 @@ pub mod tests {
             result,
             Err(ContractError::InsufficientMixNodeBond {
                 received: insufficient_bond,
-                minimum: GATEWAY_BOND.into(),
+                minimum: INITIAL_GATEWAY_BOND.into(),
             })
         );
 
@@ -468,7 +508,7 @@ pub mod tests {
             attr("action", "unbond"),
             attr(
                 "mixnode_bond",
-                format!("amount: {} {}, owner: fred", MIXNODE_BOND, DENOM),
+                format!("amount: {} {}, owner: fred", INITIAL_MIXNODE_BOND, DENOM),
             ),
         ];
 
@@ -497,7 +537,7 @@ pub mod tests {
     fn good_gateway_bond() -> Vec<Coin> {
         vec![Coin {
             denom: DENOM.to_string(),
-            amount: GATEWAY_BOND,
+            amount: INITIAL_GATEWAY_BOND,
         }]
     }
 
@@ -509,19 +549,19 @@ pub mod tests {
 
         // you must send at least 100 coins...
         let mut bond = good_gateway_bond();
-        bond[0].amount = (GATEWAY_BOND - Uint128(1)).unwrap();
+        bond[0].amount = (INITIAL_GATEWAY_BOND - Uint128(1)).unwrap();
         let result = validate_gateway_bond(&bond);
         assert_eq!(
             result,
             Err(ContractError::InsufficientGatewayBond {
-                received: Into::<u128>::into(GATEWAY_BOND) - 1,
-                minimum: GATEWAY_BOND.into(),
+                received: Into::<u128>::into(INITIAL_GATEWAY_BOND) - 1,
+                minimum: INITIAL_GATEWAY_BOND.into(),
             })
         );
 
         // more than that is still fine
         let mut bond = good_gateway_bond();
-        bond[0].amount = GATEWAY_BOND + Uint128(1);
+        bond[0].amount = INITIAL_GATEWAY_BOND + Uint128(1);
         let result = validate_gateway_bond(&bond);
         assert!(result.is_ok());
 
@@ -542,7 +582,7 @@ pub mod tests {
         let mut deps = helpers::init_contract();
 
         // if we fail validation (by say not sending enough funds
-        let insufficient_bond = Into::<u128>::into(GATEWAY_BOND) - 1;
+        let insufficient_bond = Into::<u128>::into(INITIAL_GATEWAY_BOND) - 1;
         let info = mock_info("anyone", &coins(insufficient_bond, DENOM));
         let msg = HandleMsg::BondGateway {
             gateway: helpers::gateway_fixture(),
@@ -554,7 +594,7 @@ pub mod tests {
             result,
             Err(ContractError::InsufficientGatewayBond {
                 received: insufficient_bond,
-                minimum: GATEWAY_BOND.into(),
+                minimum: INITIAL_GATEWAY_BOND.into(),
             })
         );
 
@@ -677,7 +717,7 @@ pub mod tests {
             attr("address", "fred"),
             attr(
                 "gateway_bond",
-                format!("amount: {} {}, owner: fred", GATEWAY_BOND, DENOM),
+                format!("amount: {} {}, owner: fred", INITIAL_GATEWAY_BOND, DENOM),
             ),
         ];
 

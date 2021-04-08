@@ -629,4 +629,31 @@ pub mod tests {
         assert_eq!(1, gateway_bonds.len());
         assert_eq!("bob", gateway_bonds[0].owner());
     }
+
+    #[test]
+    fn updating_state_params() {
+        let mut deps = helpers::init_contract();
+
+        let new_params = StateParams {
+            minimum_mixnode_bond: 123u128.into(),
+            minimum_gateway_bond: 456u128.into(),
+            mixnode_bond_reward_rate: "1.23".parse().unwrap(),
+            gateway_bond_reward_rate: "4.56".parse().unwrap(),
+            mixnode_active_set_size: 1000,
+        };
+
+        // cannot be updated from non-owner account
+        let info = mock_info("not-the-creator", &[]);
+        let res = try_update_state_params(deps.as_mut(), info, new_params.clone());
+        assert_eq!(res, Err(ContractError::Unauthorized));
+
+        // but works fine from the creator account
+        let info = mock_info("creator", &[]);
+        let res = try_update_state_params(deps.as_mut(), info, new_params.clone());
+        assert_eq!(res, Ok(HandleResponse::default()));
+
+        // and the state is actually updated
+        let current_state = config_read(deps.as_ref().storage).load().unwrap();
+        assert_eq!(current_state.params, new_params)
+    }
 }

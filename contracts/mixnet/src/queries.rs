@@ -1,5 +1,5 @@
 // settings for pagination
-use crate::state::{gateways_read, mixnodes_read, PREFIX_MIXNODES};
+use crate::state::{config_read, gateways_read, mixnodes_read, StateParams, PREFIX_MIXNODES};
 use cosmwasm_std::Deps;
 use cosmwasm_std::HumanAddr;
 use cosmwasm_std::Order;
@@ -90,10 +90,17 @@ fn calculate_start_value(
     })
 }
 
+pub(crate) fn query_state_params(deps: Deps) -> StateParams {
+    // note: In any other case, I wouldn't have attempted to unwrap this result, but in here
+    // if we fail to load the stored state we would already be in the undefined behaviour land,
+    // so we better just blow up immediately.
+    config_read(deps.storage).load().unwrap().params
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{gateways, mixnodes};
+    use crate::state::{config, gateways, mixnodes, State};
     use crate::support::tests::helpers;
     use cosmwasm_std::Storage;
 
@@ -388,5 +395,25 @@ mod tests {
         gateways(&mut deps.storage).remove("fred".as_bytes());
         let res = query_owns_gateway(deps.as_ref(), "fred".into()).unwrap();
         assert!(!res.has_gateway);
+    }
+
+    #[test]
+    fn query_for_contract_state_works() {
+        let mut deps = helpers::init_contract();
+
+        let dummy_state = State {
+            owner: "someowner".into(),
+            params: StateParams {
+                minimum_mixnode_bond: 123u128.into(),
+                minimum_gateway_bond: 456u128.into(),
+                mixnode_bond_reward_rate: "1.23".parse().unwrap(),
+                gateway_bond_reward_rate: "4.56".parse().unwrap(),
+                mixnode_active_set_size: 1000,
+            },
+        };
+
+        config(deps.as_mut().storage).save(&dummy_state);
+
+        assert_eq!(dummy_state.params, query_state_params(deps.as_ref()))
     }
 }

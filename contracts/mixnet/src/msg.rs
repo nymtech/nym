@@ -34,6 +34,7 @@ pub enum QueryMsg {
     OwnsGateway {
         address: HumanAddr,
     },
+    StateParams {}
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

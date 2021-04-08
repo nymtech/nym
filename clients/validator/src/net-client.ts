@@ -1,5 +1,11 @@
 import { SigningCosmWasmClient, SigningCosmWasmClientOptions } from "@cosmjs/cosmwasm-stargate";
-import {GatewayOwnershipResponse, MixOwnershipResponse, PagedGatewayResponse, PagedResponse} from "./index";
+import {
+    GatewayOwnershipResponse,
+    MixOwnershipResponse,
+    PagedGatewayResponse,
+    PagedResponse,
+    StateParams
+} from "./index";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { Coin, GasPrice } from "@cosmjs/launchpad";
 import { BroadcastTxResponse } from "@cosmjs/stargate"
@@ -14,6 +20,7 @@ export interface INetClient {
     getGateways(contractAddress: string, limit: number, start_after?: string): Promise<PagedGatewayResponse>;
     ownsMixNode(contractAddress: string, address: string): Promise<MixOwnershipResponse>;
     ownsGateway(contractAddress: string, address: string): Promise<GatewayOwnershipResponse>;
+    getStateParams(contractAddress: string): Promise<StateParams>;
     executeContract(senderAddress: string, contractAddress: string, handleMsg: Record<string, unknown>, memo?: string, transferAmount?: readonly Coin[]): Promise<ExecuteResult>;
     instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult>;
     sendTokens(senderAddress: string, recipientAddress: string, transferAmount: readonly Coin[], memo?: string): Promise<BroadcastTxResponse>;
@@ -75,6 +82,10 @@ export default class NetClient implements INetClient {
 
     public getBalance(address: string, stakeDenom: string): Promise<Coin | null> {
         return this.cosmClient.getBalance(address, stakeDenom);
+    }
+
+    public getStateParams(contractAddress: string): Promise<StateParams> {
+        return this.cosmClient.queryContractSmart(contractAddress, { state_params: { } });
     }
 
     public executeContract(senderAddress: string, contractAddress: string, handleMsg: Record<string, unknown>, memo?: string, transferAmount?: readonly Coin[]): Promise<ExecuteResult> {

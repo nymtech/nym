@@ -96,6 +96,11 @@ export default class ValidatorClient {
         return this.client.getBalance(address, this.stakeDenom);
     }
 
+    async getStateParams(): Promise<StateParams> {
+        return this.client.getStateParams(this.contractAddress)
+    }
+
+
     /**
      * Get or refresh the list of mixnodes in the network.
      *
@@ -305,4 +310,12 @@ export type MixOwnershipResponse = {
 export type GatewayOwnershipResponse = {
     address: string,
     has_gateway: boolean,
+}
+
+export type StateParams = {
+    minimum_mixnode_bond: number,
+    minimum_gateway_bond: number,
+    mixnode_bond_reward_rate: number,
+    gateway_bond_reward_rate: number,
+    mixnode_active_set_size: number,
 }

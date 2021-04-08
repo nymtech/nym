@@ -11,10 +11,10 @@ use cosmwasm_std::{
 use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond};
 
 /// Constant specifying minimum of coin required to bond a gateway
-const GATEWAY_BONDING_STAKE: Uint128 = Uint128(10_000000); // 10 hals
+const GATEWAY_BONDING_STAKE: Uint128 = Uint128(100_000000); // 100 hals
 
 /// Constant specifying minimum of coin required to bond a mixnode
-const MIXNODE_BONDING_STAKE: Uint128 = Uint128(10_000000); // 10 hals
+const MIXNODE_BONDING_STAKE: Uint128 = Uint128(100_000000); // 100 hals
 
 /// Constant specifying denomination of the coin used for bonding
 pub const STAKE_DENOM: &str = "uhal";
@@ -149,7 +149,7 @@ fn validate_gateway_stake(stake: &[Coin]) -> Result<(), ContractError> {
         return Err(ContractError::WrongDenom {});
     }
 
-    // check that we have at least 1000 nym in our bond
+    // check that we have at least 100 hal in our bond
     if stake[0].amount < GATEWAY_BONDING_STAKE {
         return Err(ContractError::InsufficientGatewayBond {
             received: stake[0].amount.into(),
@@ -301,7 +301,7 @@ pub mod tests {
         let result = validate_mixnode_stake(&[]);
         assert_eq!(result, Err(ContractError::NoStakeFound));
 
-        // you must send at least 10 hals...
+        // you must send at least 100 hals...
         let mut stake = good_mixnode_stake();
         stake[0].amount = (MIXNODE_BONDING_STAKE - Uint128(1)).unwrap();
         let result = validate_mixnode_stake(&stake);
@@ -507,7 +507,7 @@ pub mod tests {
         let result = validate_gateway_stake(&[]);
         assert_eq!(result, Err(ContractError::NoStakeFound));
 
-        // you must send at least 10 hals...
+        // you must send at least 100 hals...
         let mut stake = good_gateway_stake();
         stake[0].amount = (GATEWAY_BONDING_STAKE - Uint128(1)).unwrap();
         let result = validate_gateway_stake(&stake);
@@ -677,7 +677,10 @@ pub mod tests {
             attr("address", "fred"),
             attr(
                 "gateway_bond",
-                format!("amount: 10000000 {}, owner: fred", STAKE_DENOM),
+                format!(
+                    "amount: {} {}, owner: fred",
+                    GATEWAY_BONDING_STAKE, STAKE_DENOM
+                ),
             ),
         ];
 

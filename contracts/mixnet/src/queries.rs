@@ -30,7 +30,7 @@ pub fn query_mixnodes_paged(
         .into_iter()
         .map(|item| item.1)
         .collect::<Vec<_>>();
-    let start_next_after = last_node_owner(&nodes);
+    let start_next_after = nodes.last().map(|node| node.owner().clone());
 
     let response = PagedResponse::new(nodes, limit, start_next_after);
     Ok(response)
@@ -88,13 +88,6 @@ fn calculate_start_value(
         bytes.push(0);
         bytes
     })
-}
-
-fn last_node_owner(nodes: &[MixNodeBond]) -> Option<HumanAddr> {
-    match nodes.last() {
-        None => None,
-        Some(node) => Some(node.owner().clone()),
-    }
 }
 
 #[cfg(test)]

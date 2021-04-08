@@ -452,7 +452,7 @@ pub mod tests {
         assert_eq!("bob", first_node.owner());
 
         // add a node owned by fred
-        let fred_bond = coins(1666_000000, STAKE_DENOM);
+        let fred_bond = good_mixnode_stake();
         helpers::add_mixnode("fred", fred_bond.clone(), &mut deps);
 
         // let's make sure we now have 2 nodes:
@@ -468,7 +468,10 @@ pub mod tests {
             attr("action", "unbond"),
             attr(
                 "mixnode_bond",
-                "amount: [Coin { denom: \"uhal\", amount: Uint128(1666000000) }], owner: fred",
+                format!(
+                    "amount: {} {}, owner: fred",
+                    MIXNODE_BONDING_STAKE, STAKE_DENOM
+                ),
             ),
         ];
 

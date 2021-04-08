@@ -76,16 +76,21 @@ pub fn handle(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
         QueryMsg::GetMixNodes { start_after, limit } => {
-            &queries::query_mixnodes_paged(deps, start_after, limit)?
+            to_binary(&queries::query_mixnodes_paged(deps, start_after, limit)?)
         }
         QueryMsg::GetGateways { limit, start_after } => {
-            &queries::query_gateways_paged(deps, start_after, limit)?
+            to_binary(&queries::query_gateways_paged(deps, start_after, limit)?)
         }
-        QueryMsg::OwnsMixnode { address } => &queries::query_owns_mixnode(deps, address)?,
-        QueryMsg::OwnsGateway { address } => &queries::query_owns_gateway(deps, address)?,
+        QueryMsg::OwnsMixnode { address } => {
+            to_binary(&queries::query_owns_mixnode(deps, address)?)
+        }
+        QueryMsg::OwnsGateway { address } => {
+            to_binary(&queries::query_owns_gateway(deps, address)?)
+        }
+        QueryMsg::StateParams {} => to_binary(&queries::query_state_params(deps)),
     };
 
-    Ok(to_binary(query_res)?)
+    Ok(query_res?)
 }
 
 pub fn migrate(

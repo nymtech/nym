@@ -1,5 +1,5 @@
 use crate::state::StateParams;
-use cosmwasm_std::{Decimal, HumanAddr, Uint128};
+use cosmwasm_std::HumanAddr;
 use mixnet_contract::{Gateway, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -34,7 +34,7 @@ pub enum QueryMsg {
     OwnsGateway {
         address: HumanAddr,
     },
-    StateParams {}
+    StateParams {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

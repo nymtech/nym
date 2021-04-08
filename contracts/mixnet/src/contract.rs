@@ -1,14 +1,10 @@
 use crate::msg::{HandleMsg, InitMsg, MigrateMsg, QueryMsg};
-use crate::queries::{
-    query_gateways_paged, query_mixnodes_paged, query_owns_gateway, query_owns_mixnode,
-};
-use crate::state::{config, config_read, gateways, gateways_read, State, StateParams};
-use crate::{error::ContractError, queries, state::mixnodes, state::mixnodes_read, transactions};
+use crate::state::{config, State, StateParams};
+use crate::{error::ContractError, queries, transactions};
 use cosmwasm_std::{
-    attr, to_binary, BankMsg, Binary, Coin, Decimal, Deps, DepsMut, Env, HandleResponse,
-    InitResponse, MessageInfo, MigrateResponse, QueryResponse, StdResult, Uint128,
+    to_binary, Decimal, Deps, DepsMut, Env, HandleResponse, InitResponse, MessageInfo,
+    MigrateResponse, QueryResponse, Uint128,
 };
-use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond};
 
 /// Constant specifying minimum of coin required to bond a gateway
 pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128(100_000000);

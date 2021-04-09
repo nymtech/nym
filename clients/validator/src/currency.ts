@@ -30,6 +30,11 @@ export function printableBalanceToNative(amountToDisplay: string): string  {
     return decimalAmount.atomics;
 }
 
+// reciprocal of `printableBalanceToNative`, takes, for example 10000000 and returns 10
+export function nativeToPrintable(nativeValue: string): string {
+    return Decimal.fromAtomics(nativeValue, 6).toString()
+}
+
 export interface MappedCoin {
     readonly denom: string;
     readonly fractionalDigits: number;

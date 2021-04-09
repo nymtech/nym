@@ -5,18 +5,35 @@ import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
 import { coin, Coin, coins } from "@cosmjs/launchpad";
 import { BroadcastTxResponse } from "@cosmjs/stargate"
-import { ExecuteResult, InstantiateOptions, InstantiateResult, MigrateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
-import { CoinMap, displayAmountToNative, MappedCoin, nativeCoinToDisplay, printableBalance, printableCoin } from "./currency";
+import {
+    ExecuteResult,
+    InstantiateOptions,
+    InstantiateResult,
+    MigrateResult,
+    UploadMeta,
+    UploadResult
+} from "@cosmjs/cosmwasm";
+import {
+    CoinMap,
+    displayAmountToNative,
+    MappedCoin,
+    nativeCoinToDisplay,
+    printableBalance,
+    printableCoin,
+    nativeToPrintable
+} from "./currency";
 import GatewaysCache from "./caches/gateways";
 import QueryClient, { IQueryClient } from "./query-client";
 
 export { coins, coin };
 export { Coin };
-export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBalance, MappedCoin, CoinMap }
+export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBalance, nativeToPrintable, MappedCoin, CoinMap }
 
 export default class ValidatorClient {
     private readonly stakeDenom: string;
-    private readonly gatewayBondingStake: number = 1000_000000
+    private readonly defaultGatewayBondingStake: number = 100_000000
+    private readonly defaultMixnodeBondingStake: number = 100_000000
+
     url: string;
     private readonly client: INetClient | IQueryClient
     private mixNodesCache: MixnodesCache;
@@ -84,7 +101,7 @@ export default class ValidatorClient {
      */
     static async mnemonicToAddress(mnemonic: string): Promise<string> {
         const wallet = await ValidatorClient.buildWallet(mnemonic);
-        const [{ address }] = await wallet.getAccounts()
+        const [{address}] = await wallet.getAccounts()
         return address
     }
 
@@ -95,6 +112,11 @@ export default class ValidatorClient {
     getBalance(address: string): Promise<Coin | null> {
         return this.client.getBalance(address, this.stakeDenom);
     }
+
+    async getStateParams(): Promise<StateParams> {
+        return this.client.getStateParams(this.contractAddress)
+    }
+
 
     /**
      * Get or refresh the list of mixnodes in the network.
@@ -118,11 +140,20 @@ export default class ValidatorClient {
     }
 
     /**
-    *  Announce a mixnode, paying a fee.
-    */
+     * Generate a minimum gateway bond required to create a fresh mixnode.
+     *
+     * @returns a `Coin` instance containing minimum amount of coins to stake a gateway.
+     */
+    minimumMixnodeBond = (): Coin => {
+        return coin(this.defaultMixnodeBondingStake, this.stakeDenom)
+    }
+
+    /**
+     *  Announce a mixnode, paying a fee.
+     */
     async bond(mixNode: MixNode): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const bond = [{ amount: "1000000000", denom: this.stakeDenom }];
+            const bond = [this.minimumMixnodeBond()];
             const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { bond_mixnode: { mix_node: mixNode } }, "adding mixnode", bond);
             console.log(`account ${this.client.clientAddress} added mixnode with ${mixNode.host}`);
             return result;
@@ -195,7 +226,7 @@ export default class ValidatorClient {
      * @returns a `Coin` instance containing minimum amount of coins to stake a gateway.
      */
     minimumGatewayBond = (): Coin => {
-        return coin(this.gatewayBondingStake, this.stakeDenom)
+        return coin(this.defaultGatewayBondingStake, this.stakeDenom)
     }
 
     /**
@@ -204,7 +235,7 @@ export default class ValidatorClient {
     async bondGateway(gateway: Gateway): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
             const bond = this.minimumGatewayBond()
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { bond_gateway: { gateway: gateway } }, "adding gateway", [bond]);
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {bond_gateway: {gateway: gateway}}, "adding gateway", [bond]);
             console.log(`account ${this.client.clientAddress} added gateway with ${gateway.mix_host}`);
             return result;
         } else {
@@ -217,7 +248,7 @@ export default class ValidatorClient {
      */
     async unbondGateway(): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { unbond_gateway: {} })
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {unbond_gateway: {}})
             console.log(`account ${this.client.clientAddress} unbonded gateway`);
             return result;
         } else {
@@ -225,6 +256,14 @@ export default class ValidatorClient {
         }
     }
 
+    async updateStateParams(newParams: StateParams): Promise<ExecuteResult> {
+        if (this.client instanceof NetClient) {
+            return await this.client.executeContract(this.client.clientAddress, this.contractAddress, {update_state_params: newParams}, "updating contract state");
+        } else {
+            throw new Error("Tried to update state params with a query client")
+        }
+
+    }
 
     // TODO: if we just keep a reference to the SigningCosmWasmClient somewhere we can probably go direct
     // to it in the case of these methods below.
@@ -305,4 +344,15 @@ export type MixOwnershipResponse = {
 export type GatewayOwnershipResponse = {
     address: string,
     has_gateway: boolean,
+}
+
+export type StateParams = {
+    // ideally I'd want to define those as `number` rather than `string`, but
+    // rust-side they are defined as Uint128 and Decimal that don't have
+    // native javascript representations and therefore are interpreted as strings after deserialization
+    minimum_mixnode_bond: string,
+    minimum_gateway_bond: string,
+    mixnode_bond_reward_rate: string,
+    gateway_bond_reward_rate: string,
+    mixnode_active_set_size: number,
 }

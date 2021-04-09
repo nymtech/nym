@@ -1,11 +1,12 @@
 #[cfg(test)]
 pub mod helpers {
     use super::*;
+    use crate::contract::init;
     use crate::contract::query;
-    use crate::contract::try_add_mixnode;
-    use crate::contract::{init, try_add_gateway};
+    use crate::contract::DENOM;
     use crate::msg::InitMsg;
     use crate::msg::QueryMsg;
+    use crate::transactions::{try_add_gateway, try_add_mixnode};
     use cosmwasm_std::coins;
     use cosmwasm_std::from_binary;
     use cosmwasm_std::testing::mock_dependencies;
@@ -21,8 +22,6 @@ pub mod helpers {
     use mixnet_contract::{
         Gateway, GatewayBond, MixNode, MixNodeBond, PagedGatewayResponse, PagedResponse,
     };
-
-    use crate::contract::DENOM;
 
     pub fn add_mixnode(
         pubkey: &str,

@@ -57,9 +57,7 @@ pub fn handle(
     msg: HandleMsg,
 ) -> Result<HandleResponse, ContractError> {
     match msg {
-        HandleMsg::BondMixnode { mix_node } => {
-            transactions::try_add_mixnode(deps, info, mix_node)
-        }
+        HandleMsg::BondMixnode { mix_node } => transactions::try_add_mixnode(deps, info, mix_node),
         HandleMsg::UnbondMixnode {} => transactions::try_remove_mixnode(deps, info, env),
         HandleMsg::BondGateway { gateway } => transactions::try_add_gateway(deps, info, gateway),
         HandleMsg::UnbondGateway {} => transactions::try_remove_gateway(deps, info, env),
@@ -101,11 +99,10 @@ pub fn migrate(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::support::tests::helpers;
     use crate::support::tests::helpers::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
-    use mixnet_contract::{PagedGatewayResponse, PagedResponse};
+    use mixnet_contract::PagedResponse;
 
     #[test]
     fn initialize_contract() {

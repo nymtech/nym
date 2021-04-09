@@ -412,7 +412,7 @@ mod tests {
             },
         };
 
-        config(deps.as_mut().storage).save(&dummy_state);
+        config(deps.as_mut().storage).save(&dummy_state).unwrap();
 
         assert_eq!(dummy_state.params, query_state_params(deps.as_ref()))
     }

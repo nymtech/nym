@@ -1,9 +1,9 @@
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
 use clap::{App, Arg, ArgMatches};
+use colored::*;
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use log::*;
-use colored::*;
 
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("sign")
@@ -46,14 +46,20 @@ pub fn execute(matches: &ArgMatches) {
     };
     let pathfinder = MixNodePathfinder::new_from_config(&config);
     let identity_keypair = load_identity_keys(&pathfinder);
-    let signature_bytes = identity_keypair.private_key().sign(text.as_ref()).to_bytes();
+    let signature_bytes = identity_keypair
+        .private_key()
+        .sign(text.as_ref())
+        .to_bytes();
 
     let signature = hex::encode(signature_bytes);
     let identity = identity_keypair.public_key().to_base58_string();
 
     let channel_name = "@nymchan_help_chat".bright_cyan();
 
-    println!("Signing the text {:?} using your mixnode's Ed25519 identity key...", text);
+    println!(
+        "Signing the text {:?} using your mixnode's Ed25519 identity key...",
+        text
+    );
     println!();
     println!("Signature is: {}", signature);
     println!();

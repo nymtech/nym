@@ -28,7 +28,7 @@ pub enum ContractError {
     GatewayBondNotFound { account: HumanAddr },
 
     #[error("Unauthorized")]
-    Unauthorized {},
+    Unauthorized,
 
     #[error("Wrong coin denomination, you must send {}", DENOM)]
     WrongDenom {},

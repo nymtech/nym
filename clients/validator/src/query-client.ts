@@ -1,6 +1,12 @@
 import {Coin} from "@cosmjs/launchpad";
 import {CosmWasmClient} from "@cosmjs/cosmwasm-stargate";
-import {GatewayOwnershipResponse, MixOwnershipResponse, PagedGatewayResponse, PagedResponse} from "./index";
+import {
+    GatewayOwnershipResponse,
+    MixOwnershipResponse,
+    PagedGatewayResponse,
+    PagedResponse,
+    StateParams
+} from "./index";
 
 export interface IQueryClient {
     getBalance(address: string, stakeDenom: string): Promise<Coin | null>;
@@ -8,6 +14,7 @@ export interface IQueryClient {
     getGateways(contractAddress: string, limit: number, start_after?: string): Promise<PagedGatewayResponse>;
     ownsMixNode(contractAddress: string, address: string): Promise<MixOwnershipResponse>;
     ownsGateway(contractAddress: string, address: string): Promise<GatewayOwnershipResponse>;
+    getStateParams(contractAddress: string): Promise<StateParams>;
 }
 
 /**
@@ -56,5 +63,9 @@ export default class QueryClient implements IQueryClient {
 
     public getBalance(address: string, stakeDenom: string): Promise<Coin | null> {
         return this.cosmClient.getBalance(address, stakeDenom);
+    }
+
+    public getStateParams(contractAddress: string): Promise<StateParams> {
+        return this.cosmClient.queryContractSmart(contractAddress, { state_params: { } });
     }
 }

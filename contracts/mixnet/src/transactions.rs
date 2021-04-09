@@ -1,12 +1,13 @@
-use crate::contract::{DENOM, INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND};
+use crate::contract::DENOM;
 use crate::error::ContractError;
+use crate::queries::query_state_params;
 use crate::state::{
     config, config_read, gateways, gateways_read, mixnodes, mixnodes_read, StateParams,
 };
-use cosmwasm_std::{attr, BankMsg, Coin, DepsMut, Env, HandleResponse, MessageInfo};
+use cosmwasm_std::{attr, BankMsg, Coin, DepsMut, Env, HandleResponse, MessageInfo, Uint128};
 use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond};
 
-fn validate_mixnode_bond(bond: &[Coin]) -> Result<(), ContractError> {
+fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
     // check if anything was put as bond
     if bond.is_empty() {
         return Err(ContractError::NoBondFound);
@@ -22,10 +23,10 @@ fn validate_mixnode_bond(bond: &[Coin]) -> Result<(), ContractError> {
     }
 
     // check that we have at least MIXNODE_BOND coins in our bond
-    if bond[0].amount < INITIAL_MIXNODE_BOND {
+    if bond[0].amount < minimum_bond {
         return Err(ContractError::InsufficientMixNodeBond {
             received: bond[0].amount.into(),
-            minimum: INITIAL_MIXNODE_BOND.into(),
+            minimum: minimum_bond.into(),
         });
     }
 
@@ -37,7 +38,8 @@ pub(crate) fn try_add_mixnode(
     info: MessageInfo,
     mix_node: MixNode,
 ) -> Result<HandleResponse, ContractError> {
-    validate_mixnode_bond(&info.sent_funds)?;
+    let minimum_bond = query_state_params(deps.as_ref()).minimum_mixnode_bond;
+    validate_mixnode_bond(&info.sent_funds, minimum_bond)?;
 
     let bond = MixNodeBond::new(info.sent_funds, info.sender.clone(), mix_node);
 
@@ -90,7 +92,7 @@ pub(crate) fn try_remove_mixnode(
     })
 }
 
-fn validate_gateway_bond(bond: &[Coin]) -> Result<(), ContractError> {
+fn validate_gateway_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
     // check if anything was put as bond
     if bond.is_empty() {
         return Err(ContractError::NoBondFound);
@@ -106,10 +108,10 @@ fn validate_gateway_bond(bond: &[Coin]) -> Result<(), ContractError> {
     }
 
     // check that we have at least 100 coins in our bond
-    if bond[0].amount < INITIAL_GATEWAY_BOND {
+    if bond[0].amount < minimum_bond {
         return Err(ContractError::InsufficientGatewayBond {
             received: bond[0].amount.into(),
-            minimum: INITIAL_GATEWAY_BOND.into(),
+            minimum: minimum_bond.into(),
         });
     }
 
@@ -121,7 +123,8 @@ pub(crate) fn try_add_gateway(
     info: MessageInfo,
     gateway: Gateway,
 ) -> Result<HandleResponse, ContractError> {
-    validate_gateway_bond(&info.sent_funds)?;
+    let minimum_bond = query_state_params(deps.as_ref()).minimum_gateway_bond;
+    validate_gateway_bond(&info.sent_funds, minimum_bond)?;
 
     let bond = GatewayBond::new(info.sent_funds, info.sender.clone(), gateway);
 
@@ -207,7 +210,7 @@ pub(crate) fn try_update_state_params(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::contract::{handle, init, query};
+    use crate::contract::{handle, init, query, INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND};
     use crate::msg::{HandleMsg, InitMsg, QueryMsg};
     use crate::support::tests::helpers;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
@@ -224,13 +227,13 @@ pub mod tests {
     #[test]
     fn validating_mixnode_bond() {
         // you must send SOME funds
-        let result = validate_mixnode_bond(&[]);
+        let result = validate_mixnode_bond(&[], INITIAL_MIXNODE_BOND);
         assert_eq!(result, Err(ContractError::NoBondFound));
 
         // you must send at least 100 coins...
         let mut bond = good_mixnode_bond();
         bond[0].amount = (INITIAL_MIXNODE_BOND - Uint128(1)).unwrap();
-        let result = validate_mixnode_bond(&bond);
+        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
         assert_eq!(
             result,
             Err(ContractError::InsufficientMixNodeBond {
@@ -242,18 +245,18 @@ pub mod tests {
         // more than that is still fine
         let mut bond = good_mixnode_bond();
         bond[0].amount = INITIAL_MIXNODE_BOND + Uint128(1);
-        let result = validate_mixnode_bond(&bond);
+        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
         assert!(result.is_ok());
 
         // it must be sent in the defined denom!
         let mut bond = good_mixnode_bond();
         bond[0].denom = "baddenom".to_string();
-        let result = validate_mixnode_bond(&bond);
+        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
 
         let mut bond = good_mixnode_bond();
         bond[0].denom = "foomp".to_string();
-        let result = validate_mixnode_bond(&bond);
+        let result = validate_mixnode_bond(&bond, INITIAL_MIXNODE_BOND);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
     }
 
@@ -430,13 +433,13 @@ pub mod tests {
     #[test]
     fn validating_gateway_bond() {
         // you must send SOME funds
-        let result = validate_gateway_bond(&[]);
+        let result = validate_gateway_bond(&[], INITIAL_GATEWAY_BOND);
         assert_eq!(result, Err(ContractError::NoBondFound));
 
         // you must send at least 100 coins...
         let mut bond = good_gateway_bond();
         bond[0].amount = (INITIAL_GATEWAY_BOND - Uint128(1)).unwrap();
-        let result = validate_gateway_bond(&bond);
+        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
         assert_eq!(
             result,
             Err(ContractError::InsufficientGatewayBond {
@@ -448,18 +451,18 @@ pub mod tests {
         // more than that is still fine
         let mut bond = good_gateway_bond();
         bond[0].amount = INITIAL_GATEWAY_BOND + Uint128(1);
-        let result = validate_gateway_bond(&bond);
+        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
         assert!(result.is_ok());
 
         // it must be sent in the defined denom!
         let mut bond = good_gateway_bond();
         bond[0].denom = "baddenom".to_string();
-        let result = validate_gateway_bond(&bond);
+        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
 
         let mut bond = good_gateway_bond();
         bond[0].denom = "foomp".to_string();
-        let result = validate_gateway_bond(&bond);
+        let result = validate_gateway_bond(&bond, INITIAL_GATEWAY_BOND);
         assert_eq!(result, Err(ContractError::WrongDenom {}));
     }
 

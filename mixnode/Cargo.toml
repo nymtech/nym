@@ -12,9 +12,11 @@ edition = "2018"
 [dependencies]
 bs58 = "0.4.0"
 clap = "2.33.0"
+colored = "2"
 dirs = "3.0"
 dotenv = "0.15.0"
 futures = "0.3"
+hex = "0.4.3" # formats signed text byte arrays as hex for console output
 humantime-serde = "1.0.1"
 log = "0.4"
 pretty_env_logger = "0.4"

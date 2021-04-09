@@ -965,6 +965,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "hkdf"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1505,11 +1511,13 @@ version = "0.10.0"
 dependencies = [
  "bs58 0.4.0",
  "clap",
+ "colored",
  "config",
  "crypto",
  "dirs",
  "dotenv",
  "futures",
+ "hex",
  "humantime-serde",
  "log",
  "metrics-client",

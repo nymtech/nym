@@ -19,14 +19,15 @@ import {
     MappedCoin,
     nativeCoinToDisplay,
     printableBalance,
-    printableCoin
+    printableCoin,
+    nativeToPrintable
 } from "./currency";
 import GatewaysCache from "./caches/gateways";
 import QueryClient, { IQueryClient } from "./query-client";
 
 export { coins, coin };
 export { Coin };
-export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBalance, MappedCoin, CoinMap }
+export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBalance, nativeToPrintable, MappedCoin, CoinMap }
 
 export default class ValidatorClient {
     private readonly stakeDenom: string;

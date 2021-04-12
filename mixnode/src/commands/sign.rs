@@ -51,7 +51,7 @@ pub fn execute(matches: &ArgMatches) {
         .sign(text.as_ref())
         .to_bytes();
 
-    let signature = hex::encode(signature_bytes);
+    let signature = bs58::encode(signature_bytes).into_string();
     let identity = identity_keypair.public_key().to_base58_string();
 
     let channel_name = "@nymchan_help_chat".bright_cyan();
@@ -65,7 +65,7 @@ pub fn execute(matches: &ArgMatches) {
     println!();
     println!("You can claim your mixnode in Telegram by talking to our bot. To do so:");
     println!();
-    println!("* go the the '{}' channel", channel_name);
+    println!("* go to the '{}' channel", channel_name);
     println!("* copy the following line of text, and paste it into the channel");
     println!();
     println!("/claim {} {}", identity, signature);

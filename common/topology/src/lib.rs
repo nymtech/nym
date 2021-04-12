@@ -105,17 +105,16 @@ impl NymTopology {
         // there is no "layer 0"
         for layer in 1..=num_mix_hops {
             // get all mixes on particular layer
-            let layer_mixes = match self.mixes.get(&layer) {
-                Some(mixes) => mixes,
-                None => return Err(NymTopologyError::NoMixesOnLayerAvailable(layer)),
-            };
+            let layer_mixes = self
+                .mixes
+                .get(&layer)
+                .ok_or(NymTopologyError::NoMixesOnLayerAvailable(layer))?;
 
             // choose a random mix from the above list
             // this can return a 'None' only if slice is empty
-            let random_mix = match layer_mixes.choose(rng) {
-                Some(random_mix) => random_mix,
-                None => return Err(NymTopologyError::NoMixesOnLayerAvailable(layer)),
-            };
+            let random_mix = layer_mixes
+                .choose(rng)
+                .ok_or(NymTopologyError::NoMixesOnLayerAvailable(layer))?;
             route.push(random_mix.into());
         }
 

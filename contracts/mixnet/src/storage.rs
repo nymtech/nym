@@ -72,7 +72,7 @@ pub(crate) fn increase_mixnode_bond(
     bucket.save(owner, &node)
 }
 
-pub(crate) fn read_mixnode_bond(storage: &dyn Storage, owner: &[u8]) -> StdResult<Uint128> {
+pub fn read_mixnode_bond(storage: &dyn Storage, owner: &[u8]) -> StdResult<Uint128> {
     let bucket = mixnodes_read(storage);
     let node = bucket.load(owner)?;
     // TODO: we should probably change that at insertion time to ensure
@@ -117,7 +117,7 @@ pub(crate) fn increase_gateway_bond(
     bucket.save(owner, &node)
 }
 
-pub(crate) fn read_gateway_bond(storage: &dyn Storage, owner: &[u8]) -> StdResult<Uint128> {
+pub fn read_gateway_bond(storage: &dyn Storage, owner: &[u8]) -> StdResult<Uint128> {
     let bucket = gateways_read(storage);
     let node = bucket.load(owner)?;
     // TODO: we should probably change that at insertion time to ensure

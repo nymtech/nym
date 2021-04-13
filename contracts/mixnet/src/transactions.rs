@@ -226,7 +226,7 @@ pub(crate) fn try_reward_mixnode(
     node_owner: HumanAddr,
     uptime: u32,
 ) -> Result<HandleResponse, ContractError> {
-    let mut state = config_read(deps.storage).load().unwrap();
+    let state = config_read(deps.storage).load().unwrap();
 
     // check if this is executed by the owner, if not reject the transaction
     if info.sender != state.network_monitor_address {
@@ -247,7 +247,7 @@ pub(crate) fn try_reward_gateway(
     gateway_owner: HumanAddr,
     uptime: u32,
 ) -> Result<HandleResponse, ContractError> {
-    let mut state = config_read(deps.storage).load().unwrap();
+    let state = config_read(deps.storage).load().unwrap();
 
     // check if this is executed by the owner, if not reject the transaction
     if info.sender != state.network_monitor_address {
@@ -265,9 +265,7 @@ pub(crate) fn try_reward_gateway(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::contract::{
-        handle, init, query, INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND, NETWORK_MONITOR_ADDRESS,
-    };
+    use crate::contract::{handle, init, query, INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND};
     use crate::msg::{HandleMsg, InitMsg, QueryMsg};
     use crate::state::StateParams;
     use crate::storage::{read_gateway_bond, read_gateway_epoch_reward_rate, read_mixnode_bond};
@@ -404,7 +402,9 @@ pub mod tests {
     fn mixnode_remove() {
         let env = mock_env();
         let mut deps = mock_dependencies(&[]);
-        let msg = InitMsg {};
+        let msg = InitMsg {
+            network_monitor_address: "foomp".into(),
+        };
         let info = mock_info("creator", &[]);
         init(deps.as_mut(), env.clone(), info, msg).unwrap();
 
@@ -610,7 +610,9 @@ pub mod tests {
     fn gateway_remove() {
         let env = mock_env();
         let mut deps = mock_dependencies(&[]);
-        let msg = InitMsg {};
+        let msg = InitMsg {
+            network_monitor_address: "foomp".into(),
+        };
         let info = mock_info("creator", &[]);
         init(deps.as_mut(), env.clone(), info, msg).unwrap();
 
@@ -724,6 +726,7 @@ pub mod tests {
     fn rewarding_mixnode() {
         let mut deps = helpers::init_contract();
         let current_state = config(deps.as_mut().storage).load().unwrap();
+        let network_monitor_address = current_state.network_monitor_address;
 
         // errors out if executed by somebody else than network monitor
         let info = mock_info("not-the-monitor", &[]);
@@ -731,7 +734,7 @@ pub mod tests {
         assert_eq!(res, Err(ContractError::Unauthorized));
 
         // errors out if the target owner hasn't bound any mixnodes
-        let info = mock_info(NETWORK_MONITOR_ADDRESS, &[]);
+        let info = mock_info(network_monitor_address.clone(), &[]);
         let res = try_reward_mixnode(deps.as_mut(), info, "node-owner".into(), 100);
         assert!(res.is_err());
 
@@ -752,8 +755,8 @@ pub mod tests {
         // if node was 100% up, it will get full epoch reward
         let expected_bond = Uint128(initial_bond) * reward + Uint128(initial_bond);
 
-        let info = mock_info(NETWORK_MONITOR_ADDRESS, &[]);
-        try_reward_mixnode(deps.as_mut(), info, "node-owner".into(), 100);
+        let info = mock_info(network_monitor_address.clone(), &[]);
+        try_reward_mixnode(deps.as_mut(), info, "node-owner".into(), 100).unwrap();
 
         assert_eq!(
             expected_bond,
@@ -762,10 +765,10 @@ pub mod tests {
 
         // if node was 20% up, it will get 1/5th of epoch reward
         let scaled_reward = scale_reward_by_uptime(reward, 20).unwrap();
-        let expected_bond = expected_bond * reward + expected_bond;
+        let expected_bond = expected_bond * scaled_reward + expected_bond;
 
-        let info = mock_info(NETWORK_MONITOR_ADDRESS, &[]);
-        try_reward_mixnode(deps.as_mut(), info, "node-owner".into(), 100);
+        let info = mock_info(network_monitor_address, &[]);
+        try_reward_mixnode(deps.as_mut(), info, "node-owner".into(), 20).unwrap();
 
         assert_eq!(
             expected_bond,
@@ -777,6 +780,7 @@ pub mod tests {
     fn rewarding_gateway() {
         let mut deps = helpers::init_contract();
         let current_state = config(deps.as_mut().storage).load().unwrap();
+        let network_monitor_address = current_state.network_monitor_address;
 
         // errors out if executed by somebody else than network monitor
         let info = mock_info("not-the-monitor", &[]);
@@ -784,7 +788,7 @@ pub mod tests {
         assert_eq!(res, Err(ContractError::Unauthorized));
 
         // errors out if the target owner hasn't bound any mixnodes
-        let info = mock_info(NETWORK_MONITOR_ADDRESS, &[]);
+        let info = mock_info(network_monitor_address.clone(), &[]);
         let res = try_reward_gateway(deps.as_mut(), info, "node-owner".into(), 100);
         assert!(res.is_err());
 
@@ -805,8 +809,8 @@ pub mod tests {
         // if node was 100% up, it will get full epoch reward
         let expected_bond = Uint128(initial_bond) * reward + Uint128(initial_bond);
 
-        let info = mock_info(NETWORK_MONITOR_ADDRESS, &[]);
-        try_reward_gateway(deps.as_mut(), info, "node-owner".into(), 100);
+        let info = mock_info(network_monitor_address.clone(), &[]);
+        try_reward_gateway(deps.as_mut(), info, "node-owner".into(), 100).unwrap();
 
         assert_eq!(
             expected_bond,
@@ -815,10 +819,10 @@ pub mod tests {
 
         // if node was 20% up, it will get 1/5th of epoch reward
         let scaled_reward = scale_reward_by_uptime(reward, 20).unwrap();
-        let expected_bond = expected_bond * reward + expected_bond;
+        let expected_bond = expected_bond * scaled_reward + expected_bond;
 
-        let info = mock_info(NETWORK_MONITOR_ADDRESS, &[]);
-        try_reward_gateway(deps.as_mut(), info, "node-owner".into(), 100);
+        let info = mock_info(network_monitor_address, &[]);
+        try_reward_gateway(deps.as_mut(), info, "node-owner".into(), 20).unwrap();
 
         assert_eq!(
             expected_bond,

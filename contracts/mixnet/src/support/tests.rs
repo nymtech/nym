@@ -77,7 +77,9 @@ pub mod helpers {
 
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies(&[]);
-        let msg = InitMsg {};
+        let msg = InitMsg {
+            network_monitor_address: "foomp".into(),
+        };
         let env = mock_env();
         let info = mock_info("creator", &[]);
         init(deps.as_mut(), env.clone(), info, msg).unwrap();

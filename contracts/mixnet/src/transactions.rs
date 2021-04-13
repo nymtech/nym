@@ -1,10 +1,15 @@
 use crate::contract::DENOM;
 use crate::error::ContractError;
-use crate::queries::query_state_params;
-use crate::state::{
-    config, config_read, gateways, gateways_read, mixnodes, mixnodes_read, StateParams,
+use crate::helpers::scale_reward_by_uptime;
+use crate::state::StateParams;
+use crate::storage::{
+    config, config_read, gateways, gateways_read, increase_gateway_bond, increase_mixnode_bond,
+    mixnodes, mixnodes_read, read_gateway_epoch_reward_rate, read_mixnode_epoch_reward_rate,
+    read_state_params,
 };
-use cosmwasm_std::{attr, BankMsg, Coin, DepsMut, Env, HandleResponse, MessageInfo, Uint128};
+use cosmwasm_std::{
+    attr, BankMsg, Coin, Decimal, DepsMut, Env, HandleResponse, HumanAddr, MessageInfo, Uint128,
+};
 use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond};
 
 fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
@@ -38,7 +43,7 @@ pub(crate) fn try_add_mixnode(
     info: MessageInfo,
     mix_node: MixNode,
 ) -> Result<HandleResponse, ContractError> {
-    let minimum_bond = query_state_params(deps.as_ref()).minimum_mixnode_bond;
+    let minimum_bond = read_state_params(deps.storage).minimum_mixnode_bond;
     validate_mixnode_bond(&info.sent_funds, minimum_bond)?;
 
     let bond = MixNodeBond::new(info.sent_funds, info.sender.clone(), mix_node);
@@ -123,7 +128,7 @@ pub(crate) fn try_add_gateway(
     info: MessageInfo,
     gateway: Gateway,
 ) -> Result<HandleResponse, ContractError> {
-    let minimum_bond = query_state_params(deps.as_ref()).minimum_gateway_bond;
+    let minimum_bond = read_state_params(deps.storage).minimum_gateway_bond;
     validate_gateway_bond(&info.sent_funds, minimum_bond)?;
 
     let bond = GatewayBond::new(info.sent_funds, info.sender.clone(), gateway);
@@ -201,8 +206,58 @@ pub(crate) fn try_update_state_params(
         return Err(ContractError::Unauthorized);
     }
 
+    if params.mixnode_bond_reward_rate < Decimal::one() {
+        return Err(ContractError::DecreasingMixnodeBondReward);
+    }
+
+    if params.gateway_bond_reward_rate < Decimal::one() {
+        return Err(ContractError::DecreasingGatewayBondReward);
+    }
+
     state.params = params;
     config(deps.storage).save(&state)?;
+
+    Ok(HandleResponse::default())
+}
+
+pub(crate) fn try_reward_mixnode(
+    deps: DepsMut,
+    info: MessageInfo,
+    node_owner: HumanAddr,
+    uptime: u32,
+) -> Result<HandleResponse, ContractError> {
+    let mut state = config_read(deps.storage).load().unwrap();
+
+    // check if this is executed by the owner, if not reject the transaction
+    if info.sender != state.network_monitor_address {
+        return Err(ContractError::Unauthorized);
+    }
+
+    let reward = read_mixnode_epoch_reward_rate(deps.storage);
+    let scaled_reward = scale_reward_by_uptime(reward, uptime)?;
+
+    increase_mixnode_bond(deps.storage, node_owner.as_bytes(), scaled_reward)?;
+
+    Ok(HandleResponse::default())
+}
+
+pub(crate) fn try_reward_gateway(
+    deps: DepsMut,
+    info: MessageInfo,
+    gateway_owner: HumanAddr,
+    uptime: u32,
+) -> Result<HandleResponse, ContractError> {
+    let mut state = config_read(deps.storage).load().unwrap();
+
+    // check if this is executed by the owner, if not reject the transaction
+    if info.sender != state.network_monitor_address {
+        return Err(ContractError::Unauthorized);
+    }
+
+    let reward = read_gateway_epoch_reward_rate(deps.storage);
+    let scaled_reward = scale_reward_by_uptime(reward, uptime)?;
+
+    increase_gateway_bond(deps.storage, gateway_owner.as_bytes(), scaled_reward)?;
 
     Ok(HandleResponse::default())
 }
@@ -210,9 +265,14 @@ pub(crate) fn try_update_state_params(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::contract::{handle, init, query, INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND};
+    use crate::contract::{
+        handle, init, query, INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND, NETWORK_MONITOR_ADDRESS,
+    };
     use crate::msg::{HandleMsg, InitMsg, QueryMsg};
+    use crate::state::StateParams;
+    use crate::storage::{read_gateway_bond, read_gateway_epoch_reward_rate, read_mixnode_bond};
     use crate::support::tests::helpers;
+    use crate::support::tests::helpers::{gateway_fixture, mix_node_fixture};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary, Uint128};
     use mixnet_contract::{PagedGatewayResponse, PagedResponse};
@@ -637,6 +697,7 @@ pub mod tests {
         let mut deps = helpers::init_contract();
 
         let new_params = StateParams {
+            epoch_length: 1,
             minimum_mixnode_bond: 123u128.into(),
             minimum_gateway_bond: 456u128.into(),
             mixnode_bond_reward_rate: "1.23".parse().unwrap(),
@@ -657,5 +718,111 @@ pub mod tests {
         // and the state is actually updated
         let current_state = config_read(deps.as_ref().storage).load().unwrap();
         assert_eq!(current_state.params, new_params)
+    }
+
+    #[test]
+    fn rewarding_mixnode() {
+        let mut deps = helpers::init_contract();
+        let current_state = config(deps.as_mut().storage).load().unwrap();
+
+        // errors out if executed by somebody else than network monitor
+        let info = mock_info("not-the-monitor", &[]);
+        let res = try_reward_mixnode(deps.as_mut(), info, "node-owner".into(), 100);
+        assert_eq!(res, Err(ContractError::Unauthorized));
+
+        // errors out if the target owner hasn't bound any mixnodes
+        let info = mock_info(NETWORK_MONITOR_ADDRESS, &[]);
+        let res = try_reward_mixnode(deps.as_mut(), info, "node-owner".into(), 100);
+        assert!(res.is_err());
+
+        let initial_bond = 100_000000;
+        let mixnode_bond = MixNodeBond {
+            amount: coins(initial_bond, DENOM),
+            owner: "node-owner".into(),
+            mix_node: mix_node_fixture(),
+        };
+
+        mixnodes(deps.as_mut().storage)
+            .save(b"node-owner", &mixnode_bond)
+            .unwrap();
+
+        let reward = read_mixnode_epoch_reward_rate(deps.as_ref().storage);
+
+        // the node's bond is correctly increased and scaled by uptime
+        // if node was 100% up, it will get full epoch reward
+        let expected_bond = Uint128(initial_bond) * reward + Uint128(initial_bond);
+
+        let info = mock_info(NETWORK_MONITOR_ADDRESS, &[]);
+        try_reward_mixnode(deps.as_mut(), info, "node-owner".into(), 100);
+
+        assert_eq!(
+            expected_bond,
+            read_mixnode_bond(deps.as_ref().storage, b"node-owner").unwrap()
+        );
+
+        // if node was 20% up, it will get 1/5th of epoch reward
+        let scaled_reward = scale_reward_by_uptime(reward, 20).unwrap();
+        let expected_bond = expected_bond * reward + expected_bond;
+
+        let info = mock_info(NETWORK_MONITOR_ADDRESS, &[]);
+        try_reward_mixnode(deps.as_mut(), info, "node-owner".into(), 100);
+
+        assert_eq!(
+            expected_bond,
+            read_mixnode_bond(deps.as_ref().storage, b"node-owner").unwrap()
+        );
+    }
+
+    #[test]
+    fn rewarding_gateway() {
+        let mut deps = helpers::init_contract();
+        let current_state = config(deps.as_mut().storage).load().unwrap();
+
+        // errors out if executed by somebody else than network monitor
+        let info = mock_info("not-the-monitor", &[]);
+        let res = try_reward_gateway(deps.as_mut(), info, "node-owner".into(), 100);
+        assert_eq!(res, Err(ContractError::Unauthorized));
+
+        // errors out if the target owner hasn't bound any mixnodes
+        let info = mock_info(NETWORK_MONITOR_ADDRESS, &[]);
+        let res = try_reward_gateway(deps.as_mut(), info, "node-owner".into(), 100);
+        assert!(res.is_err());
+
+        let initial_bond = 100_000000;
+        let gateway_bond = GatewayBond {
+            amount: coins(initial_bond, DENOM),
+            owner: "node-owner".into(),
+            gateway: gateway_fixture(),
+        };
+
+        gateways(deps.as_mut().storage)
+            .save(b"node-owner", &gateway_bond)
+            .unwrap();
+
+        let reward = read_gateway_epoch_reward_rate(deps.as_ref().storage);
+
+        // the node's bond is correctly increased and scaled by uptime
+        // if node was 100% up, it will get full epoch reward
+        let expected_bond = Uint128(initial_bond) * reward + Uint128(initial_bond);
+
+        let info = mock_info(NETWORK_MONITOR_ADDRESS, &[]);
+        try_reward_gateway(deps.as_mut(), info, "node-owner".into(), 100);
+
+        assert_eq!(
+            expected_bond,
+            read_gateway_bond(deps.as_ref().storage, b"node-owner").unwrap()
+        );
+
+        // if node was 20% up, it will get 1/5th of epoch reward
+        let scaled_reward = scale_reward_by_uptime(reward, 20).unwrap();
+        let expected_bond = expected_bond * reward + expected_bond;
+
+        let info = mock_info(NETWORK_MONITOR_ADDRESS, &[]);
+        try_reward_gateway(deps.as_mut(), info, "node-owner".into(), 100);
+
+        assert_eq!(
+            expected_bond,
+            read_gateway_bond(deps.as_ref().storage, b"node-owner").unwrap()
+        );
     }
 }

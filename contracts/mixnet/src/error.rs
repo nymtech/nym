@@ -35,4 +35,13 @@ pub enum ContractError {
 
     #[error("No coin was sent for the bonding, you must send {}", DENOM)]
     NoBondFound,
+
+    #[error("The bond reward rate for mixnode was set to be lower than 1")]
+    DecreasingMixnodeBondReward,
+
+    #[error("The bond reward rate for gateway was set to be lower than 1")]
+    DecreasingGatewayBondReward,
+
+    #[error("The node had uptime larger than 100%")]
+    UnexpectedUptime,
 }

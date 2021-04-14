@@ -3,7 +3,7 @@ import { Gateway, GatewayBond, MixNode, MixNodeBond } from "./types";
 import { Bip39, Random } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
-import { coin, Coin, coins } from "@cosmjs/launchpad";
+import { buildFeeTable, coin, Coin, coins, StdFee } from "@cosmjs/launchpad";
 import { BroadcastTxResponse } from "@cosmjs/stargate"
 import {
     ExecuteResult,
@@ -24,6 +24,9 @@ import {
 } from "./currency";
 import GatewaysCache from "./caches/gateways";
 import QueryClient, { IQueryClient } from "./query-client";
+import { MsgExecuteContract } from "@cosmjs/cosmwasm-stargate/build/codec/x/wasm/internal/types/tx";
+import { toUtf8 } from "@cosmjs/encoding"
+import { nymGasLimits, nymGasPrice } from "./stargate-helper";
 
 export { coins, coin };
 export { Coin };
@@ -33,12 +36,14 @@ export default class ValidatorClient {
     private readonly stakeDenom: string;
     private readonly defaultGatewayBondingStake: number = 100_000000
     private readonly defaultMixnodeBondingStake: number = 100_000000
-
+    private readonly rewardGasFee: StdFee;
     url: string;
+
     private readonly client: INetClient | IQueryClient
     private mixNodesCache: MixnodesCache;
     private gatewayCache: GatewaysCache
     private readonly contractAddress: string;
+
 
     private constructor(url: string, client: INetClient | IQueryClient, contractAddress: string, stakeDenom: string) {
         this.url = url;
@@ -47,6 +52,10 @@ export default class ValidatorClient {
         this.gatewayCache = new GatewaysCache(client, 100);
         this.contractAddress = contractAddress;
         this.stakeDenom = stakeDenom;
+
+        // currently set it to half of our exec gas fee (from my local tests, rewarding was using around 110_000 gas and exec uses 250_000 so it should be fine)
+        const table = buildFeeTable(nymGasPrice(stakeDenom), {reward: nymGasLimits.exec / 2}, {reward: nymGasLimits.exec / 2})
+        this.rewardGasFee = table.reward
     }
 
     static async connect(contractAddress: string, mnemonic: string, url: string, stakeDenom: string): Promise<ValidatorClient> {
@@ -262,7 +271,48 @@ export default class ValidatorClient {
         } else {
             throw new Error("Tried to update state params with a query client")
         }
+    }
 
+    // note if this is not executed by network monitor (or uptime is not in range 0-100) the transaction will be rejected
+    async rewardMixnode(ownerAddress: string, uptime: number): Promise<BroadcastTxResponse> {
+        if (this.client instanceof NetClient) {
+            // this is using the slightly less user-friendly `signAndBroadcast` as it allows manually setting gas fees
+            // as rewarding is approximately half the cost of bonding
+            const executeMsg = {
+                typeUrl: "/cosmwasm.wasm.v1beta1.MsgExecuteContract",
+                value: MsgExecuteContract.fromPartial({
+                    sender: this.client.clientAddress,
+                    contract: this.contractAddress,
+                    msg: toUtf8(JSON.stringify({reward_mixnode: { owner: ownerAddress, uptime: uptime }})),
+                    sentFunds: [],
+                }),
+            };
+
+            return await this.client.signAndBroadcast(this.client.clientAddress, [executeMsg], this.rewardGasFee, "rewarding mixnode");
+        } else {
+            throw new Error("Tried to reward mixnode with a query client")
+        }
+    }
+    
+    // note if this is not executed by network monitor (or uptime is not in range 0-100) the transaction will be rejected
+    async rewardGateway(ownerAddress: string, uptime: number): Promise<BroadcastTxResponse> {
+        if (this.client instanceof NetClient) {
+            // this is using the slightly less user-friendly `signAndBroadcast` as it allows manually setting gas fees
+            // as rewarding is approximately half the cost of bonding
+            const executeMsg = {
+                typeUrl: "/cosmwasm.wasm.v1beta1.MsgExecuteContract",
+                value: MsgExecuteContract.fromPartial({
+                    sender: this.client.clientAddress,
+                    contract: this.contractAddress,
+                    msg: toUtf8(JSON.stringify({reward_gateway: { owner: ownerAddress, uptime: uptime }})),
+                    sentFunds: [],
+                }),
+            };
+
+            return await this.client.signAndBroadcast(this.client.clientAddress, [executeMsg], this.rewardGasFee, "rewarding gateway");
+        } else {
+            throw new Error("Tried to reward mixnode with a query client")
+        }
     }
 
     // TODO: if we just keep a reference to the SigningCosmWasmClient somewhere we can probably go direct

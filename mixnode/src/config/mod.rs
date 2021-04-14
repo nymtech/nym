@@ -23,7 +23,7 @@ const DEFAULT_LISTENING_PORT: u16 = 1789;
 pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str =
     "http://testnet-finney-validator.nymtech.net:1317";
 pub(crate) const DEFAULT_METRICS_SERVER: &str = "http://testnet-metrics.nymtech.net:8080";
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1tndcaqxkpc5ce9qee5ggqf430mr2z3pev9mf39";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
 
 // 'DEBUG'
 const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);

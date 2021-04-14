@@ -19,6 +19,7 @@ fn main() {
         .subcommand(commands::init::command_args())
         .subcommand(commands::run::command_args())
         .subcommand(commands::upgrade::command_args())
+        .subcommand(commands::sign::command_args())
         .get_matches();
 
     execute(arg_matches);
@@ -28,6 +29,7 @@ fn execute(matches: ArgMatches) {
     match matches.subcommand() {
         ("init", Some(m)) => commands::init::execute(m),
         ("run", Some(m)) => commands::run::execute(m),
+        ("sign", Some(m)) => commands::sign::execute(m),
         ("upgrade", Some(m)) => commands::upgrade::execute(m),
         _ => println!("{}", usage()),
     }

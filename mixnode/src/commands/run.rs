@@ -171,7 +171,7 @@ pub fn execute(matches: &ArgMatches) {
     );
 
     println!(
-        "\nTo bond your mixnode you will need to provide the following:
+        "\nTo bond your mixnode, go to https://web-wallet-finney.nymtech.net/.  You will need to provide the following:
     Identity key: {}
     Sphinx key: {}
     Host: {}

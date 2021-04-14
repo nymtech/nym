@@ -28,7 +28,7 @@ pub const MISSING_VALUE: &str = "MISSING VALUE";
 // 'CLIENT'
 pub const DEFAULT_VALIDATOR_REST_ENDPOINT: &str =
     "http://testnet-finney-validator.nymtech.net:1317";
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1tndcaqxkpc5ce9qee5ggqf430mr2z3pev9mf39";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;

@@ -59,7 +59,7 @@ impl MixMetrics {
         let mut unlocked = self.inner.sent.lock().await;
         let received = self.inner.received.swap(0, Ordering::SeqCst);
 
-        let sent = std::mem::replace(unlocked.deref_mut(), HashMap::new());
+        let sent = std::mem::take(unlocked.deref_mut());
 
         (received, sent)
     }

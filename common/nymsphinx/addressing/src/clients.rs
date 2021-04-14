@@ -154,7 +154,7 @@ impl Recipient {
         &self.gateway
     }
 
-    pub fn to_bytes(&self) -> [u8; Self::LEN] {
+    pub fn to_bytes(self) -> [u8; Self::LEN] {
         let mut out = [0u8; Self::LEN];
         out[..CLIENT_IDENTITY_SIZE].copy_from_slice(&self.client_identity.to_bytes());
         out[CLIENT_IDENTITY_SIZE..CLIENT_IDENTITY_SIZE + CLIENT_ENCRYPTION_KEY_SIZE]

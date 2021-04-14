@@ -107,7 +107,7 @@ impl PemStorableKeyPair for KeyPair {
 pub struct PublicKey(x25519_dalek::PublicKey);
 
 impl PublicKey {
-    pub fn to_bytes(&self) -> [u8; PUBLIC_KEY_SIZE] {
+    pub fn to_bytes(self) -> [u8; PUBLIC_KEY_SIZE] {
         *self.0.as_bytes()
     }
 
@@ -120,8 +120,8 @@ impl PublicKey {
         Ok(Self(x25519_dalek::PublicKey::from(bytes)))
     }
 
-    pub fn to_base58_string(&self) -> String {
-        bs58::encode(&self.to_bytes()).into_string()
+    pub fn to_base58_string(self) -> String {
+        bs58::encode(self.to_bytes()).into_string()
     }
 
     pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, KeyRecoveryError> {
@@ -138,7 +138,7 @@ impl PemStorableKey for PublicKey {
     }
 
     fn to_bytes(&self) -> Vec<u8> {
-        self.to_bytes().to_vec()
+        (*self).to_bytes().to_vec()
     }
 
     fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
@@ -209,7 +209,7 @@ impl From<PublicKey> for nymsphinx_types::PublicKey {
 
 impl<'a> From<&'a PublicKey> for nymsphinx_types::PublicKey {
     fn from(key: &'a PublicKey) -> Self {
-        nymsphinx_types::PublicKey::from(key.to_bytes())
+        nymsphinx_types::PublicKey::from((*key).to_bytes())
     }
 }
 

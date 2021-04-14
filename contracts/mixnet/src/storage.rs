@@ -1,5 +1,5 @@
 use crate::state::{State, StateParams};
-use cosmwasm_std::{Decimal, StdError, StdResult, Storage, Uint128};
+use cosmwasm_std::{Decimal, StdError, StdResult, Storage};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -72,7 +72,12 @@ pub(crate) fn increase_mixnode_bond(
     bucket.save(owner, &node)
 }
 
-pub fn read_mixnode_bond(storage: &dyn Storage, owner: &[u8]) -> StdResult<Uint128> {
+// currently not used outside tests
+#[cfg(test)]
+pub(crate) fn read_mixnode_bond(
+    storage: &dyn Storage,
+    owner: &[u8],
+) -> StdResult<cosmwasm_std::Uint128> {
     let bucket = mixnodes_read(storage);
     let node = bucket.load(owner)?;
     // TODO: we should probably change that at insertion time to ensure
@@ -117,7 +122,12 @@ pub(crate) fn increase_gateway_bond(
     bucket.save(owner, &node)
 }
 
-pub fn read_gateway_bond(storage: &dyn Storage, owner: &[u8]) -> StdResult<Uint128> {
+// currently not used outside tests
+#[cfg(test)]
+pub(crate) fn read_gateway_bond(
+    storage: &dyn Storage,
+    owner: &[u8],
+) -> StdResult<cosmwasm_std::Uint128> {
     let bucket = gateways_read(storage);
     let node = bucket.load(owner)?;
     // TODO: we should probably change that at insertion time to ensure
@@ -137,8 +147,8 @@ mod tests {
     use crate::support::tests::helpers::{
         gateway_bond_fixture, gateway_fixture, mix_node_fixture, mixnode_bond_fixture,
     };
-    use cosmwasm_std::coins;
     use cosmwasm_std::testing::MockStorage;
+    use cosmwasm_std::{coins, Uint128};
 
     #[test]
     fn mixnode_single_read_retrieval() {

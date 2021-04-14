@@ -402,9 +402,7 @@ pub mod tests {
     fn mixnode_remove() {
         let env = mock_env();
         let mut deps = mock_dependencies(&[]);
-        let msg = InitMsg {
-            network_monitor_address: "foomp".into(),
-        };
+        let msg = InitMsg {};
         let info = mock_info("creator", &[]);
         init(deps.as_mut(), env.clone(), info, msg).unwrap();
 
@@ -610,9 +608,7 @@ pub mod tests {
     fn gateway_remove() {
         let env = mock_env();
         let mut deps = mock_dependencies(&[]);
-        let msg = InitMsg {
-            network_monitor_address: "foomp".into(),
-        };
+        let msg = InitMsg {};
         let info = mock_info("creator", &[]);
         init(deps.as_mut(), env.clone(), info, msg).unwrap();
 

@@ -23,6 +23,8 @@ pub const INITIAL_GATEWAY_BOND_REWARD_RATE: u64 = 110;
 
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 
+const NETWORK_MONITOR_ADDRESS: &str = "hal1v9qauwdq5terag6uvfsdytcs2d0sdmfdq6e83g";
+
 /// Constant specifying denomination of the coin used for bonding
 pub const DENOM: &str = "uhal";
 
@@ -35,7 +37,7 @@ pub fn init(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    msg: InitMsg,
+    _msg: InitMsg,
 ) -> Result<InitResponse, ContractError> {
     // TODO: to discuss with DH, should the initial state be set as it is right now, i.e.
     // using the defined constants, or should it rather be all based on whatever is sent
@@ -44,7 +46,7 @@ pub fn init(
     let gateway_bond_reward_rate = Decimal::percent(INITIAL_GATEWAY_BOND_REWARD_RATE);
     let state = State {
         owner: info.sender,
-        network_monitor_address: msg.network_monitor_address,
+        network_monitor_address: NETWORK_MONITOR_ADDRESS.into(),
         params: StateParams {
             epoch_length: INITIAL_DEFAULT_EPOCH_LENGTH,
             minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
@@ -124,16 +126,14 @@ pub mod tests {
     use super::*;
     use crate::support::tests::helpers::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary, HumanAddr};
+    use cosmwasm_std::{coins, from_binary};
     use mixnet_contract::PagedResponse;
 
     #[test]
     fn initialize_contract() {
         let mut deps = mock_dependencies(&[]);
         let env = mock_env();
-        let msg = InitMsg {
-            network_monitor_address: "foomp".into(),
-        };
+        let msg = InitMsg {};
         let info = mock_info("creator", &[]);
 
         let res = init(deps.as_mut(), env.clone(), info, msg).unwrap();
@@ -151,10 +151,6 @@ pub mod tests {
         .unwrap();
         let page: PagedResponse = from_binary(&res).unwrap();
         assert_eq!(0, page.nodes.len()); // there are no mixnodes in the list when it's just been initialized
-
-        // network_monitor_address is set to whatever was sent in init message
-        let state = config(deps.as_mut().storage).load().unwrap();
-        assert_eq!(state.network_monitor_address, HumanAddr::from("foomp"));
 
         // Contract balance should match what we initialized it as
         assert_eq!(

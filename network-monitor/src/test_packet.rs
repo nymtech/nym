@@ -121,7 +121,7 @@ impl TestPacket {
         self.pub_key.to_base58_string()
     }
 
-    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+    pub(crate) fn to_bytes(self) -> Vec<u8> {
         self.nonce
             .to_be_bytes()
             .iter()

@@ -116,7 +116,7 @@ impl PublicKey {
     }
 
     /// Convert this public key to a byte array.
-    pub fn to_bytes(&self) -> [u8; PUBLIC_KEY_LENGTH] {
+    pub fn to_bytes(self) -> [u8; PUBLIC_KEY_LENGTH] {
         self.0.to_bytes()
     }
 
@@ -124,8 +124,8 @@ impl PublicKey {
         Ok(PublicKey(ed25519_dalek::PublicKey::from_bytes(b)?))
     }
 
-    pub fn to_base58_string(&self) -> String {
-        bs58::encode(&self.to_bytes()).into_string()
+    pub fn to_base58_string(self) -> String {
+        bs58::encode(self.to_bytes()).into_string()
     }
 
     pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, KeyRecoveryError> {
@@ -146,7 +146,7 @@ impl PemStorableKey for PublicKey {
     }
 
     fn to_bytes(&self) -> Vec<u8> {
-        self.to_bytes().to_vec()
+        (*self).to_bytes().to_vec()
     }
 
     fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {

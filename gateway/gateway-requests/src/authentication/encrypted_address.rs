@@ -48,7 +48,7 @@ impl EncryptedAddressBytes {
         EncryptedAddressBytes(bytes)
     }
 
-    pub fn to_bytes(&self) -> [u8; ENCRYPTED_ADDRESS_SIZE] {
+    pub fn to_bytes(self) -> [u8; ENCRYPTED_ADDRESS_SIZE] {
         self.0
     }
 
@@ -73,7 +73,7 @@ impl EncryptedAddressBytes {
         Ok(EncryptedAddressBytes(enc_address))
     }
 
-    pub fn to_base58_string(&self) -> String {
+    pub fn to_base58_string(self) -> String {
         bs58::encode(self.0).into_string()
     }
 }

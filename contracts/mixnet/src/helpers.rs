@@ -72,10 +72,9 @@ pub(crate) fn calculate_epoch_reward_rate(
     let annual_reward_uint128 = decimal_to_uint128(annual_reward);
 
     let epoch_reward_uint128 = epoch_ratio * annual_reward_uint128;
-    let epoch_reward = uint128_to_decimal(epoch_reward_uint128);
 
     // note: this returns a % reward, like 0.05 rather than reward rate (like 1.05)
-    epoch_reward
+    uint128_to_decimal(epoch_reward_uint128)
 }
 
 // this function works under assumption that epoch reward has relatively few decimal places

@@ -18,9 +18,11 @@ use clap::{App, Arg, ArgMatches};
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use config::NymConfig;
-use crypto::asymmetric::identity;
+use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
+use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::addressing::nodes::NodeIdentity;
 use rand::{prelude::SliceRandom, rngs::OsRng};
 use std::convert::TryInto;
 use std::sync::Arc;
@@ -136,6 +138,42 @@ async fn gateway_details(
     }
 }
 
+fn show_address(config: &Config) {
+    fn load_identity_keys(pathfinder: &ClientKeyPathfinder) -> identity::KeyPair {
+        let identity_keypair: identity::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_identity_key().to_owned(),
+                pathfinder.public_identity_key().to_owned(),
+            ))
+            .expect("Failed to read stored identity key files");
+        identity_keypair
+    }
+
+    fn load_sphinx_keys(pathfinder: &ClientKeyPathfinder) -> encryption::KeyPair {
+        let sphinx_keypair: encryption::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_encryption_key().to_owned(),
+                pathfinder.public_encryption_key().to_owned(),
+            ))
+            .expect("Failed to read stored sphinx key files");
+        sphinx_keypair
+    }
+
+    let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
+    let identity_keypair = load_identity_keys(&pathfinder);
+    let sphinx_keypair = load_sphinx_keys(&pathfinder);
+
+    let client_recipient = Recipient::new(
+        *identity_keypair.public_key(),
+        *sphinx_keypair.public_key(),
+        // TODO: below only works under assumption that gateway address == gateway id
+        // (which currently is true)
+        NodeIdentity::from_base58_string(config.get_base().get_gateway_id()).unwrap(),
+    );
+
+    println!("\nThe address of this client is: {}", client_recipient);
+}
+
 pub fn execute(matches: &ArgMatches) {
     println!("Initialising client...");
 
@@ -204,5 +242,7 @@ pub fn execute(matches: &ArgMatches) {
         .expect("Failed to save the config file");
     println!("Saved configuration file to {:?}", config_save_location);
     println!("Using gateway: {}", config.get_base().get_gateway_id(),);
-    println!("Client configuration completed.\n\n\n")
+    println!("Client configuration completed.\n\n\n");
+
+    show_address(&config);
 }

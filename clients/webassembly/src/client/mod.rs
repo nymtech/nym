@@ -246,7 +246,7 @@ impl NymClient {
         let validator_client = validator_client::Client::new(validator_client_config);
 
         match validator_client.get_active_topology().await {
-            Err(err) => panic!(err),
+            Err(err) => panic!("{}", err),
             Ok(topology) => {
                 let nym_topology: NymTopology = topology.into();
                 let version = env!("CARGO_PKG_VERSION");

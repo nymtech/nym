@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-network-monitor"
-version = "0.9.2"
+version = "0.10.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 

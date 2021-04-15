@@ -1,9 +1,6 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#![allow(renamed_and_removed_lints)]
-#![allow(unknown_lints)] // beta-nightly
-#![allow(clippy::unknown_clippy_lints)] // `clippy::upper_case_acronyms` does not exist on stable just yet
 use cipher::stream::{Nonce, StreamCipher, SyncStreamCipher};
 use generic_array::{typenum::Unsigned, GenericArray};
 use rand::{CryptoRng, RngCore};

@@ -165,7 +165,7 @@ impl ReceivedMessagesBuffer {
 
         // while we're at it, also empty the buffer if we happened to receive anything while
         // no sender was connected
-        let stored_messages = std::mem::replace(&mut guard.messages, Vec::new());
+        let stored_messages = std::mem::take(&mut guard.messages);
         if !stored_messages.is_empty() {
             if let Err(err) = sender.unbounded_send(stored_messages) {
                 error!(

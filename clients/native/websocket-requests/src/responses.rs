@@ -15,6 +15,8 @@
 // all variable size data is always prefixed with u64 length
 // tags are u8
 
+#![allow(unknown_lints)] // due to using `clippy::branches_sharing_code` which does not exist on `stable` just yet
+
 use crate::error::{self, ErrorKind};
 use crate::text::ServerResponseText;
 use nymsphinx::addressing::clients::Recipient;
@@ -96,6 +98,8 @@ impl ServerResponse {
             }
         };
 
+        // this is a false positive as even though the code is the same, it refers to different things
+        #[allow(clippy::branches_sharing_code)]
         if with_reply_surb {
             let reply_surb_len =
                 u64::from_be_bytes(b[2..2 + size_of::<u64>()].as_ref().try_into().unwrap());

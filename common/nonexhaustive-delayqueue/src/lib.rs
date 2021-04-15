@@ -15,10 +15,12 @@
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 use std::time::Duration;
-use tokio::stream::Stream;
-pub use tokio::time::delay_queue::Expired;
-use tokio::time::{delay_queue, DelayQueue, Instant};
+use tokio::time::Instant;
+use tokio_stream::Stream;
+use tokio_util::time::{delay_queue, DelayQueue};
 
+pub use tokio::time::error::Error as TimerError;
+pub use tokio_util::time::delay_queue::Expired;
 pub type QueueKey = delay_queue::Key;
 
 /// A variant of tokio's `DelayQueue`, such that its `Stream` implementation will never return a 'None'.
@@ -58,6 +60,12 @@ impl<T> NonExhaustiveDelayQueue<T> {
     // I can't seem to be able to reproduce it at all.
     pub fn remove(&mut self, key: &QueueKey) -> Expired<T> {
         self.inner.remove(key)
+    }
+}
+
+impl<T> Default for NonExhaustiveDelayQueue<T> {
+    fn default() -> Self {
+        NonExhaustiveDelayQueue::new()
     }
 }
 

@@ -1,6 +1,9 @@
+# Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
 [package]
 name = "nym-gateway"
-version = "0.9.2"
+version = "0.10.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
@@ -8,20 +11,20 @@ edition = "2018"
 
 [dependencies]
 clap = "2.33.0"
-dirs = "2.0.2"
-# using 4.0.0 release candidate as it's faster than 3.X and more importantly it resolves edge cases deadlocks
-dashmap = "4.0.0-rc6"
+dirs = "3.0"
+dashmap = "4.0"
 dotenv = "0.15.0"
 futures = "0.3"
 humantime-serde = "1.0.1"
 log = "0.4"
-pretty_env_logger = "0.3"
+pretty_env_logger = "0.4"
 rand = "0.7"
 serde = { version = "1.0.104", features = ["derive"] }
-sled = "0.31"
-tokio = { version = "0.2", features = ["full"] }
-tokio-util = { version = "0.3.1", features = ["codec"] }
-tokio-tungstenite = "0.11"
+sled = "0.34"
+tokio = { version = "1.4", features = [ "rt-multi-thread", "net", "signal", "fs" ] }
+tokio-util = { version = "0.6", features = [ "codec" ] }
+tokio-stream = { version = "0.1", features = [ "fs" ] }
+tokio-tungstenite = "0.14"
 
 # internal
 config = { path = "../common/config" }
@@ -31,9 +34,5 @@ mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
 nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
-validator-client = { path = "../common/client-libs/validator-client" }
+validator-client-rest = { path = "../common/client-libs/validator-client-rest" }
 version-checker = { path = "../common/version-checker" }
-
-[dependencies.tungstenite]
-version = "0.11"
-default-features = false

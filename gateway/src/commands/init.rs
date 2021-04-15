@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::override_config;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
@@ -28,12 +17,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .help("Id of the gateway we want to create config for.")
                 .takes_value(true)
                 .required(true),
-        )
-        .arg(
-            Arg::with_name("location")
-                .long("location")
-                .help("Optional geographical location of this provider")
-                .takes_value(true),
         )
         .arg(
             Arg::with_name("mix-host")
@@ -104,11 +87,61 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("incentives-address")
-                .long("incentives-address")
-                .help("Optional, if participating in the incentives program, payment address")
+            Arg::with_name("mixnet-contract")
+                .long("mixnet-contract")
+                .help("Address of the validator contract managing the network")
                 .takes_value(true),
         )
+}
+
+fn show_bonding_info(config: &Config) {
+    fn load_sphinx_keys(pathfinder: &GatewayPathfinder) -> encryption::KeyPair {
+        let sphinx_keypair: encryption::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_encryption_key().to_owned(),
+                pathfinder.public_encryption_key().to_owned(),
+            ))
+            .expect("Failed to read stored sphinx key files");
+        println!(
+            "Public sphinx key: {}\n",
+            sphinx_keypair.public_key().to_base58_string()
+        );
+        sphinx_keypair
+    }
+
+    fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
+        let identity_keypair: identity::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_identity_key().to_owned(),
+                pathfinder.public_identity_key().to_owned(),
+            ))
+            .expect("Failed to read stored identity key files");
+        println!(
+            "Public identity key: {}\n",
+            identity_keypair.public_key().to_base58_string()
+        );
+        identity_keypair
+    }
+
+    let pathfinder = GatewayPathfinder::new_from_config(&config);
+    let identity_keypair = load_identity_keys(&pathfinder);
+    let sphinx_keypair = load_sphinx_keys(&pathfinder);
+
+    println!(
+        "\nTo bond your gateway you will [most likely] need to provide the following:
+    Identity key: {}
+    Sphinx key: {}
+    Mix Host: {}
+    Clients Host: {}
+    Location: [physical location of your node's server]
+    Version: {}
+    ",
+        identity_keypair.public_key().to_base58_string(),
+        sphinx_keypair.public_key().to_base58_string(),
+        config.get_mix_announce_address(),
+        config.get_clients_announce_address(),
+        config.get_version(),
+    );
 }
 
 pub fn execute(matches: &ArgMatches) {
@@ -128,8 +161,10 @@ pub fn execute(matches: &ArgMatches) {
 
     // if gateway was already initialised, don't generate new keys
     if !already_init {
-        let identity_keys = identity::KeyPair::new();
-        let sphinx_keys = encryption::KeyPair::new();
+        let mut rng = rand::rngs::OsRng;
+
+        let identity_keys = identity::KeyPair::new(&mut rng);
+        let sphinx_keys = encryption::KeyPair::new(&mut rng);
         let pathfinder = GatewayPathfinder::new_from_config(&config);
         pemstore::store_keypair(
             &sphinx_keys,
@@ -159,4 +194,5 @@ pub fn execute(matches: &ArgMatches) {
     println!("Saved configuration file to {:?}", config_save_location);
 
     println!("Gateway configuration completed.\n\n\n");
+    show_bonding_info(&config);
 }

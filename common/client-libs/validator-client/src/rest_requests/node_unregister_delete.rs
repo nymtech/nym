@@ -12,36 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::rest_requests::{PathParam, QueryParam, RESTRequest, RESTRequestError};
-use crate::DefaultRESTResponse;
+use crate::rest_requests::{PathParam, QueryParam, RestRequest, RestRequestError};
+use crate::DefaultRestResponse;
 use reqwest::{Method, Url};
 
 pub struct Request {
     url: Url,
 }
 
-impl RESTRequest for Request {
+impl RestRequest for Request {
     const METHOD: Method = Method::DELETE;
     const RELATIVE_PATH: &'static str = "/api/mixmining/register";
     type JsonPayload = ();
-    type ExpectedJsonResponse = DefaultRESTResponse;
+    type ExpectedJsonResponse = DefaultRestResponse;
 
     fn new(
         base_url: &str,
         path_params: Option<Vec<PathParam>>,
         _: Option<Vec<QueryParam>>,
         _: Option<Self::JsonPayload>,
-    ) -> Result<Self, RESTRequestError> {
+    ) -> Result<Self, RestRequestError> {
         // node unregister requires single path param - the node id
-        let path_params = path_params.ok_or_else(|| RESTRequestError::InvalidPathParams)?;
+        let path_params = path_params.ok_or(RestRequestError::InvalidPathParams)?;
         if path_params.len() != 1 {
-            return Err(RESTRequestError::InvalidPathParams);
+            return Err(RestRequestError::InvalidPathParams);
         }
         // <base_url>/api/mixmining/register/{id}
         let base = format!("{}{}/{}", base_url, Self::RELATIVE_PATH, path_params[0]);
 
         let url =
-            Url::parse(&base).map_err(|err| RESTRequestError::MalformedUrl(err.to_string()))?;
+            Url::parse(&base).map_err(|err| RestRequestError::MalformedUrl(err.to_string()))?;
 
         Ok(Request { url })
     }

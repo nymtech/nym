@@ -2,7 +2,7 @@ use super::types::{AddrType, ResponseCode, SocksProxyError};
 use super::{utils as socks_utils, SOCKS_VERSION};
 use log::*;
 use std::fmt::{self, Display};
-use tokio::prelude::*;
+use tokio::io::{AsyncRead, AsyncReadExt};
 
 /// A Socks5 request hitting the proxy.
 pub(crate) struct SocksRequest {

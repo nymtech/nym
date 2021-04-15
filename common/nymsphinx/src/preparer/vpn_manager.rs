@@ -27,7 +27,7 @@ pub(super) type SpinhxKeyRef<'a> = RwLockReadGuard<'a, EphemeralSecret>;
 pub(super) type SpinhxKeyRef<'a> = &'a EphemeralSecret;
 
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone))]
-pub(super) struct VPNManager {
+pub(super) struct VpnManager {
     #[cfg(not(target_arch = "wasm32"))]
     inner: Arc<Inner>,
 
@@ -55,14 +55,14 @@ struct Inner {
     packets_with_current_secret: AtomicUsize,
 }
 
-impl VPNManager {
+impl VpnManager {
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn new<R>(mut rng: R, secret_reuse_limit: usize) -> Self
     where
         R: CryptoRng + Rng,
     {
         let initial_secret = EphemeralSecret::new_with_rng(&mut rng);
-        VPNManager {
+        VpnManager {
             inner: Arc::new(Inner {
                 secret_reuse_limit,
                 current_initial_secret: RwLock::new(initial_secret),
@@ -77,7 +77,7 @@ impl VPNManager {
         R: CryptoRng + Rng,
     {
         let initial_secret = EphemeralSecret::new_with_rng(&mut rng);
-        VPNManager {
+        VpnManager {
             inner: Inner {
                 secret_reuse_limit,
                 current_initial_secret: initial_secret,
@@ -141,7 +141,7 @@ impl VPNManager {
             .load(Ordering::SeqCst)
     }
 
-    pub(super) async fn use_secret<'a, R>(&'a mut self, rng: R) -> SpinhxKeyRef<'a>
+    pub(super) async fn use_secret<R>(&mut self, rng: R) -> SpinhxKeyRef<'_>
     where
         R: CryptoRng + Rng,
     {

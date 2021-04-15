@@ -1,0 +1,22 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+        "module": "commonjs",
+        "esModuleInterop": true,
+        "strict": true,
+        "declaration": true,
+        "outDir": "./dist"
+    },
+    "typedocOptions": {
+        "entryPoints": [
+            "src/index.ts"
+        ],
+        "out": "docs"
+    },
+    "exclude": [
+        "dist",
+        "examples",
+        "tests",
+        "node_modules"
+    ]
+}

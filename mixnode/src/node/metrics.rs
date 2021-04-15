@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use futures::channel::mpsc;
 use futures::lock::Mutex;
@@ -70,7 +59,7 @@ impl MixMetrics {
         let mut unlocked = self.inner.sent.lock().await;
         let received = self.inner.received.swap(0, Ordering::SeqCst);
 
-        let sent = std::mem::replace(unlocked.deref_mut(), HashMap::new());
+        let sent = std::mem::take(unlocked.deref_mut());
 
         (received, sent)
     }
@@ -149,11 +138,11 @@ impl MetricsSender {
                 {
                     Err(err) => {
                         error!("failed to send metrics - {:?}", err);
-                        tokio::time::delay_for(METRICS_FAILURE_BACKOFF)
+                        tokio::time::sleep(METRICS_FAILURE_BACKOFF)
                     }
                     Ok(new_interval) => {
                         debug!("sent metrics information");
-                        tokio::time::delay_for(Duration::from_secs(new_interval.next_report_in))
+                        tokio::time::sleep(Duration::from_secs(new_interval.next_report_in))
                     }
                 };
 

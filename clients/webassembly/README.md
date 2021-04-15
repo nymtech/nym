@@ -10,7 +10,7 @@ This client is part of the [Nym](https://nymtech.net/docs) project. It's written
 
 ## Security Status 
 
-From a security point of view, this module is not yet complete. A key missing features include, but are not limited to: cover traffic, sending packets with delay according to Poisson distribution. 
+From a security point of view, this module is not yet complete. Key missing features include, but are not limited to: cover traffic, sending packets with delay according to Poisson distribution. 
 They should be implemented soon. You can build your applications, but don't rely on it for strong anonymity yet if your application needs cover traffic.
 
 ## Using it

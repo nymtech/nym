@@ -15,7 +15,6 @@ pub struct OrderedMessageBuffer {
 
 impl OrderedMessageBuffer {
     pub fn new() -> OrderedMessageBuffer {
-        trace!("Creating ordered message buffer.");
         OrderedMessageBuffer {
             next_index: 0,
             messages: HashMap::new(),
@@ -68,6 +67,12 @@ impl OrderedMessageBuffer {
 
         trace!("Returning {} bytes from ordered message buffer", data.len());
         Some(data)
+    }
+}
+
+impl Default for OrderedMessageBuffer {
+    fn default() -> Self {
+        OrderedMessageBuffer::new()
     }
 }
 

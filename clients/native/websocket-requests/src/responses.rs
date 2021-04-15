@@ -15,10 +15,12 @@
 // all variable size data is always prefixed with u64 length
 // tags are u8
 
+#![allow(unknown_lints)] // due to using `clippy::branches_sharing_code` which does not exist on `stable` just yet
+
 use crate::error::{self, ErrorKind};
 use crate::text::ServerResponseText;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::ReplySURB;
+use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::receiver::ReconstructedMessage;
 use std::convert::TryInto;
 use std::mem::size_of;
@@ -96,6 +98,8 @@ impl ServerResponse {
             }
         };
 
+        // this is a false positive as even though the code is the same, it refers to different things
+        #[allow(clippy::branches_sharing_code)]
         if with_reply_surb {
             let reply_surb_len =
                 u64::from_be_bytes(b[2..2 + size_of::<u64>()].as_ref().try_into().unwrap());
@@ -111,7 +115,7 @@ impl ServerResponse {
             let surb_bound = 2 + size_of::<u64>() + reply_surb_len as usize;
 
             let reply_surb_bytes = &b[2 + size_of::<u64>()..surb_bound];
-            let reply_surb = match ReplySURB::from_bytes(reply_surb_bytes) {
+            let reply_surb = match ReplySurb::from_bytes(reply_surb_bytes) {
                 Ok(reply_surb) => reply_surb,
                 Err(err) => {
                     return Err(error::Error::new(
@@ -339,7 +343,7 @@ mod tests {
 
         let received_with_surb = ServerResponse::Received(ReconstructedMessage {
             message: b"foomp".to_vec(),
-            reply_surb: Some(ReplySURB::from_base58_string(reply_surb_string).unwrap()),
+            reply_surb: Some(ReplySurb::from_base58_string(reply_surb_string).unwrap()),
         });
         let bytes = received_with_surb.serialize();
         let recovered = ServerResponse::deserialize(&bytes).unwrap();

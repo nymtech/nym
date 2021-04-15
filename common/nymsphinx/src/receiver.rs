@@ -15,7 +15,7 @@
 use crypto::asymmetric::encryption;
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
-use nymsphinx_anonymous_replies::reply_surb::{ReplySURB, ReplySURBError};
+use nymsphinx_anonymous_replies::reply_surb::{ReplySurb, ReplySurbError};
 use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_chunking::reconstruction::MessageReconstructor;
 use nymsphinx_params::{PacketEncryptionAlgorithm, PacketHkdfAlgorithm, DEFAULT_NUM_MIX_HOPS};
@@ -27,13 +27,13 @@ pub struct ReconstructedMessage {
     pub message: Vec<u8>,
 
     /// Optional ReplySURB to allow for an anonymous reply to the sender.
-    pub reply_surb: Option<ReplySURB>,
+    pub reply_surb: Option<ReplySurb>,
 }
 
 #[derive(Debug)]
 pub enum MessageRecoveryError {
     InvalidSurbPrefixError,
-    MalformedSURBError(ReplySURBError),
+    MalformedSurbError(ReplySurbError),
     InvalidRemoteEphemeralKey(encryption::KeyRecoveryError),
     MalformedFragmentError,
     InvalidMessagePaddingError,
@@ -41,9 +41,9 @@ pub enum MessageRecoveryError {
     TooShortMessageError,
 }
 
-impl From<ReplySURBError> for MessageRecoveryError {
-    fn from(err: ReplySURBError) -> Self {
-        MessageRecoveryError::MalformedSURBError(err)
+impl From<ReplySurbError> for MessageRecoveryError {
+    fn from(err: ReplySurbError) -> Self {
+        MessageRecoveryError::MalformedSurbError(err)
     }
 }
 
@@ -78,17 +78,17 @@ impl MessageReceiver {
     fn recover_reply_surb_from_message(
         &self,
         message: &mut Vec<u8>,
-    ) -> Result<Option<ReplySURB>, MessageRecoveryError> {
+    ) -> Result<Option<ReplySurb>, MessageRecoveryError> {
         match message[0] {
             n if n == false as u8 => {
                 message.remove(0);
                 Ok(None)
             }
             n if n == true as u8 => {
-                let surb_len: usize = ReplySURB::serialized_len(self.num_mix_hops);
+                let surb_len: usize = ReplySurb::serialized_len(self.num_mix_hops);
                 // note the extra +1 (due to 0/1 message prefix)
                 let surb_bytes = &message[1..1 + surb_len];
-                let reply_surb = ReplySURB::from_bytes(surb_bytes)?;
+                let reply_surb = ReplySurb::from_bytes(surb_bytes)?;
 
                 *message = message.drain(1 + surb_len..).collect();
                 Ok(Some(reply_surb))
@@ -214,6 +214,8 @@ mod message_receiver {
         mixes.insert(
             1,
             vec![mix::Node {
+                owner: "foomp1".to_string(),
+                stake: 123,
                 location: "unknown".to_string(),
                 host: "10.20.30.40:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -225,15 +227,15 @@ mod message_receiver {
                 )
                 .unwrap(),
                 layer: 1,
-                registration_time: 1594812897745695000,
                 version: "0.8.0-dev".to_string(),
-                reputation: 100,
             }],
         );
 
         mixes.insert(
             2,
             vec![mix::Node {
+                owner: "foomp2".to_string(),
+                stake: 123,
                 location: "unknown".to_string(),
                 host: "11.21.31.41:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -245,15 +247,15 @@ mod message_receiver {
                 )
                 .unwrap(),
                 layer: 2,
-                registration_time: 1594812897745695000,
                 version: "0.8.0-dev".to_string(),
-                reputation: 100,
             }],
         );
 
         mixes.insert(
             3,
             vec![mix::Node {
+                owner: "foomp3".to_string(),
+                stake: 123,
                 location: "unknown".to_string(),
                 host: "12.22.32.42:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -265,9 +267,7 @@ mod message_receiver {
                 )
                 .unwrap(),
                 layer: 3,
-                registration_time: 1594812897745695000,
                 version: "0.8.0-dev".to_string(),
-                reputation: 100,
             }],
         );
 
@@ -275,6 +275,8 @@ mod message_receiver {
             // currently coco_nodes don't really exist so this is still to be determined
             mixes,
             vec![gateway::Node {
+                owner: "foomp4".to_string(),
+                stake: 123,
                 location: "unknown".to_string(),
                 client_listener: "ws://1.2.3.4:9000".to_string(),
                 mixnet_listener: "1.2.3.4:1789".parse().unwrap(),
@@ -286,8 +288,6 @@ mod message_receiver {
                     "EB42xvMFMD5rUCstE2CDazgQQJ22zLv8SPm1Luxni44c",
                 )
                 .unwrap(),
-                registration_time: 1594812897745695000,
-                reputation: 100,
                 version: "0.8.0-dev".to_string(),
             }],
         )
@@ -304,7 +304,7 @@ mod message_receiver {
         let topology = topology_fixture();
 
         let reply_surb =
-            ReplySURB::construct(&mut OsRng, &dummy_recipient, average_delay, &topology).unwrap();
+            ReplySurb::construct(&mut OsRng, &dummy_recipient, average_delay, &topology).unwrap();
 
         let reply_surb_bytes = reply_surb.to_bytes();
 

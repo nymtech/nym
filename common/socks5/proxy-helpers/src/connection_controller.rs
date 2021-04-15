@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use futures::channel::mpsc;
+use futures::StreamExt;
 use log::*;
 use ordered_buffer::{OrderedMessage, OrderedMessageBuffer};
 use socks5_requests::ConnectionId;
 use std::collections::{HashMap, HashSet};
-use tokio::stream::StreamExt;
 
 /// A generic message produced after reading from a socket/connection. It includes data that was
 /// actually read alongside boolean indicating whether the connection got closed so that
@@ -133,7 +133,11 @@ impl Controller {
 
     fn send_to_connection(&mut self, conn_id: ConnectionId, payload: Vec<u8>, is_closed: bool) {
         if let Some(active_connection) = self.active_connections.get_mut(&conn_id) {
-            active_connection.write_to_buf(payload);
+            if !payload.is_empty() {
+                active_connection.write_to_buf(payload);
+            } else if !is_closed {
+                error!("Tried to write an empty message to a not-closing connection. Please let us know if you see this message");
+            }
             // if messages get unordered, make sure we don't lose information about
             // remote socket getting closed!
             active_connection.is_closed |= is_closed;
@@ -159,17 +163,20 @@ impl Controller {
                 // TODO:
                 // TODO:
             }
+        } else if !self.recently_closed.contains(&conn_id) {
+            debug!("Received a 'Send' before 'Connect' - going to buffer the data");
+            let pending = self
+                .pending_messages
+                .entry(conn_id)
+                .or_insert_with(Vec::new);
+            pending.push((payload, is_closed));
+        } else if !is_closed {
+            error!(
+                "Tried to write to closed connection ({} bytes were 'lost)",
+                payload.len()
+            );
         } else {
-            if !self.recently_closed.contains(&conn_id) {
-                warn!("Received a 'Send' before 'Connect' - going to buffer the data");
-                let pending = self.pending_messages.entry(conn_id).or_insert(Vec::new());
-                pending.push((payload, is_closed));
-            } else {
-                error!(
-                    "Tried to write to closed connection ({} bytes were 'lost)",
-                    payload.len()
-                )
-            }
+            debug!("Tried to write to closed connection, but remote is already closed")
         }
     }
 

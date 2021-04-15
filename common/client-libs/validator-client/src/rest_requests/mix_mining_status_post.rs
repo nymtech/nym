@@ -1,6 +1,6 @@
 use crate::models::mixmining::MixStatus;
-use crate::rest_requests::{PathParam, QueryParam, RESTRequest, RESTRequestError};
-use crate::DefaultRESTResponse;
+use crate::rest_requests::{PathParam, QueryParam, RestRequest, RestRequestError};
+use crate::DefaultRestResponse;
 use reqwest::{Method, Url};
 
 pub struct Request {
@@ -8,21 +8,21 @@ pub struct Request {
     payload: MixStatus,
 }
 
-impl RESTRequest for Request {
+impl RestRequest for Request {
     const METHOD: Method = Method::POST;
     const RELATIVE_PATH: &'static str = "/api/mixmining";
     type JsonPayload = MixStatus;
-    type ExpectedJsonResponse = DefaultRESTResponse;
+    type ExpectedJsonResponse = DefaultRestResponse;
 
     fn new(
         base_url: &str,
         _: Option<Vec<PathParam>>,
         _: Option<Vec<QueryParam>>,
         body_payload: Option<Self::JsonPayload>,
-    ) -> Result<Self, RESTRequestError> {
-        let payload = body_payload.ok_or_else(|| RESTRequestError::NoPayloadProvided)?;
+    ) -> Result<Self, RestRequestError> {
+        let payload = body_payload.ok_or(RestRequestError::NoPayloadProvided)?;
         let url = Url::parse(&format!("{}{}", base_url, Self::RELATIVE_PATH))
-            .map_err(|err| RESTRequestError::MalformedUrl(err.to_string()))?;
+            .map_err(|err| RestRequestError::MalformedUrl(err.to_string()))?;
         Ok(Request { url, payload })
     }
 

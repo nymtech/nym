@@ -18,14 +18,17 @@ use clap::{App, Arg, ArgMatches};
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use config::NymConfig;
-use crypto::asymmetric::identity;
+use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
+use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::addressing::nodes::NodeIdentity;
 use rand::rngs::OsRng;
 use rand::seq::SliceRandom;
+use std::convert::TryInto;
 use std::sync::Arc;
 use std::time::Duration;
-use topology::{gateway, NymTopology};
+use topology::{filter::VersionFilterable, gateway};
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
@@ -45,6 +48,11 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .long("validator")
             .help("Address of the validator server the client is getting topology from")
             .takes_value(true),
+        )
+        .arg(Arg::with_name("mixnet-contract")
+                 .long("mixnet-contract")
+                 .help("Address of the validator contract managing the network")
+                 .takes_value(true),
         )
         .arg(Arg::with_name("disable-socket")
             .long("disable-socket")
@@ -95,31 +103,74 @@ async fn register_with_gateway(
         .expect("failed to register with the gateway!")
 }
 
-async fn gateway_details(validator_server: &str, chosen_gateway_id: Option<&str>) -> gateway::Node {
-    let validator_client_config = validator_client::Config::new(validator_server.to_string());
-    let validator_client = validator_client::Client::new(validator_client_config);
-    let topology = validator_client.get_active_topology().await.unwrap();
-    let nym_topology: NymTopology = topology.into();
-    let version_filtered_topology = nym_topology.filter_system_version(env!("CARGO_PKG_VERSION"));
+async fn gateway_details(
+    validator_server: &str,
+    mixnet_contract: &str,
+    chosen_gateway_id: Option<&str>,
+) -> gateway::Node {
+    let validator_client_config =
+        validator_client_rest::Config::new(validator_server, mixnet_contract);
+    let validator_client = validator_client_rest::Client::new(validator_client_config);
+
+    let gateways = validator_client.get_gateways().await.unwrap();
+    let valid_gateways = gateways
+        .into_iter()
+        .filter_map(|gateway| gateway.try_into().ok())
+        .collect::<Vec<gateway::Node>>();
+
+    let filtered_gateways = valid_gateways.filter_by_version(env!("CARGO_PKG_VERSION"));
 
     // if we have chosen particular gateway - use it, otherwise choose a random one.
     // (remember that in active topology all gateways have at least 100 reputation so should
     // be working correctly)
-
     if let Some(gateway_id) = chosen_gateway_id {
-        version_filtered_topology
-            .gateways()
+        filtered_gateways
             .iter()
             .find(|gateway| gateway.identity_key.to_base58_string() == gateway_id)
             .expect(&*format!("no gateway with id {} exists!", gateway_id))
             .clone()
     } else {
-        version_filtered_topology
-            .gateways()
+        filtered_gateways
             .choose(&mut rand::thread_rng())
             .expect("there are no gateways on the network!")
             .clone()
     }
+}
+
+fn show_address(config: &Config) {
+    fn load_identity_keys(pathfinder: &ClientKeyPathfinder) -> identity::KeyPair {
+        let identity_keypair: identity::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_identity_key().to_owned(),
+                pathfinder.public_identity_key().to_owned(),
+            ))
+            .expect("Failed to read stored identity key files");
+        identity_keypair
+    }
+
+    fn load_sphinx_keys(pathfinder: &ClientKeyPathfinder) -> encryption::KeyPair {
+        let sphinx_keypair: encryption::KeyPair =
+            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+                pathfinder.private_encryption_key().to_owned(),
+                pathfinder.public_encryption_key().to_owned(),
+            ))
+            .expect("Failed to read stored sphinx key files");
+        sphinx_keypair
+    }
+
+    let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
+    let identity_keypair = load_identity_keys(&pathfinder);
+    let sphinx_keypair = load_sphinx_keys(&pathfinder);
+
+    let client_recipient = Recipient::new(
+        *identity_keypair.public_key(),
+        *sphinx_keypair.public_key(),
+        // TODO: below only works under assumption that gateway address == gateway id
+        // (which currently is true)
+        NodeIdentity::from_base58_string(config.get_base().get_gateway_id()).unwrap(),
+    );
+
+    println!("\nThe address of this client is: {}", client_recipient);
 }
 
 pub fn execute(matches: &ArgMatches) {
@@ -156,6 +207,7 @@ pub fn execute(matches: &ArgMatches) {
         let registration_fut = async {
             let gate_details = gateway_details(
                 &config.get_base().get_validator_rest_endpoint(),
+                &config.get_base().get_validator_mixnet_contract_address(),
                 chosen_gateway_id,
             )
             .await;
@@ -168,7 +220,7 @@ pub fn execute(matches: &ArgMatches) {
         };
 
         // TODO: is there perhaps a way to make it work without having to spawn entire runtime?
-        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new().unwrap();
         let (shared_keys, gateway_listener) = rt.block_on(registration_fut);
         config
             .get_base_mut()
@@ -188,5 +240,7 @@ pub fn execute(matches: &ArgMatches) {
         .expect("Failed to save the config file");
     println!("Saved configuration file to {:?}", config_save_location);
     println!("Using gateway: {}", config.get_base().get_gateway_id(),);
-    println!("Client configuration completed.\n\n\n")
+    println!("Client configuration completed.\n\n\n");
+
+    show_address(&config);
 }

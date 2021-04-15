@@ -27,7 +27,7 @@ use tungstenite::Message;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
-use tokio_tungstenite::WebSocketStream;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures;
@@ -37,7 +37,7 @@ use wasm_utils::websocket::JSWebsocket;
 // type alias for not having to type the whole thing every single time (and now it makes it easier
 // to use different types based on compilation target)
 #[cfg(not(target_arch = "wasm32"))]
-type WsConn = WebSocketStream<TcpStream>;
+type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 #[cfg(target_arch = "wasm32")]
 type WsConn = JSWebsocket;
@@ -97,7 +97,7 @@ impl PartiallyDelegated {
         conn: WsConn,
         packet_router: PacketRouter,
         shared_key: Arc<SharedKeys>,
-    ) -> Result<Self, GatewayClientError> {
+    ) -> Self {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
         // read control request responses.
         let (notify_sender, notify_receiver) = oneshot::channel();
@@ -124,11 +124,14 @@ impl PartiallyDelegated {
                 };
             };
 
-            match ret_err {
+            if match ret_err {
                 Err(err) => stream_sender.send(Err(err)),
                 Ok(_) => stream_sender.send(Ok(stream)),
             }
-            .unwrap();
+            .is_err()
+            {
+                panic!("failed to send back `mixnet_receiver_future` result on the oneshot channel")
+            }
         };
 
         #[cfg(target_arch = "wasm32")]
@@ -137,10 +140,10 @@ impl PartiallyDelegated {
         #[cfg(not(target_arch = "wasm32"))]
         tokio::spawn(mixnet_receiver_future);
 
-        Ok(PartiallyDelegated {
+        PartiallyDelegated {
             sink_half: sink,
             delegated_stream: (stream_receiver, notify_sender),
-        })
+        }
     }
 
     // if we want to send a message and don't care about response, we can don't need to reunite the split,
@@ -181,7 +184,7 @@ impl PartiallyDelegated {
         // this call failing is incredibly unlikely, but not impossible.
         // basically the gateway connection must have failed after executing previous line but
         // before starting execution of this one.
-        if let Err(_) = notify.send(()) {
+        if notify.send(()).is_err() {
             return Err(GatewayClientError::ConnectionAbruptlyClosed);
         }
 
@@ -212,6 +215,9 @@ impl SocketState {
     }
 
     pub(crate) fn is_established(&self) -> bool {
-        matches!(self, SocketState::Available(_) | SocketState::PartiallyDelegated(_))
+        matches!(
+            self,
+            SocketState::Available(_) | SocketState::PartiallyDelegated(_)
+        )
     }
 }

@@ -34,7 +34,7 @@ pub const MAX_NODE_ADDRESS_UNPADDED_LEN: usize = 19;
 #[derive(Debug)]
 pub enum NymNodeRoutingAddressError {
     InsufficientNumberOfBytesAvailableError,
-    InvalidIPVersion,
+    InvalidIpVersion,
 }
 
 /// Current representation of Node routing information used in Nym system.
@@ -114,7 +114,7 @@ impl NymNodeRoutingAddress {
                 address_octets.copy_from_slice(&b[3..19]);
                 IpAddr::V6(Ipv6Addr::from(address_octets))
             }
-            _ => return Err(NymNodeRoutingAddressError::InvalidIPVersion),
+            _ => return Err(NymNodeRoutingAddressError::InvalidIpVersion),
         };
 
         Ok(Self(SocketAddr::new(ip, port)))
@@ -139,9 +139,9 @@ impl From<SocketAddr> for NymNodeRoutingAddress {
 
 /// Considering `NymNodeRoutingAddress` is equivalent to a `SocketAddr` at this point,
 /// it makes perfect sense to allow the bilateral transformation.
-impl Into<SocketAddr> for NymNodeRoutingAddress {
-    fn into(self) -> SocketAddr {
-        self.0
+impl From<NymNodeRoutingAddress> for SocketAddr {
+    fn from(addr: NymNodeRoutingAddress) -> Self {
+        addr.0
     }
 }
 

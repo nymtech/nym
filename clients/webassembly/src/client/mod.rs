@@ -31,12 +31,10 @@ use wasm_utils::{console_log, console_warn};
 
 pub(crate) mod received_processor;
 
-const DEFAULT_RNG: OsRng = OsRng;
-
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
-const DEFAULT_PACKET_MODE: PacketMode = PacketMode::VPN;
+const DEFAULT_PACKET_MODE: PacketMode = PacketMode::Vpn;
 const DEFAULT_VPN_KEY_REUSE_LIMIT: usize = 1000;
 
 #[wasm_bindgen]
@@ -67,10 +65,11 @@ pub struct NymClient {
 impl NymClient {
     #[wasm_bindgen(constructor)]
     pub fn new(validator_server: String) -> Self {
+        let mut rng = OsRng;
         // for time being generate new keys each time...
-        let identity = identity::KeyPair::new_with_rng(&mut DEFAULT_RNG);
-        let encryption_keys = encryption::KeyPair::new_with_rng(&mut DEFAULT_RNG);
-        let ack_key = AckKey::new(&mut DEFAULT_RNG);
+        let identity = identity::KeyPair::new(&mut rng);
+        let encryption_keys = encryption::KeyPair::new(&mut rng);
+        let ack_key = AckKey::new(&mut rng);
 
         Self {
             identity: Arc::new(identity),
@@ -103,7 +102,7 @@ impl NymClient {
             self.gateway_client
                 .as_ref()
                 .expect("gateway connection was not established!")
-                .identity(),
+                .gateway_identity(),
         )
     }
 
@@ -144,8 +143,9 @@ impl NymClient {
             None => console_log!("Gateway connection established - no callback specified"),
         };
 
+        let rng = rand::rngs::OsRng;
         let message_preparer = MessagePreparer::new(
-            DEFAULT_RNG,
+            rng,
             client.self_recipient(),
             DEFAULT_AVERAGE_PACKET_DELAY,
             DEFAULT_AVERAGE_ACK_DELAY,
@@ -246,7 +246,7 @@ impl NymClient {
         let validator_client = validator_client::Client::new(validator_client_config);
 
         match validator_client.get_active_topology().await {
-            Err(err) => panic!(err),
+            Err(err) => panic!("{}", err),
             Ok(topology) => {
                 let nym_topology: NymTopology = topology.into();
                 let version = env!("CARGO_PKG_VERSION");

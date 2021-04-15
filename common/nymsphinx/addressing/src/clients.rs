@@ -87,7 +87,7 @@ impl<'de> Deserialize<'de> for Recipient {
             type Value = Recipient;
 
             fn expecting(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-                write!(formatter, "A recipient is 96-byte sequence containing two ed25519 public keys an one x25519 public key all in compressed forms.")
+                write!(formatter, "A recipient is 96-byte sequence containing two ed25519 public keys and one x25519 public key all in compressed forms.")
             }
 
             fn visit_bytes<E>(self, bytes: &[u8]) -> Result<Self::Value, E>
@@ -154,7 +154,7 @@ impl Recipient {
         &self.gateway
     }
 
-    pub fn to_bytes(&self) -> [u8; Self::LEN] {
+    pub fn to_bytes(self) -> [u8; Self::LEN] {
         let mut out = [0u8; Self::LEN];
         out[..CLIENT_IDENTITY_SIZE].copy_from_slice(&self.client_identity.to_bytes());
         out[CLIENT_IDENTITY_SIZE..CLIENT_IDENTITY_SIZE + CLIENT_ENCRYPTION_KEY_SIZE]
@@ -245,9 +245,11 @@ mod tests {
 
     #[test]
     fn string_conversion_works() {
-        let client_id_pair = identity::KeyPair::new();
-        let client_enc_pair = encryption::KeyPair::new();
-        let gateway_id_pair = identity::KeyPair::new();
+        let mut rng = rand::thread_rng();
+
+        let client_id_pair = identity::KeyPair::new(&mut rng);
+        let client_enc_pair = encryption::KeyPair::new(&mut rng);
+        let gateway_id_pair = identity::KeyPair::new(&mut rng);
 
         let recipient = Recipient::new(
             *client_id_pair.public_key(),
@@ -275,9 +277,11 @@ mod tests {
 
     #[test]
     fn bytes_conversion_works() {
-        let client_id_pair = identity::KeyPair::new();
-        let client_enc_pair = encryption::KeyPair::new();
-        let gateway_id_pair = identity::KeyPair::new();
+        let mut rng = rand::thread_rng();
+
+        let client_id_pair = identity::KeyPair::new(&mut rng);
+        let client_enc_pair = encryption::KeyPair::new(&mut rng);
+        let gateway_id_pair = identity::KeyPair::new(&mut rng);
 
         let recipient = Recipient::new(
             *client_id_pair.public_key(),

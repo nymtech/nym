@@ -23,10 +23,11 @@ use crypto::asymmetric::identity;
 use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
-use gateway_requests::registration::handshake::{client_handshake, SharedKeys, DEFAULT_RNG};
+use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
 use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
+use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
@@ -131,19 +132,24 @@ impl GatewayClient {
         }
     }
 
-    pub fn identity(&self) -> identity::PublicKey {
+    pub fn gateway_identity(&self) -> identity::PublicKey {
         self.gateway_identity
     }
 
-    pub async fn close_connection(&mut self) -> Result<(), GatewayClientError> {
-        if self.connection.is_partially_delegated() {
-            self.recover_socket_connection().await?;
-        }
-
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
-            #[cfg(not(target_arch = "wasm32"))]
             SocketState::Available(mut socket) => Ok(socket.close(None).await?),
-            #[cfg(target_arch = "wasm32")]
+            SocketState::PartiallyDelegated(_) => {
+                unreachable!("this branch should have never been reached!")
+            }
+            _ => Ok(()), // no need to do anything in those cases
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
+        match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
             SocketState::Available(mut socket) => Ok(socket.close(None).await),
             SocketState::PartiallyDelegated(_) => {
                 unreachable!("this branch should have never been reached!")
@@ -152,14 +158,27 @@ impl GatewayClient {
         }
     }
 
+    pub async fn close_connection(&mut self) -> Result<(), GatewayClientError> {
+        if self.connection.is_partially_delegated() {
+            self.recover_socket_connection().await?;
+        }
+
+        self._close_connection().await
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
-        #[cfg(not(target_arch = "wasm32"))]
         let ws_stream = match connect_async(&self.gateway_address).await {
             Ok((ws_stream, _)) => ws_stream,
             Err(e) => return Err(GatewayClientError::NetworkError(e)),
         };
 
-        #[cfg(target_arch = "wasm32")]
+        self.connection = SocketState::Available(ws_stream);
+        Ok(())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
         let ws_stream = match JSWebsocket::new(&self.gateway_address) {
             Ok(ws_stream) => ws_stream,
             Err(e) => return Err(GatewayClientError::NetworkErrorWasm(e)),
@@ -178,11 +197,21 @@ impl GatewayClient {
 
         for i in 1..self.reconnection_attempts {
             info!("attempt {}...", i);
-            if let Ok(_) = self.authenticate_and_start().await {
+            if self.authenticate_and_start().await.is_ok() {
                 info!("managed to reconnect!");
                 return Ok(());
             }
-            tokio::time::delay_for(self.reconnection_backoff).await;
+
+            #[cfg(not(target_arch = "wasm32"))]
+            tokio::time::sleep(self.reconnection_backoff).await;
+
+            #[cfg(target_arch = "wasm32")]
+            if let Err(err) = wasm_timer::Delay::new(self.reconnection_backoff).await {
+                error!(
+                    "the timer has gone away while in reconnection backoff! - {}",
+                    err
+                );
+            }
         }
 
         // final attempt (done separately to be able to return a proper error)
@@ -212,7 +241,9 @@ impl GatewayClient {
         };
 
         #[cfg(not(target_arch = "wasm32"))]
-        let timeout = tokio::time::delay_for(self.response_timeout_duration);
+        let timeout = tokio::time::sleep(self.response_timeout_duration);
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::pin!(timeout);
 
         // technically the `wasm_timer` also works outside wasm, but unless required,
         // I really prefer to just stick to tokio
@@ -339,9 +370,13 @@ impl GatewayClient {
 
         debug_assert!(self.connection.is_available());
 
+        // it's fine to instantiate it here as it's only used once (during authentication or registration)
+        // and putting it into the GatewayClient struct would be a hassle
+        let mut rng = OsRng;
+
         let shared_key = match &mut self.connection {
             SocketState::Available(ws_stream) => client_handshake(
-                &mut DEFAULT_RNG,
+                &mut rng,
                 ws_stream,
                 self.local_identity.as_ref(),
                 self.gateway_identity,
@@ -365,11 +400,16 @@ impl GatewayClient {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
+
+        // it's fine to instantiate it here as it's only used once (during authentication or registration)
+        // and putting it into the GatewayClient struct would be a hassle
+        let mut rng = OsRng;
+
         // because of the previous check one of the unwraps MUST succeed
         let shared_key = shared_key
             .as_ref()
             .unwrap_or_else(|| self.shared_key.as_ref().unwrap());
-        let iv = AuthenticationIV::new_random(&mut DEFAULT_RNG);
+        let iv = AuthenticationIV::new_random(&mut rng);
         let self_address = self
             .local_identity
             .as_ref()
@@ -516,7 +556,7 @@ impl GatewayClient {
                                 .as_ref()
                                 .expect("no shared key present even though we're authenticated!"),
                         ),
-                    )?
+                    )
                 }
                 _ => unreachable!(),
             };

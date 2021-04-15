@@ -17,26 +17,8 @@ use crypto::asymmetric::{encryption, identity};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::io;
-use std::net::ToSocketAddrs;
-
-#[derive(Debug)]
-pub enum ConversionError {
-    InvalidIdentityKeyError(identity::KeyRecoveryError),
-    InvalidSphinxKeyError(encryption::KeyRecoveryError),
-    InvalidAddress(io::Error),
-}
-
-impl From<encryption::KeyRecoveryError> for ConversionError {
-    fn from(err: encryption::KeyRecoveryError) -> Self {
-        ConversionError::InvalidSphinxKeyError(err)
-    }
-}
-
-impl From<identity::KeyRecoveryError> for ConversionError {
-    fn from(err: identity::KeyRecoveryError) -> Self {
-        ConversionError::InvalidIdentityKeyError(err)
-    }
-}
+use std::net::{SocketAddr, ToSocketAddrs};
+use topology::gateway::GatewayConversionError;
 
 // used for gateways to register themselves
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -93,29 +75,40 @@ impl RegisteredGateway {
     pub fn clients_listener(&self) -> String {
         self.gateway_info.clients_host.clone()
     }
-}
 
-impl TryInto<topology::gateway::Node> for RegisteredGateway {
-    type Error = ConversionError;
+    pub fn version(&self) -> String {
+        self.gateway_info.node_info.version.clone()
+    }
 
-    fn try_into(self) -> Result<topology::gateway::Node, Self::Error> {
-        let resolved_mix_hostname = self
-            .gateway_info
+    pub fn version_ref(&self) -> &str {
+        &self.gateway_info.node_info.version
+    }
+
+    fn resolve_hostname(&self) -> Result<SocketAddr, GatewayConversionError> {
+        self.gateway_info
             .node_info
             .mix_host
             .to_socket_addrs()
-            .map_err(ConversionError::InvalidAddress)?
+            .map_err(GatewayConversionError::InvalidAddress)?
             .next()
             .ok_or_else(|| {
-                ConversionError::InvalidAddress(io::Error::new(
+                GatewayConversionError::InvalidAddress(io::Error::new(
                     io::ErrorKind::Other,
                     "no valid socket address",
                 ))
-            })?;
+            })
+    }
+}
 
+impl TryInto<topology::gateway::Node> for RegisteredGateway {
+    type Error = GatewayConversionError;
+
+    fn try_into(self) -> Result<topology::gateway::Node, Self::Error> {
         Ok(topology::gateway::Node {
+            owner: "N/A".to_string(),
+            stake: 0,
+            mixnet_listener: self.resolve_hostname()?,
             location: self.gateway_info.node_info.location,
-            mixnet_listener: resolved_mix_hostname,
             client_listener: self.gateway_info.clients_host,
             identity_key: identity::PublicKey::from_base58_string(
                 self.gateway_info.node_info.identity_key,
@@ -123,9 +116,28 @@ impl TryInto<topology::gateway::Node> for RegisteredGateway {
             sphinx_key: encryption::PublicKey::from_base58_string(
                 self.gateway_info.node_info.sphinx_key,
             )?,
-            registration_time: self.registration_time,
-            reputation: self.reputation,
             version: self.gateway_info.node_info.version,
+        })
+    }
+}
+
+impl<'a> TryInto<topology::gateway::Node> for &'a RegisteredGateway {
+    type Error = GatewayConversionError;
+
+    fn try_into(self) -> Result<topology::gateway::Node, Self::Error> {
+        Ok(topology::gateway::Node {
+            owner: "N/A".to_string(),
+            stake: 0,
+            mixnet_listener: self.resolve_hostname()?,
+            location: self.gateway_info.node_info.location.clone(),
+            client_listener: self.gateway_info.clients_host.clone(),
+            identity_key: identity::PublicKey::from_base58_string(
+                &self.gateway_info.node_info.identity_key,
+            )?,
+            sphinx_key: encryption::PublicKey::from_base58_string(
+                &self.gateway_info.node_info.sphinx_key,
+            )?,
+            version: self.gateway_info.node_info.version.clone(),
         })
     }
 }

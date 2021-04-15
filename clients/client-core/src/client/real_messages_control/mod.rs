@@ -73,6 +73,9 @@ pub struct Config {
 }
 
 impl Config {
+    // at this point I'm not entirely sure how to deal with this warning without
+    // some considerable refactoring
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         ack_key: Arc<AckKey>,
         ack_wait_multiplier: f64,
@@ -86,12 +89,12 @@ impl Config {
     ) -> Self {
         Config {
             ack_key,
+            ack_wait_addition,
+            ack_wait_multiplier,
             self_recipient,
+            average_message_sending_delay,
             average_packet_delay_duration,
             average_ack_delay_duration,
-            average_message_sending_delay,
-            ack_wait_multiplier,
-            ack_wait_addition,
             packet_mode,
             vpn_key_reuse_limit,
         }

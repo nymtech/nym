@@ -1,19 +1,8 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-use crate::config::DEFAULT_VALIDATOR_REST_ENDPOINT;
 use crate::config::{Config, MISSING_VALUE};
+use crate::config::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DEFAULT_VALIDATOR_REST_ENDPOINT};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use std::fmt::Display;
@@ -41,7 +30,63 @@ fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
     );
 }
 
-fn pre_090_upgrade(from: &str, config: Config, matches: &ArgMatches) -> Config {
+pub fn command_args<'a, 'b>() -> App<'a, 'b> {
+    App::new("upgrade").about("Try to upgrade the gateway")
+        .arg(
+            Arg::with_name("id")
+                .long("id")
+                .help("Id of the nym-gateway we want to upgrade")
+                .takes_value(true)
+                .required(true),
+        )
+        // the rest of arguments depend on the upgrade path
+        .arg(Arg::with_name("current version")
+            .long("current-version")
+            .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Specifies current version of the configuration file to help to determine a valid upgrade path. Valid formats include '0.8.1', 'v0.8.1' or 'V0.8.1'")
+            .takes_value(true)
+        )
+}
+
+fn unsupported_upgrade(current_version: Version, config_version: Version) -> ! {
+    eprintln!("Cannot perform upgrade from {} to {}. Please let the developers know about this issue if you expected it to work!", config_version, current_version);
+    process::exit(1)
+}
+
+fn parse_config_version(config: &Config) -> Version {
+    let version = Version::parse(config.get_version()).unwrap_or_else(|err| {
+        eprintln!("failed to parse client version! - {:?}", err);
+        process::exit(1)
+    });
+
+    if version.is_prerelease() || !version.build.is_empty() {
+        eprintln!(
+            "Trying to upgrade from a non-released version {}. This is not supported!",
+            version
+        );
+        process::exit(1)
+    }
+
+    version
+}
+
+fn parse_package_version() -> Version {
+    let version = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+
+    // technically this is not a correct way of checking it as a released version might contain valid build identifiers
+    // however, we are not using them ourselves at the moment and hence it should be fine.
+    // if we change our mind, we could easily tweak this code
+    if version.is_prerelease() || !version.build.is_empty() {
+        eprintln!(
+            "Trying to upgrade to a non-released version {}. This is not supported!",
+            version
+        );
+        process::exit(1)
+    }
+
+    version
+}
+
+fn pre_090_upgrade(from: &str, config: Config) -> Config {
     // this is not extracted to separate function as you only have to manually pass version
     // if upgrading from pre090 version
     let from = match from.strip_prefix("v") {
@@ -93,15 +138,10 @@ fn pre_090_upgrade(from: &str, config: Config, matches: &ArgMatches) -> Config {
         DEFAULT_VALIDATOR_REST_ENDPOINT
     );
 
-    let mut upgraded_config = config
+    let upgraded_config = config
         .with_custom_version(to_version.to_string().as_ref())
         .with_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT);
 
-    if let Some(incentives_address) = matches.value_of("incentives address") {
-        upgraded_config = upgraded_config.with_incentives_address(incentives_address);
-        println!("Setting incentives address to {}", incentives_address);
-    }
-
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
         print_failed_upgrade(&from_version, &to_version);
@@ -113,101 +153,73 @@ fn pre_090_upgrade(from: &str, config: Config, matches: &ArgMatches) -> Config {
     upgraded_config
 }
 
-fn patch_09x_upgrade(config: Config, matches: &ArgMatches) -> Config {
-    // this call must succeed as it was already called before
-    let from_version = Version::parse(config.get_version()).unwrap();
-    let to_version = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+fn minor_010_upgrade(
+    config: Config,
+    _matches: &ArgMatches,
+    config_version: &Version,
+    package_version: &Version,
+) -> Config {
+    let to_version = if package_version.major == 0 && package_version.minor == 10 {
+        package_version.clone()
+    } else {
+        Version::new(0, 10, 0)
+    };
 
-    print_start_upgrade(&from_version, &to_version);
+    print_start_upgrade(&config_version, &to_version);
 
-    // 0.9.1 upgrade:
-    let mut upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
-
-    // not strictly part of the upgrade, but since people had problems with it and I've got a feeling
-    // they might try to use it, just allow changing incentives address here again...
-    if let Some(incentives_address) = matches.value_of("incentives address") {
-        upgraded_config = upgraded_config.with_incentives_address(incentives_address);
-        println!(
-            "Setting incentives address to {}. Old value will be overwritten",
-            incentives_address
-        );
+    if config.get_validator_mixnet_contract_address() != MISSING_VALUE {
+        eprintln!("existing config seems to have specified mixnet contract address which was only introduced in 0.10.0! Can't perform upgrade.");
+        print_failed_upgrade(&config_version, &to_version);
+        process::exit(1);
     }
+
+    println!(
+        "Setting validator REST endpoint to {}",
+        DEFAULT_VALIDATOR_REST_ENDPOINT
+    );
+
+    println!(
+        "Setting mixnet contract address to {}",
+        DEFAULT_MIXNET_CONTRACT_ADDRESS
+    );
+
+    let upgraded_config = config
+        .with_custom_version(to_version.to_string().as_ref())
+        .with_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT)
+        .with_custom_mixnet_contract(DEFAULT_MIXNET_CONTRACT_ADDRESS);
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
-        print_failed_upgrade(&from_version, &to_version);
+        print_failed_upgrade(&config_version, &to_version);
         process::exit(1);
     });
 
-    print_successful_upgrade(from_version, to_version);
+    print_successful_upgrade(config_version, to_version);
 
     upgraded_config
 }
 
-pub fn command_args<'a, 'b>() -> App<'a, 'b> {
-    App::new("upgrade").about("Try to upgrade the gateway")
-        .arg(
-            Arg::with_name("id")
-                .long("id")
-                .help("Id of the nym-gateway we want to upgrade")
-                .takes_value(true)
-                .required(true),
-        )
-        // the rest of arguments depend on the upgrade path
-        .arg(Arg::with_name("current version")
-            .long("current-version")
-            .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Specifies current version of the configuration file to help to determine a valid upgrade path. Valid formats include '0.8.1', 'v0.8.1' or 'V0.8.1'")
-            .takes_value(true)
-        )
-        .arg(Arg::with_name("incentives address")
-            .long("incentives-address")
-            .help("Optional, if participating in the incentives program, payment address")
-            .takes_value(true)
-        )
-}
-
-fn unsupported_upgrade(current_version: Version, config_version: Version) -> ! {
-    eprintln!("Cannot perform upgrade from {} to {}. Please let the developers know about this issue if you expected it to work!", config_version, current_version);
-    process::exit(1)
-}
-
-fn do_upgrade(mut config: Config, matches: &ArgMatches) {
-    let current = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
-
+fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version) {
     loop {
-        let config_version = Version::parse(config.get_version()).unwrap_or_else(|err| {
-            eprintln!("failed to parse node version! - {:?}", err);
-            process::exit(1)
-        });
+        let config_version = parse_config_version(&config);
 
-        if config_version == current {
+        if config_version == package_version {
             println!("You're using the most recent version!");
             return;
         }
 
         config = match config_version.major {
             0 => match config_version.minor {
-                9 => patch_09x_upgrade(config, &matches),
-                _ => unsupported_upgrade(current, config_version),
+                9 => minor_010_upgrade(config, &matches, &config_version, &package_version),
+                _ => unsupported_upgrade(config_version, package_version),
             },
-            _ => unsupported_upgrade(current, config_version),
+            _ => unsupported_upgrade(config_version, package_version),
         }
     }
 }
 
 pub fn execute(matches: &ArgMatches) {
-    let current = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
-
-    // technically this is not a correct way of checking it as a released version might contain valid build identifiers
-    // however, we are not using them ourselves at the moment and hence it should be fine.
-    // if we change our mind, we could easily tweak this code
-    if current.is_prerelease() || !current.build.is_empty() {
-        eprintln!(
-            "Trying to upgrade to a non-released version {}. This is not supported!",
-            current
-        );
-        process::exit(1)
-    }
+    let package_version = parse_package_version();
 
     let id = matches.value_of("id").unwrap();
 
@@ -226,26 +238,9 @@ pub fn execute(matches: &ArgMatches) {
         });
 
         // upgrades up to 0.9.0
-        existing_config = pre_090_upgrade(self_reported_version, existing_config, &matches);
-    }
-
-    let config_version = Version::parse(existing_config.get_version()).unwrap_or_else(|err| {
-        eprintln!("failed to parse node version! - {:?}", err);
-        process::exit(1)
-    });
-
-    if config_version.is_prerelease() || !config_version.build.is_empty() {
-        eprintln!(
-            "Trying to upgrade from non-released version {}. This is not supported!",
-            config_version
-        );
-        process::exit(1)
+        existing_config = pre_090_upgrade(self_reported_version, existing_config);
     }
 
     // here be upgrade path to 0.9.X and beyond based on version number from config
-    if config_version == current {
-        println!("You're using the most recent version!");
-    } else {
-        do_upgrade(existing_config, matches)
-    }
+    do_upgrade(existing_config, matches, package_version)
 }

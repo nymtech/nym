@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::override_config;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
@@ -33,12 +22,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .required(true),
         )
         // the rest of arguments are optional, they are used to override settings in config file
-        .arg(
-            Arg::with_name("location")
-                .long("location")
-                .help("Optional geographical location of this gateway")
-                .takes_value(true),
-        )
         .arg(
             Arg::with_name("config")
                 .long("config")
@@ -109,6 +92,12 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             Arg::with_name("validator")
                 .long("validator")
                 .help("REST endpoint of the validator the node is registering presence with")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("mixnet-contract")
+                .long("mixnet-contract")
+                .help("Address of the validator contract managing the network")
                 .takes_value(true),
         )
 }

@@ -1,20 +1,20 @@
 [package]
 name = "client-core"
-version = "0.9.2"
+version = "0.10.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dirs = "2.0.2"
-futures = "0.3.1"
-humantime-serde = "1.0.1"
+dirs = "3.0"
+futures = "0.3"
+humantime-serde = "1.0"
 log = "0.4"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-serde = { version = "1.0.104", features = ["derive"] }
-sled = "0.33"
-tokio = { version = "0.2", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+sled = "0.34"
+tokio = { version = "1.4", features = ["macros"] }
 
 # internal
 config = { path = "../../common/config" }
@@ -25,7 +25,7 @@ nonexhaustive-delayqueue = { path = "../../common/nonexhaustive-delayqueue" }
 nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }
-validator-client = { path = "../../common/client-libs/validator-client" }
+validator-client-rest = { path = "../../common/client-libs/validator-client-rest" }
 
 [dev-dependencies]
 tempfile = "3.1.0"

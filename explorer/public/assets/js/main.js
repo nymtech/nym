@@ -1,36 +1,76 @@
 function websocketUrl() {
-  return "wss://testnet-explorer.nymtech.net";
-
-  
   if ($(location).attr("href").startsWith("http://localhost")) {
     return "ws://localhost:1648";
   } else if ($(location).attr("href").startsWith("http://qa-explorer")) {
     return "ws://qa-explorer.nymtech.net:1648";
+  } else if ($(location).attr("href").startsWith("http://nicenet-explorer")) {
+    return "ws://nicenet-explorer.nymtech.net:1648";
   } else {
     return "wss://testnet-explorer.nymtech.net";
   }
 }
 
-function getTopology() {
-  console.log("Getting topology...");
-  var topologyUrl = "/downloads/topology.json";
-  $.ajax({
-    type: 'GET',
-    url: topologyUrl,
-    success: function (data) {
-      createMixnodeCount(data.mixNodes.length);
-      createValidatorCount(data.validators.validators.length);
-      createBlockHeight(data.validators.block_height);
-      createDisplayTable(data);
-      updateNodesStatus();
-    }
-  });
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function createDisplayTable(data) {
-  createMixnodeRows(data.mixNodes);
-  createValidatorRows(data.validators.validators);
-  createGatewayRows(data.gateways);
+// gets only active nodes
+async function getActiveTopology() {
+  console.log("Getting active topology...");
+  const topologyUrl = "/downloads/topology_active.json";
+  const response = await fetch(topologyUrl, { method: 'GET' })
+  return await response.json()
+}
+
+// gets 'removed' topology, i.e. nodes that failed at some point and got slashed
+async function getRemovedTopology() {
+  console.log("Getting removed topology...");
+  const topologyUrl = "/downloads/topology_removed.json";
+  const response = await fetch(topologyUrl, { method: 'GET' })
+  return await response.json()
+}
+
+// gets 'full' topology, i.e. all active + standby
+async function getTopology() {
+  console.log("Getting topology...");
+  const topologyUrl = "/downloads/topology.json";
+
+  const response = await fetch(topologyUrl, { method: 'GET' })
+  return await response.json()
+}
+
+async function dealWithInitialTopology() {
+  const fullTopology = await getTopology();
+  const activeTopology = await getActiveTopology();
+  const removedTopology = await getRemovedTopology();
+
+  let activeMixes = new Set()
+  activeTopology.mixNodes.forEach(activeMix => {
+    activeMixes.add(activeMix.identityKey)
+  })
+  let activeGateways = new Set()
+  activeTopology.gateways.forEach(activeGateway => {
+    activeGateways.add(activeGateway.identityKey)
+  })
+
+  const standbyMixes = fullTopology.mixNodes.filter(mix => !activeMixes.has(mix.identityKey))
+  const standbyGateways = fullTopology.gateways.filter(gateway => !activeGateways.has(gateway.identityKey))
+  // lets ignore removed gateways for time being (at least until network monitor actually sends packets to them)
+
+  createMixnodeCount(`${activeTopology.mixNodes.length} + ${standbyMixes.length} standby`)
+  createValidatorCount(fullTopology.validators.validators.length || 0);
+  createBlockHeight(fullTopology.validators.block_height);
+
+  createDisplayTable(activeTopology, standbyMixes, standbyGateways, removedTopology.mixNodes)
+}
+
+function createDisplayTable(activeTopology, standbyMixes, standbyGateways, removedMixes) {
+  createActiveMixnodeRows(activeTopology.mixNodes);
+  createStandbyMixnodeRows(standbyMixes);
+  createRemovedMixnodeRows(removedMixes);
+  createValidatorRows(activeTopology.validators.validators);
+  createGatewayRows(activeTopology.gateways);
+  createStandbyGatewayRows(standbyGateways);
 }
 
 function clearStatus(element) {
@@ -41,6 +81,11 @@ function clearStatus(element) {
 }
 
 function setNodeStatus(dotWrapper, reportData) {
+  // don't do anything to removed nodes
+  if (dotWrapper.children[0].hasAttribute("removed")) {
+    return
+  }
+
   let statusIndicator = dotWrapper.children[0];
   clearStatus(statusIndicator)
 
@@ -80,20 +125,16 @@ function dealWithStatusReport(report) {
   }
 }
 
-function updateNodesStatus() {
+async function updateNodesStatus() {
   console.log("updating node statuses!")
 
   const reportUrl = "/downloads/mixmining.json";
-  fetch(reportUrl, {
-    method: 'GET'
-  })
-    .then((response) => response.json())
-    .then((data) => dealWithStatusReport(data.report)).catch((err) => {
-      console.log("getting full mixmining report failed - ", err)
-    })
+  const response = await fetch(reportUrl, { method: 'GET' });
+  const report = await response.json();
+  dealWithStatusReport(report.report)
 }
 
-function makeStatusDot(nodePubKey) {
+function makeInitialStatusDot(nodePubKey) {
   let statusText = "pending..."
 
   let dotWrapper = document.createElement("div");
@@ -111,14 +152,26 @@ function makeStatusDot(nodePubKey) {
   return dotWrapper;
 }
 
-function tempDisabledStatus(nodePubKey) {
-  let statusText = "Temporarily disabled..."
-  
+function outdatedStatus(nodePubKey) {
+  let statusText = "Out of date"
+
   let dotWrapper = document.getElementById(`dotWrapper${nodePubKey}`);
   dotWrapper.classList.remove('statusDot')
   let statusIndicator = dotWrapper.children[0];
   clearStatus(statusIndicator);
   statusIndicator.setAttribute("active", "")
+
+  dotWrapper.setAttribute("title", statusText)
+}
+
+function removedStatus(nodePubKey) {
+  let statusText = "Removed due to being outdated or providing bad-quality service"
+
+  let dotWrapper = document.getElementById(`dotWrapper${nodePubKey}`);
+  dotWrapper.classList.remove('statusDot')
+  let statusIndicator = dotWrapper.children[0];
+  clearStatus(statusIndicator);
+  statusIndicator.setAttribute("removed", "")
 
   dotWrapper.setAttribute("title", statusText)
 }
@@ -136,12 +189,12 @@ function setGatewayStatusDot(nodePubKey) {
 }
 
 function createMixnodeCount(mixNodeCount) {
-  // no need to sanitize numbers (count is obtained via .lengnth attribute of an array)
+  // no need to sanitize numbers (count is obtained via .length attribute of an array)
   $('#mixnodes-count').text(mixNodeCount);
 }
 
 function createValidatorCount(validatorCount) {
-  // no need to sanitize numbers (count is obtained via .lengnth attribute of an array)
+  // no need to sanitize numbers (count is obtained via .length attribute of an array)
   $('#validators-count').text(validatorCount);
 }
 
@@ -174,7 +227,7 @@ function compareNodes(node1, node2) {
   }
 }
 
-function createMixnodeRows(mixNodes) {
+function createActiveMixnodeRows(mixNodes) {
   mixNodes.sort(compareNodes)
 
   const currentUnixTime = new Date().getTime() * 1000000;
@@ -185,11 +238,14 @@ function createMixnodeRows(mixNodes) {
     if (purifiedRep.length === 0) {
       purifiedRep = 0
     }
+
+    let purifiedVersion = DOMPurify.sanitize(node.version)
+
     var $tr = $('<tr>').append(
       $('<input type="hidden" id="prev-timestamp-' + node.identityKey + '" value="' + currentUnixTime + '"> '),
-      $('<td>').html(makeStatusDot(node.identityKey)),
+      $('<td>').html(makeInitialStatusDot(node.identityKey)),
       $('<td>').text(purifiedRep),
-      $('<td>').text(DOMPurify.sanitize(node.version)),
+      $('<td>').text(purifiedVersion),
       $('<td>').text(DOMPurify.sanitize(node.identityKey)),
       $('<td>').text(DOMPurify.sanitize(node.sphinxKey)),
       $('<td>').text(DOMPurify.sanitize(node.location)),
@@ -197,9 +253,64 @@ function createMixnodeRows(mixNodes) {
       $('<td>').text(DOMPurify.sanitize(node.layer)),
       $('<td id="' + "received-" + DOMPurify.sanitize(node.identityKey) + '">').text("0"),
       $('<td id="' + "sent-" + DOMPurify.sanitize(node.identityKey) + '">').text("0")
-    ).appendTo('#mixnodes-list');
+    ).appendTo('#active-mixnodes-list');
+  })
+}
 
-    tempDisabledStatus(node.identityKey);
+function createStandbyMixnodeRows(mixNodes) {
+  mixNodes.sort(compareNodes)
+
+  const currentUnixTime = new Date().getTime() * 1000000;
+
+  mixNodes.forEach(node => {
+    // because javascript works in mysterious ways, if you sanitize "0", it will return ""
+    let purifiedRep = DOMPurify.sanitize(node.reputation)
+    if (purifiedRep.length === 0) {
+      purifiedRep = 0
+    }
+
+    let purifiedVersion = DOMPurify.sanitize(node.version)
+
+    var $tr = $('<tr>').append(
+      $('<input type="hidden" id="prev-timestamp-' + node.identityKey + '" value="' + currentUnixTime + '"> '),
+      $('<td>').html(makeInitialStatusDot(node.identityKey)),
+      $('<td>').text(purifiedRep),
+      $('<td>').text(purifiedVersion),
+      $('<td>').text(DOMPurify.sanitize(node.identityKey)),
+      $('<td>').text(DOMPurify.sanitize(node.sphinxKey)),
+      $('<td>').text(DOMPurify.sanitize(node.location)),
+      $('<td>').text(DOMPurify.sanitize(node.mixHost)),
+      $('<td>').text(DOMPurify.sanitize(node.layer)),
+      $('<td id="' + "received-" + DOMPurify.sanitize(node.identityKey) + '">').text("0"),
+      $('<td id="' + "sent-" + DOMPurify.sanitize(node.identityKey) + '">').text("0")
+    ).appendTo('#standby-mixnodes-list');
+  })
+}
+
+function createRemovedMixnodeRows(mixNodes) {
+  mixNodes.sort(compareNodes)
+
+  mixNodes.forEach(node => {
+    // because javascript works in mysterious ways, if you sanitize "0", it will return ""
+    let purifiedRep = DOMPurify.sanitize(node.reputation)
+    if (purifiedRep.length === 0) {
+      purifiedRep = 0
+    }
+
+    let purifiedVersion = DOMPurify.sanitize(node.version)
+    let purifiedIdentity = DOMPurify.sanitize(node.identityKey)
+    var $tr = $('<tr>').append(
+      $('<td>').html(makeInitialStatusDot(node.identityKey)),
+      $('<td>').text(purifiedRep),
+      $('<td>').text(purifiedVersion),
+      $('<td>').text(purifiedIdentity),
+      $('<td>').text(DOMPurify.sanitize(node.sphinxKey)),
+      $('<td>').text(DOMPurify.sanitize(node.location)),
+      $('<td>').text(DOMPurify.sanitize(node.mixHost)),
+      $('<td>').text(DOMPurify.sanitize(node.layer)),
+    ).appendTo('#removed-mixnodes-list');
+
+    removedStatus(purifiedIdentity)
   })
 }
 
@@ -212,7 +323,7 @@ function createGatewayRows(gatewayNodes) {
     }
     var $tr = $('<tr>').append(
       $('<input type="hidden" id="prev-timestamp-' + node.pubKey + '" value="' + node.timestamp + '"> '),
-      $('<td>').html(makeStatusDot(node.identityKey)),
+      $('<td>').html(makeInitialStatusDot(node.identityKey)),
       $('<td>').text(purifiedRep),
       $('<td>').text(DOMPurify.sanitize(node.version)),
       $('<td>').text(DOMPurify.sanitize(node.identityKey)),
@@ -220,7 +331,30 @@ function createGatewayRows(gatewayNodes) {
       $('<td>').text(DOMPurify.sanitize(node.location)),
       $('<td>').text(DOMPurify.sanitize(node.mixHost)),
       $('<td>').text(DOMPurify.sanitize(node.clientsHost)),
-    ).appendTo('#gatewaynodes-list');
+    ).appendTo('#active-gatewaynodes-list');
+
+    setGatewayStatusDot(node.identityKey);
+  })
+}
+
+function createStandbyGatewayRows(gatewayNodes) {
+  gatewayNodes.forEach(node => {
+    // because javascript works in mysterious ways, if you sanitize "0", it will return ""
+    let purifiedRep = DOMPurify.sanitize(node.reputation)
+    if (purifiedRep.length === 0) {
+      purifiedRep = 0
+    }
+    var $tr = $('<tr>').append(
+      $('<input type="hidden" id="prev-timestamp-' + node.pubKey + '" value="' + node.timestamp + '"> '),
+      $('<td>').html(makeInitialStatusDot(node.identityKey)),
+      $('<td>').text(purifiedRep),
+      $('<td>').text(DOMPurify.sanitize(node.version)),
+      $('<td>').text(DOMPurify.sanitize(node.identityKey)),
+      $('<td>').text(DOMPurify.sanitize(node.sphinxKey)),
+      $('<td>').text(DOMPurify.sanitize(node.location)),
+      $('<td>').text(DOMPurify.sanitize(node.mixHost)),
+      $('<td>').text(DOMPurify.sanitize(node.clientsHost)),
+    ).appendTo('#standby-gatewaynodes-list');
 
     setGatewayStatusDot(node.identityKey);
   })
@@ -237,47 +371,52 @@ function createValidatorRows(validators) {
   })
 }
 
-function connectWebSocket() {
-  var conn;
-  var url;
-  url = websocketUrl() + "/ws";
-  console.log("connecting to: " + url);
-  conn = new WebSocket(url);
-  conn.onmessage = function (evt) {
-    processMessage(evt);
-  };
-}
+function handleMetricsSocket() {
+  connectWebSocket()
 
-function processMessage(evt) {
-  var messages = evt.data.split('\n');
-  for (var i = 0; i < messages.length; i++) {
-    var msg = jQuery.parseJSON(messages[i]);
-    prevTimestamp = updateTimeStampStorage(msg);
+  function connectWebSocket() {
+    var conn;
+    var url;
+    url = websocketUrl() + "/ws";
+    console.log("connecting to: " + url);
+    conn = new WebSocket(url);
+    conn.onmessage = function (evt) {
+      processWebSocketMessage(evt);
+    };
+  }
 
-    timeDiff = (msg.timestamp - prevTimeStamp) / 1000000000;
-    displayReceivedPackets(msg, timeDiff);
-    displaySentPackets(msg, timeDiff);
+  function processWebSocketMessage(evt) {
+    var messages = evt.data.split('\n');
+    for (var i = 0; i < messages.length; i++) {
+      var msg = jQuery.parseJSON(messages[i]);
+      prevTimestamp = updateTimeStampStorage(msg);
+
+      timeDiff = (msg.timestamp - prevTimeStamp) / 1000000000;
+      displayReceivedPackets(msg, timeDiff);
+      displaySentPackets(msg, timeDiff);
+    }
+  }
+
+  function displaySentPackets(msg, timeDiff) {
+    var sentCell = "#sent-" + DOMPurify.sanitize(msg.pubKey);
+    var sent = 0;
+    for (var key in msg.sent) {
+      s = msg.sent[key];
+      sent += s;
+    }
+    sentPerSecond = Math.floor(sent / timeDiff);
+    let sentVal = DOMPurify.sanitize(sentPerSecond).length > 0 ? DOMPurify.sanitize(sentPerSecond) : "0";
+    $(sentCell).html(sentVal);
+  }
+
+  function displayReceivedPackets(msg, timeDiff) {
+    receivedPerSecond = Math.floor(msg.received / timeDiff);
+    var recCell = "#received-" + DOMPurify.sanitize(msg.pubKey);
+    let recVal = DOMPurify.sanitize(receivedPerSecond).length > 0 ? DOMPurify.sanitize(receivedPerSecond) : "0";
+    $(recCell).html(recVal);
   }
 }
 
-function displaySentPackets(msg, timeDiff) {
-  var sentCell = "#sent-" + DOMPurify.sanitize(msg.pubKey);
-  var sent = 0;
-  for (var key in msg.sent) {
-    s = msg.sent[key];
-    sent += s;
-  }
-  sentPerSecond = Math.floor(sent / timeDiff);
-  let sentVal = DOMPurify.sanitize(sentPerSecond).length > 0 ? DOMPurify.sanitize(sentPerSecond) : "0";
-  $(sentCell).html(sentVal);
-}
-
-function displayReceivedPackets(msg, timeDiff) {
-  receivedPerSecond = Math.floor(msg.received / timeDiff);
-  var recCell = "#received-" + DOMPurify.sanitize(msg.pubKey);
-  let recVal = DOMPurify.sanitize(receivedPerSecond).length > 0 ? DOMPurify.sanitize(receivedPerSecond) : "0";
-  $(recCell).html(recVal);
-}
 
 /* 
   Hahahaha this has to be the crappiest code I've written since learning to code.
@@ -298,9 +437,15 @@ function updateTimeStampStorage(msg) {
 
 
 document.addEventListener("DOMContentLoaded", function () {
-  // update every minute
-  // setInterval(updateNodesStatus, 60000);
-  getTopology();
-  connectWebSocket();
+  main()
 });
 
+async function main() {
+  await dealWithInitialTopology();
+  handleMetricsSocket();
+
+  while (true) {
+    await updateNodesStatus()
+    await sleep(60000)
+  }
+}

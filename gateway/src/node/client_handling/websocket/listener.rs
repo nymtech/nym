@@ -1,22 +1,12 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::node::client_handling::clients_handler::ClientsHandlerRequestSender;
 use crate::node::client_handling::websocket::connection_handler::Handle;
 use crypto::asymmetric::identity;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
+use rand::rngs::OsRng;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
@@ -40,7 +30,7 @@ impl Listener {
         outbound_mix_sender: MixForwardingSender,
     ) {
         info!("Starting websocket listener at {}", self.address);
-        let mut tcp_listener = tokio::net::TcpListener::bind(self.address)
+        let tcp_listener = tokio::net::TcpListener::bind(self.address)
             .await
             .expect("Failed to start websocket listener");
 
@@ -51,6 +41,7 @@ impl Listener {
                     // TODO: I think we *REALLY* need a mechanism for having a maximum number of connected
                     // clients or spawned tokio tasks -> perhaps a worker system?
                     let mut handle = Handle::new(
+                        OsRng,
                         socket,
                         clients_handler_sender.clone(),
                         outbound_mix_sender.clone(),

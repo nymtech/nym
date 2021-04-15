@@ -42,7 +42,7 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
-use nymsphinx::anonymous_replies::ReplySURB;
+use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::params::PacketMode;
 use nymsphinx::receiver::ReconstructedMessage;
 use tokio::runtime::Runtime;
@@ -106,21 +106,20 @@ impl NymClient {
         info!("Starting loop cover traffic stream...");
         // we need to explicitly enter runtime due to "next_delay: time::delay_for(Default::default())"
         // set in the constructor which HAS TO be called within context of a tokio runtime
-        self.runtime
-            .enter(|| {
-                LoopCoverTrafficStream::new(
-                    self.key_manager.ack_key(),
-                    self.config.get_base().get_average_ack_delay(),
-                    self.config.get_base().get_average_packet_delay(),
-                    self.config
-                        .get_base()
-                        .get_loop_cover_traffic_average_delay(),
-                    mix_tx,
-                    self.as_mix_recipient(),
-                    topology_accessor,
-                )
-            })
-            .start(self.runtime.handle());
+        let _guard = self.runtime.enter();
+
+        LoopCoverTrafficStream::new(
+            self.key_manager.ack_key(),
+            self.config.get_base().get_average_ack_delay(),
+            self.config.get_base().get_average_packet_delay(),
+            self.config
+                .get_base()
+                .get_loop_cover_traffic_average_delay(),
+            mix_tx,
+            self.as_mix_recipient(),
+            topology_accessor,
+        )
+        .start(self.runtime.handle());
     }
 
     fn start_real_traffic_controller(
@@ -132,7 +131,7 @@ impl NymClient {
         mix_sender: BatchMixMessageSender,
     ) {
         let packet_mode = if self.config.get_base().get_vpn_mode() {
-            PacketMode::VPN
+            PacketMode::Vpn
         } else {
             PacketMode::Mix
         };
@@ -153,18 +152,17 @@ impl NymClient {
         // we need to explicitly enter runtime due to "next_delay: time::delay_for(Default::default())"
         // set in the constructor [of OutQueueControl] which HAS TO be called within context of a tokio runtime
         // When refactoring this restriction should definitely be removed.
-        let real_messages_controller = self.runtime.enter(|| {
-            RealMessagesController::new(
-                controller_config,
-                ack_receiver,
-                input_receiver,
-                mix_sender,
-                topology_accessor,
-                reply_key_storage,
-            )
-        });
-        real_messages_controller
-            .start(self.runtime.handle(), self.config.get_base().get_vpn_mode());
+        let _guard = self.runtime.enter();
+
+        RealMessagesController::new(
+            controller_config,
+            ack_receiver,
+            input_receiver,
+            mix_sender,
+            topology_accessor,
+            reply_key_storage,
+        )
+        .start(self.runtime.handle(), self.config.get_base().get_vpn_mode());
     }
 
     // buffer controlling all messages fetched from provider
@@ -227,10 +225,13 @@ impl NymClient {
     fn start_topology_refresher(&mut self, topology_accessor: TopologyAccessor) {
         let topology_refresher_config = TopologyRefresherConfig::new(
             self.config.get_base().get_validator_rest_endpoint(),
+            self.config
+                .get_base()
+                .get_validator_mixnet_contract_address(),
             self.config.get_base().get_topology_refresh_rate(),
         );
         let mut topology_refresher =
-            TopologyRefresher::new_directory_client(topology_refresher_config, topology_accessor);
+            TopologyRefresher::new(topology_refresher_config, topology_accessor);
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
         info!(
@@ -297,7 +298,7 @@ impl NymClient {
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub fn send_reply(&mut self, reply_surb: ReplySURB, message: Vec<u8>) {
+    pub fn send_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) {
         let input_msg = InputMessage::new_reply(reply_surb, message);
 
         self.input_tx

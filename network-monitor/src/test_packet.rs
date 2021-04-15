@@ -1,23 +1,11 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crypto::asymmetric::{encryption, identity};
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
-use validator_client::models::mixmining::MixStatus;
 
 #[derive(Debug)]
 pub(crate) enum TestPacketError {
@@ -57,9 +45,9 @@ impl IpVersion {
     }
 }
 
-impl Into<String> for IpVersion {
-    fn into(self) -> String {
-        format!("{}", self)
+impl From<IpVersion> for String {
+    fn from(ipv: IpVersion) -> Self {
+        format!("{}", ipv)
     }
 }
 
@@ -105,11 +93,19 @@ impl PartialEq for TestPacket {
 }
 
 impl TestPacket {
-    pub(crate) fn new(pub_key: identity::PublicKey, ip_version: IpVersion, nonce: u64) -> Self {
+    pub(crate) fn new_v4(pub_key: identity::PublicKey, nonce: u64) -> Self {
         TestPacket {
-            pub_key,
-            ip_version,
+            ip_version: IpVersion::V4,
             nonce,
+            pub_key,
+        }
+    }
+
+    pub(crate) fn new_v6(pub_key: identity::PublicKey, nonce: u64) -> Self {
+        TestPacket {
+            ip_version: IpVersion::V6,
+            nonce,
+            pub_key,
         }
     }
 
@@ -125,7 +121,7 @@ impl TestPacket {
         self.pub_key.to_base58_string()
     }
 
-    pub(crate) fn to_bytes(&self) -> Vec<u8> {
+    pub(crate) fn to_bytes(self) -> Vec<u8> {
         self.nonce
             .to_be_bytes()
             .iter()
@@ -153,21 +149,5 @@ impl TestPacket {
             nonce,
             pub_key,
         })
-    }
-
-    pub(crate) fn into_up_mixstatus(self) -> MixStatus {
-        MixStatus {
-            pub_key: self.pub_key.to_base58_string(),
-            ip_version: self.ip_version.into(),
-            up: true,
-        }
-    }
-
-    pub(crate) fn into_down_mixstatus(self) -> MixStatus {
-        MixStatus {
-            pub_key: self.pub_key.to_base58_string(),
-            ip_version: self.ip_version.into(),
-            up: false,
-        }
     }
 }

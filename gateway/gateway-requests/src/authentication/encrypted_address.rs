@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::authentication::iv::AuthenticationIV;
 use crate::registration::handshake::shared_key::SharedKeys;
@@ -59,7 +48,7 @@ impl EncryptedAddressBytes {
         EncryptedAddressBytes(bytes)
     }
 
-    pub fn to_bytes(&self) -> [u8; ENCRYPTED_ADDRESS_SIZE] {
+    pub fn to_bytes(self) -> [u8; ENCRYPTED_ADDRESS_SIZE] {
         self.0
     }
 
@@ -84,13 +73,13 @@ impl EncryptedAddressBytes {
         Ok(EncryptedAddressBytes(enc_address))
     }
 
-    pub fn to_base58_string(&self) -> String {
+    pub fn to_base58_string(self) -> String {
         bs58::encode(self.0).into_string()
     }
 }
 
-impl Into<String> for EncryptedAddressBytes {
-    fn into(self) -> String {
-        self.to_base58_string()
+impl From<EncryptedAddressBytes> for String {
+    fn from(val: EncryptedAddressBytes) -> Self {
+        val.to_base58_string()
     }
 }

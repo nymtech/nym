@@ -1,24 +1,13 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::node::metrics::MetricsReporter;
 use futures::channel::mpsc;
+use futures::StreamExt;
 use log::*;
-use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
+use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, TimerError};
 use nymsphinx::forwarding::packet::MixPacket;
-use tokio::stream::StreamExt;
-use tokio::time::{Duration, Error as TimeError, Instant};
+use tokio::time::{Duration, Instant};
 
 // Delay + MixPacket vs Instant + MixPacket
 
@@ -82,7 +71,7 @@ impl DelayForwarder {
     }
 
     /// Upon packet being finished getting delayed, forward it to the mixnet.
-    fn handle_done_delaying(&mut self, packet: Option<Result<Expired<MixPacket>, TimeError>>) {
+    fn handle_done_delaying(&mut self, packet: Option<Result<Expired<MixPacket>, TimerError>>) {
         // those are critical errors that I don't think can be recovered from.
         let delayed = packet.expect("the queue has unexpectedly terminated!");
         let delayed_packet = delayed
@@ -96,7 +85,13 @@ impl DelayForwarder {
         // in case of a zero delay packet, don't bother putting it in the delay queue,
         // just forward it immediately
         if let Some(instant) = new_packet.1 {
-            self.delay_queue.insert_at(new_packet.0, instant);
+            // check if the delay has already expired, if so, don't bother putting it through
+            // the delay queue only to retrieve it immediately. Just forward it.
+            if instant.checked_duration_since(Instant::now()).is_none() {
+                self.forward_packet(new_packet.0)
+            } else {
+                self.delay_queue.insert_at(new_packet.0, instant);
+            }
         } else {
             self.forward_packet(new_packet.0)
         }

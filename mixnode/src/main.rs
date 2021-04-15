@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use clap::{App, ArgMatches};
 
@@ -30,7 +19,7 @@ fn main() {
         .subcommand(commands::init::command_args())
         .subcommand(commands::run::command_args())
         .subcommand(commands::upgrade::command_args())
-        .subcommand(commands::unregister::command_args())
+        .subcommand(commands::sign::command_args())
         .get_matches();
 
     execute(arg_matches);
@@ -40,8 +29,8 @@ fn execute(matches: ArgMatches) {
     match matches.subcommand() {
         ("init", Some(m)) => commands::init::execute(m),
         ("run", Some(m)) => commands::run::execute(m),
+        ("sign", Some(m)) => commands::sign::execute(m),
         ("upgrade", Some(m)) => commands::upgrade::execute(m),
-        ("unregister", Some(m)) => commands::unregister::execute(m),
         _ => println!("{}", usage()),
     }
 }

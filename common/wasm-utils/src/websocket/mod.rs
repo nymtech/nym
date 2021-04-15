@@ -15,7 +15,6 @@
 use crate::websocket::state::State;
 use crate::{console_error, console_log};
 use futures::{Sink, Stream};
-use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::io;
@@ -49,9 +48,8 @@ fn try_message_event_into_ws_message(msg_event: MessageEvent) -> Result<WsMessag
             Some(text) => Ok(WsMessage::Text(text)),
             None => Err(WsError::Utf8),
         },
-        _ => Err(WsError::Protocol(Cow::from(
-            "received a websocket message that is neither a String, ArrayBuffer or a Blob",
-        ))),
+        // "received a websocket message that is neither a String, ArrayBuffer or a Blob"
+        _ => Err(WsError::Io(io::Error::from(io::ErrorKind::InvalidInput))),
     }
 }
 
@@ -71,6 +69,7 @@ fn try_message_event_into_ws_message(msg_event: MessageEvent) -> Result<WsMessag
 unsafe impl Send for JSWebsocket {}
 
 #[derive(Debug)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct JSWebsocket {
     socket: web_sys::WebSocket,
 

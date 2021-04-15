@@ -1,3 +1,6 @@
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use clap::{App, Arg, ArgMatches};
 
 mod allowed_hosts;
@@ -9,6 +12,7 @@ const OPEN_PROXY_ARG: &str = "open-proxy";
 
 fn parse_args<'a>() -> ArgMatches<'a> {
     App::new("Nym Network Requester")
+        .version(env!("CARGO_PKG_VERSION"))
         .author("Nymtech")
         .arg(
             Arg::with_name(OPEN_PROXY_ARG)

@@ -13,12 +13,15 @@
 // limitations under the License.
 
 use crate::filter::VersionFilterable;
+use log::warn;
+use mixnet_contract::{GatewayBond, MixNodeBond};
 use nymsphinx_addressing::nodes::NodeIdentity;
 use nymsphinx_types::Node as SphinxNode;
 use rand::Rng;
 use std::collections::HashMap;
+use std::convert::TryInto;
 
-mod filter;
+pub mod filter;
 pub mod gateway;
 pub mod mix;
 
@@ -58,12 +61,12 @@ impl NymTopology {
         mixes
     }
 
-    pub fn mixes_in_layer(&self, layer: u8) -> Vec<mix::Node> {
+    pub fn mixes_in_layer(&self, layer: MixLayer) -> Vec<mix::Node> {
         assert!(vec![1, 2, 3].contains(&layer));
         self.mixes.get(&layer).unwrap().to_owned()
     }
 
-    pub fn gateways(&self) -> &Vec<gateway::Node> {
+    pub fn gateways(&self) -> &[gateway::Node] {
         &self.gateways
     }
 
@@ -77,6 +80,12 @@ impl NymTopology {
         self.get_gateway(gateway_identity).is_some()
     }
 
+    pub fn set_gateways(&mut self, gateways: Vec<gateway::Node>) {
+        self.gateways = gateways
+    }
+
+    /// Returns a vec of size of `num_mix_hops` of mixnodes, such that each subsequent node is on
+    /// next layer, starting from layer 1
     pub fn random_mix_route<R>(
         &self,
         rng: &mut R,
@@ -113,6 +122,8 @@ impl NymTopology {
         Ok(route)
     }
 
+    /// Tries to create a route to the specified gateway, such that it goes through mixnode on layer 1,
+    /// mixnode on layer2, .... mixnode on layer n and finally the target gateway
     pub fn random_route_to_gateway<R>(
         &self,
         rng: &mut R,
@@ -125,7 +136,7 @@ impl NymTopology {
     {
         let gateway = self
             .get_gateway(gateway_identity)
-            .ok_or_else(|| NymTopologyError::NonExistentGatewayError)?;
+            .ok_or(NymTopologyError::NonExistentGatewayError)?;
 
         Ok(self
             .random_mix_route(rng, num_mix_hops)?
@@ -134,10 +145,12 @@ impl NymTopology {
             .collect())
     }
 
+    /// Overwrites the existing nodes in the specified layer
     pub fn set_mixes_in_layer(&mut self, layer: u8, mixes: Vec<mix::Node>) {
         self.mixes.insert(layer, mixes);
     }
 
+    /// Checks if a mixnet path can be constructed using the specified number of hops
     pub fn can_construct_path_through(&self, num_mix_hops: u8) -> bool {
         // if there are no gateways present, we can't do anything
         if self.gateways.is_empty() {
@@ -179,6 +192,47 @@ impl NymTopology {
     }
 }
 
+pub fn nym_topology_from_bonds(
+    mix_bonds: Vec<MixNodeBond>,
+    gateway_bonds: Vec<GatewayBond>,
+) -> NymTopology {
+    let mut mixes = HashMap::new();
+    for bond in mix_bonds.into_iter() {
+        let layer = bond.mix_node.layer as MixLayer;
+        if layer == 0 || layer > 3 {
+            warn!(
+                "{} says it's on invalid layer {}!",
+                bond.mix_node.identity_key, layer
+            );
+            continue;
+        }
+        let mix_id = bond.mix_node.identity_key.clone();
+
+        let layer_entry = mixes.entry(layer).or_insert_with(Vec::new);
+        match bond.try_into() {
+            Ok(mix) => layer_entry.push(mix),
+            Err(err) => {
+                warn!("Mix {} is malformed - {}", mix_id, err);
+                continue;
+            }
+        }
+    }
+
+    let mut gateways = Vec::with_capacity(gateway_bonds.len());
+    for bond in gateway_bonds.into_iter() {
+        let gate_id = bond.gateway.identity_key.clone();
+        match bond.try_into() {
+            Ok(gate) => gateways.push(gate),
+            Err(err) => {
+                warn!("Gateway {} is malformed - {}", gate_id, err);
+                continue;
+            }
+        }
+    }
+
+    NymTopology::new(mixes, gateways)
+}
+
 #[cfg(test)]
 mod converting_mixes_to_vec {
     use super::*;
@@ -192,6 +246,8 @@ mod converting_mixes_to_vec {
         #[test]
         fn returns_a_vec_with_hashmap_values() {
             let node1 = mix::Node {
+                owner: "N/A".to_string(),
+                stake: 0,
                 location: "London".to_string(),
                 host: "3.3.3.3:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -203,8 +259,6 @@ mod converting_mixes_to_vec {
                 )
                 .unwrap(),
                 layer: 1,
-                registration_time: 123,
-                reputation: 0,
                 version: "0.x.0".to_string(),
             };
 
@@ -224,11 +278,7 @@ mod converting_mixes_to_vec {
 
             let topology = NymTopology::new(mixes, vec![]);
             let mixvec = topology.mixes_as_vec();
-            assert!(mixvec
-                .iter()
-                .map(|node| node.location.clone())
-                .collect::<Vec<String>>()
-                .contains(&"London".to_string()));
+            assert!(mixvec.iter().any(|node| node.location == "London"));
         }
     }
 

@@ -1,6 +1,10 @@
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
 use crate::connection::Connection;
 use crate::websocket;
+use crate::websocket::TSWebsocketStream;
 use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
@@ -11,9 +15,7 @@ use proxy_helpers::connection_controller::{Controller, ControllerCommand, Contro
 use socks5_requests::{ConnectionId, Request, Response};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::protocol::Message;
-use tokio_tungstenite::WebSocketStream;
 use websocket::WebsocketConnectionError;
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
@@ -48,7 +50,7 @@ impl ServiceProvider {
     /// Listens for any messages from `mix_reader` that should be written back to the mix network
     /// via the `websocket_writer`.
     async fn mixnet_response_listener(
-        mut websocket_writer: SplitSink<WebSocketStream<TcpStream>, Message>,
+        mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
         mut mix_reader: mpsc::UnboundedReceiver<(Response, Recipient)>,
     ) {
         // TODO: wire SURBs in here once they're available
@@ -66,7 +68,7 @@ impl ServiceProvider {
     }
 
     async fn read_websocket_message(
-        websocket_reader: &mut SplitStream<WebSocketStream<TcpStream>>,
+        websocket_reader: &mut SplitStream<TSWebsocketStream>,
     ) -> Option<ReconstructedMessage> {
         while let Some(msg) = websocket_reader.next().await {
             let data = msg
@@ -112,6 +114,12 @@ impl ServiceProvider {
                     remote_addr.clone(),
                     err
                 );
+
+                // inform the remote that the connection is closed before it even was established
+                mix_input_sender
+                    .unbounded_send((Response::new(conn_id, Vec::new(), true), return_address))
+                    .unwrap();
+
                 return;
             }
         };
@@ -261,7 +269,7 @@ impl ServiceProvider {
     }
 
     // Make the websocket connection so we can receive incoming Mixnet messages.
-    async fn connect_websocket(&self, uri: &str) -> WebSocketStream<TcpStream> {
+    async fn connect_websocket(&self, uri: &str) -> TSWebsocketStream {
         let ws_stream = match websocket::Connection::new(uri).connect().await {
             Ok(ws_stream) => {
                 info!("* connected to local websocket server at {}", uri);

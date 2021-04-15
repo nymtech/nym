@@ -13,9 +13,8 @@
 // limitations under the License.
 
 use crate::AckKey;
-use crypto::aes_ctr::stream_cipher::NewStreamCipher;
 use crypto::generic_array::typenum::Unsigned;
-use crypto::symmetric::stream_cipher::{self, encrypt, iv_from_slice, random_iv};
+use crypto::symmetric::stream_cipher::{self, encrypt, iv_from_slice, random_iv, NewStreamCipher};
 use nymsphinx_params::{
     packet_sizes::PacketSize, AckEncryptionAlgorithm, SerializedFragmentIdentifier, FRAG_ID_LEN,
 };
@@ -41,7 +40,7 @@ pub fn recover_identifier(
 ) -> Option<SerializedFragmentIdentifier> {
     // The content of an 'ACK' packet consists of AckEncryptionAlgorithm::IV followed by
     // serialized FragmentIdentifier
-    if iv_id_ciphertext.len() != PacketSize::ACKPacket.plaintext_size() {
+    if iv_id_ciphertext.len() != PacketSize::AckPacket.plaintext_size() {
         return None;
     }
 

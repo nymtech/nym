@@ -61,8 +61,8 @@ impl KeyManager {
         R: RngCore + CryptoRng,
     {
         KeyManager {
-            identity_keypair: Arc::new(identity::KeyPair::new_with_rng(rng)),
-            encryption_keypair: Arc::new(encryption::KeyPair::new_with_rng(rng)),
+            identity_keypair: Arc::new(identity::KeyPair::new(rng)),
+            encryption_keypair: Arc::new(encryption::KeyPair::new(rng)),
             gateway_shared_key: None,
             ack_key: Arc::new(AckKey::new(rng)),
         }

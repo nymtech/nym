@@ -18,16 +18,39 @@ use crate::models::mixnode::MixRegistrationInfo;
 use crate::models::topology::Topology;
 use crate::rest_requests::{
     ActiveTopologyGet, ActiveTopologyGetResponse, BatchMixStatusPost, GatewayRegisterPost,
-    MixRegisterPost, MixStatusPost, NodeUnregisterDelete, RESTRequest, RESTRequestError,
-    ReputationPatch, TopologyGet, TopologyGetResponse,
+    MixRegisterPost, MixStatusPost, NodeUnregisterDelete, ReputationPatch, RestRequest,
+    RestRequestError, TopologyGet, TopologyGetResponse,
 };
 use serde::Deserialize;
+use std::fmt::{self, Display, Formatter};
 
 pub mod models;
 pub mod rest_requests;
 
 // for ease of use
 type Result<T> = std::result::Result<T, ValidatorClientError>;
+
+const MAX_SANE_UNEXPECTED_PRINT: usize = 100;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", untagged)]
+pub(crate) enum ErrorResponses {
+    Error(ErrorResponse),
+    Unexpected(String),
+}
+
+impl From<ErrorResponses> for ValidatorClientError {
+    fn from(err: ErrorResponses) -> Self {
+        match err {
+            ErrorResponses::Error(err_message) => {
+                ValidatorClientError::ValidatorError(err_message.error)
+            }
+            ErrorResponses::Unexpected(received) => {
+                ValidatorClientError::UnexpectedResponse(received)
+            }
+        }
+    }
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -43,27 +66,62 @@ struct OkResponse {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", untagged)]
-pub(crate) enum DefaultRESTResponse {
+pub(crate) enum DefaultRestResponse {
     Ok(OkResponse),
-    Error(ErrorResponse),
+    Error(ErrorResponses),
 }
 
 #[derive(Debug)]
 pub enum ValidatorClientError {
-    RESTRequestError(RESTRequestError),
+    RestRequestError(RestRequestError),
     ReqwestClientError(reqwest::Error),
     ValidatorError(String),
+    UnexpectedResponse(String),
 }
 
-impl From<RESTRequestError> for ValidatorClientError {
-    fn from(err: RESTRequestError) -> Self {
-        ValidatorClientError::RESTRequestError(err)
+impl From<RestRequestError> for ValidatorClientError {
+    fn from(err: RestRequestError) -> Self {
+        ValidatorClientError::RestRequestError(err)
     }
 }
 
 impl From<reqwest::Error> for ValidatorClientError {
     fn from(err: reqwest::Error) -> Self {
         ValidatorClientError::ReqwestClientError(err)
+    }
+}
+
+impl Display for ValidatorClientError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            ValidatorClientError::RestRequestError(err) => {
+                write!(f, "could not prepare the REST request - {}", err)
+            }
+            ValidatorClientError::ReqwestClientError(err) => {
+                write!(f, "there was an issue with the REST request - {}", err)
+            }
+            ValidatorClientError::ValidatorError(err) => {
+                write!(f, "there was an issue with the validator client - {}", err)
+            }
+            ValidatorClientError::UnexpectedResponse(received) => {
+                if received.len() < MAX_SANE_UNEXPECTED_PRINT {
+                    write!(
+                        f,
+                        "received data was completely unexpected. got: {}",
+                        received
+                    )
+                } else {
+                    write!(
+                        f,
+                        "received data was completely unexpected. got: {}...",
+                        received
+                            .chars()
+                            .take(MAX_SANE_UNEXPECTED_PRINT)
+                            .collect::<String>()
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -93,7 +151,7 @@ impl Client {
         }
     }
 
-    async fn make_rest_request<R: RESTRequest>(
+    async fn make_rest_request<R: RestRequest>(
         &self,
         request: R,
     ) -> Result<R::ExpectedJsonResponse> {
@@ -116,8 +174,8 @@ impl Client {
             Some(mix_registration_info),
         )?;
         match self.make_rest_request(req).await? {
-            DefaultRESTResponse::Ok(_) => Ok(()),
-            DefaultRESTResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+            DefaultRestResponse::Ok(_) => Ok(()),
+            DefaultRestResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -132,7 +190,7 @@ impl Client {
             Some(gateway_registration_info),
         )?;
         match self.make_rest_request(req).await? {
-            DefaultRESTResponse::Ok(ok_res) => {
+            DefaultRestResponse::Ok(ok_res) => {
                 if ok_res.ok {
                     Ok(())
                 } else {
@@ -141,7 +199,7 @@ impl Client {
                     ))
                 }
             }
-            DefaultRESTResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+            DefaultRestResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -150,7 +208,7 @@ impl Client {
             NodeUnregisterDelete::new(&self.config.base_url, Some(vec![node_id]), None, None)?;
 
         match self.make_rest_request(req).await? {
-            DefaultRESTResponse::Ok(ok_res) => {
+            DefaultRestResponse::Ok(ok_res) => {
                 if ok_res.ok {
                     Ok(())
                 } else {
@@ -159,7 +217,7 @@ impl Client {
                     ))
                 }
             }
-            DefaultRESTResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+            DefaultRestResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -180,7 +238,7 @@ impl Client {
             None,
         )?;
         match self.make_rest_request(req).await? {
-            DefaultRESTResponse::Ok(ok_res) => {
+            DefaultRestResponse::Ok(ok_res) => {
                 if ok_res.ok {
                     Ok(())
                 } else {
@@ -189,7 +247,7 @@ impl Client {
                     ))
                 }
             }
-            DefaultRESTResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+            DefaultRestResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -197,7 +255,7 @@ impl Client {
         let req = TopologyGet::new(&self.config.base_url, None, None, None)?;
         match self.make_rest_request(req).await? {
             TopologyGetResponse::Ok(topology) => Ok(topology),
-            TopologyGetResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+            TopologyGetResponse::Error(err) => Err(err.into()),
         }
     }
 
@@ -205,16 +263,14 @@ impl Client {
         let req = ActiveTopologyGet::new(&self.config.base_url, None, None, None)?;
         match self.make_rest_request(req).await? {
             ActiveTopologyGetResponse::Ok(topology) => Ok(topology),
-            ActiveTopologyGetResponse::Error(err) => {
-                Err(ValidatorClientError::ValidatorError(err.error))
-            }
+            ActiveTopologyGetResponse::Error(err) => Err(err.into()),
         }
     }
 
     pub async fn post_mixmining_status(&self, status: MixStatus) -> Result<()> {
         let req = MixStatusPost::new(&self.config.base_url, None, None, Some(status))?;
         match self.make_rest_request(req).await? {
-            DefaultRESTResponse::Ok(ok_res) => {
+            DefaultRestResponse::Ok(ok_res) => {
                 if ok_res.ok {
                     Ok(())
                 } else {
@@ -223,14 +279,14 @@ impl Client {
                     ))
                 }
             }
-            DefaultRESTResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+            DefaultRestResponse::Error(err) => Err(err.into()),
         }
     }
 
     pub async fn post_batch_mixmining_status(&self, batch_status: BatchMixStatus) -> Result<()> {
         let req = BatchMixStatusPost::new(&self.config.base_url, None, None, Some(batch_status))?;
         match self.make_rest_request(req).await? {
-            DefaultRESTResponse::Ok(ok_res) => {
+            DefaultRestResponse::Ok(ok_res) => {
                 if ok_res.ok {
                     Ok(())
                 } else {
@@ -239,7 +295,7 @@ impl Client {
                     ))
                 }
             }
-            DefaultRESTResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
+            DefaultRestResponse::Error(err) => Err(err.into()),
         }
     }
 }

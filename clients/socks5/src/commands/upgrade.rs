@@ -14,7 +14,7 @@
 
 use crate::client::config::{Config, MISSING_VALUE};
 use clap::{App, Arg, ArgMatches};
-use client_core::config::DEFAULT_VALIDATOR_REST_ENDPOINT;
+use client_core::config::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DEFAULT_VALIDATOR_REST_ENDPOINT};
 use config::NymConfig;
 use std::fmt::Display;
 use std::process;
@@ -39,6 +39,62 @@ fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
         "Upgrade from {} to {} was successful!\n==================\n",
         from, to
     );
+}
+
+pub fn command_args<'a, 'b>() -> App<'a, 'b> {
+    App::new("upgrade").about("Try to upgrade the client")
+        .arg(
+            Arg::with_name("id")
+                .long("id")
+                .help("Id of the nym-socks5-client we want to upgrade")
+                .takes_value(true)
+                .required(true),
+        )
+        // the rest of arguments depend on the upgrade path
+        .arg(Arg::with_name("current version")
+            .long("current-version")
+            .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Specifies current version of the configuration file to help to determine a valid upgrade path. Valid formats include '0.8.1', 'v0.8.1' or 'V0.8.1'")
+            .takes_value(true)
+        )
+}
+
+fn unsupported_upgrade(config_version: Version, package_version: Version) -> ! {
+    eprintln!("Cannot perform upgrade from {} to {}. Please let the developers know about this issue if you expected it to work!", config_version, package_version);
+    process::exit(1)
+}
+
+fn parse_config_version(config: &Config) -> Version {
+    let version = Version::parse(config.get_base().get_version()).unwrap_or_else(|err| {
+        eprintln!("failed to parse client version! - {:?}", err);
+        process::exit(1)
+    });
+
+    if version.is_prerelease() || !version.build.is_empty() {
+        eprintln!(
+            "Trying to upgrade from a non-released version {}. This is not supported!",
+            version
+        );
+        process::exit(1)
+    }
+
+    version
+}
+
+fn parse_package_version() -> Version {
+    let version = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+
+    // technically this is not a correct way of checking it as a released version might contain valid build identifiers
+    // however, we are not using them ourselves at the moment and hence it should be fine.
+    // if we change our mind, we could easily tweak this code
+    if version.is_prerelease() || !version.build.is_empty() {
+        eprintln!(
+            "Trying to upgrade to a non-released version {}. This is not supported!",
+            version
+        );
+        process::exit(1)
+    }
+
+    version
 }
 
 fn pre_090_upgrade(from: &str, mut config: Config) -> Config {
@@ -93,7 +149,7 @@ fn pre_090_upgrade(from: &str, mut config: Config) -> Config {
         .set_custom_version(to_version.to_string().as_ref());
 
     println!(
-        "Setting validator REST endpoint to to {}",
+        "Setting validator REST endpoint to {}",
         DEFAULT_VALIDATOR_REST_ENDPOINT
     );
 
@@ -112,89 +168,86 @@ fn pre_090_upgrade(from: &str, mut config: Config) -> Config {
     config
 }
 
-fn patch_09x_upgrade(mut config: Config, _matches: &ArgMatches) -> Config {
-    // this call must succeed as it was already called before
-    let from_version = Version::parse(config.get_base().get_version()).unwrap();
-    let to_version = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+/*
+changes:
+- introduction of mixnet contract address field
+- change to default validator rest endpoint
+ */
+fn minor_010_upgrade(
+    mut config: Config,
+    _matches: &ArgMatches,
+    config_version: &Version,
+    package_version: &Version,
+) -> Config {
+    let to_version = if package_version.major == 0 && package_version.minor == 10 {
+        package_version.clone()
+    } else {
+        Version::new(0, 10, 0)
+    };
 
-    print_start_upgrade(&from_version, &to_version);
+    print_start_upgrade(&config_version, &to_version);
 
-    // 0.9.1 upgrade:
     config
         .get_base_mut()
         .set_custom_version(to_version.to_string().as_ref());
 
+    if config.get_base().get_validator_mixnet_contract_address() != MISSING_VALUE {
+        eprintln!("existing config seems to have specified mixnet contract address which was only introduced in 0.10.0! Can't perform upgrade.");
+        print_failed_upgrade(&config_version, &to_version);
+        process::exit(1);
+    }
+
+    println!(
+        "Setting mixnet contract address to {}",
+        DEFAULT_MIXNET_CONTRACT_ADDRESS
+    );
+
+    config
+        .get_base_mut()
+        .set_mixnet_contract(DEFAULT_MIXNET_CONTRACT_ADDRESS);
+
+    // The default validator endpoint changed
+    println!(
+        "Setting validator REST endpoint to to {}",
+        DEFAULT_VALIDATOR_REST_ENDPOINT
+    );
+
+    config
+        .get_base_mut()
+        .set_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT);
+
     config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
-        print_failed_upgrade(&from_version, &to_version);
+        print_failed_upgrade(&config_version, &to_version);
         process::exit(1);
     });
 
-    print_successful_upgrade(from_version, to_version);
+    print_successful_upgrade(config_version, to_version);
 
     config
 }
 
-pub fn command_args<'a, 'b>() -> App<'a, 'b> {
-    App::new("upgrade").about("Try to upgrade the client")
-        .arg(
-            Arg::with_name("id")
-                .long("id")
-                .help("Id of the nym-socks5-client we want to upgrade")
-                .takes_value(true)
-                .required(true),
-        )
-        // the rest of arguments depend on the upgrade path
-        .arg(Arg::with_name("current version")
-            .long("current-version")
-            .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Specifies current version of the configuration file to help to determine a valid upgrade path. Valid formats include '0.8.1', 'v0.8.1' or 'V0.8.1'")
-            .takes_value(true)
-        )
-}
-
-fn unsupported_upgrade(current_version: Version, config_version: Version) -> ! {
-    eprintln!("Cannot perform upgrade from {} to {}. Please let the developers know about this issue if you expected it to work!", config_version, current_version);
-    process::exit(1)
-}
-
-fn do_upgrade(mut config: Config, matches: &ArgMatches) {
-    let current = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
-
+fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version) {
     loop {
-        let config_version =
-            Version::parse(config.get_base().get_version()).unwrap_or_else(|err| {
-                eprintln!("failed to parse client version! - {:?}", err);
-                process::exit(1)
-            });
+        let config_version = parse_config_version(&config);
 
-        if config_version == current {
+        if config_version == package_version {
             println!("You're using the most recent version!");
             return;
         }
 
         config = match config_version.major {
             0 => match config_version.minor {
-                9 => patch_09x_upgrade(config, &matches),
-                _ => unsupported_upgrade(current, config_version),
+                9 => minor_010_upgrade(config, &matches, &config_version, &package_version),
+                _ => unsupported_upgrade(config_version, package_version),
             },
-            _ => unsupported_upgrade(current, config_version),
+            _ => unsupported_upgrade(config_version, package_version),
         }
     }
 }
 
 pub fn execute(matches: &ArgMatches) {
-    let current = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
-
-    // technically this is not a correct way of checking it as a released version might contain valid build identifiers
-    // however, we are not using them ourselves at the moment and hence it should be fine.
-    // if we change our mind, we could easily tweak this code
-    if current.is_prerelease() || !current.build.is_empty() {
-        eprintln!(
-            "Trying to upgrade to a non-released version {}. This is not supported!",
-            current
-        );
-        process::exit(1)
-    }
+    let package_version = parse_package_version();
 
     let id = matches.value_of("id").unwrap();
 
@@ -216,24 +269,6 @@ pub fn execute(matches: &ArgMatches) {
         existing_config = pre_090_upgrade(self_reported_version, existing_config);
     }
 
-    let config_version =
-        Version::parse(existing_config.get_base().get_version()).unwrap_or_else(|err| {
-            eprintln!("failed to parse client version! - {:?}", err);
-            process::exit(1)
-        });
-
-    if config_version.is_prerelease() || !config_version.build.is_empty() {
-        eprintln!(
-            "Trying to upgrade from non-released version {}. This is not supported!",
-            config_version
-        );
-        process::exit(1)
-    }
-
     // here be upgrade path to 0.9.X and beyond based on version number from config
-    if config_version == current {
-        println!("You're using the most recent version!");
-    } else {
-        do_upgrade(existing_config, matches)
-    }
+    do_upgrade(existing_config, matches, package_version)
 }

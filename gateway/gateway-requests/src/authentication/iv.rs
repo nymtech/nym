@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crypto::generic_array::{typenum::Unsigned, GenericArray};
 use crypto::symmetric::stream_cipher::{random_iv, NewStreamCipher, IV};
@@ -19,9 +8,13 @@ use rand::{CryptoRng, RngCore};
 
 type NonceSize = <GatewayEncryptionAlgorithm as NewStreamCipher>::NonceSize;
 
+// I think 'IV' looks better than 'Iv', feel free to change that.
+#[allow(clippy::upper_case_acronyms)]
 pub struct AuthenticationIV(IV<GatewayEncryptionAlgorithm>);
 
 #[derive(Debug)]
+// I think 'IV' looks better than 'Iv', feel free to change that.
+#[allow(clippy::upper_case_acronyms)]
 pub enum IVConversionError {
     DecodeError(bs58::decode::Error),
     BytesOfInvalidLengthError,
@@ -73,8 +66,8 @@ impl AuthenticationIV {
     }
 }
 
-impl Into<String> for AuthenticationIV {
-    fn into(self) -> String {
-        self.to_base58_string()
+impl From<AuthenticationIV> for String {
+    fn from(iv: AuthenticationIV) -> Self {
+        iv.to_base58_string()
     }
 }

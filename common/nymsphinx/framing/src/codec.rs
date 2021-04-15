@@ -35,9 +35,9 @@ impl From<io::Error> for SphinxCodecError {
     }
 }
 
-impl Into<io::Error> for SphinxCodecError {
-    fn into(self) -> io::Error {
-        match self {
+impl From<SphinxCodecError> for io::Error {
+    fn from(err: SphinxCodecError) -> Self {
+        match err {
             SphinxCodecError::InvalidPacketSize => {
                 io::Error::new(io::ErrorKind::InvalidInput, "invalid packet size")
             }
@@ -72,7 +72,7 @@ impl Encoder<FramedSphinxPacket> for SphinxCodec {
     type Error = SphinxCodecError;
 
     fn encode(&mut self, item: FramedSphinxPacket, dst: &mut BytesMut) -> Result<(), Self::Error> {
-        item.header.encode(dst)?;
+        item.header.encode(dst);
         dst.put(item.packet.to_bytes().as_ref());
         Ok(())
     }
@@ -86,7 +86,7 @@ impl Decoder for SphinxCodec {
         if src.is_empty() {
             // can't do anything if we have no bytes, but let's reserve enough for the most
             // conservative case, i.e. receiving an ack packet
-            src.reserve(Header::SIZE + PacketSize::ACKPacket.size());
+            src.reserve(Header::SIZE + PacketSize::AckPacket.size());
             return Ok(None);
         }
 
@@ -139,7 +139,7 @@ impl Decoder for SphinxCodec {
             let next_frame_len = next_packet_len.size() + Header::SIZE;
             src.reserve(next_frame_len - 1);
         } else {
-            src.reserve(Header::SIZE + PacketSize::ACKPacket.size());
+            src.reserve(Header::SIZE + PacketSize::AckPacket.size());
         }
 
         Ok(Some(nymsphinx_packet))
@@ -218,7 +218,7 @@ mod packet_encoding {
             assert!(SphinxCodec.decode(&mut empty_bytes).unwrap().is_none());
             assert_eq!(
                 empty_bytes.capacity(),
-                Header::SIZE + PacketSize::ACKPacket.size()
+                Header::SIZE + PacketSize::AckPacket.size()
             );
         }
 
@@ -226,7 +226,7 @@ mod packet_encoding {
         fn for_bytes_with_header() {
             // if header gets decoded there should be enough bytes for the entire frame
             let packet_sizes = vec![
-                PacketSize::ACKPacket,
+                PacketSize::AckPacket,
                 PacketSize::RegularPacket,
                 PacketSize::ExtendedPacket,
             ];
@@ -236,7 +236,7 @@ mod packet_encoding {
                     packet_mode: Default::default(),
                 };
                 let mut bytes = BytesMut::new();
-                header.encode(&mut bytes).unwrap();
+                header.encode(&mut bytes);
                 assert!(SphinxCodec.decode(&mut bytes).unwrap().is_none());
 
                 assert_eq!(bytes.capacity(), Header::SIZE + packet_size.size())
@@ -256,7 +256,7 @@ mod packet_encoding {
             assert!(SphinxCodec.decode(&mut bytes).unwrap().is_some());
             assert_eq!(
                 bytes.capacity(),
-                Header::SIZE + PacketSize::ACKPacket.size()
+                Header::SIZE + PacketSize::AckPacket.size()
             );
         }
 
@@ -264,7 +264,7 @@ mod packet_encoding {
         fn for_full_frame_with_extra_byte() {
             // if there was at least 1 byte left, there should be enough space for entire next frame
             let packet_sizes = vec![
-                PacketSize::ACKPacket,
+                PacketSize::AckPacket,
                 PacketSize::RegularPacket,
                 PacketSize::ExtendedPacket,
             ];

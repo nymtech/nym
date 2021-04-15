@@ -1,3 +1,6 @@
+# Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
 # This is an example systemd service unit illustrating how to make a mixnode
 # start and stop automatically on a Linux box which runs on systemd.
 # To determine if it is applicable to your system simply run "ps 1". If the
@@ -14,7 +17,7 @@
 #     sudo useradd -U -m -s /sbin/nologin nym
 #  2. Start a new bash session with your nym user:
 #     sudo -u nym bash
-#  3. Change to the users home directory:
+#  3. Change to the user's home directory:
 #     cd
 #  4. Obtain the current mixnode binary from the nym release page and make it
 #     executable:

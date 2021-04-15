@@ -1,6 +1,6 @@
 [package]
 name = "nym-client"
-version = "0.9.2"
+version = "0.10.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
@@ -22,12 +22,12 @@ clap = "2.33.0" # for the command line arguments
 dirs = "3.0" # for determining default store directories in config
 dotenv = "0.15.0" # for obtaining environmental variables (only used for RUST_LOG for time being)
 log = "0.4" # self explanatory
-pretty_env_logger = "0.3" # for formatting log messages
+pretty_env_logger = "0.4" # for formatting log messages
 rand = {version = "0.7.3", features = ["wasm-bindgen"]} # rng-related traits + some rng implementation to use
 serde = { version = "1.0.104", features = ["derive"] } # for config serialization/deserialization
-sled = "0.33" # for storage of replySURB decryption keys
-tokio = { version = "0.2", features = ["full"] } # async runtime
-tokio-tungstenite = "0.11.0" # websocket
+sled = "0.34" # for storage of replySURB decryption keys
+tokio = { version = "1.4", features = ["rt-multi-thread", "net", "signal"] } # async runtime
+tokio-tungstenite = "0.14" # websocket
 
 ## internal
 client-core = { path = "../client-core" }
@@ -39,7 +39,7 @@ nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }
 websocket-requests = { path = "websocket-requests" }
-validator-client = { path = "../../common/client-libs/validator-client" }
+validator-client-rest = { path = "../../common/client-libs/validator-client-rest" }
 version-checker = { path = "../../common/version-checker" }
 
 [dev-dependencies]

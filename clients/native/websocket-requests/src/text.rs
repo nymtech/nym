@@ -16,7 +16,7 @@ use crate::error::ErrorKind;
 use crate::requests::ClientRequest;
 use crate::responses::ServerResponse;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::ReplySURB;
+use nymsphinx::anonymous_replies::ReplySurb;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 
@@ -75,7 +75,7 @@ impl TryInto<ClientRequest> for ClientRequestText {
                 reply_surb,
             } => {
                 let message_bytes = message.into_bytes();
-                let reply_surb = ReplySURB::from_base58_string(reply_surb).map_err(|err| {
+                let reply_surb = ReplySurb::from_base58_string(reply_surb).map_err(|err| {
                     Self::Error::new(ErrorKind::MalformedRequest, err.to_string())
                 })?;
 
@@ -115,15 +115,15 @@ impl TryFrom<String> for ServerResponseText {
     }
 }
 
-impl Into<String> for ServerResponseText {
-    fn into(self) -> String {
+impl From<ServerResponseText> for String {
+    fn from(res: ServerResponseText) -> Self {
         // per serde_json docs:
         /*
         /// Serialization can fail if `T`'s implementation of `Serialize` decides to
         /// fail, or if `T` contains a map with non-string keys.
          */
         // this is not the case here.
-        serde_json::to_string(&self).unwrap()
+        serde_json::to_string(&res).unwrap()
     }
 }
 

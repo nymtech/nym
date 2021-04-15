@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 rand = {version = "0.7.3", features = ["wasm-bindgen"]}
-bs58 = "0.3"
+bs58 = "0.4"
 serde = "1.0"
 
 crypto = { path = "../../crypto" }

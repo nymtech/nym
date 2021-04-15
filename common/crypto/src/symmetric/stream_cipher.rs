@@ -1,9 +1,12 @@
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use cipher::stream::{Nonce, StreamCipher, SyncStreamCipher};
 use generic_array::{typenum::Unsigned, GenericArray};
 use rand::{CryptoRng, RngCore};
-use stream_cipher::{Nonce, StreamCipher, SyncStreamCipher};
 
 // re-export this for ease of use
-pub use stream_cipher::{Key, NewStreamCipher};
+pub use cipher::stream::{Key, NewStreamCipher};
 
 // TODO: note that this is not the most secure approach here
 // we are not using nonces properly but instead "kinda" thinking of them as IVs.
@@ -12,6 +15,9 @@ pub use stream_cipher::{Key, NewStreamCipher};
 // means that for, for example, 128-bit security, after generating 2^64 IVs
 // we are going to have 50% chance of collision. But perhaps that's fine?
 // TODO2: ask @AP if what I wrote here even makes sense in the context of what we're doing.
+
+// I think 'IV' looks better than 'Iv', feel free to change that.
+#[allow(clippy::upper_case_acronyms)]
 pub type IV<C> = Nonce<C>;
 
 pub fn generate_key<C, R>(rng: &mut R) -> Key<C>

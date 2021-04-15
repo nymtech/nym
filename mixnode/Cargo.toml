@@ -1,24 +1,28 @@
+# Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
 [package]
 name = "nym-mixnode"
-version = "0.9.2"
+version = "0.10.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bs58 = "0.3.0"
+bs58 = "0.4.0"
 clap = "2.33.0"
-curve25519-dalek = "2.0.0"
-dirs = "2.0.2"
+colored = "2"
+dirs = "3.0"
 dotenv = "0.15.0"
-futures = "0.3.1"
+futures = "0.3"
 humantime-serde = "1.0.1"
 log = "0.4"
-pretty_env_logger = "0.3"
-serde = { version = "1.0.104", features = ["derive"] }
-tokio = { version = "0.2", features = ["full"] }
-tokio-util = { version = "0.3.1", features = ["codec"] }
+pretty_env_logger = "0.4"
+rand = "0.7"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.4", features = [ "rt-multi-thread", "net", "signal" ] }
+tokio-util = { version = "0.6", features = ["codec"] }
 
 ## internal
 config = { path = "../common/config" }
@@ -30,5 +34,5 @@ nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
 nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
 topology = { path = "../common/topology" }
-validator-client = { path = "../common/client-libs/validator-client" }
+validator-client-rest = { path = "../common/client-libs/validator-client-rest" }
 version-checker = { path = "../common/version-checker" }

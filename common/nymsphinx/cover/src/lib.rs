@@ -14,7 +14,7 @@
 
 use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
-use nymsphinx_acknowledgements::surb_ack::SURBAck;
+use nymsphinx_acknowledgements::surb_ack::SurbAck;
 use nymsphinx_acknowledgements::AckKey;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
@@ -66,11 +66,11 @@ pub fn generate_loop_cover_surb_ack<R>(
     ack_key: &AckKey,
     full_address: &Recipient,
     average_ack_delay: time::Duration,
-) -> Result<SURBAck, CoverMessageError>
+) -> Result<SurbAck, CoverMessageError>
 where
     R: RngCore + CryptoRng,
 {
-    Ok(SURBAck::construct(
+    Ok(SurbAck::construct(
         rng,
         full_address,
         ack_key,

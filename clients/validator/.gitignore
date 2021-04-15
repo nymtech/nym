@@ -1,0 +1,7 @@
+.nyc_output
+.vscode
+coverage
+dist
+docs
+examples/accounts
+node_modules

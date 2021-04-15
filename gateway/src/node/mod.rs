@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
 use crate::node::client_handling::clients_handler::{ClientsHandler, ClientsHandlerRequestSender};
@@ -20,12 +9,12 @@ use crate::node::storage::{inboxes, ClientLedger};
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
+use std::process;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
-mod presence;
 pub(crate) mod storage;
 
 pub struct Gateway {
@@ -45,7 +34,7 @@ impl Gateway {
         identity: identity::KeyPair,
     ) -> Self {
         let registered_clients_ledger = match ClientLedger::load(config.get_clients_ledger_path()) {
-            Err(e) => panic!(format!("Failed to load the ledger - {:?}", e)),
+            Err(e) => panic!("Failed to load the ledger - {:?}", e),
             Ok(ledger) => ledger,
         };
         let client_inbox_storage = inboxes::ClientStorage::new(
@@ -134,37 +123,34 @@ impl Gateway {
         println!(
             "Received SIGINT - the gateway will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
         );
-        if let Err(err) = presence::unregister_with_validator(
-            self.config.get_validator_rest_endpoint(),
-            self.identity.public_key().to_base58_string(),
-        )
-        .await
-        {
-            error!("failed to unregister with validator... - {:?}", err)
-        } else {
-            info!("unregistration was successful!")
-        }
     }
 
+    // TODO: ask DH whether this function still makes sense in ^0.10
     async fn check_if_same_ip_gateway_exists(&self) -> Option<String> {
         let announced_mix_host = self.config.get_mix_announce_address();
         let announced_clients_host = self.config.get_clients_announce_address();
-        let validator_client_config =
-            validator_client::Config::new(self.config.get_validator_rest_endpoint());
-        let validator_client = validator_client::Client::new(validator_client_config);
-        let topology = validator_client
-            .get_topology()
-            .await
-            .expect("failed to grab network topology");
 
-        let existing_gateways = topology.gateways;
+        let validator_client_config = validator_client_rest::Config::new(
+            self.config.get_validator_rest_endpoint(),
+            self.config.get_validator_mixnet_contract_address(),
+        );
+        let validator_client = validator_client_rest::Client::new(validator_client_config);
+
+        let existing_gateways = match validator_client.get_gateways().await {
+            Ok(gateways) => gateways,
+            Err(err) => {
+                error!("failed to grab initial network gateways - {}\n Please try to startup again in few minutes", err);
+                process::exit(1);
+            }
+        };
+
         existing_gateways
             .iter()
             .find(|node| {
-                node.mixnet_listener() == announced_mix_host
-                    || node.clients_listener() == announced_clients_host
+                node.gateway.mix_host == announced_mix_host
+                    || node.gateway.clients_host == announced_clients_host
             })
-            .map(|node| node.identity())
+            .map(|node| node.gateway().identity_key.clone())
     }
 
     // Rather than starting all futures with explicit `&Handle` argument, let's see how it works
@@ -173,7 +159,7 @@ impl Gateway {
     pub fn run(&mut self) {
         info!("Starting nym gateway!");
 
-        let mut runtime = Runtime::new().unwrap();
+        let runtime = Runtime::new().unwrap();
 
         runtime.block_on(async {
             if let Some(duplicate_node_key) = self.check_if_same_ip_gateway_exists().await {
@@ -181,25 +167,11 @@ impl Gateway {
                     warn!("We seem to have not unregistered after going offline - there's a node with identical identity and announce-host as us registered.")
                 } else {
                     error!(
-                        "Our announce-host is identical to an existing node's announce-host! (its key is {:?}",
+                        "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
                         duplicate_node_key
                     );
                     return;
                 }
-            }
-
-            if let Err(err) = presence::register_with_validator(
-                self.config.get_validator_rest_endpoint(),
-                self.config.get_mix_announce_address(),
-                self.config.get_clients_announce_address(),
-                self.identity.public_key().to_base58_string(),
-                self.encryption_keys.public_key().to_base58_string(),
-                self.config.get_version().to_string(),
-                self.config.get_location(),
-                self.config.get_incentives_address()
-            ).await {
-                error!("failed to register with the validator - {:?}", err);
-                return
             }
 
             let mix_forwarding_channel = self.start_packet_forwarder();

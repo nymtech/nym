@@ -55,7 +55,7 @@ pub enum ErrorKind {
     /// The received request is malformed.
     MalformedRequest = 0x04,
 
-    // that's an arbitrary division but lets keep 1-127 (hex 0x01 - 0x7F) values request-specific
+    // that's an arbitrary division but let's keep 1-127 (hex 0x01 - 0x7F) values request-specific
     // and 128-254 (hex 0x80 - 0xFE) for responses
     /// The received response contained no data.
     EmptyResponse = 0x80,

@@ -73,7 +73,7 @@ where
 
     /// Internal state, determined by `average_message_sending_delay`,
     /// used to keep track of when a next packet should be sent out.
-    next_delay: time::Delay,
+    next_delay: Pin<Box<time::Sleep>>,
 
     /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
@@ -117,7 +117,7 @@ type BatchRealMessageReceiver = mpsc::UnboundedReceiver<Vec<RealMessage>>;
 
 pub(crate) enum StreamMessage {
     Cover,
-    Real(RealMessage),
+    Real(Box<RealMessage>),
 }
 
 impl<R> Stream for OutQueueControl<R>
@@ -128,7 +128,7 @@ where
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // it is not yet time to return a message
-        if Pin::new(&mut self.next_delay).poll(cx).is_pending() {
+        if self.next_delay.as_mut().poll(cx).is_pending() {
             return Poll::Pending;
         };
 
@@ -141,11 +141,11 @@ where
         // The next interval value is `next_poisson_delay` after the one that just
         // yielded.
         let next = now + next_poisson_delay;
-        self.next_delay.reset(next);
+        self.next_delay.as_mut().reset(next);
 
         // check if we have anything immediately available
         if let Some(real_available) = self.received_buffer.pop_front() {
-            return Poll::Ready(Some(StreamMessage::Real(real_available)));
+            return Poll::Ready(Some(StreamMessage::Real(Box::new(real_available))));
         }
 
         // decide what kind of message to send
@@ -158,9 +158,9 @@ where
             Poll::Ready(Some(real_messages)) => {
                 self.received_buffer = real_messages.into();
                 // we MUST HAVE received at least ONE message
-                Poll::Ready(Some(StreamMessage::Real(
+                Poll::Ready(Some(StreamMessage::Real(Box::new(
                     self.received_buffer.pop_front().unwrap(),
-                )))
+                ))))
             }
 
             // otherwise construct a dummy one
@@ -173,6 +173,9 @@ impl<R> OutQueueControl<R>
 where
     R: CryptoRng + Rng + Unpin,
 {
+    // at this point I'm not entirely sure how to deal with this warning without
+    // some considerable refactoring
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: Config,
         ack_key: Arc<AckKey>,
@@ -187,7 +190,7 @@ where
             config,
             ack_key,
             sent_notifier,
-            next_delay: time::delay_for(Default::default()),
+            next_delay: Box::pin(time::sleep(Default::default())),
             mix_tx,
             real_receiver,
             our_full_destination,
@@ -269,10 +272,10 @@ where
     // Send messages at certain rate and if no real traffic is available, send cover message.
     async fn run_normal_out_queue(&mut self) {
         // we should set initial delay only when we actually start the stream
-        self.next_delay = time::delay_for(sample_poisson_duration(
+        self.next_delay = Box::pin(time::sleep(sample_poisson_duration(
             &mut self.rng,
             self.config.average_message_sending_delay,
-        ));
+        )));
 
         while let Some(next_message) = self.next().await {
             self.on_message(next_message).await;

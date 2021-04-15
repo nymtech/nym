@@ -1,0 +1,134 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HandleMsg",
+  "anyOf": [
+    {
+      "type": "object",
+      "required": [
+        "register_mixnode"
+      ],
+      "properties": {
+        "register_mixnode": {
+          "type": "object",
+          "required": [
+            "mix_node"
+          ],
+          "properties": {
+            "mix_node": {
+              "$ref": "#/definitions/MixNode"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "un_register_mixnode"
+      ],
+      "properties": {
+        "un_register_mixnode": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "bond_gateway"
+      ],
+      "properties": {
+        "bond_gateway": {
+          "type": "object",
+          "required": [
+            "gateway"
+          ],
+          "properties": {
+            "gateway": {
+              "$ref": "#/definitions/Gateway"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "unbond_gateway"
+      ],
+      "properties": {
+        "unbond_gateway": {
+          "type": "object"
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "Gateway": {
+      "type": "object",
+      "required": [
+        "clients_host",
+        "identity_key",
+        "location",
+        "mix_host",
+        "sphinx_key",
+        "version"
+      ],
+      "properties": {
+        "clients_host": {
+          "type": "string"
+        },
+        "identity_key": {
+          "description": "Base58 encoded ed25519 EdDSA public key of the gateway used to derive shared keys with clients",
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "mix_host": {
+          "type": "string"
+        },
+        "sphinx_key": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "MixNode": {
+      "type": "object",
+      "required": [
+        "host",
+        "identity_key",
+        "layer",
+        "location",
+        "sphinx_key",
+        "version"
+      ],
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "identity_key": {
+          "description": "Base58 encoded ed25519 EdDSA public key.",
+          "type": "string"
+        },
+        "layer": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "location": {
+          "type": "string"
+        },
+        "sphinx_key": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

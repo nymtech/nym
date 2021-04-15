@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::node::client_handling::clients_handler::{
     ClientsHandlerRequest, ClientsHandlerRequestSender, ClientsHandlerResponse,
@@ -20,6 +9,7 @@ use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::node::storage::inboxes::{ClientStorage, StoreData};
 use dashmap::DashMap;
 use futures::channel::oneshot;
+use futures::StreamExt;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use mixnode_common::cached_packet_processor::processor::ProcessedFinalHop;
@@ -27,11 +17,10 @@ use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::framing::codec::SphinxCodec;
 use nymsphinx::framing::packet::FramedSphinxPacket;
 use nymsphinx::DestinationAddressBytes;
+use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpStream;
-use tokio::prelude::*;
-use tokio::stream::StreamExt;
 use tokio_util::codec::Framed;
 
 pub(crate) struct ConnectionHandler {
@@ -101,7 +90,11 @@ impl ConnectionHandler {
     }
 
     fn remove_stale_client_sender(&self, client_address: &DestinationAddressBytes) {
-        if !self.available_socket_senders_cache.remove(client_address) {
+        if self
+            .available_socket_senders_cache
+            .remove(client_address)
+            .is_none()
+        {
             warn!(
                 "Tried to remove stale entry for non-existent client sender: {}",
                 client_address
@@ -145,6 +138,7 @@ impl ConnectionHandler {
         if self
             .available_socket_senders_cache
             .insert(client_address, client_sender.clone())
+            .is_some()
         {
             // this warning is harmless, but I want to see if it's realistically for it to even occur
             warn!("Other thread already updated cache for client sender!")

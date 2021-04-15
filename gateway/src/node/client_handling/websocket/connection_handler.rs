@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::node::client_handling::clients_handler::{
     ClientsHandlerRequest, ClientsHandlerRequestSender, ClientsHandlerResponse,
@@ -21,20 +10,21 @@ use crate::node::client_handling::websocket::message_receiver::{
 use crypto::asymmetric::identity;
 use futures::{
     channel::{mpsc, oneshot},
-    SinkExt,
+    SinkExt, StreamExt,
 };
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::authentication::iv::AuthenticationIV;
 use gateway_requests::registration::handshake::error::HandshakeError;
-use gateway_requests::registration::handshake::{gateway_handshake, SharedKeys, DEFAULT_RNG};
+use gateway_requests::registration::handshake::{gateway_handshake, SharedKeys};
 use gateway_requests::types::{BinaryRequest, ClientControlRequest, ServerResponse};
 use gateway_requests::BinaryResponse;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use nymsphinx::DestinationAddressBytes;
+use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::sync::Arc;
-use tokio::{prelude::*, stream::StreamExt};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::{
     tungstenite::{protocol::Message, Error as WsError},
     WebSocketStream,
@@ -47,7 +37,7 @@ use tokio_tungstenite::{
 //// but as byproduct this might (or might not) break the clean "SocketStream" enum here
 
 enum SocketStream<S> {
-    RawTCP(S),
+    RawTcp(S),
     UpgradedWebSocket(WebSocketStream<S>),
     Invalid,
 }
@@ -58,7 +48,8 @@ impl<S> SocketStream<S> {
     }
 }
 
-pub(crate) struct Handle<S> {
+pub(crate) struct Handle<R, S> {
+    rng: R,
     remote_address: Option<DestinationAddressBytes>,
     shared_key: Option<SharedKeys>,
     clients_handler_sender: ClientsHandlerRequestSender,
@@ -68,21 +59,26 @@ pub(crate) struct Handle<S> {
     local_identity: Arc<identity::KeyPair>,
 }
 
-impl<S> Handle<S> {
+impl<R, S> Handle<R, S>
+where
+    R: Rng + CryptoRng,
+{
     // for time being we assume handle is always constructed from raw socket.
     // if we decide we want to change it, that's not too difficult
     pub(crate) fn new(
+        rng: R,
         conn: S,
         clients_handler_sender: ClientsHandlerRequestSender,
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
     ) -> Self {
         Handle {
+            rng,
             remote_address: None,
             shared_key: None,
             clients_handler_sender,
             outbound_mix_sender,
-            socket_connection: SocketStream::RawTCP(conn),
+            socket_connection: SocketStream::RawTcp(conn),
             local_identity,
         }
     }
@@ -93,7 +89,7 @@ impl<S> Handle<S> {
     {
         self.socket_connection =
             match std::mem::replace(&mut self.socket_connection, SocketStream::Invalid) {
-                SocketStream::RawTCP(conn) => {
+                SocketStream::RawTcp(conn) => {
                     // TODO: perhaps in the future, rather than panic here (and uncleanly shut tcp stream)
                     // return a result with an error?
                     let ws_stream = match tokio_tungstenite::accept_async(conn).await {
@@ -121,7 +117,7 @@ impl<S> Handle<S> {
         match &mut self.socket_connection {
             SocketStream::UpgradedWebSocket(ws_stream) => {
                 gateway_handshake(
-                    &mut DEFAULT_RNG,
+                    &mut self.rng,
                     ws_stream,
                     self.local_identity.as_ref(),
                     init_msg,

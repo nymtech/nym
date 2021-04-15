@@ -22,7 +22,7 @@ use crate::client::{
 };
 use futures::StreamExt;
 use log::*;
-use nymsphinx::anonymous_replies::ReplySURB;
+use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
@@ -49,6 +49,9 @@ impl<R> InputMessageListener<R>
 where
     R: CryptoRng + Rng,
 {
+    // at this point I'm not entirely sure how to deal with this warning without
+    // some considerable refactoring
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         ack_key: Arc<AckKey>,
         ack_recipient: Recipient,
@@ -72,7 +75,7 @@ where
     }
 
     // we require topology for replies to generate surb_acks
-    async fn handle_reply(&mut self, reply_surb: ReplySURB, data: Vec<u8>) -> Option<RealMessage> {
+    async fn handle_reply(&mut self, reply_surb: ReplySurb, data: Vec<u8>) -> Option<RealMessage> {
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match topology_permit.try_get_valid_topology_ref(&self.ack_recipient, None) {
             Some(topology_ref) => topology_ref,
@@ -107,7 +110,7 @@ where
         recipient: Recipient,
         content: Vec<u8>,
         with_reply_surb: bool,
-    ) -> Vec<RealMessage> {
+    ) -> Option<Vec<RealMessage>> {
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match topology_permit
             .try_get_valid_topology_ref(&self.ack_recipient, Some(&recipient))
@@ -115,7 +118,7 @@ where
             Some(topology_ref) => topology_ref,
             None => {
                 warn!("Could not process the message - the network topology is invalid");
-                return Vec::new();
+                return None;
             }
         };
 
@@ -161,7 +164,7 @@ where
             .unbounded_send(Action::new_insert(pending_acks))
             .unwrap();
 
-        real_messages
+        Some(real_messages)
     }
 
     async fn on_input_message(&mut self, msg: InputMessage) {
@@ -174,19 +177,19 @@ where
                 self.handle_fresh_message(recipient, data, with_reply_surb)
                     .await
             }
-            InputMessage::Reply { reply_surb, data } => {
-                if let Some(real_message) = self.handle_reply(reply_surb, data).await {
-                    vec![real_message]
-                } else {
-                    return;
-                }
-            }
+            InputMessage::Reply { reply_surb, data } => self
+                .handle_reply(reply_surb, data)
+                .await
+                .map(|message| vec![message]),
         };
 
-        // tells real message sender (with the poisson timer) to send this to the mix network
-        self.real_message_sender
-            .unbounded_send(real_messages)
-            .unwrap();
+        // there's no point in trying to send nothing
+        if let Some(real_messages) = real_messages {
+            // tells real message sender (with the poisson timer) to send this to the mix network
+            self.real_message_sender
+                .unbounded_send(real_messages)
+                .unwrap();
+        }
     }
 
     pub(super) async fn run(&mut self) {

@@ -14,6 +14,7 @@
 
 use reqwest::{Method, Url};
 use serde::{de::DeserializeOwned, Serialize};
+use std::fmt::{self, Display, Formatter};
 
 pub(crate) use active_topology_get::{
     Request as ActiveTopologyGet, Response as ActiveTopologyGetResponse,
@@ -39,15 +40,37 @@ type PathParam<'a> = &'a str;
 type QueryParam<'a> = (&'a str, &'a str);
 
 #[derive(Debug)]
-pub enum RESTRequestError {
+pub enum RestRequestError {
     InvalidPathParams,
     InvalidQueryParams,
     NoPayloadProvided,
     MalformedUrl(String),
 }
 
-pub(crate) trait RESTRequest {
-    const METHOD: Method; // 'GET', 'POST', 'DELETE', etc.
+impl Display for RestRequestError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            RestRequestError::InvalidPathParams => write!(
+                f,
+                "invalid number of path parameters was provided or they were malformed"
+            ),
+            RestRequestError::InvalidQueryParams => write!(
+                f,
+                "invalid number of query parameters was provided or they were malformed"
+            ),
+            RestRequestError::NoPayloadProvided => {
+                write!(f, "no request payload was provided while it was expected")
+            }
+            RestRequestError::MalformedUrl(url) => {
+                write!(f, "tried to make request to malformed url ({})", url)
+            }
+        }
+    }
+}
+
+pub(crate) trait RestRequest {
+    // 'GET', 'POST', 'DELETE', etc.
+    const METHOD: Method;
     const RELATIVE_PATH: &'static str;
 
     type JsonPayload: Serialize + Sized;
@@ -58,7 +81,7 @@ pub(crate) trait RESTRequest {
         path_params: Option<Vec<PathParam>>,
         query_params: Option<Vec<QueryParam>>,
         body_payload: Option<Self::JsonPayload>,
-    ) -> Result<Self, RESTRequestError>
+    ) -> Result<Self, RestRequestError>
     where
         Self: Sized;
 

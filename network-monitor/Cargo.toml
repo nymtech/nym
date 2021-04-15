@@ -1,6 +1,9 @@
+# Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
 [package]
 name = "nym-network-monitor"
-version = "0.9.2"
+version = "0.10.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
@@ -11,15 +14,17 @@ clap = "2.33.0"
 dotenv = "0.15.0"
 futures = "0.3"
 log = "0.4"
-pretty_env_logger = "0.3"
+pin-project = "1.0"
+pretty_env_logger = "0.4"
 rand = "0.7"
 serde = "1.0"
 serde_json = "1.0"
-tokio = { version = "0.2", features = ["signal", "rt-threaded", "macros"] }
+tokio = { version = "1.4", features = ["rt-multi-thread", "macros", "signal", "time"] }
 
 ## internal
 crypto = { path = "../common/crypto" }
 gateway-client = { path = "../common/client-libs/gateway-client" }
+gateway-requests = { path = "../gateway/gateway-requests" }
 nymsphinx = { path = "../common/nymsphinx" }
 topology = { path = "../common/topology" }
 validator-client = { path = "../common/client-libs/validator-client" }

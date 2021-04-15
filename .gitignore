@@ -1,3 +1,6 @@
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: CC0-1.0
+
 /targetString
 **/*.rs.bk
 /*/target
@@ -22,3 +25,4 @@ v6-topology.json
 /explorer/downloads/topology.json
 /explorer/public/downloads/mixmining.json
 /explorer/public/downloads/topology.json
+/clients/validator/examples/nym-driver-example/current-contract.txt

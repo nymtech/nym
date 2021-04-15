@@ -12,24 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use self::vpn_manager::VPNManager;
+use self::vpn_manager::VpnManager;
 use crate::chunking;
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
 use crypto::Digest;
-use nymsphinx_acknowledgements::surb_ack::SURBAck;
+use nymsphinx_acknowledgements::surb_ack::SurbAck;
 use nymsphinx_acknowledgements::AckKey;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
-use nymsphinx_anonymous_replies::encryption_key::SURBEncryptionKey;
-use nymsphinx_anonymous_replies::reply_surb::ReplySURB;
+use nymsphinx_anonymous_replies::encryption_key::SurbEncryptionKey;
+use nymsphinx_anonymous_replies::reply_surb::ReplySurb;
 use nymsphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nymsphinx_forwarding::packet::MixPacket;
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_params::{
-    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketMode, ReplySURBEncryptionAlgorithm,
-    ReplySURBKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS,
+    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketMode, ReplySurbEncryptionAlgorithm,
+    ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS,
 };
 use nymsphinx_types::builder::SphinxPacketBuilder;
 use nymsphinx_types::{delays, Delay};
@@ -95,7 +95,7 @@ pub struct MessagePreparer<R: CryptoRng + Rng> {
 
     /// If the VPN mode is activated, this underlying secret will be used for multiple sphinx
     /// packets created.
-    vpn_manager: Option<VPNManager>,
+    vpn_manager: Option<VpnManager>,
 }
 
 impl<R> MessagePreparer<R>
@@ -111,7 +111,7 @@ where
         vpn_key_reuse_limit: Option<usize>,
     ) -> Self {
         let vpn_manager = if mode.is_vpn() {
-            Some(VPNManager::new(
+            Some(VpnManager::new(
                 &mut rng,
                 vpn_key_reuse_limit.expect("No key reuse limit provided in vpn mode!"),
             ))
@@ -143,6 +143,11 @@ where
         self
     }
 
+    /// Overwrites existing sender address with the provided value.
+    pub fn set_sender_address(&mut self, sender_address: Recipient) {
+        self.sender_address = sender_address;
+    }
+
     /// Length of plaintext (from the sphinx point of view) data that is available per sphinx
     /// packet.
     fn available_plaintext_per_packet(&self) -> usize {
@@ -154,7 +159,7 @@ where
         // and only then perform the chunking with `available_plaintext_size` being called per chunk.
         // However this will probably introduce bunch of complexity
         // for relatively not a lot of gain, so it shouldn't be done just yet.
-        let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::ACKPacket.size();
+        let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::AckPacket.size();
         let ephemeral_public_key_overhead = encryption::PUBLIC_KEY_SIZE;
 
         self.packet_size.plaintext_size() - ack_overhead - ephemeral_public_key_overhead
@@ -187,9 +192,9 @@ where
         message: Vec<u8>,
         should_attach: bool,
         topology: &NymTopology,
-    ) -> Result<(Vec<u8>, Option<SURBEncryptionKey>), PreparationError> {
+    ) -> Result<(Vec<u8>, Option<SurbEncryptionKey>), PreparationError> {
         if should_attach {
-            let reply_surb = ReplySURB::construct(
+            let reply_surb = ReplySurb::construct(
                 &mut self.rng,
                 &self.sender_address,
                 self.average_packet_delay,
@@ -326,7 +331,8 @@ where
         Ok(PreparedFragment {
             // the round-trip delay is the sum of delays of all hops on the forward route as
             // well as the total delay of the ack packet.
-            total_delay: delays.iter().sum::<Delay>() + ack_delay,
+            // note that the last hop of the packet is a gateway that does not do any delays
+            total_delay: delays.iter().take(delays.len() - 1).sum::<Delay>() + ack_delay,
             mix_packet: MixPacket::new(first_hop_address, sphinx_packet, self.mode),
         })
     }
@@ -337,10 +343,10 @@ where
         fragment_id: FragmentIdentifier,
         topology: &NymTopology,
         ack_key: &AckKey,
-    ) -> Result<SURBAck, NymTopologyError> {
+    ) -> Result<SurbAck, NymTopologyError> {
         if let Some(vpn_manager) = self.vpn_manager.as_mut() {
             let initial_secret = vpn_manager.use_secret(&mut self.rng).await;
-            SURBAck::construct(
+            SurbAck::construct(
                 &mut self.rng,
                 &self.sender_address,
                 ack_key,
@@ -350,7 +356,7 @@ where
                 Some(&initial_secret),
             )
         } else {
-            SURBAck::construct(
+            SurbAck::construct(
                 &mut self.rng,
                 &self.sender_address,
                 ack_key,
@@ -370,7 +376,7 @@ where
         message: Vec<u8>,
         with_reply_surb: bool,
         topology: &NymTopology,
-    ) -> Result<(Vec<Fragment>, Option<SURBEncryptionKey>), PreparationError> {
+    ) -> Result<(Vec<Fragment>, Option<SurbEncryptionKey>), PreparationError> {
         let (message, reply_key) =
             self.optionally_attach_reply_surb(message, with_reply_surb, topology)?;
 
@@ -383,7 +389,7 @@ where
     pub async fn prepare_reply_for_use(
         &mut self,
         message: Vec<u8>,
-        reply_surb: ReplySURB,
+        reply_surb: ReplySurb,
         topology: &NymTopology,
         ack_key: &AckKey,
     ) -> Result<(MixPacket, FragmentIdentifier), PreparationError> {
@@ -392,11 +398,11 @@ where
         // and need 1 byte to indicate padding length (this is not the case for 'normal' messages
         // as there the padding is added for the whole message)
         // so before doing any processing, let's see if we have enough space for it all
-        let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::ACKPacket.size();
+        let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::AckPacket.size();
         if message.len()
             > self.packet_size.plaintext_size()
                 - ack_overhead
-                - ReplySURBKeyDigestAlgorithm::output_size()
+                - ReplySurbKeyDigestAlgorithm::output_size()
                 - 1
         {
             return Err(PreparationError::TooLongReplyMessageError);
@@ -416,7 +422,7 @@ where
         let zero_pad_len = self.packet_size.plaintext_size()
             - message.len()
             - ack_overhead
-            - ReplySURBKeyDigestAlgorithm::output_size()
+            - ReplySurbKeyDigestAlgorithm::output_size()
             - 1;
 
         // create reply message that will reach the recipient:
@@ -427,8 +433,8 @@ where
             .collect();
 
         // encrypt the reply message
-        let zero_iv = stream_cipher::zero_iv::<ReplySURBEncryptionAlgorithm>();
-        stream_cipher::encrypt_in_place::<ReplySURBEncryptionAlgorithm>(
+        let zero_iv = stream_cipher::zero_iv::<ReplySurbEncryptionAlgorithm>();
+        stream_cipher::encrypt_in_place::<ReplySurbEncryptionAlgorithm>(
             reply_surb.encryption_key().inner(),
             &zero_iv,
             &mut reply_content,

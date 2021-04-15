@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
 use config::NymConfig;
@@ -33,7 +22,8 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
 pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str =
-    "http://testnet-validator1.nymtech.net:8081";
+    "http://testnet-finney-validator.nymtech.net:1317";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
 
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
@@ -42,7 +32,7 @@ const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_milli
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_CACHE_ENTRY_TTL: Duration = Duration::from_millis(30_000);
-const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 32;
+const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 128;
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: u16 = 5;
@@ -140,18 +130,6 @@ where
     deserializer.deserialize_any(DurationVisitor)
 }
 
-fn deserialize_option_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s = String::deserialize(deserializer)?;
-    if s.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(s))
-    }
-}
-
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
 }
@@ -207,8 +185,8 @@ impl Config {
         self
     }
 
-    pub fn with_location<S: Into<String>>(mut self, location: S) -> Self {
-        self.gateway.location = location.into();
+    pub fn with_custom_mixnet_contract<S: Into<String>>(mut self, mixnet_contract: S) -> Self {
+        self.gateway.mixnet_contract_address = mixnet_contract.into();
         self
     }
 
@@ -249,7 +227,7 @@ impl Config {
         // since it might not necessarily be a valid SocketAddr (say `nymtech.net:8080` is a valid
         // announce address, yet invalid SocketAddr`
 
-        // first lets see if we received host:port or just host part of an address
+        // first let's see if we received host:port or just host part of an address
         let host = host.into();
         let split_host: Vec<_> = host.split(':').collect();
         match split_host.len() {
@@ -332,7 +310,7 @@ impl Config {
         // since it might not necessarily be a valid SocketAddr (say `nymtech.net:8080` is a valid
         // announce address, yet invalid SocketAddr`
 
-        // first lets see if we received host:port or just host part of an address
+        // first let's see if we received host:port or just host part of an address
         let host = host.into();
         let split_host: Vec<_> = host.split(':').collect();
         match split_host.len() {
@@ -393,18 +371,9 @@ impl Config {
         self
     }
 
-    pub fn with_incentives_address<S: Into<String>>(mut self, incentives_address: S) -> Self {
-        self.gateway.incentives_address = Some(incentives_address.into());
-        self
-    }
-
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
-    }
-
-    pub fn get_location(&self) -> String {
-        self.gateway.location.clone()
     }
 
     pub fn get_private_identity_key_file(&self) -> PathBuf {
@@ -425,6 +394,10 @@ impl Config {
 
     pub fn get_validator_rest_endpoint(&self) -> String {
         self.gateway.validator_rest_url.clone()
+    }
+
+    pub fn get_validator_mixnet_contract_address(&self) -> String {
+        self.gateway.mixnet_contract_address.clone()
     }
 
     pub fn get_mix_listening_address(&self) -> SocketAddr {
@@ -482,10 +455,6 @@ impl Config {
     pub fn get_version(&self) -> &str {
         &self.gateway.version
     }
-
-    pub fn get_incentives_address(&self) -> Option<String> {
-        self.gateway.incentives_address.clone()
-    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -496,12 +465,6 @@ pub struct Gateway {
 
     /// ID specifies the human readable ID of this particular gateway.
     id: String,
-
-    /// Completely optional value specifying geographical location of this particular gateway.
-    /// Currently it's used entirely for debug purposes, as there are no mechanisms implemented
-    /// to verify correctness of the information provided. However, feel free to fill in
-    /// this field with as much accuracy as you wish to share.
-    location: String,
 
     /// Path to file containing private identity key.
     private_identity_key_file: PathBuf,
@@ -519,13 +482,13 @@ pub struct Gateway {
     #[serde(default = "missing_string_value")]
     validator_rest_url: String,
 
+    /// Address of the validator contract managing the network.
+    #[serde(default = "missing_string_value")]
+    mixnet_contract_address: String,
+
     /// nym_home_directory specifies absolute path to the home nym gateways directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
-
-    /// Optional, if participating in the incentives program, payment address.
-    #[serde(deserialize_with = "deserialize_option_string", default)]
-    incentives_address: Option<String>,
 }
 
 impl Gateway {
@@ -544,10 +507,6 @@ impl Gateway {
     fn default_public_identity_key_file(id: &str) -> PathBuf {
         Config::default_data_directory(id).join("public_identity.pem")
     }
-
-    fn default_location() -> String {
-        "unknown".into()
-    }
 }
 
 impl Default for Gateway {
@@ -555,14 +514,13 @@ impl Default for Gateway {
         Gateway {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
-            location: Self::default_location(),
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
             validator_rest_url: DEFAULT_VALIDATOR_REST_ENDPOINT.to_string(),
+            mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
             nym_root_directory: Config::default_root_directory(),
-            incentives_address: None,
         }
     }
 }
@@ -690,7 +648,7 @@ pub struct Debug {
     stored_messages_filename_length: u16,
 
     /// Number of messages client gets on each request
-    /// if there are no real messages, dummy ones are create to always return  
+    /// if there are no real messages, dummy ones are created to always return  
     /// `message_retrieval_limit` total messages
     message_retrieval_limit: u16,
 

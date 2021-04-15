@@ -15,5 +15,5 @@
 pub mod encryption_key;
 pub mod reply_surb;
 
-pub use encryption_key::{SURBEncryptionKey, SURBEncryptionKeySize};
-pub use reply_surb::{ReplySURB, ReplySURBError};
+pub use encryption_key::{SurbEncryptionKey, SurbEncryptionKeySize};
+pub use reply_surb::{ReplySurb, ReplySurbError};

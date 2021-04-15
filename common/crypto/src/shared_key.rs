@@ -14,10 +14,10 @@
 
 use crate::asymmetric::encryption;
 use crate::hkdf;
+use cipher::stream::{Key, NewStreamCipher, SyncStreamCipher};
 use digest::{BlockInput, FixedOutput, Reset, Update};
 use generic_array::{typenum::Unsigned, ArrayLength};
 use rand::{CryptoRng, RngCore};
-use stream_cipher::{Key, NewStreamCipher, SyncStreamCipher};
 
 /// Generate an ephemeral encryption keypair and perform diffie-hellman to establish
 /// shared key with the remote.
@@ -32,7 +32,7 @@ where
     D::OutputSize: ArrayLength<u8>,
     R: RngCore + CryptoRng,
 {
-    let ephemeral_keypair = encryption::KeyPair::new_with_rng(rng);
+    let ephemeral_keypair = encryption::KeyPair::new(rng);
 
     // after performing diffie-hellman we don't care about the private component anymore
     let dh_result = ephemeral_keypair.private_key().diffie_hellman(remote_key);

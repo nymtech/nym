@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
 use config::NymConfig;
@@ -32,8 +21,9 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 // 'MIXNODE'
 const DEFAULT_LISTENING_PORT: u16 = 1789;
 pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str =
-    "http://testnet-validator1.nymtech.net:8081";
+    "http://testnet-finney-validator.nymtech.net:1317";
 pub(crate) const DEFAULT_METRICS_SERVER: &str = "http://testnet-metrics.nymtech.net:8080";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
 
 // 'DEBUG'
 const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
@@ -41,7 +31,7 @@ const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_milli
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_CACHE_ENTRY_TTL: Duration = Duration::from_millis(30_000);
-const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 32;
+const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 128;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -132,18 +122,6 @@ where
     deserializer.deserialize_any(DurationVisitor)
 }
 
-fn deserialize_option_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s = String::deserialize(deserializer)?;
-    if s.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(s))
-    }
-}
-
 pub fn missing_string_value<T: From<String>>() -> T {
     MISSING_VALUE.to_string().into()
 }
@@ -188,13 +166,13 @@ impl Config {
         self
     }
 
-    pub fn with_location<S: Into<String>>(mut self, location: S) -> Self {
-        self.mixnode.location = location.into();
+    pub fn with_custom_validator<S: Into<String>>(mut self, validator: S) -> Self {
+        self.mixnode.validator_rest_url = validator.into();
         self
     }
 
-    pub fn with_custom_validator<S: Into<String>>(mut self, validator: S) -> Self {
-        self.mixnode.validator_rest_url = validator.into();
+    pub fn with_custom_mixnet_contract<S: Into<String>>(mut self, mixnet_contract: S) -> Self {
+        self.mixnode.mixnet_contract_address = mixnet_contract.into();
         self
     }
 
@@ -283,18 +261,9 @@ impl Config {
         self
     }
 
-    pub fn with_incentives_address<S: Into<String>>(mut self, incentives_address: S) -> Self {
-        self.mixnode.incentives_address = Some(incentives_address.into());
-        self
-    }
-
     // getters
     pub fn get_config_file_save_location(&self) -> PathBuf {
         self.config_directory().join(Self::config_file_name())
-    }
-
-    pub fn get_location(&self) -> String {
-        self.mixnode.location.clone()
     }
 
     pub fn get_private_identity_key_file(&self) -> PathBuf {
@@ -315,6 +284,10 @@ impl Config {
 
     pub fn get_validator_rest_endpoint(&self) -> String {
         self.mixnode.validator_rest_url.clone()
+    }
+
+    pub fn get_validator_mixnet_contract_address(&self) -> String {
+        self.mixnode.mixnet_contract_address.clone()
     }
 
     pub fn get_metrics_server(&self) -> String {
@@ -361,10 +334,6 @@ impl Config {
         &self.mixnode.version
     }
 
-    pub fn get_incentives_address(&self) -> Option<String> {
-        self.mixnode.incentives_address.clone()
-    }
-
     // upgrade-specific
     pub(crate) fn set_default_identity_keypair_paths(&mut self) {
         self.mixnode.private_identity_key_file =
@@ -382,12 +351,6 @@ pub struct MixNode {
 
     /// ID specifies the human readable ID of this particular mixnode.
     id: String,
-
-    /// Completely optional value specifying geographical location of this particular node.
-    /// Currently it's used entirely for debug purposes, as there are no mechanisms implemented
-    /// to verify correctness of the information provided. However, feel free to fill in
-    /// this field with as much accuracy as you wish to share.
-    location: String,
 
     /// Layer of this particular mixnode determining its position in the network.
     layer: u64,
@@ -421,6 +384,10 @@ pub struct MixNode {
     #[serde(default = "missing_string_value")]
     validator_rest_url: String,
 
+    /// Address of the validator contract managing the network.
+    #[serde(default = "missing_string_value")]
+    mixnet_contract_address: String,
+
     /// Metrics server to which the node will be reporting their metrics data.
     #[serde(default = "missing_string_value")]
     metrics_server_url: String,
@@ -428,10 +395,6 @@ pub struct MixNode {
     /// nym_home_directory specifies absolute path to the home nym MixNodes directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
-
-    /// Optional, if participating in the incentives program, payment address.
-    #[serde(deserialize_with = "deserialize_option_string", default)]
-    incentives_address: Option<String>,
 }
 
 impl MixNode {
@@ -450,10 +413,6 @@ impl MixNode {
     fn default_public_sphinx_key_file(id: &str) -> PathBuf {
         Config::default_data_directory(id).join("public_sphinx.pem")
     }
-
-    fn default_location() -> String {
-        "unknown".into()
-    }
 }
 
 impl Default for MixNode {
@@ -461,7 +420,6 @@ impl Default for MixNode {
         MixNode {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
-            location: Self::default_location(),
             layer: 0,
             listening_address: format!("0.0.0.0:{}", DEFAULT_LISTENING_PORT)
                 .parse()
@@ -472,9 +430,9 @@ impl Default for MixNode {
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
             validator_rest_url: DEFAULT_VALIDATOR_REST_ENDPOINT.to_string(),
+            mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
             metrics_server_url: DEFAULT_METRICS_SERVER.to_string(),
             nym_root_directory: Config::default_root_directory(),
-            incentives_address: None,
         }
     }
 }

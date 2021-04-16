@@ -28,26 +28,17 @@ export default class GatewaysCache {
         let newGateways: GatewayBond[] = [];
         let response: PagedGatewayResponse;
         let next: string | undefined = undefined;
-        do {
+        for (;;) {
             response = await this.client.getGateways(contractAddress, this.perPage, next);
             newGateways = newGateways.concat(response.nodes)
             next = response.start_next_after;
-        } while (this.shouldMakeAnotherRequest(response))
+            // if `start_next_after` is not set, we're done
+            if (!next) {
+                break
+            }
+        }
 
         this.gateways = newGateways
         return newGateways;
-    }
-
-    /// The paging interface on the smart contracts is a bit gross at the moment.
-    /// This returns `true` if the `start_next_after` property of the response is set
-    /// and the page we've just got back is the same length as perPage on this
-    /// NetClient instance (we don't have any idea whether there is a next page
-    /// so if both these things are true we should make another request);
-    /// otherwise returns false.
-    shouldMakeAnotherRequest(response: PagedGatewayResponse): boolean {
-        const next = response.start_next_after;
-        const nextExists: boolean = (next !== null && next !== undefined && next !== "");
-        const fullPage: boolean = response.nodes.length == this.perPage;
-        return fullPage && nextExists;
     }
 }

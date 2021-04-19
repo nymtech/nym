@@ -66,10 +66,9 @@ pub(crate) fn try_remove_mixnode(
     env: Env,
 ) -> Result<HandleResponse, ContractError> {
     // find the bond, return ContractError::MixNodeBondNotFound if it doesn't exist
-    let mixnode_bond = match mixnodes_read(deps.storage).may_load(info.sender.as_bytes())? {
-        None => return Err(ContractError::MixNodeBondNotFound {}),
-        Some(bond) => bond,
-    };
+    let mixnode_bond = mixnodes_read(deps.storage)
+        .may_load(info.sender.as_bytes())?
+        .ok_or(ContractError::MixNodeBondNotFound {})?;
 
     // send bonded funds back to the bond owner
     let messages = vec![BankMsg::Send {

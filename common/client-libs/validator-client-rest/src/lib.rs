@@ -5,7 +5,10 @@ use crate::models::{QueryRequest, QueryResponse};
 use crate::ValidatorClientError::ValidatorError;
 use core::fmt::{self, Display, Formatter};
 use mixnet_contract::{GatewayBond, HumanAddr, MixNodeBond, PagedGatewayResponse, PagedResponse};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use serde::Deserialize;
+use std::collections::VecDeque;
 
 mod models;
 pub(crate) mod serde_helpers;
@@ -35,17 +38,30 @@ impl Display for ValidatorClientError {
     }
 }
 
+fn permute_validators(validators: VecDeque<String>) -> VecDeque<String> {
+    // even in the best case scenario in the mainnet world, we're not going to have more than ~100 validators,
+    // hence conversions from and to Vec are fine
+    let mut vec = Vec::from(validators);
+
+    vec.shuffle(&mut thread_rng());
+
+    vec.into()
+}
+
 pub struct Config {
-    rpc_server_base_url: String,
+    initial_rest_servers: Vec<String>,
     mixnet_contract_address: String,
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
 }
 
 impl Config {
-    pub fn new<S: Into<String>>(rpc_server_base_url: S, mixnet_contract_address: S) -> Self {
+    pub fn new<S: Into<String>>(
+        rest_servers_available_base_urls: Vec<String>,
+        mixnet_contract_address: S,
+    ) -> Self {
         Config {
-            rpc_server_base_url: rpc_server_base_url.into(),
+            initial_rest_servers: rest_servers_available_base_urls,
             mixnet_contract_address: mixnet_contract_address.into(),
             mixnode_page_limit: None,
             gateway_page_limit: None,
@@ -65,26 +81,76 @@ impl Config {
 
 pub struct Client {
     config: Config,
+    // Currently it seems the client is independent of the url hence a single instance seems to be fine
     reqwest_client: reqwest::Client,
+
+    available_validators_rest_urls: VecDeque<String>,
+    failed_queries: usize,
 }
 
 impl Client {
     pub fn new(config: Config) -> Self {
         let reqwest_client = reqwest::Client::new();
+
+        // client is only ever created on process startup, so a panic here is fine as it implies
+        // invalid config. And that can only happen if an user was messing with it by themselves.
+        if config.initial_rest_servers.is_empty() {
+            panic!("no validator servers provided")
+        }
+
+        let mut available_validators_rest_urls = config.initial_rest_servers.clone().into();
+        available_validators_rest_urls = permute_validators(available_validators_rest_urls);
+
         Client {
             config,
             reqwest_client,
+            available_validators_rest_urls,
+            failed_queries: 0,
         }
+    }
+
+    fn permute_validators(&mut self) {
+        if self.available_validators_rest_urls.len() == 1 {
+            return;
+        }
+        self.available_validators_rest_urls =
+            permute_validators(std::mem::take(&mut self.available_validators_rest_urls));
     }
 
     fn base_query_path(&self) -> String {
         format!(
             "{}/wasm/contract/{}/smart",
-            self.config.rpc_server_base_url, self.config.mixnet_contract_address
+            self.available_validators_rest_urls[0], self.config.mixnet_contract_address
         )
     }
 
-    async fn query_validator<T>(&self, query: String) -> Result<T, ValidatorClientError>
+    async fn query_validators<T>(&mut self, query: String) -> Result<T, ValidatorClientError>
+    where
+        for<'a> T: Deserialize<'a>,
+    {
+        // if we fail to query the first validator, push it to the back
+        let res = self.query_front_validator(query).await;
+        if self.available_validators_rest_urls.len() > 1 && res.is_err() {
+            println!("query failed. switching");
+            let front = self.available_validators_rest_urls.pop_front().unwrap();
+            self.available_validators_rest_urls.push_back(front);
+            self.failed_queries += 1;
+        }
+
+        // if we exhausted all of available validators, permute the set, maybe the old ones
+        // are working again next time we try
+        if self.available_validators_rest_urls.len() > 1
+            && self.failed_queries == self.available_validators_rest_urls.len()
+        {
+            println!("permuting all");
+            self.permute_validators();
+            self.failed_queries = 0
+        }
+
+        res
+    }
+
+    async fn query_front_validator<T>(&self, query: String) -> Result<T, ValidatorClientError>
     where
         for<'a> T: Deserialize<'a>,
     {
@@ -106,7 +172,7 @@ impl Client {
     }
 
     async fn get_mix_nodes_paged(
-        &self,
+        &mut self,
         start_after: Option<HumanAddr>,
     ) -> Result<PagedResponse, ValidatorClientError> {
         let query_content_json = serde_json::to_string(&QueryRequest::GetMixNodes {
@@ -118,10 +184,10 @@ impl Client {
         // we need to encode our json request
         let query_content = base64::encode(query_content_json);
 
-        self.query_validator(query_content).await
+        self.query_validators(query_content).await
     }
 
-    pub async fn get_mix_nodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
+    pub async fn get_mix_nodes(&mut self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
         let mut mixnodes = Vec::new();
         let mut start_after = None;
         loop {
@@ -139,7 +205,7 @@ impl Client {
     }
 
     async fn get_gateways_paged(
-        &self,
+        &mut self,
         start_after: Option<HumanAddr>,
     ) -> Result<PagedGatewayResponse, ValidatorClientError> {
         let query_content_json = serde_json::to_string(&QueryRequest::GetGateways {
@@ -151,10 +217,10 @@ impl Client {
         // we need to encode our json request
         let query_content = base64::encode(query_content_json);
 
-        self.query_validator(query_content).await
+        self.query_validators(query_content).await
     }
 
-    pub async fn get_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+    pub async fn get_gateways(&mut self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         let mut gateways = Vec::new();
         let mut start_after = None;
         loop {
@@ -169,5 +235,48 @@ impl Client {
         }
 
         Ok(gateways)
+    }
+}
+
+// http://testnet-finney-validator2.nymtech.net:1317 4s 229ms
+// http://testnet-finney-validator.nymtech.net:1317 49s 107ms
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn foo() {
+        let config = Config::new(
+            vec![
+                // "http://fdrfesadrtw5rtewsd.com:1317".to_string(),
+                "http://testnet-finney-validator.nymtech.net:1317".to_string(),
+            ],
+            "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94",
+        );
+        let mut client = Client::new(config);
+
+        let mut i = 0;
+        loop {
+            if i > 10 {
+                break;
+            }
+            match client.get_mix_nodes().await {
+                Err(err) => println!("err at {}", i),
+                Ok(nodes) => {
+                    println!("OK AT {} ", i);
+                    println!("there are {} nodes", nodes.len())
+                }
+            };
+
+            i += 1;
+        }
+
+        // let nodes = client.get_mix_nodes().await;
+        // assert!(nodes.is_err());
+        //
+        // let nodes = client.get_mix_nodes().await.unwrap();
+        //
+        // println!("there are {} nodes", nodes.len());
+        // assert!(false)
     }
 }

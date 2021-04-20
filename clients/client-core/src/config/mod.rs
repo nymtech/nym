@@ -12,11 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use config::NymConfig;
-use serde::{
-    de::{self, IntoDeserializer, Visitor},
-    Deserialize, Deserializer, Serialize,
-};
+use config::{deserialize_duration, deserialize_validators, NymConfig};
+use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -26,8 +23,11 @@ pub mod persistence;
 pub const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'CLIENT'
-pub const DEFAULT_VALIDATOR_REST_ENDPOINT: &str =
-    "http://testnet-finney-validator.nymtech.net:1317";
+pub const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
+    "http://testnet-finney-validator.nymtech.net:1317",
+    "http://testnet-finney-validator2.nymtech.net:1317",
+    "http://mixnet.club:1317",
+];
 pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
 
 // 'DEBUG'
@@ -44,55 +44,20 @@ const DEFAULT_VPN_KEY_REUSE_LIMIT: usize = 1000;
 
 const ZERO_DELAY: Duration = Duration::from_nanos(0);
 
-// custom function is defined to deserialize based on whether field contains a pre 0.9.0
-// u64 interpreted as milliseconds or proper duration introduced in 0.9.0
-//
-// TODO: when we get to refactoring down the line, this code can just be removed
-// and all Duration fields could just have #[serde(with = "humantime_serde")] instead
-// reason for that is that we don't expect anyone to be upgrading from pre 0.9.0 when we have,
-// for argument sake, 0.11.0 out
-fn deserialize_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    struct DurationVisitor;
-
-    impl<'de> Visitor<'de> for DurationVisitor {
-        type Value = Duration;
-
-        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            formatter.write_str("u64 or a duration")
-        }
-
-        fn visit_i64<E>(self, value: i64) -> Result<Duration, E>
-        where
-            E: de::Error,
-        {
-            self.visit_u64(value as u64)
-        }
-
-        fn visit_u64<E>(self, value: u64) -> Result<Duration, E>
-        where
-            E: de::Error,
-        {
-            Ok(Duration::from_millis(Deserialize::deserialize(
-                value.into_deserializer(),
-            )?))
-        }
-
-        fn visit_str<E>(self, value: &str) -> Result<Duration, E>
-        where
-            E: de::Error,
-        {
-            humantime_serde::deserialize(value.into_deserializer())
-        }
-    }
-
-    deserializer.deserialize_any(DurationVisitor)
+// helper function to get default validators as a Vec<String>
+pub fn default_validator_rest_endpoints() -> Vec<String> {
+    DEFAULT_VALIDATOR_REST_ENDPOINTS
+        .iter()
+        .map(|&endpoint| endpoint.to_string())
+        .collect()
 }
 
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
+}
+
+pub fn missing_vec_string_value() -> Vec<String> {
+    vec![missing_string_value()]
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -178,8 +143,8 @@ impl<T: NymConfig> Config<T> {
         self.client.gateway_listener = gateway_listener.into();
     }
 
-    pub fn set_custom_validator<S: Into<String>>(&mut self, validator: S) {
-        self.client.validator_rest_url = validator.into();
+    pub fn set_custom_validators(&mut self, validators: Vec<String>) {
+        self.client.validator_rest_urls = validators;
     }
 
     pub fn set_mixnet_contract<S: Into<String>>(&mut self, contract_address: S) {
@@ -240,8 +205,8 @@ impl<T: NymConfig> Config<T> {
         self.client.ack_key_file.clone()
     }
 
-    pub fn get_validator_rest_endpoint(&self) -> String {
-        self.client.validator_rest_url.clone()
+    pub fn get_validator_rest_endpoints(&self) -> Vec<String> {
+        self.client.validator_rest_urls.clone()
     }
 
     pub fn get_validator_mixnet_contract_address(&self) -> String {
@@ -345,8 +310,12 @@ pub struct Client<T> {
     id: String,
 
     /// URL to the validator server for obtaining network topology.
-    #[serde(default = "missing_string_value")]
-    validator_rest_url: String,
+    #[serde(
+        deserialize_with = "deserialize_validators",
+        default = "missing_vec_string_value",
+        alias = "validator_rest_url"
+    )]
+    validator_rest_urls: Vec<String>,
 
     /// Address of the validator contract managing the network.
     #[serde(default = "missing_string_value")]
@@ -403,7 +372,7 @@ impl<T: NymConfig> Default for Client<T> {
         Client {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
-            validator_rest_url: DEFAULT_VALIDATOR_REST_ENDPOINT.to_string(),
+            validator_rest_urls: default_validator_rest_endpoints(),
             mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
             vpn_mode: false,
             private_identity_key_file: Default::default(),

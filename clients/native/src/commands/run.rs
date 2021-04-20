@@ -30,10 +30,10 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .required(true)
         )
         // the rest of arguments are optional, they are used to override settings in config file
-        .arg(Arg::with_name("validator")
-            .long("validator")
-            .help("Address of the validator server the client is getting topology from")
-            .takes_value(true),
+        .arg(Arg::with_name("validators")
+                .long("validators")
+                .help("Comma separated list rest rest endpoints of the validators")
+                .takes_value(true),
         )
         .arg(Arg::with_name("mixnet-contract")
                  .long("mixnet-contract")

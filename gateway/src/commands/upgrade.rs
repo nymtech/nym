@@ -1,8 +1,8 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{Config, MISSING_VALUE};
-use crate::config::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DEFAULT_VALIDATOR_REST_ENDPOINT};
+use crate::config::DEFAULT_MIXNET_CONTRACT_ADDRESS;
+use crate::config::{default_validator_rest_endpoints, Config, MISSING_VALUE};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use std::fmt::Display;
@@ -127,20 +127,20 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
 
     print_start_upgrade(&from_version, &to_version);
 
-    if config.get_validator_rest_endpoint() != MISSING_VALUE {
+    if config.get_validator_rest_endpoints()[0] != MISSING_VALUE {
         eprintln!("existing config seems to have specified new validator rest endpoint which was only introduced in 0.9.0! Can't perform upgrade.");
         print_failed_upgrade(&from_version, &to_version);
         process::exit(1);
     }
 
     println!(
-        "Setting validator REST endpoint to to {}",
-        DEFAULT_VALIDATOR_REST_ENDPOINT
+        "Setting validator REST endpoint to to {:?}",
+        default_validator_rest_endpoints()
     );
 
     let upgraded_config = config
         .with_custom_version(to_version.to_string().as_ref())
-        .with_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT);
+        .with_custom_validators(default_validator_rest_endpoints());
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
@@ -174,8 +174,8 @@ fn minor_010_upgrade(
     }
 
     println!(
-        "Setting validator REST endpoint to {}",
-        DEFAULT_VALIDATOR_REST_ENDPOINT
+        "Setting validator REST endpoint to {:?}",
+        default_validator_rest_endpoints()
     );
 
     println!(
@@ -185,7 +185,7 @@ fn minor_010_upgrade(
 
     let upgraded_config = config
         .with_custom_version(to_version.to_string().as_ref())
-        .with_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT)
+        .with_custom_validators(default_validator_rest_endpoints())
         .with_custom_mixnet_contract(DEFAULT_MIXNET_CONTRACT_ADDRESS);
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {

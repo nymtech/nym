@@ -68,7 +68,7 @@ pub(crate) fn calculate_epoch_reward_rate(
 
     let epoch_ratio = Decimal::from_ratio(epoch_length, HOURS_IN_YEAR);
 
-    // converts reward, like 0.25 into 1250000000000000000
+    // converts reward, like 0.25 into 250000000000000000
     let annual_reward_uint128 = decimal_to_uint128(annual_reward);
 
     let epoch_reward_uint128 = epoch_ratio * annual_reward_uint128;

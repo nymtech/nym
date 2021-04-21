@@ -130,21 +130,21 @@ impl Client {
     {
         // if we fail to query the first validator, push it to the back
         let res = self.query_front_validator(query).await;
-        if self.available_validators_rest_urls.len() > 1 && res.is_err() {
-            println!("query failed. switching");
-            let front = self.available_validators_rest_urls.pop_front().unwrap();
-            self.available_validators_rest_urls.push_back(front);
-            self.failed_queries += 1;
-        }
 
-        // if we exhausted all of available validators, permute the set, maybe the old ones
-        // are working again next time we try
-        if self.available_validators_rest_urls.len() > 1
-            && self.failed_queries == self.available_validators_rest_urls.len()
-        {
-            println!("permuting all");
-            self.permute_validators();
-            self.failed_queries = 0
+        // don't bother doing any fancy validator switches if we only have 1 validator to choose from
+        if self.available_validators_rest_urls.len() > 1 {
+            if res.is_err() {
+                let front = self.available_validators_rest_urls.pop_front().unwrap();
+                self.available_validators_rest_urls.push_back(front);
+                self.failed_queries += 1;
+            }
+
+            // if we exhausted all of available validators, permute the set, maybe the old ones
+            // are working again next time we try
+            if self.failed_queries == self.available_validators_rest_urls.len() {
+                self.permute_validators();
+                self.failed_queries = 0
+            }
         }
 
         res

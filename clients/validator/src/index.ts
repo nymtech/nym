@@ -23,7 +23,7 @@ import {
 } from "./currency";
 import GatewaysCache from "./caches/gateways";
 import QueryClient, { IQueryClient } from "./query-client";
-import { BroadcastTxResponse, isBroadcastTxFailure } from "@cosmjs/stargate";
+import { BroadcastTxSuccess, isBroadcastTxFailure } from "@cosmjs/stargate";
 
 export { coins, coin };
 export { Coin };
@@ -271,7 +271,7 @@ export default class ValidatorClient {
     /**
      * Send funds from one address to another.
      */
-    async send(senderAddress: string, recipientAddress: string, coins: readonly Coin[], memo?: string): Promise<BroadcastTxResponse> {
+    async send(senderAddress: string, recipientAddress: string, coins: readonly Coin[], memo?: string): Promise<BroadcastTxSuccess> {
         if (this.client instanceof NetClient) {
             const result = await this.client.sendTokens(senderAddress, recipientAddress, coins, memo);
             if (isBroadcastTxFailure(result)) {

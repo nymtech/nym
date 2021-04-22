@@ -84,7 +84,7 @@ impl CachedPacketProcessor {
         packet: SphinxPacket,
     ) -> Result<ProcessedPacket, MixProcessingError> {
         packet.process(&self.sphinx_key).map_err(|err| {
-            warn!("Failed to unwrap Sphinx packet: {:?}", err);
+            debug!("Failed to unwrap Sphinx packet: {:?}", err);
             MixProcessingError::SphinxProcessingError(err)
         })
     }
@@ -98,7 +98,7 @@ impl CachedPacketProcessor {
         packet
             .process_with_derived_keys(&keys.0, &keys.1)
             .map_err(|err| {
-                warn!("Failed to unwrap Sphinx packet: {:?}", err);
+                debug!("Failed to unwrap Sphinx packet: {:?}", err);
                 MixProcessingError::SphinxProcessingError(err)
             })
     }

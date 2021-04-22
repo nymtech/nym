@@ -107,7 +107,7 @@ async fn choose_layer(
 
     for node in mixnodes {
         if node.mix_node.layer < 1 || node.mix_node.layer > max_layer as u64 {
-            warn!(
+            debug!(
                 "one of bonded mixnodes is on invalid layer {}",
                 node.mix_node.layer
             );

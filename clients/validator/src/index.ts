@@ -4,7 +4,6 @@ import { Bip39, Random } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
 import { buildFeeTable, coin, Coin, coins, StdFee } from "@cosmjs/launchpad";
-import { BroadcastTxResponse } from "@cosmjs/stargate"
 import {
     ExecuteResult,
     InstantiateOptions,
@@ -27,6 +26,7 @@ import QueryClient, { IQueryClient } from "./query-client";
 import { MsgExecuteContract } from "@cosmjs/cosmwasm-stargate/build/codec/x/wasm/internal/types/tx";
 import { toUtf8 } from "@cosmjs/encoding"
 import { nymGasLimits, nymGasPrice } from "./stargate-helper";
+import { BroadcastTxResponse, BroadcastTxSuccess, isBroadcastTxFailure } from "@cosmjs/stargate";
 
 export { coins, coin };
 export { Coin };
@@ -274,7 +274,7 @@ export default class ValidatorClient {
     }
 
     // note if this is not executed by network monitor (or uptime is not in range 0-100) the transaction will be rejected
-    async rewardMixnode(ownerAddress: string, uptime: number): Promise<BroadcastTxResponse> {
+    async rewardMixnode(ownerAddress: string, uptime: number): Promise<BroadcastTxSuccess> {
         if (this.client instanceof NetClient) {
             // this is using the slightly less user-friendly `signAndBroadcast` as it allows manually setting gas fees
             // as rewarding is approximately half the cost of bonding
@@ -288,14 +288,18 @@ export default class ValidatorClient {
                 }),
             };
 
-            return await this.client.signAndBroadcast(this.client.clientAddress, [executeMsg], this.rewardGasFee, "rewarding mixnode");
+            const result = await this.client.signAndBroadcast(this.client.clientAddress, [executeMsg], this.rewardGasFee, "rewarding mixnode");
+            if (isBroadcastTxFailure(result)) {
+                throw new Error(`Error when broadcasting tx ${result.transactionHash} at height ${result.height}. Code: ${result.code}; Raw log: ${result.rawLog}`)
+            }
+            return result
         } else {
             throw new Error("Tried to reward mixnode with a query client")
         }
     }
     
     // note if this is not executed by network monitor (or uptime is not in range 0-100) the transaction will be rejected
-    async rewardGateway(ownerAddress: string, uptime: number): Promise<BroadcastTxResponse> {
+    async rewardGateway(ownerAddress: string, uptime: number): Promise<BroadcastTxSuccess> {
         if (this.client instanceof NetClient) {
             // this is using the slightly less user-friendly `signAndBroadcast` as it allows manually setting gas fees
             // as rewarding is approximately half the cost of bonding
@@ -309,7 +313,11 @@ export default class ValidatorClient {
                 }),
             };
 
-            return await this.client.signAndBroadcast(this.client.clientAddress, [executeMsg], this.rewardGasFee, "rewarding gateway");
+            const result = await this.client.signAndBroadcast(this.client.clientAddress, [executeMsg], this.rewardGasFee, "rewarding gateway");
+            if (isBroadcastTxFailure(result)) {
+                throw new Error(`Error when broadcasting tx ${result.transactionHash} at height ${result.height}. Code: ${result.code}; Raw log: ${result.rawLog}`)
+            }
+            return result
         } else {
             throw new Error("Tried to reward mixnode with a query client")
         }

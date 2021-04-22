@@ -4,7 +4,6 @@ import { Bip39, Random } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
 import { coin, Coin, coins } from "@cosmjs/launchpad";
-import { BroadcastTxResponse } from "@cosmjs/stargate"
 import {
     ExecuteResult,
     InstantiateOptions,
@@ -24,6 +23,7 @@ import {
 } from "./currency";
 import GatewaysCache from "./caches/gateways";
 import QueryClient, { IQueryClient } from "./query-client";
+import { BroadcastTxResponse, isBroadcastTxFailure } from "@cosmjs/stargate";
 
 export { coins, coin };
 export { Coin };
@@ -273,7 +273,11 @@ export default class ValidatorClient {
      */
     async send(senderAddress: string, recipientAddress: string, coins: readonly Coin[], memo?: string): Promise<BroadcastTxResponse> {
         if (this.client instanceof NetClient) {
-            return this.client.sendTokens(senderAddress, recipientAddress, coins, memo);
+            const result = await this.client.sendTokens(senderAddress, recipientAddress, coins, memo);
+            if (isBroadcastTxFailure(result)) {
+                throw new Error(`Error when broadcasting tx ${result.transactionHash} at height ${result.height}. Code: ${result.code}; Raw log: ${result.rawLog}`)
+            }
+            return result
         } else {
             throw new Error("Tried to use send with a query client");
         }

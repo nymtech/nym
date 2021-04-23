@@ -238,10 +238,6 @@ fn minor_010_upgrade(
     upgraded_config
 }
 
-fn patch_0101_upgrade() -> ! {
-    todo!()
-}
-
 fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version) {
     loop {
         let config_version = parse_config_version(&config);

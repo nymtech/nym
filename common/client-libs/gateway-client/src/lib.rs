@@ -29,10 +29,7 @@ pub(crate) fn cleanup_socket_message(
     msg: Option<Result<Message, WsError>>,
 ) -> Result<Message, GatewayClientError> {
     match msg {
-        Some(msg) => match msg {
-            Ok(msg) => Ok(msg),
-            Err(err) => Err(GatewayClientError::NetworkError(err)),
-        },
+        Some(msg) => msg.map_err(GatewayClientError::NetworkError),
         None => Err(GatewayClientError::ConnectionAbruptlyClosed),
     }
 }

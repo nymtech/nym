@@ -19,6 +19,8 @@ pub enum ValidatorClientError {
     ValidatorError(String),
 }
 
+impl std::error::Error for ValidatorClientError {}
+
 impl From<reqwest::Error> for ValidatorClientError {
     fn from(err: reqwest::Error) -> Self {
         ValidatorClientError::ReqwestClientError(err)

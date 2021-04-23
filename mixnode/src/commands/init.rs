@@ -54,9 +54,9 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("validator")
-                .long("validator")
-                .help("REST endpoint of the validator the node is registering presence with")
+            Arg::with_name("validators")
+                .long("validators")
+                .help("Comma separated list of rest endpoints of the validators")
                 .takes_value(true),
         )
         .arg(
@@ -75,7 +75,7 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
 
 async fn choose_layer(
     matches: &ArgMatches<'_>,
-    validator_server: String,
+    validator_servers: Vec<String>,
     mixnet_contract: String,
 ) -> u64 {
     let max_layer = DEFAULT_NUM_MIX_HOPS;
@@ -91,8 +91,8 @@ async fn choose_layer(
     }
 
     let validator_client_config =
-        validator_client_rest::Config::new(validator_server, mixnet_contract);
-    let validator_client = validator_client_rest::Client::new(validator_client_config);
+        validator_client_rest::Config::new(validator_servers, mixnet_contract);
+    let mut validator_client = validator_client_rest::Client::new(validator_client_config);
 
     let mixnodes = validator_client
         .get_mix_nodes()
@@ -187,7 +187,7 @@ pub fn execute(matches: &ArgMatches) {
 
         let mut config = Config::new(id);
         config = override_config(config, matches);
-        let layer = choose_layer(matches, config.get_validator_rest_endpoint(), config.get_validator_mixnet_contract_address()).await;
+        let layer = choose_layer(matches, config.get_validator_rest_endpoints(), config.get_validator_mixnet_contract_address()).await;
         // TODO: I really don't like how we override config and are presumably done with it
         // only to change it here
         config = config.with_layer(layer);

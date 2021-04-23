@@ -31,7 +31,11 @@ version = '{{ client.version }}'
 id = '{{ client.id }}'
 
 # URL to the validator server for obtaining network topology.
-validator_rest_url = '{{ client.validator_rest_url }}'
+validator_rest_urls = [
+    {{#each client.validator_rest_urls }}
+        '{{this}}',
+    {{/each}}
+]
 
 # Address of the validator contract managing the network.
 mixnet_contract_address = '{{ client.mixnet_contract_address }}'

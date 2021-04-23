@@ -49,10 +49,10 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .help("Id of the gateway we are going to connect to.")
             .takes_value(true)
         )
-        .arg(Arg::with_name("validator")
-            .long("validator")
-            .help("Address of the validator server the client is getting topology from")
-            .takes_value(true),
+        .arg(Arg::with_name("validators")
+                .long("validators")
+                .help("Comma separated list of rest endpoints of the validators")
+                .takes_value(true),
         )
         .arg(Arg::with_name("mixnet-contract")
                  .long("mixnet-contract")
@@ -105,13 +105,13 @@ async fn register_with_gateway(
 }
 
 async fn gateway_details(
-    validator_server: &str,
+    validator_servers: Vec<String>,
     mixnet_contract: &str,
     chosen_gateway_id: Option<&str>,
 ) -> gateway::Node {
     let validator_client_config =
-        validator_client_rest::Config::new(validator_server, mixnet_contract);
-    let validator_client = validator_client_rest::Client::new(validator_client_config);
+        validator_client_rest::Config::new(validator_servers, mixnet_contract);
+    let mut validator_client = validator_client_rest::Client::new(validator_client_config);
 
     let gateways = validator_client.get_gateways().await.unwrap();
     let valid_gateways = gateways
@@ -208,7 +208,7 @@ pub fn execute(matches: &ArgMatches) {
 
         let registration_fut = async {
             let gate_details = gateway_details(
-                &config.get_base().get_validator_rest_endpoint(),
+                config.get_base().get_validator_rest_endpoints(),
                 &config.get_base().get_validator_mixnet_contract_address(),
                 chosen_gateway_id,
             )

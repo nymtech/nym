@@ -34,14 +34,17 @@ export default class ValidatorClient {
     private readonly defaultGatewayBondingStake: number = 100_000000
     private readonly defaultMixnodeBondingStake: number = 100_000000
 
-    url: string;
+    urls: string[];
     private readonly client: INetClient | IQueryClient
     private mixNodesCache: MixnodesCache;
     private gatewayCache: GatewaysCache
     private readonly contractAddress: string;
+    // for some reason typescript thinks it's better to not be explicit about a trivial type...
+    // eslint-disable-next-line @typescript-eslint/no-inferrable-types
+    private failedRequests: number = 0;
 
-    private constructor(url: string, client: INetClient | IQueryClient, contractAddress: string, stakeDenom: string) {
-        this.url = url;
+    private constructor(urls: string[], client: INetClient | IQueryClient, contractAddress: string, stakeDenom: string) {
+        this.urls = urls;
         this.client = client;
         this.mixNodesCache = new MixnodesCache(client, 100);
         this.gatewayCache = new GatewaysCache(client, 100);
@@ -49,15 +52,112 @@ export default class ValidatorClient {
         this.stakeDenom = stakeDenom;
     }
 
-    static async connect(contractAddress: string, mnemonic: string, url: string, stakeDenom: string): Promise<ValidatorClient> {
+    // allows also entering 'string' by itself for backwards compatibility
+    static async connect(contractAddress: string, mnemonic: string, urls: string | string[], stakeDenom: string): Promise<ValidatorClient> {
+        const validatorUrls = this.dealWithValidatorUrls(urls)
         const wallet = await ValidatorClient.buildWallet(mnemonic);
-        const netClient = await NetClient.connect(wallet, url, stakeDenom);
-        return new ValidatorClient(url, netClient, contractAddress, stakeDenom);
+
+        // if we have more than a single validator, try to perform initial connection until we succeed or run out of options
+        if (validatorUrls.length > 1) {
+            for (let i = 0; i < validatorUrls.length; i++) {
+                console.log("Attempting initial connection to", validatorUrls[0])
+                const netClient = await NetClient.connect(wallet, validatorUrls[0], stakeDenom).catch((_) => ValidatorClient.moveArrayHeadToBack(validatorUrls))
+                if (netClient !== undefined) {
+                    return new ValidatorClient(validatorUrls, netClient, contractAddress, stakeDenom);
+                }
+                console.log("Initial connection to", validatorUrls[0], "failed")
+            }
+        } else {
+            const netClient = await NetClient.connect(wallet, validatorUrls[0], stakeDenom)
+            return new ValidatorClient(validatorUrls, netClient, contractAddress, stakeDenom);
+        }
+
+        throw new Error("None of the provided validators seem to be alive")
     }
 
-    static async connectForQuery(contractAddress: string, url: string, stakeDenom: string): Promise<ValidatorClient> {
-        const queryClient = await QueryClient.connect(url)
-        return new ValidatorClient(url, queryClient, contractAddress, stakeDenom)
+    // allows also entering 'string' by itself for backwards compatibility
+    static async connectForQuery(contractAddress: string, urls: string | string[], stakeDenom: string): Promise<ValidatorClient> {
+        const validatorUrls = this.dealWithValidatorUrls(urls)
+
+        // if we have more than a single validator, try to perform initial connection until we succeed or run out of options
+        if (validatorUrls.length > 1) {
+            for (let i = 0; i < validatorUrls.length; i++) {
+                console.log("Attempting initial connection to", validatorUrls[0])
+                const queryClient = await QueryClient.connect(validatorUrls[0]).catch((_) => ValidatorClient.moveArrayHeadToBack(validatorUrls))
+                if (queryClient !== undefined) {
+                    return new ValidatorClient(validatorUrls, queryClient, contractAddress, stakeDenom)
+                }
+                console.log("Initial connection to", validatorUrls[0], "failed")
+            }
+        } else {
+            const queryClient = await QueryClient.connect(validatorUrls[0])
+            return new ValidatorClient(validatorUrls, queryClient, contractAddress, stakeDenom)
+        }
+
+        throw new Error("None of the provided validators seem to be alive")
+    }
+
+    private static dealWithValidatorUrls(urls: string | string[]): string[] {
+        let validatorsUrls: string[] = []
+        if (typeof urls === "string") {
+            validatorsUrls = [urls]
+        } else {
+            // if the array is empty, just blow up
+            if (urls.length === 0) {
+                throw new Error("no validator urls provided")
+            }
+
+            // no point in shuffling array of size 1
+            if (urls.length > 1) {
+                urls = this.shuffleArray(urls)
+            }
+            validatorsUrls = urls
+        }
+
+        return validatorsUrls
+    }
+
+    // an error adapter function that upon an error attempts to switch currently used validator to the next one available
+    // note that it ALWAYS throws an error
+    async handleRequestFailure(error: Error): Promise<never> {
+        // don't bother doing any fancy validator switches if we only have 1 validator to choose from
+        if (this.urls.length > 1) {
+            this.failedRequests += 1;
+            // if we exhausted all of available validators, permute the set, maybe the old ones
+            // are working again next time we try
+            if (this.failedRequests === this.urls.length) {
+                this.urls = ValidatorClient.shuffleArray(this.urls)
+            } else {
+                // otherwise change the front validator to a 'fresh' one
+                // during construction we assured we don't have an empty array
+                ValidatorClient.moveArrayHeadToBack(this.urls)
+            }
+            // and change validator to the front one and rethrow the error
+            return await this.changeValidator(this.urls[0]).then(() => {throw error})
+        } else {
+            // rethrow the error
+            throw error
+        }
+    }
+
+    private async changeValidator(newUrl: string): Promise<void> {
+        console.log("Changing validator to", newUrl)
+        return await this.client.changeValidator(newUrl)
+    }
+
+    // adapted from https://stackoverflow.com/questions/6274339/how-can-i-shuffle-an-array/6274381#6274381
+    static shuffleArray<T>(arr: T[]): T[] {
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
+
+    // It is responsibility of the caller to ensure the input array is non-empty
+    private static moveArrayHeadToBack<T>(arr: T[]) {
+        const head = <T> arr.shift()
+        arr.push(head)
     }
 
     public get address(): string {
@@ -110,11 +210,11 @@ export default class ValidatorClient {
     }
 
     getBalance(address: string): Promise<Coin | null> {
-        return this.client.getBalance(address, this.stakeDenom);
+        return this.client.getBalance(address, this.stakeDenom).catch((err) => this.handleRequestFailure(err));
     }
 
     async getStateParams(): Promise<StateParams> {
-        return this.client.getStateParams(this.contractAddress)
+        return this.client.getStateParams(this.contractAddress).catch((err) => this.handleRequestFailure(err))
     }
 
 
@@ -127,7 +227,7 @@ export default class ValidatorClient {
      * just get things strung together and refresh it manually.
      */
     refreshMixNodes(): Promise<MixNodeBond[]> {
-        return this.mixNodesCache.refreshMixNodes(this.contractAddress);
+        return this.mixNodesCache.refreshMixNodes(this.contractAddress).catch((err) => this.handleRequestFailure(err));
     }
 
     /**
@@ -154,7 +254,7 @@ export default class ValidatorClient {
     async bond(mixNode: MixNode): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
             const bond = [this.minimumMixnodeBond()];
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { bond_mixnode: { mix_node: mixNode } }, "adding mixnode", bond);
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { bond_mixnode: { mix_node: mixNode } }, "adding mixnode", bond).catch((err) => this.handleRequestFailure(err));
             console.log(`account ${this.client.clientAddress} added mixnode with ${mixNode.host}`);
             return result;
         } else {
@@ -168,7 +268,7 @@ export default class ValidatorClient {
      */
     async unbond(): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { unbond_mixnode: {} })
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { unbond_mixnode: {} }).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} unbonded mixnode`);
             return result;
         } else {
@@ -181,7 +281,7 @@ export default class ValidatorClient {
      */
     async ownsMixNode(): Promise<boolean> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.ownsMixNode(this.contractAddress, this.client.clientAddress)
+            const result = await this.client.ownsMixNode(this.contractAddress, this.client.clientAddress).catch((err) => this.handleRequestFailure(err))
             return result.has_node
         } else {
             throw new Error("tried to check mixnode ownership for an address-less client")
@@ -193,7 +293,7 @@ export default class ValidatorClient {
      */
     async ownsGateway(): Promise<boolean> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.ownsGateway(this.contractAddress, this.client.clientAddress)
+            const result = await this.client.ownsGateway(this.contractAddress, this.client.clientAddress).catch((err) => this.handleRequestFailure(err))
             return result.has_gateway
         } else {
             throw new Error("tried to check gateway ownership for an address-less client")
@@ -208,7 +308,7 @@ export default class ValidatorClient {
      * TODO: Similarly to mixnode bonds, this should probably be put on a timer somewhere.
      */
     refreshGateways(): Promise<GatewayBond[]> {
-        return this.gatewayCache.refreshGateways(this.contractAddress);
+        return this.gatewayCache.refreshGateways(this.contractAddress).catch((err) => this.handleRequestFailure(err));
     }
 
     /**
@@ -235,7 +335,7 @@ export default class ValidatorClient {
     async bondGateway(gateway: Gateway): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
             const bond = this.minimumGatewayBond()
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {bond_gateway: {gateway: gateway}}, "adding gateway", [bond]);
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {bond_gateway: {gateway: gateway}}, "adding gateway", [bond]).catch((err) => this.handleRequestFailure(err));
             console.log(`account ${this.client.clientAddress} added gateway with ${gateway.mix_host}`);
             return result;
         } else {
@@ -248,7 +348,7 @@ export default class ValidatorClient {
      */
     async unbondGateway(): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {unbond_gateway: {}})
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {unbond_gateway: {}}).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} unbonded gateway`);
             return result;
         } else {
@@ -258,7 +358,7 @@ export default class ValidatorClient {
 
     async updateStateParams(newParams: StateParams): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            return await this.client.executeContract(this.client.clientAddress, this.contractAddress, {update_state_params: newParams}, "updating contract state");
+            return await this.client.executeContract(this.client.clientAddress, this.contractAddress, {update_state_params: newParams}, "updating contract state").catch((err) => this.handleRequestFailure(err));
         } else {
             throw new Error("Tried to update state params with a query client")
         }
@@ -273,7 +373,7 @@ export default class ValidatorClient {
      */
     async send(senderAddress: string, recipientAddress: string, coins: readonly Coin[], memo?: string): Promise<BroadcastTxSuccess> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.sendTokens(senderAddress, recipientAddress, coins, memo);
+            const result = await this.client.sendTokens(senderAddress, recipientAddress, coins, memo).catch((err) => this.handleRequestFailure(err));
             if (isBroadcastTxFailure(result)) {
                 throw new Error(`Error when broadcasting tx ${result.transactionHash} at height ${result.height}. Code: ${result.code}; Raw log: ${result.rawLog}`)
             }
@@ -285,7 +385,7 @@ export default class ValidatorClient {
 
     async upload(senderAddress: string, wasmCode: Uint8Array, meta?: UploadMeta, memo?: string): Promise<UploadResult> {
         if (this.client instanceof NetClient) {
-            return this.client.upload(senderAddress, wasmCode, meta, memo);
+            return this.client.upload(senderAddress, wasmCode, meta, memo).catch((err) => this.handleRequestFailure(err));
         } else {
             throw new Error("Tried to upload with a query client");
         }
@@ -293,7 +393,7 @@ export default class ValidatorClient {
 
     public instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult> {
         if (this.client instanceof NetClient) {
-            return this.client.instantiate(senderAddress, codeId, initMsg, label, options);
+            return this.client.instantiate(senderAddress, codeId, initMsg, label, options).catch((err) => this.handleRequestFailure(err));
         } else {
             throw new Error("Tried to instantiate with a query client");
         }
@@ -301,7 +401,7 @@ export default class ValidatorClient {
 
     public migrate(senderAddress: string, contractAddress: string, codeId: number, migrateMsg: Record<string, unknown>, memo?: string): Promise<MigrateResult> {
         if (this.client instanceof NetClient) {
-            return this.client.migrate(senderAddress, contractAddress, codeId, migrateMsg, memo)
+            return this.client.migrate(senderAddress, contractAddress, codeId, migrateMsg, memo).catch((err) => this.handleRequestFailure(err))
         } else {
             throw new Error("Tried to migrate with a query client");
         }

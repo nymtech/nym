@@ -131,10 +131,10 @@ impl Gateway {
         let announced_clients_host = self.config.get_clients_announce_address();
 
         let validator_client_config = validator_client_rest::Config::new(
-            self.config.get_validator_rest_endpoint(),
+            self.config.get_validator_rest_endpoints(),
             self.config.get_validator_mixnet_contract_address(),
         );
-        let validator_client = validator_client_rest::Client::new(validator_client_config);
+        let mut validator_client = validator_client_rest::Client::new(validator_client_config);
 
         let existing_gateways = match validator_client.get_gateways().await {
             Ok(gateways) => gateways,

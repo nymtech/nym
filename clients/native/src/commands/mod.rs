@@ -19,9 +19,17 @@ pub(crate) mod init;
 pub(crate) mod run;
 pub(crate) mod upgrade;
 
+fn parse_validators(raw: &str) -> Vec<String> {
+    raw.split(',')
+        .map(|raw_validator| raw_validator.trim().into())
+        .collect()
+}
+
 pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
-    if let Some(validator) = matches.value_of("validator") {
-        config.get_base_mut().set_custom_validator(validator);
+    if let Some(raw_validators) = matches.value_of("validators") {
+        config
+            .get_base_mut()
+            .set_custom_validators(parse_validators(raw_validators));
     }
 
     if let Some(contract_address) = matches.value_of("mixnet-contract") {

@@ -81,9 +81,9 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("validator")
-                .long("validator")
-                .help("REST endpoint of the validator the node is registering presence with")
+            Arg::with_name("validators")
+                .long("validators")
+                .help("Comma separated list of rest endpoints of the validators")
                 .takes_value(true),
         )
         .arg(

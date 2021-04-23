@@ -14,7 +14,7 @@
 
 use crate::client::config::{Config, MISSING_VALUE};
 use clap::{App, Arg, ArgMatches};
-use client_core::config::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DEFAULT_VALIDATOR_REST_ENDPOINT};
+use client_core::config::{default_validator_rest_endpoints, DEFAULT_MIXNET_CONTRACT_ADDRESS};
 use config::NymConfig;
 use std::fmt::Display;
 use std::process;
@@ -136,7 +136,7 @@ fn pre_090_upgrade(from: &str, mut config: Config) -> Config {
         Version::new(0, 9, 0)
     };
 
-    if config.get_base().get_validator_rest_endpoint() != MISSING_VALUE {
+    if config.get_base().get_validator_rest_endpoints()[0] != MISSING_VALUE {
         eprintln!("existing config seems to have specified new validator rest endpoint which was only introduced in 0.9.0! Can't perform upgrade.");
         print_failed_upgrade(&from_version, &to_version);
         process::exit(1);
@@ -149,13 +149,13 @@ fn pre_090_upgrade(from: &str, mut config: Config) -> Config {
         .set_custom_version(to_version.to_string().as_ref());
 
     println!(
-        "Setting validator REST endpoint to to {}",
-        DEFAULT_VALIDATOR_REST_ENDPOINT
+        "Setting validator REST endpoint to to {:?}",
+        default_validator_rest_endpoints()
     );
 
     config
         .get_base_mut()
-        .set_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT);
+        .set_custom_validators(default_validator_rest_endpoints());
 
     config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
@@ -208,13 +208,13 @@ fn minor_010_upgrade(
 
     // The default validator endpoint changed
     println!(
-        "Setting validator REST endpoint to to {}",
-        DEFAULT_VALIDATOR_REST_ENDPOINT
+        "Setting validator REST endpoint to to {:?}",
+        default_validator_rest_endpoints()
     );
 
     config
         .get_base_mut()
-        .set_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT);
+        .set_custom_validators(default_validator_rest_endpoints());
 
     config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);

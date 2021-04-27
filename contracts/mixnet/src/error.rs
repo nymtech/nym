@@ -35,4 +35,10 @@ pub enum ContractError {
 
     #[error("No coin was sent for the bonding, you must send {}", DENOM)]
     NoBondFound,
+
+    #[error("This address has already bonded a mixnode")]
+    AlreadyOwnsMixnode,
+
+    #[error("This address has already bonded a gateway")]
+    AlreadyOwnsGateway,
 }

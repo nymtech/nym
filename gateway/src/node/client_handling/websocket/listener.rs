@@ -8,6 +8,7 @@ use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use rand::rngs::OsRng;
 use std::net::SocketAddr;
+use std::process;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
 
@@ -30,9 +31,13 @@ impl Listener {
         outbound_mix_sender: MixForwardingSender,
     ) {
         info!("Starting websocket listener at {}", self.address);
-        let tcp_listener = tokio::net::TcpListener::bind(self.address)
-            .await
-            .expect("Failed to start websocket listener");
+        let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
+            Ok(listener) => listener,
+            Err(err) => {
+                error!("Failed to bind the websocket to {} - {}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address, err);
+                process::exit(1);
+            }
+        };
 
         loop {
             match tcp_listener.accept().await {

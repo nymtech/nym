@@ -4,6 +4,7 @@
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use log::*;
 use std::net::SocketAddr;
+use std::process;
 use tokio::task::JoinHandle;
 
 pub(crate) struct Listener {
@@ -18,9 +19,13 @@ impl Listener {
 
     pub(crate) async fn run(&mut self, connection_handler: ConnectionHandler) {
         info!("Starting mixnet listener at {}", self.address);
-        let tcp_listener = tokio::net::TcpListener::bind(self.address)
-            .await
-            .expect("Failed to start mixnet listener");
+        let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
+            Ok(listener) => listener,
+            Err(err) => {
+                error!("Failed to bind to {} - {}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address, err);
+                process::exit(1);
+            }
+        };
 
         loop {
             match tcp_listener.accept().await {

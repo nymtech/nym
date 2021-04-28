@@ -1,9 +1,9 @@
 import NetClient, { INetClient } from "./net-client";
-import { Gateway, GatewayBond, MixNode, MixNodeBond } from "./types";
+import { Gateway, GatewayBond, MixNode, MixNodeBond, SendRequest } from "./types";
 import { Bip39, Random } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
-import { coin, Coin, coins } from "@cosmjs/launchpad";
+import { buildFeeTable, coin, Coin, coins, StdFee } from "@cosmjs/launchpad";
 import {
     ExecuteResult,
     InstantiateOptions,
@@ -24,6 +24,8 @@ import {
 import GatewaysCache from "./caches/gateways";
 import QueryClient, { IQueryClient } from "./query-client";
 import { BroadcastTxSuccess, isBroadcastTxFailure } from "@cosmjs/stargate";
+import { makeBankMsgSend } from "./utils";
+import { nymGasLimits, nymGasPrice } from "./stargate-helper";
 
 export { coins, coin };
 export { Coin };
@@ -380,6 +382,30 @@ export default class ValidatorClient {
             return result
         } else {
             throw new Error("Tried to use send with a query client");
+        }
+    }
+
+    /**
+     * Send funds multiple times from one address to another in a single block.
+    */
+    async sendMultiple(senderAddress: string, data: SendRequest[], memo?: string): Promise<BroadcastTxSuccess> {
+        if (this.client instanceof NetClient) {
+            if (data.length === 1) {
+                return this.send(data[0].senderAddress, data[0].recipientAddress, data[0].transferAmount, memo)
+            }
+
+            const encoded = data.map(req => makeBankMsgSend(req.senderAddress, req.recipientAddress, req.transferAmount));
+
+            // the function to calculate fee for a single entry is not exposed...
+            const table = buildFeeTable(nymGasPrice(this.stakeDenom), {sendMultiple: nymGasLimits.send * data.length}, {sendMultiple: nymGasLimits.send * data.length})
+            const fee = table.sendMultiple
+            const result = await this.client.signAndBroadcast(senderAddress, encoded, fee, memo)
+            if (isBroadcastTxFailure(result)) {
+                throw new Error(`Error when broadcasting tx ${result.transactionHash} at height ${result.height}. Code: ${result.code}; Raw log: ${result.rawLog}`)
+            }
+            return result
+        } else {
+            throw new Error("Tried to use sendMultiple with a query client");
         }
     }
 

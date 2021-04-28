@@ -4,7 +4,7 @@ use crate::state::{State, StateParams};
 use crate::storage::config;
 use crate::{error::ContractError, queries, transactions};
 use cosmwasm_std::{
-    to_binary, Decimal, Deps, DepsMut, Env, HandleResponse, InitResponse, MessageInfo,
+    to_binary, Decimal, Deps, DepsMut, Env, HandleResponse, HumanAddr, InitResponse, MessageInfo,
     MigrateResponse, QueryResponse, Uint128,
 };
 
@@ -28,24 +28,12 @@ const NETWORK_MONITOR_ADDRESS: &str = "hal1v9qauwdq5terag6uvfsdytcs2d0sdmfdq6e83
 /// Constant specifying denomination of the coin used for bonding
 pub const DENOM: &str = "uhal";
 
-/// Instantiate the contract.
-///
-/// `deps` contains Storage, API and Querier
-/// `env` contains block, message and contract info
-/// `msg` is the contract initialization message, sort of like a constructor call.
-pub fn init(
-    deps: DepsMut,
-    _env: Env,
-    info: MessageInfo,
-    _msg: InitMsg,
-) -> Result<InitResponse, ContractError> {
-    // TODO: to discuss with DH, should the initial state be set as it is right now, i.e.
-    // using the defined constants, or should it rather be all based on whatever is sent
-    // in `InitMsg`?
+fn default_initial_state(owner: HumanAddr) -> State {
     let mixnode_bond_reward_rate = Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE);
     let gateway_bond_reward_rate = Decimal::percent(INITIAL_GATEWAY_BOND_REWARD_RATE);
-    let state = State {
-        owner: info.sender,
+
+    State {
+        owner,
         network_monitor_address: NETWORK_MONITOR_ADDRESS.into(),
         params: StateParams {
             epoch_length: INITIAL_DEFAULT_EPOCH_LENGTH,
@@ -63,7 +51,25 @@ pub fn init(
             INITIAL_DEFAULT_EPOCH_LENGTH,
             gateway_bond_reward_rate,
         ),
-    };
+    }
+}
+
+/// Instantiate the contract.
+///
+/// `deps` contains Storage, API and Querier
+/// `env` contains block, message and contract info
+/// `msg` is the contract initialization message, sort of like a constructor call.
+pub fn init(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    _msg: InitMsg,
+) -> Result<InitResponse, ContractError> {
+    // TODO: to discuss with DH, should the initial state be set as it is right now, i.e.
+    // using the defined constants, or should it rather be all based on whatever is sent
+    // in `InitMsg`?
+    let state = default_initial_state(info.sender);
+
     config(deps.storage).save(&state)?;
     Ok(InitResponse::default())
 }
@@ -113,11 +119,15 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 pub fn migrate(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     _msg: MigrateMsg,
 ) -> Result<MigrateResponse, ContractError> {
+    // set the state to the default
+    let state = default_initial_state(info.sender);
+
+    config(deps.storage).save(&state)?;
     Ok(Default::default())
 }
 

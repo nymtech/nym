@@ -128,7 +128,7 @@ impl MixNode {
         runtime.block_on(async {
             if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists().await {
                 if duplicate_node_key == self.identity_keypair.public_key().to_base58_string() {
-                    warn!("We seem to have not unregistered after going offline - there's a node with identical identity and announce-host us as registered.")
+                    warn!("You seem to have bonded your mixnode before starting it - that's highly unrecommended as in the future it will result in slashing");
                 } else {
                     error!(
                         "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",

@@ -405,6 +405,7 @@ export type GatewayOwnershipResponse = {
 }
 
 export type StateParams = {
+    epoch_length: number,
     // ideally I'd want to define those as `number` rather than `string`, but
     // rust-side they are defined as Uint128 and Decimal that don't have
     // native javascript representations and therefore are interpreted as strings after deserialization

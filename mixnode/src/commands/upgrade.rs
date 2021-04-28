@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::{
-    missing_string_value, Config, DEFAULT_METRICS_SERVER, DEFAULT_MIXNET_CONTRACT_ADDRESS,
-    DEFAULT_VALIDATOR_REST_ENDPOINT, MISSING_VALUE,
+    default_validator_rest_endpoints, missing_string_value, Config, DEFAULT_METRICS_SERVER,
+    DEFAULT_MIXNET_CONTRACT_ADDRESS, MISSING_VALUE,
 };
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
@@ -147,7 +147,7 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
         process::exit(1);
     }
 
-    if config.get_validator_rest_endpoint() != missing_string_value::<String>() {
+    if config.get_validator_rest_endpoints()[0] != missing_string_value::<String>() {
         eprintln!("existing config seems to have specified new validator rest endpoint which was only introduced in 0.9.0! Can't perform upgrade.");
         print_failed_upgrade(&from_version, &to_version);
         process::exit(1);
@@ -156,12 +156,12 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
     let mut upgraded_config = config
         .with_custom_version(to_version.to_string().as_ref())
         .with_custom_metrics_server(DEFAULT_METRICS_SERVER)
-        .with_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT);
+        .with_custom_validators(default_validator_rest_endpoints());
 
     println!("Setting metrics server to {}", DEFAULT_METRICS_SERVER);
     println!(
-        "Setting validator REST endpoint to {}",
-        DEFAULT_VALIDATOR_REST_ENDPOINT
+        "Setting validator REST endpoints to {:?}",
+        default_validator_rest_endpoints()
     );
 
     println!("Generating new identity...");
@@ -213,8 +213,8 @@ fn minor_010_upgrade(
     }
 
     println!(
-        "Setting validator REST endpoint to {}",
-        DEFAULT_VALIDATOR_REST_ENDPOINT
+        "Setting validator REST endpoint to {:?}",
+        default_validator_rest_endpoints()
     );
 
     println!(
@@ -224,7 +224,7 @@ fn minor_010_upgrade(
 
     let upgraded_config = config
         .with_custom_version(to_version.to_string().as_ref())
-        .with_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT)
+        .with_custom_validators(default_validator_rest_endpoints())
         .with_custom_mixnet_contract(DEFAULT_MIXNET_CONTRACT_ADDRESS);
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {

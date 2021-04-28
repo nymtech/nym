@@ -43,6 +43,14 @@ pub(crate) fn try_add_mixnode(
     info: MessageInfo,
     mix_node: MixNode,
 ) -> Result<HandleResponse, ContractError> {
+    // if the client has an active bonded gateway, don't allow mixnode bonding
+    if gateways_read(deps.storage)
+        .may_load(info.sender.as_ref())?
+        .is_some()
+    {
+        return Err(ContractError::AlreadyOwnsGateway);
+    }
+
     let minimum_bond = read_state_params(deps.storage).minimum_mixnode_bond;
     validate_mixnode_bond(&info.sent_funds, minimum_bond)?;
 
@@ -71,10 +79,9 @@ pub(crate) fn try_remove_mixnode(
     env: Env,
 ) -> Result<HandleResponse, ContractError> {
     // find the bond, return ContractError::MixNodeBondNotFound if it doesn't exist
-    let mixnode_bond = match mixnodes_read(deps.storage).may_load(info.sender.as_bytes())? {
-        None => return Err(ContractError::MixNodeBondNotFound {}),
-        Some(bond) => bond,
-    };
+    let mixnode_bond = mixnodes_read(deps.storage)
+        .may_load(info.sender.as_bytes())?
+        .ok_or(ContractError::MixNodeBondNotFound {})?;
 
     // send bonded funds back to the bond owner
     let messages = vec![BankMsg::Send {
@@ -128,6 +135,14 @@ pub(crate) fn try_add_gateway(
     info: MessageInfo,
     gateway: Gateway,
 ) -> Result<HandleResponse, ContractError> {
+    // if the client has an active bonded mixnode, don't allow gateway bonding
+    if mixnodes_read(deps.storage)
+        .may_load(info.sender.as_ref())?
+        .is_some()
+    {
+        return Err(ContractError::AlreadyOwnsMixnode);
+    }
+
     let minimum_bond = read_state_params(deps.storage).minimum_gateway_bond;
     validate_gateway_bond(&info.sent_funds, minimum_bond)?;
 
@@ -378,21 +393,47 @@ pub mod tests {
 
         // if there was already a mixnode bonded by particular user
         let info = mock_info("foomper", &good_mixnode_bond());
-        let msg = HandleMsg::BondGateway {
-            gateway: helpers::gateway_fixture(),
+        let msg = HandleMsg::BondMixnode {
+            mix_node: helpers::mix_node_fixture(),
         };
 
         let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(handle_response.attributes[0], attr("overwritten", false));
 
         let info = mock_info("foomper", &good_mixnode_bond());
-        let msg = HandleMsg::BondGateway {
-            gateway: helpers::gateway_fixture(),
+        let msg = HandleMsg::BondMixnode {
+            mix_node: helpers::mix_node_fixture(),
         };
 
         // we get a log message about it (TODO: does it get back to the user?)
         let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(handle_response.attributes[0], attr("overwritten", true));
+
+        // bonding fails if the user already owns a gateway
+        let info = mock_info("gateway-owner", &good_gateway_bond());
+        let msg = HandleMsg::BondGateway {
+            gateway: helpers::gateway_fixture(),
+        };
+        handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        let info = mock_info("gateway-owner", &good_mixnode_bond());
+        let msg = HandleMsg::BondMixnode {
+            mix_node: helpers::mix_node_fixture(),
+        };
+        let handle_response = handle(deps.as_mut(), mock_env(), info, msg);
+        assert_eq!(handle_response, Err(ContractError::AlreadyOwnsGateway));
+
+        // but after he unbonds it, it's all fine again
+        let info = mock_info("gateway-owner", &[]);
+        let msg = HandleMsg::UnbondGateway {};
+        handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        let info = mock_info("gateway-owner", &good_mixnode_bond());
+        let msg = HandleMsg::BondMixnode {
+            mix_node: helpers::mix_node_fixture(),
+        };
+        let handle_response = handle(deps.as_mut(), mock_env(), info, msg);
+        assert!(handle_response.is_ok());
 
         // adding another node from another account, but with the same IP, should fail (or we would have a weird state). Is that right? Think about this, not sure yet.
         // if we attempt to register a second node from the same address, should we get an error? It would probably be polite.
@@ -599,6 +640,32 @@ pub mod tests {
         // we get a log message about it (TODO: does it get back to the user?)
         let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(handle_response.attributes[0], attr("overwritten", true));
+
+        // bonding fails if the user already owns a mixnode
+        let info = mock_info("mixnode-owner", &good_mixnode_bond());
+        let msg = HandleMsg::BondMixnode {
+            mix_node: helpers::mix_node_fixture(),
+        };
+        handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        let info = mock_info("mixnode-owner", &good_mixnode_bond());
+        let msg = HandleMsg::BondGateway {
+            gateway: helpers::gateway_fixture(),
+        };
+        let handle_response = handle(deps.as_mut(), mock_env(), info, msg);
+        assert_eq!(handle_response, Err(ContractError::AlreadyOwnsMixnode));
+
+        // but after he unbonds it, it's all fine again
+        let info = mock_info("mixnode-owner", &[]);
+        let msg = HandleMsg::UnbondMixnode {};
+        handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        let info = mock_info("mixnode-owner", &good_mixnode_bond());
+        let msg = HandleMsg::BondGateway {
+            gateway: helpers::gateway_fixture(),
+        };
+        let handle_response = handle(deps.as_mut(), mock_env(), info, msg);
+        assert!(handle_response.is_ok());
 
         // adding another node from another account, but with the same IP, should fail (or we would have a weird state).
         // Is that right? Think about this, not sure yet.

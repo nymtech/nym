@@ -2,8 +2,6 @@
 # It is not intended for manual editing.
 # Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 # SPDX-License-Identifier: Apache-2.0
-version = 3
-
 [[package]]
 name = "aes-ctr"
 version = "0.3.0"
@@ -392,6 +390,7 @@ name = "config"
 version = "0.1.0"
 dependencies = [
  "handlebars",
+ "humantime-serde",
  "serde",
  "toml",
 ]
@@ -1531,7 +1530,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-monitor"
-version = "0.9.2"
+version = "0.10.0"
 dependencies = [
  "clap",
  "crypto",
@@ -1554,7 +1553,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "0.9.2"
+version = "0.10.0"
 dependencies = [
  "clap",
  "dirs",
@@ -1589,6 +1588,7 @@ dependencies = [
  "log",
  "nymsphinx",
  "ordered-buffer",
+ "pemstore",
  "pin-project",
  "pretty_env_logger",
  "proxy-helpers",
@@ -2865,6 +2865,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.13.0",
  "mixnet-contract",
+ "rand 0.8.3",
  "reqwest",
  "serde",
  "serde_json",

@@ -220,7 +220,7 @@ impl Client {
                         "connection queue is full",
                     ))
                 } else if err.is_disconnected() {
-                    warn!(
+                    debug!(
                         "Connection to {} seems to be dead. attempting to re-establish it...",
                         address
                     );

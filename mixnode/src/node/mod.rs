@@ -89,10 +89,10 @@ impl MixNode {
     // TODO: ask DH whether this function still makes sense in ^0.10
     async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
         let validator_client_config = validator_client_rest::Config::new(
-            self.config.get_validator_rest_endpoint(),
+            self.config.get_validator_rest_endpoints(),
             self.config.get_validator_mixnet_contract_address(),
         );
-        let validator_client = validator_client_rest::Client::new(validator_client_config);
+        let mut validator_client = validator_client_rest::Client::new(validator_client_config);
 
         let existing_nodes = match validator_client.get_mix_nodes().await {
             Ok(nodes) => nodes,
@@ -128,7 +128,7 @@ impl MixNode {
         runtime.block_on(async {
             if let Some(duplicate_node_key) = self.check_if_same_ip_node_exists().await {
                 if duplicate_node_key == self.identity_keypair.public_key().to_base58_string() {
-                    warn!("We seem to have not unregistered after going offline - there's a node with identical identity and announce-host us as registered.")
+                    warn!("You seem to have bonded your mixnode before starting it - that's highly unrecommended as in the future it will result in slashing");
                 } else {
                     error!(
                         "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",

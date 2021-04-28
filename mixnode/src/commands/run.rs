@@ -52,9 +52,9 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("validator")
-                .long("validator")
-                .help("REST endpoint of the validator the node is registering presence with")
+            Arg::with_name("validators")
+                .long("validators")
+                .help("Comma separated list of rest endpoints of the validators")
                 .takes_value(true),
         )
         .arg(
@@ -153,13 +153,10 @@ pub fn execute(matches: &ArgMatches) {
     }
 
     println!(
-        "Directory server [presence]: {}",
-        config.get_validator_rest_endpoint()
+        "Validator servers: {:?}",
+        config.get_validator_rest_endpoints()
     );
-    println!(
-        "Directory server [metrics]: {}",
-        config.get_metrics_server()
-    );
+    println!("Metrics server: {}", config.get_metrics_server());
 
     println!(
         "Listening for incoming packets on {}",

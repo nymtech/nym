@@ -136,19 +136,19 @@ impl Default for TopologyAccessor {
 }
 
 pub struct TopologyRefresherConfig {
-    validator_rcp_base_url: String,
+    available_validators: Vec<String>,
     mixnet_contract_address: String,
     refresh_rate: time::Duration,
 }
 
 impl TopologyRefresherConfig {
     pub fn new(
-        validator_rcp_base_url: String,
+        available_validators: Vec<String>,
         mixnet_contract_address: String,
         refresh_rate: time::Duration,
     ) -> Self {
         TopologyRefresherConfig {
-            validator_rcp_base_url,
+            available_validators,
             mixnet_contract_address,
             refresh_rate,
         }
@@ -167,7 +167,7 @@ pub struct TopologyRefresher {
 impl TopologyRefresher {
     pub fn new(cfg: TopologyRefresherConfig, topology_accessor: TopologyAccessor) -> Self {
         let validator_client_config = validator_client_rest::Config::new(
-            cfg.validator_rcp_base_url,
+            cfg.available_validators,
             cfg.mixnet_contract_address,
         );
         let validator_client = validator_client_rest::Client::new(validator_client_config);
@@ -180,7 +180,7 @@ impl TopologyRefresher {
         }
     }
 
-    async fn get_current_compatible_topology(&self) -> Option<NymTopology> {
+    async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {
         // TODO: optimization for the future:
         // only refresh mixnodes on timer and refresh gateways only when
         // we have to send to a new, unknown, gateway

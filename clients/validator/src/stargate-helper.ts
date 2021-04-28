@@ -19,7 +19,7 @@ export const nymGasLimits: GasLimits<CosmWasmFeeTable> = {
     changeAdmin: 80_000,
 };
 
-export const nymGasPrice: (stakeDenom: string) => GasPrice = (stakeDenom: string) =>  GasPrice.fromString(`0.025${stakeDenom}`);
+export const nymGasPrice: (stakeDenom: string) => GasPrice = (stakeDenom: string) => GasPrice.fromString(`0.025${stakeDenom}`);
 
 export const defaultOptions: Options = {
     httpUrl: "http://localhost:26657",

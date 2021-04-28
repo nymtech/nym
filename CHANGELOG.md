@@ -1,9 +1,121 @@
-<!--
-Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
-SPDX-License-Identifier: Apache-2.0
--->
-
 # Changelog
+
+## [v0.10.0](https://github.com/nymtech/nym/tree/v0.10.0) (2020-14-15)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.9.2...v0.10.0)
+
+This release brings a distributed directory authority powered by [Cosmos SDK](https://cosmos.network) and [CosmWasm](https://cosmwasm.com) smart contracts. It is designed to run [Testnet Finney](https://testnet-finney-explorer.nymtech.net), the new Nym testnet. 
+
+
+
+**Closed issues:**
+
+- When I run this command :'./nym-mixnode run --id zzznym', an error occurs [\#548](https://github.com/nymtech/nym/issues/548)
+
+**Merged pull requests:**
+
+- Displaying address of the client on init [\#573](https://github.com/nymtech/nym/pull/573) ([jstuczyn](https://github.com/jstuczyn))
+- Fixed nightly clippy warnings [\#572](https://github.com/nymtech/nym/pull/572) ([jstuczyn](https://github.com/jstuczyn))
+- Changed default client topology refresh rate from 30s to 5min [\#570](https://github.com/nymtech/nym/pull/570) ([jstuczyn](https://github.com/jstuczyn))
+- Adding the wallet url in startup instructions [\#569](https://github.com/nymtech/nym/pull/569) ([futurechimp](https://github.com/futurechimp))
+- Removed unused data from cargo.toml [\#567](https://github.com/nymtech/nym/pull/567) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/cli signing [\#566](https://github.com/nymtech/nym/pull/566) ([futurechimp](https://github.com/futurechimp))
+- Updated version number on the validator client [\#565](https://github.com/nymtech/nym/pull/565) ([jstuczyn](https://github.com/jstuczyn))
+- Renamed mixnode registration into bonding [\#564](https://github.com/nymtech/nym/pull/564) ([jstuczyn](https://github.com/jstuczyn))
+- A pull request for discussion about contract state variables [\#563](https://github.com/nymtech/nym/pull/563) ([futurechimp](https://github.com/futurechimp))
+- Feature/mixnet contract ci [\#562](https://github.com/nymtech/nym/pull/562) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/bonding adjustments [\#561](https://github.com/nymtech/nym/pull/561) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/migration additions [\#560](https://github.com/nymtech/nym/pull/560) ([jstuczyn](https://github.com/jstuczyn))
+- Changed default contract execution gas limit to 250\_000 \(from 9\_000\_000\_000\) [\#559](https://github.com/nymtech/nym/pull/559) ([jstuczyn](https://github.com/jstuczyn))
+- Missing quotes in mixnet\_contract\_address config field [\#558](https://github.com/nymtech/nym/pull/558) ([jstuczyn](https://github.com/jstuczyn))
+- Updated default validator url and contract address [\#557](https://github.com/nymtech/nym/pull/557) ([jstuczyn](https://github.com/jstuczyn))
+- Bump y18n from 4.0.0 to 4.0.1 in /clients/native/examples/js-examples/websocket [\#556](https://github.com/nymtech/nym/pull/556) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Feature/bonding info on init [\#555](https://github.com/nymtech/nym/pull/555) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/validator client address getter [\#554](https://github.com/nymtech/nym/pull/554) ([jstuczyn](https://github.com/jstuczyn))
+- Added extra step for publishing validator client [\#553](https://github.com/nymtech/nym/pull/553) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/validator client rc3 [\#552](https://github.com/nymtech/nym/pull/552) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/upgrade update [\#551](https://github.com/nymtech/nym/pull/551) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/export coin helper [\#550](https://github.com/nymtech/nym/pull/550) ([futurechimp](https://github.com/futurechimp))
+- Chore/dependency updates [\#549](https://github.com/nymtech/nym/pull/549) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/validator query client [\#547](https://github.com/nymtech/nym/pull/547) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/validator client rc2 [\#546](https://github.com/nymtech/nym/pull/546) ([futurechimp](https://github.com/futurechimp))
+- Feature/has node query validator client [\#545](https://github.com/nymtech/nym/pull/545) ([jstuczyn](https://github.com/jstuczyn))
+- Added contract query to check if given address owns a mixnode/gateway [\#544](https://github.com/nymtech/nym/pull/544) ([jstuczyn](https://github.com/jstuczyn))
+
+## [validator-client-0.10.0-rc1](https://github.com/nymtech/nym/tree/validator-client-0.10.0-rc1) (2021-03-24)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.9.2...validator-client-0.10.0-rc1)
+
+**Implemented enhancements:**
+
+- Add option to whitelist IPv4 ranges to allowed.list in sphinx-socks [\#415](https://github.com/nymtech/nym/issues/415)
+- Mixmining monitoring for gateways [\#384](https://github.com/nymtech/nym/issues/384)
+
+**Fixed bugs:**
+
+- Network requester should periodically remove stale proxies [\#424](https://github.com/nymtech/nym/issues/424)
+- Network requester now prints correct version with --version [\#478](https://github.com/nymtech/nym/pull/478) ([jstuczyn](https://github.com/jstuczyn))
+
+**Closed issues:**
+
+- Change topology to work with validators. [\#538](https://github.com/nymtech/nym/issues/538)
+- Unable to rejoin the network after powerdown [\#514](https://github.com/nymtech/nym/issues/514)
+- nym-socks5-client 0.9.2 issue with outbound\_request\_filter.check [\#498](https://github.com/nymtech/nym/issues/498)
+- nym-socks5-client high CPU usage on idle [\#491](https://github.com/nymtech/nym/issues/491)
+- network requester too many Received a 'Send' before 'Connect' - going to buffer the data [\#483](https://github.com/nymtech/nym/issues/483)
+- Socks5 client loops on malformed - invalidaddress message [\#482](https://github.com/nymtech/nym/issues/482)
+- Socks5 client hangs [\#479](https://github.com/nymtech/nym/issues/479)
+- Network Requester -V flag does not print version [\#469](https://github.com/nymtech/nym/issues/469)
+- Gateway reconnection \(wasm\) [\#458](https://github.com/nymtech/nym/issues/458)
+- Client warning 'No valid topology' [\#343](https://github.com/nymtech/nym/issues/343)
+- private key file permission bits too open, readable for others [\#319](https://github.com/nymtech/nym/issues/319)
+- Fix dependabot security notice [\#267](https://github.com/nymtech/nym/issues/267)
+- Change how time intervals are serialized in configs [\#141](https://github.com/nymtech/nym/issues/141)
+
+**Merged pull requests:**
+
+- RC1 published [\#543](https://github.com/nymtech/nym/pull/543) ([futurechimp](https://github.com/futurechimp))
+- Feature/prep for publish [\#542](https://github.com/nymtech/nym/pull/542) ([futurechimp](https://github.com/futurechimp))
+- Feature/bigger better stronger mnemonics [\#541](https://github.com/nymtech/nym/pull/541) ([futurechimp](https://github.com/futurechimp))
+- Removed a package-lock.json which seems to have been accidentally added [\#539](https://github.com/nymtech/nym/pull/539) ([futurechimp](https://github.com/futurechimp))
+- Feature/convert to uhal [\#537](https://github.com/nymtech/nym/pull/537) ([futurechimp](https://github.com/futurechimp))
+- Feature/topology conversion [\#536](https://github.com/nymtech/nym/pull/536) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/hook up url in validator client [\#535](https://github.com/nymtech/nym/pull/535) ([futurechimp](https://github.com/futurechimp))
+- Feature/upgrade cosm client [\#534](https://github.com/nymtech/nym/pull/534) ([futurechimp](https://github.com/futurechimp))
+- Feature/mix contract identity key [\#533](https://github.com/nymtech/nym/pull/533) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/validator client rust [\#532](https://github.com/nymtech/nym/pull/532) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/add currency helpers [\#531](https://github.com/nymtech/nym/pull/531) ([futurechimp](https://github.com/futurechimp))
+- Exporting Coin struct, needed for wallet [\#530](https://github.com/nymtech/nym/pull/530) ([futurechimp](https://github.com/futurechimp))
+- Getting correct user home dir in Python setup script [\#528](https://github.com/nymtech/nym/pull/528) ([futurechimp](https://github.com/futurechimp))
+- Temporarily disabling fs access [\#527](https://github.com/nymtech/nym/pull/527) ([futurechimp](https://github.com/futurechimp))
+- Feature/validator client gateway bonding [\#526](https://github.com/nymtech/nym/pull/526) ([jstuczyn](https://github.com/jstuczyn))
+- Fixed eslint errors in the validator client [\#525](https://github.com/nymtech/nym/pull/525) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/gateway bonding [\#524](https://github.com/nymtech/nym/pull/524) ([jstuczyn](https://github.com/jstuczyn))
+- Fix the remove mixnode test [\#522](https://github.com/nymtech/nym/pull/522) ([futurechimp](https://github.com/futurechimp))
+- Bump elliptic from 6.5.3 to 6.5.4 in /clients/native/examples/js-examples/websocket [\#521](https://github.com/nymtech/nym/pull/521) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Feature/fix go errors in examples [\#516](https://github.com/nymtech/nym/pull/516) ([futurechimp](https://github.com/futurechimp))
+- Feature/initial mixnet contract [\#515](https://github.com/nymtech/nym/pull/515) ([futurechimp](https://github.com/futurechimp))
+- Running CI also on windows and macOS [\#512](https://github.com/nymtech/nym/pull/512) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/socks5 adjustments [\#510](https://github.com/nymtech/nym/pull/510) ([jstuczyn](https://github.com/jstuczyn))
+- Fixed unused import in non-unix systems [\#509](https://github.com/nymtech/nym/pull/509) ([jstuczyn](https://github.com/jstuczyn))
+- Checking if the delay has already expired before attempting to put it… [\#508](https://github.com/nymtech/nym/pull/508) ([jstuczyn](https://github.com/jstuczyn))
+- Not including gateway non-delay when calculating total packet delay [\#507](https://github.com/nymtech/nym/pull/507) ([jstuczyn](https://github.com/jstuczyn))
+- Allowing for a single topology refresh failure [\#505](https://github.com/nymtech/nym/pull/505) ([jstuczyn](https://github.com/jstuczyn))
+- More restrictive unix key files permissions [\#504](https://github.com/nymtech/nym/pull/504) ([jstuczyn](https://github.com/jstuczyn))
+- More human-readable errors on mixnode/gateway startup [\#503](https://github.com/nymtech/nym/pull/503) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/ip filtering [\#502](https://github.com/nymtech/nym/pull/502) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/wasm client compilation fixes [\#501](https://github.com/nymtech/nym/pull/501) ([jstuczyn](https://github.com/jstuczyn))
+- Fixed possible crash on invalid topology [\#500](https://github.com/nymtech/nym/pull/500) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/gateway monitoring [\#499](https://github.com/nymtech/nym/pull/499) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/GitHub actions and clippy cleanup [\#493](https://github.com/nymtech/nym/pull/493) ([jstuczyn](https://github.com/jstuczyn))
+- Fix typos [\#492](https://github.com/nymtech/nym/pull/492) ([rex4539](https://github.com/rex4539))
+- Bump ini from 1.3.5 to 1.3.8 in /clients/native/examples/js-examples/websocket [\#490](https://github.com/nymtech/nym/pull/490) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump ini from 1.3.5 to 1.3.8 in /clients/webassembly/js-example [\#489](https://github.com/nymtech/nym/pull/489) ([dependabot[bot]](https://github.com/apps/dependabot))
+- display 0 on no validators rather than crash [\#488](https://github.com/nymtech/nym/pull/488) ([jstuczyn](https://github.com/jstuczyn))
+- NGI0 - Updating licensing aspects according REUSE  [\#487](https://github.com/nymtech/nym/pull/487) ([lnceballosz](https://github.com/lnceballosz))
+- Feature/removed topology [\#481](https://github.com/nymtech/nym/pull/481) ([jstuczyn](https://github.com/jstuczyn))
+- Bugfix/explorer fixes [\#477](https://github.com/nymtech/nym/pull/477) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/0.9.2+only monitoring [\#475](https://github.com/nymtech/nym/pull/475) ([jstuczyn](https://github.com/jstuczyn))
 
 ## [v0.9.2](https://github.com/nymtech/nym/tree/v0.9.2) (2020-11-26)
 
@@ -17,6 +129,7 @@ This release brings networking improvements, eliminating blocking calls and impr
 
 **Merged pull requests:**
 
+- Release/v0.9.2 [\#474](https://github.com/nymtech/nym/pull/474) ([jstuczyn](https://github.com/jstuczyn))
 - Minor mixnet client code simplification and optimization [\#472](https://github.com/nymtech/nym/pull/472) ([jstuczyn](https://github.com/jstuczyn))
 
 ## [v0.9.1](https://github.com/nymtech/nym/tree/v0.9.1) (2020-11-24)
@@ -269,7 +382,6 @@ This release introduces, among other things, the following improvements:
 - could not count to ten properly [\#262](https://github.com/nymtech/nym/pull/262) ([ststefa](https://github.com/ststefa))
 - build\(deps\): bump websocket-extensions from 0.1.3 to 0.1.4 in /clients/webassembly/js-example [\#261](https://github.com/nymtech/nym/pull/261) ([dependabot[bot]](https://github.com/apps/dependabot))
 - add disabling feature 'offline-test' for network-dependent tests [\#260](https://github.com/nymtech/nym/pull/260) ([hyperfekt](https://github.com/hyperfekt))
-- Filtering compatible node versions [\#259](https://github.com/nymtech/nym/pull/259) ([jstuczyn](https://github.com/jstuczyn))
 
 ## [v0.7.0](https://github.com/nymtech/nym/tree/v0.7.0) (2020-06-08)
 
@@ -299,7 +411,7 @@ See the [changelog](https://github.com/nymtech/nym/blob/develop/CHANGELOG.md) fo
 **Closed issues:**
 
 - Move to userpubkey@gatewaypubkey addresses. [\#235](https://github.com/nymtech/nym/issues/235)
-- Get `start\_local\_network.sh` working with the js example [\#227](https://github.com/nymtech/nym/issues/227)
+- Get `start_local_network.sh` working with the js example [\#227](https://github.com/nymtech/nym/issues/227)
 - Fix indeterminate test failure [\#218](https://github.com/nymtech/nym/issues/218)
 - Remove 'fetch' mechanism from desktop client's client in favour of push [\#211](https://github.com/nymtech/nym/issues/211)
 - Mixnode - load Sphinx keys like Gateway [\#209](https://github.com/nymtech/nym/issues/209)
@@ -324,15 +436,16 @@ See the [changelog](https://github.com/nymtech/nym/blob/develop/CHANGELOG.md) fo
 - Bring health-checker into validator mix-mining [\#78](https://github.com/nymtech/nym/issues/78)
 - Solidify TCPSocket on client [\#72](https://github.com/nymtech/nym/issues/72)
 - scripts: run\_local\_network.sh doesn't die nicely [\#45](https://github.com/nymtech/nym/issues/45)
-- WASM version of the Sphinx packet [\#19](https://github.com/nymtech/nym/issues/19)
-- Persistent socket connection \(TCP Socket with provider\) [\#18](https://github.com/nymtech/nym/issues/18)
-- Persistent socket connection \(Websocket with client\) [\#17](https://github.com/nymtech/nym/issues/17)
-- Persistent socket connection \(TCP Socket with client\) [\#13](https://github.com/nymtech/nym/issues/13)
-- Persistent socket connection \(Websocket with client\) [\#12](https://github.com/nymtech/nym/issues/12)
 - Persistently store ledger with registered clients and their auth tokens [\#6](https://github.com/nymtech/nym/issues/6)
+- Persistent socket connection \(Websocket with client\) [\#17](https://github.com/nymtech/nym/issues/17)
+- Persistent socket connection \(TCP Socket with provider\) [\#18](https://github.com/nymtech/nym/issues/18)
+- Persistent socket connection \(Websocket with client\) [\#12](https://github.com/nymtech/nym/issues/12)
+- Persistent socket connection \(TCP Socket with client\) [\#13](https://github.com/nymtech/nym/issues/13)
+- WASM version of the Sphinx packet [\#19](https://github.com/nymtech/nym/issues/19)
 
 **Merged pull requests:**
 
+- Filtering compatible node versions [\#259](https://github.com/nymtech/nym/pull/259) ([jstuczyn](https://github.com/jstuczyn))
 - systemd service unit example [\#257](https://github.com/nymtech/nym/pull/257) ([ststefa](https://github.com/ststefa))
 - renaming desktop to native client [\#251](https://github.com/nymtech/nym/pull/251) ([futurechimp](https://github.com/futurechimp))
 - Adding a pipenv dependencies file to the python client example [\#250](https://github.com/nymtech/nym/pull/250) ([futurechimp](https://github.com/futurechimp))
@@ -471,11 +584,11 @@ This  release fixes bugs in v0.5.0. All testnet node operators are advised to up
 - Fix incorrectly used Arcs [\#47](https://github.com/nymtech/nym/issues/47)
 - nym-mixnode mandatory host option [\#26](https://github.com/nymtech/nym/issues/26)
 - Create config struct for mixnode \(possibly also for client\) [\#21](https://github.com/nymtech/nym/issues/21)
-- Reuse TCP socket connection between client and mixnodes [\#20](https://github.com/nymtech/nym/issues/20)
-- Once implementation is available, wherever appropriate, replace `futures::lock::Mutex` with `futures::lock::RwLock` [\#9](https://github.com/nymtech/nym/issues/9)
 - Check if RwLock on MixProcessingData is still needed [\#8](https://github.com/nymtech/nym/issues/8)
-- Reuse TCP socket connection between mixnodes and providers [\#3](https://github.com/nymtech/nym/issues/3)
+- Once implementation is available, wherever appropriate, replace `futures::lock::Mutex` with `futures::lock::RwLock` [\#9](https://github.com/nymtech/nym/issues/9)
 - Persistent socket connection with other mixes [\#2](https://github.com/nymtech/nym/issues/2)
+- Reuse TCP socket connection between client and mixnodes [\#20](https://github.com/nymtech/nym/issues/20)
+- Reuse TCP socket connection between mixnodes and providers [\#3](https://github.com/nymtech/nym/issues/3)
 
 **Merged pull requests:**
 
@@ -575,8 +688,8 @@ This release also integrates a health-checker and network topology refresh into 
 - Messages returned by fetch are base64 encoded [\#55](https://github.com/nymtech/nym/issues/55)
 - Check layer 1 connectivity at client start [\#38](https://github.com/nymtech/nym/issues/38)
 - Check required sfw-provider args [\#27](https://github.com/nymtech/nym/issues/27)
-- Make Electron app work with new Rust mixnet client [\#16](https://github.com/nymtech/nym/issues/16)
 - Take version numbers into account when picking routes [\#14](https://github.com/nymtech/nym/issues/14)
+- Make Electron app work with new Rust mixnet client [\#16](https://github.com/nymtech/nym/issues/16)
 
 **Merged pull requests:**
 
@@ -619,7 +732,7 @@ This release also integrates a health-checker and network topology refresh into 
 **Merged pull requests:**
 
 - Feature/client topology filtering [\#54](https://github.com/nymtech/nym/pull/54) ([jstuczyn](https://github.com/jstuczyn))
-- print public key for nym client tools [\#53](https://github.com/nymtech/nym/pull/53) ([mileschet](https://github.com/mileschet))
+- print public key for nym client tools [\#53](https://github.com/nymtech/nym/pull/53) ([ghost](https://github.com/ghost))
 - Showing binding warning on binding to localhost, 0.0.0.0 or 127.0.0.1 [\#52](https://github.com/nymtech/nym/pull/52) ([jstuczyn](https://github.com/jstuczyn))
 - validator: moving sample config files into sample configs directory [\#51](https://github.com/nymtech/nym/pull/51) ([futurechimp](https://github.com/futurechimp))
 - Feature/validator health checker [\#50](https://github.com/nymtech/nym/pull/50) ([jstuczyn](https://github.com/jstuczyn))
@@ -642,7 +755,7 @@ This release also integrates a health-checker and network topology refresh into 
 
 ## [0.2.0](https://github.com/nymtech/nym/tree/0.2.0) (2020-01-06)
 
-[Full Changelog](https://github.com/nymtech/nym/compare/0.1.0...0.2.0)
+[Full Changelog](https://github.com/nymtech/nym/compare/3c64a2facd753f4f2f431e7f888e54842e2bc64e...0.2.0)
 
 
 

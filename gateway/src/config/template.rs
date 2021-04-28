@@ -32,7 +32,11 @@ private_sphinx_key_file = '{{ gateway.private_sphinx_key_file }}'
 public_sphinx_key_file = '{{ gateway.public_sphinx_key_file }}'
 
 # Validator server to which the node will be reporting their presence data.
-validator_rest_url = '{{ gateway.validator_rest_url }}'
+validator_rest_urls = [
+    {{#each gateway.validator_rest_urls }}
+        '{{this}}',
+    {{/each}}
+]
 
 # Address of the validator contract managing the network.
 mixnet_contract_address = '{{ gateway.mixnet_contract_address }}'

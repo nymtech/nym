@@ -26,6 +26,7 @@ export interface INetClient {
     instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult>;
     sendTokens(senderAddress: string, recipientAddress: string, transferAmount: readonly Coin[], memo?: string): Promise<BroadcastTxResponse>;
     upload(senderAddress: string, wasmCode: Uint8Array, meta?: UploadMeta, memo?: string): Promise<UploadResult>;
+    changeValidator(newUrl: string): Promise<void>
 }
 
 /**
@@ -39,12 +40,16 @@ export interface INetClient {
 export default class NetClient implements INetClient {
     clientAddress: string;
     private cosmClient: SigningCosmWasmClient;
-    private stakeDenom: string;
 
-    private constructor(clientAddress: string, cosmClient: SigningCosmWasmClient, stakeDenom: string) {
+    // helpers for changing validators without having to remake the wallet
+    private readonly wallet: DirectSecp256k1HdWallet;
+    private readonly signerOptions: SigningCosmWasmClientOptions;
+
+    private constructor(clientAddress: string, cosmClient: SigningCosmWasmClient, wallet: DirectSecp256k1HdWallet, signerOptions: SigningCosmWasmClientOptions) {
         this.clientAddress = clientAddress;
         this.cosmClient = cosmClient;
-        this.stakeDenom = stakeDenom;
+        this.wallet = wallet;
+        this.signerOptions = signerOptions;
     }
 
     public static async connect(wallet: DirectSecp256k1HdWallet, url: string, stakeDenom: string): Promise<INetClient> {
@@ -54,7 +59,11 @@ export default class NetClient implements INetClient {
             gasLimits: nymGasLimits,
         };
         const client = await SigningCosmWasmClient.connectWithSigner(url, wallet, signerOptions);
-        return new NetClient(address, client, stakeDenom);
+        return new NetClient(address, client, wallet, signerOptions);
+    }
+
+    async changeValidator(url: string): Promise<void> {
+        this.cosmClient = await SigningCosmWasmClient.connectWithSigner(url, this.wallet, this.signerOptions);
     }
 
     public getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedResponse> {

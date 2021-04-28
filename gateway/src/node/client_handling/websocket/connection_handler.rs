@@ -92,13 +92,7 @@ where
                 SocketStream::RawTcp(conn) => {
                     // TODO: perhaps in the future, rather than panic here (and uncleanly shut tcp stream)
                     // return a result with an error?
-                    let ws_stream = match tokio_tungstenite::accept_async(conn).await {
-                        Ok(ws_stream) => ws_stream,
-                        // note that socket will remain in `Invalid` state here, but that's
-                        // absolutely fine because due to returned error the handler
-                        // should terminate immediately
-                        Err(err) => return Err(err),
-                    };
+                    let ws_stream = tokio_tungstenite::accept_async(conn).await?;
                     SocketStream::UpgradedWebSocket(ws_stream)
                 }
                 other => other,

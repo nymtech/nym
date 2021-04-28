@@ -44,4 +44,10 @@ pub enum ContractError {
 
     #[error("The node had uptime larger than 100%")]
     UnexpectedUptime,
+    
+    #[error("This address has already bonded a mixnode")]
+    AlreadyOwnsMixnode,
+
+    #[error("This address has already bonded a gateway")]
+    AlreadyOwnsGateway,
 }

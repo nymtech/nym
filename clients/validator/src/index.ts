@@ -251,7 +251,7 @@ export default class ValidatorClient {
     /**
      *  Announce a mixnode, paying a fee.
      */
-    async bond(mixNode: MixNode): Promise<ExecuteResult> {
+    async bondMixnode(mixNode: MixNode): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
             const bond = [this.minimumMixnodeBond()];
             const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { bond_mixnode: { mix_node: mixNode } }, "adding mixnode", bond).catch((err) => this.handleRequestFailure(err));
@@ -266,7 +266,7 @@ export default class ValidatorClient {
     /**
      * Unbond a mixnode, removing it from the network and reclaiming staked coins
      */
-    async unbond(): Promise<ExecuteResult> {
+    async unbondMixnode(): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
             const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { unbond_mixnode: {} }).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} unbonded mixnode`);

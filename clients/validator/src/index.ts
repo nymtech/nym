@@ -374,56 +374,6 @@ export default class ValidatorClient {
         }
     }
 
-    // note if this is not executed by network monitor (or uptime is not in range 0-100) the transaction will be rejected
-    async rewardMixnode(ownerAddress: string, uptime: number): Promise<BroadcastTxSuccess> {
-        if (this.client instanceof NetClient) {
-            // this is using the slightly less user-friendly `signAndBroadcast` as it allows manually setting gas fees
-            // as rewarding is approximately half the cost of bonding
-            const executeMsg = {
-                typeUrl: "/cosmwasm.wasm.v1beta1.MsgExecuteContract",
-                value: MsgExecuteContract.fromPartial({
-                    sender: this.client.clientAddress,
-                    contract: this.contractAddress,
-                    msg: toUtf8(JSON.stringify({reward_mixnode: { owner: ownerAddress, uptime: uptime }})),
-                    sentFunds: [],
-                }),
-            };
-
-            const result = await this.client.signAndBroadcast(this.client.clientAddress, [executeMsg], this.rewardGasFee, "rewarding mixnode");
-            if (isBroadcastTxFailure(result)) {
-                throw new Error(`Error when broadcasting tx ${result.transactionHash} at height ${result.height}. Code: ${result.code}; Raw log: ${result.rawLog}`)
-            }
-            return result
-        } else {
-            throw new Error("Tried to reward mixnode with a query client")
-        }
-    }
-    
-    // note if this is not executed by network monitor (or uptime is not in range 0-100) the transaction will be rejected
-    async rewardGateway(ownerAddress: string, uptime: number): Promise<BroadcastTxSuccess> {
-        if (this.client instanceof NetClient) {
-            // this is using the slightly less user-friendly `signAndBroadcast` as it allows manually setting gas fees
-            // as rewarding is approximately half the cost of bonding
-            const executeMsg = {
-                typeUrl: "/cosmwasm.wasm.v1beta1.MsgExecuteContract",
-                value: MsgExecuteContract.fromPartial({
-                    sender: this.client.clientAddress,
-                    contract: this.contractAddress,
-                    msg: toUtf8(JSON.stringify({reward_gateway: { owner: ownerAddress, uptime: uptime }})),
-                    sentFunds: [],
-                }),
-            };
-
-            const result = await this.client.signAndBroadcast(this.client.clientAddress, [executeMsg], this.rewardGasFee, "rewarding gateway");
-            if (isBroadcastTxFailure(result)) {
-                throw new Error(`Error when broadcasting tx ${result.transactionHash} at height ${result.height}. Code: ${result.code}; Raw log: ${result.rawLog}`)
-            }
-            return result
-        } else {
-            throw new Error("Tried to reward mixnode with a query client")
-        }
-    }
-
     // TODO: if we just keep a reference to the SigningCosmWasmClient somewhere we can probably go direct
     // to it in the case of these methods below.
 

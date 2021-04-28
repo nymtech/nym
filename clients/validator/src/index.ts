@@ -1,7 +1,7 @@
 import NetClient, { INetClient } from "./net-client";
 import { Gateway, GatewayBond, MixNode, MixNodeBond, SendRequest } from "./types";
 import { Bip39, Random } from "@cosmjs/crypto";
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
 import { buildFeeTable, coin, Coin, coins, StdFee } from "@cosmjs/launchpad";
 import {
@@ -23,8 +23,6 @@ import {
 } from "./currency";
 import GatewaysCache from "./caches/gateways";
 import QueryClient, { IQueryClient } from "./query-client";
-import { MsgExecuteContract } from "@cosmjs/cosmwasm-stargate/build/codec/x/wasm/internal/types/tx";
-import { toUtf8 } from "@cosmjs/encoding"
 import { nymGasLimits, nymGasPrice } from "./stargate-helper";
 import { BroadcastTxSuccess, isBroadcastTxFailure } from "@cosmjs/stargate";
 import { makeBankMsgSend } from "./utils";
@@ -32,13 +30,13 @@ import { makeBankMsgSend } from "./utils";
 export { coins, coin };
 export { Coin };
 export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBalance, nativeToPrintable, MappedCoin, CoinMap }
+export { nymGasLimits, nymGasPrice }
 
 export default class ValidatorClient {
     private readonly stakeDenom: string;
     // TODO: do those even still make sense since they can vary?
     private readonly defaultGatewayBondingStake: number = 100_000000
     private readonly defaultMixnodeBondingStake: number = 100_000000
-    private readonly rewardGasFee: StdFee;
 
     urls: string[];
     private readonly client: INetClient | IQueryClient
@@ -56,10 +54,6 @@ export default class ValidatorClient {
         this.gatewayCache = new GatewaysCache(client, 100);
         this.contractAddress = contractAddress;
         this.stakeDenom = stakeDenom;
-
-        // currently set it to half of our exec gas fee (from my local tests, rewarding was using around 110_000 gas and exec uses 250_000 so it should be fine)
-        const table = buildFeeTable(nymGasPrice(stakeDenom), {reward: nymGasLimits.exec / 2}, {reward: nymGasLimits.exec / 2})
-        this.rewardGasFee = table.reward
     }
 
     // allows also entering 'string' by itself for backwards compatibility
@@ -413,6 +407,18 @@ export default class ValidatorClient {
             return result
         } else {
             throw new Error("Tried to use sendMultiple with a query client");
+        }
+    }
+
+    public async executeCustom(signerAddress: string, messages: readonly EncodeObject[], customFee: StdFee, memo?: string): Promise<BroadcastTxSuccess> {
+        if (this.client instanceof NetClient) {
+            const result = await this.client.signAndBroadcast(signerAddress, messages, customFee, memo);
+            if (isBroadcastTxFailure(result)) {
+                throw new Error(`Error when broadcasting tx ${result.transactionHash} at height ${result.height}. Code: ${result.code}; Raw log: ${result.rawLog}`)
+            }
+            return result
+        } else {
+            throw new Error("Tried to use executeCustom with a query client");
         }
     }
 

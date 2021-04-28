@@ -9,7 +9,7 @@ import {
 import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
 import { Coin, GasPrice, StdFee } from "@cosmjs/launchpad";
 import { BroadcastTxResponse } from "@cosmjs/stargate"
-import { nymGasLimits } from "./stargate-helper"
+import { nymGasLimits, nymGasPrice } from "./stargate-helper"
 import { ExecuteResult, InstantiateOptions, InstantiateResult, MigrateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
 
 export interface INetClient {
@@ -55,7 +55,7 @@ export default class NetClient implements INetClient {
     public static async connect(wallet: DirectSecp256k1HdWallet, url: string, stakeDenom: string): Promise<INetClient> {
         const [{ address }] = await wallet.getAccounts();
         const signerOptions: SigningCosmWasmClientOptions = {
-            gasPrice: GasPrice.fromString(`0.025${stakeDenom}`),
+            gasPrice: nymGasPrice(stakeDenom),
             gasLimits: nymGasLimits,
         };
         const client = await SigningCosmWasmClient.connectWithSigner(url, wallet, signerOptions);

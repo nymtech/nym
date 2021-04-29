@@ -17,7 +17,6 @@ pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128(100_000000);
 pub const INITIAL_MIXNODE_BOND: Uint128 = Uint128(100_000000);
 
 // percentage annual increase. Given starting value of x, we expect to have 1.1x at the end of the year
-// (kinda, there's no compound interest etc included)
 pub const INITIAL_MIXNODE_BOND_REWARD_RATE: u64 = 110;
 pub const INITIAL_GATEWAY_BOND_REWARD_RATE: u64 = 110;
 
@@ -65,9 +64,6 @@ pub fn init(
     info: MessageInfo,
     _msg: InitMsg,
 ) -> Result<InitResponse, ContractError> {
-    // TODO: to discuss with DH, should the initial state be set as it is right now, i.e.
-    // using the defined constants, or should it rather be all based on whatever is sent
-    // in `InitMsg`?
     let state = default_initial_state(info.sender);
 
     config(deps.storage).save(&state)?;

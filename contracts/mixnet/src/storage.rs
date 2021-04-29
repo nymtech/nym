@@ -55,19 +55,17 @@ pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
 pub(crate) fn increase_mixnode_bond(
     storage: &mut dyn Storage,
     owner: &[u8],
-    scaled_reward: Decimal,
+    scaled_reward_rate: Decimal,
 ) -> StdResult<()> {
     let mut bucket = mixnodes(storage);
     let mut node = bucket.load(owner)?;
-    // TODO: we should probably change that at insertion time to ensure
-    // bond is always a single coin
     if node.amount.len() != 1 {
         return Err(StdError::generic_err(
             "mixnode seems to have been bonded with multiple coin types",
         ));
     }
 
-    let reward = node.amount[0].amount * scaled_reward;
+    let reward = node.amount[0].amount * scaled_reward_rate;
     node.amount[0].amount += reward;
     bucket.save(owner, &node)
 }
@@ -80,8 +78,6 @@ pub(crate) fn read_mixnode_bond(
 ) -> StdResult<cosmwasm_std::Uint128> {
     let bucket = mixnodes_read(storage);
     let node = bucket.load(owner)?;
-    // TODO: we should probably change that at insertion time to ensure
-    // bond is always a single coin
     if node.amount.len() != 1 {
         return Err(StdError::generic_err(
             "mixnode seems to have been bonded with multiple coin types",
@@ -106,18 +102,16 @@ pub fn gateways_read(storage: &dyn Storage) -> ReadonlyBucket<GatewayBond> {
 pub(crate) fn increase_gateway_bond(
     storage: &mut dyn Storage,
     owner: &[u8],
-    scaled_reward: Decimal,
+    scaled_reward_rate: Decimal,
 ) -> StdResult<()> {
     let mut bucket = gateways(storage);
     let mut node = bucket.load(owner)?;
-    // TODO: we should probably change that at insertion time to ensure
-    // bond is always a single coin
     if node.amount.len() != 1 {
         return Err(StdError::generic_err(
             "gateway seems to have been bonded with multiple coin types",
         ));
     }
-    let reward = node.amount[0].amount * scaled_reward;
+    let reward = node.amount[0].amount * scaled_reward_rate;
     node.amount[0].amount += reward;
     bucket.save(owner, &node)
 }
@@ -130,8 +124,6 @@ pub(crate) fn read_gateway_bond(
 ) -> StdResult<cosmwasm_std::Uint128> {
     let bucket = gateways_read(storage);
     let node = bucket.load(owner)?;
-    // TODO: we should probably change that at insertion time to ensure
-    // bond is always a single coin
     if node.amount.len() != 1 {
         return Err(StdError::generic_err(
             "gateway seems to have been bonded with multiple coin types",

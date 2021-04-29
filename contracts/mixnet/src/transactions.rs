@@ -19,7 +19,7 @@ fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), Con
     }
 
     if bond.len() > 1 {
-        // TODO: ask DH what would be an appropriate action here
+        return Err(ContractError::MultipleDenoms);
     }
 
     // check that the denomination is correct
@@ -61,7 +61,6 @@ pub(crate) fn try_add_mixnode(
         .may_load(sender_bytes)?
         .is_some();
 
-    // TODO: do attributes also go back to the client or does this need to be put into `data`?
     let attributes = vec![attr("overwritten", was_present)];
 
     mixnodes(deps.storage).save(sender_bytes, &bond)?;
@@ -111,7 +110,7 @@ fn validate_gateway_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), Con
     }
 
     if bond.len() > 1 {
-        // TODO: ask DH what would be an appropriate action here
+        return Err(ContractError::MultipleDenoms);
     }
 
     // check that the denomination is correct
@@ -153,7 +152,6 @@ pub(crate) fn try_add_gateway(
         .may_load(sender_bytes)?
         .is_some();
 
-    // TODO: do attributes also go back to the client or does this need to be put into `data`?
     let attributes = vec![attr("overwritten", was_present)];
 
     gateways(deps.storage).save(sender_bytes, &bond)?;
@@ -243,7 +241,7 @@ pub(crate) fn try_reward_mixnode(
 ) -> Result<HandleResponse, ContractError> {
     let state = config_read(deps.storage).load().unwrap();
 
-    // check if this is executed by the owner, if not reject the transaction
+    // check if this is executed by the monitor, if not reject the transaction
     if info.sender != state.network_monitor_address {
         return Err(ContractError::Unauthorized);
     }

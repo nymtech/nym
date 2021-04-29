@@ -33,6 +33,9 @@ pub enum ContractError {
     #[error("Wrong coin denomination, you must send {}", DENOM)]
     WrongDenom {},
 
+    #[error("Received multiple coin types during bond")]
+    MultipleDenoms,
+
     #[error("No coin was sent for the bonding, you must send {}", DENOM)]
     NoBondFound,
 

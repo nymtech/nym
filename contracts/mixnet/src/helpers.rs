@@ -38,9 +38,6 @@ fn uint128_to_decimal(value: Uint128) -> Decimal {
     Decimal::from_ratio(value, DECIMAL_FRACTIONAL)
 }
 
-// TODO: this does not seem fully right, I'm not sure what that is exactly,
-// but it feels like something is not taken into consideration,
-// like compound interest BS or some other exponentiation stuff
 pub(crate) fn calculate_epoch_reward_rate(
     epoch_length: u32,
     annual_reward_rate: Decimal,
@@ -67,9 +64,6 @@ pub(crate) fn calculate_epoch_reward_rate(
     uint128_to_decimal(epoch_reward_uint128)
 }
 
-// this function works under assumption that epoch reward has relatively few decimal places
-// (I think, but to be verified, fewer than 18)
-// uptime must be a value in range of 0-100
 pub(crate) fn scale_reward_by_uptime(
     reward: Decimal,
     uptime: u32,
@@ -93,32 +87,33 @@ pub(crate) fn scale_reward_by_uptime(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn calculating_epoch_reward_rate() {
         // 1.10
         let annual_reward_rate = Decimal::from_ratio(110u128, 100u128);
-        let annual_reward = decimal_sub_one(annual_reward_rate);
 
         // if the epoch is (for some reason) exactly one year,
         // the reward rate should be unchanged
         let per_epoch_rate = calculate_epoch_reward_rate(HOURS_IN_YEAR as u32, annual_reward_rate);
-        assert_eq!(per_epoch_rate, annual_reward);
+        // 0.10
+        let expected = decimal_sub_one(annual_reward_rate);
+        assert_eq!(expected, per_epoch_rate);
 
         // 24 hours
         let per_epoch_rate = calculate_epoch_reward_rate(24, annual_reward_rate);
-
         // 0.1 / 365
         let expected = Decimal::from_ratio(1u128, 3650u128);
-
         assert_eq!(expected, per_epoch_rate);
+
+        let expected_per_epoch_rate_excel = Decimal::from_str("0.000273972602739726").unwrap();
+        assert_eq!(expected_per_epoch_rate_excel, per_epoch_rate);
 
         // 1 hour
         let per_epoch_rate = calculate_epoch_reward_rate(1, annual_reward_rate);
-
         // 0.1 / 8760
         let expected = Decimal::from_ratio(1u128, 87600u128);
-
         assert_eq!(expected, per_epoch_rate);
     }
 

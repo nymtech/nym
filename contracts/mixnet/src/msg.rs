@@ -10,11 +10,27 @@ pub struct InitMsg {}
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    BondMixnode { mix_node: MixNode },
+    BondMixnode {
+        mix_node: MixNode,
+    },
     UnbondMixnode {},
-    BondGateway { gateway: Gateway },
+    BondGateway {
+        gateway: Gateway,
+    },
     UnbondGateway {},
     UpdateStateParams(StateParams),
+
+    RewardMixnode {
+        owner: HumanAddr,
+        // percentage value in range 0-100
+        uptime: u32,
+    },
+
+    RewardGateway {
+        owner: HumanAddr,
+        // percentage value in range 0-100
+        uptime: u32,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

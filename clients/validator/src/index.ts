@@ -1,7 +1,7 @@
 import NetClient, { INetClient } from "./net-client";
 import { Gateway, GatewayBond, MixNode, MixNodeBond, SendRequest } from "./types";
 import { Bip39, Random } from "@cosmjs/crypto";
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
 import { buildFeeTable, coin, Coin, coins, StdFee } from "@cosmjs/launchpad";
 import {
@@ -23,16 +23,18 @@ import {
 } from "./currency";
 import GatewaysCache from "./caches/gateways";
 import QueryClient, { IQueryClient } from "./query-client";
+import { nymGasLimits, nymGasPrice } from "./stargate-helper";
 import { BroadcastTxSuccess, isBroadcastTxFailure } from "@cosmjs/stargate";
 import { makeBankMsgSend } from "./utils";
-import { nymGasLimits, nymGasPrice } from "./stargate-helper";
 
 export { coins, coin };
 export { Coin };
 export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBalance, nativeToPrintable, MappedCoin, CoinMap }
+export { nymGasLimits, nymGasPrice }
 
 export default class ValidatorClient {
     private readonly stakeDenom: string;
+    // TODO: do those even still make sense since they can vary?
     private readonly defaultGatewayBondingStake: number = 100_000000
     private readonly defaultMixnodeBondingStake: number = 100_000000
 
@@ -364,7 +366,6 @@ export default class ValidatorClient {
         } else {
             throw new Error("Tried to update state params with a query client")
         }
-
     }
 
     // TODO: if we just keep a reference to the SigningCosmWasmClient somewhere we can probably go direct
@@ -406,6 +407,18 @@ export default class ValidatorClient {
             return result
         } else {
             throw new Error("Tried to use sendMultiple with a query client");
+        }
+    }
+
+    public async executeCustom(signerAddress: string, messages: readonly EncodeObject[], customFee: StdFee, memo?: string): Promise<BroadcastTxSuccess> {
+        if (this.client instanceof NetClient) {
+            const result = await this.client.signAndBroadcast(signerAddress, messages, customFee, memo);
+            if (isBroadcastTxFailure(result)) {
+                throw new Error(`Error when broadcasting tx ${result.transactionHash} at height ${result.height}. Code: ${result.code}; Raw log: ${result.rawLog}`)
+            }
+            return result
+        } else {
+            throw new Error("Tried to use executeCustom with a query client");
         }
     }
 
@@ -477,6 +490,7 @@ export type GatewayOwnershipResponse = {
 }
 
 export type StateParams = {
+    epoch_length: number,
     // ideally I'd want to define those as `number` rather than `string`, but
     // rust-side they are defined as Uint128 and Decimal that don't have
     // native javascript representations and therefore are interpreted as strings after deserialization

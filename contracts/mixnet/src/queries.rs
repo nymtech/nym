@@ -10,8 +10,8 @@ use mixnet_contract::{
     PagedResponse,
 };
 
-const MAX_LIMIT: u32 = 30;
-const DEFAULT_LIMIT: u32 = 10;
+const MAX_LIMIT: u32 = 100;
+const DEFAULT_LIMIT: u32 = 50;
 
 pub fn query_mixnodes_paged(
     deps: Deps,

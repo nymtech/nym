@@ -19,32 +19,23 @@ use cosmwasm_std::{Decimal, Uint128};
 // i.e. 8760 hours
 const HOURS_IN_YEAR: u128 = 8760;
 
-// annoyingly not exposed by `Decimal` directly.
 const DECIMAL_FRACTIONAL: Uint128 = Uint128(1_000_000_000_000_000_000u128);
 
 // calculates value - 1
 fn decimal_sub_one(value: Decimal) -> Decimal {
     assert!(value >= Decimal::one());
 
-    // those conversions are so freaking disgusting and I fear they might result in some loss of precision
     let value_uint128 = value * DECIMAL_FRACTIONAL;
     let uint128_sub_one = (value_uint128 - DECIMAL_FRACTIONAL).unwrap();
     Decimal::from_ratio(uint128_sub_one, DECIMAL_FRACTIONAL)
 }
 
-// I don't like this, but this seems to be the only way of converting Decimal into Uint128
 fn decimal_to_uint128(value: Decimal) -> Uint128 {
-    // TODO: This function should have some proper bound checks implemented to ensure no overflow
     value * DECIMAL_FRACTIONAL
 }
 
-// another disgusting conversion, assumes `value` was already multiplied by `DECIMAL_FRACTIONAL` before
 fn uint128_to_decimal(value: Uint128) -> Decimal {
-    Decimal::from_ratio(value, uint128_decimal_one())
-}
-
-const fn uint128_decimal_one() -> Uint128 {
-    DECIMAL_FRACTIONAL
+    Decimal::from_ratio(value, DECIMAL_FRACTIONAL)
 }
 
 // TODO: this does not seem fully right, I'm not sure what that is exactly,
@@ -66,19 +57,18 @@ pub(crate) fn calculate_epoch_reward_rate(
     //
     // x = `annual_reward` * `epoch_length` / `HOURS_IN_YEAR`
 
-    let epoch_ratio = Decimal::from_ratio(epoch_length, HOURS_IN_YEAR);
-
     // converts reward, like 0.25 into 250000000000000000
     let annual_reward_uint128 = decimal_to_uint128(annual_reward);
 
-    let epoch_reward_uint128 = epoch_ratio * annual_reward_uint128;
+    // calculates `annual_reward_uint128` * `epoch_length` / `HOURS_IN_YEAR`
+    let epoch_reward_uint128 = annual_reward_uint128.multiply_ratio(epoch_length, HOURS_IN_YEAR);
 
     // note: this returns a % reward, like 0.05 rather than reward rate (like 1.05)
     uint128_to_decimal(epoch_reward_uint128)
 }
 
 // this function works under assumption that epoch reward has relatively few decimal places
-// (I think, but to be verified, less than 18)
+// (I think, but to be verified, fewer than 18)
 // uptime must be a value in range of 0-100
 pub(crate) fn scale_reward_by_uptime(
     reward: Decimal,
@@ -88,6 +78,13 @@ pub(crate) fn scale_reward_by_uptime(
         return Err(ContractError::UnexpectedUptime);
     }
     let uptime_ratio = Decimal::from_ratio(uptime, 100u128);
+    // if we do not convert into a more precise representation, we might end up with, for example,
+    // reward 0.05 and uptime of 50% which would produce 0.50 * 0.05 = 0 (because of u128 representation)
+    // and also the above would be impossible to compute as Mul<Decimal> for Decimal is not implemented
+    //
+    // but with the intermediate conversion, we would have
+    // 0.50 * 50_000_000_000_000_000 = 25_000_000_000_000_000
+    // which converted back would give us the proper 0.025
     let uptime_ratio_u128 = decimal_to_uint128(uptime_ratio);
     let scaled = reward * uptime_ratio_u128;
     Ok(uint128_to_decimal(scaled))

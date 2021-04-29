@@ -10,8 +10,8 @@ use mixnet_contract::{
     PagedResponse,
 };
 
-const MAX_LIMIT: u32 = 30;
-const DEFAULT_LIMIT: u32 = 10;
+const MAX_LIMIT: u32 = 100;
+const DEFAULT_LIMIT: u32 = 50;
 
 pub fn query_mixnodes_paged(
     deps: Deps,
@@ -139,7 +139,7 @@ mod tests {
         // query without explicitly setting a limit
         let page1 = query_mixnodes_paged(deps.as_ref(), None, None).unwrap();
 
-        let expected_limit = 10;
+        let expected_limit = 50;
         assert_eq!(expected_limit, page1.nodes.len() as u32);
     }
 
@@ -158,7 +158,7 @@ mod tests {
         let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(crazy_limit)).unwrap();
 
         // we default to a decent sized upper bound instead
-        let expected_limit = 30;
+        let expected_limit = 100;
         assert_eq!(expected_limit, page1.nodes.len() as u32);
     }
 

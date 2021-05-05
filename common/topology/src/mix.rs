@@ -26,7 +26,7 @@ use std::net::SocketAddr;
 pub enum MixnodeConversionError {
     InvalidIdentityKey(identity::KeyRecoveryError),
     InvalidSphinxKey(encryption::KeyRecoveryError),
-    InvalidAddress(io::Error),
+    InvalidAddress(String, io::Error),
     InvalidStake,
     Other(Box<dyn std::error::Error + Send + Sync>),
 }
@@ -56,11 +56,11 @@ impl Display for MixnodeConversionError {
                 "failed to convert mixnode due to invalid sphinx key - {}",
                 err
             ),
-            MixnodeConversionError::InvalidAddress(err) => {
+            MixnodeConversionError::InvalidAddress(address, err) => {
                 write!(
                     f,
-                    "failed to convert mixnode due to invalid address - {}",
-                    err
+                    "failed to convert mixnode due to invalid address {} - {}",
+                    address, err
                 )
             }
             MixnodeConversionError::InvalidStake => {
@@ -120,10 +120,9 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
                 .map(|stake| stake.amount.into())
                 .unwrap_or(0),
             location: bond.mix_node.location.clone(),
-            host: bond
-                .mix_node
-                .try_resolve_hostname()
-                .map_err(MixnodeConversionError::InvalidAddress)?,
+            host: bond.mix_node.try_resolve_hostname().map_err(|err| {
+                MixnodeConversionError::InvalidAddress(bond.mix_node.host.clone(), err)
+            })?,
             identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,
             sphinx_key: encryption::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)?,
             layer: bond.mix_node.layer,

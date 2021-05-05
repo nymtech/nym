@@ -15,7 +15,6 @@
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::GatewayClient;
-use js_sys::Promise;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::params::PacketMode;
@@ -24,9 +23,9 @@ use rand::rngs::OsRng;
 use received_processor::ReceivedMessagesProcessor;
 use std::sync::Arc;
 use std::time::Duration;
-use topology::{gateway, NymTopology};
+use topology::{gateway, nym_topology_from_bonds, NymTopology};
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::{future_to_promise, spawn_local};
+use wasm_bindgen_futures::spawn_local;
 use wasm_utils::{console_log, console_warn};
 
 pub(crate) mod received_processor;
@@ -40,6 +39,7 @@ const DEFAULT_VPN_KEY_REUSE_LIMIT: usize = 1000;
 #[wasm_bindgen]
 pub struct NymClient {
     validator_server: String,
+    mixnet_contract_address: String,
 
     // TODO: technically this doesn't need to be an Arc since wasm is run on a single thread
     // however, once we eventually combine this code with the native-client's, it will make things
@@ -64,7 +64,7 @@ pub struct NymClient {
 #[wasm_bindgen]
 impl NymClient {
     #[wasm_bindgen(constructor)]
-    pub fn new(validator_server: String) -> Self {
+    pub fn new(validator_server: String, mixnet_contract_address: String) -> Self {
         let mut rng = OsRng;
         // for time being generate new keys each time...
         let identity = identity::KeyPair::new(&mut rng);
@@ -76,6 +76,7 @@ impl NymClient {
             encryption_keys: Arc::new(encryption_keys),
             ack_key: Arc::new(ack_key),
             validator_server,
+            mixnet_contract_address,
             message_preparer: None,
             // received_keys: Default::default(),
             topology: None,
@@ -232,26 +233,42 @@ impl NymClient {
         self.topology = Some(topology)
     }
 
-    pub fn get_full_topology_json(&self) -> Promise {
-        let validator_client_config = validator_client::Config::new(self.validator_server.clone());
-        let validator_client = validator_client::Client::new(validator_client_config);
-        future_to_promise(async move {
-            let topology = &validator_client.get_active_topology().await.unwrap();
-            Ok(JsValue::from_serde(&topology).unwrap())
-        })
-    }
+    // when updated to 0.10.0, to prevent headache later on, this function requires those two imports:
+    // use js_sys::Promise;
+    // use wasm_bindgen_futures::future_to_promise;
+    //
+    // pub fn get_full_topology_json(&self) -> Promise {
+    //     let validator_client_config = validator_client_rest::Config::new(
+    //         vec![self.validator_server.clone()],
+    //         &self.mixnet_contract_address,
+    //     );
+    //     let validator_client = validator_client_rest::Client::new(validator_client_config);
+    //
+    //     future_to_promise(async move {
+    //         let topology = &validator_client.get_active_topology().await.unwrap();
+    //         Ok(JsValue::from_serde(&topology).unwrap())
+    //     })
+    // }
 
     pub(crate) async fn get_nym_topology(&self) -> NymTopology {
-        let validator_client_config = validator_client::Config::new(self.validator_server.clone());
-        let validator_client = validator_client::Client::new(validator_client_config);
+        let validator_client_config = validator_client_rest::Config::new(
+            vec![self.validator_server.clone()],
+            &self.mixnet_contract_address,
+        );
+        let mut validator_client = validator_client_rest::Client::new(validator_client_config);
 
-        match validator_client.get_active_topology().await {
+        let mixnodes = match validator_client.get_mix_nodes().await {
             Err(err) => panic!("{}", err),
-            Ok(topology) => {
-                let nym_topology: NymTopology = topology.into();
-                let version = env!("CARGO_PKG_VERSION");
-                nym_topology.filter_system_version(version)
-            }
-        }
+            Ok(mixes) => mixes,
+        };
+
+        let gateways = match validator_client.get_gateways().await {
+            Err(err) => panic!("{}", err),
+            Ok(gateways) => gateways,
+        };
+
+        let topology = nym_topology_from_bonds(mixnodes, gateways);
+        let version = env!("CARGO_PKG_VERSION");
+        topology.filter_system_version(version)
     }
 }

@@ -1460,7 +1460,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "topology",
- "validator-client",
+ "validator-client-rest",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
@@ -2846,20 +2846,6 @@ name = "utf-8"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05e42f7c18b8f902290b009cde6d651262f956c98bc51bca4cd1d511c9cd85c7"
-
-[[package]]
-name = "validator-client"
-version = "0.1.0"
-dependencies = [
- "crypto",
- "log",
- "mockito",
- "reqwest",
- "schemars",
- "serde",
- "tokio",
- "topology",
-]
 
 [[package]]
 name = "validator-client-rest"

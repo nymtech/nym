@@ -195,14 +195,38 @@ impl PacketSender {
                 packets.pub_key,
                 &fresh_gateway_client_data,
             );
-            if let Err(err) = new_client.authenticate_and_start().await {
+
+            // Put this in timeout in case the gateway has incorrectly set their ulimit and our connection
+            // gets stuck in their TCP queue and just hangs on our end but does not terminate
+            // (an actual bug we experienced)
+            match tokio::time::timeout(
+                GATEWAY_CONNECTION_TIMEOUT,
+                new_client.authenticate_and_start(),
+            )
+            .await
+            {
+                // check for timeout
+                Ok(start_result) => {
+                    // no timeout, but check if it was actually successful
+                    if let Err(err) = start_result {
                 warn!(
                     "failed to authenticate with new gateway ({}) - {}",
                     packets.pub_key.to_base58_string(),
                     err
                 );
+                        // we failed to create a client, can't do much here
                 return None;
             }
+                }
+                Err(_) => {
+                    warn!(
+                        "timed out while trying to authenticate with new gateway ({})",
+                        packets.pub_key.to_base58_string()
+                    );
+                    return None;
+                }
+            };
+
             (new_client, Some((message_receiver, ack_receiver)))
         };
 

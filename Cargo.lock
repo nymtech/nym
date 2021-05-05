@@ -362,7 +362,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "topology",
- "validator-client-rest",
+ "validator-client",
 ]
 
 [[package]]
@@ -1442,7 +1442,7 @@ dependencies = [
  "tokio-tungstenite",
  "topology",
  "url",
- "validator-client-rest",
+ "validator-client",
  "version-checker",
  "websocket-requests",
 ]
@@ -1460,7 +1460,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "topology",
- "validator-client-rest",
+ "validator-client",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
@@ -1494,7 +1494,7 @@ dependencies = [
  "tokio-stream",
  "tokio-tungstenite",
  "tokio-util",
- "validator-client-rest",
+ "validator-client",
  "version-checker",
 ]
 
@@ -1524,7 +1524,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "topology",
- "validator-client-rest",
+ "validator-client",
  "version-checker",
 ]
 
@@ -1549,7 +1549,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "topology",
- "validator-client-rest",
+ "validator-client",
  "version-checker",
 ]
 
@@ -1600,7 +1600,7 @@ dependencies = [
  "socks5-requests",
  "tokio",
  "topology",
- "validator-client-rest",
+ "validator-client",
  "version-checker",
 ]
 
@@ -2848,7 +2848,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05e42f7c18b8f902290b009cde6d651262f956c98bc51bca4cd1d511c9cd85c7"
 
 [[package]]
-name = "validator-client-rest"
+name = "validator-client"
 version = "0.1.0"
 dependencies = [
  "base64 0.13.0",

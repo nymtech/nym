@@ -156,7 +156,7 @@ impl TopologyRefresherConfig {
 }
 
 pub struct TopologyRefresher {
-    validator_client: validator_client_rest::Client,
+    validator_client: validator_client::Client,
 
     topology_accessor: TopologyAccessor,
     refresh_rate: Duration,
@@ -166,11 +166,9 @@ pub struct TopologyRefresher {
 
 impl TopologyRefresher {
     pub fn new(cfg: TopologyRefresherConfig, topology_accessor: TopologyAccessor) -> Self {
-        let validator_client_config = validator_client_rest::Config::new(
-            cfg.available_validators,
-            cfg.mixnet_contract_address,
-        );
-        let validator_client = validator_client_rest::Client::new(validator_client_config);
+        let validator_client_config =
+            validator_client::Config::new(cfg.available_validators, cfg.mixnet_contract_address);
+        let validator_client = validator_client::Client::new(validator_client_config);
 
         TopologyRefresher {
             validator_client,

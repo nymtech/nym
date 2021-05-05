@@ -238,11 +238,11 @@ impl NymClient {
     // use wasm_bindgen_futures::future_to_promise;
     //
     // pub fn get_full_topology_json(&self) -> Promise {
-    //     let validator_client_config = validator_client_rest::Config::new(
+    //     let validator_client_config = validator_client::Config::new(
     //         vec![self.validator_server.clone()],
     //         &self.mixnet_contract_address,
     //     );
-    //     let validator_client = validator_client_rest::Client::new(validator_client_config);
+    //     let validator_client = validator_client::Client::new(validator_client_config);
     //
     //     future_to_promise(async move {
     //         let topology = &validator_client.get_active_topology().await.unwrap();
@@ -251,11 +251,11 @@ impl NymClient {
     // }
 
     pub(crate) async fn get_nym_topology(&self) -> NymTopology {
-        let validator_client_config = validator_client_rest::Config::new(
+        let validator_client_config = validator_client::Config::new(
             vec![self.validator_server.clone()],
             &self.mixnet_contract_address,
         );
-        let mut validator_client = validator_client_rest::Client::new(validator_client_config);
+        let mut validator_client = validator_client::Client::new(validator_client_config);
 
         let mixnodes = match validator_client.get_mix_nodes().await {
             Err(err) => panic!("{}", err),

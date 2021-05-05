@@ -90,9 +90,8 @@ async fn choose_layer(
         }
     }
 
-    let validator_client_config =
-        validator_client_rest::Config::new(validator_servers, mixnet_contract);
-    let mut validator_client = validator_client_rest::Client::new(validator_client_config);
+    let validator_client_config = validator_client::Config::new(validator_servers, mixnet_contract);
+    let mut validator_client = validator_client::Client::new(validator_client_config);
 
     let mixnodes = validator_client
         .get_mix_nodes()

@@ -33,5 +33,5 @@ socks5-requests = { path = "../../common/socks5/requests" }
 topology = { path = "../../common/topology" }
 pemstore = { path = "../../common/pemstore" }
 proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
-validator-client-rest = { path = "../../common/client-libs/validator-client-rest" }
+validator-client = { path = "../../common/client-libs/validator-client" }
 version-checker = { path = "../../common/version-checker" }

@@ -13,7 +13,7 @@ use nymsphinx::forwarding::packet::MixPacket;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use topology::{gateway, mix};
-use validator_client_rest::ValidatorClientError;
+use validator_client::ValidatorClientError;
 
 #[derive(Debug)]
 pub(super) enum PacketPreparerError {
@@ -70,7 +70,7 @@ pub(crate) struct PreparedPackets {
 
 pub(crate) struct PacketPreparer {
     chunker: Chunker,
-    validator_client: validator_client_rest::Client,
+    validator_client: validator_client::Client,
     tested_network: TestedNetwork,
 
     // currently all test MIXNODE packets are sent via the same gateway
@@ -83,7 +83,7 @@ pub(crate) struct PacketPreparer {
 
 impl PacketPreparer {
     pub(crate) fn new(
-        validator_client: validator_client_rest::Client,
+        validator_client: validator_client::Client,
         tested_network: TestedNetwork,
         test_mixnode_sender: Recipient,
         self_public_identity: identity::PublicKey,

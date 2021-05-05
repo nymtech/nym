@@ -237,7 +237,7 @@ async fn wait_for_interrupt() {
 }
 
 fn new_packet_preparer(
-    validator_client: validator_client_rest::Client,
+    validator_client: validator_client::Client,
     tested_network: TestedNetwork,
     test_mixnode_sender: Recipient,
     self_public_identity: identity::PublicKey,
@@ -294,9 +294,9 @@ fn new_packet_receiver(
 fn new_validator_client(
     validator_rest_uris: Vec<String>,
     mixnet_contract: &str,
-) -> validator_client_rest::Client {
-    let config = validator_client_rest::Config::new(validator_rest_uris, mixnet_contract);
-    validator_client_rest::Client::new(config)
+) -> validator_client::Client {
+    let config = validator_client::Config::new(validator_rest_uris, mixnet_contract);
+    validator_client::Client::new(config)
 }
 
 fn new_node_status_api_client<S: Into<String>>(base_url: S) -> node_status_api::Client {

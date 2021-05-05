@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::monitor::preparer::InvalidNode;
-use crate::node_status_api::{BatchMixStatus, MixStatus};
+use crate::node_status_api::models::{BatchMixStatus, MixStatus};
 use crate::test_packet::TestPacket;
 use crate::PENALISE_OUTDATED;
 use crypto::asymmetric::identity;

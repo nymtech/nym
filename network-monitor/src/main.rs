@@ -18,7 +18,6 @@ use futures::channel::mpsc;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use std::sync::Arc;
-use std::time;
 use std::time::Duration;
 use topology::NymTopology;
 
@@ -182,6 +181,7 @@ async fn main() {
 
     let tested_network = TestedNetwork::new_good(v4_topology, v6_topology);
     let validator_client = new_validator_client(validators_rest_uris, mixnet_contract);
+    let node_status_api_client = new_node_status_api_client(node_status_api_uri);
 
     let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
     let (received_processor_sender_channel, received_processor_receiver_channel) =
@@ -215,6 +215,7 @@ async fn main() {
         packet_sender,
         received_processor,
         summary_producer,
+        node_status_api_client,
     );
 
     tokio::spawn(async move { packet_receiver.run().await });
@@ -295,6 +296,11 @@ fn new_validator_client(
 ) -> validator_client_rest::Client {
     let config = validator_client_rest::Config::new(validator_rest_uris, mixnet_contract);
     validator_client_rest::Client::new(config)
+}
+
+fn new_node_status_api_client<S: Into<String>>(base_url: S) -> node_status_api::Client {
+    let config = node_status_api::Config::new(base_url);
+    node_status_api::Client::new(config)
 }
 
 fn setup_logging() {

@@ -1539,6 +1539,7 @@ dependencies = [
  "gateway-client",
  "gateway-requests",
  "log",
+ "mixnet-contract",
  "nymsphinx",
  "pin-project",
  "pretty_env_logger",
@@ -1547,7 +1548,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "topology",
- "validator-client",
+ "validator-client-rest",
  "version-checker",
 ]
 

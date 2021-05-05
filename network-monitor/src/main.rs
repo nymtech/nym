@@ -18,37 +18,41 @@ use futures::channel::mpsc;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use std::sync::Arc;
+use std::time;
 use std::time::Duration;
 use topology::NymTopology;
 
 mod chunker;
 pub(crate) mod gateways_reader;
-// mod mixnet_receiver;
 mod monitor;
-// mod monitor_old;
-// mod notifications;
-// mod packet_sender;
-// mod run_info;
+mod node_status_api;
 mod test_packet;
 mod tested_network;
 
 const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
 const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
-const VALIDATOR_ARG: &str = "validator";
+const VALIDATORS_ARG: &str = "validators";
+const NODE_STATUS_API_ARG: &str = "node-status-api";
 const DETAILED_REPORT_ARG: &str = "detailed-report";
 const GATEWAY_SENDING_RATE_ARG: &str = "gateway-rate";
+const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
 
-const DEFAULT_VALIDATOR: &str = "http://testnet-validator1.nymtech.net:8081";
+const DEFAULT_VALIDATORS: &[&str] = &[
+    // "http://testnet-finney-validator.nymtech.net:1317",
+    "http://testnet-finney-validator2.nymtech.net:1317",
+    "http://mixnet.club:1317",
+];
+const DEFAULT_NODE_STATUS_API: &str = "https://testnet-finney-node-status-api.nymtech.net";
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
+const DEFAULT_MIXNET_CONTRACT: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
 
-// TODO: use this before making PR
 pub(crate) const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
-
 pub(crate) const PENALISE_OUTDATED: bool = false;
 
 // TODO: let's see how it goes and whether those new adjusting
 const MAX_CONCURRENT_GATEWAY_CLIENTS: Option<usize> = Some(50);
 const GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
+pub(crate) const GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_millis(2_500);
 
 fn parse_args<'a>() -> ArgMatches<'a> {
     App::new("Nym Network Monitor")
@@ -68,16 +72,26 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .required(true),
         )
         .arg(
-            Arg::with_name(VALIDATOR_ARG)
+            Arg::with_name(VALIDATORS_ARG)
                 .help("REST endpoint of the validator the monitor will grab nodes to test")
-                .long(VALIDATOR_ARG)
+                .long(VALIDATORS_ARG)
+                .takes_value(true)
+        )
+        .arg(Arg::with_name("mixnet-contract")
+                 .long(MIXNET_CONTRACT_ARG)
+                 .help("Address of the validator contract managing the network")
+                 .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(NODE_STATUS_API_ARG)
+                .help("Address of the node status api to submit results to. Most likely it's a local address")
+                .long(NODE_STATUS_API_ARG)
                 .takes_value(true)
         )
         .arg(
             Arg::with_name(DETAILED_REPORT_ARG)
                 .help("specifies whether a detailed report should be printed after each run")
                 .long(DETAILED_REPORT_ARG)
-            ,
         )
         .arg(Arg::with_name(GATEWAY_SENDING_RATE_ARG)
             .help("specifies maximum rate (in packets per second) of test packets being sent to gateway")
@@ -90,6 +104,20 @@ fn parse_args<'a>() -> ArgMatches<'a> {
 
 #[tokio::main]
 async fn main() {
+    // for validator in DEFAULT_VALIDATORS {
+    //     let config = validator_client_rest::Config::new(
+    //         vec![validator.to_string()],
+    //         DEFAULT_MIXNET_CONTRACT,
+    //     );
+    //     let mut client = validator_client_rest::Client::new(config);
+    //
+    //     let now = time::Instant::now();
+    //     let _ = client.get_mix_nodes().await.unwrap();
+    //     let dt = time::Instant::now().duration_since(now);
+    //     println!("getting mixes from {} took {:?}", validator, dt)
+    // }
+    // panic!("done");
+
     println!("Network monitor starting...");
     let matches = parse_args();
     let v4_topology_path = matches.value_of(V4_TOPOLOGY_ARG).unwrap();
@@ -98,7 +126,24 @@ async fn main() {
     let v4_topology = parse_topology_file(v4_topology_path);
     let v6_topology = parse_topology_file(v6_topology_path);
 
-    let validator_rest_uri = matches.value_of(VALIDATOR_ARG).unwrap_or(DEFAULT_VALIDATOR);
+    let validators_rest_uris_borrowed = matches
+        .values_of(VALIDATORS_ARG)
+        .map(|args| args.collect::<Vec<_>>())
+        .unwrap_or_else(|| DEFAULT_VALIDATORS.to_vec());
+
+    let validators_rest_uris = validators_rest_uris_borrowed
+        .into_iter()
+        .map(|uri| uri.to_string())
+        .collect::<Vec<_>>();
+
+    let node_status_api_uri = matches
+        .value_of(NODE_STATUS_API_ARG)
+        .unwrap_or(DEFAULT_NODE_STATUS_API);
+
+    let mixnet_contract = matches
+        .value_of(MIXNET_CONTRACT_ARG)
+        .unwrap_or(DEFAULT_MIXNET_CONTRACT);
+
     let detailed_report = matches.is_present(DETAILED_REPORT_ARG);
     let sending_rate = matches
         .value_of(GATEWAY_SENDING_RATE_ARG)
@@ -108,7 +153,11 @@ async fn main() {
     check_if_up_to_date(&v4_topology, &v6_topology);
     setup_logging();
 
-    println!("* validator server: {}", validator_rest_uri);
+    println!("* validator servers: {:?}", validators_rest_uris);
+    println!("* node status api server: {}", node_status_api_uri);
+    println!("* mixnet contract: {}", mixnet_contract);
+    println!("* detailed report printing: {}", detailed_report);
+    println!("* gateway sending rate: {} packets/s", sending_rate);
 
     // TODO: in the future I guess this should somehow change to distribute the load
     let tested_mix_gateway = v4_topology.gateways()[0].clone();
@@ -132,19 +181,20 @@ async fn main() {
     );
 
     let tested_network = TestedNetwork::new_good(v4_topology, v6_topology);
-    let validator_client = new_validator_client(validator_rest_uri);
+    let validator_client = new_validator_client(validators_rest_uris, mixnet_contract);
 
     let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
     let (received_processor_sender_channel, received_processor_receiver_channel) =
         mpsc::unbounded();
 
     let packet_preparer = new_packet_preparer(
-        Arc::clone(&validator_client),
+        validator_client,
         tested_network,
         test_mixnode_sender,
         *identity_keypair.public_key(),
         *encryption_keypair.public_key(),
     );
+
     let packet_sender = new_packet_sender(
         gateway_status_update_sender,
         Arc::clone(&identity_keypair),
@@ -165,7 +215,6 @@ async fn main() {
         packet_sender,
         received_processor,
         summary_producer,
-        validator_client,
     );
 
     tokio::spawn(async move { packet_receiver.run().await });
@@ -186,7 +235,7 @@ async fn wait_for_interrupt() {
 }
 
 fn new_packet_preparer(
-    validator_client: Arc<validator_client::Client>,
+    validator_client: validator_client_rest::Client,
     tested_network: TestedNetwork,
     test_mixnode_sender: Recipient,
     self_public_identity: identity::PublicKey,
@@ -240,9 +289,12 @@ fn new_packet_receiver(
     PacketReceiver::new(gateways_status_updater, processor_packets_sender)
 }
 
-fn new_validator_client(validator_rest_uri: &str) -> Arc<validator_client::Client> {
-    let config = validator_client::Config::new(validator_rest_uri.to_string());
-    Arc::new(validator_client::Client::new(config))
+fn new_validator_client(
+    validator_rest_uris: Vec<String>,
+    mixnet_contract: &str,
+) -> validator_client_rest::Client {
+    let config = validator_client_rest::Config::new(validator_rest_uris, mixnet_contract);
+    validator_client_rest::Client::new(config)
 }
 
 fn setup_logging() {

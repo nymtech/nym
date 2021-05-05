@@ -5,11 +5,10 @@ use crate::monitor::preparer::{PacketPreparer, PreparedPackets};
 use crate::monitor::processor::ReceivedProcessor;
 use crate::monitor::sender::PacketSender;
 use crate::monitor::summary_producer::SummaryProducer;
+use crate::node_status_api::BatchMixStatus;
 use log::*;
 use std::collections::HashSet;
-use std::sync::Arc;
 use tokio::time::{interval_at, sleep, Duration, Instant};
-use validator_client::models::mixmining::BatchMixStatus;
 
 pub(crate) mod preparer;
 pub(crate) mod processor;
@@ -26,7 +25,7 @@ pub(super) struct Monitor {
     packet_sender: PacketSender,
     received_processor: ReceivedProcessor,
     summary_producer: SummaryProducer,
-    validator_client: Arc<validator_client::Client>,
+    // validator_client: Arc<validator_client::Client>,
 }
 
 impl Monitor {
@@ -35,7 +34,7 @@ impl Monitor {
         packet_sender: PacketSender,
         received_processor: ReceivedProcessor,
         summary_producer: SummaryProducer,
-        validator_client: Arc<validator_client::Client>,
+        // validator_client: Arc<validator_client::Client>,
     ) -> Self {
         Monitor {
             nonce: 1,
@@ -43,20 +42,21 @@ impl Monitor {
             packet_sender,
             received_processor,
             summary_producer,
-            validator_client,
+            // validator_client,
         }
     }
 
     // while it might have been cleaner to put this into a separate `Notifier` structure,
     // I don't see much point considering it's only a single, small, method
-    async fn notify_validator(&self, status: BatchMixStatus) {
-        if let Err(err) = self
-            .validator_client
-            .post_batch_mixmining_status(status)
-            .await
-        {
-            warn!("Failed to send batch status to validator - {:?}", err)
-        }
+    async fn notify_node_status_api(&self, status: BatchMixStatus) {
+        info!("here be notification ({} statuses)", status.status.len())
+        // if let Err(err) = self
+        //     .validator_client
+        //     .post_batch_mixmining_status(status)
+        //     .await
+        // {
+        //     warn!("Failed to send batch status to validator - {:?}", err)
+        // }
     }
 
     fn all_run_gateways(&self, prepared_packets: &PreparedPackets) -> HashSet<String> {
@@ -79,6 +79,7 @@ impl Monitor {
                 return;
             }
         };
+
         let all_gateways = self.all_run_gateways(&prepared_packets);
 
         self.received_processor.set_new_expected(self.nonce).await;
@@ -102,7 +103,7 @@ impl Monitor {
             all_gateways,
         );
 
-        self.notify_validator(batch_status).await;
+        self.notify_node_status_api(batch_status).await;
 
         self.nonce += 1;
     }

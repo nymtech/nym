@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
-use crate::TIME_CHUNK_SIZE;
+use crate::{GATEWAY_CONNECTION_TIMEOUT, TIME_CHUNK_SIZE};
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
@@ -209,14 +209,14 @@ impl PacketSender {
                 Ok(start_result) => {
                     // no timeout, but check if it was actually successful
                     if let Err(err) = start_result {
-                warn!(
-                    "failed to authenticate with new gateway ({}) - {}",
-                    packets.pub_key.to_base58_string(),
-                    err
-                );
+                        warn!(
+                            "failed to authenticate with new gateway ({}) - {}",
+                            packets.pub_key.to_base58_string(),
+                            err
+                        );
                         // we failed to create a client, can't do much here
-                return None;
-            }
+                        return None;
+                    }
                 }
                 Err(_) => {
                     warn!(
@@ -259,7 +259,6 @@ impl PacketSender {
                 ))
                 .expect("packet receiver seems to have died!")
         }
-
         Some(client)
     }
 
@@ -301,9 +300,7 @@ impl PacketSender {
                     .active_gateway_clients
                     .insert(client.gateway_identity().to_bytes(), client)
                 {
-                    // TODO: perhaps panic instead? getting here implies there's some serious logic
-                    // error somewhere and our assumptions no longer hold
-                    error!(
+                    panic!(
                         "we got duplicate gateway client for {}!",
                         existing.gateway_identity().to_base58_string()
                     );

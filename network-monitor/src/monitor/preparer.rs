@@ -7,20 +7,17 @@ use crate::test_packet::TestPacket;
 use crate::tested_network::TestedNetwork;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
+use mixnet_contract::{GatewayBond, MixNodeBond};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::forwarding::packet::MixPacket;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
-use std::sync::Arc;
 use topology::{gateway, mix};
-use validator_client::models::gateway::RegisteredGateway;
-use validator_client::models::mixnode::RegisteredMix;
-use validator_client::models::topology::Topology;
-use validator_client::ValidatorClientError;
+use validator_client_rest::ValidatorClientError;
 
 #[derive(Debug)]
 pub(super) enum PacketPreparerError {
-    ValidatorError(ValidatorClientError),
+    ValidatorClientError(ValidatorClientError),
 }
 
 // declared type aliases for easier code reasoning
@@ -73,7 +70,7 @@ pub(crate) struct PreparedPackets {
 
 pub(crate) struct PacketPreparer {
     chunker: Chunker,
-    validator_client: Arc<validator_client::Client>,
+    validator_client: validator_client_rest::Client,
     tested_network: TestedNetwork,
 
     // currently all test MIXNODE packets are sent via the same gateway
@@ -86,7 +83,7 @@ pub(crate) struct PacketPreparer {
 
 impl PacketPreparer {
     pub(crate) fn new(
-        validator_client: Arc<validator_client::Client>,
+        validator_client: validator_client_rest::Client,
         tested_network: TestedNetwork,
         test_mixnode_sender: Recipient,
         self_public_identity: identity::PublicKey,
@@ -102,11 +99,30 @@ impl PacketPreparer {
         }
     }
 
-    async fn get_network_topology(&self) -> Result<Topology, PacketPreparerError> {
-        self.validator_client
-            .get_topology()
-            .await
-            .map_err(PacketPreparerError::ValidatorError)
+    async fn get_network_nodes(
+        &mut self,
+    ) -> Result<(Vec<MixNodeBond>, Vec<GatewayBond>), PacketPreparerError> {
+        info!(target: "Monitor", "Obtaining network topology...");
+
+        let mixnodes = match self.validator_client.get_mix_nodes().await {
+            Err(err) => {
+                error!("failed to get network mixnodes - {}", err);
+                return Err(PacketPreparerError::ValidatorClientError(err));
+            }
+            Ok(mixes) => mixes,
+        };
+
+        let gateways = match self.validator_client.get_gateways().await {
+            Err(err) => {
+                error!("failed to get network gateways - {}", err);
+                return Err(PacketPreparerError::ValidatorClientError(err));
+            }
+            Ok(gateways) => gateways,
+        };
+
+        info!("Obtained network topology");
+
+        Ok((mixnodes, gateways))
     }
 
     fn check_version_compatibility(&self, mix_version: &str) -> bool {
@@ -135,38 +151,40 @@ impl PacketPreparer {
         }
     }
 
-    fn mix_into_prepared_node(&self, nonce: u64, registered_mix: &RegisteredMix) -> PreparedNode {
-        if !self.check_version_compatibility(registered_mix.version_ref()) {
+    fn mix_into_prepared_node(&self, nonce: u64, mixnode_bond: &MixNodeBond) -> PreparedNode {
+        if !self.check_version_compatibility(&mixnode_bond.mix_node().version) {
             return PreparedNode::Invalid(InvalidNode::OutdatedMix(
-                registered_mix.identity(),
-                registered_mix.version(),
+                mixnode_bond.mix_node().identity_key.clone(),
+                mixnode_bond.mix_node().version.clone(),
             ));
         }
-        match TryInto::<mix::Node>::try_into(registered_mix) {
+        match TryInto::<mix::Node>::try_into(mixnode_bond) {
             Ok(mix) => {
                 let v4_packet = TestPacket::new_v4(mix.identity_key, nonce);
                 let v6_packet = TestPacket::new_v6(mix.identity_key, nonce);
                 PreparedNode::TestedMix(mix, [v4_packet, v6_packet])
             }
             Err(err) => {
-                warn!("mix {} is malformed - {:?}", registered_mix.identity(), err);
-                PreparedNode::Invalid(InvalidNode::MalformedMix(registered_mix.identity()))
+                warn!(
+                    "mix {} is malformed - {:?}",
+                    mixnode_bond.mix_node().identity_key,
+                    err
+                );
+                PreparedNode::Invalid(InvalidNode::MalformedMix(
+                    mixnode_bond.mix_node().identity_key.clone(),
+                ))
             }
         }
     }
 
-    fn gateway_into_prepared_node(
-        &self,
-        nonce: u64,
-        registered_gateway: &RegisteredGateway,
-    ) -> PreparedNode {
-        if !self.check_version_compatibility(registered_gateway.version_ref()) {
+    fn gateway_into_prepared_node(&self, nonce: u64, gateway_bond: &GatewayBond) -> PreparedNode {
+        if !self.check_version_compatibility(&gateway_bond.gateway().version) {
             return PreparedNode::Invalid(InvalidNode::OutdatedGateway(
-                registered_gateway.identity(),
-                registered_gateway.version(),
+                gateway_bond.gateway().identity_key.clone(),
+                gateway_bond.gateway().version.clone(),
             ));
         }
-        match TryInto::<gateway::Node>::try_into(registered_gateway) {
+        match TryInto::<gateway::Node>::try_into(gateway_bond) {
             Ok(gateway) => {
                 let v4_packet = TestPacket::new_v4(gateway.identity_key, nonce);
                 let v6_packet = TestPacket::new_v6(gateway.identity_key, nonce);
@@ -175,25 +193,25 @@ impl PacketPreparer {
             Err(err) => {
                 warn!(
                     "gateway {} is malformed - {:?}",
-                    registered_gateway.identity(),
+                    gateway_bond.gateway().identity_key,
                     err
                 );
-                PreparedNode::Invalid(InvalidNode::MalformedGateway(registered_gateway.identity()))
+                PreparedNode::Invalid(InvalidNode::MalformedGateway(
+                    gateway_bond.gateway().identity_key.clone(),
+                ))
             }
         }
     }
 
-    fn prepare_mixnodes(&self, nonce: u64, topology: &Topology) -> Vec<PreparedNode> {
-        topology
-            .mix_nodes
+    fn prepare_mixnodes(&self, nonce: u64, nodes: &[MixNodeBond]) -> Vec<PreparedNode> {
+        nodes
             .iter()
             .map(|mix| self.mix_into_prepared_node(nonce, mix))
             .collect()
     }
 
-    fn prepare_gateways(&self, nonce: u64, topology: &Topology) -> Vec<PreparedNode> {
-        topology
-            .gateways
+    fn prepare_gateways(&self, nonce: u64, nodes: &[GatewayBond]) -> Vec<PreparedNode> {
+        nodes
             .iter()
             .map(|gateway| self.gateway_into_prepared_node(nonce, gateway))
             .collect()
@@ -306,11 +324,11 @@ impl PacketPreparer {
         &mut self,
         nonce: u64,
     ) -> Result<PreparedPackets, PacketPreparerError> {
-        let topology = self.get_network_topology().await?;
+        let (mixnode_bonds, gateway_bonds) = self.get_network_nodes().await?;
 
         let mut invalid_nodes = Vec::new();
-        let mixes = self.prepare_mixnodes(nonce, &topology);
-        let gateways = self.prepare_gateways(nonce, &topology);
+        let mixes = self.prepare_mixnodes(nonce, &mixnode_bonds);
+        let gateways = self.prepare_gateways(nonce, &gateway_bonds);
 
         // get the keys of all nodes that will get tested this round
         let tested_nodes: Vec<_> = self

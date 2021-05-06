@@ -166,7 +166,7 @@ impl PacketPreparer {
             }
             Err(err) => {
                 warn!(
-                    "mix {} is malformed - {:?}",
+                    "mix {} is malformed - {}",
                     mixnode_bond.mix_node().identity_key,
                     err
                 );

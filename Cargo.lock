@@ -1330,6 +1330,7 @@ dependencies = [
 name = "mixnode-common"
 version = "0.1.0"
 dependencies = [
+ "crypto",
  "dashmap",
  "futures",
  "log",

@@ -15,41 +15,22 @@
 use crypto::asymmetric::identity;
 use std::sync::Arc;
 
+pub(crate) mod listener;
+pub(crate) mod packet;
+pub(crate) mod sender;
+
 pub struct LatencyMeasurer {
     identity: Arc<identity::KeyPair>,
+    batch_size: usize,
+    packets_per_node: usize,
 }
 
 impl LatencyMeasurer {
+    async fn start_listening() {}
+
+    async fn send() {}
+
     pub async fn run(&self) {
         //
-    }
-}
-
-enum PacketType {
-    Message,
-    ReplyMessage,
-}
-
-struct EchoPacket {
-    packet_type: PacketType,
-    sequence_number: u64,
-    // reason for that is so that if we send packet with the same sequence number in the future,
-    // nobody is going to be able to replay our old packet because the signature would match
-    signature: Vec<u8>,
-}
-
-// TODO: reply packet should also be signed by the replier
-
-impl EchoPacket {
-    pub fn into_bytes(self) -> Vec<u8> {
-        todo!()
-    }
-
-    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, ()> {
-        todo!()
-    }
-
-    pub fn construct_reply(self) -> ! {
-        todo!()
     }
 }

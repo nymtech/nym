@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 /// currently up or down (based on whether it's mixing packets)
 pub struct MixStatus {
     pub pub_key: String,
+    pub owner: String,
     pub ip_version: String,
     pub up: bool,
 }

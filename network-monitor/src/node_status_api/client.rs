@@ -38,7 +38,7 @@ impl Client {
         &self,
         batch_status: BatchMixStatus,
     ) -> Result<(), NodeStatusApiClientError> {
-        const RELATIVE_PATH: &str = "/api/mixmining/batch";
+        const RELATIVE_PATH: &str = "api/mixmining/batch";
 
         let url = format!("{}/{}", self.config.base_url, RELATIVE_PATH);
 

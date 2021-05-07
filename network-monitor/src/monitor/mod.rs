@@ -56,7 +56,7 @@ impl Monitor {
             .post_batch_mixmining_status(status)
             .await
         {
-            warn!("Failed to send batch status to validator - {:?}", err)
+            warn!("Failed to send batch status to node status api - {:?}", err)
         }
     }
 

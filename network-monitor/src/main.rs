@@ -42,7 +42,7 @@ const DEFAULT_VALIDATORS: &[&str] = &[
     "http://mixnet.club:1317",
 ];
 // const DEFAULT_NODE_STATUS_API: &str = "https://testnet-finney-node-status-api.nymtech.net";
-const DEFAULT_NODE_STATUS_API: &str = "http://localhost:8080";
+const DEFAULT_NODE_STATUS_API: &str = "http://localhost:8081";
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
 const DEFAULT_MIXNET_CONTRACT: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
 

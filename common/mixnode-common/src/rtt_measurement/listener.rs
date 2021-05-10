@@ -41,7 +41,7 @@ impl PacketListener {
 }
 
 impl PacketListener {
-    async fn run(&self) {
+    pub(super) async fn run(self: Arc<Self>) {
         let listener = match TcpListener::bind(self.address).await {
             Ok(listener) => listener,
             Err(err) => {
@@ -50,12 +50,16 @@ impl PacketListener {
             }
         };
 
+        info!("Started listening for echo packets on {}", self.address);
+
         loop {
             // cloning the arc as each accepted socket is handled in separate task
             let connection_handler = Arc::clone(&self.connection_handler);
 
             match listener.accept().await {
                 Ok((socket, remote_addr)) => {
+                    println!("new connection from {}", remote_addr);
+
                     tokio::spawn(connection_handler.handle_connection(socket, remote_addr));
                 }
                 Err(err) => warn!("Failed to accept incoming connection - {:?}", err),

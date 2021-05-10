@@ -14,76 +14,48 @@
 
 use crate::rtt_measurement::error::RttError;
 use crate::rtt_measurement::packet::{EchoPacket, ReplyPacket};
+use crate::rtt_measurement::NodeResult;
 use crypto::asymmetric::identity;
+use itertools::Itertools;
 use log::*;
 use rand::{thread_rng, Rng};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
+use tokio::time::sleep;
 
-struct PacketSender {
+pub(crate) struct PacketSender {
     identity: Arc<identity::KeyPair>,
     // timeout for receiving before sending new one
-    batch_size: usize,
     packets_per_node: usize,
-    delay_between_packets: Duration,
     packet_timeout: Duration,
+    delay_between_packets: Duration,
 }
 
-// TODO: move elsewhere
-struct NodeResult {
-    minimum: Duration,
-    mean: Duration,
-    standard_deviation: Duration,
-}
-
-impl NodeResult {
-    pub(crate) fn new(raw_results: &[Duration]) -> Self {
-        let minimum = *raw_results.iter().min().expect("didn't get any results!");
-
-        let mean = Self::duration_mean(&raw_results);
-        let standard_deviation = Self::duration_standard_deviation(&raw_results, mean);
-
-        NodeResult {
-            minimum,
-            mean,
-            standard_deviation,
-        }
-    }
-
-    fn duration_mean(data: &[Duration]) -> Duration {
-        let sum = data.iter().sum::<Duration>();
-        let count = data.len() as u32;
-
-        sum / count
-    }
-
-    fn duration_standard_deviation(data: &[Duration], mean: Duration) -> Duration {
-        let variance_micros = data
-            .iter()
-            .map(|&value| {
-                // make sure we don't underflow
-                let diff = if mean > value {
-                    mean - value
-                } else {
-                    value - mean
-                };
-                // we don't need nanos precision
-                let diff_micros = diff.as_micros();
-                diff_micros * diff_micros
-            })
-            .sum::<u128>()
-            / data.len() as u128;
-
-        // we shouldn't really overflow as our differences shouldn't be larger than couple seconds at the worst possible case scenario
-        let std_deviation_micros = (variance_micros as f64).sqrt() as u64;
-        Duration::from_micros(std_deviation_micros)
-    }
+#[derive(Copy, Clone)]
+pub(crate) struct TestedNode {
+    pub(crate) address: SocketAddr,
+    pub(crate) identity: identity::PublicKey,
 }
 
 impl PacketSender {
+    pub(super) fn new(
+        identity: Arc<identity::KeyPair>,
+        packets_per_node: usize,
+        packet_timeout: Duration,
+        delay_between_packets: Duration,
+    ) -> Self {
+        PacketSender {
+            identity,
+            packets_per_node,
+            packet_timeout,
+            delay_between_packets,
+        }
+    }
+
     fn random_sequence_number(&self) -> u64 {
         let mut rng = thread_rng();
         loop {
@@ -96,25 +68,27 @@ impl PacketSender {
     }
 
     // TODO: split this function
-    async fn send_packets_to_node(
-        &self,
-        address: SocketAddr,
-        identity: &identity::PublicKey,
+    pub(super) async fn send_packets_to_node(
+        self: Arc<Self>,
+        tested_node: TestedNode,
     ) -> Result<NodeResult, RttError> {
-        let mut conn = TcpStream::connect(address)
+        let mut conn = TcpStream::connect(tested_node.address)
             .await
-            .map_err(|err| RttError::UnreachableNode(identity.to_base58_string(), err))?;
+            .map_err(|err| {
+                RttError::UnreachableNode(tested_node.identity.to_base58_string(), err)
+            })?;
 
         let mut results = Vec::with_capacity(self.packets_per_node);
 
         let mut seq = self.random_sequence_number();
-        for _ in 0..self.packets_per_node {
+        for i in 0..self.packets_per_node {
+            println!("packet {}/{}", i + 1, self.packets_per_node);
             let packet = EchoPacket::new(seq, &self.identity);
             let start = tokio::time::Instant::now();
             // TODO: should we get the start time after or before actually sending the data?
             // there's going to definitely some scheduler and network stack bias here
             if let Err(err) = conn.write_all(packet.to_bytes().as_ref()).await {
-                let identity_string = identity.to_base58_string();
+                let identity_string = tested_node.identity.to_base58_string();
                 error!(
                     "failed to write echo packet to {} - {}. Stopping the test.",
                     identity_string, err
@@ -132,15 +106,15 @@ impl PacketSender {
                 if let Err(err) = conn.read_exact(&mut buf).await {
                     error!(
                         "failed to read reply packet from {} - {}. Stopping the test.",
-                        identity.to_base58_string(),
+                        tested_node.identity.to_base58_string(),
                         err
                     );
                     return Err(RttError::UnexpectedConnectionFailureRead(
-                        identity.to_base58_string(),
+                        tested_node.identity.to_base58_string(),
                         err,
                     ));
                 }
-                ReplyPacket::try_from_bytes(&buf, identity)
+                ReplyPacket::try_from_bytes(&buf, &tested_node.identity)
             };
 
             let reply_packet =
@@ -153,7 +127,9 @@ impl PacketSender {
                         "failed to receive reply to our echo packet within {:?}. Stopping the test",
                         self.packet_timeout
                     );
-                        return Err(RttError::ConnectionReadTimeout(identity.to_base58_string()));
+                        return Err(RttError::ConnectionReadTimeout(
+                            tested_node.identity.to_base58_string(),
+                        ));
                     }
                 };
 
@@ -170,6 +146,7 @@ impl PacketSender {
             results.push(time_taken);
 
             seq += 1;
+            sleep(self.delay_between_packets).await;
         }
 
         Ok(NodeResult::new(&results))

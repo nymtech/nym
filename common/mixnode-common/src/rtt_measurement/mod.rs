@@ -15,17 +15,14 @@
 use crypto::asymmetric::identity;
 use std::sync::Arc;
 
+pub mod error;
 pub(crate) mod listener;
 pub(crate) mod packet;
 pub(crate) mod sender;
 
-pub struct LatencyMeasurer {
-    identity: Arc<identity::KeyPair>,
-    batch_size: usize,
-    packets_per_node: usize,
-}
+pub struct RttMeasurer {}
 
-impl LatencyMeasurer {
+impl RttMeasurer {
     async fn start_listening() {}
 
     async fn send() {}

@@ -13,4 +13,4 @@
 // limitations under the License.
 
 pub mod cached_packet_processor;
-pub mod node_latency_measure;
+pub mod rtt_measurement;

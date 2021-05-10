@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::node_latency_measure::packet::{EchoPacket, ReplyPacket};
+use crate::rtt_measurement::error::RttError;
+use crate::rtt_measurement::packet::{EchoPacket, ReplyPacket};
 use bytes::{BufMut, BytesMut};
 use crypto::asymmetric::identity;
 use futures::StreamExt;
@@ -21,12 +22,22 @@ use std::fmt::{Display, Formatter};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::{fmt, io, process};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::{Decoder, Encoder, Framed};
 
-struct PacketListener {
+pub(crate) struct PacketListener {
     address: SocketAddr,
+    connection_handler: Arc<ConnectionHandler>,
+}
+
+impl PacketListener {
+    pub(crate) fn new(address: SocketAddr, identity: Arc<identity::KeyPair>) -> Self {
+        PacketListener {
+            address,
+            connection_handler: Arc::new(ConnectionHandler { identity }),
+        }
+    }
 }
 
 impl PacketListener {
@@ -39,11 +50,10 @@ impl PacketListener {
             }
         };
 
-        let connection_handler: ConnectionHandler = todo!();
-
-        let connection_handler = Arc::new(connection_handler);
-
         loop {
+            // cloning the arc as each accepted socket is handled in separate task
+            let connection_handler = Arc::clone(&self.connection_handler);
+
             match listener.accept().await {
                 Ok((socket, remote_addr)) => {
                     tokio::spawn(connection_handler.handle_connection(socket, remote_addr));
@@ -54,12 +64,64 @@ impl PacketListener {
     }
 }
 
+struct ConnectionHandler {
+    identity: Arc<identity::KeyPair>,
+}
+
+impl ConnectionHandler {
+    // we don't have to do much, just construct a reply
+    fn handle_echo_packet(&self, packet: EchoPacket) -> ReplyPacket {
+        packet.construct_reply(self.identity.private_key())
+    }
+
+    pub(crate) async fn handle_connection(self: Arc<Self>, conn: TcpStream, remote: SocketAddr) {
+        // debug!("Starting connection handler for {:?}", remote);
+        info!("Starting connection handler for {:?}", remote);
+
+        let mut framed_conn = Framed::new(conn, EchoPacketCodec);
+        while let Some(echo_packet) = framed_conn.next().await {
+            // handle echo packet
+            let reply_packet = match echo_packet {
+                Ok(echo_packet) => self.handle_echo_packet(echo_packet),
+                Err(err) => {
+                    error!(
+                        "The socket connection got corrupted with error: {}. Closing the socket",
+                        err
+                    );
+                    return;
+                }
+            };
+
+            // write back the reply (note the lack of framing)
+            if let Err(err) = framed_conn
+                .get_mut()
+                .write_all(reply_packet.to_bytes().as_ref())
+                .await
+            {
+                error!(
+                    "Failed to write reply packet back to the sender - {}. Closing the socket on our end",
+                    err
+                );
+                return;
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
-enum EchoPacketCodecError {}
+enum EchoPacketCodecError {
+    IoError(io::Error),
+    PacketRecoveryError(RttError),
+}
 
 impl Display for EchoPacketCodecError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        todo!()
+        match self {
+            EchoPacketCodecError::IoError(err) => write!(f, "encountered io error - {}", err),
+            EchoPacketCodecError::PacketRecoveryError(err) => {
+                write!(f, "failed to correctly decode an echo packet - {}", err)
+            }
+        }
     }
 }
 
@@ -67,8 +129,7 @@ impl std::error::Error for EchoPacketCodecError {}
 
 impl From<io::Error> for EchoPacketCodecError {
     fn from(err: io::Error) -> Self {
-        todo!()
-        // EchoPacketCodecError::IoError(err)
+        EchoPacketCodecError::IoError(err)
     }
 }
 
@@ -100,44 +161,12 @@ impl Decoder for EchoPacketCodec {
 
         let echo_packet = match EchoPacket::try_from_bytes(&packet_bytes) {
             Ok(packet) => packet,
-            Err(err) => todo!(),
+            Err(err) => return Err(EchoPacketCodecError::PacketRecoveryError(err)),
         };
 
         // reserve enough bytes for the next frame
         src.reserve(EchoPacket::SIZE);
 
         Ok(Some(echo_packet))
-    }
-}
-
-struct ConnectionHandler {
-    identity: Arc<identity::KeyPair>,
-}
-
-impl ConnectionHandler {
-    fn handle_echo_packet(&self, packet: EchoPacket) -> ReplyPacket {
-        packet.construct_reply(self.identity.private_key())
-    }
-
-    pub(crate) async fn handle_connection(self: Arc<Self>, conn: TcpStream, remote: SocketAddr) {
-        debug!("Starting connection handler for {:?}", remote);
-
-        let mut framed_conn = Framed::new(conn, EchoPacketCodec);
-        while let Some(echo_packet) = framed_conn.next().await {
-            // handle echo packet
-            let reply_packet = match echo_packet {
-                Ok(echo_packet) => self.handle_echo_packet(echo_packet),
-                Err(err) => todo!("corrupted socket"),
-            };
-
-            // write back the reply without any framing
-            if let Err(err) = framed_conn
-                .get_mut()
-                .write_all(reply_packet.to_bytes().as_ref())
-                .await
-            {
-                // handle err
-            }
-        }
     }
 }

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::rtt_measurement::error::RttError;
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH, SIGNATURE_LENGTH};
 use std::convert::TryInto;
 
@@ -53,23 +54,26 @@ impl EchoPacket {
             .collect()
     }
 
-    pub(crate) fn try_from_bytes(bytes: &[u8]) -> Result<Self, ()> {
+    pub(crate) fn try_from_bytes(bytes: &[u8]) -> Result<Self, RttError> {
         if bytes.len() != Self::SIZE {
-            // return err
+            return Err(RttError::UnexpectedEchoPacketSize);
         }
 
-        // let sequence_number = u64::from_be_bytes(bytes[..8].try_into().unwrap());
-        // let sender = identity::PublicKey::from_bytes(&bytes[8..8 + PUBLIC_KEY_LENGTH])?;
-        // let signature = identity::Signature::from_bytes(&bytes[8 + PUBLIC_KEY_LENGTH..])?;
-        //
-        // sender.verify(&bytes[..8 + PUBLIC_KEY_LENGTH], &signature)?;
-        //
-        // Ok(EchoPacket {
-        //     sequence_number,
-        //     sender,
-        //     signature,
-        // })
-        todo!()
+        let sequence_number = u64::from_be_bytes(bytes[..8].try_into().unwrap());
+        let sender = identity::PublicKey::from_bytes(&bytes[8..8 + PUBLIC_KEY_LENGTH])
+            .map_err(|_| RttError::MalformedSenderIdentity)?;
+        let signature = identity::Signature::from_bytes(&bytes[8 + PUBLIC_KEY_LENGTH..])
+            .map_err(|_| RttError::MalformedEchoSignature)?;
+
+        sender
+            .verify(&bytes[..Self::SIZE - SIGNATURE_LENGTH], &signature)
+            .map_err(|_| RttError::InvalidEchoSignature)?;
+
+        Ok(EchoPacket {
+            sequence_number,
+            sender,
+            signature,
+        })
     }
 
     pub(crate) fn construct_reply(self, private_key: &identity::PrivateKey) -> ReplyPacket {
@@ -82,7 +86,6 @@ impl EchoPacket {
     }
 }
 
-// TODO: put recipient somewhere?
 pub(crate) struct ReplyPacket {
     base_packet: EchoPacket,
     signature: identity::Signature,
@@ -90,6 +93,10 @@ pub(crate) struct ReplyPacket {
 
 impl ReplyPacket {
     pub(crate) const SIZE: usize = EchoPacket::SIZE + SIGNATURE_LENGTH;
+
+    pub(crate) fn base_sequence_number(&self) -> u64 {
+        self.base_packet.sequence_number
+    }
 
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
         self.base_packet
@@ -99,16 +106,27 @@ impl ReplyPacket {
             .collect()
     }
 
-    pub(crate) fn try_from_bytes(bytes: &[u8]) -> Result<Self, ()> {
+    pub(crate) fn try_from_bytes(
+        bytes: &[u8],
+        remote_identity: &identity::PublicKey,
+    ) -> Result<Self, RttError> {
         if bytes.len() != Self::SIZE {
-            // return err
+            return Err(RttError::UnexpectedReplyPacketSize);
         }
-        //
-        // let base_packet =
-        //     EchoPacket::try_from_bytes(&bytes[..8 + PUBLIC_KEY_LENGTH + SIGNATURE_LENGTH])?;
-        // let signature =
-        //     identity::Signature::from_bytes(&bytes[8 + PUBLIC_KEY_LENGTH + SIGNATURE_LENGTH..])?;
 
-        todo!()
+        let base_packet =
+            EchoPacket::try_from_bytes(&bytes[..8 + PUBLIC_KEY_LENGTH + SIGNATURE_LENGTH])?;
+        let signature =
+            identity::Signature::from_bytes(&bytes[8 + PUBLIC_KEY_LENGTH + SIGNATURE_LENGTH..])
+                .map_err(|_| RttError::MalformedReplySignature)?;
+
+        remote_identity
+            .verify(&bytes[..Self::SIZE - SIGNATURE_LENGTH], &signature)
+            .map_err(|_| RttError::InvalidReplySignature)?;
+
+        Ok(ReplyPacket {
+            base_packet,
+            signature,
+        })
     }
 }

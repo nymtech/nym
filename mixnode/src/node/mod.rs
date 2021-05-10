@@ -12,6 +12,7 @@ use std::process;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
+pub(crate) mod http;
 mod listener;
 mod metrics;
 pub(crate) mod packet_delayforwarder;

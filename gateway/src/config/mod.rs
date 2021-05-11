@@ -194,8 +194,7 @@ impl Config {
 
         // first let's see if we received host:port or just host part of an address
         let host = host.into();
-        let split_length = host.split(':').count();
-        match split_length {
+        match host.split(':').count() {
             1 => {
                 // we provided only 'host' part so we are going to reuse existing port
                 self.mixnet_endpoint.announce_address =
@@ -277,8 +276,7 @@ impl Config {
 
         // first let's see if we received host:port or just host part of an address
         let host = host.into();
-        let split_length = host.split(':').count();
-        match split_length {
+        match host.split(':').count() {
             1 => {
                 // we provided only 'host' part so we are going to reuse existing port
                 self.clients_endpoint.announce_address = format!(

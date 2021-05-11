@@ -195,8 +195,7 @@ impl Config {
 
         // first lets see if we received host:port or just host part of an address
         let host = host.into();
-        let split_host: Vec<_> = host.split(':').collect();
-        match split_host.len() {
+        match host.split(':').count() {
             1 => {
                 // we provided only 'host' part so we are going to reuse existing port
                 self.mixnode.announce_address =

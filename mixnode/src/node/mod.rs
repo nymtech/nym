@@ -39,6 +39,7 @@ impl MixNode {
     }
 
     fn start_http_api(&self) {
+        info!("Starting HTTP API on port 8000...");
         tokio::spawn(async move { rocket::build().mount("/", routes![verloc]).launch().await });
     }
 

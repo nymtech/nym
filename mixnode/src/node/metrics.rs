@@ -4,7 +4,7 @@
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
-use log::*;
+use log::trace;
 use metrics_client::models::metrics::MixMetric;
 use std::collections::HashMap;
 use std::ops::DerefMut;

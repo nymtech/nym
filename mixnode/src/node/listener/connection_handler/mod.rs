@@ -6,7 +6,7 @@ use crate::node::listener::connection_handler::packet_processing::{
 };
 use crate::node::packet_delayforwarder::PacketDelayForwardSender;
 use futures::StreamExt;
-use log::*;
+use log::{error, info};
 use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::framing::codec::SphinxCodec;
 use nymsphinx::framing::packet::FramedSphinxPacket;

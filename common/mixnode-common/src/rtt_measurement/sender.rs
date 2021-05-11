@@ -13,13 +13,11 @@
 // limitations under the License.
 
 use crate::rtt_measurement::error::RttError;
+use crate::rtt_measurement::measurement::Measurement;
 use crate::rtt_measurement::packet::{EchoPacket, ReplyPacket};
-use crate::rtt_measurement::NodeResult;
 use crypto::asymmetric::identity;
-use itertools::Itertools;
 use log::*;
 use rand::{thread_rng, Rng};
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -27,18 +25,24 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::sleep;
 
+#[derive(Copy, Clone)]
+pub(crate) struct TestedNode {
+    pub(crate) address: SocketAddr,
+    pub(crate) identity: identity::PublicKey,
+}
+
+impl TestedNode {
+    pub(crate) fn new(address: SocketAddr, identity: identity::PublicKey) -> Self {
+        TestedNode { address, identity }
+    }
+}
+
 pub(crate) struct PacketSender {
     identity: Arc<identity::KeyPair>,
     // timeout for receiving before sending new one
     packets_per_node: usize,
     packet_timeout: Duration,
     delay_between_packets: Duration,
-}
-
-#[derive(Copy, Clone)]
-pub(crate) struct TestedNode {
-    pub(crate) address: SocketAddr,
-    pub(crate) identity: identity::PublicKey,
 }
 
 impl PacketSender {
@@ -71,7 +75,7 @@ impl PacketSender {
     pub(super) async fn send_packets_to_node(
         self: Arc<Self>,
         tested_node: TestedNode,
-    ) -> Result<NodeResult, RttError> {
+    ) -> Result<Measurement, RttError> {
         let mut conn = TcpStream::connect(tested_node.address)
             .await
             .map_err(|err| {
@@ -149,6 +153,6 @@ impl PacketSender {
             sleep(self.delay_between_packets).await;
         }
 
-        Ok(NodeResult::new(&results))
+        Ok(Measurement::new(&results))
     }
 }

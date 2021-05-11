@@ -11,6 +11,7 @@ bytes = "1.0"
 crypto =  { path = "../crypto" }
 dashmap = "4.0"
 futures = "0.3"
+itertools = "0.10.0"
 log = "0.4"
 nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nymsphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }
@@ -22,3 +23,5 @@ nymsphinx-types = { path = "../nymsphinx/types" }
 rand = "0.7.3"
 tokio = { version = "1.4", features = ["time", "macros", "rt", "net", "io-util"] }
 tokio-util = { version = "0.6", features = ["codec"] }
+validator-client-rest = { path = "../client-libs/validator-client-rest" }
+version-checker = { path = "../version-checker" }

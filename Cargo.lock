@@ -1721,6 +1721,7 @@ dependencies = [
  "pretty_env_logger",
  "rand 0.7.3",
  "rocket",
+ "rocket_contrib",
  "serde",
  "tokio",
  "tokio-util",
@@ -2474,6 +2475,18 @@ dependencies = [
  "quote",
  "rocket_http",
  "unicode-xid",
+]
+
+[[package]]
+name = "rocket_contrib"
+version = "0.5.0-dev"
+source = "git+https://github.com/SergioBenitez/Rocket?rev=f442ad93cb2788bfd08aca5d94e509db20888101#f442ad93cb2788bfd08aca5d94e509db20888101"
+dependencies = [
+ "log",
+ "rocket",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]

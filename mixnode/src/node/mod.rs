@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::node::http::router::world;
+use crate::node::http::verloc::verloc;
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
@@ -39,7 +39,7 @@ impl MixNode {
     }
 
     fn start_http_api(&self) {
-        tokio::spawn(async move { rocket::build().mount("/", routes![world]).launch().await });
+        tokio::spawn(async move { rocket::build().mount("/", routes![verloc]).launch().await });
     }
 
     fn start_metrics_reporter(&self) -> metrics::MetricsReporter {

@@ -89,8 +89,8 @@ impl Measurement {
 
         Measurement {
             minimum,
-            maximum,
             mean,
+            maximum,
             standard_deviation,
         }
     }

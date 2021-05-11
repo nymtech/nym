@@ -13,6 +13,7 @@ use mixnode_common::rtt_measurement::RttMeasurer;
 use std::process;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
+use version_checker::parse_version;
 
 mod listener;
 mod metrics;
@@ -89,10 +90,18 @@ impl MixNode {
     }
 
     fn start_rtt_measurer(&self) {
-        // this is a sanity check to make sure we didn't mess up with the minimum version at some point
-        // if this code exists in the node, it MUST BE compatible
-
         info!("Starting the round-trip-time measurer...");
+
+        // this is a sanity check to make sure we didn't mess up with the minimum version at some point
+        // and whether the user has run update if they're using old config
+        // if this code exists in the node, it MUST BE compatible
+        let config_version =
+            parse_version(self.config.get_version()).expect("malformed version in the config file");
+        let minimum_version = parse_version(rtt_measurement::MINIMUM_NODE_VERSION).unwrap();
+        if config_version < minimum_version {
+            error!("You seem to have not updated your mixnode configuration file - please run `upgrade` before attempting again");
+            process::exit(1)
+        }
 
         // use the same binding address with the HARDCODED port for time being (I don't like that approach personally)
 

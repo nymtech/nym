@@ -109,12 +109,12 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
 
     // this is not extracted to separate function as you only have to manually pass version
     // if upgrading from pre090 version
-    let from = match from.strip_prefix("v") {
+    let from = match from.strip_prefix('v') {
         Some(stripped) => stripped,
         None => from,
     };
 
-    let from = match from.strip_prefix("V") {
+    let from = match from.strip_prefix('V') {
         Some(stripped) => stripped,
         None => from,
     };

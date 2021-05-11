@@ -18,7 +18,6 @@ use crate::rtt_measurement::sender::{PacketSender, TestedNode};
 use crypto::asymmetric::identity;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
-use itertools::Itertools;
 use log::*;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -34,8 +33,8 @@ pub(crate) mod packet;
 pub(crate) mod sender;
 
 // TODO: MUST BE UPDATED BEFORE ACTUAL RELEASE!!
-const MINIMUM_NODE_VERSION: &str = "0.10.1";
-const DEFAULT_MEASUREMENT_PORT: u16 = 1790;
+pub const MINIMUM_NODE_VERSION: &str = "0.10.1";
+pub const DEFAULT_MEASUREMENT_PORT: u16 = 1790;
 
 const DEFAULT_PACKETS_PER_NODE: usize = 100;
 const DEFAULT_PACKET_TIMEOUT: Duration = Duration::from_millis(1500);
@@ -177,11 +176,16 @@ pub struct RttMeasurer {
     config: Config,
     packet_sender: Arc<PacketSender>,
     packet_listener: Arc<PacketListener>,
+
+    // Note: this client is only fine here as it does not maintain constant connection to the validator.
+    // It only does bunch of REST queries. If we update it at some point to a more sophisticated (maybe signing) client,
+    // then it definitely cannot be constructed here and probably will need to be passed from outside,
+    // as mixnodes/gateways would already be using an instance of said client.
     validator_client: validator_client_rest::Client,
 }
 
 // I really don't like this solution, I think nodes should be explicitly announcing that address...
-pub(crate) fn replace_port(address: SocketAddr, port: u16) -> SocketAddr {
+pub fn replace_port(address: SocketAddr, port: u16) -> SocketAddr {
     SocketAddr::new(address.ip(), port)
 }
 
@@ -213,15 +217,12 @@ impl RttMeasurer {
         tokio::spawn(packet_listener.run())
     }
 
-    async fn perform_measurement(&self, nodes_to_test: &[TestedNode]) -> Vec<Verloc> {
+    async fn perform_measurement(&self, nodes_to_test: Vec<TestedNode>) -> Vec<Verloc> {
         let mut results = Vec::with_capacity(nodes_to_test.len());
 
-        for chunk in &nodes_to_test
-            .iter()
-            .chunks(self.config.tested_nodes_batch_size)
-        {
+        for chunk in nodes_to_test.chunks(self.config.tested_nodes_batch_size) {
             let mut measurement_chunk = chunk
-                .into_iter()
+                .iter()
                 .map(|node| {
                     let node = *node;
                     let packet_sender = Arc::clone(&self.packet_sender);
@@ -279,6 +280,9 @@ impl RttMeasurer {
                     continue;
                 }
             };
+            if all_mixes.is_empty() {
+                warn!("There does not seem there are any nodes to measure...")
+            }
 
             // we only care about address and identity
             let tested_nodes = all_mixes
@@ -301,7 +305,7 @@ impl RttMeasurer {
                 })
                 .collect::<Vec<_>>();
 
-            let results = self.perform_measurement(&tested_nodes).await;
+            let results = self.perform_measurement(tested_nodes).await;
             // TODO: here we would probably send those results on some channel or something
             for result in results {
                 println!("{}", result)

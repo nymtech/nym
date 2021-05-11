@@ -11,7 +11,6 @@ bytes = "1.0"
 crypto =  { path = "../crypto" }
 dashmap = "4.0"
 futures = "0.3"
-itertools = "0.10.0"
 log = "0.4"
 nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nymsphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }

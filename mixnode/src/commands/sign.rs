@@ -3,7 +3,7 @@ use clap::{App, Arg, ArgMatches};
 use colored::*;
 use config::NymConfig;
 use crypto::asymmetric::identity;
-use log::*;
+use log::error;
 
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("sign")

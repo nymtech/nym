@@ -7,7 +7,7 @@ use crate::node::MixNode;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
-use log::*;
+use log::warn;
 use version_checker::is_minor_version_compatible;
 
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {

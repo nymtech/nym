@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-mixnode"
-version = "0.10.0"
+version = "0.10.1-dev"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 

@@ -16,14 +16,16 @@ struct NodeResult {
 }
 
 impl NodeResult {
-    fn into_mix_status(self, pub_key: String) -> Vec<MixStatus> {
+    fn into_mix_status(self, pub_key: String, owner: String) -> Vec<MixStatus> {
         let v4_status = MixStatus {
+            owner: owner.clone(),
             pub_key: pub_key.clone(),
             ip_version: "4".to_string(),
             up: self.ip_v4_compatible,
         };
 
         let v6_status = MixStatus {
+            owner,
             pub_key,
             ip_version: "6".to_string(),
             up: self.ip_v6_compatible,

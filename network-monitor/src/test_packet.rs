@@ -57,20 +57,22 @@ impl Display for IpVersion {
     }
 }
 
-#[derive(Eq, Copy, Clone, Debug)]
+#[derive(Eq, Clone, Debug)]
 pub(crate) struct TestPacket {
     ip_version: IpVersion,
     nonce: u64,
     pub_key: identity::PublicKey,
+    owner: String,
 }
 
 impl Display for TestPacket {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "TestPacket {{ ip: {}, pub_key: {}, nonce: {} }}",
+            "TestPacket {{ ip: {}, pub_key: {}, owner: {}, nonce: {} }}",
             self.ip_version,
             self.pub_key.to_base58_string(),
+            self.owner,
             self.nonce
         )
     }
@@ -81,6 +83,7 @@ impl Hash for TestPacket {
         self.ip_version.hash(state);
         self.nonce.hash(state);
         self.pub_key.to_bytes().hash(state);
+        self.owner.hash(state);
     }
 }
 
@@ -93,19 +96,21 @@ impl PartialEq for TestPacket {
 }
 
 impl TestPacket {
-    pub(crate) fn new_v4(pub_key: identity::PublicKey, nonce: u64) -> Self {
+    pub(crate) fn new_v4(pub_key: identity::PublicKey, owner: String, nonce: u64) -> Self {
         TestPacket {
             ip_version: IpVersion::V4,
             nonce,
             pub_key,
+            owner,
         }
     }
 
-    pub(crate) fn new_v6(pub_key: identity::PublicKey, nonce: u64) -> Self {
+    pub(crate) fn new_v6(pub_key: identity::PublicKey, owner: String, nonce: u64) -> Self {
         TestPacket {
             ip_version: IpVersion::V6,
             nonce,
             pub_key,
+            owner,
         }
     }
 

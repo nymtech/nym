@@ -102,7 +102,7 @@ impl MixNode {
         packet_sender
     }
 
-    fn start_rtt_measurer(&self) {
+    fn start_rtt_measurer(&self) -> AtomicVerlocResult {
         info!("Starting the round-trip-time measurer...");
 
         // this is a sanity check to make sure we didn't mess up with the minimum version at some point
@@ -133,8 +133,11 @@ impl MixNode {
             .validator_urls(self.config.get_validator_rest_endpoints())
             .mixnet_contract_address(self.config.get_validator_mixnet_contract_address())
             .build();
+
         let mut rtt_measurer = RttMeasurer::new(config, Arc::clone(&self.identity_keypair));
+        let atomic_verloc_results = rtt_measurer.get_verloc_results_pointer();
         tokio::spawn(async move { rtt_measurer.run().await });
+        atomic_verloc_results
     }
 
     // TODO: ask DH whether this function still makes sense in ^0.10

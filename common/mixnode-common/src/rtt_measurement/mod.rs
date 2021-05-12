@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::rtt_measurement::listener::PacketListener;
-use crate::rtt_measurement::measurement::Verloc;
+pub use crate::rtt_measurement::measurement::{AtomicVerlocResult, Verloc};
 use crate::rtt_measurement::sender::{PacketSender, TestedNode};
 use crypto::asymmetric::identity;
 use futures::stream::FuturesUnordered;
@@ -36,6 +36,7 @@ pub(crate) mod sender;
 pub const MINIMUM_NODE_VERSION: &str = "0.10.1";
 pub const DEFAULT_MEASUREMENT_PORT: u16 = 1790;
 
+// by default all of those are overwritten by config data from mixnodes directly
 const DEFAULT_PACKETS_PER_NODE: usize = 100;
 const DEFAULT_PACKET_TIMEOUT: Duration = Duration::from_millis(1500);
 const DEFAULT_DELAY_BETWEEN_PACKETS: Duration = Duration::from_millis(50);
@@ -182,6 +183,7 @@ pub struct RttMeasurer {
     // then it definitely cannot be constructed here and probably will need to be passed from outside,
     // as mixnodes/gateways would already be using an instance of said client.
     validator_client: validator_client_rest::Client,
+    results: AtomicVerlocResult,
 }
 
 // I really don't like this solution, I think nodes should be explicitly announcing that address...
@@ -209,7 +211,12 @@ impl RttMeasurer {
                 ),
             ),
             config,
+            results: AtomicVerlocResult::new(),
         }
+    }
+
+    pub fn get_verloc_results_pointer(&self) -> AtomicVerlocResult {
+        self.results.clone_data_pointer()
     }
 
     fn start_listening(&self) -> JoinHandle<()> {
@@ -306,10 +313,7 @@ impl RttMeasurer {
                 .collect::<Vec<_>>();
 
             let results = self.perform_measurement(tested_nodes).await;
-            // TODO: here we would probably send those results on some channel or something
-            for result in results {
-                println!("{}", result)
-            }
+            self.results.update_results(results).await;
 
             sleep(self.config.testing_interval).await
         }

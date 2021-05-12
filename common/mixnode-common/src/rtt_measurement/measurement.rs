@@ -13,14 +13,58 @@
 // limitations under the License.
 
 use crypto::asymmetric::identity;
+use serde::{Serialize, Serializer};
 use std::cmp::Ordering;
 use std::fmt::{self, Display, Formatter};
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::RwLock;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) struct Verloc {
-    identity: identity::PublicKey,
-    latest_measurement: Option<Measurement>,
+pub struct AtomicVerlocResult {
+    inner: Arc<RwLock<Vec<Verloc>>>,
+}
+
+impl AtomicVerlocResult {
+    pub(crate) fn new() -> Self {
+        AtomicVerlocResult {
+            inner: Arc::new(RwLock::new(Vec::new())),
+        }
+    }
+
+    // this could have also been achieved with a normal #[derive(Clone)] but I prefer to be explicit about it
+    pub(crate) fn clone_data_pointer(&self) -> Self {
+        AtomicVerlocResult {
+            inner: Arc::clone(&self.inner),
+        }
+    }
+
+    pub(crate) async fn update_results(&self, new_data: Vec<Verloc>) {
+        let mut write_permit = self.inner.write().await;
+        *write_permit = new_data;
+    }
+
+    // Considering that on every read we will need to clone data regardless, let's make our
+    // lives simpler and clone it here rather than deal with lifetime of the permit
+    pub async fn clone_data(&self) -> Vec<Verloc> {
+        self.inner.read().await.clone()
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize)]
+pub struct Verloc {
+    #[serde(serialize_with = "serialize_identity_as_string")]
+    pub identity: identity::PublicKey,
+    pub latest_measurement: Option<Measurement>,
+}
+
+fn serialize_identity_as_string<S>(
+    identity: &identity::PublicKey,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&identity.to_base58_string())
 }
 
 impl Display for Verloc {
@@ -71,12 +115,16 @@ impl Verloc {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) struct Measurement {
-    minimum: Duration,
-    mean: Duration,
-    maximum: Duration,
-    standard_deviation: Duration,
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize)]
+pub struct Measurement {
+    #[serde(serialize_with = "humantime_serde::serialize")]
+    pub minimum: Duration,
+    #[serde(serialize_with = "humantime_serde::serialize")]
+    pub mean: Duration,
+    #[serde(serialize_with = "humantime_serde::serialize")]
+    pub maximum: Duration,
+    #[serde(serialize_with = "humantime_serde::serialize")]
+    pub standard_deviation: Duration,
 }
 
 impl Measurement {

@@ -23,26 +23,39 @@ pub(super) enum PacketPreparerError {
 // declared type aliases for easier code reasoning
 type Version = String;
 type Id = String;
+type Owner = String;
 
 #[derive(Clone)]
 pub(crate) enum InvalidNode {
-    OutdatedMix(Id, Version),
-    MalformedMix(Id),
-    OutdatedGateway(Id, Version),
-    MalformedGateway(Id),
+    OutdatedMix(Id, Owner, Version),
+    MalformedMix(Id, Owner),
+    OutdatedGateway(Id, Owner, Version),
+    MalformedGateway(Id, Owner),
 }
 
 impl Display for InvalidNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            InvalidNode::OutdatedMix(id, version) => {
-                write!(f, "Mixnode {} (v {}) is outdated", id, version)
+            InvalidNode::OutdatedMix(id, owner, version) => {
+                write!(
+                    f,
+                    "Mixnode {} (v {}) owned by {} is outdated",
+                    id, version, owner
+                )
             }
-            InvalidNode::MalformedMix(id) => write!(f, "Mixnode {} is malformed", id),
-            InvalidNode::OutdatedGateway(id, version) => {
-                write!(f, "Gateway {} (v {}) is outdated", id, version)
+            InvalidNode::MalformedMix(id, owner) => {
+                write!(f, "Mixnode {} owner by {} is malformed", id, owner)
             }
-            InvalidNode::MalformedGateway(id) => write!(f, "Gateway {} is malformed", id),
+            InvalidNode::OutdatedGateway(id, owner, version) => {
+                write!(
+                    f,
+                    "Gateway {} (v {}) owned by {} is outdated",
+                    id, version, owner
+                )
+            }
+            InvalidNode::MalformedGateway(id, owner) => {
+                write!(f, "Gateway {} owned by {} is malformed", id, owner)
+            }
         }
     }
 }
@@ -53,15 +66,44 @@ enum PreparedNode {
     Invalid(InvalidNode),
 }
 
+#[derive(Eq, PartialEq, Debug, Hash, Clone)]
+pub(crate) struct TestedNode {
+    pub(crate) identity: String,
+    pub(crate) owner: String,
+}
+
+impl TestedNode {
+    pub(crate) fn new(identity: String, owner: String) -> Self {
+        TestedNode { identity, owner }
+    }
+
+    pub(crate) fn from_raw<S1, S2>(identity: S1, owner: S2) -> Self
+    where
+        S1: Into<String>,
+        S2: Into<String>,
+    {
+        TestedNode {
+            identity: identity.into(),
+            owner: owner.into(),
+        }
+    }
+}
+
+impl Display for TestedNode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{} (owned by {})", self.identity, self.owner)
+    }
+}
+
 pub(crate) struct PreparedPackets {
     /// All packets that are going to get sent during the test as well as the gateways through
     /// which they ought to be sent.
     pub(super) packets: Vec<GatewayPackets>,
 
-    /// Vector containing list of public keys of all nodes (mixnodes and gateways) being tested.
+    /// Vector containing list of public keys and owners of all nodes (mixnodes and gateways) being tested.
     /// We do not need to specify the exact test parameters as for each of them we expect to receive
     /// two packets back: ipv4 and ipv6 regardless of which gateway they originate.
-    pub(super) tested_nodes: Vec<identity::PublicKey>,
+    pub(super) tested_nodes: Vec<TestedNode>,
 
     /// All nodes that failed to get parsed correctly. They will be marked to the validator as being
     /// down on ipv4 and ipv6.
@@ -155,13 +197,14 @@ impl PacketPreparer {
         if !self.check_version_compatibility(&mixnode_bond.mix_node().version) {
             return PreparedNode::Invalid(InvalidNode::OutdatedMix(
                 mixnode_bond.mix_node().identity_key.clone(),
+                mixnode_bond.owner.to_string(),
                 mixnode_bond.mix_node().version.clone(),
             ));
         }
         match TryInto::<mix::Node>::try_into(mixnode_bond) {
             Ok(mix) => {
-                let v4_packet = TestPacket::new_v4(mix.identity_key, nonce);
-                let v6_packet = TestPacket::new_v6(mix.identity_key, nonce);
+                let v4_packet = TestPacket::new_v4(mix.identity_key, mix.owner.clone(), nonce);
+                let v6_packet = TestPacket::new_v6(mix.identity_key, mix.owner.clone(), nonce);
                 PreparedNode::TestedMix(mix, [v4_packet, v6_packet])
             }
             Err(err) => {
@@ -172,6 +215,7 @@ impl PacketPreparer {
                 );
                 PreparedNode::Invalid(InvalidNode::MalformedMix(
                     mixnode_bond.mix_node().identity_key.clone(),
+                    mixnode_bond.owner.to_string(),
                 ))
             }
         }
@@ -181,13 +225,16 @@ impl PacketPreparer {
         if !self.check_version_compatibility(&gateway_bond.gateway().version) {
             return PreparedNode::Invalid(InvalidNode::OutdatedGateway(
                 gateway_bond.gateway().identity_key.clone(),
+                gateway_bond.owner.to_string(),
                 gateway_bond.gateway().version.clone(),
             ));
         }
         match TryInto::<gateway::Node>::try_into(gateway_bond) {
             Ok(gateway) => {
-                let v4_packet = TestPacket::new_v4(gateway.identity_key, nonce);
-                let v6_packet = TestPacket::new_v6(gateway.identity_key, nonce);
+                let v4_packet =
+                    TestPacket::new_v4(gateway.identity_key, gateway.owner.clone(), nonce);
+                let v6_packet =
+                    TestPacket::new_v6(gateway.identity_key, gateway.owner.clone(), nonce);
                 PreparedNode::TestedGateway(gateway, [v4_packet, v6_packet])
             }
             Err(err) => {
@@ -198,6 +245,7 @@ impl PacketPreparer {
                 );
                 PreparedNode::Invalid(InvalidNode::MalformedGateway(
                     gateway_bond.gateway().identity_key.clone(),
+                    gateway_bond.owner.to_string(),
                 ))
             }
         }
@@ -217,12 +265,18 @@ impl PacketPreparer {
             .collect()
     }
 
-    fn tested_nodes(&self, nodes: &[PreparedNode]) -> Vec<identity::PublicKey> {
+    fn tested_nodes(&self, nodes: &[PreparedNode]) -> Vec<TestedNode> {
         nodes
             .iter()
             .filter_map(|node| match node {
-                PreparedNode::TestedGateway(gateway, _) => Some(gateway.identity_key),
-                PreparedNode::TestedMix(mix, _) => Some(mix.identity_key),
+                PreparedNode::TestedGateway(gateway, _) => Some(TestedNode::new(
+                    gateway.identity_key.to_base58_string(),
+                    gateway.owner.clone(),
+                )),
+                PreparedNode::TestedMix(mix, _) => Some(TestedNode::new(
+                    mix.identity_key.to_base58_string(),
+                    mix.owner.clone(),
+                )),
                 PreparedNode::Invalid(..) => None,
             })
             .collect()

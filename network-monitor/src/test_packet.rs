@@ -1,22 +1,31 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crypto::asymmetric::{encryption, identity};
+use crate::monitor::preparer::TestedNode;
+use crypto::asymmetric::identity;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
+use std::str::Utf8Error;
 
 #[derive(Debug)]
 pub(crate) enum TestPacketError {
     IncompletePacket,
     InvalidIpVersion,
     InvalidNodeKey,
+    InvalidOwner(Utf8Error),
 }
 
 impl From<identity::KeyRecoveryError> for TestPacketError {
     fn from(_: identity::KeyRecoveryError) -> Self {
         TestPacketError::InvalidNodeKey
+    }
+}
+
+impl From<Utf8Error> for TestPacketError {
+    fn from(err: Utf8Error) -> Self {
+        TestPacketError::InvalidOwner(err)
     }
 }
 
@@ -122,17 +131,14 @@ impl TestPacket {
         self.ip_version
     }
 
-    pub(crate) fn pub_key_string(&self) -> String {
-        self.pub_key.to_base58_string()
-    }
-
-    pub(crate) fn to_bytes(self) -> Vec<u8> {
+    pub(crate) fn to_bytes(&self) -> Vec<u8> {
         self.nonce
             .to_be_bytes()
             .iter()
             .cloned()
             .chain(std::iter::once(self.ip_version as u8))
             .chain(self.pub_key.to_bytes().iter().cloned())
+            .chain(self.owner.as_bytes().iter().cloned())
             .collect()
     }
 
@@ -140,19 +146,31 @@ impl TestPacket {
         // nonce size
         let n = mem::size_of::<u64>();
 
-        if b.len() != n + 1 + encryption::PUBLIC_KEY_SIZE {
+        if b.len() < n + 1 + identity::PUBLIC_KEY_LENGTH {
             return Err(TestPacketError::IncompletePacket);
         }
 
         // this unwrap can't fail as we've already checked for the size
         let nonce = u64::from_be_bytes(b[0..n].try_into().unwrap());
         let ip_version = IpVersion::try_from(b[n])?;
-        let pub_key = identity::PublicKey::from_bytes(&b[n + 1..])?;
+        let pub_key =
+            identity::PublicKey::from_bytes(&b[n + 1..n + 1 + identity::PUBLIC_KEY_LENGTH])?;
+        let owner = std::str::from_utf8(&b[n + 1 + identity::PUBLIC_KEY_LENGTH..])?;
 
         Ok(TestPacket {
             ip_version,
             nonce,
             pub_key,
+            owner: owner.to_owned(),
         })
+    }
+}
+
+impl From<TestPacket> for TestedNode {
+    fn from(packet: TestPacket) -> Self {
+        TestedNode {
+            identity: packet.pub_key.to_base58_string(),
+            owner: packet.owner,
+        }
     }
 }

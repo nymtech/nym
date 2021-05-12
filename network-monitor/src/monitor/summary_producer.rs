@@ -1,11 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::monitor::preparer::InvalidNode;
+use crate::monitor::preparer::{InvalidNode, TestedNode};
 use crate::node_status_api::models::{BatchMixStatus, MixStatus};
 use crate::test_packet::TestPacket;
 use crate::PENALISE_OUTDATED;
-use crypto::asymmetric::identity;
 use log::*;
 use std::collections::{HashMap, HashSet};
 
@@ -42,15 +41,15 @@ struct TestReport {
     malformed: Vec<InvalidNode>,
 
     // below are only populated if we're going to be printing the report
-    only_ipv4_compatible_mixes: Vec<String>, // can't speak v6, but can speak v4
-    only_ipv6_compatible_mixes: Vec<String>, // can't speak v4, but can speak v6
-    completely_unroutable_mixes: Vec<String>, // can't speak either v4 or v6
-    fully_working_mixes: Vec<String>,
+    only_ipv4_compatible_mixes: Vec<TestedNode>, // can't speak v6, but can speak v4
+    only_ipv6_compatible_mixes: Vec<TestedNode>, // can't speak v4, but can speak v6
+    completely_unroutable_mixes: Vec<TestedNode>, // can't speak either v4 or v6
+    fully_working_mixes: Vec<TestedNode>,
 
-    only_ipv4_compatible_gateways: Vec<String>, // can't speak v6, but can speak v4
-    only_ipv6_compatible_gateways: Vec<String>, // can't speak v4, but can speak v6
-    completely_unroutable_gateways: Vec<String>, // can't speak either v4 or v6
-    fully_working_gateways: Vec<String>,
+    only_ipv4_compatible_gateways: Vec<TestedNode>, // can't speak v6, but can speak v4
+    only_ipv6_compatible_gateways: Vec<TestedNode>, // can't speak v4, but can speak v6
+    completely_unroutable_gateways: Vec<TestedNode>, // can't speak either v4 or v6
+    fully_working_gateways: Vec<TestedNode>,
 }
 
 impl TestReport {
@@ -111,30 +110,31 @@ impl TestReport {
 
     fn parse_summary(
         &mut self,
-        summary: &HashMap<String, NodeResult>,
+        summary: &HashMap<TestedNode, NodeResult>,
         all_gateways: HashSet<String>,
     ) {
         let is_gateway = |key: &str| all_gateways.contains(key);
 
         for (node, result) in summary.iter() {
-            if is_gateway(&node) {
+            let owned_node = node.clone();
+            if is_gateway(&node.identity) {
                 if result.ip_v4_compatible && result.ip_v6_compatible {
-                    self.fully_working_gateways.push(node.clone())
+                    self.fully_working_gateways.push(owned_node)
                 } else if result.ip_v4_compatible {
-                    self.only_ipv4_compatible_gateways.push(node.clone())
+                    self.only_ipv4_compatible_gateways.push(owned_node)
                 } else if result.ip_v6_compatible {
-                    self.only_ipv6_compatible_gateways.push(node.clone())
+                    self.only_ipv6_compatible_gateways.push(owned_node)
                 } else {
-                    self.completely_unroutable_gateways.push(node.clone())
+                    self.completely_unroutable_gateways.push(owned_node)
                 }
             } else if result.ip_v4_compatible && result.ip_v6_compatible {
-                self.fully_working_mixes.push(node.clone())
+                self.fully_working_mixes.push(owned_node)
             } else if result.ip_v4_compatible {
-                self.only_ipv4_compatible_mixes.push(node.clone())
+                self.only_ipv4_compatible_mixes.push(owned_node)
             } else if result.ip_v6_compatible {
-                self.only_ipv6_compatible_mixes.push(node.clone())
+                self.only_ipv6_compatible_mixes.push(owned_node)
             } else {
-                self.completely_unroutable_mixes.push(node.clone())
+                self.completely_unroutable_mixes.push(owned_node)
             }
         }
     }
@@ -160,20 +160,24 @@ impl SummaryProducer {
 
     pub(super) fn produce_summary(
         &self,
-        expected_nodes: Vec<identity::PublicKey>,
+        expected_nodes: Vec<TestedNode>,
         received_packets: Vec<TestPacket>,
         invalid_nodes: Vec<InvalidNode>,
         all_gateways: HashSet<String>,
     ) -> BatchMixStatus {
         let mut report = TestReport::default();
 
+        let expected_nodes_count = expected_nodes.len();
+        let received_packets_count = received_packets.len();
+
         // contains map of all (seemingly valid) nodes and whether they speak ipv4/ipv6
-        let mut summary: HashMap<String, NodeResult> = HashMap::new();
+        let mut summary: HashMap<TestedNode, NodeResult> = HashMap::new();
 
         // update based on data we actually got
-        for received_status in received_packets.iter() {
-            let entry = summary.entry(received_status.pub_key_string()).or_default();
-            if received_status.ip_version().is_v4() {
+        for received_status in received_packets.into_iter() {
+            let is_received_v4 = received_status.ip_version().is_v4();
+            let entry = summary.entry(received_status.into()).or_default();
+            if is_received_v4 {
                 entry.ip_v4_compatible = true
             } else {
                 entry.ip_v6_compatible = true
@@ -181,27 +185,28 @@ impl SummaryProducer {
         }
 
         // insert entries we didn't get but were expecting
-        for expected in expected_nodes.iter() {
-            summary.entry(expected.to_base58_string()).or_default();
+        for expected in expected_nodes.into_iter() {
+            summary.entry(expected).or_default();
         }
 
         // finally insert malformed nodes
         for malformed in invalid_nodes.iter() {
             match malformed {
-                InvalidNode::OutdatedMix(id, _) | InvalidNode::OutdatedGateway(id, _) => {
+                InvalidNode::OutdatedMix(id, owner, _)
+                | InvalidNode::OutdatedGateway(id, owner, _) => {
                     if PENALISE_OUTDATED {
-                        summary.insert(id.to_string(), Default::default());
+                        summary.insert(TestedNode::from_raw(id, owner), Default::default());
                     }
                 }
-                InvalidNode::MalformedMix(id) | InvalidNode::MalformedGateway(id) => {
-                    summary.insert(id.to_string(), Default::default());
+                InvalidNode::MalformedMix(id, owner) | InvalidNode::MalformedGateway(id, owner) => {
+                    summary.insert(TestedNode::from_raw(id, owner), Default::default());
                 }
             }
         }
 
         if self.print_report {
-            report.total_sent = expected_nodes.len() * 2; // we sent two packets per node (one ipv4 and one ipv6)
-            report.total_received = received_packets.len();
+            report.total_sent = expected_nodes_count * 2; // we sent two packets per node (one ipv4 and one ipv6)
+            report.total_received = received_packets_count;
             report.malformed = invalid_nodes;
             report.parse_summary(&summary, all_gateways);
             report.print(self.print_detailed_report);
@@ -209,7 +214,11 @@ impl SummaryProducer {
 
         let status = summary
             .into_iter()
-            .flat_map(|(key, result)| result.into_mix_status(key).into_iter())
+            .flat_map(|(node, result)| {
+                result
+                    .into_mix_status(node.identity, node.owner)
+                    .into_iter()
+            })
             .collect();
 
         BatchMixStatus { status }

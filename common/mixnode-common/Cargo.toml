@@ -20,7 +20,7 @@ nymsphinx-forwarding = { path = "../nymsphinx/forwarding" }
 nymsphinx-framing = { path = "../nymsphinx/framing" }
 nymsphinx-params = { path = "../nymsphinx/params" }
 nymsphinx-types = { path = "../nymsphinx/types" }
-rand = "0.7.3"
+rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.4", features = ["time", "macros", "rt", "net", "io-util"] }
 tokio-util = { version = "0.6", features = ["codec"] }

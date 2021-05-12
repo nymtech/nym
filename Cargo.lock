@@ -1524,7 +1524,7 @@ dependencies = [
  "nymsphinx-framing",
  "nymsphinx-params",
  "nymsphinx-types",
- "rand 0.7.3",
+ "rand 0.8.3",
  "serde",
  "tokio",
  "tokio-util",

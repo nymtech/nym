@@ -42,7 +42,14 @@ impl MixNode {
 
     fn start_http_api(&self) {
         info!("Starting HTTP API on port 8000...");
-        tokio::spawn(async move { rocket::build().mount("/", routes![verloc]).launch().await });
+
+        let mut config = rocket::config::Config::release_default();
+        // bind to the same address as we are using for mixnodes
+        config.address = self.config.get_listening_address().ip();
+        tokio::spawn(async move {
+            rocket::build().mount("/", routes![verloc]).configure(config).launch().await
+
+        });
     }
 
     fn start_metrics_reporter(&self) -> metrics::MetricsReporter {

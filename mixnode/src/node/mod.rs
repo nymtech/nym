@@ -2,14 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::node::http::verloc::verloc;
+use crate::node::http::{
+    not_found,
+    verloc::{verloc, VerlocState},
+};
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use crypto::asymmetric::{encryption, identity};
-use mixnode_common::rtt_measurement::{RttMeasurer, self};
 use log::{error, info, warn};
+use mixnode_common::rtt_measurement::{self, AtomicVerlocResult, RttMeasurer};
 use std::process;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -40,15 +43,23 @@ impl MixNode {
         }
     }
 
-    fn start_http_api(&self) {
+    fn start_http_api(&self, atomic_verloc_result: AtomicVerlocResult) {
         info!("Starting HTTP API on port 8000...");
 
         let mut config = rocket::config::Config::release_default();
         // bind to the same address as we are using for mixnodes
         config.address = self.config.get_listening_address().ip();
-        tokio::spawn(async move {
-            rocket::build().mount("/", routes![verloc]).configure(config).launch().await
 
+        let state = VerlocState::new(atomic_verloc_result);
+
+        tokio::spawn(async move {
+            rocket::build()
+                .configure(config)
+                .mount("/", routes![verloc])
+                .register("/", catchers![not_found])
+                .manage(state)
+                .launch()
+                .await
         });
     }
 
@@ -195,9 +206,9 @@ impl MixNode {
             let metrics_reporter = self.start_metrics_reporter();
             let delay_forwarding_channel = self.start_packet_delay_forwarder(metrics_reporter.clone());
             self.start_socket_listener(metrics_reporter, delay_forwarding_channel);
-            
-            self.start_rtt_measurer();
-            self.start_http_api();
+
+            let atomic_verloc_results= self.start_rtt_measurer();
+            self.start_http_api(atomic_verloc_results);
 
             info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
             self.wait_for_interrupt().await

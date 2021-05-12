@@ -7,7 +7,7 @@ use crate::config::Config;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
-use log::*;
+use log::debug;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 use std::collections::HashMap;
 use tokio::runtime::Runtime;

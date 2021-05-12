@@ -1,6 +1,6 @@
 use crate::contract::DENOM;
 use crate::error::ContractError;
-use crate::helpers::scale_reward_by_uptime;
+use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
 use crate::state::StateParams;
 use crate::storage::{
     config, config_read, gateways, gateways_read, increase_gateway_bond, increase_mixnode_bond,
@@ -227,7 +227,26 @@ pub(crate) fn try_update_state_params(
         return Err(ContractError::DecreasingGatewayBondReward);
     }
 
+    // if we're updating epoch length, recalculate rewards for both mixnodes and gateways
+    if state.params.epoch_length != params.epoch_length {
+        state.mixnode_epoch_bond_reward =
+            calculate_epoch_reward_rate(params.epoch_length, params.mixnode_bond_reward_rate);
+        state.gateway_epoch_bond_reward =
+            calculate_epoch_reward_rate(params.epoch_length, params.gateway_bond_reward_rate);
+    } else {
+        // if mixnode or gateway rewards changed, recalculate respective values
+        if state.params.mixnode_bond_reward_rate != params.mixnode_bond_reward_rate {
+            state.mixnode_epoch_bond_reward =
+                calculate_epoch_reward_rate(params.epoch_length, params.mixnode_bond_reward_rate);
+        }
+        if state.params.gateway_bond_reward_rate != params.gateway_bond_reward_rate {
+            state.gateway_epoch_bond_reward =
+                calculate_epoch_reward_rate(params.epoch_length, params.gateway_bond_reward_rate);
+        }
+    }
+
     state.params = params;
+
     config(deps.storage).save(&state)?;
 
     Ok(HandleResponse::default())
@@ -278,7 +297,11 @@ pub(crate) fn try_reward_gateway(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::contract::{handle, init, query, INITIAL_GATEWAY_BOND, INITIAL_MIXNODE_BOND};
+    use crate::contract::{
+        handle, init, query, INITIAL_DEFAULT_EPOCH_LENGTH, INITIAL_GATEWAY_BOND,
+        INITIAL_GATEWAY_BOND_REWARD_RATE, INITIAL_MIXNODE_BOND, INITIAL_MIXNODE_BOND_REWARD_RATE,
+    };
+    use crate::helpers::calculate_epoch_reward_rate;
     use crate::msg::{HandleMsg, InitMsg, QueryMsg};
     use crate::state::StateParams;
     use crate::storage::{read_gateway_bond, read_gateway_epoch_reward_rate, read_mixnode_bond};
@@ -760,12 +783,12 @@ pub mod tests {
         let mut deps = helpers::init_contract();
 
         let new_params = StateParams {
-            epoch_length: 1,
-            minimum_mixnode_bond: 123u128.into(),
-            minimum_gateway_bond: 456u128.into(),
-            mixnode_bond_reward_rate: "1.23".parse().unwrap(),
-            gateway_bond_reward_rate: "4.56".parse().unwrap(),
-            mixnode_active_set_size: 1000,
+            epoch_length: INITIAL_DEFAULT_EPOCH_LENGTH,
+            minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
+            minimum_gateway_bond: INITIAL_GATEWAY_BOND,
+            mixnode_bond_reward_rate: Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE),
+            gateway_bond_reward_rate: Decimal::percent(INITIAL_GATEWAY_BOND_REWARD_RATE),
+            mixnode_active_set_size: 42, // change something
         };
 
         // cannot be updated from non-owner account
@@ -780,7 +803,92 @@ pub mod tests {
 
         // and the state is actually updated
         let current_state = config_read(deps.as_ref().storage).load().unwrap();
-        assert_eq!(current_state.params, new_params)
+        assert_eq!(current_state.params, new_params);
+
+        // mixnode_epoch_bond_reward is recalculated if annual reward  is changed
+        let current_mix_reward_rate = read_mixnode_epoch_reward_rate(deps.as_ref().storage);
+        let new_mixnode_bond_reward_rate = Decimal::percent(120);
+
+        // sanity check to make sure we are actually updating the value (in case we changed defaults at some point)
+        assert_ne!(new_mixnode_bond_reward_rate, current_mix_reward_rate);
+
+        let mut new_params = current_state.params.clone();
+        new_params.mixnode_bond_reward_rate = new_mixnode_bond_reward_rate;
+
+        let info = mock_info("creator", &[]);
+        try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
+
+        let new_state = config_read(deps.as_ref().storage).load().unwrap();
+        let expected =
+            calculate_epoch_reward_rate(new_params.epoch_length, new_mixnode_bond_reward_rate);
+        assert_eq!(expected, new_state.mixnode_epoch_bond_reward);
+
+        // gateway_epoch_bond_reward is recalculated if annual reward rate is changed
+        let current_gateway_reward_rate = read_gateway_epoch_reward_rate(deps.as_ref().storage);
+        let new_gateway_bond_reward_rate = Decimal::percent(120);
+
+        // sanity check to make sure we are actually updating the value (in case we changed defaults at some point)
+        assert_ne!(new_gateway_bond_reward_rate, current_gateway_reward_rate);
+
+        let mut new_params = current_state.params.clone();
+        new_params.gateway_bond_reward_rate = new_gateway_bond_reward_rate;
+
+        let info = mock_info("creator", &[]);
+        try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
+
+        let new_state = config_read(deps.as_ref().storage).load().unwrap();
+        let expected =
+            calculate_epoch_reward_rate(new_params.epoch_length, new_gateway_bond_reward_rate);
+        assert_eq!(expected, new_state.gateway_epoch_bond_reward);
+
+        // if annual reward rate is changed for both mixnodes and gateways in a single update operation,
+        // both mixnode_epoch_bond_reward and gateway_epoch_bond_reward are recalculated
+        let current_state = config_read(deps.as_ref().storage).load().unwrap();
+        let new_mixnode_bond_reward_rate = Decimal::percent(130);
+        let new_gateway_bond_reward_rate = Decimal::percent(130);
+        assert_ne!(
+            new_mixnode_bond_reward_rate,
+            current_state.params.mixnode_bond_reward_rate
+        );
+        assert_ne!(
+            new_gateway_bond_reward_rate,
+            current_state.params.gateway_bond_reward_rate
+        );
+
+        let mut new_params = current_state.params.clone();
+        new_params.mixnode_bond_reward_rate = new_mixnode_bond_reward_rate;
+        new_params.gateway_bond_reward_rate = new_gateway_bond_reward_rate;
+
+        let info = mock_info("creator", &[]);
+        try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
+
+        let new_state = config_read(deps.as_ref().storage).load().unwrap();
+        let expected_mixnode =
+            calculate_epoch_reward_rate(new_params.epoch_length, new_mixnode_bond_reward_rate);
+        assert_eq!(expected_mixnode, new_state.mixnode_epoch_bond_reward);
+
+        let expected_gateway =
+            calculate_epoch_reward_rate(new_params.epoch_length, new_gateway_bond_reward_rate);
+        assert_eq!(expected_gateway, new_state.gateway_epoch_bond_reward);
+
+        // both mixnode_epoch_bond_reward and gateway_epoch_bond_reward are updated on epoch length change
+        let new_epoch_length = 42;
+        // sanity check to make sure we are actually updating the value (in case we changed defaults at some point)
+        assert_ne!(new_epoch_length, current_state.params.epoch_length);
+        let mut new_params = current_state.params.clone();
+        new_params.epoch_length = new_epoch_length;
+
+        let info = mock_info("creator", &[]);
+        try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
+
+        let new_state = config_read(deps.as_ref().storage).load().unwrap();
+        let expected_mixnode =
+            calculate_epoch_reward_rate(new_epoch_length, new_params.mixnode_bond_reward_rate);
+        assert_eq!(expected_mixnode, new_state.mixnode_epoch_bond_reward);
+
+        let expected_gateway =
+            calculate_epoch_reward_rate(new_epoch_length, new_params.gateway_bond_reward_rate);
+        assert_eq!(expected_gateway, new_state.gateway_epoch_bond_reward);
     }
 
     #[test]

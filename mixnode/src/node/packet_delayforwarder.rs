@@ -4,7 +4,7 @@
 use crate::node::metrics::MetricsReporter;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::*;
+use log::debug;
 use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, TimerError};
 use nymsphinx::forwarding::packet::MixPacket;
 use tokio::time::{Duration, Instant};

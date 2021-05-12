@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
+use crate::node::http::verloc::verloc;
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use crypto::asymmetric::{encryption, identity};
-use log::*;
-use mixnode_common::rtt_measurement;
-use mixnode_common::rtt_measurement::RttMeasurer;
+use mixnode_common::rtt_measurement::{RttMeasurer, self};
+use log::{error, info, warn};
 use std::process;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use version_checker::parse_version;
 
+pub(crate) mod http;
 mod listener;
 mod metrics;
 pub(crate) mod packet_delayforwarder;
@@ -37,6 +38,11 @@ impl MixNode {
             identity_keypair: Arc::new(identity_keypair),
             sphinx_keypair: Arc::new(sphinx_keypair),
         }
+    }
+
+    fn start_http_api(&self) {
+        info!("Starting HTTP API on port 8000...");
+        tokio::spawn(async move { rocket::build().mount("/", routes![verloc]).launch().await });
     }
 
     fn start_metrics_reporter(&self) -> metrics::MetricsReporter {
@@ -168,7 +174,7 @@ impl MixNode {
                 if duplicate_node_key == self.identity_keypair.public_key().to_base58_string() {
                     warn!("You seem to have bonded your mixnode before starting it - that's highly unrecommended as in the future it will result in slashing");
                 } else {
-                    error!(
+                    log::error!(
                         "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
                         duplicate_node_key
                     );
@@ -179,11 +185,12 @@ impl MixNode {
             let metrics_reporter = self.start_metrics_reporter();
             let delay_forwarding_channel = self.start_packet_delay_forwarder(metrics_reporter.clone());
             self.start_socket_listener(metrics_reporter, delay_forwarding_channel);
+            
             self.start_rtt_measurer();
+            self.start_http_api();
 
             info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
-
             self.wait_for_interrupt().await
-        })
+        });
     }
 }

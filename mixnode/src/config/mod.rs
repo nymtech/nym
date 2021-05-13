@@ -52,6 +52,8 @@ pub fn missing_vec_string_value() -> Vec<String> {
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
+    mixnode_descriptor: NodeDescription,
+
     mixnode: MixNode,
 
     #[serde(default)]
@@ -412,6 +414,23 @@ pub struct Logging {}
 impl Default for Logging {
     fn default() -> Self {
         Logging {}
+    }
+}
+
+#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+pub(crate) struct NodeDescription {
+    name: String,
+    description: String,
+    link: String,
+}
+
+impl Default for NodeDescription {
+    fn default() -> Self {
+        NodeDescription {
+            name: "This node has not yet set a name".to_string(),
+            description: "This node has not yet set a description".to_string(),
+            link: "https://nymtech.net".to_string(),
+        }
     }
 }
 

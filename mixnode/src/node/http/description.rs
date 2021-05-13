@@ -1,4 +1,4 @@
-use crate::node::descriptor::NodeDescription;
+use crate::node::node_description::NodeDescription;
 use rocket::State;
 use rocket_contrib::json::Json;
 

@@ -3,7 +3,7 @@
 
 use crate::commands::override_config;
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
-use crate::node::descriptor::NodeDescription;
+use crate::node::node_description::NodeDescription;
 use crate::node::MixNode;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;

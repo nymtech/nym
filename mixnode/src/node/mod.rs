@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::node::descriptor::NodeDescription;
 use crate::node::http::{
     description::description,
     not_found,
@@ -11,6 +10,7 @@ use crate::node::http::{
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
+use crate::node::node_description::NodeDescription;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use crypto::asymmetric::{encryption, identity};
 use log::{error, info, warn};
@@ -20,10 +20,10 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 use version_checker::parse_version;
 
-pub(crate) mod descriptor;
 pub(crate) mod http;
 mod listener;
 mod metrics;
+pub(crate) mod node_description;
 pub(crate) mod packet_delayforwarder;
 
 // the MixNode will live for whole duration of this program

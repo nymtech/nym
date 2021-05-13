@@ -25,6 +25,14 @@ pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
 pub(crate) const DEFAULT_METRICS_SERVER: &str = "http://testnet-metrics.nymtech.net:8080";
 pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
 
+// 'RTT MEASUREMENT'
+const DEFAULT_PACKETS_PER_NODE: usize = 100;
+const DEFAULT_PACKET_TIMEOUT: Duration = Duration::from_millis(1500);
+const DEFAULT_DELAY_BETWEEN_PACKETS: Duration = Duration::from_millis(50);
+const DEFAULT_BATCH_SIZE: usize = 50;
+const DEFAULT_TESTING_INTERVAL: Duration = Duration::from_secs(60 * 60 * 12);
+const DEFAULT_RETRY_TIMEOUT: Duration = Duration::from_secs(60 * 30);
+
 // 'DEBUG'
 const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
@@ -52,10 +60,10 @@ pub fn missing_vec_string_value() -> Vec<String> {
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
-    mixnode_descriptor: NodeDescription,
-
     mixnode: MixNode,
 
+    #[serde(default)]
+    rtt_measurement: RttMeasurement,
     #[serde(default)]
     logging: Logging,
     #[serde(default)]
@@ -300,6 +308,25 @@ impl Config {
         &self.mixnode.version
     }
 
+    pub fn get_measurement_packets_per_node(&self) -> usize {
+        self.rtt_measurement.packets_per_node
+    }
+    pub fn get_measurement_packet_timeout(&self) -> Duration {
+        self.rtt_measurement.packet_timeout
+    }
+    pub fn get_measurement_delay_between_packets(&self) -> Duration {
+        self.rtt_measurement.delay_between_packets
+    }
+    pub fn get_measurement_tested_nodes_batch_size(&self) -> usize {
+        self.rtt_measurement.tested_nodes_batch_size
+    }
+    pub fn get_measurement_testing_interval(&self) -> Duration {
+        self.rtt_measurement.testing_interval
+    }
+    pub fn get_measurement_retry_timeout(&self) -> Duration {
+        self.rtt_measurement.retry_timeout
+    }
+
     // upgrade-specific
     pub(crate) fn set_default_identity_keypair_paths(&mut self) {
         self.mixnode.private_identity_key_file =
@@ -417,19 +444,38 @@ impl Default for Logging {
     }
 }
 
-#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
-pub(crate) struct NodeDescription {
-    name: String,
-    description: String,
-    link: String,
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RttMeasurement {
+    /// Specifies number of echo packets sent to each node during a measurement run.
+    packets_per_node: usize,
+
+    /// Specifies maximum amount of time to wait for the reply packet to arrive before abandoning the test.
+    packet_timeout: Duration,
+
+    /// Specifies delay between subsequent test packets being sent (after receiving a reply).
+    delay_between_packets: Duration,
+
+    /// Specifies number of nodes being tested at once.
+    tested_nodes_batch_size: usize,
+
+    /// Specifies delay between subsequent test runs.
+    testing_interval: Duration,
+
+    /// Specifies delay between attempting to run the measurement again if the previous run failed
+    /// due to being unable to get the list of nodes.
+    retry_timeout: Duration,
 }
 
-impl Default for NodeDescription {
+impl Default for RttMeasurement {
     fn default() -> Self {
-        NodeDescription {
-            name: "This node has not yet set a name".to_string(),
-            description: "This node has not yet set a description".to_string(),
-            link: "https://nymtech.net".to_string(),
+        RttMeasurement {
+            packets_per_node: DEFAULT_PACKETS_PER_NODE,
+            packet_timeout: DEFAULT_PACKET_TIMEOUT,
+            delay_between_packets: DEFAULT_DELAY_BETWEEN_PACKETS,
+            tested_nodes_batch_size: DEFAULT_BATCH_SIZE,
+            testing_interval: DEFAULT_TESTING_INTERVAL,
+            retry_timeout: DEFAULT_RETRY_TIMEOUT,
         }
     }
 }

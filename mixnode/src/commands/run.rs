@@ -3,6 +3,7 @@
 
 use crate::commands::override_config;
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
+use crate::node::descriptor::NodeDescription;
 use crate::node::MixNode;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
@@ -183,5 +184,6 @@ pub fn execute(matches: &ArgMatches) {
         config.get_version(),
     );
 
-    MixNode::new(config, identity_keypair, sphinx_keypair).run();
+    let descriptor = NodeDescription::default();
+    MixNode::new(config, descriptor, identity_keypair, sphinx_keypair).run();
 }

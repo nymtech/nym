@@ -2,6 +2,8 @@
 # It is not intended for manual editing.
 # Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 # SPDX-License-Identifier: Apache-2.0
+version = 3
+
 [[package]]
 name = "aes-ctr"
 version = "0.3.0"
@@ -1731,6 +1733,7 @@ dependencies = [
  "rocket",
  "rocket_contrib",
  "serde",
+ "serde_json",
  "tokio",
  "tokio-util",
  "topology",

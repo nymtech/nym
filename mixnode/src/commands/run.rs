@@ -184,6 +184,7 @@ pub fn execute(matches: &ArgMatches) {
         config.get_version(),
     );
 
-    let descriptor = NodeDescription::default();
-    MixNode::new(config, descriptor, identity_keypair, sphinx_keypair).run();
+    let description =
+        NodeDescription::load_from_file(Config::default_config_directory(id)).unwrap();
+    MixNode::new(config, description, identity_keypair, sphinx_keypair).run();
 }

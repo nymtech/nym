@@ -5,6 +5,7 @@ use crate::config::Config;
 use clap::ArgMatches;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 
+pub(crate) mod describe;
 pub(crate) mod init;
 pub(crate) mod run;
 pub(crate) mod sign;

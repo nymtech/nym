@@ -1,13 +1,14 @@
 use serde::Deserialize;
 use serde::Serialize;
+use std::fs::File;
 use std::path::PathBuf;
 use std::{fs, io};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct NodeDescription {
-    name: String,
-    description: String,
-    link: String,
+    pub(crate) name: String,
+    pub(crate) description: String,
+    pub(crate) link: String,
 }
 
 impl Default for NodeDescription {
@@ -26,5 +27,14 @@ impl NodeDescription {
         let json = fs::read_to_string(config_path)?;
         ::serde_json::from_str(&json)
             .map_err(|json_err| io::Error::new(io::ErrorKind::Other, json_err))
+    }
+
+    pub(crate) fn save_to_file(
+        description: &NodeDescription,
+        mut config_path: PathBuf,
+    ) -> io::Result<()> {
+        config_path.push("descriptor.json");
+        ::serde_json::to_writer(&File::create(config_path)?, description)?;
+        Ok(())
     }
 }

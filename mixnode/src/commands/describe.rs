@@ -2,7 +2,8 @@ use crate::config::Config;
 use crate::node::node_description::NodeDescription;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
-use rustyline::Editor;
+use std::io;
+use std::io::Write;
 
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("describe")
@@ -21,10 +22,23 @@ pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap();
 
     // get input from the user
-    let mut rl = Editor::<()>::new();
-    let name = rl.readline("node name: ").unwrap();
-    let description = rl.readline("node description: ").unwrap();
-    let link = rl.readline("link (start with 'http://'': ").unwrap();
+    print!("name: ");
+    io::stdout().flush().unwrap();
+    let mut name_buf = String::new();
+    io::stdin().read_line(&mut name_buf).unwrap();
+    let name = name_buf.trim().to_string();
+
+    print!("description: ");
+    io::stdout().flush().unwrap();
+    let mut desc_buf = String::new();
+    io::stdin().read_line(&mut desc_buf).unwrap();
+    let description = desc_buf.trim().to_string();
+
+    print!("link: ");
+    io::stdout().flush().unwrap();
+    let mut link_buf = String::new();
+    io::stdin().read_line(&mut link_buf).unwrap();
+    let link = link_buf.trim().to_string();
 
     let node_description = NodeDescription {
         name,

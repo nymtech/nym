@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::node::node_description::NodeDescription;
 use clap::{App, Arg, ArgMatches};
+use colored::Colorize;
 use config::NymConfig;
 use std::io;
 use std::io::Write;
@@ -34,7 +35,9 @@ pub fn execute(matches: &ArgMatches) {
     io::stdin().read_line(&mut desc_buf).unwrap();
     let description = desc_buf.trim().to_string();
 
-    print!("link: ");
+    let example_url = "https://mixnode.yourdomain.com".bright_cyan();
+
+    print!("link, e.g. {}: ", example_url);
     io::stdout().flush().unwrap();
     let mut link_buf = String::new();
     io::stdin().read_line(&mut link_buf).unwrap();

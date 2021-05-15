@@ -185,6 +185,6 @@ pub fn execute(matches: &ArgMatches) {
     );
 
     let description =
-        NodeDescription::load_from_file(Config::default_config_directory(id)).unwrap();
+        NodeDescription::load_from_file(Config::default_config_directory(id)).unwrap_or_default();
     MixNode::new(config, description, identity_keypair, sphinx_keypair).run();
 }

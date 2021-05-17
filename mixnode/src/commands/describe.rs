@@ -3,8 +3,9 @@ use crate::node::node_description::NodeDescription;
 use clap::{App, Arg, ArgMatches};
 use colored::Colorize;
 use config::NymConfig;
-use std::io;
 use std::io::Write;
+use std::path::Path;
+use std::{io, process};
 
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("describe")
@@ -20,7 +21,17 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
 
 pub fn execute(matches: &ArgMatches) {
     // figure out which node the user is describing
-    let id = matches.value_of("id").unwrap();
+    let id = matches
+        .value_of("id")
+        .expect("Please provide the id of your mixnode");
+
+    // ensure that the mixnode has in fact been initialized
+    let config_path = Config::default_config_directory(id);
+    let config_dir_exists = Path::new(&config_path).is_dir();
+    if !config_dir_exists {
+        println!("Couldn't find the config directory, please make sure the mixnode has been initialized and you're passing the right id");
+        process::exit(1);
+    }
 
     // get input from the user
     print!("name: ");
@@ -50,6 +61,6 @@ pub fn execute(matches: &ArgMatches) {
     };
 
     // save the struct
-    let config_path = Config::default_config_directory(id);
-    NodeDescription::save_to_file(&node_description, config_path).unwrap();
+    // leaving it as a straight `unwrap` as we don't expect any errors here
+    NodeDescription::save_to_file(&node_description, config_path).unwrap()
 }

@@ -50,7 +50,6 @@ impl Monitor {
     // while it might have been cleaner to put this into a separate `Notifier` structure,
     // I don't see much point considering it's only a single, small, method
     async fn notify_node_status_api(&self, status: BatchMixStatus) {
-        info!("here be notification ({} statuses)", status.status.len());
         if let Err(err) = self
             .node_status_api_client
             .post_batch_mixmining_status(status)

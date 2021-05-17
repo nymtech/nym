@@ -104,20 +104,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
 
 #[tokio::main]
 async fn main() {
-    // for validator in DEFAULT_VALIDATORS {
-    //     let config = validator_client_rest::Config::new(
-    //         vec![validator.to_string()],
-    //         DEFAULT_MIXNET_CONTRACT,
-    //     );
-    //     let mut client = validator_client_rest::Client::new(config);
-    //
-    //     let now = time::Instant::now();
-    //     let _ = client.get_mix_nodes().await.unwrap();
-    //     let dt = time::Instant::now().duration_since(now);
-    //     println!("getting mixes from {} took {:?}", validator, dt)
-    // }
-    // panic!("done");
-
     println!("Network monitor starting...");
     let matches = parse_args();
     let v4_topology_path = matches.value_of(V4_TOPOLOGY_ARG).unwrap();
@@ -190,7 +176,7 @@ async fn main() {
 
     let packet_preparer = new_packet_preparer(
         validator_client,
-        tested_network,
+        tested_network.clone(),
         test_mixnode_sender,
         *identity_keypair.public_key(),
         *encryption_keypair.public_key(),
@@ -217,6 +203,7 @@ async fn main() {
         received_processor,
         summary_producer,
         node_status_api_client,
+        tested_network,
     );
 
     tokio::spawn(async move { packet_receiver.run().await });

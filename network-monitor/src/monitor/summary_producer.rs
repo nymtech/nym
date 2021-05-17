@@ -35,21 +35,21 @@ impl NodeResult {
 }
 
 #[derive(Default)]
-struct TestReport {
-    total_sent: usize,
-    total_received: usize,
-    malformed: Vec<InvalidNode>,
+pub(crate) struct TestReport {
+    pub(crate) total_sent: usize,
+    pub(crate) total_received: usize,
+    pub(crate) malformed: Vec<InvalidNode>,
 
     // below are only populated if we're going to be printing the report
-    only_ipv4_compatible_mixes: Vec<TestedNode>, // can't speak v6, but can speak v4
-    only_ipv6_compatible_mixes: Vec<TestedNode>, // can't speak v4, but can speak v6
-    completely_unroutable_mixes: Vec<TestedNode>, // can't speak either v4 or v6
-    fully_working_mixes: Vec<TestedNode>,
+    pub(crate) only_ipv4_compatible_mixes: Vec<TestedNode>, // can't speak v6, but can speak v4
+    pub(crate) only_ipv6_compatible_mixes: Vec<TestedNode>, // can't speak v4, but can speak v6
+    pub(crate) completely_unroutable_mixes: Vec<TestedNode>, // can't speak either v4 or v6
+    pub(crate) fully_working_mixes: Vec<TestedNode>,
 
-    only_ipv4_compatible_gateways: Vec<TestedNode>, // can't speak v6, but can speak v4
-    only_ipv6_compatible_gateways: Vec<TestedNode>, // can't speak v4, but can speak v6
-    completely_unroutable_gateways: Vec<TestedNode>, // can't speak either v4 or v6
-    fully_working_gateways: Vec<TestedNode>,
+    pub(crate) only_ipv4_compatible_gateways: Vec<TestedNode>, // can't speak v6, but can speak v4
+    pub(crate) only_ipv6_compatible_gateways: Vec<TestedNode>, // can't speak v4, but can speak v6
+    pub(crate) completely_unroutable_gateways: Vec<TestedNode>, // can't speak either v4 or v6
+    pub(crate) fully_working_gateways: Vec<TestedNode>,
 }
 
 impl TestReport {
@@ -164,9 +164,7 @@ impl SummaryProducer {
         received_packets: Vec<TestPacket>,
         invalid_nodes: Vec<InvalidNode>,
         all_gateways: HashSet<String>,
-    ) -> BatchMixStatus {
-        let mut report = TestReport::default();
-
+    ) -> (BatchMixStatus, TestReport) {
         let expected_nodes_count = expected_nodes.len();
         let received_packets_count = received_packets.len();
 
@@ -204,11 +202,17 @@ impl SummaryProducer {
             }
         }
 
+        let mut report = TestReport {
+            total_sent: expected_nodes_count * 2, // we sent two packets per node (one ipv4 and one ipv6)
+            total_received: received_packets_count,
+            malformed: invalid_nodes,
+
+            ..Default::default()
+        };
+
+        report.parse_summary(&summary, all_gateways);
+
         if self.print_report {
-            report.total_sent = expected_nodes_count * 2; // we sent two packets per node (one ipv4 and one ipv6)
-            report.total_received = received_packets_count;
-            report.malformed = invalid_nodes;
-            report.parse_summary(&summary, all_gateways);
             report.print(self.print_detailed_report);
         }
 
@@ -221,6 +225,6 @@ impl SummaryProducer {
             })
             .collect();
 
-        BatchMixStatus { status }
+        (BatchMixStatus { status }, report)
     }
 }

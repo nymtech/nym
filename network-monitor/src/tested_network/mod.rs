@@ -7,6 +7,7 @@ use topology::{gateway, mix, NymTopology};
 
 pub(crate) mod good_topology;
 
+#[derive(Clone)]
 pub(crate) struct TestedNetwork {
     system_version: String,
     good_v4_topology: NymTopology,
@@ -59,5 +60,13 @@ impl TestedNetwork {
 
         good_topology.set_gateways(vec![gateway]);
         good_topology
+    }
+
+    pub(crate) fn v4_topology(&self) -> &NymTopology {
+        &self.good_v4_topology
+    }
+
+    pub(crate) fn v6_topology(&self) -> &NymTopology {
+        &self.good_v6_topology
     }
 }

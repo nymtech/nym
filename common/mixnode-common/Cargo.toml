@@ -7,8 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bytes = "1.0"
+crypto =  { path = "../crypto" }
 dashmap = "4.0"
 futures = "0.3"
+humantime-serde = "1.0"
 log = "0.4"
 nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nymsphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }
@@ -17,4 +20,9 @@ nymsphinx-forwarding = { path = "../nymsphinx/forwarding" }
 nymsphinx-framing = { path = "../nymsphinx/framing" }
 nymsphinx-params = { path = "../nymsphinx/params" }
 nymsphinx-types = { path = "../nymsphinx/types" }
-tokio = { version = "1.4", features = ["time", "macros", "rt"] }
+rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.4", features = ["time", "macros", "rt", "net", "io-util"] }
+tokio-util = { version = "0.6", features = ["codec"] }
+validator-client-rest = { path = "../client-libs/validator-client-rest" }
+version-checker = { path = "../version-checker" }

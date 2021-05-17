@@ -1528,7 +1528,7 @@ dependencies = [
  "serde",
  "tokio",
  "tokio-util",
- "validator-client-rest",
+ "validator-client",
  "version-checker",
 ]
 

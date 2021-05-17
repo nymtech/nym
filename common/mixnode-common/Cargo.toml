@@ -24,5 +24,5 @@ rand = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.4", features = ["time", "macros", "rt", "net", "io-util"] }
 tokio-util = { version = "0.6", features = ["codec"] }
-validator-client-rest = { path = "../client-libs/validator-client-rest" }
+validator-client = { path = "../client-libs/validator-client" }
 version-checker = { path = "../version-checker" }

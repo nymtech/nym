@@ -9,10 +9,30 @@ use std::hash::{Hash, Hasher};
 use std::mem;
 use std::str::Utf8Error;
 
+#[repr(u8)]
+#[derive(Eq, PartialEq, Debug, Hash, Clone, Copy)]
+pub(crate) enum NodeType {
+    Mixnode = 0,
+    Gateway = 1,
+}
+
+impl TryFrom<u8> for NodeType {
+    type Error = TestPacketError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            _ if value == (Self::Mixnode as u8) => Ok(Self::Mixnode),
+            _ if value == (Self::Gateway as u8) => Ok(Self::Gateway),
+            _ => Err(TestPacketError::InvalidNodeType),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(crate) enum TestPacketError {
     IncompletePacket,
     InvalidIpVersion,
+    InvalidNodeType,
     InvalidNodeKey,
     InvalidOwner(Utf8Error),
 }
@@ -72,6 +92,7 @@ pub(crate) struct TestPacket {
     nonce: u64,
     pub_key: identity::PublicKey,
     owner: String,
+    node_type: NodeType,
 }
 
 impl Display for TestPacket {
@@ -105,21 +126,33 @@ impl PartialEq for TestPacket {
 }
 
 impl TestPacket {
-    pub(crate) fn new_v4(pub_key: identity::PublicKey, owner: String, nonce: u64) -> Self {
+    pub(crate) fn new_v4(
+        pub_key: identity::PublicKey,
+        owner: String,
+        nonce: u64,
+        node_type: NodeType,
+    ) -> Self {
         TestPacket {
             ip_version: IpVersion::V4,
             nonce,
             pub_key,
             owner,
+            node_type,
         }
     }
 
-    pub(crate) fn new_v6(pub_key: identity::PublicKey, owner: String, nonce: u64) -> Self {
+    pub(crate) fn new_v6(
+        pub_key: identity::PublicKey,
+        owner: String,
+        nonce: u64,
+        node_type: NodeType,
+    ) -> Self {
         TestPacket {
             ip_version: IpVersion::V6,
             nonce,
             pub_key,
             owner,
+            node_type,
         }
     }
 
@@ -136,6 +169,7 @@ impl TestPacket {
             .to_be_bytes()
             .iter()
             .cloned()
+            .chain(std::iter::once(self.node_type as u8))
             .chain(std::iter::once(self.ip_version as u8))
             .chain(self.pub_key.to_bytes().iter().cloned())
             .chain(self.owner.as_bytes().iter().cloned())
@@ -152,12 +186,15 @@ impl TestPacket {
 
         // this unwrap can't fail as we've already checked for the size
         let nonce = u64::from_be_bytes(b[0..n].try_into().unwrap());
-        let ip_version = IpVersion::try_from(b[n])?;
+        let node_type = NodeType::try_from(b[n])?;
+
+        let ip_version = IpVersion::try_from(b[n + 1])?;
         let pub_key =
-            identity::PublicKey::from_bytes(&b[n + 1..n + 1 + identity::PUBLIC_KEY_LENGTH])?;
-        let owner = std::str::from_utf8(&b[n + 1 + identity::PUBLIC_KEY_LENGTH..])?;
+            identity::PublicKey::from_bytes(&b[n + 2..n + 2 + identity::PUBLIC_KEY_LENGTH])?;
+        let owner = std::str::from_utf8(&b[n + 2 + identity::PUBLIC_KEY_LENGTH..])?;
 
         Ok(TestPacket {
+            node_type,
             ip_version,
             nonce,
             pub_key,
@@ -171,6 +208,7 @@ impl From<TestPacket> for TestedNode {
         TestedNode {
             identity: packet.pub_key.to_base58_string(),
             owner: packet.owner,
+            node_type: packet.node_type,
         }
     }
 }

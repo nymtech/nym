@@ -3,7 +3,7 @@
 
 use crate::chunker::Chunker;
 use crate::monitor::sender::GatewayPackets;
-use crate::test_packet::TestPacket;
+use crate::test_packet::{NodeType, TestPacket};
 use crate::tested_network::TestedNetwork;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
@@ -70,14 +70,27 @@ enum PreparedNode {
 pub(crate) struct TestedNode {
     pub(crate) identity: String,
     pub(crate) owner: String,
+    pub(crate) node_type: NodeType,
 }
 
 impl TestedNode {
-    pub(crate) fn new(identity: String, owner: String) -> Self {
-        TestedNode { identity, owner }
+    pub(crate) fn new_mix(identity: String, owner: String) -> Self {
+        TestedNode {
+            identity,
+            owner,
+            node_type: NodeType::Mixnode,
+        }
     }
 
-    pub(crate) fn from_raw<S1, S2>(identity: S1, owner: S2) -> Self
+    pub(crate) fn new_gateway(identity: String, owner: String) -> Self {
+        TestedNode {
+            identity,
+            owner,
+            node_type: NodeType::Gateway,
+        }
+    }
+
+    pub(crate) fn from_raw_mix<S1, S2>(identity: S1, owner: S2) -> Self
     where
         S1: Into<String>,
         S2: Into<String>,
@@ -85,7 +98,24 @@ impl TestedNode {
         TestedNode {
             identity: identity.into(),
             owner: owner.into(),
+            node_type: NodeType::Mixnode,
         }
+    }
+
+    pub(crate) fn from_raw_gateway<S1, S2>(identity: S1, owner: S2) -> Self
+    where
+        S1: Into<String>,
+        S2: Into<String>,
+    {
+        TestedNode {
+            identity: identity.into(),
+            owner: owner.into(),
+            node_type: NodeType::Gateway,
+        }
+    }
+
+    pub(crate) fn is_gateway(&self) -> bool {
+        self.node_type == NodeType::Gateway
     }
 }
 
@@ -162,7 +192,7 @@ impl PacketPreparer {
             Ok(gateways) => gateways,
         };
 
-        info!("Obtained network topology");
+        info!(target: "Monitor", "Obtained network topology");
 
         Ok((mixnodes, gateways))
     }
@@ -203,13 +233,23 @@ impl PacketPreparer {
         }
         match TryInto::<mix::Node>::try_into(mixnode_bond) {
             Ok(mix) => {
-                let v4_packet = TestPacket::new_v4(mix.identity_key, mix.owner.clone(), nonce);
-                let v6_packet = TestPacket::new_v6(mix.identity_key, mix.owner.clone(), nonce);
+                let v4_packet = TestPacket::new_v4(
+                    mix.identity_key,
+                    mix.owner.clone(),
+                    nonce,
+                    NodeType::Mixnode,
+                );
+                let v6_packet = TestPacket::new_v6(
+                    mix.identity_key,
+                    mix.owner.clone(),
+                    nonce,
+                    NodeType::Mixnode,
+                );
                 PreparedNode::TestedMix(mix, [v4_packet, v6_packet])
             }
             Err(err) => {
-                warn!(
-                    "mix {} is malformed - {}",
+                warn!(target: "bad node",
+                      "mix {} is malformed - {}",
                     mixnode_bond.mix_node().identity_key,
                     err
                 );
@@ -231,15 +271,23 @@ impl PacketPreparer {
         }
         match TryInto::<gateway::Node>::try_into(gateway_bond) {
             Ok(gateway) => {
-                let v4_packet =
-                    TestPacket::new_v4(gateway.identity_key, gateway.owner.clone(), nonce);
-                let v6_packet =
-                    TestPacket::new_v6(gateway.identity_key, gateway.owner.clone(), nonce);
+                let v4_packet = TestPacket::new_v4(
+                    gateway.identity_key,
+                    gateway.owner.clone(),
+                    nonce,
+                    NodeType::Gateway,
+                );
+                let v6_packet = TestPacket::new_v6(
+                    gateway.identity_key,
+                    gateway.owner.clone(),
+                    nonce,
+                    NodeType::Gateway,
+                );
                 PreparedNode::TestedGateway(gateway, [v4_packet, v6_packet])
             }
             Err(err) => {
-                warn!(
-                    "gateway {} is malformed - {:?}",
+                warn!(target: "bad node",
+                      "gateway {} is malformed - {:?}",
                     gateway_bond.gateway().identity_key,
                     err
                 );
@@ -269,11 +317,11 @@ impl PacketPreparer {
         nodes
             .iter()
             .filter_map(|node| match node {
-                PreparedNode::TestedGateway(gateway, _) => Some(TestedNode::new(
+                PreparedNode::TestedGateway(gateway, _) => Some(TestedNode::new_gateway(
                     gateway.identity_key.to_base58_string(),
                     gateway.owner.clone(),
                 )),
-                PreparedNode::TestedMix(mix, _) => Some(TestedNode::new(
+                PreparedNode::TestedMix(mix, _) => Some(TestedNode::new_mix(
                     mix.identity_key.to_base58_string(),
                     mix.owner.clone(),
                 )),

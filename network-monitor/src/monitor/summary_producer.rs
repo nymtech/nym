@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::monitor::preparer::{InvalidNode, TestedNode};
-use crate::node_status_api::models::{BatchMixStatus, MixStatus};
-use crate::test_packet::TestPacket;
+use crate::node_status_api::models::{
+    BatchGatewayStatus, BatchMixStatus, GatewayStatus, MixStatus,
+};
+use crate::test_packet::{NodeType, TestPacket};
 use crate::PENALISE_OUTDATED;
 use log::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 #[derive(Default)]
 struct NodeResult {
@@ -24,6 +26,24 @@ impl NodeResult {
         };
 
         let v6_status = MixStatus {
+            owner,
+            pub_key,
+            ip_version: "6".to_string(),
+            up: self.ip_v6_compatible,
+        };
+
+        vec![v4_status, v6_status]
+    }
+
+    fn into_gateway_status(self, pub_key: String, owner: String) -> Vec<GatewayStatus> {
+        let v4_status = GatewayStatus {
+            owner: owner.clone(),
+            pub_key: pub_key.clone(),
+            ip_version: "4".to_string(),
+            up: self.ip_v4_compatible,
+        };
+
+        let v6_status = GatewayStatus {
             owner,
             pub_key,
             ip_version: "6".to_string(),
@@ -108,16 +128,10 @@ impl TestReport {
         }
     }
 
-    fn parse_summary(
-        &mut self,
-        summary: &HashMap<TestedNode, NodeResult>,
-        all_gateways: HashSet<String>,
-    ) {
-        let is_gateway = |key: &str| all_gateways.contains(key);
-
+    fn parse_summary(&mut self, summary: &HashMap<TestedNode, NodeResult>) {
         for (node, result) in summary.iter() {
             let owned_node = node.clone();
-            if is_gateway(&node.identity) {
+            if node.is_gateway() {
                 if result.ip_v4_compatible && result.ip_v6_compatible {
                     self.fully_working_gateways.push(owned_node)
                 } else if result.ip_v4_compatible {
@@ -138,6 +152,12 @@ impl TestReport {
             }
         }
     }
+}
+
+pub(crate) struct TestSummary {
+    pub(crate) batch_mix_status: BatchMixStatus,
+    pub(crate) batch_gateway_status: BatchGatewayStatus,
+    pub(crate) test_report: TestReport,
 }
 
 #[derive(Default)]
@@ -163,8 +183,7 @@ impl SummaryProducer {
         expected_nodes: Vec<TestedNode>,
         received_packets: Vec<TestPacket>,
         invalid_nodes: Vec<InvalidNode>,
-        all_gateways: HashSet<String>,
-    ) -> (BatchMixStatus, TestReport) {
+    ) -> TestSummary {
         let expected_nodes_count = expected_nodes.len();
         let received_packets_count = received_packets.len();
 
@@ -193,11 +212,11 @@ impl SummaryProducer {
                 InvalidNode::OutdatedMix(id, owner, _)
                 | InvalidNode::OutdatedGateway(id, owner, _) => {
                     if PENALISE_OUTDATED {
-                        summary.insert(TestedNode::from_raw(id, owner), Default::default());
+                        summary.insert(TestedNode::from_raw_gateway(id, owner), Default::default());
                     }
                 }
                 InvalidNode::MalformedMix(id, owner) | InvalidNode::MalformedGateway(id, owner) => {
-                    summary.insert(TestedNode::from_raw(id, owner), Default::default());
+                    summary.insert(TestedNode::from_raw_mix(id, owner), Default::default());
                 }
             }
         }
@@ -210,13 +229,17 @@ impl SummaryProducer {
             ..Default::default()
         };
 
-        report.parse_summary(&summary, all_gateways);
+        report.parse_summary(&summary);
 
         if self.print_report {
             report.print(self.print_detailed_report);
         }
 
-        let status = summary
+        let (mixes, gateways): (Vec<_>, Vec<_>) = summary
+            .into_iter()
+            .partition(|(node, _)| node.node_type == NodeType::Mixnode);
+
+        let mix_statuses = mixes
             .into_iter()
             .flat_map(|(node, result)| {
                 result
@@ -225,6 +248,23 @@ impl SummaryProducer {
             })
             .collect();
 
-        (BatchMixStatus { status }, report)
+        let gateway_statuses = gateways
+            .into_iter()
+            .flat_map(|(node, result)| {
+                result
+                    .into_gateway_status(node.identity, node.owner)
+                    .into_iter()
+            })
+            .collect();
+
+        TestSummary {
+            batch_mix_status: BatchMixStatus {
+                status: mix_statuses,
+            },
+            batch_gateway_status: BatchGatewayStatus {
+                status: gateway_statuses,
+            },
+            test_report: report,
+        }
     }
 }

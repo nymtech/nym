@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node_status_api::models::{BatchMixStatus, DefaultRestResponse};
+use crate::node_status_api::models::{BatchGatewayStatus, BatchMixStatus, DefaultRestResponse};
 use crate::node_status_api::NodeStatusApiClientError;
 
 pub(crate) struct Config {
@@ -34,34 +34,77 @@ impl Client {
     // and additional methods could be added like GET for report data, but currently
     // we have absolutely no use for that in Rust.
 
-    pub(crate) async fn post_batch_mixmining_status(
+    pub(crate) async fn post_batch_mix_status(
         &self,
         batch_status: BatchMixStatus,
     ) -> Result<(), NodeStatusApiClientError> {
-        const RELATIVE_PATH: &str = "api/mixmining/batch";
+        const RELATIVE_PATH: &str = "api/status/mixnode/batch";
 
         let url = format!("{}/{}", self.config.base_url, RELATIVE_PATH);
 
-        let response: DefaultRestResponse = self
+        let response = self
             .reqwest_client
             .post(url)
             .json(&batch_status)
             .send()
-            .await?
-            .json()
             .await?;
 
-        match response {
-            DefaultRestResponse::Ok(ok_response) => {
-                if ok_response.ok {
-                    Ok(())
-                } else {
-                    Err(NodeStatusApiClientError::NodeStatusApiError(
-                        "received an ok response with false status".into(),
-                    ))
+        if response.status().is_success() {
+            let response_content: DefaultRestResponse = response.json().await?;
+            match response_content {
+                DefaultRestResponse::Ok(ok_response) => {
+                    if ok_response.ok {
+                        Ok(())
+                    } else {
+                        Err(NodeStatusApiClientError::NodeStatusApiError(
+                            "received an ok response with false status".into(),
+                        ))
+                    }
                 }
+                DefaultRestResponse::Error(err_response) => Err(err_response.into()),
             }
-            DefaultRestResponse::Error(err_response) => Err(err_response.into()),
+        } else {
+            Err(NodeStatusApiClientError::NodeStatusApiError(format!(
+                "received response with status {}",
+                response.status()
+            )))
+        }
+    }
+
+    pub(crate) async fn post_batch_gateway_status(
+        &self,
+        batch_status: BatchGatewayStatus,
+    ) -> Result<(), NodeStatusApiClientError> {
+        const RELATIVE_PATH: &str = "api/status/gateway/batch";
+
+        let url = format!("{}/{}", self.config.base_url, RELATIVE_PATH);
+
+        let response = self
+            .reqwest_client
+            .post(url)
+            .json(&batch_status)
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            let response_content: DefaultRestResponse = response.json().await?;
+            match response_content {
+                DefaultRestResponse::Ok(ok_response) => {
+                    if ok_response.ok {
+                        Ok(())
+                    } else {
+                        Err(NodeStatusApiClientError::NodeStatusApiError(
+                            "received an ok response with false status".into(),
+                        ))
+                    }
+                }
+                DefaultRestResponse::Error(err_response) => Err(err_response.into()),
+            }
+        } else {
+            Err(NodeStatusApiClientError::NodeStatusApiError(format!(
+                "received response with status {}",
+                response.status()
+            )))
         }
     }
 }

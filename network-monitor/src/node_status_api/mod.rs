@@ -31,7 +31,7 @@ impl From<ErrorResponses> for NodeStatusApiClientError {
                 NodeStatusApiClientError::NodeStatusApiError(err_message.error)
             }
             ErrorResponses::Unexpected(received) => {
-                NodeStatusApiClientError::UnexpectedResponse(received)
+                NodeStatusApiClientError::UnexpectedResponse(received.to_string())
             }
         }
     }

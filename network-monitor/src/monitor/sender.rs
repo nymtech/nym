@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
-use crate::TIME_CHUNK_SIZE;
+use crate::{GATEWAY_CONNECTION_TIMEOUT, TIME_CHUNK_SIZE};
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
@@ -195,18 +195,38 @@ impl PacketSender {
                 packets.pub_key,
                 &fresh_gateway_client_data,
             );
-            if let Err(err) = new_client.authenticate_and_start().await {
-                warn!(
-                    "failed to authenticate with new gateway ({}) - {}",
-                    packets.pub_key.to_base58_string(),
-                    err
-                );
-                return None;
-            }
+
+            // Put this in timeout in case the gateway has incorrectly set their ulimit and our connection
+            // gets stuck in their TCP queue and just hangs on our end but does not terminate
+            // (an actual bug we experienced)
+            match tokio::time::timeout(
+                GATEWAY_CONNECTION_TIMEOUT,
+                new_client.authenticate_and_start(),
+            )
+            .await
+            {
+                Ok(Ok(_)) => {}
+                Ok(Err(err)) => {
+                    warn!(
+                        "failed to authenticate with new gateway ({}) - {}",
+                        packets.pub_key.to_base58_string(),
+                        err
+                    );
+                    // we failed to create a client, can't do much here
+                    return None;
+                }
+                Err(_) => {
+                    warn!(
+                        "timed out while trying to authenticate with new gateway ({})",
+                        packets.pub_key.to_base58_string()
+                    );
+                    return None;
+                }
+            };
+
             (new_client, Some((message_receiver, ack_receiver)))
         };
 
-        // TODO: change and introduce rate limiting like in the old code
         if let Err(err) =
             Self::attempt_to_send_packets(&mut client, packets.packets, max_sending_rate).await
         {
@@ -235,7 +255,6 @@ impl PacketSender {
                 ))
                 .expect("packet receiver seems to have died!")
         }
-
         Some(client)
     }
 
@@ -277,9 +296,7 @@ impl PacketSender {
                     .active_gateway_clients
                     .insert(client.gateway_identity().to_bytes(), client)
                 {
-                    // TODO: perhaps panic instead? getting here implies there's some serious logic
-                    // error somewhere and our assumptions no longer hold
-                    error!(
+                    panic!(
                         "we got duplicate gateway client for {}!",
                         existing.gateway_identity().to_base58_string()
                     );

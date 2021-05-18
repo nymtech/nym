@@ -6,6 +6,7 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 
 /// A Socks5 request hitting the proxy.
 pub(crate) struct SocksRequest {
+    #[allow(dead_code)]
     pub version: u8,
     pub command: SocksCommand,
     pub addr_type: AddrType,

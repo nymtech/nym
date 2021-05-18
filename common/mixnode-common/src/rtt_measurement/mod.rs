@@ -182,7 +182,7 @@ pub struct RttMeasurer {
     // It only does bunch of REST queries. If we update it at some point to a more sophisticated (maybe signing) client,
     // then it definitely cannot be constructed here and probably will need to be passed from outside,
     // as mixnodes/gateways would already be using an instance of said client.
-    validator_client: validator_client_rest::Client,
+    validator_client: validator_client::Client,
     results: AtomicVerlocResult,
 }
 
@@ -204,12 +204,10 @@ impl RttMeasurer {
                 config.listening_address,
                 Arc::clone(&identity),
             )),
-            validator_client: validator_client_rest::Client::new(
-                validator_client_rest::Config::new(
-                    config.validator_urls.clone(),
-                    config.mixnet_contract_address.clone(),
-                ),
-            ),
+            validator_client: validator_client::Client::new(validator_client::Config::new(
+                config.validator_urls.clone(),
+                config.mixnet_contract_address.clone(),
+            )),
             config,
             results: AtomicVerlocResult::new(),
         }

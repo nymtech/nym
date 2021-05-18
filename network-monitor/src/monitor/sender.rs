@@ -205,18 +205,15 @@ impl PacketSender {
             )
             .await
             {
-                // check for timeout
-                Ok(start_result) => {
-                    // no timeout, but check if it was actually successful
-                    if let Err(err) = start_result {
-                        warn!(
-                            "failed to authenticate with new gateway ({}) - {}",
-                            packets.pub_key.to_base58_string(),
-                            err
-                        );
-                        // we failed to create a client, can't do much here
-                        return None;
-                    }
+                Ok(Ok(_)) => {}
+                Ok(Err(err)) => {
+                    warn!(
+                        "failed to authenticate with new gateway ({}) - {}",
+                        packets.pub_key.to_base58_string(),
+                        err
+                    );
+                    // we failed to create a client, can't do much here
+                    return None;
                 }
                 Err(_) => {
                     warn!(
@@ -230,7 +227,6 @@ impl PacketSender {
             (new_client, Some((message_receiver, ack_receiver)))
         };
 
-        // TODO: change and introduce rate limiting like in the old code
         if let Err(err) =
             Self::attempt_to_send_packets(&mut client, packets.packets, max_sending_rate).await
         {

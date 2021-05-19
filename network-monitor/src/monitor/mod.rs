@@ -10,7 +10,7 @@ use crate::node_status_api::models::{BatchGatewayStatus, BatchMixStatus};
 use crate::test_packet::NodeType;
 use crate::tested_network::TestedNetwork;
 use log::*;
-use tokio::time::{sleep, Duration};
+use tokio::time::{sleep, Duration, Instant};
 
 pub(crate) mod preparer;
 pub(crate) mod processor;
@@ -19,7 +19,8 @@ pub(crate) mod sender;
 pub(crate) mod summary_producer;
 
 const PACKET_DELIVERY_TIMEOUT: Duration = Duration::from_secs(20);
-const MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(2 * 60);
+const MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(15 * 60);
+const GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
 
 pub(super) struct Monitor {
     nonce: u64,
@@ -182,11 +183,38 @@ impl Monitor {
         self.nonce += 1;
     }
 
+    async fn ping_all_gateways(&mut self) {
+        self.packet_sender.ping_all_active_gateways().await;
+    }
+
     pub(crate) async fn run(&mut self) {
+        // start from 0 to run test immediately on startup
+        let test_delay = sleep(Duration::from_secs(0));
+        tokio::pin!(test_delay);
+
+        let ping_delay = sleep(GATEWAY_PING_INTERVAL);
+        tokio::pin!(ping_delay);
+
         loop {
-            self.test_run().await;
-            info!(target: "Monitor", "Next test run will happen in {:?}", MONITOR_RUN_INTERVAL);
-            sleep(MONITOR_RUN_INTERVAL).await;
+            tokio::select! {
+                _ = &mut test_delay => {
+                    self.test_run().await;
+                    info!(target: "Monitor", "Next test run will happen in {:?}", MONITOR_RUN_INTERVAL);
+
+                    let now = Instant::now();
+                    test_delay.as_mut().reset(now + MONITOR_RUN_INTERVAL);
+                    // since we just sent packets through gateways, there's no need to ping them
+                    ping_delay.as_mut().reset(now + GATEWAY_PING_INTERVAL);
+
+                }
+                _ = &mut ping_delay => {
+                    info!(target: "Monitor", "Pinging all active gateways");
+                    self.ping_all_gateways().await;
+
+                    let now = Instant::now();
+                    ping_delay.as_mut().reset(now + GATEWAY_PING_INTERVAL);
+                }
+            }
         }
     }
 }

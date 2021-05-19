@@ -20,6 +20,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
+use tokio::time::Instant;
 
 pub(crate) struct GatewayPackets {
     /// Network address of the target gateway if wanted to be accessed by the client.
@@ -303,6 +304,52 @@ impl PacketSender {
                 }
             }
         })
+    }
+
+    pub(super) async fn ping_all_active_gateways(&mut self) {
+        if self.active_gateway_clients.is_empty() {
+            info!(target: "Monitor", "no gateways to ping");
+            return;
+        }
+
+        let ping_start = Instant::now();
+
+        let mut clients_to_purge = Vec::new();
+
+        // since we don't need to wait for response, we can just ping all gateways sequentially
+        // if it becomes problem later on, we can adjust it.
+        for (gateway_id, active_client) in self.active_gateway_clients.iter_mut() {
+            if let Err(err) = active_client.send_ping_message().await {
+                warn!(
+                    target: "Monitor",
+                    "failed to send ping message to gateway {} - {} - assuming the connection is dead.",
+                    active_client.gateway_identity().to_base58_string(),
+                    err,
+                );
+                clients_to_purge.push(*gateway_id);
+            }
+        }
+
+        // purge all dead connections
+        for gateway_id in clients_to_purge.into_iter() {
+            // if this unwrap failed it means something extremely weird is going on
+            // and we got some solar flare bitflip type of corruption
+            let gateway_key = identity::PublicKey::from_bytes(&gateway_id)
+                .expect("failed to recover gateways public key from valid bytes");
+
+            // remove the gateway listener channels
+            self.fresh_gateway_client_data
+                .gateways_status_updater
+                .unbounded_send(GatewayClientUpdate::Failure(gateway_key))
+                .expect("packet receiver seems to have died!");
+
+            // and remove it from our cache
+            self.active_gateway_clients.remove(&gateway_id);
+        }
+
+        let ping_end = Instant::now();
+        let time_taken = ping_end.duration_since(ping_start);
+        debug!(target: "Monitor", "pinging all active gateways took {:?}", time_taken);
     }
 }
 

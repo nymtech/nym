@@ -19,7 +19,7 @@ pub(crate) mod sender;
 pub(crate) mod summary_producer;
 
 const PACKET_DELIVERY_TIMEOUT: Duration = Duration::from_secs(20);
-const MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(2 * 60);
+const MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(15 * 60);
 const GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
 
 pub(super) struct Monitor {

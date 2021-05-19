@@ -1,6 +1,5 @@
 use serde::Deserialize;
 use serde::Serialize;
-use std::fs::File;
 use std::path::PathBuf;
 use std::{fs, io};
 
@@ -24,21 +23,21 @@ impl Default for NodeDescription {
 }
 
 impl NodeDescription {
-    pub(crate) fn load_from_file(mut config_path: PathBuf) -> io::Result<NodeDescription> {
-        config_path.push("descriptor.json");
-        let json = fs::read_to_string(config_path)?;
-        serde_json::from_str(&json)
-            .map_err(|json_err| io::Error::new(io::ErrorKind::Other, json_err))
+    pub(crate) fn load_from_file(config_path: PathBuf) -> io::Result<NodeDescription> {
+        let description_file_path: PathBuf = [config_path.to_str().unwrap(), DESCRIPTION_FILE]
+            .iter()
+            .collect();
         let toml = fs::read_to_string(description_file_path)?;
         toml::from_str(&toml).map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
     }
 
     pub(crate) fn save_to_file(
         description: &NodeDescription,
-        mut config_path: PathBuf,
+        config_path: PathBuf,
     ) -> io::Result<()> {
-        config_path.push("descriptor.json");
-        serde_json::to_writer(&File::create(config_path)?, description)?;
+        let description_file_path: PathBuf = [config_path.to_str().unwrap(), DESCRIPTION_FILE]
+            .iter()
+            .collect();
         let description_toml =
             toml::to_string(description).expect("could not encode description to toml");
         fs::write(description_file_path, description_toml)?;

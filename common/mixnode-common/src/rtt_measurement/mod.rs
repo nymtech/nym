@@ -33,7 +33,7 @@ pub(crate) mod packet;
 pub(crate) mod sender;
 
 // TODO: MUST BE UPDATED BEFORE ACTUAL RELEASE!!
-pub const MINIMUM_NODE_VERSION: &str = "0.10.1-dev";
+pub const MINIMUM_NODE_VERSION: &str = "0.10.1";
 pub const DEFAULT_MEASUREMENT_PORT: u16 = 1790;
 
 // by default all of those are overwritten by config data from mixnodes directly

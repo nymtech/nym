@@ -25,7 +25,7 @@ impl NodeDescription {
     pub(crate) fn load_from_file(mut config_path: PathBuf) -> io::Result<NodeDescription> {
         config_path.push("descriptor.json");
         let json = fs::read_to_string(config_path)?;
-        ::serde_json::from_str(&json)
+        serde_json::from_str(&json)
             .map_err(|json_err| io::Error::new(io::ErrorKind::Other, json_err))
     }
 
@@ -34,7 +34,7 @@ impl NodeDescription {
         mut config_path: PathBuf,
     ) -> io::Result<()> {
         config_path.push("descriptor.json");
-        ::serde_json::to_writer(&File::create(config_path)?, description)?;
+        serde_json::to_writer(&File::create(config_path)?, description)?;
         Ok(())
     }
 }

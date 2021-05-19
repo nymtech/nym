@@ -50,7 +50,7 @@ impl MixNode {
     }
 
     fn start_http_api(&self, atomic_verloc_result: AtomicVerlocResult) {
-        info!("Starting HTTP API on port 8000...");
+        info!("Starting HTTP API on http://localhost:8000");
 
         let mut config = rocket::config::Config::release_default();
         // bind to the same address as we are using for mixnodes

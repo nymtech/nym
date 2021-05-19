@@ -69,7 +69,7 @@ impl Monitor {
                 err
             )
         }
-        
+
         if let Err(err) = self
             .node_status_api_client
             .post_batch_gateway_status(gateway_status)

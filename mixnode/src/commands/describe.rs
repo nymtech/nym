@@ -3,9 +3,8 @@ use crate::node::node_description::NodeDescription;
 use clap::{App, Arg, ArgMatches};
 use colored::Colorize;
 use config::NymConfig;
+use std::io;
 use std::io::Write;
-use std::path::Path;
-use std::{io, process};
 
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("describe")
@@ -62,6 +61,5 @@ pub fn execute(matches: &ArgMatches) {
     };
 
     // save the struct
-    // leaving it as a straight `unwrap` as we don't expect any errors here
-    NodeDescription::save_to_file(&node_description, config_path).unwrap()
+    NodeDescription::save_to_file(&node_description, Config::default_config_directory(id)).unwrap()
 }

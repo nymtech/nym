@@ -4,6 +4,8 @@ use std::fs::File;
 use std::path::PathBuf;
 use std::{fs, io};
 
+pub(crate) const DESCRIPTION_FILE: &str = "description.toml";
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct NodeDescription {
     pub(crate) name: String,
@@ -27,6 +29,8 @@ impl NodeDescription {
         let json = fs::read_to_string(config_path)?;
         serde_json::from_str(&json)
             .map_err(|json_err| io::Error::new(io::ErrorKind::Other, json_err))
+        let toml = fs::read_to_string(description_file_path)?;
+        toml::from_str(&toml).map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
     }
 
     pub(crate) fn save_to_file(
@@ -35,6 +39,9 @@ impl NodeDescription {
     ) -> io::Result<()> {
         config_path.push("descriptor.json");
         serde_json::to_writer(&File::create(config_path)?, description)?;
+        let description_toml =
+            toml::to_string(description).expect("could not encode description to toml");
+        fs::write(description_file_path, description_toml)?;
         Ok(())
     }
 }

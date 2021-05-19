@@ -26,12 +26,13 @@ pub fn execute(matches: &ArgMatches) {
         .expect("Please provide the id of your mixnode");
 
     // ensure that the mixnode has in fact been initialized
-    let config_path = Config::default_config_directory(id);
-    let config_dir_exists = Path::new(&config_path).is_dir();
-    if !config_dir_exists {
-        println!("Couldn't find the config directory, please make sure the mixnode has been initialized and you're passing the right id");
-        process::exit(1);
-    }
+    match Config::load_from_file(id) {
+        Ok(cfg) => cfg,
+        Err(err) => {
+            error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);
+            return;
+        }
+    };
 
     // get input from the user
     print!("name: ");

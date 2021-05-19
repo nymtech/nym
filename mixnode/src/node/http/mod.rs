@@ -1,6 +1,7 @@
-use rocket::Request;
-
+pub(crate) mod description;
 pub(crate) mod verloc;
+
+use rocket::Request;
 
 #[catch(404)]
 pub(crate) fn not_found(req: &Request) -> String {

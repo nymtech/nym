@@ -3,12 +3,14 @@
 
 use crate::config::Config;
 use crate::node::http::{
+    description::description,
     not_found,
     verloc::{verloc, VerlocState},
 };
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
+use crate::node::node_description::NodeDescription;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use crypto::asymmetric::{encryption, identity};
 use log::{error, info, warn};
@@ -21,11 +23,13 @@ use version_checker::parse_version;
 pub(crate) mod http;
 mod listener;
 mod metrics;
+pub(crate) mod node_description;
 pub(crate) mod packet_delayforwarder;
 
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
     config: Config,
+    descriptor: NodeDescription,
     identity_keypair: Arc<identity::KeyPair>,
     sphinx_keypair: Arc<encryption::KeyPair>,
 }
@@ -33,31 +37,35 @@ pub struct MixNode {
 impl MixNode {
     pub fn new(
         config: Config,
+        descriptor: NodeDescription,
         identity_keypair: identity::KeyPair,
         sphinx_keypair: encryption::KeyPair,
     ) -> Self {
         MixNode {
             config,
+            descriptor,
             identity_keypair: Arc::new(identity_keypair),
             sphinx_keypair: Arc::new(sphinx_keypair),
         }
     }
 
     fn start_http_api(&self, atomic_verloc_result: AtomicVerlocResult) {
-        info!("Starting HTTP API on port 8000...");
+        info!("Starting HTTP API on http://localhost:8000");
 
         let mut config = rocket::config::Config::release_default();
         // bind to the same address as we are using for mixnodes
         config.address = self.config.get_listening_address().ip();
 
-        let state = VerlocState::new(atomic_verloc_result);
+        let verloc_state = VerlocState::new(atomic_verloc_result);
+        let descriptor = self.descriptor.clone();
 
         tokio::spawn(async move {
             rocket::build()
                 .configure(config)
-                .mount("/", routes![verloc])
+                .mount("/", routes![verloc, description])
                 .register("/", catchers![not_found])
-                .manage(state)
+                .manage(verloc_state)
+                .manage(descriptor)
                 .launch()
                 .await
         });

@@ -25,6 +25,7 @@ rocket_contrib = { git = "https://github.com/SergioBenitez/Rocket", rev="f442ad9
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.4", features = [ "rt-multi-thread", "net", "signal" ] }
 tokio-util = { version = "0.6", features = ["codec"] }
+toml = "0.5"
 
 ## internal
 config = { path = "../common/config" }

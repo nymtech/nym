@@ -5,7 +5,6 @@ use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use log::trace;
-use metrics_client::models::metrics::MixMetric;
 use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -94,7 +93,9 @@ impl MetricsReceiver {
 
 struct MetricsSender {
     metrics: MixMetrics,
+    #[allow(dead_code)]
     metrics_client: metrics_client::Client,
+    #[allow(dead_code)]
     pub_key_str: String,
     metrics_informer: MetricsInformer,
 }
@@ -119,35 +120,35 @@ impl MetricsSender {
     fn start(mut self) -> JoinHandle<()> {
         tokio::spawn(async move {
             loop {
-                // // set the deadline in the future
-                // let sending_delay = tokio::time::delay_for(self.sending_delay);
                 let (received, sent) = self.metrics.acquire_and_reset_metrics().await;
 
                 self.metrics_informer.update_running_stats(received, &sent);
                 self.metrics_informer.log_report_stats(received, &sent);
                 self.metrics_informer.try_log_running_stats();
 
-                let sending_delay = match self
-                    .metrics_client
-                    .post_mix_metrics(MixMetric {
-                        pub_key: self.pub_key_str.clone(),
-                        received,
-                        sent,
-                    })
-                    .await
-                {
-                    Err(err) => {
-                        error!("failed to send metrics - {:?}", err);
-                        tokio::time::sleep(METRICS_FAILURE_BACKOFF)
-                    }
-                    Ok(new_interval) => {
-                        debug!("sent metrics information");
-                        tokio::time::sleep(Duration::from_secs(new_interval.next_report_in))
-                    }
-                };
+                tokio::time::sleep(METRICS_FAILURE_BACKOFF).await;
 
-                // wait for however much is left
-                sending_delay.await;
+                // let sending_delay = match self
+                //     .metrics_client
+                //     .post_mix_metrics(MixMetric {
+                //         pub_key: self.pub_key_str.clone(),
+                //         received,
+                //         sent,
+                //     })
+                //     .await
+                // {
+                //     Err(err) => {
+                //         error!("failed to send metrics - {:?}", err);
+                //         tokio::time::sleep(METRICS_FAILURE_BACKOFF)
+                //     }
+                //     Ok(new_interval) => {
+                //         debug!("sent metrics information");
+                //         tokio::time::sleep(Duration::from_secs(new_interval.next_report_in))
+                //     }
+                // };
+                //
+                // // wait for however much is left
+                // sending_delay.await;
             }
         })
     }

@@ -3,8 +3,9 @@ use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
 use crate::state::StateParams;
 use crate::storage::{
-    config, config_read, gateways, gateways_read, increase_gateway_bond, increase_mixnode_bond,
-    mixnodes, mixnodes_read, read_gateway_epoch_reward_rate, read_mixnode_epoch_reward_rate,
+    config, config_read, gateways, gateways_owners, gateways_owners_read, gateways_read,
+    increase_gateway_bond, increase_mixnode_bond, mixnodes, mixnodes_owners, mixnodes_owners_read,
+    mixnodes_read, read_gateway_epoch_reward_rate, read_mixnode_epoch_reward_rate,
     read_state_params,
 };
 use cosmwasm_std::{
@@ -54,16 +55,28 @@ pub(crate) fn try_add_mixnode(
     let minimum_bond = read_state_params(deps.storage).minimum_mixnode_bond;
     validate_mixnode_bond(&info.sent_funds, minimum_bond)?;
 
+    // check if this node wasn't already claimed by somebody else
+    let mut was_present = false;
+    if let Some(current_owner) =
+        mixnodes_owners_read(deps.storage).may_load(mix_node.identity_key.as_bytes())?
+    {
+        if current_owner != info.sender {
+            return Err(ContractError::DuplicateMixnode {
+                owner: current_owner,
+            });
+        }
+        was_present = true
+    }
+
     let bond = MixNodeBond::new(info.sent_funds, info.sender.clone(), mix_node);
 
     let sender_bytes = info.sender.as_bytes();
-    let was_present = mixnodes_read(deps.storage)
-        .may_load(sender_bytes)?
-        .is_some();
-
     let attributes = vec![attr("overwritten", was_present)];
 
+    // TODO: now this can be potentially problematic. What if the first call doesn't fail but the second one does?
+    // can we do some rollback somehow?
     mixnodes(deps.storage).save(sender_bytes, &bond)?;
+    mixnodes_owners(deps.storage).save(bond.mix_node.identity_key.as_bytes(), &info.sender)?;
 
     Ok(HandleResponse {
         messages: vec![],
@@ -92,6 +105,8 @@ pub(crate) fn try_remove_mixnode(
 
     // remove the bond from the list of bonded mixnodes
     mixnodes(deps.storage).remove(info.sender.as_bytes());
+    // remove the node ownership
+    mixnodes_owners(deps.storage).remove(mixnode_bond.mix_node.identity_key.as_bytes());
 
     // log our actions
     let attributes = vec![attr("action", "unbond"), attr("mixnode_bond", mixnode_bond)];
@@ -145,16 +160,29 @@ pub(crate) fn try_add_gateway(
     let minimum_bond = read_state_params(deps.storage).minimum_gateway_bond;
     validate_gateway_bond(&info.sent_funds, minimum_bond)?;
 
+    // check if this node wasn't already claimed by somebody else
+    let mut was_present = false;
+    if let Some(current_owner) =
+        gateways_owners_read(deps.storage).may_load(gateway.identity_key.as_bytes())?
+    {
+        if current_owner != info.sender {
+            return Err(ContractError::DuplicateGateway {
+                owner: current_owner,
+            });
+        }
+        was_present = true;
+    }
+
     let bond = GatewayBond::new(info.sent_funds, info.sender.clone(), gateway);
 
     let sender_bytes = info.sender.as_bytes();
-    let was_present = gateways_read(deps.storage)
-        .may_load(sender_bytes)?
-        .is_some();
-
     let attributes = vec![attr("overwritten", was_present)];
 
+    // TODO: now this can be potentially problematic. What if the first call doesn't fail but the second one does?
+    // can we do some rollback somehow?
     gateways(deps.storage).save(sender_bytes, &bond)?;
+    gateways_owners(deps.storage).save(bond.gateway.identity_key.as_bytes(), &info.sender)?;
+
     Ok(HandleResponse {
         messages: vec![],
         attributes,
@@ -189,6 +217,8 @@ pub(crate) fn try_remove_gateway(
 
     // remove the bond from the list of bonded gateways
     gateways(deps.storage).remove(sender_bytes);
+    // remove the node ownership
+    gateways_owners(deps.storage).remove(gateway_bond.gateway.identity_key.as_bytes());
 
     // log our actions
     let attributes = vec![

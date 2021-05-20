@@ -79,8 +79,7 @@ impl ConnectionHandler {
     }
 
     pub(crate) async fn handle_connection(self: Arc<Self>, conn: TcpStream, remote: SocketAddr) {
-        // debug!("Starting connection handler for {:?}", remote);
-        info!("Starting connection handler for {:?}", remote);
+        debug!("Starting connection handler for {:?}", remote);
 
         let mut framed_conn = Framed::new(conn, EchoPacketCodec);
         while let Some(echo_packet) = framed_conn.next().await {

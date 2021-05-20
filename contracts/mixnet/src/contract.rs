@@ -115,15 +115,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 pub fn migrate(
-    deps: DepsMut,
+    _deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     _msg: MigrateMsg,
 ) -> Result<MigrateResponse, ContractError> {
-    // set the state to the default
-    let state = default_initial_state(info.sender);
-
-    config(deps.storage).save(&state)?;
     Ok(Default::default())
 }
 

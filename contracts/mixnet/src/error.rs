@@ -53,4 +53,10 @@ pub enum ContractError {
 
     #[error("This address has already bonded a gateway")]
     AlreadyOwnsGateway,
+
+    #[error("Mixnode with this identity already exists. Its owner is {owner:?}")]
+    DuplicateMixnode { owner: HumanAddr },
+
+    #[error("Gateway with this identity already exists. Its owner is {owner:?}")]
+    DuplicateGateway { owner: HumanAddr },
 }

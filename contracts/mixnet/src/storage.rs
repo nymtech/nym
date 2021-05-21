@@ -1,5 +1,5 @@
 use crate::state::{State, StateParams};
-use cosmwasm_std::{Decimal, StdError, StdResult, Storage};
+use cosmwasm_std::{Decimal, HumanAddr, StdError, StdResult, Storage};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -51,6 +51,16 @@ pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
     bucket_read(storage, PREFIX_MIXNODES)
 }
 
+const PREFIX_MIXNODES_OWNERS: &[u8] = b"mix-owners";
+
+pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
+    bucket(storage, PREFIX_MIXNODES_OWNERS)
+}
+
+pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<HumanAddr> {
+    bucket_read(storage, PREFIX_MIXNODES_OWNERS)
+}
+
 // helpers
 pub(crate) fn increase_mixnode_bond(
     storage: &mut dyn Storage,
@@ -96,6 +106,16 @@ pub fn gateways(storage: &mut dyn Storage) -> Bucket<GatewayBond> {
 
 pub fn gateways_read(storage: &dyn Storage) -> ReadonlyBucket<GatewayBond> {
     bucket_read(storage, PREFIX_GATEWAYS)
+}
+
+const PREFIX_GATEWAYS_OWNERS: &[u8] = b"gateway-owners";
+
+pub fn gateways_owners(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
+    bucket(storage, PREFIX_GATEWAYS_OWNERS)
+}
+
+pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<HumanAddr> {
+    bucket_read(storage, PREFIX_GATEWAYS_OWNERS)
 }
 
 // helpers

@@ -3,8 +3,9 @@ use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
 use crate::state::StateParams;
 use crate::storage::{
-    config, config_read, gateways, gateways_read, increase_gateway_bond, increase_mixnode_bond,
-    mixnodes, mixnodes_read, read_gateway_epoch_reward_rate, read_mixnode_epoch_reward_rate,
+    config, config_read, gateways, gateways_owners, gateways_owners_read, gateways_read,
+    increase_gateway_bond, increase_mixnode_bond, mixnodes, mixnodes_owners, mixnodes_owners_read,
+    mixnodes_read, read_gateway_epoch_reward_rate, read_mixnode_epoch_reward_rate,
     read_state_params,
 };
 use cosmwasm_std::{
@@ -54,16 +55,28 @@ pub(crate) fn try_add_mixnode(
     let minimum_bond = read_state_params(deps.storage).minimum_mixnode_bond;
     validate_mixnode_bond(&info.sent_funds, minimum_bond)?;
 
+    // check if this node wasn't already claimed by somebody else
+    let mut was_present = false;
+    if let Some(current_owner) =
+        mixnodes_owners_read(deps.storage).may_load(mix_node.identity_key.as_bytes())?
+    {
+        if current_owner != info.sender {
+            return Err(ContractError::DuplicateMixnode {
+                owner: current_owner,
+            });
+        }
+        was_present = true
+    }
+
     let bond = MixNodeBond::new(info.sent_funds, info.sender.clone(), mix_node);
 
     let sender_bytes = info.sender.as_bytes();
-    let was_present = mixnodes_read(deps.storage)
-        .may_load(sender_bytes)?
-        .is_some();
-
     let attributes = vec![attr("overwritten", was_present)];
 
+    // TODO: now this can be potentially problematic. What if the first call doesn't fail but the second one does?
+    // can we do some rollback somehow?
     mixnodes(deps.storage).save(sender_bytes, &bond)?;
+    mixnodes_owners(deps.storage).save(bond.mix_node.identity_key.as_bytes(), &info.sender)?;
 
     Ok(HandleResponse {
         messages: vec![],
@@ -92,6 +105,8 @@ pub(crate) fn try_remove_mixnode(
 
     // remove the bond from the list of bonded mixnodes
     mixnodes(deps.storage).remove(info.sender.as_bytes());
+    // remove the node ownership
+    mixnodes_owners(deps.storage).remove(mixnode_bond.mix_node.identity_key.as_bytes());
 
     // log our actions
     let attributes = vec![attr("action", "unbond"), attr("mixnode_bond", mixnode_bond)];
@@ -145,16 +160,29 @@ pub(crate) fn try_add_gateway(
     let minimum_bond = read_state_params(deps.storage).minimum_gateway_bond;
     validate_gateway_bond(&info.sent_funds, minimum_bond)?;
 
+    // check if this node wasn't already claimed by somebody else
+    let mut was_present = false;
+    if let Some(current_owner) =
+        gateways_owners_read(deps.storage).may_load(gateway.identity_key.as_bytes())?
+    {
+        if current_owner != info.sender {
+            return Err(ContractError::DuplicateGateway {
+                owner: current_owner,
+            });
+        }
+        was_present = true;
+    }
+
     let bond = GatewayBond::new(info.sent_funds, info.sender.clone(), gateway);
 
     let sender_bytes = info.sender.as_bytes();
-    let was_present = gateways_read(deps.storage)
-        .may_load(sender_bytes)?
-        .is_some();
-
     let attributes = vec![attr("overwritten", was_present)];
 
+    // TODO: now this can be potentially problematic. What if the first call doesn't fail but the second one does?
+    // can we do some rollback somehow?
     gateways(deps.storage).save(sender_bytes, &bond)?;
+    gateways_owners(deps.storage).save(bond.gateway.identity_key.as_bytes(), &info.sender)?;
+
     Ok(HandleResponse {
         messages: vec![],
         attributes,
@@ -189,6 +217,8 @@ pub(crate) fn try_remove_gateway(
 
     // remove the bond from the list of bonded gateways
     gateways(deps.storage).remove(sender_bytes);
+    // remove the node ownership
+    gateways_owners(deps.storage).remove(gateway_bond.gateway.identity_key.as_bytes());
 
     // log our actions
     let attributes = vec![
@@ -391,7 +421,10 @@ pub mod tests {
         // if we send enough funds
         let info = mock_info("anyone", &coins(1000_000000, DENOM));
         let msg = HandleMsg::BondMixnode {
-            mix_node: helpers::mix_node_fixture(),
+            mix_node: MixNode {
+                identity_key: "anyonesmixnode".into(),
+                ..helpers::mix_node_fixture()
+            },
         };
 
         // we get back a message telling us everything was OK
@@ -410,12 +443,21 @@ pub mod tests {
         .unwrap();
         let page: PagedResponse = from_binary(&query_response).unwrap();
         assert_eq!(1, page.nodes.len());
-        assert_eq!(&helpers::mix_node_fixture(), page.nodes[0].mix_node());
+        assert_eq!(
+            &MixNode {
+                identity_key: "anyonesmixnode".into(),
+                ..helpers::mix_node_fixture()
+            },
+            page.nodes[0].mix_node()
+        );
 
         // if there was already a mixnode bonded by particular user
         let info = mock_info("foomper", &good_mixnode_bond());
         let msg = HandleMsg::BondMixnode {
-            mix_node: helpers::mix_node_fixture(),
+            mix_node: MixNode {
+                identity_key: "foompermixnode".into(),
+                ..helpers::mix_node_fixture()
+            },
         };
 
         let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -423,7 +465,10 @@ pub mod tests {
 
         let info = mock_info("foomper", &good_mixnode_bond());
         let msg = HandleMsg::BondMixnode {
-            mix_node: helpers::mix_node_fixture(),
+            mix_node: MixNode {
+                identity_key: "foompermixnode".into(),
+                ..helpers::mix_node_fixture()
+            },
         };
 
         // we get a log message about it (TODO: does it get back to the user?)
@@ -458,6 +503,121 @@ pub mod tests {
 
         // adding another node from another account, but with the same IP, should fail (or we would have a weird state). Is that right? Think about this, not sure yet.
         // if we attempt to register a second node from the same address, should we get an error? It would probably be polite.
+    }
+
+    #[test]
+    fn adding_mixnode_without_existing_owner() {
+        let mut deps = helpers::init_contract();
+
+        let info = mock_info("mix-owner", &good_mixnode_bond());
+        let msg = HandleMsg::BondMixnode {
+            mix_node: MixNode {
+                identity_key: "myAwesomeMixnode".to_string(),
+                ..helpers::mix_node_fixture()
+            },
+        };
+
+        // before the execution the node had no associated owner
+        assert!(mixnodes_owners_read(deps.as_ref().storage)
+            .may_load("myAwesomeMixnode".as_bytes())
+            .unwrap()
+            .is_none());
+
+        // it's all fine, owner is saved
+        let handle_response = handle(deps.as_mut(), mock_env(), info, msg);
+        assert!(handle_response.is_ok());
+
+        assert_eq!(
+            HumanAddr::from("mix-owner"),
+            mixnodes_owners_read(deps.as_ref().storage)
+                .load("myAwesomeMixnode".as_bytes())
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn adding_mixnode_with_existing_owner() {
+        let mut deps = helpers::init_contract();
+
+        let info = mock_info("mix-owner", &good_mixnode_bond());
+        let msg = HandleMsg::BondMixnode {
+            mix_node: MixNode {
+                identity_key: "myAwesomeMixnode".to_string(),
+                ..helpers::mix_node_fixture()
+            },
+        };
+
+        handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // request fails giving the existing owner address in the message
+        let info = mock_info("mix-owner-pretender", &good_mixnode_bond());
+        let msg = HandleMsg::BondMixnode {
+            mix_node: MixNode {
+                identity_key: "myAwesomeMixnode".to_string(),
+                ..helpers::mix_node_fixture()
+            },
+        };
+
+        let handle_response = handle(deps.as_mut(), mock_env(), info, msg);
+        assert_eq!(
+            Err(ContractError::DuplicateMixnode {
+                owner: "mix-owner".into()
+            }),
+            handle_response
+        );
+
+        // owner is not changed
+        assert_eq!(
+            HumanAddr::from("mix-owner"),
+            mixnodes_owners_read(deps.as_ref().storage)
+                .load("myAwesomeMixnode".as_bytes())
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn adding_mixnode_with_existing_unchanged_owner() {
+        let mut deps = helpers::init_contract();
+
+        let info = mock_info("mix-owner", &good_mixnode_bond());
+        let msg = HandleMsg::BondMixnode {
+            mix_node: MixNode {
+                identity_key: "myAwesomeMixnode".to_string(),
+                host: "1.1.1.1:1789".into(),
+                ..helpers::mix_node_fixture()
+            },
+        };
+
+        handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        let info = mock_info("mix-owner", &good_mixnode_bond());
+        let msg = HandleMsg::BondMixnode {
+            mix_node: MixNode {
+                identity_key: "myAwesomeMixnode".to_string(),
+                host: "2.2.2.2:1789".into(),
+                ..helpers::mix_node_fixture()
+            },
+        };
+
+        assert!(handle(deps.as_mut(), mock_env(), info, msg).is_ok());
+
+        // make sure the host information was updated
+        assert_eq!(
+            "2.2.2.2:1789".to_string(),
+            mixnodes_read(deps.as_ref().storage)
+                .load("mix-owner".as_bytes())
+                .unwrap()
+                .mix_node
+                .host
+        );
+
+        // and nothing was changed regarding ownership
+        assert_eq!(
+            HumanAddr::from("mix-owner"),
+            mixnodes_owners_read(deps.as_ref().storage)
+                .load("myAwesomeMixnode".as_bytes())
+                .unwrap()
+        );
     }
 
     #[test]
@@ -543,6 +703,54 @@ pub mod tests {
         assert_eq!("bob", mix_node_bonds[0].owner());
     }
 
+    #[test]
+    fn removing_mixnode_clears_ownership() {
+        let mut deps = helpers::init_contract();
+
+        let info = mock_info("mix-owner", &good_mixnode_bond());
+        let msg = HandleMsg::BondMixnode {
+            mix_node: MixNode {
+                identity_key: "myAwesomeMixnode".to_string(),
+                ..helpers::mix_node_fixture()
+            },
+        };
+
+        handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(
+            HumanAddr::from("mix-owner"),
+            mixnodes_owners_read(deps.as_ref().storage)
+                .load("myAwesomeMixnode".as_bytes())
+                .unwrap()
+        );
+
+        let info = mock_info("mix-owner", &[]);
+        let msg = HandleMsg::UnbondMixnode {};
+
+        assert!(handle(deps.as_mut(), mock_env(), info, msg).is_ok());
+
+        assert!(mixnodes_owners_read(deps.as_ref().storage)
+            .may_load("myAwesomeMixnode".as_bytes())
+            .unwrap()
+            .is_none());
+
+        // and since it's removed, it can be reclaimed
+        let info = mock_info("mix-owner", &good_mixnode_bond());
+        let msg = HandleMsg::BondMixnode {
+            mix_node: MixNode {
+                identity_key: "myAwesomeMixnode".to_string(),
+                ..helpers::mix_node_fixture()
+            },
+        };
+
+        assert!(handle(deps.as_mut(), mock_env(), info, msg).is_ok());
+        assert_eq!(
+            HumanAddr::from("mix-owner"),
+            mixnodes_owners_read(deps.as_ref().storage)
+                .load("myAwesomeMixnode".as_bytes())
+                .unwrap()
+        );
+    }
+
     fn good_gateway_bond() -> Vec<Coin> {
         vec![Coin {
             denom: DENOM.to_string(),
@@ -623,7 +831,10 @@ pub mod tests {
         // if we send enough funds
         let info = mock_info("anyone", &good_gateway_bond());
         let msg = HandleMsg::BondGateway {
-            gateway: helpers::gateway_fixture(),
+            gateway: Gateway {
+                identity_key: "anyonesgateway".into(),
+                ..helpers::gateway_fixture()
+            },
         };
 
         // we get back a message telling us everything was OK
@@ -642,12 +853,21 @@ pub mod tests {
         .unwrap();
         let page: PagedGatewayResponse = from_binary(&query_response).unwrap();
         assert_eq!(1, page.nodes.len());
-        assert_eq!(&helpers::gateway_fixture(), page.nodes[0].gateway());
+        assert_eq!(
+            &Gateway {
+                identity_key: "anyonesgateway".into(),
+                ..helpers::gateway_fixture()
+            },
+            page.nodes[0].gateway()
+        );
 
         // if there was already a gateway bonded by particular user
         let info = mock_info("foomper", &good_gateway_bond());
         let msg = HandleMsg::BondGateway {
-            gateway: helpers::gateway_fixture(),
+            gateway: Gateway {
+                identity_key: "foompersgateway".into(),
+                ..helpers::gateway_fixture()
+            },
         };
 
         let handle_response = handle(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -655,7 +875,10 @@ pub mod tests {
 
         let info = mock_info("foomper", &good_gateway_bond());
         let msg = HandleMsg::BondGateway {
-            gateway: helpers::gateway_fixture(),
+            gateway: Gateway {
+                identity_key: "foompersgateway".into(),
+                ..helpers::gateway_fixture()
+            },
         };
 
         // we get a log message about it (TODO: does it get back to the user?)
@@ -669,7 +892,7 @@ pub mod tests {
         };
         handle(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        let info = mock_info("mixnode-owner", &good_mixnode_bond());
+        let info = mock_info("mixnode-owner", &good_gateway_bond());
         let msg = HandleMsg::BondGateway {
             gateway: helpers::gateway_fixture(),
         };
@@ -681,7 +904,7 @@ pub mod tests {
         let msg = HandleMsg::UnbondMixnode {};
         handle(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        let info = mock_info("mixnode-owner", &good_mixnode_bond());
+        let info = mock_info("mixnode-owner", &good_gateway_bond());
         let msg = HandleMsg::BondGateway {
             gateway: helpers::gateway_fixture(),
         };
@@ -690,6 +913,121 @@ pub mod tests {
 
         // adding another node from another account, but with the same IP, should fail (or we would have a weird state).
         // Is that right? Think about this, not sure yet.
+    }
+
+    #[test]
+    fn adding_gateway_without_existing_owner() {
+        let mut deps = helpers::init_contract();
+
+        let info = mock_info("gateway-owner", &good_gateway_bond());
+        let msg = HandleMsg::BondGateway {
+            gateway: Gateway {
+                identity_key: "myAwesomeGateway".to_string(),
+                ..helpers::gateway_fixture()
+            },
+        };
+
+        // before the execution the node had no associated owner
+        assert!(gateways_owners_read(deps.as_ref().storage)
+            .may_load("myAwesomeGateway".as_bytes())
+            .unwrap()
+            .is_none());
+
+        // it's all fine, owner is saved
+        let handle_response = handle(deps.as_mut(), mock_env(), info, msg);
+        assert!(handle_response.is_ok());
+
+        assert_eq!(
+            HumanAddr::from("gateway-owner"),
+            gateways_owners_read(deps.as_ref().storage)
+                .load("myAwesomeGateway".as_bytes())
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn adding_gateway_with_existing_owner() {
+        let mut deps = helpers::init_contract();
+
+        let info = mock_info("gateway-owner", &good_gateway_bond());
+        let msg = HandleMsg::BondGateway {
+            gateway: Gateway {
+                identity_key: "myAwesomeGateway".to_string(),
+                ..helpers::gateway_fixture()
+            },
+        };
+
+        handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // request fails giving the existing owner address in the message
+        let info = mock_info("gateway-owner-pretender", &good_gateway_bond());
+        let msg = HandleMsg::BondGateway {
+            gateway: Gateway {
+                identity_key: "myAwesomeGateway".to_string(),
+                ..helpers::gateway_fixture()
+            },
+        };
+
+        let handle_response = handle(deps.as_mut(), mock_env(), info, msg);
+        assert_eq!(
+            Err(ContractError::DuplicateGateway {
+                owner: "gateway-owner".into()
+            }),
+            handle_response
+        );
+
+        // owner is not changed
+        assert_eq!(
+            HumanAddr::from("gateway-owner"),
+            gateways_owners_read(deps.as_ref().storage)
+                .load("myAwesomeGateway".as_bytes())
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn adding_gateway_with_existing_unchanged_owner() {
+        let mut deps = helpers::init_contract();
+
+        let info = mock_info("gateway-owner", &good_gateway_bond());
+        let msg = HandleMsg::BondGateway {
+            gateway: Gateway {
+                identity_key: "myAwesomeGateway".to_string(),
+                mix_host: "1.1.1.1:1789".into(),
+                ..helpers::gateway_fixture()
+            },
+        };
+
+        handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        let info = mock_info("gateway-owner", &good_gateway_bond());
+        let msg = HandleMsg::BondGateway {
+            gateway: Gateway {
+                identity_key: "myAwesomeGateway".to_string(),
+                mix_host: "2.2.2.2:1789".into(),
+                ..helpers::gateway_fixture()
+            },
+        };
+
+        assert!(handle(deps.as_mut(), mock_env(), info, msg).is_ok());
+
+        // make sure the host information was updated
+        assert_eq!(
+            "2.2.2.2:1789".to_string(),
+            gateways_read(deps.as_ref().storage)
+                .load("gateway-owner".as_bytes())
+                .unwrap()
+                .gateway
+                .mix_host
+        );
+
+        // and nothing was changed regarding ownership
+        assert_eq!(
+            HumanAddr::from("gateway-owner"),
+            gateways_owners_read(deps.as_ref().storage)
+                .load("myAwesomeGateway".as_bytes())
+                .unwrap()
+        );
     }
 
     #[test]
@@ -776,6 +1114,54 @@ pub mod tests {
         let gateway_bonds = helpers::get_gateways(&mut deps);
         assert_eq!(1, gateway_bonds.len());
         assert_eq!("bob", gateway_bonds[0].owner());
+    }
+
+    #[test]
+    fn removing_gateway_clears_ownership() {
+        let mut deps = helpers::init_contract();
+
+        let info = mock_info("gateway-owner", &good_mixnode_bond());
+        let msg = HandleMsg::BondGateway {
+            gateway: Gateway {
+                identity_key: "myAwesomeGateway".to_string(),
+                ..helpers::gateway_fixture()
+            },
+        };
+
+        handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(
+            HumanAddr::from("gateway-owner"),
+            gateways_owners_read(deps.as_ref().storage)
+                .load("myAwesomeGateway".as_bytes())
+                .unwrap()
+        );
+
+        let info = mock_info("gateway-owner", &[]);
+        let msg = HandleMsg::UnbondGateway {};
+
+        assert!(handle(deps.as_mut(), mock_env(), info, msg).is_ok());
+
+        assert!(gateways_owners_read(deps.as_ref().storage)
+            .may_load("myAwesomeGateway".as_bytes())
+            .unwrap()
+            .is_none());
+
+        // and since it's removed, it can be reclaimed
+        let info = mock_info("gateway-owner", &good_mixnode_bond());
+        let msg = HandleMsg::BondGateway {
+            gateway: Gateway {
+                identity_key: "myAwesomeGateway".to_string(),
+                ..helpers::gateway_fixture()
+            },
+        };
+
+        assert!(handle(deps.as_mut(), mock_env(), info, msg).is_ok());
+        assert_eq!(
+            HumanAddr::from("gateway-owner"),
+            gateways_owners_read(deps.as_ref().storage)
+                .load("myAwesomeGateway".as_bytes())
+                .unwrap()
+        );
     }
 
     #[test]

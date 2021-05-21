@@ -252,7 +252,7 @@ impl RttMeasurer {
                 let execution_result = result.expect("the measurement task panicked!");
                 let measurement_result = match execution_result.0 {
                     Err(err) => {
-                        warn!(
+                        debug!(
                             "Failed to perform measurement for {} - {}",
                             execution_result.1.to_base58_string(),
                             err

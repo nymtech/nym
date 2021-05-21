@@ -85,8 +85,7 @@ impl PacketSender {
         let mut results = Vec::with_capacity(self.packets_per_node);
 
         let mut seq = self.random_sequence_number();
-        for i in 0..self.packets_per_node {
-            println!("packet {}/{}", i + 1, self.packets_per_node);
+        for _ in 0..self.packets_per_node {
             let packet = EchoPacket::new(seq, &self.identity);
             let start = tokio::time::Instant::now();
             // TODO: should we get the start time after or before actually sending the data?

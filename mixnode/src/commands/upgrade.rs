@@ -238,6 +238,31 @@ fn minor_010_upgrade(
     upgraded_config
 }
 
+fn patch_010_upgrade(
+    config: Config,
+    _matches: &ArgMatches,
+    config_version: &Version,
+    package_version: &Version,
+) -> Config {
+    // welp, stuff like ports are mostly hardcoded and not part of the config so all is changes is just the version
+    // number
+    let to_version = package_version;
+
+    print_start_upgrade(&config_version, &to_version);
+
+    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
+
+    upgraded_config.save_to_file(None).unwrap_or_else(|err| {
+        eprintln!("failed to overwrite config file! - {:?}", err);
+        print_failed_upgrade(&config_version, &to_version);
+        process::exit(1);
+    });
+
+    print_successful_upgrade(config_version, to_version);
+
+    upgraded_config
+}
+
 fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version) {
     loop {
         let config_version = parse_config_version(&config);
@@ -250,6 +275,7 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
         config = match config_version.major {
             0 => match config_version.minor {
                 9 => minor_010_upgrade(config, &matches, &config_version, &package_version),
+                10 => patch_010_upgrade(config, &matches, &config_version, &package_version),
                 _ => unsupported_upgrade(config_version, package_version),
             },
             _ => unsupported_upgrade(config_version, package_version),

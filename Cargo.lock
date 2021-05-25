@@ -396,7 +396,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "config",
  "crypto",
@@ -1629,7 +1629,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "clap",
  "client-core",
@@ -1680,7 +1680,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "clap",
  "config",
@@ -1710,7 +1710,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "0.10.1-dev"
+version = "0.10.1"
 dependencies = [
  "bs58 0.4.0",
  "clap",
@@ -1743,7 +1743,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-monitor"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "clap",
  "crypto",
@@ -1768,7 +1768,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "clap",
  "dirs",
@@ -1789,7 +1789,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "clap",
  "client-core",

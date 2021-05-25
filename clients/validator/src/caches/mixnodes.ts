@@ -26,27 +26,20 @@ export default class MixnodesCache {
     /// Requests continue to be make as long as `shouldMakeAnotherRequest()`
     // returns true. 
     async refreshMixNodes(contractAddress: string): Promise<MixNodeBond[]> {
-        this.mixNodes = [];
+        let newMixnodes: MixNodeBond[] = [];
         let response: PagedResponse;
-        let next: string | undefined;
-        do {
+        let next: string | undefined = undefined;
+        for (;;) {
             response = await this.client.getMixNodes(contractAddress, this.perPage, next);
-            response.nodes.forEach(node => this.mixNodes.push(node));
+            newMixnodes = newMixnodes.concat(response.nodes)
             next = response.start_next_after;
-        } while (this.shouldMakeAnotherRequest(response))
-        return this.mixNodes;
-    }
+            // if `start_next_after` is not set, we're done
+            if (!next) {
+                break
+            }
+        }
 
-    /// The paging interface on the smart contracts is a bit gross at the moment.
-    /// This returns `true` if the `start_next_after` property of the response is set
-    /// and the page we've just got back is the same length as perPage on this
-    /// NetClient instance (we don't have any idea whether there is a next page
-    /// so if both these things are true we should make another request);
-    /// otherwise returns false.
-    shouldMakeAnotherRequest(response: PagedResponse): boolean {
-        const next = response.start_next_after;
-        const nextExists: boolean = (next !== null && next !== undefined && next !== "");
-        const fullPage: boolean = response.nodes.length == this.perPage;
-        return fullPage && nextExists;
+        this.mixNodes = newMixnodes
+        return this.mixNodes;
     }
 }

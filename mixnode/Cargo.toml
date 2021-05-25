@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-mixnode"
-version = "0.10.0"
+version = "0.10.1"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
@@ -20,9 +20,12 @@ humantime-serde = "1.0.1"
 log = "0.4"
 pretty_env_logger = "0.4"
 rand = "0.7"
+rocket = { git = "https://github.com/SergioBenitez/Rocket", rev="f442ad93cb2788bfd08aca5d94e509db20888101" }
+rocket_contrib = { git = "https://github.com/SergioBenitez/Rocket", rev="f442ad93cb2788bfd08aca5d94e509db20888101" }
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.4", features = [ "rt-multi-thread", "net", "signal" ] }
 tokio-util = { version = "0.6", features = ["codec"] }
+toml = "0.5"
 
 ## internal
 config = { path = "../common/config" }
@@ -34,5 +37,5 @@ nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
 nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
 topology = { path = "../common/topology" }
-validator-client-rest = { path = "../common/client-libs/validator-client-rest" }
+validator-client = { path = "../common/client-libs/validator-client" }
 version-checker = { path = "../common/version-checker" }

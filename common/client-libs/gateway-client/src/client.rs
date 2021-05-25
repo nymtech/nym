@@ -485,6 +485,27 @@ impl GatewayClient {
         }
     }
 
+    pub async fn send_ping_message(&mut self) -> Result<(), GatewayClientError> {
+        if !self.connection.is_established() {
+            return Err(GatewayClientError::ConnectionNotEstablished);
+        }
+
+        // as per RFC6455 section 5.5.2, `Ping frame MAY include "Application data".`
+        // so we don't need to include any here.
+        let msg = Message::Ping(Vec::new());
+
+        if let Err(err) = self.send_websocket_message_without_response(msg).await {
+            if err.is_closed_connection() && self.should_reconnect_on_failure {
+                info!("Going to attempt a reconnection");
+                self.attempt_reconnection().await
+            } else {
+                Err(err)
+            }
+        } else {
+            Ok(())
+        }
+    }
+
     // TODO: possibly make responses optional
     pub async fn send_mix_packet(
         &mut self,

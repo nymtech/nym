@@ -1,5 +1,14 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any,@typescript-eslint/explicit-module-boundary-types
-export default function log(text: string, thing: any): void {
-    const msg = JSON.stringify(thing);
-    console.log(`${text}: ${msg}`);
+import { Coin } from "@cosmjs/launchpad/";
+import { EncodeObject } from "@cosmjs/proto-signing";
+
+export function makeBankMsgSend(senderAddress: string, recipientAddress: string, transferAmount: readonly Coin[]): EncodeObject {
+    return {
+        typeUrl: "/cosmos.bank.v1beta1.MsgSend",
+        value: {
+            fromAddress: senderAddress,
+            toAddress: recipientAddress,
+            amount: transferAmount,
+        },
+    };
 }

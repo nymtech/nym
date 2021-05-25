@@ -48,7 +48,11 @@ public_sphinx_key_file = '{{ mixnode.public_sphinx_key_file }}'
 announce_address = '{{ mixnode.announce_address }}'
 
 # Validator server to which the node will be reporting their presence data.
-validator_rest_url = '{{ mixnode.validator_rest_url }}'
+validator_rest_urls = [
+    {{#each mixnode.validator_rest_urls }}
+        '{{this}}',
+    {{/each}}
+]
 
 # Metrics server to which the node will be reporting their metrics data.
 metrics_server_url = '{{ mixnode.metrics_server_url }}'

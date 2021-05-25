@@ -20,7 +20,6 @@ members = [
     "common/client-libs/metrics-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
-    "common/client-libs/validator-client-rest",
     "common/config",
     "common/crypto",
     "common/mixnet-contract",

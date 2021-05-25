@@ -1,17 +1,16 @@
-// settings for pagination
-use crate::state::{config_read, gateways_read, mixnodes_read, StateParams, PREFIX_MIXNODES};
+use crate::state::StateParams;
+use crate::storage::{gateways_read, mixnodes_read, read_state_params};
 use cosmwasm_std::Deps;
 use cosmwasm_std::HumanAddr;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
-use cosmwasm_storage::bucket_read;
 use mixnet_contract::{
     GatewayBond, GatewayOwnershipResponse, MixNodeBond, MixOwnershipResponse, PagedGatewayResponse,
     PagedResponse,
 };
 
-const MAX_LIMIT: u32 = 30;
-const DEFAULT_LIMIT: u32 = 10;
+const MAX_LIMIT: u32 = 100;
+const DEFAULT_LIMIT: u32 = 50;
 
 pub fn query_mixnodes_paged(
     deps: Deps,
@@ -21,19 +20,15 @@ pub fn query_mixnodes_paged(
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
     let start = calculate_start_value(start_after);
 
-    let bucket = bucket_read::<MixNodeBond>(deps.storage, PREFIX_MIXNODES);
-    let res = bucket
+    let nodes = mixnodes_read(deps.storage)
         .range(start.as_deref(), None, Order::Ascending)
-        .take(limit);
-    let node_tuples = res.collect::<StdResult<Vec<(Vec<u8>, MixNodeBond)>>>()?;
-    let nodes = node_tuples
-        .into_iter()
-        .map(|item| item.1)
-        .collect::<Vec<_>>();
+        .take(limit)
+        .map(|res| res.map(|item| item.1))
+        .collect::<StdResult<Vec<MixNodeBond>>>()?;
+
     let start_next_after = nodes.last().map(|node| node.owner().clone());
 
-    let response = PagedResponse::new(nodes, limit, start_next_after);
-    Ok(response)
+    Ok(PagedResponse::new(nodes, limit, start_next_after))
 }
 
 pub(crate) fn query_gateways_paged(
@@ -78,6 +73,10 @@ pub(crate) fn query_owns_gateway(
     })
 }
 
+pub(crate) fn query_state_params(deps: Deps) -> StateParams {
+    read_state_params(deps.storage)
+}
+
 /// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm
 /// to get the succeeding key as the start of the next page.
 fn calculate_start_value(
@@ -90,17 +89,11 @@ fn calculate_start_value(
     })
 }
 
-pub(crate) fn query_state_params(deps: Deps) -> StateParams {
-    // note: In any other case, I wouldn't have attempted to unwrap this result, but in here
-    // if we fail to load the stored state we would already be in the undefined behaviour land,
-    // so we better just blow up immediately.
-    config_read(deps.storage).load().unwrap().params
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{config, gateways, mixnodes, State};
+    use crate::state::State;
+    use crate::storage::{config, gateways, mixnodes};
     use crate::support::tests::helpers;
     use cosmwasm_std::Storage;
 
@@ -139,7 +132,7 @@ mod tests {
         // query without explicitly setting a limit
         let page1 = query_mixnodes_paged(deps.as_ref(), None, None).unwrap();
 
-        let expected_limit = 10;
+        let expected_limit = 50;
         assert_eq!(expected_limit, page1.nodes.len() as u32);
     }
 
@@ -158,7 +151,7 @@ mod tests {
         let page1 = query_mixnodes_paged(deps.as_ref(), None, Option::from(crazy_limit)).unwrap();
 
         // we default to a decent sized upper bound instead
-        let expected_limit = 30;
+        let expected_limit = 100;
         assert_eq!(expected_limit, page1.nodes.len() as u32);
     }
 
@@ -403,13 +396,17 @@ mod tests {
 
         let dummy_state = State {
             owner: "someowner".into(),
+            network_monitor_address: "monitor".into(),
             params: StateParams {
+                epoch_length: 1,
                 minimum_mixnode_bond: 123u128.into(),
                 minimum_gateway_bond: 456u128.into(),
                 mixnode_bond_reward_rate: "1.23".parse().unwrap(),
                 gateway_bond_reward_rate: "4.56".parse().unwrap(),
                 mixnode_active_set_size: 1000,
             },
+            mixnode_epoch_bond_reward: "1.23".parse().unwrap(),
+            gateway_epoch_bond_reward: "4.56".parse().unwrap(),
         };
 
         config(deps.as_mut().storage).save(&dummy_state).unwrap();

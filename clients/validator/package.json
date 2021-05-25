@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/nym-validator-client",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "A TypeScript client for interacting with smart contracts in Nym validators",
   "repository": "https://github.com/nymtech/nym",
   "main": "./dist/index.js",

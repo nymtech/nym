@@ -1,8 +1,52 @@
 # Changelog
 
-## [v0.10.0](https://github.com/nymtech/nym/tree/v0.10.0) (2020-14-15)
+## [v0.10.1](https://github.com/nymtech/nym/tree/v0.10.1) (2021-05-24)
 
-[Full Changelog](https://github.com/nymtech/nym/compare/v0.9.2...v0.10.0)
+[Full Changelog](https://github.com/nymtech/nym/compare/v0.10.0...v0.10.1)
+
+**Closed issues:**
+
+- Prometheus metrics doesn't work [\#606](https://github.com/nymtech/nym/issues/606)
+- Bonding hostname vs. ip-address does not show up on NYM explorer [\#593](https://github.com/nymtech/nym/issues/593)
+- Cannot assign requested address [\#584](https://github.com/nymtech/nym/issues/584)
+- Native client upgrade command is broken [\#582](https://github.com/nymtech/nym/issues/582)
+- Spread directory requests across good validators [\#580](https://github.com/nymtech/nym/issues/580)
+- Change network monitor to use currency-based rewareds [\#540](https://github.com/nymtech/nym/issues/540)
+- Unregistration for protocol ipv6 does not work [\#511](https://github.com/nymtech/nym/issues/511)
+- Network monitor view on validators [\#373](https://github.com/nymtech/nym/issues/373)
+
+**Merged pull requests:**
+
+- Bugfix/unique node ownership [\#612](https://github.com/nymtech/nym/pull/612) ([jstuczyn](https://github.com/jstuczyn))
+- Decreased log severity for verloc-related functionalities [\#611](https://github.com/nymtech/nym/pull/611) ([jstuczyn](https://github.com/jstuczyn))
+- Disabled metrics reporting to the central server [\#609](https://github.com/nymtech/nym/pull/609) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/network monitor gateway pings [\#608](https://github.com/nymtech/nym/pull/608) ([jstuczyn](https://github.com/jstuczyn))
+- Implemented display traits for identity and encryption keys [\#607](https://github.com/nymtech/nym/pull/607) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/add node description api [\#605](https://github.com/nymtech/nym/pull/605) ([futurechimp](https://github.com/futurechimp))
+- Feature/updated network monitor [\#604](https://github.com/nymtech/nym/pull/604) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/ping timings [\#603](https://github.com/nymtech/nym/pull/603) ([jstuczyn](https://github.com/jstuczyn))
+- Bump lodash from 4.17.20 to 4.17.21 in /clients/validator [\#602](https://github.com/nymtech/nym/pull/602) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump lodash from 4.17.20 to 4.17.21 in /clients/native/examples/js-examples/websocket [\#601](https://github.com/nymtech/nym/pull/601) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Feature/add rocket [\#600](https://github.com/nymtech/nym/pull/600) ([futurechimp](https://github.com/futurechimp))
+- Bump url-parse from 1.4.7 to 1.5.1 in /clients/native/examples/js-examples/websocket [\#599](https://github.com/nymtech/nym/pull/599) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump url-parse from 1.4.7 to 1.5.1 in /clients/webassembly/js-example [\#598](https://github.com/nymtech/nym/pull/598) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Recalculating reward rates on appropriate value changes [\#594](https://github.com/nymtech/nym/pull/594) ([jstuczyn](https://github.com/jstuczyn))
+- Changed default mixnode query page limit [\#592](https://github.com/nymtech/nym/pull/592) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/more exposed client api [\#591](https://github.com/nymtech/nym/pull/591) ([jstuczyn](https://github.com/jstuczyn))
+- Contract adjustment to check for node ownership before allowing bonding [\#590](https://github.com/nymtech/nym/pull/590) ([jstuczyn](https://github.com/jstuczyn))
+- Bump ssri from 6.0.1 to 6.0.2 in /clients/webassembly/js-example [\#589](https://github.com/nymtech/nym/pull/589) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump ssri from 6.0.1 to 6.0.2 in /clients/native/examples/js-examples/websocket [\#588](https://github.com/nymtech/nym/pull/588) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Impl Error trait for ValidatorClientError [\#587](https://github.com/nymtech/nym/pull/587) ([jstuczyn](https://github.com/jstuczyn))
+- Checking for tx success when sending coins [\#586](https://github.com/nymtech/nym/pull/586) ([jstuczyn](https://github.com/jstuczyn))
+- Logging adjustment [\#585](https://github.com/nymtech/nym/pull/585) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/multiple validator endpoints [\#583](https://github.com/nymtech/nym/pull/583) ([jstuczyn](https://github.com/jstuczyn))
+- Refreshing nodes gets all available nodes from the contract [\#575](https://github.com/nymtech/nym/pull/575) ([jstuczyn](https://github.com/jstuczyn))
+- Feature/simple payments [\#571](https://github.com/nymtech/nym/pull/571) ([jstuczyn](https://github.com/jstuczyn))
+- Minor cosmetic changes while reading around [\#568](https://github.com/nymtech/nym/pull/568) ([huitseeker](https://github.com/huitseeker))
+
+## [v0.10.0](https://github.com/nymtech/nym/tree/v0.10.0) (2021-04-15)
+
+[Full Changelog](https://github.com/nymtech/nym/compare/validator-client-0.10.0-rc1...v0.10.0)
 
 This release brings a distributed directory authority powered by [Cosmos SDK](https://cosmos.network) and [CosmWasm](https://cosmwasm.com) smart contracts. It is designed to run [Testnet Finney](https://testnet-finney-explorer.nymtech.net), the new Nym testnet. 
 

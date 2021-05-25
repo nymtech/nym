@@ -106,6 +106,12 @@ impl PemStorableKeyPair for KeyPair {
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
 pub struct PublicKey(x25519_dalek::PublicKey);
 
+impl Display for PublicKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_base58_string())
+    }
+}
+
 impl PublicKey {
     pub fn to_bytes(self) -> [u8; PUBLIC_KEY_SIZE] {
         *self.0.as_bytes()
@@ -148,6 +154,12 @@ impl PemStorableKey for PublicKey {
 
 #[derive(Clone)]
 pub struct PrivateKey(x25519_dalek::StaticSecret);
+
+impl Display for PrivateKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_base58_string())
+    }
+}
 
 impl<'a> From<&'a PrivateKey> for PublicKey {
     fn from(pk: &'a PrivateKey) -> Self {

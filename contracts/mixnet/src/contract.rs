@@ -1,10 +1,14 @@
+use crate::helpers::calculate_epoch_reward_rate;
 use crate::msg::{HandleMsg, InitMsg, MigrateMsg, QueryMsg};
-use crate::state::{config, State, StateParams};
+use crate::state::{State, StateParams};
+use crate::storage::config;
 use crate::{error::ContractError, queries, transactions};
 use cosmwasm_std::{
-    to_binary, Decimal, Deps, DepsMut, Env, HandleResponse, InitResponse, MessageInfo,
+    to_binary, Decimal, Deps, DepsMut, Env, HandleResponse, HumanAddr, InitResponse, MessageInfo,
     MigrateResponse, QueryResponse, Uint128,
 };
+
+pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
 /// Constant specifying minimum of coin required to bond a gateway
 pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128(100_000000);
@@ -12,14 +16,42 @@ pub const INITIAL_GATEWAY_BOND: Uint128 = Uint128(100_000000);
 /// Constant specifying minimum of coin required to bond a mixnode
 pub const INITIAL_MIXNODE_BOND: Uint128 = Uint128(100_000000);
 
-pub const INITIAL_MIXNODE_BOND_REWARD_RATE: Decimal = Decimal::one();
-
-pub const INITIAL_GATEWAY_BOND_REWARD_RATE: Decimal = Decimal::one();
+// percentage annual increase. Given starting value of x, we expect to have 1.1x at the end of the year
+pub const INITIAL_MIXNODE_BOND_REWARD_RATE: u64 = 110;
+pub const INITIAL_GATEWAY_BOND_REWARD_RATE: u64 = 110;
 
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 
+const NETWORK_MONITOR_ADDRESS: &str = "hal1v9qauwdq5terag6uvfsdytcs2d0sdmfdq6e83g";
+
 /// Constant specifying denomination of the coin used for bonding
 pub const DENOM: &str = "uhal";
+
+fn default_initial_state(owner: HumanAddr) -> State {
+    let mixnode_bond_reward_rate = Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE);
+    let gateway_bond_reward_rate = Decimal::percent(INITIAL_GATEWAY_BOND_REWARD_RATE);
+
+    State {
+        owner,
+        network_monitor_address: NETWORK_MONITOR_ADDRESS.into(),
+        params: StateParams {
+            epoch_length: INITIAL_DEFAULT_EPOCH_LENGTH,
+            minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
+            minimum_gateway_bond: INITIAL_GATEWAY_BOND,
+            mixnode_bond_reward_rate,
+            gateway_bond_reward_rate,
+            mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
+        },
+        mixnode_epoch_bond_reward: calculate_epoch_reward_rate(
+            INITIAL_DEFAULT_EPOCH_LENGTH,
+            mixnode_bond_reward_rate,
+        ),
+        gateway_epoch_bond_reward: calculate_epoch_reward_rate(
+            INITIAL_DEFAULT_EPOCH_LENGTH,
+            gateway_bond_reward_rate,
+        ),
+    }
+}
 
 /// Instantiate the contract.
 ///
@@ -32,19 +64,8 @@ pub fn init(
     info: MessageInfo,
     _msg: InitMsg,
 ) -> Result<InitResponse, ContractError> {
-    // TODO: to discuss with DH, should the initial state be set as it is right now, i.e.
-    // using the defined constants, or should it rather be all based on whatever is sent
-    // in `InitMsg`?
-    let state = State {
-        owner: info.sender,
-        params: StateParams {
-            minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
-            minimum_gateway_bond: INITIAL_GATEWAY_BOND,
-            mixnode_bond_reward_rate: INITIAL_MIXNODE_BOND_REWARD_RATE,
-            gateway_bond_reward_rate: INITIAL_GATEWAY_BOND_REWARD_RATE,
-            mixnode_active_set_size: INITIAL_MIXNODE_ACTIVE_SET_SIZE,
-        },
-    };
+    let state = default_initial_state(info.sender);
+
     config(deps.storage).save(&state)?;
     Ok(InitResponse::default())
 }
@@ -63,6 +84,12 @@ pub fn handle(
         HandleMsg::UnbondGateway {} => transactions::try_remove_gateway(deps, info, env),
         HandleMsg::UpdateStateParams(params) => {
             transactions::try_update_state_params(deps, info, params)
+        }
+        HandleMsg::RewardMixnode { owner, uptime } => {
+            transactions::try_reward_mixnode(deps, info, owner, uptime)
+        }
+        HandleMsg::RewardGateway { owner, uptime } => {
+            transactions::try_reward_gateway(deps, info, owner, uptime)
         }
     }
 }

@@ -6,10 +6,10 @@ import {
     PagedResponse,
     StateParams
 } from "./index";
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
-import { Coin, GasPrice } from "@cosmjs/launchpad";
+import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
+import { Coin, GasPrice, StdFee } from "@cosmjs/launchpad";
 import { BroadcastTxResponse } from "@cosmjs/stargate"
-import { nymGasLimits } from "./stargate-helper"
+import { nymGasLimits, nymGasPrice } from "./stargate-helper"
 import { ExecuteResult, InstantiateOptions, InstantiateResult, MigrateResult, UploadMeta, UploadResult } from "@cosmjs/cosmwasm";
 
 export interface INetClient {
@@ -21,10 +21,12 @@ export interface INetClient {
     ownsMixNode(contractAddress: string, address: string): Promise<MixOwnershipResponse>;
     ownsGateway(contractAddress: string, address: string): Promise<GatewayOwnershipResponse>;
     getStateParams(contractAddress: string): Promise<StateParams>;
+    signAndBroadcast(signerAddress: string, messages: readonly EncodeObject[], fee: StdFee, memo?: string): Promise<BroadcastTxResponse>;
     executeContract(senderAddress: string, contractAddress: string, handleMsg: Record<string, unknown>, memo?: string, transferAmount?: readonly Coin[]): Promise<ExecuteResult>;
     instantiate(senderAddress: string, codeId: number, initMsg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult>;
     sendTokens(senderAddress: string, recipientAddress: string, transferAmount: readonly Coin[], memo?: string): Promise<BroadcastTxResponse>;
     upload(senderAddress: string, wasmCode: Uint8Array, meta?: UploadMeta, memo?: string): Promise<UploadResult>;
+    changeValidator(newUrl: string): Promise<void>
 }
 
 /**
@@ -38,22 +40,30 @@ export interface INetClient {
 export default class NetClient implements INetClient {
     clientAddress: string;
     private cosmClient: SigningCosmWasmClient;
-    private stakeDenom: string;
 
-    private constructor(clientAddress: string, cosmClient: SigningCosmWasmClient, stakeDenom: string) {
+    // helpers for changing validators without having to remake the wallet
+    private readonly wallet: DirectSecp256k1HdWallet;
+    private readonly signerOptions: SigningCosmWasmClientOptions;
+
+    private constructor(clientAddress: string, cosmClient: SigningCosmWasmClient, wallet: DirectSecp256k1HdWallet, signerOptions: SigningCosmWasmClientOptions) {
         this.clientAddress = clientAddress;
         this.cosmClient = cosmClient;
-        this.stakeDenom = stakeDenom;
+        this.wallet = wallet;
+        this.signerOptions = signerOptions;
     }
 
     public static async connect(wallet: DirectSecp256k1HdWallet, url: string, stakeDenom: string): Promise<INetClient> {
         const [{ address }] = await wallet.getAccounts();
         const signerOptions: SigningCosmWasmClientOptions = {
-            gasPrice: GasPrice.fromString(`0.025${stakeDenom}`),
+            gasPrice: nymGasPrice(stakeDenom),
             gasLimits: nymGasLimits,
         };
         const client = await SigningCosmWasmClient.connectWithSigner(url, wallet, signerOptions);
-        return new NetClient(address, client, stakeDenom);
+        return new NetClient(address, client, wallet, signerOptions);
+    }
+
+    async changeValidator(url: string): Promise<void> {
+        this.cosmClient = await SigningCosmWasmClient.connectWithSigner(url, this.wallet, this.signerOptions);
     }
 
     public getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedResponse> {
@@ -90,6 +100,10 @@ export default class NetClient implements INetClient {
 
     public executeContract(senderAddress: string, contractAddress: string, handleMsg: Record<string, unknown>, memo?: string, transferAmount?: readonly Coin[]): Promise<ExecuteResult> {
         return this.cosmClient.execute(senderAddress, contractAddress, handleMsg, memo, transferAmount);
+    }
+
+    public signAndBroadcast(signerAddress: string, messages: readonly EncodeObject[], fee: StdFee, memo?: string): Promise<BroadcastTxResponse> {
+        return this.cosmClient.signAndBroadcast(signerAddress, messages, fee, memo)
     }
 
     public sendTokens(senderAddress: string, recipientAddress: string, transferAmount: readonly Coin[], memo?: string): Promise<BroadcastTxResponse> {

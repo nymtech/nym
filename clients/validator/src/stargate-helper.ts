@@ -1,5 +1,5 @@
 import axios from "axios";
-import { GasLimits } from "@cosmjs/launchpad";
+import { GasLimits, GasPrice } from "@cosmjs/launchpad";
 import { CosmWasmFeeTable } from "@cosmjs/cosmwasm";
 
 
@@ -18,6 +18,8 @@ export const nymGasLimits: GasLimits<CosmWasmFeeTable> = {
     send: 80_000,
     changeAdmin: 80_000,
 };
+
+export const nymGasPrice: (stakeDenom: string) => GasPrice = (stakeDenom: string) => GasPrice.fromString(`0.025${stakeDenom}`);
 
 export const defaultOptions: Options = {
     httpUrl: "http://localhost:26657",

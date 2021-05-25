@@ -7,6 +7,10 @@ use serde::Serialize;
 use std::path::PathBuf;
 use std::{fs, io};
 
+pub mod helpers;
+
+pub use helpers::{deserialize_duration, deserialize_validators};
+
 pub trait NymConfig: Default + Serialize + DeserializeOwned {
     fn template() -> &'static str;
 

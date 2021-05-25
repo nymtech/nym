@@ -5,10 +5,17 @@ use crate::config::Config;
 use clap::ArgMatches;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 
+pub(crate) mod describe;
 pub(crate) mod init;
 pub(crate) mod run;
 pub(crate) mod sign;
 pub(crate) mod upgrade;
+
+fn parse_validators(raw: &str) -> Vec<String> {
+    raw.split(',')
+        .map(|raw_validator| raw_validator.trim().into())
+        .collect()
+}
 
 pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     let max_layer = DEFAULT_NUM_MIX_HOPS;
@@ -37,8 +44,8 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.with_listening_port(port.unwrap());
     }
 
-    if let Some(validator) = matches.value_of("validator") {
-        config = config.with_custom_validator(validator);
+    if let Some(raw_validators) = matches.value_of("validators") {
+        config = config.with_custom_validators(parse_validators(raw_validators));
     }
 
     if let Some(contract_address) = matches.value_of("mixnet-contract") {

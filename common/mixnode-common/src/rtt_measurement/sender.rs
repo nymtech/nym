@@ -126,7 +126,7 @@ impl PacketSender {
             let reply_packet_future = async {
                 let mut buf = [0u8; ReplyPacket::SIZE];
                 if let Err(err) = conn.read_exact(&mut buf).await {
-                    error!(
+                    debug!(
                         "failed to read reply packet from {} - {}. Stopping the test.",
                         tested_node.identity.to_base58_string(),
                         err
@@ -142,10 +142,10 @@ impl PacketSender {
             let reply_packet =
                 match tokio::time::timeout(self.packet_timeout, reply_packet_future).await {
                     Ok(reply_packet) => reply_packet,
-                    Err(_) => {
+                    Err(_timeout) => {
                         // TODO: should we continue regardless (with the rest of the packets, or abandon the whole thing?)
                         // Note: if we decide to continue, it would increase the complexity of the whole thing
-                        error!(
+                        debug!(
                         "failed to receive reply to our echo packet within {:?}. Stopping the test",
                         self.packet_timeout
                     );
@@ -160,7 +160,7 @@ impl PacketSender {
             // note that we cannot receive packets not in order as we are not sending a next packet until
             // we have received the previous one
             if reply_packet.base_sequence_number() != seq {
-                error!("Received reply packet with invalid sequence number! Got {} expected {}. Stopping the test", reply_packet.base_sequence_number(), seq);
+                debug!("Received reply packet with invalid sequence number! Got {} expected {}. Stopping the test", reply_packet.base_sequence_number(), seq);
                 return Err(RttError::UnexpectedReplySequence);
             }
 

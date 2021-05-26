@@ -109,9 +109,26 @@ impl PacketSender {
             let start = tokio::time::Instant::now();
             // TODO: should we get the start time after or before actually sending the data?
             // there's going to definitely some scheduler and network stack bias here
-            if let Err(err) = conn.write_all(packet.to_bytes().as_ref()).await {
+            match tokio::time::timeout(
+                self.packet_timeout,
+                conn.write_all(packet.to_bytes().as_ref()),
+            )
+            .await
+            {
+                Err(_timeout) => {
+                    let identity_string = tested_node.identity.to_base58_string();
+                    debug!(
+                        "failed to write echo packet to {} within {:?}. Stopping the test.",
+                        identity_string, self.packet_timeout
+                    );
+                    return Err(RttError::UnexpectedConnectionFailureWrite(
+                        identity_string,
+                        io::ErrorKind::TimedOut.into(),
+                    ));
+                }
+                Ok(Err(err)) => {
                 let identity_string = tested_node.identity.to_base58_string();
-                error!(
+                    debug!(
                     "failed to write echo packet to {} - {}. Stopping the test.",
                     identity_string, err
                 );
@@ -119,6 +136,8 @@ impl PacketSender {
                     identity_string,
                     err,
                 ));
+            }
+                Ok(Ok(_)) => {}
             }
 
             // there's absolutely no need to put a codec on ReplyPackets as we know exactly

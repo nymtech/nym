@@ -27,11 +27,11 @@ pub struct AtomicVerlocResult {
 #[derive(Debug, Clone, Serialize)]
 pub struct VerlocResult {
     total_tested: usize,
-    results: Vec<Verloc>,
     #[serde(with = "humantime_serde")]
     run_started: std::time::SystemTime,
     #[serde(with = "humantime_serde")]
     run_finished: std::time::SystemTime,
+    results: Vec<Verloc>,
 }
 
 impl AtomicVerlocResult {
@@ -40,9 +40,9 @@ impl AtomicVerlocResult {
         AtomicVerlocResult {
             inner: Arc::new(RwLock::new(VerlocResult {
                 total_tested: 0,
-                results: Vec::new(),
                 run_started: now,
                 run_finished: now,
+                results: Vec::new(),
             })),
         }
     }

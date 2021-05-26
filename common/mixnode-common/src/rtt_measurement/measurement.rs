@@ -28,14 +28,21 @@ pub struct AtomicVerlocResult {
 pub struct VerlocResult {
     total_tested: usize,
     results: Vec<Verloc>,
+    #[serde(with = "humantime_serde")]
+    run_started: std::time::SystemTime,
+    #[serde(with = "humantime_serde")]
+    run_finished: std::time::SystemTime,
 }
 
 impl AtomicVerlocResult {
     pub(crate) fn new() -> Self {
+        let now = std::time::SystemTime::now();
         AtomicVerlocResult {
             inner: Arc::new(RwLock::new(VerlocResult {
                 total_tested: 0,
                 results: Vec::new(),
+                run_started: now,
+                run_finished: now,
             })),
         }
     }
@@ -50,6 +57,7 @@ impl AtomicVerlocResult {
     pub(crate) async fn reset_results(&self, new_tested: usize) {
         let mut write_permit = self.inner.write().await;
         write_permit.total_tested = new_tested;
+        write_permit.run_started = std::time::SystemTime::now();
         write_permit.results = Vec::new()
     }
 
@@ -60,6 +68,10 @@ impl AtomicVerlocResult {
         // TODO: considering the front of the results is guaranteed to be sorted, should perhaps
         // a non-default sorting algorithm be used?
         write_permit.results.sort()
+    }
+
+    pub(crate) async fn finish_measurements(&self) {
+        self.inner.write().await.run_finished = std::time::SystemTime::now();
     }
 
     // Considering that on every read we will need to clone data regardless, let's make our

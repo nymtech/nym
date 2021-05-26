@@ -325,6 +325,9 @@ impl RttMeasurer {
 
             self.perform_measurement(tested_nodes).await;
 
+            // write current time to "run finished" field
+            self.results.finish_measurements().await;
+
             info!(target: "verloc", "Finished performing verloc measurements. The next one will happen in {:?}", self.config.testing_interval);
             sleep(self.config.testing_interval).await
         }

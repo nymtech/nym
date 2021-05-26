@@ -69,11 +69,10 @@ where
 
 impl Display for Verloc {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let identity = self.identity.to_base58_string();
         if let Some(measurement) = self.latest_measurement {
-            write!(f, "{} - {}", identity, measurement)
+            write!(f, "{} - {}", self.identity, measurement)
         } else {
-            write!(f, "{} - COULD NOT MEASURE", identity)
+            write!(f, "{} - COULD NOT MEASURE", self.identity)
         }
     }
 }

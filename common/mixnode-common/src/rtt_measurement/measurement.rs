@@ -28,20 +28,19 @@ pub struct AtomicVerlocResult {
 pub struct VerlocResult {
     total_tested: usize,
     #[serde(with = "humantime_serde")]
-    run_started: std::time::SystemTime,
+    run_started: Option<std::time::SystemTime>,
     #[serde(with = "humantime_serde")]
-    run_finished: std::time::SystemTime,
+    run_finished: Option<std::time::SystemTime>,
     results: Vec<Verloc>,
 }
 
 impl AtomicVerlocResult {
     pub(crate) fn new() -> Self {
-        let now = std::time::SystemTime::now();
         AtomicVerlocResult {
             inner: Arc::new(RwLock::new(VerlocResult {
                 total_tested: 0,
-                run_started: now,
-                run_finished: now,
+                run_started: None,
+                run_finished: None,
                 results: Vec::new(),
             })),
         }
@@ -57,7 +56,8 @@ impl AtomicVerlocResult {
     pub(crate) async fn reset_results(&self, new_tested: usize) {
         let mut write_permit = self.inner.write().await;
         write_permit.total_tested = new_tested;
-        write_permit.run_started = std::time::SystemTime::now();
+        write_permit.run_started = Some(std::time::SystemTime::now());
+        write_permit.run_finished = None;
         write_permit.results = Vec::new()
     }
 
@@ -71,7 +71,7 @@ impl AtomicVerlocResult {
     }
 
     pub(crate) async fn finish_measurements(&self) {
-        self.inner.write().await.run_finished = std::time::SystemTime::now();
+        self.inner.write().await.run_finished = Some(std::time::SystemTime::now());
     }
 
     // Considering that on every read we will need to clone data regardless, let's make our

@@ -32,6 +32,7 @@ pub enum RttError {
     UnexpectedConnectionFailureWrite(String, io::Error),
     UnexpectedConnectionFailureRead(String, io::Error),
     ConnectionReadTimeout(String),
+    ConnectionWriteTimeout(String),
 
     UnexpectedReplySequence,
 }
@@ -71,6 +72,9 @@ impl Display for RttError {
             }
             RttError::ConnectionReadTimeout(id) => {
                 write!(f, "Timed out while trying to read reply packet from {}", id)
+            }
+            RttError::ConnectionWriteTimeout(id) => {
+                write!(f, "Timed out while trying to write echo packet to {}", id)
             }
             RttError::UnexpectedReplySequence => write!(
                 f,

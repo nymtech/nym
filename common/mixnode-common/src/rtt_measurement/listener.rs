@@ -58,7 +58,7 @@ impl PacketListener {
 
             match listener.accept().await {
                 Ok((socket, remote_addr)) => {
-                    println!("new connection from {}", remote_addr);
+                    debug!("New verloc connection from {}", remote_addr);
 
                     tokio::spawn(connection_handler.handle_connection(socket, remote_addr));
                 }

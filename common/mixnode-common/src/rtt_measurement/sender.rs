@@ -84,7 +84,7 @@ impl PacketSender {
             self.connection_timeout,
             TcpStream::connect(tested_node.address),
         )
-            .await
+        .await
         {
             Err(_timeout) => {
                 return Err(RttError::UnreachableNode(
@@ -127,16 +127,16 @@ impl PacketSender {
                     ));
                 }
                 Ok(Err(err)) => {
-                let identity_string = tested_node.identity.to_base58_string();
+                    let identity_string = tested_node.identity.to_base58_string();
                     debug!(
-                    "failed to write echo packet to {} - {}. Stopping the test.",
-                    identity_string, err
-                );
-                return Err(RttError::UnexpectedConnectionFailureWrite(
-                    identity_string,
-                    err,
-                ));
-            }
+                        "failed to write echo packet to {} - {}. Stopping the test.",
+                        identity_string, err
+                    );
+                    return Err(RttError::UnexpectedConnectionFailureWrite(
+                        identity_string,
+                        err,
+                    ));
+                }
                 Ok(Ok(_)) => {}
             }
 

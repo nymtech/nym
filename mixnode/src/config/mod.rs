@@ -27,6 +27,7 @@ pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgj
 
 // 'RTT MEASUREMENT'
 const DEFAULT_PACKETS_PER_NODE: usize = 100;
+const DEFAULT_CONNECTION_TIMEOUT: Duration = Duration::from_millis(5000);
 const DEFAULT_PACKET_TIMEOUT: Duration = Duration::from_millis(1500);
 const DEFAULT_DELAY_BETWEEN_PACKETS: Duration = Duration::from_millis(50);
 const DEFAULT_BATCH_SIZE: usize = 50;
@@ -314,6 +315,11 @@ impl Config {
     pub fn get_measurement_packet_timeout(&self) -> Duration {
         self.rtt_measurement.packet_timeout
     }
+
+    pub fn get_measurement_connection_timeout(&self) -> Duration {
+        self.rtt_measurement.connection_timeout
+    }
+
     pub fn get_measurement_delay_between_packets(&self) -> Duration {
         self.rtt_measurement.delay_between_packets
     }
@@ -450,6 +456,9 @@ pub struct RttMeasurement {
     /// Specifies number of echo packets sent to each node during a measurement run.
     packets_per_node: usize,
 
+    /// Specifies maximum amount of time to wait for the connection to get established.
+    connection_timeout: Duration,
+
     /// Specifies maximum amount of time to wait for the reply packet to arrive before abandoning the test.
     packet_timeout: Duration,
 
@@ -471,6 +480,7 @@ impl Default for RttMeasurement {
     fn default() -> Self {
         RttMeasurement {
             packets_per_node: DEFAULT_PACKETS_PER_NODE,
+            connection_timeout: DEFAULT_CONNECTION_TIMEOUT,
             packet_timeout: DEFAULT_PACKET_TIMEOUT,
             delay_between_packets: DEFAULT_DELAY_BETWEEN_PACKETS,
             tested_nodes_batch_size: DEFAULT_BATCH_SIZE,

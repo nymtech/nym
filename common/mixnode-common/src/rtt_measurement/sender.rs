@@ -18,6 +18,7 @@ use crate::rtt_measurement::packet::{EchoPacket, ReplyPacket};
 use crypto::asymmetric::identity;
 use log::*;
 use rand::{thread_rng, Rng};
+use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -42,6 +43,7 @@ pub(crate) struct PacketSender {
     // timeout for receiving before sending new one
     packets_per_node: usize,
     packet_timeout: Duration,
+    connection_timeout: Duration,
     delay_between_packets: Duration,
 }
 
@@ -50,12 +52,14 @@ impl PacketSender {
         identity: Arc<identity::KeyPair>,
         packets_per_node: usize,
         packet_timeout: Duration,
+        connection_timeout: Duration,
         delay_between_packets: Duration,
     ) -> Self {
         PacketSender {
             identity,
             packets_per_node,
             packet_timeout,
+            connection_timeout,
             delay_between_packets,
         }
     }
@@ -76,11 +80,26 @@ impl PacketSender {
         self: Arc<Self>,
         tested_node: TestedNode,
     ) -> Result<Measurement, RttError> {
-        let mut conn = TcpStream::connect(tested_node.address)
+        let mut conn = match tokio::time::timeout(
+            self.connection_timeout,
+            TcpStream::connect(tested_node.address),
+        )
             .await
-            .map_err(|err| {
-                RttError::UnreachableNode(tested_node.identity.to_base58_string(), err)
-            })?;
+        {
+            Err(_timeout) => {
+                return Err(RttError::UnreachableNode(
+                    tested_node.identity.to_base58_string(),
+                    io::ErrorKind::TimedOut.into(),
+                ))
+            }
+            Ok(Err(err)) => {
+                return Err(RttError::UnreachableNode(
+                    tested_node.identity.to_base58_string(),
+                    err,
+                ))
+            }
+            Ok(Ok(conn)) => conn,
+        };
 
         let mut results = Vec::with_capacity(self.packets_per_node);
 

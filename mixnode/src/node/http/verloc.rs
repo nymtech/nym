@@ -1,4 +1,4 @@
-use mixnode_common::rtt_measurement::{AtomicVerlocResult, Verloc};
+use mixnode_common::rtt_measurement::{AtomicVerlocResult, VerlocResult};
 use rocket::State;
 use rocket_contrib::json::Json;
 
@@ -17,7 +17,7 @@ impl VerlocState {
 /// Provides verifiable location (verloc) measurements for this mixnode - a list of the
 /// round-trip times, in milliseconds, for all other mixnodes that this node knows about.
 #[get("/verloc")]
-pub(crate) async fn verloc(state: State<'_, VerlocState>) -> Json<Vec<Verloc>> {
+pub(crate) async fn verloc(state: State<'_, VerlocState>) -> Json<VerlocResult> {
     // since it's impossible to get a mutable reference to the state, we can't cache any results outside the lock : (
     Json(state.shared.clone_data().await)
 }

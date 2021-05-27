@@ -1,7 +1,6 @@
 use crate::state::StateParams;
 use crate::storage::{gateways_read, mixnodes_read, read_state_params};
 use cosmwasm_std::Deps;
-use cosmwasm_std::HumanAddr;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
 use mixnet_contract::{
@@ -14,11 +13,24 @@ const DEFAULT_LIMIT: u32 = 50;
 
 pub fn query_mixnodes_paged(
     deps: Deps,
-    start_after: Option<HumanAddr>,
+    start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<PagedResponse> {
+    let input_cline = start_after.clone();
+    let start_after_addr = start_after
+        .map(|start_after| deps.api.addr_validate(&start_after)) // try to validate address
+        .map_or(Ok(None), |start_after| start_after.map(Some)); // move result in front of the option
+
+    let start_after_addr = match start_after_addr {
+        Ok(a) => a,
+        Err(err) => {
+            println!("{:?} is not a valid address", input_cline);
+            return Err(err);
+        }
+    };
+
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-    let start = calculate_start_value(start_after);
+    let start = calculate_start_value(start_after_addr);
 
     let nodes = mixnodes_read(deps.storage)
         .range(start.as_deref(), None, Order::Ascending)
@@ -33,11 +45,15 @@ pub fn query_mixnodes_paged(
 
 pub(crate) fn query_gateways_paged(
     deps: Deps,
-    start_after: Option<HumanAddr>,
+    start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<PagedGatewayResponse> {
+    let start_after_addr = start_after
+        .map(|start_after| deps.api.addr_validate(&start_after)) // try to validate address
+        .map_or(Ok(None), |start_after| start_after.map(Some))?; // move result in front of the option
+
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-    let start = calculate_start_value(start_after);
+    let start = calculate_start_value(start_after_addr);
 
     let nodes = gateways_read(deps.storage)
         .range(start.as_deref(), None, Order::Ascending)
@@ -50,25 +66,29 @@ pub(crate) fn query_gateways_paged(
     Ok(PagedGatewayResponse::new(nodes, limit, start_next_after))
 }
 
-pub(crate) fn query_owns_mixnode(
-    deps: Deps,
-    address: HumanAddr,
-) -> StdResult<MixOwnershipResponse> {
+pub(crate) fn query_owns_mixnode(deps: Deps, address: String) -> StdResult<MixOwnershipResponse> {
+    let validated_address = deps.api.addr_validate(&address)?;
+
     let has_node = mixnodes_read(deps.storage)
-        .may_load(address.as_ref())?
+        .may_load(validated_address.as_str().as_bytes())?
         .is_some();
-    Ok(MixOwnershipResponse { address, has_node })
+    Ok(MixOwnershipResponse {
+        address: validated_address,
+        has_node,
+    })
 }
 
 pub(crate) fn query_owns_gateway(
     deps: Deps,
-    address: HumanAddr,
+    address: String,
 ) -> StdResult<GatewayOwnershipResponse> {
+    let validated_address = deps.api.addr_validate(&address)?;
+
     let has_gateway = gateways_read(deps.storage)
-        .may_load(address.as_ref())?
+        .may_load(validated_address.as_str().as_bytes())?
         .is_some();
     Ok(GatewayOwnershipResponse {
-        address,
+        address: validated_address,
         has_gateway,
     })
 }
@@ -79,11 +99,9 @@ pub(crate) fn query_state_params(deps: Deps) -> StateParams {
 
 /// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm
 /// to get the succeeding key as the start of the next page.
-fn calculate_start_value(
-    start_after: std::option::Option<cosmwasm_std::HumanAddr>,
-) -> Option<Vec<u8>> {
+fn calculate_start_value(start_after: std::option::Option<cosmwasm_std::Addr>) -> Option<Vec<u8>> {
     start_after.as_ref().map(|addr| {
-        let mut bytes = addr.as_bytes().to_owned();
+        let mut bytes = addr.as_str().as_bytes().to_owned();
         bytes.push(0);
         bytes
     })
@@ -95,7 +113,7 @@ mod tests {
     use crate::state::State;
     use crate::storage::{config, gateways, mixnodes};
     use crate::support::tests::helpers;
-    use cosmwasm_std::Storage;
+    use cosmwasm_std::{Addr, Storage};
 
     #[test]
     fn mixnodes_empty_on_init() {
@@ -157,10 +175,15 @@ mod tests {
 
     #[test]
     fn pagination_works() {
+        let addr1 = "hal100";
+        let addr2 = "hal101";
+        let addr3 = "hal102";
+        let addr4 = "hal103";
+
         let mut deps = helpers::init_contract();
         let node = helpers::mixnode_bond_fixture();
         mixnodes(&mut deps.storage)
-            .save("1".as_bytes(), &node)
+            .save(addr1.as_bytes(), &node)
             .unwrap();
 
         let per_page = 2;
@@ -171,7 +194,7 @@ mod tests {
 
         // save another
         mixnodes(&mut deps.storage)
-            .save("2".as_bytes(), &node)
+            .save(addr2.as_bytes(), &node)
             .unwrap();
 
         // page1 should have 2 results on it
@@ -179,7 +202,7 @@ mod tests {
         assert_eq!(2, page1.nodes.len());
 
         mixnodes(&mut deps.storage)
-            .save("3".as_bytes(), &node)
+            .save(addr3.as_bytes(), &node)
             .unwrap();
 
         // page1 still has 2 results
@@ -187,7 +210,7 @@ mod tests {
         assert_eq!(2, page1.nodes.len());
 
         // retrieving the next page should start after the last key on this page
-        let start_after = HumanAddr::from("2");
+        let start_after = String::from(addr2);
         let page2 = query_mixnodes_paged(
             deps.as_ref(),
             Option::from(start_after),
@@ -199,10 +222,10 @@ mod tests {
 
         // save another one
         mixnodes(&mut deps.storage)
-            .save("4".as_bytes(), &node)
+            .save(addr4.as_bytes(), &node)
             .unwrap();
 
-        let start_after = HumanAddr::from("2");
+        let start_after = String::from(addr2);
         let page2 = query_mixnodes_paged(
             deps.as_ref(),
             Option::from(start_after),
@@ -269,10 +292,15 @@ mod tests {
 
     #[test]
     fn gateway_pagination_works() {
+        let addr1 = "hal100";
+        let addr2 = "hal101";
+        let addr3 = "hal102";
+        let addr4 = "hal103";
+
         let mut deps = helpers::init_contract();
         let node = helpers::gateway_bond_fixture();
         gateways(&mut deps.storage)
-            .save("1".as_bytes(), &node)
+            .save(addr1.as_bytes(), &node)
             .unwrap();
 
         let per_page = 2;
@@ -283,7 +311,7 @@ mod tests {
 
         // save another
         gateways(&mut deps.storage)
-            .save("2".as_bytes(), &node)
+            .save(addr2.as_bytes(), &node)
             .unwrap();
 
         // page1 should have 2 results on it
@@ -291,7 +319,7 @@ mod tests {
         assert_eq!(2, page1.nodes.len());
 
         gateways(&mut deps.storage)
-            .save("3".as_bytes(), &node)
+            .save(addr3.as_bytes(), &node)
             .unwrap();
 
         // page1 still has 2 results
@@ -299,7 +327,7 @@ mod tests {
         assert_eq!(2, page1.nodes.len());
 
         // retrieving the next page should start after the last key on this page
-        let start_after = HumanAddr::from("2");
+        let start_after = String::from(addr2);
         let page2 = query_gateways_paged(
             deps.as_ref(),
             Option::from(start_after),
@@ -311,10 +339,10 @@ mod tests {
 
         // save another one
         gateways(&mut deps.storage)
-            .save("4".as_bytes(), &node)
+            .save(addr4.as_bytes(), &node)
             .unwrap();
 
-        let start_after = HumanAddr::from("2");
+        let start_after = String::from(addr2);
         let page2 = query_gateways_paged(
             deps.as_ref(),
             Option::from(start_after),
@@ -395,8 +423,8 @@ mod tests {
         let mut deps = helpers::init_contract();
 
         let dummy_state = State {
-            owner: "someowner".into(),
-            network_monitor_address: "monitor".into(),
+            owner: Addr::unchecked("someowner"),
+            network_monitor_address: Addr::unchecked("monitor"),
             params: StateParams {
                 epoch_length: 1,
                 minimum_mixnode_bond: 123u128.into(),

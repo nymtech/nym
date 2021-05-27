@@ -1,5 +1,5 @@
 use crate::state::{State, StateParams};
-use cosmwasm_std::{Decimal, HumanAddr, StdError, StdResult, Storage};
+use cosmwasm_std::{Addr, Decimal, StdError, StdResult, Storage};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -53,11 +53,11 @@ pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
 
 const PREFIX_MIXNODES_OWNERS: &[u8] = b"mix-owners";
 
-pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
+pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<Addr> {
     bucket(storage, PREFIX_MIXNODES_OWNERS)
 }
 
-pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<HumanAddr> {
+pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<Addr> {
     bucket_read(storage, PREFIX_MIXNODES_OWNERS)
 }
 
@@ -110,11 +110,11 @@ pub fn gateways_read(storage: &dyn Storage) -> ReadonlyBucket<GatewayBond> {
 
 const PREFIX_GATEWAYS_OWNERS: &[u8] = b"gateway-owners";
 
-pub fn gateways_owners(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
+pub fn gateways_owners(storage: &mut dyn Storage) -> Bucket<Addr> {
     bucket(storage, PREFIX_GATEWAYS_OWNERS)
 }
 
-pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<HumanAddr> {
+pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<Addr> {
     bucket_read(storage, PREFIX_GATEWAYS_OWNERS)
 }
 
@@ -204,7 +204,7 @@ mod tests {
         // increases the reward appropriately if node exists
         let mixnode_bond = MixNodeBond {
             amount: coins(1000, DENOM),
-            owner: std::str::from_utf8(node_owner).unwrap().into(),
+            owner: Addr::unchecked(std::str::from_utf8(node_owner).unwrap()),
             mix_node: mix_node_fixture(),
         };
 
@@ -231,7 +231,7 @@ mod tests {
 
         let mixnode_bond = MixNodeBond {
             amount: coins(bond_value, DENOM),
-            owner: std::str::from_utf8(node_owner).unwrap().into(),
+            owner: Addr::unchecked(std::str::from_utf8(node_owner).unwrap()),
             mix_node: mix_node_fixture(),
         };
 
@@ -259,7 +259,7 @@ mod tests {
         // increases the reward appropriately if node exists
         let gateway_bond = GatewayBond {
             amount: coins(1000, DENOM),
-            owner: std::str::from_utf8(node_owner).unwrap().into(),
+            owner: Addr::unchecked(std::str::from_utf8(node_owner).unwrap()),
             gateway: gateway_fixture(),
         };
 
@@ -286,7 +286,7 @@ mod tests {
 
         let gateway_bond = GatewayBond {
             amount: coins(1000, DENOM),
-            owner: std::str::from_utf8(node_owner).unwrap().into(),
+            owner: Addr::unchecked(std::str::from_utf8(node_owner).unwrap()),
             gateway: gateway_fixture(),
         };
 

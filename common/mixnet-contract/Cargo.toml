@@ -7,6 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cosmwasm-std = { version = "0.13.2" }
+cosmwasm-std = { version = "0.14.0" }
 serde = { version = "1.0", features = ["derive"] }
-schemars = "0.7"
+schemars = "0.8"

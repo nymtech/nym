@@ -26,7 +26,7 @@ fn decimal_sub_one(value: Decimal) -> Decimal {
     assert!(value >= Decimal::one());
 
     let value_uint128 = value * DECIMAL_FRACTIONAL;
-    let uint128_sub_one = (value_uint128 - DECIMAL_FRACTIONAL).unwrap();
+    let uint128_sub_one = value_uint128.checked_sub(DECIMAL_FRACTIONAL).unwrap();
     Decimal::from_ratio(uint128_sub_one, DECIMAL_FRACTIONAL)
 }
 

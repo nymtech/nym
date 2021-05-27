@@ -1,15 +1,14 @@
 use crate::state::StateParams;
-use cosmwasm_std::HumanAddr;
 use mixnet_contract::{Gateway, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {}
+pub struct InstantiateMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     BondMixnode {
         mix_node: MixNode,
     },
@@ -21,13 +20,13 @@ pub enum HandleMsg {
     UpdateStateParams(StateParams),
 
     RewardMixnode {
-        owner: HumanAddr,
+        owner: String,
         // percentage value in range 0-100
         uptime: u32,
     },
 
     RewardGateway {
-        owner: HumanAddr,
+        owner: String,
         // percentage value in range 0-100
         uptime: u32,
     },
@@ -38,17 +37,17 @@ pub enum HandleMsg {
 pub enum QueryMsg {
     GetMixNodes {
         limit: Option<u32>,
-        start_after: Option<HumanAddr>,
+        start_after: Option<String>,
     },
     GetGateways {
-        start_after: Option<HumanAddr>,
+        start_after: Option<String>,
         limit: Option<u32>,
     },
     OwnsMixnode {
-        address: HumanAddr,
+        address: String,
     },
     OwnsGateway {
-        address: HumanAddr,
+        address: String,
     },
     StateParams {},
 }

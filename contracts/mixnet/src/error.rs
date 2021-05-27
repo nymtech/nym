@@ -1,5 +1,5 @@
 use crate::contract::DENOM;
-use cosmwasm_std::{HumanAddr, StdError};
+use cosmwasm_std::{Addr, StdError};
 use thiserror::Error;
 
 /// Custom errors for contract failure conditions.
@@ -25,7 +25,7 @@ pub enum ContractError {
     InsufficientGatewayBond { received: u128, minimum: u128 },
 
     #[error("Account ({account:?}) does not own any gateway bonds")]
-    GatewayBondNotFound { account: HumanAddr },
+    GatewayBondNotFound { account: Addr },
 
     #[error("Unauthorized")]
     Unauthorized,
@@ -55,8 +55,8 @@ pub enum ContractError {
     AlreadyOwnsGateway,
 
     #[error("Mixnode with this identity already exists. Its owner is {owner:?}")]
-    DuplicateMixnode { owner: HumanAddr },
+    DuplicateMixnode { owner: Addr },
 
     #[error("Gateway with this identity already exists. Its owner is {owner:?}")]
-    DuplicateGateway { owner: HumanAddr },
+    DuplicateGateway { owner: Addr },
 }

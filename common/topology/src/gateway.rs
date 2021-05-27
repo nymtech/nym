@@ -121,7 +121,7 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
             return Err(GatewayConversionError::InvalidStake);
         }
         Ok(Node {
-            owner: bond.owner.0.clone(),
+            owner: bond.owner.as_str().to_owned(),
             stake: bond
                 .amount
                 .first()

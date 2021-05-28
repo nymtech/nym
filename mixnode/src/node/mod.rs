@@ -24,6 +24,7 @@ pub(crate) mod http;
 mod listener;
 mod metrics;
 pub(crate) mod node_description;
+pub(crate) mod node_statistics;
 pub(crate) mod packet_delayforwarder;
 
 // the MixNode will live for whole duration of this program

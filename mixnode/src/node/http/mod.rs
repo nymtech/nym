@@ -1,5 +1,6 @@
 pub(crate) mod description;
 pub(crate) mod verloc;
+pub(crate) mod stats;
 
 use rocket::Request;
 

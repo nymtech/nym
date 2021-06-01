@@ -9,7 +9,6 @@ use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
 use log::debug;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
-use std::collections::HashMap;
 use tokio::runtime::Runtime;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {

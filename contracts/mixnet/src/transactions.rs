@@ -4,9 +4,9 @@ use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
 use crate::state::StateParams;
 use crate::storage::{
     config, config_read, decrement_layer_count, gateways, gateways_owners, gateways_owners_read,
-    gateways_read, increase_gateway_bond, increase_mixnode_bond, increment_layer_count,
-    layer_distribution, mixnodes, mixnodes_owners, mixnodes_owners_read, mixnodes_read,
-    read_gateway_epoch_reward_rate, read_mixnode_epoch_reward_rate, read_state_params, Layer,
+    gateways_read, increase_gateway_bond, increase_mixnode_bond, increment_layer_count, mixnodes,
+    mixnodes_owners, mixnodes_owners_read, mixnodes_read, read_gateway_epoch_reward_rate,
+    read_mixnode_epoch_reward_rate, read_state_params, Layer,
 };
 use cosmwasm_std::{
     attr, BankMsg, Coin, Decimal, DepsMut, Env, HandleResponse, HumanAddr, MessageInfo, Uint128,

@@ -4,7 +4,9 @@
 use crate::models::{QueryRequest, QueryResponse};
 use crate::ValidatorClientError::ValidatorError;
 use core::fmt::{self, Display, Formatter};
-use mixnet_contract::{GatewayBond, HumanAddr, MixNodeBond, PagedGatewayResponse, PagedResponse};
+use mixnet_contract::{
+    GatewayBond, HumanAddr, LayerDistribution, MixNodeBond, PagedGatewayResponse, PagedResponse,
+};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use serde::Deserialize;
@@ -237,5 +239,18 @@ impl Client {
         }
 
         Ok(gateways)
+    }
+
+    pub async fn get_layer_distribution(
+        &mut self,
+    ) -> Result<LayerDistribution, ValidatorClientError> {
+        // serialization of an empty enum can't fail...
+        let query_content_json =
+            serde_json::to_string(&QueryRequest::LayerDistribution {}).unwrap();
+
+        // we need to encode our json request
+        let query_content = base64::encode(query_content_json);
+
+        self.query_validators(query_content).await
     }
 }

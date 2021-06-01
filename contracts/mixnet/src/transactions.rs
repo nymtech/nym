@@ -3,10 +3,10 @@ use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
 use crate::state::StateParams;
 use crate::storage::{
-    config, config_read, gateways, gateways_owners, gateways_owners_read, gateways_read,
-    increase_gateway_bond, increase_mixnode_bond, mixnodes, mixnodes_owners, mixnodes_owners_read,
-    mixnodes_read, read_gateway_epoch_reward_rate, read_mixnode_epoch_reward_rate,
-    read_state_params,
+    config, config_read, decrement_layer_count, gateways, gateways_owners, gateways_owners_read,
+    gateways_read, increase_gateway_bond, increase_mixnode_bond, increment_layer_count,
+    layer_distribution, mixnodes, mixnodes_owners, mixnodes_owners_read, mixnodes_read,
+    read_gateway_epoch_reward_rate, read_mixnode_epoch_reward_rate, read_state_params, Layer,
 };
 use cosmwasm_std::{
     attr, BankMsg, Coin, Decimal, DepsMut, Env, HandleResponse, HumanAddr, MessageInfo, Uint128,
@@ -73,10 +73,11 @@ pub(crate) fn try_add_mixnode(
     let sender_bytes = info.sender.as_bytes();
     let attributes = vec![attr("overwritten", was_present)];
 
-    // TODO: now this can be potentially problematic. What if the first call doesn't fail but the second one does?
-    // can we do some rollback somehow?
+    // TODO: now this can be potentially problematic. What if one of the calls fails while other succeed?
+    // can we do some rollback somehow? Or is it already managed by the wasmvm?
     mixnodes(deps.storage).save(sender_bytes, &bond)?;
     mixnodes_owners(deps.storage).save(bond.mix_node.identity_key.as_bytes(), &info.sender)?;
+    increment_layer_count(deps.storage, bond.mix_node.layer.into())?;
 
     Ok(HandleResponse {
         messages: vec![],
@@ -107,6 +108,8 @@ pub(crate) fn try_remove_mixnode(
     mixnodes(deps.storage).remove(info.sender.as_bytes());
     // remove the node ownership
     mixnodes_owners(deps.storage).remove(mixnode_bond.mix_node.identity_key.as_bytes());
+    // decrement layer count
+    decrement_layer_count(deps.storage, mixnode_bond.mix_node.layer.into())?;
 
     // log our actions
     let attributes = vec![attr("action", "unbond"), attr("mixnode_bond", mixnode_bond)];
@@ -178,10 +181,11 @@ pub(crate) fn try_add_gateway(
     let sender_bytes = info.sender.as_bytes();
     let attributes = vec![attr("overwritten", was_present)];
 
-    // TODO: now this can be potentially problematic. What if the first call doesn't fail but the second one does?
-    // can we do some rollback somehow?
+    // TODO: now this can be potentially problematic. What if one of the calls fails while other succeed?
+    // can we do some rollback somehow? Or is it already managed by the wasmvm?
     gateways(deps.storage).save(sender_bytes, &bond)?;
     gateways_owners(deps.storage).save(bond.gateway.identity_key.as_bytes(), &info.sender)?;
+    increment_layer_count(deps.storage, Layer::Gateway)?;
 
     Ok(HandleResponse {
         messages: vec![],
@@ -219,6 +223,8 @@ pub(crate) fn try_remove_gateway(
     gateways(deps.storage).remove(sender_bytes);
     // remove the node ownership
     gateways_owners(deps.storage).remove(gateway_bond.gateway.identity_key.as_bytes());
+    // decrement layer count
+    decrement_layer_count(deps.storage, Layer::Gateway)?;
 
     // log our actions
     let attributes = vec![
@@ -334,12 +340,15 @@ pub mod tests {
     use crate::helpers::calculate_epoch_reward_rate;
     use crate::msg::{HandleMsg, InitMsg, QueryMsg};
     use crate::state::StateParams;
-    use crate::storage::{read_gateway_bond, read_gateway_epoch_reward_rate, read_mixnode_bond};
+    use crate::storage::{
+        layer_distribution_read, read_gateway_bond, read_gateway_epoch_reward_rate,
+        read_mixnode_bond,
+    };
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{gateway_fixture, mix_node_fixture};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary, Uint128};
-    use mixnet_contract::{PagedGatewayResponse, PagedResponse};
+    use mixnet_contract::{LayerDistribution, PagedGatewayResponse, PagedResponse};
 
     fn good_mixnode_bond() -> Vec<Coin> {
         vec![Coin {
@@ -617,6 +626,34 @@ pub mod tests {
             mixnodes_owners_read(deps.as_ref().storage)
                 .load("myAwesomeMixnode".as_bytes())
                 .unwrap()
+        );
+    }
+
+    #[test]
+    fn adding_mixnode_updates_layer_distribution() {
+        let mut deps = helpers::init_contract();
+
+        assert_eq!(
+            LayerDistribution::default(),
+            layer_distribution_read(&deps.storage).load().unwrap(),
+        );
+
+        let info = mock_info("mix-owner", &good_mixnode_bond());
+        let msg = HandleMsg::BondMixnode {
+            mix_node: MixNode {
+                identity_key: "mix1".to_string(),
+                layer: 1,
+                ..helpers::mix_node_fixture()
+            },
+        };
+
+        handle(deps.as_mut(), mock_env(), info, msg).unwrap();
+        assert_eq!(
+            LayerDistribution {
+                layer1: 1,
+                ..Default::default()
+            },
+            layer_distribution_read(&deps.storage).load().unwrap()
         );
     }
 

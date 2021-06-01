@@ -1,12 +1,12 @@
 use crate::state::StateParams;
-use crate::storage::{gateways_read, mixnodes_read, read_state_params};
+use crate::storage::{gateways_read, mixnodes_read, read_layer_distribution, read_state_params};
 use cosmwasm_std::Deps;
 use cosmwasm_std::HumanAddr;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
 use mixnet_contract::{
-    GatewayBond, GatewayOwnershipResponse, MixNodeBond, MixOwnershipResponse, PagedGatewayResponse,
-    PagedResponse,
+    GatewayBond, GatewayOwnershipResponse, LayerDistribution, MixNodeBond, MixOwnershipResponse,
+    PagedGatewayResponse, PagedResponse,
 };
 
 const MAX_LIMIT: u32 = 100;
@@ -75,6 +75,10 @@ pub(crate) fn query_owns_gateway(
 
 pub(crate) fn query_state_params(deps: Deps) -> StateParams {
     read_state_params(deps.storage)
+}
+
+pub(crate) fn query_layer_distribution(deps: Deps) -> LayerDistribution {
+    read_layer_distribution(deps.storage)
 }
 
 /// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm

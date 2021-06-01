@@ -1,12 +1,13 @@
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::msg::{HandleMsg, InitMsg, MigrateMsg, QueryMsg};
 use crate::state::{State, StateParams};
-use crate::storage::config;
+use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries, transactions};
 use cosmwasm_std::{
     to_binary, Decimal, Deps, DepsMut, Env, HandleResponse, HumanAddr, InitResponse, MessageInfo,
     MigrateResponse, QueryResponse, Uint128,
 };
+use mixnet_contract::LayerDistribution;
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
@@ -67,6 +68,7 @@ pub fn init(
     let state = default_initial_state(info.sender);
 
     config(deps.storage).save(&state)?;
+    layer_distribution(deps.storage).save(&Default::default())?;
     Ok(InitResponse::default())
 }
 
@@ -109,17 +111,51 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             to_binary(&queries::query_owns_gateway(deps, address)?)
         }
         QueryMsg::StateParams {} => to_binary(&queries::query_state_params(deps)),
+        QueryMsg::LayerDistribution {} => to_binary(&queries::query_layer_distribution(deps)),
     };
 
     Ok(query_res?)
 }
 
 pub fn migrate(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
     _msg: MigrateMsg,
 ) -> Result<MigrateResponse, ContractError> {
+    // load all mixnodes and gateways and build up layer distribution
+    let mut layers: LayerDistribution = Default::default();
+
+    // go through mixnodes...
+    let mut start_after = None;
+    loop {
+        let response = queries::query_mixnodes_paged(deps.as_ref(), start_after, None)?;
+        start_after = response.start_next_after;
+        if start_after.is_none() {
+            break;
+        }
+        for node in response.nodes.into_iter() {
+            match node.mix_node.layer {
+                n if n == 1 => layers.layer1 += 1,
+                n if n == 2 => layers.layer2 += 1,
+                n if n == 3 => layers.layer3 += 1,
+                _ => layers.invalid += 1,
+            }
+        }
+    }
+
+    // go through gateways...
+    loop {
+        let response = queries::query_gateways_paged(deps.as_ref(), start_after, None)?;
+        start_after = response.start_next_after;
+        if start_after.is_none() {
+            break;
+        }
+        layers.gateways += response.nodes.len() as u64;
+    }
+
+    layer_distribution(deps.storage).save(&layers)?;
+
     Ok(Default::default())
 }
 

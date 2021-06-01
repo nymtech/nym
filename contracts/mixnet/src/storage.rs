@@ -4,7 +4,7 @@ use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
-use mixnet_contract::{GatewayBond, MixNodeBond};
+use mixnet_contract::{GatewayBond, LayerDistribution, MixNodeBond};
 
 // Contract-level stuff
 const CONFIG_KEY: &[u8] = b"config";
@@ -38,6 +38,92 @@ pub(crate) fn read_gateway_epoch_reward_rate(storage: &dyn Storage) -> Decimal {
         .load()
         .unwrap()
         .gateway_epoch_bond_reward
+}
+
+const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
+
+pub fn layer_distribution(storage: &mut dyn Storage) -> Singleton<LayerDistribution> {
+    singleton(storage, LAYER_DISTRIBUTION_KEY)
+}
+
+pub fn layer_distribution_read(storage: &dyn Storage) -> ReadonlySingleton<LayerDistribution> {
+    singleton_read(storage, LAYER_DISTRIBUTION_KEY)
+}
+
+pub(crate) fn read_layer_distribution(storage: &dyn Storage) -> LayerDistribution {
+    // note: In any other case, I wouldn't have attempted to unwrap this result, but in here
+    // if we fail to load the stored state we would already be in the undefined behaviour land,
+    // so we better just blow up immediately.
+    layer_distribution_read(storage).load().unwrap()
+}
+
+pub enum Layer {
+    Gateway,
+    One,
+    Two,
+    Three,
+    Invalid,
+}
+
+impl From<u64> for Layer {
+    fn from(val: u64) -> Self {
+        match val {
+            n if n == 1 => Layer::One,
+            n if n == 2 => Layer::Two,
+            n if n == 3 => Layer::Three,
+            _ => Layer::Invalid,
+        }
+    }
+}
+
+pub fn increment_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {
+    let mut distribution = layer_distribution(storage).load()?;
+    match layer {
+        Layer::Gateway => distribution.gateways += 1,
+        Layer::One => distribution.layer1 += 1,
+        Layer::Two => distribution.layer2 += 1,
+        Layer::Three => distribution.layer3 += 1,
+        Layer::Invalid => distribution.invalid += 1,
+    }
+    layer_distribution(storage).save(&distribution)
+}
+
+pub fn decrement_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {
+    let mut distribution = layer_distribution(storage).load()?;
+    // It can't possibly go below zero, if it does, it means there's a serious error in the contract logic
+    match layer {
+        Layer::Gateway => {
+            distribution.gateways = distribution
+                .gateways
+                .checked_sub(1)
+                .expect("tried to subtract from unsigned zero!")
+        }
+        Layer::One => {
+            distribution.layer1 = distribution
+                .layer1
+                .checked_sub(1)
+                .expect("tried to subtract from unsigned zero!")
+        }
+        Layer::Two => {
+            distribution.layer2 = distribution
+                .layer2
+                .checked_sub(1)
+                .expect("tried to subtract from unsigned zero!")
+        }
+        Layer::Three => {
+            distribution.layer3 = distribution
+                .layer3
+                .checked_sub(1)
+                .expect("tried to subtract from unsigned zero!")
+        }
+        Layer::Invalid => {
+            distribution.invalid = distribution
+                .invalid
+                .checked_sub(1)
+                .expect("tried to subtract from unsigned zero!")
+        }
+    };
+    layer_distribution(storage).save(&distribution)
 }
 
 // Mixnode-related stuff

@@ -93,38 +93,22 @@ async fn choose_layer(
     let validator_client_config = validator_client::Config::new(validator_servers, mixnet_contract);
     let mut validator_client = validator_client::Client::new(validator_client_config);
 
-    let mixnodes = validator_client
-        .get_mix_nodes()
+    let layer_distribution = validator_client
+        .get_layer_distribution()
         .await
-        .expect("failed to obtain initial network mixnodes");
+        .expect("failed to obtain layer distribution of the testnet!");
 
-    let mut nodes_distribution = HashMap::new();
-    // initialise with 0 for each possible layer
-    for layer in 1..=max_layer {
-        nodes_distribution.insert(layer as u64, 0);
+    if layer_distribution.layer1 < layer_distribution.layer2
+        && layer_distribution.layer1 < layer_distribution.layer3
+    {
+        1
+    } else if layer_distribution.layer2 < layer_distribution.layer1
+        && layer_distribution.layer2 < layer_distribution.layer3
+    {
+        2
+    } else {
+        3
     }
-
-    for node in mixnodes {
-        if node.mix_node.layer < 1 || node.mix_node.layer > max_layer as u64 {
-            debug!(
-                "one of bonded mixnodes is on invalid layer {}",
-                node.mix_node.layer
-            );
-            continue;
-        }
-
-        *nodes_distribution.entry(node.mix_node.layer).or_insert(0) += 1;
-    }
-
-    // this can't be None as the hashmap is guaranteed to be non-empty since we initialised it
-    // with zeroes for each possible layer
-    let layer_with_fewest = nodes_distribution
-        .iter()
-        .min_by(|a, b| a.1.cmp(&b.1))
-        .map(|(k, _v)| k)
-        .unwrap();
-
-    *layer_with_fewest
 }
 
 fn show_bonding_info(config: &Config) {

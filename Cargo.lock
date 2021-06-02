@@ -107,16 +107,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cff77d8686867eceff3105329d4698d96c2391c176d5d03adc90c7389162b5b8"
 
 [[package]]
-name = "assert-json-diff"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50f1c3703dd33532d7f0ca049168930e9099ecac238e23cf932f3a69c42f06da"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "async-stream"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -700,12 +690,6 @@ dependencies = [
  "quote",
  "syn",
 ]
-
-[[package]]
-name = "difference"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "524cbf6897b527295dff137cec09ecf3a05f4fddffd7dfcd1585403449e74198"
 
 [[package]]
 name = "digest"
@@ -1451,16 +1435,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8452105ba047068f40ff7093dd1d9da90898e63dd61736462e9cdda6a90ad3c3"
 
 [[package]]
-name = "metrics-client"
-version = "0.1.0"
-dependencies = [
- "mockito",
- "reqwest",
- "serde",
- "tokio",
-]
-
-[[package]]
 name = "mime"
 version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1532,24 +1506,6 @@ dependencies = [
  "tokio-util",
  "validator-client",
  "version-checker",
-]
-
-[[package]]
-name = "mockito"
-version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d10030163d67f681db11810bc486df3149e6d91c8b4f3f96fa8b62b546c2cef8"
-dependencies = [
- "assert-json-diff",
- "colored",
- "difference",
- "httparse",
- "lazy_static",
- "log",
- "rand 0.8.3",
- "regex",
- "serde_json",
- "serde_urlencoded",
 ]
 
 [[package]]
@@ -1659,7 +1615,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
-version = "0.10.1"
+version = "0.9.0"
 dependencies = [
  "console_error_panic_hook",
  "crypto",
@@ -1722,7 +1678,6 @@ dependencies = [
  "futures",
  "humantime-serde",
  "log",
- "metrics-client",
  "mixnet-client",
  "mixnode-common",
  "nonexhaustive-delayqueue",

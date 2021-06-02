@@ -34,9 +34,6 @@ export { nymGasLimits, nymGasPrice }
 
 export default class ValidatorClient {
     private readonly stakeDenom: string;
-    // TODO: do those even still make sense since they can vary?
-    private readonly defaultGatewayBondingStake: number = 100_000000
-    private readonly defaultMixnodeBondingStake: number = 100_000000
 
     urls: string[];
     private readonly client: INetClient | IQueryClient
@@ -248,8 +245,10 @@ export default class ValidatorClient {
      *
      * @returns a `Coin` instance containing minimum amount of coins to stake a gateway.
      */
-    minimumMixnodeBond = (): Coin => {
-        return coin(this.defaultMixnodeBondingStake, this.stakeDenom)
+    async minimumMixnodeBond(): Promise<Coin> {
+        const stateParams = await this.getStateParams()
+        // we trust the contract to return a valid number
+        return coin(Number(stateParams.minimum_mixnode_bond), this.stakeDenom)
     }
 
     /**
@@ -257,7 +256,7 @@ export default class ValidatorClient {
      */
     async bondMixnode(mixNode: MixNode): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const bond = [this.minimumMixnodeBond()];
+            const bond = [await this.minimumMixnodeBond()];
             const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { bond_mixnode: { mix_node: mixNode } }, "adding mixnode", bond).catch((err) => this.handleRequestFailure(err));
             console.log(`account ${this.client.clientAddress} added mixnode with ${mixNode.host}`);
             return result;
@@ -329,8 +328,10 @@ export default class ValidatorClient {
      *
      * @returns a `Coin` instance containing minimum amount of coins to stake a gateway.
      */
-    minimumGatewayBond = (): Coin => {
-        return coin(this.defaultGatewayBondingStake, this.stakeDenom)
+    async minimumGatewayBond(): Promise<Coin> {
+        const stateParams = await this.getStateParams()
+        // we trust the contract to return a valid number
+        return coin(Number(stateParams.minimum_gateway_bond), this.stakeDenom)
     }
 
     /**
@@ -338,7 +339,7 @@ export default class ValidatorClient {
      */
     async bondGateway(gateway: Gateway): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const bond = this.minimumGatewayBond()
+            const bond = await this.minimumGatewayBond()
             const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {bond_gateway: {gateway: gateway}}, "adding gateway", [bond]).catch((err) => this.handleRequestFailure(err));
             console.log(`account ${this.client.clientAddress} added gateway with ${gateway.mix_host}`);
             return result;

@@ -5,12 +5,14 @@ use crate::config::Config;
 use crate::node::http::{
     description::description,
     not_found,
+    stats::stats,
     verloc::{verloc, VerlocState},
 };
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
+use crate::node::node_statistics::NodeStatsWrapper;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use crypto::asymmetric::{encryption, identity};
 use log::{error, info, warn};
@@ -22,7 +24,7 @@ use version_checker::parse_version;
 
 pub(crate) mod http;
 mod listener;
-mod metrics;
+// mod metrics;
 pub(crate) mod node_description;
 pub(crate) mod node_statistics;
 pub(crate) mod packet_delayforwarder;
@@ -50,7 +52,11 @@ impl MixNode {
         }
     }
 
-    fn start_http_api(&self, atomic_verloc_result: AtomicVerlocResult) {
+    fn start_http_api(
+        &self,
+        atomic_verloc_result: AtomicVerlocResult,
+        node_stats_pointer: NodeStatsWrapper,
+    ) {
         info!("Starting HTTP API on http://localhost:8000");
 
         let mut config = rocket::config::Config::release_default();
@@ -63,35 +69,38 @@ impl MixNode {
         tokio::spawn(async move {
             rocket::build()
                 .configure(config)
-                .mount("/", routes![verloc, description])
+                .mount("/", routes![verloc, description, stats])
                 .register("/", catchers![not_found])
                 .manage(verloc_state)
                 .manage(descriptor)
+                .manage(node_stats_pointer)
                 .launch()
                 .await
         });
     }
 
-    fn start_metrics_reporter(&self) -> metrics::MetricsReporter {
-        info!("Starting metrics reporter...");
-        metrics::MetricsController::new(
-            self.config.get_metrics_server(),
-            self.identity_keypair.public_key().to_base58_string(),
-            self.config.get_metrics_running_stats_logging_delay(),
-        )
-        .start()
+    fn start_node_stats_controller(&self) -> (NodeStatsWrapper, node_statistics::UpdateSender) {
+        info!("Starting node stats controller...");
+        let controller = node_statistics::Controller::new(
+            self.config.get_node_stats_logging_delay(),
+            self.config.get_node_stats_updating_delay(),
+        );
+        let node_stats_pointer = controller.get_node_stats_data_pointer();
+        let update_sender = controller.start();
+
+        (node_stats_pointer, update_sender)
     }
 
     fn start_socket_listener(
         &self,
-        metrics_reporter: metrics::MetricsReporter,
+        node_stats_update_sender: node_statistics::UpdateSender,
         delay_forwarding_channel: PacketDelayForwardSender,
     ) {
         info!("Starting socket listener...");
 
         let packet_processor = PacketProcessor::new(
             self.sphinx_keypair.private_key(),
-            metrics_reporter,
+            node_stats_update_sender,
             self.config.get_cache_entry_ttl(),
         );
 
@@ -104,7 +113,7 @@ impl MixNode {
 
     fn start_packet_delay_forwarder(
         &mut self,
-        metrics_reporter: metrics::MetricsReporter,
+        node_stats_update_sender: node_statistics::UpdateSender,
     ) -> PacketDelayForwardSender {
         info!("Starting packet delay-forwarder...");
 
@@ -113,7 +122,7 @@ impl MixNode {
             self.config.get_packet_forwarding_maximum_backoff(),
             self.config.get_initial_connection_timeout(),
             self.config.get_maximum_connection_buffer_size(),
-            metrics_reporter,
+            node_stats_update_sender,
         );
 
         let packet_sender = packet_forwarder.sender();
@@ -212,12 +221,12 @@ impl MixNode {
                 }
             }
 
-            let metrics_reporter = self.start_metrics_reporter();
-            let delay_forwarding_channel = self.start_packet_delay_forwarder(metrics_reporter.clone());
-            self.start_socket_listener(metrics_reporter, delay_forwarding_channel);
+            let (node_stats_pointer, node_stats_update_sender) = self.start_node_stats_controller();
+            let delay_forwarding_channel = self.start_packet_delay_forwarder(node_stats_update_sender.clone());
+            self.start_socket_listener(node_stats_update_sender, delay_forwarding_channel);
 
             let atomic_verloc_results= self.start_rtt_measurer();
-            self.start_http_api(atomic_verloc_results);
+            self.start_http_api(atomic_verloc_results, node_stats_pointer);
 
             info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
             self.wait_for_interrupt().await

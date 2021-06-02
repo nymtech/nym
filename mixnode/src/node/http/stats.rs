@@ -1,10 +1,29 @@
-use crate::node::node_statistics::{NodeStats, NodeStatsWrapper};
+use crate::node::node_statistics::{NodeStats, NodeStatsSimple, NodeStatsWrapper};
 use rocket::State;
 use rocket_contrib::json::Json;
+use serde::Serialize;
 
-/// Returns a description of the node and why someone might want to delegate stake to it.
-#[get("/stats")]
-pub(crate) fn stats(description: State<NodeStatsWrapper>) -> Json<NodeStats> {
-    todo!()
-    // Json(description.inner().clone())
+#[derive(Serialize)]
+#[serde(untagged)]
+pub(crate) enum NodeStatsResponse {
+    Full(NodeStats),
+    Simple(NodeStatsSimple),
+}
+
+/// Returns a running stats of the node.
+#[get("/stats?<debug>")]
+pub(crate) async fn stats(
+    stats: State<'_, NodeStatsWrapper>,
+    debug: Option<bool>,
+) -> Json<NodeStatsResponse> {
+    let snapshot_data = stats.clone_data().await;
+
+    // there's no point in returning the entire hashmap of sending destinations in regular mode
+    if let Some(debug) = debug {
+        if debug {
+            return Json(NodeStatsResponse::Full(snapshot_data));
+        }
+    }
+
+    Json(NodeStatsResponse::Simple(snapshot_data.simplify()))
 }

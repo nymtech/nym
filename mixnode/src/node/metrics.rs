@@ -12,18 +12,17 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::task::JoinHandle;
 
-const METRICS_FAILURE_BACKOFF: Duration = Duration::from_secs(30);
-
 type SentMetricsMap = HashMap<String, u64>;
+
+const METRICS_FAILURE_BACKOFF: Duration = Duration::from_secs(30);
 
 pub(crate) enum MetricEvent {
     Sent(String),
     Received,
+    // dropped?
 }
 
 #[derive(Debug, Clone)]
-// Note: you should NEVER create more than a single instance of this using 'new()'.
-// You should always use .clone() to create additional instances
 struct MixMetrics {
     inner: Arc<MixMetricsInner>,
 }
@@ -64,97 +63,102 @@ impl MixMetrics {
     }
 }
 
-struct MetricsReceiver {
+struct UpdateHandler {
     metrics: MixMetrics,
     metrics_rx: mpsc::UnboundedReceiver<MetricEvent>,
 }
 
-impl MetricsReceiver {
+impl UpdateHandler {
     fn new(metrics: MixMetrics, metrics_rx: mpsc::UnboundedReceiver<MetricEvent>) -> Self {
-        MetricsReceiver {
+        UpdateHandler {
             metrics,
             metrics_rx,
         }
     }
 
-    fn start(mut self) -> JoinHandle<()> {
-        tokio::spawn(async move {
-            while let Some(metrics_data) = self.metrics_rx.next().await {
-                match metrics_data {
-                    MetricEvent::Received => self.metrics.increment_received_metrics(),
-                    MetricEvent::Sent(destination) => {
-                        self.metrics.increment_sent_metrics(destination).await
-                    }
+    async fn run(&mut self) {
+        while let Some(metrics_data) = self.metrics_rx.next().await {
+            match metrics_data {
+                MetricEvent::Received => self.metrics.increment_received_metrics(),
+                MetricEvent::Sent(destination) => {
+                    self.metrics.increment_sent_metrics(destination).await
                 }
             }
-        })
+        }
     }
 }
 
-struct MetricsSender {
-    metrics: MixMetrics,
-    #[allow(dead_code)]
-    metrics_client: metrics_client::Client,
-    #[allow(dead_code)]
-    pub_key_str: String,
-    metrics_informer: MetricsInformer,
+struct Snapshot {
+    snapshot_time: SystemTime,
+    previous_snapshot_time: SystemTime,
+
+    received_total: usize,
+    sent_total: SentMetricsMap,
+
+    received_since_last_snapshot: usize,
+    sent_since_last_snapshot: SentMetricsMap,
 }
 
-impl MetricsSender {
+struct MetricsSnapshoter {
+    metrics: MixMetrics,
+    metrics_informer: MetricsConsoleLogger,
+    current_snapshot: Snapshot,
+}
+
+impl MetricsSnapshoter {
     fn new(
         metrics: MixMetrics,
         metrics_server: String,
         pub_key_str: String,
         running_logging_delay: Duration,
     ) -> Self {
-        MetricsSender {
-            metrics,
-            metrics_client: metrics_client::Client::new(metrics_client::Config::new(
-                metrics_server,
-            )),
-            pub_key_str,
-            metrics_informer: MetricsInformer::new(running_logging_delay),
-        }
+        todo!()
+        // MetricsSnapshoter {
+        //     metrics,
+        //     metrics_informer: MetricsConsoleLogger::new(running_logging_delay),
+        // }
     }
 
-    fn start(mut self) -> JoinHandle<()> {
-        tokio::spawn(async move {
-            loop {
-                let (received, sent) = self.metrics.acquire_and_reset_metrics().await;
+    async fn grab_snapshot(&mut self) {
+        // grab new data since last snapshot
+        let (received, sent) = self.metrics.acquire_and_reset_metrics().await;
+        let snaphsot_time = SystemTime::now();
+    }
 
-                self.metrics_informer.update_running_stats(received, &sent);
-                self.metrics_informer.log_report_stats(received, &sent);
-                self.metrics_informer.try_log_running_stats();
+    async fn run(&mut self) {
+        loop {
+            let (received, sent) = self.metrics.acquire_and_reset_metrics().await;
 
-                tokio::time::sleep(METRICS_FAILURE_BACKOFF).await;
+            self.metrics_informer.update_running_stats(received, &sent);
 
-                // let sending_delay = match self
-                //     .metrics_client
-                //     .post_mix_metrics(MixMetric {
-                //         pub_key: self.pub_key_str.clone(),
-                //         received,
-                //         sent,
-                //     })
-                //     .await
-                // {
-                //     Err(err) => {
-                //         error!("failed to send metrics - {:?}", err);
-                //         tokio::time::sleep(METRICS_FAILURE_BACKOFF)
-                //     }
-                //     Ok(new_interval) => {
-                //         debug!("sent metrics information");
-                //         tokio::time::sleep(Duration::from_secs(new_interval.next_report_in))
-                //     }
-                // };
-                //
-                // // wait for however much is left
-                // sending_delay.await;
-            }
-        })
+            tokio::time::sleep(METRICS_FAILURE_BACKOFF).await;
+
+            // let sending_delay = match self
+            //     .metrics_client
+            //     .post_mix_metrics(MixMetric {
+            //         pub_key: self.pub_key_str.clone(),
+            //         received,
+            //         sent,
+            //     })
+            //     .await
+            // {
+            //     Err(err) => {
+            //         error!("failed to send metrics - {:?}", err);
+            //         tokio::time::sleep(METRICS_FAILURE_BACKOFF)
+            //     }
+            //     Ok(new_interval) => {
+            //         debug!("sent metrics information");
+            //         tokio::time::sleep(Duration::from_secs(new_interval.next_report_in))
+            //     }
+            // };
+            //
+            // // wait for however much is left
+            // sending_delay.await;
+        }
     }
 }
 
-struct MetricsInformer {
+struct MetricsConsoleLogger {
     total_received: u64,
     sent_map: SentMetricsMap,
 
@@ -162,23 +166,13 @@ struct MetricsInformer {
     last_reported_stats: SystemTime,
 }
 
-impl MetricsInformer {
+impl MetricsConsoleLogger {
     fn new(running_stats_logging_delay: Duration) -> Self {
-        MetricsInformer {
+        MetricsConsoleLogger {
             total_received: 0,
             sent_map: HashMap::new(),
             running_stats_logging_delay,
             last_reported_stats: SystemTime::now(),
-        }
-    }
-
-    fn should_log_running_stats(&self) -> bool {
-        self.last_reported_stats + self.running_stats_logging_delay < SystemTime::now()
-    }
-
-    fn try_log_running_stats(&mut self) {
-        if self.should_log_running_stats() {
-            self.log_running_stats()
         }
     }
 
@@ -188,21 +182,6 @@ impl MetricsInformer {
         for (mix, count) in pre_reset_sent.iter() {
             *self.sent_map.entry(mix.clone()).or_insert(0) += *count;
         }
-    }
-
-    fn log_report_stats(&self, pre_reset_received: u64, pre_reset_sent: &SentMetricsMap) {
-        debug!(
-            "Since last metrics report mixed {} packets!",
-            pre_reset_received
-        );
-        debug!(
-            "Since last metrics report received {} packets",
-            pre_reset_sent.values().sum::<u64>()
-        );
-        trace!(
-            "Since last metrics report sent packets to the following: \n{:#?}",
-            pre_reset_sent
-        );
     }
 
     fn log_running_stats(&mut self) {
@@ -217,22 +196,29 @@ impl MetricsInformer {
         );
         self.last_reported_stats = SystemTime::now();
     }
+
+    async fn run(&mut self) {
+        loop {
+            // grab stats or something first
+            self.log_running_stats();
+
+            tokio::time::sleep(self.running_stats_logging_delay).await;
+        }
+    }
 }
 
 #[derive(Clone)]
-pub struct MetricsReporter {
-    metrics_tx: mpsc::UnboundedSender<MetricEvent>,
-}
+pub struct UpdateSender(mpsc::UnboundedSender<MetricEvent>);
 
-impl MetricsReporter {
+impl UpdateSender {
     pub(crate) fn new(metrics_tx: mpsc::UnboundedSender<MetricEvent>) -> Self {
-        MetricsReporter { metrics_tx }
+        UpdateSender(metrics_tx)
     }
 
     pub(crate) fn report_sent(&self, destination: String) {
         // in unbounded_send() failed it means that the receiver channel was disconnected
         // and hence something weird must have happened without a way of recovering
-        self.metrics_tx
+        self.0
             .unbounded_send(MetricEvent::Sent(destination))
             .unwrap()
     }
@@ -242,20 +228,18 @@ impl MetricsReporter {
     pub(crate) fn report_received(&self) {
         // in unbounded_send() failed it means that the receiver channel was disconnected
         // and hence something weird must have happened without a way of recovering
-        self.metrics_tx
-            .unbounded_send(MetricEvent::Received)
-            .unwrap()
+        self.0.unbounded_send(MetricEvent::Received).unwrap()
     }
 }
 
 // basically an easy single entry point to start all metrics related tasks
-pub struct MetricsController {
-    receiver: MetricsReceiver,
-    reporter: MetricsReporter,
-    sender: MetricsSender,
+pub struct Controller {
+    receiver: UpdateHandler,
+    reporter: UpdateSender,
+    sender: MetricsSnapshoter,
 }
 
-impl MetricsController {
+impl Controller {
     pub(crate) fn new(
         directory_server: String,
         pub_key_str: String,
@@ -264,23 +248,27 @@ impl MetricsController {
         let (metrics_tx, metrics_rx) = mpsc::unbounded();
         let shared_metrics = MixMetrics::new();
 
-        MetricsController {
-            sender: MetricsSender::new(
+        Controller {
+            sender: MetricsSnapshoter::new(
                 shared_metrics.clone(),
                 directory_server,
                 pub_key_str,
                 running_stats_logging_delay,
             ),
-            receiver: MetricsReceiver::new(shared_metrics, metrics_rx),
-            reporter: MetricsReporter::new(metrics_tx),
+            receiver: UpdateHandler::new(shared_metrics, metrics_rx),
+            reporter: UpdateSender::new(metrics_tx),
         }
     }
 
     // reporter is how node is going to be accessing the metrics data
-    pub(crate) fn start(self) -> MetricsReporter {
-        // TODO: should we do anything with JoinHandle(s) returned by start methods?
-        self.receiver.start();
-        self.sender.start();
+    pub(crate) fn start(self) -> UpdateSender {
+        // move out of self
+        let mut receiver = self.receiver;
+        let mut sender = self.sender;
+
+        tokio::spawn(async move { receiver.run().await });
+        tokio::spawn(async move { sender.run().await });
+
         self.reporter
     }
 }

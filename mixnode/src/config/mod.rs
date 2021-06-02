@@ -22,7 +22,6 @@ pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
     "http://testnet-finney-validator2.nymtech.net:1317",
     "http://mixnet.club:1317",
 ];
-pub(crate) const DEFAULT_METRICS_SERVER: &str = "http://testnet-metrics.nymtech.net:8080";
 pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
 
 // 'RTT MEASUREMENT'
@@ -34,7 +33,8 @@ const DEFAULT_TESTING_INTERVAL: Duration = Duration::from_secs(60 * 60 * 12);
 const DEFAULT_RETRY_TIMEOUT: Duration = Duration::from_secs(60 * 30);
 
 // 'DEBUG'
-const DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
+const DEFAULT_NODE_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
+const DEFAULT_NODE_STATS_UPDATING_DELAY: Duration = Duration::from_millis(30_000);
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
@@ -151,11 +151,6 @@ impl Config {
         self
     }
 
-    pub fn with_custom_metrics_server<S: Into<String>>(mut self, server: S) -> Self {
-        self.mixnode.metrics_server_url = server.into();
-        self
-    }
-
     pub fn with_listening_host<S: Into<String>>(mut self, host: S) -> Self {
         // see if the provided `host` is just an ip address or ip:port
         let host = host.into();
@@ -264,12 +259,12 @@ impl Config {
         self.mixnode.mixnet_contract_address.clone()
     }
 
-    pub fn get_metrics_server(&self) -> String {
-        self.mixnode.metrics_server_url.clone()
+    pub fn get_node_stats_logging_delay(&self) -> Duration {
+        self.debug.node_stats_logging_delay
     }
 
-    pub fn get_metrics_running_stats_logging_delay(&self) -> Duration {
-        self.debug.metrics_running_stats_logging_delay
+    pub fn get_node_stats_updating_delay(&self) -> Duration {
+        self.debug.node_stats_updating_delay
     }
 
     pub fn get_layer(&self) -> u64 {
@@ -385,10 +380,6 @@ pub struct MixNode {
     #[serde(default = "missing_string_value")]
     mixnet_contract_address: String,
 
-    /// Metrics server to which the node will be reporting their metrics data.
-    #[serde(default = "missing_string_value")]
-    metrics_server_url: String,
-
     /// nym_home_directory specifies absolute path to the home nym MixNodes directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
     nym_root_directory: PathBuf,
@@ -428,7 +419,6 @@ impl Default for MixNode {
             public_sphinx_key_file: Default::default(),
             validator_rest_urls: default_validator_rest_endpoints(),
             mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
-            metrics_server_url: DEFAULT_METRICS_SERVER.to_string(),
             nym_root_directory: Config::default_root_directory(),
         }
     }
@@ -483,12 +473,19 @@ impl Default for RttMeasurement {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct Debug {
-    /// Delay between each subsequent running metrics statistics being logged.
+    /// Delay between each subsequent node statistics being logged to the console
     #[serde(
         deserialize_with = "deserialize_duration",
         serialize_with = "humantime_serde::serialize"
     )]
-    metrics_running_stats_logging_delay: Duration,
+    node_stats_logging_delay: Duration,
+
+    /// Delay between each subsequent node statistics being updated
+    #[serde(
+        deserialize_with = "deserialize_duration",
+        serialize_with = "humantime_serde::serialize"
+    )]
+    node_stats_updating_delay: Duration,
 
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
@@ -527,7 +524,8 @@ pub struct Debug {
 impl Default for Debug {
     fn default() -> Self {
         Debug {
-            metrics_running_stats_logging_delay: DEFAULT_METRICS_RUNNING_STATS_LOGGING_DELAY,
+            node_stats_logging_delay: DEFAULT_NODE_STATS_LOGGING_DELAY,
+            node_stats_updating_delay: DEFAULT_NODE_STATS_UPDATING_DELAY,
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,

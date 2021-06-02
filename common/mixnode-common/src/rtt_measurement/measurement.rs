@@ -21,13 +21,28 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 
 pub struct AtomicVerlocResult {
-    inner: Arc<RwLock<Vec<Verloc>>>,
+    inner: Arc<RwLock<VerlocResult>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct VerlocResult {
+    total_tested: usize,
+    #[serde(with = "humantime_serde")]
+    run_started: Option<std::time::SystemTime>,
+    #[serde(with = "humantime_serde")]
+    run_finished: Option<std::time::SystemTime>,
+    results: Vec<Verloc>,
 }
 
 impl AtomicVerlocResult {
     pub(crate) fn new() -> Self {
         AtomicVerlocResult {
-            inner: Arc::new(RwLock::new(Vec::new())),
+            inner: Arc::new(RwLock::new(VerlocResult {
+                total_tested: 0,
+                run_started: None,
+                run_finished: None,
+                results: Vec::new(),
+            })),
         }
     }
 
@@ -38,14 +53,30 @@ impl AtomicVerlocResult {
         }
     }
 
-    pub(crate) async fn update_results(&self, new_data: Vec<Verloc>) {
+    pub(crate) async fn reset_results(&self, new_tested: usize) {
         let mut write_permit = self.inner.write().await;
-        *write_permit = new_data;
+        write_permit.total_tested = new_tested;
+        write_permit.run_started = Some(std::time::SystemTime::now());
+        write_permit.run_finished = None;
+        write_permit.results = Vec::new()
+    }
+
+    pub(crate) async fn append_results(&self, mut new_data: Vec<Verloc>) {
+        let mut write_permit = self.inner.write().await;
+        write_permit.results.append(&mut new_data);
+        // make sure the data always stays in order.
+        // TODO: considering the front of the results is guaranteed to be sorted, should perhaps
+        // a non-default sorting algorithm be used?
+        write_permit.results.sort()
+    }
+
+    pub(crate) async fn finish_measurements(&self) {
+        self.inner.write().await.run_finished = Some(std::time::SystemTime::now());
     }
 
     // Considering that on every read we will need to clone data regardless, let's make our
     // lives simpler and clone it here rather than deal with lifetime of the permit
-    pub async fn clone_data(&self) -> Vec<Verloc> {
+    pub async fn clone_data(&self) -> VerlocResult {
         self.inner.read().await.clone()
     }
 }
@@ -69,11 +100,10 @@ where
 
 impl Display for Verloc {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let identity = self.identity.to_base58_string();
         if let Some(measurement) = self.latest_measurement {
-            write!(f, "{} - {}", identity, measurement)
+            write!(f, "{} - {}", self.identity, measurement)
         } else {
-            write!(f, "{} - COULD NOT MEASURE", identity)
+            write!(f, "{} - COULD NOT MEASURE", self.identity)
         }
     }
 }

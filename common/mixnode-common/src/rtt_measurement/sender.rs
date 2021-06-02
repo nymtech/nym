@@ -18,6 +18,7 @@ use crate::rtt_measurement::packet::{EchoPacket, ReplyPacket};
 use crypto::asymmetric::identity;
 use log::*;
 use rand::{thread_rng, Rng};
+use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -42,6 +43,7 @@ pub(crate) struct PacketSender {
     // timeout for receiving before sending new one
     packets_per_node: usize,
     packet_timeout: Duration,
+    connection_timeout: Duration,
     delay_between_packets: Duration,
 }
 
@@ -50,12 +52,14 @@ impl PacketSender {
         identity: Arc<identity::KeyPair>,
         packets_per_node: usize,
         packet_timeout: Duration,
+        connection_timeout: Duration,
         delay_between_packets: Duration,
     ) -> Self {
         PacketSender {
             identity,
             packets_per_node,
             packet_timeout,
+            connection_timeout,
             delay_between_packets,
         }
     }
@@ -76,11 +80,26 @@ impl PacketSender {
         self: Arc<Self>,
         tested_node: TestedNode,
     ) -> Result<Measurement, RttError> {
-        let mut conn = TcpStream::connect(tested_node.address)
-            .await
-            .map_err(|err| {
-                RttError::UnreachableNode(tested_node.identity.to_base58_string(), err)
-            })?;
+        let mut conn = match tokio::time::timeout(
+            self.connection_timeout,
+            TcpStream::connect(tested_node.address),
+        )
+        .await
+        {
+            Err(_timeout) => {
+                return Err(RttError::UnreachableNode(
+                    tested_node.identity.to_base58_string(),
+                    io::ErrorKind::TimedOut.into(),
+                ))
+            }
+            Ok(Err(err)) => {
+                return Err(RttError::UnreachableNode(
+                    tested_node.identity.to_base58_string(),
+                    err,
+                ))
+            }
+            Ok(Ok(conn)) => conn,
+        };
 
         let mut results = Vec::with_capacity(self.packets_per_node);
 
@@ -90,16 +109,35 @@ impl PacketSender {
             let start = tokio::time::Instant::now();
             // TODO: should we get the start time after or before actually sending the data?
             // there's going to definitely some scheduler and network stack bias here
-            if let Err(err) = conn.write_all(packet.to_bytes().as_ref()).await {
-                let identity_string = tested_node.identity.to_base58_string();
-                error!(
-                    "failed to write echo packet to {} - {}. Stopping the test.",
-                    identity_string, err
-                );
-                return Err(RttError::UnexpectedConnectionFailureWrite(
-                    identity_string,
-                    err,
-                ));
+            match tokio::time::timeout(
+                self.packet_timeout,
+                conn.write_all(packet.to_bytes().as_ref()),
+            )
+            .await
+            {
+                Err(_timeout) => {
+                    let identity_string = tested_node.identity.to_base58_string();
+                    debug!(
+                        "failed to write echo packet to {} within {:?}. Stopping the test.",
+                        identity_string, self.packet_timeout
+                    );
+                    return Err(RttError::UnexpectedConnectionFailureWrite(
+                        identity_string,
+                        io::ErrorKind::TimedOut.into(),
+                    ));
+                }
+                Ok(Err(err)) => {
+                    let identity_string = tested_node.identity.to_base58_string();
+                    debug!(
+                        "failed to write echo packet to {} - {}. Stopping the test.",
+                        identity_string, err
+                    );
+                    return Err(RttError::UnexpectedConnectionFailureWrite(
+                        identity_string,
+                        err,
+                    ));
+                }
+                Ok(Ok(_)) => {}
             }
 
             // there's absolutely no need to put a codec on ReplyPackets as we know exactly
@@ -107,7 +145,7 @@ impl PacketSender {
             let reply_packet_future = async {
                 let mut buf = [0u8; ReplyPacket::SIZE];
                 if let Err(err) = conn.read_exact(&mut buf).await {
-                    error!(
+                    debug!(
                         "failed to read reply packet from {} - {}. Stopping the test.",
                         tested_node.identity.to_base58_string(),
                         err
@@ -123,10 +161,10 @@ impl PacketSender {
             let reply_packet =
                 match tokio::time::timeout(self.packet_timeout, reply_packet_future).await {
                     Ok(reply_packet) => reply_packet,
-                    Err(_) => {
+                    Err(_timeout) => {
                         // TODO: should we continue regardless (with the rest of the packets, or abandon the whole thing?)
                         // Note: if we decide to continue, it would increase the complexity of the whole thing
-                        error!(
+                        debug!(
                         "failed to receive reply to our echo packet within {:?}. Stopping the test",
                         self.packet_timeout
                     );
@@ -141,7 +179,7 @@ impl PacketSender {
             // note that we cannot receive packets not in order as we are not sending a next packet until
             // we have received the previous one
             if reply_packet.base_sequence_number() != seq {
-                error!("Received reply packet with invalid sequence number! Got {} expected {}. Stopping the test", reply_packet.base_sequence_number(), seq);
+                debug!("Received reply packet with invalid sequence number! Got {} expected {}. Stopping the test", reply_packet.base_sequence_number(), seq);
                 return Err(RttError::UnexpectedReplySequence);
             }
 

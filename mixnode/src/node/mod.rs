@@ -144,6 +144,7 @@ impl MixNode {
         let config = rtt_measurement::ConfigBuilder::new()
             .listening_address(listening_address)
             .packets_per_node(self.config.get_measurement_packets_per_node())
+            .connection_timeout(self.config.get_measurement_connection_timeout())
             .packet_timeout(self.config.get_measurement_packet_timeout())
             .delay_between_packets(self.config.get_measurement_delay_between_packets())
             .tested_nodes_batch_size(self.config.get_measurement_tested_nodes_batch_size())

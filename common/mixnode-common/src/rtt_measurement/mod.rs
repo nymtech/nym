@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::rtt_measurement::listener::PacketListener;
-pub use crate::rtt_measurement::measurement::{AtomicVerlocResult, Verloc};
+pub use crate::rtt_measurement::measurement::{AtomicVerlocResult, Verloc, VerlocResult};
 use crate::rtt_measurement::sender::{PacketSender, TestedNode};
 use crypto::asymmetric::identity;
 use futures::stream::FuturesUnordered;
@@ -39,6 +39,7 @@ pub const DEFAULT_MEASUREMENT_PORT: u16 = 1790;
 // by default all of those are overwritten by config data from mixnodes directly
 const DEFAULT_PACKETS_PER_NODE: usize = 100;
 const DEFAULT_PACKET_TIMEOUT: Duration = Duration::from_millis(1500);
+const DEFAULT_CONNECTION_TIMEOUT: Duration = Duration::from_millis(5000);
 const DEFAULT_DELAY_BETWEEN_PACKETS: Duration = Duration::from_millis(50);
 const DEFAULT_BATCH_SIZE: usize = 50;
 const DEFAULT_TESTING_INTERVAL: Duration = Duration::from_secs(60 * 60 * 12);
@@ -60,6 +61,9 @@ pub struct Config {
 
     /// Specifies maximum amount of time to wait for the reply packet to arrive before abandoning the test.
     packet_timeout: Duration,
+
+    /// Specifies maximum amount of time to wait for the connection to get established.
+    connection_timeout: Duration,
 
     /// Specifies delay between subsequent test packets being sent (after receiving a reply).
     delay_between_packets: Duration,
@@ -114,6 +118,10 @@ impl ConfigBuilder {
         self.0.packet_timeout = packet_timeout;
         self
     }
+    pub fn connection_timeout(mut self, connection_timeout: Duration) -> Self {
+        self.0.connection_timeout = connection_timeout;
+        self
+    }
     pub fn delay_between_packets(mut self, delay_between_packets: Duration) -> Self {
         self.0.delay_between_packets = delay_between_packets;
         self
@@ -163,6 +171,7 @@ impl Default for ConfigBuilder {
                 .unwrap(),
             packets_per_node: DEFAULT_PACKETS_PER_NODE,
             packet_timeout: DEFAULT_PACKET_TIMEOUT,
+            connection_timeout: DEFAULT_CONNECTION_TIMEOUT,
             delay_between_packets: DEFAULT_DELAY_BETWEEN_PACKETS,
             tested_nodes_batch_size: DEFAULT_BATCH_SIZE,
             testing_interval: DEFAULT_TESTING_INTERVAL,
@@ -198,6 +207,7 @@ impl RttMeasurer {
                 Arc::clone(&identity),
                 config.packets_per_node,
                 config.packet_timeout,
+                config.connection_timeout,
                 config.delay_between_packets,
             )),
             packet_listener: Arc::new(PacketListener::new(
@@ -222,10 +232,10 @@ impl RttMeasurer {
         tokio::spawn(packet_listener.run())
     }
 
-    async fn perform_measurement(&self, nodes_to_test: Vec<TestedNode>) -> Vec<Verloc> {
-        let mut results = Vec::with_capacity(nodes_to_test.len());
-
+    async fn perform_measurement(&self, nodes_to_test: Vec<TestedNode>) {
         for chunk in nodes_to_test.chunks(self.config.tested_nodes_batch_size) {
+            let mut chunk_results = Vec::with_capacity(chunk.len());
+
             let mut measurement_chunk = chunk
                 .iter()
                 .map(|node| {
@@ -261,18 +271,18 @@ impl RttMeasurer {
                     }
                     Ok(result) => Some(result),
                 };
-                results.push(Verloc::new(execution_result.1, measurement_result));
+                chunk_results.push(Verloc::new(execution_result.1, measurement_result));
             }
-        }
 
-        // finally sort the results
-        results.sort();
-        results
+            // update the results vector with chunks as they become available (by default every 50 nodes)
+            self.results.append_results(chunk_results).await;
+        }
     }
 
     pub async fn run(&mut self) {
         self.start_listening();
         loop {
+            info!(target: "verloc", "Starting verloc measurements");
             // TODO: should we also measure gateways?
             let all_mixes = match self.validator_client.get_mix_nodes().await {
                 Ok(nodes) => nodes,
@@ -310,9 +320,15 @@ impl RttMeasurer {
                 })
                 .collect::<Vec<_>>();
 
-            let results = self.perform_measurement(tested_nodes).await;
-            self.results.update_results(results).await;
+            // on start of each run remove old results
+            self.results.reset_results(tested_nodes.len()).await;
 
+            self.perform_measurement(tested_nodes).await;
+
+            // write current time to "run finished" field
+            self.results.finish_measurements().await;
+
+            info!(target: "verloc", "Finished performing verloc measurements. The next one will happen in {:?}", self.config.testing_interval);
             sleep(self.config.testing_interval).await
         }
     }

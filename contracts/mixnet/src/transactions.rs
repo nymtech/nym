@@ -5,11 +5,12 @@ use crate::state::StateParams;
 use crate::storage::{
     config, config_read, gateways, gateways_owners, gateways_owners_read, gateways_read,
     increase_gateway_bond, increase_mixnode_bond, mixnodes, mixnodes_owners, mixnodes_owners_read,
-    mixnodes_read, read_gateway_epoch_reward_rate, read_mixnode_epoch_reward_rate,
-    read_state_params,
+    mixnodes_read, node_delegations, read_gateway_epoch_reward_rate,
+    read_mixnode_epoch_reward_rate, read_state_params,
 };
 use cosmwasm_std::{
-    attr, BankMsg, Coin, Decimal, DepsMut, Env, HandleResponse, HumanAddr, MessageInfo, Uint128,
+    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, HandleResponse, HumanAddr, MessageInfo,
+    Uint128,
 };
 use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond};
 
@@ -324,6 +325,81 @@ pub(crate) fn try_reward_gateway(
     Ok(HandleResponse::default())
 }
 
+fn validate_delegation_stake(delegation: &[Coin]) -> Result<(), ContractError> {
+    // check if anything was put as delegation
+    if delegation.is_empty() {
+        return Err(ContractError::EmptyDelegation);
+    }
+
+    if delegation.len() > 1 {
+        return Err(ContractError::MultipleDenoms);
+    }
+
+    // check that the denomination is correct
+    if delegation[0].denom != DENOM {
+        return Err(ContractError::WrongDenom {});
+    }
+
+    // check that we have provided a non-zero amount in the delegation
+    if delegation[0].amount.is_zero() {
+        return Err(ContractError::EmptyDelegation);
+    }
+
+    Ok(())
+}
+
+pub(crate) fn try_delegate_to_mixnode(
+    deps: DepsMut,
+    info: MessageInfo,
+    node_owner: HumanAddr,
+) -> Result<HandleResponse, ContractError> {
+    // check if the delegation contains any funds of the appropriate denomination
+    validate_delegation_stake(&info.sent_funds)?;
+
+    // check if the target node actually exists
+    if mixnodes_read(deps.storage)
+        .load(node_owner.as_bytes())
+        .is_err()
+    {
+        return Err(ContractError::MixNodeBondNotFound {});
+    }
+
+    // TODO: or increment?
+    node_delegations(deps.storage, &node_owner)
+        .save(info.sender.as_bytes(), &info.sent_funds[0].amount)?;
+
+    Ok(HandleResponse::default())
+}
+
+pub(crate) fn try_remove_delegation_from_mixnode(
+    deps: DepsMut,
+    info: MessageInfo,
+    env: Env,
+    node_owner: HumanAddr,
+) -> Result<HandleResponse, ContractError> {
+    // try to grab existing delegation, it implicitly checks if node exists as delegating requires nodes existence
+    let delegation_bucket = node_delegations(deps.storage, &node_owner);
+    match delegation_bucket.may_load(info.sender.as_bytes())? {
+        Some(delegation) => {
+            // send delegated funds back to the delegation owner
+            let messages = vec![BankMsg::Send {
+                from_address: env.contract.address,
+                to_address: info.sender,
+                amount: coins(delegation.u128(), DENOM),
+            }
+            .into()];
+            Ok(HandleResponse {
+                messages,
+                attributes: Vec::new(),
+                data: None,
+            })
+        }
+        None => Err(ContractError::NoMixnodeDelegationFound {
+            mixnode_owner: node_owner,
+        }),
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -338,7 +414,7 @@ pub mod tests {
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{gateway_fixture, mix_node_fixture};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary, Uint128};
+    use cosmwasm_std::{from_binary, Uint128};
     use mixnet_contract::{PagedGatewayResponse, PagedResponse};
 
     fn good_mixnode_bond() -> Vec<Coin> {

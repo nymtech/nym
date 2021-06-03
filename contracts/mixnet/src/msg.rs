@@ -20,6 +20,14 @@ pub enum HandleMsg {
     UnbondGateway {},
     UpdateStateParams(StateParams),
 
+    DelegateToMixnode {
+        node_owner: HumanAddr,
+    },
+
+    UndelegateFromMixnode {
+        node_owner: HumanAddr,
+    },
+
     RewardMixnode {
         owner: HumanAddr,
         // percentage value in range 0-100

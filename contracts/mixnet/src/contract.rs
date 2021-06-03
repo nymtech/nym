@@ -91,6 +91,12 @@ pub fn handle(
         HandleMsg::RewardGateway { owner, uptime } => {
             transactions::try_reward_gateway(deps, info, owner, uptime)
         }
+        HandleMsg::DelegateToMixnode { node_owner } => {
+            transactions::try_delegate_to_mixnode(deps, info, node_owner)
+        }
+        HandleMsg::UndelegateFromMixnode { node_owner } => {
+            transactions::try_remove_delegation_from_mixnode(deps, info, env, node_owner)
+        }
     }
 }
 

@@ -1,5 +1,5 @@
 use crate::state::{State, StateParams};
-use cosmwasm_std::{Decimal, HumanAddr, StdError, StdResult, Storage};
+use cosmwasm_std::{Decimal, HumanAddr, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -134,6 +134,34 @@ pub(crate) fn increase_gateway_bond(
     let reward = node.amount[0].amount * scaled_reward_rate;
     node.amount[0].amount += reward;
     bucket.save(owner, &node)
+}
+
+// delegation related
+
+const PREFIX_DELEGATION: &[u8] = b"delegation";
+
+fn node_delegations_namespace(node_address: &HumanAddr) -> Vec<u8> {
+    PREFIX_DELEGATION
+        .iter()
+        .cloned()
+        .chain(node_address.as_bytes().iter().cloned())
+        .collect()
+}
+
+pub fn node_delegations<'a>(
+    storage: &'a mut dyn Storage,
+    node_address: &'a HumanAddr,
+) -> Bucket<'a, Uint128> {
+    let namespace = node_delegations_namespace(node_address);
+    bucket(storage, &namespace)
+}
+
+pub fn node_delegations_read<'a>(
+    storage: &'a dyn Storage,
+    node_address: &'a HumanAddr,
+) -> ReadonlyBucket<'a, Uint128> {
+    let namespace = node_delegations_namespace(node_address);
+    bucket_read(storage, &namespace)
 }
 
 // currently not used outside tests

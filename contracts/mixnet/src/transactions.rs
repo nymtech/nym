@@ -383,9 +383,13 @@ pub(crate) fn try_remove_delegation_from_mixnode(
     env: Env,
     node_owner: HumanAddr,
 ) -> Result<HandleResponse, ContractError> {
-    let delegation_bucket = node_delegations(deps.storage, &node_owner);
-    match delegation_bucket.may_load(info.sender.as_bytes())? {
+    let mut delegation_bucket = node_delegations(deps.storage, &node_owner);
+    let sender_bytes = info.sender.as_bytes();
+    match delegation_bucket.may_load(sender_bytes)? {
         Some(delegation) => {
+            // remove delegation from the bucket
+            delegation_bucket.remove(sender_bytes);
+
             // send delegated funds back to the delegation owner
             let messages = vec![BankMsg::Send {
                 from_address: env.contract.address,
@@ -393,6 +397,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
                 amount: coins(delegation.u128(), DENOM),
             }
             .into()];
+
             Ok(HandleResponse {
                 messages,
                 attributes: Vec::new(),
@@ -1517,7 +1522,6 @@ pub mod tests {
         use super::*;
         use crate::storage::node_delegations_read;
         use crate::support::tests::helpers::add_mixnode;
-        use cosmwasm_std::coin;
 
         #[test]
         fn fails_if_node_doesnt_exist() {
@@ -1713,6 +1717,141 @@ pub mod tests {
                 mixnode_owner.into()
             )
             .is_ok());
+        }
+
+        #[test]
+        fn delegation_is_not_removed_if_node_unbonded() {
+            let mut deps = helpers::init_contract();
+            let env = mock_env();
+
+            let mixnode_owner = "bob";
+            add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                mock_info("sender", &coins(100, DENOM)),
+                mixnode_owner.into(),
+            )
+            .unwrap();
+
+            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[]), env).unwrap();
+
+            assert_eq!(
+                100,
+                node_delegations_read(&deps.storage, &mixnode_owner.into())
+                    .load(b"sender")
+                    .unwrap()
+                    .u128()
+            );
+        }
+    }
+
+    #[cfg(test)]
+    mod removing_mix_stake_delegation {
+        use super::*;
+        use crate::storage::node_delegations_read;
+        use crate::support::tests::helpers::add_mixnode;
+
+        #[test]
+        fn fails_if_delegation_never_existed() {
+            let mut deps = helpers::init_contract();
+            let env = mock_env();
+
+            let mixnode_owner = "bob";
+            add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            assert_eq!(
+                Err(ContractError::NoMixnodeDelegationFound {
+                    mixnode_owner: mixnode_owner.into(),
+                }),
+                try_remove_delegation_from_mixnode(
+                    deps.as_mut(),
+                    mock_info("sender", &[]),
+                    env,
+                    mixnode_owner.into(),
+                )
+            );
+        }
+
+        #[test]
+        fn succeeds_if_delegation_existed() {
+            let mut deps = helpers::init_contract();
+            let env = mock_env();
+
+            let mixnode_owner = "bob";
+            add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                mock_info("sender", &coins(100, DENOM)),
+                mixnode_owner.into(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                Ok(HandleResponse {
+                    messages: vec![BankMsg::Send {
+                        from_address: env.contract.address.clone(),
+                        to_address: "sender".into(),
+                        amount: coins(100, DENOM),
+                    }
+                    .into()],
+                    attributes: Vec::new(),
+                    data: None,
+                }),
+                try_remove_delegation_from_mixnode(
+                    deps.as_mut(),
+                    mock_info("sender", &[]),
+                    env,
+                    mixnode_owner.into(),
+                )
+            );
+
+            assert!(node_delegations_read(&deps.storage, &mixnode_owner.into())
+                .may_load(b"sender")
+                .unwrap()
+                .is_none());
+        }
+
+        #[test]
+        fn succeeds_if_delegation_existed_even_if_node_unbonded() {
+            let mut deps = helpers::init_contract();
+            let env = mock_env();
+
+            let mixnode_owner = "bob";
+            add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                mock_info("sender", &coins(100, DENOM)),
+                mixnode_owner.into(),
+            )
+            .unwrap();
+
+            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[]), env.clone()).unwrap();
+
+            assert_eq!(
+                Ok(HandleResponse {
+                    messages: vec![BankMsg::Send {
+                        from_address: env.contract.address.clone(),
+                        to_address: "sender".into(),
+                        amount: coins(100, DENOM),
+                    }
+                    .into()],
+                    attributes: Vec::new(),
+                    data: None,
+                }),
+                try_remove_delegation_from_mixnode(
+                    deps.as_mut(),
+                    mock_info("sender", &[]),
+                    env,
+                    mixnode_owner.into(),
+                )
+            );
+
+            assert!(node_delegations_read(&deps.storage, &mixnode_owner.into())
+                .may_load(b"sender")
+                .unwrap()
+                .is_none());
         }
     }
 }

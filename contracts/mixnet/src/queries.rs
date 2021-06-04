@@ -2,10 +2,10 @@ use crate::contract::DENOM;
 use crate::error::ContractError;
 use crate::state::StateParams;
 use crate::storage::{gateways_read, mixnodes_read, node_delegations_read, read_state_params};
+use cosmwasm_std::Deps;
+use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::{coin, HumanAddr};
-use cosmwasm_std::{Delegation, Deps};
-use cosmwasm_std::{Order, Uint128};
 use mixnet_contract::{
     GatewayBond, GatewayOwnershipResponse, MixDelegation, MixNodeBond, MixOwnershipResponse,
     PagedGatewayResponse, PagedMixDelegationsResponse, PagedResponse,

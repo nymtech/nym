@@ -1,23 +1,31 @@
+use crate::contract::DENOM;
+use crate::error::ContractError;
 use crate::state::StateParams;
-use crate::storage::{gateways_read, mixnodes_read, read_state_params};
-use cosmwasm_std::Deps;
-use cosmwasm_std::HumanAddr;
-use cosmwasm_std::Order;
+use crate::storage::{gateways_read, mixnodes_read, node_delegations_read, read_state_params};
 use cosmwasm_std::StdResult;
+use cosmwasm_std::{coin, HumanAddr};
+use cosmwasm_std::{Delegation, Deps};
+use cosmwasm_std::{Order, Uint128};
 use mixnet_contract::{
-    GatewayBond, GatewayOwnershipResponse, MixNodeBond, MixOwnershipResponse, PagedGatewayResponse,
-    PagedResponse,
+    GatewayBond, GatewayOwnershipResponse, MixDelegation, MixNodeBond, MixOwnershipResponse,
+    PagedGatewayResponse, PagedMixDelegationsResponse, PagedResponse,
 };
 
-const MAX_LIMIT: u32 = 100;
-const DEFAULT_LIMIT: u32 = 50;
+const BOND_PAGE_MAX_LIMIT: u32 = 100;
+const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
+
+// TODO: check if those will work
+const DELEGATION_PAGE_MAX_LIMIT: u32 = 500;
+const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 250;
 
 pub fn query_mixnodes_paged(
     deps: Deps,
     start_after: Option<HumanAddr>,
     limit: Option<u32>,
 ) -> StdResult<PagedResponse> {
-    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+    let limit = limit
+        .unwrap_or(BOND_PAGE_DEFAULT_LIMIT)
+        .min(BOND_PAGE_MAX_LIMIT) as usize;
     let start = calculate_start_value(start_after);
 
     let nodes = mixnodes_read(deps.storage)
@@ -36,7 +44,9 @@ pub(crate) fn query_gateways_paged(
     start_after: Option<HumanAddr>,
     limit: Option<u32>,
 ) -> StdResult<PagedGatewayResponse> {
-    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+    let limit = limit
+        .unwrap_or(BOND_PAGE_DEFAULT_LIMIT)
+        .min(BOND_PAGE_MAX_LIMIT) as usize;
     let start = calculate_start_value(start_after);
 
     let nodes = gateways_read(deps.storage)
@@ -87,6 +97,58 @@ fn calculate_start_value(
         bytes.push(0);
         bytes
     })
+}
+
+pub(crate) fn query_mixnode_delegations_paged(
+    deps: Deps,
+    node_owner: HumanAddr,
+    start_after: Option<HumanAddr>,
+    limit: Option<u32>,
+) -> StdResult<PagedMixDelegationsResponse> {
+    let limit = limit
+        .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
+        .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
+    let start = calculate_start_value(start_after);
+
+    let delegations = node_delegations_read(deps.storage, &node_owner)
+        .range(start.as_deref(), None, Order::Ascending)
+        .take(limit)
+        .map(|res| {
+            res.map(|entry| {
+                MixDelegation::new(
+                    HumanAddr::from(String::from_utf8(entry.0).unwrap()),
+                    coin(entry.1.u128(), DENOM),
+                )
+            })
+        })
+        .collect::<StdResult<Vec<MixDelegation>>>()?;
+
+    let start_next_after = delegations
+        .last()
+        .map(|delegation| delegation.owner().clone());
+
+    Ok(PagedMixDelegationsResponse::new(
+        node_owner,
+        delegations,
+        start_next_after,
+    ))
+}
+
+// queries for delegation value of given address for particular node
+pub(crate) fn query_delegation(
+    deps: Deps,
+    node_owner: HumanAddr,
+    address: HumanAddr,
+) -> Result<MixDelegation, ContractError> {
+    match node_delegations_read(deps.storage, &node_owner).may_load(address.as_bytes())? {
+        Some(delegation_value) => Ok(MixDelegation::new(
+            address,
+            coin(delegation_value.u128(), DENOM),
+        )),
+        None => Err(ContractError::NoMixnodeDelegationFound {
+            mixnode_owner: node_owner,
+        }),
+    }
 }
 
 #[cfg(test)]
@@ -244,12 +306,12 @@ mod tests {
     fn gateways_paged_retrieval_has_default_limit() {
         let mut deps = helpers::init_contract();
         let storage = deps.as_mut().storage;
-        store_n_gateway_fixtures(10 * DEFAULT_LIMIT, storage);
+        store_n_gateway_fixtures(10 * BOND_PAGE_DEFAULT_LIMIT, storage);
 
         // query without explicitly setting a limit
         let page1 = query_gateways_paged(deps.as_ref(), None, None).unwrap();
 
-        assert_eq!(DEFAULT_LIMIT, page1.nodes.len() as u32);
+        assert_eq!(BOND_PAGE_DEFAULT_LIMIT, page1.nodes.len() as u32);
     }
 
     #[test]
@@ -259,11 +321,11 @@ mod tests {
         store_n_gateway_fixtures(100, storage);
 
         // query with a crazily high limit in an attempt to use too many resources
-        let crazy_limit = 1000 * DEFAULT_LIMIT;
+        let crazy_limit = 1000 * BOND_PAGE_DEFAULT_LIMIT;
         let page1 = query_gateways_paged(deps.as_ref(), None, Option::from(crazy_limit)).unwrap();
 
         // we default to a decent sized upper bound instead
-        let expected_limit = MAX_LIMIT;
+        let expected_limit = BOND_PAGE_MAX_LIMIT;
         assert_eq!(expected_limit, page1.nodes.len() as u32);
     }
 

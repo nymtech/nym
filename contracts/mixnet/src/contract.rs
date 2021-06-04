@@ -115,6 +115,20 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             to_binary(&queries::query_owns_gateway(deps, address)?)
         }
         QueryMsg::StateParams {} => to_binary(&queries::query_state_params(deps)),
+        QueryMsg::GetDelegations {
+            node_owner,
+            start_after,
+            limit,
+        } => to_binary(&queries::query_mixnode_delegations_paged(
+            deps,
+            node_owner,
+            start_after,
+            limit,
+        )?),
+        QueryMsg::GetDelegation {
+            node_owner,
+            address,
+        } => to_binary(&queries::query_delegation(deps, node_owner, address)?),
     };
 
     Ok(query_res?)

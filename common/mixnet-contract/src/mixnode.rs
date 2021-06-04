@@ -46,8 +46,27 @@ impl MixNode {
     }
 }
 
+/*
+By the way, I've also been thinking of some potential changes in the contract we could introduce once we have to make an incompatible upgrade (say to cosmwasm 0.14+). Is there some place I could write them down so that we would not forget about them? Should I make a GitHub issue, a google doc or maybe put it on GitLab?
+
+ */
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
+    // TODO:
+    // JS: When we go onto the next testnet and we have to make incompatible changes in the contract (such as upgrade to cosmwasm 0.14+)
+    // I'd change `amount` from `Vec<Coin>` to just `Coin` (or maybe even `Uint128` since denomination is implicit)
+    // I would also put here field like `total_delegation` which would also be a `Coin` or `Uint128` that
+    // indicates the sum of all delegations towards this node
+    //
+    // I would also modify the `MixNode` struct:
+    //  - remove `location` field
+    //  - repurpose `host` field to hold either ip or hostname (WITHOUT port information)
+    //  - introduce `mix_port` field
+    //  - introduce `rest_api_port` field
+    //  - [POTENTIALLY] introduce `verloc_port` field or keep it accessible via http api
+    //
+    // I would also introduce the identical changes to GatewayBond
     pub amount: Vec<Coin>,
     pub owner: HumanAddr,
     pub mix_node: MixNode,

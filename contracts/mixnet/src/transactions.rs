@@ -364,9 +364,15 @@ pub(crate) fn try_delegate_to_mixnode(
         return Err(ContractError::MixNodeBondNotFound {});
     }
 
-    // TODO: or increment?
-    node_delegations(deps.storage, &node_owner)
-        .save(info.sender.as_bytes(), &info.sent_funds[0].amount)?;
+    let mut bucket = node_delegations(deps.storage, &node_owner);
+    let sender_bytes = info.sender.as_bytes();
+    match bucket.may_load(sender_bytes)? {
+        Some(existing_delegation) => bucket.save(
+            sender_bytes,
+            &(existing_delegation + info.sent_funds[0].amount),
+        )?,
+        None => bucket.save(sender_bytes, &info.sent_funds[0].amount)?,
+    }
 
     Ok(HandleResponse::default())
 }
@@ -377,7 +383,6 @@ pub(crate) fn try_remove_delegation_from_mixnode(
     env: Env,
     node_owner: HumanAddr,
 ) -> Result<HandleResponse, ContractError> {
-    // try to grab existing delegation, it implicitly checks if node exists as delegating requires nodes existence
     let delegation_bucket = node_delegations(deps.storage, &node_owner);
     match delegation_bucket.may_load(info.sender.as_bytes())? {
         Some(delegation) => {
@@ -1459,5 +1464,255 @@ pub mod tests {
             expected_bond,
             read_gateway_bond(deps.as_ref().storage, b"node-owner").unwrap()
         );
+    }
+
+    #[cfg(test)]
+    mod mix_delegation_stake_validation {
+        use super::*;
+        use cosmwasm_std::coin;
+
+        #[test]
+        fn stake_cant_be_empty() {
+            assert_eq!(
+                Err(ContractError::EmptyDelegation),
+                validate_delegation_stake(&[])
+            )
+        }
+
+        #[test]
+        fn stake_must_have_single_coin_type() {
+            assert_eq!(
+                Err(ContractError::MultipleDenoms),
+                validate_delegation_stake(&[coin(123, DENOM), coin(123, "BTC"), coin(123, "DOGE")])
+            )
+        }
+
+        #[test]
+        fn stake_coin_must_be_of_correct_type() {
+            assert_eq!(
+                Err(ContractError::WrongDenom {}),
+                validate_delegation_stake(&[coin(123, "DOGE")])
+            )
+        }
+
+        #[test]
+        fn stake_coin_must_have_value_greater_than_zero() {
+            assert_eq!(
+                Err(ContractError::EmptyDelegation),
+                validate_delegation_stake(&[coin(0, DENOM)])
+            )
+        }
+
+        #[test]
+        fn stake_can_have_any_positive_value() {
+            // this might change in the future, but right now an arbitrary (positive) value can be delegated
+            assert!(validate_delegation_stake(&[coin(1, DENOM)]).is_ok());
+            assert!(validate_delegation_stake(&[coin(123, DENOM)]).is_ok());
+            assert!(validate_delegation_stake(&[coin(10000000000, DENOM)]).is_ok());
+        }
+    }
+
+    #[cfg(test)]
+    mod mix_stake_delegation {
+        use super::*;
+        use crate::storage::node_delegations_read;
+        use crate::support::tests::helpers::add_mixnode;
+        use cosmwasm_std::coin;
+
+        #[test]
+        fn fails_if_node_doesnt_exist() {
+            let mut deps = helpers::init_contract();
+            assert_eq!(
+                Err(ContractError::MixNodeBondNotFound {}),
+                try_delegate_to_mixnode(
+                    deps.as_mut(),
+                    mock_info("sender", &coins(123, DENOM)),
+                    "non-existent-node-owner".into()
+                )
+            );
+        }
+
+        #[test]
+        fn succeeds_for_existing_node() {
+            let mut deps = helpers::init_contract();
+            let mixnode_owner = "bob";
+            add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+
+            assert!(try_delegate_to_mixnode(
+                deps.as_mut(),
+                mock_info("sender", &coins(123, DENOM)),
+                mixnode_owner.into()
+            )
+            .is_ok());
+
+            assert_eq!(
+                123,
+                node_delegations_read(&deps.storage, &mixnode_owner.into())
+                    .load(b"sender")
+                    .unwrap()
+                    .u128()
+            );
+        }
+
+        #[test]
+        fn fails_if_node_unbonded() {
+            let mut deps = helpers::init_contract();
+            let env = mock_env();
+
+            let mixnode_owner = "bob";
+            add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[]), env).unwrap();
+
+            assert_eq!(
+                Err(ContractError::MixNodeBondNotFound {}),
+                try_delegate_to_mixnode(
+                    deps.as_mut(),
+                    mock_info("sender", &coins(123, DENOM)),
+                    mixnode_owner.into()
+                )
+            );
+        }
+
+        #[test]
+        fn succeeds_if_node_rebonded() {
+            let mut deps = helpers::init_contract();
+            let env = mock_env();
+
+            let mixnode_owner = "bob";
+            add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[]), env).unwrap();
+            add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+
+            assert!(try_delegate_to_mixnode(
+                deps.as_mut(),
+                mock_info("sender", &coins(123, DENOM)),
+                mixnode_owner.into()
+            )
+            .is_ok());
+
+            assert_eq!(
+                123,
+                node_delegations_read(&deps.storage, &mixnode_owner.into())
+                    .load(b"sender")
+                    .unwrap()
+                    .u128()
+            );
+        }
+
+        #[test]
+        fn is_possible_for_an_already_delegated_node() {
+            let mut deps = helpers::init_contract();
+            let mixnode_owner = "bob";
+            add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                mock_info("sender", &coins(100, DENOM)),
+                mixnode_owner.into(),
+            )
+            .unwrap();
+
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                mock_info("sender", &coins(50, DENOM)),
+                mixnode_owner.into(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                150,
+                node_delegations_read(&deps.storage, &mixnode_owner.into())
+                    .load(b"sender")
+                    .unwrap()
+                    .u128()
+            );
+        }
+
+        #[test]
+        fn is_disallowed_for_already_delegated_node_if_it_unbonded() {
+            let mut deps = helpers::init_contract();
+            let env = mock_env();
+
+            let mixnode_owner = "bob";
+            add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+
+            try_delegate_to_mixnode(
+                deps.as_mut(),
+                mock_info("sender", &coins(100, DENOM)),
+                mixnode_owner.into(),
+            )
+            .unwrap();
+
+            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[]), env).unwrap();
+
+            assert_eq!(
+                Err(ContractError::MixNodeBondNotFound {}),
+                try_delegate_to_mixnode(
+                    deps.as_mut(),
+                    mock_info("sender", &coins(50, DENOM)),
+                    mixnode_owner.into()
+                )
+            );
+        }
+
+        #[test]
+        fn is_allowed_for_multiple_nodes() {
+            let mut deps = helpers::init_contract();
+            let mixnode_owner1 = "bob";
+            let mixnode_owner2 = "fred";
+            add_mixnode(mixnode_owner1, good_mixnode_bond(), &mut deps);
+            add_mixnode(mixnode_owner2, good_mixnode_bond(), &mut deps);
+
+            assert!(try_delegate_to_mixnode(
+                deps.as_mut(),
+                mock_info("sender", &coins(123, DENOM)),
+                mixnode_owner1.into()
+            )
+            .is_ok());
+
+            assert!(try_delegate_to_mixnode(
+                deps.as_mut(),
+                mock_info("sender", &coins(42, DENOM)),
+                mixnode_owner2.into()
+            )
+            .is_ok());
+
+            assert_eq!(
+                123,
+                node_delegations_read(&deps.storage, &mixnode_owner1.into())
+                    .load(b"sender")
+                    .unwrap()
+                    .u128()
+            );
+
+            assert_eq!(
+                42,
+                node_delegations_read(&deps.storage, &mixnode_owner2.into())
+                    .load(b"sender")
+                    .unwrap()
+                    .u128()
+            );
+        }
+
+        #[test]
+        fn is_allowed_by_multiple_users() {
+            let mut deps = helpers::init_contract();
+            let mixnode_owner = "bob";
+            add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+
+            assert!(try_delegate_to_mixnode(
+                deps.as_mut(),
+                mock_info("sender1", &coins(123, DENOM)),
+                mixnode_owner.into()
+            )
+            .is_ok());
+
+            assert!(try_delegate_to_mixnode(
+                deps.as_mut(),
+                mock_info("sender2", &coins(123, DENOM)),
+                mixnode_owner.into()
+            )
+            .is_ok());
+        }
     }
 }

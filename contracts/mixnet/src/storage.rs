@@ -140,28 +140,18 @@ pub(crate) fn increase_gateway_bond(
 
 const PREFIX_DELEGATION: &[u8] = b"delegation";
 
-fn node_delegations_namespace(node_address: &HumanAddr) -> Vec<u8> {
-    PREFIX_DELEGATION
-        .iter()
-        .cloned()
-        .chain(node_address.as_bytes().iter().cloned())
-        .collect()
-}
-
 pub fn node_delegations<'a>(
     storage: &'a mut dyn Storage,
     node_address: &'a HumanAddr,
 ) -> Bucket<'a, Uint128> {
-    let namespace = node_delegations_namespace(node_address);
-    bucket(storage, &namespace)
+    Bucket::multilevel(storage, &[PREFIX_DELEGATION, node_address.as_bytes()])
 }
 
 pub fn node_delegations_read<'a>(
     storage: &'a dyn Storage,
     node_address: &'a HumanAddr,
 ) -> ReadonlyBucket<'a, Uint128> {
-    let namespace = node_delegations_namespace(node_address);
-    bucket_read(storage, &namespace)
+    ReadonlyBucket::multilevel(storage, &[PREFIX_DELEGATION, node_address.as_bytes()])
 }
 
 // currently not used outside tests

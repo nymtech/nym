@@ -59,12 +59,12 @@ pub enum QueryMsg {
         address: HumanAddr,
     },
     StateParams {},
-    GetDelegations {
+    GetMixDelegations {
         node_owner: HumanAddr,
         start_after: Option<HumanAddr>,
         limit: Option<u32>,
     },
-    GetDelegation {
+    GetMixDelegation {
         node_owner: HumanAddr,
         address: HumanAddr,
     },

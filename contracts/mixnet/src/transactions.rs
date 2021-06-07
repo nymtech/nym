@@ -301,6 +301,11 @@ pub(crate) fn try_reward_mixnode(
 
     increase_mixnode_bond(deps.storage, node_owner.as_bytes(), scaled_reward)?;
 
+    /*
+       TODO:
+       here will probably be some procedure to reward addresses that delegated to this node
+    */
+
     Ok(HandleResponse::default())
 }
 
@@ -321,6 +326,11 @@ pub(crate) fn try_reward_gateway(
     let scaled_reward = scale_reward_by_uptime(reward, uptime)?;
 
     increase_gateway_bond(deps.storage, gateway_owner.as_bytes(), scaled_reward)?;
+
+    /*
+       TODO:
+       here will probably be some procedure to reward addresses that delegated to this node
+    */
 
     Ok(HandleResponse::default())
 }

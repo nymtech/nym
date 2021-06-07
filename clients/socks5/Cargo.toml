@@ -1,6 +1,6 @@
 [package]
 name = "nym-socks5-client"
-version = "0.10.0"
+version = "0.10.1"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2018"
 
@@ -31,6 +31,7 @@ nymsphinx = { path = "../../common/nymsphinx" }
 ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
 socks5-requests = { path = "../../common/socks5/requests" }
 topology = { path = "../../common/topology" }
+pemstore = { path = "../../common/pemstore" }
 proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
-validator-client-rest = { path = "../../common/client-libs/validator-client-rest" }
+validator-client = { path = "../../common/client-libs/validator-client" }
 version-checker = { path = "../../common/version-checker" }

@@ -29,7 +29,15 @@ pub mod helpers {
         deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
     ) {
         let info = mock_info(pubkey, &stake);
-        try_add_mixnode(deps.as_mut(), info, helpers::mix_node_fixture()).unwrap();
+        try_add_mixnode(
+            deps.as_mut(),
+            info,
+            MixNode {
+                identity_key: format!("{}mixnode", pubkey),
+                ..helpers::mix_node_fixture()
+            },
+        )
+        .unwrap();
     }
 
     pub fn get_mix_nodes(
@@ -55,7 +63,15 @@ pub mod helpers {
         deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
     ) {
         let info = mock_info(pubkey, &stake);
-        try_add_gateway(deps.as_mut(), info, helpers::gateway_fixture()).unwrap();
+        try_add_gateway(
+            deps.as_mut(),
+            info,
+            Gateway {
+                identity_key: format!("{}gateway", pubkey),
+                ..helpers::gateway_fixture()
+            },
+        )
+        .unwrap();
     }
 
     pub fn get_gateways(

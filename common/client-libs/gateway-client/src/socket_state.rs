@@ -188,7 +188,12 @@ impl PartiallyDelegated {
             return Err(GatewayClientError::ConnectionAbruptlyClosed);
         }
 
-        let stream = stream_receiver.await.unwrap()?;
+        let stream_results: Result<_, GatewayClientError> = stream_receiver
+            .await
+            // Address cancellation of the underlying future past the check
+            // in receive_res
+            .map_err(|_| GatewayClientError::ConnectionAbruptlyClosed)?;
+        let stream = stream_results?;
         // the error is thrown when trying to reunite sink and stream that did not originate
         // from the same split which is impossible to happen here
         Ok(self.sink_half.reunite(stream).unwrap())

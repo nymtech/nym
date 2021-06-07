@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate rocket;
+
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
@@ -15,7 +18,8 @@ fn main() {
     let arg_matches = App::new("Nym Mixnode")
         .version(env!("CARGO_PKG_VERSION"))
         .author("Nymtech")
-        .about("Implementation of the Loopix-based Mixnode")
+        .about("Implementation of a Loopix-based Mixnode")
+        .subcommand(commands::describe::command_args())
         .subcommand(commands::init::command_args())
         .subcommand(commands::run::command_args())
         .subcommand(commands::upgrade::command_args())
@@ -27,6 +31,7 @@ fn main() {
 
 fn execute(matches: ArgMatches) {
     match matches.subcommand() {
+        ("describe", Some(m)) => commands::describe::execute(m),
         ("init", Some(m)) => commands::init::execute(m),
         ("run", Some(m)) => commands::run::execute(m),
         ("sign", Some(m)) => commands::sign::execute(m),

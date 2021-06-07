@@ -1,8 +1,8 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{Config, MISSING_VALUE};
-use crate::config::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DEFAULT_VALIDATOR_REST_ENDPOINT};
+use crate::config::DEFAULT_MIXNET_CONTRACT_ADDRESS;
+use crate::config::{default_validator_rest_endpoints, Config, MISSING_VALUE};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use std::fmt::Display;
@@ -89,12 +89,12 @@ fn parse_package_version() -> Version {
 fn pre_090_upgrade(from: &str, config: Config) -> Config {
     // this is not extracted to separate function as you only have to manually pass version
     // if upgrading from pre090 version
-    let from = match from.strip_prefix("v") {
+    let from = match from.strip_prefix('v') {
         Some(stripped) => stripped,
         None => from,
     };
 
-    let from = match from.strip_prefix("V") {
+    let from = match from.strip_prefix('V') {
         Some(stripped) => stripped,
         None => from,
     };
@@ -127,20 +127,20 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
 
     print_start_upgrade(&from_version, &to_version);
 
-    if config.get_validator_rest_endpoint() != MISSING_VALUE {
+    if config.get_validator_rest_endpoints()[0] != MISSING_VALUE {
         eprintln!("existing config seems to have specified new validator rest endpoint which was only introduced in 0.9.0! Can't perform upgrade.");
         print_failed_upgrade(&from_version, &to_version);
         process::exit(1);
     }
 
     println!(
-        "Setting validator REST endpoint to to {}",
-        DEFAULT_VALIDATOR_REST_ENDPOINT
+        "Setting validator REST endpoint to to {:?}",
+        default_validator_rest_endpoints()
     );
 
     let upgraded_config = config
         .with_custom_version(to_version.to_string().as_ref())
-        .with_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT);
+        .with_custom_validators(default_validator_rest_endpoints());
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
@@ -174,8 +174,8 @@ fn minor_010_upgrade(
     }
 
     println!(
-        "Setting validator REST endpoint to {}",
-        DEFAULT_VALIDATOR_REST_ENDPOINT
+        "Setting validator REST endpoint to {:?}",
+        default_validator_rest_endpoints()
     );
 
     println!(
@@ -185,8 +185,32 @@ fn minor_010_upgrade(
 
     let upgraded_config = config
         .with_custom_version(to_version.to_string().as_ref())
-        .with_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT)
+        .with_custom_validators(default_validator_rest_endpoints())
         .with_custom_mixnet_contract(DEFAULT_MIXNET_CONTRACT_ADDRESS);
+
+    upgraded_config.save_to_file(None).unwrap_or_else(|err| {
+        eprintln!("failed to overwrite config file! - {:?}", err);
+        print_failed_upgrade(&config_version, &to_version);
+        process::exit(1);
+    });
+
+    print_successful_upgrade(config_version, to_version);
+
+    upgraded_config
+}
+
+// no changes but version number
+fn patch_010_upgrade(
+    config: Config,
+    _matches: &ArgMatches,
+    config_version: &Version,
+    package_version: &Version,
+) -> Config {
+    let to_version = package_version;
+
+    print_start_upgrade(&config_version, &to_version);
+
+    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
@@ -211,6 +235,7 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
         config = match config_version.major {
             0 => match config_version.minor {
                 9 => minor_010_upgrade(config, &matches, &config_version, &package_version),
+                10 => patch_010_upgrade(config, &matches, &config_version, &package_version),
                 _ => unsupported_upgrade(config_version, package_version),
             },
             _ => unsupported_upgrade(config_version, package_version),

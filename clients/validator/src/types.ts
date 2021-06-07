@@ -30,3 +30,9 @@ export type Gateway = {
     identity_key: string,
     version: string
 }
+
+export type SendRequest = {
+    senderAddress: string,
+    recipientAddress: string,
+    transferAmount: readonly Coin[]
+}

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::listener::connection_handler::ConnectionHandler;
-use log::*;
+use log::error;
 use std::net::SocketAddr;
+use std::process;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
@@ -19,9 +20,14 @@ impl Listener {
     }
 
     async fn run(&mut self, connection_handler: ConnectionHandler) {
-        let listener = TcpListener::bind(self.address)
-            .await
-            .expect("Failed to create TCP listener");
+        let listener = match TcpListener::bind(self.address).await {
+            Ok(listener) => listener,
+            Err(err) => {
+                error!("Failed to bind to {} - {}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address, err);
+                process::exit(1);
+            }
+        };
+
         loop {
             match listener.accept().await {
                 Ok((socket, remote_addr)) => {

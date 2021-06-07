@@ -1,6 +1,6 @@
 [package]
 name = "client-core"
-version = "0.10.0"
+version = "0.10.1"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2018"
 
@@ -25,7 +25,7 @@ nonexhaustive-delayqueue = { path = "../../common/nonexhaustive-delayqueue" }
 nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }
-validator-client-rest = { path = "../../common/client-libs/validator-client-rest" }
+validator-client = { path = "../../common/client-libs/validator-client" }
 
 [dev-dependencies]
 tempfile = "3.1.0"

@@ -14,7 +14,7 @@
 
 use crate::client::config::{Config, MISSING_VALUE};
 use clap::{App, Arg, ArgMatches};
-use client_core::config::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DEFAULT_VALIDATOR_REST_ENDPOINT};
+use client_core::config::{default_validator_rest_endpoints, DEFAULT_MIXNET_CONTRACT_ADDRESS};
 use config::NymConfig;
 use std::fmt::Display;
 use std::process;
@@ -100,12 +100,12 @@ fn parse_package_version() -> Version {
 fn pre_090_upgrade(from: &str, mut config: Config) -> Config {
     // this is not extracted to separate function as you only have to manually pass version
     // if upgrading from pre090 version
-    let from = match from.strip_prefix("v") {
+    let from = match from.strip_prefix('v') {
         Some(stripped) => stripped,
         None => from,
     };
 
-    let from = match from.strip_prefix("V") {
+    let from = match from.strip_prefix('V') {
         Some(stripped) => stripped,
         None => from,
     };
@@ -136,7 +136,7 @@ fn pre_090_upgrade(from: &str, mut config: Config) -> Config {
         Version::new(0, 9, 0)
     };
 
-    if config.get_base().get_validator_rest_endpoint() != MISSING_VALUE {
+    if config.get_base().get_validator_rest_endpoints()[0] != MISSING_VALUE {
         eprintln!("existing config seems to have specified new validator rest endpoint which was only introduced in 0.9.0! Can't perform upgrade.");
         print_failed_upgrade(&from_version, &to_version);
         process::exit(1);
@@ -149,13 +149,13 @@ fn pre_090_upgrade(from: &str, mut config: Config) -> Config {
         .set_custom_version(to_version.to_string().as_ref());
 
     println!(
-        "Setting validator REST endpoint to to {}",
-        DEFAULT_VALIDATOR_REST_ENDPOINT
+        "Setting validator REST endpoint to to {:?}",
+        default_validator_rest_endpoints()
     );
 
     config
         .get_base_mut()
-        .set_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT);
+        .set_custom_validators(default_validator_rest_endpoints());
 
     config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
@@ -208,13 +208,39 @@ fn minor_010_upgrade(
 
     // The default validator endpoint changed
     println!(
-        "Setting validator REST endpoint to to {}",
-        DEFAULT_VALIDATOR_REST_ENDPOINT
+        "Setting validator REST endpoint to to {:?}",
+        default_validator_rest_endpoints()
     );
 
     config
         .get_base_mut()
-        .set_custom_validator(DEFAULT_VALIDATOR_REST_ENDPOINT);
+        .set_custom_validators(default_validator_rest_endpoints());
+
+    config.save_to_file(None).unwrap_or_else(|err| {
+        eprintln!("failed to overwrite config file! - {:?}", err);
+        print_failed_upgrade(&config_version, &to_version);
+        process::exit(1);
+    });
+
+    print_successful_upgrade(config_version, to_version);
+
+    config
+}
+
+// no changes but version number
+fn patch_010_upgrade(
+    mut config: Config,
+    _matches: &ArgMatches,
+    config_version: &Version,
+    package_version: &Version,
+) -> Config {
+    let to_version = package_version;
+
+    print_start_upgrade(&config_version, &to_version);
+
+    config
+        .get_base_mut()
+        .set_custom_version(to_version.to_string().as_ref());
 
     config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
@@ -239,6 +265,7 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
         config = match config_version.major {
             0 => match config_version.minor {
                 9 => minor_010_upgrade(config, &matches, &config_version, &package_version),
+                10 => patch_010_upgrade(config, &matches, &config_version, &package_version),
                 _ => unsupported_upgrade(config_version, package_version),
             },
             _ => unsupported_upgrade(config_version, package_version),

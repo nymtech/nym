@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-use config::NymConfig;
+use config::{deserialize_duration, deserialize_validators, NymConfig};
 use log::*;
-use serde::{
-    de::{self, IntoDeserializer, Visitor},
-    Deserialize, Deserializer, Serialize,
-};
+use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -21,8 +18,11 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 // 'GATEWAY'
 const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
-pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINT: &str =
-    "http://testnet-finney-validator.nymtech.net:1317";
+pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
+    "http://testnet-finney-validator.nymtech.net:1317",
+    "http://testnet-finney-validator2.nymtech.net:1317",
+    "http://mixnet.club:1317",
+];
 pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
 
 // 'DEBUG'
@@ -36,6 +36,22 @@ const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 128;
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: u16 = 5;
+
+// helper function to get default validators as a Vec<String>
+pub fn default_validator_rest_endpoints() -> Vec<String> {
+    DEFAULT_VALIDATOR_REST_ENDPOINTS
+        .iter()
+        .map(|&endpoint| endpoint.to_string())
+        .collect()
+}
+
+pub fn missing_string_value() -> String {
+    MISSING_VALUE.to_string()
+}
+
+pub fn missing_vec_string_value() -> Vec<String> {
+    vec![missing_string_value()]
+}
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -81,57 +97,6 @@ impl NymConfig for Config {
             .join(&self.gateway.id)
             .join("data")
     }
-}
-
-// custom function is defined to deserialize based on whether field contains a pre 0.9.0
-// u64 interpreted as milliseconds or proper duration introduced in 0.9.0
-//
-// TODO: when we get to refactoring down the line, this code can just be removed
-// and all Duration fields could just have #[serde(with = "humantime_serde")] instead
-// reason for that is that we don't expect anyone to be upgrading from pre 0.9.0 when we have,
-// for argument sake, 0.11.0 out
-fn deserialize_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    struct DurationVisitor;
-
-    impl<'de> Visitor<'de> for DurationVisitor {
-        type Value = Duration;
-
-        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            formatter.write_str("u64 or a duration")
-        }
-
-        fn visit_i64<E>(self, value: i64) -> Result<Duration, E>
-        where
-            E: de::Error,
-        {
-            self.visit_u64(value as u64)
-        }
-
-        fn visit_u64<E>(self, value: u64) -> Result<Duration, E>
-        where
-            E: de::Error,
-        {
-            Ok(Duration::from_millis(Deserialize::deserialize(
-                value.into_deserializer(),
-            )?))
-        }
-
-        fn visit_str<E>(self, value: &str) -> Result<Duration, E>
-        where
-            E: de::Error,
-        {
-            humantime_serde::deserialize(value.into_deserializer())
-        }
-    }
-
-    deserializer.deserialize_any(DurationVisitor)
-}
-
-pub fn missing_string_value() -> String {
-    MISSING_VALUE.to_string()
 }
 
 impl Config {
@@ -180,8 +145,8 @@ impl Config {
         self
     }
 
-    pub fn with_custom_validator<S: Into<String>>(mut self, validator: S) -> Self {
-        self.gateway.validator_rest_url = validator.into();
+    pub fn with_custom_validators(mut self, validators: Vec<String>) -> Self {
+        self.gateway.validator_rest_urls = validators;
         self
     }
 
@@ -229,8 +194,7 @@ impl Config {
 
         // first let's see if we received host:port or just host part of an address
         let host = host.into();
-        let split_host: Vec<_> = host.split(':').collect();
-        match split_host.len() {
+        match host.split(':').count() {
             1 => {
                 // we provided only 'host' part so we are going to reuse existing port
                 self.mixnet_endpoint.announce_address =
@@ -312,8 +276,7 @@ impl Config {
 
         // first let's see if we received host:port or just host part of an address
         let host = host.into();
-        let split_host: Vec<_> = host.split(':').collect();
-        match split_host.len() {
+        match host.split(':').count() {
             1 => {
                 // we provided only 'host' part so we are going to reuse existing port
                 self.clients_endpoint.announce_address = format!(
@@ -392,8 +355,8 @@ impl Config {
         self.gateway.public_sphinx_key_file.clone()
     }
 
-    pub fn get_validator_rest_endpoint(&self) -> String {
-        self.gateway.validator_rest_url.clone()
+    pub fn get_validator_rest_endpoints(&self) -> Vec<String> {
+        self.gateway.validator_rest_urls.clone()
     }
 
     pub fn get_validator_mixnet_contract_address(&self) -> String {
@@ -479,8 +442,12 @@ pub struct Gateway {
     public_sphinx_key_file: PathBuf,
 
     /// Validator server to which the node will be reporting their presence data.
-    #[serde(default = "missing_string_value")]
-    validator_rest_url: String,
+    #[serde(
+        deserialize_with = "deserialize_validators",
+        default = "missing_vec_string_value",
+        alias = "validator_rest_url"
+    )]
+    validator_rest_urls: Vec<String>,
 
     /// Address of the validator contract managing the network.
     #[serde(default = "missing_string_value")]
@@ -518,7 +485,7 @@ impl Default for Gateway {
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
-            validator_rest_url: DEFAULT_VALIDATOR_REST_ENDPOINT.to_string(),
+            validator_rest_urls: default_validator_rest_endpoints(),
             mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
             nym_root_directory: Config::default_root_directory(),
         }

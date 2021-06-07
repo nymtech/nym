@@ -26,7 +26,7 @@ use std::net::SocketAddr;
 pub enum GatewayConversionError {
     InvalidIdentityKey(identity::KeyRecoveryError),
     InvalidSphinxKey(encryption::KeyRecoveryError),
-    InvalidAddress(io::Error),
+    InvalidAddress(String, io::Error),
     InvalidStake,
     Other(Box<dyn std::error::Error + Send + Sync>),
 }
@@ -56,11 +56,11 @@ impl Display for GatewayConversionError {
                 "failed to convert gateway due to invalid sphinx key - {}",
                 err
             ),
-            GatewayConversionError::InvalidAddress(err) => {
+            GatewayConversionError::InvalidAddress(address, err) => {
                 write!(
                     f,
-                    "failed to convert gateway due to invalid address - {}",
-                    err
+                    "failed to convert gateway due to invalid address {} - {}",
+                    address, err
                 )
             }
             GatewayConversionError::InvalidStake => {
@@ -129,10 +129,9 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
                 .unwrap_or(0),
             location: bond.gateway.location.clone(),
             client_listener: bond.gateway.clients_host.clone(),
-            mixnet_listener: bond
-                .gateway
-                .try_resolve_hostname()
-                .map_err(GatewayConversionError::InvalidAddress)?,
+            mixnet_listener: bond.gateway.try_resolve_hostname().map_err(|err| {
+                GatewayConversionError::InvalidAddress(bond.gateway.mix_host.clone(), err)
+            })?,
             identity_key: identity::PublicKey::from_base58_string(&bond.gateway.identity_key)?,
             sphinx_key: encryption::PublicKey::from_base58_string(&bond.gateway.sphinx_key)?,
             version: bond.gateway.version.clone(),

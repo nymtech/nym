@@ -33,6 +33,30 @@ pub enum ContractError {
     #[error("Wrong coin denomination, you must send {}", DENOM)]
     WrongDenom {},
 
+    #[error("Received multiple coin types during bond")]
+    MultipleDenoms,
+
     #[error("No coin was sent for the bonding, you must send {}", DENOM)]
     NoBondFound,
+
+    #[error("The bond reward rate for mixnode was set to be lower than 1")]
+    DecreasingMixnodeBondReward,
+
+    #[error("The bond reward rate for gateway was set to be lower than 1")]
+    DecreasingGatewayBondReward,
+
+    #[error("The node had uptime larger than 100%")]
+    UnexpectedUptime,
+
+    #[error("This address has already bonded a mixnode")]
+    AlreadyOwnsMixnode,
+
+    #[error("This address has already bonded a gateway")]
+    AlreadyOwnsGateway,
+
+    #[error("Mixnode with this identity already exists. Its owner is {owner:?}")]
+    DuplicateMixnode { owner: HumanAddr },
+
+    #[error("Gateway with this identity already exists. Its owner is {owner:?}")]
+    DuplicateGateway { owner: HumanAddr },
 }

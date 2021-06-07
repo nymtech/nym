@@ -159,7 +159,7 @@ impl ReceivedProcessor {
                         messages = inner.packets_receiver.next() => {
                             for message in messages.expect("packet receiver has died!") {
                                 if let Err(err) = inner.on_message(message) {
-                                    warn!("failed to process received gateway message - {}", err)
+                                    warn!(target: "Monitor", "failed to process received gateway message - {}", err)
                                 }
                             }
                         },

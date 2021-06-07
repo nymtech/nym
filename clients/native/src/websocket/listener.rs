@@ -14,7 +14,7 @@
 
 use super::handler::Handler;
 use log::*;
-use std::{net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, process, sync::Arc};
 use tokio::io::AsyncWriteExt;
 use tokio::runtime;
 use tokio::{sync::Notify, task::JoinHandle};
@@ -45,9 +45,13 @@ impl Listener {
     }
 
     pub(crate) async fn run(&mut self, handler: Handler) {
-        let tcp_listener = tokio::net::TcpListener::bind(self.address)
-            .await
-            .expect("Failed to start websocket listener");
+        let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
+            Ok(listener) => listener,
+            Err(err) => {
+                error!("Failed to bind to {} - {}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address, err);
+                process::exit(1);
+            }
+        };
 
         let notify = Arc::new(Notify::new());
 

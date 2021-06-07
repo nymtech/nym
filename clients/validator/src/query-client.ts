@@ -1,5 +1,5 @@
 import {Coin} from "@cosmjs/launchpad";
-import {CosmWasmClient} from "@cosmjs/cosmwasm-stargate";
+import { CosmWasmClient, SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import {
     GatewayOwnershipResponse,
     MixOwnershipResponse,
@@ -15,6 +15,7 @@ export interface IQueryClient {
     ownsMixNode(contractAddress: string, address: string): Promise<MixOwnershipResponse>;
     ownsGateway(contractAddress: string, address: string): Promise<GatewayOwnershipResponse>;
     getStateParams(contractAddress: string): Promise<StateParams>;
+    changeValidator(newUrl: string): Promise<void>
 }
 
 /**
@@ -35,6 +36,10 @@ export default class QueryClient implements IQueryClient {
     public static async connect(url: string): Promise<IQueryClient> {
         const client = await CosmWasmClient.connect(url)
         return new QueryClient(client)
+    }
+
+    async changeValidator(url: string): Promise<void> {
+        this.cosmClient = await CosmWasmClient.connect(url)
     }
 
     public getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedResponse> {

@@ -14,9 +14,9 @@ use mixnet_contract::{
 const BOND_PAGE_MAX_LIMIT: u32 = 100;
 const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 
-// TODO: check if those will work
-const DELEGATION_PAGE_MAX_LIMIT: u32 = 500;
-const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 250;
+// currently the maximum limit before running into memory issue is somewhere between 1150 and 1200
+const DELEGATION_PAGE_MAX_LIMIT: u32 = 750;
+const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 500;
 
 pub fn query_mixnodes_paged(
     deps: Deps,

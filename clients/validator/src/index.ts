@@ -279,6 +279,12 @@ export default class ValidatorClient {
         }
     }
 
+    /**
+     * Delegates specified amount of stake to particular mixnode.
+     *
+     * @param mixnodeOwner address of the owner of the node to which the delegation should be applied
+     * @param amount desired amount of coins to delegate to the node
+     */
     // requires coin type to ensure correct denomination (
     async delegateToMixnode(mixnodeOwner: string, amount: Coin) {
         if (this.client instanceof NetClient) {
@@ -290,6 +296,11 @@ export default class ValidatorClient {
         }
     }
 
+    /**
+     * Removes stake delegation from a particular mixnode.
+     *
+     * @param mixnodeOwner address of the owner of the node from which the delegation should get removed
+     */
     async removeMixnodeDelegation(mixnodeOwner: string) {
         if (this.client instanceof NetClient) {
             const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { undelegate_from_mixnode: { node_owner: mixnodeOwner } }).catch((err) => this.handleRequestFailure(err))
@@ -390,6 +401,11 @@ export default class ValidatorClient {
         }
     }
 
+    /**
+     * Gets list of all delegations towards particular mixnode.
+     *
+     * @param nodeOwner address of the owner of the node to which the delegation was sent
+     */
     public async getMixDelegations(nodeOwner: string): Promise<MixDelegation[]> {
         // make this configurable somewhere
         const limit = 500
@@ -410,6 +426,12 @@ export default class ValidatorClient {
         return delegations
     }
 
+    /**
+     * Checks value of delegation of given client towards particular mixnode.
+     *
+     * @param nodeOwner address of the owner of the node to which the delegation was sent
+     * @param delegatorAddress address of the client who delegated the stake
+     */
     public getMixDelegation(nodeOwner: string, delegatorAddress: string): Promise<MixDelegation> {
         return this.client.getMixDelegation(this.contractAddress, nodeOwner, delegatorAddress);
     }

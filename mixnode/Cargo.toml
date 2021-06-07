@@ -30,7 +30,6 @@ toml = "0.5"
 ## internal
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
-metrics-client = { path = "../common/client-libs/metrics-client" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
 nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }

@@ -52,10 +52,6 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.with_custom_mixnet_contract(contract_address)
     }
 
-    if let Some(metrics_server) = matches.value_of("metrics-server") {
-        config = config.with_custom_metrics_server(metrics_server);
-    }
-
     if let Some(announce_host) = matches.value_of("announce-host") {
         config = config.with_announce_host(announce_host);
     } else if was_host_overridden {

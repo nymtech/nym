@@ -295,10 +295,21 @@ pub(crate) fn try_reward_mixnode(
         return Err(ContractError::Unauthorized);
     }
 
+    // check if the bond even exists
+    let current_bond = match mixnodes(deps.storage).load(node_owner.as_bytes()) {
+        Ok(bond) => bond,
+        Err(_) => {
+            return Ok(HandleResponse {
+                attributes: vec![attr("result", "bond not found")],
+                ..Default::default()
+            });
+        }
+    };
+
     let reward = read_mixnode_epoch_reward_rate(deps.storage);
     let scaled_reward = scale_reward_by_uptime(reward, uptime)?;
 
-    increase_mixnode_bond(deps.storage, node_owner.as_bytes(), scaled_reward)?;
+    increase_mixnode_bond(deps.storage, current_bond, scaled_reward)?;
 
     Ok(HandleResponse::default())
 }
@@ -316,10 +327,21 @@ pub(crate) fn try_reward_gateway(
         return Err(ContractError::Unauthorized);
     }
 
+    // check if the bond even exists
+    let current_bond = match gateways(deps.storage).load(gateway_owner.as_bytes()) {
+        Ok(bond) => bond,
+        Err(_) => {
+            return Ok(HandleResponse {
+                attributes: vec![attr("result", "bond not found")],
+                ..Default::default()
+            });
+        }
+    };
+
     let reward = read_gateway_epoch_reward_rate(deps.storage);
     let scaled_reward = scale_reward_by_uptime(reward, uptime)?;
 
-    increase_gateway_bond(deps.storage, gateway_owner.as_bytes(), scaled_reward)?;
+    increase_gateway_bond(deps.storage, current_bond, scaled_reward)?;
 
     Ok(HandleResponse::default())
 }
@@ -1288,10 +1310,10 @@ pub mod tests {
         let res = try_reward_mixnode(deps.as_mut(), info, "node-owner".into(), 100);
         assert_eq!(res, Err(ContractError::Unauthorized));
 
-        // errors out if the target owner hasn't bound any mixnodes
+        // returns bond not found attribute if the target owner hasn't bonded any mixnodes
         let info = mock_info(network_monitor_address.clone(), &[]);
-        let res = try_reward_mixnode(deps.as_mut(), info, "node-owner".into(), 100);
-        assert!(res.is_err());
+        let res = try_reward_mixnode(deps.as_mut(), info, "node-owner".into(), 100).unwrap();
+        assert_eq!(vec![attr("result", "bond not found")], res.attributes);
 
         let initial_bond = 100_000000;
         let mixnode_bond = MixNodeBond {
@@ -1342,10 +1364,10 @@ pub mod tests {
         let res = try_reward_gateway(deps.as_mut(), info, "node-owner".into(), 100);
         assert_eq!(res, Err(ContractError::Unauthorized));
 
-        // errors out if the target owner hasn't bound any mixnodes
+        // returns bond not found attribute if the target owner hasn't bonded any gateways
         let info = mock_info(network_monitor_address.clone(), &[]);
-        let res = try_reward_gateway(deps.as_mut(), info, "node-owner".into(), 100);
-        assert!(res.is_err());
+        let res = try_reward_gateway(deps.as_mut(), info, "node-owner".into(), 100).unwrap();
+        assert_eq!(vec![attr("result", "bond not found")], res.attributes);
 
         let initial_bond = 100_000000;
         let gateway_bond = GatewayBond {

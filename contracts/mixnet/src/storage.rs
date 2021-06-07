@@ -64,20 +64,18 @@ pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<HumanAddr> 
 // helpers
 pub(crate) fn increase_mixnode_bond(
     storage: &mut dyn Storage,
-    owner: &[u8],
+    mut bond: MixNodeBond,
     scaled_reward_rate: Decimal,
 ) -> StdResult<()> {
-    let mut bucket = mixnodes(storage);
-    let mut node = bucket.load(owner)?;
-    if node.amount.len() != 1 {
+    if bond.amount.len() != 1 {
         return Err(StdError::generic_err(
             "mixnode seems to have been bonded with multiple coin types",
         ));
     }
 
-    let reward = node.amount[0].amount * scaled_reward_rate;
-    node.amount[0].amount += reward;
-    bucket.save(owner, &node)
+    let reward = bond.amount[0].amount * scaled_reward_rate;
+    bond.amount[0].amount += reward;
+    mixnodes(storage).save(bond.owner.as_bytes(), &bond)
 }
 
 // currently not used outside tests
@@ -121,19 +119,17 @@ pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<HumanAddr> 
 // helpers
 pub(crate) fn increase_gateway_bond(
     storage: &mut dyn Storage,
-    owner: &[u8],
+    mut bond: GatewayBond,
     scaled_reward_rate: Decimal,
 ) -> StdResult<()> {
-    let mut bucket = gateways(storage);
-    let mut node = bucket.load(owner)?;
-    if node.amount.len() != 1 {
+    if bond.amount.len() != 1 {
         return Err(StdError::generic_err(
             "gateway seems to have been bonded with multiple coin types",
         ));
     }
-    let reward = node.amount[0].amount * scaled_reward_rate;
-    node.amount[0].amount += reward;
-    bucket.save(owner, &node)
+    let reward = bond.amount[0].amount * scaled_reward_rate;
+    bond.amount[0].amount += reward;
+    gateways(storage).save(bond.owner.as_bytes(), &bond)
 }
 
 // currently not used outside tests
@@ -197,11 +193,7 @@ mod tests {
         // 0.001
         let reward = Decimal::from_ratio(1u128, 1000u128);
 
-        // produces an error if target mixnode doesn't exist
-        let res = increase_mixnode_bond(&mut storage, node_owner, reward);
-        assert!(res.is_err());
-
-        // increases the reward appropriately if node exists
+        // increases the reward appropriately
         let mixnode_bond = MixNodeBond {
             amount: coins(1000, DENOM),
             owner: std::str::from_utf8(node_owner).unwrap().into(),
@@ -212,7 +204,7 @@ mod tests {
             .save(node_owner, &mixnode_bond)
             .unwrap();
 
-        increase_mixnode_bond(&mut storage, node_owner, reward).unwrap();
+        increase_mixnode_bond(&mut storage, mixnode_bond, reward).unwrap();
         let new_bond = read_mixnode_bond(&storage, node_owner).unwrap();
         assert_eq!(Uint128(1001), new_bond);
     }
@@ -252,11 +244,7 @@ mod tests {
         // 0.001
         let reward = Decimal::from_ratio(1u128, 1000u128);
 
-        // produces an error if target gateway doesn't exist
-        let res = increase_gateway_bond(&mut storage, node_owner, reward);
-        assert!(res.is_err());
-
-        // increases the reward appropriately if node exists
+        // increases the reward appropriately
         let gateway_bond = GatewayBond {
             amount: coins(1000, DENOM),
             owner: std::str::from_utf8(node_owner).unwrap().into(),
@@ -267,7 +255,7 @@ mod tests {
             .save(node_owner, &gateway_bond)
             .unwrap();
 
-        increase_gateway_bond(&mut storage, node_owner, reward).unwrap();
+        increase_gateway_bond(&mut storage, gateway_bond, reward).unwrap();
         let new_bond = read_gateway_bond(&storage, node_owner).unwrap();
         assert_eq!(Uint128(1001), new_bond);
     }

@@ -51,6 +51,7 @@ pub enum QueryMsg {
         address: HumanAddr,
     },
     StateParams {},
+    LayerDistribution {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

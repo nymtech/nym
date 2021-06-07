@@ -279,6 +279,27 @@ export default class ValidatorClient {
         }
     }
 
+    // requires coin type to ensure correct denomination (
+    async delegateToMixnode(mixnodeOwner: string, amount: Coin) {
+        if (this.client instanceof NetClient) {
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { delegate_to_mixnode: { node_owner: mixnodeOwner } }, `delegating to ${mixnodeOwner}`, [amount]).catch((err) => this.handleRequestFailure(err))
+            console.log(`account ${this.client.clientAddress} delegated ${amount} to mixnode owned by ${mixnodeOwner}`);
+            return result;
+        } else {
+            throw new Error("Tried to delegate stake with a query client")
+        }
+    }
+
+    async removeMixnodeDelegation(mixnodeOwner: string) {
+        if (this.client instanceof NetClient) {
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { undelegate_from_mixnode: { node_owner: mixnodeOwner } }).catch((err) => this.handleRequestFailure(err))
+            console.log(`account ${this.client.clientAddress} removed delegation from mixnode owned by ${mixnodeOwner}`);
+            return result;
+        } else {
+            throw new Error("Tried to remove stake delegation with a query client")
+        }
+    }
+
     /**
      * Checks whether there is already a bonded mixnode associated with this client's address
      */

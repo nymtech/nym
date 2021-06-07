@@ -289,7 +289,7 @@ mod tests {
             *gateway_id_pair.public_key(),
         );
 
-        let bytes_recipient = recipient.clone().to_bytes();
+        let bytes_recipient = recipient.to_bytes();
         let recovered_recipient = Recipient::try_from_bytes(bytes_recipient).unwrap();
 
         // as long as byte representation of internal keys are identical, it's all fine

@@ -300,7 +300,7 @@ where
         let route = topology.random_route_to_gateway(
             &mut self.rng,
             self.num_mix_hops,
-            &packet_recipient.gateway(),
+            packet_recipient.gateway(),
         )?;
         let destination = packet_recipient.as_sphinx_destination();
 

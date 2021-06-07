@@ -201,7 +201,7 @@ impl ServiceProvider {
         mix_input_sender: &mpsc::UnboundedSender<(Response, Recipient)>,
     ) {
         // try to treat each received mix message as a service provider request
-        let deserialized_request = match Request::try_from_bytes(&raw_request) {
+        let deserialized_request = match Request::try_from_bytes(raw_request) {
             Ok(request) => request,
             Err(err) => {
                 error!("Failed to deserialized received request! - {}", err);

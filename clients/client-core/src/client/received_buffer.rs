@@ -196,7 +196,7 @@ impl ReceivedMessagesBuffer {
         let zero_iv = stream_cipher::zero_iv::<ReplySurbEncryptionAlgorithm>();
 
         let mut reply_msg = stream_cipher::decrypt::<ReplySurbEncryptionAlgorithm>(
-            &reply_key.inner(),
+            reply_key.inner(),
             &zero_iv,
             reply_ciphertext,
         );

@@ -127,12 +127,12 @@ impl KeyManager {
             ),
         )?;
 
-        pemstore::store_key(self.ack_key.as_ref(), &client_pathfinder.ack_key())?;
+        pemstore::store_key(self.ack_key.as_ref(), client_pathfinder.ack_key())?;
 
         match self.gateway_shared_key.as_ref() {
             None => warn!("No gateway shared key available to store!"),
             Some(gate_key) => {
-                pemstore::store_key(gate_key.as_ref(), &client_pathfinder.gateway_shared_key())?
+                pemstore::store_key(gate_key.as_ref(), client_pathfinder.gateway_shared_key())?
             }
         }
 
@@ -154,8 +154,7 @@ impl KeyManager {
     // hence it's up to us to ensure it's called in correct context
     pub fn gateway_shared_key(&self) -> Arc<SharedKeys> {
         Arc::clone(
-            &self
-                .gateway_shared_key
+            self.gateway_shared_key
                 .as_ref()
                 .expect("tried to unwrap empty gateway key!"),
         )

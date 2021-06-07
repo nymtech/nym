@@ -162,8 +162,8 @@ impl Measurement {
         let minimum = *raw_results.iter().min().expect("didn't get any results!");
         let maximum = *raw_results.iter().max().expect("didn't get any results!");
 
-        let mean = Self::duration_mean(&raw_results);
-        let standard_deviation = Self::duration_standard_deviation(&raw_results, mean);
+        let mean = Self::duration_mean(raw_results);
+        let standard_deviation = Self::duration_standard_deviation(raw_results, mean);
 
         Measurement {
             minimum,

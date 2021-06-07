@@ -142,7 +142,7 @@ impl Request {
                 let address_start = 2;
                 let address_end = address_start + address_length;
                 let address_bytes = &connect_request_bytes[address_start..address_end];
-                let remote_address = String::from_utf8_lossy(&address_bytes).to_string();
+                let remote_address = String::from_utf8_lossy(address_bytes).to_string();
 
                 // just a temporary reference to mid-slice for ease of use
                 let recipient_data_bytes = &connect_request_bytes[address_end..];

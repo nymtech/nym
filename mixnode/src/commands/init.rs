@@ -120,7 +120,7 @@ async fn choose_layer(
     // with zeroes for each possible layer
     let layer_with_fewest = nodes_distribution
         .iter()
-        .min_by(|a, b| a.1.cmp(&b.1))
+        .min_by(|a, b| a.1.cmp(b.1))
         .map(|(k, _v)| k)
         .unwrap();
 

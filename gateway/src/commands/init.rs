@@ -123,7 +123,7 @@ fn show_bonding_info(config: &Config) {
         identity_keypair
     }
 
-    let pathfinder = GatewayPathfinder::new_from_config(&config);
+    let pathfinder = GatewayPathfinder::new_from_config(config);
     let identity_keypair = load_identity_keys(&pathfinder);
     let sphinx_keypair = load_sphinx_keys(&pathfinder);
 

@@ -369,6 +369,30 @@ export default class ValidatorClient {
         }
     }
 
+    public async getMixDelegations(nodeOwner: string): Promise<MixDelegation[]> {
+        // make this configurable somewhere
+        const limit = 500
+
+        let delegations: MixDelegation[] = [];
+        let response: PagedMixDelegationsResponse
+        let next: string | undefined = undefined;
+        for (;;) {
+            response = await this.client.getMixDelegations(this.contractAddress, nodeOwner, limit, next)
+            delegations = delegations.concat(response.delegations)
+            next = response.start_next_after
+            // if `start_next_after` is not set, we're done
+            if (!next) {
+                break
+            }
+        }
+
+        return delegations
+    }
+
+    public getMixDelegation(nodeOwner: string, delegatorAddress: string): Promise<MixDelegation> {
+        return this.client.getMixDelegation(this.contractAddress, nodeOwner, delegatorAddress);
+    }
+
     // TODO: if we just keep a reference to the SigningCosmWasmClient somewhere we can probably go direct
     // to it in the case of these methods below.
 
@@ -500,4 +524,15 @@ export type StateParams = {
     mixnode_bond_reward_rate: string,
     gateway_bond_reward_rate: string,
     mixnode_active_set_size: number,
+}
+
+export type MixDelegation = {
+    owner: string,
+    amount: Coin,
+}
+
+export type PagedMixDelegationsResponse = {
+    node_owner: string,
+    delegations: MixDelegation[],
+    start_next_after: string
 }

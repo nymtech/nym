@@ -443,7 +443,7 @@ impl GatewayClient {
         }
         if self.authenticated {
             // if we are authenticated it means we MUST have an associated shared_key
-            Ok(Arc::clone(&self.shared_key.as_ref().unwrap()))
+            Ok(Arc::clone(self.shared_key.as_ref().unwrap()))
         } else {
             Err(GatewayClientError::AuthenticationFailure)
         }

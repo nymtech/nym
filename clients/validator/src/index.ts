@@ -286,7 +286,7 @@ export default class ValidatorClient {
      * @param amount desired amount of coins to delegate to the node
      */
     // requires coin type to ensure correct denomination (
-    async delegateToMixnode(mixnodeOwner: string, amount: Coin) {
+    async delegateToMixnode(mixnodeOwner: string, amount: Coin): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
             const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { delegate_to_mixnode: { node_owner: mixnodeOwner } }, `delegating to ${mixnodeOwner}`, [amount]).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} delegated ${amount} to mixnode owned by ${mixnodeOwner}`);
@@ -301,7 +301,7 @@ export default class ValidatorClient {
      *
      * @param mixnodeOwner address of the owner of the node from which the delegation should get removed
      */
-    async removeMixnodeDelegation(mixnodeOwner: string) {
+    async removeMixnodeDelegation(mixnodeOwner: string): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
             const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { undelegate_from_mixnode: { node_owner: mixnodeOwner } }).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} removed delegation from mixnode owned by ${mixnodeOwner}`);

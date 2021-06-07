@@ -135,7 +135,7 @@ where
         .collect();
 
     let route =
-        topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, &full_address.gateway())?;
+        topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, full_address.gateway())?;
     let delays = delays::generate_from_average_duration(route.len(), average_packet_delay);
     let destination = full_address.as_sphinx_destination();
 

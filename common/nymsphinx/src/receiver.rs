@@ -121,7 +121,7 @@ impl MessageReceiver {
         Ok(stream_cipher::decrypt::<PacketEncryptionAlgorithm>(
             &encryption_key,
             &zero_iv,
-            &fragment_bytes,
+            fragment_bytes,
         ))
     }
 

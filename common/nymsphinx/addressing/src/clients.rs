@@ -100,7 +100,7 @@ impl<'de> Deserialize<'de> for Recipient {
 
                 let mut recipient_bytes = [0u8; Recipient::LEN];
                 // this shouldn't panic as we just checked for length
-                recipient_bytes.copy_from_slice(&bytes);
+                recipient_bytes.copy_from_slice(bytes);
 
                 Recipient::try_from_bytes(recipient_bytes).map_err(|_| {
                     SerdeError::invalid_value(

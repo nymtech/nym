@@ -7,8 +7,29 @@ use cosmwasm_storage::{
 };
 use mixnet_contract::{GatewayBond, LayerDistribution, MixNodeBond};
 
-// Contract-level stuff
+// storage prefixes
+// all of them must be unique.
+// keeping them as short as possible is also desirable as they are part of each stored key
+// it's not as important for singletons, but is a nice optimisation for buckets
+
+// the legacy prefixes can't be changed without redeploying contract or doing fancy migration
+// for time being let's leave them as they are, but when we're going to make incompatible
+// contract changes, let's shorten all of them
+
+// singletons
 const CONFIG_KEY: &[u8] = b"config";
+const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
+
+// buckets
+const PREFIX_MIXNODES: &[u8] = b"mixnodes";
+const PREFIX_MIXNODES_OWNERS: &[u8] = b"mix-owners";
+const PREFIX_GATEWAYS: &[u8] = b"gateways";
+const PREFIX_GATEWAYS_OWNERS: &[u8] = b"gateway-owners";
+
+const PREFIX_MIX_DELEGATION: &[u8] = b"md";
+const PREFIX_GATEWAY_DELEGATION: &[u8] = b"gd";
+
+// Contract-level stuff
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
     singleton(storage, CONFIG_KEY)
@@ -40,8 +61,6 @@ pub(crate) fn read_gateway_epoch_reward_rate(storage: &dyn Storage) -> Decimal {
         .unwrap()
         .gateway_epoch_bond_reward
 }
-
-const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
 
 pub fn layer_distribution(storage: &mut dyn Storage) -> Singleton<LayerDistribution> {
     singleton(storage, LAYER_DISTRIBUTION_KEY)
@@ -128,7 +147,6 @@ pub fn decrement_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResu
 }
 
 // Mixnode-related stuff
-const PREFIX_MIXNODES: &[u8] = b"mixnodes";
 
 pub fn mixnodes(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
     bucket(storage, PREFIX_MIXNODES)
@@ -137,8 +155,6 @@ pub fn mixnodes(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
 pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
     bucket_read(storage, PREFIX_MIXNODES)
 }
-
-const PREFIX_MIXNODES_OWNERS: &[u8] = b"mix-owners";
 
 pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
     bucket(storage, PREFIX_MIXNODES_OWNERS)
@@ -225,8 +241,6 @@ pub(crate) fn read_mixnode_bond(
 
 // Gateway-related stuff
 
-const PREFIX_GATEWAYS: &[u8] = b"gateways";
-
 pub fn gateways(storage: &mut dyn Storage) -> Bucket<GatewayBond> {
     bucket(storage, PREFIX_GATEWAYS)
 }
@@ -234,8 +248,6 @@ pub fn gateways(storage: &mut dyn Storage) -> Bucket<GatewayBond> {
 pub fn gateways_read(storage: &dyn Storage) -> ReadonlyBucket<GatewayBond> {
     bucket_read(storage, PREFIX_GATEWAYS)
 }
-
-const PREFIX_GATEWAYS_OWNERS: &[u8] = b"gateway-owners";
 
 pub fn gateways_owners(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
     bucket(storage, PREFIX_GATEWAYS_OWNERS)
@@ -262,8 +274,6 @@ pub(crate) fn increase_gateway_bond(
 }
 
 // delegation related
-
-const PREFIX_MIX_DELEGATION: &[u8] = b"mix-delegation";
 
 pub fn mix_delegations<'a>(
     storage: &'a mut dyn Storage,

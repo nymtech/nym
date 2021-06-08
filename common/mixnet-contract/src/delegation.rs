@@ -7,14 +7,14 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct MixDelegation {
+pub struct Delegation {
     owner: HumanAddr,
     amount: Coin,
 }
 
-impl MixDelegation {
+impl Delegation {
     pub fn new(owner: HumanAddr, amount: Coin) -> Self {
-        MixDelegation { owner, amount }
+        Delegation { owner, amount }
     }
 
     pub fn amount(&self) -> &Coin {
@@ -26,7 +26,7 @@ impl MixDelegation {
     }
 }
 
-impl Display for MixDelegation {
+impl Display for Delegation {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
@@ -39,17 +39,38 @@ impl Display for MixDelegation {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedMixDelegationsResponse {
     pub node_owner: HumanAddr,
-    pub delegations: Vec<MixDelegation>,
+    pub delegations: Vec<Delegation>,
     pub start_next_after: Option<HumanAddr>,
 }
 
 impl PagedMixDelegationsResponse {
     pub fn new(
         node_owner: HumanAddr,
-        delegations: Vec<MixDelegation>,
+        delegations: Vec<Delegation>,
         start_next_after: Option<HumanAddr>,
     ) -> Self {
         PagedMixDelegationsResponse {
+            node_owner,
+            delegations,
+            start_next_after,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub struct PagedGatewayDelegationsResponse {
+    pub node_owner: HumanAddr,
+    pub delegations: Vec<Delegation>,
+    pub start_next_after: Option<HumanAddr>,
+}
+
+impl PagedGatewayDelegationsResponse {
+    pub fn new(
+        node_owner: HumanAddr,
+        delegations: Vec<Delegation>,
+        start_next_after: Option<HumanAddr>,
+    ) -> Self {
+        PagedGatewayDelegationsResponse {
             node_owner,
             delegations,
             start_next_after,

@@ -65,4 +65,7 @@ pub enum ContractError {
 
     #[error("Could not find any delegation information associated with mixnode owned by {mixnode_owner:?}")]
     NoMixnodeDelegationFound { mixnode_owner: HumanAddr },
+
+    #[error("Could not find any delegation information associated with gateway owned by {gateway_owner:?}")]
+    NoGatewayDelegationFound { gateway_owner: HumanAddr },
 }

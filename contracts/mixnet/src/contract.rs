@@ -117,23 +117,38 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             to_binary(&queries::query_owns_gateway(deps, address)?)
         }
         QueryMsg::StateParams {} => to_binary(&queries::query_state_params(deps)),
+        QueryMsg::LayerDistribution {} => to_binary(&queries::query_layer_distribution(deps)),
         QueryMsg::GetMixDelegations {
-            node_owner,
+            mix_owner,
             start_after,
             limit,
         } => to_binary(&queries::query_mixnode_delegations_paged(
             deps,
-            node_owner,
+            mix_owner,
             start_after,
             limit,
         )?),
-        QueryMsg::GetMixDelegation {
-            node_owner,
-            address,
-        } => to_binary(&queries::query_mixnode_delegation(
-            deps, node_owner, address,
+        QueryMsg::GetMixDelegation { mix_owner, address } => to_binary(
+            &queries::query_mixnode_delegation(deps, mix_owner, address)?,
+        ),
+        QueryMsg::GetGatewayDelegations {
+            gateway_owner,
+            start_after,
+            limit,
+        } => to_binary(&queries::query_gateway_delegations_paged(
+            deps,
+            gateway_owner,
+            start_after,
+            limit,
         )?),
-        QueryMsg::LayerDistribution {} => to_binary(&queries::query_layer_distribution(deps)),
+        QueryMsg::GetGatewayDelegation {
+            gateway_owner,
+            address,
+        } => to_binary(&queries::query_gateway_delegation(
+            deps,
+            gateway_owner,
+            address,
+        )?),
     };
 
     Ok(query_res?)

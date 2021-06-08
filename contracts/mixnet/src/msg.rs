@@ -60,12 +60,21 @@ pub enum QueryMsg {
     },
     StateParams {},
     GetMixDelegations {
-        node_owner: HumanAddr,
+        mix_owner: HumanAddr,
         start_after: Option<HumanAddr>,
         limit: Option<u32>,
     },
     GetMixDelegation {
-        node_owner: HumanAddr,
+        mix_owner: HumanAddr,
+        address: HumanAddr,
+    },
+    GetGatewayDelegations {
+        gateway_owner: HumanAddr,
+        start_after: Option<HumanAddr>,
+        limit: Option<u32>,
+    },
+    GetGatewayDelegation {
+        gateway_owner: HumanAddr,
         address: HumanAddr,
     },
     LayerDistribution {},

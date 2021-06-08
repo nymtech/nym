@@ -2,7 +2,7 @@ use crate::contract::DENOM;
 use crate::error::ContractError;
 use crate::state::StateParams;
 use crate::storage::{
-    gateways_read, mixnodes_read, node_delegations_read, read_layer_distribution, read_state_params,
+    gateways_read, mix_delegations_read, mixnodes_read, read_layer_distribution, read_state_params,
 };
 use cosmwasm_std::Deps;
 use cosmwasm_std::Order;
@@ -116,7 +116,7 @@ pub(crate) fn query_mixnode_delegations_paged(
         .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
     let start = calculate_start_value(start_after);
 
-    let delegations = node_delegations_read(deps.storage, &node_owner)
+    let delegations = mix_delegations_read(deps.storage, &node_owner)
         .range(start.as_deref(), None, Order::Ascending)
         .take(limit)
         .map(|res| {
@@ -146,7 +146,7 @@ pub(crate) fn query_mixnode_delegation(
     node_owner: HumanAddr,
     address: HumanAddr,
 ) -> Result<MixDelegation, ContractError> {
-    match node_delegations_read(deps.storage, &node_owner).may_load(address.as_bytes())? {
+    match mix_delegations_read(deps.storage, &node_owner).may_load(address.as_bytes())? {
         Some(delegation_value) => Ok(MixDelegation::new(
             address,
             coin(delegation_value.u128(), DENOM),
@@ -161,7 +161,7 @@ pub(crate) fn query_mixnode_delegation(
 mod tests {
     use super::*;
     use crate::state::State;
-    use crate::storage::{config, gateways, mixnodes, node_delegations};
+    use crate::storage::{config, gateways, mix_delegations, mixnodes};
     use crate::support::tests::helpers;
     use cosmwasm_std::{Storage, Uint128};
 
@@ -485,13 +485,13 @@ mod tests {
     #[cfg(test)]
     mod querying_for_mixnode_delegations_paged {
         use super::*;
-        use crate::storage::node_delegations;
+        use crate::storage::mix_delegations;
         use cosmwasm_std::Uint128;
 
         fn store_n_delegations(n: u32, storage: &mut dyn Storage, node_owner: &HumanAddr) {
             for i in 0..n {
                 let address = format!("address{}", i);
-                node_delegations(storage, node_owner)
+                mix_delegations(storage, node_owner)
                     .save(address.as_bytes(), &Uint128(42))
                     .unwrap();
             }
@@ -563,7 +563,7 @@ mod tests {
             let mut deps = helpers::init_contract();
             let node_owner: HumanAddr = "foo".into();
 
-            node_delegations(&mut deps.storage, &node_owner)
+            mix_delegations(&mut deps.storage, &node_owner)
                 .save("1".as_bytes(), &Uint128(42))
                 .unwrap();
 
@@ -580,7 +580,7 @@ mod tests {
             assert_eq!(1, page1.delegations.len());
 
             // save another
-            node_delegations(&mut deps.storage, &node_owner)
+            mix_delegations(&mut deps.storage, &node_owner)
                 .save("2".as_bytes(), &Uint128(42))
                 .unwrap();
 
@@ -594,7 +594,7 @@ mod tests {
             .unwrap();
             assert_eq!(2, page1.delegations.len());
 
-            node_delegations(&mut deps.storage, &node_owner)
+            mix_delegations(&mut deps.storage, &node_owner)
                 .save("3".as_bytes(), &Uint128(42))
                 .unwrap();
 
@@ -621,7 +621,7 @@ mod tests {
             assert_eq!(1, page2.delegations.len());
 
             // save another one
-            node_delegations(&mut deps.storage, &node_owner)
+            mix_delegations(&mut deps.storage, &node_owner)
                 .save("4".as_bytes(), &Uint128(42))
                 .unwrap();
 
@@ -644,7 +644,7 @@ mod tests {
         let mut deps = helpers::init_contract();
         let node_owner: HumanAddr = "foo".into();
 
-        node_delegations(&mut deps.storage, &node_owner)
+        mix_delegations(&mut deps.storage, &node_owner)
             .save("foo".as_bytes(), &Uint128(42))
             .unwrap();
 
@@ -667,7 +667,7 @@ mod tests {
         );
 
         // add delegation from a different address
-        node_delegations(&mut deps.storage, &node_owner)
+        mix_delegations(&mut deps.storage, &node_owner)
             .save("bar".as_bytes(), &Uint128(42))
             .unwrap();
 
@@ -679,7 +679,7 @@ mod tests {
         );
 
         // add delegation for a different node
-        node_delegations(&mut deps.storage, &"differentnode".into())
+        mix_delegations(&mut deps.storage, &"differentnode".into())
             .save("foo".as_bytes(), &Uint128(42))
             .unwrap();
 

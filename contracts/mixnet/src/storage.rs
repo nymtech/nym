@@ -175,7 +175,7 @@ pub(crate) fn increase_mix_delegated_stakes(
     let mut chunk_start: Option<Vec<_>> = None;
     loop {
         // get `chunk_size` of delegations
-        let delegations_chunk = node_delegations_read(storage, node_owner)
+        let delegations_chunk = mix_delegations_read(storage, node_owner)
             .range(chunk_start.as_deref(), None, Order::Ascending)
             .take(chunk_size)
             .collect::<StdResult<Vec<_>>>()?;
@@ -200,7 +200,7 @@ pub(crate) fn increase_mix_delegated_stakes(
         for (delegator_address, amount) in delegations_chunk.into_iter() {
             let reward = amount * scaled_reward_rate;
             let new_amount = amount + reward;
-            node_delegations(storage, node_owner).save(&delegator_address, &new_amount)?;
+            mix_delegations(storage, node_owner).save(&delegator_address, &new_amount)?;
         }
     }
 
@@ -263,20 +263,20 @@ pub(crate) fn increase_gateway_bond(
 
 // delegation related
 
-const PREFIX_DELEGATION: &[u8] = b"delegation";
+const PREFIX_MIX_DELEGATION: &[u8] = b"mix-delegation";
 
-pub fn node_delegations<'a>(
+pub fn mix_delegations<'a>(
     storage: &'a mut dyn Storage,
     node_address: &'a HumanAddr,
 ) -> Bucket<'a, Uint128> {
-    Bucket::multilevel(storage, &[PREFIX_DELEGATION, node_address.as_bytes()])
+    Bucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, node_address.as_bytes()])
 }
 
-pub fn node_delegations_read<'a>(
+pub fn mix_delegations_read<'a>(
     storage: &'a dyn Storage,
     node_address: &'a HumanAddr,
 ) -> ReadonlyBucket<'a, Uint128> {
-    ReadonlyBucket::multilevel(storage, &[PREFIX_DELEGATION, node_address.as_bytes()])
+    ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, node_address.as_bytes()])
 }
 
 // currently not used outside tests
@@ -467,14 +467,14 @@ mod tests {
             let reward = Decimal::from_ratio(1u128, 1000u128);
 
             let delegator_address = HumanAddr::from("bob");
-            node_delegations(&mut deps.storage, &node_owner)
+            mix_delegations(&mut deps.storage, &node_owner)
                 .save(delegator_address.as_bytes(), &Uint128(1000))
                 .unwrap();
 
             increase_mix_delegated_stakes(&mut deps.storage, &node_owner, reward).unwrap();
             assert_eq!(
                 Uint128(1001),
-                node_delegations_read(&mut deps.storage, &node_owner)
+                mix_delegations_read(&mut deps.storage, &node_owner)
                     .load(delegator_address.as_bytes())
                     .unwrap()
             )
@@ -489,7 +489,7 @@ mod tests {
 
             for i in 0..100 {
                 let delegator_address = HumanAddr::from(format!("address{}", i));
-                node_delegations(&mut deps.storage, &node_owner)
+                mix_delegations(&mut deps.storage, &node_owner)
                     .save(delegator_address.as_bytes(), &Uint128(1000))
                     .unwrap();
             }
@@ -500,7 +500,7 @@ mod tests {
                 let delegator_address = HumanAddr::from(format!("address{}", i));
                 assert_eq!(
                     Uint128(1001),
-                    node_delegations_read(&mut deps.storage, &node_owner)
+                    mix_delegations_read(&mut deps.storage, &node_owner)
                         .load(delegator_address.as_bytes())
                         .unwrap()
                 )
@@ -516,7 +516,7 @@ mod tests {
 
             for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
                 let delegator_address = HumanAddr::from(format!("address{}", i));
-                node_delegations(&mut deps.storage, &node_owner)
+                mix_delegations(&mut deps.storage, &node_owner)
                     .save(delegator_address.as_bytes(), &Uint128(1000))
                     .unwrap();
             }
@@ -527,7 +527,7 @@ mod tests {
                 let delegator_address = HumanAddr::from(format!("address{}", i));
                 assert_eq!(
                     Uint128(1001),
-                    node_delegations_read(&mut deps.storage, &node_owner)
+                    mix_delegations_read(&mut deps.storage, &node_owner)
                         .load(delegator_address.as_bytes())
                         .unwrap()
                 )

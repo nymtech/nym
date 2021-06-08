@@ -5,8 +5,8 @@ use crate::state::StateParams;
 use crate::storage::{
     config, config_read, decrement_layer_count, gateways, gateways_owners, gateways_owners_read,
     gateways_read, increase_gateway_bond, increase_mix_delegated_stakes, increase_mixnode_bond,
-    increment_layer_count, mixnodes, mixnodes_owners, mixnodes_owners_read, mixnodes_read,
-    node_delegations, read_gateway_epoch_reward_rate, read_mixnode_epoch_reward_rate,
+    increment_layer_count, mix_delegations, mixnodes, mixnodes_owners, mixnodes_owners_read,
+    mixnodes_read, read_gateway_epoch_reward_rate, read_mixnode_epoch_reward_rate,
     read_state_params, Layer,
 };
 use cosmwasm_std::{
@@ -404,7 +404,7 @@ pub(crate) fn try_delegate_to_mixnode(
         return Err(ContractError::MixNodeBondNotFound {});
     }
 
-    let mut bucket = node_delegations(deps.storage, &node_owner);
+    let mut bucket = mix_delegations(deps.storage, &node_owner);
     let sender_bytes = info.sender.as_bytes();
     match bucket.may_load(sender_bytes)? {
         Some(existing_delegation) => bucket.save(
@@ -423,7 +423,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
     env: Env,
     node_owner: HumanAddr,
 ) -> Result<HandleResponse, ContractError> {
-    let mut delegation_bucket = node_delegations(deps.storage, &node_owner);
+    let mut delegation_bucket = mix_delegations(deps.storage, &node_owner);
     let sender_bytes = info.sender.as_bytes();
     match delegation_bucket.may_load(sender_bytes)? {
         Some(delegation) => {
@@ -461,7 +461,7 @@ pub mod tests {
     use crate::msg::{HandleMsg, InitMsg, QueryMsg};
     use crate::state::StateParams;
     use crate::storage::{
-        layer_distribution_read, node_delegations_read, read_gateway_bond,
+        layer_distribution_read, mix_delegations_read, read_gateway_bond,
         read_gateway_epoch_reward_rate, read_mixnode_bond,
     };
     use crate::support::tests::helpers;
@@ -1591,7 +1591,7 @@ pub mod tests {
     #[cfg(test)]
     mod mix_stake_delegation {
         use super::*;
-        use crate::storage::node_delegations_read;
+        use crate::storage::mix_delegations_read;
         use crate::support::tests::helpers::add_mixnode;
 
         #[test]
@@ -1622,7 +1622,7 @@ pub mod tests {
 
             assert_eq!(
                 123,
-                node_delegations_read(&deps.storage, &mixnode_owner.into())
+                mix_delegations_read(&deps.storage, &mixnode_owner.into())
                     .load(b"sender")
                     .unwrap()
                     .u128()
@@ -1667,7 +1667,7 @@ pub mod tests {
 
             assert_eq!(
                 123,
-                node_delegations_read(&deps.storage, &mixnode_owner.into())
+                mix_delegations_read(&deps.storage, &mixnode_owner.into())
                     .load(b"sender")
                     .unwrap()
                     .u128()
@@ -1696,7 +1696,7 @@ pub mod tests {
 
             assert_eq!(
                 150,
-                node_delegations_read(&deps.storage, &mixnode_owner.into())
+                mix_delegations_read(&deps.storage, &mixnode_owner.into())
                     .load(b"sender")
                     .unwrap()
                     .u128()
@@ -1754,7 +1754,7 @@ pub mod tests {
 
             assert_eq!(
                 123,
-                node_delegations_read(&deps.storage, &mixnode_owner1.into())
+                mix_delegations_read(&deps.storage, &mixnode_owner1.into())
                     .load(b"sender")
                     .unwrap()
                     .u128()
@@ -1762,7 +1762,7 @@ pub mod tests {
 
             assert_eq!(
                 42,
-                node_delegations_read(&deps.storage, &mixnode_owner2.into())
+                mix_delegations_read(&deps.storage, &mixnode_owner2.into())
                     .load(b"sender")
                     .unwrap()
                     .u128()
@@ -1809,7 +1809,7 @@ pub mod tests {
 
             assert_eq!(
                 100,
-                node_delegations_read(&deps.storage, &mixnode_owner.into())
+                mix_delegations_read(&deps.storage, &mixnode_owner.into())
                     .load(b"sender")
                     .unwrap()
                     .u128()
@@ -1820,7 +1820,7 @@ pub mod tests {
     #[cfg(test)]
     mod removing_mix_stake_delegation {
         use super::*;
-        use crate::storage::node_delegations_read;
+        use crate::storage::mix_delegations_read;
         use crate::support::tests::helpers::add_mixnode;
 
         #[test]
@@ -1877,7 +1877,7 @@ pub mod tests {
                 )
             );
 
-            assert!(node_delegations_read(&deps.storage, &mixnode_owner.into())
+            assert!(mix_delegations_read(&deps.storage, &mixnode_owner.into())
                 .may_load(b"sender")
                 .unwrap()
                 .is_none());
@@ -1919,7 +1919,7 @@ pub mod tests {
                 )
             );
 
-            assert!(node_delegations_read(&deps.storage, &mixnode_owner.into())
+            assert!(mix_delegations_read(&deps.storage, &mixnode_owner.into())
                 .may_load(b"sender")
                 .unwrap()
                 .is_none());
@@ -1948,13 +1948,13 @@ pub mod tests {
             .save(b"node-owner", &mixnode_bond)
             .unwrap();
 
-        node_delegations(&mut deps.storage, &node_owner)
+        mix_delegations(&mut deps.storage, &node_owner)
             .save(b"delegator1", &Uint128(initial_delegation1))
             .unwrap();
-        node_delegations(&mut deps.storage, &node_owner)
+        mix_delegations(&mut deps.storage, &node_owner)
             .save(b"delegator2", &Uint128(initial_delegation2))
             .unwrap();
-        node_delegations(&mut deps.storage, &node_owner)
+        mix_delegations(&mut deps.storage, &node_owner)
             .save(b"delegator3", &Uint128(initial_delegation3))
             .unwrap();
 
@@ -1980,21 +1980,21 @@ pub mod tests {
 
         assert_eq!(
             expected_delegation1,
-            node_delegations_read(deps.as_ref().storage, &node_owner)
+            mix_delegations_read(deps.as_ref().storage, &node_owner)
                 .load("delegator1".as_bytes())
                 .unwrap()
         );
 
         assert_eq!(
             expected_delegation2,
-            node_delegations_read(deps.as_ref().storage, &node_owner)
+            mix_delegations_read(deps.as_ref().storage, &node_owner)
                 .load("delegator2".as_bytes())
                 .unwrap()
         );
 
         assert_eq!(
             expected_delegation3,
-            node_delegations_read(deps.as_ref().storage, &node_owner)
+            mix_delegations_read(deps.as_ref().storage, &node_owner)
                 .load("delegator3".as_bytes())
                 .unwrap()
         );
@@ -2016,21 +2016,21 @@ pub mod tests {
 
         assert_eq!(
             expected_delegation1,
-            node_delegations_read(deps.as_ref().storage, &node_owner)
+            mix_delegations_read(deps.as_ref().storage, &node_owner)
                 .load("delegator1".as_bytes())
                 .unwrap()
         );
 
         assert_eq!(
             expected_delegation2,
-            node_delegations_read(deps.as_ref().storage, &node_owner)
+            mix_delegations_read(deps.as_ref().storage, &node_owner)
                 .load("delegator2".as_bytes())
                 .unwrap()
         );
 
         assert_eq!(
             expected_delegation3,
-            node_delegations_read(deps.as_ref().storage, &node_owner)
+            mix_delegations_read(deps.as_ref().storage, &node_owner)
                 .load("delegator3".as_bytes())
                 .unwrap()
         );
@@ -2046,21 +2046,21 @@ pub mod tests {
 
         assert_eq!(
             expected_delegation1,
-            node_delegations_read(deps.as_ref().storage, &node_owner)
+            mix_delegations_read(deps.as_ref().storage, &node_owner)
                 .load("delegator1".as_bytes())
                 .unwrap()
         );
 
         assert_eq!(
             expected_delegation2,
-            node_delegations_read(deps.as_ref().storage, &node_owner)
+            mix_delegations_read(deps.as_ref().storage, &node_owner)
                 .load("delegator2".as_bytes())
                 .unwrap()
         );
 
         assert_eq!(
             expected_delegation3,
-            node_delegations_read(deps.as_ref().storage, &node_owner)
+            mix_delegations_read(deps.as_ref().storage, &node_owner)
                 .load("delegator3".as_bytes())
                 .unwrap()
         );

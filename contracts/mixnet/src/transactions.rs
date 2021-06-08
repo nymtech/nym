@@ -4,9 +4,10 @@ use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
 use crate::state::StateParams;
 use crate::storage::{
     config, config_read, decrement_layer_count, gateways, gateways_owners, gateways_owners_read,
-    gateways_read, increase_gateway_bond, increase_mixnode_bond, increment_layer_count, mixnodes,
-    mixnodes_owners, mixnodes_owners_read, mixnodes_read, node_delegations,
-    read_gateway_epoch_reward_rate, read_mixnode_epoch_reward_rate, read_state_params, Layer,
+    gateways_read, increase_gateway_bond, increase_mix_delegated_stakes, increase_mixnode_bond,
+    increment_layer_count, mixnodes, mixnodes_owners, mixnodes_owners_read, mixnodes_read,
+    node_delegations, read_gateway_epoch_reward_rate, read_mixnode_epoch_reward_rate,
+    read_state_params, Layer,
 };
 use cosmwasm_std::{
     attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, HandleResponse, HumanAddr, MessageInfo,
@@ -313,15 +314,16 @@ pub(crate) fn try_reward_mixnode(
         }
     };
 
+    // optimisation for uptime being 0. No rewards will be given so just terminate here
+    if uptime == 0 {
+        return Ok(HandleResponse::default());
+    }
+
     let reward = read_mixnode_epoch_reward_rate(deps.storage);
     let scaled_reward = scale_reward_by_uptime(reward, uptime)?;
 
     increase_mixnode_bond(deps.storage, current_bond, scaled_reward)?;
-
-    /*
-       TODO:
-       here will probably be some procedure to reward addresses that delegated to this node
-    */
+    increase_mix_delegated_stakes(deps.storage, &node_owner, scaled_reward)?;
 
     Ok(HandleResponse::default())
 }
@@ -459,8 +461,8 @@ pub mod tests {
     use crate::msg::{HandleMsg, InitMsg, QueryMsg};
     use crate::state::StateParams;
     use crate::storage::{
-        layer_distribution_read, read_gateway_bond, read_gateway_epoch_reward_rate,
-        read_mixnode_bond,
+        layer_distribution_read, node_delegations_read, read_gateway_bond,
+        read_gateway_epoch_reward_rate, read_mixnode_bond,
     };
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{gateway_fixture, mix_node_fixture};
@@ -1922,5 +1924,145 @@ pub mod tests {
                 .unwrap()
                 .is_none());
         }
+    }
+
+    #[test]
+    fn delegators_share_the_same_reward_rate_as_mix_nodes() {
+        let mut deps = helpers::init_contract();
+        let current_state = config(deps.as_mut().storage).load().unwrap();
+        let network_monitor_address = current_state.network_monitor_address;
+
+        let initial_mix_bond = 100_000000;
+        let initial_delegation1 = 50000; // will see single digits rewards
+        let initial_delegation2 = 100; // won't see any rewards due to such a small delegation
+        let initial_delegation3 = 100000_000000; // will see big proper rewards
+
+        let node_owner: HumanAddr = "node-owner".into();
+        let mixnode_bond = MixNodeBond {
+            amount: coins(initial_mix_bond, DENOM),
+            owner: node_owner.clone(),
+            mix_node: mix_node_fixture(),
+        };
+
+        mixnodes(&mut deps.storage)
+            .save(b"node-owner", &mixnode_bond)
+            .unwrap();
+
+        node_delegations(&mut deps.storage, &node_owner)
+            .save(b"delegator1", &Uint128(initial_delegation1))
+            .unwrap();
+        node_delegations(&mut deps.storage, &node_owner)
+            .save(b"delegator2", &Uint128(initial_delegation2))
+            .unwrap();
+        node_delegations(&mut deps.storage, &node_owner)
+            .save(b"delegator3", &Uint128(initial_delegation3))
+            .unwrap();
+
+        let reward = read_mixnode_epoch_reward_rate(deps.as_ref().storage);
+
+        // the node's bond is correctly increased and scaled by uptime
+        // if node was 100% up, it will get full epoch reward
+        let expected_bond = Uint128(initial_mix_bond) * reward + Uint128(initial_mix_bond);
+        let expected_delegation1 =
+            Uint128(initial_delegation1) * reward + Uint128(initial_delegation1);
+        let expected_delegation2 =
+            Uint128(initial_delegation2) * reward + Uint128(initial_delegation2);
+        let expected_delegation3 =
+            Uint128(initial_delegation3) * reward + Uint128(initial_delegation3);
+
+        let info = mock_info(network_monitor_address.clone(), &[]);
+        try_reward_mixnode(deps.as_mut(), info, node_owner.clone(), 100).unwrap();
+
+        assert_eq!(
+            expected_bond,
+            read_mixnode_bond(deps.as_ref().storage, b"node-owner").unwrap()
+        );
+
+        assert_eq!(
+            expected_delegation1,
+            node_delegations_read(deps.as_ref().storage, &node_owner)
+                .load("delegator1".as_bytes())
+                .unwrap()
+        );
+
+        assert_eq!(
+            expected_delegation2,
+            node_delegations_read(deps.as_ref().storage, &node_owner)
+                .load("delegator2".as_bytes())
+                .unwrap()
+        );
+
+        assert_eq!(
+            expected_delegation3,
+            node_delegations_read(deps.as_ref().storage, &node_owner)
+                .load("delegator3".as_bytes())
+                .unwrap()
+        );
+
+        // if node was 20% up, it will get 1/5th of epoch reward
+        let scaled_reward = scale_reward_by_uptime(reward, 20).unwrap();
+        let expected_bond = expected_bond * scaled_reward + expected_bond;
+        let expected_delegation1 = expected_delegation1 * scaled_reward + expected_delegation1;
+        let expected_delegation2 = expected_delegation2 * scaled_reward + expected_delegation2;
+        let expected_delegation3 = expected_delegation3 * scaled_reward + expected_delegation3;
+
+        let info = mock_info(network_monitor_address.clone(), &[]);
+        try_reward_mixnode(deps.as_mut(), info, node_owner.clone(), 20).unwrap();
+
+        assert_eq!(
+            expected_bond,
+            read_mixnode_bond(deps.as_ref().storage, b"node-owner").unwrap()
+        );
+
+        assert_eq!(
+            expected_delegation1,
+            node_delegations_read(deps.as_ref().storage, &node_owner)
+                .load("delegator1".as_bytes())
+                .unwrap()
+        );
+
+        assert_eq!(
+            expected_delegation2,
+            node_delegations_read(deps.as_ref().storage, &node_owner)
+                .load("delegator2".as_bytes())
+                .unwrap()
+        );
+
+        assert_eq!(
+            expected_delegation3,
+            node_delegations_read(deps.as_ref().storage, &node_owner)
+                .load("delegator3".as_bytes())
+                .unwrap()
+        );
+
+        // if the node was 0% up, nobody will get any rewards
+        let info = mock_info(network_monitor_address, &[]);
+        try_reward_mixnode(deps.as_mut(), info, node_owner.clone(), 0).unwrap();
+
+        assert_eq!(
+            expected_bond,
+            read_mixnode_bond(deps.as_ref().storage, b"node-owner").unwrap()
+        );
+
+        assert_eq!(
+            expected_delegation1,
+            node_delegations_read(deps.as_ref().storage, &node_owner)
+                .load("delegator1".as_bytes())
+                .unwrap()
+        );
+
+        assert_eq!(
+            expected_delegation2,
+            node_delegations_read(deps.as_ref().storage, &node_owner)
+                .load("delegator2".as_bytes())
+                .unwrap()
+        );
+
+        assert_eq!(
+            expected_delegation3,
+            node_delegations_read(deps.as_ref().storage, &node_owner)
+                .load("delegator3".as_bytes())
+                .unwrap()
+        );
     }
 }

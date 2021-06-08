@@ -17,7 +17,7 @@ const BOND_PAGE_MAX_LIMIT: u32 = 100;
 const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
 
 // currently the maximum limit before running into memory issue is somewhere between 1150 and 1200
-const DELEGATION_PAGE_MAX_LIMIT: u32 = 750;
+pub(crate) const DELEGATION_PAGE_MAX_LIMIT: u32 = 750;
 const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 500;
 
 pub fn query_mixnodes_paged(

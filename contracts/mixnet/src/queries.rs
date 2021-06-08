@@ -1,14 +1,16 @@
 use crate::contract::DENOM;
 use crate::error::ContractError;
 use crate::state::StateParams;
-use crate::storage::{gateways_read, mixnodes_read, read_layer_distribution, read_state_params};
+use crate::storage::{
+    gateways_read, mixnodes_read, node_delegations_read, read_layer_distribution, read_state_params,
+};
 use cosmwasm_std::Deps;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::{coin, HumanAddr};
 use mixnet_contract::{
-    GatewayBond, GatewayOwnershipResponse, MixDelegation, MixNodeBond, MixOwnershipResponse,
-    PagedGatewayResponse, PagedMixDelegationsResponse, PagedResponse,
+    GatewayBond, GatewayOwnershipResponse, LayerDistribution, MixDelegation, MixNodeBond,
+    MixOwnershipResponse, PagedGatewayResponse, PagedMixDelegationsResponse, PagedResponse,
 };
 
 const BOND_PAGE_MAX_LIMIT: u32 = 100;

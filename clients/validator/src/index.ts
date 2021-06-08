@@ -282,14 +282,14 @@ export default class ValidatorClient {
     /**
      * Delegates specified amount of stake to particular mixnode.
      *
-     * @param mixnodeOwner address of the owner of the node to which the delegation should be applied
+     * @param mixOwner address of the owner of the node to which the delegation should be applied
      * @param amount desired amount of coins to delegate to the node
      */
     // requires coin type to ensure correct denomination (
-    async delegateToMixnode(mixnodeOwner: string, amount: Coin): Promise<ExecuteResult> {
+    async delegateToMixnode(mixOwner: string, amount: Coin): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { delegate_to_mixnode: { node_owner: mixnodeOwner } }, `delegating to ${mixnodeOwner}`, [amount]).catch((err) => this.handleRequestFailure(err))
-            console.log(`account ${this.client.clientAddress} delegated ${amount} to mixnode owned by ${mixnodeOwner}`);
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { delegate_to_mixnode: { mix_owner: mixOwner } }, `delegating to ${mixOwner}`, [amount]).catch((err) => this.handleRequestFailure(err))
+            console.log(`account ${this.client.clientAddress} delegated ${amount} to mixnode owned by ${mixOwner}`);
             return result;
         } else {
             throw new Error("Tried to delegate stake with a query client")
@@ -299,12 +299,44 @@ export default class ValidatorClient {
     /**
      * Removes stake delegation from a particular mixnode.
      *
-     * @param mixnodeOwner address of the owner of the node from which the delegation should get removed
+     * @param mixOwner address of the owner of the node from which the delegation should get removed
      */
-    async removeMixnodeDelegation(mixnodeOwner: string): Promise<ExecuteResult> {
+    async removeMixnodeDelegation(mixOwner: string): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { undelegate_from_mixnode: { node_owner: mixnodeOwner } }).catch((err) => this.handleRequestFailure(err))
-            console.log(`account ${this.client.clientAddress} removed delegation from mixnode owned by ${mixnodeOwner}`);
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { undelegate_from_mixnode: { mix_owner: mixOwner } }).catch((err) => this.handleRequestFailure(err))
+            console.log(`account ${this.client.clientAddress} removed delegation from mixnode owned by ${mixOwner}`);
+            return result;
+        } else {
+            throw new Error("Tried to remove stake delegation with a query client")
+        }
+    }
+
+    /**
+     * Delegates specified amount of stake to particular gateway.
+     *
+     * @param gatewayOwner address of the owner of the node to which the delegation should be applied
+     * @param amount desired amount of coins to delegate to the node
+     */
+    // requires coin type to ensure correct denomination (
+    async delegateToGateway(gatewayOwner: string, amount: Coin): Promise<ExecuteResult> {
+        if (this.client instanceof NetClient) {
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { delegate_to_gateway: { gateway_owner: gatewayOwner } }, `delegating to ${gatewayOwner}`, [amount]).catch((err) => this.handleRequestFailure(err))
+            console.log(`account ${this.client.clientAddress} delegated ${amount} to gateway owned by ${gatewayOwner}`);
+            return result;
+        } else {
+            throw new Error("Tried to delegate stake with a query client")
+        }
+    }
+
+    /**
+     * Removes stake delegation from a particular gateway.
+     *
+     * @param gatewayOwner address of the owner of the node from which the delegation should get removed
+     */
+    async removeGatewayDelegation(gatewayOwner: string): Promise<ExecuteResult> {
+        if (this.client instanceof NetClient) {
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { undelegate_from_gateway: { gateway_owner: gatewayOwner } }).catch((err) => this.handleRequestFailure(err))
+            console.log(`account ${this.client.clientAddress} removed delegation from gateway owned by ${gatewayOwner}`);
             return result;
         } else {
             throw new Error("Tried to remove stake delegation with a query client")
@@ -404,17 +436,17 @@ export default class ValidatorClient {
     /**
      * Gets list of all delegations towards particular mixnode.
      *
-     * @param nodeOwner address of the owner of the node to which the delegation was sent
+     * @param mixOwner address of the owner of the node to which the delegation was sent
      */
-    public async getMixDelegations(nodeOwner: string): Promise<MixDelegation[]> {
+    public async getMixDelegations(mixOwner: string): Promise<Delegation[]> {
         // make this configurable somewhere
         const limit = 500
 
-        let delegations: MixDelegation[] = [];
+        let delegations: Delegation[] = [];
         let response: PagedMixDelegationsResponse
         let next: string | undefined = undefined;
         for (;;) {
-            response = await this.client.getMixDelegations(this.contractAddress, nodeOwner, limit, next)
+            response = await this.client.getMixDelegations(this.contractAddress, mixOwner, limit, next)
             delegations = delegations.concat(response.delegations)
             next = response.start_next_after
             // if `start_next_after` is not set, we're done
@@ -429,11 +461,46 @@ export default class ValidatorClient {
     /**
      * Checks value of delegation of given client towards particular mixnode.
      *
-     * @param nodeOwner address of the owner of the node to which the delegation was sent
+     * @param mixOwner address of the owner of the node to which the delegation was sent
      * @param delegatorAddress address of the client who delegated the stake
      */
-    public getMixDelegation(nodeOwner: string, delegatorAddress: string): Promise<MixDelegation> {
-        return this.client.getMixDelegation(this.contractAddress, nodeOwner, delegatorAddress);
+    public getMixDelegation(mixOwner: string, delegatorAddress: string): Promise<Delegation> {
+        return this.client.getMixDelegation(this.contractAddress, mixOwner, delegatorAddress);
+    }
+
+    /**
+     * Gets list of all delegations towards particular mixnode.
+     *
+     * @param gatewayOwner address of the owner of the gateway to which the delegation was sent
+     */
+    public async getGatewayDelegations(gatewayOwner: string): Promise<Delegation[]> {
+        // make this configurable somewhere
+        const limit = 500
+
+        let delegations: Delegation[] = [];
+        let response: PagedGatewayDelegationsResponse
+        let next: string | undefined = undefined;
+        for (;;) {
+            response = await this.client.getGatewayDelegations(this.contractAddress, gatewayOwner, limit, next)
+            delegations = delegations.concat(response.delegations)
+            next = response.start_next_after
+            // if `start_next_after` is not set, we're done
+            if (!next) {
+                break
+            }
+        }
+
+        return delegations
+    }
+
+    /**
+     * Checks value of delegation of given client towards particular gateway.
+     *
+     * @param gatewayOwner address of the owner of the node to which the delegation was sent
+     * @param delegatorAddress address of the client who delegated the stake
+     */
+    public getGatewayDelegation(gatewayOwner: string, delegatorAddress: string): Promise<Delegation> {
+        return this.client.getGatewayDelegation(this.contractAddress, gatewayOwner, delegatorAddress);
     }
 
     // TODO: if we just keep a reference to the SigningCosmWasmClient somewhere we can probably go direct
@@ -569,13 +636,19 @@ export type StateParams = {
     mixnode_active_set_size: number,
 }
 
-export type MixDelegation = {
+export type Delegation = {
     owner: string,
     amount: Coin,
 }
 
 export type PagedMixDelegationsResponse = {
     node_owner: string,
-    delegations: MixDelegation[],
+    delegations: Delegation[],
+    start_next_after: string
+}
+
+export type PagedGatewayDelegationsResponse = {
+    node_owner: string,
+    delegations: Delegation[],
     start_next_after: string
 }

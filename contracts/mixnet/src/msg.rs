@@ -21,11 +21,19 @@ pub enum HandleMsg {
     UpdateStateParams(StateParams),
 
     DelegateToMixnode {
-        node_owner: HumanAddr,
+        mix_owner: HumanAddr,
     },
 
     UndelegateFromMixnode {
-        node_owner: HumanAddr,
+        mix_owner: HumanAddr,
+    },
+
+    DelegateToGateway {
+        gateway_owner: HumanAddr,
+    },
+
+    UndelegateFromGateway {
+        gateway_owner: HumanAddr,
     },
 
     RewardMixnode {

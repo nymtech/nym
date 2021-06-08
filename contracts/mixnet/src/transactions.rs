@@ -3,8 +3,8 @@ use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
 use crate::state::StateParams;
 use crate::storage::{
-    config, config_read, decrement_layer_count, gateways, gateways_owners, gateways_owners_read,
-    gateways_read, increase_gateway_bond, increase_gateway_delegated_stakes,
+    config, config_read, decrement_layer_count, gateway_delegations, gateways, gateways_owners,
+    gateways_owners_read, gateways_read, increase_gateway_bond, increase_gateway_delegated_stakes,
     increase_mix_delegated_stakes, increase_mixnode_bond, increment_layer_count, mix_delegations,
     mixnodes, mixnodes_owners, mixnodes_owners_read, mixnodes_read, read_gateway_epoch_reward_rate,
     read_mixnode_epoch_reward_rate, read_state_params, Layer,
@@ -387,20 +387,20 @@ fn validate_delegation_stake(delegation: &[Coin]) -> Result<(), ContractError> {
 pub(crate) fn try_delegate_to_mixnode(
     deps: DepsMut,
     info: MessageInfo,
-    node_owner: HumanAddr,
+    mix_owner: HumanAddr,
 ) -> Result<HandleResponse, ContractError> {
     // check if the delegation contains any funds of the appropriate denomination
     validate_delegation_stake(&info.sent_funds)?;
 
     // check if the target node actually exists
     if mixnodes_read(deps.storage)
-        .load(node_owner.as_bytes())
+        .load(mix_owner.as_bytes())
         .is_err()
     {
         return Err(ContractError::MixNodeBondNotFound {});
     }
 
-    let mut bucket = mix_delegations(deps.storage, &node_owner);
+    let mut bucket = mix_delegations(deps.storage, &mix_owner);
     let sender_bytes = info.sender.as_bytes();
     match bucket.may_load(sender_bytes)? {
         Some(existing_delegation) => bucket.save(
@@ -417,9 +417,9 @@ pub(crate) fn try_remove_delegation_from_mixnode(
     deps: DepsMut,
     info: MessageInfo,
     env: Env,
-    node_owner: HumanAddr,
+    mix_owner: HumanAddr,
 ) -> Result<HandleResponse, ContractError> {
-    let mut delegation_bucket = mix_delegations(deps.storage, &node_owner);
+    let mut delegation_bucket = mix_delegations(deps.storage, &mix_owner);
     let sender_bytes = info.sender.as_bytes();
     match delegation_bucket.may_load(sender_bytes)? {
         Some(delegation) => {
@@ -441,8 +441,70 @@ pub(crate) fn try_remove_delegation_from_mixnode(
             })
         }
         None => Err(ContractError::NoMixnodeDelegationFound {
-            mixnode_owner: node_owner,
+            mixnode_owner: mix_owner,
         }),
+    }
+}
+
+pub(crate) fn try_delegate_to_gateway(
+    deps: DepsMut,
+    info: MessageInfo,
+    gateway_owner: HumanAddr,
+) -> Result<HandleResponse, ContractError> {
+    // check if the delegation contains any funds of the appropriate denomination
+    validate_delegation_stake(&info.sent_funds)?;
+
+    // check if the target node actually exists
+    if gateways_read(deps.storage)
+        .load(gateway_owner.as_bytes())
+        .is_err()
+    {
+        return Err(ContractError::GatewayBondNotFound {
+            account: gateway_owner,
+        });
+    }
+
+    let mut bucket = gateway_delegations(deps.storage, &gateway_owner);
+    let sender_bytes = info.sender.as_bytes();
+    match bucket.may_load(sender_bytes)? {
+        Some(existing_delegation) => bucket.save(
+            sender_bytes,
+            &(existing_delegation + info.sent_funds[0].amount),
+        )?,
+        None => bucket.save(sender_bytes, &info.sent_funds[0].amount)?,
+    }
+
+    Ok(HandleResponse::default())
+}
+
+pub(crate) fn try_remove_delegation_from_gateway(
+    deps: DepsMut,
+    info: MessageInfo,
+    env: Env,
+    gateway_owner: HumanAddr,
+) -> Result<HandleResponse, ContractError> {
+    let mut delegation_bucket = gateway_delegations(deps.storage, &gateway_owner);
+    let sender_bytes = info.sender.as_bytes();
+    match delegation_bucket.may_load(sender_bytes)? {
+        Some(delegation) => {
+            // remove delegation from the bucket
+            delegation_bucket.remove(sender_bytes);
+
+            // send delegated funds back to the delegation owner
+            let messages = vec![BankMsg::Send {
+                from_address: env.contract.address,
+                to_address: info.sender,
+                amount: coins(delegation.u128(), DENOM),
+            }
+            .into()];
+
+            Ok(HandleResponse {
+                messages,
+                attributes: Vec::new(),
+                data: None,
+            })
+        }
+        None => Err(ContractError::NoGatewayDelegationFound { gateway_owner }),
     }
 }
 
@@ -1539,7 +1601,7 @@ pub mod tests {
     }
 
     #[cfg(test)]
-    mod mix_delegation_stake_validation {
+    mod delegation_stake_validation {
         use super::*;
         use cosmwasm_std::coin;
 
@@ -2061,6 +2123,362 @@ pub mod tests {
                 .unwrap()
         );
     }
+
+    //
+    //
+    //
+    //
+    #[cfg(test)]
+    mod gateway_stake_delegation {
+        use super::*;
+        use crate::storage::gateway_delegations_read;
+        use crate::support::tests::helpers::add_gateway;
+
+        #[test]
+        fn fails_if_node_doesnt_exist() {
+            let mut deps = helpers::init_contract();
+            assert_eq!(
+                Err(ContractError::GatewayBondNotFound {
+                    account: "non-existent-node-owner".into()
+                }),
+                try_delegate_to_gateway(
+                    deps.as_mut(),
+                    mock_info("sender", &coins(123, DENOM)),
+                    "non-existent-node-owner".into()
+                )
+            );
+        }
+
+        #[test]
+        fn succeeds_for_existing_node() {
+            let mut deps = helpers::init_contract();
+            let gateway_owner = "bob";
+            add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+
+            assert!(try_delegate_to_gateway(
+                deps.as_mut(),
+                mock_info("sender", &coins(123, DENOM)),
+                gateway_owner.into()
+            )
+            .is_ok());
+
+            assert_eq!(
+                123,
+                gateway_delegations_read(&deps.storage, &gateway_owner.into())
+                    .load(b"sender")
+                    .unwrap()
+                    .u128()
+            );
+        }
+
+        #[test]
+        fn fails_if_node_unbonded() {
+            let mut deps = helpers::init_contract();
+            let env = mock_env();
+
+            let gateway_owner = "bob";
+            add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            try_remove_gateway(deps.as_mut(), mock_info(gateway_owner, &[]), env).unwrap();
+
+            assert_eq!(
+                Err(ContractError::GatewayBondNotFound {
+                    account: gateway_owner.into()
+                }),
+                try_delegate_to_gateway(
+                    deps.as_mut(),
+                    mock_info("sender", &coins(123, DENOM)),
+                    gateway_owner.into()
+                )
+            );
+        }
+
+        #[test]
+        fn succeeds_if_node_rebonded() {
+            let mut deps = helpers::init_contract();
+            let env = mock_env();
+
+            let gateway_owner = "bob";
+            add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            try_remove_gateway(deps.as_mut(), mock_info(gateway_owner, &[]), env).unwrap();
+            add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+
+            assert!(try_delegate_to_gateway(
+                deps.as_mut(),
+                mock_info("sender", &coins(123, DENOM)),
+                gateway_owner.into()
+            )
+            .is_ok());
+
+            assert_eq!(
+                123,
+                gateway_delegations_read(&deps.storage, &gateway_owner.into())
+                    .load(b"sender")
+                    .unwrap()
+                    .u128()
+            );
+        }
+
+        #[test]
+        fn is_possible_for_an_already_delegated_node() {
+            let mut deps = helpers::init_contract();
+            let gateway_owner = "bob";
+            add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+
+            try_delegate_to_gateway(
+                deps.as_mut(),
+                mock_info("sender", &coins(100, DENOM)),
+                gateway_owner.into(),
+            )
+            .unwrap();
+
+            try_delegate_to_gateway(
+                deps.as_mut(),
+                mock_info("sender", &coins(50, DENOM)),
+                gateway_owner.into(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                150,
+                gateway_delegations_read(&deps.storage, &gateway_owner.into())
+                    .load(b"sender")
+                    .unwrap()
+                    .u128()
+            );
+        }
+
+        #[test]
+        fn is_disallowed_for_already_delegated_node_if_it_unbonded() {
+            let mut deps = helpers::init_contract();
+            let env = mock_env();
+
+            let gateway_owner = "bob";
+            add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+
+            try_delegate_to_gateway(
+                deps.as_mut(),
+                mock_info("sender", &coins(100, DENOM)),
+                gateway_owner.into(),
+            )
+            .unwrap();
+
+            try_remove_gateway(deps.as_mut(), mock_info(gateway_owner, &[]), env).unwrap();
+
+            assert_eq!(
+                Err(ContractError::GatewayBondNotFound {
+                    account: gateway_owner.into()
+                }),
+                try_delegate_to_gateway(
+                    deps.as_mut(),
+                    mock_info("sender", &coins(50, DENOM)),
+                    gateway_owner.into()
+                )
+            );
+        }
+
+        #[test]
+        fn is_allowed_for_multiple_nodes() {
+            let mut deps = helpers::init_contract();
+            let gateway_owner1 = "bob";
+            let gateway_owner2 = "fred";
+            add_gateway(gateway_owner1, good_gateway_bond(), &mut deps);
+            add_gateway(gateway_owner2, good_gateway_bond(), &mut deps);
+
+            assert!(try_delegate_to_gateway(
+                deps.as_mut(),
+                mock_info("sender", &coins(123, DENOM)),
+                gateway_owner1.into()
+            )
+            .is_ok());
+
+            assert!(try_delegate_to_gateway(
+                deps.as_mut(),
+                mock_info("sender", &coins(42, DENOM)),
+                gateway_owner2.into()
+            )
+            .is_ok());
+
+            assert_eq!(
+                123,
+                gateway_delegations_read(&deps.storage, &gateway_owner1.into())
+                    .load(b"sender")
+                    .unwrap()
+                    .u128()
+            );
+
+            assert_eq!(
+                42,
+                gateway_delegations_read(&deps.storage, &gateway_owner2.into())
+                    .load(b"sender")
+                    .unwrap()
+                    .u128()
+            );
+        }
+
+        #[test]
+        fn is_allowed_by_multiple_users() {
+            let mut deps = helpers::init_contract();
+            let gateway_owner = "bob";
+            add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+
+            assert!(try_delegate_to_gateway(
+                deps.as_mut(),
+                mock_info("sender1", &coins(123, DENOM)),
+                gateway_owner.into()
+            )
+            .is_ok());
+
+            assert!(try_delegate_to_gateway(
+                deps.as_mut(),
+                mock_info("sender2", &coins(123, DENOM)),
+                gateway_owner.into()
+            )
+            .is_ok());
+        }
+
+        #[test]
+        fn delegation_is_not_removed_if_node_unbonded() {
+            let mut deps = helpers::init_contract();
+            let env = mock_env();
+
+            let gateway_owner = "bob";
+            add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+
+            try_delegate_to_gateway(
+                deps.as_mut(),
+                mock_info("sender", &coins(100, DENOM)),
+                gateway_owner.into(),
+            )
+            .unwrap();
+
+            try_remove_gateway(deps.as_mut(), mock_info(gateway_owner, &[]), env).unwrap();
+
+            assert_eq!(
+                100,
+                gateway_delegations_read(&deps.storage, &gateway_owner.into())
+                    .load(b"sender")
+                    .unwrap()
+                    .u128()
+            );
+        }
+    }
+
+    #[cfg(test)]
+    mod removing_gateway_stake_delegation {
+        use super::*;
+        use crate::storage::gateway_delegations_read;
+        use crate::support::tests::helpers::add_gateway;
+
+        #[test]
+        fn fails_if_delegation_never_existed() {
+            let mut deps = helpers::init_contract();
+            let env = mock_env();
+
+            let gateway_owner = "bob";
+            add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            assert_eq!(
+                Err(ContractError::NoGatewayDelegationFound {
+                    gateway_owner: gateway_owner.into(),
+                }),
+                try_remove_delegation_from_gateway(
+                    deps.as_mut(),
+                    mock_info("sender", &[]),
+                    env,
+                    gateway_owner.into(),
+                )
+            );
+        }
+
+        #[test]
+        fn succeeds_if_delegation_existed() {
+            let mut deps = helpers::init_contract();
+            let env = mock_env();
+
+            let gateway_owner = "bob";
+            add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+
+            try_delegate_to_gateway(
+                deps.as_mut(),
+                mock_info("sender", &coins(100, DENOM)),
+                gateway_owner.into(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                Ok(HandleResponse {
+                    messages: vec![BankMsg::Send {
+                        from_address: env.contract.address.clone(),
+                        to_address: "sender".into(),
+                        amount: coins(100, DENOM),
+                    }
+                    .into()],
+                    attributes: Vec::new(),
+                    data: None,
+                }),
+                try_remove_delegation_from_gateway(
+                    deps.as_mut(),
+                    mock_info("sender", &[]),
+                    env,
+                    gateway_owner.into(),
+                )
+            );
+
+            assert!(
+                gateway_delegations_read(&deps.storage, &gateway_owner.into())
+                    .may_load(b"sender")
+                    .unwrap()
+                    .is_none()
+            );
+        }
+
+        #[test]
+        fn succeeds_if_delegation_existed_even_if_node_unbonded() {
+            let mut deps = helpers::init_contract();
+            let env = mock_env();
+
+            let gateway_owner = "bob";
+            add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+
+            try_delegate_to_gateway(
+                deps.as_mut(),
+                mock_info("sender", &coins(100, DENOM)),
+                gateway_owner.into(),
+            )
+            .unwrap();
+
+            try_remove_gateway(deps.as_mut(), mock_info(gateway_owner, &[]), env.clone()).unwrap();
+
+            assert_eq!(
+                Ok(HandleResponse {
+                    messages: vec![BankMsg::Send {
+                        from_address: env.contract.address.clone(),
+                        to_address: "sender".into(),
+                        amount: coins(100, DENOM),
+                    }
+                    .into()],
+                    attributes: Vec::new(),
+                    data: None,
+                }),
+                try_remove_delegation_from_gateway(
+                    deps.as_mut(),
+                    mock_info("sender", &[]),
+                    env,
+                    gateway_owner.into(),
+                )
+            );
+
+            assert!(
+                gateway_delegations_read(&deps.storage, &gateway_owner.into())
+                    .may_load(b"sender")
+                    .unwrap()
+                    .is_none()
+            );
+        }
+    }
+    //
+    //
+    //
+    //
 
     #[test]
     fn delegators_share_the_same_reward_rate_as_gateways() {

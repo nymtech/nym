@@ -68,6 +68,7 @@ pub enum QueryMsg {
         node_owner: HumanAddr,
         address: HumanAddr,
     },
+    LayerDistribution {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

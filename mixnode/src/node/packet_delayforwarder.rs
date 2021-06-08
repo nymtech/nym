@@ -1,12 +1,12 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::metrics::MetricsReporter;
+use crate::node::node_statistics::UpdateSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::debug;
 use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, TimerError};
 use nymsphinx::forwarding::packet::MixPacket;
+use std::io;
 use tokio::time::{Duration, Instant};
 
 // Delay + MixPacket vs Instant + MixPacket
@@ -22,7 +22,7 @@ pub(crate) struct DelayForwarder {
     mixnet_client: mixnet_client::Client,
     packet_sender: PacketDelayForwardSender,
     packet_receiver: PacketDelayForwardReceiver,
-    metrics_reporter: MetricsReporter,
+    node_stats_update_sender: UpdateSender,
 }
 
 impl DelayForwarder {
@@ -31,7 +31,7 @@ impl DelayForwarder {
         maximum_reconnection_backoff: Duration,
         initial_connection_timeout: Duration,
         maximum_connection_buffer_size: usize,
-        metrics_reporter: MetricsReporter,
+        node_stats_update_sender: UpdateSender,
     ) -> Self {
         let client_config = mixnet_client::Config::new(
             initial_reconnection_backoff,
@@ -47,7 +47,7 @@ impl DelayForwarder {
             mixnet_client: mixnet_client::Client::new(client_config),
             packet_sender,
             packet_receiver,
-            metrics_reporter,
+            node_stats_update_sender,
         }
     }
 
@@ -64,9 +64,20 @@ impl DelayForwarder {
             self.mixnet_client
                 .send_without_response(next_hop, sphinx_packet, packet_mode)
         {
-            debug!("failed to forward the packet to {} - {}", next_hop, err)
+            if err.kind() == io::ErrorKind::WouldBlock {
+                // we only know for sure if we dropped a packet if our sending queue was full
+                // in any other case the connection might still be re-established (or created for the first time)
+                // and the packet might get sent, but we won't know about it
+                self.node_stats_update_sender
+                    .report_dropped(next_hop.to_string())
+            } else if err.kind() == io::ErrorKind::NotConnected {
+                // let's give the benefit of the doubt and assume we manage to establish connection
+                self.node_stats_update_sender
+                    .report_sent(next_hop.to_string());
+            }
         } else {
-            self.metrics_reporter.report_sent(next_hop.to_string());
+            self.node_stats_update_sender
+                .report_sent(next_hop.to_string());
         }
     }
 

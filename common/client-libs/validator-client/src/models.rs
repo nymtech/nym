@@ -20,6 +20,7 @@ pub(super) enum QueryRequest {
         start_after: Option<HumanAddr>,
         limit: Option<u32>,
     },
+    LayerDistribution {},
 }
 
 #[derive(Deserialize, Debug)]

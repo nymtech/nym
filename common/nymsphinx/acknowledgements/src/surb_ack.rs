@@ -55,7 +55,7 @@ impl SurbAck {
         R: RngCore + CryptoRng,
     {
         let route =
-            topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, &recipient.gateway())?;
+            topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, recipient.gateway())?;
         let delays = delays::generate_from_average_duration(route.len(), average_delay);
         let destination = recipient.as_sphinx_destination();
 
@@ -107,7 +107,7 @@ impl SurbAck {
         if b.len() != Self::len() {
             Err(SurbAckRecoveryError::InvalidPacketSize)
         } else {
-            let address = match NymNodeRoutingAddress::try_from_bytes(&b) {
+            let address = match NymNodeRoutingAddress::try_from_bytes(b) {
                 Ok(address) => address,
                 Err(_) => return Err(SurbAckRecoveryError::InvalidAddress),
             };

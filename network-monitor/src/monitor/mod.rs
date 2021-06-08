@@ -104,7 +104,7 @@ impl Monitor {
                 owner: v4_gateway.owner.clone(),
                 node_type: NodeType::Gateway,
             };
-            if !report.fully_working_gateways.contains(&node) {
+            if !report.fully_working_gateways.contains(node) {
                 return false;
             }
         }
@@ -128,7 +128,7 @@ impl Monitor {
                 owner: v6_gateway.owner.clone(),
                 node_type: NodeType::Gateway,
             };
-            if !report.fully_working_gateways.contains(&node) {
+            if !report.fully_working_gateways.contains(node) {
                 return false;
             }
         }

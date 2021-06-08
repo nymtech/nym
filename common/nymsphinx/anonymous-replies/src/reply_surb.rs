@@ -130,7 +130,7 @@ impl ReplySurb {
         R: RngCore + CryptoRng,
     {
         let route =
-            topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, &recipient.gateway())?;
+            topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, recipient.gateway())?;
         let delays = delays::generate_from_average_duration(route.len(), average_delay);
         let destination = recipient.as_sphinx_destination();
 
@@ -216,7 +216,7 @@ impl ReplySurb {
         // this can realistically only fail on too long messages and we just checked for that
         let (packet, first_hop) = self
             .surb
-            .use_surb(&message, packet_size.payload_size())
+            .use_surb(message, packet_size.payload_size())
             .expect("this error indicates inconsistent message length checking - it shouldn't have happened!");
 
         let first_hop_address = NymNodeRoutingAddress::try_from(first_hop).unwrap();

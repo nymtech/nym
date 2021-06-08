@@ -100,7 +100,7 @@ impl<'de> Deserialize<'de> for Recipient {
 
                 let mut recipient_bytes = [0u8; Recipient::LEN];
                 // this shouldn't panic as we just checked for length
-                recipient_bytes.copy_from_slice(&bytes);
+                recipient_bytes.copy_from_slice(bytes);
 
                 Recipient::try_from_bytes(recipient_bytes).map_err(|_| {
                     SerdeError::invalid_value(
@@ -289,7 +289,7 @@ mod tests {
             *gateway_id_pair.public_key(),
         );
 
-        let bytes_recipient = recipient.clone().to_bytes();
+        let bytes_recipient = recipient.to_bytes();
         let recovered_recipient = Recipient::try_from_bytes(bytes_recipient).unwrap();
 
         // as long as byte representation of internal keys are identical, it's all fine

@@ -157,8 +157,6 @@ pub fn execute(matches: &ArgMatches) {
         "Validator servers: {:?}",
         config.get_validator_rest_endpoints()
     );
-    println!("Metrics server: {}", config.get_metrics_server());
-
     println!(
         "Listening for incoming packets on {}",
         config.get_listening_address()

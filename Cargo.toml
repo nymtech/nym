@@ -17,7 +17,6 @@ members = [
     "clients/webassembly",
     "clients/client-core",
     "common/client-libs/gateway-client",
-    "common/client-libs/metrics-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
     "common/config",

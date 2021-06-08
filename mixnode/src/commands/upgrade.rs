@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::{
-    default_validator_rest_endpoints, missing_string_value, Config, DEFAULT_METRICS_SERVER,
+    default_validator_rest_endpoints, missing_string_value, Config,
     DEFAULT_MIXNET_CONTRACT_ADDRESS, MISSING_VALUE,
 };
 use clap::{App, Arg, ArgMatches};
@@ -141,12 +141,6 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
         process::exit(1);
     }
 
-    if config.get_metrics_server() != missing_string_value::<String>() {
-        eprintln!("existing config seems to have specified new metrics-server endpoint which was only introduced in 0.9.0! Can't perform upgrade.");
-        print_failed_upgrade(&from_version, &to_version);
-        process::exit(1);
-    }
-
     if config.get_validator_rest_endpoints()[0] != missing_string_value::<String>() {
         eprintln!("existing config seems to have specified new validator rest endpoint which was only introduced in 0.9.0! Can't perform upgrade.");
         print_failed_upgrade(&from_version, &to_version);
@@ -155,10 +149,8 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
 
     let mut upgraded_config = config
         .with_custom_version(to_version.to_string().as_ref())
-        .with_custom_metrics_server(DEFAULT_METRICS_SERVER)
         .with_custom_validators(default_validator_rest_endpoints());
 
-    println!("Setting metrics server to {}", DEFAULT_METRICS_SERVER);
     println!(
         "Setting validator REST endpoints to {:?}",
         default_validator_rest_endpoints()
@@ -274,8 +266,8 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
 
         config = match config_version.major {
             0 => match config_version.minor {
-                9 => minor_010_upgrade(config, &matches, &config_version, &package_version),
-                10 => patch_010_upgrade(config, &matches, &config_version, &package_version),
+                9 => minor_010_upgrade(config, matches, &config_version, &package_version),
+                10 => patch_010_upgrade(config, matches, &config_version, &package_version),
                 _ => unsupported_upgrade(config_version, package_version),
             },
             _ => unsupported_upgrade(config_version, package_version),

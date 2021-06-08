@@ -4,7 +4,7 @@ use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
-use mixnet_contract::{GatewayBond, MixNodeBond};
+use mixnet_contract::{GatewayBond, LayerDistribution, MixNodeBond};
 
 // Contract-level stuff
 const CONFIG_KEY: &[u8] = b"config";
@@ -40,6 +40,92 @@ pub(crate) fn read_gateway_epoch_reward_rate(storage: &dyn Storage) -> Decimal {
         .gateway_epoch_bond_reward
 }
 
+const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
+
+pub fn layer_distribution(storage: &mut dyn Storage) -> Singleton<LayerDistribution> {
+    singleton(storage, LAYER_DISTRIBUTION_KEY)
+}
+
+pub fn layer_distribution_read(storage: &dyn Storage) -> ReadonlySingleton<LayerDistribution> {
+    singleton_read(storage, LAYER_DISTRIBUTION_KEY)
+}
+
+pub(crate) fn read_layer_distribution(storage: &dyn Storage) -> LayerDistribution {
+    // note: In any other case, I wouldn't have attempted to unwrap this result, but in here
+    // if we fail to load the stored state we would already be in the undefined behaviour land,
+    // so we better just blow up immediately.
+    layer_distribution_read(storage).load().unwrap()
+}
+
+pub enum Layer {
+    Gateway,
+    One,
+    Two,
+    Three,
+    Invalid,
+}
+
+impl From<u64> for Layer {
+    fn from(val: u64) -> Self {
+        match val {
+            n if n == 1 => Layer::One,
+            n if n == 2 => Layer::Two,
+            n if n == 3 => Layer::Three,
+            _ => Layer::Invalid,
+        }
+    }
+}
+
+pub fn increment_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {
+    let mut distribution = layer_distribution(storage).load()?;
+    match layer {
+        Layer::Gateway => distribution.gateways += 1,
+        Layer::One => distribution.layer1 += 1,
+        Layer::Two => distribution.layer2 += 1,
+        Layer::Three => distribution.layer3 += 1,
+        Layer::Invalid => distribution.invalid += 1,
+    }
+    layer_distribution(storage).save(&distribution)
+}
+
+pub fn decrement_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {
+    let mut distribution = layer_distribution(storage).load()?;
+    // It can't possibly go below zero, if it does, it means there's a serious error in the contract logic
+    match layer {
+        Layer::Gateway => {
+            distribution.gateways = distribution
+                .gateways
+                .checked_sub(1)
+                .expect("tried to subtract from unsigned zero!")
+        }
+        Layer::One => {
+            distribution.layer1 = distribution
+                .layer1
+                .checked_sub(1)
+                .expect("tried to subtract from unsigned zero!")
+        }
+        Layer::Two => {
+            distribution.layer2 = distribution
+                .layer2
+                .checked_sub(1)
+                .expect("tried to subtract from unsigned zero!")
+        }
+        Layer::Three => {
+            distribution.layer3 = distribution
+                .layer3
+                .checked_sub(1)
+                .expect("tried to subtract from unsigned zero!")
+        }
+        Layer::Invalid => {
+            distribution.invalid = distribution
+                .invalid
+                .checked_sub(1)
+                .expect("tried to subtract from unsigned zero!")
+        }
+    };
+    layer_distribution(storage).save(&distribution)
+}
+
 // Mixnode-related stuff
 const PREFIX_MIXNODES: &[u8] = b"mixnodes";
 
@@ -64,20 +150,18 @@ pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<HumanAddr> 
 // helpers
 pub(crate) fn increase_mixnode_bond(
     storage: &mut dyn Storage,
-    owner: &[u8],
+    mut bond: MixNodeBond,
     scaled_reward_rate: Decimal,
 ) -> StdResult<()> {
-    let mut bucket = mixnodes(storage);
-    let mut node = bucket.load(owner)?;
-    if node.amount.len() != 1 {
+    if bond.amount.len() != 1 {
         return Err(StdError::generic_err(
             "mixnode seems to have been bonded with multiple coin types",
         ));
     }
 
-    let reward = node.amount[0].amount * scaled_reward_rate;
-    node.amount[0].amount += reward;
-    bucket.save(owner, &node)
+    let reward = bond.amount[0].amount * scaled_reward_rate;
+    bond.amount[0].amount += reward;
+    mixnodes(storage).save(bond.owner.as_bytes(), &bond)
 }
 
 // currently not used outside tests
@@ -121,19 +205,17 @@ pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<HumanAddr> 
 // helpers
 pub(crate) fn increase_gateway_bond(
     storage: &mut dyn Storage,
-    owner: &[u8],
+    mut bond: GatewayBond,
     scaled_reward_rate: Decimal,
 ) -> StdResult<()> {
-    let mut bucket = gateways(storage);
-    let mut node = bucket.load(owner)?;
-    if node.amount.len() != 1 {
+    if bond.amount.len() != 1 {
         return Err(StdError::generic_err(
             "gateway seems to have been bonded with multiple coin types",
         ));
     }
-    let reward = node.amount[0].amount * scaled_reward_rate;
-    node.amount[0].amount += reward;
-    bucket.save(owner, &node)
+    let reward = bond.amount[0].amount * scaled_reward_rate;
+    bond.amount[0].amount += reward;
+    gateways(storage).save(bond.owner.as_bytes(), &bond)
 }
 
 // delegation related
@@ -215,11 +297,7 @@ mod tests {
         // 0.001
         let reward = Decimal::from_ratio(1u128, 1000u128);
 
-        // produces an error if target mixnode doesn't exist
-        let res = increase_mixnode_bond(&mut storage, node_owner, reward);
-        assert!(res.is_err());
-
-        // increases the reward appropriately if node exists
+        // increases the reward appropriately
         let mixnode_bond = MixNodeBond {
             amount: coins(1000, DENOM),
             owner: std::str::from_utf8(node_owner).unwrap().into(),
@@ -230,7 +308,7 @@ mod tests {
             .save(node_owner, &mixnode_bond)
             .unwrap();
 
-        increase_mixnode_bond(&mut storage, node_owner, reward).unwrap();
+        increase_mixnode_bond(&mut storage, mixnode_bond, reward).unwrap();
         let new_bond = read_mixnode_bond(&storage, node_owner).unwrap();
         assert_eq!(Uint128(1001), new_bond);
     }
@@ -270,11 +348,7 @@ mod tests {
         // 0.001
         let reward = Decimal::from_ratio(1u128, 1000u128);
 
-        // produces an error if target gateway doesn't exist
-        let res = increase_gateway_bond(&mut storage, node_owner, reward);
-        assert!(res.is_err());
-
-        // increases the reward appropriately if node exists
+        // increases the reward appropriately
         let gateway_bond = GatewayBond {
             amount: coins(1000, DENOM),
             owner: std::str::from_utf8(node_owner).unwrap().into(),
@@ -285,7 +359,7 @@ mod tests {
             .save(node_owner, &gateway_bond)
             .unwrap();
 
-        increase_gateway_bond(&mut storage, node_owner, reward).unwrap();
+        increase_gateway_bond(&mut storage, gateway_bond, reward).unwrap();
         let new_bond = read_gateway_bond(&storage, node_owner).unwrap();
         assert_eq!(Uint128(1001), new_bond);
     }

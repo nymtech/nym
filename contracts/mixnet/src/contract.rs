@@ -1,12 +1,13 @@
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::msg::{HandleMsg, InitMsg, MigrateMsg, QueryMsg};
 use crate::state::{State, StateParams};
-use crate::storage::config;
+use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries, transactions};
 use cosmwasm_std::{
     to_binary, Decimal, Deps, DepsMut, Env, HandleResponse, HumanAddr, InitResponse, MessageInfo,
     MigrateResponse, QueryResponse, Uint128,
 };
+use mixnet_contract::LayerDistribution;
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
@@ -67,6 +68,7 @@ pub fn init(
     let state = default_initial_state(info.sender);
 
     config(deps.storage).save(&state)?;
+    layer_distribution(deps.storage).save(&Default::default())?;
     Ok(InitResponse::default())
 }
 
@@ -131,27 +133,63 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
         } => to_binary(&queries::query_mixnode_delegation(
             deps, node_owner, address,
         )?),
+        QueryMsg::LayerDistribution {} => to_binary(&queries::query_layer_distribution(deps)),
     };
 
     Ok(query_res?)
 }
 
 pub fn migrate(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
     _msg: MigrateMsg,
 ) -> Result<MigrateResponse, ContractError> {
+    // load all mixnodes and gateways and build up layer distribution
+    let mut layers: LayerDistribution = Default::default();
+
+    // go through mixnodes...
+    let mut start_after = None;
+    loop {
+        let response = queries::query_mixnodes_paged(deps.as_ref(), start_after, None)?;
+        start_after = response.start_next_after;
+        if start_after.is_none() {
+            break;
+        }
+        for node in response.nodes.into_iter() {
+            match node.mix_node.layer {
+                n if n == 1 => layers.layer1 += 1,
+                n if n == 2 => layers.layer2 += 1,
+                n if n == 3 => layers.layer3 += 1,
+                _ => layers.invalid += 1,
+            }
+        }
+    }
+
+    // go through gateways...
+    loop {
+        let response = queries::query_gateways_paged(deps.as_ref(), start_after, None)?;
+        start_after = response.start_next_after;
+        if start_after.is_none() {
+            break;
+        }
+        layers.gateways += response.nodes.len() as u64;
+    }
+
+    layer_distribution(deps.storage).save(&layers)?;
+
     Ok(Default::default())
 }
 
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::storage::{gateways, layer_distribution_read, mixnodes};
+    use crate::support::tests::helpers;
     use crate::support::tests::helpers::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
-    use mixnet_contract::PagedResponse;
+    use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond, PagedResponse};
 
     #[test]
     fn initialize_contract() {
@@ -181,5 +219,138 @@ pub mod tests {
             coins(0, DENOM),
             query_contract_balance(env.contract.address, deps)
         );
+    }
+
+    // TODO: this test will have to be removed once the migration happens and we are working on yet another
+    // version of the contract
+    #[test]
+    fn migration_to_layer_distribution() {
+        let layer_ones = 42;
+        let layer_twos = 123;
+        let layer_threes = 111;
+        let invalid = 30;
+        let gateways_count = 24;
+
+        // bond some nodes
+        let mut deps = helpers::init_contract();
+        let env = mock_env();
+
+        for i in 0..layer_ones {
+            let owner = HumanAddr::from(format!("owner{}{}", 1, i));
+            mixnodes(&mut deps.storage)
+                .save(
+                    owner.clone().as_bytes(),
+                    &MixNodeBond {
+                        amount: coins(1000, "uhal"),
+                        owner,
+                        mix_node: MixNode {
+                            host: "1.1.1.1:1111".to_string(),
+                            layer: 1,
+                            location: "aaaa".to_string(),
+                            sphinx_key: "bbbb".to_string(),
+                            identity_key: format!("identity{}{}", 1, i),
+                            version: "0.10.1".to_string(),
+                        },
+                    },
+                )
+                .unwrap();
+        }
+
+        for i in 0..layer_twos {
+            let owner = HumanAddr::from(format!("owner{}{}", 2, i));
+            mixnodes(&mut deps.storage)
+                .save(
+                    owner.clone().as_bytes(),
+                    &MixNodeBond {
+                        amount: coins(1000, "uhal"),
+                        owner,
+                        mix_node: MixNode {
+                            host: "1.1.1.1:1111".to_string(),
+                            layer: 2,
+                            location: "aaaa".to_string(),
+                            sphinx_key: "bbbb".to_string(),
+                            identity_key: format!("identity{}{}", 2, i),
+                            version: "0.10.1".to_string(),
+                        },
+                    },
+                )
+                .unwrap();
+        }
+
+        for i in 0..layer_threes {
+            let owner = HumanAddr::from(format!("owner{}{}", 3, i));
+            mixnodes(&mut deps.storage)
+                .save(
+                    owner.clone().as_bytes(),
+                    &MixNodeBond {
+                        amount: coins(1000, "uhal"),
+                        owner,
+                        mix_node: MixNode {
+                            host: "1.1.1.1:1111".to_string(),
+                            layer: 3,
+                            location: "aaaa".to_string(),
+                            sphinx_key: "bbbb".to_string(),
+                            identity_key: format!("identity{}{}", 3, i),
+                            version: "0.10.1".to_string(),
+                        },
+                    },
+                )
+                .unwrap();
+        }
+
+        for i in 0..invalid {
+            let owner = HumanAddr::from(format!("owner{}{}", 42, i));
+            mixnodes(&mut deps.storage)
+                .save(
+                    owner.clone().as_bytes(),
+                    &MixNodeBond {
+                        amount: coins(1000, "uhal"),
+                        owner,
+                        mix_node: MixNode {
+                            host: "1.1.1.1:1111".to_string(),
+                            layer: 42,
+                            location: "aaaa".to_string(),
+                            sphinx_key: "bbbb".to_string(),
+                            identity_key: format!("identity{}{}", 42, i),
+                            version: "0.10.1".to_string(),
+                        },
+                    },
+                )
+                .unwrap();
+        }
+
+        for i in 0..gateways_count {
+            let owner = HumanAddr::from(format!("owner{}{}", "gateway", i));
+            gateways(&mut deps.storage)
+                .save(
+                    owner.clone().as_bytes(),
+                    &GatewayBond {
+                        amount: coins(1000, "uhal"),
+                        owner,
+                        gateway: Gateway {
+                            mix_host: "1.1.1.1:1111".to_string(),
+                            clients_host: "ws://1.1.1.1:1112".to_string(),
+                            location: "aaaa".to_string(),
+                            sphinx_key: "bbbb".to_string(),
+                            identity_key: format!("identity{}{}", "gateway", i),
+                            version: "0.10.1".to_string(),
+                        },
+                    },
+                )
+                .unwrap();
+        }
+
+        let migrate_res = migrate(deps.as_mut(), env, mock_info("creator", &[]), MigrateMsg {});
+        assert!(migrate_res.is_ok());
+
+        let layers = layer_distribution_read(&deps.storage).load().unwrap();
+        let expected = LayerDistribution {
+            gateways: gateways_count,
+            layer1: layer_ones,
+            layer2: layer_twos,
+            layer3: layer_threes,
+            invalid,
+        };
+        assert_eq!(expected, layers);
     }
 }

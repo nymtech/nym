@@ -2124,10 +2124,6 @@ pub mod tests {
         );
     }
 
-    //
-    //
-    //
-    //
     #[cfg(test)]
     mod gateway_stake_delegation {
         use super::*;
@@ -2475,10 +2471,6 @@ pub mod tests {
             );
         }
     }
-    //
-    //
-    //
-    //
 
     #[test]
     fn delegators_share_the_same_reward_rate_as_gateways() {

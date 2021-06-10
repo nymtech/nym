@@ -20,6 +20,22 @@ pub enum HandleMsg {
     UnbondGateway {},
     UpdateStateParams(StateParams),
 
+    DelegateToMixnode {
+        mix_owner: HumanAddr,
+    },
+
+    UndelegateFromMixnode {
+        mix_owner: HumanAddr,
+    },
+
+    DelegateToGateway {
+        gateway_owner: HumanAddr,
+    },
+
+    UndelegateFromGateway {
+        gateway_owner: HumanAddr,
+    },
+
     RewardMixnode {
         owner: HumanAddr,
         // percentage value in range 0-100
@@ -51,6 +67,24 @@ pub enum QueryMsg {
         address: HumanAddr,
     },
     StateParams {},
+    GetMixDelegations {
+        mix_owner: HumanAddr,
+        start_after: Option<HumanAddr>,
+        limit: Option<u32>,
+    },
+    GetMixDelegation {
+        mix_owner: HumanAddr,
+        address: HumanAddr,
+    },
+    GetGatewayDelegations {
+        gateway_owner: HumanAddr,
+        start_after: Option<HumanAddr>,
+        limit: Option<u32>,
+    },
+    GetGatewayDelegation {
+        gateway_owner: HumanAddr,
+        address: HumanAddr,
+    },
     LayerDistribution {},
 }
 

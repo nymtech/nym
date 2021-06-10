@@ -1,13 +1,35 @@
+use crate::queries;
 use crate::state::{State, StateParams};
-use cosmwasm_std::{Decimal, HumanAddr, StdError, StdResult, Storage};
+use cosmwasm_std::{Decimal, HumanAddr, Order, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
 use mixnet_contract::{GatewayBond, LayerDistribution, MixNodeBond};
 
-// Contract-level stuff
+// storage prefixes
+// all of them must be unique and presumably not be a prefix od a different one
+// keeping them as short as possible is also desirable as they are part of each stored key
+// it's not as important for singletons, but is a nice optimisation for buckets
+
+// the legacy prefixes can't be changed without redeploying contract or doing fancy migration
+// for time being let's leave them as they are, but when we're going to make incompatible
+// contract changes, let's shorten all of them
+
+// singletons
 const CONFIG_KEY: &[u8] = b"config";
+const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
+
+// buckets
+const PREFIX_MIXNODES: &[u8] = b"mixnodes";
+const PREFIX_MIXNODES_OWNERS: &[u8] = b"mix-owners";
+const PREFIX_GATEWAYS: &[u8] = b"gateways";
+const PREFIX_GATEWAYS_OWNERS: &[u8] = b"gateway-owners";
+
+const PREFIX_MIX_DELEGATION: &[u8] = b"md";
+const PREFIX_GATEWAY_DELEGATION: &[u8] = b"gd";
+
+// Contract-level stuff
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
     singleton(storage, CONFIG_KEY)
@@ -39,8 +61,6 @@ pub(crate) fn read_gateway_epoch_reward_rate(storage: &dyn Storage) -> Decimal {
         .unwrap()
         .gateway_epoch_bond_reward
 }
-
-const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
 
 pub fn layer_distribution(storage: &mut dyn Storage) -> Singleton<LayerDistribution> {
     singleton(storage, LAYER_DISTRIBUTION_KEY)
@@ -127,7 +147,6 @@ pub fn decrement_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResu
 }
 
 // Mixnode-related stuff
-const PREFIX_MIXNODES: &[u8] = b"mixnodes";
 
 pub fn mixnodes(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
     bucket(storage, PREFIX_MIXNODES)
@@ -136,8 +155,6 @@ pub fn mixnodes(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
 pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
     bucket_read(storage, PREFIX_MIXNODES)
 }
-
-const PREFIX_MIXNODES_OWNERS: &[u8] = b"mix-owners";
 
 pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
     bucket(storage, PREFIX_MIXNODES_OWNERS)
@@ -164,6 +181,90 @@ pub(crate) fn increase_mixnode_bond(
     mixnodes(storage).save(bond.owner.as_bytes(), &bond)
 }
 
+pub(crate) fn increase_mix_delegated_stakes(
+    storage: &mut dyn Storage,
+    mix_owner: &HumanAddr,
+    scaled_reward_rate: Decimal,
+) -> StdResult<()> {
+    let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
+
+    let mut chunk_start: Option<Vec<_>> = None;
+    loop {
+        // get `chunk_size` of delegations
+        let delegations_chunk = mix_delegations_read(storage, mix_owner)
+            .range(chunk_start.as_deref(), None, Order::Ascending)
+            .take(chunk_size)
+            .collect::<StdResult<Vec<_>>>()?;
+
+        if delegations_chunk.is_empty() {
+            break;
+        }
+
+        // append 0 byte to the last value to start with whatever is the next suceeding key
+        chunk_start = Some(
+            delegations_chunk
+                .last()
+                .unwrap()
+                .0
+                .iter()
+                .cloned()
+                .chain(std::iter::once(0u8))
+                .collect(),
+        );
+
+        // and for each of them increase the stake proportionally to the reward
+        for (delegator_address, amount) in delegations_chunk.into_iter() {
+            let reward = amount * scaled_reward_rate;
+            let new_amount = amount + reward;
+            mix_delegations(storage, mix_owner).save(&delegator_address, &new_amount)?;
+        }
+    }
+
+    Ok(())
+}
+
+pub(crate) fn increase_gateway_delegated_stakes(
+    storage: &mut dyn Storage,
+    gateway_owner: &HumanAddr,
+    scaled_reward_rate: Decimal,
+) -> StdResult<()> {
+    let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
+
+    let mut chunk_start: Option<Vec<_>> = None;
+    loop {
+        // get `chunk_size` of delegations
+        let delegations_chunk = gateway_delegations_read(storage, gateway_owner)
+            .range(chunk_start.as_deref(), None, Order::Ascending)
+            .take(chunk_size)
+            .collect::<StdResult<Vec<_>>>()?;
+
+        if delegations_chunk.is_empty() {
+            break;
+        }
+
+        // append 0 byte to the last value to start with whatever is the next suceeding key
+        chunk_start = Some(
+            delegations_chunk
+                .last()
+                .unwrap()
+                .0
+                .iter()
+                .cloned()
+                .chain(std::iter::once(0u8))
+                .collect(),
+        );
+
+        // and for each of them increase the stake proportionally to the reward
+        for (delegator_address, amount) in delegations_chunk.into_iter() {
+            let reward = amount * scaled_reward_rate;
+            let new_amount = amount + reward;
+            gateway_delegations(storage, gateway_owner).save(&delegator_address, &new_amount)?;
+        }
+    }
+
+    Ok(())
+}
+
 // currently not used outside tests
 #[cfg(test)]
 pub(crate) fn read_mixnode_bond(
@@ -182,8 +283,6 @@ pub(crate) fn read_mixnode_bond(
 
 // Gateway-related stuff
 
-const PREFIX_GATEWAYS: &[u8] = b"gateways";
-
 pub fn gateways(storage: &mut dyn Storage) -> Bucket<GatewayBond> {
     bucket(storage, PREFIX_GATEWAYS)
 }
@@ -191,8 +290,6 @@ pub fn gateways(storage: &mut dyn Storage) -> Bucket<GatewayBond> {
 pub fn gateways_read(storage: &dyn Storage) -> ReadonlyBucket<GatewayBond> {
     bucket_read(storage, PREFIX_GATEWAYS)
 }
-
-const PREFIX_GATEWAYS_OWNERS: &[u8] = b"gateway-owners";
 
 pub fn gateways_owners(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
     bucket(storage, PREFIX_GATEWAYS_OWNERS)
@@ -216,6 +313,41 @@ pub(crate) fn increase_gateway_bond(
     let reward = bond.amount[0].amount * scaled_reward_rate;
     bond.amount[0].amount += reward;
     gateways(storage).save(bond.owner.as_bytes(), &bond)
+}
+
+// delegation related
+pub fn mix_delegations<'a>(
+    storage: &'a mut dyn Storage,
+    mix_owner: &'a HumanAddr,
+) -> Bucket<'a, Uint128> {
+    Bucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_owner.as_bytes()])
+}
+
+pub fn mix_delegations_read<'a>(
+    storage: &'a dyn Storage,
+    mix_owner: &'a HumanAddr,
+) -> ReadonlyBucket<'a, Uint128> {
+    ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_owner.as_bytes()])
+}
+
+pub fn gateway_delegations<'a>(
+    storage: &'a mut dyn Storage,
+    gateway_owner: &'a HumanAddr,
+) -> Bucket<'a, Uint128> {
+    Bucket::multilevel(
+        storage,
+        &[PREFIX_GATEWAY_DELEGATION, gateway_owner.as_bytes()],
+    )
+}
+
+pub fn gateway_delegations_read<'a>(
+    storage: &'a dyn Storage,
+    gateway_owner: &'a HumanAddr,
+) -> ReadonlyBucket<'a, Uint128> {
+    ReadonlyBucket::multilevel(
+        storage,
+        &[PREFIX_GATEWAY_DELEGATION, gateway_owner.as_bytes()],
+    )
 }
 
 // currently not used outside tests
@@ -372,5 +504,205 @@ mod tests {
             Uint128(bond_value),
             read_gateway_bond(&storage, node_owner).unwrap()
         );
+    }
+
+    #[cfg(test)]
+    mod increasing_mix_delegated_stakes {
+        use super::*;
+        use crate::queries::query_mixnode_delegations_paged;
+        use cosmwasm_std::testing::mock_dependencies;
+
+        #[test]
+        fn when_there_are_no_delegations() {
+            let mut deps = mock_dependencies(&[]);
+            let node_owner = HumanAddr::from("owner");
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            increase_mix_delegated_stakes(&mut deps.storage, &node_owner, reward).unwrap();
+
+            // there are no 'new' delegations magically added
+            assert!(
+                query_mixnode_delegations_paged(deps.as_ref(), node_owner, None, None)
+                    .unwrap()
+                    .delegations
+                    .is_empty()
+            )
+        }
+
+        #[test]
+        fn when_there_is_a_single_delegation() {
+            let mut deps = mock_dependencies(&[]);
+            let node_owner = HumanAddr::from("owner");
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            let delegator_address = HumanAddr::from("bob");
+            mix_delegations(&mut deps.storage, &node_owner)
+                .save(delegator_address.as_bytes(), &Uint128(1000))
+                .unwrap();
+
+            increase_mix_delegated_stakes(&mut deps.storage, &node_owner, reward).unwrap();
+            assert_eq!(
+                Uint128(1001),
+                mix_delegations_read(&mut deps.storage, &node_owner)
+                    .load(delegator_address.as_bytes())
+                    .unwrap()
+            )
+        }
+
+        #[test]
+        fn when_there_are_multiple_delegations() {
+            let mut deps = mock_dependencies(&[]);
+            let node_owner = HumanAddr::from("owner");
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            for i in 0..100 {
+                let delegator_address = HumanAddr::from(format!("address{}", i));
+                mix_delegations(&mut deps.storage, &node_owner)
+                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .unwrap();
+            }
+
+            increase_mix_delegated_stakes(&mut deps.storage, &node_owner, reward).unwrap();
+
+            for i in 0..100 {
+                let delegator_address = HumanAddr::from(format!("address{}", i));
+                assert_eq!(
+                    Uint128(1001),
+                    mix_delegations_read(&mut deps.storage, &node_owner)
+                        .load(delegator_address.as_bytes())
+                        .unwrap()
+                )
+            }
+        }
+
+        #[test]
+        fn when_there_are_more_delegations_than_page_size() {
+            let mut deps = mock_dependencies(&[]);
+            let node_owner = HumanAddr::from("owner");
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
+                let delegator_address = HumanAddr::from(format!("address{}", i));
+                mix_delegations(&mut deps.storage, &node_owner)
+                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .unwrap();
+            }
+
+            increase_mix_delegated_stakes(&mut deps.storage, &node_owner, reward).unwrap();
+
+            for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
+                let delegator_address = HumanAddr::from(format!("address{}", i));
+                assert_eq!(
+                    Uint128(1001),
+                    mix_delegations_read(&mut deps.storage, &node_owner)
+                        .load(delegator_address.as_bytes())
+                        .unwrap()
+                )
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod increasing_gateway_delegated_stakes {
+        use super::*;
+        use crate::queries::query_gateway_delegations_paged;
+        use cosmwasm_std::testing::mock_dependencies;
+
+        #[test]
+        fn when_there_are_no_delegations() {
+            let mut deps = mock_dependencies(&[]);
+            let node_owner = HumanAddr::from("owner");
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            increase_gateway_delegated_stakes(&mut deps.storage, &node_owner, reward).unwrap();
+
+            // there are no 'new' delegations magically added
+            assert!(
+                query_gateway_delegations_paged(deps.as_ref(), node_owner, None, None)
+                    .unwrap()
+                    .delegations
+                    .is_empty()
+            )
+        }
+
+        #[test]
+        fn when_there_is_a_single_delegation() {
+            let mut deps = mock_dependencies(&[]);
+            let node_owner = HumanAddr::from("owner");
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            let delegator_address = HumanAddr::from("bob");
+            gateway_delegations(&mut deps.storage, &node_owner)
+                .save(delegator_address.as_bytes(), &Uint128(1000))
+                .unwrap();
+
+            increase_gateway_delegated_stakes(&mut deps.storage, &node_owner, reward).unwrap();
+            assert_eq!(
+                Uint128(1001),
+                gateway_delegations_read(&mut deps.storage, &node_owner)
+                    .load(delegator_address.as_bytes())
+                    .unwrap()
+            )
+        }
+
+        #[test]
+        fn when_there_are_multiple_delegations() {
+            let mut deps = mock_dependencies(&[]);
+            let node_owner = HumanAddr::from("owner");
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            for i in 0..100 {
+                let delegator_address = HumanAddr::from(format!("address{}", i));
+                gateway_delegations(&mut deps.storage, &node_owner)
+                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .unwrap();
+            }
+
+            increase_gateway_delegated_stakes(&mut deps.storage, &node_owner, reward).unwrap();
+
+            for i in 0..100 {
+                let delegator_address = HumanAddr::from(format!("address{}", i));
+                assert_eq!(
+                    Uint128(1001),
+                    gateway_delegations_read(&mut deps.storage, &node_owner)
+                        .load(delegator_address.as_bytes())
+                        .unwrap()
+                )
+            }
+        }
+
+        #[test]
+        fn when_there_are_more_delegations_than_page_size() {
+            let mut deps = mock_dependencies(&[]);
+            let node_owner = HumanAddr::from("owner");
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
+                let delegator_address = HumanAddr::from(format!("address{}", i));
+                gateway_delegations(&mut deps.storage, &node_owner)
+                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .unwrap();
+            }
+
+            increase_gateway_delegated_stakes(&mut deps.storage, &node_owner, reward).unwrap();
+
+            for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
+                let delegator_address = HumanAddr::from(format!("address{}", i));
+                assert_eq!(
+                    Uint128(1001),
+                    gateway_delegations_read(&mut deps.storage, &node_owner)
+                        .load(delegator_address.as_bytes())
+                        .unwrap()
+                )
+            }
+        }
     }
 }

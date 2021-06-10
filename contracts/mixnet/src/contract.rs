@@ -93,6 +93,18 @@ pub fn handle(
         HandleMsg::RewardGateway { owner, uptime } => {
             transactions::try_reward_gateway(deps, info, owner, uptime)
         }
+        HandleMsg::DelegateToMixnode { mix_owner } => {
+            transactions::try_delegate_to_mixnode(deps, info, mix_owner)
+        }
+        HandleMsg::UndelegateFromMixnode { mix_owner } => {
+            transactions::try_remove_delegation_from_mixnode(deps, info, env, mix_owner)
+        }
+        HandleMsg::DelegateToGateway { gateway_owner } => {
+            transactions::try_delegate_to_gateway(deps, info, gateway_owner)
+        }
+        HandleMsg::UndelegateFromGateway { gateway_owner } => {
+            transactions::try_remove_delegation_from_gateway(deps, info, env, gateway_owner)
+        }
     }
 }
 
@@ -112,6 +124,37 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
         }
         QueryMsg::StateParams {} => to_binary(&queries::query_state_params(deps)),
         QueryMsg::LayerDistribution {} => to_binary(&queries::query_layer_distribution(deps)),
+        QueryMsg::GetMixDelegations {
+            mix_owner,
+            start_after,
+            limit,
+        } => to_binary(&queries::query_mixnode_delegations_paged(
+            deps,
+            mix_owner,
+            start_after,
+            limit,
+        )?),
+        QueryMsg::GetMixDelegation { mix_owner, address } => to_binary(
+            &queries::query_mixnode_delegation(deps, mix_owner, address)?,
+        ),
+        QueryMsg::GetGatewayDelegations {
+            gateway_owner,
+            start_after,
+            limit,
+        } => to_binary(&queries::query_gateway_delegations_paged(
+            deps,
+            gateway_owner,
+            start_after,
+            limit,
+        )?),
+        QueryMsg::GetGatewayDelegation {
+            gateway_owner,
+            address,
+        } => to_binary(&queries::query_gateway_delegation(
+            deps,
+            gateway_owner,
+            address,
+        )?),
     };
 
     Ok(query_res?)

@@ -33,7 +33,7 @@ pub enum ContractError {
     #[error("Wrong coin denomination, you must send {}", DENOM)]
     WrongDenom {},
 
-    #[error("Received multiple coin types during bond")]
+    #[error("Received multiple coin types during staking")]
     MultipleDenoms,
 
     #[error("No coin was sent for the bonding, you must send {}", DENOM)]
@@ -59,4 +59,13 @@ pub enum ContractError {
 
     #[error("Gateway with this identity already exists. Its owner is {owner:?}")]
     DuplicateGateway { owner: HumanAddr },
+
+    #[error("No funds were provided for the delegation")]
+    EmptyDelegation,
+
+    #[error("Could not find any delegation information associated with mixnode owned by {mixnode_owner:?}")]
+    NoMixnodeDelegationFound { mixnode_owner: HumanAddr },
+
+    #[error("Could not find any delegation information associated with gateway owned by {gateway_owner:?}")]
+    NoGatewayDelegationFound { gateway_owner: HumanAddr },
 }

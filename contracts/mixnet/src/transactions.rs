@@ -106,7 +106,9 @@ pub(crate) fn try_remove_mixnode(
 
     // check if the sender actually owns the node
     if mixnode_bond.owner != info.sender {
-        return Err(ContractError::InvalidSender { owner: mixnode_bond.owner })
+        return Err(ContractError::InvalidSender {
+            owner: mixnode_bond.owner,
+        });
     }
 
     // send bonded funds back to the bond owner
@@ -134,7 +136,6 @@ pub(crate) fn try_remove_mixnode(
         attributes,
         data: None,
     })
-    todo!()
 }
 
 fn validate_gateway_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {

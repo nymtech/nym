@@ -81,83 +81,89 @@ pub fn handle(
 ) -> Result<HandleResponse, ContractError> {
     match msg {
         HandleMsg::BondMixnode { mix_node } => transactions::try_add_mixnode(deps, info, mix_node),
-        HandleMsg::UnbondMixnode {} => transactions::try_remove_mixnode(deps, info, env),
-        HandleMsg::BondGateway { gateway } => transactions::try_add_gateway(deps, info, gateway),
-        HandleMsg::UnbondGateway {} => transactions::try_remove_gateway(deps, info, env),
-        HandleMsg::UpdateStateParams(params) => {
-            transactions::try_update_state_params(deps, info, params)
-        }
-        HandleMsg::RewardMixnode { owner, uptime } => {
-            transactions::try_reward_mixnode(deps, info, owner, uptime)
-        }
-        HandleMsg::RewardGateway { owner, uptime } => {
-            transactions::try_reward_gateway(deps, info, owner, uptime)
-        }
-        HandleMsg::DelegateToMixnode { mix_owner } => {
-            transactions::try_delegate_to_mixnode(deps, info, mix_owner)
-        }
-        HandleMsg::UndelegateFromMixnode { mix_owner } => {
-            transactions::try_remove_delegation_from_mixnode(deps, info, env, mix_owner)
-        }
-        HandleMsg::DelegateToGateway { gateway_owner } => {
-            transactions::try_delegate_to_gateway(deps, info, gateway_owner)
-        }
-        HandleMsg::UndelegateFromGateway { gateway_owner } => {
-            transactions::try_remove_delegation_from_gateway(deps, info, env, gateway_owner)
-        }
+        _ => todo!(), // HandleMsg::UnbondMixnode { mix_identity } => {
+                      //     transactions::try_remove_mixnode(deps, info, env)
+                      // }
+                      // HandleMsg::BondGateway { gateway } => transactions::try_add_gateway(deps, info, gateway),
+                      // HandleMsg::UnbondGateway { gateway_identity } => {
+                      //     transactions::try_remove_gateway(deps, info, env)
+                      // }
+                      // HandleMsg::UpdateStateParams(params) => {
+                      //     transactions::try_update_state_params(deps, info, params)
+                      // }
+                      // HandleMsg::RewardMixnode { identity, uptime } => {
+                      //     transactions::try_reward_mixnode(deps, info, owner, uptime)
+                      // }
+                      // HandleMsg::RewardGateway { identity, uptime } => {
+                      //     transactions::try_reward_gateway(deps, info, owner, uptime)
+                      // }
+                      // HandleMsg::DelegateToMixnode { mix_identity } => {
+                      //     transactions::try_delegate_to_mixnode(deps, info, mix_owner)
+                      // }
+                      // HandleMsg::UndelegateFromMixnode { mix_identity } => {
+                      //     transactions::try_remove_delegation_from_mixnode(deps, info, env, mix_owner)
+                      // }
+                      // HandleMsg::DelegateToGateway { gateway_identity } => {
+                      //     transactions::try_delegate_to_gateway(deps, info, gateway_owner)
+                      // }
+                      // HandleMsg::UndelegateFromGateway { gateway_identity } => {
+                      //     transactions::try_remove_delegation_from_gateway(deps, info, env, gateway_owner)
+                      // }
     }
 }
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
-        QueryMsg::GetMixNodes { start_after, limit } => {
-            to_binary(&queries::query_mixnodes_paged(deps, start_after, limit)?)
-        }
-        QueryMsg::GetGateways { limit, start_after } => {
-            to_binary(&queries::query_gateways_paged(deps, start_after, limit)?)
-        }
-        QueryMsg::OwnsMixnode { address } => {
-            to_binary(&queries::query_owns_mixnode(deps, address)?)
-        }
-        QueryMsg::OwnsGateway { address } => {
-            to_binary(&queries::query_owns_gateway(deps, address)?)
-        }
-        QueryMsg::StateParams {} => to_binary(&queries::query_state_params(deps)),
-        QueryMsg::LayerDistribution {} => to_binary(&queries::query_layer_distribution(deps)),
-        QueryMsg::GetMixDelegations {
-            mix_owner,
-            start_after,
-            limit,
-        } => to_binary(&queries::query_mixnode_delegations_paged(
-            deps,
-            mix_owner,
-            start_after,
-            limit,
-        )?),
-        QueryMsg::GetMixDelegation { mix_owner, address } => to_binary(
-            &queries::query_mixnode_delegation(deps, mix_owner, address)?,
-        ),
-        QueryMsg::GetGatewayDelegations {
-            gateway_owner,
-            start_after,
-            limit,
-        } => to_binary(&queries::query_gateway_delegations_paged(
-            deps,
-            gateway_owner,
-            start_after,
-            limit,
-        )?),
-        QueryMsg::GetGatewayDelegation {
-            gateway_owner,
-            address,
-        } => to_binary(&queries::query_gateway_delegation(
-            deps,
-            gateway_owner,
-            address,
-        )?),
+        _ => todo!()
+        // QueryMsg::GetMixNodes { start_after, limit } => {
+        //     to_binary(&queries::query_mixnodes_paged(deps, start_after, limit)?)
+        // }
+        // QueryMsg::GetGateways { limit, start_after } => {
+        //     to_binary(&queries::query_gateways_paged(deps, start_after, limit)?)
+        // }
+        // QueryMsg::OwnsMixnode { address } => {
+        //     to_binary(&queries::query_owns_mixnode(deps, address)?)
+        // }
+        // QueryMsg::OwnsGateway { address } => {
+        //     to_binary(&queries::query_owns_gateway(deps, address)?)
+        // }
+        // QueryMsg::StateParams {} => to_binary(&queries::query_state_params(deps)),
+        // QueryMsg::LayerDistribution {} => to_binary(&queries::query_layer_distribution(deps)),
+        // QueryMsg::GetMixDelegations {
+        //     mix_owner,
+        //     start_after,
+        //     limit,
+        // } => to_binary(&queries::query_mixnode_delegations_paged(
+        //     deps,
+        //     mix_owner,
+        //     start_after,
+        //     limit,
+        // )?),
+        // QueryMsg::GetMixDelegation { mix_owner, address } => to_binary(
+        //     &queries::query_mixnode_delegation(deps, mix_owner, address)?,
+        // ),
+        // QueryMsg::GetGatewayDelegations {
+        //     gateway_owner,
+        //     start_after,
+        //     limit,
+        // } => to_binary(&queries::query_gateway_delegations_paged(
+        //     deps,
+        //     gateway_owner,
+        //     start_after,
+        //     limit,
+        // )?),
+        // QueryMsg::GetGatewayDelegation {
+        //     gateway_owner,
+        //     address,
+        // } => to_binary(&queries::query_gateway_delegation(
+        //     deps,
+        //     gateway_owner,
+        //     address,
+        // )?),
     };
 
-    Ok(query_res?)
+    todo!()
+    // Ok(query_res?)
 }
 
 pub fn migrate(
@@ -166,38 +172,45 @@ pub fn migrate(
     _info: MessageInfo,
     _msg: MigrateMsg,
 ) -> Result<MigrateResponse, ContractError> {
-    // load all mixnodes and gateways and build up layer distribution
-    let mut layers: LayerDistribution = Default::default();
+    // What we need to do here for mixnodes is the following (the procedure will be identical for gateways):
+    // 1. Load mixnodes (page by page) using the PREFIX_MIXNODES_OLD
+    // 2. Save that the same data using PREFIX_MIXNODES, but the data key will be the value.mix_node.identity instead
+    // 3. Load mixnode owners (page by page) using PREFIX_MIXNODES_OWNERS_OLD
+    // 4. Save the data in reverse order using PREFIX_MIXNODES_OWNERS such that the key becomes the value and vice versa
 
-    // go through mixnodes...
-    let mut start_after = None;
-    loop {
-        let response = queries::query_mixnodes_paged(deps.as_ref(), start_after, None)?;
-        start_after = response.start_next_after;
-        if start_after.is_none() {
-            break;
-        }
-        for node in response.nodes.into_iter() {
-            match node.mix_node.layer {
-                n if n == 1 => layers.layer1 += 1,
-                n if n == 2 => layers.layer2 += 1,
-                n if n == 3 => layers.layer3 += 1,
-                _ => layers.invalid += 1,
-            }
-        }
-    }
-
-    // go through gateways...
-    loop {
-        let response = queries::query_gateways_paged(deps.as_ref(), start_after, None)?;
-        start_after = response.start_next_after;
-        if start_after.is_none() {
-            break;
-        }
-        layers.gateways += response.nodes.len() as u64;
-    }
-
-    layer_distribution(deps.storage).save(&layers)?;
+    //
+    // // load all mixnodes and gateways and build up layer distribution
+    // let mut layers: LayerDistribution = Default::default();
+    //
+    // // go through mixnodes...
+    // let mut start_after = None;
+    // loop {
+    //     let response = queries::query_mixnodes_paged(deps.as_ref(), start_after, None)?;
+    //     start_after = response.start_next_after;
+    //     if start_after.is_none() {
+    //         break;
+    //     }
+    //     for node in response.nodes.into_iter() {
+    //         match node.mix_node.layer {
+    //             n if n == 1 => layers.layer1 += 1,
+    //             n if n == 2 => layers.layer2 += 1,
+    //             n if n == 3 => layers.layer3 += 1,
+    //             _ => layers.invalid += 1,
+    //         }
+    //     }
+    // }
+    //
+    // // go through gateways...
+    // loop {
+    //     let response = queries::query_gateways_paged(deps.as_ref(), start_after, None)?;
+    //     start_after = response.start_next_after;
+    //     if start_after.is_none() {
+    //         break;
+    //     }
+    //     layers.gateways += response.nodes.len() as u64;
+    // }
+    //
+    // layer_distribution(deps.storage).save(&layers)?;
 
     Ok(Default::default())
 }

@@ -56,4 +56,4 @@ default-members = [
     "network-monitor",
 ]
 
-exclude = ["explorer"]
+exclude = ["explorer", "contracts"]

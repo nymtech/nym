@@ -81,6 +81,10 @@ impl MixNodeBond {
         }
     }
 
+    pub fn identity(&self) -> &str {
+        &self.mix_node.identity_key
+    }
+
     pub fn amount(&self) -> &[Coin] {
         &self.amount
     }

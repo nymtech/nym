@@ -130,8 +130,8 @@ impl PublicKey {
         bs58::encode(self.to_bytes()).into_string()
     }
 
-    pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, KeyRecoveryError> {
-        let bytes = bs58::decode(val.into()).into_vec()?;
+    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, KeyRecoveryError> {
+        let bytes = bs58::decode(val).into_vec()?;
         Self::from_bytes(&bytes)
     }
 }
@@ -185,8 +185,8 @@ impl PrivateKey {
         bs58::encode(&self.to_bytes()).into_string()
     }
 
-    pub fn from_base58_string<S: Into<String>>(val: S) -> Result<Self, KeyRecoveryError> {
-        let bytes = bs58::decode(val.into()).into_vec()?;
+    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, KeyRecoveryError> {
+        let bytes = bs58::decode(val).into_vec()?;
         Self::from_bytes(&bytes)
     }
 

@@ -1479,6 +1479,7 @@ name = "mixnet-contract"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "crypto",
  "schemars",
  "serde",
 ]

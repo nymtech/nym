@@ -1,9 +1,9 @@
 #[cfg(test)]
 pub mod helpers {
     use super::*;
-    use crate::contract::init;
     use crate::contract::query;
     use crate::contract::DENOM;
+    use crate::contract::{init, INITIAL_MIXNODE_BOND};
     use crate::msg::InitMsg;
     use crate::msg::QueryMsg;
     use crate::transactions::{try_add_gateway, try_add_mixnode};
@@ -152,5 +152,19 @@ pub mod helpers {
     ) -> Vec<Coin> {
         let querier = deps.as_ref().querier;
         vec![querier.query_balance(address, DENOM).unwrap()]
+    }
+
+    pub fn good_mixnode_bond() -> Vec<Coin> {
+        vec![Coin {
+            denom: DENOM.to_string(),
+            amount: INITIAL_MIXNODE_BOND,
+        }]
+    }
+
+    pub fn good_gateway_bond() -> Vec<Coin> {
+        vec![Coin {
+            denom: DENOM.to_string(),
+            amount: INITIAL_MIXNODE_BOND,
+        }]
     }
 }

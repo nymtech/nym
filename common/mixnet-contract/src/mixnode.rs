@@ -81,7 +81,7 @@ impl MixNodeBond {
         }
     }
 
-    pub fn identity(&self) -> &str {
+    pub fn identity(&self) -> &String {
         &self.mix_node.identity_key
     }
 

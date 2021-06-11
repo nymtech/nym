@@ -184,7 +184,7 @@ pub(crate) fn increase_mixnode_bond(
 
     let reward = bond.amount[0].amount * scaled_reward_rate;
     bond.amount[0].amount += reward;
-    mixnodes(storage).save(bond.owner.as_bytes(), &bond)
+    mixnodes(storage).save(bond.identity().as_bytes(), &bond)
 }
 
 pub(crate) fn increase_mix_delegated_stakes(
@@ -275,10 +275,10 @@ pub(crate) fn increase_gateway_delegated_stakes(
 #[cfg(test)]
 pub(crate) fn read_mixnode_bond(
     storage: &dyn Storage,
-    owner: &[u8],
+    identity: &[u8],
 ) -> StdResult<cosmwasm_std::Uint128> {
     let bucket = mixnodes_read(storage);
-    let node = bucket.load(owner)?;
+    let node = bucket.load(identity)?;
     if node.amount.len() != 1 {
         return Err(StdError::generic_err(
             "mixnode seems to have been bonded with multiple coin types",
@@ -319,7 +319,7 @@ pub(crate) fn increase_gateway_bond(
     }
     let reward = bond.amount[0].amount * scaled_reward_rate;
     bond.amount[0].amount += reward;
-    gateways(storage).save(bond.gateway.identity_key.as_bytes(), &bond)
+    gateways(storage).save(bond.identity().as_bytes(), &bond)
 }
 
 // delegation related

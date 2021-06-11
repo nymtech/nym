@@ -81,89 +81,92 @@ pub fn handle(
 ) -> Result<HandleResponse, ContractError> {
     match msg {
         HandleMsg::BondMixnode { mix_node } => transactions::try_add_mixnode(deps, info, mix_node),
-        _ => todo!(), // HandleMsg::UnbondMixnode { mix_identity } => {
-                      //     transactions::try_remove_mixnode(deps, info, env)
-                      // }
-                      // HandleMsg::BondGateway { gateway } => transactions::try_add_gateway(deps, info, gateway),
-                      // HandleMsg::UnbondGateway { gateway_identity } => {
-                      //     transactions::try_remove_gateway(deps, info, env)
-                      // }
-                      // HandleMsg::UpdateStateParams(params) => {
-                      //     transactions::try_update_state_params(deps, info, params)
-                      // }
-                      // HandleMsg::RewardMixnode { identity, uptime } => {
-                      //     transactions::try_reward_mixnode(deps, info, owner, uptime)
-                      // }
-                      // HandleMsg::RewardGateway { identity, uptime } => {
-                      //     transactions::try_reward_gateway(deps, info, owner, uptime)
-                      // }
-                      // HandleMsg::DelegateToMixnode { mix_identity } => {
-                      //     transactions::try_delegate_to_mixnode(deps, info, mix_owner)
-                      // }
-                      // HandleMsg::UndelegateFromMixnode { mix_identity } => {
-                      //     transactions::try_remove_delegation_from_mixnode(deps, info, env, mix_owner)
-                      // }
-                      // HandleMsg::DelegateToGateway { gateway_identity } => {
-                      //     transactions::try_delegate_to_gateway(deps, info, gateway_owner)
-                      // }
-                      // HandleMsg::UndelegateFromGateway { gateway_identity } => {
-                      //     transactions::try_remove_delegation_from_gateway(deps, info, env, gateway_owner)
-                      // }
+        HandleMsg::UnbondMixnode { mix_identity } => {
+            transactions::try_remove_mixnode(deps, info, env, mix_identity)
+        }
+        HandleMsg::BondGateway { gateway } => transactions::try_add_gateway(deps, info, gateway),
+        HandleMsg::UnbondGateway { gateway_identity } => {
+            transactions::try_remove_gateway(deps, info, env, gateway_identity)
+        }
+        HandleMsg::UpdateStateParams(params) => {
+            transactions::try_update_state_params(deps, info, params)
+        }
+        HandleMsg::RewardMixnode { identity, uptime } => {
+            transactions::try_reward_mixnode(deps, info, identity, uptime)
+        }
+        HandleMsg::RewardGateway { identity, uptime } => {
+            transactions::try_reward_gateway(deps, info, identity, uptime)
+        }
+        HandleMsg::DelegateToMixnode { mix_identity } => {
+            transactions::try_delegate_to_mixnode(deps, info, mix_identity)
+        }
+        HandleMsg::UndelegateFromMixnode { mix_identity } => {
+            transactions::try_remove_delegation_from_mixnode(deps, info, env, mix_identity)
+        }
+        HandleMsg::DelegateToGateway { gateway_identity } => {
+            transactions::try_delegate_to_gateway(deps, info, gateway_identity)
+        }
+        HandleMsg::UndelegateFromGateway { gateway_identity } => {
+            transactions::try_remove_delegation_from_gateway(deps, info, env, gateway_identity)
+        }
     }
 }
 
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
-        _ => todo!()
-        // QueryMsg::GetMixNodes { start_after, limit } => {
-        //     to_binary(&queries::query_mixnodes_paged(deps, start_after, limit)?)
-        // }
-        // QueryMsg::GetGateways { limit, start_after } => {
-        //     to_binary(&queries::query_gateways_paged(deps, start_after, limit)?)
-        // }
-        // QueryMsg::OwnsMixnode { address } => {
-        //     to_binary(&queries::query_owns_mixnode(deps, address)?)
-        // }
-        // QueryMsg::OwnsGateway { address } => {
-        //     to_binary(&queries::query_owns_gateway(deps, address)?)
-        // }
-        // QueryMsg::StateParams {} => to_binary(&queries::query_state_params(deps)),
-        // QueryMsg::LayerDistribution {} => to_binary(&queries::query_layer_distribution(deps)),
-        // QueryMsg::GetMixDelegations {
-        //     mix_owner,
-        //     start_after,
-        //     limit,
-        // } => to_binary(&queries::query_mixnode_delegations_paged(
-        //     deps,
-        //     mix_owner,
-        //     start_after,
-        //     limit,
-        // )?),
-        // QueryMsg::GetMixDelegation { mix_owner, address } => to_binary(
-        //     &queries::query_mixnode_delegation(deps, mix_owner, address)?,
-        // ),
-        // QueryMsg::GetGatewayDelegations {
-        //     gateway_owner,
-        //     start_after,
-        //     limit,
-        // } => to_binary(&queries::query_gateway_delegations_paged(
-        //     deps,
-        //     gateway_owner,
-        //     start_after,
-        //     limit,
-        // )?),
-        // QueryMsg::GetGatewayDelegation {
-        //     gateway_owner,
-        //     address,
-        // } => to_binary(&queries::query_gateway_delegation(
-        //     deps,
-        //     gateway_owner,
-        //     address,
-        // )?),
+        QueryMsg::GetMixNodes { start_after, limit } => {
+            to_binary(&queries::query_mixnodes_paged(deps, start_after, limit)?)
+        }
+        QueryMsg::GetGateways { limit, start_after } => {
+            to_binary(&queries::query_gateways_paged(deps, start_after, limit)?)
+        }
+        QueryMsg::OwnsMixnode { address } => {
+            to_binary(&queries::query_owns_mixnode(deps, address)?)
+        }
+        QueryMsg::OwnsGateway { address } => {
+            to_binary(&queries::query_owns_gateway(deps, address)?)
+        }
+        QueryMsg::StateParams {} => to_binary(&queries::query_state_params(deps)),
+        QueryMsg::LayerDistribution {} => to_binary(&queries::query_layer_distribution(deps)),
+        QueryMsg::GetMixDelegations {
+            mix_identity,
+            start_after,
+            limit,
+        } => to_binary(&queries::query_mixnode_delegations_paged(
+            deps,
+            mix_identity,
+            start_after,
+            limit,
+        )?),
+        QueryMsg::GetMixDelegation {
+            mix_identity,
+            address,
+        } => to_binary(&queries::query_mixnode_delegation(
+            deps,
+            mix_identity,
+            address,
+        )?),
+        QueryMsg::GetGatewayDelegations {
+            gateway_identity,
+            start_after,
+            limit,
+        } => to_binary(&queries::query_gateway_delegations_paged(
+            deps,
+            gateway_identity,
+            start_after,
+            limit,
+        )?),
+        QueryMsg::GetGatewayDelegation {
+            gateway_identity,
+            address,
+        } => to_binary(&queries::query_gateway_delegation(
+            deps,
+            gateway_identity,
+            address,
+        )?),
     };
 
-    todo!()
-    // Ok(query_res?)
+    Ok(query_res?)
 }
 
 pub fn migrate(
@@ -177,40 +180,6 @@ pub fn migrate(
     // 2. Save that the same data using PREFIX_MIXNODES, but the data key will be the value.mix_node.identity instead
     // 3. Load mixnode owners (page by page) using PREFIX_MIXNODES_OWNERS_OLD
     // 4. Save the data in reverse order using PREFIX_MIXNODES_OWNERS such that the key becomes the value and vice versa
-
-    //
-    // // load all mixnodes and gateways and build up layer distribution
-    // let mut layers: LayerDistribution = Default::default();
-    //
-    // // go through mixnodes...
-    // let mut start_after = None;
-    // loop {
-    //     let response = queries::query_mixnodes_paged(deps.as_ref(), start_after, None)?;
-    //     start_after = response.start_next_after;
-    //     if start_after.is_none() {
-    //         break;
-    //     }
-    //     for node in response.nodes.into_iter() {
-    //         match node.mix_node.layer {
-    //             n if n == 1 => layers.layer1 += 1,
-    //             n if n == 2 => layers.layer2 += 1,
-    //             n if n == 3 => layers.layer3 += 1,
-    //             _ => layers.invalid += 1,
-    //         }
-    //     }
-    // }
-    //
-    // // go through gateways...
-    // loop {
-    //     let response = queries::query_gateways_paged(deps.as_ref(), start_after, None)?;
-    //     start_after = response.start_next_after;
-    //     if start_after.is_none() {
-    //         break;
-    //     }
-    //     layers.gateways += response.nodes.len() as u64;
-    // }
-    //
-    // layer_distribution(deps.storage).save(&layers)?;
 
     Ok(Default::default())
 }
@@ -259,132 +228,6 @@ pub mod tests {
     // version of the contract
     #[test]
     fn migration_to_layer_distribution() {
-        let layer_ones = 42;
-        let layer_twos = 123;
-        let layer_threes = 111;
-        let invalid = 30;
-        let gateways_count = 24;
-
-        // bond some nodes
-        let mut deps = helpers::init_contract();
-        let env = mock_env();
-
-        for i in 0..layer_ones {
-            let owner = HumanAddr::from(format!("owner{}{}", 1, i));
-            mixnodes(&mut deps.storage)
-                .save(
-                    owner.clone().as_bytes(),
-                    &MixNodeBond {
-                        amount: coins(1000, "uhal"),
-                        owner,
-                        mix_node: MixNode {
-                            host: "1.1.1.1:1111".to_string(),
-                            layer: 1,
-                            location: "aaaa".to_string(),
-                            sphinx_key: "bbbb".to_string(),
-                            identity_key: format!("identity{}{}", 1, i),
-                            version: "0.10.1".to_string(),
-                        },
-                    },
-                )
-                .unwrap();
-        }
-
-        for i in 0..layer_twos {
-            let owner = HumanAddr::from(format!("owner{}{}", 2, i));
-            mixnodes(&mut deps.storage)
-                .save(
-                    owner.clone().as_bytes(),
-                    &MixNodeBond {
-                        amount: coins(1000, "uhal"),
-                        owner,
-                        mix_node: MixNode {
-                            host: "1.1.1.1:1111".to_string(),
-                            layer: 2,
-                            location: "aaaa".to_string(),
-                            sphinx_key: "bbbb".to_string(),
-                            identity_key: format!("identity{}{}", 2, i),
-                            version: "0.10.1".to_string(),
-                        },
-                    },
-                )
-                .unwrap();
-        }
-
-        for i in 0..layer_threes {
-            let owner = HumanAddr::from(format!("owner{}{}", 3, i));
-            mixnodes(&mut deps.storage)
-                .save(
-                    owner.clone().as_bytes(),
-                    &MixNodeBond {
-                        amount: coins(1000, "uhal"),
-                        owner,
-                        mix_node: MixNode {
-                            host: "1.1.1.1:1111".to_string(),
-                            layer: 3,
-                            location: "aaaa".to_string(),
-                            sphinx_key: "bbbb".to_string(),
-                            identity_key: format!("identity{}{}", 3, i),
-                            version: "0.10.1".to_string(),
-                        },
-                    },
-                )
-                .unwrap();
-        }
-
-        for i in 0..invalid {
-            let owner = HumanAddr::from(format!("owner{}{}", 42, i));
-            mixnodes(&mut deps.storage)
-                .save(
-                    owner.clone().as_bytes(),
-                    &MixNodeBond {
-                        amount: coins(1000, "uhal"),
-                        owner,
-                        mix_node: MixNode {
-                            host: "1.1.1.1:1111".to_string(),
-                            layer: 42,
-                            location: "aaaa".to_string(),
-                            sphinx_key: "bbbb".to_string(),
-                            identity_key: format!("identity{}{}", 42, i),
-                            version: "0.10.1".to_string(),
-                        },
-                    },
-                )
-                .unwrap();
-        }
-
-        for i in 0..gateways_count {
-            let owner = HumanAddr::from(format!("owner{}{}", "gateway", i));
-            gateways(&mut deps.storage)
-                .save(
-                    owner.clone().as_bytes(),
-                    &GatewayBond {
-                        amount: coins(1000, "uhal"),
-                        owner,
-                        gateway: Gateway {
-                            mix_host: "1.1.1.1:1111".to_string(),
-                            clients_host: "ws://1.1.1.1:1112".to_string(),
-                            location: "aaaa".to_string(),
-                            sphinx_key: "bbbb".to_string(),
-                            identity_key: format!("identity{}{}", "gateway", i),
-                            version: "0.10.1".to_string(),
-                        },
-                    },
-                )
-                .unwrap();
-        }
-
-        let migrate_res = migrate(deps.as_mut(), env, mock_info("creator", &[]), MigrateMsg {});
-        assert!(migrate_res.is_ok());
-
-        let layers = layer_distribution_read(&deps.storage).load().unwrap();
-        let expected = LayerDistribution {
-            gateways: gateways_count,
-            layer1: layer_ones,
-            layer2: layer_twos,
-            layer3: layer_threes,
-            invalid,
-        };
-        assert_eq!(expected, layers);
+        //
     }
 }

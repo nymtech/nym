@@ -62,6 +62,10 @@ impl GatewayBond {
         }
     }
 
+    pub fn identity(&self) -> &String {
+        &self.gateway.identity_key
+    }
+
     pub fn amount(&self) -> &[Coin] {
         &self.amount
     }

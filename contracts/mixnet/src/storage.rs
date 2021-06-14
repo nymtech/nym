@@ -1,6 +1,6 @@
 use crate::queries;
 use crate::state::{State, StateParams};
-use cosmwasm_std::{Decimal, HumanAddr, Order, StdError, StdResult, Storage, Uint128};
+use cosmwasm_std::{Decimal, Order, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -8,24 +8,15 @@ use cosmwasm_storage::{
 use mixnet_contract::{GatewayBond, LayerDistribution, MixNodeBond};
 
 // storage prefixes
-// all of them must be unique and presumably not be a prefix od a different one
+// all of them must be unique and presumably not be a prefix of a different one
 // keeping them as short as possible is also desirable as they are part of each stored key
 // it's not as important for singletons, but is a nice optimisation for buckets
-
-// the legacy prefixes can't be changed without redeploying contract or doing fancy migration
-// for time being let's leave them as they are, but when we're going to make incompatible
-// contract changes, let's shorten all of them
 
 // singletons
 const CONFIG_KEY: &[u8] = b"config";
 const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
 
 // buckets
-const PREFIX_MIXNODES_OLD: &[u8] = b"mixnodes";
-const PREFIX_MIXNODES_OWNERS_OLD: &[u8] = b"mix-owners";
-const PREFIX_GATEWAYS_OLD: &[u8] = b"gateways";
-const PREFIX_GATEWAYS_OWNERS_OLD: &[u8] = b"gateway-owners";
-
 const PREFIX_MIXNODES: &[u8] = b"mn";
 const PREFIX_MIXNODES_OWNERS: &[u8] = b"mo";
 const PREFIX_GATEWAYS: &[u8] = b"gt";
@@ -33,23 +24,6 @@ const PREFIX_GATEWAYS_OWNERS: &[u8] = b"go";
 
 const PREFIX_MIX_DELEGATION: &[u8] = b"md";
 const PREFIX_GATEWAY_DELEGATION: &[u8] = b"gd";
-
-// REQUIRED (well, useful) UNTIL MIGRATION:
-pub fn mixnodes_owners_old(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
-    bucket(storage, PREFIX_MIXNODES_OWNERS_OLD)
-}
-
-pub fn gateways_owners_old(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
-    bucket(storage, PREFIX_GATEWAYS_OWNERS_OLD)
-}
-
-pub fn mixnodes_old(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
-    bucket(storage, PREFIX_MIXNODES_OLD)
-}
-
-pub fn gateways_old(storage: &mut dyn Storage) -> Bucket<GatewayBond> {
-    bucket(storage, PREFIX_GATEWAYS_OLD)
-}
 
 // Contract-level stuff
 

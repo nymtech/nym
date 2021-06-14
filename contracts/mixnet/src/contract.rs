@@ -2,14 +2,14 @@ use crate::helpers::calculate_epoch_reward_rate;
 use crate::msg::{HandleMsg, InitMsg, MigrateMsg, QueryMsg};
 use crate::state::{State, StateParams};
 use crate::storage::{
-    config, gateways_old, gateways_owners_old, layer_distribution, mixnodes_old,
-    mixnodes_owners_old,
+    config, gateways, gateways_owners, layer_distribution, mixnodes, mixnodes_owners,
 };
 use crate::{error::ContractError, queries, transactions};
 use cosmwasm_std::{
     to_binary, Decimal, Deps, DepsMut, Env, HandleResponse, HumanAddr, InitResponse, MessageInfo,
-    MigrateResponse, QueryResponse, Uint128,
+    MigrateResponse, QueryResponse, StdResult, Uint128,
 };
+use mixnet_contract::{GatewayBond, MixNodeBond};
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
@@ -177,16 +177,98 @@ pub fn migrate(
     _info: MessageInfo,
     _msg: MigrateMsg,
 ) -> Result<MigrateResponse, ContractError> {
-    mixnodes_old(deps.storage);
-    mixnodes_owners_old(deps.storage);
-    gateways_old(deps.storage);
-    gateways_owners_old(deps.storage);
+    // Mixnode migration
 
-    // What we need to do here for mixnodes is the following (the procedure will be identical for gateways):
+    // What we do here for mixnodes is the following (the procedure is be identical for gateways):
     // 1. Load mixnodes (page by page) using the PREFIX_MIXNODES_OLD
     // 2. Save that the same data using PREFIX_MIXNODES, but the data key will be the value.mix_node.identity instead
     // 3. Load mixnode owners (page by page) using PREFIX_MIXNODES_OWNERS_OLD
     // 4. Save the data in reverse order using PREFIX_MIXNODES_OWNERS such that the key becomes the value and vice versa
+
+    use cosmwasm_std::Order;
+    use cosmwasm_std::Storage;
+    use cosmwasm_storage::{bucket, Bucket};
+
+    // those shouldn't be accessible ANYWHERE outside the migration
+    const PREFIX_MIXNODES_OLD: &[u8] = b"mixnodes";
+    const PREFIX_MIXNODES_OWNERS_OLD: &[u8] = b"mix-owners";
+    const PREFIX_GATEWAYS_OLD: &[u8] = b"gateways";
+    const PREFIX_GATEWAYS_OWNERS_OLD: &[u8] = b"gateway-owners";
+
+    fn mixnodes_owners_old(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
+        bucket(storage, PREFIX_MIXNODES_OWNERS_OLD)
+    }
+
+    fn gateways_owners_old(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
+        bucket(storage, PREFIX_GATEWAYS_OWNERS_OLD)
+    }
+
+    fn mixnodes_old(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
+        bucket(storage, PREFIX_MIXNODES_OLD)
+    }
+
+    fn gateways_old(storage: &mut dyn Storage) -> Bucket<GatewayBond> {
+        bucket(storage, PREFIX_GATEWAYS_OLD)
+    }
+
+    // go through all stored mixnodes
+    let bond_page_limit = 100;
+    loop {
+        // we have to do it in a paged manner to prevent allocating too much memory
+        let nodes = mixnodes_old(deps.storage)
+            .range(None, None, Order::Ascending)
+            .take(bond_page_limit)
+            .map(|res| res.map(|item| item.1))
+            .collect::<StdResult<Vec<MixNodeBond>>>()?;
+
+        for node in nodes.iter() {
+            // save bond data under identity key
+            mixnodes(deps.storage).save(node.identity().as_bytes(), node)?;
+
+            // and remove it from under the old owner key
+            mixnodes_old(deps.storage).remove(node.owner.as_bytes());
+
+            // add new mixnodes_owners data under owner key
+            mixnodes_owners(deps.storage).save(node.owner.as_bytes(), node.identity())?;
+
+            // and remove it from under the old identity key
+            mixnodes_owners_old(deps.storage).remove(node.identity().as_bytes())
+        }
+
+        // this was the last page
+        if nodes.len() < bond_page_limit {
+            break;
+        }
+    }
+
+    // repeat the procedure for gateways
+    loop {
+        // we have to do it in a paged manner to prevent allocating too much memory
+        let nodes = gateways_old(deps.storage)
+            .range(None, None, Order::Ascending)
+            .take(bond_page_limit)
+            .map(|res| res.map(|item| item.1))
+            .collect::<StdResult<Vec<GatewayBond>>>()?;
+
+        for node in nodes.iter() {
+            // save bond data under identity key
+            gateways(deps.storage).save(node.identity().as_bytes(), node)?;
+
+            // and remove it from under the old owner key
+            gateways_old(deps.storage).remove(node.owner.as_bytes());
+
+            // add new mixnodes_owners data under owner key
+            gateways_owners(deps.storage).save(node.owner.as_bytes(), node.identity())?;
+
+            // and remove it from under the old identity key
+            gateways_owners_old(deps.storage).remove(node.identity().as_bytes())
+        }
+
+        // this was the last page
+        if nodes.len() < bond_page_limit {
+            break;
+        }
+    }
 
     Ok(Default::default())
 }

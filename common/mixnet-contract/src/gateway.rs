@@ -97,15 +97,11 @@ impl Display for GatewayBond {
 pub struct PagedGatewayResponse {
     pub nodes: Vec<GatewayBond>,
     pub per_page: usize,
-    pub start_next_after: Option<HumanAddr>,
+    pub start_next_after: Option<String>,
 }
 
 impl PagedGatewayResponse {
-    pub fn new(
-        nodes: Vec<GatewayBond>,
-        per_page: usize,
-        start_next_after: Option<HumanAddr>,
-    ) -> Self {
+    pub fn new(nodes: Vec<GatewayBond>, per_page: usize, start_next_after: Option<String>) -> Self {
         PagedGatewayResponse {
             nodes,
             per_page,

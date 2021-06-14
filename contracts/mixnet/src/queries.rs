@@ -38,7 +38,7 @@ pub fn query_mixnodes_paged(
         .map(|res| res.map(|item| item.1))
         .collect::<StdResult<Vec<MixNodeBond>>>()?;
 
-    let start_next_after = nodes.last().map(|node| node.owner().clone());
+    let start_next_after = nodes.last().map(|node| node.identity().clone());
 
     Ok(PagedResponse::new(nodes, limit, start_next_after))
 }
@@ -59,7 +59,7 @@ pub(crate) fn query_gateways_paged(
         .map(|res| res.map(|item| item.1))
         .collect::<StdResult<Vec<GatewayBond>>>()?;
 
-    let start_next_after = nodes.last().map(|node| node.owner().clone());
+    let start_next_after = nodes.last().map(|node| node.identity().clone());
 
     Ok(PagedGatewayResponse::new(nodes, limit, start_next_after))
 }

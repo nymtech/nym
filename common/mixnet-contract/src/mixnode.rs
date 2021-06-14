@@ -120,15 +120,11 @@ impl Display for MixNodeBond {
 pub struct PagedResponse {
     pub nodes: Vec<MixNodeBond>,
     pub per_page: usize,
-    pub start_next_after: Option<HumanAddr>,
+    pub start_next_after: Option<String>,
 }
 
 impl PagedResponse {
-    pub fn new(
-        nodes: Vec<MixNodeBond>,
-        per_page: usize,
-        start_next_after: Option<HumanAddr>,
-    ) -> Self {
+    pub fn new(nodes: Vec<MixNodeBond>, per_page: usize, start_next_after: Option<String>) -> Self {
         PagedResponse {
             nodes,
             per_page,

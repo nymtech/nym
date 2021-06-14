@@ -83,13 +83,9 @@ pub fn handle(
 ) -> Result<HandleResponse, ContractError> {
     match msg {
         HandleMsg::BondMixnode { mix_node } => transactions::try_add_mixnode(deps, info, mix_node),
-        HandleMsg::UnbondMixnode { mix_identity } => {
-            transactions::try_remove_mixnode(deps, info, env, mix_identity)
-        }
+        HandleMsg::UnbondMixnode {} => transactions::try_remove_mixnode(deps, info, env),
         HandleMsg::BondGateway { gateway } => transactions::try_add_gateway(deps, info, gateway),
-        HandleMsg::UnbondGateway { gateway_identity } => {
-            transactions::try_remove_gateway(deps, info, env, gateway_identity)
-        }
+        HandleMsg::UnbondGateway {} => transactions::try_remove_gateway(deps, info, env),
         HandleMsg::UpdateStateParams(params) => {
             transactions::try_update_state_params(deps, info, params)
         }

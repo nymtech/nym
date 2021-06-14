@@ -13,15 +13,11 @@ pub enum HandleMsg {
     BondMixnode {
         mix_node: MixNode,
     },
-    UnbondMixnode {
-        mix_identity: String,
-    },
+    UnbondMixnode {},
     BondGateway {
         gateway: Gateway,
     },
-    UnbondGateway {
-        gateway_identity: String,
-    },
+    UnbondGateway {},
     UpdateStateParams(StateParams),
 
     DelegateToMixnode {

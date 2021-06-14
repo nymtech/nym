@@ -27,6 +27,12 @@ pub enum ContractError {
     #[error("Gateway ({identity:?}) does not exist")]
     GatewayBondNotFound { identity: String },
 
+    #[error("{owner:?} does not seem to own any mixnodes")]
+    NoAssociatedMixNodeBond { owner: HumanAddr },
+
+    #[error("{owner:?} does not seem to own any gateways")]
+    NoAssociatedGatewayBond { owner: HumanAddr },
+
     #[error("Unauthorized")]
     Unauthorized,
 

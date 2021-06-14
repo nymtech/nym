@@ -45,7 +45,8 @@ pub(crate) fn try_add_mixnode(
     info: MessageInfo,
     mix_node: MixNode,
 ) -> Result<HandleResponse, ContractError> {
-    let sender_bytes = info.sender.as_ref();
+    let sender_bytes = info.sender.as_bytes();
+
     // if the client has an active bonded gateway, don't allow mixnode bonding
     if gateways_owners_read(deps.storage)
         .may_load(sender_bytes)?
@@ -97,24 +98,17 @@ pub(crate) fn try_remove_mixnode(
     deps: DepsMut,
     info: MessageInfo,
     env: Env,
-    mix_identity: String,
 ) -> Result<HandleResponse, ContractError> {
-    // find the bond, return ContractError::MixNodeBondNotFound if it doesn't exist
-    let mixnode_bond = match mixnodes_read(deps.storage).may_load(mix_identity.as_bytes())? {
-        Some(bond) => bond,
-        None => {
-            return Err(ContractError::MixNodeBondNotFound {
-                identity: mix_identity,
-            })
-        }
+    let sender_bytes = info.sender.as_bytes();
+
+    // try to find the identity of the sender's node
+    let mix_identity = match mixnodes_owners_read(deps.storage).may_load(sender_bytes)? {
+        Some(identity) => identity,
+        None => return Err(ContractError::NoAssociatedMixNodeBond { owner: info.sender }),
     };
 
-    // check if the sender actually owns the node
-    if mixnode_bond.owner != info.sender {
-        return Err(ContractError::InvalidSender {
-            owner: mixnode_bond.owner,
-        });
-    }
+    // get the bond, since we found associated identity, the node MUST exist
+    let mixnode_bond = mixnodes_read(deps.storage).load(mix_identity.as_bytes())?;
 
     // send bonded funds back to the bond owner
     let messages = vec![BankMsg::Send {
@@ -124,12 +118,10 @@ pub(crate) fn try_remove_mixnode(
     }
     .into()];
 
-    let mix_identity = mixnode_bond.identity();
-
     // remove the bond from the list of bonded mixnodes
     mixnodes(deps.storage).remove(mix_identity.as_bytes());
     // remove the node ownership
-    mixnodes_owners(deps.storage).remove(info.sender.as_bytes());
+    mixnodes_owners(deps.storage).remove(sender_bytes);
     // decrement layer count
     decrement_layer_count(deps.storage, mixnode_bond.mix_node.layer.into())?;
 
@@ -174,7 +166,8 @@ pub(crate) fn try_add_gateway(
     info: MessageInfo,
     gateway: Gateway,
 ) -> Result<HandleResponse, ContractError> {
-    let sender_bytes = info.sender.as_ref();
+    let sender_bytes = info.sender.as_bytes();
+
     // if the client has an active bonded mixnode, don't allow gateway bonding
     if mixnodes_owners_read(deps.storage)
         .may_load(sender_bytes)?
@@ -226,24 +219,17 @@ pub(crate) fn try_remove_gateway(
     deps: DepsMut,
     info: MessageInfo,
     env: Env,
-    gateway_identity: String,
 ) -> Result<HandleResponse, ContractError> {
-    // find the bond, return ContractError::GatewayBondNotFound if it doesn't exist
-    let gateway_bond = match gateways_read(deps.storage).may_load(gateway_identity.as_bytes())? {
-        Some(bond) => bond,
-        None => {
-            return Err(ContractError::GatewayBondNotFound {
-                identity: gateway_identity,
-            })
-        }
+    let sender_bytes = info.sender.as_bytes();
+
+    // try to find the identity of the sender's node
+    let gateway_identity = match gateways_owners_read(deps.storage).may_load(sender_bytes)? {
+        Some(identity) => identity,
+        None => return Err(ContractError::NoAssociatedGatewayBond { owner: info.sender }),
     };
 
-    // check if the sender actually owns the node
-    if gateway_bond.owner != info.sender {
-        return Err(ContractError::InvalidSender {
-            owner: gateway_bond.owner,
-        });
-    }
+    // get the bond, since we found associated identity, the node MUST exist
+    let gateway_bond = gateways_read(deps.storage).load(gateway_identity.as_bytes())?;
 
     // send bonded funds back to the bond owner
     let messages = vec![BankMsg::Send {
@@ -253,12 +239,10 @@ pub(crate) fn try_remove_gateway(
     }
     .into()];
 
-    let gateway_identity = gateway_bond.identity();
-
     // remove the bond from the list of bonded gateways
     gateways(deps.storage).remove(gateway_identity.as_bytes());
     // remove the node ownership
-    gateways_owners(deps.storage).remove(info.sender.as_bytes());
+    gateways_owners(deps.storage).remove(sender_bytes);
     // decrement layer count
     decrement_layer_count(deps.storage, Layer::Gateway)?;
 
@@ -721,9 +705,7 @@ pub mod tests {
 
         // but after he unbonds it, it's all fine again
         let info = mock_info("gateway-owner", &[]);
-        let msg = HandleMsg::UnbondGateway {
-            gateway_identity: "ownersgateway".into(),
-        };
+        let msg = HandleMsg::UnbondGateway {};
         handle(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         let info = mock_info("gateway-owner", &good_mixnode_bond());
@@ -874,16 +856,14 @@ pub mod tests {
 
         // try un-registering when no nodes exist yet
         let info = mock_info("anyone", &[]);
-        let msg = HandleMsg::UnbondMixnode {
-            mix_identity: "anyonesmix".into(),
-        };
+        let msg = HandleMsg::UnbondMixnode {};
         let result = handle(deps.as_mut(), mock_env(), info, msg);
 
         // we're told that there is no node for our address
         assert_eq!(
             result,
-            Err(ContractError::MixNodeBondNotFound {
-                identity: "anyonesmix".to_string()
+            Err(ContractError::NoAssociatedMixNodeBond {
+                owner: "anyone".into()
             })
         );
 
@@ -892,14 +872,12 @@ pub mod tests {
 
         // attempt to un-register fred's node, which doesn't exist
         let info = mock_info("fred", &[]);
-        let msg = HandleMsg::UnbondMixnode {
-            mix_identity: "fredsmixnode".to_string(),
-        };
+        let msg = HandleMsg::UnbondMixnode {};
         let result = handle(deps.as_mut(), mock_env(), info, msg);
         assert_eq!(
             result,
-            Err(ContractError::MixNodeBondNotFound {
-                identity: "fredsmixnode".to_string()
+            Err(ContractError::NoAssociatedMixNodeBond {
+                owner: "fred".into()
             })
         );
 
@@ -923,24 +901,9 @@ pub mod tests {
         // let's make sure we now have 2 nodes:
         assert_eq!(2, helpers::get_mix_nodes(&mut deps).len());
 
-        // try to unregister fred's node as eve
-        let info = mock_info("eve", &[]);
-        let msg = HandleMsg::UnbondMixnode {
-            mix_identity: "fredsmixnode".to_string(),
-        };
-        let res = handle(deps.as_mut(), mock_env(), info.clone(), msg);
-        assert_eq!(
-            Err(ContractError::InvalidSender {
-                owner: "fred".into()
-            }),
-            res
-        );
-
         // un-register fred's node
         let info = mock_info("fred", &[]);
-        let msg = HandleMsg::UnbondMixnode {
-            mix_identity: "fredsmixnode".to_string(),
-        };
+        let msg = HandleMsg::UnbondMixnode {};
         let remove_fred = handle(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
         // we should see log messages come back showing an unbond message
@@ -995,9 +958,7 @@ pub mod tests {
         );
 
         let info = mock_info("mix-owner", &[]);
-        let msg = HandleMsg::UnbondMixnode {
-            mix_identity: "myAwesomeMixnode".to_string(),
-        };
+        let msg = HandleMsg::UnbondMixnode {};
 
         assert!(handle(deps.as_mut(), mock_env(), info, msg).is_ok());
 
@@ -1170,9 +1131,7 @@ pub mod tests {
 
         // but after he unbonds it, it's all fine again
         let info = mock_info("mixnode-owner", &[]);
-        let msg = HandleMsg::UnbondMixnode {
-            mix_identity: "ownersmix".to_string(),
-        };
+        let msg = HandleMsg::UnbondMixnode {};
         handle(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         let info = mock_info("mixnode-owner", &good_gateway_bond());
@@ -1292,16 +1251,14 @@ pub mod tests {
 
         // try unbond when no nodes exist yet
         let info = mock_info("anyone", &[]);
-        let msg = HandleMsg::UnbondGateway {
-            gateway_identity: "anyonegateway".into(),
-        };
+        let msg = HandleMsg::UnbondGateway {};
         let result = handle(deps.as_mut(), mock_env(), info, msg);
 
         // we're told that there is no node for our address
         assert_eq!(
             result,
-            Err(ContractError::GatewayBondNotFound {
-                identity: "anyonegateway".into()
+            Err(ContractError::NoAssociatedGatewayBond {
+                owner: "anyone".into()
             })
         );
 
@@ -1310,14 +1267,12 @@ pub mod tests {
 
         // attempt to unbond fred's node, which doesn't exist
         let info = mock_info("fred", &[]);
-        let msg = HandleMsg::UnbondGateway {
-            gateway_identity: "fredsgateway".to_string(),
-        };
+        let msg = HandleMsg::UnbondGateway {};
         let result = handle(deps.as_mut(), mock_env(), info, msg);
         assert_eq!(
             result,
-            Err(ContractError::GatewayBondNotFound {
-                identity: "fredsgateway".into()
+            Err(ContractError::NoAssociatedGatewayBond {
+                owner: "fred".into()
             })
         );
 
@@ -1343,24 +1298,9 @@ pub mod tests {
         // let's make sure we now have 2 nodes:
         assert_eq!(2, helpers::get_gateways(&mut deps).len());
 
-        // try to unregister fred's node as eve
-        let info = mock_info("eve", &[]);
-        let msg = HandleMsg::UnbondGateway {
-            gateway_identity: "fredsgateway".to_string(),
-        };
-        let res = handle(deps.as_mut(), mock_env(), info.clone(), msg);
-        assert_eq!(
-            Err(ContractError::InvalidSender {
-                owner: "fred".into()
-            }),
-            res
-        );
-
         // unbond fred's node
         let info = mock_info("fred", &[]);
-        let msg = HandleMsg::UnbondGateway {
-            gateway_identity: "fredsgateway".to_string(),
-        };
+        let msg = HandleMsg::UnbondGateway {};
         let remove_fred = handle(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
         // we should see log messages come back showing an unbond message
@@ -1416,9 +1356,7 @@ pub mod tests {
         );
 
         let info = mock_info("gateway-owner", &[]);
-        let msg = HandleMsg::UnbondGateway {
-            gateway_identity: "myAwesomeGateway".to_string(),
-        };
+        let msg = HandleMsg::UnbondGateway {};
 
         assert!(handle(deps.as_mut(), mock_env(), info, msg).is_ok());
 
@@ -1775,13 +1713,7 @@ pub mod tests {
             let mixnode_owner = "bob";
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
 
-            try_remove_mixnode(
-                deps.as_mut(),
-                mock_info(mixnode_owner, &[]),
-                env,
-                identity.clone(),
-            )
-            .unwrap();
+            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[]), env).unwrap();
 
             assert_eq!(
                 Err(ContractError::MixNodeBondNotFound {
@@ -1801,9 +1733,8 @@ pub mod tests {
             let env = mock_env();
 
             let mixnode_owner = "bob";
-            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
-            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[]), env, identity)
-                .unwrap();
+            add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[]), env).unwrap();
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
 
             assert!(try_delegate_to_mixnode(
@@ -1866,13 +1797,7 @@ pub mod tests {
             )
             .unwrap();
 
-            try_remove_mixnode(
-                deps.as_mut(),
-                mock_info(mixnode_owner, &[]),
-                env,
-                identity.clone(),
-            )
-            .unwrap();
+            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[]), env).unwrap();
 
             assert_eq!(
                 Err(ContractError::MixNodeBondNotFound {
@@ -1961,13 +1886,7 @@ pub mod tests {
             )
             .unwrap();
 
-            try_remove_mixnode(
-                deps.as_mut(),
-                mock_info(mixnode_owner, &[]),
-                env,
-                identity.clone(),
-            )
-            .unwrap();
+            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[]), env).unwrap();
 
             assert_eq!(
                 100,
@@ -2061,13 +1980,7 @@ pub mod tests {
             )
             .unwrap();
 
-            try_remove_mixnode(
-                deps.as_mut(),
-                mock_info(mixnode_owner, &[]),
-                env.clone(),
-                identity.clone(),
-            )
-            .unwrap();
+            try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[]), env.clone()).unwrap();
 
             assert_eq!(
                 Ok(HandleResponse {
@@ -2277,13 +2190,7 @@ pub mod tests {
 
             let gateway_owner = "bob";
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
-            try_remove_gateway(
-                deps.as_mut(),
-                mock_info(gateway_owner, &[]),
-                env,
-                identity.clone(),
-            )
-            .unwrap();
+            try_remove_gateway(deps.as_mut(), mock_info(gateway_owner, &[]), env).unwrap();
 
             assert_eq!(
                 Err(ContractError::GatewayBondNotFound {
@@ -2303,14 +2210,8 @@ pub mod tests {
             let env = mock_env();
 
             let gateway_owner = "bob";
-            let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
-            try_remove_gateway(
-                deps.as_mut(),
-                mock_info(gateway_owner, &[]),
-                env,
-                identity.clone(),
-            )
-            .unwrap();
+            add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            try_remove_gateway(deps.as_mut(), mock_info(gateway_owner, &[]), env).unwrap();
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
 
             assert!(try_delegate_to_gateway(
@@ -2373,13 +2274,7 @@ pub mod tests {
             )
             .unwrap();
 
-            try_remove_gateway(
-                deps.as_mut(),
-                mock_info(gateway_owner, &[]),
-                env,
-                identity.clone(),
-            )
-            .unwrap();
+            try_remove_gateway(deps.as_mut(), mock_info(gateway_owner, &[]), env).unwrap();
 
             assert_eq!(
                 Err(ContractError::GatewayBondNotFound {
@@ -2468,13 +2363,7 @@ pub mod tests {
             )
             .unwrap();
 
-            try_remove_gateway(
-                deps.as_mut(),
-                mock_info(gateway_owner, &[]),
-                env,
-                identity.clone(),
-            )
-            .unwrap();
+            try_remove_gateway(deps.as_mut(), mock_info(gateway_owner, &[]), env).unwrap();
 
             assert_eq!(
                 100,
@@ -2567,13 +2456,7 @@ pub mod tests {
             )
             .unwrap();
 
-            try_remove_gateway(
-                deps.as_mut(),
-                mock_info(gateway_owner, &[]),
-                env.clone(),
-                identity.clone(),
-            )
-            .unwrap();
+            try_remove_gateway(deps.as_mut(), mock_info(gateway_owner, &[]), env.clone()).unwrap();
 
             assert_eq!(
                 Ok(HandleResponse {

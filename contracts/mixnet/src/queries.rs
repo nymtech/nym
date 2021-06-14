@@ -485,13 +485,7 @@ mod tests {
         assert!(res.has_node);
 
         // but after unbonding it, he doesn't own one anymore
-        transactions::try_remove_mixnode(
-            deps.as_mut(),
-            mock_info("fred", &[]),
-            env,
-            "fredsnode".to_string(),
-        )
-        .unwrap();
+        transactions::try_remove_mixnode(deps.as_mut(), mock_info("fred", &[]), env).unwrap();
 
         let res = query_owns_mixnode(deps.as_ref(), "fred".into()).unwrap();
         assert!(!res.has_node);
@@ -529,13 +523,7 @@ mod tests {
         assert!(res.has_gateway);
 
         // but after unbonding it, he doesn't own one anymore
-        transactions::try_remove_gateway(
-            deps.as_mut(),
-            mock_info("fred", &[]),
-            env,
-            "fredsnode".to_string(),
-        )
-        .unwrap();
+        transactions::try_remove_gateway(deps.as_mut(), mock_info("fred", &[]), env).unwrap();
 
         let res = query_owns_gateway(deps.as_ref(), "fred".into()).unwrap();
         assert!(!res.has_gateway);

@@ -2,11 +2,9 @@ use serde::{Deserialize, Serialize};
 
 mod delegation;
 mod gateway;
-pub(crate) mod helpers;
 mod mixnode;
 
 pub use cosmwasm_std::{Coin, HumanAddr};
-pub use crypto::asymmetric::{encryption, identity};
 pub use delegation::{Delegation, PagedGatewayDelegationsResponse, PagedMixDelegationsResponse};
 pub use gateway::{Gateway, GatewayBond, GatewayOwnershipResponse, PagedGatewayResponse};
 pub use mixnode::{MixNode, MixNodeBond, MixOwnershipResponse, PagedResponse};

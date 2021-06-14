@@ -34,6 +34,23 @@ const PREFIX_GATEWAYS_OWNERS: &[u8] = b"go";
 const PREFIX_MIX_DELEGATION: &[u8] = b"md";
 const PREFIX_GATEWAY_DELEGATION: &[u8] = b"gd";
 
+// REQUIRED (well, useful) UNTIL MIGRATION:
+pub fn mixnodes_owners_old(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
+    bucket(storage, PREFIX_MIXNODES_OWNERS_OLD)
+}
+
+pub fn gateways_owners_old(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
+    bucket(storage, PREFIX_GATEWAYS_OWNERS_OLD)
+}
+
+pub fn mixnodes_old(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
+    bucket(storage, PREFIX_MIXNODES_OLD)
+}
+
+pub fn gateways_old(storage: &mut dyn Storage) -> Bucket<GatewayBond> {
+    bucket(storage, PREFIX_GATEWAYS_OLD)
+}
+
 // Contract-level stuff
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
@@ -154,20 +171,20 @@ pub fn decrement_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResu
 // Mixnode-related stuff
 
 pub fn mixnodes(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
-    bucket(storage, PREFIX_MIXNODES_OLD)
+    bucket(storage, PREFIX_MIXNODES)
 }
 
 pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
-    bucket_read(storage, PREFIX_MIXNODES_OLD)
+    bucket_read(storage, PREFIX_MIXNODES)
 }
 
 // owner address -> node identity
 pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<String> {
-    bucket(storage, PREFIX_MIXNODES_OWNERS_OLD)
+    bucket(storage, PREFIX_MIXNODES_OWNERS)
 }
 
 pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<String> {
-    bucket_read(storage, PREFIX_MIXNODES_OWNERS_OLD)
+    bucket_read(storage, PREFIX_MIXNODES_OWNERS)
 }
 
 // helpers
@@ -290,20 +307,20 @@ pub(crate) fn read_mixnode_bond(
 // Gateway-related stuff
 
 pub fn gateways(storage: &mut dyn Storage) -> Bucket<GatewayBond> {
-    bucket(storage, PREFIX_GATEWAYS_OLD)
+    bucket(storage, PREFIX_GATEWAYS)
 }
 
 pub fn gateways_read(storage: &dyn Storage) -> ReadonlyBucket<GatewayBond> {
-    bucket_read(storage, PREFIX_GATEWAYS_OLD)
+    bucket_read(storage, PREFIX_GATEWAYS)
 }
 
 // owner address -> node identity
 pub fn gateways_owners(storage: &mut dyn Storage) -> Bucket<String> {
-    bucket(storage, PREFIX_GATEWAYS_OWNERS_OLD)
+    bucket(storage, PREFIX_GATEWAYS_OWNERS)
 }
 
 pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<String> {
-    bucket_read(storage, PREFIX_GATEWAYS_OWNERS_OLD)
+    bucket_read(storage, PREFIX_GATEWAYS_OWNERS)
 }
 
 // helpers

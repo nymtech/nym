@@ -10,8 +10,7 @@ use crate::storage::{
     read_mixnode_epoch_reward_rate, read_state_params, Layer,
 };
 use cosmwasm_std::{
-    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, HandleResponse, HumanAddr, MessageInfo,
-    Uint128,
+    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, HandleResponse, MessageInfo, Uint128,
 };
 use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond};
 
@@ -551,11 +550,11 @@ pub(crate) fn try_remove_delegation_from_gateway(
 pub mod tests {
     use super::*;
     use crate::contract::{
-        handle, init, query, INITIAL_DEFAULT_EPOCH_LENGTH, INITIAL_GATEWAY_BOND,
+        handle, query, INITIAL_DEFAULT_EPOCH_LENGTH, INITIAL_GATEWAY_BOND,
         INITIAL_GATEWAY_BOND_REWARD_RATE, INITIAL_MIXNODE_BOND, INITIAL_MIXNODE_BOND_REWARD_RATE,
     };
     use crate::helpers::calculate_epoch_reward_rate;
-    use crate::msg::{HandleMsg, InitMsg, QueryMsg};
+    use crate::msg::{HandleMsg, QueryMsg};
     use crate::state::StateParams;
     use crate::storage::{
         gateway_delegations, gateway_delegations_read, layer_distribution_read,
@@ -566,8 +565,8 @@ pub mod tests {
         add_gateway, add_mixnode, gateway_fixture, good_gateway_bond, good_mixnode_bond,
         mix_node_fixture,
     };
-    use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary, Uint128};
+    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::{coins, from_binary, HumanAddr, Uint128};
     use mixnet_contract::{LayerDistribution, PagedGatewayResponse, PagedResponse};
 
     #[test]

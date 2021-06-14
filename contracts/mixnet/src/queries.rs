@@ -14,7 +14,6 @@ use mixnet_contract::{
     MixOwnershipResponse, PagedGatewayDelegationsResponse, PagedGatewayResponse,
     PagedMixDelegationsResponse, PagedResponse,
 };
-use std::io::Read;
 
 const BOND_PAGE_MAX_LIMIT: u32 = 100;
 const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;

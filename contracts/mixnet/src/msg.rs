@@ -1,6 +1,6 @@
 use crate::state::StateParams;
 use cosmwasm_std::HumanAddr;
-use mixnet_contract::{identity, Gateway, MixNode};
+use mixnet_contract::{Gateway, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

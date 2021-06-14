@@ -1,13 +1,15 @@
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::msg::{HandleMsg, InitMsg, MigrateMsg, QueryMsg};
 use crate::state::{State, StateParams};
-use crate::storage::{config, layer_distribution};
+use crate::storage::{
+    config, gateways_old, gateways_owners_old, layer_distribution, mixnodes_old,
+    mixnodes_owners_old,
+};
 use crate::{error::ContractError, queries, transactions};
 use cosmwasm_std::{
     to_binary, Decimal, Deps, DepsMut, Env, HandleResponse, HumanAddr, InitResponse, MessageInfo,
     MigrateResponse, QueryResponse, Uint128,
 };
-use mixnet_contract::LayerDistribution;
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 
@@ -175,6 +177,11 @@ pub fn migrate(
     _info: MessageInfo,
     _msg: MigrateMsg,
 ) -> Result<MigrateResponse, ContractError> {
+    mixnodes_old(deps.storage);
+    mixnodes_owners_old(deps.storage);
+    gateways_old(deps.storage);
+    gateways_owners_old(deps.storage);
+
     // What we need to do here for mixnodes is the following (the procedure will be identical for gateways):
     // 1. Load mixnodes (page by page) using the PREFIX_MIXNODES_OLD
     // 2. Save that the same data using PREFIX_MIXNODES, but the data key will be the value.mix_node.identity instead
@@ -187,12 +194,10 @@ pub fn migrate(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::storage::{gateways, layer_distribution_read, mixnodes};
-    use crate::support::tests::helpers;
     use crate::support::tests::helpers::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
-    use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond, PagedResponse};
+    use mixnet_contract::PagedResponse;
 
     #[test]
     fn initialize_contract() {

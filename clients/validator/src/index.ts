@@ -320,7 +320,7 @@ export default class ValidatorClient {
     // requires coin type to ensure correct denomination (
     async delegateToGateway(gatewayIdentity: string, amount: Coin): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { delegate_to_gateway: { gateway_owner: gatewayIdentity } }, `delegating to ${gatewayIdentity}`, [amount]).catch((err) => this.handleRequestFailure(err))
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { delegate_to_gateway: { gateway_identity: gatewayIdentity } }, `delegating to ${gatewayIdentity}`, [amount]).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} delegated ${amount} to gateway ${gatewayIdentity}`);
             return result;
         } else {
@@ -335,7 +335,7 @@ export default class ValidatorClient {
      */
     async removeGatewayDelegation(gatewayIdentity: string): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { undelegate_from_gateway: { gateway_owner: gatewayIdentity } }).catch((err) => this.handleRequestFailure(err))
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { undelegate_from_gateway: { gateway_identity: gatewayIdentity } }).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} removed delegation from gateway ${gatewayIdentity}`);
             return result;
         } else {

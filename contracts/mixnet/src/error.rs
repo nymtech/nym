@@ -16,22 +16,28 @@ pub enum ContractError {
     )]
     InsufficientMixNodeBond { received: u128, minimum: u128 },
 
-    #[error("Account does not own any mixnode bonds")]
-    MixNodeBondNotFound {},
+    #[error("Mixnode ({identity:?}) does not exist")]
+    MixNodeBondNotFound { identity: String },
 
     #[error(
         "Not enough funds sent for gateway bond. (received {received:?}, minimum {minimum:?})"
     )]
     InsufficientGatewayBond { received: u128, minimum: u128 },
 
-    #[error("Account ({account:?}) does not own any gateway bonds")]
-    GatewayBondNotFound { account: HumanAddr },
+    #[error("Gateway ({identity:?}) does not exist")]
+    GatewayBondNotFound { identity: String },
+
+    #[error("{owner:?} does not seem to own any mixnodes")]
+    NoAssociatedMixNodeBond { owner: HumanAddr },
+
+    #[error("{owner:?} does not seem to own any gateways")]
+    NoAssociatedGatewayBond { owner: HumanAddr },
 
     #[error("Unauthorized")]
     Unauthorized,
 
     #[error("Wrong coin denomination, you must send {}", DENOM)]
-    WrongDenom {},
+    WrongDenom,
 
     #[error("Received multiple coin types during staking")]
     MultipleDenoms,
@@ -63,9 +69,12 @@ pub enum ContractError {
     #[error("No funds were provided for the delegation")]
     EmptyDelegation,
 
-    #[error("Could not find any delegation information associated with mixnode owned by {mixnode_owner:?}")]
-    NoMixnodeDelegationFound { mixnode_owner: HumanAddr },
+    #[error("Request did not come from the node owner ({owner:?})")]
+    InvalidSender { owner: HumanAddr },
 
-    #[error("Could not find any delegation information associated with gateway owned by {gateway_owner:?}")]
-    NoGatewayDelegationFound { gateway_owner: HumanAddr },
+    #[error("Could not find any delegation information associated with mixnode {identity:?}")]
+    NoMixnodeDelegationFound { identity: String },
+
+    #[error("Could not find any delegation information associated with gateway {identity:?}")]
+    NoGatewayDelegationFound { identity: String },
 }

@@ -1,9 +1,9 @@
 #[cfg(test)]
 pub mod helpers {
     use super::*;
-    use crate::contract::init;
     use crate::contract::query;
     use crate::contract::DENOM;
+    use crate::contract::{init, INITIAL_MIXNODE_BOND};
     use crate::msg::InitMsg;
     use crate::msg::QueryMsg;
     use crate::transactions::{try_add_gateway, try_add_mixnode};
@@ -24,20 +24,22 @@ pub mod helpers {
     };
 
     pub fn add_mixnode(
-        pubkey: &str,
+        sender: &str,
         stake: Vec<Coin>,
         deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
-    ) {
-        let info = mock_info(pubkey, &stake);
+    ) -> String {
+        let info = mock_info(sender, &stake);
+        let key = format!("{}mixnode", sender);
         try_add_mixnode(
             deps.as_mut(),
             info,
             MixNode {
-                identity_key: format!("{}mixnode", pubkey),
+                identity_key: key.clone(),
                 ..helpers::mix_node_fixture()
             },
         )
         .unwrap();
+        key
     }
 
     pub fn get_mix_nodes(
@@ -58,20 +60,22 @@ pub mod helpers {
     }
 
     pub fn add_gateway(
-        pubkey: &str,
+        sender: &str,
         stake: Vec<Coin>,
         deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
-    ) {
-        let info = mock_info(pubkey, &stake);
+    ) -> String {
+        let info = mock_info(sender, &stake);
+        let key = format!("{}gateway", sender);
         try_add_gateway(
             deps.as_mut(),
             info,
             Gateway {
-                identity_key: format!("{}gateway", pubkey),
+                identity_key: key.clone(),
                 ..helpers::gateway_fixture()
             },
         )
         .unwrap();
+        key
     }
 
     pub fn get_gateways(
@@ -152,5 +156,19 @@ pub mod helpers {
     ) -> Vec<Coin> {
         let querier = deps.as_ref().querier;
         vec![querier.query_balance(address, DENOM).unwrap()]
+    }
+
+    pub fn good_mixnode_bond() -> Vec<Coin> {
+        vec![Coin {
+            denom: DENOM.to_string(),
+            amount: INITIAL_MIXNODE_BOND,
+        }]
+    }
+
+    pub fn good_gateway_bond() -> Vec<Coin> {
+        vec![Coin {
+            denom: DENOM.to_string(),
+            amount: INITIAL_MIXNODE_BOND,
+        }]
     }
 }

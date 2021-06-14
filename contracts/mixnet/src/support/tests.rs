@@ -24,20 +24,22 @@ pub mod helpers {
     };
 
     pub fn add_mixnode(
-        pubkey: &str,
+        sender: &str,
         stake: Vec<Coin>,
         deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
-    ) {
-        let info = mock_info(pubkey, &stake);
+    ) -> String {
+        let info = mock_info(sender, &stake);
+        let key = format!("{}mixnode", sender);
         try_add_mixnode(
             deps.as_mut(),
             info,
             MixNode {
-                identity_key: format!("{}mixnode", pubkey),
+                identity_key: key.clone(),
                 ..helpers::mix_node_fixture()
             },
         )
         .unwrap();
+        key
     }
 
     pub fn get_mix_nodes(
@@ -58,20 +60,22 @@ pub mod helpers {
     }
 
     pub fn add_gateway(
-        pubkey: &str,
+        sender: &str,
         stake: Vec<Coin>,
         deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
-    ) {
-        let info = mock_info(pubkey, &stake);
+    ) -> String {
+        let info = mock_info(sender, &stake);
+        let key = format!("{}gateway", sender);
         try_add_gateway(
             deps.as_mut(),
             info,
             Gateway {
-                identity_key: format!("{}gateway", pubkey),
+                identity_key: key.clone(),
                 ..helpers::gateway_fixture()
             },
         )
         .unwrap();
+        key
     }
 
     pub fn get_gateways(

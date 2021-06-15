@@ -36,10 +36,3 @@ You can chat to us in [Keybase](https://keybase.io). Download their chat app, th
 
 This program is available as open source under the terms of the Apache 2.0 license. However, some elements are being licensed under CC0-1.0 and MIT. For accurate information, please check individual files.
 
-
-
-
-
-
-
-.....

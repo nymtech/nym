@@ -20,21 +20,77 @@ pub mod helpers {
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::{Empty, MemoryStorage};
     use mixnet_contract::{
-        Gateway, GatewayBond, MixNode, MixNodeBond, PagedGatewayResponse, PagedResponse,
+        EncryptionStringPublicKeyWrapper, Gateway, GatewayBond, IdentityStringPublicKeyWrapper,
+        MixNode, MixNodeBond, PagedGatewayResponse, PagedResponse,
     };
+    use sha3::Digest;
+    use std::ops::Deref;
+
+    // helper trait to allow easy test identities construction, like `"foo".hash_to_identity()`;
+    pub(crate) trait HashToIdentity {
+        fn hash_to_identity(self) -> IdentityStringPublicKeyWrapper;
+    }
+
+    impl<I> HashToIdentity for I
+    where
+        I: AsRef<[u8]>,
+    {
+        // just hash and increment
+        // this is a very naive way of getting identity out of an arbitrary string
+        // but considering it's only used for tests, it's good enough
+        fn hash_to_identity(self) -> IdentityStringPublicKeyWrapper {
+            let mut h = sha3::Sha3_256::new();
+
+            let mut ctr = 0u64;
+            loop {
+                h.update(self.as_ref());
+                h.update(&ctr.to_le_bytes());
+                ctr += 1;
+
+                let digest = h.finalize_reset();
+
+                let array: [u8; 32] = digest.into();
+                if let Ok(key) =
+                    <IdentityStringPublicKeyWrapper as Deref>::Target::from_bytes(&array)
+                {
+                    return IdentityStringPublicKeyWrapper(key);
+                }
+            }
+        }
+    }
+
+    // this one is only ever used to create fixtures here so it doesn't need a full-blown trait definition
+    fn hash_to_sphinx_key<I: AsRef<[u8]>>(val: I) -> EncryptionStringPublicKeyWrapper {
+        let mut h = sha3::Sha3_256::new();
+
+        let mut ctr = 0u64;
+        loop {
+            h.update(val.as_ref());
+            h.update(&ctr.to_le_bytes());
+            ctr += 1;
+
+            let digest = h.finalize_reset();
+
+            let array: [u8; 32] = digest.into();
+            if let Ok(key) = <EncryptionStringPublicKeyWrapper as Deref>::Target::from_bytes(&array)
+            {
+                return EncryptionStringPublicKeyWrapper(key);
+            }
+        }
+    }
 
     pub fn add_mixnode(
         sender: &str,
         stake: Vec<Coin>,
         deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
-    ) -> String {
+    ) -> IdentityStringPublicKeyWrapper {
         let info = mock_info(sender, &stake);
-        let key = format!("{}mixnode", sender);
+        let key = format!("{}mixnode", sender).hash_to_identity();
         try_add_mixnode(
             deps.as_mut(),
             info,
             MixNode {
-                identity_key: key.clone(),
+                identity_key: key,
                 ..helpers::mix_node_fixture()
             },
         )
@@ -63,14 +119,14 @@ pub mod helpers {
         sender: &str,
         stake: Vec<Coin>,
         deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
-    ) -> String {
+    ) -> IdentityStringPublicKeyWrapper {
         let info = mock_info(sender, &stake);
-        let key = format!("{}gateway", sender);
+        let key = format!("{}gateway", sender).hash_to_identity();
         try_add_gateway(
             deps.as_mut(),
             info,
             Gateway {
-                identity_key: key.clone(),
+                identity_key: key,
                 ..helpers::gateway_fixture()
             },
         )
@@ -109,8 +165,8 @@ pub mod helpers {
             "mix.node.org".to_string(),
             1,
             "Sweden".to_string(),
-            "sphinx".to_string(),
-            "identity".to_string(),
+            hash_to_sphinx_key("sphinx"),
+            "identity".hash_to_identity(),
             "0.10.0".to_string(),
         )
     }
@@ -120,8 +176,8 @@ pub mod helpers {
             "1.1.1.1".to_string(),
             1,
             "London".to_string(),
-            "1234".to_string(),
-            "aaaa".to_string(),
+            hash_to_sphinx_key("1234"),
+            "aaaa".hash_to_identity(),
             "0.10.0".to_string(),
         );
         MixNodeBond::new(coins(50, DENOM), HumanAddr::from("foo"), mix_node)
@@ -132,8 +188,8 @@ pub mod helpers {
             "1.1.1.1:1234".to_string(),
             "ws://1.1.1.1:1235".to_string(),
             "Sweden".to_string(),
-            "sphinx".to_string(),
-            "identity".to_string(),
+            hash_to_sphinx_key("sphinx"),
+            "identity".hash_to_identity(),
             "0.10.0".to_string(),
         )
     }
@@ -143,8 +199,8 @@ pub mod helpers {
             "1.1.1.1:1234".to_string(),
             "ws://1.1.1.1:1235".to_string(),
             "London".to_string(),
-            "sphinx".to_string(),
-            "identity".to_string(),
+            hash_to_sphinx_key("sphinx"),
+            "identity".hash_to_identity(),
             "0.10.0".to_string(),
         );
         GatewayBond::new(coins(50, DENOM), HumanAddr::from("foo"), gateway)

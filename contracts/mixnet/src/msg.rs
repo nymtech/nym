@@ -1,6 +1,6 @@
 use crate::state::StateParams;
 use cosmwasm_std::HumanAddr;
-use mixnet_contract::{Gateway, MixNode};
+use mixnet_contract::{Gateway, IdentityStringPublicKeyWrapper, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -21,29 +21,29 @@ pub enum HandleMsg {
     UpdateStateParams(StateParams),
 
     DelegateToMixnode {
-        mix_identity: String,
+        mix_identity: IdentityStringPublicKeyWrapper,
     },
 
     UndelegateFromMixnode {
-        mix_identity: String,
+        mix_identity: IdentityStringPublicKeyWrapper,
     },
 
     DelegateToGateway {
-        gateway_identity: String,
+        gateway_identity: IdentityStringPublicKeyWrapper,
     },
 
     UndelegateFromGateway {
-        gateway_identity: String,
+        gateway_identity: IdentityStringPublicKeyWrapper,
     },
 
     RewardMixnode {
-        identity: String,
+        identity: IdentityStringPublicKeyWrapper,
         // percentage value in range 0-100
         uptime: u32,
     },
 
     RewardGateway {
-        identity: String,
+        identity: IdentityStringPublicKeyWrapper,
         // percentage value in range 0-100
         uptime: u32,
     },
@@ -54,10 +54,10 @@ pub enum HandleMsg {
 pub enum QueryMsg {
     GetMixNodes {
         limit: Option<u32>,
-        start_after: Option<String>,
+        start_after: Option<IdentityStringPublicKeyWrapper>,
     },
     GetGateways {
-        start_after: Option<String>,
+        start_after: Option<IdentityStringPublicKeyWrapper>,
         limit: Option<u32>,
     },
     OwnsMixnode {
@@ -68,21 +68,21 @@ pub enum QueryMsg {
     },
     StateParams {},
     GetMixDelegations {
-        mix_identity: String,
-        start_after: Option<String>,
+        mix_identity: IdentityStringPublicKeyWrapper,
+        start_after: Option<HumanAddr>,
         limit: Option<u32>,
     },
     GetMixDelegation {
-        mix_identity: String,
+        mix_identity: IdentityStringPublicKeyWrapper,
         address: HumanAddr,
     },
     GetGatewayDelegations {
-        gateway_identity: String,
-        start_after: Option<String>,
+        gateway_identity: IdentityStringPublicKeyWrapper,
+        start_after: Option<HumanAddr>,
         limit: Option<u32>,
     },
     GetGatewayDelegation {
-        gateway_identity: String,
+        gateway_identity: IdentityStringPublicKeyWrapper,
         address: HumanAddr,
     },
     LayerDistribution {},

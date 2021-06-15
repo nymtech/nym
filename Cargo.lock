@@ -574,6 +574,7 @@ dependencies = [
  "nymsphinx-types",
  "pemstore",
  "rand 0.7.3",
+ "serde",
  "x25519-dalek",
 ]
 
@@ -635,6 +636,7 @@ dependencies = [
  "byteorder",
  "digest 0.9.0",
  "rand_core 0.5.1",
+ "serde",
  "subtle 2.2.3",
  "zeroize",
 ]
@@ -753,6 +755,7 @@ version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf038a7b6fd7ef78ad3348b63f3a17550877b0e28f8d68bcc94894d1412158bc"
 dependencies = [
+ "serde",
  "signature",
 ]
 
@@ -1479,6 +1482,7 @@ name = "mixnet-contract"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "crypto",
  "schemars",
  "serde",
 ]
@@ -3610,6 +3614,7 @@ checksum = "bc614d95359fd7afc321b66d2107ede58b246b844cf5d8a0adcca413e439f088"
 dependencies = [
  "curve25519-dalek",
  "rand_core 0.5.1",
+ "serde",
  "zeroize",
 ]
 

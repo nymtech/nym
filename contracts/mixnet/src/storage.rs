@@ -5,7 +5,9 @@ use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
-use mixnet_contract::{GatewayBond, LayerDistribution, MixNodeBond};
+use mixnet_contract::{
+    GatewayBond, IdentityStringPublicKeyWrapper, LayerDistribution, MixNodeBond,
+};
 
 // storage prefixes
 // all of them must be unique and presumably not be a prefix of a different one
@@ -153,11 +155,13 @@ pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
 }
 
 // owner address -> node identity
-pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<String> {
+pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<IdentityStringPublicKeyWrapper> {
     bucket(storage, PREFIX_MIXNODES_OWNERS)
 }
 
-pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<String> {
+pub fn mixnodes_owners_read(
+    storage: &dyn Storage,
+) -> ReadonlyBucket<IdentityStringPublicKeyWrapper> {
     bucket_read(storage, PREFIX_MIXNODES_OWNERS)
 }
 
@@ -180,7 +184,7 @@ pub(crate) fn increase_mixnode_bond(
 
 pub(crate) fn increase_mix_delegated_stakes(
     storage: &mut dyn Storage,
-    mix_identity: &str,
+    mix_identity: IdentityStringPublicKeyWrapper,
     scaled_reward_rate: Decimal,
 ) -> StdResult<()> {
     let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
@@ -222,7 +226,7 @@ pub(crate) fn increase_mix_delegated_stakes(
 
 pub(crate) fn increase_gateway_delegated_stakes(
     storage: &mut dyn Storage,
-    gateway_identity: &str,
+    gateway_identity: IdentityStringPublicKeyWrapper,
     scaled_reward_rate: Decimal,
 ) -> StdResult<()> {
     let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
@@ -289,11 +293,13 @@ pub fn gateways_read(storage: &dyn Storage) -> ReadonlyBucket<GatewayBond> {
 }
 
 // owner address -> node identity
-pub fn gateways_owners(storage: &mut dyn Storage) -> Bucket<String> {
+pub fn gateways_owners(storage: &mut dyn Storage) -> Bucket<IdentityStringPublicKeyWrapper> {
     bucket(storage, PREFIX_GATEWAYS_OWNERS)
 }
 
-pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<String> {
+pub fn gateways_owners_read(
+    storage: &dyn Storage,
+) -> ReadonlyBucket<IdentityStringPublicKeyWrapper> {
     bucket_read(storage, PREFIX_GATEWAYS_OWNERS)
 }
 
@@ -314,34 +320,38 @@ pub(crate) fn increase_gateway_bond(
 }
 
 // delegation related
-pub fn mix_delegations<'a>(
-    storage: &'a mut dyn Storage,
-    mix_identity: &'a str,
-) -> Bucket<'a, Uint128> {
+#[inline]
+pub fn mix_delegations(
+    storage: &mut dyn Storage,
+    mix_identity: IdentityStringPublicKeyWrapper,
+) -> Bucket<Uint128> {
     Bucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
 }
 
-pub fn mix_delegations_read<'a>(
-    storage: &'a dyn Storage,
-    mix_identity: &'a str,
-) -> ReadonlyBucket<'a, Uint128> {
+#[inline]
+pub fn mix_delegations_read(
+    storage: &dyn Storage,
+    mix_identity: IdentityStringPublicKeyWrapper,
+) -> ReadonlyBucket<Uint128> {
     ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
 }
 
-pub fn gateway_delegations<'a>(
-    storage: &'a mut dyn Storage,
-    gateway_identity: &'a str,
-) -> Bucket<'a, Uint128> {
+#[inline]
+pub fn gateway_delegations(
+    storage: &mut dyn Storage,
+    gateway_identity: IdentityStringPublicKeyWrapper,
+) -> Bucket<Uint128> {
     Bucket::multilevel(
         storage,
         &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],
     )
 }
 
-pub fn gateway_delegations_read<'a>(
-    storage: &'a dyn Storage,
-    gateway_identity: &'a str,
-) -> ReadonlyBucket<'a, Uint128> {
+#[inline]
+pub fn gateway_delegations_read(
+    storage: &dyn Storage,
+    gateway_identity: IdentityStringPublicKeyWrapper,
+) -> ReadonlyBucket<Uint128> {
     ReadonlyBucket::multilevel(
         storage,
         &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],

@@ -189,7 +189,7 @@ impl MixNode {
         existing_nodes
             .iter()
             .find(|node| node.mix_node.host == self.config.get_announce_address())
-            .map(|node| node.mix_node.identity_key.clone())
+            .map(|node| node.mix_node.identity_key.to_base58_string())
     }
 
     async fn wait_for_interrupt(&self) {

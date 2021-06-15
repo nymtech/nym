@@ -309,9 +309,7 @@ impl RttMeasurer {
                         return None;
                     }
 
-                    // try to parse the identity and host
-                    let node_identity =
-                        identity::PublicKey::from_base58_string(node.mix_node.identity_key).ok()?;
+                    let node_identity = node.mix_node.identity_key.0;
                     let mix_host = node.mix_node.host.parse().ok()?;
                     Some(TestedNode::new(
                         replace_port(mix_host, self.config.measurement_port),

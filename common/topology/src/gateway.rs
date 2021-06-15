@@ -132,8 +132,8 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
             mixnet_listener: bond.gateway.try_resolve_hostname().map_err(|err| {
                 GatewayConversionError::InvalidAddress(bond.gateway.mix_host.clone(), err)
             })?,
-            identity_key: identity::PublicKey::from_base58_string(&bond.gateway.identity_key)?,
-            sphinx_key: encryption::PublicKey::from_base58_string(&bond.gateway.sphinx_key)?,
+            identity_key: bond.gateway.identity_key.0,
+            sphinx_key: bond.gateway.sphinx_key.0,
             version: bond.gateway.version.clone(),
         })
     }

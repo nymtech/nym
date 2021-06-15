@@ -150,7 +150,7 @@ impl Gateway {
                 node.gateway.mix_host == announced_mix_host
                     || node.gateway.clients_host == announced_clients_host
             })
-            .map(|node| node.gateway().identity_key.clone())
+            .map(|node| node.gateway().identity_key.to_base58_string())
     }
 
     // Rather than starting all futures with explicit `&Handle` argument, let's see how it works

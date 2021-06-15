@@ -226,7 +226,7 @@ impl PacketPreparer {
     fn mix_into_prepared_node(&self, nonce: u64, mixnode_bond: &MixNodeBond) -> PreparedNode {
         if !self.check_version_compatibility(&mixnode_bond.mix_node().version) {
             return PreparedNode::Invalid(InvalidNode::OutdatedMix(
-                mixnode_bond.mix_node().identity_key.clone(),
+                mixnode_bond.mix_node().identity_key.to_base58_string(),
                 mixnode_bond.owner.to_string(),
                 mixnode_bond.mix_node().version.clone(),
             ));
@@ -254,7 +254,7 @@ impl PacketPreparer {
                     err
                 );
                 PreparedNode::Invalid(InvalidNode::MalformedMix(
-                    mixnode_bond.mix_node().identity_key.clone(),
+                    mixnode_bond.mix_node().identity_key.to_base58_string(),
                     mixnode_bond.owner.to_string(),
                 ))
             }
@@ -264,7 +264,7 @@ impl PacketPreparer {
     fn gateway_into_prepared_node(&self, nonce: u64, gateway_bond: &GatewayBond) -> PreparedNode {
         if !self.check_version_compatibility(&gateway_bond.gateway().version) {
             return PreparedNode::Invalid(InvalidNode::OutdatedGateway(
-                gateway_bond.gateway().identity_key.clone(),
+                gateway_bond.gateway().identity_key.to_base58_string(),
                 gateway_bond.owner.to_string(),
                 gateway_bond.gateway().version.clone(),
             ));
@@ -292,7 +292,7 @@ impl PacketPreparer {
                     err
                 );
                 PreparedNode::Invalid(InvalidNode::MalformedGateway(
-                    gateway_bond.gateway().identity_key.clone(),
+                    gateway_bond.gateway().identity_key.to_base58_string(),
                     gateway_bond.owner.to_string(),
                 ))
             }

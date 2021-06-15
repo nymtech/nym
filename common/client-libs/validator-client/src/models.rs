@@ -3,6 +3,7 @@
 
 use crate::serde_helpers::{de_i64_from_str, de_paged_query_response_from_str};
 use core::fmt::{self, Display, Formatter};
+use mixnet_contract::IdentityStringPublicKeyWrapper;
 use serde::{Deserialize, Serialize};
 
 // TODO: this is a duplicate code but it really does not feel
@@ -13,10 +14,10 @@ use serde::{Deserialize, Serialize};
 pub(super) enum QueryRequest {
     GetMixNodes {
         limit: Option<u32>,
-        start_after: Option<String>,
+        start: Option<IdentityStringPublicKeyWrapper>,
     },
     GetGateways {
-        start_after: Option<String>,
+        start: Option<IdentityStringPublicKeyWrapper>,
         limit: Option<u32>,
     },
     LayerDistribution {},

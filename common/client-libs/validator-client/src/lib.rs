@@ -5,7 +5,8 @@ use crate::models::{QueryRequest, QueryResponse};
 use crate::ValidatorClientError::ValidatorError;
 use core::fmt::{self, Display, Formatter};
 use mixnet_contract::{
-    GatewayBond, LayerDistribution, MixNodeBond, PagedGatewayResponse, PagedResponse,
+    GatewayBond, IdentityStringPublicKeyWrapper, LayerDistribution, MixNodeBond,
+    PagedGatewayResponse, PagedResponse,
 };
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -177,11 +178,11 @@ impl Client {
 
     async fn get_mix_nodes_paged(
         &mut self,
-        start_after: Option<String>,
+        start: Option<IdentityStringPublicKeyWrapper>,
     ) -> Result<PagedResponse, ValidatorClientError> {
         let query_content_json = serde_json::to_string(&QueryRequest::GetMixNodes {
             limit: self.config.mixnode_page_limit,
-            start_after,
+            start,
         })
         .expect("serde was incorrectly implemented on QueryRequest::GetMixNodes!");
 
@@ -198,7 +199,7 @@ impl Client {
             let mut paged_response = self.get_mix_nodes_paged(start_after.take()).await?;
             mixnodes.append(&mut paged_response.nodes);
 
-            if let Some(start_after_res) = paged_response.start_next_after {
+            if let Some(start_after_res) = paged_response.start_next {
                 start_after = Some(start_after_res)
             } else {
                 break;
@@ -210,11 +211,11 @@ impl Client {
 
     async fn get_gateways_paged(
         &mut self,
-        start_after: Option<String>,
+        start: Option<IdentityStringPublicKeyWrapper>,
     ) -> Result<PagedGatewayResponse, ValidatorClientError> {
         let query_content_json = serde_json::to_string(&QueryRequest::GetGateways {
             limit: self.config.gateway_page_limit,
-            start_after,
+            start,
         })
         .expect("serde was incorrectly implemented on QueryRequest::GetGateways!");
 
@@ -231,7 +232,7 @@ impl Client {
             let mut paged_response = self.get_gateways_paged(start_after.take()).await?;
             gateways.append(&mut paged_response.nodes);
 
-            if let Some(start_after_res) = paged_response.start_next_after {
+            if let Some(start_after_res) = paged_response.start_next {
                 start_after = Some(start_after_res)
             } else {
                 break;

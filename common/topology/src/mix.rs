@@ -123,8 +123,8 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
             host: bond.mix_node.try_resolve_hostname().map_err(|err| {
                 MixnodeConversionError::InvalidAddress(bond.mix_node.host.clone(), err)
             })?,
-            identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,
-            sphinx_key: encryption::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)?,
+            identity_key: bond.mix_node.identity_key.0,
+            sphinx_key: bond.mix_node.sphinx_key.0,
             layer: bond.mix_node.layer,
             version: bond.mix_node.version.clone(),
         })

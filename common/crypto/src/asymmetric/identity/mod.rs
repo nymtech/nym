@@ -101,12 +101,22 @@ impl PemStorableKeyPair for KeyPair {
 }
 
 /// ed25519 EdDSA Public Key
+#[cfg_attr(
+    feature = "serde-serialize",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct PublicKey(ed25519_dalek::PublicKey);
 
 impl Display for PublicKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_base58_string())
+    }
+}
+
+impl AsRef<[u8]> for PublicKey {
+    fn as_ref(&self) -> &[u8] {
+        self.as_bytes()
     }
 }
 
@@ -122,10 +132,17 @@ impl PublicKey {
     }
 
     /// Convert this public key to a byte array.
+    #[inline]
     pub fn to_bytes(self) -> [u8; PUBLIC_KEY_LENGTH] {
         self.0.to_bytes()
     }
 
+    #[inline]
+    pub fn as_bytes(&self) -> &[u8; PUBLIC_KEY_LENGTH] {
+        self.0.as_bytes()
+    }
+
+    #[inline]
     pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
         Ok(PublicKey(ed25519_dalek::PublicKey::from_bytes(b)?))
     }

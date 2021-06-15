@@ -103,6 +103,10 @@ impl PemStorableKeyPair for KeyPair {
     }
 }
 
+#[cfg_attr(
+    feature = "serde-serialize",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
 pub struct PublicKey(x25519_dalek::PublicKey);
 
@@ -112,11 +116,24 @@ impl Display for PublicKey {
     }
 }
 
+impl AsRef<[u8]> for PublicKey {
+    fn as_ref(&self) -> &[u8] {
+        self.as_bytes()
+    }
+}
+
 impl PublicKey {
+    #[inline]
     pub fn to_bytes(self) -> [u8; PUBLIC_KEY_SIZE] {
-        *self.0.as_bytes()
+        self.0.to_bytes()
     }
 
+    #[inline]
+    pub fn as_bytes(&self) -> &[u8; PUBLIC_KEY_SIZE] {
+        self.0.as_bytes()
+    }
+
+    #[inline]
     pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
         if b.len() != PUBLIC_KEY_SIZE {
             return Err(KeyRecoveryError::InvalidPublicKeyBytes);

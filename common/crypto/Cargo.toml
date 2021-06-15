@@ -20,7 +20,11 @@ x25519-dalek = "1.1"
 ed25519-dalek = "1.0"
 log = "0.4"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+serde = { version = "1.0", features = ["derive"], default-features = false, optional = true }
 
 # internal
 nymsphinx-types = { path = "../nymsphinx/types" }
 pemstore = { path = "../../common/pemstore" }
+
+[features]
+serde-serialize = ["serde", "ed25519-dalek/serde", "x25519-dalek/serde"]

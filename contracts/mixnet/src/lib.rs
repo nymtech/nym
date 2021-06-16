@@ -1,6 +1,7 @@
 pub mod contract;
 pub mod error;
 pub(crate) mod helpers;
+pub(crate) mod migration_helpers;
 pub mod msg;
 pub mod queries;
 pub mod state;

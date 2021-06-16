@@ -72,9 +72,15 @@ pub enum ContractError {
     #[error("Request did not come from the node owner ({owner:?})")]
     InvalidSender { owner: HumanAddr },
 
-    #[error("Could not find any delegation information associated with mixnode {identity:?}")]
-    NoMixnodeDelegationFound { identity: String },
+    #[error("Could not find any delegation information associated with mixnode {identity} for {address}")]
+    NoMixnodeDelegationFound {
+        identity: String,
+        address: HumanAddr,
+    },
 
-    #[error("Could not find any delegation information associated with gateway {identity:?}")]
-    NoGatewayDelegationFound { identity: String },
+    #[error("Could not find any delegation information associated with gateway {identity} for {address}")]
+    NoGatewayDelegationFound {
+        identity: String,
+        address: HumanAddr,
+    },
 }

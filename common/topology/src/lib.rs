@@ -205,7 +205,7 @@ pub fn nym_topology_from_bonds(
             );
             continue;
         }
-        let mix_id = bond.mix_node.identity_key.clone();
+        let mix_id = bond.mix_node.identity_key;
 
         let layer_entry = mixes.entry(layer).or_insert_with(Vec::new);
         match bond.try_into() {
@@ -219,7 +219,7 @@ pub fn nym_topology_from_bonds(
 
     let mut gateways = Vec::with_capacity(gateway_bonds.len());
     for bond in gateway_bonds.into_iter() {
-        let gate_id = bond.gateway.identity_key.clone();
+        let gate_id = bond.gateway.identity_key;
         match bond.try_into() {
             Ok(gate) => gateways.push(gate),
             Err(err) => {

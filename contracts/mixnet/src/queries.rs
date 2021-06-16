@@ -572,7 +572,7 @@ mod tests {
         fn retrieval_obeys_limits() {
             let mut deps = helpers::init_contract();
             let limit = 2;
-            let node_identity: String = "foo".into();
+            let node_identity: IdentityKey = "foo".into();
             store_n_delegations(100, &mut deps.storage, &node_identity);
 
             let page1 = query_mixnode_delegations_paged(
@@ -588,7 +588,7 @@ mod tests {
         #[test]
         fn retrieval_has_default_limit() {
             let mut deps = helpers::init_contract();
-            let node_identity: String = "foo".into();
+            let node_identity: IdentityKey = "foo".into();
             store_n_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
@@ -607,7 +607,7 @@ mod tests {
         #[test]
         fn retrieval_has_max_limit() {
             let mut deps = helpers::init_contract();
-            let node_identity: String = "foo".into();
+            let node_identity: IdentityKey = "foo".into();
             store_n_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
@@ -632,7 +632,7 @@ mod tests {
         #[test]
         fn pagination_works() {
             let mut deps = helpers::init_contract();
-            let node_identity: String = "foo".into();
+            let node_identity: IdentityKey = "foo".into();
 
             mix_delegations(&mut deps.storage, &node_identity)
                 .save("1".as_bytes(), &Uint128(42))
@@ -713,7 +713,7 @@ mod tests {
     #[test]
     fn mix_deletion_query_returns_current_delegation_value() {
         let mut deps = helpers::init_contract();
-        let node_identity: String = "foo".into();
+        let node_identity: IdentityKey = "foo".into();
 
         mix_delegations(&mut deps.storage, &node_identity)
             .save("foo".as_bytes(), &Uint128(42))
@@ -728,7 +728,7 @@ mod tests {
     #[test]
     fn mix_deletion_query_returns_error_if_delegation_doesnt_exist() {
         let mut deps = helpers::init_contract();
-        let node_identity: String = "foo".into();
+        let node_identity: IdentityKey = "foo".into();
 
         assert_eq!(
             Err(ContractError::NoMixnodeDelegationFound {
@@ -781,7 +781,7 @@ mod tests {
         fn retrieval_obeys_limits() {
             let mut deps = helpers::init_contract();
             let limit = 2;
-            let node_identity: String = "foo".into();
+            let node_identity: IdentityKey = "foo".into();
             store_n_delegations(100, &mut deps.storage, &node_identity);
 
             let page1 = query_gateway_delegations_paged(
@@ -797,7 +797,7 @@ mod tests {
         #[test]
         fn retrieval_has_default_limit() {
             let mut deps = helpers::init_contract();
-            let node_identity: String = "foo".into();
+            let node_identity: IdentityKey = "foo".into();
             store_n_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
@@ -816,7 +816,7 @@ mod tests {
         #[test]
         fn retrieval_has_max_limit() {
             let mut deps = helpers::init_contract();
-            let node_identity: String = "foo".into();
+            let node_identity: IdentityKey = "foo".into();
             store_n_delegations(
                 DELEGATION_PAGE_DEFAULT_LIMIT * 10,
                 &mut deps.storage,
@@ -841,7 +841,7 @@ mod tests {
         #[test]
         fn pagination_works() {
             let mut deps = helpers::init_contract();
-            let node_identity: String = "foo".into();
+            let node_identity: IdentityKey = "foo".into();
 
             gateway_delegations(&mut deps.storage, &node_identity)
                 .save("1".as_bytes(), &Uint128(42))
@@ -922,7 +922,7 @@ mod tests {
     #[test]
     fn gateway_deletion_query_returns_current_delegation_value() {
         let mut deps = helpers::init_contract();
-        let node_identity: String = "foo".into();
+        let node_identity: IdentityKey = "foo".into();
 
         gateway_delegations(&mut deps.storage, &node_identity)
             .save("foo".as_bytes(), &Uint128(42))
@@ -937,7 +937,7 @@ mod tests {
     #[test]
     fn gateway_deletion_query_returns_error_if_delegation_doesnt_exist() {
         let mut deps = helpers::init_contract();
-        let node_identity: String = "foo".into();
+        let node_identity: IdentityKey = "foo".into();
 
         assert_eq!(
             Err(ContractError::NoGatewayDelegationFound {

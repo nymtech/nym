@@ -1503,7 +1503,7 @@ pub mod tests {
         let network_monitor_address = current_state.network_monitor_address;
 
         let node_owner: HumanAddr = "node-owner".into();
-        let node_identity: String = "nodeidentity".into();
+        let node_identity: IdentityKey = "nodeidentity".into();
 
         // errors out if executed by somebody else than network monitor
         let info = mock_info("not-the-monitor", &[]);
@@ -1563,7 +1563,7 @@ pub mod tests {
         let network_monitor_address = current_state.network_monitor_address;
 
         let node_owner: HumanAddr = "node-owner".into();
-        let node_identity: String = "nodeidentity".into();
+        let node_identity: IdentityKey = "nodeidentity".into();
 
         // errors out if executed by somebody else than network monitor
         let info = mock_info("not-the-monitor", &[]);

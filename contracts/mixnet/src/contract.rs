@@ -412,13 +412,18 @@ pub mod tests {
         }
 
         // perform migration
-        assert!(migrate(
+        let migration_result = migrate(
             deps.as_mut(),
             mock_env(),
             mock_info("sender", &[]),
-            MigrateMsg {}
-        )
-        .is_ok());
+            MigrateMsg {},
+        );
+
+        assert!(migration_result.is_ok());
+        assert_eq!(
+            vec![attr("removed mixnodes", 8)],
+            migration_result.unwrap().attributes
+        );
 
         // make sure all data under old keys is purged
         for mix_i in 0..total_mixnodes {

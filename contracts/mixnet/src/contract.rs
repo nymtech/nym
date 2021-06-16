@@ -6,8 +6,8 @@ use crate::storage::{
 };
 use crate::{error::ContractError, queries, transactions};
 use cosmwasm_std::{
-    to_binary, Decimal, Deps, DepsMut, Env, HandleResponse, HumanAddr, InitResponse, MessageInfo,
-    MigrateResponse, QueryResponse, StdResult, Uint128,
+    attr, to_binary, BankMsg, Decimal, Deps, DepsMut, Env, HandleResponse, HumanAddr, InitResponse,
+    MessageInfo, MigrateResponse, QueryResponse, StdError, StdResult, Uint128,
 };
 use mixnet_contract::{GatewayBond, MixNodeBond};
 
@@ -169,10 +169,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 
 pub fn migrate(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     _info: MessageInfo,
     _msg: MigrateMsg,
 ) -> Result<MigrateResponse, ContractError> {
+    use crate::migration_helpers::*;
+    use cosmwasm_std::Order;
+    use std::convert::TryInto;
+
     // Mixnode migration
 
     // What we do here for mixnodes is the following (the procedure is be identical for gateways):
@@ -181,31 +185,10 @@ pub fn migrate(
     // 3. Load mixnode owners (page by page) using PREFIX_MIXNODES_OWNERS_OLD
     // 4. Save the data in reverse order using PREFIX_MIXNODES_OWNERS such that the key becomes the value and vice versa
 
-    use cosmwasm_std::Order;
-    use cosmwasm_std::Storage;
-    use cosmwasm_storage::{bucket, Bucket};
-
-    // those shouldn't be accessible ANYWHERE outside the migration
-    const PREFIX_MIXNODES_OLD: &[u8] = b"mixnodes";
-    const PREFIX_MIXNODES_OWNERS_OLD: &[u8] = b"mix-owners";
-    const PREFIX_GATEWAYS_OLD: &[u8] = b"gateways";
-    const PREFIX_GATEWAYS_OWNERS_OLD: &[u8] = b"gateway-owners";
-
-    fn mixnodes_owners_old(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
-        bucket(storage, PREFIX_MIXNODES_OWNERS_OLD)
-    }
-
-    fn gateways_owners_old(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
-        bucket(storage, PREFIX_GATEWAYS_OWNERS_OLD)
-    }
-
-    fn mixnodes_old(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
-        bucket(storage, PREFIX_MIXNODES_OLD)
-    }
-
-    fn gateways_old(storage: &mut dyn Storage) -> Bucket<GatewayBond> {
-        bucket(storage, PREFIX_GATEWAYS_OLD)
-    }
+    // while normally this would be very undesirable due to possibly hitting memory limit,
+    // we currently don't have that many invalid nodes so it's fine for this particular migration
+    let mut bond_return_messages = Vec::new();
+    let mut removed_nodes = 0;
 
     // go through all stored mixnodes
     let bond_page_limit = 100;
@@ -215,24 +198,46 @@ pub fn migrate(
             .range(None, None, Order::Ascending)
             .take(bond_page_limit)
             .map(|res| res.map(|item| item.1))
-            .collect::<StdResult<Vec<MixNodeBond>>>()?;
+            .collect::<StdResult<Vec<MixNodeBondOld>>>()?;
 
-        for node in nodes.iter() {
-            // save bond data under identity key
-            mixnodes(deps.storage).save(node.identity().as_bytes(), node)?;
+        let queried_nodes_len = nodes.len();
 
-            // and remove it from under the old owner key
+        for node in nodes.into_iter() {
+            // remove it from under the old owner key
             mixnodes_old(deps.storage).remove(node.owner.as_bytes());
 
-            // add new mixnodes_owners data under owner key
-            mixnodes_owners(deps.storage).save(node.owner.as_bytes(), &node.identity())?;
+            // remove it from under the old identity key
+            mixnodes_owners_old(deps.storage).remove(node.mix_node.identity_key.as_bytes());
 
-            // and remove it from under the old identity key
-            mixnodes_owners_old(deps.storage).remove(node.identity().as_bytes())
+            let bond_owner = node.owner.clone();
+            let bond_amount = node.amount.clone();
+
+            // try to convert bond information into a more type-constrained variant
+            if let Ok(new_bond) = TryInto::<MixNodeBond>::try_into(node) {
+                // save bond data under identity key
+                mixnodes(deps.storage).save(new_bond.identity().as_bytes(), &new_bond)?;
+
+                // and add new mixnodes_owners data under owner key
+                mixnodes_owners(deps.storage)
+                    .save(new_bond.owner.as_bytes(), &new_bond.identity())?;
+            } else {
+                // bond was invalid, don't save it, instead return bonded amount
+                removed_nodes += 1;
+                bond_return_messages.push(
+                    BankMsg::Send {
+                        from_address: env.contract.address.clone(),
+                        to_address: bond_owner,
+                        amount: bond_amount,
+                    }
+                    .into(),
+                );
+
+                continue;
+            }
         }
 
         // this was the last page
-        if nodes.len() < bond_page_limit {
+        if queried_nodes_len < bond_page_limit {
             break;
         }
     }
@@ -244,29 +249,48 @@ pub fn migrate(
             .range(None, None, Order::Ascending)
             .take(bond_page_limit)
             .map(|res| res.map(|item| item.1))
-            .collect::<StdResult<Vec<GatewayBond>>>()?;
+            .collect::<StdResult<Vec<GatewayBondOld>>>()?;
 
-        for node in nodes.iter() {
-            // save bond data under identity key
-            gateways(deps.storage).save(node.identity().as_bytes(), node)?;
+        let queried_nodes_len = nodes.len();
 
-            // and remove it from under the old owner key
+        for node in nodes.into_iter() {
+            // remove it from under the old owner key
             gateways_old(deps.storage).remove(node.owner.as_bytes());
 
-            // add new mixnodes_owners data under owner key
-            gateways_owners(deps.storage).save(node.owner.as_bytes(), &node.identity())?;
+            // remove it from under the old identity key
+            gateways_owners_old(deps.storage).remove(node.gateway.identity_key.as_bytes());
 
-            // and remove it from under the old identity key
-            gateways_owners_old(deps.storage).remove(node.identity().as_bytes())
+            let bond_owner = node.owner.clone();
+            let bond_amount = node.amount.clone();
+
+            // try to convert bond information into a more type-constrained variant
+            if let Ok(new_bond) = TryInto::<GatewayBond>::try_into(node) {
+                // save bond data under identity key
+                gateways(deps.storage).save(new_bond.identity().as_bytes(), &new_bond)?;
+
+                // and add new mixnodes_owners data under owner key
+                gateways_owners(deps.storage)
+                    .save(new_bond.owner.as_bytes(), &new_bond.identity())?;
+            } else {
+                // all our gateways are currently run by us, we don't expect any errors
+                return Err(ContractError::Std(StdError::generic_err(
+                    "gateway migration failed",
+                )));
+            }
         }
 
         // this was the last page
-        if nodes.len() < bond_page_limit {
+        if queried_nodes_len < bond_page_limit {
             break;
         }
     }
 
-    Ok(Default::default())
+    Ok(MigrateResponse {
+        messages: bond_return_messages,
+        // since currently all gateways are run by us, we don't expect any gateways to get removed
+        attributes: vec![attr("removed mixnodes", removed_nodes)],
+        data: None,
+    })
 }
 
 // #[cfg(test)]

@@ -501,26 +501,26 @@ mod tests {
         };
         transactions::try_add_mixnode(deps.as_mut(), mock_info("bob", &good_mixnode_bond()), node)
             .unwrap();
-        //
-        // let res = query_owns_mixnode(deps.as_ref(), "fred".into()).unwrap();
-        // assert!(!res.has_node);
-        //
-        // // "fred" now owns a mixnode!
-        // let node = MixNode {
-        //     identity_key: "fredsnode".hash_to_identity(),
-        //     ..helpers::mix_node_fixture()
-        // };
-        // transactions::try_add_mixnode(deps.as_mut(), mock_info("fred", &good_mixnode_bond()), node)
-        //     .unwrap();
-        //
-        // let res = query_owns_mixnode(deps.as_ref(), "fred".into()).unwrap();
-        // assert!(res.has_node);
-        //
-        // // but after unbonding it, he doesn't own one anymore
-        // transactions::try_remove_mixnode(deps.as_mut(), mock_info("fred", &[]), env).unwrap();
-        //
-        // let res = query_owns_mixnode(deps.as_ref(), "fred".into()).unwrap();
-        // assert!(!res.has_node);
+
+        let res = query_owns_mixnode(deps.as_ref(), "fred".into()).unwrap();
+        assert!(!res.has_node);
+
+        // "fred" now owns a mixnode!
+        let node = MixNode {
+            identity_key: "fredsnode".hash_to_identity(),
+            ..helpers::mix_node_fixture()
+        };
+        transactions::try_add_mixnode(deps.as_mut(), mock_info("fred", &good_mixnode_bond()), node)
+            .unwrap();
+
+        let res = query_owns_mixnode(deps.as_ref(), "fred".into()).unwrap();
+        assert!(res.has_node);
+
+        // but after unbonding it, he doesn't own one anymore
+        transactions::try_remove_mixnode(deps.as_mut(), mock_info("fred", &[]), env).unwrap();
+
+        let res = query_owns_mixnode(deps.as_ref(), "fred".into()).unwrap();
+        assert!(!res.has_node);
     }
 
     #[test]

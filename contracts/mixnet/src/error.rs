@@ -1,5 +1,6 @@
 use crate::contract::DENOM;
 use cosmwasm_std::{HumanAddr, StdError};
+use mixnet_contract::IdentityKey;
 use thiserror::Error;
 
 /// Custom errors for contract failure conditions.
@@ -17,7 +18,7 @@ pub enum ContractError {
     InsufficientMixNodeBond { received: u128, minimum: u128 },
 
     #[error("Mixnode ({identity:?}) does not exist")]
-    MixNodeBondNotFound { identity: String },
+    MixNodeBondNotFound { identity: IdentityKey },
 
     #[error(
         "Not enough funds sent for gateway bond. (received {received:?}, minimum {minimum:?})"
@@ -25,7 +26,7 @@ pub enum ContractError {
     InsufficientGatewayBond { received: u128, minimum: u128 },
 
     #[error("Gateway ({identity:?}) does not exist")]
-    GatewayBondNotFound { identity: String },
+    GatewayBondNotFound { identity: IdentityKey },
 
     #[error("{owner:?} does not seem to own any mixnodes")]
     NoAssociatedMixNodeBond { owner: HumanAddr },
@@ -73,8 +74,8 @@ pub enum ContractError {
     InvalidSender { owner: HumanAddr },
 
     #[error("Could not find any delegation information associated with mixnode {identity:?}")]
-    NoMixnodeDelegationFound { identity: String },
+    NoMixnodeDelegationFound { identity: IdentityKey },
 
     #[error("Could not find any delegation information associated with gateway {identity:?}")]
-    NoGatewayDelegationFound { identity: String },
+    NoGatewayDelegationFound { identity: IdentityKey },
 }

@@ -10,7 +10,7 @@ use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::{coin, HumanAddr};
 use mixnet_contract::{
-    Delegation, GatewayBond, GatewayOwnershipResponse, LayerDistribution, MixNodeBond,
+    Delegation, GatewayBond, GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNodeBond,
     MixOwnershipResponse, PagedGatewayDelegationsResponse, PagedGatewayResponse,
     PagedMixDelegationsResponse, PagedResponse,
 };
@@ -24,7 +24,7 @@ const DELEGATION_PAGE_DEFAULT_LIMIT: u32 = 500;
 
 pub fn query_mixnodes_paged(
     deps: Deps,
-    start_after: Option<String>,
+    start_after: Option<IdentityKey>,
     limit: Option<u32>,
 ) -> StdResult<PagedResponse> {
     let limit = limit
@@ -45,7 +45,7 @@ pub fn query_mixnodes_paged(
 
 pub(crate) fn query_gateways_paged(
     deps: Deps,
-    start_after: Option<String>,
+    start_after: Option<IdentityKey>,
     limit: Option<u32>,
 ) -> StdResult<PagedGatewayResponse> {
     let limit = limit
@@ -110,7 +110,7 @@ fn calculate_start_value(start_after: Option<String>) -> Option<Vec<u8>> {
 
 pub(crate) fn query_mixnode_delegations_paged(
     deps: Deps,
-    mix_identity: String,
+    mix_identity: IdentityKey,
     start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<PagedMixDelegationsResponse> {
@@ -146,7 +146,7 @@ pub(crate) fn query_mixnode_delegations_paged(
 // queries for delegation value of given address for particular node
 pub(crate) fn query_mixnode_delegation(
     deps: Deps,
-    mix_identity: String,
+    mix_identity: IdentityKey,
     address: HumanAddr,
 ) -> Result<Delegation, ContractError> {
     match mix_delegations_read(deps.storage, &mix_identity).may_load(address.as_bytes())? {
@@ -162,7 +162,7 @@ pub(crate) fn query_mixnode_delegation(
 
 pub(crate) fn query_gateway_delegations_paged(
     deps: Deps,
-    gateway_identity: String,
+    gateway_identity: IdentityKey,
     start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<PagedGatewayDelegationsResponse> {
@@ -198,7 +198,7 @@ pub(crate) fn query_gateway_delegations_paged(
 // queries for delegation value of given address for particular node
 pub(crate) fn query_gateway_delegation(
     deps: Deps,
-    gateway_identity: String,
+    gateway_identity: IdentityKey,
     address: HumanAddr,
 ) -> Result<Delegation, ContractError> {
     match gateway_delegations_read(deps.storage, &gateway_identity).may_load(address.as_bytes())? {

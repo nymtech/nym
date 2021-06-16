@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
+#[cfg(not(feature = "minimum-asymmetric"))]
 use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
 
@@ -51,12 +53,15 @@ impl Display for KeyRecoveryError {
 
 impl std::error::Error for KeyRecoveryError {}
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 pub struct KeyPair {
     pub(crate) private_key: PrivateKey,
     pub(crate) public_key: PublicKey,
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl KeyPair {
+    #[cfg(not(feature = "minimum-asymmetric"))]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
         let private_key = x25519_dalek::StaticSecret::new(rng);
         let public_key = (&private_key).into();
@@ -75,6 +80,7 @@ impl KeyPair {
         &self.public_key
     }
 
+    #[cfg(not(feature = "minimum-asymmetric"))]
     pub fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, KeyRecoveryError> {
         Ok(KeyPair {
             private_key: PrivateKey::from_bytes(priv_bytes)?,
@@ -83,6 +89,7 @@ impl KeyPair {
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl PemStorableKeyPair for KeyPair {
     type PrivatePemKey = PrivateKey;
     type PublicPemKey = PublicKey;
@@ -135,12 +142,14 @@ impl PublicKey {
 
     #[inline]
     pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
-        if b.len() != PUBLIC_KEY_SIZE {
-            return Err(KeyRecoveryError::InvalidPublicKeyBytes);
-        }
-        let mut bytes = [0; PUBLIC_KEY_SIZE];
-        bytes.copy_from_slice(&b[..PUBLIC_KEY_SIZE]);
-        Ok(Self(x25519_dalek::PublicKey::from(bytes)))
+        todo!()
+
+        // if b.len() != PUBLIC_KEY_SIZE {
+        //     return Err(KeyRecoveryError::InvalidPublicKeyBytes);
+        // }
+        // let mut bytes = [0; PUBLIC_KEY_SIZE];
+        // bytes.copy_from_slice(&b[..PUBLIC_KEY_SIZE]);
+        // Ok(Self(x25519_dalek::PublicKey::from(bytes)))
     }
 
     pub fn to_base58_string(self) -> String {
@@ -153,6 +162,7 @@ impl PublicKey {
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl PemStorableKey for PublicKey {
     type Error = KeyRecoveryError;
 
@@ -169,21 +179,25 @@ impl PemStorableKey for PublicKey {
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 #[derive(Clone)]
 pub struct PrivateKey(x25519_dalek::StaticSecret);
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl Display for PrivateKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_base58_string())
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl<'a> From<&'a PrivateKey> for PublicKey {
     fn from(pk: &'a PrivateKey) -> Self {
         PublicKey((&pk.0).into())
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl PrivateKey {
     pub fn to_bytes(&self) -> [u8; PRIVATE_KEY_SIZE] {
         self.0.to_bytes()
@@ -207,12 +221,14 @@ impl PrivateKey {
         Self::from_bytes(&bytes)
     }
 
+    #[cfg(not(feature = "minimum-asymmetric"))]
     /// Perform a key exchange with another public key
     pub fn diffie_hellman(&self, remote_public: &PublicKey) -> [u8; SHARED_SECRET_SIZE] {
         *self.0.diffie_hellman(&remote_public.0).as_bytes()
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl PemStorableKey for PrivateKey {
     type Error = KeyRecoveryError;
 
@@ -230,36 +246,42 @@ impl PemStorableKey for PrivateKey {
 }
 
 // compatibility with sphinx keys:
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl From<PublicKey> for nymsphinx_types::PublicKey {
     fn from(key: PublicKey) -> Self {
         nymsphinx_types::PublicKey::from(key.to_bytes())
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl<'a> From<&'a PublicKey> for nymsphinx_types::PublicKey {
     fn from(key: &'a PublicKey) -> Self {
         nymsphinx_types::PublicKey::from((*key).to_bytes())
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl From<nymsphinx_types::PublicKey> for PublicKey {
     fn from(pub_key: nymsphinx_types::PublicKey) -> Self {
         Self(x25519_dalek::PublicKey::from(*pub_key.as_bytes()))
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl From<PrivateKey> for nymsphinx_types::PrivateKey {
     fn from(key: PrivateKey) -> Self {
         nymsphinx_types::PrivateKey::from(key.to_bytes())
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl<'a> From<&'a PrivateKey> for nymsphinx_types::PrivateKey {
     fn from(key: &'a PrivateKey) -> Self {
         nymsphinx_types::PrivateKey::from(key.to_bytes())
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl From<nymsphinx_types::PrivateKey> for PrivateKey {
     fn from(private_key: nymsphinx_types::PrivateKey) -> Self {
         let private_key_bytes = private_key.to_bytes();
@@ -268,6 +290,7 @@ impl From<nymsphinx_types::PrivateKey> for PrivateKey {
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 #[cfg(test)]
 mod sphinx_key_conversion {
     use super::*;

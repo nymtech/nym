@@ -6,25 +6,81 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-aes-ctr = "0.6.0"
-bs58 = "0.4"
-blake3 = "0.3"
+[dependencies.aes-ctr]
+version = "0.6.0"
+optional = true
+
+[dependencies.bs58]
+version = "0.4"
+optional = true
+
+[dependencies.blake3]
 #blake3 = { version = "0.3", features = ["traits-preview"]}
-digest = "0.9"
-generic-array = "0.14"
-hkdf = "0.10"
-hmac = "0.8"
-cipher = "0.2"
-x25519-dalek = "1.1"
-ed25519-dalek = "1.0"
-log = "0.4"
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-serde = { version = "1.0", features = ["derive"], default-features = false, optional = true }
+version = "0.3"
+optional = true
+
+[dependencies.digest]
+version = "0.9"
+optional = true
+
+[dependencies.generic-array]
+version = "0.14"
+optional = true
+
+[dependencies.hkdf]
+version = "0.10"
+optional = true
+
+[dependencies.hmac]
+version = "0.8"
+optional = true
+
+[dependencies.cipher]
+version = "0.2"
+optional = true
+
+[dependencies.x25519-dalek]
+version = "1.1"
+default-features = false
+features = ["u64_backend"]
+optional = true
+
+[dependencies.ed25519-dalek]
+version = "1.0"
+default-features = false
+features = ["u64_backend"]
+optional = true
+
+[dependencies.log]
+version = "0.4"
+
+[dependencies.rand]
+version = "0.7.3"
+default-features = false
+optional = true
+
+[dependencies.serde]
+version = "1.0"
+features = ["derive"]
+default-features = false
+optional = true
 
 # internal
-nymsphinx-types = { path = "../nymsphinx/types" }
-pemstore = { path = "../../common/pemstore" }
+[dependencies.nymsphinx-types]
+path = "../nymsphinx/types"
+optional = true
+
+[dependencies.pemstore]
+path = "../../common/pemstore"
+optional = true
 
 [features]
+default = ["asymmetric", "symmetric", "hkdf-feature", "hmac-feature", "shared-keys", "digest-feature", "serde-serialize"]
+minimum-asymmetric = ["ed25519-dalek", "x25519-dalek", "bs58"]
+asymmetric = ["ed25519-dalek/std", "x25519-dalek/std", "minimum-asymmetric", "pemstore", "nymsphinx-types", "rand", "rand/wasm-bindgen"]
+symmetric = ["generic-array", "rand", "rand/wasm-bindgen", "cipher", "pemstore", "aes-ctr"]
+digest-feature = ["generic-array", "blake3", "digest"]
+hkdf-feature = ["hkdf", "digest-feature"]
+hmac-feature = ["hmac", "digest-feature"]
+shared-keys = ["asymmetric", "symmetric", "hkdf-feature"]
 serde-serialize = ["serde", "ed25519-dalek/serde", "x25519-dalek/serde"]

@@ -12,20 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 use ed25519_dalek::ed25519::signature::Signature as SignatureTrait;
 pub use ed25519_dalek::SignatureError;
-pub use ed25519_dalek::{Verifier, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
+#[cfg(not(feature = "minimum-asymmetric"))]
+pub use ed25519_dalek::Verifier;
+pub use ed25519_dalek::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
+#[cfg(not(feature = "minimum-asymmetric"))]
 use nymsphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
+#[cfg(not(feature = "minimum-asymmetric"))]
 use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
+#[cfg(not(feature = "minimum-asymmetric"))]
 use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug)]
 pub enum KeyRecoveryError {
+    #[cfg(not(feature = "minimum-asymmetric"))]
     MalformedBytes(SignatureError),
     MalformedString(bs58::decode::Error),
 }
-
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl From<SignatureError> for KeyRecoveryError {
     fn from(err: SignatureError) -> Self {
         KeyRecoveryError::MalformedBytes(err)
@@ -41,6 +48,7 @@ impl From<bs58::decode::Error> for KeyRecoveryError {
 impl fmt::Display for KeyRecoveryError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
+            #[cfg(not(feature = "minimum-asymmetric"))]
             KeyRecoveryError::MalformedBytes(err) => write!(f, "malformed bytes - {}", err),
             KeyRecoveryError::MalformedString(err) => write!(f, "malformed string - {}", err),
         }
@@ -49,13 +57,16 @@ impl fmt::Display for KeyRecoveryError {
 
 impl std::error::Error for KeyRecoveryError {}
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 /// Keypair for usage in ed25519 EdDSA.
 pub struct KeyPair {
     private_key: PrivateKey,
     public_key: PublicKey,
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl KeyPair {
+    #[cfg(not(feature = "minimum-asymmetric"))]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
         let ed25519_keypair = ed25519_dalek::Keypair::generate(rng);
 
@@ -73,6 +84,7 @@ impl KeyPair {
         &self.public_key
     }
 
+    #[cfg(not(feature = "minimum-asymmetric"))]
     pub fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, KeyRecoveryError> {
         Ok(KeyPair {
             private_key: PrivateKey::from_bytes(priv_bytes)?,
@@ -81,6 +93,7 @@ impl KeyPair {
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl PemStorableKeyPair for KeyPair {
     type PrivatePemKey = PrivateKey;
     type PublicPemKey = PublicKey;
@@ -121,6 +134,7 @@ impl AsRef<[u8]> for PublicKey {
 }
 
 impl PublicKey {
+    #[cfg(not(feature = "minimum-asymmetric"))]
     pub fn derive_destination_address(&self) -> DestinationAddressBytes {
         let mut temporary_address = [0u8; DESTINATION_ADDRESS_LENGTH];
         let public_key_bytes = self.to_bytes();
@@ -144,7 +158,8 @@ impl PublicKey {
 
     #[inline]
     pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
-        Ok(PublicKey(ed25519_dalek::PublicKey::from_bytes(b)?))
+        todo!()
+        // Ok(PublicKey(ed25519_dalek::PublicKey::from_bytes(b)?))
     }
 
     pub fn to_base58_string(self) -> String {
@@ -156,11 +171,13 @@ impl PublicKey {
         Self::from_bytes(&bytes)
     }
 
+    #[cfg(not(feature = "minimum-asymmetric"))]
     pub fn verify(&self, message: &[u8], signature: &Signature) -> Result<(), SignatureError> {
         self.0.verify(message, &signature.0)
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl PemStorableKey for PublicKey {
     type Error = KeyRecoveryError;
 
@@ -177,22 +194,26 @@ impl PemStorableKey for PublicKey {
     }
 }
 
-/// ed25519 EdDSA Private Key
+#[cfg(not(feature = "minimum-asymmetric"))]
+/// ed25519 EdDSA Private Key\
 #[derive(Debug)]
 pub struct PrivateKey(ed25519_dalek::SecretKey);
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl Display for PrivateKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_base58_string())
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl<'a> From<&'a PrivateKey> for PublicKey {
     fn from(pk: &'a PrivateKey) -> Self {
         PublicKey((&pk.0).into())
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl PrivateKey {
     pub fn to_bytes(&self) -> [u8; SECRET_KEY_LENGTH] {
         self.0.to_bytes()
@@ -211,6 +232,7 @@ impl PrivateKey {
         Self::from_bytes(&bytes)
     }
 
+    #[cfg(not(feature = "minimum-asymmetric"))]
     pub fn sign(&self, message: &[u8]) -> Signature {
         let expanded_secret_key = ed25519_dalek::ExpandedSecretKey::from(&self.0);
         let public_key: PublicKey = self.into();
@@ -219,6 +241,7 @@ impl PrivateKey {
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl PemStorableKey for PrivateKey {
     type Error = KeyRecoveryError;
 
@@ -235,9 +258,11 @@ impl PemStorableKey for PrivateKey {
     }
 }
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 #[derive(Debug)]
 pub struct Signature(ed25519_dalek::Signature);
 
+#[cfg(not(feature = "minimum-asymmetric"))]
 impl Signature {
     pub fn to_bytes(&self) -> [u8; SIGNATURE_LENGTH] {
         self.0.to_bytes()

@@ -60,7 +60,7 @@ pub mod helpers {
     }
 
     // this one is only ever used to create fixtures here so it doesn't need a full-blown trait definition
-    fn hash_to_sphinx_key<I: AsRef<[u8]>>(val: I) -> EncryptionStringPublicKeyWrapper {
+    pub(crate) fn hash_to_sphinx_key<I: AsRef<[u8]>>(val: I) -> EncryptionStringPublicKeyWrapper {
         let mut h = sha3::Sha3_256::new();
 
         let mut ctr = 0u64;

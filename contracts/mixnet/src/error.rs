@@ -11,26 +11,22 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
-    #[error(
-        "Not enough funds sent for mixnode bond. (received {received:?}, minimum {minimum:?})"
-    )]
+    #[error("Not enough funds sent for mixnode bond. (received {received}, minimum {minimum})")]
     InsufficientMixNodeBond { received: u128, minimum: u128 },
 
-    #[error("Mixnode ({identity:?}) does not exist")]
+    #[error("Mixnode ({identity}) does not exist")]
     MixNodeBondNotFound { identity: String },
 
-    #[error(
-        "Not enough funds sent for gateway bond. (received {received:?}, minimum {minimum:?})"
-    )]
+    #[error("Not enough funds sent for gateway bond. (received {received}, minimum {minimum})")]
     InsufficientGatewayBond { received: u128, minimum: u128 },
 
-    #[error("Gateway ({identity:?}) does not exist")]
+    #[error("Gateway ({identity}) does not exist")]
     GatewayBondNotFound { identity: String },
 
-    #[error("{owner:?} does not seem to own any mixnodes")]
+    #[error("{owner} does not seem to own any mixnodes")]
     NoAssociatedMixNodeBond { owner: HumanAddr },
 
-    #[error("{owner:?} does not seem to own any gateways")]
+    #[error("{owner} does not seem to own any gateways")]
     NoAssociatedGatewayBond { owner: HumanAddr },
 
     #[error("Unauthorized")]
@@ -60,16 +56,16 @@ pub enum ContractError {
     #[error("This address has already bonded a gateway")]
     AlreadyOwnsGateway,
 
-    #[error("Mixnode with this identity already exists. Its owner is {owner:?}")]
+    #[error("Mixnode with this identity already exists. Its owner is {owner}")]
     DuplicateMixnode { owner: HumanAddr },
 
-    #[error("Gateway with this identity already exists. Its owner is {owner:?}")]
+    #[error("Gateway with this identity already exists. Its owner is {owner}")]
     DuplicateGateway { owner: HumanAddr },
 
     #[error("No funds were provided for the delegation")]
     EmptyDelegation,
 
-    #[error("Request did not come from the node owner ({owner:?})")]
+    #[error("Request did not come from the node owner ({owner})")]
     InvalidSender { owner: HumanAddr },
 
     #[error("Could not find any delegation information associated with mixnode {identity} for {address}")]

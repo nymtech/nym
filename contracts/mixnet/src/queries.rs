@@ -716,7 +716,6 @@ mod tests {
         let node_identity: IdentityKey = "foo".into();
         let delegation_owner: HumanAddr = "bar".into();
 
-
         mix_delegations(&mut deps.storage, &node_identity)
             .save(delegation_owner.as_bytes(), &Uint128(42))
             .unwrap();
@@ -941,7 +940,6 @@ mod tests {
         let mut deps = helpers::init_contract();
         let node_identity: IdentityKey = "foo".into();
         let delegation_owner: HumanAddr = "bar".into();
-
 
         gateway_delegations(&mut deps.storage, &node_identity)
             .save(delegation_owner.as_bytes(), &Uint128(42))

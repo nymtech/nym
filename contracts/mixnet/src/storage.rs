@@ -5,7 +5,7 @@ use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
-use mixnet_contract::{GatewayBond, LayerDistribution, MixNodeBond};
+use mixnet_contract::{GatewayBond, IdentityKey, LayerDistribution, MixNodeBond};
 
 // storage prefixes
 // all of them must be unique and presumably not be a prefix of a different one
@@ -153,11 +153,11 @@ pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
 }
 
 // owner address -> node identity
-pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<String> {
+pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<IdentityKey> {
     bucket(storage, PREFIX_MIXNODES_OWNERS)
 }
 
-pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<String> {
+pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey> {
     bucket_read(storage, PREFIX_MIXNODES_OWNERS)
 }
 
@@ -289,11 +289,11 @@ pub fn gateways_read(storage: &dyn Storage) -> ReadonlyBucket<GatewayBond> {
 }
 
 // owner address -> node identity
-pub fn gateways_owners(storage: &mut dyn Storage) -> Bucket<String> {
+pub fn gateways_owners(storage: &mut dyn Storage) -> Bucket<IdentityKey> {
     bucket(storage, PREFIX_GATEWAYS_OWNERS)
 }
 
-pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<String> {
+pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey> {
     bucket_read(storage, PREFIX_GATEWAYS_OWNERS)
 }
 

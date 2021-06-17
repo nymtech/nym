@@ -1,6 +1,6 @@
 use crate::state::StateParams;
 use cosmwasm_std::HumanAddr;
-use mixnet_contract::{Gateway, MixNode};
+use mixnet_contract::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -21,29 +21,29 @@ pub enum HandleMsg {
     UpdateStateParams(StateParams),
 
     DelegateToMixnode {
-        mix_identity: String,
+        mix_identity: IdentityKey,
     },
 
     UndelegateFromMixnode {
-        mix_identity: String,
+        mix_identity: IdentityKey,
     },
 
     DelegateToGateway {
-        gateway_identity: String,
+        gateway_identity: IdentityKey,
     },
 
     UndelegateFromGateway {
-        gateway_identity: String,
+        gateway_identity: IdentityKey,
     },
 
     RewardMixnode {
-        identity: String,
+        identity: IdentityKey,
         // percentage value in range 0-100
         uptime: u32,
     },
 
     RewardGateway {
-        identity: String,
+        identity: IdentityKey,
         // percentage value in range 0-100
         uptime: u32,
     },
@@ -54,10 +54,10 @@ pub enum HandleMsg {
 pub enum QueryMsg {
     GetMixNodes {
         limit: Option<u32>,
-        start_after: Option<String>,
+        start_after: Option<IdentityKey>,
     },
     GetGateways {
-        start_after: Option<String>,
+        start_after: Option<IdentityKey>,
         limit: Option<u32>,
     },
     OwnsMixnode {
@@ -68,21 +68,21 @@ pub enum QueryMsg {
     },
     StateParams {},
     GetMixDelegations {
-        mix_identity: String,
+        mix_identity: IdentityKey,
         start_after: Option<String>,
         limit: Option<u32>,
     },
     GetMixDelegation {
-        mix_identity: String,
+        mix_identity: IdentityKey,
         address: HumanAddr,
     },
     GetGatewayDelegations {
-        gateway_identity: String,
+        gateway_identity: IdentityKey,
         start_after: Option<String>,
         limit: Option<u32>,
     },
     GetGatewayDelegation {
-        gateway_identity: String,
+        gateway_identity: IdentityKey,
         address: HumanAddr,
     },
     LayerDistribution {},

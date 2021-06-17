@@ -410,7 +410,7 @@ export default class ValidatorClient {
         if (this.client instanceof NetClient) {
             let bond: Coin
             if (amount == null) {
-                bond = await this.minimumMixnodeBond();
+                bond = await this.minimumGatewayBond();
             } else {
                 bond = amount
             }

@@ -69,7 +69,7 @@ pub enum QueryMsg {
     StateParams {},
     GetMixDelegations {
         mix_identity: IdentityKey,
-        start_after: Option<String>,
+        start_after: Option<HumanAddr>,
         limit: Option<u32>,
     },
     GetMixDelegation {
@@ -78,7 +78,7 @@ pub enum QueryMsg {
     },
     GetGatewayDelegations {
         gateway_identity: IdentityKey,
-        start_after: Option<String>,
+        start_after: Option<HumanAddr>,
         limit: Option<u32>,
     },
     GetGatewayDelegation {

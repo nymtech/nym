@@ -14,6 +14,7 @@ use mixnet_contract::{
     MixOwnershipResponse, PagedGatewayDelegationsResponse, PagedGatewayResponse,
     PagedMixDelegationsResponse, PagedResponse,
 };
+use std::ops::Deref;
 
 const BOND_PAGE_MAX_LIMIT: u32 = 100;
 const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
@@ -97,7 +98,8 @@ pub(crate) fn query_layer_distribution(deps: Deps) -> LayerDistribution {
 
 /// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm
 /// to get the succeeding key as the start of the next page.
-fn calculate_start_value(start_after: Option<String>) -> Option<Vec<u8>> {
+// S works for both `String` and `HumanAddr` and that's what we wanted
+fn calculate_start_value<S: Deref<Target = str>>(start_after: Option<S>) -> Option<Vec<u8>> {
     start_after.as_ref().map(|identity| {
         identity
             .as_bytes()
@@ -111,7 +113,7 @@ fn calculate_start_value(start_after: Option<String>) -> Option<Vec<u8>> {
 pub(crate) fn query_mixnode_delegations_paged(
     deps: Deps,
     mix_identity: IdentityKey,
-    start_after: Option<String>,
+    start_after: Option<HumanAddr>,
     limit: Option<u32>,
 ) -> StdResult<PagedMixDelegationsResponse> {
     let limit = limit
@@ -125,16 +127,14 @@ pub(crate) fn query_mixnode_delegations_paged(
         .map(|res| {
             res.map(|entry| {
                 Delegation::new(
-                    String::from_utf8(entry.0).unwrap(),
+                    HumanAddr(String::from_utf8(entry.0).unwrap()),
                     coin(entry.1.u128(), DENOM),
                 )
             })
         })
         .collect::<StdResult<Vec<Delegation>>>()?;
 
-    let start_next_after = delegations
-        .last()
-        .map(|delegation| delegation.node_identity().clone());
+    let start_next_after = delegations.last().map(|delegation| delegation.owner());
 
     Ok(PagedMixDelegationsResponse::new(
         mix_identity,
@@ -151,11 +151,12 @@ pub(crate) fn query_mixnode_delegation(
 ) -> Result<Delegation, ContractError> {
     match mix_delegations_read(deps.storage, &mix_identity).may_load(address.as_bytes())? {
         Some(delegation_value) => Ok(Delegation::new(
-            mix_identity,
+            address,
             coin(delegation_value.u128(), DENOM),
         )),
         None => Err(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
+            address,
         }),
     }
 }
@@ -163,7 +164,7 @@ pub(crate) fn query_mixnode_delegation(
 pub(crate) fn query_gateway_delegations_paged(
     deps: Deps,
     gateway_identity: IdentityKey,
-    start_after: Option<String>,
+    start_after: Option<HumanAddr>,
     limit: Option<u32>,
 ) -> StdResult<PagedGatewayDelegationsResponse> {
     let limit = limit
@@ -177,16 +178,14 @@ pub(crate) fn query_gateway_delegations_paged(
         .map(|res| {
             res.map(|entry| {
                 Delegation::new(
-                    String::from_utf8(entry.0).unwrap(),
+                    HumanAddr(String::from_utf8(entry.0).unwrap()),
                     coin(entry.1.u128(), DENOM),
                 )
             })
         })
         .collect::<StdResult<Vec<Delegation>>>()?;
 
-    let start_next_after = delegations
-        .last()
-        .map(|delegation| delegation.node_identity().clone());
+    let start_next_after = delegations.last().map(|delegation| delegation.owner());
 
     Ok(PagedGatewayDelegationsResponse::new(
         gateway_identity,
@@ -203,11 +202,12 @@ pub(crate) fn query_gateway_delegation(
 ) -> Result<Delegation, ContractError> {
     match gateway_delegations_read(deps.storage, &gateway_identity).may_load(address.as_bytes())? {
         Some(delegation_value) => Ok(Delegation::new(
-            gateway_identity,
+            address,
             coin(delegation_value.u128(), DENOM),
         )),
         None => Err(ContractError::NoGatewayDelegationFound {
             identity: gateway_identity,
+            address,
         }),
     }
 }
@@ -680,7 +680,7 @@ mod tests {
             assert_eq!(2, page1.delegations.len());
 
             // retrieving the next page should start after the last key on this page
-            let start_after = String::from("2");
+            let start_after = HumanAddr::from("2");
             let page2 = query_mixnode_delegations_paged(
                 deps.as_ref(),
                 node_identity.clone(),
@@ -696,7 +696,7 @@ mod tests {
                 .save("4".as_bytes(), &Uint128(42))
                 .unwrap();
 
-            let start_after = String::from("2");
+            let start_after = HumanAddr::from("2");
             let page2 = query_mixnode_delegations_paged(
                 deps.as_ref(),
                 node_identity,
@@ -714,51 +714,67 @@ mod tests {
     fn mix_deletion_query_returns_current_delegation_value() {
         let mut deps = helpers::init_contract();
         let node_identity: IdentityKey = "foo".into();
+        let delegation_owner: HumanAddr = "bar".into();
 
         mix_delegations(&mut deps.storage, &node_identity)
-            .save("foo".as_bytes(), &Uint128(42))
+            .save(delegation_owner.as_bytes(), &Uint128(42))
             .unwrap();
 
         assert_eq!(
-            Ok(Delegation::new(node_identity.clone(), coin(42, DENOM))),
-            query_mixnode_delegation(deps.as_ref(), node_identity, "foo".into())
+            Ok(Delegation::new(delegation_owner.clone(), coin(42, DENOM))),
+            query_mixnode_delegation(deps.as_ref(), node_identity, delegation_owner)
         )
     }
 
     #[test]
     fn mix_deletion_query_returns_error_if_delegation_doesnt_exist() {
         let mut deps = helpers::init_contract();
-        let node_identity: IdentityKey = "foo".into();
+
+        let node_identity1: IdentityKey = "foo1".into();
+        let node_identity2: IdentityKey = "foo2".into();
+        let delegation_owner1: HumanAddr = "bar".into();
+        let delegation_owner2: HumanAddr = "bar2".into();
 
         assert_eq!(
             Err(ContractError::NoMixnodeDelegationFound {
-                identity: node_identity.clone(),
+                identity: node_identity1.clone(),
+                address: delegation_owner1.clone(),
             }),
-            query_mixnode_delegation(deps.as_ref(), node_identity.clone(), "foo".into())
+            query_mixnode_delegation(
+                deps.as_ref(),
+                node_identity1.clone(),
+                delegation_owner1.clone()
+            )
         );
 
         // add delegation from a different address
-        mix_delegations(&mut deps.storage, &node_identity)
-            .save("bar".as_bytes(), &Uint128(42))
+        mix_delegations(&mut deps.storage, &node_identity1)
+            .save(delegation_owner2.as_bytes(), &Uint128(42))
             .unwrap();
 
         assert_eq!(
             Err(ContractError::NoMixnodeDelegationFound {
-                identity: node_identity.clone(),
+                identity: node_identity1.clone(),
+                address: delegation_owner1.clone(),
             }),
-            query_mixnode_delegation(deps.as_ref(), node_identity.clone(), "foo".into())
+            query_mixnode_delegation(
+                deps.as_ref(),
+                node_identity1.clone(),
+                delegation_owner1.clone()
+            )
         );
 
         // add delegation for a different node
-        mix_delegations(&mut deps.storage, "differentnode")
-            .save("foo".as_bytes(), &Uint128(42))
+        mix_delegations(&mut deps.storage, &node_identity2)
+            .save(delegation_owner1.as_bytes(), &Uint128(42))
             .unwrap();
 
         assert_eq!(
             Err(ContractError::NoMixnodeDelegationFound {
-                identity: node_identity.clone(),
+                identity: node_identity1.clone(),
+                address: delegation_owner1.clone()
             }),
-            query_mixnode_delegation(deps.as_ref(), node_identity.clone(), "foo".into())
+            query_mixnode_delegation(deps.as_ref(), node_identity1.clone(), delegation_owner1)
         )
     }
 
@@ -889,7 +905,7 @@ mod tests {
             assert_eq!(2, page1.delegations.len());
 
             // retrieving the next page should start after the last key on this page
-            let start_after = String::from("2");
+            let start_after = HumanAddr::from("2");
             let page2 = query_gateway_delegations_paged(
                 deps.as_ref(),
                 node_identity.clone(),
@@ -905,7 +921,7 @@ mod tests {
                 .save("4".as_bytes(), &Uint128(42))
                 .unwrap();
 
-            let start_after = String::from("2");
+            let start_after = HumanAddr::from("2");
             let page2 = query_gateway_delegations_paged(
                 deps.as_ref(),
                 node_identity,
@@ -923,51 +939,67 @@ mod tests {
     fn gateway_deletion_query_returns_current_delegation_value() {
         let mut deps = helpers::init_contract();
         let node_identity: IdentityKey = "foo".into();
+        let delegation_owner: HumanAddr = "bar".into();
 
         gateway_delegations(&mut deps.storage, &node_identity)
-            .save("foo".as_bytes(), &Uint128(42))
+            .save(delegation_owner.as_bytes(), &Uint128(42))
             .unwrap();
 
         assert_eq!(
-            Ok(Delegation::new(node_identity.clone(), coin(42, DENOM))),
-            query_gateway_delegation(deps.as_ref(), node_identity, "foo".into())
+            Ok(Delegation::new(delegation_owner.clone(), coin(42, DENOM))),
+            query_gateway_delegation(deps.as_ref(), node_identity, delegation_owner)
         )
     }
 
     #[test]
     fn gateway_deletion_query_returns_error_if_delegation_doesnt_exist() {
         let mut deps = helpers::init_contract();
-        let node_identity: IdentityKey = "foo".into();
+
+        let node_identity1: IdentityKey = "foo1".into();
+        let node_identity2: IdentityKey = "foo2".into();
+        let delegation_owner1: HumanAddr = "bar".into();
+        let delegation_owner2: HumanAddr = "bar2".into();
 
         assert_eq!(
             Err(ContractError::NoGatewayDelegationFound {
-                identity: node_identity.clone(),
+                identity: node_identity1.clone(),
+                address: delegation_owner1.clone(),
             }),
-            query_gateway_delegation(deps.as_ref(), node_identity.clone(), "foo".into())
+            query_gateway_delegation(
+                deps.as_ref(),
+                node_identity1.clone(),
+                delegation_owner1.clone()
+            )
         );
 
         // add delegation from a different address
-        gateway_delegations(&mut deps.storage, &node_identity)
-            .save("bar".as_bytes(), &Uint128(42))
+        gateway_delegations(&mut deps.storage, &node_identity1)
+            .save(delegation_owner2.as_bytes(), &Uint128(42))
             .unwrap();
 
         assert_eq!(
             Err(ContractError::NoGatewayDelegationFound {
-                identity: node_identity.clone(),
+                identity: node_identity1.clone(),
+                address: delegation_owner1.clone(),
             }),
-            query_gateway_delegation(deps.as_ref(), node_identity.clone(), "foo".into())
+            query_gateway_delegation(
+                deps.as_ref(),
+                node_identity1.clone(),
+                delegation_owner1.clone()
+            )
         );
 
         // add delegation for a different node
-        gateway_delegations(&mut deps.storage, "differentnode")
-            .save("foo".as_bytes(), &Uint128(42))
+        gateway_delegations(&mut deps.storage, &node_identity2)
+            .save(delegation_owner1.as_bytes(), &Uint128(42))
             .unwrap();
 
         assert_eq!(
             Err(ContractError::NoGatewayDelegationFound {
-                identity: node_identity.clone(),
+                identity: node_identity1.clone(),
+                address: delegation_owner1.clone()
             }),
-            query_gateway_delegation(deps.as_ref(), node_identity.clone(), "foo".into())
+            query_gateway_delegation(deps.as_ref(), node_identity1, delegation_owner1)
         )
     }
 }

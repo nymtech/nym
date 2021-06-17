@@ -637,7 +637,7 @@ export type StateParams = {
 }
 
 export type Delegation = {
-    node_identity: string,
+    owner: string,
     amount: Coin,
 }
 

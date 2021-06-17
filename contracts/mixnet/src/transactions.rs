@@ -462,6 +462,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
         }
         None => Err(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
+            address: info.sender,
         }),
     }
 }
@@ -526,6 +527,7 @@ pub(crate) fn try_remove_delegation_from_gateway(
         }
         None => Err(ContractError::NoGatewayDelegationFound {
             identity: gateway_identity,
+            address: info.sender,
         }),
     }
 }
@@ -1915,6 +1917,7 @@ pub mod tests {
             assert_eq!(
                 Err(ContractError::NoMixnodeDelegationFound {
                     identity: identity.clone(),
+                    address: "sender".into(),
                 }),
                 try_remove_delegation_from_mixnode(
                     deps.as_mut(),
@@ -2391,6 +2394,7 @@ pub mod tests {
             assert_eq!(
                 Err(ContractError::NoGatewayDelegationFound {
                     identity: identity.clone(),
+                    address: "sender".into(),
                 }),
                 try_remove_delegation_from_gateway(
                     deps.as_mut(),

@@ -17,3 +17,7 @@ pub struct LayerDistribution {
     pub layer3: u64,
     pub invalid: u64,
 }
+
+// type aliases for better reasoning about available data
+pub type IdentityKey = String;
+pub type SphinxKey = String;

@@ -12,7 +12,7 @@ use crate::storage::{
 use cosmwasm_std::{
     attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, HandleResponse, MessageInfo, Uint128,
 };
-use mixnet_contract::{Gateway, GatewayBond, MixNode, MixNodeBond};
+use mixnet_contract::{Gateway, GatewayBond, IdentityKey, MixNode, MixNodeBond};
 
 fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
     // check if anything was put as bond
@@ -311,7 +311,7 @@ pub(crate) fn try_update_state_params(
 pub(crate) fn try_reward_mixnode(
     deps: DepsMut,
     info: MessageInfo,
-    mix_identity: String,
+    mix_identity: IdentityKey,
     uptime: u32,
 ) -> Result<HandleResponse, ContractError> {
     let state = config_read(deps.storage).load().unwrap();
@@ -349,7 +349,7 @@ pub(crate) fn try_reward_mixnode(
 pub(crate) fn try_reward_gateway(
     deps: DepsMut,
     info: MessageInfo,
-    gateway_identity: String,
+    gateway_identity: IdentityKey,
     uptime: u32,
 ) -> Result<HandleResponse, ContractError> {
     let state = config_read(deps.storage).load().unwrap();
@@ -405,7 +405,7 @@ fn validate_delegation_stake(delegation: &[Coin]) -> Result<(), ContractError> {
 pub(crate) fn try_delegate_to_mixnode(
     deps: DepsMut,
     info: MessageInfo,
-    mix_identity: String,
+    mix_identity: IdentityKey,
 ) -> Result<HandleResponse, ContractError> {
     // check if the delegation contains any funds of the appropriate denomination
     validate_delegation_stake(&info.sent_funds)?;
@@ -437,7 +437,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
     deps: DepsMut,
     info: MessageInfo,
     env: Env,
-    mix_identity: String,
+    mix_identity: IdentityKey,
 ) -> Result<HandleResponse, ContractError> {
     let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
     let sender_bytes = info.sender.as_bytes();
@@ -470,7 +470,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 pub(crate) fn try_delegate_to_gateway(
     deps: DepsMut,
     info: MessageInfo,
-    gateway_identity: String,
+    gateway_identity: IdentityKey,
 ) -> Result<HandleResponse, ContractError> {
     // check if the delegation contains any funds of the appropriate denomination
     validate_delegation_stake(&info.sent_funds)?;
@@ -502,7 +502,7 @@ pub(crate) fn try_remove_delegation_from_gateway(
     deps: DepsMut,
     info: MessageInfo,
     env: Env,
-    gateway_identity: String,
+    gateway_identity: IdentityKey,
 ) -> Result<HandleResponse, ContractError> {
     let mut delegation_bucket = gateway_delegations(deps.storage, &gateway_identity);
     let sender_bytes = info.sender.as_bytes();
@@ -1505,7 +1505,7 @@ pub mod tests {
         let network_monitor_address = current_state.network_monitor_address;
 
         let node_owner: HumanAddr = "node-owner".into();
-        let node_identity: String = "nodeidentity".into();
+        let node_identity: IdentityKey = "nodeidentity".into();
 
         // errors out if executed by somebody else than network monitor
         let info = mock_info("not-the-monitor", &[]);
@@ -1565,7 +1565,7 @@ pub mod tests {
         let network_monitor_address = current_state.network_monitor_address;
 
         let node_owner: HumanAddr = "node-owner".into();
-        let node_identity: String = "nodeidentity".into();
+        let node_identity: IdentityKey = "nodeidentity".into();
 
         // errors out if executed by somebody else than network monitor
         let info = mock_info("not-the-monitor", &[]);

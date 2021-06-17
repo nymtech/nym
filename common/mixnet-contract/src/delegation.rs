@@ -2,6 +2,7 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use crate::HumanAddr;
+use crate::IdentityKey;
 use cosmwasm_std::Coin;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -39,14 +40,14 @@ impl Display for Delegation {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedMixDelegationsResponse {
-    pub node_identity: String,
+    pub node_identity: IdentityKey,
     pub delegations: Vec<Delegation>,
     pub start_next_after: Option<HumanAddr>,
 }
 
 impl PagedMixDelegationsResponse {
     pub fn new(
-        node_identity: String,
+        node_identity: IdentityKey,
         delegations: Vec<Delegation>,
         start_next_after: Option<HumanAddr>,
     ) -> Self {
@@ -60,14 +61,14 @@ impl PagedMixDelegationsResponse {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct PagedGatewayDelegationsResponse {
-    pub node_identity: String,
+    pub node_identity: IdentityKey,
     pub delegations: Vec<Delegation>,
     pub start_next_after: Option<HumanAddr>,
 }
 
 impl PagedGatewayDelegationsResponse {
     pub fn new(
-        node_identity: String,
+        node_identity: IdentityKey,
         delegations: Vec<Delegation>,
         start_next_after: Option<HumanAddr>,
     ) -> Self {

@@ -134,9 +134,7 @@ pub(crate) fn query_mixnode_delegations_paged(
         })
         .collect::<StdResult<Vec<Delegation>>>()?;
 
-    let start_next_after = delegations
-        .last()
-        .map(|delegation| delegation.owner().clone());
+    let start_next_after = delegations.last().map(|delegation| delegation.owner());
 
     Ok(PagedMixDelegationsResponse::new(
         mix_identity,
@@ -187,9 +185,7 @@ pub(crate) fn query_gateway_delegations_paged(
         })
         .collect::<StdResult<Vec<Delegation>>>()?;
 
-    let start_next_after = delegations
-        .last()
-        .map(|delegation| delegation.owner().clone());
+    let start_next_after = delegations.last().map(|delegation| delegation.owner());
 
     Ok(PagedGatewayDelegationsResponse::new(
         gateway_identity,

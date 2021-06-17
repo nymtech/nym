@@ -22,8 +22,8 @@ impl Delegation {
         &self.amount
     }
 
-    pub fn owner(&self) -> &HumanAddr {
-        &self.owner
+    pub fn owner(&self) -> HumanAddr {
+        self.owner.clone()
     }
 }
 

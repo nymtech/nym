@@ -4,7 +4,9 @@
 use crate::models::{QueryRequest, QueryResponse};
 use crate::ValidatorClientError::ValidatorError;
 use core::fmt::{self, Display, Formatter};
-use mixnet_contract::{Addr, GatewayBond, IdentityKey, LayerDistribution, MixNodeBond, PagedGatewayResponse, PagedResponse};
+use mixnet_contract::{
+    GatewayBond, IdentityKey, LayerDistribution, MixNodeBond, PagedGatewayResponse, PagedResponse,
+};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use serde::Deserialize;

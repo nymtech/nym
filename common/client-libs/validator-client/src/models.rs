@@ -3,7 +3,7 @@
 
 use crate::serde_helpers::{de_i64_from_str, de_paged_query_response_from_str};
 use core::fmt::{self, Display, Formatter};
-use mixnet_contract::Addr;
+use mixnet_contract::IdentityKey;
 use serde::{Deserialize, Serialize};
 
 // TODO: this is a duplicate code but it really does not feel

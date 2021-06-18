@@ -339,7 +339,7 @@ pub(crate) fn try_reward_mixnode(
     let scaled_reward = scale_reward_by_uptime(reward, uptime)?;
 
     increase_mixnode_bond(deps.storage, current_bond, scaled_reward)?;
-    increase_mix_delegated_stakes(deps.storage, &mix_identity, scaled_reward)?;
+    increase_mix_delegated_stakes(deps.storage, mix_identity, scaled_reward)?;
 
     Ok(Response::default())
 }
@@ -372,7 +372,7 @@ pub(crate) fn try_reward_gateway(
     let scaled_reward = scale_reward_by_uptime(reward, uptime)?;
 
     increase_gateway_bond(deps.storage, current_bond, scaled_reward)?;
-    increase_gateway_delegated_stakes(deps.storage, &gateway_identity, scaled_reward)?;
+    increase_gateway_delegated_stakes(deps.storage, gateway_identity, scaled_reward)?;
 
     Ok(Response::default())
 }

@@ -20,4 +20,5 @@ pub struct LayerDistribution {
 
 // type aliases for better reasoning about available data
 pub type IdentityKey = String;
+pub type IdentityKeyRef<'a> = &'a str;
 pub type SphinxKey = String;

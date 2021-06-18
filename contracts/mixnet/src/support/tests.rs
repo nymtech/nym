@@ -1,10 +1,10 @@
 #[cfg(test)]
 pub mod helpers {
     use super::*;
+    use crate::contract::{instantiate, INITIAL_MIXNODE_BOND};
     use crate::contract::query;
     use crate::contract::DENOM;
-    use crate::contract::{init, INITIAL_MIXNODE_BOND};
-    use crate::msg::InitMsg;
+    use crate::msg::InstantiateMsg;
     use crate::msg::QueryMsg;
     use crate::transactions::{try_add_gateway, try_add_mixnode};
     use cosmwasm_std::coins;
@@ -15,8 +15,8 @@ pub mod helpers {
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
     use cosmwasm_std::testing::MockStorage;
+    use cosmwasm_std::Addr;
     use cosmwasm_std::Coin;
-    use cosmwasm_std::HumanAddr;
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::{Empty, MemoryStorage};
     use mixnet_contract::{
@@ -97,10 +97,10 @@ pub mod helpers {
 
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies(&[]);
-        let msg = InitMsg {};
+        let msg = InstantiateMsg {};
         let env = mock_env();
         let info = mock_info("creator", &[]);
-        init(deps.as_mut(), env.clone(), info, msg).unwrap();
+        instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
         return deps;
     }
 
@@ -124,7 +124,7 @@ pub mod helpers {
             "aaaa".to_string(),
             "0.10.0".to_string(),
         );
-        MixNodeBond::new(coins(50, DENOM), HumanAddr::from("foo"), mix_node)
+        MixNodeBond::new(coins(50, DENOM), Addr::unchecked("foo"), mix_node)
     }
 
     pub fn gateway_fixture() -> Gateway {
@@ -147,11 +147,11 @@ pub mod helpers {
             "identity".to_string(),
             "0.10.0".to_string(),
         );
-        GatewayBond::new(coins(50, DENOM), HumanAddr::from("foo"), gateway)
+        GatewayBond::new(coins(50, DENOM), Addr::unchecked("foo"), gateway)
     }
 
     pub fn query_contract_balance(
-        address: HumanAddr,
+        address: Addr,
         deps: OwnedDeps<MockStorage, MockApi, MockQuerier>,
     ) -> Vec<Coin> {
         let querier = deps.as_ref().querier;

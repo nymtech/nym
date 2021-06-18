@@ -8,13 +8,12 @@ use crate::storage::{
 use cosmwasm_std::Deps;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;
-use cosmwasm_std::{coin, HumanAddr};
+use cosmwasm_std::{coin, Addr};
 use mixnet_contract::{
     Delegation, GatewayBond, GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNodeBond,
     MixOwnershipResponse, PagedGatewayDelegationsResponse, PagedGatewayResponse,
     PagedMixDelegationsResponse, PagedResponse,
 };
-use std::ops::Deref;
 
 const BOND_PAGE_MAX_LIMIT: u32 = 100;
 const BOND_PAGE_DEFAULT_LIMIT: u32 = 50;
@@ -65,22 +64,16 @@ pub(crate) fn query_gateways_paged(
     Ok(PagedGatewayResponse::new(nodes, limit, start_next_after))
 }
 
-pub(crate) fn query_owns_mixnode(
-    deps: Deps,
-    address: HumanAddr,
-) -> StdResult<MixOwnershipResponse> {
+pub(crate) fn query_owns_mixnode(deps: Deps, address: Addr) -> StdResult<MixOwnershipResponse> {
     let has_node = mixnodes_owners_read(deps.storage)
-        .may_load(address.as_ref())?
+        .may_load(address.as_bytes())?
         .is_some();
     Ok(MixOwnershipResponse { address, has_node })
 }
 
-pub(crate) fn query_owns_gateway(
-    deps: Deps,
-    address: HumanAddr,
-) -> StdResult<GatewayOwnershipResponse> {
+pub(crate) fn query_owns_gateway(deps: Deps, address: Addr) -> StdResult<GatewayOwnershipResponse> {
     let has_gateway = gateways_owners_read(deps.storage)
-        .may_load(address.as_ref())?
+        .may_load(address.as_bytes())?
         .is_some();
     Ok(GatewayOwnershipResponse {
         address,
@@ -98,10 +91,11 @@ pub(crate) fn query_layer_distribution(deps: Deps) -> LayerDistribution {
 
 /// Adds a 0 byte to terminate the `start_after` value given. This allows CosmWasm
 /// to get the succeeding key as the start of the next page.
-// S works for both `String` and `HumanAddr` and that's what we wanted
-fn calculate_start_value<S: Deref<Target = str>>(start_after: Option<S>) -> Option<Vec<u8>> {
+// S works for both `String` and `Addr` and that's what we wanted
+fn calculate_start_value<S: AsRef<str>>(start_after: Option<S>) -> Option<Vec<u8>> {
     start_after.as_ref().map(|identity| {
         identity
+            .as_ref()
             .as_bytes()
             .iter()
             .cloned()
@@ -113,7 +107,7 @@ fn calculate_start_value<S: Deref<Target = str>>(start_after: Option<S>) -> Opti
 pub(crate) fn query_mixnode_delegations_paged(
     deps: Deps,
     mix_identity: IdentityKey,
-    start_after: Option<HumanAddr>,
+    start_after: Option<Addr>,
     limit: Option<u32>,
 ) -> StdResult<PagedMixDelegationsResponse> {
     let limit = limit
@@ -127,7 +121,7 @@ pub(crate) fn query_mixnode_delegations_paged(
         .map(|res| {
             res.map(|entry| {
                 Delegation::new(
-                    HumanAddr(String::from_utf8(entry.0).unwrap()),
+                    Addr::unchecked(String::from_utf8(entry.0).unwrap()),
                     coin(entry.1.u128(), DENOM),
                 )
             })
@@ -147,7 +141,7 @@ pub(crate) fn query_mixnode_delegations_paged(
 pub(crate) fn query_mixnode_delegation(
     deps: Deps,
     mix_identity: IdentityKey,
-    address: HumanAddr,
+    address: Addr,
 ) -> Result<Delegation, ContractError> {
     match mix_delegations_read(deps.storage, &mix_identity).may_load(address.as_bytes())? {
         Some(delegation_value) => Ok(Delegation::new(
@@ -164,7 +158,7 @@ pub(crate) fn query_mixnode_delegation(
 pub(crate) fn query_gateway_delegations_paged(
     deps: Deps,
     gateway_identity: IdentityKey,
-    start_after: Option<HumanAddr>,
+    start_after: Option<Addr>,
     limit: Option<u32>,
 ) -> StdResult<PagedGatewayDelegationsResponse> {
     let limit = limit
@@ -178,7 +172,7 @@ pub(crate) fn query_gateway_delegations_paged(
         .map(|res| {
             res.map(|entry| {
                 Delegation::new(
-                    HumanAddr(String::from_utf8(entry.0).unwrap()),
+                    Addr::unchecked(String::from_utf8(entry.0).unwrap()),
                     coin(entry.1.u128(), DENOM),
                 )
             })
@@ -198,7 +192,7 @@ pub(crate) fn query_gateway_delegations_paged(
 pub(crate) fn query_gateway_delegation(
     deps: Deps,
     gateway_identity: IdentityKey,
-    address: HumanAddr,
+    address: Addr,
 ) -> Result<Delegation, ContractError> {
     match gateway_delegations_read(deps.storage, &gateway_identity).may_load(address.as_bytes())? {
         Some(delegation_value) => Ok(Delegation::new(
@@ -220,8 +214,8 @@ mod tests {
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{good_gateway_bond, good_mixnode_bond};
     use crate::transactions;
-    use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{Storage, Uint128};
+    use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::{Addr, Storage, Uint128};
     use mixnet_contract::{Gateway, MixNode};
 
     #[test]
@@ -284,10 +278,15 @@ mod tests {
 
     #[test]
     fn pagination_works() {
+        let addr1 = "hal100";
+        let addr2 = "hal101";
+        let addr3 = "hal102";
+        let addr4 = "hal103";
+
         let mut deps = helpers::init_contract();
         let node = helpers::mixnode_bond_fixture();
         mixnodes(&mut deps.storage)
-            .save("1".as_bytes(), &node)
+            .save(addr1.as_bytes(), &node)
             .unwrap();
 
         let per_page = 2;
@@ -298,7 +297,7 @@ mod tests {
 
         // save another
         mixnodes(&mut deps.storage)
-            .save("2".as_bytes(), &node)
+            .save(addr2.as_bytes(), &node)
             .unwrap();
 
         // page1 should have 2 results on it
@@ -306,7 +305,7 @@ mod tests {
         assert_eq!(2, page1.nodes.len());
 
         mixnodes(&mut deps.storage)
-            .save("3".as_bytes(), &node)
+            .save(addr3.as_bytes(), &node)
             .unwrap();
 
         // page1 still has 2 results
@@ -314,7 +313,7 @@ mod tests {
         assert_eq!(2, page1.nodes.len());
 
         // retrieving the next page should start after the last key on this page
-        let start_after = String::from("2");
+        let start_after = String::from(addr2);
         let page2 = query_mixnodes_paged(
             deps.as_ref(),
             Option::from(start_after),
@@ -326,10 +325,10 @@ mod tests {
 
         // save another one
         mixnodes(&mut deps.storage)
-            .save("4".as_bytes(), &node)
+            .save(addr4.as_bytes(), &node)
             .unwrap();
 
-        let start_after = String::from("2");
+        let start_after = String::from(addr2);
         let page2 = query_mixnodes_paged(
             deps.as_ref(),
             Option::from(start_after),
@@ -396,10 +395,15 @@ mod tests {
 
     #[test]
     fn gateway_pagination_works() {
+        let addr1 = "hal100";
+        let addr2 = "hal101";
+        let addr3 = "hal102";
+        let addr4 = "hal103";
+
         let mut deps = helpers::init_contract();
         let node = helpers::gateway_bond_fixture();
         gateways(&mut deps.storage)
-            .save("1".as_bytes(), &node)
+            .save(addr1.as_bytes(), &node)
             .unwrap();
 
         let per_page = 2;
@@ -410,7 +414,7 @@ mod tests {
 
         // save another
         gateways(&mut deps.storage)
-            .save("2".as_bytes(), &node)
+            .save(addr2.as_bytes(), &node)
             .unwrap();
 
         // page1 should have 2 results on it
@@ -418,7 +422,7 @@ mod tests {
         assert_eq!(2, page1.nodes.len());
 
         gateways(&mut deps.storage)
-            .save("3".as_bytes(), &node)
+            .save(addr3.as_bytes(), &node)
             .unwrap();
 
         // page1 still has 2 results
@@ -426,7 +430,7 @@ mod tests {
         assert_eq!(2, page1.nodes.len());
 
         // retrieving the next page should start after the last key on this page
-        let start_after = String::from("2");
+        let start_after = String::from(addr2);
         let page2 = query_gateways_paged(
             deps.as_ref(),
             Option::from(start_after),
@@ -438,10 +442,10 @@ mod tests {
 
         // save another one
         gateways(&mut deps.storage)
-            .save("4".as_bytes(), &node)
+            .save(addr4.as_bytes(), &node)
             .unwrap();
 
-        let start_after = String::from("2");
+        let start_after = String::from(addr2);
         let page2 = query_gateways_paged(
             deps.as_ref(),
             Option::from(start_after),
@@ -456,10 +460,9 @@ mod tests {
     #[test]
     fn query_for_mixnode_owner_works() {
         let mut deps = helpers::init_contract();
-        let env = mock_env();
 
         // "fred" does not own a mixnode if there are no mixnodes
-        let res = query_owns_mixnode(deps.as_ref(), "fred".into()).unwrap();
+        let res = query_owns_mixnode(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(!res.has_node);
 
         // mixnode was added to "bob", "fred" still does not own one
@@ -470,7 +473,7 @@ mod tests {
         transactions::try_add_mixnode(deps.as_mut(), mock_info("bob", &good_mixnode_bond()), node)
             .unwrap();
 
-        let res = query_owns_mixnode(deps.as_ref(), "fred".into()).unwrap();
+        let res = query_owns_mixnode(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(!res.has_node);
 
         // "fred" now owns a mixnode!
@@ -481,23 +484,22 @@ mod tests {
         transactions::try_add_mixnode(deps.as_mut(), mock_info("fred", &good_mixnode_bond()), node)
             .unwrap();
 
-        let res = query_owns_mixnode(deps.as_ref(), "fred".into()).unwrap();
+        let res = query_owns_mixnode(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(res.has_node);
 
         // but after unbonding it, he doesn't own one anymore
-        transactions::try_remove_mixnode(deps.as_mut(), mock_info("fred", &[]), env).unwrap();
+        transactions::try_remove_mixnode(deps.as_mut(), mock_info("fred", &[])).unwrap();
 
-        let res = query_owns_mixnode(deps.as_ref(), "fred".into()).unwrap();
+        let res = query_owns_mixnode(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(!res.has_node);
     }
 
     #[test]
     fn query_for_gateway_owner_works() {
         let mut deps = helpers::init_contract();
-        let env = mock_env();
 
         // "fred" does not own a mixnode if there are no mixnodes
-        let res = query_owns_gateway(deps.as_ref(), "fred".into()).unwrap();
+        let res = query_owns_gateway(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(!res.has_gateway);
 
         // mixnode was added to "bob", "fred" still does not own one
@@ -508,7 +510,7 @@ mod tests {
         transactions::try_add_gateway(deps.as_mut(), mock_info("bob", &good_gateway_bond()), node)
             .unwrap();
 
-        let res = query_owns_gateway(deps.as_ref(), "fred".into()).unwrap();
+        let res = query_owns_gateway(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(!res.has_gateway);
 
         // "fred" now owns a gateway!
@@ -519,13 +521,13 @@ mod tests {
         transactions::try_add_gateway(deps.as_mut(), mock_info("fred", &good_gateway_bond()), node)
             .unwrap();
 
-        let res = query_owns_gateway(deps.as_ref(), "fred".into()).unwrap();
+        let res = query_owns_gateway(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(res.has_gateway);
 
         // but after unbonding it, he doesn't own one anymore
-        transactions::try_remove_gateway(deps.as_mut(), mock_info("fred", &[]), env).unwrap();
+        transactions::try_remove_gateway(deps.as_mut(), mock_info("fred", &[])).unwrap();
 
-        let res = query_owns_gateway(deps.as_ref(), "fred".into()).unwrap();
+        let res = query_owns_gateway(deps.as_ref(), Addr::unchecked("fred")).unwrap();
         assert!(!res.has_gateway);
     }
 
@@ -534,8 +536,8 @@ mod tests {
         let mut deps = helpers::init_contract();
 
         let dummy_state = State {
-            owner: "someowner".into(),
-            network_monitor_address: "monitor".into(),
+            owner: Addr::unchecked("someowner"),
+            network_monitor_address: Addr::unchecked("monitor"),
             params: StateParams {
                 epoch_length: 1,
                 minimum_mixnode_bond: 123u128.into(),
@@ -559,7 +561,7 @@ mod tests {
         use crate::storage::mix_delegations;
         use cosmwasm_std::Uint128;
 
-        fn store_n_delegations(n: u32, storage: &mut dyn Storage, node_identity: &str) {
+        fn store_n_delegations(n: u32, storage: &mut dyn Storage, node_identity: &IdentityKey) {
             for i in 0..n {
                 let address = format!("address{}", i);
                 mix_delegations(storage, node_identity)
@@ -680,7 +682,7 @@ mod tests {
             assert_eq!(2, page1.delegations.len());
 
             // retrieving the next page should start after the last key on this page
-            let start_after = HumanAddr::from("2");
+            let start_after = Addr::unchecked("2");
             let page2 = query_mixnode_delegations_paged(
                 deps.as_ref(),
                 node_identity.clone(),
@@ -696,7 +698,7 @@ mod tests {
                 .save("4".as_bytes(), &Uint128(42))
                 .unwrap();
 
-            let start_after = HumanAddr::from("2");
+            let start_after = Addr::unchecked("2");
             let page2 = query_mixnode_delegations_paged(
                 deps.as_ref(),
                 node_identity,
@@ -714,7 +716,7 @@ mod tests {
     fn mix_deletion_query_returns_current_delegation_value() {
         let mut deps = helpers::init_contract();
         let node_identity: IdentityKey = "foo".into();
-        let delegation_owner: HumanAddr = "bar".into();
+        let delegation_owner = Addr::unchecked("bar");
 
         mix_delegations(&mut deps.storage, &node_identity)
             .save(delegation_owner.as_bytes(), &Uint128(42))
@@ -732,8 +734,8 @@ mod tests {
 
         let node_identity1: IdentityKey = "foo1".into();
         let node_identity2: IdentityKey = "foo2".into();
-        let delegation_owner1: HumanAddr = "bar".into();
-        let delegation_owner2: HumanAddr = "bar2".into();
+        let delegation_owner1 = Addr::unchecked("bar");
+        let delegation_owner2 = Addr::unchecked("bar2");
 
         assert_eq!(
             Err(ContractError::NoMixnodeDelegationFound {
@@ -784,7 +786,7 @@ mod tests {
         use crate::storage::gateway_delegations;
         use cosmwasm_std::Uint128;
 
-        fn store_n_delegations(n: u32, storage: &mut dyn Storage, node_identity: &str) {
+        fn store_n_delegations(n: u32, storage: &mut dyn Storage, node_identity: &IdentityKey) {
             for i in 0..n {
                 let address = format!("address{}", i);
                 gateway_delegations(storage, node_identity)
@@ -905,7 +907,7 @@ mod tests {
             assert_eq!(2, page1.delegations.len());
 
             // retrieving the next page should start after the last key on this page
-            let start_after = HumanAddr::from("2");
+            let start_after = Addr::unchecked("2");
             let page2 = query_gateway_delegations_paged(
                 deps.as_ref(),
                 node_identity.clone(),
@@ -921,7 +923,7 @@ mod tests {
                 .save("4".as_bytes(), &Uint128(42))
                 .unwrap();
 
-            let start_after = HumanAddr::from("2");
+            let start_after = Addr::unchecked("2");
             let page2 = query_gateway_delegations_paged(
                 deps.as_ref(),
                 node_identity,
@@ -939,7 +941,7 @@ mod tests {
     fn gateway_deletion_query_returns_current_delegation_value() {
         let mut deps = helpers::init_contract();
         let node_identity: IdentityKey = "foo".into();
-        let delegation_owner: HumanAddr = "bar".into();
+        let delegation_owner = Addr::unchecked("bar");
 
         gateway_delegations(&mut deps.storage, &node_identity)
             .save(delegation_owner.as_bytes(), &Uint128(42))
@@ -957,8 +959,8 @@ mod tests {
 
         let node_identity1: IdentityKey = "foo1".into();
         let node_identity2: IdentityKey = "foo2".into();
-        let delegation_owner1: HumanAddr = "bar".into();
-        let delegation_owner2: HumanAddr = "bar2".into();
+        let delegation_owner1 = Addr::unchecked("bar");
+        let delegation_owner2 = Addr::unchecked("bar2");
 
         assert_eq!(
             Err(ContractError::NoGatewayDelegationFound {

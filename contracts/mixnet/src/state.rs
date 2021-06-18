@@ -1,11 +1,11 @@
-use cosmwasm_std::{Decimal, HumanAddr, Uint128};
+use cosmwasm_std::{Addr, Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
-    pub owner: HumanAddr, // only the owner account can update state
-    pub network_monitor_address: HumanAddr,
+    pub owner: Addr, // only the owner account can update state
+    pub network_monitor_address: Addr,
     pub params: StateParams,
 
     // helper values to avoid having to recalculate them on every single payment operation

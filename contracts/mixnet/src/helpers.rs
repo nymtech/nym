@@ -14,21 +14,13 @@
 
 use crate::error::ContractError;
 use cosmwasm_std::{Decimal, Uint128};
+use std::ops::Sub;
 
 // for time being completely ignore concept of a leap year and assume each year is exactly 365 days
 // i.e. 8760 hours
 const HOURS_IN_YEAR: u128 = 8760;
 
 const DECIMAL_FRACTIONAL: Uint128 = Uint128(1_000_000_000_000_000_000u128);
-
-// calculates value - 1
-fn decimal_sub_one(value: Decimal) -> Decimal {
-    assert!(value >= Decimal::one());
-
-    let value_uint128 = value * DECIMAL_FRACTIONAL;
-    let uint128_sub_one = (value_uint128 - DECIMAL_FRACTIONAL).unwrap();
-    Decimal::from_ratio(uint128_sub_one, DECIMAL_FRACTIONAL)
-}
 
 fn decimal_to_uint128(value: Decimal) -> Uint128 {
     value * DECIMAL_FRACTIONAL
@@ -47,7 +39,7 @@ pub(crate) fn calculate_epoch_reward_rate(
     debug_assert!(annual_reward_rate >= Decimal::one());
 
     // converts reward rate, like 1.25 into the expected gain, like 0.25
-    let annual_reward = decimal_sub_one(annual_reward_rate);
+    let annual_reward = annual_reward_rate.sub(Decimal::one());
     // do a simple cross-multiplication:
     // `annual_reward`  -    `HOURS_IN_YEAR`
     //          x       -    `epoch_length`
@@ -98,7 +90,7 @@ mod tests {
         // the reward rate should be unchanged
         let per_epoch_rate = calculate_epoch_reward_rate(HOURS_IN_YEAR as u32, annual_reward_rate);
         // 0.10
-        let expected = decimal_sub_one(annual_reward_rate);
+        let expected = annual_reward_rate.sub(Decimal::one());
         assert_eq!(expected, per_epoch_rate);
 
         // 24 hours

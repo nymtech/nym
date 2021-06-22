@@ -4,7 +4,7 @@ mod delegation;
 mod gateway;
 mod mixnode;
 
-pub use cosmwasm_std::{Coin, HumanAddr};
+pub use cosmwasm_std::{Addr, Coin};
 pub use delegation::{Delegation, PagedGatewayDelegationsResponse, PagedMixDelegationsResponse};
 pub use gateway::{Gateway, GatewayBond, GatewayOwnershipResponse, PagedGatewayResponse};
 pub use mixnode::{MixNode, MixNodeBond, MixOwnershipResponse, PagedResponse};
@@ -20,4 +20,5 @@ pub struct LayerDistribution {
 
 // type aliases for better reasoning about available data
 pub type IdentityKey = String;
+pub type IdentityKeyRef<'a> = &'a str;
 pub type SphinxKey = String;

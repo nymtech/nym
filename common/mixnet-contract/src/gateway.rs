@@ -2,7 +2,7 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use crate::{IdentityKey, SphinxKey};
-use cosmwasm_std::{Coin, HumanAddr};
+use cosmwasm_std::{Addr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -50,12 +50,12 @@ impl Gateway {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct GatewayBond {
     pub amount: Vec<Coin>,
-    pub owner: HumanAddr,
+    pub owner: Addr,
     pub gateway: Gateway,
 }
 
 impl GatewayBond {
-    pub fn new(amount: Vec<Coin>, owner: HumanAddr, gateway: Gateway) -> Self {
+    pub fn new(amount: Vec<Coin>, owner: Addr, gateway: Gateway) -> Self {
         GatewayBond {
             amount,
             owner,
@@ -71,7 +71,7 @@ impl GatewayBond {
         &self.amount
     }
 
-    pub fn owner(&self) -> &HumanAddr {
+    pub fn owner(&self) -> &Addr {
         &self.owner
     }
 
@@ -98,11 +98,15 @@ impl Display for GatewayBond {
 pub struct PagedGatewayResponse {
     pub nodes: Vec<GatewayBond>,
     pub per_page: usize,
-    pub start_next_after: Option<String>,
+    pub start_next_after: Option<IdentityKey>,
 }
 
 impl PagedGatewayResponse {
-    pub fn new(nodes: Vec<GatewayBond>, per_page: usize, start_next_after: Option<String>) -> Self {
+    pub fn new(
+        nodes: Vec<GatewayBond>,
+        per_page: usize,
+        start_next_after: Option<IdentityKey>,
+    ) -> Self {
         PagedGatewayResponse {
             nodes,
             per_page,
@@ -113,6 +117,6 @@ impl PagedGatewayResponse {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct GatewayOwnershipResponse {
-    pub address: HumanAddr,
+    pub address: Addr,
     pub has_gateway: bool,
 }

@@ -1,15 +1,15 @@
 use crate::state::StateParams;
-use cosmwasm_std::HumanAddr;
+use cosmwasm_std::Addr;
 use mixnet_contract::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {}
+pub struct InstantiateMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     BondMixnode {
         mix_node: MixNode,
     },
@@ -61,29 +61,29 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
     OwnsMixnode {
-        address: HumanAddr,
+        address: Addr,
     },
     OwnsGateway {
-        address: HumanAddr,
+        address: Addr,
     },
     StateParams {},
     GetMixDelegations {
         mix_identity: IdentityKey,
-        start_after: Option<HumanAddr>,
+        start_after: Option<Addr>,
         limit: Option<u32>,
     },
     GetMixDelegation {
         mix_identity: IdentityKey,
-        address: HumanAddr,
+        address: Addr,
     },
     GetGatewayDelegations {
         gateway_identity: IdentityKey,
-        start_after: Option<HumanAddr>,
+        start_after: Option<Addr>,
         limit: Option<u32>,
     },
     GetGatewayDelegation {
         gateway_identity: IdentityKey,
-        address: HumanAddr,
+        address: Addr,
     },
     LayerDistribution {},
 }

@@ -5,7 +5,7 @@ use crate::models::{QueryRequest, QueryResponse};
 use crate::ValidatorClientError::ValidatorError;
 use core::fmt::{self, Display, Formatter};
 use mixnet_contract::{
-    GatewayBond, LayerDistribution, MixNodeBond, PagedGatewayResponse, PagedResponse,
+    GatewayBond, IdentityKey, LayerDistribution, MixNodeBond, PagedGatewayResponse, PagedResponse,
 };
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -177,7 +177,7 @@ impl Client {
 
     async fn get_mix_nodes_paged(
         &mut self,
-        start_after: Option<String>,
+        start_after: Option<IdentityKey>,
     ) -> Result<PagedResponse, ValidatorClientError> {
         let query_content_json = serde_json::to_string(&QueryRequest::GetMixNodes {
             limit: self.config.mixnode_page_limit,
@@ -210,7 +210,7 @@ impl Client {
 
     async fn get_gateways_paged(
         &mut self,
-        start_after: Option<String>,
+        start_after: Option<IdentityKey>,
     ) -> Result<PagedGatewayResponse, ValidatorClientError> {
         let query_content_json = serde_json::to_string(&QueryRequest::GetGateways {
             limit: self.config.gateway_page_limit,

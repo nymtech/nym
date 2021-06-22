@@ -1,5 +1,5 @@
 use crate::contract::DENOM;
-use cosmwasm_std::{HumanAddr, StdError};
+use cosmwasm_std::{Addr, StdError};
 use mixnet_contract::IdentityKey;
 use thiserror::Error;
 
@@ -25,10 +25,10 @@ pub enum ContractError {
     GatewayBondNotFound { identity: IdentityKey },
 
     #[error("{owner} does not seem to own any mixnodes")]
-    NoAssociatedMixNodeBond { owner: HumanAddr },
+    NoAssociatedMixNodeBond { owner: Addr },
 
     #[error("{owner} does not seem to own any gateways")]
-    NoAssociatedGatewayBond { owner: HumanAddr },
+    NoAssociatedGatewayBond { owner: Addr },
 
     #[error("Unauthorized")]
     Unauthorized,
@@ -58,26 +58,26 @@ pub enum ContractError {
     AlreadyOwnsGateway,
 
     #[error("Mixnode with this identity already exists. Its owner is {owner}")]
-    DuplicateMixnode { owner: HumanAddr },
+    DuplicateMixnode { owner: Addr },
 
     #[error("Gateway with this identity already exists. Its owner is {owner}")]
-    DuplicateGateway { owner: HumanAddr },
+    DuplicateGateway { owner: Addr },
 
     #[error("No funds were provided for the delegation")]
     EmptyDelegation,
 
     #[error("Request did not come from the node owner ({owner})")]
-    InvalidSender { owner: HumanAddr },
+    InvalidSender { owner: Addr },
 
     #[error("Could not find any delegation information associated with mixnode {identity} for {address}")]
     NoMixnodeDelegationFound {
         identity: IdentityKey,
-        address: HumanAddr,
+        address: Addr,
     },
 
     #[error("Could not find any delegation information associated with gateway {identity} for {address}")]
     NoGatewayDelegationFound {
         identity: IdentityKey,
-        address: HumanAddr,
+        address: Addr,
     },
 }

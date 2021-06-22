@@ -136,9 +136,8 @@ pub fn execute(matches: &ArgMatches) {
     let identity_keypair = load_identity_keys(&pathfinder);
     let sphinx_keypair = load_sphinx_keys(&pathfinder);
 
-    let listening_ip_string = config.get_listening_address().ip().to_string();
-    if special_addresses().contains(&listening_ip_string.as_ref()) {
-        show_binding_warning(listening_ip_string);
+    if special_addresses().contains(&&*config.get_listening_address()) {
+        show_binding_warning(config.get_listening_address());
     }
 
     println!(
@@ -150,7 +149,7 @@ pub fn execute(matches: &ArgMatches) {
         config.get_listening_address()
     );
     println!(
-        "Announcing the following socket address: {}",
+        "Announcing the following address: {}",
         config.get_announce_address()
     );
 
@@ -158,7 +157,8 @@ pub fn execute(matches: &ArgMatches) {
         "\nTo bond your mixnode, go to https://web-wallet-finney.nymtech.net/.  You will need to provide the following:
     Identity key: {}
     Sphinx key: {}
-    Host: {}
+    Address: {}
+    Mix port: {}
     Layer: {}
     Location: [physical location of your node's server]
     Version: {}
@@ -166,6 +166,7 @@ pub fn execute(matches: &ArgMatches) {
         identity_keypair.public_key().to_base58_string(),
         sphinx_keypair.public_key().to_base58_string(),
         config.get_announce_address(),
+        config.get_mix_port(),
         config.get_layer(),
         config.get_version(),
     );

@@ -70,9 +70,21 @@ impl Gateway {
             ack_sender,
         );
 
-        let listener = mixnet_handling::Listener::new(self.config.get_mix_listening_address());
+        let listening_address = match format!(
+            "{}:{}",
+            self.config.get_listening_address(),
+            self.config.get_mix_port()
+        )
+        .parse()
+        {
+            Ok(addr) => addr,
+            Err(err) => {
+                error!("Failed to correctly parse socket address - {}", err);
+                process::exit(1);
+            }
+        };
 
-        listener.start(connection_handler);
+        mixnet_handling::Listener::new(listening_address).start(connection_handler);
     }
 
     fn start_client_websocket_listener(
@@ -82,11 +94,22 @@ impl Gateway {
     ) {
         info!("Starting client [web]socket listener...");
 
-        websocket::Listener::new(
-            self.config.get_clients_listening_address(),
-            Arc::clone(&self.identity),
+        let listening_address = match format!(
+            "{}:{}",
+            self.config.get_listening_address(),
+            self.config.get_clients_port()
         )
-        .start(clients_handler_sender, forwarding_channel);
+        .parse()
+        {
+            Ok(addr) => addr,
+            Err(err) => {
+                error!("Failed to correctly parse socket address - {}", err);
+                process::exit(1);
+            }
+        };
+
+        websocket::Listener::new(listening_address, Arc::clone(&self.identity))
+            .start(clients_handler_sender, forwarding_channel);
     }
 
     fn start_packet_forwarder(&self) -> MixForwardingSender {
@@ -127,9 +150,6 @@ impl Gateway {
 
     // TODO: ask DH whether this function still makes sense in ^0.10
     async fn check_if_same_ip_gateway_exists(&self) -> Option<String> {
-        let announced_mix_host = self.config.get_mix_announce_address();
-        let announced_clients_host = self.config.get_clients_announce_address();
-
         let validator_client_config = validator_client::Config::new(
             self.config.get_validator_rest_endpoints(),
             self.config.get_validator_mixnet_contract_address(),
@@ -144,12 +164,11 @@ impl Gateway {
             }
         };
 
+        let our_host = self.config.get_announce_address();
+
         existing_gateways
             .iter()
-            .find(|node| {
-                node.gateway.mix_host == announced_mix_host
-                    || node.gateway.clients_host == announced_clients_host
-            })
+            .find(|node| node.gateway.host == our_host)
             .map(|node| node.gateway().identity_key.clone())
     }
 

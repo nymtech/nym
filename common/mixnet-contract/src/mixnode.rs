@@ -6,12 +6,11 @@ use cosmwasm_std::{Addr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use std::io;
-use std::net::{SocketAddr, ToSocketAddrs};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNode {
     pub host: String,
+    pub mix_port: u16,
     pub layer: u64,
     pub location: String,
     pub sphinx_key: SphinxKey,
@@ -23,6 +22,7 @@ pub struct MixNode {
 impl MixNode {
     pub fn new(
         host: String,
+        mix_port: u16,
         layer: u64,
         location: String,
         sphinx_key: SphinxKey,
@@ -31,6 +31,7 @@ impl MixNode {
     ) -> Self {
         MixNode {
             host,
+            mix_port,
             layer,
             location,
             sphinx_key,
@@ -38,19 +39,7 @@ impl MixNode {
             version,
         }
     }
-
-    pub fn try_resolve_hostname(&self) -> Result<SocketAddr, io::Error> {
-        self.host
-            .to_socket_addrs()?
-            .next()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no valid socket address"))
-    }
 }
-
-/*
-By the way, I've also been thinking of some potential changes in the contract we could introduce once we have to make an incompatible upgrade (say to cosmwasm 0.14+). Is there some place I could write them down so that we would not forget about them? Should I make a GitHub issue, a google doc or maybe put it on GitLab?
-
- */
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
@@ -62,8 +51,6 @@ pub struct MixNodeBond {
     //
     // I would also modify the `MixNode` struct:
     //  - remove `location` field
-    //  - repurpose `host` field to hold either ip or hostname (WITHOUT port information)
-    //  - introduce `mix_port` field
     //  - introduce `rest_api_port` field
     //  - [POTENTIALLY] introduce `verloc_port` field or keep it accessible via http api
     //

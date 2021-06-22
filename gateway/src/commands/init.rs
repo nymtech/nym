@@ -106,21 +106,23 @@ fn show_bonding_info(config: &Config) {
         "\nTo bond your gateway you will [most likely] need to provide the following:
     Identity key: {}
     Sphinx key: {}
-    Mix Host: {}
-    Clients Host: {}
+    Host: {}
+    Mix Port: {}
+    Clients Port: {}
     Location: [physical location of your node's server]
     Version: {}
     ",
         identity_keypair.public_key().to_base58_string(),
         sphinx_keypair.public_key().to_base58_string(),
-        config.get_mix_announce_address(),
-        config.get_clients_announce_address(),
+        config.get_announce_address(),
+        config.get_mix_port(),
+        config.get_clients_port(),
         config.get_version(),
     );
 }
 
 pub fn execute(matches: &ArgMatches) {
-    let id = matches.value_of("id").unwrap();
+    let id = matches.value_of(ID_ARG_NAME).unwrap();
     println!("Initialising gateway {}...", id);
 
     let already_init = if Config::default_config_file_path(id).exists() {

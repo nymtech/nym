@@ -3,11 +3,8 @@
 
 use crate::config::template::config_template;
 use config::{deserialize_duration, deserialize_validators, NymConfig};
-use log::error;
 use serde::{Deserialize, Serialize};
-use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::time::Duration;
 
 pub mod persistence;
@@ -16,7 +13,7 @@ mod template;
 pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'MIXNODE'
-const DEFAULT_LISTENING_PORT: u16 = 1789;
+const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
     "http://testnet-finney-validator.nymtech.net:1317",
     "http://testnet-finney-validator2.nymtech.net:1317",
@@ -152,77 +149,23 @@ impl Config {
         self
     }
 
-    pub fn with_listening_host<S: Into<String>>(mut self, host: S) -> Self {
-        // see if the provided `host` is just an ip address or ip:port
-        let host = host.into();
-
-        // is it ip:port?
-        match SocketAddr::from_str(host.as_ref()) {
-            Ok(socket_addr) => {
-                self.mixnode.listening_address = socket_addr;
-                self
-            }
-            // try just for ip
-            Err(_) => match IpAddr::from_str(host.as_ref()) {
-                Ok(ip_addr) => {
-                    self.mixnode.listening_address.set_ip(ip_addr);
-                    self
-                }
-                Err(_) => {
-                    error!(
-                        "failed to make any changes to config - invalid host {}",
-                        host
-                    );
-                    self
-                }
-            },
-        }
-    }
-
-    pub fn with_listening_port(mut self, port: u16) -> Self {
-        self.mixnode.listening_address.set_port(port);
+    pub fn with_listening_address<S: Into<String>>(mut self, listening_address: S) -> Self {
+        self.mixnode.listening_address = listening_address.into();
         self
     }
 
-    pub fn with_announce_host<S: Into<String>>(mut self, host: S) -> Self {
-        // this is slightly more complicated as we store announce information as String,
-        // since it might not necessarily be a valid SocketAddr (say `nymtech.net:8080` is a valid
-        // announce address, yet invalid SocketAddr`
-
-        // first lets see if we received host:port or just host part of an address
-        let host = host.into();
-        match host.split(':').count() {
-            1 => {
-                // we provided only 'host' part so we are going to reuse existing port
-                self.mixnode.announce_address =
-                    format!("{}:{}", host, self.mixnode.listening_address.port());
-                self
-            }
-            2 => {
-                // we provided 'host:port' so just put the whole thing there
-                self.mixnode.announce_address = host;
-                self
-            }
-            _ => {
-                // we provided something completely invalid, so don't try to parse it
-                error!(
-                    "failed to make any changes to config - invalid announce host {}",
-                    host
-                );
-                self
-            }
-        }
-    }
-
-    pub fn announce_host_from_listening_host(mut self) -> Self {
-        self.mixnode.announce_address = self.mixnode.listening_address.to_string();
+    pub fn with_announce_address<S: Into<String>>(mut self, announce_address: S) -> Self {
+        self.mixnode.announce_address = announce_address.into();
         self
     }
 
-    pub fn with_announce_port(mut self, port: u16) -> Self {
-        let current_host: Vec<_> = self.mixnode.announce_address.split(':').collect();
-        debug_assert_eq!(current_host.len(), 2);
-        self.mixnode.announce_address = format!("{}:{}", current_host[0], port);
+    pub fn with_mix_port(mut self, port: u16) -> Self {
+        self.mixnode.mix_port = port;
+        self
+    }
+
+    pub fn announce_address_from_listening_address(mut self) -> Self {
+        self.mixnode.announce_address = self.mixnode.listening_address.clone();
         self
     }
 
@@ -272,12 +215,16 @@ impl Config {
         self.mixnode.layer
     }
 
-    pub fn get_listening_address(&self) -> SocketAddr {
-        self.mixnode.listening_address
+    pub fn get_listening_address(&self) -> String {
+        self.mixnode.listening_address.clone()
     }
 
     pub fn get_announce_address(&self) -> String {
         self.mixnode.announce_address.clone()
+    }
+
+    pub fn get_mix_port(&self) -> u16 {
+        self.mixnode.mix_port
     }
 
     pub fn get_packet_forwarding_initial_backoff(&self) -> Duration {
@@ -349,16 +296,17 @@ pub struct MixNode {
     /// Layer of this particular mixnode determining its position in the network.
     layer: u64,
 
-    /// Socket address to which this mixnode will bind to and will be listening for packets.
-    listening_address: SocketAddr,
+    /// Address to which this mixnode will bind to and will be listening for packets.
+    listening_address: String,
 
     /// Optional address announced to the validator for the clients to connect to.
     /// It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
-    /// later on by using name resolvable with a DNS query, such as `nymtech.net:8080`.
-    /// Additionally a custom port can be provided, so both `nymtech.net:8080` and `nymtech.net`
-    /// are valid announce addresses, while the later will default to whatever port is used for
-    /// `listening_address`.
+    /// later on by using name resolvable with a DNS query, such as `nymtech.net`.
     announce_address: String,
+
+    /// Port used for listening for all mixnet traffic.
+    /// (default: 1789)
+    mix_port: u16,
 
     /// Path to file containing private identity key.
     #[serde(default = "missing_string_value")]
@@ -374,7 +322,7 @@ pub struct MixNode {
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
 
-    /// Validator server to which the node will be reporting their presence data.
+    /// Validator server from which the node gets the view on the network.
     #[serde(
         deserialize_with = "deserialize_validators",
         default = "missing_vec_string_value",
@@ -415,10 +363,9 @@ impl Default for MixNode {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             layer: 0,
-            listening_address: format!("0.0.0.0:{}", DEFAULT_LISTENING_PORT)
-                .parse()
-                .unwrap(),
-            announce_address: format!("127.0.0.1:{}", DEFAULT_LISTENING_PORT),
+            listening_address: "0.0.0.0".to_string(),
+            announce_address: "127.0.0.1".to_string(),
+            mix_port: DEFAULT_MIX_LISTENING_PORT,
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),

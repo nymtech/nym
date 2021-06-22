@@ -6,13 +6,12 @@ use cosmwasm_std::{Addr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use std::io;
-use std::net::{SocketAddr, ToSocketAddrs};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct Gateway {
-    pub mix_host: String,
-    pub clients_host: String,
+    pub host: String,
+    pub mix_port: u16,
+    pub clients_port: u16,
     pub location: String,
     pub sphinx_key: SphinxKey,
     /// Base58 encoded ed25519 EdDSA public key of the gateway used to derive shared keys with clients
@@ -22,16 +21,18 @@ pub struct Gateway {
 
 impl Gateway {
     pub fn new(
-        mix_host: String,
-        clients_host: String,
+        host: String,
+        mix_port: u16,
+        clients_port: u16,
         location: String,
         sphinx_key: SphinxKey,
         identity_key: IdentityKey,
         version: String,
     ) -> Self {
         Gateway {
-            mix_host,
-            clients_host,
+            host,
+            mix_port,
+            clients_port,
             location,
             sphinx_key,
             identity_key,
@@ -39,12 +40,12 @@ impl Gateway {
         }
     }
 
-    pub fn try_resolve_hostname(&self) -> Result<SocketAddr, io::Error> {
-        self.mix_host
-            .to_socket_addrs()?
-            .next()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no valid socket address"))
-    }
+    // pub fn try_resolve_hostname(&self) -> Result<SocketAddr, io::Error> {
+    //     self.mix_host
+    //         .to_socket_addrs()?
+    //         .next()
+    //         .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no valid socket address"))
+    // }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]

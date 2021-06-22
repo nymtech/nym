@@ -3,11 +3,8 @@
 
 use crate::config::template::config_template;
 use config::{deserialize_duration, deserialize_validators, NymConfig};
-use log::*;
 use serde::{Deserialize, Serialize};
-use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::time::Duration;
 
 pub mod persistence;
@@ -57,8 +54,6 @@ pub fn missing_vec_string_value() -> Vec<String> {
 #[serde(deny_unknown_fields)]
 pub struct Config {
     gateway: Gateway,
-
-    mixnet_endpoint: MixnetEndpoint,
 
     clients_endpoint: ClientsEndpoint,
 
@@ -155,169 +150,38 @@ impl Config {
         self
     }
 
-    pub fn with_mix_listening_host<S: Into<String>>(mut self, host: S) -> Self {
-        // see if the provided `host` is just an ip address or ip:port
-        let host = host.into();
-
-        // is it ip:port?
-        match SocketAddr::from_str(host.as_ref()) {
-            Ok(socket_addr) => {
-                self.mixnet_endpoint.listening_address = socket_addr;
-                self
-            }
-            // try just for ip
-            Err(_) => match IpAddr::from_str(host.as_ref()) {
-                Ok(ip_addr) => {
-                    self.mixnet_endpoint.listening_address.set_ip(ip_addr);
-                    self
-                }
-                Err(_) => {
-                    error!(
-                        "failed to make any changes to config - invalid host {}",
-                        host
-                    );
-                    self
-                }
-            },
-        }
-    }
-
-    pub fn with_mix_listening_port(mut self, port: u16) -> Self {
-        self.mixnet_endpoint.listening_address.set_port(port);
+    pub fn with_listening_address<S: Into<String>>(mut self, listening_address: S) -> Self {
+        self.gateway.listening_address = listening_address.into();
         self
     }
 
-    pub fn with_mix_announce_host<S: Into<String>>(mut self, host: S) -> Self {
-        // this is slightly more complicated as we store announce information as String,
-        // since it might not necessarily be a valid SocketAddr (say `nymtech.net:8080` is a valid
-        // announce address, yet invalid SocketAddr`
-
-        // first let's see if we received host:port or just host part of an address
-        let host = host.into();
-        match host.split(':').count() {
-            1 => {
-                // we provided only 'host' part so we are going to reuse existing port
-                self.mixnet_endpoint.announce_address =
-                    format!("{}:{}", host, self.mixnet_endpoint.listening_address.port());
-                self
-            }
-            2 => {
-                // we provided 'host:port' so just put the whole thing there
-                self.mixnet_endpoint.announce_address = host;
-                self
-            }
-            _ => {
-                // we provided something completely invalid, so don't try to parse it
-                error!(
-                    "failed to make any changes to config - invalid announce host {}",
-                    host
-                );
-                self
-            }
-        }
-    }
-
-    pub fn mix_announce_host_from_listening_host(mut self) -> Self {
-        self.mixnet_endpoint.announce_address = self.mixnet_endpoint.listening_address.to_string();
+    pub fn with_announce_address<S: Into<String>>(mut self, announce_address: S) -> Self {
+        self.gateway.announce_address = announce_address.into();
         self
     }
 
-    pub fn with_mix_announce_port(mut self, port: u16) -> Self {
-        let current_host: Vec<_> = self.mixnet_endpoint.announce_address.split(':').collect();
-        debug_assert_eq!(current_host.len(), 2);
-        self.mixnet_endpoint.announce_address = format!("{}:{}", current_host[0], port);
+    pub fn with_mix_port(mut self, port: u16) -> Self {
+        self.gateway.mix_port = port;
         self
     }
 
-    pub fn with_clients_listening_host<S: Into<String>>(mut self, host: S) -> Self {
-        // see if the provided `host` is just an ip address or ip:port
-        let host = host.into();
-
-        // is it ip:port?
-        match SocketAddr::from_str(host.as_ref()) {
-            Ok(socket_addr) => {
-                self.clients_endpoint.listening_address = socket_addr;
-                self
-            }
-            // try just for ip
-            Err(_) => match IpAddr::from_str(host.as_ref()) {
-                Ok(ip_addr) => {
-                    self.clients_endpoint.listening_address.set_ip(ip_addr);
-                    self
-                }
-                Err(_) => {
-                    error!(
-                        "failed to make any changes to config - invalid host {}",
-                        host
-                    );
-                    self
-                }
-            },
-        }
-    }
-
-    pub fn clients_announce_host_from_listening_host(mut self) -> Self {
-        self.clients_endpoint.announce_address = format!(
-            "ws://{}",
-            self.clients_endpoint.listening_address.to_string()
-        );
+    pub fn with_clients_port(mut self, port: u16) -> Self {
+        self.gateway.clients_port = port;
         self
     }
 
-    pub fn with_clients_listening_port(mut self, port: u16) -> Self {
-        self.clients_endpoint.listening_address.set_port(port);
+    pub fn announce_host_from_listening_host(mut self) -> Self {
+        self.gateway.announce_address = self.gateway.listening_address.clone();
         self
     }
 
-    pub fn with_clients_announce_host<S: Into<String>>(mut self, host: S) -> Self {
-        // this is slightly more complicated as we store announce information as String,
-        // since it might not necessarily be a valid SocketAddr (say `nymtech.net:8080` is a valid
-        // announce address, yet invalid SocketAddr`
-
-        // first let's see if we received host:port or just host part of an address
-        let host = host.into();
-        match host.split(':').count() {
-            1 => {
-                // we provided only 'host' part so we are going to reuse existing port
-                self.clients_endpoint.announce_address = format!(
-                    "{}:{}",
-                    host,
-                    self.clients_endpoint.listening_address.port()
-                );
-                // make sure it has 'ws' prefix (by extension it also includes 'wss')
-                if !self.clients_endpoint.announce_address.starts_with("ws") {
-                    self.clients_endpoint.announce_address =
-                        format!("ws://{}", self.clients_endpoint.announce_address);
-                }
-                self
-            }
-            2 => {
-                // we provided 'host:port' so just put the whole thing there
-                self.clients_endpoint.announce_address = host;
-                // make sure it has 'ws' prefix (by extension it also includes 'wss')
-                if !self.clients_endpoint.announce_address.starts_with("ws") {
-                    self.clients_endpoint.announce_address =
-                        format!("ws://{}", self.clients_endpoint.announce_address);
-                }
-                self
-            }
-            _ => {
-                // we provided something completely invalid, so don't try to parse it
-                error!(
-                    "failed to make any changes to config - invalid announce host {}",
-                    host
-                );
-                self
-            }
-        }
-    }
-
-    pub fn with_clients_announce_port(mut self, port: u16) -> Self {
-        let current_host: Vec<_> = self.clients_endpoint.announce_address.split(':').collect();
-        debug_assert_eq!(current_host.len(), 2);
-        self.clients_endpoint.announce_address = format!("{}:{}", current_host[0], port);
-        self
-    }
+    // pub fn clients_announce_host_from_listening_host(mut self) -> Self {
+    //     self.clients_endpoint.announce_address = format!(
+    //         "ws://{}",
+    //         self.clients_endpoint.listening_address.to_string()
+    //     );
+    //     self
+    // }
 
     pub fn with_custom_clients_inboxes<S: Into<String>>(mut self, inboxes_dir: S) -> Self {
         self.clients_endpoint.inboxes_directory = PathBuf::from(inboxes_dir.into());
@@ -363,20 +227,20 @@ impl Config {
         self.gateway.mixnet_contract_address.clone()
     }
 
-    pub fn get_mix_listening_address(&self) -> SocketAddr {
-        self.mixnet_endpoint.listening_address
+    pub fn get_listening_address(&self) -> String {
+        self.gateway.listening_address.clone()
     }
 
-    pub fn get_mix_announce_address(&self) -> String {
-        self.mixnet_endpoint.announce_address.clone()
+    pub fn get_announce_address(&self) -> String {
+        self.gateway.announce_address.clone()
     }
 
-    pub fn get_clients_listening_address(&self) -> SocketAddr {
-        self.clients_endpoint.listening_address
+    pub fn get_mix_port(&self) -> u16 {
+        self.gateway.mix_port
     }
 
-    pub fn get_clients_announce_address(&self) -> String {
-        self.clients_endpoint.announce_address.clone()
+    pub fn get_clients_port(&self) -> u16 {
+        self.gateway.clients_port
     }
 
     pub fn get_clients_inboxes_dir(&self) -> PathBuf {
@@ -428,6 +292,22 @@ pub struct Gateway {
 
     /// ID specifies the human readable ID of this particular gateway.
     id: String,
+
+    /// Address to which this mixnode will bind to and will be listening for packets.
+    listening_address: String,
+
+    /// Optional address announced to the validator for the clients to connect to.
+    /// It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
+    /// later on by using name resolvable with a DNS query, such as `nymtech.net`.
+    announce_address: String,
+
+    /// Port used for listening for all mixnet traffic.
+    /// (default: 1789)
+    mix_port: u16,
+
+    /// Port used for listening for all client-related traffic.
+    /// (default: 9000)
+    clients_port: u16,
 
     /// Path to file containing private identity key.
     private_identity_key_file: PathBuf,
@@ -481,6 +361,10 @@ impl Default for Gateway {
         Gateway {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
+            listening_address: "0.0.0.0".to_string(),
+            announce_address: "127.0.0.1".to_string(),
+            mix_port: DEFAULT_MIX_LISTENING_PORT,
+            clients_port: DEFAULT_CLIENT_LISTENING_PORT,
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
@@ -494,46 +378,7 @@ impl Default for Gateway {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct MixnetEndpoint {
-    /// Socket address to which this gateway will bind to
-    /// and will be listening for sphinx packets coming from the mixnet.
-    listening_address: SocketAddr,
-
-    /// Optional address announced to the directory server for the clients to connect to.
-    /// It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
-    /// later on by using name resolvable with a DNS query, such as `nymtech.net:8080`.
-    /// Additionally a custom port can be provided, so both `nymtech.net:8080` and `nymtech.net`
-    /// are valid announce addresses, while the later will default to whatever port is used for
-    /// `listening_address`.
-    announce_address: String,
-}
-
-impl Default for MixnetEndpoint {
-    fn default() -> Self {
-        MixnetEndpoint {
-            listening_address: format!("0.0.0.0:{}", DEFAULT_MIX_LISTENING_PORT)
-                .parse()
-                .unwrap(),
-            announce_address: format!("127.0.0.1:{}", DEFAULT_MIX_LISTENING_PORT),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct ClientsEndpoint {
-    /// Socket address to which this gateway will bind to
-    /// and will be listening for data packets coming from the clients.
-    listening_address: SocketAddr,
-
-    /// Optional address announced to the directory server for the clients to connect to.
-    /// It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
-    /// later on by using name resolvable with a DNS query, such as `nymtech.net:8080`.
-    /// Additionally a custom port can be provided, so both `nymtech.net:8080` and `nymtech.net`
-    /// are valid announce addresses, while the later will default to whatever port is used for
-    /// `listening_address`.
-    announce_address: String,
-
     /// Path to the directory with clients inboxes containing messages stored for them.
     inboxes_directory: PathBuf,
 
@@ -555,10 +400,6 @@ impl ClientsEndpoint {
 impl Default for ClientsEndpoint {
     fn default() -> Self {
         ClientsEndpoint {
-            listening_address: format!("0.0.0.0:{}", DEFAULT_CLIENT_LISTENING_PORT)
-                .parse()
-                .unwrap(),
-            announce_address: format!("ws://127.0.0.1:{}", DEFAULT_CLIENT_LISTENING_PORT),
             inboxes_directory: Default::default(),
             ledger_path: Default::default(),
         }

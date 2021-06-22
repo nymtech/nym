@@ -156,14 +156,8 @@ pub fn execute(matches: &ArgMatches) {
     let sphinx_keypair = load_sphinx_keys(&pathfinder);
     let identity = load_identity_keys(&pathfinder);
 
-    let mix_listening_ip_string = config.get_mix_listening_address().ip().to_string();
-    if special_addresses().contains(&mix_listening_ip_string.as_ref()) {
-        show_binding_warning(mix_listening_ip_string);
-    }
-
-    let clients_listening_ip_string = config.get_clients_listening_address().ip().to_string();
-    if special_addresses().contains(&clients_listening_ip_string.as_ref()) {
-        show_binding_warning(clients_listening_ip_string);
+    if special_addresses().contains(&&*config.get_listening_address()) {
+        show_binding_warning(config.get_listening_address());
     }
 
     println!(
@@ -172,21 +166,12 @@ pub fn execute(matches: &ArgMatches) {
     );
 
     println!(
-        "Listening for incoming sphinx packets on {}",
-        config.get_mix_listening_address()
+        "Listening for incoming packets on {}",
+        config.get_listening_address()
     );
     println!(
-        "Announcing the following socket address for sphinx packets: {}",
-        config.get_mix_announce_address()
-    );
-
-    println!(
-        "Listening for incoming clients packets on {}",
-        config.get_clients_listening_address()
-    );
-    println!(
-        "Announcing the following socket address for clients packets: {}",
-        config.get_clients_announce_address()
+        "Announcing the following address: {}",
+        config.get_announce_address()
     );
 
     println!(

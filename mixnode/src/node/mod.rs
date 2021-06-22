@@ -61,7 +61,7 @@ impl MixNode {
 
         let mut config = rocket::config::Config::release_default();
         // bind to the same address as we are using for mixnodes
-        config.address = self.config.get_listening_address().ip();
+        config.address = self.config.get_listening_address().parse().unwrap();
 
         let verloc_state = VerlocState::new(atomic_verloc_result);
         let descriptor = self.descriptor.clone();
@@ -106,9 +106,21 @@ impl MixNode {
 
         let connection_handler = ConnectionHandler::new(packet_processor, delay_forwarding_channel);
 
-        let listener = Listener::new(self.config.get_listening_address());
+        let listening_address = match format!(
+            "{}:{}",
+            self.config.get_listening_address(),
+            self.config.get_mix_port()
+        )
+        .parse()
+        {
+            Ok(addr) => addr,
+            Err(err) => {
+                error!("Failed to correctly parse socket address - {}", err);
+                process::exit(1);
+            }
+        };
 
-        listener.start(connection_handler);
+        Listener::new(listening_address).start(connection_handler);
     }
 
     fn start_packet_delay_forwarder(
@@ -147,10 +159,20 @@ impl MixNode {
 
         // use the same binding address with the HARDCODED port for time being (I don't like that approach personally)
 
-        let listening_address = rtt_measurement::replace_port(
+        let listening_address = match format!(
+            "{}:{}",
             self.config.get_listening_address(),
-            rtt_measurement::DEFAULT_MEASUREMENT_PORT,
-        );
+            rtt_measurement::DEFAULT_MEASUREMENT_PORT
+        )
+        .parse()
+        {
+            Ok(addr) => addr,
+            Err(err) => {
+                error!("Failed to correctly parse socket address - {}", err);
+                process::exit(1);
+            }
+        };
+
         let config = rtt_measurement::ConfigBuilder::new()
             .listening_address(listening_address)
             .packets_per_node(self.config.get_measurement_packets_per_node())
@@ -186,9 +208,11 @@ impl MixNode {
             }
         };
 
+        let our_host = self.config.get_announce_address();
+
         existing_nodes
             .iter()
-            .find(|node| node.mix_node.host == self.config.get_announce_address())
+            .find(|node| node.mix_node.host == our_host)
             .map(|node| node.mix_node.identity_key.clone())
     }
 

@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::override_config;
+use crate::commands::*;
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
 use crate::node::node_description::NodeDescription;
 use crate::node::MixNode;
@@ -15,59 +15,47 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("run")
         .about("Starts the mixnode")
         .arg(
-            Arg::with_name("id")
-                .long("id")
+            Arg::with_name(ID_ARG_NAME)
+                .long(ID_ARG_NAME)
                 .help("Id of the nym-mixnode we want to run")
                 .takes_value(true)
                 .required(true),
         )
         // the rest of arguments are optional, they are used to override settings in config file
         .arg(
-            Arg::with_name("layer")
-                .long("layer")
+            Arg::with_name(LAYER_ARG_NAME)
+                .long(LAYER_ARG_NAME)
                 .help("The mixnet layer of this particular node")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("host")
-                .long("host")
+            Arg::with_name(HOST_ARG_NAME)
+                .long(HOST_ARG_NAME)
                 .help("The custom host on which the mixnode will be running")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("port")
-                .long("port")
+            Arg::with_name(MIX_PORT_ARG_NAME)
+                .long(MIX_PORT_ARG_NAME)
                 .help("The port on which the mixnode will be listening")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("announce-host")
-                .long("announce-host")
+            Arg::with_name(ANNOUNCE_HOST_ARG_NAME)
+                .long(ANNOUNCE_HOST_ARG_NAME)
                 .help("The host that will be reported to the directory server")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("announce-port")
-                .long("announce-port")
-                .help("The port that will be reported to the directory server")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("validators")
-                .long("validators")
+            Arg::with_name(VALIDATORS_ARG_NAME)
+                .long(VALIDATORS_ARG_NAME)
                 .help("Comma separated list of rest endpoints of the validators")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("mixnet-contract")
-                .long("mixnet-contract")
+            Arg::with_name(CONTRACT_ARG_NAME)
+                .long(CONTRACT_ARG_NAME)
                 .help("Address of the validator contract managing the network")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("metrics-server")
-                .long("metrics-server")
-                .help("Server to which the node is sending all metrics data")
                 .takes_value(true),
         )
 }
@@ -125,7 +113,7 @@ fn version_check(cfg: &Config) -> bool {
 }
 
 pub fn execute(matches: &ArgMatches) {
-    let id = matches.value_of("id").unwrap();
+    let id = matches.value_of(ID_ARG_NAME).unwrap();
 
     println!("Starting mixnode {}...", id);
 

@@ -1,6 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::commands::*;
 use crate::config::{
     default_validator_rest_endpoints, missing_string_value, Config,
     DEFAULT_MIXNET_CONTRACT_ADDRESS, MISSING_VALUE,
@@ -12,6 +13,8 @@ use std::fmt::Display;
 use std::path::PathBuf;
 use std::process;
 use version_checker::{parse_version, Version};
+
+const CURRENT_VERSION_ARG_NAME: &str = "current-version";
 
 fn print_start_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
     println!(
@@ -37,15 +40,15 @@ fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
 pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("upgrade").about("Try to upgrade the mixnode")
         .arg(
-            Arg::with_name("id")
-                .long("id")
+            Arg::with_name(ID_ARG_NAME)
+                .long(ID_ARG_NAME)
                 .help("Id of the nym-mixnode we want to upgrade")
                 .takes_value(true)
                 .required(true),
         )
         // the rest of arguments depend on the upgrade path
-        .arg(Arg::with_name("current version")
-            .long("current-version")
+        .arg(Arg::with_name(CURRENT_VERSION_ARG_NAME)
+            .long(CURRENT_VERSION_ARG_NAME)
             .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Specifies current version of the configuration file to help to determine a valid upgrade path. Valid formats include '0.8.1', 'v0.8.1' or 'V0.8.1'")
             .takes_value(true)
         )
@@ -278,7 +281,7 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
 pub fn execute(matches: &ArgMatches) {
     let package_version = parse_package_version();
 
-    let id = matches.value_of("id").unwrap();
+    let id = matches.value_of(ID_ARG_NAME).unwrap();
 
     let mut existing_config = Config::load_from_file(id).unwrap_or_else(|err| {
         eprintln!("failed to load existing config file! - {:?}", err);
@@ -287,12 +290,15 @@ pub fn execute(matches: &ArgMatches) {
 
     // versions fields were added in 0.9.0
     if existing_config.get_version() == missing_string_value::<String>() {
-        let self_reported_version = matches.value_of("current version").unwrap_or_else(|| {
-            eprintln!(
+        let self_reported_version =
+            matches
+                .value_of(CURRENT_VERSION_ARG_NAME)
+                .unwrap_or_else(|| {
+                    eprintln!(
                 "trying to upgrade from pre v0.9.0 without providing current system version!"
             );
-            process::exit(1)
-        });
+                    process::exit(1)
+                });
 
         // upgrades up to 0.9.0
         existing_config = pre_090_upgrade(self_reported_version, existing_config);

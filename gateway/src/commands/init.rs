@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::override_config;
+use crate::commands::*;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
 use crate::config::Config;
 use clap::{App, Arg, ArgMatches};
@@ -12,83 +12,58 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
         .about("Initialise the gateway")
         .arg(
-            Arg::with_name("id")
-                .long("id")
+            Arg::with_name(ID_ARG_NAME)
+                .long(ID_ARG_NAME)
                 .help("Id of the gateway we want to create config for.")
                 .takes_value(true)
                 .required(true),
         )
         .arg(
-            Arg::with_name("mix-host")
-                .long("mix-host")
+            Arg::with_name(HOST_ARG_NAME)
+                .long(HOST_ARG_NAME)
                 .help("The custom host on which the gateway will be running for receiving sphinx packets")
                 .takes_value(true)
                 .required(true),
         )
         .arg(
-            Arg::with_name("mix-port")
-                .long("mix-port")
+            Arg::with_name(MIX_PORT_ARG_NAME)
+                .long(MIX_PORT_ARG_NAME)
                 .help("The port on which the gateway will be listening for sphinx packets")
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("clients-host")
-                .long("clients-host")
-                .help("The custom host on which the gateway will be running for receiving clients gateway-requests")
-                .takes_value(true)
-                .required(true),
-        )
-        .arg(
-            Arg::with_name("clients-port")
-                .long("clients-port")
+            Arg::with_name(CLIENTS_PORT_ARG_NAME)
+                .long(CLIENTS_PORT_ARG_NAME)
                 .help("The port on which the gateway will be listening for clients gateway-requests")
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("mix-announce-host")
-                .long("mix-announce-host")
+            Arg::with_name(ANNOUNCE_HOST_ARG_NAME)
+                .long(ANNOUNCE_HOST_ARG_NAME)
                 .help("The host that will be reported to the directory server")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("mix-announce-port")
-                .long("mix-announce-port")
-                .help("The port that will be reported to the directory server")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("clients-announce-host")
-                .long("clients-announce-host")
-                .help("The host that will be reported to the directory server")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("clients-announce-port")
-                .long("clients-announce-port")
-                .help("The port that will be reported to the directory server")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("inboxes")
-                .long("inboxes")
+            Arg::with_name(INBOXES_ARG_NAME)
+                .long(INBOXES_ARG_NAME)
                 .help("Directory with inboxes where all packets for the clients are stored")
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("clients-ledger")
-                .long("clients-ledger")
-                .help("Ledger directory containing registered clients")
+            Arg::with_name(CLIENTS_LEDGER_ARG_NAME)
+                .long(CLIENTS_LEDGER_ARG_NAME)
+                .help("Ledger file containing registered clients")
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("validators")
-                .long("validators")
+            Arg::with_name(VALIDATORS_ARG_NAME)
+                .long(VALIDATORS_ARG_NAME)
                 .help("Comma separated list of rest endpoints of the validators")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("mixnet-contract")
-                .long("mixnet-contract")
+            Arg::with_name(CONTRACT_ARG_NAME)
+                .long(CONTRACT_ARG_NAME)
                 .help("Address of the validator contract managing the network")
                 .takes_value(true),
         )

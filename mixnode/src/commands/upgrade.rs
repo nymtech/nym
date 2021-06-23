@@ -447,3 +447,39 @@ pub fn execute(matches: &ArgMatches) {
     // here be upgrade path to 0.9.X and beyond based on version number from config
     do_upgrade(existing_config, matches, package_version)
 }
+
+#[cfg(test)]
+mod upgrade_tests {
+    use super::*;
+    use serial_test::serial;
+
+    #[test]
+    #[serial]
+    fn test_patch_0_10_2_upgrade() {
+        let config = Config::default().with_id("0").with_custom_version("0.10.1");
+        let matches = ArgMatches::default();
+        let old_version = Version::new(0, 10, 1);
+        let new_version = Version::new(0, 10, 2);
+        let new_config =
+            patch_0_10_2_upgrade(config, &matches, &old_version, &new_version).unwrap();
+        assert_eq!(new_config.get_version(), "0.10.2");
+    }
+
+    #[test]
+    #[serial]
+    fn test_patch_0_10_2_upgrade_error() {
+        let config = Config::default().with_id("0").with_custom_version("0.10.1");
+        let matches = ArgMatches::default();
+        let old_version = Version::new(0, 10, 1);
+        let new_version = Version::new(0, 10, 2);
+        config.save_to_file(None).unwrap();
+        let config_file = config.get_config_file_save_location();
+        let initial_perms = fs::metadata(config_file.clone()).unwrap().permissions();
+        let mut new_perms = initial_perms.clone();
+        new_perms.set_readonly(true);
+        fs::set_permissions(config_file.clone(), new_perms).unwrap();
+        let ret = patch_0_10_2_upgrade(config, &matches, &old_version, &new_version);
+        fs::set_permissions(config_file, initial_perms).unwrap();
+        assert!(ret.is_err());
+    }
+}

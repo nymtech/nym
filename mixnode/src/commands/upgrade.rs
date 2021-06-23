@@ -10,11 +10,18 @@ use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use std::fmt::Display;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process;
+use std::str::FromStr;
 use version_checker::{parse_version, Version};
 
 const CURRENT_VERSION_ARG_NAME: &str = "current-version";
+
+fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> ! {
+    print_failed_upgrade(from_version, to_version);
+    process::exit(1)
+}
 
 fn print_start_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
     println!(
@@ -126,28 +133,24 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
     if from_version.major == 0 && from_version.minor < 8 {
         // technically this could be implemented, but is there any point in that?
         eprintln!("upgrading node from before v0.8.0 is not supported. Please run `init` with new binary instead");
-        print_failed_upgrade(&from_version, &to_version);
-        process::exit(1)
+        fail_upgrade(&from_version, &to_version)
     }
 
     if (from_version.major == 0 && from_version.minor >= 9) || from_version.major >= 1 {
         eprintln!("self reported version is higher than 0.9.0. Those releases should have already contained version numbers in config! Make sure you provided correct version");
-        print_failed_upgrade(&from_version, &to_version);
-        process::exit(1)
+        fail_upgrade(&from_version, &to_version)
     }
 
     if config.get_private_identity_key_file() != missing_string_value::<PathBuf>()
         || config.get_public_identity_key_file() != missing_string_value::<PathBuf>()
     {
         eprintln!("existing config seems to have specified identity keys which were only introduced in 0.9.0! Can't perform upgrade.");
-        print_failed_upgrade(&from_version, &to_version);
-        process::exit(1);
+        fail_upgrade(&from_version, &to_version)
     }
 
     if config.get_validator_rest_endpoints()[0] != missing_string_value::<String>() {
         eprintln!("existing config seems to have specified new validator rest endpoint which was only introduced in 0.9.0! Can't perform upgrade.");
-        print_failed_upgrade(&from_version, &to_version);
-        process::exit(1);
+        fail_upgrade(&from_version, &to_version)
     }
 
     let mut upgraded_config = config
@@ -178,8 +181,7 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
-        print_failed_upgrade(&from_version, &to_version);
-        process::exit(1);
+        fail_upgrade(&from_version, &to_version)
     });
 
     print_successful_upgrade(from_version, to_version);
@@ -203,8 +205,7 @@ fn minor_010_upgrade(
 
     if config.get_validator_mixnet_contract_address() != MISSING_VALUE {
         eprintln!("existing config seems to have specified mixnet contract address which was only introduced in 0.10.0! Can't perform upgrade.");
-        print_failed_upgrade(&config_version, &to_version);
-        process::exit(1);
+        fail_upgrade(&config_version, to_version)
     }
 
     println!(
@@ -224,8 +225,7 @@ fn minor_010_upgrade(
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
-        print_failed_upgrade(&config_version, &to_version);
-        process::exit(1);
+        fail_upgrade(&config_version, &to_version)
     });
 
     print_successful_upgrade(config_version, to_version);
@@ -249,8 +249,56 @@ fn patch_010_upgrade(
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
-        print_failed_upgrade(&config_version, &to_version);
-        process::exit(1);
+        fail_upgrade(&config_version, to_version)
+    });
+
+    print_successful_upgrade(config_version, to_version);
+
+    upgraded_config
+}
+
+// TODO: to be renamed once the release version is decided (so presumably either 0.10.2 or 0.11.0)
+fn undetermined_version_upgrade(
+    config: Config,
+    _matches: &ArgMatches,
+    config_version: &Version,
+    package_version: &Version,
+) -> Config {
+    // If we decide this version should be tagged with 0.11.0, then the following code will be used instead:
+    // let to_version = if package_version.major == 0 && package_version.minor == 11 {
+    //     package_version.clone()
+    // } else {
+    //     Version::new(0, 11, 0)
+    // };
+    let to_version = package_version;
+
+    print_start_upgrade(&config_version, &to_version);
+
+    let current_annnounce_addr = config.get_announce_address();
+    // try to parse it as socket address directly
+    let (announce_address, custom_mix_port) = match SocketAddr::from_str(&current_annnounce_addr) {
+        Ok(addr) => (addr.ip().to_string(), addr.port()),
+        Err(_) => {
+            let announce_split = current_annnounce_addr.split(':').collect::<Vec<_>>();
+            if announce_split.len() != 2 {
+                eprintln!("failed to correctly parse current announce host");
+                fail_upgrade(&config_version, &to_version)
+            }
+            (
+                announce_split[0].to_string(),
+                announce_split[1].parse().unwrap(),
+            )
+        }
+    };
+
+    let upgraded_config = config
+        .with_custom_version(to_version.to_string().as_ref())
+        .with_announce_address(announce_address)
+        .with_mix_port(custom_mix_port);
+
+    upgraded_config.save_to_file(None).unwrap_or_else(|err| {
+        eprintln!("failed to overwrite config file! - {:?}", err);
+        fail_upgrade(&config_version, to_version)
     });
 
     print_successful_upgrade(config_version, to_version);
@@ -270,7 +318,15 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
         config = match config_version.major {
             0 => match config_version.minor {
                 9 => minor_010_upgrade(config, matches, &config_version, &package_version),
-                10 => patch_010_upgrade(config, matches, &config_version, &package_version),
+                10 => match config_version.patch {
+                    0 => patch_010_upgrade(config, matches, &config_version, &package_version),
+                    _ => undetermined_version_upgrade(
+                        config,
+                        matches,
+                        &config_version,
+                        &package_version,
+                    ),
+                },
                 _ => unsupported_upgrade(config_version, package_version),
             },
             _ => unsupported_upgrade(config_version, package_version),

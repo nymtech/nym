@@ -61,9 +61,10 @@ impl FromStr for NetworkAddress {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(ip_addr) = s.parse() {
-            return Ok(NetworkAddress::IpAddr(ip_addr));
+            Ok(NetworkAddress::IpAddr(ip_addr))
+        } else {
+            Ok(NetworkAddress::Hostname(s.to_string()))
         }
-        todo!()
     }
 }
 
@@ -289,7 +290,8 @@ mod converting_mixes_to_vec {
                 owner: "N/A".to_string(),
                 stake: 0,
                 location: "London".to_string(),
-                host: "3.3.3.3:1789".parse().unwrap(),
+                host: "3.3.3.3".parse().unwrap(),
+                mix_host: "3.3.3.3:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
                     "3ebjp1Fb9hdcS1AR6AZihgeJiMHkB5jjJUsvqNnfQwU7",
                 )

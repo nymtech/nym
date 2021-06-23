@@ -21,28 +21,6 @@ pub struct MixNode {
     pub version: String,
 }
 
-impl MixNode {
-    pub fn new(
-        host: String,
-        mix_port: u16,
-        layer: u64,
-        location: String,
-        sphinx_key: SphinxKey,
-        identity_key: IdentityKey,
-        version: String,
-    ) -> Self {
-        MixNode {
-            host,
-            mix_port,
-            layer,
-            location,
-            sphinx_key,
-            identity_key,
-            version,
-        }
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
     // TODO:

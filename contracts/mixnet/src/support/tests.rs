@@ -105,52 +105,57 @@ pub mod helpers {
     }
 
     pub fn mix_node_fixture() -> MixNode {
-        MixNode::new(
-            "mix.node.org".to_string(),
-            1789,
-            1,
-            "Sweden".to_string(),
-            "sphinx".to_string(),
-            "identity".to_string(),
-            "0.10.0".to_string(),
-        )
+        MixNode {
+            host: "mix.node.org".to_string(),
+            mix_port: 1789,
+            verloc_port: 1790,
+            http_api_port: 8000,
+            layer: 1,
+            location: "Sweden".to_string(),
+            sphinx_key: "sphinx".to_string(),
+            identity_key: "identity".to_string(),
+            version: "0.10.0".to_string(),
+        }
     }
 
     pub fn mixnode_bond_fixture() -> MixNodeBond {
-        let mix_node = MixNode::new(
-            "1.1.1.1".to_string(),
-            1789,
-            1,
-            "London".to_string(),
-            "1234".to_string(),
-            "aaaa".to_string(),
-            "0.10.0".to_string(),
-        );
+        let mix_node = MixNode {
+            host: "1.1.1.1".to_string(),
+            mix_port: 1789,
+            verloc_port: 1790,
+            http_api_port: 8000,
+            layer: 1,
+            location: "London".to_string(),
+            sphinx_key: "1234".to_string(),
+            identity_key: "aaaa".to_string(),
+            version: "0.10.0".to_string(),
+        };
         MixNodeBond::new(coins(50, DENOM), Addr::unchecked("foo"), mix_node)
     }
 
     pub fn gateway_fixture() -> Gateway {
-        Gateway::new(
-            "1.1.1.1".to_string(),
-            1789,
-            9000,
-            "Sweden".to_string(),
-            "sphinx".to_string(),
-            "identity".to_string(),
-            "0.10.0".to_string(),
-        )
+        Gateway {
+            host: "1.1.1.1".to_string(),
+            mix_port: 1789,
+            clients_port: 9000,
+            location: "Sweden".to_string(),
+
+            sphinx_key: "sphinx".to_string(),
+            identity_key: "identity".to_string(),
+            version: "0.10.0".to_string(),
+        }
     }
 
     pub fn gateway_bond_fixture() -> GatewayBond {
-        let gateway = Gateway::new(
-            "1.1.1.1".to_string(),
-            1789,
-            9000,
-            "London".to_string(),
-            "sphinx".to_string(),
-            "identity".to_string(),
-            "0.10.0".to_string(),
-        );
+        let gateway = Gateway {
+            host: "1.1.1.1".to_string(),
+            mix_port: 1789,
+            clients_port: 9000,
+            location: "London".to_string(),
+            sphinx_key: "sphinx".to_string(),
+            identity_key: "identity".to_string(),
+            version: "0.10.0".to_string(),
+        };
         GatewayBond::new(coins(50, DENOM), Addr::unchecked("foo"), gateway)
     }
 

@@ -11,6 +11,8 @@ use std::fmt::Display;
 pub struct MixNode {
     pub host: String,
     pub mix_port: u16,
+    pub verloc_port: u16,
+    pub http_api_port: u16,
     pub layer: u64,
     pub location: String,
     pub sphinx_key: SphinxKey,

@@ -39,13 +39,6 @@ impl Gateway {
             version,
         }
     }
-
-    // pub fn try_resolve_hostname(&self) -> Result<SocketAddr, io::Error> {
-    //     self.mix_host
-    //         .to_socket_addrs()?
-    //         .next()
-    //         .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no valid socket address"))
-    // }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]

@@ -48,6 +48,14 @@ announce_address = '{{ mixnode.announce_address }}'
 # (default: 1789)
 mix_port = {{ mixnode.mix_port }}
 
+# Port used for listening for verloc traffic.
+# (default: 1790)
+verloc_port = {{ mixnode.verloc_port }}
+
+# Port used for listening for http requests.
+# (default: 8000)
+http_api_port = {{ mixnode.http_api_port }}
+
 # Validator server to which the node will be getting information about the network.
 validator_rest_urls = [
     {{#each mixnode.validator_rest_urls }}

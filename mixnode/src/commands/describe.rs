@@ -48,6 +48,7 @@ pub fn execute(matches: &ArgMatches) {
     let description = desc_buf.trim().to_string();
 
     let example_url = "https://mixnode.yourdomain.com".bright_cyan();
+    let example_location = "City: YourCity, Country: YourCountry";
 
     print!("link, e.g. {}: ", example_url);
     io::stdout().flush().unwrap();
@@ -55,10 +56,17 @@ pub fn execute(matches: &ArgMatches) {
     io::stdin().read_line(&mut link_buf).unwrap();
     let link = link_buf.trim().to_string();
 
+    print!("location, e.g. {}: ", example_location);
+    io::stdout().flush().unwrap();
+    let mut location_buf = String::new();
+    io::stdin().read_line(&mut location_buf).unwrap();
+    let location = location_buf.trim().to_string();
+
     let node_description = NodeDescription {
         name,
         description,
         link,
+        location,
     };
 
     // save the struct

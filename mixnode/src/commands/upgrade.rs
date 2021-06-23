@@ -6,14 +6,16 @@ use crate::config::{
     default_validator_rest_endpoints, missing_string_value, Config,
     DEFAULT_MIXNET_CONTRACT_ADDRESS, MISSING_VALUE,
 };
+use crate::node::node_description::{NodeDescription, DESCRIPTION_FILE};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::identity;
+use serde::Deserialize;
 use std::fmt::Display;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::process;
 use std::str::FromStr;
+use std::{fs, process};
 use version_checker::{parse_version, Version};
 
 const CURRENT_VERSION_ARG_NAME: &str = "current-version";
@@ -313,6 +315,75 @@ fn undetermined_version_upgrade(
     Ok(upgraded_config)
 }
 
+fn patch_0_10_2_upgrade(
+    config: Config,
+    _matches: &ArgMatches,
+    config_version: &Version,
+    package_version: &Version,
+) -> Result<Config, (Version, String)> {
+    #[derive(Deserialize)]
+    struct OldNodeDescription {
+        name: String,
+        description: String,
+        link: String,
+    }
+    let to_version = package_version;
+    let id = config.get_id();
+    let config_path = Config::default_config_directory(&id);
+
+    print_start_upgrade(&config_version, &to_version);
+
+    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
+
+    upgraded_config.save_to_file(None).map_err(|err| {
+        (
+            to_version.clone(),
+            format!("failed to overwrite config file! - {:?}", err),
+        )
+    })?;
+
+    let description_file_path: PathBuf = [config_path.to_str().unwrap(), DESCRIPTION_FILE]
+        .iter()
+        .collect();
+    // If the description file already exists, upgrade it
+    if description_file_path.is_file() {
+        let description_content =
+            fs::read_to_string(description_file_path.clone()).map_err(|err| {
+                (
+                    to_version.clone(),
+                    format!("failed to read description file! - {:?}", err),
+                )
+            })?;
+        let old_description: OldNodeDescription =
+            toml::from_str(&description_content).map_err(|err| {
+                (
+                    to_version.clone(),
+                    format!("failed to deserialize description content! - {:?}", err),
+                )
+            })?;
+        let mut new_description = NodeDescription::default();
+        new_description.name = old_description.name;
+        new_description.description = old_description.description;
+        new_description.link = old_description.link;
+        let description_toml = toml::to_string(&new_description).map_err(|err| {
+            (
+                to_version.clone(),
+                format!("failed to serialize description content! - {:?}", err),
+            )
+        })?;
+        fs::write(description_file_path, description_toml).map_err(|err| {
+            (
+                to_version.clone(),
+                format!("failed to overwrite description file! - {:?}", err),
+            )
+        })?;
+    }
+
+    print_successful_upgrade(config_version, to_version);
+
+    Ok(upgraded_config)
+}
+
 fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version) {
     loop {
         let config_version = parse_config_version(&config);
@@ -327,6 +398,7 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
                 9 => minor_0_10_upgrade(config, matches, &config_version, &package_version),
                 10 => match config_version.patch {
                     0 => patch_0_10_1_upgrade(config, matches, &config_version, &package_version),
+                    1 => patch_0_10_2_upgrade(config, matches, &config_version, &package_version),
                     _ => undetermined_version_upgrade(
                         config,
                         matches,

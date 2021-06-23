@@ -284,6 +284,10 @@ impl Config {
         &self.mixnode.version
     }
 
+    pub fn get_id(&self) -> String {
+        self.mixnode.id.clone()
+    }
+
     pub fn get_measurement_packets_per_node(&self) -> usize {
         self.verloc.packets_per_node
     }

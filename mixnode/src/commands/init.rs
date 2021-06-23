@@ -133,7 +133,6 @@ fn show_bonding_info(config: &Config) {
     Address: {}
     Mix port: {}
     Layer: {}
-    Location: [physical location of your node's server]
     Version: {}
     ",
         identity_keypair.public_key().to_base58_string(),

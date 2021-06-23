@@ -61,8 +61,10 @@ impl MixNode {
         info!("Starting HTTP API on http://localhost:8000");
 
         let mut config = rocket::config::Config::release_default();
+
         // bind to the same address as we are using for mixnodes
         config.address = self.config.get_listening_address();
+        config.port = self.config.get_http_api_port();
 
         let verloc_state = VerlocState::new(atomic_verloc_result);
         let descriptor = self.descriptor.clone();

@@ -136,8 +136,8 @@ pub fn execute(matches: &ArgMatches) {
     let identity_keypair = load_identity_keys(&pathfinder);
     let sphinx_keypair = load_sphinx_keys(&pathfinder);
 
-    if special_addresses().contains(&&*config.get_listening_address()) {
-        show_binding_warning(config.get_listening_address());
+    if special_addresses().contains(&&*config.get_listening_address().to_string()) {
+        show_binding_warning(config.get_listening_address().to_string());
     }
 
     println!(

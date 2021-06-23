@@ -3,7 +3,9 @@
 
 use crate::config::template::config_template;
 use config::{deserialize_duration, deserialize_validators, NymConfig};
+use log::error;
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -18,7 +20,6 @@ const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
 pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
     "http://testnet-finney-validator.nymtech.net:1317",
     "http://testnet-finney-validator2.nymtech.net:1317",
-    "http://mixnet.club:1317",
 ];
 pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
 
@@ -50,8 +51,19 @@ pub fn missing_vec_string_value() -> Vec<String> {
     vec![missing_string_value()]
 }
 
+fn bind_all_address() -> IpAddr {
+    "0.0.0.0".parse().unwrap()
+}
+
+fn default_mix_port() -> u16 {
+    DEFAULT_MIX_LISTENING_PORT
+}
+
+fn default_clients_port() -> u16 {
+    DEFAULT_CLIENT_LISTENING_PORT
+}
+
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct Config {
     gateway: Gateway,
 
@@ -151,7 +163,15 @@ impl Config {
     }
 
     pub fn with_listening_address<S: Into<String>>(mut self, listening_address: S) -> Self {
-        self.gateway.listening_address = listening_address.into();
+        let listening_address_string = listening_address.into();
+        if let Ok(ip_addr) = listening_address_string.parse() {
+            self.gateway.listening_address = ip_addr
+        } else {
+            error!(
+                "failed to change listening address. the provided value ({}) was invalid",
+                listening_address_string
+            )
+        }
         self
     }
 
@@ -171,17 +191,9 @@ impl Config {
     }
 
     pub fn announce_host_from_listening_host(mut self) -> Self {
-        self.gateway.announce_address = self.gateway.listening_address.clone();
+        self.gateway.announce_address = self.gateway.listening_address.to_string();
         self
     }
-
-    // pub fn clients_announce_host_from_listening_host(mut self) -> Self {
-    //     self.clients_endpoint.announce_address = format!(
-    //         "ws://{}",
-    //         self.clients_endpoint.listening_address.to_string()
-    //     );
-    //     self
-    // }
 
     pub fn with_custom_clients_inboxes<S: Into<String>>(mut self, inboxes_dir: S) -> Self {
         self.clients_endpoint.inboxes_directory = PathBuf::from(inboxes_dir.into());
@@ -227,8 +239,8 @@ impl Config {
         self.gateway.mixnet_contract_address.clone()
     }
 
-    pub fn get_listening_address(&self) -> String {
-        self.gateway.listening_address.clone()
+    pub fn get_listening_address(&self) -> IpAddr {
+        self.gateway.listening_address
     }
 
     pub fn get_announce_address(&self) -> String {
@@ -294,19 +306,23 @@ pub struct Gateway {
     id: String,
 
     /// Address to which this mixnode will bind to and will be listening for packets.
-    listening_address: String,
+    #[serde(default = "bind_all_address")]
+    listening_address: IpAddr,
 
     /// Optional address announced to the validator for the clients to connect to.
     /// It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
     /// later on by using name resolvable with a DNS query, such as `nymtech.net`.
+    #[serde(default = "missing_string_value")]
     announce_address: String,
 
     /// Port used for listening for all mixnet traffic.
     /// (default: 1789)
+    #[serde(default = "default_mix_port")]
     mix_port: u16,
 
     /// Port used for listening for all client-related traffic.
     /// (default: 9000)
+    #[serde(default = "default_clients_port")]
     clients_port: u16,
 
     /// Path to file containing private identity key.
@@ -361,7 +377,7 @@ impl Default for Gateway {
         Gateway {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
-            listening_address: "0.0.0.0".to_string(),
+            listening_address: bind_all_address(),
             announce_address: "127.0.0.1".to_string(),
             mix_port: DEFAULT_MIX_LISTENING_PORT,
             clients_port: DEFAULT_CLIENT_LISTENING_PORT,
@@ -377,7 +393,6 @@ impl Default for Gateway {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct ClientsEndpoint {
     /// Path to the directory with clients inboxes containing messages stored for them.
     inboxes_directory: PathBuf,

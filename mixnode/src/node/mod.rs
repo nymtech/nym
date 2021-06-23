@@ -17,6 +17,7 @@ use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSende
 use crypto::asymmetric::{encryption, identity};
 use log::{error, info, warn};
 use mixnode_common::rtt_measurement::{self, AtomicVerlocResult, RttMeasurer};
+use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -61,7 +62,7 @@ impl MixNode {
 
         let mut config = rocket::config::Config::release_default();
         // bind to the same address as we are using for mixnodes
-        config.address = self.config.get_listening_address().parse().unwrap();
+        config.address = self.config.get_listening_address();
 
         let verloc_state = VerlocState::new(atomic_verloc_result);
         let descriptor = self.descriptor.clone();
@@ -106,19 +107,10 @@ impl MixNode {
 
         let connection_handler = ConnectionHandler::new(packet_processor, delay_forwarding_channel);
 
-        let listening_address = match format!(
-            "{}:{}",
+        let listening_address = SocketAddr::new(
             self.config.get_listening_address(),
-            self.config.get_mix_port()
-        )
-        .parse()
-        {
-            Ok(addr) => addr,
-            Err(err) => {
-                error!("Failed to correctly parse socket address - {}", err);
-                process::exit(1);
-            }
-        };
+            self.config.get_mix_port(),
+        );
 
         Listener::new(listening_address).start(connection_handler);
     }
@@ -159,19 +151,10 @@ impl MixNode {
 
         // use the same binding address with the HARDCODED port for time being (I don't like that approach personally)
 
-        let listening_address = match format!(
-            "{}:{}",
+        let listening_address = SocketAddr::new(
             self.config.get_listening_address(),
-            rtt_measurement::DEFAULT_MEASUREMENT_PORT
-        )
-        .parse()
-        {
-            Ok(addr) => addr,
-            Err(err) => {
-                error!("Failed to correctly parse socket address - {}", err);
-                process::exit(1);
-            }
-        };
+            rtt_measurement::DEFAULT_MEASUREMENT_PORT,
+        );
 
         let config = rtt_measurement::ConfigBuilder::new()
             .listening_address(listening_address)

@@ -9,6 +9,7 @@ use crate::node::storage::{inboxes, ClientLedger};
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
+use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -70,19 +71,10 @@ impl Gateway {
             ack_sender,
         );
 
-        let listening_address = match format!(
-            "{}:{}",
+        let listening_address = SocketAddr::new(
             self.config.get_listening_address(),
-            self.config.get_mix_port()
-        )
-        .parse()
-        {
-            Ok(addr) => addr,
-            Err(err) => {
-                error!("Failed to correctly parse socket address - {}", err);
-                process::exit(1);
-            }
-        };
+            self.config.get_mix_port(),
+        );
 
         mixnet_handling::Listener::new(listening_address).start(connection_handler);
     }
@@ -94,19 +86,10 @@ impl Gateway {
     ) {
         info!("Starting client [web]socket listener...");
 
-        let listening_address = match format!(
-            "{}:{}",
+        let listening_address = SocketAddr::new(
             self.config.get_listening_address(),
-            self.config.get_clients_port()
-        )
-        .parse()
-        {
-            Ok(addr) => addr,
-            Err(err) => {
-                error!("Failed to correctly parse socket address - {}", err);
-                process::exit(1);
-            }
-        };
+            self.config.get_clients_port(),
+        );
 
         websocket::Listener::new(listening_address, Arc::clone(&self.identity))
             .start(clients_handler_sender, forwarding_channel);

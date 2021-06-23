@@ -16,7 +16,7 @@ use crate::node::node_statistics::NodeStatsWrapper;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use crypto::asymmetric::{encryption, identity};
 use log::{error, info, warn};
-use mixnode_common::verloc::{self, AtomicVerlocResult, RttMeasurer};
+use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
@@ -137,7 +137,7 @@ impl MixNode {
         packet_sender
     }
 
-    fn start_rtt_measurer(&self) -> AtomicVerlocResult {
+    fn start_verloc_measurements(&self) -> AtomicVerlocResult {
         info!("Starting the round-trip-time measurer...");
 
         // this is a sanity check to make sure we didn't mess up with the minimum version at some point
@@ -155,7 +155,7 @@ impl MixNode {
 
         let listening_address = SocketAddr::new(
             self.config.get_listening_address(),
-            verloc::DEFAULT_MEASUREMENT_PORT,
+            self.config.get_verloc_port(),
         );
 
         let config = verloc::ConfigBuilder::new()
@@ -171,9 +171,9 @@ impl MixNode {
             .mixnet_contract_address(self.config.get_validator_mixnet_contract_address())
             .build();
 
-        let mut rtt_measurer = RttMeasurer::new(config, Arc::clone(&self.identity_keypair));
-        let atomic_verloc_results = rtt_measurer.get_verloc_results_pointer();
-        tokio::spawn(async move { rtt_measurer.run().await });
+        let mut verloc_measurer = VerlocMeasurer::new(config, Arc::clone(&self.identity_keypair));
+        let atomic_verloc_results = verloc_measurer.get_verloc_results_pointer();
+        tokio::spawn(async move { verloc_measurer.run().await });
         atomic_verloc_results
     }
 
@@ -235,7 +235,7 @@ impl MixNode {
             let delay_forwarding_channel = self.start_packet_delay_forwarder(node_stats_update_sender.clone());
             self.start_socket_listener(node_stats_update_sender, delay_forwarding_channel);
 
-            let atomic_verloc_results= self.start_rtt_measurer();
+            let atomic_verloc_results= self.start_verloc_measurements();
             self.start_http_api(atomic_verloc_results, node_stats_pointer);
 
             info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");

@@ -19,7 +19,7 @@ use crypto::asymmetric::identity;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use log::*;
-use std::net::SocketAddr;
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::JoinHandle;
@@ -34,9 +34,9 @@ pub(crate) mod sender;
 
 // TODO: MUST BE UPDATED BEFORE ACTUAL RELEASE!!
 pub const MINIMUM_NODE_VERSION: &str = "0.10.1";
-pub const DEFAULT_MEASUREMENT_PORT: u16 = 1790;
 
 // by default all of those are overwritten by config data from mixnodes directly
+const DEFAULT_VERLOC_PORT: u16 = 1790;
 const DEFAULT_PACKETS_PER_NODE: usize = 100;
 const DEFAULT_PACKET_TIMEOUT: Duration = Duration::from_millis(1500);
 const DEFAULT_CONNECTION_TIMEOUT: Duration = Duration::from_millis(5000);
@@ -49,9 +49,6 @@ const DEFAULT_RETRY_TIMEOUT: Duration = Duration::from_secs(60 * 30);
 pub struct Config {
     /// Minimum semver version of a node (gateway or mixnode) that is capable of replying to echo packets.
     minimum_compatible_node_version: version_checker::Version,
-
-    /// Port on which all nodes are (supposed to be) listening for the measurement packets.
-    measurement_port: u16,
 
     /// Socket address of this node on which it will be listening for the measurement packets.
     listening_address: SocketAddr,
@@ -102,10 +99,6 @@ impl ConfigBuilder {
         self.0.minimum_compatible_node_version = version;
         self
     }
-    pub fn measurement_port(mut self, measurement_port: u16) -> Self {
-        self.0.measurement_port = measurement_port;
-        self
-    }
     pub fn listening_address(mut self, listening_address: SocketAddr) -> Self {
         self.0.listening_address = listening_address;
         self
@@ -154,9 +147,6 @@ impl ConfigBuilder {
         if self.0.mixnet_contract_address.is_empty() {
             panic!("the mixnet contract address must be set")
         }
-        if self.0.measurement_port != self.0.listening_address.port() {
-            panic!("Tried to create listener on different port than the other machines")
-        }
         self.0
     }
 }
@@ -165,10 +155,7 @@ impl Default for ConfigBuilder {
     fn default() -> Self {
         ConfigBuilder(Config {
             minimum_compatible_node_version: parse_version(MINIMUM_NODE_VERSION).unwrap(),
-            measurement_port: DEFAULT_MEASUREMENT_PORT,
-            listening_address: format!("[::]:{}", DEFAULT_MEASUREMENT_PORT)
-                .parse()
-                .unwrap(),
+            listening_address: format!("[::]:{}", DEFAULT_VERLOC_PORT).parse().unwrap(),
             packets_per_node: DEFAULT_PACKETS_PER_NODE,
             packet_timeout: DEFAULT_PACKET_TIMEOUT,
             connection_timeout: DEFAULT_CONNECTION_TIMEOUT,
@@ -182,7 +169,7 @@ impl Default for ConfigBuilder {
     }
 }
 
-pub struct RttMeasurer {
+pub struct VerlocMeasurer {
     config: Config,
     packet_sender: Arc<PacketSender>,
     packet_listener: Arc<PacketListener>,
@@ -195,14 +182,9 @@ pub struct RttMeasurer {
     results: AtomicVerlocResult,
 }
 
-// I really don't like this solution, I think nodes should be explicitly announcing that address...
-pub fn replace_port(address: SocketAddr, port: u16) -> SocketAddr {
-    SocketAddr::new(address.ip(), port)
-}
-
-impl RttMeasurer {
+impl VerlocMeasurer {
     pub fn new(config: Config, identity: Arc<identity::KeyPair>) -> Self {
-        RttMeasurer {
+        VerlocMeasurer {
             packet_sender: Arc::new(PacketSender::new(
                 Arc::clone(&identity),
                 config.packets_per_node,
@@ -312,11 +294,18 @@ impl RttMeasurer {
                     // try to parse the identity and host
                     let node_identity =
                         identity::PublicKey::from_base58_string(node.mix_node.identity_key).ok()?;
-                    let mix_host = node.mix_node.host.parse().ok()?;
-                    Some(TestedNode::new(
-                        replace_port(mix_host, self.config.measurement_port),
-                        node_identity,
-                    ))
+
+                    let verloc_host = (&*node.mix_node.host, node.mix_node.verloc_port)
+                        .to_socket_addrs()
+                        .ok()?
+                        .next()?;
+
+                    // TODO: possible problem in the future, this does name resolution and theoretically
+                    // if a lot of nodes maliciously mis-configured themselves, it might take a while to resolve them all
+                    // However, maybe it's not a problem as if they are misconfigured, they will eventually be
+                    // pushed out of the network and on top of that, verloc is done in separate task that runs
+                    // only every few hours.
+                    Some(TestedNode::new(verloc_host, node_identity))
                 })
                 .collect::<Vec<_>>();
 

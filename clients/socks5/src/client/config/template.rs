@@ -16,7 +16,7 @@ pub(crate) fn config_template() -> &'static str {
     // While using normal toml marshalling would have been way simpler with less overhead,
     // I think it's useful to have comments attached to the saved config file to explain behaviour of
     // particular fields.
-    // Note: any changes to the template must be reflected in the appropriate structs in mod.rs.
+    // Note: any changes to the template must be reflected in the appropriate structs in verloc.
     r#"
 # This is a TOML config file.
 # For more information, see https://github.com/toml-lang/toml

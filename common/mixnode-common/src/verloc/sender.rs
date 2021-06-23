@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::rtt_measurement::error::RttError;
-use crate::rtt_measurement::measurement::Measurement;
-use crate::rtt_measurement::packet::{EchoPacket, ReplyPacket};
+use crate::verloc::error::RttError;
+use crate::verloc::measurement::Measurement;
+use crate::verloc::packet::{EchoPacket, ReplyPacket};
 use crypto::asymmetric::identity;
 use log::*;
 use rand::{thread_rng, Rng};

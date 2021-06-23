@@ -6,7 +6,7 @@ use crate::node::http::{
     description::description,
     not_found,
     stats::stats,
-    verloc::{verloc, VerlocState},
+    verloc::{verloc as verlocRoute, VerlocState},
 };
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
@@ -16,7 +16,7 @@ use crate::node::node_statistics::NodeStatsWrapper;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use crypto::asymmetric::{encryption, identity};
 use log::{error, info, warn};
-use mixnode_common::rtt_measurement::{self, AtomicVerlocResult, RttMeasurer};
+use mixnode_common::verloc::{self, AtomicVerlocResult, RttMeasurer};
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
@@ -70,7 +70,7 @@ impl MixNode {
         tokio::spawn(async move {
             rocket::build()
                 .configure(config)
-                .mount("/", routes![verloc, description, stats])
+                .mount("/", routes![verlocRoute, description, stats])
                 .register("/", catchers![not_found])
                 .manage(verloc_state)
                 .manage(descriptor)
@@ -143,7 +143,7 @@ impl MixNode {
         // if this code exists in the node, it MUST BE compatible
         let config_version =
             parse_version(self.config.get_version()).expect("malformed version in the config file");
-        let minimum_version = parse_version(rtt_measurement::MINIMUM_NODE_VERSION).unwrap();
+        let minimum_version = parse_version(verloc::MINIMUM_NODE_VERSION).unwrap();
         if config_version < minimum_version {
             error!("You seem to have not updated your mixnode configuration file - please run `upgrade` before attempting again");
             process::exit(1)
@@ -153,10 +153,10 @@ impl MixNode {
 
         let listening_address = SocketAddr::new(
             self.config.get_listening_address(),
-            rtt_measurement::DEFAULT_MEASUREMENT_PORT,
+            verloc::DEFAULT_MEASUREMENT_PORT,
         );
 
-        let config = rtt_measurement::ConfigBuilder::new()
+        let config = verloc::ConfigBuilder::new()
             .listening_address(listening_address)
             .packets_per_node(self.config.get_measurement_packets_per_node())
             .connection_timeout(self.config.get_measurement_connection_timeout())

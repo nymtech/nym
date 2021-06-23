@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::rtt_measurement::listener::PacketListener;
-pub use crate::rtt_measurement::measurement::{AtomicVerlocResult, Verloc, VerlocResult};
-use crate::rtt_measurement::sender::{PacketSender, TestedNode};
+use crate::verloc::listener::PacketListener;
+pub use crate::verloc::measurement::{AtomicVerlocResult, Verloc, VerlocResult};
+use crate::verloc::sender::{PacketSender, TestedNode};
 use crypto::asymmetric::identity;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;

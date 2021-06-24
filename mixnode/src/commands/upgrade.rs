@@ -361,10 +361,12 @@ fn patch_0_10_2_upgrade(
                     format!("failed to deserialize description content! - {:?}", err),
                 )
             })?;
-        let mut new_description = NodeDescription::default();
-        new_description.name = old_description.name;
-        new_description.description = old_description.description;
-        new_description.link = old_description.link;
+        let new_description = NodeDescription {
+            name: old_description.name,
+            description: old_description.description,
+            link: old_description.link,
+            ..Default::default()
+        };
         let description_toml = toml::to_string(&new_description).map_err(|err| {
             (
                 to_version.clone(),

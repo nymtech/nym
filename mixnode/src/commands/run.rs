@@ -163,7 +163,6 @@ pub fn execute(matches: &ArgMatches) {
     Address: {}
     Mix port: {}
     Layer: {}
-    Location: {}
     Version: {}
     ",
         identity_keypair.public_key().to_base58_string(),
@@ -171,7 +170,6 @@ pub fn execute(matches: &ArgMatches) {
         config.get_announce_address(),
         config.get_mix_port(),
         config.get_layer(),
-        description.location,
         config.get_version(),
     );
     MixNode::new(config, description, identity_keypair, sphinx_keypair).run();

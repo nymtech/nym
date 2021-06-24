@@ -18,6 +18,7 @@ use std::str::FromStr;
 use std::{fs, process};
 use version_checker::{parse_version, Version};
 
+type UpgradeError = (Version, String);
 const CURRENT_VERSION_ARG_NAME: &str = "current-version";
 
 fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> ! {
@@ -196,7 +197,7 @@ fn minor_0_10_upgrade(
     _matches: &ArgMatches,
     config_version: &Version,
     package_version: &Version,
-) -> Result<Config, (Version, String)> {
+) -> Result<Config, UpgradeError> {
     let to_version = if package_version.major == 0 && package_version.minor == 10 {
         package_version.clone()
     } else {
@@ -241,7 +242,7 @@ fn patch_0_10_1_upgrade(
     _matches: &ArgMatches,
     config_version: &Version,
     package_version: &Version,
-) -> Result<Config, (Version, String)> {
+) -> Result<Config, UpgradeError> {
     // welp, stuff like ports are mostly hardcoded and not part of the config so all is changes is just the version
     // number
     let to_version = package_version;
@@ -268,7 +269,7 @@ fn undetermined_version_upgrade(
     _matches: &ArgMatches,
     config_version: &Version,
     package_version: &Version,
-) -> Result<Config, (Version, String)> {
+) -> Result<Config, UpgradeError> {
     // If we decide this version should be tagged with 0.11.0, then the following code will be used instead:
     // let to_version = if package_version.major == 0 && package_version.minor == 11 {
     //     package_version.clone()
@@ -320,7 +321,7 @@ fn patch_0_10_2_upgrade(
     _matches: &ArgMatches,
     config_version: &Version,
     package_version: &Version,
-) -> Result<Config, (Version, String)> {
+) -> Result<Config, UpgradeError> {
     #[derive(Deserialize)]
     struct OldNodeDescription {
         name: String,
@@ -332,15 +333,6 @@ fn patch_0_10_2_upgrade(
     let config_path = Config::default_config_directory(&id);
 
     print_start_upgrade(&config_version, &to_version);
-
-    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
-
-    upgraded_config.save_to_file(None).map_err(|err| {
-        (
-            to_version.clone(),
-            format!("failed to overwrite config file! - {:?}", err),
-        )
-    })?;
 
     let description_file_path: PathBuf = [config_path.to_str().unwrap(), DESCRIPTION_FILE]
         .iter()
@@ -367,19 +359,22 @@ fn patch_0_10_2_upgrade(
             link: old_description.link,
             ..Default::default()
         };
-        let description_toml = toml::to_string(&new_description).map_err(|err| {
-            (
-                to_version.clone(),
-                format!("failed to serialize description content! - {:?}", err),
-            )
-        })?;
-        fs::write(description_file_path, description_toml).map_err(|err| {
+        NodeDescription::save_to_file(&new_description, description_file_path).map_err(|err| {
             (
                 to_version.clone(),
                 format!("failed to overwrite description file! - {:?}", err),
             )
         })?;
     }
+
+    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
+
+    upgraded_config.save_to_file(None).map_err(|err| {
+        (
+            to_version.clone(),
+            format!("failed to overwrite config file! - {:?}", err),
+        )
+    })?;
 
     print_successful_upgrade(config_version, to_version);
 
@@ -458,7 +453,9 @@ mod upgrade_tests {
     #[test]
     #[serial]
     fn test_patch_0_10_2_upgrade() {
-        let config = Config::default().with_id("0").with_custom_version("0.10.1");
+        let config = Config::default()
+            .with_id("-42")
+            .with_custom_version("0.10.1");
         let matches = ArgMatches::default();
         let old_version = Version::new(0, 10, 1);
         let new_version = Version::new(0, 10, 2);
@@ -470,7 +467,9 @@ mod upgrade_tests {
     #[test]
     #[serial]
     fn test_patch_0_10_2_upgrade_error() {
-        let config = Config::default().with_id("0").with_custom_version("0.10.1");
+        let config = Config::default()
+            .with_id("-42")
+            .with_custom_version("0.10.1");
         let matches = ArgMatches::default();
         let old_version = Version::new(0, 10, 1);
         let new_version = Version::new(0, 10, 2);

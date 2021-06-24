@@ -48,7 +48,7 @@ pub fn execute(matches: &ArgMatches) {
     let description = desc_buf.trim().to_string();
 
     let example_url = "https://mixnode.yourdomain.com".bright_cyan();
-    let example_location = "City: YourCity, Country: YourCountry";
+    let example_location = "City: London, Country: UK";
 
     print!("link, e.g. {}: ", example_url);
     io::stdout().flush().unwrap();

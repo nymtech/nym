@@ -378,7 +378,15 @@ pub(crate) fn try_reward_mixnode(
 
     // optimisation for uptime being 0. No rewards will be given so just terminate here
     if uptime == 0 {
-        return Ok(Response::default());
+        return Ok(Response {
+            submessages: vec![],
+            messages: vec![],
+            attributes: vec![
+                attr("bond increase", Uint128(0)),
+                attr("total delegation increase", Uint128(0)),
+            ],
+            data: None,
+        });
     }
 
     // check if the bond even exists
@@ -426,6 +434,19 @@ pub(crate) fn try_reward_gateway(
     // check if this is executed by the owner, if not reject the transaction
     if info.sender != state.network_monitor_address {
         return Err(ContractError::Unauthorized);
+    }
+
+    // optimisation for uptime being 0. No rewards will be given so just terminate here
+    if uptime == 0 {
+        return Ok(Response {
+            submessages: vec![],
+            messages: vec![],
+            attributes: vec![
+                attr("bond increase", Uint128(0)),
+                attr("total delegation increase", Uint128(0)),
+            ],
+            data: None,
+        });
     }
 
     // check if the bond even exists
@@ -2194,16 +2215,18 @@ pub mod tests {
 
         // the node's bond is correctly increased and scaled by uptime
         // if node was 100% up, it will get full epoch reward
-        let expected_bond = Uint128(initial_mix_bond) * reward + Uint128(initial_mix_bond);
-        let expected_delegation1 =
-            Uint128(initial_delegation1) * reward + Uint128(initial_delegation1);
-        let expected_delegation2 =
-            Uint128(initial_delegation2) * reward + Uint128(initial_delegation2);
-        let expected_delegation3 =
-            Uint128(initial_delegation3) * reward + Uint128(initial_delegation3);
+        let expected_mix_reward = Uint128(initial_mix_bond) * reward;
+        let expected_delegation1_reward = Uint128(initial_delegation1) * reward;
+        let expected_delegation2_reward = Uint128(initial_delegation2) * reward;
+        let expected_delegation3_reward = Uint128(initial_delegation3) * reward;
+
+        let expected_bond = expected_mix_reward + Uint128(initial_mix_bond);
+        let expected_delegation1 = expected_delegation1_reward + Uint128(initial_delegation1);
+        let expected_delegation2 = expected_delegation2_reward + Uint128(initial_delegation2);
+        let expected_delegation3 = expected_delegation3_reward + Uint128(initial_delegation3);
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        try_reward_mixnode(deps.as_mut(), info, identity.clone(), 100).unwrap();
+        let res = try_reward_mixnode(deps.as_mut(), info, identity.clone(), 100).unwrap();
 
         assert_eq!(
             expected_bond,
@@ -2229,17 +2252,36 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_mix_reward),
+                attr(
+                    "total delegation increase",
+                    expected_delegation1_reward
+                        + expected_delegation2_reward
+                        + expected_delegation3_reward
+                ),
+            ],
+            res.attributes
         );
 
         // if node was 20% up, it will get 1/5th of epoch reward
         let scaled_reward = scale_reward_by_uptime(reward, 20).unwrap();
-        let expected_bond = expected_bond * scaled_reward + expected_bond;
-        let expected_delegation1 = expected_delegation1 * scaled_reward + expected_delegation1;
-        let expected_delegation2 = expected_delegation2 * scaled_reward + expected_delegation2;
-        let expected_delegation3 = expected_delegation3 * scaled_reward + expected_delegation3;
+
+        let expected_mix_reward = expected_bond * scaled_reward;
+        let expected_delegation1_reward = expected_delegation1 * scaled_reward;
+        let expected_delegation2_reward = expected_delegation2 * scaled_reward;
+        let expected_delegation3_reward = expected_delegation3 * scaled_reward;
+
+        let expected_bond = expected_mix_reward + expected_bond;
+        let expected_delegation1 = expected_delegation1_reward + expected_delegation1;
+        let expected_delegation2 = expected_delegation2_reward + expected_delegation2;
+        let expected_delegation3 = expected_delegation3_reward + expected_delegation3;
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        try_reward_mixnode(deps.as_mut(), info, identity.clone(), 20).unwrap();
+        let res = try_reward_mixnode(deps.as_mut(), info, identity.clone(), 20).unwrap();
 
         assert_eq!(
             expected_bond,
@@ -2265,11 +2307,24 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_mix_reward),
+                attr(
+                    "total delegation increase",
+                    expected_delegation1_reward
+                        + expected_delegation2_reward
+                        + expected_delegation3_reward
+                ),
+            ],
+            res.attributes
         );
 
         // if the node was 0% up, nobody will get any rewards
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        try_reward_mixnode(deps.as_mut(), info, identity.clone(), 0).unwrap();
+        let res = try_reward_mixnode(deps.as_mut(), info, identity.clone(), 0).unwrap();
 
         assert_eq!(
             expected_bond,
@@ -2295,6 +2350,14 @@ pub mod tests {
             mix_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", Uint128(0)),
+                attr("total delegation increase", Uint128(0)),
+            ],
+            res.attributes
         );
     }
 
@@ -2661,16 +2724,18 @@ pub mod tests {
 
         // the node's bond is correctly increased and scaled by uptime
         // if node was 100% up, it will get full epoch reward
-        let expected_bond = Uint128(initial_gateway_bond) * reward + Uint128(initial_gateway_bond);
-        let expected_delegation1 =
-            Uint128(initial_delegation1) * reward + Uint128(initial_delegation1);
-        let expected_delegation2 =
-            Uint128(initial_delegation2) * reward + Uint128(initial_delegation2);
-        let expected_delegation3 =
-            Uint128(initial_delegation3) * reward + Uint128(initial_delegation3);
+        let expected_gateway_reward = Uint128(initial_gateway_bond) * reward;
+        let expected_delegation1_reward = Uint128(initial_delegation1) * reward;
+        let expected_delegation2_reward = Uint128(initial_delegation2) * reward;
+        let expected_delegation3_reward = Uint128(initial_delegation3) * reward;
+
+        let expected_bond = expected_gateway_reward + Uint128(initial_gateway_bond);
+        let expected_delegation1 = expected_delegation1_reward + Uint128(initial_delegation1);
+        let expected_delegation2 = expected_delegation2_reward + Uint128(initial_delegation2);
+        let expected_delegation3 = expected_delegation3_reward + Uint128(initial_delegation3);
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        try_reward_gateway(deps.as_mut(), info, identity.clone(), 100).unwrap();
+        let res = try_reward_gateway(deps.as_mut(), info, identity.clone(), 100).unwrap();
 
         assert_eq!(
             expected_bond,
@@ -2696,17 +2761,36 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_gateway_reward),
+                attr(
+                    "total delegation increase",
+                    expected_delegation1_reward
+                        + expected_delegation2_reward
+                        + expected_delegation3_reward
+                ),
+            ],
+            res.attributes
         );
 
         // if node was 20% up, it will get 1/5th of epoch reward
         let scaled_reward = scale_reward_by_uptime(reward, 20).unwrap();
-        let expected_bond = expected_bond * scaled_reward + expected_bond;
-        let expected_delegation1 = expected_delegation1 * scaled_reward + expected_delegation1;
-        let expected_delegation2 = expected_delegation2 * scaled_reward + expected_delegation2;
-        let expected_delegation3 = expected_delegation3 * scaled_reward + expected_delegation3;
+
+        let expected_gateway_reward = expected_bond * scaled_reward;
+        let expected_delegation1_reward = expected_delegation1 * scaled_reward;
+        let expected_delegation2_reward = expected_delegation2 * scaled_reward;
+        let expected_delegation3_reward = expected_delegation3 * scaled_reward;
+
+        let expected_bond = expected_gateway_reward + expected_bond;
+        let expected_delegation1 = expected_delegation1_reward + expected_delegation1;
+        let expected_delegation2 = expected_delegation2_reward + expected_delegation2;
+        let expected_delegation3 = expected_delegation3_reward + expected_delegation3;
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        try_reward_gateway(deps.as_mut(), info, identity.clone(), 20).unwrap();
+        let res = try_reward_gateway(deps.as_mut(), info, identity.clone(), 20).unwrap();
 
         assert_eq!(
             expected_bond,
@@ -2732,11 +2816,24 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_gateway_reward),
+                attr(
+                    "total delegation increase",
+                    expected_delegation1_reward
+                        + expected_delegation2_reward
+                        + expected_delegation3_reward
+                ),
+            ],
+            res.attributes
         );
 
         // if the node was 0% up, nobody will get any rewards
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        try_reward_gateway(deps.as_mut(), info, identity.clone(), 0).unwrap();
+        let res = try_reward_gateway(deps.as_mut(), info, identity.clone(), 0).unwrap();
 
         assert_eq!(
             expected_bond,
@@ -2762,6 +2859,14 @@ pub mod tests {
             gateway_delegations_read(deps.as_ref().storage, &identity)
                 .load("delegator3".as_bytes())
                 .unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", Uint128(0)),
+                attr("total delegation increase", Uint128(0)),
+            ],
+            res.attributes
         );
     }
 }

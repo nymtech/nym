@@ -254,10 +254,9 @@ export default class ValidatorClient {
     /**
      *  Announce a mixnode, paying a fee.
      */
-    async bondMixnode(mixNode: MixNode): Promise<ExecuteResult> {
+    async bondMixnode(mixNode: MixNode, bond: Coin): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const bond = [await this.minimumMixnodeBond()];
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { bond_mixnode: { mix_node: mixNode } }, "adding mixnode", bond).catch((err) => this.handleRequestFailure(err));
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { bond_mixnode: { mix_node: mixNode } }, "adding mixnode", [bond]).catch((err) => this.handleRequestFailure(err));
             console.log(`account ${this.client.clientAddress} added mixnode with ${mixNode.host}`);
             return result;
         } else {
@@ -401,9 +400,8 @@ export default class ValidatorClient {
     /**
      *  Announce a gateway, paying a fee.
      */
-    async bondGateway(gateway: Gateway): Promise<ExecuteResult> {
+    async bondGateway(gateway: Gateway, bond: Coin): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const bond = await this.minimumGatewayBond()
             const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {bond_gateway: {gateway: gateway}}, "adding gateway", [bond]).catch((err) => this.handleRequestFailure(err));
             console.log(`account ${this.client.clientAddress} added gateway with ${gateway.host}`);
             return result;

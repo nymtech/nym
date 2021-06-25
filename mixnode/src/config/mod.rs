@@ -3,8 +3,7 @@
 
 use crate::config::template::config_template;
 use config::{deserialize_duration, deserialize_validators, NymConfig};
-use log::error;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -16,11 +15,10 @@ mod template;
 pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'MIXNODE'
-const DEFAULT_LISTENING_PORT: u16 = 1789;
+const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
     "http://testnet-finney-validator.nymtech.net:1317",
     "http://testnet-finney-validator2.nymtech.net:1317",
-    "http://mixnet.club:1317",
 ];
 pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
 
@@ -58,13 +56,37 @@ pub fn missing_vec_string_value() -> Vec<String> {
     vec![missing_string_value()]
 }
 
+fn bind_all_address() -> IpAddr {
+    "0.0.0.0".parse().unwrap()
+}
+
+fn default_mix_port() -> u16 {
+    DEFAULT_MIX_LISTENING_PORT
+}
+
+// basically a migration helper that deserialises string representation of a maybe socket addr (like "1.1.1.1:1234")
+// into just the ipaddr (like "1.1.1.1")
+pub(super) fn de_ipaddr_from_maybe_str_socks_addr<'de, D>(
+    deserializer: D,
+) -> Result<IpAddr, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    if let Ok(socket_addr) = SocketAddr::from_str(&s) {
+        Ok(socket_addr.ip())
+    } else {
+        IpAddr::from_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     mixnode: MixNode,
 
     #[serde(default)]
-    rtt_measurement: RttMeasurement,
+    verloc: Verloc,
     #[serde(default)]
     logging: Logging,
     #[serde(default)]
@@ -152,77 +174,31 @@ impl Config {
         self
     }
 
-    pub fn with_listening_host<S: Into<String>>(mut self, host: S) -> Self {
-        // see if the provided `host` is just an ip address or ip:port
-        let host = host.into();
-
-        // is it ip:port?
-        match SocketAddr::from_str(host.as_ref()) {
-            Ok(socket_addr) => {
-                self.mixnode.listening_address = socket_addr;
-                self
-            }
-            // try just for ip
-            Err(_) => match IpAddr::from_str(host.as_ref()) {
-                Ok(ip_addr) => {
-                    self.mixnode.listening_address.set_ip(ip_addr);
-                    self
-                }
-                Err(_) => {
-                    error!(
-                        "failed to make any changes to config - invalid host {}",
-                        host
-                    );
-                    self
-                }
-            },
+    pub fn with_listening_address<S: Into<String>>(mut self, listening_address: S) -> Self {
+        let listening_address_string = listening_address.into();
+        if let Ok(ip_addr) = listening_address_string.parse() {
+            self.mixnode.listening_address = ip_addr
+        } else {
+            error!(
+                "failed to change listening address. the provided value ({}) was invalid",
+                listening_address_string
+            )
         }
-    }
-
-    pub fn with_listening_port(mut self, port: u16) -> Self {
-        self.mixnode.listening_address.set_port(port);
         self
     }
 
-    pub fn with_announce_host<S: Into<String>>(mut self, host: S) -> Self {
-        // this is slightly more complicated as we store announce information as String,
-        // since it might not necessarily be a valid SocketAddr (say `nymtech.net:8080` is a valid
-        // announce address, yet invalid SocketAddr`
-
-        // first lets see if we received host:port or just host part of an address
-        let host = host.into();
-        match host.split(':').count() {
-            1 => {
-                // we provided only 'host' part so we are going to reuse existing port
-                self.mixnode.announce_address =
-                    format!("{}:{}", host, self.mixnode.listening_address.port());
-                self
-            }
-            2 => {
-                // we provided 'host:port' so just put the whole thing there
-                self.mixnode.announce_address = host;
-                self
-            }
-            _ => {
-                // we provided something completely invalid, so don't try to parse it
-                error!(
-                    "failed to make any changes to config - invalid announce host {}",
-                    host
-                );
-                self
-            }
-        }
+    pub fn with_announce_address<S: Into<String>>(mut self, announce_address: S) -> Self {
+        self.mixnode.announce_address = announce_address.into();
+        self
     }
 
-    pub fn announce_host_from_listening_host(mut self) -> Self {
+    pub fn with_mix_port(mut self, port: u16) -> Self {
+        self.mixnode.mix_port = port;
+        self
+    }
+
+    pub fn announce_address_from_listening_address(mut self) -> Self {
         self.mixnode.announce_address = self.mixnode.listening_address.to_string();
-        self
-    }
-
-    pub fn with_announce_port(mut self, port: u16) -> Self {
-        let current_host: Vec<_> = self.mixnode.announce_address.split(':').collect();
-        debug_assert_eq!(current_host.len(), 2);
-        self.mixnode.announce_address = format!("{}:{}", current_host[0], port);
         self
     }
 
@@ -272,12 +248,16 @@ impl Config {
         self.mixnode.layer
     }
 
-    pub fn get_listening_address(&self) -> SocketAddr {
+    pub fn get_listening_address(&self) -> IpAddr {
         self.mixnode.listening_address
     }
 
     pub fn get_announce_address(&self) -> String {
         self.mixnode.announce_address.clone()
+    }
+
+    pub fn get_mix_port(&self) -> u16 {
+        self.mixnode.mix_port
     }
 
     pub fn get_packet_forwarding_initial_backoff(&self) -> Duration {
@@ -305,27 +285,27 @@ impl Config {
     }
 
     pub fn get_measurement_packets_per_node(&self) -> usize {
-        self.rtt_measurement.packets_per_node
+        self.verloc.packets_per_node
     }
     pub fn get_measurement_packet_timeout(&self) -> Duration {
-        self.rtt_measurement.packet_timeout
+        self.verloc.packet_timeout
     }
 
     pub fn get_measurement_connection_timeout(&self) -> Duration {
-        self.rtt_measurement.connection_timeout
+        self.verloc.connection_timeout
     }
 
     pub fn get_measurement_delay_between_packets(&self) -> Duration {
-        self.rtt_measurement.delay_between_packets
+        self.verloc.delay_between_packets
     }
     pub fn get_measurement_tested_nodes_batch_size(&self) -> usize {
-        self.rtt_measurement.tested_nodes_batch_size
+        self.verloc.tested_nodes_batch_size
     }
     pub fn get_measurement_testing_interval(&self) -> Duration {
-        self.rtt_measurement.testing_interval
+        self.verloc.testing_interval
     }
     pub fn get_measurement_retry_timeout(&self) -> Duration {
-        self.rtt_measurement.retry_timeout
+        self.verloc.retry_timeout
     }
 
     // upgrade-specific
@@ -349,16 +329,19 @@ pub struct MixNode {
     /// Layer of this particular mixnode determining its position in the network.
     layer: u64,
 
-    /// Socket address to which this mixnode will bind to and will be listening for packets.
-    listening_address: SocketAddr,
+    /// Address to which this mixnode will bind to and will be listening for packets.
+    #[serde(deserialize_with = "de_ipaddr_from_maybe_str_socks_addr")]
+    listening_address: IpAddr,
 
     /// Optional address announced to the validator for the clients to connect to.
     /// It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
-    /// later on by using name resolvable with a DNS query, such as `nymtech.net:8080`.
-    /// Additionally a custom port can be provided, so both `nymtech.net:8080` and `nymtech.net`
-    /// are valid announce addresses, while the later will default to whatever port is used for
-    /// `listening_address`.
+    /// later on by using name resolvable with a DNS query, such as `nymtech.net`.
     announce_address: String,
+
+    /// Port used for listening for all mixnet traffic.
+    /// (default: 1789)
+    #[serde(default = "default_mix_port")]
+    mix_port: u16,
 
     /// Path to file containing private identity key.
     #[serde(default = "missing_string_value")]
@@ -374,7 +357,7 @@ pub struct MixNode {
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
 
-    /// Validator server to which the node will be reporting their presence data.
+    /// Validator server from which the node gets the view on the network.
     #[serde(
         deserialize_with = "deserialize_validators",
         default = "missing_vec_string_value",
@@ -415,10 +398,9 @@ impl Default for MixNode {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             layer: 0,
-            listening_address: format!("0.0.0.0:{}", DEFAULT_LISTENING_PORT)
-                .parse()
-                .unwrap(),
-            announce_address: format!("127.0.0.1:{}", DEFAULT_LISTENING_PORT),
+            listening_address: bind_all_address(),
+            announce_address: "127.0.0.1".to_string(),
+            mix_port: DEFAULT_MIX_LISTENING_PORT,
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
@@ -442,7 +424,7 @@ impl Default for Logging {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct RttMeasurement {
+pub struct Verloc {
     /// Specifies number of echo packets sent to each node during a measurement run.
     packets_per_node: usize,
 
@@ -466,9 +448,9 @@ pub struct RttMeasurement {
     retry_timeout: Duration,
 }
 
-impl Default for RttMeasurement {
+impl Default for Verloc {
     fn default() -> Self {
-        RttMeasurement {
+        Verloc {
             packets_per_node: DEFAULT_PACKETS_PER_NODE,
             connection_timeout: DEFAULT_CONNECTION_TIMEOUT,
             packet_timeout: DEFAULT_PACKET_TIMEOUT,

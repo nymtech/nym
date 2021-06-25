@@ -19,6 +19,9 @@ version = '{{ gateway.version }}'
 # Human readable ID of this particular gateway.
 id = '{{ gateway.id }}'
 
+# Socket address to which this gateway will bind to and will be listening for packets.
+listening_address = '{{ gateway.listening_address }}'
+
 # Path to file containing private identity key.
 private_identity_key_file = '{{ gateway.private_identity_key_file }}'
 
@@ -31,7 +34,22 @@ private_sphinx_key_file = '{{ gateway.private_sphinx_key_file }}'
 # Path to file containing public sphinx key.
 public_sphinx_key_file = '{{ gateway.public_sphinx_key_file }}'
 
-# Validator server to which the node will be reporting their presence data.
+##### additional gateway config options #####
+
+# Optional address announced to the directory server for the clients to connect to.
+# It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
+# later on by using name resolvable with a DNS query, such as `nymtech.net`.
+announce_address = '{{ gateway.announce_address }}'
+
+# Port used for listening for all mixnet traffic.
+# (default: 1789)
+mix_port = {{ gateway.mix_port }}
+
+# Port used for listening for all client websocket traffic.
+# (default: 9000)
+clients_port = {{ gateway.clients_port }}
+
+# Validator server to which the node will be getting information about the network.
 validator_rest_urls = [
     {{#each gateway.validator_rest_urls }}
         '{{this}}',
@@ -41,41 +59,15 @@ validator_rest_urls = [
 # Address of the validator contract managing the network.
 mixnet_contract_address = '{{ gateway.mixnet_contract_address }}'
 
+##### advanced configuration options #####
+
 # nym_home_directory specifies absolute path to the home nym gateway directory.
 # It is expected to use default value and hence .toml file should not redefine this field.
 nym_root_directory = '{{ gateway.nym_root_directory }}'
-    
-
-##### Mixnet endpoint config options #####
-
-[mixnet_endpoint]
-# Socket address to which this gateway will bind to
-# and will be listening for sphinx packets coming from the mixnet.
-listening_address = '{{ mixnet_endpoint.listening_address }}'
-
-# Optional address announced to the directory server for the clients to connect to.
-# It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
-# later on by using name resolvable with a DNS query, such as `nymtech.net:8080`.
-# Additionally a custom port can be provided, so both `nymtech.net:8080` and `nymtech.net`
-# are valid announce addresses, while the later will default to whatever port is used for
-# `listening_address`.
-announce_address = '{{ mixnet_endpoint.announce_address }}'
-
 
 #### Clients endpoint config options #####
 
 [clients_endpoint]
-# Socket address to which this gateway will bind to
-# and will be listening for sphinx packets coming from the mixnet.
-listening_address = '{{ clients_endpoint.listening_address }}'
-
-# Optional address announced to the directory server for the clients to connect to.
-# It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
-# later on by using name resolvable with a DNS query, such as `nymtech.net:8080`.
-# Additionally a custom port can be provided, so both `nymtech.net:8080` and `nymtech.net`
-# are valid announce addresses, while the later will default to whatever port is used for
-# `listening_address`.
-announce_address = '{{ clients_endpoint.announce_address }}'
 
 # Path to the directory with clients inboxes containing messages stored for them.
 inboxes_directory = '{{ clients_endpoint.inboxes_directory }}'

@@ -107,6 +107,7 @@ pub mod helpers {
     pub fn mix_node_fixture() -> MixNode {
         MixNode::new(
             "mix.node.org".to_string(),
+            1789,
             1,
             "Sweden".to_string(),
             "sphinx".to_string(),
@@ -118,6 +119,7 @@ pub mod helpers {
     pub fn mixnode_bond_fixture() -> MixNodeBond {
         let mix_node = MixNode::new(
             "1.1.1.1".to_string(),
+            1789,
             1,
             "London".to_string(),
             "1234".to_string(),
@@ -129,8 +131,9 @@ pub mod helpers {
 
     pub fn gateway_fixture() -> Gateway {
         Gateway::new(
-            "1.1.1.1:1234".to_string(),
-            "ws://1.1.1.1:1235".to_string(),
+            "1.1.1.1".to_string(),
+            1789,
+            9000,
             "Sweden".to_string(),
             "sphinx".to_string(),
             "identity".to_string(),
@@ -140,8 +143,9 @@ pub mod helpers {
 
     pub fn gateway_bond_fixture() -> GatewayBond {
         let gateway = Gateway::new(
-            "1.1.1.1:1234".to_string(),
-            "ws://1.1.1.1:1235".to_string(),
+            "1.1.1.1".to_string(),
+            1789,
+            9000,
             "London".to_string(),
             "sphinx".to_string(),
             "identity".to_string(),

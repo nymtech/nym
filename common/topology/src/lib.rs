@@ -20,6 +20,10 @@ use nymsphinx_types::Node as SphinxNode;
 use rand::Rng;
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::fmt::{self, Display, Formatter};
+use std::io;
+use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
+use std::str::FromStr;
 
 pub mod filter;
 pub mod gateway;
@@ -33,6 +37,44 @@ pub enum NymTopologyError {
 
     InvalidNumberOfHopsError,
     NoMixesOnLayerAvailable(MixLayer),
+}
+
+#[derive(Debug, Clone)]
+pub enum NetworkAddress {
+    IpAddr(IpAddr),
+    Hostname(String),
+}
+
+impl NetworkAddress {
+    pub fn to_socket_addrs(&self, port: u16) -> io::Result<Vec<SocketAddr>> {
+        match self {
+            NetworkAddress::IpAddr(addr) => Ok(vec![SocketAddr::new(*addr, port)]),
+            NetworkAddress::Hostname(hostname) => {
+                Ok((hostname.as_str(), port).to_socket_addrs()?.collect())
+            }
+        }
+    }
+}
+
+impl FromStr for NetworkAddress {
+    type Err = std::io::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(ip_addr) = s.parse() {
+            Ok(NetworkAddress::IpAddr(ip_addr))
+        } else {
+            Ok(NetworkAddress::Hostname(s.to_string()))
+        }
+    }
+}
+
+impl Display for NetworkAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            NetworkAddress::IpAddr(ip_addr) => ip_addr.fmt(f),
+            NetworkAddress::Hostname(hostname) => hostname.fmt(f),
+        }
+    }
 }
 
 pub type MixLayer = u8;
@@ -248,7 +290,8 @@ mod converting_mixes_to_vec {
                 owner: "N/A".to_string(),
                 stake: 0,
                 location: "London".to_string(),
-                host: "3.3.3.3:1789".parse().unwrap(),
+                host: "3.3.3.3".parse().unwrap(),
+                mix_host: "3.3.3.3:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
                     "3ebjp1Fb9hdcS1AR6AZihgeJiMHkB5jjJUsvqNnfQwU7",
                 )

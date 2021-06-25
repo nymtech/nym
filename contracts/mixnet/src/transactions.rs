@@ -1210,7 +1210,7 @@ pub mod tests {
         let msg = ExecuteMsg::BondGateway {
             gateway: Gateway {
                 identity_key: "myAwesomeGateway".to_string(),
-                mix_host: "1.1.1.1:1789".into(),
+                host: "1.1.1.1".into(),
                 ..helpers::gateway_fixture()
             },
         };
@@ -1221,7 +1221,7 @@ pub mod tests {
         let msg = ExecuteMsg::BondGateway {
             gateway: Gateway {
                 identity_key: "myAwesomeGateway".to_string(),
-                mix_host: "2.2.2.2:1789".into(),
+                host: "2.2.2.2".into(),
                 ..helpers::gateway_fixture()
             },
         };
@@ -1230,12 +1230,12 @@ pub mod tests {
 
         // make sure the host information was updated
         assert_eq!(
-            "2.2.2.2:1789".to_string(),
+            "2.2.2.2".to_string(),
             gateways_read(deps.as_ref().storage)
                 .load("myAwesomeGateway".as_bytes())
                 .unwrap()
                 .gateway
-                .mix_host
+                .host
         );
     }
 

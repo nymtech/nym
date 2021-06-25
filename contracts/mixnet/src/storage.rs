@@ -366,35 +366,6 @@ mod tests {
     }
 
     #[test]
-    fn increasing_mixnode_bond() {
-        let mut storage = MockStorage::new();
-        let node_owner: Addr = Addr::unchecked("node-owner");
-        let node_identity: IdentityKey = "nodeidentity".into();
-
-        // 0.001
-        let reward = Decimal::from_ratio(1u128, 1000u128);
-
-        // increases the reward appropriately
-        let mixnode_bond = MixNodeBond {
-            bond_amount: coin(1000, DENOM),
-            total_delegation: coin(0, DENOM),
-            owner: node_owner.clone(),
-            mix_node: MixNode {
-                identity_key: node_identity.clone(),
-                ..mix_node_fixture()
-            },
-        };
-
-        mixnodes(&mut storage)
-            .save(node_identity.as_bytes(), &mixnode_bond)
-            .unwrap();
-
-        increase_mixnode_bond(&mut storage, mixnode_bond, reward).unwrap();
-        let new_bond = read_mixnode_bond(&storage, node_identity.as_bytes()).unwrap();
-        assert_eq!(Uint128(1001), new_bond);
-    }
-
-    #[test]
     fn reading_mixnode_bond() {
         let mut storage = MockStorage::new();
         let node_owner: Addr = Addr::unchecked("node-owner");
@@ -425,35 +396,6 @@ mod tests {
             Uint128(bond_value),
             read_mixnode_bond(&storage, node_identity.as_bytes()).unwrap()
         );
-    }
-
-    #[test]
-    fn increasing_gateway_bond() {
-        let mut storage = MockStorage::new();
-        let node_owner: Addr = Addr::unchecked("node-owner");
-        let node_identity: IdentityKey = "nodeidentity".into();
-
-        // 0.001
-        let reward = Decimal::from_ratio(1u128, 1000u128);
-
-        // increases the reward appropriately
-        let gateway_bond = GatewayBond {
-            bond_amount: coin(1000, DENOM),
-            total_delegation: coin(0, DENOM),
-            owner: node_owner.clone(),
-            gateway: Gateway {
-                identity_key: node_identity.clone(),
-                ..gateway_fixture()
-            },
-        };
-
-        gateways(&mut storage)
-            .save(node_identity.as_bytes(), &gateway_bond)
-            .unwrap();
-
-        increase_gateway_bond(&mut storage, gateway_bond, reward).unwrap();
-        let new_bond = read_gateway_bond(&storage, node_identity.as_bytes()).unwrap();
-        assert_eq!(Uint128(1001), new_bond);
     }
 
     #[test]

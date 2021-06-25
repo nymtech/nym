@@ -513,6 +513,20 @@ pub(crate) fn try_remove_delegation_from_mixnode(
             }
             .into()];
 
+            // update total_delegation of this node
+            let mut mixnodes_bucket = mixnodes(deps.storage);
+            // in some rare cases the mixnode bond might no longer exist as the node unbonded
+            // before delegation was removed. that is fine
+            if let Some(mut existing_bond) = mixnodes_bucket.may_load(mix_identity.as_bytes())? {
+                // we should NEVER underflow here, if we do, it means we have some serious error in our logic
+                existing_bond.total_delegation.amount = existing_bond
+                    .total_delegation
+                    .amount
+                    .checked_sub(delegation)
+                    .unwrap();
+                mixnodes_bucket.save(mix_identity.as_bytes(), &existing_bond)?;
+            }
+
             Ok(Response {
                 submessages: Vec::new(),
                 messages,
@@ -582,6 +596,22 @@ pub(crate) fn try_remove_delegation_from_gateway(
                 amount: coins(delegation.u128(), DENOM),
             }
             .into()];
+
+            // update total_delegation of this node
+            let mut gateways_bucket = gateways(deps.storage);
+            // in some rare cases the gateway bond might no longer exist as the node unbonded
+            // before delegation was removed. that is fine
+            if let Some(mut existing_bond) =
+                gateways_bucket.may_load(gateway_identity.as_bytes())?
+            {
+                // we should NEVER underflow here, if we do, it means we have some serious error in our logic
+                existing_bond.total_delegation.amount = existing_bond
+                    .total_delegation
+                    .amount
+                    .checked_sub(delegation)
+                    .unwrap();
+                gateways_bucket.save(gateway_identity.as_bytes(), &existing_bond)?;
+            }
 
             Ok(Response {
                 submessages: Vec::new(),

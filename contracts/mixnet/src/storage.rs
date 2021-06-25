@@ -454,7 +454,7 @@ mod tests {
             // 0.001
             let reward = Decimal::from_ratio(1u128, 1000u128);
 
-            increase_mix_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+            increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
                 .unwrap();
 
             // there are no 'new' delegations magically added
@@ -479,7 +479,7 @@ mod tests {
                 .save(delegator_address.as_bytes(), &Uint128(1000))
                 .unwrap();
 
-            increase_mix_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+            increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
                 .unwrap();
             assert_eq!(
                 Uint128(1001),
@@ -504,7 +504,7 @@ mod tests {
                     .unwrap();
             }
 
-            increase_mix_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+            increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
                 .unwrap();
 
             for i in 0..100 {
@@ -533,7 +533,7 @@ mod tests {
                     .unwrap();
             }
 
-            increase_mix_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+            increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
                 .unwrap();
 
             for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
@@ -562,7 +562,7 @@ mod tests {
             // 0.001
             let reward = Decimal::from_ratio(1u128, 1000u128);
 
-            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
                 .unwrap();
 
             // there are no 'new' delegations magically added
@@ -587,7 +587,7 @@ mod tests {
                 .save(delegator_address.as_bytes(), &Uint128(1000))
                 .unwrap();
 
-            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
                 .unwrap();
             assert_eq!(
                 Uint128(1001),
@@ -612,7 +612,7 @@ mod tests {
                     .unwrap();
             }
 
-            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
                 .unwrap();
 
             for i in 0..100 {
@@ -641,7 +641,7 @@ mod tests {
                     .unwrap();
             }
 
-            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
                 .unwrap();
 
             for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {

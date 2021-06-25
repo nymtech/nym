@@ -162,27 +162,18 @@ pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey
 }
 
 // helpers
-pub(crate) fn increase_mixnode_bond(
-    storage: &mut dyn Storage,
-    mut bond: MixNodeBond,
-    scaled_reward_rate: Decimal,
-) -> StdResult<()> {
-    let reward = bond.bond_amount.amount * scaled_reward_rate;
-    bond.bond_amount.amount += reward;
-    mixnodes(storage).save(bond.identity().as_bytes(), &bond)
-}
-
 pub(crate) fn increase_mix_delegated_stakes(
     storage: &mut dyn Storage,
-    mix_identity: IdentityKey,
+    mix_identity: IdentityKeyRef,
     scaled_reward_rate: Decimal,
-) -> StdResult<()> {
+) -> StdResult<Uint128> {
     let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
 
+    let mut total_rewarded = Uint128::zero();
     let mut chunk_start: Option<Vec<_>> = None;
     loop {
         // get `chunk_size` of delegations
-        let delegations_chunk = mix_delegations_read(storage, &mix_identity)
+        let delegations_chunk = mix_delegations_read(storage, mix_identity)
             .range(chunk_start.as_deref(), None, Order::Ascending)
             .take(chunk_size)
             .collect::<StdResult<Vec<_>>>()?;
@@ -191,7 +182,7 @@ pub(crate) fn increase_mix_delegated_stakes(
             break;
         }
 
-        // append 0 byte to the last value to start with whatever is the next suceeding key
+        // append 0 byte to the last value to start with whatever is the next succeeding key
         chunk_start = Some(
             delegations_chunk
                 .last()
@@ -207,24 +198,26 @@ pub(crate) fn increase_mix_delegated_stakes(
         for (delegator_address, amount) in delegations_chunk.into_iter() {
             let reward = amount * scaled_reward_rate;
             let new_amount = amount + reward;
-            mix_delegations(storage, &mix_identity).save(&delegator_address, &new_amount)?;
+            total_rewarded += reward;
+            mix_delegations(storage, mix_identity).save(&delegator_address, &new_amount)?;
         }
     }
 
-    Ok(())
+    Ok(total_rewarded)
 }
 
 pub(crate) fn increase_gateway_delegated_stakes(
     storage: &mut dyn Storage,
-    gateway_identity: IdentityKey,
+    gateway_identity: IdentityKeyRef,
     scaled_reward_rate: Decimal,
-) -> StdResult<()> {
+) -> StdResult<Uint128> {
     let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
 
+    let mut total_rewarded = Uint128::zero();
     let mut chunk_start: Option<Vec<_>> = None;
     loop {
         // get `chunk_size` of delegations
-        let delegations_chunk = gateway_delegations_read(storage, &gateway_identity)
+        let delegations_chunk = gateway_delegations_read(storage, gateway_identity)
             .range(chunk_start.as_deref(), None, Order::Ascending)
             .take(chunk_size)
             .collect::<StdResult<Vec<_>>>()?;
@@ -249,12 +242,12 @@ pub(crate) fn increase_gateway_delegated_stakes(
         for (delegator_address, amount) in delegations_chunk.into_iter() {
             let reward = amount * scaled_reward_rate;
             let new_amount = amount + reward;
-            gateway_delegations(storage, &gateway_identity)
-                .save(&delegator_address, &new_amount)?;
+            total_rewarded += reward;
+            gateway_delegations(storage, gateway_identity).save(&delegator_address, &new_amount)?;
         }
     }
 
-    Ok(())
+    Ok(total_rewarded)
 }
 
 // currently not used outside tests
@@ -285,17 +278,6 @@ pub fn gateways_owners(storage: &mut dyn Storage) -> Bucket<IdentityKey> {
 
 pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey> {
     bucket_read(storage, PREFIX_GATEWAYS_OWNERS)
-}
-
-// helpers
-pub(crate) fn increase_gateway_bond(
-    storage: &mut dyn Storage,
-    mut bond: GatewayBond,
-    scaled_reward_rate: Decimal,
-) -> StdResult<()> {
-    let reward = bond.bond_amount.amount * scaled_reward_rate;
-    bond.bond_amount.amount += reward;
-    gateways(storage).save(bond.identity().as_bytes(), &bond)
 }
 
 // delegation related

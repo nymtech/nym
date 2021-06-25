@@ -2,7 +2,7 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use crate::{IdentityKey, SphinxKey};
-use cosmwasm_std::{Addr, Coin};
+use cosmwasm_std::{coin, Addr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -44,6 +44,7 @@ impl Gateway {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct GatewayBond {
     pub bond_amount: Coin,
+    pub total_delegation: Coin,
     pub owner: Addr,
     pub gateway: Gateway,
 }
@@ -51,6 +52,7 @@ pub struct GatewayBond {
 impl GatewayBond {
     pub fn new(bond_amount: Coin, owner: Addr, gateway: Gateway) -> Self {
         GatewayBond {
+            total_delegation: coin(0, &bond_amount.denom),
             bond_amount,
             owner,
             gateway,

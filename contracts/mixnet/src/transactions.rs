@@ -1518,6 +1518,7 @@ pub mod tests {
         let initial_bond = 100_000000;
         let mixnode_bond = MixNodeBond {
             bond_amount: coin(initial_bond, DENOM),
+            total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
@@ -1578,6 +1579,7 @@ pub mod tests {
         let initial_bond = 100_000000;
         let gateway_bond = GatewayBond {
             bond_amount: coin(initial_bond, DENOM),
+            total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
             gateway: Gateway {
                 identity_key: node_identity.clone(),

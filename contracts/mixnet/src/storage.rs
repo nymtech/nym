@@ -395,6 +395,7 @@ mod tests {
         // increases the reward appropriately
         let mixnode_bond = MixNodeBond {
             bond_amount: coin(1000, DENOM),
+            total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
@@ -426,6 +427,7 @@ mod tests {
 
         let mixnode_bond = MixNodeBond {
             bond_amount: coin(bond_value, DENOM),
+            total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
@@ -455,6 +457,7 @@ mod tests {
         // increases the reward appropriately
         let gateway_bond = GatewayBond {
             bond_amount: coin(1000, DENOM),
+            total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
             gateway: Gateway {
                 identity_key: node_identity.clone(),
@@ -486,6 +489,7 @@ mod tests {
 
         let gateway_bond = GatewayBond {
             bond_amount: coin(bond_value, DENOM),
+            total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
             gateway: Gateway {
                 identity_key: node_identity.clone(),
@@ -502,6 +506,15 @@ mod tests {
             read_gateway_bond(&storage, node_identity.as_bytes()).unwrap()
         );
     }
+
+    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
+    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
+    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
+    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
+    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
+    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
+    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
+    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
 
     #[cfg(test)]
     mod increasing_mix_delegated_stakes {

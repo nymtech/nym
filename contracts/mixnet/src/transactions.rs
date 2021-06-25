@@ -4,11 +4,11 @@ use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
 use crate::state::StateParams;
 use crate::storage::{
     config, config_read, decrement_layer_count, gateway_delegations, gateway_delegations_read,
-    gateways, gateways_owners, gateways_owners_read, gateways_read, increase_gateway_bond,
-    increase_gateway_delegated_stakes, increase_mix_delegated_stakes, increase_mixnode_bond,
-    increment_layer_count, mix_delegations, mix_delegations_read, mixnodes, mixnodes_owners,
-    mixnodes_owners_read, mixnodes_read, read_gateway_epoch_reward_rate,
-    read_mixnode_epoch_reward_rate, read_state_params, Layer,
+    gateways, gateways_owners, gateways_owners_read, gateways_read,
+    increase_gateway_delegated_stakes, increase_mix_delegated_stakes, increment_layer_count,
+    mix_delegations, mix_delegations_read, mixnodes, mixnodes_owners, mixnodes_owners_read,
+    mixnodes_read, read_gateway_epoch_reward_rate, read_mixnode_epoch_reward_rate,
+    read_state_params, Layer,
 };
 use cosmwasm_std::{
     attr, coins, BankMsg, Coin, Decimal, DepsMut, MessageInfo, Order, Response, StdResult, Uint128,
@@ -382,7 +382,7 @@ pub(crate) fn try_reward_mixnode(
     }
 
     // check if the bond even exists
-    let current_bond = match mixnodes(deps.storage).load(mix_identity.as_bytes()) {
+    let mut current_bond = match mixnodes_read(deps.storage).load(mix_identity.as_bytes()) {
         Ok(bond) => bond,
         Err(_) => {
             return Ok(Response {
@@ -392,13 +392,27 @@ pub(crate) fn try_reward_mixnode(
         }
     };
 
-    let reward = read_mixnode_epoch_reward_rate(deps.storage);
-    let scaled_reward = scale_reward_by_uptime(reward, uptime)?;
+    let reward_rate = read_mixnode_epoch_reward_rate(deps.storage);
+    let scaled_reward_rate = scale_reward_by_uptime(reward_rate, uptime)?;
 
-    increase_mixnode_bond(deps.storage, current_bond, scaled_reward)?;
-    increase_mix_delegated_stakes(deps.storage, mix_identity, scaled_reward)?;
+    let node_reward = current_bond.bond_amount.amount * scaled_reward_rate;
+    let total_delegation_reward =
+        increase_mix_delegated_stakes(deps.storage, &mix_identity, scaled_reward_rate)?;
 
-    Ok(Response::default())
+    // update current bond with the reward given to the node and the delegators
+    current_bond.bond_amount.amount += node_reward;
+    current_bond.total_delegation.amount += total_delegation_reward;
+    mixnodes(deps.storage).save(mix_identity.as_bytes(), &current_bond)?;
+
+    Ok(Response {
+        submessages: vec![],
+        messages: vec![],
+        attributes: vec![
+            attr("bond increase", node_reward),
+            attr("total delegation increase", total_delegation_reward),
+        ],
+        data: None,
+    })
 }
 
 pub(crate) fn try_reward_gateway(
@@ -415,7 +429,7 @@ pub(crate) fn try_reward_gateway(
     }
 
     // check if the bond even exists
-    let current_bond = match gateways(deps.storage).load(gateway_identity.as_bytes()) {
+    let mut current_bond = match gateways(deps.storage).load(gateway_identity.as_bytes()) {
         Ok(bond) => bond,
         Err(_) => {
             return Ok(Response {
@@ -425,13 +439,27 @@ pub(crate) fn try_reward_gateway(
         }
     };
 
-    let reward = read_gateway_epoch_reward_rate(deps.storage);
-    let scaled_reward = scale_reward_by_uptime(reward, uptime)?;
+    let reward_rate = read_gateway_epoch_reward_rate(deps.storage);
+    let scaled_reward_rate = scale_reward_by_uptime(reward_rate, uptime)?;
 
-    increase_gateway_bond(deps.storage, current_bond, scaled_reward)?;
-    increase_gateway_delegated_stakes(deps.storage, gateway_identity, scaled_reward)?;
+    let node_reward = current_bond.bond_amount.amount * scaled_reward_rate;
+    let total_delegation_reward =
+        increase_gateway_delegated_stakes(deps.storage, &gateway_identity, scaled_reward_rate)?;
 
-    Ok(Response::default())
+    // update current bond with the reward given to the node and the delegators
+    current_bond.bond_amount.amount += node_reward;
+    current_bond.total_delegation.amount += total_delegation_reward;
+    gateways(deps.storage).save(gateway_identity.as_bytes(), &current_bond)?;
+
+    Ok(Response {
+        submessages: vec![],
+        messages: vec![],
+        attributes: vec![
+            attr("bond increase", node_reward),
+            attr("total delegation increase", total_delegation_reward),
+        ],
+        data: None,
+    })
 }
 
 fn validate_delegation_stake(delegation: &[Coin]) -> Result<(), ContractError> {

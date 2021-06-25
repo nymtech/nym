@@ -466,22 +466,29 @@ pub(crate) fn try_delegate_to_mixnode(
     validate_delegation_stake(&info.funds)?;
 
     // check if the target node actually exists
-    if mixnodes_read(deps.storage)
-        .load(mix_identity.as_bytes())
-        .is_err()
-    {
-        return Err(ContractError::MixNodeBondNotFound {
-            identity: mix_identity,
-        });
-    }
-
-    let mut bucket = mix_delegations(deps.storage, &mix_identity);
-    let sender_bytes = info.sender.as_bytes();
-    match bucket.may_load(sender_bytes)? {
-        Some(existing_delegation) => {
-            bucket.save(sender_bytes, &(existing_delegation + info.funds[0].amount))?
+    let mut mixnodes_bucket = mixnodes(deps.storage);
+    let mut current_bond = match mixnodes_bucket.load(mix_identity.as_bytes()) {
+        Ok(bond) => bond,
+        Err(_) => {
+            return Err(ContractError::MixNodeBondNotFound {
+                identity: mix_identity,
+            });
         }
-        None => bucket.save(sender_bytes, &info.funds[0].amount)?,
+    };
+
+    // update total_delegation of this node
+    current_bond.total_delegation.amount += info.funds[0].amount;
+    mixnodes_bucket.save(mix_identity.as_bytes(), &current_bond)?;
+
+    let mut delegation_bucket = mix_delegations(deps.storage, &mix_identity);
+    let sender_bytes = info.sender.as_bytes();
+
+    // write the delegation
+    match delegation_bucket.may_load(sender_bytes)? {
+        Some(existing_delegation) => {
+            delegation_bucket.save(sender_bytes, &(existing_delegation + info.funds[0].amount))?
+        }
+        None => delegation_bucket.save(sender_bytes, &info.funds[0].amount)?,
     }
 
     Ok(Response::default())
@@ -529,22 +536,29 @@ pub(crate) fn try_delegate_to_gateway(
     validate_delegation_stake(&info.funds)?;
 
     // check if the target node actually exists
-    if gateways_read(deps.storage)
-        .load(gateway_identity.as_bytes())
-        .is_err()
-    {
-        return Err(ContractError::GatewayBondNotFound {
-            identity: gateway_identity,
-        });
-    }
-
-    let mut bucket = gateway_delegations(deps.storage, &gateway_identity);
-    let sender_bytes = info.sender.as_bytes();
-    match bucket.may_load(sender_bytes)? {
-        Some(existing_delegation) => {
-            bucket.save(sender_bytes, &(existing_delegation + info.funds[0].amount))?
+    let mut gateways_bucket = gateways(deps.storage);
+    let mut current_bond = match gateways_bucket.load(gateway_identity.as_bytes()) {
+        Ok(bond) => bond,
+        Err(_) => {
+            return Err(ContractError::GatewayBondNotFound {
+                identity: gateway_identity,
+            });
         }
-        None => bucket.save(sender_bytes, &info.funds[0].amount)?,
+    };
+
+    // update total_delegation of this node
+    current_bond.total_delegation.amount += info.funds[0].amount;
+    gateways_bucket.save(gateway_identity.as_bytes(), &current_bond)?;
+
+    let mut delegation_bucket = gateway_delegations(deps.storage, &gateway_identity);
+    let sender_bytes = info.sender.as_bytes();
+
+    // write the delegation
+    match delegation_bucket.may_load(sender_bytes)? {
+        Some(existing_delegation) => {
+            delegation_bucket.save(sender_bytes, &(existing_delegation + info.funds[0].amount))?
+        }
+        None => delegation_bucket.save(sender_bytes, &info.funds[0].amount)?,
     }
 
     Ok(Response::default())

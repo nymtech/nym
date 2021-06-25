@@ -1659,30 +1659,48 @@ pub mod tests {
             .save(node_identity.as_bytes(), &mixnode_bond)
             .unwrap();
 
-        let reward = read_mixnode_epoch_reward_rate(deps.as_ref().storage);
+        let reward_rate = read_mixnode_epoch_reward_rate(deps.as_ref().storage);
+        let expected_reward = Uint128(initial_bond) * reward_rate;
 
         // the node's bond is correctly increased and scaled by uptime
         // if node was 100% up, it will get full epoch reward
-        let expected_bond = Uint128(initial_bond) * reward + Uint128(initial_bond);
+        let expected_bond = expected_reward + Uint128(initial_bond);
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        try_reward_mixnode(deps.as_mut(), info, node_identity.clone(), 100).unwrap();
+        let res = try_reward_mixnode(deps.as_mut(), info, node_identity.clone(), 100).unwrap();
 
         assert_eq!(
             expected_bond,
             read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
         );
 
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_reward),
+                attr("total delegation increase", Uint128(0)),
+            ],
+            res.attributes
+        );
+
         // if node was 20% up, it will get 1/5th of epoch reward
-        let scaled_reward = scale_reward_by_uptime(reward, 20).unwrap();
-        let expected_bond = expected_bond * scaled_reward + expected_bond;
+        let scaled_reward = scale_reward_by_uptime(reward_rate, 20).unwrap();
+        let expected_reward = expected_bond * scaled_reward;
+        let expected_bond = expected_reward + expected_bond;
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        try_reward_mixnode(deps.as_mut(), info, node_identity.clone(), 20).unwrap();
+        let res = try_reward_mixnode(deps.as_mut(), info, node_identity.clone(), 20).unwrap();
 
         assert_eq!(
             expected_bond,
             read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_reward),
+                attr("total delegation increase", Uint128(0)),
+            ],
+            res.attributes
         );
     }
 
@@ -1720,30 +1738,48 @@ pub mod tests {
             .save(node_identity.as_bytes(), &gateway_bond)
             .unwrap();
 
-        let reward = read_gateway_epoch_reward_rate(deps.as_ref().storage);
+        let reward_rate = read_gateway_epoch_reward_rate(deps.as_ref().storage);
+        let expected_reward = Uint128(initial_bond) * reward_rate;
 
         // the node's bond is correctly increased and scaled by uptime
         // if node was 100% up, it will get full epoch reward
-        let expected_bond = Uint128(initial_bond) * reward + Uint128(initial_bond);
+        let expected_bond = expected_reward + Uint128(initial_bond);
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        try_reward_gateway(deps.as_mut(), info, node_identity.clone(), 100).unwrap();
+        let res = try_reward_gateway(deps.as_mut(), info, node_identity.clone(), 100).unwrap();
 
         assert_eq!(
             expected_bond,
             read_gateway_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
         );
 
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_reward),
+                attr("total delegation increase", Uint128(0)),
+            ],
+            res.attributes
+        );
+
         // if node was 20% up, it will get 1/5th of epoch reward
-        let scaled_reward = scale_reward_by_uptime(reward, 20).unwrap();
-        let expected_bond = expected_bond * scaled_reward + expected_bond;
+        let scaled_reward = scale_reward_by_uptime(reward_rate, 20).unwrap();
+        let expected_reward = expected_bond * scaled_reward;
+        let expected_bond = expected_reward + expected_bond;
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
-        try_reward_gateway(deps.as_mut(), info, node_identity.clone(), 20).unwrap();
+        let res = try_reward_gateway(deps.as_mut(), info, node_identity.clone(), 20).unwrap();
 
         assert_eq!(
             expected_bond,
             read_gateway_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
+            vec![
+                attr("bond increase", expected_reward),
+                attr("total delegation increase", Uint128(0)),
+            ],
+            res.attributes
         );
     }
 

@@ -140,6 +140,9 @@ pub fn execute(matches: &ArgMatches) {
         show_binding_warning(config.get_listening_address().to_string());
     }
 
+    let description =
+        NodeDescription::load_from_file(Config::default_config_directory(id)).unwrap_or_default();
+
     println!(
         "Validator servers: {:?}",
         config.get_validator_rest_endpoints()
@@ -160,7 +163,6 @@ pub fn execute(matches: &ArgMatches) {
     Address: {}
     Mix port: {}
     Layer: {}
-    Location: [physical location of your node's server]
     Version: {}
     ",
         identity_keypair.public_key().to_base58_string(),
@@ -170,8 +172,5 @@ pub fn execute(matches: &ArgMatches) {
         config.get_layer(),
         config.get_version(),
     );
-
-    let description =
-        NodeDescription::load_from_file(Config::default_config_directory(id)).unwrap_or_default();
     MixNode::new(config, description, identity_keypair, sphinx_keypair).run();
 }

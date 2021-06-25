@@ -6,16 +6,19 @@ use crate::config::{
     default_validator_rest_endpoints, missing_string_value, Config,
     DEFAULT_MIXNET_CONTRACT_ADDRESS, MISSING_VALUE,
 };
+use crate::node::node_description::{NodeDescription, DESCRIPTION_FILE};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::identity;
+use serde::Deserialize;
 use std::fmt::Display;
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::process;
 use std::str::FromStr;
+use std::{fs, process};
 use version_checker::{parse_version, Version};
 
+type UpgradeError = (Version, String);
 const CURRENT_VERSION_ARG_NAME: &str = "current-version";
 
 fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> ! {
@@ -189,12 +192,12 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
     upgraded_config
 }
 
-fn minor_010_upgrade(
+fn minor_0_10_upgrade(
     config: Config,
     _matches: &ArgMatches,
     config_version: &Version,
     package_version: &Version,
-) -> Config {
+) -> Result<Config, UpgradeError> {
     let to_version = if package_version.major == 0 && package_version.minor == 10 {
         package_version.clone()
     } else {
@@ -204,8 +207,7 @@ fn minor_010_upgrade(
     print_start_upgrade(&config_version, &to_version);
 
     if config.get_validator_mixnet_contract_address() != MISSING_VALUE {
-        eprintln!("existing config seems to have specified mixnet contract address which was only introduced in 0.10.0! Can't perform upgrade.");
-        fail_upgrade(&config_version, to_version)
+        return Err((to_version, "existing config seems to have specified mixnet contract address which was only introduced in 0.10.0! Can't perform upgrade.".to_string()));
     }
 
     println!(
@@ -223,22 +225,24 @@ fn minor_010_upgrade(
         .with_custom_validators(default_validator_rest_endpoints())
         .with_custom_mixnet_contract(DEFAULT_MIXNET_CONTRACT_ADDRESS);
 
-    upgraded_config.save_to_file(None).unwrap_or_else(|err| {
-        eprintln!("failed to overwrite config file! - {:?}", err);
-        fail_upgrade(&config_version, &to_version)
-    });
+    upgraded_config.save_to_file(None).map_err(|err| {
+        (
+            to_version.clone(),
+            format!("failed to overwrite config file! - {:?}", err),
+        )
+    })?;
 
     print_successful_upgrade(config_version, to_version);
 
-    upgraded_config
+    Ok(upgraded_config)
 }
 
-fn patch_010_upgrade(
+fn patch_0_10_1_upgrade(
     config: Config,
     _matches: &ArgMatches,
     config_version: &Version,
     package_version: &Version,
-) -> Config {
+) -> Result<Config, UpgradeError> {
     // welp, stuff like ports are mostly hardcoded and not part of the config so all is changes is just the version
     // number
     let to_version = package_version;
@@ -247,14 +251,16 @@ fn patch_010_upgrade(
 
     let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
 
-    upgraded_config.save_to_file(None).unwrap_or_else(|err| {
-        eprintln!("failed to overwrite config file! - {:?}", err);
-        fail_upgrade(&config_version, to_version)
-    });
+    upgraded_config.save_to_file(None).map_err(|err| {
+        (
+            to_version.clone(),
+            format!("failed to overwrite config file! - {:?}", err),
+        )
+    })?;
 
     print_successful_upgrade(config_version, to_version);
 
-    upgraded_config
+    Ok(upgraded_config)
 }
 
 // TODO: to be renamed once the release version is decided (so presumably either 0.10.2 or 0.11.0)
@@ -263,7 +269,7 @@ fn undetermined_version_upgrade(
     _matches: &ArgMatches,
     config_version: &Version,
     package_version: &Version,
-) -> Config {
+) -> Result<Config, UpgradeError> {
     // If we decide this version should be tagged with 0.11.0, then the following code will be used instead:
     // let to_version = if package_version.major == 0 && package_version.minor == 11 {
     //     package_version.clone()
@@ -281,8 +287,10 @@ fn undetermined_version_upgrade(
         Err(_) => {
             let announce_split = current_annnounce_addr.split(':').collect::<Vec<_>>();
             if announce_split.len() != 2 {
-                eprintln!("failed to correctly parse current announce host");
-                fail_upgrade(&config_version, &to_version)
+                return Err((
+                    to_version.clone(),
+                    "failed to correctly parse current announce host".to_string(),
+                ));
             }
             (
                 announce_split[0].to_string(),
@@ -296,14 +304,81 @@ fn undetermined_version_upgrade(
         .with_announce_address(announce_address)
         .with_mix_port(custom_mix_port);
 
-    upgraded_config.save_to_file(None).unwrap_or_else(|err| {
-        eprintln!("failed to overwrite config file! - {:?}", err);
-        fail_upgrade(&config_version, to_version)
-    });
+    upgraded_config.save_to_file(None).map_err(|err| {
+        (
+            to_version.clone(),
+            format!("failed to overwrite config file! - {:?}", err),
+        )
+    })?;
 
     print_successful_upgrade(config_version, to_version);
 
-    upgraded_config
+    Ok(upgraded_config)
+}
+
+fn patch_0_10_2_upgrade(
+    config: Config,
+    _matches: &ArgMatches,
+    config_version: &Version,
+    package_version: &Version,
+) -> Result<Config, UpgradeError> {
+    #[derive(Deserialize)]
+    struct OldNodeDescription {
+        name: String,
+        description: String,
+        link: String,
+    }
+    let to_version = package_version;
+    let id = config.get_id();
+    let config_path = Config::default_config_directory(&id);
+
+    print_start_upgrade(&config_version, &to_version);
+
+    let description_file_path: PathBuf = [config_path.to_str().unwrap(), DESCRIPTION_FILE]
+        .iter()
+        .collect();
+    // If the description file already exists, upgrade it
+    if description_file_path.is_file() {
+        let description_content =
+            fs::read_to_string(description_file_path.clone()).map_err(|err| {
+                (
+                    to_version.clone(),
+                    format!("failed to read description file! - {:?}", err),
+                )
+            })?;
+        let old_description: OldNodeDescription =
+            toml::from_str(&description_content).map_err(|err| {
+                (
+                    to_version.clone(),
+                    format!("failed to deserialize description content! - {:?}", err),
+                )
+            })?;
+        let new_description = NodeDescription {
+            name: old_description.name,
+            description: old_description.description,
+            link: old_description.link,
+            ..Default::default()
+        };
+        NodeDescription::save_to_file(&new_description, description_file_path).map_err(|err| {
+            (
+                to_version.clone(),
+                format!("failed to overwrite description file! - {:?}", err),
+            )
+        })?;
+    }
+
+    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
+
+    upgraded_config.save_to_file(None).map_err(|err| {
+        (
+            to_version.clone(),
+            format!("failed to overwrite config file! - {:?}", err),
+        )
+    })?;
+
+    print_successful_upgrade(config_version, to_version);
+
+    Ok(upgraded_config)
 }
 
 fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version) {
@@ -317,9 +392,10 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
 
         config = match config_version.major {
             0 => match config_version.minor {
-                9 => minor_010_upgrade(config, matches, &config_version, &package_version),
+                9 => minor_0_10_upgrade(config, matches, &config_version, &package_version),
                 10 => match config_version.patch {
-                    0 => patch_010_upgrade(config, matches, &config_version, &package_version),
+                    0 => patch_0_10_1_upgrade(config, matches, &config_version, &package_version),
+                    1 => patch_0_10_2_upgrade(config, matches, &config_version, &package_version),
                     _ => undetermined_version_upgrade(
                         config,
                         matches,
@@ -331,6 +407,11 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
             },
             _ => unsupported_upgrade(config_version, package_version),
         }
+        .unwrap_or_else(|(to_version, err)| {
+            eprintln!("{:?}", err);
+            print_failed_upgrade(&config_version, &to_version);
+            process::exit(1);
+        });
     }
 }
 
@@ -362,4 +443,44 @@ pub fn execute(matches: &ArgMatches) {
 
     // here be upgrade path to 0.9.X and beyond based on version number from config
     do_upgrade(existing_config, matches, package_version)
+}
+
+#[cfg(test)]
+mod upgrade_tests {
+    use super::*;
+    use serial_test::serial;
+
+    #[test]
+    #[serial]
+    fn test_patch_0_10_2_upgrade() {
+        let config = Config::default()
+            .with_id("-42")
+            .with_custom_version("0.10.1");
+        let matches = ArgMatches::default();
+        let old_version = Version::new(0, 10, 1);
+        let new_version = Version::new(0, 10, 2);
+        let new_config =
+            patch_0_10_2_upgrade(config, &matches, &old_version, &new_version).unwrap();
+        assert_eq!(new_config.get_version(), "0.10.2");
+    }
+
+    #[test]
+    #[serial]
+    fn test_patch_0_10_2_upgrade_error() {
+        let config = Config::default()
+            .with_id("-42")
+            .with_custom_version("0.10.1");
+        let matches = ArgMatches::default();
+        let old_version = Version::new(0, 10, 1);
+        let new_version = Version::new(0, 10, 2);
+        config.save_to_file(None).unwrap();
+        let config_file = config.get_config_file_save_location();
+        let initial_perms = fs::metadata(config_file.clone()).unwrap().permissions();
+        let mut new_perms = initial_perms.clone();
+        new_perms.set_readonly(true);
+        fs::set_permissions(config_file.clone(), new_perms).unwrap();
+        let ret = patch_0_10_2_upgrade(config, &matches, &old_version, &new_version);
+        fs::set_permissions(config_file, initial_perms).unwrap();
+        assert!(ret.is_err());
+    }
 }

@@ -1,6 +1,6 @@
 use crate::queries;
 use crate::state::{State, StateParams};
-use cosmwasm_std::{Decimal, Order, StdError, StdResult, Storage, Uint128};
+use cosmwasm_std::{Decimal, Order, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -167,14 +167,8 @@ pub(crate) fn increase_mixnode_bond(
     mut bond: MixNodeBond,
     scaled_reward_rate: Decimal,
 ) -> StdResult<()> {
-    if bond.amount.len() != 1 {
-        return Err(StdError::generic_err(
-            "mixnode seems to have been bonded with multiple coin types",
-        ));
-    }
-
-    let reward = bond.amount[0].amount * scaled_reward_rate;
-    bond.amount[0].amount += reward;
+    let reward = bond.bond_amount.amount * scaled_reward_rate;
+    bond.bond_amount.amount += reward;
     mixnodes(storage).save(bond.identity().as_bytes(), &bond)
 }
 
@@ -271,12 +265,7 @@ pub(crate) fn read_mixnode_bond(
 ) -> StdResult<cosmwasm_std::Uint128> {
     let bucket = mixnodes_read(storage);
     let node = bucket.load(identity)?;
-    if node.amount.len() != 1 {
-        return Err(StdError::generic_err(
-            "mixnode seems to have been bonded with multiple coin types",
-        ));
-    }
-    Ok(node.amount[0].amount)
+    Ok(node.bond_amount.amount)
 }
 
 // Gateway-related stuff
@@ -304,13 +293,8 @@ pub(crate) fn increase_gateway_bond(
     mut bond: GatewayBond,
     scaled_reward_rate: Decimal,
 ) -> StdResult<()> {
-    if bond.amount.len() != 1 {
-        return Err(StdError::generic_err(
-            "gateway seems to have been bonded with multiple coin types",
-        ));
-    }
-    let reward = bond.amount[0].amount * scaled_reward_rate;
-    bond.amount[0].amount += reward;
+    let reward = bond.bond_amount.amount * scaled_reward_rate;
+    bond.bond_amount.amount += reward;
     gateways(storage).save(bond.identity().as_bytes(), &bond)
 }
 
@@ -357,12 +341,7 @@ pub(crate) fn read_gateway_bond(
 ) -> StdResult<cosmwasm_std::Uint128> {
     let bucket = gateways_read(storage);
     let node = bucket.load(identity)?;
-    if node.amount.len() != 1 {
-        return Err(StdError::generic_err(
-            "gateway seems to have been bonded with multiple coin types",
-        ));
-    }
-    Ok(node.amount[0].amount)
+    Ok(node.bond_amount.amount)
 }
 
 #[cfg(test)]
@@ -373,7 +352,7 @@ mod tests {
         gateway_bond_fixture, gateway_fixture, mix_node_fixture, mixnode_bond_fixture,
     };
     use cosmwasm_std::testing::MockStorage;
-    use cosmwasm_std::{coins, Addr, Uint128};
+    use cosmwasm_std::{coin, Addr, Uint128};
     use mixnet_contract::{Gateway, MixNode};
 
     #[test]
@@ -415,7 +394,7 @@ mod tests {
 
         // increases the reward appropriately
         let mixnode_bond = MixNodeBond {
-            amount: coins(1000, DENOM),
+            bond_amount: coin(1000, DENOM),
             owner: node_owner.clone(),
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
@@ -446,7 +425,7 @@ mod tests {
         let bond_value = 1000;
 
         let mixnode_bond = MixNodeBond {
-            amount: coins(bond_value, DENOM),
+            bond_amount: coin(bond_value, DENOM),
             owner: node_owner.clone(),
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
@@ -475,7 +454,7 @@ mod tests {
 
         // increases the reward appropriately
         let gateway_bond = GatewayBond {
-            amount: coins(1000, DENOM),
+            bond_amount: coin(1000, DENOM),
             owner: node_owner.clone(),
             gateway: Gateway {
                 identity_key: node_identity.clone(),
@@ -506,7 +485,7 @@ mod tests {
         let bond_value = 1000;
 
         let gateway_bond = GatewayBond {
-            amount: coins(bond_value, DENOM),
+            bond_amount: coin(bond_value, DENOM),
             owner: node_owner.clone(),
             gateway: Gateway {
                 identity_key: node_identity.clone(),

@@ -43,15 +43,15 @@ impl Gateway {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct GatewayBond {
-    pub amount: Vec<Coin>,
+    pub bond_amount: Coin,
     pub owner: Addr,
     pub gateway: Gateway,
 }
 
 impl GatewayBond {
-    pub fn new(amount: Vec<Coin>, owner: Addr, gateway: Gateway) -> Self {
+    pub fn new(bond_amount: Coin, owner: Addr, gateway: Gateway) -> Self {
         GatewayBond {
-            amount,
+            bond_amount,
             owner,
             gateway,
         }
@@ -61,8 +61,8 @@ impl GatewayBond {
         &self.gateway.identity_key
     }
 
-    pub fn amount(&self) -> &[Coin] {
-        &self.amount
+    pub fn bond_amount(&self) -> Coin {
+        self.bond_amount.clone()
     }
 
     pub fn owner(&self) -> &Addr {
@@ -76,15 +76,11 @@ impl GatewayBond {
 
 impl Display for GatewayBond {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if self.amount.len() != 1 {
-            write!(f, "amount: {:?}, owner: {}", self.amount, self.owner)
-        } else {
-            write!(
-                f,
-                "amount: {} {}, owner: {}",
-                self.amount[0].amount, self.amount[0].denom, self.owner
-            )
-        }
+        write!(
+            f,
+            "amount: {} {}, owner: {}, identity: {}",
+            self.bond_amount.amount, self.bond_amount.denom, self.owner, self.gateway.identity_key
+        )
     }
 }
 

@@ -76,7 +76,7 @@ pub(crate) fn try_add_mixnode(
     let minimum_bond = read_state_params(deps.storage).minimum_mixnode_bond;
     validate_mixnode_bond(&info.funds, minimum_bond)?;
 
-    let bond = MixNodeBond::new(info.funds, info.sender.clone(), mix_node);
+    let bond = MixNodeBond::new(info.funds[0].clone(), info.sender.clone(), mix_node);
 
     let attributes = vec![attr("overwritten", was_present)];
 
@@ -111,7 +111,7 @@ pub(crate) fn try_remove_mixnode(
     // send bonded funds back to the bond owner
     let messages = vec![BankMsg::Send {
         to_address: info.sender.as_str().to_owned(),
-        amount: mixnode_bond.amount().to_vec(),
+        amount: vec![mixnode_bond.bond_amount()],
     }
     .into()];
 
@@ -197,7 +197,7 @@ pub(crate) fn try_add_gateway(
     let minimum_bond = read_state_params(deps.storage).minimum_gateway_bond;
     validate_gateway_bond(&info.funds, minimum_bond)?;
 
-    let bond = GatewayBond::new(info.funds, info.sender.clone(), gateway);
+    let bond = GatewayBond::new(info.funds[0].clone(), info.sender.clone(), gateway);
 
     let attributes = vec![attr("overwritten", was_present)];
 
@@ -232,7 +232,7 @@ pub(crate) fn try_remove_gateway(
     // send bonded funds back to the bond owner
     let messages = vec![BankMsg::Send {
         to_address: info.sender.as_str().to_owned(),
-        amount: gateway_bond.amount().to_vec(),
+        amount: vec![gateway_bond.bond_amount()],
     }
     .into()];
 
@@ -546,7 +546,7 @@ pub mod tests {
         mix_node_fixture,
     };
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{coins, from_binary, Addr, Uint128};
+    use cosmwasm_std::{coin, coins, from_binary, Addr, Uint128};
     use mixnet_contract::{LayerDistribution, PagedGatewayResponse, PagedResponse};
 
     #[test]
@@ -906,7 +906,10 @@ pub mod tests {
             attr("action", "unbond"),
             attr(
                 "mixnode_bond",
-                format!("amount: {} {}, owner: fred", INITIAL_MIXNODE_BOND, DENOM),
+                format!(
+                    "amount: {} {}, owner: fred, identity: fredsmixnode",
+                    INITIAL_MIXNODE_BOND, DENOM
+                ),
             ),
         ];
 
@@ -1303,7 +1306,10 @@ pub mod tests {
             attr("address", "fred"),
             attr(
                 "gateway_bond",
-                format!("amount: {} {}, owner: fred", INITIAL_GATEWAY_BOND, DENOM),
+                format!(
+                    "amount: {} {}, owner: fred, identity: fredsgateway",
+                    INITIAL_GATEWAY_BOND, DENOM
+                ),
             ),
         ];
 
@@ -1511,7 +1517,7 @@ pub mod tests {
 
         let initial_bond = 100_000000;
         let mixnode_bond = MixNodeBond {
-            amount: coins(initial_bond, DENOM),
+            bond_amount: coin(initial_bond, DENOM),
             owner: node_owner.clone(),
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
@@ -1571,7 +1577,7 @@ pub mod tests {
 
         let initial_bond = 100_000000;
         let gateway_bond = GatewayBond {
-            amount: coins(initial_bond, DENOM),
+            bond_amount: coin(initial_bond, DENOM),
             owner: node_owner.clone(),
             gateway: Gateway {
                 identity_key: node_identity.clone(),

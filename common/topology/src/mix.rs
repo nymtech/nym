@@ -114,10 +114,6 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
     type Error = MixnodeConversionError;
 
     fn try_from(bond: &'a MixNodeBond) -> Result<Self, Self::Error> {
-        if bond.amount.len() > 1 {
-            return Err(MixnodeConversionError::InvalidStake);
-        }
-
         let host: NetworkAddress = bond.mix_node.host.parse().map_err(|err| {
             MixnodeConversionError::InvalidAddress(bond.mix_node.host.clone(), err)
         })?;
@@ -132,11 +128,7 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
 
         Ok(Node {
             owner: bond.owner.as_str().to_owned(),
-            stake: bond
-                .amount
-                .first()
-                .map(|stake| stake.amount.into())
-                .unwrap_or(0),
+            stake: bond.bond_amount.amount.into(),
             location: bond.mix_node.location.clone(),
             host,
             mix_host,

@@ -124,10 +124,6 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
     type Error = GatewayConversionError;
 
     fn try_from(bond: &'a GatewayBond) -> Result<Self, Self::Error> {
-        if bond.amount.len() > 1 {
-            return Err(GatewayConversionError::InvalidStake);
-        }
-
         let host: NetworkAddress = bond.gateway.host.parse().map_err(|err| {
             GatewayConversionError::InvalidAddress(bond.gateway.host.clone(), err)
         })?;
@@ -140,11 +136,7 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
 
         Ok(Node {
             owner: bond.owner.as_str().to_owned(),
-            stake: bond
-                .amount
-                .first()
-                .map(|stake| stake.amount.into())
-                .unwrap_or(0),
+            stake: bond.bond_amount.amount.into(),
             location: bond.gateway.location.clone(),
             host,
             mix_host,

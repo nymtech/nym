@@ -431,15 +431,6 @@ mod tests {
         );
     }
 
-    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
-    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
-    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
-    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
-    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
-    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
-    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
-    // TODO: TESTS FOR CHANGES IN total_delegation fields!!
-
     #[cfg(test)]
     mod increasing_mix_delegated_stakes {
         use super::*;
@@ -454,8 +445,12 @@ mod tests {
             // 0.001
             let reward = Decimal::from_ratio(1u128, 1000u128);
 
-            increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
-                .unwrap();
+            let total_increase =
+                increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
+                    .unwrap();
+
+            // there was no increase
+            assert!(total_increase.is_zero());
 
             // there are no 'new' delegations magically added
             assert!(
@@ -479,8 +474,12 @@ mod tests {
                 .save(delegator_address.as_bytes(), &Uint128(1000))
                 .unwrap();
 
-            increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
-                .unwrap();
+            let total_increase =
+                increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
+                    .unwrap();
+
+            assert_eq!(Uint128(1), total_increase);
+
             assert_eq!(
                 Uint128(1001),
                 mix_delegations_read(&mut deps.storage, &node_identity)
@@ -504,8 +503,11 @@ mod tests {
                     .unwrap();
             }
 
-            increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
-                .unwrap();
+            let total_increase =
+                increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
+                    .unwrap();
+
+            assert_eq!(Uint128(100), total_increase);
 
             for i in 0..100 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
@@ -533,8 +535,14 @@ mod tests {
                     .unwrap();
             }
 
-            increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
-                .unwrap();
+            let total_increase =
+                increase_mix_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
+                    .unwrap();
+
+            assert_eq!(
+                Uint128(queries::DELEGATION_PAGE_MAX_LIMIT as u128 * 10),
+                total_increase
+            );
 
             for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
@@ -562,8 +570,15 @@ mod tests {
             // 0.001
             let reward = Decimal::from_ratio(1u128, 1000u128);
 
-            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
-                .unwrap();
+            let total_increase = increase_gateway_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+            )
+            .unwrap();
+
+            // there was no increase
+            assert!(total_increase.is_zero());
 
             // there are no 'new' delegations magically added
             assert!(
@@ -587,8 +602,15 @@ mod tests {
                 .save(delegator_address.as_bytes(), &Uint128(1000))
                 .unwrap();
 
-            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
-                .unwrap();
+            let total_increase = increase_gateway_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+            )
+            .unwrap();
+
+            assert_eq!(Uint128(1), total_increase);
+
             assert_eq!(
                 Uint128(1001),
                 gateway_delegations_read(&mut deps.storage, &node_identity)
@@ -612,8 +634,14 @@ mod tests {
                     .unwrap();
             }
 
-            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
-                .unwrap();
+            let total_increase = increase_gateway_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+            )
+            .unwrap();
+
+            assert_eq!(Uint128(100), total_increase);
 
             for i in 0..100 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));
@@ -641,8 +669,17 @@ mod tests {
                     .unwrap();
             }
 
-            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.as_ref(), reward)
-                .unwrap();
+            let total_increase = increase_gateway_delegated_stakes(
+                &mut deps.storage,
+                node_identity.as_ref(),
+                reward,
+            )
+            .unwrap();
+
+            assert_eq!(
+                Uint128(queries::DELEGATION_PAGE_MAX_LIMIT as u128 * 10),
+                total_increase
+            );
 
             for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
                 let delegator_address = Addr::unchecked(format!("address{}", i));

@@ -14,7 +14,6 @@ pub struct MixNode {
     pub verloc_port: u16,
     pub http_api_port: u16,
     pub layer: u64,
-    pub location: String,
     pub sphinx_key: SphinxKey,
     /// Base58 encoded ed25519 EdDSA public key.
     pub identity_key: IdentityKey,

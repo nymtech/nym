@@ -289,7 +289,6 @@ mod converting_mixes_to_vec {
             let node1 = mix::Node {
                 owner: "N/A".to_string(),
                 stake: 0,
-                location: "London".to_string(),
                 host: "3.3.3.3".parse().unwrap(),
                 mix_host: "3.3.3.3:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -305,12 +304,12 @@ mod converting_mixes_to_vec {
             };
 
             let node2 = mix::Node {
-                location: "Thunder Bay".to_string(),
+                owner: "Alice".to_string(),
                 ..node1.clone()
             };
 
             let node3 = mix::Node {
-                location: "Warsaw".to_string(),
+                owner: "Bob".to_string(),
                 ..node1.clone()
             };
 
@@ -320,7 +319,7 @@ mod converting_mixes_to_vec {
 
             let topology = NymTopology::new(mixes, vec![]);
             let mixvec = topology.mixes_as_vec();
-            assert!(mixvec.iter().any(|node| node.location == "London"));
+            assert!(mixvec.iter().any(|node| node.owner == "N/A"));
         }
     }
 

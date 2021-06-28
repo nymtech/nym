@@ -83,7 +83,6 @@ pub struct Node {
     // somebody correct me if I'm wrong, but we should only ever have a single denom of currency
     // on the network at a type, right?
     pub stake: u128,
-    pub location: String,
     pub host: NetworkAddress,
     // we're keeping this as separate resolved field since we do not want to be resolving the potential
     // hostname every time we want to construct a path via this node
@@ -137,7 +136,6 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
                 .first()
                 .map(|stake| stake.amount.into())
                 .unwrap_or(0),
-            location: bond.mix_node.location.clone(),
             host,
             mix_host,
             identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,

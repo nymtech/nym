@@ -216,7 +216,6 @@ mod message_receiver {
             vec![mix::Node {
                 owner: "foomp1".to_string(),
                 stake: 123,
-                location: "unknown".to_string(),
                 host: "10.20.30.40".parse().unwrap(),
                 mix_host: "10.20.30.40:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -237,7 +236,6 @@ mod message_receiver {
             vec![mix::Node {
                 owner: "foomp2".to_string(),
                 stake: 123,
-                location: "unknown".to_string(),
                 host: "11.21.31.41".parse().unwrap(),
                 mix_host: "11.21.31.41:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -258,7 +256,6 @@ mod message_receiver {
             vec![mix::Node {
                 owner: "foomp3".to_string(),
                 stake: 123,
-                location: "unknown".to_string(),
                 host: "12.22.32.42".parse().unwrap(),
                 mix_host: "12.22.32.42:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(

@@ -16,6 +16,50 @@ use cosmwasm_std::{
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{Gateway, GatewayBond, IdentityKey, MixNode, MixNodeBond};
 
+const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
+
+// Looks for the total amount of delegations towards a particular node.
+// This function is used only in very specific circumstances:
+// 1. The mixnode/gateway bonds
+// 2. Some addresses start to delegate to the node
+// 3. The node unbonds
+// 4. Some of the addresses that delegated in the past have not removed the delegation yet
+// 5. The node rebonds with the same identity
+fn find_old_delegations(delegations_bucket: ReadonlyBucket<Uint128>) -> StdResult<Coin> {
+    // I think it's incredibly unlikely to ever read more than that
+    // but in case we do, we should guard ourselves against possible
+    // out of memory errors (wasm contracts can only allocate at most 2MB
+    // of RAM, so we don't want to box the entire iterator)
+    let mut total_delegation = Coin::new(0, DENOM);
+    let mut start = None;
+    loop {
+        let iterator = delegations_bucket
+            .range(start.as_deref(), None, Order::Ascending)
+            .take(OLD_DELEGATIONS_CHUNK_SIZE + 1);
+
+        let mut iterated = 0;
+
+        for delegation in iterator {
+            iterated += 1;
+            if iterated == OLD_DELEGATIONS_CHUNK_SIZE + 1 {
+                // we reached start of next chunk, don't process it, mark it for the next iteration of the loop
+                start = Some(delegation?.0);
+                continue;
+            }
+
+            let value = delegation?.1;
+            total_delegation.amount += value;
+        }
+
+        if iterated <= OLD_DELEGATIONS_CHUNK_SIZE {
+            // that was the final chunk
+            break;
+        }
+    }
+
+    Ok(total_delegation)
+}
+
 fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), ContractError> {
     // check if anything was put as bond
     if bond.is_empty() {
@@ -40,50 +84,6 @@ fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), Con
     }
 
     Ok(())
-}
-
-// Looks for the total amount of delegations towards a particular node.
-// This function is used only in very specific circumstances:
-// 1. The mixnode/gateway bonds
-// 2. Some addresses start to delegate to the node
-// 3. The node unbonds
-// 4. Some of the addresses that delegated in the past have not removed the delegation yet
-// 5. The node rebonds with the same identity
-fn find_old_delegations(delegations_bucket: ReadonlyBucket<Uint128>) -> StdResult<Coin> {
-    // I think it's incredibly unlikely to ever read more than that
-    // but in case we do, we should guard ourselves against possible
-    // out of memory errors (wasm contracts can only allocate at most 2MB
-    // of RAM)
-    const MAX_DELEGATIONS_CHUNK: usize = 500;
-
-    let mut total_delegation = Coin::new(0, DENOM);
-    let mut start = None;
-    loop {
-        let iterator = delegations_bucket
-            .range(start.as_deref(), None, Order::Ascending)
-            .take(MAX_DELEGATIONS_CHUNK + 1);
-
-        let mut iterated = 0;
-
-        for delegation in iterator {
-            iterated += 1;
-            if iterated == MAX_DELEGATIONS_CHUNK + 1 {
-                // we reached start of next chunk, don't process it, mark it for the next iteration of the loop
-                start = Some(delegation?.0);
-                continue;
-            }
-
-            let value = delegation?.1;
-            total_delegation.amount += value;
-        }
-
-        if iterated <= MAX_DELEGATIONS_CHUNK {
-            // that was the final chunk
-            break;
-        }
-    }
-
-    Ok(total_delegation)
 }
 
 pub(crate) fn try_add_mixnode(
@@ -2869,4 +2869,7 @@ pub mod tests {
             res.attributes
         );
     }
+
+    #[test]
+    fn finding_old_delegations() {}
 }

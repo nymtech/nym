@@ -2870,6 +2870,55 @@ pub mod tests {
         );
     }
 
-    #[test]
-    fn finding_old_delegations() {}
+    #[cfg(test)]
+    mod finding_old_delegations {
+        use super::*;
+
+        #[test]
+        fn when_there_werent_any() {
+            let deps = helpers::init_contract();
+
+            let node_identity: IdentityKey = "nodeidentity".into();
+
+            let read_bucket = mix_delegations_read(&deps.storage, &node_identity);
+            let old_delegations = find_old_delegations(read_bucket).unwrap();
+
+            assert_eq!(Coin::new(0, DENOM), old_delegations);
+        }
+
+        #[test]
+        fn when_some_existed() {
+            let num_delegations = vec![
+                1,
+                5,
+                OLD_DELEGATIONS_CHUNK_SIZE - 1,
+                OLD_DELEGATIONS_CHUNK_SIZE,
+                OLD_DELEGATIONS_CHUNK_SIZE + 1,
+                OLD_DELEGATIONS_CHUNK_SIZE * 3,
+                OLD_DELEGATIONS_CHUNK_SIZE * 3 + 1,
+            ];
+
+            for total_delegations in num_delegations {
+                let mut deps = helpers::init_contract();
+
+                let node_identity: IdentityKey = "nodeidentity".into();
+
+                // delegate some stake
+                let mut write_bucket = mix_delegations(&mut deps.storage, &node_identity);
+                for i in 1..=total_delegations {
+                    let delegator = Addr::unchecked(format!("delegator{}", i));
+                    let delegation = Uint128(i as u128);
+                    write_bucket
+                        .save(delegator.as_bytes(), &delegation)
+                        .unwrap();
+                }
+
+                let read_bucket = mix_delegations_read(&deps.storage, &node_identity);
+                let old_delegations = find_old_delegations(read_bucket).unwrap();
+
+                let total_delegation = (1..=total_delegations as u128).into_iter().sum();
+                assert_eq!(Coin::new(total_delegation, DENOM), old_delegations);
+            }
+        }
+    }
 }

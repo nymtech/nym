@@ -4,7 +4,8 @@ export type MixNodeBond = { // TODO: change name to MixNodeBond
     owner: string,
     mix_node: MixNode,    // TODO: camelCase this later once everything else works
 
-    amount: Coin[],
+    bond_amount: Coin,
+    total_delegation: Coin,
 }
 
 export type MixNode = {
@@ -19,7 +20,9 @@ export type MixNode = {
 export type GatewayBond = {
     owner: string
     gateway: Gateway,
-    amount: Coin[],
+    
+    bond_amount: Coin,
+    total_delegation: Coin,
 }
 
 export type Gateway = {

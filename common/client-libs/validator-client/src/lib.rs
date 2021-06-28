@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::models::{QueryRequest, QueryResponse};
-use crate::ValidatorClientError::ValidatorError;
-use core::fmt::{self, Display, Formatter};
+use crate::error::ValidatorClientError;
 use mixnet_contract::{
     GatewayBond, IdentityKey, LayerDistribution, MixNodeBond, PagedGatewayResponse, PagedResponse,
 };
@@ -13,34 +12,8 @@ use serde::Deserialize;
 use std::collections::VecDeque;
 
 mod models;
+mod error;
 pub(crate) mod serde_helpers;
-
-#[derive(Debug)]
-pub enum ValidatorClientError {
-    ReqwestClientError(reqwest::Error),
-    ValidatorError(String),
-}
-
-impl std::error::Error for ValidatorClientError {}
-
-impl From<reqwest::Error> for ValidatorClientError {
-    fn from(err: reqwest::Error) -> Self {
-        ValidatorClientError::ReqwestClientError(err)
-    }
-}
-
-impl Display for ValidatorClientError {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            ValidatorClientError::ReqwestClientError(err) => {
-                write!(f, "there was an issue with the REST request - {}", err)
-            }
-            ValidatorClientError::ValidatorError(err) => {
-                write!(f, "there was an issue with the validator client - {}", err)
-            }
-        }
-    }
-}
 
 fn permute_validators(validators: VecDeque<String>) -> VecDeque<String> {
     // even in the best case scenario in the mainnet world, we're not going to have more than ~100 validators,
@@ -171,7 +144,7 @@ impl Client {
         match query_response {
             QueryResponse::Ok(smart_res) => Ok(smart_res.result.smart),
             QueryResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
-            QueryResponse::CodedError(err) => Err(ValidatorError(format!("{}", err))),
+            QueryResponse::CodedError(err) => Err(ValidatorClientError::ValidatorError(format!("{}", err))),
         }
     }
 

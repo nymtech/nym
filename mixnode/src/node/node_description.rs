@@ -10,6 +10,7 @@ pub struct NodeDescription {
     pub(crate) name: String,
     pub(crate) description: String,
     pub(crate) link: String,
+    pub(crate) location: String,
 }
 
 impl Default for NodeDescription {
@@ -18,6 +19,7 @@ impl Default for NodeDescription {
             name: "This node has not yet set a name".to_string(),
             description: "This node has not yet set a description".to_string(),
             link: "https://nymtech.net".to_string(),
+            location: "This node has not yet set a location".to_string(),
         }
     }
 }

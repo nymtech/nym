@@ -1,13 +1,31 @@
+use crate::queries;
 use crate::state::{State, StateParams};
-use cosmwasm_std::{Decimal, HumanAddr, StdError, StdResult, Storage};
+use cosmwasm_std::{Decimal, Order, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
-use mixnet_contract::{GatewayBond, MixNodeBond};
+use mixnet_contract::{GatewayBond, IdentityKey, IdentityKeyRef, LayerDistribution, MixNodeBond};
+
+// storage prefixes
+// all of them must be unique and presumably not be a prefix of a different one
+// keeping them as short as possible is also desirable as they are part of each stored key
+// it's not as important for singletons, but is a nice optimisation for buckets
+
+// singletons
+const CONFIG_KEY: &[u8] = b"config";
+const LAYER_DISTRIBUTION_KEY: &[u8] = b"layers";
+
+// buckets
+const PREFIX_MIXNODES: &[u8] = b"mn";
+const PREFIX_MIXNODES_OWNERS: &[u8] = b"mo";
+const PREFIX_GATEWAYS: &[u8] = b"gt";
+const PREFIX_GATEWAYS_OWNERS: &[u8] = b"go";
+
+const PREFIX_MIX_DELEGATION: &[u8] = b"md";
+const PREFIX_GATEWAY_DELEGATION: &[u8] = b"gd";
 
 // Contract-level stuff
-const CONFIG_KEY: &[u8] = b"config";
 
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
     singleton(storage, CONFIG_KEY)
@@ -40,8 +58,91 @@ pub(crate) fn read_gateway_epoch_reward_rate(storage: &dyn Storage) -> Decimal {
         .gateway_epoch_bond_reward
 }
 
+pub fn layer_distribution(storage: &mut dyn Storage) -> Singleton<LayerDistribution> {
+    singleton(storage, LAYER_DISTRIBUTION_KEY)
+}
+
+pub fn layer_distribution_read(storage: &dyn Storage) -> ReadonlySingleton<LayerDistribution> {
+    singleton_read(storage, LAYER_DISTRIBUTION_KEY)
+}
+
+pub(crate) fn read_layer_distribution(storage: &dyn Storage) -> LayerDistribution {
+    // note: In any other case, I wouldn't have attempted to unwrap this result, but in here
+    // if we fail to load the stored state we would already be in the undefined behaviour land,
+    // so we better just blow up immediately.
+    layer_distribution_read(storage).load().unwrap()
+}
+
+pub enum Layer {
+    Gateway,
+    One,
+    Two,
+    Three,
+    Invalid,
+}
+
+impl From<u64> for Layer {
+    fn from(val: u64) -> Self {
+        match val {
+            n if n == 1 => Layer::One,
+            n if n == 2 => Layer::Two,
+            n if n == 3 => Layer::Three,
+            _ => Layer::Invalid,
+        }
+    }
+}
+
+pub fn increment_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {
+    let mut distribution = layer_distribution(storage).load()?;
+    match layer {
+        Layer::Gateway => distribution.gateways += 1,
+        Layer::One => distribution.layer1 += 1,
+        Layer::Two => distribution.layer2 += 1,
+        Layer::Three => distribution.layer3 += 1,
+        Layer::Invalid => distribution.invalid += 1,
+    }
+    layer_distribution(storage).save(&distribution)
+}
+
+pub fn decrement_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {
+    let mut distribution = layer_distribution(storage).load()?;
+    // It can't possibly go below zero, if it does, it means there's a serious error in the contract logic
+    match layer {
+        Layer::Gateway => {
+            distribution.gateways = distribution
+                .gateways
+                .checked_sub(1)
+                .expect("tried to subtract from unsigned zero!")
+        }
+        Layer::One => {
+            distribution.layer1 = distribution
+                .layer1
+                .checked_sub(1)
+                .expect("tried to subtract from unsigned zero!")
+        }
+        Layer::Two => {
+            distribution.layer2 = distribution
+                .layer2
+                .checked_sub(1)
+                .expect("tried to subtract from unsigned zero!")
+        }
+        Layer::Three => {
+            distribution.layer3 = distribution
+                .layer3
+                .checked_sub(1)
+                .expect("tried to subtract from unsigned zero!")
+        }
+        Layer::Invalid => {
+            distribution.invalid = distribution
+                .invalid
+                .checked_sub(1)
+                .expect("tried to subtract from unsigned zero!")
+        }
+    };
+    layer_distribution(storage).save(&distribution)
+}
+
 // Mixnode-related stuff
-const PREFIX_MIXNODES: &[u8] = b"mixnodes";
 
 pub fn mixnodes(storage: &mut dyn Storage) -> Bucket<MixNodeBond> {
     bucket(storage, PREFIX_MIXNODES)
@@ -51,43 +152,125 @@ pub fn mixnodes_read(storage: &dyn Storage) -> ReadonlyBucket<MixNodeBond> {
     bucket_read(storage, PREFIX_MIXNODES)
 }
 
-const PREFIX_MIXNODES_OWNERS: &[u8] = b"mix-owners";
-
-pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
+// owner address -> node identity
+pub fn mixnodes_owners(storage: &mut dyn Storage) -> Bucket<IdentityKey> {
     bucket(storage, PREFIX_MIXNODES_OWNERS)
 }
 
-pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<HumanAddr> {
+pub fn mixnodes_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey> {
     bucket_read(storage, PREFIX_MIXNODES_OWNERS)
 }
 
 // helpers
 pub(crate) fn increase_mixnode_bond(
     storage: &mut dyn Storage,
-    owner: &[u8],
+    mut bond: MixNodeBond,
     scaled_reward_rate: Decimal,
 ) -> StdResult<()> {
-    let mut bucket = mixnodes(storage);
-    let mut node = bucket.load(owner)?;
-    if node.amount.len() != 1 {
+    if bond.amount.len() != 1 {
         return Err(StdError::generic_err(
             "mixnode seems to have been bonded with multiple coin types",
         ));
     }
 
-    let reward = node.amount[0].amount * scaled_reward_rate;
-    node.amount[0].amount += reward;
-    bucket.save(owner, &node)
+    let reward = bond.amount[0].amount * scaled_reward_rate;
+    bond.amount[0].amount += reward;
+    mixnodes(storage).save(bond.identity().as_bytes(), &bond)
+}
+
+pub(crate) fn increase_mix_delegated_stakes(
+    storage: &mut dyn Storage,
+    mix_identity: IdentityKey,
+    scaled_reward_rate: Decimal,
+) -> StdResult<()> {
+    let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
+
+    let mut chunk_start: Option<Vec<_>> = None;
+    loop {
+        // get `chunk_size` of delegations
+        let delegations_chunk = mix_delegations_read(storage, &mix_identity)
+            .range(chunk_start.as_deref(), None, Order::Ascending)
+            .take(chunk_size)
+            .collect::<StdResult<Vec<_>>>()?;
+
+        if delegations_chunk.is_empty() {
+            break;
+        }
+
+        // append 0 byte to the last value to start with whatever is the next suceeding key
+        chunk_start = Some(
+            delegations_chunk
+                .last()
+                .unwrap()
+                .0
+                .iter()
+                .cloned()
+                .chain(std::iter::once(0u8))
+                .collect(),
+        );
+
+        // and for each of them increase the stake proportionally to the reward
+        for (delegator_address, amount) in delegations_chunk.into_iter() {
+            let reward = amount * scaled_reward_rate;
+            let new_amount = amount + reward;
+            mix_delegations(storage, &mix_identity).save(&delegator_address, &new_amount)?;
+        }
+    }
+
+    Ok(())
+}
+
+pub(crate) fn increase_gateway_delegated_stakes(
+    storage: &mut dyn Storage,
+    gateway_identity: IdentityKey,
+    scaled_reward_rate: Decimal,
+) -> StdResult<()> {
+    let chunk_size = queries::DELEGATION_PAGE_MAX_LIMIT as usize;
+
+    let mut chunk_start: Option<Vec<_>> = None;
+    loop {
+        // get `chunk_size` of delegations
+        let delegations_chunk = gateway_delegations_read(storage, &gateway_identity)
+            .range(chunk_start.as_deref(), None, Order::Ascending)
+            .take(chunk_size)
+            .collect::<StdResult<Vec<_>>>()?;
+
+        if delegations_chunk.is_empty() {
+            break;
+        }
+
+        // append 0 byte to the last value to start with whatever is the next suceeding key
+        chunk_start = Some(
+            delegations_chunk
+                .last()
+                .unwrap()
+                .0
+                .iter()
+                .cloned()
+                .chain(std::iter::once(0u8))
+                .collect(),
+        );
+
+        // and for each of them increase the stake proportionally to the reward
+        for (delegator_address, amount) in delegations_chunk.into_iter() {
+            let reward = amount * scaled_reward_rate;
+            let new_amount = amount + reward;
+            gateway_delegations(storage, &gateway_identity)
+                .save(&delegator_address, &new_amount)?;
+        }
+    }
+
+    Ok(())
 }
 
 // currently not used outside tests
 #[cfg(test)]
 pub(crate) fn read_mixnode_bond(
     storage: &dyn Storage,
-    owner: &[u8],
+    identity: &[u8],
 ) -> StdResult<cosmwasm_std::Uint128> {
     let bucket = mixnodes_read(storage);
-    let node = bucket.load(owner)?;
+    let node = bucket.load(identity)?;
     if node.amount.len() != 1 {
         return Err(StdError::generic_err(
             "mixnode seems to have been bonded with multiple coin types",
@@ -98,8 +281,6 @@ pub(crate) fn read_mixnode_bond(
 
 // Gateway-related stuff
 
-const PREFIX_GATEWAYS: &[u8] = b"gateways";
-
 pub fn gateways(storage: &mut dyn Storage) -> Bucket<GatewayBond> {
     bucket(storage, PREFIX_GATEWAYS)
 }
@@ -108,42 +289,74 @@ pub fn gateways_read(storage: &dyn Storage) -> ReadonlyBucket<GatewayBond> {
     bucket_read(storage, PREFIX_GATEWAYS)
 }
 
-const PREFIX_GATEWAYS_OWNERS: &[u8] = b"gateway-owners";
-
-pub fn gateways_owners(storage: &mut dyn Storage) -> Bucket<HumanAddr> {
+// owner address -> node identity
+pub fn gateways_owners(storage: &mut dyn Storage) -> Bucket<IdentityKey> {
     bucket(storage, PREFIX_GATEWAYS_OWNERS)
 }
 
-pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<HumanAddr> {
+pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey> {
     bucket_read(storage, PREFIX_GATEWAYS_OWNERS)
 }
 
 // helpers
 pub(crate) fn increase_gateway_bond(
     storage: &mut dyn Storage,
-    owner: &[u8],
+    mut bond: GatewayBond,
     scaled_reward_rate: Decimal,
 ) -> StdResult<()> {
-    let mut bucket = gateways(storage);
-    let mut node = bucket.load(owner)?;
-    if node.amount.len() != 1 {
+    if bond.amount.len() != 1 {
         return Err(StdError::generic_err(
             "gateway seems to have been bonded with multiple coin types",
         ));
     }
-    let reward = node.amount[0].amount * scaled_reward_rate;
-    node.amount[0].amount += reward;
-    bucket.save(owner, &node)
+    let reward = bond.amount[0].amount * scaled_reward_rate;
+    bond.amount[0].amount += reward;
+    gateways(storage).save(bond.identity().as_bytes(), &bond)
+}
+
+// delegation related
+pub fn mix_delegations<'a>(
+    storage: &'a mut dyn Storage,
+    mix_identity: IdentityKeyRef,
+) -> Bucket<'a, Uint128> {
+    Bucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
+}
+
+pub fn mix_delegations_read<'a>(
+    storage: &'a dyn Storage,
+    mix_identity: IdentityKeyRef,
+) -> ReadonlyBucket<'a, Uint128> {
+    ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
+}
+
+pub fn gateway_delegations<'a>(
+    storage: &'a mut dyn Storage,
+    gateway_identity: IdentityKeyRef,
+) -> Bucket<'a, Uint128> {
+    Bucket::multilevel(
+        storage,
+        &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],
+    )
+}
+
+pub fn gateway_delegations_read<'a>(
+    storage: &'a dyn Storage,
+    gateway_identity: IdentityKeyRef,
+) -> ReadonlyBucket<'a, Uint128> {
+    ReadonlyBucket::multilevel(
+        storage,
+        &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],
+    )
 }
 
 // currently not used outside tests
 #[cfg(test)]
 pub(crate) fn read_gateway_bond(
     storage: &dyn Storage,
-    owner: &[u8],
+    identity: &[u8],
 ) -> StdResult<cosmwasm_std::Uint128> {
     let bucket = gateways_read(storage);
-    let node = bucket.load(owner)?;
+    let node = bucket.load(identity)?;
     if node.amount.len() != 1 {
         return Err(StdError::generic_err(
             "gateway seems to have been bonded with multiple coin types",
@@ -160,7 +373,8 @@ mod tests {
         gateway_bond_fixture, gateway_fixture, mix_node_fixture, mixnode_bond_fixture,
     };
     use cosmwasm_std::testing::MockStorage;
-    use cosmwasm_std::{coins, Uint128};
+    use cosmwasm_std::{coins, Addr, Uint128};
+    use mixnet_contract::{Gateway, MixNode};
 
     #[test]
     fn mixnode_single_read_retrieval() {
@@ -193,37 +407,39 @@ mod tests {
     #[test]
     fn increasing_mixnode_bond() {
         let mut storage = MockStorage::new();
-        let node_owner = b"owner";
+        let node_owner: Addr = Addr::unchecked("node-owner");
+        let node_identity: IdentityKey = "nodeidentity".into();
+
         // 0.001
         let reward = Decimal::from_ratio(1u128, 1000u128);
 
-        // produces an error if target mixnode doesn't exist
-        let res = increase_mixnode_bond(&mut storage, node_owner, reward);
-        assert!(res.is_err());
-
-        // increases the reward appropriately if node exists
+        // increases the reward appropriately
         let mixnode_bond = MixNodeBond {
             amount: coins(1000, DENOM),
-            owner: std::str::from_utf8(node_owner).unwrap().into(),
-            mix_node: mix_node_fixture(),
+            owner: node_owner.clone(),
+            mix_node: MixNode {
+                identity_key: node_identity.clone(),
+                ..mix_node_fixture()
+            },
         };
 
         mixnodes(&mut storage)
-            .save(node_owner, &mixnode_bond)
+            .save(node_identity.as_bytes(), &mixnode_bond)
             .unwrap();
 
-        increase_mixnode_bond(&mut storage, node_owner, reward).unwrap();
-        let new_bond = read_mixnode_bond(&storage, node_owner).unwrap();
+        increase_mixnode_bond(&mut storage, mixnode_bond, reward).unwrap();
+        let new_bond = read_mixnode_bond(&storage, node_identity.as_bytes()).unwrap();
         assert_eq!(Uint128(1001), new_bond);
     }
 
     #[test]
     fn reading_mixnode_bond() {
         let mut storage = MockStorage::new();
-        let node_owner = b"owner";
+        let node_owner: Addr = Addr::unchecked("node-owner");
+        let node_identity: IdentityKey = "nodeidentity".into();
 
         // produces an error if target mixnode doesn't exist
-        let res = read_mixnode_bond(&storage, node_owner);
+        let res = read_mixnode_bond(&storage, node_owner.as_bytes());
         assert!(res.is_err());
 
         // returns appropriate value otherwise
@@ -231,72 +447,296 @@ mod tests {
 
         let mixnode_bond = MixNodeBond {
             amount: coins(bond_value, DENOM),
-            owner: std::str::from_utf8(node_owner).unwrap().into(),
-            mix_node: mix_node_fixture(),
+            owner: node_owner.clone(),
+            mix_node: MixNode {
+                identity_key: node_identity.clone(),
+                ..mix_node_fixture()
+            },
         };
 
         mixnodes(&mut storage)
-            .save(node_owner, &mixnode_bond)
+            .save(node_identity.as_bytes(), &mixnode_bond)
             .unwrap();
 
         assert_eq!(
             Uint128(bond_value),
-            read_mixnode_bond(&storage, node_owner).unwrap()
+            read_mixnode_bond(&storage, node_identity.as_bytes()).unwrap()
         );
     }
 
     #[test]
     fn increasing_gateway_bond() {
         let mut storage = MockStorage::new();
-        let node_owner = b"owner";
+        let node_owner: Addr = Addr::unchecked("node-owner");
+        let node_identity: IdentityKey = "nodeidentity".into();
+
         // 0.001
         let reward = Decimal::from_ratio(1u128, 1000u128);
 
-        // produces an error if target gateway doesn't exist
-        let res = increase_gateway_bond(&mut storage, node_owner, reward);
-        assert!(res.is_err());
-
-        // increases the reward appropriately if node exists
+        // increases the reward appropriately
         let gateway_bond = GatewayBond {
             amount: coins(1000, DENOM),
-            owner: std::str::from_utf8(node_owner).unwrap().into(),
-            gateway: gateway_fixture(),
+            owner: node_owner.clone(),
+            gateway: Gateway {
+                identity_key: node_identity.clone(),
+                ..gateway_fixture()
+            },
         };
 
         gateways(&mut storage)
-            .save(node_owner, &gateway_bond)
+            .save(node_identity.as_bytes(), &gateway_bond)
             .unwrap();
 
-        increase_gateway_bond(&mut storage, node_owner, reward).unwrap();
-        let new_bond = read_gateway_bond(&storage, node_owner).unwrap();
+        increase_gateway_bond(&mut storage, gateway_bond, reward).unwrap();
+        let new_bond = read_gateway_bond(&storage, node_identity.as_bytes()).unwrap();
         assert_eq!(Uint128(1001), new_bond);
     }
 
     #[test]
     fn reading_gateway_bond() {
         let mut storage = MockStorage::new();
-        let node_owner = b"owner";
+        let node_owner: Addr = Addr::unchecked("node-owner");
+        let node_identity: IdentityKey = "nodeidentity".into();
 
-        // produces an error if target mixnode doesn't exist
-        let res = read_gateway_bond(&storage, node_owner);
+        // produces an error if target gateway doesn't exist
+        let res = read_gateway_bond(&storage, node_owner.as_bytes());
         assert!(res.is_err());
 
         // returns appropriate value otherwise
         let bond_value = 1000;
 
         let gateway_bond = GatewayBond {
-            amount: coins(1000, DENOM),
-            owner: std::str::from_utf8(node_owner).unwrap().into(),
-            gateway: gateway_fixture(),
+            amount: coins(bond_value, DENOM),
+            owner: node_owner.clone(),
+            gateway: Gateway {
+                identity_key: node_identity.clone(),
+                ..gateway_fixture()
+            },
         };
 
         gateways(&mut storage)
-            .save(node_owner, &gateway_bond)
+            .save(node_identity.as_bytes(), &gateway_bond)
             .unwrap();
 
         assert_eq!(
             Uint128(bond_value),
-            read_gateway_bond(&storage, node_owner).unwrap()
+            read_gateway_bond(&storage, node_identity.as_bytes()).unwrap()
         );
+    }
+
+    #[cfg(test)]
+    mod increasing_mix_delegated_stakes {
+        use super::*;
+        use crate::queries::query_mixnode_delegations_paged;
+        use cosmwasm_std::testing::mock_dependencies;
+
+        #[test]
+        fn when_there_are_no_delegations() {
+            let mut deps = mock_dependencies(&[]);
+            let node_identity: IdentityKey = "nodeidentity".into();
+
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            increase_mix_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+                .unwrap();
+
+            // there are no 'new' delegations magically added
+            assert!(
+                query_mixnode_delegations_paged(deps.as_ref(), node_identity, None, None)
+                    .unwrap()
+                    .delegations
+                    .is_empty()
+            )
+        }
+
+        #[test]
+        fn when_there_is_a_single_delegation() {
+            let mut deps = mock_dependencies(&[]);
+            let node_identity: IdentityKey = "nodeidentity".into();
+
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            let delegator_address = Addr::unchecked("bob");
+            mix_delegations(&mut deps.storage, &node_identity)
+                .save(delegator_address.as_bytes(), &Uint128(1000))
+                .unwrap();
+
+            increase_mix_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+                .unwrap();
+            assert_eq!(
+                Uint128(1001),
+                mix_delegations_read(&mut deps.storage, &node_identity)
+                    .load(delegator_address.as_bytes())
+                    .unwrap()
+            )
+        }
+
+        #[test]
+        fn when_there_are_multiple_delegations() {
+            let mut deps = mock_dependencies(&[]);
+            let node_identity: IdentityKey = "nodeidentity".into();
+
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            for i in 0..100 {
+                let delegator_address = Addr::unchecked(format!("address{}", i));
+                mix_delegations(&mut deps.storage, &node_identity)
+                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .unwrap();
+            }
+
+            increase_mix_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+                .unwrap();
+
+            for i in 0..100 {
+                let delegator_address = Addr::unchecked(format!("address{}", i));
+                assert_eq!(
+                    Uint128(1001),
+                    mix_delegations_read(&mut deps.storage, &node_identity)
+                        .load(delegator_address.as_bytes())
+                        .unwrap()
+                )
+            }
+        }
+
+        #[test]
+        fn when_there_are_more_delegations_than_page_size() {
+            let mut deps = mock_dependencies(&[]);
+            let node_identity: IdentityKey = "nodeidentity".into();
+
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
+                let delegator_address = Addr::unchecked(format!("address{}", i));
+                mix_delegations(&mut deps.storage, &node_identity)
+                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .unwrap();
+            }
+
+            increase_mix_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+                .unwrap();
+
+            for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
+                let delegator_address = Addr::unchecked(format!("address{}", i));
+                assert_eq!(
+                    Uint128(1001),
+                    mix_delegations_read(&mut deps.storage, &node_identity)
+                        .load(delegator_address.as_bytes())
+                        .unwrap()
+                )
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod increasing_gateway_delegated_stakes {
+        use super::*;
+        use crate::queries::query_gateway_delegations_paged;
+        use cosmwasm_std::testing::mock_dependencies;
+
+        #[test]
+        fn when_there_are_no_delegations() {
+            let mut deps = mock_dependencies(&[]);
+            let node_identity: IdentityKey = "nodeidentity".into();
+
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+                .unwrap();
+
+            // there are no 'new' delegations magically added
+            assert!(
+                query_gateway_delegations_paged(deps.as_ref(), node_identity, None, None)
+                    .unwrap()
+                    .delegations
+                    .is_empty()
+            )
+        }
+
+        #[test]
+        fn when_there_is_a_single_delegation() {
+            let mut deps = mock_dependencies(&[]);
+            let node_identity: IdentityKey = "nodeidentity".into();
+
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            let delegator_address = Addr::unchecked("bob");
+            gateway_delegations(&mut deps.storage, &node_identity)
+                .save(delegator_address.as_bytes(), &Uint128(1000))
+                .unwrap();
+
+            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+                .unwrap();
+            assert_eq!(
+                Uint128(1001),
+                gateway_delegations_read(&mut deps.storage, &node_identity)
+                    .load(delegator_address.as_bytes())
+                    .unwrap()
+            )
+        }
+
+        #[test]
+        fn when_there_are_multiple_delegations() {
+            let mut deps = mock_dependencies(&[]);
+            let node_identity: IdentityKey = "nodeidentity".into();
+
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            for i in 0..100 {
+                let delegator_address = Addr::unchecked(format!("address{}", i));
+                gateway_delegations(&mut deps.storage, &node_identity)
+                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .unwrap();
+            }
+
+            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+                .unwrap();
+
+            for i in 0..100 {
+                let delegator_address = Addr::unchecked(format!("address{}", i));
+                assert_eq!(
+                    Uint128(1001),
+                    gateway_delegations_read(&mut deps.storage, &node_identity)
+                        .load(delegator_address.as_bytes())
+                        .unwrap()
+                )
+            }
+        }
+
+        #[test]
+        fn when_there_are_more_delegations_than_page_size() {
+            let mut deps = mock_dependencies(&[]);
+            let node_identity: IdentityKey = "nodeidentity".into();
+
+            // 0.001
+            let reward = Decimal::from_ratio(1u128, 1000u128);
+
+            for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
+                let delegator_address = Addr::unchecked(format!("address{}", i));
+                gateway_delegations(&mut deps.storage, &node_identity)
+                    .save(delegator_address.as_bytes(), &Uint128(1000))
+                    .unwrap();
+            }
+
+            increase_gateway_delegated_stakes(&mut deps.storage, node_identity.clone(), reward)
+                .unwrap();
+
+            for i in 0..queries::DELEGATION_PAGE_MAX_LIMIT * 10 {
+                let delegator_address = Addr::unchecked(format!("address{}", i));
+                assert_eq!(
+                    Uint128(1001),
+                    gateway_delegations_read(&mut deps.storage, &node_identity)
+                        .load(delegator_address.as_bytes())
+                        .unwrap()
+                )
+            }
+        }
     }
 }

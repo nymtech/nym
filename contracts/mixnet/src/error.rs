@@ -1,5 +1,6 @@
 use crate::contract::DENOM;
-use cosmwasm_std::{HumanAddr, StdError};
+use cosmwasm_std::{Addr, StdError};
+use mixnet_contract::IdentityKey;
 use thiserror::Error;
 
 /// Custom errors for contract failure conditions.
@@ -11,29 +12,31 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
-    #[error(
-        "Not enough funds sent for mixnode bond. (received {received:?}, minimum {minimum:?})"
-    )]
+    #[error("Not enough funds sent for mixnode bond. (received {received}, minimum {minimum})")]
     InsufficientMixNodeBond { received: u128, minimum: u128 },
 
-    #[error("Account does not own any mixnode bonds")]
-    MixNodeBondNotFound {},
+    #[error("Mixnode ({identity}) does not exist")]
+    MixNodeBondNotFound { identity: IdentityKey },
 
-    #[error(
-        "Not enough funds sent for gateway bond. (received {received:?}, minimum {minimum:?})"
-    )]
+    #[error("Not enough funds sent for gateway bond. (received {received}, minimum {minimum})")]
     InsufficientGatewayBond { received: u128, minimum: u128 },
 
-    #[error("Account ({account:?}) does not own any gateway bonds")]
-    GatewayBondNotFound { account: HumanAddr },
+    #[error("Gateway ({identity}) does not exist")]
+    GatewayBondNotFound { identity: IdentityKey },
+
+    #[error("{owner} does not seem to own any mixnodes")]
+    NoAssociatedMixNodeBond { owner: Addr },
+
+    #[error("{owner} does not seem to own any gateways")]
+    NoAssociatedGatewayBond { owner: Addr },
 
     #[error("Unauthorized")]
     Unauthorized,
 
     #[error("Wrong coin denomination, you must send {}", DENOM)]
-    WrongDenom {},
+    WrongDenom,
 
-    #[error("Received multiple coin types during bond")]
+    #[error("Received multiple coin types during staking")]
     MultipleDenoms,
 
     #[error("No coin was sent for the bonding, you must send {}", DENOM)]
@@ -54,9 +57,27 @@ pub enum ContractError {
     #[error("This address has already bonded a gateway")]
     AlreadyOwnsGateway,
 
-    #[error("Mixnode with this identity already exists. Its owner is {owner:?}")]
-    DuplicateMixnode { owner: HumanAddr },
+    #[error("Mixnode with this identity already exists. Its owner is {owner}")]
+    DuplicateMixnode { owner: Addr },
 
-    #[error("Gateway with this identity already exists. Its owner is {owner:?}")]
-    DuplicateGateway { owner: HumanAddr },
+    #[error("Gateway with this identity already exists. Its owner is {owner}")]
+    DuplicateGateway { owner: Addr },
+
+    #[error("No funds were provided for the delegation")]
+    EmptyDelegation,
+
+    #[error("Request did not come from the node owner ({owner})")]
+    InvalidSender { owner: Addr },
+
+    #[error("Could not find any delegation information associated with mixnode {identity} for {address}")]
+    NoMixnodeDelegationFound {
+        identity: IdentityKey,
+        address: Addr,
+    },
+
+    #[error("Could not find any delegation information associated with gateway {identity} for {address}")]
+    NoGatewayDelegationFound {
+        identity: IdentityKey,
+        address: Addr,
+    },
 }

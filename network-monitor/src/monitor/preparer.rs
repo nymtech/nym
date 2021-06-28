@@ -408,7 +408,7 @@ impl PacketPreparer {
                         gateway_packets.push(mix_packet.pop().unwrap());
                     }
                     packets.push(GatewayPackets::new(
-                        node.client_listener,
+                        node.clients_address(),
                         node.identity_key,
                         gateway_packets,
                     ))
@@ -461,10 +461,7 @@ impl PacketPreparer {
             // we are not testing the gateway from our 'good' topology -> it's probably
             // situation similar to using 'good' qa-topology but testing testnet nodes.
             let main_gateway_packets = GatewayPackets::new(
-                self.tested_network
-                    .main_v4_gateway()
-                    .client_listener
-                    .clone(),
+                self.tested_network.main_v4_gateway().clients_address(),
                 main_gateway_id,
                 mix_packets,
             );

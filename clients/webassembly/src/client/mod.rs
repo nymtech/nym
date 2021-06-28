@@ -120,7 +120,7 @@ impl NymClient {
         let (ack_sender, ack_receiver) = mpsc::unbounded();
 
         let mut gateway_client = GatewayClient::new(
-            gateway.client_listener.clone(),
+            gateway.clients_address(),
             Arc::clone(&client.identity),
             gateway.identity_key,
             None,

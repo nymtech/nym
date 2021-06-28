@@ -1,13 +1,21 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::DEFAULT_MIXNET_CONTRACT_ADDRESS;
-use crate::config::{default_validator_rest_endpoints, Config, MISSING_VALUE};
-use clap::{App, Arg, ArgMatches};
-use config::NymConfig;
 use std::fmt::Display;
 use std::process;
+
+use clap::{App, Arg, ArgMatches};
+
+use config::NymConfig;
 use version_checker::{parse_version, Version};
+
+use crate::config::DEFAULT_MIXNET_CONTRACT_ADDRESS;
+use crate::config::{default_validator_rest_endpoints, Config, MISSING_VALUE};
+
+fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> ! {
+    print_failed_upgrade(from_version, to_version);
+    process::exit(1)
+}
 
 fn print_start_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
     println!(
@@ -43,6 +51,16 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("current version")
             .long("current-version")
             .help("REQUIRED FOR PRE-0.9.0 UPGRADES. Specifies current version of the configuration file to help to determine a valid upgrade path. Valid formats include '0.8.1', 'v0.8.1' or 'V0.8.1'")
+            .takes_value(true)
+        )
+        .arg(Arg::with_name("listening-address")
+            .long("listening-address")
+            .help("REQUIRED FOR 0.Y.Z UPGRADE. Specifies the listening address of this gateway")
+            .takes_value(true)
+        )
+        .arg(Arg::with_name("announce-address")
+            .long("announce-address")
+            .help("OPTIONAL FOR 0.Y.Z UPGRADE. Specifies the announce address of this gateway. If not provided, it will be set to the same value as listening address")
             .takes_value(true)
         )
 }
@@ -169,8 +187,7 @@ fn minor_010_upgrade(
 
     if config.get_validator_mixnet_contract_address() != MISSING_VALUE {
         eprintln!("existing config seems to have specified mixnet contract address which was only introduced in 0.10.0! Can't perform upgrade.");
-        print_failed_upgrade(&config_version, &to_version);
-        process::exit(1);
+        fail_upgrade(&config_version, &to_version)
     }
 
     println!(
@@ -190,8 +207,7 @@ fn minor_010_upgrade(
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
-        print_failed_upgrade(&config_version, &to_version);
-        process::exit(1);
+        fail_upgrade(&config_version, &to_version)
     });
 
     print_successful_upgrade(config_version, to_version);
@@ -214,8 +230,58 @@ fn patch_010_upgrade(
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
-        print_failed_upgrade(&config_version, &to_version);
-        process::exit(1);
+        fail_upgrade(&config_version, &to_version)
+    });
+
+    print_successful_upgrade(config_version, to_version);
+
+    upgraded_config
+}
+
+// TODO: to be renamed once the release version is decided (so presumably either 0.10.2 or 0.11.0)
+fn undetermined_version_upgrade(
+    config: Config,
+    matches: &ArgMatches,
+    config_version: &Version,
+    package_version: &Version,
+) -> Config {
+    // If we decide this version should be tagged with 0.11.0, then the following code will be used instead:
+    // let to_version = if package_version.major == 0 && package_version.minor == 11 {
+    //     package_version.clone()
+    // } else {
+    //     Version::new(0, 11, 0)
+    // };
+    let to_version = package_version;
+
+    print_start_upgrade(&config_version, &to_version);
+
+    // normally the proper approach would have been to keep old structs, parse file according to old structs
+    // and move it to the new ones
+    // however, considering that at this point of time we don't have many gateways and all
+    // are run by us, this would be an unnecessary code complication and so just providing
+    // addresses again during upgrade is I think a better approach.
+    let listening_address = matches.value_of("listening-address").unwrap_or_else(|| {
+        eprintln!(
+            "trying to upgrade to {} without providing proper listening address!",
+            to_version
+        );
+        fail_upgrade(&config_version, &to_version)
+    });
+
+    let announce_address = if let Some(announce_addr) = matches.value_of("announce-address") {
+        announce_addr.to_string()
+    } else {
+        listening_address.to_string()
+    };
+
+    let upgraded_config = config
+        .with_custom_version(to_version.to_string().as_ref())
+        .with_listening_address(listening_address)
+        .with_announce_address(announce_address);
+
+    upgraded_config.save_to_file(None).unwrap_or_else(|err| {
+        eprintln!("failed to overwrite config file! - {:?}", err);
+        fail_upgrade(&config_version, &to_version)
     });
 
     print_successful_upgrade(config_version, to_version);
@@ -234,8 +300,16 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
 
         config = match config_version.major {
             0 => match config_version.minor {
-                9 => minor_010_upgrade(config, &matches, &config_version, &package_version),
-                10 => patch_010_upgrade(config, &matches, &config_version, &package_version),
+                9 => minor_010_upgrade(config, matches, &config_version, &package_version),
+                10 => match config_version.patch {
+                    0 => patch_010_upgrade(config, matches, &config_version, &package_version),
+                    _ => undetermined_version_upgrade(
+                        config,
+                        matches,
+                        &config_version,
+                        &package_version,
+                    ),
+                },
                 _ => unsupported_upgrade(config_version, package_version),
             },
             _ => unsupported_upgrade(config_version, package_version),

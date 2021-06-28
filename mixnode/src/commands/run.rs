@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::override_config;
+use crate::commands::*;
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
 use crate::node::node_description::NodeDescription;
 use crate::node::MixNode;
@@ -15,59 +15,59 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("run")
         .about("Starts the mixnode")
         .arg(
-            Arg::with_name("id")
-                .long("id")
+            Arg::with_name(ID_ARG_NAME)
+                .long(ID_ARG_NAME)
                 .help("Id of the nym-mixnode we want to run")
                 .takes_value(true)
                 .required(true),
         )
         // the rest of arguments are optional, they are used to override settings in config file
         .arg(
-            Arg::with_name("layer")
-                .long("layer")
+            Arg::with_name(LAYER_ARG_NAME)
+                .long(LAYER_ARG_NAME)
                 .help("The mixnet layer of this particular node")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("host")
-                .long("host")
+            Arg::with_name(HOST_ARG_NAME)
+                .long(HOST_ARG_NAME)
                 .help("The custom host on which the mixnode will be running")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("port")
-                .long("port")
-                .help("The port on which the mixnode will be listening")
+            Arg::with_name(MIX_PORT_ARG_NAME)
+                .long(MIX_PORT_ARG_NAME)
+                .help("The port on which the mixnode will be listening for mix packets")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("announce-host")
-                .long("announce-host")
+            Arg::with_name(VERLOC_PORT_ARG_NAME)
+                .long(VERLOC_PORT_ARG_NAME)
+                .help("The port on which the mixnode will be listening for verloc packets")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(HTTP_API_PORT_ARG_NAME)
+                .long(HTTP_API_PORT_ARG_NAME)
+                .help("The port on which the mixnode will be listening for http requests")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(ANNOUNCE_HOST_ARG_NAME)
+                .long(ANNOUNCE_HOST_ARG_NAME)
                 .help("The host that will be reported to the directory server")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("announce-port")
-                .long("announce-port")
-                .help("The port that will be reported to the directory server")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("validators")
-                .long("validators")
+            Arg::with_name(VALIDATORS_ARG_NAME)
+                .long(VALIDATORS_ARG_NAME)
                 .help("Comma separated list of rest endpoints of the validators")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("mixnet-contract")
-                .long("mixnet-contract")
+            Arg::with_name(CONTRACT_ARG_NAME)
+                .long(CONTRACT_ARG_NAME)
                 .help("Address of the validator contract managing the network")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("metrics-server")
-                .long("metrics-server")
-                .help("Server to which the node is sending all metrics data")
                 .takes_value(true),
         )
 }
@@ -125,7 +125,7 @@ fn version_check(cfg: &Config) -> bool {
 }
 
 pub fn execute(matches: &ArgMatches) {
-    let id = matches.value_of("id").unwrap();
+    let id = matches.value_of(ID_ARG_NAME).unwrap();
 
     println!("Starting mixnode {}...", id);
 
@@ -148,23 +148,23 @@ pub fn execute(matches: &ArgMatches) {
     let identity_keypair = load_identity_keys(&pathfinder);
     let sphinx_keypair = load_sphinx_keys(&pathfinder);
 
-    let listening_ip_string = config.get_listening_address().ip().to_string();
-    if special_addresses().contains(&listening_ip_string.as_ref()) {
-        show_binding_warning(listening_ip_string);
+    if special_addresses().contains(&&*config.get_listening_address().to_string()) {
+        show_binding_warning(config.get_listening_address().to_string());
     }
+
+    let description =
+        NodeDescription::load_from_file(Config::default_config_directory(id)).unwrap_or_default();
 
     println!(
         "Validator servers: {:?}",
         config.get_validator_rest_endpoints()
     );
-    println!("Metrics server: {}", config.get_metrics_server());
-
     println!(
         "Listening for incoming packets on {}",
         config.get_listening_address()
     );
     println!(
-        "Announcing the following socket address: {}",
+        "Announcing the following address: {}",
         config.get_announce_address()
     );
 
@@ -172,19 +172,17 @@ pub fn execute(matches: &ArgMatches) {
         "\nTo bond your mixnode, go to https://web-wallet-finney.nymtech.net/.  You will need to provide the following:
     Identity key: {}
     Sphinx key: {}
-    Host: {}
+    Address: {}
+    Mix port: {}
     Layer: {}
-    Location: [physical location of your node's server]
     Version: {}
     ",
         identity_keypair.public_key().to_base58_string(),
         sphinx_keypair.public_key().to_base58_string(),
         config.get_announce_address(),
+        config.get_mix_port(),
         config.get_layer(),
         config.get_version(),
     );
-
-    let description =
-        NodeDescription::load_from_file(Config::default_config_directory(id)).unwrap_or_default();
     MixNode::new(config, description, identity_keypair, sphinx_keypair).run();
 }

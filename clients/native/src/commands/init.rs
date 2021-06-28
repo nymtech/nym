@@ -88,7 +88,7 @@ async fn register_with_gateway(
 ) -> SharedKeys {
     let timeout = Duration::from_millis(1500);
     let mut gateway_client = GatewayClient::new_init(
-        gateway.client_listener.clone(),
+        gateway.clients_address(),
         gateway.identity_key,
         our_identity.clone(),
         timeout,
@@ -215,7 +215,7 @@ pub fn execute(matches: &ArgMatches) {
                 .with_gateway_id(gate_details.identity_key.to_base58_string());
             let shared_keys =
                 register_with_gateway(&gate_details, key_manager.identity_keypair()).await;
-            (shared_keys, gate_details.client_listener)
+            (shared_keys, gate_details.clients_address())
         };
 
         // TODO: is there perhaps a way to make it work without having to spawn entire runtime?

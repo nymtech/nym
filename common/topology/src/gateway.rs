@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::filter;
+use crate::{filter, NetworkAddress};
 use crypto::asymmetric::{encryption, identity};
 use mixnet_contract::GatewayBond;
 use nymsphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
@@ -84,8 +84,11 @@ pub struct Node {
     // on the network at a type, right?
     pub stake: u128,
     pub location: String,
-    pub client_listener: String,
-    pub mixnet_listener: SocketAddr,
+    pub host: NetworkAddress,
+    // we're keeping this as separate resolved field since we do not want to be resolving the potential
+    // hostname every time we want to construct a path via this node
+    pub mix_host: SocketAddr,
+    pub clients_port: u16,
     pub identity_key: identity::PublicKey,
     pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
     pub version: String,
@@ -94,6 +97,10 @@ pub struct Node {
 impl Node {
     pub fn identity(&self) -> &NodeIdentity {
         &self.identity_key
+    }
+
+    pub fn clients_address(&self) -> String {
+        format!("ws://{}:{}", self.host, self.clients_port)
     }
 }
 
@@ -105,7 +112,7 @@ impl filter::Versioned for Node {
 
 impl<'a> From<&'a Node> for SphinxNode {
     fn from(node: &'a Node) -> Self {
-        let node_address_bytes = NymNodeRoutingAddress::from(node.mixnet_listener)
+        let node_address_bytes = NymNodeRoutingAddress::from(node.mix_host)
             .try_into()
             .unwrap();
 
@@ -120,18 +127,28 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
         if bond.amount.len() > 1 {
             return Err(GatewayConversionError::InvalidStake);
         }
+
+        let host: NetworkAddress = bond.gateway.host.parse().map_err(|err| {
+            GatewayConversionError::InvalidAddress(bond.gateway.host.clone(), err)
+        })?;
+
+        // try to completely resolve the host in the mix situation to avoid doing it every
+        // single time we want to construct a path
+        let mix_host = host.to_socket_addrs(bond.gateway.mix_port).map_err(|err| {
+            GatewayConversionError::InvalidAddress(bond.gateway.host.clone(), err)
+        })?[0];
+
         Ok(Node {
-            owner: bond.owner.0.clone(),
+            owner: bond.owner.as_str().to_owned(),
             stake: bond
                 .amount
                 .first()
                 .map(|stake| stake.amount.into())
                 .unwrap_or(0),
             location: bond.gateway.location.clone(),
-            client_listener: bond.gateway.clients_host.clone(),
-            mixnet_listener: bond.gateway.try_resolve_hostname().map_err(|err| {
-                GatewayConversionError::InvalidAddress(bond.gateway.mix_host.clone(), err)
-            })?,
+            host,
+            mix_host,
+            clients_port: bond.gateway.clients_port,
             identity_key: identity::PublicKey::from_base58_string(&bond.gateway.identity_key)?,
             sphinx_key: encryption::PublicKey::from_base58_string(&bond.gateway.sphinx_key)?,
             version: bond.gateway.version.clone(),

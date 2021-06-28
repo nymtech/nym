@@ -298,7 +298,7 @@ impl BinaryResponse {
         let plaintext = stream_cipher::decrypt::<GatewayEncryptionAlgorithm>(
             shared_keys.encryption_key(),
             &zero_iv,
-            &message_bytes,
+            message_bytes,
         );
 
         Ok(BinaryResponse::PushedMixMessage(plaintext))

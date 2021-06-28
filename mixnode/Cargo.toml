@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-mixnode"
-version = "0.10.1"
+version = "0.10.2"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2018"
 
@@ -30,7 +30,6 @@ toml = "0.5"
 ## internal
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
-metrics-client = { path = "../common/client-libs/metrics-client" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
 nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
@@ -39,3 +38,6 @@ pemstore = { path = "../common/pemstore" }
 topology = { path = "../common/topology" }
 validator-client = { path = "../common/client-libs/validator-client" }
 version-checker = { path = "../common/version-checker" }
+
+[dev-dependencies]
+serial_test = "0.5"

@@ -1,3 +1,4 @@
+use crate::commands::*;
 use crate::config::Config;
 use crate::node::node_description::NodeDescription;
 use clap::{App, Arg, ArgMatches};
@@ -10,8 +11,8 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
     App::new("describe")
         .about("Describe your mixnode and tell people why they should delegate stake to you")
         .arg(
-            Arg::with_name("id")
-                .long("id")
+            Arg::with_name(ID_ARG_NAME)
+                .long(ID_ARG_NAME)
                 .help("The id of the mixnode you want to describe")
                 .takes_value(true)
                 .required(true),
@@ -21,7 +22,7 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
 pub fn execute(matches: &ArgMatches) {
     // figure out which node the user is describing
     let id = matches
-        .value_of("id")
+        .value_of(ID_ARG_NAME)
         .expect("Please provide the id of your mixnode");
 
     // ensure that the mixnode has in fact been initialized
@@ -47,6 +48,7 @@ pub fn execute(matches: &ArgMatches) {
     let description = desc_buf.trim().to_string();
 
     let example_url = "https://mixnode.yourdomain.com".bright_cyan();
+    let example_location = "City: London, Country: UK";
 
     print!("link, e.g. {}: ", example_url);
     io::stdout().flush().unwrap();
@@ -54,10 +56,17 @@ pub fn execute(matches: &ArgMatches) {
     io::stdin().read_line(&mut link_buf).unwrap();
     let link = link_buf.trim().to_string();
 
+    print!("location, e.g. {}: ", example_location);
+    io::stdout().flush().unwrap();
+    let mut location_buf = String::new();
+    io::stdin().read_line(&mut location_buf).unwrap();
+    let location = location_buf.trim().to_string();
+
     let node_description = NodeDescription {
         name,
         description,
         link,
+        location,
     };
 
     // save the struct

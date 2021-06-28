@@ -1,10 +1,10 @@
 #[cfg(test)]
 pub mod helpers {
     use super::*;
-    use crate::contract::init;
     use crate::contract::query;
     use crate::contract::DENOM;
-    use crate::msg::InitMsg;
+    use crate::contract::{instantiate, INITIAL_MIXNODE_BOND};
+    use crate::msg::InstantiateMsg;
     use crate::msg::QueryMsg;
     use crate::transactions::{try_add_gateway, try_add_mixnode};
     use cosmwasm_std::coins;
@@ -15,8 +15,8 @@ pub mod helpers {
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
     use cosmwasm_std::testing::MockStorage;
+    use cosmwasm_std::Addr;
     use cosmwasm_std::Coin;
-    use cosmwasm_std::HumanAddr;
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::{Empty, MemoryStorage};
     use mixnet_contract::{
@@ -24,20 +24,22 @@ pub mod helpers {
     };
 
     pub fn add_mixnode(
-        pubkey: &str,
+        sender: &str,
         stake: Vec<Coin>,
         deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
-    ) {
-        let info = mock_info(pubkey, &stake);
+    ) -> String {
+        let info = mock_info(sender, &stake);
+        let key = format!("{}mixnode", sender);
         try_add_mixnode(
             deps.as_mut(),
             info,
             MixNode {
-                identity_key: format!("{}mixnode", pubkey),
+                identity_key: key.clone(),
                 ..helpers::mix_node_fixture()
             },
         )
         .unwrap();
+        key
     }
 
     pub fn get_mix_nodes(
@@ -58,20 +60,22 @@ pub mod helpers {
     }
 
     pub fn add_gateway(
-        pubkey: &str,
+        sender: &str,
         stake: Vec<Coin>,
         deps: &mut OwnedDeps<MockStorage, MockApi, MockQuerier>,
-    ) {
-        let info = mock_info(pubkey, &stake);
+    ) -> String {
+        let info = mock_info(sender, &stake);
+        let key = format!("{}gateway", sender);
         try_add_gateway(
             deps.as_mut(),
             info,
             Gateway {
-                identity_key: format!("{}gateway", pubkey),
+                identity_key: key.clone(),
                 ..helpers::gateway_fixture()
             },
         )
         .unwrap();
+        key
     }
 
     pub fn get_gateways(
@@ -93,64 +97,85 @@ pub mod helpers {
 
     pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> {
         let mut deps = mock_dependencies(&[]);
-        let msg = InitMsg {};
+        let msg = InstantiateMsg {};
         let env = mock_env();
         let info = mock_info("creator", &[]);
-        init(deps.as_mut(), env.clone(), info, msg).unwrap();
+        instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
         return deps;
     }
 
     pub fn mix_node_fixture() -> MixNode {
-        MixNode::new(
-            "mix.node.org".to_string(),
-            1,
-            "Sweden".to_string(),
-            "sphinx".to_string(),
-            "identity".to_string(),
-            "0.10.0".to_string(),
-        )
+        MixNode {
+            host: "mix.node.org".to_string(),
+            mix_port: 1789,
+            verloc_port: 1790,
+            http_api_port: 8000,
+            layer: 1,
+            sphinx_key: "sphinx".to_string(),
+            identity_key: "identity".to_string(),
+            version: "0.10.0".to_string(),
+        }
     }
 
     pub fn mixnode_bond_fixture() -> MixNodeBond {
-        let mix_node = MixNode::new(
-            "1.1.1.1".to_string(),
-            1,
-            "London".to_string(),
-            "1234".to_string(),
-            "aaaa".to_string(),
-            "0.10.0".to_string(),
-        );
-        MixNodeBond::new(coins(50, DENOM), HumanAddr::from("foo"), mix_node)
+        let mix_node = MixNode {
+            host: "1.1.1.1".to_string(),
+            mix_port: 1789,
+            verloc_port: 1790,
+            http_api_port: 8000,
+            layer: 1,
+            sphinx_key: "1234".to_string(),
+            identity_key: "aaaa".to_string(),
+            version: "0.10.0".to_string(),
+        };
+        MixNodeBond::new(coins(50, DENOM), Addr::unchecked("foo"), mix_node)
     }
 
     pub fn gateway_fixture() -> Gateway {
-        Gateway::new(
-            "1.1.1.1:1234".to_string(),
-            "ws://1.1.1.1:1235".to_string(),
-            "Sweden".to_string(),
-            "sphinx".to_string(),
-            "identity".to_string(),
-            "0.10.0".to_string(),
-        )
+        Gateway {
+            host: "1.1.1.1".to_string(),
+            mix_port: 1789,
+            clients_port: 9000,
+            location: "Sweden".to_string(),
+
+            sphinx_key: "sphinx".to_string(),
+            identity_key: "identity".to_string(),
+            version: "0.10.0".to_string(),
+        }
     }
 
     pub fn gateway_bond_fixture() -> GatewayBond {
-        let gateway = Gateway::new(
-            "1.1.1.1:1234".to_string(),
-            "ws://1.1.1.1:1235".to_string(),
-            "London".to_string(),
-            "sphinx".to_string(),
-            "identity".to_string(),
-            "0.10.0".to_string(),
-        );
-        GatewayBond::new(coins(50, DENOM), HumanAddr::from("foo"), gateway)
+        let gateway = Gateway {
+            host: "1.1.1.1".to_string(),
+            mix_port: 1789,
+            clients_port: 9000,
+            location: "London".to_string(),
+            sphinx_key: "sphinx".to_string(),
+            identity_key: "identity".to_string(),
+            version: "0.10.0".to_string(),
+        };
+        GatewayBond::new(coins(50, DENOM), Addr::unchecked("foo"), gateway)
     }
 
     pub fn query_contract_balance(
-        address: HumanAddr,
+        address: Addr,
         deps: OwnedDeps<MockStorage, MockApi, MockQuerier>,
     ) -> Vec<Coin> {
         let querier = deps.as_ref().querier;
         vec![querier.query_balance(address, DENOM).unwrap()]
+    }
+
+    pub fn good_mixnode_bond() -> Vec<Coin> {
+        vec![Coin {
+            denom: DENOM.to_string(),
+            amount: INITIAL_MIXNODE_BOND,
+        }]
+    }
+
+    pub fn good_gateway_bond() -> Vec<Coin> {
+        vec![Coin {
+            denom: DENOM.to_string(),
+            amount: INITIAL_MIXNODE_BOND,
+        }]
     }
 }

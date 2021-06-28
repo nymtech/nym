@@ -56,7 +56,7 @@ impl Chunker {
 
         let (split_message, _reply_keys) = self
             .message_preparer
-            .prepare_and_split_message(message, false, &topology)
+            .prepare_and_split_message(message, false, topology)
             .expect("failed to split the message");
 
         let mut mix_packets = Vec::with_capacity(split_message.len());
@@ -64,7 +64,7 @@ impl Chunker {
             // don't bother with acks etc. for time being
             let prepared_fragment = self
                 .message_preparer
-                .prepare_chunk_for_sending(message_chunk, &topology, &ack_key, &packet_sender)
+                .prepare_chunk_for_sending(message_chunk, topology, &ack_key, &packet_sender)
                 .await
                 .unwrap();
 

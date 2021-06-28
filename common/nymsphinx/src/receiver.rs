@@ -121,7 +121,7 @@ impl MessageReceiver {
         Ok(stream_cipher::decrypt::<PacketEncryptionAlgorithm>(
             &encryption_key,
             &zero_iv,
-            &fragment_bytes,
+            fragment_bytes,
         ))
     }
 
@@ -216,8 +216,8 @@ mod message_receiver {
             vec![mix::Node {
                 owner: "foomp1".to_string(),
                 stake: 123,
-                location: "unknown".to_string(),
-                host: "10.20.30.40:1789".parse().unwrap(),
+                host: "10.20.30.40".parse().unwrap(),
+                mix_host: "10.20.30.40:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
                     "3ebjp1Fb9hdcS1AR6AZihgeJiMHkB5jjJUsvqNnfQwU7",
                 )
@@ -236,8 +236,8 @@ mod message_receiver {
             vec![mix::Node {
                 owner: "foomp2".to_string(),
                 stake: 123,
-                location: "unknown".to_string(),
-                host: "11.21.31.41:1789".parse().unwrap(),
+                host: "11.21.31.41".parse().unwrap(),
+                mix_host: "11.21.31.41:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
                     "D6YaMzLSY7mANtSQRKXsmMZpqgqiVkeiagKM4V4oFPFr",
                 )
@@ -256,8 +256,8 @@ mod message_receiver {
             vec![mix::Node {
                 owner: "foomp3".to_string(),
                 stake: 123,
-                location: "unknown".to_string(),
-                host: "12.22.32.42:1789".parse().unwrap(),
+                host: "12.22.32.42".parse().unwrap(),
+                mix_host: "12.22.32.42:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
                     "GkWDysw4AjESv1KiAiVn7JzzCMJeksxNSXVfr1PpX8wD",
                 )
@@ -278,8 +278,9 @@ mod message_receiver {
                 owner: "foomp4".to_string(),
                 stake: 123,
                 location: "unknown".to_string(),
-                client_listener: "ws://1.2.3.4:9000".to_string(),
-                mixnet_listener: "1.2.3.4:1789".parse().unwrap(),
+                host: "1.2.3.4".parse().unwrap(),
+                mix_host: "1.2.3.4:1789".parse().unwrap(),
+                clients_port: 9000,
                 identity_key: identity::PublicKey::from_base58_string(
                     "FioFa8nMmPpQnYi7JyojoTuwGLeyNS8BF4ChPr29zUML",
                 )

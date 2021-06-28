@@ -5,7 +5,7 @@ pub(crate) fn config_template() -> &'static str {
     // While using normal toml marshalling would have been way simpler with less overhead,
     // I think it's useful to have comments attached to the saved config file to explain behaviour of
     // particular fields.
-    // Note: any changes to the template must be reflected in the appropriate structs in mod.rs.
+    // Note: any changes to the template must be reflected in the appropriate structs in verloc.
     r#"
 # This is a TOML config file.
 # For more information, see https://github.com/toml-lang/toml
@@ -41,21 +41,27 @@ public_sphinx_key_file = '{{ mixnode.public_sphinx_key_file }}'
 
 # Optional address announced to the directory server for the clients to connect to.
 # It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
-# later on by using name resolvable with a DNS query, such as `nymtech.net:8080`.
-# Additionally a custom port can be provided, so both `nymtech.net:8080` and `nymtech.net`
-# are valid announce addresses, while the later will default to whatever port is used for
-# `listening_address`.
+# later on by using name resolvable with a DNS query, such as `nymtech.net`.
 announce_address = '{{ mixnode.announce_address }}'
 
-# Validator server to which the node will be reporting their presence data.
+# Port used for listening for all mixnet traffic.
+# (default: 1789)
+mix_port = {{ mixnode.mix_port }}
+
+# Port used for listening for verloc traffic.
+# (default: 1790)
+verloc_port = {{ mixnode.verloc_port }}
+
+# Port used for listening for http requests.
+# (default: 8000)
+http_api_port = {{ mixnode.http_api_port }}
+
+# Validator server to which the node will be getting information about the network.
 validator_rest_urls = [
     {{#each mixnode.validator_rest_urls }}
         '{{this}}',
     {{/each}}
 ]
-
-# Metrics server to which the node will be reporting their metrics data.
-metrics_server_url = '{{ mixnode.metrics_server_url }}'
 
 # Address of the validator contract managing the network.
 mixnet_contract_address = '{{ mixnode.mixnet_contract_address }}'

@@ -1,0 +1,3 @@
+# Global owners. If you want to set more specific (per-directory, per-language) owners, see the write-up at
+# https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/creating-a-repository-on-github/about-code-owners
+* @durch @futurechimp @jstuczyn

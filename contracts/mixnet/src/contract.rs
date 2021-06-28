@@ -1,11 +1,11 @@
 use crate::helpers::calculate_epoch_reward_rate;
-use crate::msg::{HandleMsg, InitMsg, MigrateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{State, StateParams};
-use crate::storage::config;
+use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries, transactions};
 use cosmwasm_std::{
-    to_binary, Decimal, Deps, DepsMut, Env, HandleResponse, HumanAddr, InitResponse, MessageInfo,
-    MigrateResponse, QueryResponse, Uint128,
+    entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
+    Response, Uint128,
 };
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
@@ -27,13 +27,13 @@ const NETWORK_MONITOR_ADDRESS: &str = "hal1v9qauwdq5terag6uvfsdytcs2d0sdmfdq6e83
 /// Constant specifying denomination of the coin used for bonding
 pub const DENOM: &str = "uhal";
 
-fn default_initial_state(owner: HumanAddr) -> State {
+fn default_initial_state(owner: Addr) -> State {
     let mixnode_bond_reward_rate = Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE);
     let gateway_bond_reward_rate = Decimal::percent(INITIAL_GATEWAY_BOND_REWARD_RATE);
 
     State {
         owner,
-        network_monitor_address: NETWORK_MONITOR_ADDRESS.into(),
+        network_monitor_address: Addr::unchecked(NETWORK_MONITOR_ADDRESS), // we trust our hardcoded value
         params: StateParams {
             epoch_length: INITIAL_DEFAULT_EPOCH_LENGTH,
             minimum_mixnode_bond: INITIAL_MIXNODE_BOND,
@@ -58,42 +58,58 @@ fn default_initial_state(owner: HumanAddr) -> State {
 /// `deps` contains Storage, API and Querier
 /// `env` contains block, message and contract info
 /// `msg` is the contract initialization message, sort of like a constructor call.
-pub fn init(
+#[entry_point]
+pub fn instantiate(
     deps: DepsMut,
     _env: Env,
     info: MessageInfo,
-    _msg: InitMsg,
-) -> Result<InitResponse, ContractError> {
+    _msg: InstantiateMsg,
+) -> Result<Response, ContractError> {
     let state = default_initial_state(info.sender);
 
     config(deps.storage).save(&state)?;
-    Ok(InitResponse::default())
+    layer_distribution(deps.storage).save(&Default::default())?;
+    Ok(Response::default())
 }
 
 /// Handle an incoming message
-pub fn handle(
+#[entry_point]
+pub fn execute(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
-    msg: HandleMsg,
-) -> Result<HandleResponse, ContractError> {
+    msg: ExecuteMsg,
+) -> Result<Response, ContractError> {
     match msg {
-        HandleMsg::BondMixnode { mix_node } => transactions::try_add_mixnode(deps, info, mix_node),
-        HandleMsg::UnbondMixnode {} => transactions::try_remove_mixnode(deps, info, env),
-        HandleMsg::BondGateway { gateway } => transactions::try_add_gateway(deps, info, gateway),
-        HandleMsg::UnbondGateway {} => transactions::try_remove_gateway(deps, info, env),
-        HandleMsg::UpdateStateParams(params) => {
+        ExecuteMsg::BondMixnode { mix_node } => transactions::try_add_mixnode(deps, info, mix_node),
+        ExecuteMsg::UnbondMixnode {} => transactions::try_remove_mixnode(deps, info),
+        ExecuteMsg::BondGateway { gateway } => transactions::try_add_gateway(deps, info, gateway),
+        ExecuteMsg::UnbondGateway {} => transactions::try_remove_gateway(deps, info),
+        ExecuteMsg::UpdateStateParams(params) => {
             transactions::try_update_state_params(deps, info, params)
         }
-        HandleMsg::RewardMixnode { owner, uptime } => {
-            transactions::try_reward_mixnode(deps, info, owner, uptime)
+        ExecuteMsg::RewardMixnode { identity, uptime } => {
+            transactions::try_reward_mixnode(deps, info, identity, uptime)
         }
-        HandleMsg::RewardGateway { owner, uptime } => {
-            transactions::try_reward_gateway(deps, info, owner, uptime)
+        ExecuteMsg::RewardGateway { identity, uptime } => {
+            transactions::try_reward_gateway(deps, info, identity, uptime)
+        }
+        ExecuteMsg::DelegateToMixnode { mix_identity } => {
+            transactions::try_delegate_to_mixnode(deps, info, mix_identity)
+        }
+        ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
+            transactions::try_remove_delegation_from_mixnode(deps, info, mix_identity)
+        }
+        ExecuteMsg::DelegateToGateway { gateway_identity } => {
+            transactions::try_delegate_to_gateway(deps, info, gateway_identity)
+        }
+        ExecuteMsg::UndelegateFromGateway { gateway_identity } => {
+            transactions::try_remove_delegation_from_gateway(deps, info, gateway_identity)
         }
     }
 }
 
+#[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
         QueryMsg::GetMixNodes { start_after, limit } => {
@@ -109,17 +125,50 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             to_binary(&queries::query_owns_gateway(deps, address)?)
         }
         QueryMsg::StateParams {} => to_binary(&queries::query_state_params(deps)),
+        QueryMsg::LayerDistribution {} => to_binary(&queries::query_layer_distribution(deps)),
+        QueryMsg::GetMixDelegations {
+            mix_identity,
+            start_after,
+            limit,
+        } => to_binary(&queries::query_mixnode_delegations_paged(
+            deps,
+            mix_identity,
+            start_after,
+            limit,
+        )?),
+        QueryMsg::GetMixDelegation {
+            mix_identity,
+            address,
+        } => to_binary(&queries::query_mixnode_delegation(
+            deps,
+            mix_identity,
+            address,
+        )?),
+        QueryMsg::GetGatewayDelegations {
+            gateway_identity,
+            start_after,
+            limit,
+        } => to_binary(&queries::query_gateway_delegations_paged(
+            deps,
+            gateway_identity,
+            start_after,
+            limit,
+        )?),
+        QueryMsg::GetGatewayDelegation {
+            gateway_identity,
+            address,
+        } => to_binary(&queries::query_gateway_delegation(
+            deps,
+            gateway_identity,
+            address,
+        )?),
     };
 
     Ok(query_res?)
 }
 
-pub fn migrate(
-    _deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    _msg: MigrateMsg,
-) -> Result<MigrateResponse, ContractError> {
+#[entry_point]
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Default::default())
 }
 
@@ -135,10 +184,10 @@ pub mod tests {
     fn initialize_contract() {
         let mut deps = mock_dependencies(&[]);
         let env = mock_env();
-        let msg = InitMsg {};
+        let msg = InstantiateMsg {};
         let info = mock_info("creator", &[]);
 
-        let res = init(deps.as_mut(), env.clone(), info, msg).unwrap();
+        let res = instantiate(deps.as_mut(), env.clone(), info, msg).unwrap();
         assert_eq!(0, res.messages.len());
 
         // mix_node_bonds should be empty after initialization

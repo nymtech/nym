@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::override_config;
+use crate::commands::*;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
 use crate::config::Config;
 use crate::node::Gateway;
@@ -15,88 +15,58 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("run")
         .about("Starts the gateway")
         .arg(
-            Arg::with_name("id")
-                .long("id")
+            Arg::with_name(ID_ARG_NAME)
+                .long(ID_ARG_NAME)
                 .help("Id of the gateway we want to run")
                 .takes_value(true)
                 .required(true),
         )
         // the rest of arguments are optional, they are used to override settings in config file
         .arg(
-            Arg::with_name("config")
-                .long("config")
-                .help("Custom path to the nym gateway configuration file")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("mix-host")
-                .long("mix-host")
+            Arg::with_name(HOST_ARG_NAME)
+                .long(HOST_ARG_NAME)
                 .help("The custom host on which the gateway will be running for receiving sphinx packets")
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("mix-port")
-                .long("mix-port")
+            Arg::with_name(MIX_PORT_ARG_NAME)
+                .long(MIX_PORT_ARG_NAME)
                 .help("The port on which the gateway will be listening for sphinx packets")
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("clients-host")
-                .long("clients-host")
-                .help("The custom host on which the gateway will be running for receiving clients gateway-requests")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name("clients-port")
-                .long("clients-port")
+            Arg::with_name(CLIENTS_PORT_ARG_NAME)
+                .long(CLIENTS_PORT_ARG_NAME)
                 .help("The port on which the gateway will be listening for clients gateway-requests")
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("mix-announce-host")
-                .long("mix-announce-host")
+            Arg::with_name(ANNOUNCE_HOST_ARG_NAME)
+                .long(ANNOUNCE_HOST_ARG_NAME)
                 .help("The host that will be reported to the directory server")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("mix-announce-port")
-                .long("mix-announce-port")
-                .help("The port that will be reported to the directory server")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("clients-announce-host")
-                .long("clients-announce-host")
-                .help("The host that will be reported to the directory server")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("clients-announce-port")
-                .long("clients-announce-port")
-                .help("The port that will be reported to the directory server")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("inboxes")
-                .long("inboxes")
+            Arg::with_name(INBOXES_ARG_NAME)
+                .long(INBOXES_ARG_NAME)
                 .help("Directory with inboxes where all packets for the clients are stored")
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("clients-ledger")
-                .long("clients-ledger")
+            Arg::with_name(CLIENTS_LEDGER_ARG_NAME)
+                .long(CLIENTS_LEDGER_ARG_NAME)
                 .help("Ledger file containing registered clients")
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name("validators")
-                .long("validators")
+            Arg::with_name(VALIDATORS_ARG_NAME)
+                .long(VALIDATORS_ARG_NAME)
                 .help("Comma separated list of rest endpoints of the validators")
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("mixnet-contract")
-                .long("mixnet-contract")
+            Arg::with_name(CONTRACT_ARG_NAME)
+                .long(CONTRACT_ARG_NAME)
                 .help("Address of the validator contract managing the network")
                 .takes_value(true),
         )
@@ -163,7 +133,7 @@ fn version_check(cfg: &Config) -> bool {
 }
 
 pub fn execute(matches: &ArgMatches) {
-    let id = matches.value_of("id").unwrap();
+    let id = matches.value_of(ID_ARG_NAME).unwrap();
 
     println!("Starting gateway {}...", id);
 
@@ -186,14 +156,8 @@ pub fn execute(matches: &ArgMatches) {
     let sphinx_keypair = load_sphinx_keys(&pathfinder);
     let identity = load_identity_keys(&pathfinder);
 
-    let mix_listening_ip_string = config.get_mix_listening_address().ip().to_string();
-    if special_addresses().contains(&mix_listening_ip_string.as_ref()) {
-        show_binding_warning(mix_listening_ip_string);
-    }
-
-    let clients_listening_ip_string = config.get_clients_listening_address().ip().to_string();
-    if special_addresses().contains(&clients_listening_ip_string.as_ref()) {
-        show_binding_warning(clients_listening_ip_string);
+    if special_addresses().contains(&&*config.get_listening_address().to_string()) {
+        show_binding_warning(config.get_listening_address().to_string());
     }
 
     println!(
@@ -202,21 +166,12 @@ pub fn execute(matches: &ArgMatches) {
     );
 
     println!(
-        "Listening for incoming sphinx packets on {}",
-        config.get_mix_listening_address()
+        "Listening for incoming packets on {}",
+        config.get_listening_address()
     );
     println!(
-        "Announcing the following socket address for sphinx packets: {}",
-        config.get_mix_announce_address()
-    );
-
-    println!(
-        "Listening for incoming clients packets on {}",
-        config.get_clients_listening_address()
-    );
-    println!(
-        "Announcing the following socket address for clients packets: {}",
-        config.get_clients_announce_address()
+        "Announcing the following address: {}",
+        config.get_announce_address()
     );
 
     println!(

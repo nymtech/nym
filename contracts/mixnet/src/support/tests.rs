@@ -130,7 +130,7 @@ pub mod helpers {
             identity_key: "aaaa".to_string(),
             version: "0.10.0".to_string(),
         };
-        MixNodeBond::new(coins(50, DENOM), Addr::unchecked("foo"), mix_node)
+        MixNodeBond::new(coin(50, DENOM), Addr::unchecked("foo"), mix_node)
     }
 
     pub fn gateway_fixture() -> Gateway {
@@ -156,7 +156,7 @@ pub mod helpers {
             identity_key: "identity".to_string(),
             version: "0.10.0".to_string(),
         };
-        GatewayBond::new(coins(50, DENOM), Addr::unchecked("foo"), gateway)
+        GatewayBond::new(coin(50, DENOM), Addr::unchecked("foo"), gateway)
     }
 
     pub fn query_contract_balance(

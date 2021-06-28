@@ -289,6 +289,7 @@ mod converting_mixes_to_vec {
             let node1 = mix::Node {
                 owner: "N/A".to_string(),
                 stake: 0,
+                delegation: 0,
                 host: "3.3.3.3".parse().unwrap(),
                 mix_host: "3.3.3.3:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(

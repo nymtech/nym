@@ -20,7 +20,7 @@ pub mod helpers {
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::{Empty, MemoryStorage};
     use mixnet_contract::{
-        Gateway, GatewayBond, MixNode, MixNodeBond, PagedGatewayResponse, PagedResponse,
+        Gateway, GatewayBond, MixNode, MixNodeBond, PagedGatewayResponse, PagedMixnodeResponse,
     };
 
     pub fn add_mixnode(
@@ -55,7 +55,7 @@ pub mod helpers {
         )
         .unwrap();
 
-        let page: PagedResponse = from_binary(&result).unwrap();
+        let page: PagedMixnodeResponse = from_binary(&result).unwrap();
         page.nodes
     }
 

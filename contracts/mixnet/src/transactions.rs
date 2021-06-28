@@ -697,7 +697,7 @@ pub mod tests {
     };
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, from_binary, Addr, Uint128};
-    use mixnet_contract::{LayerDistribution, PagedGatewayResponse, PagedResponse};
+    use mixnet_contract::{LayerDistribution, PagedGatewayResponse, PagedMixnodeResponse};
 
     #[test]
     fn validating_mixnode_bond() {
@@ -769,7 +769,7 @@ pub mod tests {
             },
         )
         .unwrap();
-        let page: PagedResponse = from_binary(&res).unwrap();
+        let page: PagedMixnodeResponse = from_binary(&res).unwrap();
         assert_eq!(0, page.nodes.len());
 
         // if we send enough funds
@@ -795,7 +795,7 @@ pub mod tests {
             },
         )
         .unwrap();
-        let page: PagedResponse = from_binary(&query_response).unwrap();
+        let page: PagedMixnodeResponse = from_binary(&query_response).unwrap();
         assert_eq!(1, page.nodes.len());
         assert_eq!(
             &MixNode {

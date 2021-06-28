@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::{QueryRequest, QueryResponse};
 use crate::error::ValidatorClientError;
+use crate::models::{QueryRequest, QueryResponse};
 use mixnet_contract::{
     GatewayBond, IdentityKey, LayerDistribution, MixNodeBond, PagedGatewayResponse, PagedResponse,
 };
@@ -11,8 +11,8 @@ use rand::thread_rng;
 use serde::Deserialize;
 use std::collections::VecDeque;
 
-mod models;
 mod error;
+mod models;
 pub(crate) mod serde_helpers;
 
 fn permute_validators(validators: VecDeque<String>) -> VecDeque<String> {
@@ -144,7 +144,9 @@ impl Client {
         match query_response {
             QueryResponse::Ok(smart_res) => Ok(smart_res.result.smart),
             QueryResponse::Error(err) => Err(ValidatorClientError::ValidatorError(err.error)),
-            QueryResponse::CodedError(err) => Err(ValidatorClientError::ValidatorError(format!("{}", err))),
+            QueryResponse::CodedError(err) => {
+                Err(ValidatorClientError::ValidatorError(format!("{}", err)))
+            }
         }
     }
 

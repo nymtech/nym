@@ -37,7 +37,19 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
         .arg(
             Arg::with_name(MIX_PORT_ARG_NAME)
                 .long(MIX_PORT_ARG_NAME)
-                .help("The port on which the mixnode will be listening")
+                .help("The port on which the mixnode will be listening for mix packets")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(VERLOC_PORT_ARG_NAME)
+                .long(VERLOC_PORT_ARG_NAME)
+                .help("The port on which the mixnode will be listening for verloc packets")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name(HTTP_API_PORT_ARG_NAME)
+                .long(HTTP_API_PORT_ARG_NAME)
+                .help("The port on which the mixnode will be listening for http requests")
                 .takes_value(true),
         )
         .arg(

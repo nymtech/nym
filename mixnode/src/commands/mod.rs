@@ -15,6 +15,8 @@ pub(crate) const ID_ARG_NAME: &str = "id";
 pub(crate) const HOST_ARG_NAME: &str = "host";
 pub(crate) const LAYER_ARG_NAME: &str = "layer";
 pub(crate) const MIX_PORT_ARG_NAME: &str = "mix-port";
+pub(crate) const VERLOC_PORT_ARG_NAME: &str = "verloc-port";
+pub(crate) const HTTP_API_PORT_ARG_NAME: &str = "http-api-port";
 pub(crate) const VALIDATORS_ARG_NAME: &str = "validators";
 pub(crate) const CONTRACT_ARG_NAME: &str = "mixnet-contract";
 pub(crate) const ANNOUNCE_HOST_ARG_NAME: &str = "announce-host";
@@ -56,6 +58,28 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
             panic!("Invalid mix port value provided - {:?}", err);
         }
         config = config.with_mix_port(port.unwrap());
+    }
+
+    if let Some(port) = matches
+        .value_of(VERLOC_PORT_ARG_NAME)
+        .map(|port| port.parse::<u16>())
+    {
+        if let Err(err) = port {
+            // if port was overridden, it must be parsable
+            panic!("Invalid verloc port value provided - {:?}", err);
+        }
+        config = config.with_verloc_port(port.unwrap());
+    }
+
+    if let Some(port) = matches
+        .value_of(HTTP_API_PORT_ARG_NAME)
+        .map(|port| port.parse::<u16>())
+    {
+        if let Err(err) = port {
+            // if port was overridden, it must be parsable
+            panic!("Invalid http api port value provided - {:?}", err);
+        }
+        config = config.with_http_api_port(port.unwrap());
     }
 
     if let Some(raw_validators) = matches.value_of(VALIDATORS_ARG_NAME) {

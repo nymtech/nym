@@ -16,6 +16,9 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'MIXNODE'
 const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
+const DEFAULT_VERLOC_LISTENING_PORT: u16 = 1790;
+const DEFAULT_HTTP_API_LISTENING_PORT: u16 = 8000;
+
 pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
     "http://testnet-finney-validator.nymtech.net:1317",
     "http://testnet-finney-validator2.nymtech.net:1317",
@@ -62,6 +65,14 @@ fn bind_all_address() -> IpAddr {
 
 fn default_mix_port() -> u16 {
     DEFAULT_MIX_LISTENING_PORT
+}
+
+fn default_verloc_port() -> u16 {
+    DEFAULT_VERLOC_LISTENING_PORT
+}
+
+fn default_http_api_port() -> u16 {
+    DEFAULT_HTTP_API_LISTENING_PORT
 }
 
 // basically a migration helper that deserialises string representation of a maybe socket addr (like "1.1.1.1:1234")
@@ -197,6 +208,16 @@ impl Config {
         self
     }
 
+    pub fn with_verloc_port(mut self, port: u16) -> Self {
+        self.mixnode.verloc_port = port;
+        self
+    }
+
+    pub fn with_http_api_port(mut self, port: u16) -> Self {
+        self.mixnode.http_api_port = port;
+        self
+    }
+
     pub fn announce_address_from_listening_address(mut self) -> Self {
         self.mixnode.announce_address = self.mixnode.listening_address.to_string();
         self
@@ -258,6 +279,14 @@ impl Config {
 
     pub fn get_mix_port(&self) -> u16 {
         self.mixnode.mix_port
+    }
+
+    pub fn get_verloc_port(&self) -> u16 {
+        self.mixnode.verloc_port
+    }
+
+    pub fn get_http_api_port(&self) -> u16 {
+        self.mixnode.http_api_port
     }
 
     pub fn get_packet_forwarding_initial_backoff(&self) -> Duration {
@@ -347,6 +376,16 @@ pub struct MixNode {
     #[serde(default = "default_mix_port")]
     mix_port: u16,
 
+    /// Port used for listening for verloc traffic.
+    /// (default: 1790)
+    #[serde(default = "default_verloc_port")]
+    verloc_port: u16,
+
+    /// Port used for listening for http requests.
+    /// (default: 8000)
+    #[serde(default = "default_http_api_port")]
+    http_api_port: u16,
+
     /// Path to file containing private identity key.
     #[serde(default = "missing_string_value")]
     private_identity_key_file: PathBuf,
@@ -405,6 +444,8 @@ impl Default for MixNode {
             listening_address: bind_all_address(),
             announce_address: "127.0.0.1".to_string(),
             mix_port: DEFAULT_MIX_LISTENING_PORT,
+            verloc_port: DEFAULT_VERLOC_LISTENING_PORT,
+            http_api_port: DEFAULT_HTTP_API_LISTENING_PORT,
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),

@@ -403,7 +403,7 @@ export default class ValidatorClient {
     async bondGateway(gateway: Gateway, bond: Coin): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
             const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {bond_gateway: {gateway: gateway}}, "adding gateway", [bond]).catch((err) => this.handleRequestFailure(err));
-            console.log(`account ${this.client.clientAddress} added gateway with ${gateway.mix_host}`);
+            console.log(`account ${this.client.clientAddress} added gateway with ${gateway.host}`);
             return result;
         } else {
             throw new Error("Tried to bond gateway with a query client")

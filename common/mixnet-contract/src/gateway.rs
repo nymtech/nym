@@ -19,28 +19,6 @@ pub struct Gateway {
     pub version: String,
 }
 
-impl Gateway {
-    pub fn new(
-        host: String,
-        mix_port: u16,
-        clients_port: u16,
-        location: String,
-        sphinx_key: SphinxKey,
-        identity_key: IdentityKey,
-        version: String,
-    ) -> Self {
-        Gateway {
-            host,
-            mix_port,
-            clients_port,
-            location,
-            sphinx_key,
-            identity_key,
-            version,
-        }
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct GatewayBond {
     pub amount: Vec<Coin>,

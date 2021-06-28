@@ -84,7 +84,6 @@ pub struct Node {
     // on the network at a type, right?
     pub stake: u128,
     pub delegation: u128,
-    pub location: String,
     pub host: NetworkAddress,
     // we're keeping this as separate resolved field since we do not want to be resolving the potential
     // hostname every time we want to construct a path via this node
@@ -131,7 +130,6 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
             owner: bond.owner.as_str().to_owned(),
             stake: bond.bond_amount.amount.into(),
             delegation: bond.total_delegation.amount.into(),
-            location: bond.mix_node.location.clone(),
             host,
             mix_host,
             identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,

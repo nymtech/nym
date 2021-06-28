@@ -5,7 +5,7 @@ pub(crate) fn config_template() -> &'static str {
     // While using normal toml marshalling would have been way simpler with less overhead,
     // I think it's useful to have comments attached to the saved config file to explain behaviour of
     // particular fields.
-    // Note: any changes to the template must be reflected in the appropriate structs in mod.rs.
+    // Note: any changes to the template must be reflected in the appropriate structs in verloc.
     r#"
 # This is a TOML config file.
 # For more information, see https://github.com/toml-lang/toml
@@ -47,6 +47,14 @@ announce_address = '{{ mixnode.announce_address }}'
 # Port used for listening for all mixnet traffic.
 # (default: 1789)
 mix_port = {{ mixnode.mix_port }}
+
+# Port used for listening for verloc traffic.
+# (default: 1790)
+verloc_port = {{ mixnode.verloc_port }}
+
+# Port used for listening for http requests.
+# (default: 8000)
+http_api_port = {{ mixnode.http_api_port }}
 
 # Validator server to which the node will be getting information about the network.
 validator_rest_urls = [

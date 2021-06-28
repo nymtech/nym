@@ -10,6 +10,9 @@ export type MixNodeBond = { // TODO: change name to MixNodeBond
 
 export type MixNode = {
     host: string,
+    mix_port: number,
+    verloc_port: number,
+    http_api_port: number,
     layer: number,
     location: string,
     sphinx_key: string, // TODO: camelCase this later once everything else works
@@ -26,8 +29,9 @@ export type GatewayBond = {
 }
 
 export type Gateway = {
-    mix_host: string,
-    clients_host: string,
+    host: string,
+    mix_port: number,
+    clients_port: number,
     location: string,
     sphinx_key: string,
     identity_key: string,

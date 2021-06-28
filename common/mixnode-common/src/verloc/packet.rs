@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::rtt_measurement::error::RttError;
+use crate::verloc::error::RttError;
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH, SIGNATURE_LENGTH};
 use std::convert::TryInto;
 

@@ -11,34 +11,14 @@ use std::fmt::Display;
 pub struct MixNode {
     pub host: String,
     pub mix_port: u16,
+    pub verloc_port: u16,
+    pub http_api_port: u16,
     pub layer: u64,
     pub location: String,
     pub sphinx_key: SphinxKey,
     /// Base58 encoded ed25519 EdDSA public key.
     pub identity_key: IdentityKey,
     pub version: String,
-}
-
-impl MixNode {
-    pub fn new(
-        host: String,
-        mix_port: u16,
-        layer: u64,
-        location: String,
-        sphinx_key: SphinxKey,
-        identity_key: IdentityKey,
-        version: String,
-    ) -> Self {
-        MixNode {
-            host,
-            mix_port,
-            layer,
-            location,
-            sphinx_key,
-            identity_key,
-            version,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]

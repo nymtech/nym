@@ -1,4 +1,4 @@
-use mixnode_common::rtt_measurement::{AtomicVerlocResult, VerlocResult};
+use mixnode_common::verloc::{AtomicVerlocResult, VerlocResult};
 use rocket::State;
 use rocket_contrib::json::Json;
 

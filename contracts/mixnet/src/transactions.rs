@@ -1877,20 +1877,29 @@ pub mod tests {
             let mixnode_owner = "bob";
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
 
+            let delegation = coin(123, DENOM);
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender", &coins(123, DENOM)),
+                mock_info("sender", &vec![delegation.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert_eq!(
-                123,
+                delegation.amount,
                 mix_delegations_read(&deps.storage, &identity)
                     .load(b"sender")
                     .unwrap()
-                    .u128()
             );
+
+            // node's "total_delegation" is increased
+            assert_eq!(
+                delegation,
+                mixnodes_read(&deps.storage)
+                    .load(identity.as_bytes())
+                    .unwrap()
+                    .total_delegation
+            )
         }
 
         #[test]
@@ -1922,21 +1931,30 @@ pub mod tests {
             add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
             try_remove_mixnode(deps.as_mut(), mock_info(mixnode_owner, &[])).unwrap();
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+            let delegation = coin(123, DENOM);
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender", &coins(123, DENOM)),
+                mock_info("sender", &vec![delegation.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert_eq!(
-                123,
+                delegation.amount,
                 mix_delegations_read(&deps.storage, &identity)
                     .load(b"sender")
                     .unwrap()
-                    .u128()
             );
+
+            // node's "total_delegation" is increased
+            assert_eq!(
+                delegation,
+                mixnodes_read(&deps.storage)
+                    .load(identity.as_bytes())
+                    .unwrap()
+                    .total_delegation
+            )
         }
 
         #[test]
@@ -1945,27 +1963,39 @@ pub mod tests {
             let mixnode_owner = "bob";
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
 
+            let delegation1 = coin(100, DENOM);
+            let delegation2 = coin(50, DENOM);
+
             try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender", &coins(100, DENOM)),
+                mock_info("sender", &vec![delegation1.clone()]),
                 identity.clone(),
             )
             .unwrap();
 
             try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender", &coins(50, DENOM)),
+                mock_info("sender", &vec![delegation2.clone()]),
                 identity.clone(),
             )
             .unwrap();
 
             assert_eq!(
-                150,
+                delegation1.amount + delegation2.amount,
                 mix_delegations_read(&deps.storage, &identity)
                     .load(b"sender")
                     .unwrap()
-                    .u128()
             );
+
+            // node's "total_delegation" is sum of both
+            assert_eq!(
+                delegation1.amount + delegation2.amount,
+                mixnodes_read(&deps.storage)
+                    .load(identity.as_bytes())
+                    .unwrap()
+                    .total_delegation
+                    .amount
+            )
         }
 
         #[test]
@@ -2041,19 +2071,32 @@ pub mod tests {
             let mixnode_owner = "bob";
             let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
 
+            let delegation1 = coin(123, DENOM);
+            let delegation2 = coin(234, DENOM);
+
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender1", &coins(123, DENOM)),
+                mock_info("sender1", &vec![delegation1.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert!(try_delegate_to_mixnode(
                 deps.as_mut(),
-                mock_info("sender2", &coins(123, DENOM)),
-                identity
+                mock_info("sender2", &vec![delegation2.clone()]),
+                identity.clone()
             )
             .is_ok());
+
+            // node's "total_delegation" is sum of both
+            assert_eq!(
+                delegation1.amount + delegation2.amount,
+                mixnodes_read(&deps.storage)
+                    .load(identity.as_bytes())
+                    .unwrap()
+                    .total_delegation
+                    .amount
+            )
         }
 
         #[test]
@@ -2144,6 +2187,16 @@ pub mod tests {
                 .may_load(b"sender")
                 .unwrap()
                 .is_none());
+
+            // and total delegation is cleared
+            assert_eq!(
+                Uint128::zero(),
+                mixnodes_read(&deps.storage)
+                    .load(identity.as_bytes())
+                    .unwrap()
+                    .total_delegation
+                    .amount
+            )
         }
 
         #[test]
@@ -2184,6 +2237,48 @@ pub mod tests {
                 .may_load(b"sender")
                 .unwrap()
                 .is_none());
+        }
+
+        #[test]
+        fn total_delegation_is_preserved_if_only_some_undelegate() {
+            let mut deps = helpers::init_contract();
+            let mixnode_owner = "bob";
+            let identity = add_mixnode(mixnode_owner, good_mixnode_bond(), &mut deps);
+
+            let delegation1 = coin(123, DENOM);
+            let delegation2 = coin(234, DENOM);
+
+            assert!(try_delegate_to_mixnode(
+                deps.as_mut(),
+                mock_info("sender1", &vec![delegation1.clone()]),
+                identity.clone()
+            )
+            .is_ok());
+
+            assert!(try_delegate_to_mixnode(
+                deps.as_mut(),
+                mock_info("sender2", &vec![delegation2.clone()]),
+                identity.clone()
+            )
+            .is_ok());
+
+            // sender1 undelegates
+            try_remove_delegation_from_mixnode(
+                deps.as_mut(),
+                mock_info("sender1", &[]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            // but total delegation should still equal to what sender2 sent
+            // node's "total_delegation" is sum of both
+            assert_eq!(
+                delegation2,
+                mixnodes_read(&deps.storage)
+                    .load(identity.as_bytes())
+                    .unwrap()
+                    .total_delegation
+            )
         }
     }
 
@@ -2388,20 +2483,29 @@ pub mod tests {
             let gateway_owner = "bob";
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
 
+            let delegation = coin(123, DENOM);
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender", &coins(123, DENOM)),
+                mock_info("sender", &vec![delegation.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert_eq!(
-                123,
+                delegation.amount,
                 gateway_delegations_read(&deps.storage, &identity)
                     .load(b"sender")
                     .unwrap()
-                    .u128()
             );
+
+            // node's "total_delegation" is increased
+            assert_eq!(
+                delegation,
+                gateways_read(&deps.storage)
+                    .load(identity.as_bytes())
+                    .unwrap()
+                    .total_delegation
+            )
         }
 
         #[test]
@@ -2432,21 +2536,30 @@ pub mod tests {
             add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
             try_remove_gateway(deps.as_mut(), mock_info(gateway_owner, &[])).unwrap();
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+            let delegation = coin(123, DENOM);
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender", &coins(123, DENOM)),
+                mock_info("sender", &vec![delegation.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert_eq!(
-                123,
+                delegation.amount,
                 gateway_delegations_read(&deps.storage, &identity)
                     .load(b"sender")
                     .unwrap()
-                    .u128()
             );
+
+            // node's "total_delegation" is increased
+            assert_eq!(
+                delegation,
+                gateways_read(&deps.storage)
+                    .load(identity.as_bytes())
+                    .unwrap()
+                    .total_delegation
+            )
         }
 
         #[test]
@@ -2455,27 +2568,39 @@ pub mod tests {
             let gateway_owner = "bob";
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
 
+            let delegation1 = coin(100, DENOM);
+            let delegation2 = coin(50, DENOM);
+
             try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender", &coins(100, DENOM)),
+                mock_info("sender", &vec![delegation1.clone()]),
                 identity.clone(),
             )
             .unwrap();
 
             try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender", &coins(50, DENOM)),
+                mock_info("sender", &vec![delegation2.clone()]),
                 identity.clone(),
             )
             .unwrap();
 
             assert_eq!(
-                150,
+                delegation1.amount + delegation2.amount,
                 gateway_delegations_read(&deps.storage, &identity)
                     .load(b"sender")
                     .unwrap()
-                    .u128()
             );
+
+            // node's "total_delegation" is sum of both
+            assert_eq!(
+                delegation1.amount + delegation2.amount,
+                gateways_read(&deps.storage)
+                    .load(identity.as_bytes())
+                    .unwrap()
+                    .total_delegation
+                    .amount
+            )
         }
 
         #[test]
@@ -2551,19 +2676,32 @@ pub mod tests {
             let gateway_owner = "bob";
             let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
 
+            let delegation1 = coin(123, DENOM);
+            let delegation2 = coin(234, DENOM);
+
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender1", &coins(123, DENOM)),
+                mock_info("sender1", &vec![delegation1.clone()]),
                 identity.clone()
             )
             .is_ok());
 
             assert!(try_delegate_to_gateway(
                 deps.as_mut(),
-                mock_info("sender2", &coins(123, DENOM)),
+                mock_info("sender2", &vec![delegation2.clone()]),
                 identity.clone()
             )
             .is_ok());
+
+            // node's "total_delegation" is sum of both
+            assert_eq!(
+                delegation1.amount + delegation2.amount,
+                gateways_read(&deps.storage)
+                    .load(identity.as_bytes())
+                    .unwrap()
+                    .total_delegation
+                    .amount
+            )
         }
 
         #[test]
@@ -2653,6 +2791,16 @@ pub mod tests {
                 .may_load(b"sender")
                 .unwrap()
                 .is_none());
+
+            // and total delegation is cleared
+            assert_eq!(
+                Uint128::zero(),
+                gateways_read(&deps.storage)
+                    .load(identity.as_bytes())
+                    .unwrap()
+                    .total_delegation
+                    .amount
+            )
         }
 
         #[test]
@@ -2693,6 +2841,48 @@ pub mod tests {
                 .may_load(b"sender")
                 .unwrap()
                 .is_none());
+        }
+
+        #[test]
+        fn total_delegation_is_preserved_if_only_some_undelegate() {
+            let mut deps = helpers::init_contract();
+            let gateway_owner = "bob";
+            let identity = add_gateway(gateway_owner, good_gateway_bond(), &mut deps);
+
+            let delegation1 = coin(123, DENOM);
+            let delegation2 = coin(234, DENOM);
+
+            assert!(try_delegate_to_gateway(
+                deps.as_mut(),
+                mock_info("sender1", &vec![delegation1.clone()]),
+                identity.clone()
+            )
+            .is_ok());
+
+            assert!(try_delegate_to_gateway(
+                deps.as_mut(),
+                mock_info("sender2", &vec![delegation2.clone()]),
+                identity.clone()
+            )
+            .is_ok());
+
+            // sender1 undelegates
+            try_remove_delegation_from_gateway(
+                deps.as_mut(),
+                mock_info("sender1", &[]),
+                identity.clone(),
+            )
+            .unwrap();
+
+            // but total delegation should still equal to what sender2 sent
+            // node's "total_delegation" is sum of both
+            assert_eq!(
+                delegation2,
+                gateways_read(&deps.storage)
+                    .load(identity.as_bytes())
+                    .unwrap()
+                    .total_delegation
+            )
         }
     }
 

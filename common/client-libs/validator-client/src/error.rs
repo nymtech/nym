@@ -12,6 +12,18 @@ pub enum ValidatorClientError {
     ValidatorError(String),
 }
 
+// this is the case of message like
+/*
+{
+  "code": 12,
+  "message": "Not Implemented",
+  "details": [
+  ]
+}
+ */
+// I didn't manage to find where it exactly originates, nor what the correct types should be
+// so all of those are some educated guesses
+
 #[derive(Error, Debug, Deserialize)]
 #[error("code: {code} - {message}")]
 pub(super) struct CodedError {

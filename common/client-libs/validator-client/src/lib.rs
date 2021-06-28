@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::ValidatorClientError;
+pub use crate::error::ValidatorClientError;
 use crate::models::{QueryRequest, QueryResponse};
 use mixnet_contract::{
     GatewayBond, IdentityKey, LayerDistribution, MixNodeBond, PagedGatewayResponse, PagedResponse,
@@ -14,6 +14,8 @@ use std::collections::VecDeque;
 mod error;
 mod models;
 pub(crate) mod serde_helpers;
+
+// Implement caching with a global hashmap that has two fields, queryresponse and as_at, there is a side process
 
 fn permute_validators(validators: VecDeque<String>) -> VecDeque<String> {
     // even in the best case scenario in the mainnet world, we're not going to have more than ~100 validators,

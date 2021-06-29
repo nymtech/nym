@@ -12,7 +12,7 @@ use cosmwasm_std::{coin, Addr};
 use mixnet_contract::{
     Delegation, GatewayBond, GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNodeBond,
     MixOwnershipResponse, PagedGatewayDelegationsResponse, PagedGatewayResponse,
-    PagedMixDelegationsResponse, PagedResponse,
+    PagedMixDelegationsResponse, PagedMixnodeResponse,
 };
 
 const BOND_PAGE_MAX_LIMIT: u32 = 100;
@@ -26,7 +26,7 @@ pub fn query_mixnodes_paged(
     deps: Deps,
     start_after: Option<IdentityKey>,
     limit: Option<u32>,
-) -> StdResult<PagedResponse> {
+) -> StdResult<PagedMixnodeResponse> {
     let limit = limit
         .unwrap_or(BOND_PAGE_DEFAULT_LIMIT)
         .min(BOND_PAGE_MAX_LIMIT) as usize;
@@ -40,7 +40,7 @@ pub fn query_mixnodes_paged(
 
     let start_next_after = nodes.last().map(|node| node.identity().clone());
 
-    Ok(PagedResponse::new(nodes, limit, start_next_after))
+    Ok(PagedMixnodeResponse::new(nodes, limit, start_next_after))
 }
 
 pub(crate) fn query_gateways_paged(

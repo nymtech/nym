@@ -7,7 +7,7 @@ pub mod helpers {
     use crate::msg::InstantiateMsg;
     use crate::msg::QueryMsg;
     use crate::transactions::{try_add_gateway, try_add_mixnode};
-    use cosmwasm_std::coins;
+    use cosmwasm_std::coin;
     use cosmwasm_std::from_binary;
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
@@ -20,7 +20,7 @@ pub mod helpers {
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::{Empty, MemoryStorage};
     use mixnet_contract::{
-        Gateway, GatewayBond, MixNode, MixNodeBond, PagedGatewayResponse, PagedResponse,
+        Gateway, GatewayBond, MixNode, MixNodeBond, PagedGatewayResponse, PagedMixnodeResponse,
     };
 
     pub fn add_mixnode(
@@ -55,7 +55,7 @@ pub mod helpers {
         )
         .unwrap();
 
-        let page: PagedResponse = from_binary(&result).unwrap();
+        let page: PagedMixnodeResponse = from_binary(&result).unwrap();
         page.nodes
     }
 
@@ -128,7 +128,7 @@ pub mod helpers {
             identity_key: "aaaa".to_string(),
             version: "0.10.0".to_string(),
         };
-        MixNodeBond::new(coins(50, DENOM), Addr::unchecked("foo"), mix_node)
+        MixNodeBond::new(coin(50, DENOM), Addr::unchecked("foo"), mix_node)
     }
 
     pub fn gateway_fixture() -> Gateway {
@@ -154,7 +154,7 @@ pub mod helpers {
             identity_key: "identity".to_string(),
             version: "0.10.0".to_string(),
         };
-        GatewayBond::new(coins(50, DENOM), Addr::unchecked("foo"), gateway)
+        GatewayBond::new(coin(50, DENOM), Addr::unchecked("foo"), gateway)
     }
 
     pub fn query_contract_balance(

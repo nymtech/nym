@@ -83,6 +83,7 @@ pub struct Node {
     // somebody correct me if I'm wrong, but we should only ever have a single denom of currency
     // on the network at a type, right?
     pub stake: u128,
+    pub delegation: u128,
     pub location: String,
     pub host: NetworkAddress,
     // we're keeping this as separate resolved field since we do not want to be resolving the potential
@@ -124,10 +125,6 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
     type Error = GatewayConversionError;
 
     fn try_from(bond: &'a GatewayBond) -> Result<Self, Self::Error> {
-        if bond.amount.len() > 1 {
-            return Err(GatewayConversionError::InvalidStake);
-        }
-
         let host: NetworkAddress = bond.gateway.host.parse().map_err(|err| {
             GatewayConversionError::InvalidAddress(bond.gateway.host.clone(), err)
         })?;
@@ -140,11 +137,8 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
 
         Ok(Node {
             owner: bond.owner.as_str().to_owned(),
-            stake: bond
-                .amount
-                .first()
-                .map(|stake| stake.amount.into())
-                .unwrap_or(0),
+            stake: bond.bond_amount.amount.into(),
+            delegation: bond.total_delegation.amount.into(),
             location: bond.gateway.location.clone(),
             host,
             mix_host,

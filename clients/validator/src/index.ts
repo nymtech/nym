@@ -598,7 +598,7 @@ export default class ValidatorClient {
 ///   which has just been deleted from the database.
 ///
 /// TODO: more robust error handling on the "deleted key" case.
-export type PagedResponse = {
+export type PagedMixnodeResponse = {
     nodes: MixNodeBond[],
     per_page: number, // TODO: camelCase
     start_next_after: string, // TODO: camelCase

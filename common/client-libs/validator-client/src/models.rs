@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::{CodedError, SmartQueryError};
 use crate::serde_helpers::{de_i64_from_str, de_paged_query_response_from_str};
-use core::fmt::{self, Display, Formatter};
 use mixnet_contract::IdentityKey;
 use serde::{Deserialize, Serialize};
 
@@ -42,40 +42,6 @@ where
     #[serde(deserialize_with = "de_i64_from_str")]
     pub(super) height: i64,
     pub(super) result: SmartQueryResult<T>,
-}
-
-#[derive(Deserialize, Debug)]
-pub(super) struct SmartQueryError {
-    pub(super) error: String,
-}
-
-// this is the case of message like
-/*
-{
-  "code": 12,
-  "message": "Not Implemented",
-  "details": [
-  ]
-}
- */
-// I didn't manage to find where it exactly originates, nor what the correct types should be
-// so all of those are some educated guesses
-#[derive(Deserialize, Debug)]
-pub(super) struct CodedError {
-    code: u32,
-    message: String,
-    details: Vec<(String, String)>,
-}
-
-impl Display for CodedError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "code: {} - {}", self.code, self.message)?;
-        // this is under assumption that details are indeed key value pairs which is a big IF
-        for detail in &self.details {
-            write!(f, " {:?}", detail)?
-        }
-        Ok(())
-    }
 }
 
 #[derive(Deserialize, Debug)]

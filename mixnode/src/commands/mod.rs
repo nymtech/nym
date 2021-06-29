@@ -3,7 +3,6 @@
 
 use crate::config::Config;
 use clap::ArgMatches;
-use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 
 pub(crate) mod describe;
 pub(crate) mod init;
@@ -13,7 +12,6 @@ pub(crate) mod upgrade;
 
 pub(crate) const ID_ARG_NAME: &str = "id";
 pub(crate) const HOST_ARG_NAME: &str = "host";
-pub(crate) const LAYER_ARG_NAME: &str = "layer";
 pub(crate) const MIX_PORT_ARG_NAME: &str = "mix-port";
 pub(crate) const VERLOC_PORT_ARG_NAME: &str = "verloc-port";
 pub(crate) const HTTP_API_PORT_ARG_NAME: &str = "http-api-port";
@@ -28,25 +26,10 @@ fn parse_validators(raw: &str) -> Vec<String> {
 }
 
 pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
-    let max_layer = DEFAULT_NUM_MIX_HOPS;
     let mut was_host_overridden = false;
     if let Some(host) = matches.value_of(HOST_ARG_NAME) {
         config = config.with_listening_address(host);
         was_host_overridden = true;
-    }
-
-    if let Some(layer) = matches
-        .value_of(LAYER_ARG_NAME)
-        .map(|layer| layer.parse::<u64>())
-    {
-        if let Err(err) = layer {
-            // if layer was overridden, it must be parsable
-            panic!("Invalid layer value provided - {:?}", err);
-        }
-        let layer = layer.unwrap();
-        if layer <= max_layer as u64 && layer > 0 {
-            config = config.with_layer(layer)
-        }
     }
 
     if let Some(port) = matches

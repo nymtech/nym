@@ -7,8 +7,6 @@ use crate::config::Config;
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
-use log::debug;
-use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 use tokio::runtime::Runtime;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
@@ -20,12 +18,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .help("Id of the nym-mixnode we want to create config for.")
                 .takes_value(true)
                 .required(true),
-        )
-        .arg(
-            Arg::with_name(LAYER_ARG_NAME)
-                .long(LAYER_ARG_NAME)
-                .help("The mixnet layer of this particular node")
-                .takes_value(true),
         )
         .arg(
             Arg::with_name(HOST_ARG_NAME)
@@ -72,47 +64,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
 }
 
-async fn choose_layer(
-    matches: &ArgMatches<'_>,
-    validator_servers: Vec<String>,
-    mixnet_contract: String,
-) -> u64 {
-    let max_layer = DEFAULT_NUM_MIX_HOPS;
-    if let Some(layer) = matches
-        .value_of(LAYER_ARG_NAME)
-        .map(|layer| layer.parse::<u64>())
-    {
-        if let Err(err) = layer {
-            // if layer was overridden, it must be parsable
-            panic!("Invalid layer value provided - {:?}", err);
-        }
-        let layer = layer.unwrap();
-        if layer <= max_layer as u64 && layer > 0 {
-            return layer;
-        }
-    }
-
-    let validator_client_config = validator_client::Config::new(validator_servers, mixnet_contract);
-    let mut validator_client = validator_client::Client::new(validator_client_config);
-
-    let layer_distribution = validator_client
-        .get_layer_distribution()
-        .await
-        .expect("failed to obtain layer distribution of the testnet!");
-
-    if layer_distribution.layer1 < layer_distribution.layer2
-        && layer_distribution.layer1 < layer_distribution.layer3
-    {
-        1
-    } else if layer_distribution.layer2 < layer_distribution.layer1
-        && layer_distribution.layer2 < layer_distribution.layer3
-    {
-        2
-    } else {
-        3
-    }
-}
-
 fn show_bonding_info(config: &Config) {
     fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
         let identity_keypair: identity::KeyPair =
@@ -144,14 +95,12 @@ fn show_bonding_info(config: &Config) {
     Sphinx key: {}
     Address: {}
     Mix port: {}
-    Layer: {}
     Version: {}
     ",
         identity_keypair.public_key().to_base58_string(),
         sphinx_keypair.public_key().to_base58_string(),
         config.get_announce_address(),
         config.get_mix_port(),
-        config.get_layer(),
         config.get_version(),
     );
 }
@@ -173,11 +122,6 @@ pub fn execute(matches: &ArgMatches) {
 
         let mut config = Config::new(id);
         config = override_config(config, matches);
-        let layer = choose_layer(matches, config.get_validator_rest_endpoints(), config.get_validator_mixnet_contract_address()).await;
-        // TODO: I really don't like how we override config and are presumably done with it
-        // only to change it here
-        config = config.with_layer(layer);
-        debug!("Choosing layer {}", config.get_layer());
 
         // if node was already initialised, don't generate new keys
         if !already_init {

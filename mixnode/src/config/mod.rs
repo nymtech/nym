@@ -170,7 +170,7 @@ impl Config {
         self
     }
 
-    pub fn with_layer(mut self, layer: u64) -> Self {
+    pub fn with_layer(mut self, layer: Option<u64>) -> Self {
         self.mixnode.layer = layer;
         self
     }
@@ -265,7 +265,7 @@ impl Config {
         self.debug.node_stats_updating_delay
     }
 
-    pub fn get_layer(&self) -> u64 {
+    pub fn get_layer(&self) -> Option<u64> {
         self.mixnode.layer
     }
 
@@ -360,7 +360,8 @@ pub struct MixNode {
     id: String,
 
     /// Layer of this particular mixnode determining its position in the network.
-    layer: u64,
+    /// Before getting the actual layer from the validators, this is marked as None.
+    layer: Option<u64>,
 
     /// Address to which this mixnode will bind to and will be listening for packets.
     #[serde(deserialize_with = "de_ipaddr_from_maybe_str_socks_addr")]
@@ -440,7 +441,7 @@ impl Default for MixNode {
         MixNode {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
-            layer: 0,
+            layer: None,
             listening_address: bind_all_address(),
             announce_address: "127.0.0.1".to_string(),
             mix_port: DEFAULT_MIX_LISTENING_PORT,

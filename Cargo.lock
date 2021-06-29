@@ -1799,31 +1799,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-network-monitor"
-version = "0.10.1"
-dependencies = [
- "clap",
- "crypto",
- "dotenv",
- "futures",
- "gateway-client",
- "gateway-requests",
- "log",
- "mixnet-contract",
- "nymsphinx",
- "pin-project",
- "pretty_env_logger",
- "rand 0.7.3",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "topology",
- "validator-client",
- "version-checker",
-]
-
-[[package]]
 name = "nym-network-requester"
 version = "0.10.1"
 dependencies = [
@@ -1868,6 +1843,31 @@ dependencies = [
  "serde",
  "snafu",
  "socks5-requests",
+ "tokio",
+ "topology",
+ "validator-client",
+ "version-checker",
+]
+
+[[package]]
+name = "nym-validator-api"
+version = "0.10.1"
+dependencies = [
+ "clap",
+ "crypto",
+ "dotenv",
+ "futures",
+ "gateway-client",
+ "gateway-requests",
+ "log",
+ "mixnet-contract",
+ "nymsphinx",
+ "pin-project",
+ "pretty_env_logger",
+ "rand 0.7.3",
+ "reqwest",
+ "serde",
+ "serde_json",
  "tokio",
  "topology",
  "validator-client",

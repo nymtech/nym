@@ -1,6 +1,7 @@
 use crate::contract::DENOM;
 use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
+use crate::queries;
 use crate::state::StateParams;
 use crate::storage::*;
 use cosmwasm_std::{
@@ -82,7 +83,7 @@ fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), Con
 pub(crate) fn try_add_mixnode(
     deps: DepsMut,
     info: MessageInfo,
-    mix_node: MixNode,
+    mut mix_node: MixNode,
 ) -> Result<Response, ContractError> {
     let sender_bytes = info.sender.as_bytes();
 
@@ -116,6 +117,20 @@ pub(crate) fn try_add_mixnode(
 
     let minimum_bond = read_state_params(deps.storage).minimum_mixnode_bond;
     validate_mixnode_bond(&info.funds, minimum_bond)?;
+
+    let layer_distribution = queries::query_layer_distribution(deps.as_ref());
+    let layers = [
+        layer_distribution.layer1,
+        layer_distribution.layer2,
+        layer_distribution.layer3,
+    ];
+    let best_layer = layers.iter().enumerate().min_by_key(|x| x.1).unwrap().0 + 1;
+    if mix_node.layer == 0
+        || mix_node.layer > layers.len() as u64
+        || layers[best_layer - 1] < layers[mix_node.layer as usize - 1]
+    {
+        mix_node.layer = best_layer as u64;
+    }
 
     let mut bond = MixNodeBond::new(info.funds[0].clone(), info.sender.clone(), mix_node);
 

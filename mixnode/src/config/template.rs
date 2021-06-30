@@ -18,10 +18,10 @@ version = '{{ mixnode.version }}'
     
 # Human readable ID of this particular mixnode.
 id = '{{ mixnode.id }}'
-   
+{{#if mixnode.layer}}
 # Layer of this particular mixnode determining its position in the network.
 layer = {{ mixnode.layer }}
-
+{{/if}}
 # Socket address to which this mixnode will bind to and will be listening for packets.
 listening_address = '{{ mixnode.listening_address }}'
 

@@ -381,6 +381,32 @@ fn patch_0_10_2_upgrade(
     Ok(upgraded_config)
 }
 
+fn patch_0_10_3_upgrade(
+    config: Config,
+    _matches: &ArgMatches,
+    config_version: &Version,
+    package_version: &Version,
+) -> Result<Config, UpgradeError> {
+    let to_version = package_version;
+
+    print_start_upgrade(&config_version, &to_version);
+
+    let upgraded_config = config
+        .with_custom_version(to_version.to_string().as_ref())
+        .with_layer(None);
+
+    upgraded_config.save_to_file(None).map_err(|err| {
+        (
+            to_version.clone(),
+            format!("failed to overwrite config file! - {:?}", err),
+        )
+    })?;
+
+    print_successful_upgrade(config_version, to_version);
+
+    Ok(upgraded_config)
+}
+
 fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version) {
     loop {
         let config_version = parse_config_version(&config);
@@ -396,6 +422,7 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
                 10 => match config_version.patch {
                     0 => patch_0_10_1_upgrade(config, matches, &config_version, &package_version),
                     1 => patch_0_10_2_upgrade(config, matches, &config_version, &package_version),
+                    2 => patch_0_10_3_upgrade(config, matches, &config_version, &package_version),
                     _ => undetermined_version_upgrade(
                         config,
                         matches,

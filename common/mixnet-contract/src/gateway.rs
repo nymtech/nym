@@ -2,7 +2,7 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use crate::{IdentityKey, SphinxKey};
-use cosmwasm_std::{Addr, Coin};
+use cosmwasm_std::{coin, Addr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -21,15 +21,17 @@ pub struct Gateway {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct GatewayBond {
-    pub amount: Vec<Coin>,
+    pub bond_amount: Coin,
+    pub total_delegation: Coin,
     pub owner: Addr,
     pub gateway: Gateway,
 }
 
 impl GatewayBond {
-    pub fn new(amount: Vec<Coin>, owner: Addr, gateway: Gateway) -> Self {
+    pub fn new(bond_amount: Coin, owner: Addr, gateway: Gateway) -> Self {
         GatewayBond {
-            amount,
+            total_delegation: coin(0, &bond_amount.denom),
+            bond_amount,
             owner,
             gateway,
         }
@@ -39,8 +41,8 @@ impl GatewayBond {
         &self.gateway.identity_key
     }
 
-    pub fn amount(&self) -> &[Coin] {
-        &self.amount
+    pub fn bond_amount(&self) -> Coin {
+        self.bond_amount.clone()
     }
 
     pub fn owner(&self) -> &Addr {
@@ -54,15 +56,11 @@ impl GatewayBond {
 
 impl Display for GatewayBond {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if self.amount.len() != 1 {
-            write!(f, "amount: {:?}, owner: {}", self.amount, self.owner)
-        } else {
-            write!(
-                f,
-                "amount: {} {}, owner: {}",
-                self.amount[0].amount, self.amount[0].denom, self.owner
-            )
-        }
+        write!(
+            f,
+            "amount: {} {}, owner: {}, identity: {}",
+            self.bond_amount.amount, self.bond_amount.denom, self.owner, self.gateway.identity_key
+        )
     }
 }
 

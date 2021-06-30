@@ -178,7 +178,7 @@ pub mod tests {
     use crate::support::tests::helpers::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
-    use mixnet_contract::PagedResponse;
+    use mixnet_contract::PagedMixnodeResponse;
 
     #[test]
     fn initialize_contract() {
@@ -200,7 +200,7 @@ pub mod tests {
             },
         )
         .unwrap();
-        let page: PagedResponse = from_binary(&res).unwrap();
+        let page: PagedMixnodeResponse = from_binary(&res).unwrap();
         assert_eq!(0, page.nodes.len()); // there are no mixnodes in the list when it's just been initialized
 
         // Contract balance should match what we initialized it as

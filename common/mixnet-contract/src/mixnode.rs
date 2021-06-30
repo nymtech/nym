@@ -2,7 +2,7 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use crate::{IdentityKey, SphinxKey};
-use cosmwasm_std::{Addr, Coin};
+use cosmwasm_std::{coin, Addr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -22,27 +22,17 @@ pub struct MixNode {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
-    // TODO:
-    // JS: When we go onto the next testnet and we have to make incompatible changes in the contract (such as upgrade to cosmwasm 0.14+)
-    // I'd change `amount` from `Vec<Coin>` to just `Coin` (or maybe even `Uint128` since denomination is implicit)
-    // I would also put here field like `total_delegation` which would also be a `Coin` or `Uint128` that
-    // indicates the sum of all delegations towards this node
-    //
-    // I would also modify the `MixNode` struct:
-    //  - remove `location` field
-    //  - introduce `rest_api_port` field
-    //  - [POTENTIALLY] introduce `verloc_port` field or keep it accessible via http api
-    //
-    // I would also introduce the identical changes to GatewayBond
-    pub amount: Vec<Coin>,
+    pub bond_amount: Coin,
+    pub total_delegation: Coin,
     pub owner: Addr,
     pub mix_node: MixNode,
 }
 
 impl MixNodeBond {
-    pub fn new(amount: Vec<Coin>, owner: Addr, mix_node: MixNode) -> Self {
+    pub fn new(bond_amount: Coin, owner: Addr, mix_node: MixNode) -> Self {
         MixNodeBond {
-            amount,
+            total_delegation: coin(0, &bond_amount.denom),
+            bond_amount,
             owner,
             mix_node,
         }
@@ -52,8 +42,8 @@ impl MixNodeBond {
         &self.mix_node.identity_key
     }
 
-    pub fn amount(&self) -> &[Coin] {
-        &self.amount
+    pub fn bond_amount(&self) -> Coin {
+        self.bond_amount.clone()
     }
 
     pub fn owner(&self) -> &Addr {
@@ -67,36 +57,28 @@ impl MixNodeBond {
 
 impl Display for MixNodeBond {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        // Write strictly the first element into the supplied output
-        // stream: `f`. Returns `fmt::Result` which indicates whether the
-        // operation succeeded or failed. Note that `write!` uses syntax which
-        // is very similar to `println!`.
-        if self.amount.len() != 1 {
-            write!(f, "amount: {:?}, owner: {}", self.amount, self.owner)
-        } else {
-            write!(
-                f,
-                "amount: {} {}, owner: {}",
-                self.amount[0].amount, self.amount[0].denom, self.owner
-            )
-        }
+        write!(
+            f,
+            "amount: {} {}, owner: {}, identity: {}",
+            self.bond_amount.amount, self.bond_amount.denom, self.owner, self.mix_node.identity_key
+        )
     }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct PagedResponse {
+pub struct PagedMixnodeResponse {
     pub nodes: Vec<MixNodeBond>,
     pub per_page: usize,
     pub start_next_after: Option<IdentityKey>,
 }
 
-impl PagedResponse {
+impl PagedMixnodeResponse {
     pub fn new(
         nodes: Vec<MixNodeBond>,
         per_page: usize,
         start_next_after: Option<IdentityKey>,
     ) -> Self {
-        PagedResponse {
+        PagedMixnodeResponse {
             nodes,
             per_page,
             start_next_after,

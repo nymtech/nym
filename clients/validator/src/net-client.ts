@@ -4,7 +4,7 @@ import {
     GatewayOwnershipResponse,
     MixOwnershipResponse, PagedGatewayDelegationsResponse,
     PagedGatewayResponse, PagedMixDelegationsResponse,
-    PagedResponse,
+    PagedMixnodeResponse,
     StateParams
 } from "./index";
 import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
@@ -17,7 +17,7 @@ export interface INetClient {
     clientAddress: string;
 
     getBalance(address: string, stakeDenom: string): Promise<Coin | null>;
-    getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedResponse>;
+    getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedMixnodeResponse>;
     getGateways(contractAddress: string, limit: number, start_after?: string): Promise<PagedGatewayResponse>;
     getMixDelegations(contractAddress: string, mixIdentity: string, limit: number, start_after?: string): Promise<PagedMixDelegationsResponse>
     getMixDelegation(contractAddress: string, mixIdentity: string, delegatorAddress: string): Promise<Delegation>
@@ -71,7 +71,7 @@ export default class NetClient implements INetClient {
         this.cosmClient = await SigningCosmWasmClient.connectWithSigner(url, this.wallet, this.signerOptions);
     }
 
-    public getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedResponse> {
+    public getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedMixnodeResponse> {
         if (start_after == undefined) { // TODO: check if we can take this out, I'm not sure what will happen if we send an "undefined" so I'm playing it safe here.
             return this.cosmClient.queryContractSmart(contractAddress, { get_mix_nodes: { limit } });
         } else {

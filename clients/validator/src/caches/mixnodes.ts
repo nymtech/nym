@@ -1,7 +1,7 @@
 import { MixNodeBond } from "../types";
 import { INetClient } from "../net-client"
 import {IQueryClient} from "../query-client";
-import {PagedResponse} from "../index";
+import {PagedMixnodeResponse} from "../index";
 
 export { MixnodesCache };
 
@@ -27,7 +27,7 @@ export default class MixnodesCache {
     // returns true. 
     async refreshMixNodes(contractAddress: string): Promise<MixNodeBond[]> {
         let newMixnodes: MixNodeBond[] = [];
-        let response: PagedResponse;
+        let response: PagedMixnodeResponse;
         let next: string | undefined = undefined;
         for (;;) {
             response = await this.client.getMixNodes(contractAddress, this.perPage, next);

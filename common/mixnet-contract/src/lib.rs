@@ -7,7 +7,7 @@ mod mixnode;
 pub use cosmwasm_std::{Addr, Coin};
 pub use delegation::{Delegation, PagedGatewayDelegationsResponse, PagedMixDelegationsResponse};
 pub use gateway::{Gateway, GatewayBond, GatewayOwnershipResponse, PagedGatewayResponse};
-pub use mixnode::{MixNode, MixNodeBond, MixOwnershipResponse, PagedResponse};
+pub use mixnode::{MixNode, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse};
 
 #[derive(Debug, Default, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
 pub struct LayerDistribution {

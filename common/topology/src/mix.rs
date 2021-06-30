@@ -83,6 +83,7 @@ pub struct Node {
     // somebody correct me if I'm wrong, but we should only ever have a single denom of currency
     // on the network at a type, right?
     pub stake: u128,
+    pub delegation: u128,
     pub host: NetworkAddress,
     // we're keeping this as separate resolved field since we do not want to be resolving the potential
     // hostname every time we want to construct a path via this node
@@ -113,10 +114,6 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
     type Error = MixnodeConversionError;
 
     fn try_from(bond: &'a MixNodeBond) -> Result<Self, Self::Error> {
-        if bond.amount.len() > 1 {
-            return Err(MixnodeConversionError::InvalidStake);
-        }
-
         let host: NetworkAddress = bond.mix_node.host.parse().map_err(|err| {
             MixnodeConversionError::InvalidAddress(bond.mix_node.host.clone(), err)
         })?;
@@ -131,11 +128,8 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
 
         Ok(Node {
             owner: bond.owner.as_str().to_owned(),
-            stake: bond
-                .amount
-                .first()
-                .map(|stake| stake.amount.into())
-                .unwrap_or(0),
+            stake: bond.bond_amount.amount.into(),
+            delegation: bond.total_delegation.amount.into(),
             host,
             mix_host,
             identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,

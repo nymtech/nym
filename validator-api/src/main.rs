@@ -4,8 +4,8 @@
 #[macro_use]
 extern crate rocket;
 
-use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use rocket::http::Method;
+use rocket_cors::{AllowedHeaders, AllowedOrigins};
 
 use crate::monitor::preparer::PacketPreparer;
 use crate::monitor::processor::{
@@ -18,6 +18,7 @@ use crate::monitor::sender::PacketSender;
 use crate::monitor::summary_producer::SummaryProducer;
 use crate::tested_network::good_topology::parse_topology_file;
 use crate::tested_network::TestedNetwork;
+use anyhow::Result;
 use clap::{App, Arg, ArgMatches};
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
@@ -255,7 +256,7 @@ fn hello() -> &'static str {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     info!("Network monitor starting...");
     let matches = parse_args();
     let v4_topology_path = matches.value_of(V4_TOPOLOGY_ARG).unwrap();
@@ -377,11 +378,15 @@ async fn main() {
         allow_credentials: true,
         ..Default::default()
     }
-    .to_cors().unwrap();
+    .to_cors()?;
 
     rocket::build()
         .attach(cors)
         .mount("/", routes![hello])
-        .ignite().await.unwrap()        
-        .launch().await.unwrap()
-    }
+        .ignite()
+        .await?
+        .launch()
+        .await?;
+
+    Ok(())
+}

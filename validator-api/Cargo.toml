@@ -23,6 +23,7 @@ serde = "1.0"
 serde_json = "1.0"
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros", "signal", "time"] }
 rocket_cors = { git = "https://github.com/lawliet89/rocket_cors", branch = "master" }
+anyhow = "1"
 
 
 ## internal

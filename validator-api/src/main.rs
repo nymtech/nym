@@ -1,6 +1,12 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[macro_use]
+extern crate rocket;
+
+use rocket_cors::{AllowedHeaders, AllowedOrigins};
+use rocket::http::Method;
+
 use crate::monitor::preparer::PacketPreparer;
 use crate::monitor::processor::{
     ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,
@@ -15,7 +21,6 @@ use crate::tested_network::TestedNetwork;
 use clap::{App, Arg, ArgMatches};
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
-use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use std::sync::Arc;
 use std::time::Duration;
@@ -100,117 +105,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             .short("r")
         )
         .get_matches()
-}
-
-#[tokio::main]
-async fn main() {
-    println!("Network monitor starting...");
-    let matches = parse_args();
-    let v4_topology_path = matches.value_of(V4_TOPOLOGY_ARG).unwrap();
-    let v6_topology_path = matches.value_of(V6_TOPOLOGY_ARG).unwrap();
-
-    let v4_topology = parse_topology_file(v4_topology_path);
-    let v6_topology = parse_topology_file(v6_topology_path);
-
-    let validators_rest_uris_borrowed = matches
-        .values_of(VALIDATORS_ARG)
-        .map(|args| args.collect::<Vec<_>>())
-        .unwrap_or_else(|| DEFAULT_VALIDATORS.to_vec());
-
-    let validators_rest_uris = validators_rest_uris_borrowed
-        .into_iter()
-        .map(|uri| uri.to_string())
-        .collect::<Vec<_>>();
-
-    let node_status_api_uri = matches
-        .value_of(NODE_STATUS_API_ARG)
-        .unwrap_or(DEFAULT_NODE_STATUS_API);
-
-    let mixnet_contract = matches
-        .value_of(MIXNET_CONTRACT_ARG)
-        .unwrap_or(DEFAULT_MIXNET_CONTRACT);
-
-    let detailed_report = matches.is_present(DETAILED_REPORT_ARG);
-    let sending_rate = matches
-        .value_of(GATEWAY_SENDING_RATE_ARG)
-        .map(|v| v.parse().unwrap())
-        .unwrap_or_else(|| DEFAULT_GATEWAY_SENDING_RATE);
-
-    check_if_up_to_date(&v4_topology, &v6_topology);
-    setup_logging();
-
-    println!("* validator servers: {:?}", validators_rest_uris);
-    println!("* node status api server: {}", node_status_api_uri);
-    println!("* mixnet contract: {}", mixnet_contract);
-    println!("* detailed report printing: {}", detailed_report);
-    println!("* gateway sending rate: {} packets/s", sending_rate);
-
-    // TODO: in the future I guess this should somehow change to distribute the load
-    let tested_mix_gateway = v4_topology.gateways()[0].clone();
-    println!(
-        "* gateway for testing mixnodes: {}",
-        tested_mix_gateway.identity_key.to_base58_string()
-    );
-
-    // TODO: those keys change constant throughout the whole execution of the monitor.
-    // and on top of that, they are used with ALL the gateways -> presumably this should change
-    // in the future
-    let mut rng = rand::rngs::OsRng;
-
-    let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
-    let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
-
-    let test_mixnode_sender = Recipient::new(
-        *identity_keypair.public_key(),
-        *encryption_keypair.public_key(),
-        tested_mix_gateway.identity_key,
-    );
-
-    let tested_network = TestedNetwork::new_good(v4_topology, v6_topology);
-    let validator_client = new_validator_client(validators_rest_uris, mixnet_contract);
-    let node_status_api_client = new_node_status_api_client(node_status_api_uri);
-
-    let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
-    let (received_processor_sender_channel, received_processor_receiver_channel) =
-        mpsc::unbounded();
-
-    let packet_preparer = new_packet_preparer(
-        validator_client,
-        tested_network.clone(),
-        test_mixnode_sender,
-        *identity_keypair.public_key(),
-        *encryption_keypair.public_key(),
-    );
-
-    let packet_sender = new_packet_sender(
-        gateway_status_update_sender,
-        Arc::clone(&identity_keypair),
-        sending_rate,
-    );
-    let received_processor = new_received_processor(
-        received_processor_receiver_channel,
-        Arc::clone(&encryption_keypair),
-    );
-    let summary_producer = new_summary_producer(detailed_report);
-    let mut packet_receiver = new_packet_receiver(
-        gateway_status_update_receiver,
-        received_processor_sender_channel,
-    );
-
-    let mut monitor = monitor::Monitor::new(
-        packet_preparer,
-        packet_sender,
-        received_processor,
-        summary_producer,
-        node_status_api_client,
-        tested_network,
-    );
-
-    tokio::spawn(async move { packet_receiver.run().await });
-
-    tokio::spawn(async move { monitor.run().await });
-
-    wait_for_interrupt().await
 }
 
 async fn wait_for_interrupt() {
@@ -354,3 +248,140 @@ fn check_if_up_to_date(v4_topology: &NymTopology, v6_topology: &NymTopology) {
         }
     }
 }
+
+#[get("/")]
+fn hello() -> &'static str {
+    "Hello, world!"
+}
+
+#[tokio::main]
+async fn main() {
+    info!("Network monitor starting...");
+    let matches = parse_args();
+    let v4_topology_path = matches.value_of(V4_TOPOLOGY_ARG).unwrap();
+    let v6_topology_path = matches.value_of(V6_TOPOLOGY_ARG).unwrap();
+
+    let v4_topology = parse_topology_file(v4_topology_path);
+    let v6_topology = parse_topology_file(v6_topology_path);
+
+    let validators_rest_uris_borrowed = matches
+        .values_of(VALIDATORS_ARG)
+        .map(|args| args.collect::<Vec<_>>())
+        .unwrap_or_else(|| DEFAULT_VALIDATORS.to_vec());
+
+    let validators_rest_uris = validators_rest_uris_borrowed
+        .into_iter()
+        .map(|uri| uri.to_string())
+        .collect::<Vec<_>>();
+
+    let node_status_api_uri = matches
+        .value_of(NODE_STATUS_API_ARG)
+        .unwrap_or(DEFAULT_NODE_STATUS_API);
+
+    let mixnet_contract = matches
+        .value_of(MIXNET_CONTRACT_ARG)
+        .unwrap_or(DEFAULT_MIXNET_CONTRACT);
+
+    let detailed_report = matches.is_present(DETAILED_REPORT_ARG);
+    let sending_rate = matches
+        .value_of(GATEWAY_SENDING_RATE_ARG)
+        .map(|v| v.parse().unwrap())
+        .unwrap_or_else(|| DEFAULT_GATEWAY_SENDING_RATE);
+
+    check_if_up_to_date(&v4_topology, &v6_topology);
+    setup_logging();
+
+    info!("* validator servers: {:?}", validators_rest_uris);
+    info!("* node status api server: {}", node_status_api_uri);
+    info!("* mixnet contract: {}", mixnet_contract);
+    info!("* detailed report printing: {}", detailed_report);
+    info!("* gateway sending rate: {} packets/s", sending_rate);
+
+    // TODO: in the future I guess this should somehow change to distribute the load
+    let tested_mix_gateway = v4_topology.gateways()[0].clone();
+    info!(
+        "* gateway for testing mixnodes: {}",
+        tested_mix_gateway.identity_key.to_base58_string()
+    );
+
+    // TODO: those keys change constant throughout the whole execution of the monitor.
+    // and on top of that, they are used with ALL the gateways -> presumably this should change
+    // in the future
+    let mut rng = rand::rngs::OsRng;
+
+    let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
+    let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
+
+    let test_mixnode_sender = Recipient::new(
+        *identity_keypair.public_key(),
+        *encryption_keypair.public_key(),
+        tested_mix_gateway.identity_key,
+    );
+
+    let tested_network = TestedNetwork::new_good(v4_topology, v6_topology);
+    let validator_client = new_validator_client(validators_rest_uris, mixnet_contract);
+    let node_status_api_client = new_node_status_api_client(node_status_api_uri);
+
+    let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
+    let (received_processor_sender_channel, received_processor_receiver_channel) =
+        mpsc::unbounded();
+
+    let packet_preparer = new_packet_preparer(
+        validator_client,
+        tested_network.clone(),
+        test_mixnode_sender,
+        *identity_keypair.public_key(),
+        *encryption_keypair.public_key(),
+    );
+
+    let packet_sender = new_packet_sender(
+        gateway_status_update_sender,
+        Arc::clone(&identity_keypair),
+        sending_rate,
+    );
+    let received_processor = new_received_processor(
+        received_processor_receiver_channel,
+        Arc::clone(&encryption_keypair),
+    );
+    let summary_producer = new_summary_producer(detailed_report);
+    let mut packet_receiver = new_packet_receiver(
+        gateway_status_update_receiver,
+        received_processor_sender_channel,
+    );
+
+    let mut monitor = monitor::Monitor::new(
+        packet_preparer,
+        packet_sender,
+        received_processor,
+        summary_producer,
+        node_status_api_client,
+        tested_network,
+    );
+
+    tokio::spawn(async move { packet_receiver.run().await });
+
+    tokio::spawn(async move { monitor.run().await });
+
+    // wait_for_interrupt().await
+
+    let allowed_origins = AllowedOrigins::all();
+
+    // You can also deserialize this
+    let cors = rocket_cors::CorsOptions {
+        allowed_origins,
+        allowed_methods: vec![Method::Post, Method::Get]
+            .into_iter()
+            .map(From::from)
+            .collect(),
+        allowed_headers: AllowedHeaders::all(),
+        allow_credentials: true,
+        ..Default::default()
+    }
+    .to_cors().unwrap();
+
+    rocket::build()
+        .attach(cors)
+        .mount("/", routes![hello])
+        .ignite().await.unwrap()        
+        .launch().await.unwrap()
+    }

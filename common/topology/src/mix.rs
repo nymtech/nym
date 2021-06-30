@@ -134,7 +134,7 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
             mix_host,
             identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,
             sphinx_key: encryption::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)?,
-            layer: bond.mix_node.layer,
+            layer: bond.layer,
             version: bond.mix_node.version.clone(),
         })
     }

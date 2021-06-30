@@ -239,7 +239,7 @@ pub fn nym_topology_from_bonds(
 ) -> NymTopology {
     let mut mixes = HashMap::new();
     for bond in mix_bonds.into_iter() {
-        let layer = bond.mix_node.layer as MixLayer;
+        let layer = bond.layer as MixLayer;
         if layer == 0 || layer > 3 {
             warn!(
                 "{} says it's on invalid layer {}!",

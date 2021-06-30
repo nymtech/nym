@@ -13,7 +13,6 @@ pub struct MixNode {
     pub mix_port: u16,
     pub verloc_port: u16,
     pub http_api_port: u16,
-    pub layer: u64,
     pub sphinx_key: SphinxKey,
     /// Base58 encoded ed25519 EdDSA public key.
     pub identity_key: IdentityKey,
@@ -25,15 +24,17 @@ pub struct MixNodeBond {
     pub bond_amount: Coin,
     pub total_delegation: Coin,
     pub owner: Addr,
+    pub layer: u64,
     pub mix_node: MixNode,
 }
 
 impl MixNodeBond {
-    pub fn new(bond_amount: Coin, owner: Addr, mix_node: MixNode) -> Self {
+    pub fn new(bond_amount: Coin, owner: Addr, layer: u64, mix_node: MixNode) -> Self {
         MixNodeBond {
             total_delegation: coin(0, &bond_amount.denom),
             bond_amount,
             owner,
+            layer,
             mix_node,
         }
     }

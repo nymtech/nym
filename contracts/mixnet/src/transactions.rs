@@ -83,7 +83,7 @@ fn validate_mixnode_bond(bond: &[Coin], minimum_bond: Uint128) -> Result<(), Con
 pub(crate) fn try_add_mixnode(
     deps: DepsMut,
     info: MessageInfo,
-    mut mix_node: MixNode,
+    mix_node: MixNode,
 ) -> Result<Response, ContractError> {
     let sender_bytes = info.sender.as_bytes();
 
@@ -124,15 +124,9 @@ pub(crate) fn try_add_mixnode(
         layer_distribution.layer2,
         layer_distribution.layer3,
     ];
-    let best_layer = layers.iter().enumerate().min_by_key(|x| x.1).unwrap().0 + 1;
-    if mix_node.layer == 0
-        || mix_node.layer > layers.len() as u64
-        || layers[best_layer - 1] < layers[mix_node.layer as usize - 1]
-    {
-        mix_node.layer = best_layer as u64;
-    }
+    let layer = (layers.iter().enumerate().min_by_key(|x| x.1).unwrap().0 + 1) as u64;
 
-    let mut bond = MixNodeBond::new(info.funds[0].clone(), info.sender.clone(), mix_node);
+    let mut bond = MixNodeBond::new(info.funds[0].clone(), info.sender.clone(), layer, mix_node);
 
     // this might potentially require more gas if a significant number of delegations was there
     let delegations_bucket = mix_delegations_read(deps.storage, &bond.mix_node.identity_key);
@@ -143,7 +137,7 @@ pub(crate) fn try_add_mixnode(
 
     mixnodes(deps.storage).save(identity.as_bytes(), &bond)?;
     mixnodes_owners(deps.storage).save(sender_bytes, identity)?;
-    increment_layer_count(deps.storage, bond.mix_node.layer.into())?;
+    increment_layer_count(deps.storage, bond.layer.into())?;
 
     let attributes = vec![attr("overwritten", was_present)];
     Ok(Response {
@@ -181,7 +175,7 @@ pub(crate) fn try_remove_mixnode(
     // remove the node ownership
     mixnodes_owners(deps.storage).remove(sender_bytes);
     // decrement layer count
-    decrement_layer_count(deps.storage, mixnode_bond.mix_node.layer.into())?;
+    decrement_layer_count(deps.storage, mixnode_bond.layer.into())?;
 
     // log our actions
     let attributes = vec![attr("action", "unbond"), attr("mixnode_bond", mixnode_bond)];
@@ -988,7 +982,6 @@ pub mod tests {
         let msg = ExecuteMsg::BondMixnode {
             mix_node: MixNode {
                 identity_key: "mix1".to_string(),
-                layer: 1,
                 ..helpers::mix_node_fixture()
             },
         };
@@ -1678,6 +1671,7 @@ pub mod tests {
             bond_amount: coin(initial_bond, DENOM),
             total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
+            layer: 1,
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
@@ -3121,7 +3115,7 @@ pub mod tests {
     }
 
     #[test]
-    fn choose_layer_no_preference() {
+    fn choose_layer_mix_node() {
         let mut deps = helpers::init_contract();
         for owner in ["alice", "bob"] {
             try_add_mixnode(
@@ -3129,90 +3123,17 @@ pub mod tests {
                 mock_info(owner, &good_mixnode_bond()),
                 MixNode {
                     identity_key: owner.to_string(),
-                    layer: 0, // No preference on the layer
                     ..helpers::mix_node_fixture()
                 },
             )
             .unwrap();
         }
         let bonded_mix_nodes = helpers::get_mix_nodes(&mut deps);
-        let alice_node = bonded_mix_nodes.get(0).unwrap().clone().mix_node;
-        let bob_node = bonded_mix_nodes.get(1).unwrap().clone().mix_node;
-        assert_eq!(alice_node.identity_key, "alice");
+        let alice_node = bonded_mix_nodes.get(0).unwrap().clone();
+        let bob_node = bonded_mix_nodes.get(1).unwrap().clone();
+        assert_eq!(alice_node.mix_node.identity_key, "alice");
         assert_eq!(alice_node.layer, 1);
-        assert_eq!(bob_node.identity_key, "bob");
-        assert_eq!(bob_node.layer, 2);
-    }
-
-    #[test]
-    fn choose_layer_with_preference() {
-        let mut deps = helpers::init_contract();
-        for (owner, prefered_layer) in [("alice", 2), ("bob", 1)] {
-            try_add_mixnode(
-                deps.as_mut(),
-                mock_info(owner, &good_mixnode_bond()),
-                MixNode {
-                    identity_key: owner.to_string(),
-                    layer: prefered_layer,
-                    ..helpers::mix_node_fixture()
-                },
-            )
-            .unwrap();
-        }
-        let bonded_mix_nodes = helpers::get_mix_nodes(&mut deps);
-        let alice_node = bonded_mix_nodes.get(0).unwrap().clone().mix_node;
-        let bob_node = bonded_mix_nodes.get(1).unwrap().clone().mix_node;
-        assert_eq!(alice_node.identity_key, "alice");
-        assert_eq!(alice_node.layer, 2);
-        assert_eq!(bob_node.identity_key, "bob");
-        assert_eq!(bob_node.layer, 1);
-    }
-
-    #[test]
-    fn choose_layer_unaccepted_preference() {
-        let mut deps = helpers::init_contract();
-        for (owner, prefered_layer) in [("alice", 2), ("bob", 2)] {
-            try_add_mixnode(
-                deps.as_mut(),
-                mock_info(owner, &good_mixnode_bond()),
-                MixNode {
-                    identity_key: owner.to_string(),
-                    layer: prefered_layer,
-                    ..helpers::mix_node_fixture()
-                },
-            )
-            .unwrap();
-        }
-        let bonded_mix_nodes = helpers::get_mix_nodes(&mut deps);
-        let alice_node = bonded_mix_nodes.get(0).unwrap().clone().mix_node;
-        let bob_node = bonded_mix_nodes.get(1).unwrap().clone().mix_node;
-        assert_eq!(alice_node.identity_key, "alice");
-        assert_eq!(alice_node.layer, 2);
-        assert_eq!(bob_node.identity_key, "bob");
-        assert_eq!(bob_node.layer, 1);
-    }
-
-    #[test]
-    fn choose_layer_wrong_preference() {
-        let mut deps = helpers::init_contract();
-        for (owner, prefered_layer) in [("alice", 4), ("bob", 100)] {
-            try_add_mixnode(
-                deps.as_mut(),
-                mock_info(owner, &good_mixnode_bond()),
-                MixNode {
-                    identity_key: owner.to_string(),
-                    layer: prefered_layer,
-                    ..helpers::mix_node_fixture()
-                },
-            )
-            .unwrap();
-        }
-        let bonded_mix_nodes = helpers::get_mix_nodes(&mut deps);
-        let alice_node = bonded_mix_nodes.get(0).unwrap().clone().mix_node;
-        let bob_node = bonded_mix_nodes.get(1).unwrap().clone().mix_node;
-        assert_eq!(alice_node.identity_key, "alice");
-        assert_eq!(alice_node.layer, 1);
-        assert_eq!(bob_node.identity_key, "bob");
+        assert_eq!(bob_node.mix_node.identity_key, "bob");
         assert_eq!(bob_node.layer, 2);
     }
 }

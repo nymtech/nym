@@ -110,7 +110,6 @@ pub mod helpers {
             mix_port: 1789,
             verloc_port: 1790,
             http_api_port: 8000,
-            layer: 1,
             sphinx_key: "sphinx".to_string(),
             identity_key: "identity".to_string(),
             version: "0.10.0".to_string(),
@@ -123,12 +122,11 @@ pub mod helpers {
             mix_port: 1789,
             verloc_port: 1790,
             http_api_port: 8000,
-            layer: 1,
             sphinx_key: "1234".to_string(),
             identity_key: "aaaa".to_string(),
             version: "0.10.0".to_string(),
         };
-        MixNodeBond::new(coin(50, DENOM), Addr::unchecked("foo"), mix_node)
+        MixNodeBond::new(coin(50, DENOM), Addr::unchecked("foo"), 1, mix_node)
     }
 
     pub fn gateway_fixture() -> Gateway {

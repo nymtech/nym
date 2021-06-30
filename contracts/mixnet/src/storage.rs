@@ -382,6 +382,7 @@ mod tests {
             bond_amount: coin(bond_value, DENOM),
             total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
+            layer: 1,
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()

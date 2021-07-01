@@ -5,6 +5,7 @@ use validator_client::Client;
 
 pub struct MixNodeCache {
     value: Vec<MixNodeBond>,
+    #[allow(dead_code)]
     as_at: Instant,
     validator_client: Client,
 }

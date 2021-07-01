@@ -277,8 +277,46 @@ fn undetermined_version_upgrade(
     //     Version::new(0, 11, 0)
     // };
     let to_version = package_version;
+    let id = config.get_id();
+    let config_path = Config::default_config_directory(&id);
+
+    #[derive(Deserialize)]
+    struct OldNodeDescription {
+        name: String,
+        description: String,
+        link: String,
+    }
 
     print_start_upgrade(&config_version, &to_version);
+
+    let description_file_path: PathBuf = [config_path.to_str().unwrap(), DESCRIPTION_FILE]
+        .iter()
+        .collect();
+    // If the description file already exists, upgrade it
+    let new_description = if description_file_path.is_file() {
+        let description_content =
+            fs::read_to_string(description_file_path.clone()).map_err(|err| {
+                (
+                    to_version.clone(),
+                    format!("failed to read description file! - {:?}", err),
+                )
+            })?;
+        let old_description: OldNodeDescription =
+            toml::from_str(&description_content).map_err(|err| {
+                (
+                    to_version.clone(),
+                    format!("failed to deserialize description content! - {:?}", err),
+                )
+            })?;
+        Some(NodeDescription {
+            name: old_description.name,
+            description: old_description.description,
+            link: old_description.link,
+            ..Default::default()
+        })
+    } else {
+        None
+    };
 
     let current_annnounce_addr = config.get_announce_address();
     // try to parse it as socket address directly
@@ -304,61 +342,7 @@ fn undetermined_version_upgrade(
         .with_announce_address(announce_address)
         .with_mix_port(custom_mix_port);
 
-    upgraded_config.save_to_file(None).map_err(|err| {
-        (
-            to_version.clone(),
-            format!("failed to overwrite config file! - {:?}", err),
-        )
-    })?;
-
-    print_successful_upgrade(config_version, to_version);
-
-    Ok(upgraded_config)
-}
-
-fn patch_0_10_2_upgrade(
-    config: Config,
-    _matches: &ArgMatches,
-    config_version: &Version,
-    package_version: &Version,
-) -> Result<Config, UpgradeError> {
-    #[derive(Deserialize)]
-    struct OldNodeDescription {
-        name: String,
-        description: String,
-        link: String,
-    }
-    let to_version = package_version;
-    let id = config.get_id();
-    let config_path = Config::default_config_directory(&id);
-
-    print_start_upgrade(&config_version, &to_version);
-
-    let description_file_path: PathBuf = [config_path.to_str().unwrap(), DESCRIPTION_FILE]
-        .iter()
-        .collect();
-    // If the description file already exists, upgrade it
-    if description_file_path.is_file() {
-        let description_content =
-            fs::read_to_string(description_file_path.clone()).map_err(|err| {
-                (
-                    to_version.clone(),
-                    format!("failed to read description file! - {:?}", err),
-                )
-            })?;
-        let old_description: OldNodeDescription =
-            toml::from_str(&description_content).map_err(|err| {
-                (
-                    to_version.clone(),
-                    format!("failed to deserialize description content! - {:?}", err),
-                )
-            })?;
-        let new_description = NodeDescription {
-            name: old_description.name,
-            description: old_description.description,
-            link: old_description.link,
-            ..Default::default()
-        };
+    if let Some(new_description) = new_description {
         NodeDescription::save_to_file(&new_description, description_file_path).map_err(|err| {
             (
                 to_version.clone(),
@@ -366,32 +350,6 @@ fn patch_0_10_2_upgrade(
             )
         })?;
     }
-
-    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
-
-    upgraded_config.save_to_file(None).map_err(|err| {
-        (
-            to_version.clone(),
-            format!("failed to overwrite config file! - {:?}", err),
-        )
-    })?;
-
-    print_successful_upgrade(config_version, to_version);
-
-    Ok(upgraded_config)
-}
-
-fn patch_0_10_3_upgrade(
-    config: Config,
-    _matches: &ArgMatches,
-    config_version: &Version,
-    package_version: &Version,
-) -> Result<Config, UpgradeError> {
-    let to_version = package_version;
-
-    print_start_upgrade(&config_version, &to_version);
-
-    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
 
     upgraded_config.save_to_file(None).map_err(|err| {
         (
@@ -416,11 +374,14 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
 
         config = match config_version.major {
             0 => match config_version.minor {
-                9 => minor_0_10_upgrade(config, matches, &config_version, &package_version),
+                9 => minor_0_10_upgrade(config, matches, &config_version, &Version::new(0, 10, 0)),
                 10 => match config_version.patch {
-                    0 => patch_0_10_1_upgrade(config, matches, &config_version, &package_version),
-                    1 => patch_0_10_2_upgrade(config, matches, &config_version, &package_version),
-                    2 => patch_0_10_3_upgrade(config, matches, &config_version, &package_version),
+                    0 => patch_0_10_1_upgrade(
+                        config,
+                        matches,
+                        &config_version,
+                        &Version::new(0, 10, 1),
+                    ),
                     _ => undetermined_version_upgrade(
                         config,
                         matches,
@@ -477,23 +438,25 @@ mod upgrade_tests {
 
     #[test]
     #[serial]
-    fn test_patch_0_10_2_upgrade() {
+    fn test_0_10_2_upgrade() {
         let config = Config::default()
             .with_id("-42")
+            .with_announce_address("127.0.0.1:1234")
             .with_custom_version("0.10.1");
         let matches = ArgMatches::default();
         let old_version = Version::new(0, 10, 1);
         let new_version = Version::new(0, 10, 2);
         let new_config =
-            patch_0_10_2_upgrade(config, &matches, &old_version, &new_version).unwrap();
+            undetermined_version_upgrade(config, &matches, &old_version, &new_version).unwrap();
         assert_eq!(new_config.get_version(), "0.10.2");
     }
 
     #[test]
     #[serial]
-    fn test_patch_0_10_2_upgrade_error() {
+    fn test_0_10_2_upgrade_error() {
         let config = Config::default()
             .with_id("-42")
+            .with_announce_address("127.0.0.1:1234")
             .with_custom_version("0.10.1");
         let matches = ArgMatches::default();
         let old_version = Version::new(0, 10, 1);
@@ -504,7 +467,7 @@ mod upgrade_tests {
         let mut new_perms = initial_perms.clone();
         new_perms.set_readonly(true);
         fs::set_permissions(config_file.clone(), new_perms).unwrap();
-        let ret = patch_0_10_2_upgrade(config, &matches, &old_version, &new_version);
+        let ret = undetermined_version_upgrade(config, &matches, &old_version, &new_version);
         fs::set_permissions(config_file, initial_perms).unwrap();
         assert!(ret.is_err());
     }

@@ -5,7 +5,9 @@ use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
-use mixnet_contract::{GatewayBond, IdentityKey, IdentityKeyRef, LayerDistribution, MixNodeBond};
+use mixnet_contract::{
+    GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond,
+};
 
 // storage prefixes
 // all of them must be unique and presumably not be a prefix of a different one
@@ -71,25 +73,6 @@ pub(crate) fn read_layer_distribution(storage: &dyn Storage) -> LayerDistributio
     // if we fail to load the stored state we would already be in the undefined behaviour land,
     // so we better just blow up immediately.
     layer_distribution_read(storage).load().unwrap()
-}
-
-pub enum Layer {
-    Gateway,
-    One,
-    Two,
-    Three,
-    Invalid,
-}
-
-impl From<u64> for Layer {
-    fn from(val: u64) -> Self {
-        match val {
-            n if n == 1 => Layer::One,
-            n if n == 2 => Layer::Two,
-            n if n == 3 => Layer::Three,
-            _ => Layer::Invalid,
-        }
-    }
 }
 
 pub fn increment_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {
@@ -382,7 +365,7 @@ mod tests {
             bond_amount: coin(bond_value, DENOM),
             total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
-            layer: 1,
+            layer: Layer::One,
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()

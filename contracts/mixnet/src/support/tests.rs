@@ -20,7 +20,8 @@ pub mod helpers {
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::{Empty, MemoryStorage};
     use mixnet_contract::{
-        Gateway, GatewayBond, MixNode, MixNodeBond, PagedGatewayResponse, PagedMixnodeResponse,
+        Gateway, GatewayBond, Layer, MixNode, MixNodeBond, PagedGatewayResponse,
+        PagedMixnodeResponse,
     };
 
     pub fn add_mixnode(
@@ -126,7 +127,12 @@ pub mod helpers {
             identity_key: "aaaa".to_string(),
             version: "0.10.0".to_string(),
         };
-        MixNodeBond::new(coin(50, DENOM), Addr::unchecked("foo"), 1, mix_node)
+        MixNodeBond::new(
+            coin(50, DENOM),
+            Addr::unchecked("foo"),
+            Layer::One,
+            mix_node,
+        )
     }
 
     pub fn gateway_fixture() -> Gateway {

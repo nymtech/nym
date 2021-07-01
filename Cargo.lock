@@ -1968,6 +1968,7 @@ name = "nymsphinx"
 version = "0.1.0"
 dependencies = [
  "crypto",
+ "mixnet-contract",
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
  "nymsphinx-anonymous-replies",

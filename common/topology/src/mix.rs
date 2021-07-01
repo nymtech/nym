@@ -14,7 +14,7 @@
 
 use crate::{filter, NetworkAddress};
 use crypto::asymmetric::{encryption, identity};
-use mixnet_contract::MixNodeBond;
+use mixnet_contract::{Layer, MixNodeBond};
 use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx_types::Node as SphinxNode;
 use std::convert::{TryFrom, TryInto};
@@ -90,7 +90,7 @@ pub struct Node {
     pub mix_host: SocketAddr,
     pub identity_key: identity::PublicKey,
     pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
-    pub layer: u64,
+    pub layer: Layer,
     pub version: String,
 }
 

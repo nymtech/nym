@@ -8,7 +8,7 @@ use cosmwasm_std::{
     attr, coins, BankMsg, Coin, Decimal, DepsMut, MessageInfo, Order, Response, StdResult, Uint128,
 };
 use cosmwasm_storage::ReadonlyBucket;
-use mixnet_contract::{Gateway, GatewayBond, IdentityKey, MixNode, MixNodeBond};
+use mixnet_contract::{Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond};
 
 const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 
@@ -120,11 +120,11 @@ pub(crate) fn try_add_mixnode(
 
     let layer_distribution = queries::query_layer_distribution(deps.as_ref());
     let layers = [
-        layer_distribution.layer1,
-        layer_distribution.layer2,
-        layer_distribution.layer3,
+        (Layer::One, layer_distribution.layer1),
+        (Layer::Two, layer_distribution.layer2),
+        (Layer::Three, layer_distribution.layer3),
     ];
-    let layer = (layers.iter().enumerate().min_by_key(|x| x.1).unwrap().0 + 1) as u64;
+    let layer = layers.iter().min_by_key(|x| x.1).unwrap().0;
 
     let mut bond = MixNodeBond::new(info.funds[0].clone(), info.sender.clone(), layer, mix_node);
 
@@ -137,7 +137,7 @@ pub(crate) fn try_add_mixnode(
 
     mixnodes(deps.storage).save(identity.as_bytes(), &bond)?;
     mixnodes_owners(deps.storage).save(sender_bytes, identity)?;
-    increment_layer_count(deps.storage, bond.layer.into())?;
+    increment_layer_count(deps.storage, bond.layer)?;
 
     let attributes = vec![attr("overwritten", was_present)];
     Ok(Response {
@@ -175,7 +175,7 @@ pub(crate) fn try_remove_mixnode(
     // remove the node ownership
     mixnodes_owners(deps.storage).remove(sender_bytes);
     // decrement layer count
-    decrement_layer_count(deps.storage, mixnode_bond.layer.into())?;
+    decrement_layer_count(deps.storage, mixnode_bond.layer)?;
 
     // log our actions
     let attributes = vec![attr("action", "unbond"), attr("mixnode_bond", mixnode_bond)];
@@ -1671,7 +1671,7 @@ pub mod tests {
             bond_amount: coin(initial_bond, DENOM),
             total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
-            layer: 1,
+            layer: Layer::One,
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
@@ -3132,8 +3132,8 @@ pub mod tests {
         let alice_node = bonded_mix_nodes.get(0).unwrap().clone();
         let bob_node = bonded_mix_nodes.get(1).unwrap().clone();
         assert_eq!(alice_node.mix_node.identity_key, "alice");
-        assert_eq!(alice_node.layer, 1);
+        assert_eq!(alice_node.layer, Layer::One);
         assert_eq!(bob_node.mix_node.identity_key, "bob");
-        assert_eq!(bob_node.layer, 2);
+        assert_eq!(bob_node.layer, Layer::Two);
     }
 }

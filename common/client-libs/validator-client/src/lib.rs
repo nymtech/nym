@@ -1,33 +1,23 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::time::Duration;
+
 pub use crate::error::ValidatorClientError;
 use crate::models::{QueryRequest, QueryResponse};
+use log::error;
 use mixnet_contract::{
     GatewayBond, IdentityKey, LayerDistribution, MixNodeBond, PagedGatewayResponse,
     PagedMixnodeResponse,
 };
-use rand::seq::SliceRandom;
-use rand::thread_rng;
+use rand::{seq::SliceRandom, thread_rng};
 use serde::Deserialize;
-use std::collections::VecDeque;
 
 mod error;
 mod models;
 pub(crate) mod serde_helpers;
 
 // Implement caching with a global hashmap that has two fields, queryresponse and as_at, there is a side process
-
-fn permute_validators(validators: VecDeque<String>) -> VecDeque<String> {
-    // even in the best case scenario in the mainnet world, we're not going to have more than ~100 validators,
-    // hence conversions from and to Vec are fine
-    let mut vec = Vec::from(validators);
-
-    vec.shuffle(&mut thread_rng());
-
-    vec.into()
-}
-
 pub struct Config {
     initial_rest_servers: Vec<String>,
     mixnet_contract_address: String,
@@ -63,9 +53,6 @@ pub struct Client {
     config: Config,
     // Currently it seems the client is independent of the url hence a single instance seems to be fine
     reqwest_client: reqwest::Client,
-
-    available_validators_rest_urls: VecDeque<String>,
-    failed_queries: usize,
 }
 
 impl Client {
@@ -78,29 +65,20 @@ impl Client {
             panic!("no validator servers provided")
         }
 
-        let mut available_validators_rest_urls = config.initial_rest_servers.clone().into();
-        available_validators_rest_urls = permute_validators(available_validators_rest_urls);
-
         Client {
             config,
             reqwest_client,
-            available_validators_rest_urls,
-            failed_queries: 0,
         }
     }
 
-    fn permute_validators(&mut self) {
-        if self.available_validators_rest_urls.len() == 1 {
-            return;
-        }
-        self.available_validators_rest_urls =
-            permute_validators(std::mem::take(&mut self.available_validators_rest_urls));
+    pub fn available_validators_rest_urls(&self) -> Vec<String> {
+        self.config.initial_rest_servers.clone()
     }
 
-    fn base_query_path(&self) -> String {
+    fn base_query_path(&self, url: &str) -> String {
         format!(
             "{}/wasm/contract/{}/smart",
-            self.available_validators_rest_urls[0], self.config.mixnet_contract_address
+            url, self.config.mixnet_contract_address
         )
     }
 
@@ -109,37 +87,53 @@ impl Client {
     //     let response = self.reqwest_client.get(path).send().await?.json().await?;
     // }
 
-    async fn query_validators<T>(&mut self, query: String) -> Result<T, ValidatorClientError>
+    async fn query_validators<T>(&self, query: String) -> Result<T, ValidatorClientError>
     where
         for<'a> T: Deserialize<'a>,
     {
-        // if we fail to query the first validator, push it to the back
-        let res = self.query_front_validator(query).await;
+        let mut failed = 0;
+        let sleep_secs = 5;
+        // Randomly select a validator to query, keep querying and shuffling until we get a response
+        let mut validator_urls = self.available_validators_rest_urls().clone();
 
-        // don't bother doing any fancy validator switches if we only have 1 validator to choose from
-        if self.available_validators_rest_urls.len() > 1 {
-            if res.is_err() {
-                let front = self.available_validators_rest_urls.pop_front().unwrap();
-                self.available_validators_rest_urls.push_back(front);
-                self.failed_queries += 1;
+        // This will never exit
+        loop {
+            validator_urls.as_mut_slice().shuffle(&mut thread_rng());
+            for url in validator_urls.iter() {
+                match self.query_validator(query.clone(), url).await {
+                    Ok(res) => return Ok(res),
+                    Err(e) => {
+                        failed += 1;
+                        error!("{}", e);
+                        error!("Total failed requests {}", failed);
+                    }
+                }
             }
-
-            // if we exhausted all of available validators, permute the set, maybe the old ones
-            // are working again next time we try
-            if self.failed_queries == self.available_validators_rest_urls.len() {
-                self.permute_validators();
-                self.failed_queries = 0
+            error!(
+                "No validators available out of {} attempted! Will try again in {} seconds. Listing all attempted:",
+                validator_urls.len(), sleep_secs
+            );
+            for url in validator_urls.iter() {
+                error!("{}", url)
             }
+            // Went with only wasm_timer so we can avoid features on the lib, and pulling in tokio
+            wasm_timer::Delay::new(Duration::from_secs(sleep_secs)).await?;
         }
-
-        res
     }
 
-    async fn query_front_validator<T>(&self, query: String) -> Result<T, ValidatorClientError>
+    async fn query_validator<T>(
+        &self,
+        query: String,
+        validator_url: &str,
+    ) -> Result<T, ValidatorClientError>
     where
         for<'a> T: Deserialize<'a>,
     {
-        let query_url = format!("{}/{}?encoding=base64", self.base_query_path(), query);
+        let query_url = format!(
+            "{}/{}?encoding=base64",
+            self.base_query_path(validator_url),
+            query
+        );
 
         let query_response: QueryResponse<T> = self
             .reqwest_client

@@ -100,7 +100,7 @@ impl Client {
         loop {
             validator_urls.as_mut_slice().shuffle(&mut thread_rng());
             for url in validator_urls.iter() {
-                match self.query_validator(query.clone(), &url).await {
+                match self.query_validator(query.clone(), url).await {
                     Ok(res) => return Ok(res),
                     Err(e) => {
                         failed += 1;

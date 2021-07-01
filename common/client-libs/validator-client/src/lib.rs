@@ -93,6 +93,7 @@ impl Client {
         // Randomly select a validator to query, keep querying and shuffling until we get a response
         let mut validator_urls = self.available_validators_rest_urls().clone();
 
+        // This will never exit
         loop {
             validator_urls.as_mut_slice().shuffle(&mut thread_rng());
             for url in validator_urls.iter() {

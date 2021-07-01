@@ -32,6 +32,7 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
 use topology::NymTopology;
+use log::info;
 
 mod cache;
 mod chunker;
@@ -48,7 +49,7 @@ const NODE_STATUS_API_ARG: &str = "node-status-api";
 const DETAILED_REPORT_ARG: &str = "detailed-report";
 const GATEWAY_SENDING_RATE_ARG: &str = "gateway-rate";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
-const CACHE_INTERVAL: &str = "cache-interval";
+const CACHE_INTERVAL_ARG: &str = "cache-interval";
 
 const DEFAULT_VALIDATORS: &[&str] = &[
     // "http://testnet-finney-validator.nymtech.net:1317",
@@ -59,7 +60,7 @@ const DEFAULT_VALIDATORS: &[&str] = &[
 const DEFAULT_NODE_STATUS_API: &str = "http://localhost:8081";
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
 const DEFAULT_MIXNET_CONTRACT: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
-const DEFAULT_CACHE_INTERVAL: u64 = 60;
+const DEFAULT_CACHE_INTERVAL_ARG: u64 = 60;
 
 pub(crate) const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 pub(crate) const PENALISE_OUTDATED: bool = false;
@@ -114,10 +115,10 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             .long(GATEWAY_SENDING_RATE_ARG)
             .short("r")
         )
-        .arg(Arg::with_name(CACHE_INTERVAL)
+        .arg(Arg::with_name(CACHE_INTERVAL_ARG)
         .help("Specified rate at which cache will be refreshed, global for all cache")
         .takes_value(true)
-        .long(CACHE_INTERVAL))
+        .long(CACHE_INTERVAL_ARG))
         .get_matches()
 }
 
@@ -304,10 +305,10 @@ async fn main() -> Result<()> {
         .map(|v| v.parse().unwrap())
         .unwrap_or_else(|| DEFAULT_GATEWAY_SENDING_RATE);
 
-    let cache_interval = matches
-        .value_of(CACHE_INTERVAL)
+    let cache_interval_arg = matches
+        .value_of(CACHE_INTERVAL_ARG)
         .map(|v| v.parse().unwrap())
-        .unwrap_or_else(|| DEFAULT_CACHE_INTERVAL);
+        .unwrap_or_else(|| DEFAULT_CACHE_INTERVAL_ARG);
 
     check_if_up_to_date(&v4_topology, &v6_topology);
     setup_logging();
@@ -388,7 +389,7 @@ async fn main() -> Result<()> {
     let write_mixnode_cache = Arc::clone(&mixnode_cache);
 
     tokio::spawn(async move {
-        let mut interval = time::interval(Duration::from_secs(cache_interval));
+        let mut interval = time::interval(Duration::from_secs(cache_interval_arg));
         loop {
             interval.tick().await;
             {

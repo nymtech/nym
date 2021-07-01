@@ -7,6 +7,7 @@ use crypto::asymmetric::encryption;
 use futures::channel::mpsc;
 use futures::lock::{Mutex, MutexGuard};
 use futures::{SinkExt, StreamExt};
+use log::warn;
 use nymsphinx::receiver::MessageReceiver;
 use std::fmt::{self, Display, Formatter};
 use std::mem;
@@ -158,7 +159,7 @@ impl ReceivedProcessor {
                         messages = inner.packets_receiver.next() => {
                             for message in messages.expect("packet receiver has died!") {
                                 if let Err(err) = inner.on_message(message) {
-                                    warn!("failed to process received gateway message - {}", err)
+                                    warn!(target: "Monitor", "failed to process received gateway message - {}", err)
                                 }
                             }
                         },

@@ -10,6 +10,7 @@ use futures::task::Context;
 use futures::{Future, Stream};
 use gateway_client::error::GatewayClientError;
 use gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
+use log::{info, debug, warn};
 use nymsphinx::forwarding::packet::MixPacket;
 use pin_project::pin_project;
 use std::collections::HashMap;
@@ -129,13 +130,14 @@ impl PacketSender {
     ) -> Result<(), GatewayClientError> {
         let gateway_id = client.gateway_identity().to_base58_string();
         info!(
+            target: "MessageSender",
             "Got {} packets to send to gateway {}",
             mix_packets.len(),
             gateway_id
         );
 
         if mix_packets.len() <= max_sending_rate {
-            debug!("Everything is going to get sent as one.");
+            debug!(target: "MessageSender","Everything is going to get sent as one.");
             client.batch_send_mix_packets(mix_packets).await?;
         } else {
             let packets_per_time_chunk =
@@ -144,6 +146,7 @@ impl PacketSender {
             let total_expected_time =
                 Duration::from_secs_f64(mix_packets.len() as f64 / max_sending_rate as f64);
             info!(
+                target: "MessageSender",
                 "With our rate of {} packets/s it should take around {:?} to send it all to {} ...",
                 max_sending_rate, total_expected_time, gateway_id
             );
@@ -163,7 +166,7 @@ impl PacketSender {
             // this way we won't have to do reallocations in here as they're unavoidable when
             // splitting a vector into multiple vectors
             while let Some(retained) = split_off_vec(&mut mix_packets, packets_per_time_chunk) {
-                debug!("Sending {} packets...", mix_packets.len());
+                debug!(target: "MessageSender","Sending {} packets...", mix_packets.len());
 
                 if mix_packets.len() == 1 {
                     client.send_mix_packet(mix_packets.pop().unwrap()).await?;
@@ -175,7 +178,7 @@ impl PacketSender {
 
                 mix_packets = retained;
             }
-            debug!("Done sending");
+            debug!(target: "MessageSender", "Done sending");
         }
 
         Ok(())
@@ -311,7 +314,7 @@ impl PacketSender {
 
     pub(super) async fn ping_all_active_gateways(&mut self) {
         if self.active_gateway_clients.is_empty() {
-            info!("no gateways to ping");
+            info!(target: "Monitor", "no gateways to ping");
             return;
         }
 
@@ -324,6 +327,7 @@ impl PacketSender {
         for (gateway_id, active_client) in self.active_gateway_clients.iter_mut() {
             if let Err(err) = active_client.send_ping_message().await {
                 warn!(
+                    target: "Monitor",
                     "failed to send ping message to gateway {} - {} - assuming the connection is dead.",
                     active_client.gateway_identity().to_base58_string(),
                     err,
@@ -351,7 +355,7 @@ impl PacketSender {
 
         let ping_end = Instant::now();
         let time_taken = ping_end.duration_since(ping_start);
-        debug!("pinging all active gateways took {:?}", time_taken);
+        debug!(target: "Monitor", "pinging all active gateways took {:?}", time_taken);
     }
 }
 

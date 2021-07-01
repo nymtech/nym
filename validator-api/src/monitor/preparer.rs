@@ -6,6 +6,7 @@ use crate::monitor::sender::GatewayPackets;
 use crate::test_packet::{NodeType, TestPacket};
 use crate::tested_network::TestedNetwork;
 use crypto::asymmetric::{encryption, identity};
+use log::{info, warn};
 use mixnet_contract::{GatewayBond, MixNodeBond};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::forwarding::packet::MixPacket;
@@ -173,7 +174,7 @@ impl PacketPreparer {
     async fn get_network_nodes(
         &mut self,
     ) -> Result<(Vec<MixNodeBond>, Vec<GatewayBond>), PacketPreparerError> {
-        info!("Obtaining network topology...");
+        info!(target: "Monitor", "Obtaining network topology...");
 
         let mixnodes = match self.validator_client.get_mix_nodes().await {
             Err(err) => {
@@ -191,7 +192,7 @@ impl PacketPreparer {
             Ok(gateways) => gateways,
         };
 
-        info!("Obtained network topology");
+        info!(target: "Monitor", "Obtained network topology");
 
         Ok((mixnodes, gateways))
     }
@@ -248,7 +249,8 @@ impl PacketPreparer {
             }
             Err(err) => {
                 warn!(
-                    "mix {} is malformed - {}",
+                    target: "Bad node",
+                    "Mix {} is malformed - {}",
                     mixnode_bond.mix_node().identity_key,
                     err
                 );
@@ -286,6 +288,7 @@ impl PacketPreparer {
             }
             Err(err) => {
                 warn!(
+                    target: "Bad node",
                     "gateway {} is malformed - {:?}",
                     gateway_bond.gateway().identity_key,
                     err

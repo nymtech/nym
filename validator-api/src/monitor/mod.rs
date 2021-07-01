@@ -9,6 +9,7 @@ use crate::node_status_api;
 use crate::node_status_api::models::{BatchGatewayStatus, BatchMixStatus};
 use crate::test_packet::NodeType;
 use crate::tested_network::TestedNetwork;
+use log::{info, debug};
 use tokio::time::{sleep, Duration, Instant};
 
 pub(crate) mod preparer;
@@ -136,9 +137,9 @@ impl Monitor {
     }
 
     async fn test_run(&mut self) {
-        info!("Starting test run no. {}", self.nonce);
+        info!(target: "Monitor", "Starting test run no. {}", self.nonce);
 
-        debug!("preparing mix packets to all nodes...");
+        debug!(target: "Monitor", "Preparing mix packets to all nodes...");
         let prepared_packets = match self.packet_preparer.prepare_test_packets(self.nonce).await {
             Ok(packets) => packets,
             Err(err) => {
@@ -150,13 +151,14 @@ impl Monitor {
 
         self.received_processor.set_new_expected(self.nonce).await;
 
-        info!("starting to send all the packets...");
+        info!(target: "Monitor", "Starting to send all the packets...");
         self.packet_sender
             .send_packets(prepared_packets.packets)
             .await;
 
         info!(
-            "sending is over, waiting for {:?} before checking what we received",
+            target: "Monitor",
+            "Sending is over, waiting for {:?} before checking what we received",
             PACKET_DELIVERY_TIMEOUT
         );
 
@@ -201,7 +203,7 @@ impl Monitor {
             tokio::select! {
                 _ = &mut test_delay => {
                     self.test_run().await;
-                    info!("Next test run will happen in {:?}", MONITOR_RUN_INTERVAL);
+                    info!(target: "Monitor", "Next test run will happen in {:?}", MONITOR_RUN_INTERVAL);
 
                     let now = Instant::now();
                     test_delay.as_mut().reset(now + MONITOR_RUN_INTERVAL);
@@ -210,7 +212,7 @@ impl Monitor {
 
                 }
                 _ = &mut ping_delay => {
-                    info!("Pinging all active gateways");
+                    info!(target: "Monitor", "Pinging all active gateways");
                     self.ping_all_gateways().await;
 
                     let now = Instant::now();

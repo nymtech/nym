@@ -3708,6 +3708,7 @@ name = "validator-client"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "log",
  "mixnet-contract",
  "rand 0.8.4",
  "reqwest",

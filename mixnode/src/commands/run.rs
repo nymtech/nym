@@ -23,12 +23,6 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
         )
         // the rest of arguments are optional, they are used to override settings in config file
         .arg(
-            Arg::with_name(LAYER_ARG_NAME)
-                .long(LAYER_ARG_NAME)
-                .help("The mixnet layer of this particular node")
-                .takes_value(true),
-        )
-        .arg(
             Arg::with_name(HOST_ARG_NAME)
                 .long(HOST_ARG_NAME)
                 .help("The custom host on which the mixnode will be running")
@@ -174,14 +168,12 @@ pub fn execute(matches: &ArgMatches) {
     Sphinx key: {}
     Address: {}
     Mix port: {}
-    Layer: {}
     Version: {}
     ",
         identity_keypair.public_key().to_base58_string(),
         sphinx_keypair.public_key().to_base58_string(),
         config.get_announce_address(),
         config.get_mix_port(),
-        config.get_layer(),
         config.get_version(),
     );
     MixNode::new(config, description, identity_keypair, sphinx_keypair).run();

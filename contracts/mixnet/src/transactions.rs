@@ -1,13 +1,14 @@
 use crate::contract::DENOM;
 use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
+use crate::queries;
 use crate::state::StateParams;
 use crate::storage::*;
 use cosmwasm_std::{
     attr, coins, BankMsg, Coin, Decimal, DepsMut, MessageInfo, Order, Response, StdResult, Uint128,
 };
 use cosmwasm_storage::ReadonlyBucket;
-use mixnet_contract::{Gateway, GatewayBond, IdentityKey, MixNode, MixNodeBond};
+use mixnet_contract::{Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond};
 
 const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 
@@ -117,7 +118,10 @@ pub(crate) fn try_add_mixnode(
     let minimum_bond = read_state_params(deps.storage).minimum_mixnode_bond;
     validate_mixnode_bond(&info.funds, minimum_bond)?;
 
-    let mut bond = MixNodeBond::new(info.funds[0].clone(), info.sender.clone(), mix_node);
+    let layer_distribution = queries::query_layer_distribution(deps.as_ref());
+    let layer = layer_distribution.choose_with_fewest();
+
+    let mut bond = MixNodeBond::new(info.funds[0].clone(), info.sender.clone(), layer, mix_node);
 
     // this might potentially require more gas if a significant number of delegations was there
     let delegations_bucket = mix_delegations_read(deps.storage, &bond.mix_node.identity_key);
@@ -128,7 +132,7 @@ pub(crate) fn try_add_mixnode(
 
     mixnodes(deps.storage).save(identity.as_bytes(), &bond)?;
     mixnodes_owners(deps.storage).save(sender_bytes, identity)?;
-    increment_layer_count(deps.storage, bond.mix_node.layer.into())?;
+    increment_layer_count(deps.storage, bond.layer)?;
 
     let attributes = vec![attr("overwritten", was_present)];
     Ok(Response {
@@ -166,7 +170,7 @@ pub(crate) fn try_remove_mixnode(
     // remove the node ownership
     mixnodes_owners(deps.storage).remove(sender_bytes);
     // decrement layer count
-    decrement_layer_count(deps.storage, mixnode_bond.mix_node.layer.into())?;
+    decrement_layer_count(deps.storage, mixnode_bond.layer)?;
 
     // log our actions
     let attributes = vec![attr("action", "unbond"), attr("mixnode_bond", mixnode_bond)];
@@ -973,7 +977,6 @@ pub mod tests {
         let msg = ExecuteMsg::BondMixnode {
             mix_node: MixNode {
                 identity_key: "mix1".to_string(),
-                layer: 1,
                 ..helpers::mix_node_fixture()
             },
         };
@@ -1663,6 +1666,7 @@ pub mod tests {
             bond_amount: coin(initial_bond, DENOM),
             total_delegation: coin(0, DENOM),
             owner: node_owner.clone(),
+            layer: Layer::One,
             mix_node: MixNode {
                 identity_key: node_identity.clone(),
                 ..mix_node_fixture()
@@ -3103,5 +3107,28 @@ pub mod tests {
                 assert_eq!(Coin::new(total_delegation, DENOM), old_delegations);
             }
         }
+    }
+
+    #[test]
+    fn choose_layer_mix_node() {
+        let mut deps = helpers::init_contract();
+        for owner in ["alice", "bob"] {
+            try_add_mixnode(
+                deps.as_mut(),
+                mock_info(owner, &good_mixnode_bond()),
+                MixNode {
+                    identity_key: owner.to_string(),
+                    ..helpers::mix_node_fixture()
+                },
+            )
+            .unwrap();
+        }
+        let bonded_mix_nodes = helpers::get_mix_nodes(&mut deps);
+        let alice_node = bonded_mix_nodes.get(0).unwrap().clone();
+        let bob_node = bonded_mix_nodes.get(1).unwrap().clone();
+        assert_eq!(alice_node.mix_node.identity_key, "alice");
+        assert_eq!(alice_node.layer, Layer::One);
+        assert_eq!(bob_node.mix_node.identity_key, "bob");
+        assert_eq!(bob_node.layer, Layer::Two);
     }
 }

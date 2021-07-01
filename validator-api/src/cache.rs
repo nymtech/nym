@@ -22,6 +22,10 @@ impl MixNodeCache {
         self.as_at = Instant::now()
     }
 
+    pub fn value(&self) -> Vec<MixNodeBond> {
+        self.value.clone()
+    }
+
     pub async fn cache(&mut self) -> Result<()> {
         let mixnodes = self.validator_client.get_mix_nodes().await?;
         self.set_value(mixnodes);

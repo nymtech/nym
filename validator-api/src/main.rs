@@ -5,6 +5,7 @@
 extern crate rocket;
 
 use rocket::http::Method;
+use rocket::serde::json::Json;
 use rocket::State;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 
@@ -24,6 +25,7 @@ use cache::MixNodeCache;
 use clap::{App, Arg, ArgMatches};
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
+use mixnet_contract::MixNodeBond;
 use nymsphinx::addressing::clients::Recipient;
 use std::sync::Arc;
 use std::time::Duration;
@@ -262,9 +264,9 @@ fn check_if_up_to_date(v4_topology: &NymTopology, v6_topology: &NymTopology) {
 }
 
 #[get("/mixnodes")]
-async fn get_mixnodes(mixnode_cache: &State<Arc<RwLock<MixNodeCache>>>) -> &'static str {
+async fn get_mixnodes(mixnode_cache: &State<Arc<RwLock<MixNodeCache>>>) -> Json<Vec<MixNodeBond>> {
     let mixnodes = mixnode_cache.read().await;
-    "Success"
+    Json(mixnodes.value())
 }
 
 #[tokio::main]
@@ -403,8 +405,6 @@ async fn main() -> Result<()> {
 
     tokio::spawn(async move { monitor.run().await });
 
-    // wait_for_interrupt().await
-
     let allowed_origins = AllowedOrigins::all();
 
     // You can also deserialize this
@@ -428,6 +428,8 @@ async fn main() -> Result<()> {
         .await?
         .launch()
         .await?;
+
+    wait_for_interrupt().await;
 
     Ok(())
 }

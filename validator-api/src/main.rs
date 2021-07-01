@@ -25,6 +25,7 @@ use cache::MixNodeCache;
 use clap::{App, Arg, ArgMatches};
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
+use log::info;
 use mixnet_contract::MixNodeBond;
 use nymsphinx::addressing::clients::Recipient;
 use std::sync::Arc;
@@ -32,7 +33,6 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
 use topology::NymTopology;
-use log::info;
 
 mod cache;
 mod chunker;
@@ -342,7 +342,6 @@ async fn main() -> Result<()> {
 
     let tested_network = TestedNetwork::new_good(v4_topology, v6_topology);
     let validator_client = new_validator_client(validators_rest_uris.clone(), &mixnet_contract);
-    let cache_validator_client = new_validator_client(validators_rest_uris, &mixnet_contract);
     let node_status_api_client = new_node_status_api_client(node_status_api_uri);
 
     let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
@@ -383,7 +382,8 @@ async fn main() -> Result<()> {
 
     let mixnode_cache = Arc::new(RwLock::new(MixNodeCache::init(
         vec![],
-        cache_validator_client,
+        validators_rest_uris,
+        mixnet_contract,
     )));
 
     let write_mixnode_cache = Arc::clone(&mixnode_cache);
@@ -396,7 +396,7 @@ async fn main() -> Result<()> {
                 match write_mixnode_cache.try_write() {
                     Ok(mut w) => w.cache().await.unwrap(),
                     // If we don't get the write lock skip a tick
-                    Err(e) => error!("{}", e),
+                    Err(e) => error!("Could not aquire write lock on cache: {}", e),
                 }
             }
         }

@@ -9,7 +9,13 @@ pub struct MixNodeCache {
     validator_client: Client,
 }
 impl MixNodeCache {
-    pub fn init(value: Vec<MixNodeBond>, validator_client: Client) -> Self {
+    pub fn init(
+        value: Vec<MixNodeBond>,
+        validators_rest_uris: Vec<String>,
+        mixnet_contract: String,
+    ) -> Self {
+        let config = validator_client::Config::new(validators_rest_uris, mixnet_contract);
+        let validator_client = validator_client::Client::new(config);
         MixNodeCache {
             value,
             as_at: Instant::now(),

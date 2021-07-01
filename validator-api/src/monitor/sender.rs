@@ -10,7 +10,7 @@ use futures::task::Context;
 use futures::{Future, Stream};
 use gateway_client::error::GatewayClientError;
 use gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
-use log::{info, debug, warn};
+use log::{debug, info, warn};
 use nymsphinx::forwarding::packet::MixPacket;
 use pin_project::pin_project;
 use std::collections::HashMap;

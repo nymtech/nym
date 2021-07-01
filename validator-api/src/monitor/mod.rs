@@ -9,7 +9,7 @@ use crate::node_status_api;
 use crate::node_status_api::models::{BatchGatewayStatus, BatchMixStatus};
 use crate::test_packet::NodeType;
 use crate::tested_network::TestedNetwork;
-use log::{info, debug};
+use log::{debug, info};
 use tokio::time::{sleep, Duration, Instant};
 
 pub(crate) mod preparer;

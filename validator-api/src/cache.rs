@@ -12,6 +12,7 @@ pub struct ValidatorCache {
 #[derive(Default)]
 struct Cache<T> {
     value: T,
+    #[allow(dead_code)]
     as_at: Option<Instant>,
 }
 

@@ -5,6 +5,7 @@
 extern crate rocket;
 
 use rocket::http::Method;
+use rocket::State;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 
 use crate::monitor::preparer::PacketPreparer;
@@ -19,14 +20,18 @@ use crate::monitor::summary_producer::SummaryProducer;
 use crate::tested_network::good_topology::parse_topology_file;
 use crate::tested_network::TestedNetwork;
 use anyhow::Result;
+use cache::MixNodeCache;
 use clap::{App, Arg, ArgMatches};
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use nymsphinx::addressing::clients::Recipient;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::RwLock;
+use tokio::time;
 use topology::NymTopology;
 
+mod cache;
 mod chunker;
 pub(crate) mod gateways_reader;
 mod monitor;
@@ -41,6 +46,7 @@ const NODE_STATUS_API_ARG: &str = "node-status-api";
 const DETAILED_REPORT_ARG: &str = "detailed-report";
 const GATEWAY_SENDING_RATE_ARG: &str = "gateway-rate";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
+const CACHE_INTERVAL: &str = "cache-interval";
 
 const DEFAULT_VALIDATORS: &[&str] = &[
     // "http://testnet-finney-validator.nymtech.net:1317",
@@ -51,6 +57,7 @@ const DEFAULT_VALIDATORS: &[&str] = &[
 const DEFAULT_NODE_STATUS_API: &str = "http://localhost:8081";
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
 const DEFAULT_MIXNET_CONTRACT: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
+const DEFAULT_CACHE_INTERVAL: u64 = 60;
 
 pub(crate) const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 pub(crate) const PENALISE_OUTDATED: bool = false;
@@ -105,6 +112,10 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             .long(GATEWAY_SENDING_RATE_ARG)
             .short("r")
         )
+        .arg(Arg::with_name(CACHE_INTERVAL)
+        .help("Specified rate at which cache will be refreshed, global for all cache")
+        .takes_value(true)
+        .long(CACHE_INTERVAL))
         .get_matches()
 }
 
@@ -250,9 +261,10 @@ fn check_if_up_to_date(v4_topology: &NymTopology, v6_topology: &NymTopology) {
     }
 }
 
-#[get("/")]
-fn hello() -> &'static str {
-    "Hello, world!"
+#[get("/mixnodes")]
+async fn get_mixnodes(mixnode_cache: &State<Arc<RwLock<MixNodeCache>>>) -> &'static str {
+    let mixnodes = mixnode_cache.read().await;
+    "Success"
 }
 
 #[tokio::main]
@@ -281,13 +293,19 @@ async fn main() -> Result<()> {
 
     let mixnet_contract = matches
         .value_of(MIXNET_CONTRACT_ARG)
-        .unwrap_or(DEFAULT_MIXNET_CONTRACT);
+        .unwrap_or(DEFAULT_MIXNET_CONTRACT)
+        .to_string();
 
     let detailed_report = matches.is_present(DETAILED_REPORT_ARG);
     let sending_rate = matches
         .value_of(GATEWAY_SENDING_RATE_ARG)
         .map(|v| v.parse().unwrap())
         .unwrap_or_else(|| DEFAULT_GATEWAY_SENDING_RATE);
+
+    let cache_interval = matches
+        .value_of(CACHE_INTERVAL)
+        .map(|v| v.parse().unwrap())
+        .unwrap_or_else(|| DEFAULT_CACHE_INTERVAL);
 
     check_if_up_to_date(&v4_topology, &v6_topology);
     setup_logging();
@@ -320,7 +338,8 @@ async fn main() -> Result<()> {
     );
 
     let tested_network = TestedNetwork::new_good(v4_topology, v6_topology);
-    let validator_client = new_validator_client(validators_rest_uris, mixnet_contract);
+    let validator_client = new_validator_client(validators_rest_uris.clone(), &mixnet_contract);
+    let cache_validator_client = new_validator_client(validators_rest_uris, &mixnet_contract);
     let node_status_api_client = new_node_status_api_client(node_status_api_uri);
 
     let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
@@ -359,6 +378,27 @@ async fn main() -> Result<()> {
         tested_network,
     );
 
+    let mixnode_cache = Arc::new(RwLock::new(MixNodeCache::init(
+        vec![],
+        cache_validator_client,
+    )));
+
+    let write_mixnode_cache = Arc::clone(&mixnode_cache);
+
+    tokio::spawn(async move {
+        let mut interval = time::interval(Duration::from_secs(cache_interval));
+        loop {
+            interval.tick().await;
+            {
+                match write_mixnode_cache.try_write() {
+                    Ok(mut w) => w.cache().await.unwrap(),
+                    // If we don't get the write lock skip a tick
+                    Err(e) => error!("{}", e),
+                }
+            }
+        }
+    });
+
     tokio::spawn(async move { packet_receiver.run().await });
 
     tokio::spawn(async move { monitor.run().await });
@@ -382,7 +422,8 @@ async fn main() -> Result<()> {
 
     rocket::build()
         .attach(cors)
-        .mount("/", routes![hello])
+        .mount("/", routes![get_mixnodes])
+        .manage(mixnode_cache)
         .ignite()
         .await?
         .launch()

@@ -21,12 +21,12 @@ use crate::monitor::summary_producer::SummaryProducer;
 use crate::tested_network::good_topology::parse_topology_file;
 use crate::tested_network::TestedNetwork;
 use anyhow::Result;
-use cache::MixNodeCache;
+use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use log::info;
-use mixnet_contract::MixNodeBond;
+use mixnet_contract::{GatewayBond, MixNodeBond};
 use nymsphinx::addressing::clients::Recipient;
 use std::sync::Arc;
 use std::time::Duration;
@@ -265,9 +265,15 @@ fn check_if_up_to_date(v4_topology: &NymTopology, v6_topology: &NymTopology) {
 }
 
 #[get("/mixnodes")]
-async fn get_mixnodes(mixnode_cache: &State<Arc<RwLock<MixNodeCache>>>) -> Json<Vec<MixNodeBond>> {
-    let mixnodes = mixnode_cache.read().await;
-    Json(mixnodes.value())
+async fn get_mixnodes(cache: &State<Arc<RwLock<ValidatorCache>>>) -> Json<Vec<MixNodeBond>> {
+    let cache = cache.read().await;
+    Json(cache.mixnodes())
+}
+
+#[get("/gateways")]
+async fn get_gateways(cache: &State<Arc<RwLock<ValidatorCache>>>) -> Json<Vec<GatewayBond>> {
+    let cache = cache.read().await;
+    Json(cache.gateways())
 }
 
 #[tokio::main]
@@ -380,8 +386,7 @@ async fn main() -> Result<()> {
         tested_network,
     );
 
-    let mixnode_cache = Arc::new(RwLock::new(MixNodeCache::init(
-        vec![],
+    let mixnode_cache = Arc::new(RwLock::new(ValidatorCache::init(
         validators_rest_uris,
         mixnet_contract,
     )));
@@ -423,7 +428,7 @@ async fn main() -> Result<()> {
 
     rocket::build()
         .attach(cors)
-        .mount("/", routes![get_mixnodes])
+        .mount("/v1", routes![get_mixnodes, get_gateways])
         .manage(mixnode_cache)
         .ignite()
         .await?

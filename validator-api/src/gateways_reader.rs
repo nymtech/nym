@@ -5,7 +5,6 @@ use crypto::asymmetric::identity;
 use futures::stream::Stream;
 use futures::task::Context;
 use gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
-use log::*;
 use std::pin::Pin;
 use std::task::{Poll, Waker};
 

@@ -104,6 +104,11 @@ impl Client {
         )
     }
 
+    // async fn latest_block(&self) -> Block {
+    //     let path = format!("{}/block", self.available_validators_rest_urls[0]);
+    //     let response = self.reqwest_client.get(path).send().await?.json().await?;
+    // }
+
     async fn query_validators<T>(&mut self, query: String) -> Result<T, ValidatorClientError>
     where
         for<'a> T: Deserialize<'a>,

@@ -119,12 +119,7 @@ pub(crate) fn try_add_mixnode(
     validate_mixnode_bond(&info.funds, minimum_bond)?;
 
     let layer_distribution = queries::query_layer_distribution(deps.as_ref());
-    let layers = [
-        (Layer::One, layer_distribution.layer1),
-        (Layer::Two, layer_distribution.layer2),
-        (Layer::Three, layer_distribution.layer3),
-    ];
-    let layer = layers.iter().min_by_key(|x| x.1).unwrap().0;
+    let layer = layer_distribution.choose_with_fewest();
 
     let mut bond = MixNodeBond::new(info.funds[0].clone(), info.sender.clone(), layer, mix_node);
 

@@ -18,6 +18,17 @@ pub struct LayerDistribution {
     pub invalid: u64,
 }
 
+impl LayerDistribution {
+    pub fn choose_with_fewest(&self) -> Layer {
+        let layers = [
+            (Layer::One, self.layer1),
+            (Layer::Two, self.layer2),
+            (Layer::Three, self.layer3),
+        ];
+        layers.iter().min_by_key(|x| x.1).unwrap().0
+    }
+}
+
 // type aliases for better reasoning about available data
 pub type IdentityKey = String;
 pub type IdentityKeyRef<'a> = &'a str;

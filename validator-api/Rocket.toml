@@ -1,20 +1,7 @@
-[development]
-address = "localhost"
-port = 8000
-keep_alive = 5
-log = "normal"
-limits = { forms = 32768 }
+[default]
+limits = { forms = "64 kB", json = "1 MiB" }
+port = 8080
+address = "127.0.0.1"
 
-[staging]
-address = "localhost"
-port = 8000
-keep_alive = 5
-log = "normal"
-limits = { forms = 32768 }
-
-[production]
-address = "localhost"
-port = 8000
-keep_alive = 5
-log = "normal"
-limits = { forms = 32768 }
+[release]
+address = "0.0.0.0"

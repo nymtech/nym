@@ -170,11 +170,6 @@ impl Config {
         self
     }
 
-    pub fn with_layer(mut self, layer: Option<u64>) -> Self {
-        self.mixnode.layer = layer;
-        self
-    }
-
     pub fn with_custom_validators(mut self, validators: Vec<String>) -> Self {
         self.mixnode.validator_rest_urls = validators;
         self
@@ -263,10 +258,6 @@ impl Config {
 
     pub fn get_node_stats_updating_delay(&self) -> Duration {
         self.debug.node_stats_updating_delay
-    }
-
-    pub fn get_layer(&self) -> Option<u64> {
-        self.mixnode.layer
     }
 
     pub fn get_listening_address(&self) -> IpAddr {
@@ -359,10 +350,6 @@ pub struct MixNode {
     /// ID specifies the human readable ID of this particular mixnode.
     id: String,
 
-    /// Layer of this particular mixnode determining its position in the network.
-    /// Before getting the actual layer from the validators, this is marked as None.
-    layer: Option<u64>,
-
     /// Address to which this mixnode will bind to and will be listening for packets.
     #[serde(deserialize_with = "de_ipaddr_from_maybe_str_socks_addr")]
     listening_address: IpAddr,
@@ -441,7 +428,6 @@ impl Default for MixNode {
         MixNode {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
-            layer: None,
             listening_address: bind_all_address(),
             announce_address: "127.0.0.1".to_string(),
             mix_port: DEFAULT_MIX_LISTENING_PORT,

@@ -391,9 +391,7 @@ fn patch_0_10_3_upgrade(
 
     print_start_upgrade(&config_version, &to_version);
 
-    let upgraded_config = config
-        .with_custom_version(to_version.to_string().as_ref())
-        .with_layer(None);
+    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
 
     upgraded_config.save_to_file(None).map_err(|err| {
         (

@@ -161,12 +161,6 @@ pub fn execute(matches: &ArgMatches) {
         "Announcing the following address: {}",
         config.get_announce_address()
     );
-    // TODO: Currently layer is always None in the mixnode and should be
-    // extracted at some point after the bonding process, by querying a
-    // validator
-    if let Some(layer) = config.get_layer() {
-        println!("Positioned in layer {} of mixnet", layer);
-    }
 
     println!(
         "\nTo bond your mixnode, go to https://web-wallet-finney.nymtech.net/.  You will need to provide the following:

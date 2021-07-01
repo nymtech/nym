@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::time::Duration;
+
 pub use crate::error::ValidatorClientError;
 use crate::models::{QueryRequest, QueryResponse};
 use log::error;
@@ -90,6 +92,7 @@ impl Client {
         for<'a> T: Deserialize<'a>,
     {
         let mut failed = 0;
+        let sleep_secs = 5;
         // Randomly select a validator to query, keep querying and shuffling until we get a response
         let mut validator_urls = self.available_validators_rest_urls().clone();
 
@@ -106,6 +109,14 @@ impl Client {
                     }
                 }
             }
+            error!(
+                "No validators available out of {} attempted! Will try again in {} seconds. Listing all attempted:",
+                validator_urls.len(), sleep_secs
+            );
+            for url in validator_urls.iter() {
+                error!("{}", url)
+            }
+            tokio::time::sleep(Duration::from_secs(sleep_secs)).await;
         }
     }
 

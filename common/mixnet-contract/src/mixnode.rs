@@ -26,7 +26,6 @@ pub enum Layer {
     One,
     Two,
     Three,
-    Invalid,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]

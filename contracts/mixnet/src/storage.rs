@@ -82,7 +82,6 @@ pub fn increment_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResu
         Layer::One => distribution.layer1 += 1,
         Layer::Two => distribution.layer2 += 1,
         Layer::Three => distribution.layer3 += 1,
-        Layer::Invalid => distribution.invalid += 1,
     }
     layer_distribution(storage).save(&distribution)
 }
@@ -112,12 +111,6 @@ pub fn decrement_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResu
         Layer::Three => {
             distribution.layer3 = distribution
                 .layer3
-                .checked_sub(1)
-                .expect("tried to subtract from unsigned zero!")
-        }
-        Layer::Invalid => {
-            distribution.invalid = distribution
-                .invalid
                 .checked_sub(1)
                 .expect("tried to subtract from unsigned zero!")
         }

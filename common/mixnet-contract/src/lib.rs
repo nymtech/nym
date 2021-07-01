@@ -15,7 +15,6 @@ pub struct LayerDistribution {
     pub layer1: u64,
     pub layer2: u64,
     pub layer3: u64,
-    pub invalid: u64,
 }
 
 impl LayerDistribution {

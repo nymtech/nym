@@ -8,6 +8,11 @@ pub enum ValidatorClientError {
         #[from]
         source: reqwest::Error,
     },
+    #[error("An IO error has occured: {source}")]
+    IoError {
+        #[from]
+        source: std::io::Error,
+    },
     #[error("There was an issue with the validator client - {0}")]
     ValidatorError(String),
 }

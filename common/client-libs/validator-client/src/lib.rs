@@ -116,7 +116,8 @@ impl Client {
             for url in validator_urls.iter() {
                 error!("{}", url)
             }
-            tokio::time::sleep(Duration::from_secs(sleep_secs)).await;
+            // Went with only wasm_timer so we can avoid features on the lib, and pulling in tokio
+            wasm_timer::Delay::new(Duration::from_secs(sleep_secs)).await?;
         }
     }
 

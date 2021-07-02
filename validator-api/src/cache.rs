@@ -39,22 +39,12 @@ impl ValidatorCache {
     }
 
     pub async fn cache(&mut self) -> Result<()> {
-        // We need to make validator_api non mut first
-        // tokio::join!(self.cache_mixnodes(), self.cache_gateways());
-        self.cache_mixnodes().await?;
-        self.cache_gateways().await?;
-        Ok(())
-    }
-
-    async fn cache_mixnodes(&mut self) -> Result<()> {
-        let mixnodes = self.validator_client.get_mix_nodes().await?;
-        self.mixnodes.set(mixnodes);
-        Ok(())
-    }
-
-    async fn cache_gateways(&mut self) -> Result<()> {
-        let gateways = self.validator_client.get_gateways().await?;
-        self.gateways.set(gateways);
+        let (mixnodes, gateways) = tokio::join!(
+            self.validator_client.get_mix_nodes(),
+            self.validator_client.get_gateways()
+        );
+        self.mixnodes.set(mixnodes?);
+        self.gateways.set(gateways?);
         Ok(())
     }
 

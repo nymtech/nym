@@ -153,7 +153,7 @@ impl Client {
     }
 
     async fn get_mix_nodes_paged(
-        &mut self,
+        &self,
         start_after: Option<IdentityKey>,
     ) -> Result<PagedMixnodeResponse, ValidatorClientError> {
         let query_content_json = serde_json::to_string(&QueryRequest::GetMixNodes {
@@ -168,7 +168,7 @@ impl Client {
         self.query_validators(query_content).await
     }
 
-    pub async fn get_mix_nodes(&mut self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
+    pub async fn get_mix_nodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
         let mut mixnodes = Vec::new();
         let mut start_after = None;
         loop {
@@ -186,7 +186,7 @@ impl Client {
     }
 
     async fn get_gateways_paged(
-        &mut self,
+        &self,
         start_after: Option<IdentityKey>,
     ) -> Result<PagedGatewayResponse, ValidatorClientError> {
         let query_content_json = serde_json::to_string(&QueryRequest::GetGateways {
@@ -201,7 +201,7 @@ impl Client {
         self.query_validators(query_content).await
     }
 
-    pub async fn get_gateways(&mut self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+    pub async fn get_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         let mut gateways = Vec::new();
         let mut start_after = None;
         loop {
@@ -218,9 +218,7 @@ impl Client {
         Ok(gateways)
     }
 
-    pub async fn get_layer_distribution(
-        &mut self,
-    ) -> Result<LayerDistribution, ValidatorClientError> {
+    pub async fn get_layer_distribution(&self) -> Result<LayerDistribution, ValidatorClientError> {
         // serialization of an empty enum can't fail...
         let query_content_json =
             serde_json::to_string(&QueryRequest::LayerDistribution {}).unwrap();

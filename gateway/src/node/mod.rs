@@ -137,7 +137,7 @@ impl Gateway {
             self.config.get_validator_rest_endpoints(),
             self.config.get_validator_mixnet_contract_address(),
         );
-        let mut validator_client = validator_client::Client::new(validator_client_config);
+        let validator_client = validator_client::Client::new(validator_client_config);
 
         let existing_gateways = match validator_client.get_gateways().await {
             Ok(gateways) => gateways,

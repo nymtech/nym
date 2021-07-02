@@ -410,7 +410,7 @@ async fn main() -> Result<()> {
 
     tokio::spawn(async move { packet_receiver.run().await });
 
-    tokio::spawn(async move { monitor.run().await });
+    let node_status_storage = NodeStatusStorage::new();
 
     let allowed_origins = AllowedOrigins::all();
 

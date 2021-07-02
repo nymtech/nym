@@ -16,6 +16,7 @@ use serde::Deserialize;
 mod error;
 mod models;
 pub(crate) mod serde_helpers;
+mod validator_api;
 
 // Implement caching with a global hashmap that has two fields, queryresponse and as_at, there is a side process
 pub struct Config {
@@ -53,11 +54,13 @@ pub struct Client {
     config: Config,
     // Currently it seems the client is independent of the url hence a single instance seems to be fine
     reqwest_client: reqwest::Client,
+    validator_api_client: validator_api::Client,
 }
 
 impl Client {
     pub fn new(config: Config) -> Self {
         let reqwest_client = reqwest::Client::new();
+        let validator_api_client = validator_api::Client::new();
 
         // client is only ever created on process startup, so a panic here is fine as it implies
         // invalid config. And that can only happen if an user was messing with it by themselves.
@@ -68,6 +71,7 @@ impl Client {
         Client {
             config,
             reqwest_client,
+            validator_api_client,
         }
     }
 
@@ -87,7 +91,11 @@ impl Client {
     //     let response = self.reqwest_client.get(path).send().await?.json().await?;
     // }
 
-    async fn query_validators<T>(&self, query: String) -> Result<T, ValidatorClientError>
+    async fn query_validators<T>(
+        &self,
+        query: String,
+        use_validator_api: bool,
+    ) -> Result<T, ValidatorClientError>
     where
         for<'a> T: Deserialize<'a>,
     {
@@ -100,7 +108,15 @@ impl Client {
         loop {
             validator_urls.as_mut_slice().shuffle(&mut thread_rng());
             for url in validator_urls.iter() {
-                match self.query_validator(query.clone(), url).await {
+                let res = if use_validator_api {
+                    Ok(self
+                        .validator_api_client
+                        .query_validator(query.clone(), url)
+                        .await?)
+                } else {
+                    self.query_validator(query.clone(), url).await
+                };
+                match res {
                     Ok(res) => return Ok(res),
                     Err(e) => {
                         failed += 1;
@@ -165,7 +181,7 @@ impl Client {
         // we need to encode our json request
         let query_content = base64::encode(query_content_json);
 
-        self.query_validators(query_content).await
+        self.query_validators(query_content, false).await
     }
 
     pub async fn get_mix_nodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
@@ -198,7 +214,7 @@ impl Client {
         // we need to encode our json request
         let query_content = base64::encode(query_content_json);
 
-        self.query_validators(query_content).await
+        self.query_validators(query_content, false).await
     }
 
     pub async fn get_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
@@ -226,6 +242,6 @@ impl Client {
         // we need to encode our json request
         let query_content = base64::encode(query_content_json);
 
-        self.query_validators(query_content).await
+        self.query_validators(query_content, false).await
     }
 }

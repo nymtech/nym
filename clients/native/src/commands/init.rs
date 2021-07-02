@@ -177,7 +177,7 @@ pub fn execute(matches: &ArgMatches) {
 
     let id = matches.value_of("id").unwrap(); // required for now
 
-    let already_init = if Config::default_config_file_path(id).exists() {
+    let already_init = if Config::default_config_file_path(Some(id)).exists() {
         println!("Client \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
         true
     } else {

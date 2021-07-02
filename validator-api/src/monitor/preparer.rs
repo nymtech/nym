@@ -184,7 +184,9 @@ impl PacketPreparer {
             Ok(mixes) => mixes,
         };
 
-        let gateways = match self.validator_client.get_gateways().await {
+        // TODO: This should probably be using the cached data directly, without going through
+        // the API
+        let gateways = match self.validator_client.get_cached_gateways().await {
             Err(err) => {
                 error!("failed to get network gateways - {}", err);
                 return Err(PacketPreparerError::ValidatorClientError(err));

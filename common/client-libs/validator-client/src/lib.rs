@@ -234,6 +234,11 @@ impl Client {
         Ok(gateways)
     }
 
+    pub async fn get_cached_gateways(&mut self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+        let query_content = "v1/gateways".to_string();
+        self.query_validators(query_content, true).await
+    }
+
     pub async fn get_layer_distribution(&self) -> Result<LayerDistribution, ValidatorClientError> {
         // serialization of an empty enum can't fail...
         let query_content_json =

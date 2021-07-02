@@ -4,8 +4,12 @@
 use crate::node_status_api::models::ErrorResponses;
 use std::fmt::{self, Display, Formatter};
 
+// OLD RELATING TO NODE_STATUS_API CLIENT USED BY MONITOR
+
 mod client;
 pub(crate) mod models;
+pub(crate) mod routes;
+pub(crate) mod storage;
 
 pub(crate) use client::{Client, Config};
 

@@ -18,6 +18,7 @@ use crate::monitor::receiver::{
 };
 use crate::monitor::sender::PacketSender;
 use crate::monitor::summary_producer::SummaryProducer;
+use crate::node_status_api::storage::NodeStatusStorage;
 use crate::tested_network::good_topology::parse_topology_file;
 use crate::tested_network::TestedNetwork;
 use anyhow::Result;
@@ -426,10 +427,22 @@ async fn main() -> Result<()> {
     }
     .to_cors()?;
 
+    use crate::node_status_api::routes::*;
+
     rocket::build()
         .attach(cors)
         .mount("/v1", routes![get_mixnodes, get_gateways])
+        .mount(
+            "/v1/status",
+            routes![
+                mixnode_report,
+                gateway_report,
+                mixnodes_full_report,
+                gateways_full_report
+            ],
+        )
         .manage(mixnode_cache)
+        .manage(node_status_storage)
         .ignite()
         .await?
         .launch()

@@ -7,7 +7,7 @@ use crypto::asymmetric::encryption;
 use futures::channel::mpsc;
 use futures::lock::{Mutex, MutexGuard};
 use futures::{SinkExt, StreamExt};
-use log::*;
+use log::warn;
 use nymsphinx::receiver::MessageReceiver;
 use std::fmt::{self, Display, Formatter};
 use std::mem;

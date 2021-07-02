@@ -6,7 +6,7 @@ use crate::monitor::sender::GatewayPackets;
 use crate::test_packet::{NodeType, TestPacket};
 use crate::tested_network::TestedNetwork;
 use crypto::asymmetric::{encryption, identity};
-use log::*;
+use log::{info, warn};
 use mixnet_contract::{GatewayBond, MixNodeBond};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::forwarding::packet::MixPacket;
@@ -248,8 +248,9 @@ impl PacketPreparer {
                 PreparedNode::TestedMix(mix, [v4_packet, v6_packet])
             }
             Err(err) => {
-                warn!(target: "bad node",
-                      "mix {} is malformed - {}",
+                warn!(
+                    target: "Bad node",
+                    "Mix {} is malformed - {}",
                     mixnode_bond.mix_node().identity_key,
                     err
                 );
@@ -286,8 +287,9 @@ impl PacketPreparer {
                 PreparedNode::TestedGateway(gateway, [v4_packet, v6_packet])
             }
             Err(err) => {
-                warn!(target: "bad node",
-                      "gateway {} is malformed - {:?}",
+                warn!(
+                    target: "Bad node",
+                    "gateway {} is malformed - {:?}",
                     gateway_bond.gateway().identity_key,
                     err
                 );

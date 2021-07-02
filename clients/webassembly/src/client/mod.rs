@@ -255,7 +255,7 @@ impl NymClient {
             vec![self.validator_server.clone()],
             &self.mixnet_contract_address,
         );
-        let mut validator_client = validator_client::Client::new(validator_client_config);
+        let validator_client = validator_client::Client::new(validator_client_config);
 
         let mixnodes = match validator_client.get_mix_nodes().await {
             Err(err) => panic!("{}", err),

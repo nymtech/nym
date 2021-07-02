@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::test_packet::IpVersion;
-use log::*;
 use topology::{gateway, mix, NymTopology};
 
 pub(crate) mod good_topology;

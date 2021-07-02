@@ -1,6 +1,14 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[macro_use]
+extern crate rocket;
+
+use rocket::http::Method;
+use rocket::serde::json::Json;
+use rocket::State;
+use rocket_cors::{AllowedHeaders, AllowedOrigins};
+
 use crate::monitor::preparer::PacketPreparer;
 use crate::monitor::processor::{
     ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,
@@ -12,15 +20,21 @@ use crate::monitor::sender::PacketSender;
 use crate::monitor::summary_producer::SummaryProducer;
 use crate::tested_network::good_topology::parse_topology_file;
 use crate::tested_network::TestedNetwork;
+use anyhow::Result;
+use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
-use log::*;
+use log::info;
+use mixnet_contract::{GatewayBond, MixNodeBond};
 use nymsphinx::addressing::clients::Recipient;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::RwLock;
+use tokio::time;
 use topology::NymTopology;
 
+mod cache;
 mod chunker;
 pub(crate) mod gateways_reader;
 mod monitor;
@@ -35,6 +49,7 @@ const NODE_STATUS_API_ARG: &str = "node-status-api";
 const DETAILED_REPORT_ARG: &str = "detailed-report";
 const GATEWAY_SENDING_RATE_ARG: &str = "gateway-rate";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
+const CACHE_INTERVAL_ARG: &str = "cache-interval";
 
 const DEFAULT_VALIDATORS: &[&str] = &[
     // "http://testnet-finney-validator.nymtech.net:1317",
@@ -45,6 +60,7 @@ const DEFAULT_VALIDATORS: &[&str] = &[
 const DEFAULT_NODE_STATUS_API: &str = "http://localhost:8081";
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
 const DEFAULT_MIXNET_CONTRACT: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
+const DEFAULT_CACHE_INTERVAL_ARG: u64 = 60;
 
 pub(crate) const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 pub(crate) const PENALISE_OUTDATED: bool = false;
@@ -99,118 +115,11 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             .long(GATEWAY_SENDING_RATE_ARG)
             .short("r")
         )
+        .arg(Arg::with_name(CACHE_INTERVAL_ARG)
+        .help("Specified rate at which cache will be refreshed, global for all cache")
+        .takes_value(true)
+        .long(CACHE_INTERVAL_ARG))
         .get_matches()
-}
-
-#[tokio::main]
-async fn main() {
-    println!("Network monitor starting...");
-    let matches = parse_args();
-    let v4_topology_path = matches.value_of(V4_TOPOLOGY_ARG).unwrap();
-    let v6_topology_path = matches.value_of(V6_TOPOLOGY_ARG).unwrap();
-
-    let v4_topology = parse_topology_file(v4_topology_path);
-    let v6_topology = parse_topology_file(v6_topology_path);
-
-    let validators_rest_uris_borrowed = matches
-        .values_of(VALIDATORS_ARG)
-        .map(|args| args.collect::<Vec<_>>())
-        .unwrap_or_else(|| DEFAULT_VALIDATORS.to_vec());
-
-    let validators_rest_uris = validators_rest_uris_borrowed
-        .into_iter()
-        .map(|uri| uri.to_string())
-        .collect::<Vec<_>>();
-
-    let node_status_api_uri = matches
-        .value_of(NODE_STATUS_API_ARG)
-        .unwrap_or(DEFAULT_NODE_STATUS_API);
-
-    let mixnet_contract = matches
-        .value_of(MIXNET_CONTRACT_ARG)
-        .unwrap_or(DEFAULT_MIXNET_CONTRACT);
-
-    let detailed_report = matches.is_present(DETAILED_REPORT_ARG);
-    let sending_rate = matches
-        .value_of(GATEWAY_SENDING_RATE_ARG)
-        .map(|v| v.parse().unwrap())
-        .unwrap_or_else(|| DEFAULT_GATEWAY_SENDING_RATE);
-
-    check_if_up_to_date(&v4_topology, &v6_topology);
-    setup_logging();
-
-    println!("* validator servers: {:?}", validators_rest_uris);
-    println!("* node status api server: {}", node_status_api_uri);
-    println!("* mixnet contract: {}", mixnet_contract);
-    println!("* detailed report printing: {}", detailed_report);
-    println!("* gateway sending rate: {} packets/s", sending_rate);
-
-    // TODO: in the future I guess this should somehow change to distribute the load
-    let tested_mix_gateway = v4_topology.gateways()[0].clone();
-    println!(
-        "* gateway for testing mixnodes: {}",
-        tested_mix_gateway.identity_key.to_base58_string()
-    );
-
-    // TODO: those keys change constant throughout the whole execution of the monitor.
-    // and on top of that, they are used with ALL the gateways -> presumably this should change
-    // in the future
-    let mut rng = rand::rngs::OsRng;
-
-    let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
-    let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
-
-    let test_mixnode_sender = Recipient::new(
-        *identity_keypair.public_key(),
-        *encryption_keypair.public_key(),
-        tested_mix_gateway.identity_key,
-    );
-
-    let tested_network = TestedNetwork::new_good(v4_topology, v6_topology);
-    let validator_client = new_validator_client(validators_rest_uris, mixnet_contract);
-    let node_status_api_client = new_node_status_api_client(node_status_api_uri);
-
-    let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
-    let (received_processor_sender_channel, received_processor_receiver_channel) =
-        mpsc::unbounded();
-
-    let packet_preparer = new_packet_preparer(
-        validator_client,
-        tested_network.clone(),
-        test_mixnode_sender,
-        *identity_keypair.public_key(),
-        *encryption_keypair.public_key(),
-    );
-
-    let packet_sender = new_packet_sender(
-        gateway_status_update_sender,
-        Arc::clone(&identity_keypair),
-        sending_rate,
-    );
-    let received_processor = new_received_processor(
-        received_processor_receiver_channel,
-        Arc::clone(&encryption_keypair),
-    );
-    let summary_producer = new_summary_producer(detailed_report);
-    let mut packet_receiver = new_packet_receiver(
-        gateway_status_update_receiver,
-        received_processor_sender_channel,
-    );
-
-    let mut monitor = monitor::Monitor::new(
-        packet_preparer,
-        packet_sender,
-        received_processor,
-        summary_producer,
-        node_status_api_client,
-        tested_network,
-    );
-
-    tokio::spawn(async move { packet_receiver.run().await });
-
-    tokio::spawn(async move { monitor.run().await });
-
-    wait_for_interrupt().await
 }
 
 async fn wait_for_interrupt() {
@@ -353,4 +262,180 @@ fn check_if_up_to_date(v4_topology: &NymTopology, v6_topology: &NymTopology) {
             )
         }
     }
+}
+
+#[get("/mixnodes")]
+async fn get_mixnodes(cache: &State<Arc<RwLock<ValidatorCache>>>) -> Json<Vec<MixNodeBond>> {
+    let cache = cache.read().await;
+    Json(cache.mixnodes())
+}
+
+#[get("/gateways")]
+async fn get_gateways(cache: &State<Arc<RwLock<ValidatorCache>>>) -> Json<Vec<GatewayBond>> {
+    let cache = cache.read().await;
+    Json(cache.gateways())
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    info!("Network monitor starting...");
+    let matches = parse_args();
+    let v4_topology_path = matches.value_of(V4_TOPOLOGY_ARG).unwrap();
+    let v6_topology_path = matches.value_of(V6_TOPOLOGY_ARG).unwrap();
+
+    let v4_topology = parse_topology_file(v4_topology_path);
+    let v6_topology = parse_topology_file(v6_topology_path);
+
+    let validators_rest_uris_borrowed = matches
+        .values_of(VALIDATORS_ARG)
+        .map(|args| args.collect::<Vec<_>>())
+        .unwrap_or_else(|| DEFAULT_VALIDATORS.to_vec());
+
+    let validators_rest_uris = validators_rest_uris_borrowed
+        .into_iter()
+        .map(|uri| uri.to_string())
+        .collect::<Vec<_>>();
+
+    let node_status_api_uri = matches
+        .value_of(NODE_STATUS_API_ARG)
+        .unwrap_or(DEFAULT_NODE_STATUS_API);
+
+    let mixnet_contract = matches
+        .value_of(MIXNET_CONTRACT_ARG)
+        .unwrap_or(DEFAULT_MIXNET_CONTRACT)
+        .to_string();
+
+    let detailed_report = matches.is_present(DETAILED_REPORT_ARG);
+    let sending_rate = matches
+        .value_of(GATEWAY_SENDING_RATE_ARG)
+        .map(|v| v.parse().unwrap())
+        .unwrap_or_else(|| DEFAULT_GATEWAY_SENDING_RATE);
+
+    let cache_interval_arg = matches
+        .value_of(CACHE_INTERVAL_ARG)
+        .map(|v| v.parse().unwrap())
+        .unwrap_or_else(|| DEFAULT_CACHE_INTERVAL_ARG);
+
+    check_if_up_to_date(&v4_topology, &v6_topology);
+    setup_logging();
+
+    info!("* validator servers: {:?}", validators_rest_uris);
+    info!("* node status api server: {}", node_status_api_uri);
+    info!("* mixnet contract: {}", mixnet_contract);
+    info!("* detailed report printing: {}", detailed_report);
+    info!("* gateway sending rate: {} packets/s", sending_rate);
+
+    // TODO: in the future I guess this should somehow change to distribute the load
+    let tested_mix_gateway = v4_topology.gateways()[0].clone();
+    info!(
+        "* gateway for testing mixnodes: {}",
+        tested_mix_gateway.identity_key.to_base58_string()
+    );
+
+    // TODO: those keys change constant throughout the whole execution of the monitor.
+    // and on top of that, they are used with ALL the gateways -> presumably this should change
+    // in the future
+    let mut rng = rand::rngs::OsRng;
+
+    let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
+    let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
+
+    let test_mixnode_sender = Recipient::new(
+        *identity_keypair.public_key(),
+        *encryption_keypair.public_key(),
+        tested_mix_gateway.identity_key,
+    );
+
+    let tested_network = TestedNetwork::new_good(v4_topology, v6_topology);
+    let validator_client = new_validator_client(validators_rest_uris.clone(), &mixnet_contract);
+    let node_status_api_client = new_node_status_api_client(node_status_api_uri);
+
+    let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
+    let (received_processor_sender_channel, received_processor_receiver_channel) =
+        mpsc::unbounded();
+
+    let packet_preparer = new_packet_preparer(
+        validator_client,
+        tested_network.clone(),
+        test_mixnode_sender,
+        *identity_keypair.public_key(),
+        *encryption_keypair.public_key(),
+    );
+
+    let packet_sender = new_packet_sender(
+        gateway_status_update_sender,
+        Arc::clone(&identity_keypair),
+        sending_rate,
+    );
+    let received_processor = new_received_processor(
+        received_processor_receiver_channel,
+        Arc::clone(&encryption_keypair),
+    );
+    let summary_producer = new_summary_producer(detailed_report);
+    let mut packet_receiver = new_packet_receiver(
+        gateway_status_update_receiver,
+        received_processor_sender_channel,
+    );
+
+    let mut monitor = monitor::Monitor::new(
+        packet_preparer,
+        packet_sender,
+        received_processor,
+        summary_producer,
+        node_status_api_client,
+        tested_network,
+    );
+
+    let mixnode_cache = Arc::new(RwLock::new(ValidatorCache::init(
+        validators_rest_uris,
+        mixnet_contract,
+    )));
+
+    let write_mixnode_cache = Arc::clone(&mixnode_cache);
+
+    tokio::spawn(async move {
+        let mut interval = time::interval(Duration::from_secs(cache_interval_arg));
+        loop {
+            interval.tick().await;
+            {
+                match write_mixnode_cache.try_write() {
+                    Ok(mut w) => w.cache().await.unwrap(),
+                    // If we don't get the write lock skip a tick
+                    Err(e) => error!("Could not aquire write lock on cache: {}", e),
+                }
+            }
+        }
+    });
+
+    tokio::spawn(async move { packet_receiver.run().await });
+
+    tokio::spawn(async move { monitor.run().await });
+
+    let allowed_origins = AllowedOrigins::all();
+
+    // You can also deserialize this
+    let cors = rocket_cors::CorsOptions {
+        allowed_origins,
+        allowed_methods: vec![Method::Post, Method::Get]
+            .into_iter()
+            .map(From::from)
+            .collect(),
+        allowed_headers: AllowedHeaders::all(),
+        allow_credentials: true,
+        ..Default::default()
+    }
+    .to_cors()?;
+
+    rocket::build()
+        .attach(cors)
+        .mount("/v1", routes![get_mixnodes, get_gateways])
+        .manage(mixnode_cache)
+        .ignite()
+        .await?
+        .launch()
+        .await?;
+
+    wait_for_interrupt().await;
+
+    Ok(())
 }

@@ -2,6 +2,7 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use crate::{IdentityKey, SphinxKey};
+
 use cosmwasm_std::{coin, Addr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -13,11 +14,18 @@ pub struct MixNode {
     pub mix_port: u16,
     pub verloc_port: u16,
     pub http_api_port: u16,
-    pub layer: u64,
     pub sphinx_key: SphinxKey,
     /// Base58 encoded ed25519 EdDSA public key.
     pub identity_key: IdentityKey,
     pub version: String,
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+pub enum Layer {
+    Gateway,
+    One,
+    Two,
+    Three,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
@@ -25,15 +33,17 @@ pub struct MixNodeBond {
     pub bond_amount: Coin,
     pub total_delegation: Coin,
     pub owner: Addr,
+    pub layer: Layer,
     pub mix_node: MixNode,
 }
 
 impl MixNodeBond {
-    pub fn new(bond_amount: Coin, owner: Addr, mix_node: MixNode) -> Self {
+    pub fn new(bond_amount: Coin, owner: Addr, layer: Layer, mix_node: MixNode) -> Self {
         MixNodeBond {
             total_delegation: coin(0, &bond_amount.denom),
             bond_amount,
             owner,
+            layer,
             mix_node,
         }
     }

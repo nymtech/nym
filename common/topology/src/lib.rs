@@ -239,7 +239,7 @@ pub fn nym_topology_from_bonds(
 ) -> NymTopology {
     let mut mixes = HashMap::new();
     for bond in mix_bonds.into_iter() {
-        let layer = bond.mix_node.layer as MixLayer;
+        let layer = bond.layer as MixLayer;
         if layer == 0 || layer > 3 {
             warn!(
                 "{} says it's on invalid layer {}!",
@@ -283,6 +283,7 @@ mod converting_mixes_to_vec {
         use crypto::asymmetric::{encryption, identity};
 
         use super::*;
+        use mixnet_contract::Layer;
 
         #[test]
         fn returns_a_vec_with_hashmap_values() {
@@ -300,7 +301,7 @@ mod converting_mixes_to_vec {
                     "C7cown6dYCLZpLiMFC1PaBmhvLvmJmLDJGeRTbPD45bX",
                 )
                 .unwrap(),
-                layer: 1,
+                layer: Layer::One,
                 version: "0.x.0".to_string(),
             };
 

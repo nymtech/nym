@@ -199,6 +199,7 @@ impl Default for MessageReceiver {
 mod message_receiver {
     use super::*;
     use crypto::asymmetric::identity;
+    use mixnet_contract::Layer;
     use nymsphinx_addressing::clients::Recipient;
     use rand::rngs::OsRng;
     use std::collections::HashMap;
@@ -227,7 +228,7 @@ mod message_receiver {
                     "B3GzG62aXAZNg14RoMCp3BhELNBrySLr2JqrwyfYFzRc",
                 )
                 .unwrap(),
-                layer: 1,
+                layer: Layer::One,
                 version: "0.8.0-dev".to_string(),
             }],
         );
@@ -248,7 +249,7 @@ mod message_receiver {
                     "5Z1VqYwM2xeKxd8H7fJpGWasNiDFijYBAee7MErkZ5QT",
                 )
                 .unwrap(),
-                layer: 2,
+                layer: Layer::Two,
                 version: "0.8.0-dev".to_string(),
             }],
         );
@@ -269,7 +270,7 @@ mod message_receiver {
                     "9EyjhCggr2QEA2nakR88YHmXgpy92DWxoe2draDRkYof",
                 )
                 .unwrap(),
-                layer: 3,
+                layer: Layer::Three,
                 version: "0.8.0-dev".to_string(),
             }],
         );

@@ -7,7 +7,6 @@ use crate::node_status_api::models::{
 };
 use crate::test_packet::{NodeType, TestPacket};
 use crate::PENALISE_OUTDATED;
-use log::*;
 use std::collections::HashMap;
 
 #[derive(Default)]
@@ -74,56 +73,74 @@ pub(crate) struct TestReport {
 
 impl TestReport {
     fn print(&self, detailed: bool) {
-        info!(target: "Test Report", "Sent total of {} packets", self.total_sent);
-        info!(target: "Test Report", "Received total of {} packets", self.total_received);
-        info!(target: "Test Report", "{} nodes are invalid", self.malformed.len());
+        info!("Sent total of {} packets", self.total_sent);
+        info!("Received total of {} packets", self.total_received);
+        info!("{} nodes are invalid", self.malformed.len());
 
-        info!(target: "Test Report", "{} mixnodes speak ONLY IPv4 (NO IPv6 connectivity)", self.only_ipv4_compatible_mixes.len());
-        info!(target: "Test Report", "{} mixnodes speak ONLY IPv6 (NO IPv4 connectivity)", self.only_ipv6_compatible_mixes.len());
-        info!(target: "Test Report", "{} mixnodes are totally unroutable!", self.completely_unroutable_mixes.len());
-        info!(target: "Test Report", "{} mixnodes work fine!", self.fully_working_mixes.len());
+        info!(
+            "{} mixnodes speak ONLY IPv4 (NO IPv6 connectivity)",
+            self.only_ipv4_compatible_mixes.len()
+        );
+        info!(
+            "{} mixnodes speak ONLY IPv6 (NO IPv4 connectivity)",
+            self.only_ipv6_compatible_mixes.len()
+        );
+        info!(
+            "{} mixnodes are totally unroutable!",
+            self.completely_unroutable_mixes.len()
+        );
+        info!("{} mixnodes work fine!", self.fully_working_mixes.len());
 
-        info!(target: "Test Report", "{} gateways speak ONLY IPv4 (NO IPv6 connectivity)", self.only_ipv4_compatible_gateways.len());
-        info!(target: "Test Report", "{} gateways speak ONLY IPv6 (NO IPv4 connectivity)", self.only_ipv6_compatible_gateways.len());
-        info!(target: "Test Report", "{} gateways are totally unroutable!", self.completely_unroutable_gateways.len());
-        info!(target: "Test Report", "{} gateways work fine!", self.fully_working_gateways.len());
+        info!(
+            "{} gateways speak ONLY IPv4 (NO IPv6 connectivity)",
+            self.only_ipv4_compatible_gateways.len()
+        );
+        info!(
+            "{} gateways speak ONLY IPv6 (NO IPv4 connectivity)",
+            self.only_ipv6_compatible_gateways.len()
+        );
+        info!(
+            "{} gateways are totally unroutable!",
+            self.completely_unroutable_gateways.len()
+        );
+        info!("{} gateways work fine!", self.fully_working_gateways.len());
 
         if detailed {
-            info!(target: "Detailed report", "full summary:");
+            info!("full summary:");
             for malformed in self.malformed.iter() {
-                info!(target: "Invalid node", "{}", malformed)
+                info!("{}", malformed)
             }
 
             for v4_node in self.only_ipv4_compatible_mixes.iter() {
-                info!(target: "IPv4-only mixnode", "{}", v4_node)
+                info!("{}", v4_node)
             }
 
             for v6_node in self.only_ipv6_compatible_mixes.iter() {
-                info!(target: "IPv6-only mixnode", "{}", v6_node)
+                info!("{}", v6_node)
             }
 
             for unroutable in self.completely_unroutable_mixes.iter() {
-                info!(target: "Unroutable mixnode", "{}", unroutable)
+                info!("{}", unroutable)
             }
 
             for working in self.fully_working_mixes.iter() {
-                info!(target: "Fully working mixnode", "{}", working)
+                info!("{}", working)
             }
 
             for v4_node in self.only_ipv4_compatible_gateways.iter() {
-                info!(target: "IPv4-only gateway", "{}", v4_node)
+                info!("{}", v4_node)
             }
 
             for v6_node in self.only_ipv6_compatible_gateways.iter() {
-                info!(target: "IPv6-only gateway", "{}", v6_node)
+                info!("{}", v6_node)
             }
 
             for unroutable in self.completely_unroutable_gateways.iter() {
-                info!(target: "Unroutable gateway", "{}", unroutable)
+                info!("{}", unroutable)
             }
 
             for working in self.fully_working_gateways.iter() {
-                info!(target: "Fully working gateway", "{}", working)
+                info!("{}", working)
             }
         }
     }

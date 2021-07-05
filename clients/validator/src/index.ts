@@ -33,7 +33,7 @@ export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBal
 export { nymGasLimits, nymGasPrice }
 
 export default class ValidatorClient {
-    private readonly stakeDenom: string;
+    private readonly prefix: string;
 
     urls: string[];
     private readonly client: INetClient | IQueryClient
@@ -44,17 +44,17 @@ export default class ValidatorClient {
     // eslint-disable-next-line @typescript-eslint/no-inferrable-types
     private failedRequests: number = 0;
 
-    private constructor(urls: string[], client: INetClient | IQueryClient, contractAddress: string, stakeDenom: string) {
+    private constructor(urls: string[], client: INetClient | IQueryClient, contractAddress: string, prefix: string) {
         this.urls = urls;
         this.client = client;
         this.mixNodesCache = new MixnodesCache(client, 100);
         this.gatewayCache = new GatewaysCache(client, 100);
         this.contractAddress = contractAddress;
-        this.stakeDenom = stakeDenom;
+        this.prefix = prefix;
     }
 
     // allows also entering 'string' by itself for backwards compatibility
-    static async connect(contractAddress: string, mnemonic: string, urls: string | string[], stakeDenom: string): Promise<ValidatorClient> {
+    static async connect(contractAddress: string, mnemonic: string, urls: string | string[], prefix: string): Promise<ValidatorClient> {
         const validatorUrls = this.dealWithValidatorUrls(urls)
         const wallet = await ValidatorClient.buildWallet(mnemonic);
 
@@ -62,22 +62,22 @@ export default class ValidatorClient {
         if (validatorUrls.length > 1) {
             for (let i = 0; i < validatorUrls.length; i++) {
                 console.log("Attempting initial connection to", validatorUrls[0])
-                const netClient = await NetClient.connect(wallet, validatorUrls[0], stakeDenom).catch((_) => ValidatorClient.moveArrayHeadToBack(validatorUrls))
+                const netClient = await NetClient.connect(wallet, validatorUrls[0], prefix).catch((_) => ValidatorClient.moveArrayHeadToBack(validatorUrls))
                 if (netClient !== undefined) {
-                    return new ValidatorClient(validatorUrls, netClient, contractAddress, stakeDenom);
+                    return new ValidatorClient(validatorUrls, netClient, contractAddress, prefix);
                 }
                 console.log("Initial connection to", validatorUrls[0], "failed")
             }
         } else {
-            const netClient = await NetClient.connect(wallet, validatorUrls[0], stakeDenom)
-            return new ValidatorClient(validatorUrls, netClient, contractAddress, stakeDenom);
+            const netClient = await NetClient.connect(wallet, validatorUrls[0], prefix)
+            return new ValidatorClient(validatorUrls, netClient, contractAddress, prefix);
         }
 
         throw new Error("None of the provided validators seem to be alive")
     }
 
     // allows also entering 'string' by itself for backwards compatibility
-    static async connectForQuery(contractAddress: string, urls: string | string[], stakeDenom: string): Promise<ValidatorClient> {
+    static async connectForQuery(contractAddress: string, urls: string | string[], prefix: string): Promise<ValidatorClient> {
         const validatorUrls = this.dealWithValidatorUrls(urls)
 
         // if we have more than a single validator, try to perform initial connection until we succeed or run out of options
@@ -86,13 +86,13 @@ export default class ValidatorClient {
                 console.log("Attempting initial connection to", validatorUrls[0])
                 const queryClient = await QueryClient.connect(validatorUrls[0]).catch((_) => ValidatorClient.moveArrayHeadToBack(validatorUrls))
                 if (queryClient !== undefined) {
-                    return new ValidatorClient(validatorUrls, queryClient, contractAddress, stakeDenom)
+                    return new ValidatorClient(validatorUrls, queryClient, contractAddress, prefix)
                 }
                 console.log("Initial connection to", validatorUrls[0], "failed")
             }
         } else {
             const queryClient = await QueryClient.connect(validatorUrls[0])
-            return new ValidatorClient(validatorUrls, queryClient, contractAddress, stakeDenom)
+            return new ValidatorClient(validatorUrls, queryClient, contractAddress, prefix)
         }
 
         throw new Error("None of the provided validators seem to be alive")
@@ -211,7 +211,7 @@ export default class ValidatorClient {
     }
 
     getBalance(address: string): Promise<Coin | null> {
-        return this.client.getBalance(address, this.stakeDenom).catch((err) => this.handleRequestFailure(err));
+        return this.client.getBalance(address, this.denom).catch((err) => this.handleRequestFailure(err));
     }
 
     async getStateParams(): Promise<StateParams> {
@@ -248,7 +248,7 @@ export default class ValidatorClient {
     async minimumMixnodeBond(): Promise<Coin> {
         const stateParams = await this.getStateParams()
         // we trust the contract to return a valid number
-        return coin(Number(stateParams.minimum_mixnode_bond), this.stakeDenom)
+        return coin(Number(stateParams.minimum_mixnode_bond), this.prefix)
     }
 
     /**
@@ -394,7 +394,7 @@ export default class ValidatorClient {
     async minimumGatewayBond(): Promise<Coin> {
         const stateParams = await this.getStateParams()
         // we trust the contract to return a valid number
-        return coin(Number(stateParams.minimum_gateway_bond), this.stakeDenom)
+        return coin(Number(stateParams.minimum_gateway_bond), this.prefix)
     }
 
     /**
@@ -402,7 +402,7 @@ export default class ValidatorClient {
      */
     async bondGateway(gateway: Gateway, bond: Coin): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {bond_gateway: {gateway: gateway}}, "adding gateway", [bond]).catch((err) => this.handleRequestFailure(err));
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { bond_gateway: { gateway: gateway } }, "adding gateway", [bond]).catch((err) => this.handleRequestFailure(err));
             console.log(`account ${this.client.clientAddress} added gateway with ${gateway.host}`);
             return result;
         } else {
@@ -531,7 +531,7 @@ export default class ValidatorClient {
             const encoded = data.map(req => makeBankMsgSend(req.senderAddress, req.recipientAddress, req.transferAmount));
 
             // the function to calculate fee for a single entry is not exposed...
-            const table = buildFeeTable(nymGasPrice(this.stakeDenom), {sendMultiple: nymGasLimits.send * data.length}, {sendMultiple: nymGasLimits.send * data.length})
+            const table = buildFeeTable(nymGasPrice(this.prefix), { sendMultiple: nymGasLimits.send * data.length }, { sendMultiple: nymGasLimits.send * data.length })
             const fee = table.sendMultiple
             const result = await this.client.signAndBroadcast(senderAddress, encoded, fee, memo)
             if (isBroadcastTxFailure(result)) {

@@ -21,15 +21,23 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
     fn default_root_directory() -> PathBuf;
 
     // default, most probable, implementations; can be easily overridden where required
-    fn default_config_directory(id: &str) -> PathBuf {
-        Self::default_root_directory().join(id).join("config")
+    fn default_config_directory(id: Option<&str>) -> PathBuf {
+        if let Some(id) = id {
+            Self::default_root_directory().join(id).join("config")
+        } else {
+            Self::default_root_directory().join("config")
+        }
     }
 
-    fn default_data_directory(id: &str) -> PathBuf {
-        Self::default_root_directory().join(id).join("data")
+    fn default_data_directory(id: Option<&str>) -> PathBuf {
+        if let Some(id) = id {
+            Self::default_root_directory().join(id).join("data")
+        } else {
+            Self::default_root_directory().join("data")
+        }
     }
 
-    fn default_config_file_path(id: &str) -> PathBuf {
+    fn default_config_file_path(id: Option<&str>) -> PathBuf {
         Self::default_config_directory(id).join(Self::config_file_name())
     }
 
@@ -61,7 +69,7 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
         )
     }
 
-    fn load_from_file(id: &str) -> io::Result<Self> {
+    fn load_from_file(id: Option<&str>) -> io::Result<Self> {
         let config_contents = fs::read_to_string(Self::default_config_file_path(id))?;
 
         toml::from_str(&config_contents)

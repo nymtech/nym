@@ -4,6 +4,7 @@
 use mixnet_contract::{GatewayBond, MixNodeBond};
 use serde::Deserialize;
 use std::fs;
+use std::path::Path;
 use topology::{nym_topology_from_bonds, NymTopology};
 
 #[derive(Deserialize)]
@@ -12,7 +13,7 @@ struct GoodTopology {
     gateways: Vec<GatewayBond>,
 }
 
-pub(crate) fn parse_topology_file(file_path: &str) -> NymTopology {
+pub(crate) fn parse_topology_file<P: AsRef<Path>>(file_path: P) -> NymTopology {
     let file_content =
         fs::read_to_string(file_path).expect("specified topology file does not exist");
     let good_topology = serde_json::from_str::<GoodTopology>(&file_content)

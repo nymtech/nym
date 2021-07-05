@@ -58,7 +58,7 @@ export default class ValidatorClient {
     // allows also entering 'string' by itself for backwards compatibility
     static async connect(contractAddress: string, mnemonic: string, urls: string | string[], prefix: string): Promise<ValidatorClient> {
         const validatorUrls = this.dealWithValidatorUrls(urls)
-        const wallet = await ValidatorClient.buildWallet(mnemonic);
+        const wallet = await ValidatorClient.buildWallet(mnemonic, prefix);
 
         // if we have more than a single validator, try to perform initial connection until we succeed or run out of options
         if (validatorUrls.length > 1) {

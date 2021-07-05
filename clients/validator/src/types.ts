@@ -1,9 +1,16 @@
 import { Coin } from "@cosmjs/launchpad/";
 
+export enum Layer {
+    Gateway,
+    One,
+    Two,
+    Three,
+}
+
 export type MixNodeBond = { // TODO: change name to MixNodeBond
     owner: string,
     mix_node: MixNode,    // TODO: camelCase this later once everything else works
-
+    layer: Layer,
     bond_amount: Coin,
     total_delegation: Coin,
 }

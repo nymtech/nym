@@ -233,6 +233,18 @@ export default class ValidatorClient {
     }
 
     /**
+     * Get or refresh the list of mixnodes in the network from validator-api
+     *
+     * @returns an array containing all known `MixNodeBond`s.
+     *
+     * TODO: We will want to put this puppy on a timer, but for the moment we can
+     * just get things strung together and refresh it manually.
+     */
+    refreshValidatorAPIMixNodes(): Promise<MixNodeBond[]> {
+        return this.mixNodesCache.refreshValidatorAPIMixNodes(this.urls[0]).catch((err) => this.handleRequestFailure(err));
+    }
+
+    /**
      * Get mixnodes from the local client cache.
      *
      * @returns an array containing all `MixNodeBond`s in the client's local cache.

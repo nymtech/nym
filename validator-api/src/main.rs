@@ -34,6 +34,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
+use tokio::time::timeout;
 use topology::NymTopology;
 
 mod cache;
@@ -454,10 +455,9 @@ async fn main() -> Result<()> {
         loop {
             interval.tick().await;
             {
-                match write_mixnode_cache.try_write() {
+                match timeout(Duration::from_secs(10), write_mixnode_cache.write()).await {
                     Ok(mut w) => w.cache().await.unwrap(),
-                    // If we don't get the write lock skip a tick
-                    Err(e) => error!("Could not aquire write lock on cache: {}", e),
+                    Err(e) => error!("Timeout: Could not aquire write lock on cache: {}", e),
                 }
             }
         }

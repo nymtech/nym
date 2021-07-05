@@ -7,28 +7,28 @@ version = "0.10.2"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
-    "Drazen Urch <durch@users.noreply.github.com>"
+    "Drazen Urch <durch@users.noreply.github.com>",
 ]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bs58 = "0.4"
+bs58 = "0.4.0"
 clap = "2"
 colored = "2"
 dirs = "3"
-dotenv = "0.15"
-futures = "0.3"
+dotenv = "0.15.0"
+futures = "0.3.0"
 humantime-serde = "1"
-log = "0.4"
+log = "0.4.0"
 pretty_env_logger = "0.4"
-rand = "0.7"
+rand = "0.7.3"
 rocket = { version="0.5.0-rc.1", features=["json"] }
 serde = { version="1", features=["derive"] }
 tokio = { version="1", features=["rt-multi-thread", "net", "signal"] }
-tokio-util = { version="0.6", features=["codec"] }
-toml = "0.5"
+tokio-util = { version="0.6.7", features=["codec"] }
+toml = "0.5.8"
 
 ## internal
 config = { path="../common/config" }

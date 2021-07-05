@@ -108,31 +108,12 @@ checksum = "23b62fc65de8e4e7f52534fb52b0f3ed04746ae267519eef2a83941e8085068b"
 
 [[package]]
 name = "async-stream"
-version = "0.3.0"
-source = "git+https://github.com/SergioBenitez/async-stream.git?rev=c46ada9#c46ada948e0d4800393836f57eb2a3db516beb1e"
-dependencies = [
- "async-stream-impl 0.3.0",
- "futures-core",
-]
-
-[[package]]
-name = "async-stream"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "171374e7e3b2504e0e5236e3b59260560f9fe94bfe9ac39ba5e4e929c5590625"
 dependencies = [
- "async-stream-impl 0.3.2",
+ "async-stream-impl",
  "futures-core",
-]
-
-[[package]]
-name = "async-stream-impl"
-version = "0.3.0"
-source = "git+https://github.com/SergioBenitez/async-stream.git?rev=c46ada9#c46ada948e0d4800393836f57eb2a3db516beb1e"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -682,17 +663,8 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "411cf45ac38f00df3679689616649dc12607b846db171780bb790b514a042832"
 dependencies = [
- "devise_codegen 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "devise_core 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "devise"
-version = "0.3.0"
-source = "git+https://github.com/SergioBenitez/Devise.git?rev=df00b5#df00b5162edd53e8d496e7935774e69b5f7f6bdf"
-dependencies = [
- "devise_codegen 0.3.0 (git+https://github.com/SergioBenitez/Devise.git?rev=df00b5)",
- "devise_core 0.3.0 (git+https://github.com/SergioBenitez/Devise.git?rev=df00b5)",
+ "devise_codegen",
+ "devise_core",
 ]
 
 [[package]]
@@ -701,16 +673,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2cf7081f06822f1787e29359354426132cf832cc977d7a8ff747848631462ad1"
 dependencies = [
- "devise_core 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "quote",
-]
-
-[[package]]
-name = "devise_codegen"
-version = "0.3.0"
-source = "git+https://github.com/SergioBenitez/Devise.git?rev=df00b5#df00b5162edd53e8d496e7935774e69b5f7f6bdf"
-dependencies = [
- "devise_core 0.3.0 (git+https://github.com/SergioBenitez/Devise.git?rev=df00b5)",
+ "devise_core",
  "quote",
 ]
 
@@ -719,18 +682,6 @@ name = "devise_core"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80c23631758736875d7ce08f847f296b4001b72cf90878e85b47df7ac5442147"
-dependencies = [
- "bitflags",
- "proc-macro2",
- "proc-macro2-diagnostics",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "devise_core"
-version = "0.3.0"
-source = "git+https://github.com/SergioBenitez/Devise.git?rev=df00b5#df00b5162edd53e8d496e7935774e69b5f7f6bdf"
 dependencies = [
  "bitflags",
  "proc-macro2",
@@ -1110,19 +1061,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tungstenite",
-]
-
-[[package]]
-name = "generator"
-version = "0.6.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "061d3be1afec479d56fa3bd182bf966c7999ec175fcfdb87ac14d417241366c6"
-dependencies = [
- "cc",
- "libc",
- "log",
- "rustversion",
- "winapi",
 ]
 
 [[package]]
@@ -1544,25 +1482,12 @@ dependencies = [
 
 [[package]]
 name = "loom"
-version = "0.3.6"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0e8460f2f2121162705187214720353c517b97bdfb3494c0b1e33d83ebe4bed"
-dependencies = [
- "cfg-if 0.1.10",
- "generator 0.6.25",
- "scoped-tls",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "loom"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7aa5348dc45fa5f2419b6dd4ea20345e6b01b1fcc9d176a322eada1ac3f382ba"
+checksum = "2111607c723d7857e0d8299d5ce7a0bf4b844d3e44f8de136b13da513eaf8fc4"
 dependencies = [
  "cfg-if 1.0.0",
- "generator 0.7.0",
+ "generator",
  "scoped-tls",
  "serde",
  "serde_json",
@@ -1672,25 +1597,6 @@ dependencies = [
  "tokio-util",
  "validator-client",
  "version-checker",
-]
-
-[[package]]
-name = "multer"
-version = "1.2.2"
-source = "git+https://github.com/rousan/multer-rs.git?rev=7e4f0c5f#7e4f0c5fe14e4c531f503922bfe04f68b32ddf17"
-dependencies = [
- "bytes",
- "derive_more",
- "encoding_rs",
- "futures-util",
- "http",
- "httparse",
- "log",
- "mime",
- "tokio",
- "tokio-util",
- "twoway",
- "version_check",
 ]
 
 [[package]]
@@ -1872,8 +1778,7 @@ dependencies = [
  "pemstore",
  "pretty_env_logger",
  "rand 0.7.3",
- "rocket 0.5.0-dev",
- "rocket_contrib",
+ "rocket",
  "serde",
  "serial_test",
  "tokio",
@@ -1953,7 +1858,7 @@ dependencies = [
  "pretty_env_logger",
  "rand 0.7.3",
  "reqwest",
- "rocket 0.5.0-rc.1",
+ "rocket",
  "rocket_cors",
  "serde",
  "serde_json",
@@ -2605,47 +2510,11 @@ dependencies = [
 
 [[package]]
 name = "rocket"
-version = "0.5.0-dev"
-source = "git+https://github.com/SergioBenitez/Rocket?rev=f442ad93cb2788bfd08aca5d94e509db20888101#f442ad93cb2788bfd08aca5d94e509db20888101"
-dependencies = [
- "async-stream 0.3.0",
- "async-trait",
- "atomic",
- "atty",
- "binascii",
- "bytes",
- "either",
- "figment",
- "futures",
- "indexmap",
- "log",
- "memchr",
- "multer 1.2.2",
- "num_cpus",
- "parking_lot",
- "pin-project-lite",
- "rand 0.8.4",
- "ref-cast",
- "rocket_codegen 0.5.0-dev",
- "rocket_http 0.5.0-dev",
- "serde",
- "state 0.4.2",
- "tempfile",
- "time",
- "tokio",
- "tokio-util",
- "ubyte",
- "version_check",
- "yansi",
-]
-
-[[package]]
-name = "rocket"
 version = "0.5.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0a71c18c42a0eb15bf3816831caf0dad11e7966f2a41aaf486a701979c4dd1f2"
 dependencies = [
- "async-stream 0.3.2",
+ "async-stream",
  "async-trait",
  "atomic",
  "atty",
@@ -2657,17 +2526,17 @@ dependencies = [
  "indexmap",
  "log",
  "memchr",
- "multer 2.0.0",
+ "multer",
  "num_cpus",
  "parking_lot",
  "pin-project-lite",
  "rand 0.8.4",
  "ref-cast",
- "rocket_codegen 0.5.0-rc.1",
- "rocket_http 0.5.0-rc.1",
+ "rocket_codegen",
+ "rocket_http",
  "serde",
  "serde_json",
- "state 0.5.2",
+ "state",
  "tempfile",
  "time",
  "tokio",
@@ -2680,43 +2549,18 @@ dependencies = [
 
 [[package]]
 name = "rocket_codegen"
-version = "0.5.0-dev"
-source = "git+https://github.com/SergioBenitez/Rocket?rev=f442ad93cb2788bfd08aca5d94e509db20888101#f442ad93cb2788bfd08aca5d94e509db20888101"
-dependencies = [
- "devise 0.3.0 (git+https://github.com/SergioBenitez/Devise.git?rev=df00b5)",
- "glob",
- "indexmap",
- "quote",
- "rocket_http 0.5.0-dev",
- "unicode-xid",
-]
-
-[[package]]
-name = "rocket_codegen"
 version = "0.5.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "66f5fa462f7eb958bba8710c17c5d774bbbd59809fa76fb1957af7e545aea8bb"
 dependencies = [
- "devise 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "devise",
  "glob",
  "indexmap",
  "proc-macro2",
  "quote",
- "rocket_http 0.5.0-rc.1",
+ "rocket_http",
  "syn",
  "unicode-xid",
-]
-
-[[package]]
-name = "rocket_contrib"
-version = "0.5.0-dev"
-source = "git+https://github.com/SergioBenitez/Rocket?rev=f442ad93cb2788bfd08aca5d94e509db20888101#f442ad93cb2788bfd08aca5d94e509db20888101"
-dependencies = [
- "log",
- "rocket 0.5.0-dev",
- "serde",
- "serde_json",
- "tokio",
 ]
 
 [[package]]
@@ -2726,39 +2570,12 @@ source = "git+https://github.com/lawliet89/rocket_cors?branch=master#dfd3662c49e
 dependencies = [
  "log",
  "regex",
- "rocket 0.5.0-rc.1",
+ "rocket",
  "serde",
  "serde_derive",
  "unicase",
  "unicase_serde",
  "url",
-]
-
-[[package]]
-name = "rocket_http"
-version = "0.5.0-dev"
-source = "git+https://github.com/SergioBenitez/Rocket?rev=f442ad93cb2788bfd08aca5d94e509db20888101#f442ad93cb2788bfd08aca5d94e509db20888101"
-dependencies = [
- "cookie",
- "either",
- "http",
- "hyper",
- "indexmap",
- "log",
- "memchr",
- "mime",
- "parking_lot",
- "pear",
- "percent-encoding",
- "pin-project-lite",
- "ref-cast",
- "serde",
- "smallvec",
- "stable-pattern",
- "state 0.4.2",
- "time",
- "tokio",
- "uncased",
 ]
 
 [[package]]
@@ -2783,7 +2600,7 @@ dependencies = [
  "serde",
  "smallvec",
  "stable-pattern",
- "state 0.5.2",
+ "state",
  "time",
  "tokio",
  "uncased",
@@ -3186,19 +3003,11 @@ dependencies = [
 
 [[package]]
 name = "state"
-version = "0.4.2"
-source = "git+https://github.com/SergioBenitez/state.git?rev=8f94dc#8f94dce673b7d4b0e7b96c808a84f5e2a4be4a60"
-dependencies = [
- "loom 0.3.6",
-]
-
-[[package]]
-name = "state"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "87cf4f5369e6d3044b5e365c9690f451516ac8f0954084622b49ea3fde2f6de5"
 dependencies = [
- "loom 0.5.0",
+ "loom",
 ]
 
 [[package]]
@@ -3340,18 +3149,18 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "1.0.25"
+version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa6f76457f59514c7eeb4e59d891395fab0b2fd1d40723ae737d64153392e9c6"
+checksum = "93119e4feac1cbe6c798c34d3a53ea0026b0b1de6a120deef895137c0529bfe2"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.25"
+version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a36768c0fbf1bb15eca10defa29526bda730a2376c2ab4393ccfa16fb1a318d"
+checksum = "060d69a0afe7796bf42e9e2ff91f5ee691fb15c53d38b4b62a9a53eb23164745"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3413,9 +3222,9 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "tokio"
-version = "1.7.1"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fb2ed024293bb19f7a5dc54fe83bf86532a44c12a2bb8ba40d64a4509395ca2"
+checksum = "570c2eb13b3ab38208130eccd41be92520388791207fde783bda7c1e8ace28d4"
 dependencies = [
  "autocfg",
  "bytes",
@@ -3468,7 +3277,7 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "53474327ae5e166530d17f2d956afcb4f8a004de581b3cae10f12006bc8163e3"
 dependencies = [
- "async-stream 0.3.2",
+ "async-stream",
  "bytes",
  "futures-core",
  "tokio",

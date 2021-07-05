@@ -10,6 +10,7 @@ use crate::node::node_description::{NodeDescription, DESCRIPTION_FILE};
 use clap::{App, Arg, ArgMatches};
 use config::NymConfig;
 use crypto::asymmetric::identity;
+use rand::thread_rng;
 use serde::Deserialize;
 use std::fmt::Display;
 use std::net::SocketAddr;
@@ -166,7 +167,7 @@ fn pre_090_upgrade(from: &str, config: Config) -> Config {
     );
 
     println!("Generating new identity...");
-    let mut rng = rand::rngs::OsRng;
+    let mut rng = thread_rng();
 
     let identity_keys = identity::KeyPair::new(&mut rng);
     upgraded_config.set_default_identity_keypair_paths();

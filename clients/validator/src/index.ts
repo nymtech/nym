@@ -33,17 +33,15 @@ export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBal
 export { nymGasLimits, nymGasPrice }
 
 export default class ValidatorClient {
-    private readonly prefix: string;
-    private readonly denom: string;
-
-    urls: string[];
     private readonly client: INetClient | IQueryClient
-    private mixNodesCache: MixnodesCache;
-    private gatewayCache: GatewaysCache
     private readonly contractAddress: string;
-    // for some reason typescript thinks it's better to not be explicit about a trivial type...
-    // eslint-disable-next-line @typescript-eslint/no-inferrable-types
+    private readonly denom: string;
     private failedRequests: number = 0;
+    private gatewayCache: GatewaysCache
+    private mixNodesCache: MixnodesCache;
+    private readonly prefix: string;
+    urls: string[];
+
 
     private constructor(urls: string[], client: INetClient | IQueryClient, contractAddress: string, prefix: string) {
         this.urls = urls;

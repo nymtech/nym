@@ -16,7 +16,7 @@ import { ExecuteResult, InstantiateOptions, InstantiateResult, MigrateResult, Up
 export interface INetClient {
     clientAddress: string;
 
-    getBalance(address: string, stakeDenom: string): Promise<Coin | null>;
+    getBalance(address: string, denom: string): Promise<Coin | null>;
     getMixNodes(contractAddress: string, limit: number, start_after?: string): Promise<PagedMixnodeResponse>;
     getGateways(contractAddress: string, limit: number, start_after?: string): Promise<PagedGatewayResponse>;
     getMixDelegations(contractAddress: string, mixIdentity: string, limit: number, start_after?: string): Promise<PagedMixDelegationsResponse>
@@ -57,10 +57,10 @@ export default class NetClient implements INetClient {
         this.signerOptions = signerOptions;
     }
 
-    public static async connect(wallet: DirectSecp256k1HdWallet, url: string, stakeDenom: string): Promise<INetClient> {
+    public static async connect(wallet: DirectSecp256k1HdWallet, url: string, prefix: string): Promise<INetClient> {
         const [{ address }] = await wallet.getAccounts();
         const signerOptions: SigningCosmWasmClientOptions = {
-            gasPrice: nymGasPrice(stakeDenom),
+            gasPrice: nymGasPrice(prefix),
             gasLimits: nymGasLimits,
         };
         const client = await SigningCosmWasmClient.connectWithSigner(url, wallet, signerOptions);
@@ -119,8 +119,8 @@ export default class NetClient implements INetClient {
         return this.cosmClient.queryContractSmart(contractAddress, { owns_gateway: { address } });
     }
 
-    public getBalance(address: string, stakeDenom: string): Promise<Coin | null> {
-        return this.cosmClient.getBalance(address, stakeDenom);
+    public getBalance(address: string, denom: string): Promise<Coin | null> {
+        return this.cosmClient.getBalance(address, denom);
     }
 
     public getStateParams(contractAddress: string): Promise<StateParams> {

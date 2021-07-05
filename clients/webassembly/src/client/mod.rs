@@ -257,7 +257,7 @@ impl NymClient {
         );
         let validator_client = validator_client::Client::new(validator_client_config);
 
-        let mixnodes = match validator_client.get_mix_nodes().await {
+        let mixnodes = match validator_client.get_cached_mix_nodes().await {
             Err(err) => panic!("{}", err),
             Ok(mixes) => mixes,
         };

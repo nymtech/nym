@@ -176,7 +176,9 @@ impl PacketPreparer {
     ) -> Result<(Vec<MixNodeBond>, Vec<GatewayBond>), PacketPreparerError> {
         info!(target: "Monitor", "Obtaining network topology...");
 
-        let mixnodes = match self.validator_client.get_mix_nodes().await {
+        // TODO: This should probably be using the cached data directly, without going through
+        // the API
+        let mixnodes = match self.validator_client.get_cached_mix_nodes().await {
             Err(err) => {
                 error!("failed to get network mixnodes - {}", err);
                 return Err(PacketPreparerError::ValidatorClientError(err));

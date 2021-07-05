@@ -201,6 +201,11 @@ impl Client {
         Ok(mixnodes)
     }
 
+    pub async fn get_cached_mix_nodes(&mut self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
+        let query_content = "v1/mixnodes".to_string();
+        self.query_validators(query_content, true).await
+    }
+
     async fn get_gateways_paged(
         &self,
         start_after: Option<IdentityKey>,

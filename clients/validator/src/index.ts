@@ -34,6 +34,7 @@ export { nymGasLimits, nymGasPrice }
 
 export default class ValidatorClient {
     private readonly prefix: string;
+    private readonly denom: string;
 
     urls: string[];
     private readonly client: INetClient | IQueryClient
@@ -51,6 +52,7 @@ export default class ValidatorClient {
         this.gatewayCache = new GatewaysCache(client, 100);
         this.contractAddress = contractAddress;
         this.prefix = prefix;
+        this.denom = "u" + prefix;
     }
 
     // allows also entering 'string' by itself for backwards compatibility

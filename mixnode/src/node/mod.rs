@@ -183,7 +183,7 @@ impl MixNode {
             self.config.get_validator_rest_endpoints(),
             self.config.get_validator_mixnet_contract_address(),
         );
-        let validator_client = validator_client::Client::new(validator_client_config);
+        let mut validator_client = validator_client::Client::new(validator_client_config);
 
         let existing_nodes = match validator_client.get_cached_mix_nodes().await {
             Ok(nodes) => nodes,

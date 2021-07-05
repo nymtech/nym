@@ -1,6 +1,6 @@
 use mixnode_common::verloc::{AtomicVerlocResult, VerlocResult};
-use rocket::State;
 use rocket::serde::json::Json;
+use rocket::State;
 
 pub(crate) struct VerlocState {
     shared: AtomicVerlocResult,

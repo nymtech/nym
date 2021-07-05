@@ -1,6 +1,6 @@
 use crate::node::node_description::NodeDescription;
-use rocket::State;
 use rocket::serde::json::Json;
+use rocket::State;
 
 /// Returns a description of the node and why someone might want to delegate stake to it.
 #[get("/description")]

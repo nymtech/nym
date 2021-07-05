@@ -1,6 +1,6 @@
 use crate::node::node_statistics::{NodeStats, NodeStatsSimple, NodeStatsWrapper};
-use rocket::State;
 use rocket::serde::json::Json;
+use rocket::State;
 use serde::Serialize;
 
 #[derive(Serialize)]

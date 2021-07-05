@@ -533,7 +533,7 @@ export default class ValidatorClient {
 
             // the function to calculate fee for a single entry is not exposed...
             console.log(`this.denom is ${this.denom}`);
-            const table = buildFeeTable(nymGasPrice(this.denom), { sendMultiple: nymGasLimits.send * data.length }, { sendMultiple: nymGasLimits.send * data.length })
+            const table = buildFeeTable(nymGasPrice(this.prefix), { sendMultiple: nymGasLimits.send * data.length }, { sendMultiple: nymGasLimits.send * data.length })
             const fee = table.sendMultiple
             const result = await this.client.signAndBroadcast(senderAddress, encoded, fee, memo)
             if (isBroadcastTxFailure(result)) {

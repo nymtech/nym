@@ -202,7 +202,7 @@ impl Client {
     }
 
     pub async fn get_cached_mix_nodes(&mut self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
-        let query_content = "v1/mixnodes".to_string();
+        let query_content = validator_api::MIXNODES_QUERY.to_string();
         self.query_validators(query_content, true).await
     }
 
@@ -240,7 +240,7 @@ impl Client {
     }
 
     pub async fn get_cached_gateways(&mut self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
-        let query_content = "v1/gateways".to_string();
+        let query_content = validator_api::GATEWAYS_QUERY.to_string();
         self.query_validators(query_content, true).await
     }
 

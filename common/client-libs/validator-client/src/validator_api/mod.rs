@@ -4,6 +4,10 @@ use crate::validator_api::error::ValidatorAPIClientError;
 
 use serde::Deserialize;
 
+// TODO: This should be linked to the validator-api as well
+pub(crate) const MIXNODES_QUERY: &str = "v1/mixnodes";
+pub(crate) const GATEWAYS_QUERY: &str = "v1/gateways";
+
 pub struct Client {
     reqwest_client: reqwest::Client,
 }

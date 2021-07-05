@@ -19,9 +19,8 @@ export const nymGasLimits: GasLimits<CosmWasmFeeTable> = {
     changeAdmin: 80_000,
 };
 
-export const nymGasPrice = (denom: string): GasPrice => {
-    console.log(`denom is ${denom}`);
-    return GasPrice.fromString(`0.025u${denom}`);
+export function nymGasPrice(prefix: string): GasPrice {
+    return GasPrice.fromString(`0.025u${prefix}`); // TODO: ideally this ugly conversion shouldn't be hardcoded here.
 };
 
 export const defaultOptions: Options = {

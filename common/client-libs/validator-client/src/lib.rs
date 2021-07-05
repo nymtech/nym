@@ -111,7 +111,7 @@ impl Client {
                 let res = if use_validator_api {
                     Ok(self
                         .validator_api_client
-                        .query_validator(query.clone(), url)
+                        .query_validator_api(query.clone(), url)
                         .await?)
                 } else {
                     self.query_validator(query.clone(), url).await

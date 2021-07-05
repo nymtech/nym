@@ -18,7 +18,7 @@ impl Client {
         Self { reqwest_client }
     }
 
-    pub async fn query_validator<T>(
+    pub async fn query_validator_api<T>(
         &self,
         query: String,
         validator_url: &str,

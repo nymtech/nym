@@ -55,7 +55,7 @@ export default class ValidatorClient {
 
     // allows also entering 'string' by itself for backwards compatibility
     static async connect(contractAddress: string, mnemonic: string, urls: string | string[], prefix: string): Promise<ValidatorClient> {
-        const validatorUrls = this.dealWithValidatorUrls(urls)
+        const validatorUrls = this.ensureArray(urls)
         const wallet = await ValidatorClient.buildWallet(mnemonic, prefix);
 
         // if we have more than a single validator, try to perform initial connection until we succeed or run out of options
@@ -78,7 +78,7 @@ export default class ValidatorClient {
 
     // allows also entering 'string' by itself for backwards compatibility
     static async connectForQuery(contractAddress: string, urls: string | string[], prefix: string): Promise<ValidatorClient> {
-        const validatorUrls = this.dealWithValidatorUrls(urls)
+        const validatorUrls = this.ensureArray(urls)
 
         // if we have more than a single validator, try to perform initial connection until we succeed or run out of options
         if (validatorUrls.length > 1) {
@@ -98,7 +98,7 @@ export default class ValidatorClient {
         throw new Error("None of the provided validators seem to be alive")
     }
 
-    private static dealWithValidatorUrls(urls: string | string[]): string[] {
+    private static ensureArray(urls: string | string[]): string[] {
         let validatorsUrls: string[] = []
         if (typeof urls === "string") {
             validatorsUrls = [urls]

@@ -534,7 +534,8 @@ export default class ValidatorClient {
             const encoded = data.map(req => makeBankMsgSend(req.senderAddress, req.recipientAddress, req.transferAmount));
 
             // the function to calculate fee for a single entry is not exposed...
-            const table = buildFeeTable(nymGasPrice(this.prefix), { sendMultiple: nymGasLimits.send * data.length }, { sendMultiple: nymGasLimits.send * data.length })
+            console.log(`this.denom is ${this.denom}`);
+            const table = buildFeeTable(nymGasPrice(this.denom), { sendMultiple: nymGasLimits.send * data.length }, { sendMultiple: nymGasLimits.send * data.length })
             const fee = table.sendMultiple
             const result = await this.client.signAndBroadcast(senderAddress, encoded, fee, memo)
             if (isBroadcastTxFailure(result)) {

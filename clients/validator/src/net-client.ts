@@ -91,7 +91,7 @@ export default class NetClient implements INetClient {
         if (start_after == undefined) { // TODO: check if we can take this out, I'm not sure what will happen if we send an "undefined" so I'm playing it safe here.
             return this.cosmClient.queryContractSmart(contractAddress, { get_mix_delegations: { mix_identity: mixIdentity, limit } });
         } else {
-            return this.cosmClient.queryContractSmart(contractAddress, { get_mix_delegations: {  mix_identity: mixIdentity, limit, start_after } });
+            return this.cosmClient.queryContractSmart(contractAddress, { get_mix_delegations: { mix_identity: mixIdentity, limit, start_after } });
         }
     }
 
@@ -103,7 +103,7 @@ export default class NetClient implements INetClient {
         if (start_after == undefined) { // TODO: check if we can take this out, I'm not sure what will happen if we send an "undefined" so I'm playing it safe here.
             return this.cosmClient.queryContractSmart(contractAddress, { get_gateway_delegations: { gateway_identity: gatewayIdentity, limit } });
         } else {
-            return this.cosmClient.queryContractSmart(contractAddress, { get_gateway_delegations: {  gateway_identity: gatewayIdentity, limit, start_after } });
+            return this.cosmClient.queryContractSmart(contractAddress, { get_gateway_delegations: { gateway_identity: gatewayIdentity, limit, start_after } });
         }
     }
 
@@ -124,7 +124,7 @@ export default class NetClient implements INetClient {
     }
 
     public getStateParams(contractAddress: string): Promise<StateParams> {
-        return this.cosmClient.queryContractSmart(contractAddress, { state_params: { } });
+        return this.cosmClient.queryContractSmart(contractAddress, { state_params: {} });
     }
 
     public executeContract(senderAddress: string, contractAddress: string, handleMsg: Record<string, unknown>, memo?: string, transferAmount?: readonly Coin[]): Promise<ExecuteResult> {

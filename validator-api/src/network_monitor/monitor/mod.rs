@@ -1,14 +1,25 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// Copyright 2021 Nym Technologies SA
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-use crate::monitor::preparer::{PacketPreparer, TestedNode};
-use crate::monitor::processor::ReceivedProcessor;
-use crate::monitor::sender::PacketSender;
-use crate::monitor::summary_producer::{SummaryProducer, TestReport};
+use crate::network_monitor::monitor::preparer::{PacketPreparer, TestedNode};
+use crate::network_monitor::monitor::processor::ReceivedProcessor;
+use crate::network_monitor::monitor::sender::PacketSender;
+use crate::network_monitor::monitor::summary_producer::{SummaryProducer, TestReport};
+use crate::network_monitor::test_packet::NodeType;
+use crate::network_monitor::tested_network::TestedNetwork;
 use crate::node_status_api;
 use crate::node_status_api::models::{BatchGatewayStatus, BatchMixStatus};
-use crate::test_packet::NodeType;
-use crate::tested_network::TestedNetwork;
 use log::{debug, info};
 use tokio::time::{sleep, Duration, Instant};
 

@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::gateways_reader::GatewayMessages;
-use crate::test_packet::TestPacket;
+use crate::network_monitor::gateways_reader::GatewayMessages;
+use crate::network_monitor::test_packet::TestPacket;
 use crypto::asymmetric::encryption;
 use futures::channel::mpsc;
 use futures::lock::{Mutex, MutexGuard};

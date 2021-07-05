@@ -481,7 +481,7 @@ async fn main() -> Result<()> {
     rocket::build()
         .attach(cors)
         .mount("/v1", routes![get_mixnodes, get_gateways])
-        .manage(mixnode_cache)
+        .manage(validator_cache)
         .ignite()
         .await?
         .launch()

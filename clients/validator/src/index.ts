@@ -136,7 +136,7 @@ export default class ValidatorClient {
                 ValidatorClient.moveArrayHeadToBack(this.urls)
             }
             // and change validator to the front one and rethrow the error
-            return await this.changeValidator(this.urls[0]).then(() => {throw error})
+            return await this.changeValidator(this.urls[0]).then(() => { throw error })
         } else {
             // rethrow the error
             throw error
@@ -159,7 +159,7 @@ export default class ValidatorClient {
 
     // It is responsibility of the caller to ensure the input array is non-empty
     private static moveArrayHeadToBack<T>(arr: T[]) {
-        const head = <T> arr.shift()
+        const head = <T>arr.shift()
         arr.push(head)
     }
 
@@ -418,7 +418,7 @@ export default class ValidatorClient {
      */
     async unbondGateway(): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {unbond_gateway: {}}).catch((err) => this.handleRequestFailure(err))
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { unbond_gateway: {} }).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} unbonded gateway`);
             return result;
         } else {
@@ -428,7 +428,7 @@ export default class ValidatorClient {
 
     async updateStateParams(newParams: StateParams): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            return await this.client.executeContract(this.client.clientAddress, this.contractAddress, {update_state_params: newParams}, "updating contract state").catch((err) => this.handleRequestFailure(err));
+            return await this.client.executeContract(this.client.clientAddress, this.contractAddress, { update_state_params: newParams }, "updating contract state").catch((err) => this.handleRequestFailure(err));
         } else {
             throw new Error("Tried to update state params with a query client")
         }
@@ -446,7 +446,7 @@ export default class ValidatorClient {
         let delegations: Delegation[] = [];
         let response: PagedMixDelegationsResponse
         let next: string | undefined = undefined;
-        for (;;) {
+        for (; ;) {
             response = await this.client.getMixDelegations(this.contractAddress, mixIdentity, limit, next)
             delegations = delegations.concat(response.delegations)
             next = response.start_next_after
@@ -481,7 +481,7 @@ export default class ValidatorClient {
         let delegations: Delegation[] = [];
         let response: PagedGatewayDelegationsResponse
         let next: string | undefined = undefined;
-        for (;;) {
+        for (; ;) {
             response = await this.client.getGatewayDelegations(this.contractAddress, gatewayIdentity, limit, next)
             delegations = delegations.concat(response.delegations)
             next = response.start_next_after

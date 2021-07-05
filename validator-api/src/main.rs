@@ -443,19 +443,19 @@ async fn main() -> Result<()> {
         info!("Network monitoring is disabled.")
     }
 
-    let mixnode_cache = Arc::new(RwLock::new(ValidatorCache::init(
+    let validator_cache = Arc::new(RwLock::new(ValidatorCache::init(
         config.get_validators_urls(),
         config.get_mixnet_contract_address(),
     )));
 
-    let write_mixnode_cache = Arc::clone(&mixnode_cache);
+    let write_validator_cache = Arc::clone(&validator_cache);
 
     tokio::spawn(async move {
         let mut interval = time::interval(config.get_caching_interval());
         loop {
             interval.tick().await;
             {
-                match timeout(Duration::from_secs(10), write_mixnode_cache.write()).await {
+                match timeout(Duration::from_secs(10), write_validator_cache.write()).await {
                     Ok(mut w) => w.cache().await.unwrap(),
                     Err(e) => error!("Timeout: Could not aquire write lock on cache: {}", e),
                 }

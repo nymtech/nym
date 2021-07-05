@@ -9,12 +9,12 @@ edition = "2018"
 [dependencies]
 aes-ctr = "0.6.0"
 bs58 = "0.4"
-blake3 = "0.3"
-#blake3 = { version = "0.3", features = ["traits-preview"]}
+# blake3 = "0.3"
+blake3 = { git = "https://github.com/BLAKE3-team/BLAKE3", features = ["traits-preview"]}
 digest = "0.9"
 generic-array = "0.14"
-hkdf = "0.10"
-hmac = "0.8"
+hkdf = "0.11"
+hmac = "0.11"
 cipher = "0.2"
 x25519-dalek = "1.1"
 ed25519-dalek = "1.0"

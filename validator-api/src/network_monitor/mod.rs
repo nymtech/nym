@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::Config;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::{
     ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,
@@ -12,7 +13,7 @@ use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
 use crate::network_monitor::tested_network::TestedNetwork;
-use crate::{node_status_api, GATEWAY_RESPONSE_TIMEOUT, MAX_CONCURRENT_GATEWAY_CLIENTS};
+use crate::node_status_api;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use nymsphinx::addressing::clients::Recipient;
@@ -40,15 +41,9 @@ impl NetworkMonitorRunnables {
 }
 
 pub(crate) fn new_monitor_runnables(
-    validators_rest_uris: Vec<String>,
-    mixnet_contract: &str,
-    node_status_api_uri: &str,
+    config: &Config,
     v4_topology: NymTopology,
     v6_topology: NymTopology,
-
-    // those will be replaced by a config
-    sending_rate: usize,
-    detailed_report: bool,
 ) -> NetworkMonitorRunnables {
     // TODO: in the future I guess this should somehow change to distribute the load
     let tested_mix_gateway = v4_topology.gateways()[0].clone();
@@ -73,8 +68,11 @@ pub(crate) fn new_monitor_runnables(
         tested_mix_gateway.identity_key,
     );
 
-    let validator_client = new_validator_client(validators_rest_uris, mixnet_contract);
-    let node_status_api_client = new_node_status_api_client(node_status_api_uri);
+    let validator_client = new_validator_client(
+        config.get_validators_urls(),
+        &config.get_mixnet_contract_address(),
+    );
+    let node_status_api_client = new_node_status_api_client(config.get_node_status_api_url());
 
     let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
     let (received_processor_sender_channel, received_processor_receiver_channel) =
@@ -89,16 +87,18 @@ pub(crate) fn new_monitor_runnables(
     );
 
     let packet_sender = new_packet_sender(
+        config,
         gateway_status_update_sender,
         Arc::clone(&identity_keypair),
-        sending_rate,
+        config.get_gateway_sending_rate(),
     );
+
     let received_processor = new_received_processor(
         received_processor_receiver_channel,
         Arc::clone(&encryption_keypair),
     );
-    let summary_producer = new_summary_producer(detailed_report);
-    let mut packet_receiver = new_packet_receiver(
+    let summary_producer = new_summary_producer(config.get_detailed_report());
+    let packet_receiver = new_packet_receiver(
         gateway_status_update_receiver,
         received_processor_sender_channel,
     );
@@ -135,6 +135,7 @@ fn new_packet_preparer(
 }
 
 fn new_packet_sender(
+    config: &Config,
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     max_sending_rate: usize,
@@ -142,8 +143,9 @@ fn new_packet_sender(
     PacketSender::new(
         gateways_status_updater,
         local_identity,
-        GATEWAY_RESPONSE_TIMEOUT,
-        MAX_CONCURRENT_GATEWAY_CLIENTS,
+        config.get_gateway_response_timeout(),
+        config.get_gateway_connection_timeout(),
+        config.get_max_concurrent_gateway_clients(),
         max_sending_rate,
     )
 }

@@ -278,7 +278,7 @@ pub fn execute(matches: &ArgMatches) {
 
     let id = matches.value_of("id").unwrap();
 
-    let mut existing_config = Config::load_from_file(id).unwrap_or_else(|err| {
+    let mut existing_config = Config::load_from_file(Some(id)).unwrap_or_else(|err| {
         eprintln!("failed to load existing config file! - {:?}", err);
         process::exit(1)
     });

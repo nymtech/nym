@@ -40,7 +40,7 @@ pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of(ID_ARG_NAME).unwrap();
     let text = matches.value_of(SIGN_TEXT_ARG_NAME).unwrap();
 
-    let config = match Config::load_from_file(id) {
+    let config = match Config::load_from_file(Some(id)) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);

@@ -123,7 +123,7 @@ pub fn execute(matches: &ArgMatches) {
 
     println!("Starting mixnode {}...", id);
 
-    let mut config = match Config::load_from_file(id) {
+    let mut config = match Config::load_from_file(Some(id)) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);
@@ -146,8 +146,8 @@ pub fn execute(matches: &ArgMatches) {
         show_binding_warning(config.get_listening_address().to_string());
     }
 
-    let description =
-        NodeDescription::load_from_file(Config::default_config_directory(id)).unwrap_or_default();
+    let description = NodeDescription::load_from_file(Config::default_config_directory(Some(id)))
+        .unwrap_or_default();
 
     println!(
         "Validator servers: {:?}",

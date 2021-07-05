@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
-use crate::{GATEWAY_CONNECTION_TIMEOUT, TIME_CHUNK_SIZE};
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
@@ -32,6 +31,8 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 use tokio::time::Instant;
+
+const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
 pub(crate) struct GatewayPackets {
     /// Network address of the target gateway if wanted to be accessed by the client.
@@ -82,7 +83,8 @@ pub(crate) struct PacketSender {
     active_gateway_clients: HashMap<[u8; PUBLIC_KEY_LENGTH], GatewayClient>,
 
     fresh_gateway_client_data: Arc<FreshGatewayClientData>,
-    max_concurrent_clients: Option<usize>,
+    gateway_connection_timeout: Duration,
+    max_concurrent_clients: usize,
     max_sending_rate: usize,
 }
 
@@ -91,7 +93,8 @@ impl PacketSender {
         gateways_status_updater: GatewayClientUpdateSender,
         local_identity: Arc<identity::KeyPair>,
         gateway_response_timeout: Duration,
-        max_concurrent_clients: Option<usize>,
+        gateway_connection_timeout: Duration,
+        max_concurrent_clients: usize,
         max_sending_rate: usize,
     ) -> Self {
         PacketSender {
@@ -101,6 +104,7 @@ impl PacketSender {
                 local_identity,
                 gateway_response_timeout,
             }),
+            gateway_connection_timeout,
             max_concurrent_clients,
             max_sending_rate,
         }
@@ -198,6 +202,7 @@ impl PacketSender {
     // TODO: perhaps it should be spawned as a task to execute it in parallel rather
     // than just concurrently?
     async fn send_gateway_packets(
+        gateway_connection_timeout: Duration,
         packets: GatewayPackets,
         fresh_gateway_client_data: Arc<FreshGatewayClientData>,
         client: Option<GatewayClient>,
@@ -218,7 +223,7 @@ impl PacketSender {
             // gets stuck in their TCP queue and just hangs on our end but does not terminate
             // (an actual bug we experienced)
             match tokio::time::timeout(
-                GATEWAY_CONNECTION_TIMEOUT,
+                gateway_connection_timeout,
                 new_client.authenticate_and_start(),
             )
             .await
@@ -283,7 +288,12 @@ impl PacketSender {
         // while it may seem weird that each time we send packets we remove the entries from the map,
         // and then put them back in, this way we remove the need for having locks instead, like
         // Arc<RwLock<HashMap<key, Mutex<GatewayClient>>>>
-        let max_concurrent_clients = self.max_concurrent_clients;
+        let gateway_connection_timeout = self.gateway_connection_timeout;
+        let max_concurrent_clients = if self.max_concurrent_clients > 0 {
+            Some(self.max_concurrent_clients)
+        } else {
+            None
+        };
         let max_sending_rate = self.max_sending_rate;
 
         // can't chain it all nicely together as there's no adapter method defined on Stream directly
@@ -303,7 +313,14 @@ impl PacketSender {
             stream,
             max_concurrent_clients,
             |(packets, fresh_data, client)| async move {
-                Self::send_gateway_packets(packets, fresh_data, client, max_sending_rate).await
+                Self::send_gateway_packets(
+                    gateway_connection_timeout,
+                    packets,
+                    fresh_data,
+                    client,
+                    max_sending_rate,
+                )
+                .await
             },
         )
         .await

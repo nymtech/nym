@@ -7,7 +7,7 @@ export interface Options {
     httpUrl: string;
     networkId: string;
     gasPrice: number;
-    bech32prefix: string;
+    prefix: string;
 }
 
 export const nymGasLimits: GasLimits<CosmWasmFeeTable> = {
@@ -25,7 +25,7 @@ export const defaultOptions: Options = {
     httpUrl: "http://localhost:26657",
     networkId: "nymnet",
     gasPrice: 0.025,
-    bech32prefix: "hal",
+    prefix: "hal",
 };
 
 export const downloadWasm = async (url: string): Promise<Uint8Array> => {

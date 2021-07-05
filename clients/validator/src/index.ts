@@ -202,14 +202,15 @@ export default class ValidatorClient {
      * @param mnemonic A mnemonic from which to generate a public/private keypair.
      * @returns the address for this client wallet
      */
-    static async mnemonicToAddress(mnemonic: string): Promise<string> {
-        const wallet = await ValidatorClient.buildWallet(mnemonic);
-        const [{address}] = await wallet.getAccounts()
+    static async mnemonicToAddress(mnemonic: string, prefix: string): Promise<string> {
+        const wallet = await ValidatorClient.buildWallet(mnemonic, prefix);
+        const [{ address }] = await wallet.getAccounts()
         return address
     }
 
-    static async buildWallet(mnemonic: string): Promise<DirectSecp256k1HdWallet> {
-        return DirectSecp256k1HdWallet.fromMnemonic(mnemonic, undefined, "hal");
+    static async buildWallet(mnemonic: string, prefix: string): Promise<DirectSecp256k1HdWallet> {
+        const signerOptions = { prefix: prefix };
+        return DirectSecp256k1HdWallet.fromMnemonic(mnemonic, signerOptions);
     }
 
     getBalance(address: string): Promise<Coin | null> {

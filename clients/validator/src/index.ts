@@ -379,6 +379,17 @@ export default class ValidatorClient {
     }
 
     /**
+     * Get or refresh the list of gateways in the network from validator-api
+     *
+     * @returns an array containing all known `GatewayBond`s.
+     *
+     * TODO: Similarly to mixnode bonds, this should probably be put on a timer somewhere.
+     */
+    refreshValidatorAPIGateways(): Promise<GatewayBond[]> {
+        return this.gatewayCache.refreshValidatorAPIGateways(this.urls[0]).catch((err) => this.handleRequestFailure(err));
+    }
+
+    /**
      * Get gateways from the local client cache.
      *
      * @returns an array containing all `GatewayBond`s in the client's local cache.

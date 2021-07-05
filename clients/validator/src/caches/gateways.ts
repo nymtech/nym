@@ -2,6 +2,7 @@ import { GatewayBond } from "../types";
 import {INetClient} from "../net-client"
 import {IQueryClient} from "../query-client";
 import {PagedGatewayResponse} from "../index";
+import axios from "axios";
 
 
 /**
@@ -40,5 +41,13 @@ export default class GatewaysCache {
 
         this.gateways = newGateways
         return newGateways;
+    }
+
+    /// Makes requests to assemble a full list of gateways from validator-api
+    async refreshValidatorAPIGateways(url: string): Promise<GatewayBond[]> {
+        const validator_api_url = url.split(":", 2);
+        validator_api_url.push("8080");
+        const response = await axios.get(validator_api_url.join(":").concat("/v1/gateways"));
+        return response.data;
     }
 }

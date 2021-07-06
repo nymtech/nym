@@ -28,9 +28,8 @@ import { BroadcastTxSuccess, isBroadcastTxFailure } from "@cosmjs/stargate";
 import { makeBankMsgSend } from "./utils";
 
 export const VALIDATOR_API_PORT = "8080";
-export const VALIDATOR_API_VERSION = "v1";
-export const VALIDATOR_API_GATEWAYS = "gateways";
-export const VALIDATOR_API_MIXNODES = "mixnodes";
+export const VALIDATOR_API_GATEWAYS = "v1/gateways";
+export const VALIDATOR_API_MIXNODES = "v1/mixnodes";
 
 export { coins, coin };
 export { Coin };

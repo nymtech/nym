@@ -1,7 +1,7 @@
 import { GatewayBond } from "../types";
 import {INetClient} from "../net-client"
 import {IQueryClient} from "../query-client";
-import {PagedGatewayResponse, VALIDATOR_API_GATEWAYS, VALIDATOR_API_PORT, VALIDATOR_API_VERSION} from "../index";
+import {PagedGatewayResponse, VALIDATOR_API_GATEWAYS, VALIDATOR_API_PORT} from "../index";
 import axios from "axios";
 
 
@@ -48,7 +48,7 @@ export default class GatewaysCache {
         for (const url of urls) {
             const validator_api_url = new URL(url);
             validator_api_url.port = VALIDATOR_API_PORT;
-            validator_api_url.pathname += VALIDATOR_API_VERSION + "/" + VALIDATOR_API_GATEWAYS;
+            validator_api_url.pathname += VALIDATOR_API_GATEWAYS;
             const response = await axios.get(validator_api_url.toString());
             if (response.status == 200) {
                 return response.data;

@@ -1,7 +1,7 @@
 import { MixNodeBond } from "../types";
 import { INetClient } from "../net-client"
 import {IQueryClient} from "../query-client";
-import {PagedMixnodeResponse, VALIDATOR_API_MIXNODES, VALIDATOR_API_PORT, VALIDATOR_API_VERSION} from "../index";
+import {PagedMixnodeResponse, VALIDATOR_API_MIXNODES, VALIDATOR_API_PORT} from "../index";
 import axios from "axios";
 
 export { MixnodesCache };
@@ -48,7 +48,7 @@ export default class MixnodesCache {
     async refreshValidatorAPIMixNodes(url: string): Promise<MixNodeBond[]> {
         const validator_api_url = new URL(url);
         validator_api_url.port = VALIDATOR_API_PORT;
-        validator_api_url.pathname += VALIDATOR_API_VERSION + "/" + VALIDATOR_API_MIXNODES;
+        validator_api_url.pathname += VALIDATOR_API_MIXNODES;
         const response = await axios.get(validator_api_url.toString());
         return response.data;
     }

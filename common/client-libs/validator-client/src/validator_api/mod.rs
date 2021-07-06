@@ -6,9 +6,9 @@ use serde::Deserialize;
 use url::Url;
 
 // TODO: This should be linked to the validator-api as well
-pub(crate) const MIXNODES_QUERY: &str = "v1/mixnodes";
-pub(crate) const GATEWAYS_QUERY: &str = "v1/gateways";
 pub(crate) const VALIDATOR_API_PORT: u16 = 8080;
+pub(crate) const VALIDATOR_API_MIXNODES: &str = "v1/mixnodes";
+pub(crate) const VALIDATOR_API_GATEWAYS: &str = "v1/gateways";
 
 pub struct Client {
     reqwest_client: reqwest::Client,

@@ -31,6 +31,18 @@ impl Config {
         rest_servers_available_base_urls: Vec<String>,
         mixnet_contract_address: S,
     ) -> Self {
+        // URLs should be in the form: http://127.0.0.1:1317
+        if rest_servers_available_base_urls
+            .iter()
+            .map(|url| {
+                let url_parts: Vec<&str> = url.split(':').collect();
+                url_parts.len()
+            })
+            .any(|l| l != 3)
+        {
+            // It's ok to panic here, in the configuration phase
+            panic!("Bad validator URL. Should be something like http://127.0.0.1:1317")
+        }
         Config {
             initial_rest_servers: rest_servers_available_base_urls,
             mixnet_contract_address: mixnet_contract_address.into(),

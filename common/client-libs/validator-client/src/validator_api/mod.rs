@@ -27,7 +27,7 @@ impl Client {
     where
         for<'a> T: Deserialize<'a>,
     {
-        let validator_api_url: Vec<&str> = validator_url.split(":").take(2).collect();
+        let validator_api_url: Vec<&str> = validator_url.split(':').take(2).collect();
         let query_url = format!(
             "{}:{}:{}/{}",
             validator_api_url[0], validator_api_url[1], VALIDATOR_API_PORT, query

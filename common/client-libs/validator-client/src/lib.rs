@@ -12,6 +12,7 @@ use mixnet_contract::{
 };
 use rand::{seq::SliceRandom, thread_rng};
 use serde::Deserialize;
+use url::Url;
 
 mod error;
 mod models;
@@ -20,7 +21,7 @@ mod validator_api;
 
 // Implement caching with a global hashmap that has two fields, queryresponse and as_at, there is a side process
 pub struct Config {
-    initial_rest_servers: Vec<String>,
+    initial_rest_servers: Vec<Url>,
     mixnet_contract_address: String,
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
@@ -31,17 +32,12 @@ impl Config {
         rest_servers_available_base_urls: Vec<String>,
         mixnet_contract_address: S,
     ) -> Self {
-        // URLs should be in the form: http://127.0.0.1:1317
-        if rest_servers_available_base_urls
+        let initial_rest_servers = rest_servers_available_base_urls
             .iter()
-            .map(|url| url.split(':').count())
-            .any(|l| l != 3)
-        {
-            // It's ok to panic here, in the configuration phase
-            panic!("Bad validator URL. Should be something like http://127.0.0.1:1317")
-        }
+            .map(|base_url| Url::parse(base_url).expect("Bad validator URL"))
+            .collect();
         Config {
-            initial_rest_servers: rest_servers_available_base_urls,
+            initial_rest_servers,
             mixnet_contract_address: mixnet_contract_address.into(),
             mixnode_page_limit: None,
             gateway_page_limit: None,
@@ -84,7 +80,7 @@ impl Client {
         }
     }
 
-    pub fn available_validators_rest_urls(&self) -> Vec<String> {
+    pub fn available_validators_rest_urls(&self) -> Vec<Url> {
         self.config.initial_rest_servers.clone()
     }
 
@@ -149,14 +145,14 @@ impl Client {
     async fn query_validator<T>(
         &self,
         query: String,
-        validator_url: &str,
+        validator_url: &Url,
     ) -> Result<T, ValidatorClientError>
     where
         for<'a> T: Deserialize<'a>,
     {
         let query_url = format!(
             "{}/{}?encoding=base64",
-            self.base_query_path(validator_url),
+            self.base_query_path(validator_url.as_str()),
             query
         );
 

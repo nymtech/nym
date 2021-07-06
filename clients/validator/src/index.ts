@@ -27,6 +27,8 @@ import { nymGasLimits, nymGasPrice } from "./stargate-helper";
 import { BroadcastTxSuccess, isBroadcastTxFailure } from "@cosmjs/stargate";
 import { makeBankMsgSend } from "./utils";
 
+export const VALIDATOR_API_PORT = "8080";
+
 export { coins, coin };
 export { Coin };
 export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBalance, nativeToPrintable, MappedCoin, CoinMap }

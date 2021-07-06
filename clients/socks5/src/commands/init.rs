@@ -110,7 +110,7 @@ async fn gateway_details(
     chosen_gateway_id: Option<&str>,
 ) -> gateway::Node {
     let validator_client_config = validator_client::Config::new(validator_servers, mixnet_contract);
-    let mut validator_client = validator_client::Client::new(validator_client_config);
+    let validator_client = validator_client::Client::new(validator_client_config);
 
     let gateways = validator_client.get_cached_gateways().await.unwrap();
     let valid_gateways = gateways

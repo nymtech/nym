@@ -34,10 +34,7 @@ impl Config {
         // URLs should be in the form: http://127.0.0.1:1317
         if rest_servers_available_base_urls
             .iter()
-            .map(|url| {
-                let url_parts: Vec<&str> = url.split(':').collect();
-                url_parts.len()
-            })
+            .map(|url| url.split(':').count())
             .any(|l| l != 3)
         {
             // It's ok to panic here, in the configuration phase

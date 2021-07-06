@@ -7,6 +7,7 @@ use serde::Deserialize;
 // TODO: This should be linked to the validator-api as well
 pub(crate) const MIXNODES_QUERY: &str = "v1/mixnodes";
 pub(crate) const GATEWAYS_QUERY: &str = "v1/gateways";
+pub(crate) const VALIDATOR_API_PORT: &str = "8080";
 
 pub struct Client {
     reqwest_client: reqwest::Client,
@@ -26,7 +27,11 @@ impl Client {
     where
         for<'a> T: Deserialize<'a>,
     {
-        let query_url = format!("{}/{}", validator_url, query);
+        let validator_api_url: Vec<&str> = validator_url.split(":").take(2).collect();
+        let query_url = format!(
+            "{}:{}:{}/{}",
+            validator_api_url[0], validator_api_url[1], VALIDATOR_API_PORT, query
+        );
         Ok(self
             .reqwest_client
             .get(query_url)

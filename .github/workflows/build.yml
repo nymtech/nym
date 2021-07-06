@@ -37,6 +37,7 @@ jobs:
           args: --all -- --check
 
       - uses: actions-rs/cargo@v1
+        if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
           args: -- -D warnings 

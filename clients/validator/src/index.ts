@@ -61,12 +61,12 @@ export default class ValidatorClient {
         // if we have more than a single validator, try to perform initial connection until we succeed or run out of options
         if (validatorUrls.length > 1) {
             for (let i = 0; i < validatorUrls.length; i++) {
-                console.log("Attempting initial connection to", validatorUrls[0])
-                const netClient = await NetClient.connect(wallet, validatorUrls[0], prefix).catch((_) => ValidatorClient.moveArrayHeadToBack(validatorUrls))
+                console.log("Attempting initial connection to", validatorUrls[i])
+                const netClient = await NetClient.connect(wallet, validatorUrls[i], prefix).catch((_) => ValidatorClient.moveArrayHeadToBack(validatorUrls))
                 if (netClient !== undefined) {
                     return new ValidatorClient(validatorUrls, netClient, contractAddress, prefix);
                 }
-                console.log("Initial connection to", validatorUrls[0], "failed")
+                console.log("Initial connection to", validatorUrls[i], "failed")
             }
         } else {
             const netClient = await NetClient.connect(wallet, validatorUrls[0], prefix)
@@ -398,7 +398,7 @@ export default class ValidatorClient {
      * TODO: Similarly to mixnode bonds, this should probably be put on a timer somewhere.
      */
     refreshValidatorAPIGateways(): Promise<GatewayBond[]> {
-        return this.gatewayCache.refreshValidatorAPIGateways(this.urls[0]).catch((err) => this.handleRequestFailure(err));
+        return this.gatewayCache.refreshValidatorAPIGateways(this.urls).catch((err) => this.handleRequestFailure(err));
     }
 
     /**

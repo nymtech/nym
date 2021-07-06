@@ -44,10 +44,15 @@ export default class GatewaysCache {
     }
 
     /// Makes requests to assemble a full list of gateways from validator-api
-    async refreshValidatorAPIGateways(url: string): Promise<GatewayBond[]> {
-        const validator_api_url = url.split(":", 2);
-        validator_api_url.push("8080");
-        const response = await axios.get(validator_api_url.join(":").concat("/v1/gateways"));
-        return response.data;
+    async refreshValidatorAPIGateways(urls: string[]): Promise<GatewayBond[]> {
+        for (const url of urls) {
+            const validator_api_url = url.split(":", 2);
+            validator_api_url.push("8080");
+            const response = await axios.get(validator_api_url.join(":").concat("/v1/gateways"));
+            if (response.status == 200) {
+                return response.data;
+            }
+        }
+        throw new Error("None of the provided validators seem to be alive")
     }
 }

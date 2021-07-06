@@ -7,7 +7,7 @@ export interface Options {
     httpUrl: string;
     networkId: string;
     gasPrice: number;
-    bech32prefix: string;
+    prefix: string;
 }
 
 export const nymGasLimits: GasLimits<CosmWasmFeeTable> = {
@@ -19,13 +19,15 @@ export const nymGasLimits: GasLimits<CosmWasmFeeTable> = {
     changeAdmin: 80_000,
 };
 
-export const nymGasPrice: (stakeDenom: string) => GasPrice = (stakeDenom: string) => GasPrice.fromString(`0.025${stakeDenom}`);
+export function nymGasPrice(prefix: string): GasPrice {
+    return GasPrice.fromString(`0.025u${prefix}`); // TODO: ideally this ugly conversion shouldn't be hardcoded here.
+};
 
 export const defaultOptions: Options = {
     httpUrl: "http://localhost:26657",
     networkId: "nymnet",
     gasPrice: 0.025,
-    bech32prefix: "hal",
+    prefix: "hal",
 };
 
 export const downloadWasm = async (url: string): Promise<Uint8Array> => {

@@ -9,6 +9,7 @@ use std::fmt::{self, Display, Formatter};
 mod client;
 pub(crate) mod models;
 pub(crate) mod routes;
+pub(crate) mod schema;
 pub(crate) mod storage;
 
 pub(crate) use client::{Client, Config};

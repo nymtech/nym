@@ -1,0 +1,23 @@
+{
+  "db": "SQLite",
+  "1e3572b681fc98f6f330a79bc6764ae8ef5cbd21fa93f1ae58adffc841d7046c": {
+    "query": "INSERT INTO mixnode_details (owner, pub_key) VALUES (?, ?)",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 2
+      },
+      "nullable": []
+    }
+  },
+  "9beefd9ad0694b8fc0c20e5133e071da0906c4c080b5bf552d0cdd5573ba6393": {
+    "query": "\n            INSERT INTO mixnode_ipv4_status (node_id, up, timestamp)\n                SELECT mixnode_details.id, ?, ?\n                FROM mixnode_details\n                WHERE mixnode_details.pub_key=?\n            ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
+    }
+  }
+}

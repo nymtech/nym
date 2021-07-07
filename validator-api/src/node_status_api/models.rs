@@ -9,6 +9,8 @@ use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
 use std::io::Cursor;
 
+// something like enum uptime (Uptime, NoUptime) etc
+
 // todo: put into some error enum
 #[derive(Debug)]
 pub struct InvalidUptime;
@@ -56,12 +58,6 @@ pub struct MixnodeStatusReport {
 
     last_day_ipv4: Uptime,
     last_day_ipv6: Uptime,
-
-    last_week_ipv4: Uptime,
-    last_week_ipv6: Uptime,
-
-    last_month_ipv4: Uptime,
-    last_month_ipv6: Uptime,
 }
 
 impl MixnodeStatusReport {
@@ -75,10 +71,6 @@ impl MixnodeStatusReport {
             last_hour_ipv6: Uptime(0),
             last_day_ipv4: Uptime(12),
             last_day_ipv6: Uptime(12),
-            last_week_ipv4: Uptime(12),
-            last_week_ipv6: Uptime(12),
-            last_month_ipv4: Uptime(12),
-            last_month_ipv6: Uptime(12),
         }
     }
 }
@@ -149,6 +141,30 @@ impl Display for NodeStatusApiError {
             ),
         }
     }
+}
+
+struct Mixnode {
+    id: i64,
+    owner: String,
+    pub_key: String,
+}
+
+struct Gateway {
+    id: i64,
+    owner: String,
+    pub_key: String,
+}
+
+struct IpV4Status {
+    timestamp: (),
+    id: i64,
+    up: bool,
+}
+
+struct IpV6Status {
+    timestamp: (),
+    id: i64,
+    up: bool,
 }
 
 // OLD RELATING TO NODE_STATUS_API CLIENT USED BY MONITOR

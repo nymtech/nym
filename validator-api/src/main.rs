@@ -3,6 +3,12 @@
 
 #[macro_use]
 extern crate rocket;
+// #[macro_use]
+// extern crate rocket_sync_db_pools;
+// #[macro_use]
+// extern crate diesel_migrations;
+// #[macro_use]
+// extern crate diesel;
 
 use crate::config::Config;
 use crate::network_monitor::new_monitor_runnables;
@@ -18,6 +24,7 @@ use rocket::http::Method;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
+// use rocket_sync_db_pools::diesel::RunQueryDsl;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -53,14 +60,12 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("location of .json file containing IPv4 'good' network topology")
                 .long(V4_TOPOLOGY_ARG)
                 .takes_value(true)
-                .required(true),
         )
         .arg(
             Arg::with_name(V6_TOPOLOGY_ARG)
                 .help("location of .json file containing IPv6 'good' network topology")
                 .long(V6_TOPOLOGY_ARG)
                 .takes_value(true)
-                .required(true),
         )
         .arg(
             Arg::with_name(VALIDATORS_ARG)
@@ -128,18 +133,6 @@ fn setup_logging() {
         .init();
 }
 
-#[get("/mixnodes")]
-async fn get_mixnodes(cache: &State<Arc<RwLock<ValidatorCache>>>) -> Json<Vec<MixNodeBond>> {
-    let cache = cache.read().await;
-    Json(cache.mixnodes())
-}
-
-#[get("/gateways")]
-async fn get_gateways(cache: &State<Arc<RwLock<ValidatorCache>>>) -> Json<Vec<GatewayBond>> {
-    let cache = cache.read().await;
-    Json(cache.gateways())
-}
-
 fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     fn parse_validators(raw: &str) -> Vec<String> {
         raw.split(',')
@@ -192,6 +185,18 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     config
 }
 
+#[get("/mixnodes")]
+async fn get_mixnodes(cache: &State<Arc<RwLock<ValidatorCache>>>) -> Json<Vec<MixNodeBond>> {
+    let cache = cache.read().await;
+    Json(cache.mixnodes())
+}
+
+#[get("/gateways")]
+async fn get_gateways(cache: &State<Arc<RwLock<ValidatorCache>>>) -> Json<Vec<GatewayBond>> {
+    let cache = cache.read().await;
+    Json(cache.gateways())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     setup_logging();
@@ -241,7 +246,7 @@ async fn main() -> Result<()> {
         );
 
         let network_monitor_runnables = new_monitor_runnables(&config, v4_topology, v6_topology);
-        network_monitor_runnables.spawn_tasks();
+        // network_monitor_runnables.spawn_tasks();
     } else {
         info!("Network monitoring is disabled.")
     }
@@ -253,21 +258,23 @@ async fn main() -> Result<()> {
 
     let write_mixnode_cache = Arc::clone(&mixnode_cache);
 
-    tokio::spawn(async move {
-        let mut interval = time::interval(config.get_caching_interval());
-        loop {
-            interval.tick().await;
-            {
-                match write_mixnode_cache.try_write() {
-                    Ok(mut w) => w.cache().await.unwrap(),
-                    // If we don't get the write lock skip a tick
-                    Err(e) => error!("Could not aquire write lock on cache: {}", e),
-                }
-            }
-        }
-    });
+    // tokio::spawn(async move {
+    //     let mut interval = time::interval(config.get_caching_interval());
+    //     loop {
+    //         // TODO: we might end up in a situation where we never update cache because there might
+    //         // always be some reader. This should rather use tokio::time::timeout
+    //         interval.tick().await;
+    //         {
+    //             match write_mixnode_cache.try_write() {
+    //                 Ok(mut w) => w.cache().await.unwrap(),
+    //                 // If we don't get the write lock skip a tick
+    //                 Err(e) => error!("Could not aquire write lock on cache: {}", e),
+    //             }
+    //         }
+    //     }
+    // });
 
-    let node_status_storage = NodeStatusStorage::new();
+    // let node_status_storage = NodeStatusStorage::new();
 
     let allowed_origins = AllowedOrigins::all();
 
@@ -286,24 +293,140 @@ async fn main() -> Result<()> {
 
     use crate::node_status_api::routes::*;
 
-    rocket::build()
+    let rocket = rocket::build()
         .attach(cors)
         .mount("/v1", routes![get_mixnodes, get_gateways])
-        .mount(
-            "/v1/status",
-            routes![
-                mixnode_report,
-                gateway_report,
-                mixnodes_full_report,
-                gateways_full_report
-            ],
-        )
+        // .mount(
+        //     "/v1/status",
+        //     routes![
+        //         mixnode_report,
+        //         gateway_report,
+        //         mixnodes_full_report,
+        //         gateways_full_report
+        //     ],
+        // )
         .manage(mixnode_cache)
-        .manage(node_status_storage)
+        // .manage(node_status_storage)
+        // .attach(node_status_api::storage::stage_diesel())
+        .attach(NodeStatusStorage::stage())
         .ignite()
-        .await?
-        .launch()
         .await?;
+
+    let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
+
+    // let conn1 = DieselDb::get_one(&rocket).await.unwrap();
+    // let conn2 = DieselDb::get_one(&rocket).await.unwrap();
+    //
+    tokio::spawn(rocket.launch());
+
+    println!("\n\nwaiting for 5s before adding stuff...\n\n");
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    // node_status_storage.make_up_mixnode("node3").await;
+
+    node_status_storage.make_up_mixnode("node1").await;
+    node_status_storage.make_up_mixnode("node2").await;
+    node_status_storage.make_up_mixnode("node3").await;
+    node_status_storage.add_up_status("node1").await;
+
+    println!("done");
+
+    //
+    // println!("\n\nwaiting for 5s before adding stuff...\n\n");
+    // tokio::time::sleep(Duration::from_secs(5)).await;
+    //
+    // let new_post = DieselPost {
+    //     id: Some(667),
+    //     title: "the best post".to_string(),
+    //     text: "with the bestest freaking title".to_string(),
+    //     published: false,
+    // };
+    // let mut new_post2 = new_post.clone();
+    // new_post2.id = Some(1111);
+    //
+    // println!("\n\nabout to try stuff...\n\n");
+    // conn1
+    //     .run(move |conn| {
+    //         diesel::insert_into(posts::table)
+    //             .values(new_post)
+    //             .execute(conn)
+    //     })
+    //     .await
+    //     .unwrap();
+    //
+    // conn2
+    //     .run(move |conn| {
+    //         diesel::insert_into(posts::table)
+    //             .values(new_post2)
+    //             .execute(conn)
+    //     })
+    //     .await
+    //     .unwrap();
+    //
+    // println!("\n\nstuff should now exist!\n\n");
+
+    // let pool = rocket.state::<SqlxDb>().unwrap().clone();
+    //
+    // tokio::spawn(rocket.launch());
+    //
+    // println!("\n\nwaiting for 5s before adding stuff...\n\n");
+    // tokio::time::sleep(Duration::from_secs(5)).await;
+    //
+    // let new_post = SqlxPost {
+    //     id: Some(666),
+    //     title: "the best post".to_string(),
+    //     text: "with the bestest freaking title".to_string(),
+    // };
+    //
+    // println!("\n\nabout to try stuff...\n\n");
+    //
+    // sqlx::query!(
+    //     "INSERT INTO posts (id, title, text) VALUES (?, ?, ?)",
+    //     new_post.id,
+    //     new_post.title,
+    //     new_post.text
+    // )
+    // .execute(&pool.0)
+    // .await
+    // .unwrap();
+    //
+    // println!("\n\nstuff should now exist!\n\n");
+
+    //
+    // println!("launching");
+    // let foo = ignition.launch().await.unwrap();
+    // println!("launched");
+    //
+    // let conn = pool.pool.try_acquire().unwrap();
+
+    // let conn = node_status_api::storage::NodeStatusStorage::get_one(&ignition)
+    //     .await
+    //     .unwrap();
+
+    // tokio::spawn(ignition.launch());
+    // ignition.launch().await?;
+
+    // println!("\n\nwaiting for 5s before adding stuff...\n\n");
+    // tokio::time::sleep(Duration::from_secs(5)).await;
+    //
+    // let new_post = Post {
+    //     id: Some(666),
+    //     title: "the best post".to_string(),
+    //     text: "with the bestest freaking title".to_string(),
+    //     published: false,
+    // };
+    // let new_post2 = new_post.clone();
+    //
+    // println!("\n\nabout to try stuff...\n\n");
+    // conn.run(move |conn| {
+    //     diesel::insert_into(posts::table)
+    //         .values(new_post)
+    //         .execute(conn)
+    // })
+    // .await
+    // .unwrap();
+    //
+    // println!("\n\nstuff should now exist!\n\n");
 
     wait_for_interrupt().await;
 

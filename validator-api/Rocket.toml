@@ -3,5 +3,12 @@ limits = { forms = "64 kB", json = "1 MiB" }
 port = 8080
 address = "127.0.0.1"
 
+#[default.databases.diesel]
+#url = "/home/jedrzej/workspace/validator-api-db/diesel/db.sqlite"
+
+[default.databases.node-status-api-db]
+url = "/home/jedrzej/workspace/validator-api-db/sqlx/db.sqlite"
+
+
 [release]
 address = "0.0.0.0"

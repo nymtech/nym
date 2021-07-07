@@ -17,5 +17,11 @@ thiserror = "1"
 log = "0.4"
 wasm-timer = "0.2"
 
-[target.'cfg(target_env = "wasm32-unknown-unknown")'.dependencies]
-getrandom = { version="0.2", features=["js"] }
+[target."cfg(target_arch = \"wasm32\")".dependencies.getrandom]
+version = "0.2"
+optional = true
+
+[features]
+# the reason for introducing additional features is to let cargo know we don't want anything to do with "getrandom/js"
+# by default as it messes up with cyclic dependencies for ahash that's indirectly used by sqlx in validator-api
+wasm = ["getrandom/js"]

@@ -45,11 +45,16 @@ export default class MixnodesCache {
     }
 
     /// Makes  requests to assemble a full list of mixnodes from validator-api
-    async refreshValidatorAPIMixNodes(url: string): Promise<MixNodeBond[]> {
-        const validator_api_url = new URL(url);
-        validator_api_url.port = VALIDATOR_API_PORT;
-        validator_api_url.pathname += VALIDATOR_API_MIXNODES;
-        const response = await axios.get(validator_api_url.toString());
-        return response.data;
+    async refreshValidatorAPIMixNodes(urls: string[]): Promise<MixNodeBond[]> {
+        for (const url of urls) {
+            const validator_api_url = new URL(url);
+            validator_api_url.port = VALIDATOR_API_PORT;
+            validator_api_url.pathname += VALIDATOR_API_MIXNODES;
+            const response = await axios.get(validator_api_url.toString());
+            if (response.status == 200) {
+                return response.data;
+            }
+        }
+        throw new Error("None of the provided validators seem to be alive")
     }
 }

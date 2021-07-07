@@ -245,7 +245,7 @@ export default class ValidatorClient {
      * just get things strung together and refresh it manually.
      */
     refreshValidatorAPIMixNodes(): Promise<MixNodeBond[]> {
-        return this.mixNodesCache.refreshValidatorAPIMixNodes(this.urls[0]).catch((err) => this.handleRequestFailure(err));
+        return this.mixNodesCache.refreshValidatorAPIMixNodes(this.urls).catch((err) => this.handleRequestFailure(err));
     }
 
     /**

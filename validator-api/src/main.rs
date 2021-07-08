@@ -23,7 +23,7 @@ use crate::tested_network::good_topology::parse_topology_file;
 use crate::tested_network::TestedNetwork;
 use ::config::NymConfig;
 use anyhow::Result;
-use cache::ValidatorCache;
+use cache::{Cache, ValidatorCache};
 use clap::{App, Arg, ArgMatches};
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
@@ -32,7 +32,6 @@ use mixnet_contract::{GatewayBond, MixNodeBond};
 use nymsphinx::addressing::clients::Recipient;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::RwLock;
 use tokio::time;
 use topology::NymTopology;
 
@@ -259,15 +258,13 @@ fn check_if_up_to_date(v4_topology: &NymTopology, v6_topology: &NymTopology) {
 }
 
 #[get("/mixnodes")]
-async fn get_mixnodes(cache: &State<Arc<RwLock<ValidatorCache>>>) -> Json<Vec<MixNodeBond>> {
-    let cache = cache.read().await;
-    Json(cache.mixnodes())
+async fn get_mixnodes(cache: &State<Arc<ValidatorCache>>) -> Json<Cache<Vec<MixNodeBond>>> {
+    Json(cache.mixnodes().await)
 }
 
 #[get("/gateways")]
-async fn get_gateways(cache: &State<Arc<RwLock<ValidatorCache>>>) -> Json<Vec<GatewayBond>> {
-    let cache = cache.read().await;
-    Json(cache.gateways())
+async fn get_gateways(cache: &State<Arc<ValidatorCache>>) -> Json<Cache<Vec<GatewayBond>>> {
+    Json(cache.gateways().await)
 }
 
 fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
@@ -442,24 +439,18 @@ async fn main() -> Result<()> {
         info!("Network monitoring is disabled.")
     }
 
-    let mixnode_cache = Arc::new(RwLock::new(ValidatorCache::init(
+    let validator_cache = Arc::new(ValidatorCache::init(
         config.get_validators_urls(),
         config.get_mixnet_contract_address(),
-    )));
+    ));
 
-    let write_mixnode_cache = Arc::clone(&mixnode_cache);
+    let write_validator_cache = Arc::clone(&validator_cache);
 
     tokio::spawn(async move {
         let mut interval = time::interval(config.get_caching_interval());
         loop {
             interval.tick().await;
-            {
-                match write_mixnode_cache.try_write() {
-                    Ok(mut w) => w.cache().await.unwrap(),
-                    // If we don't get the write lock skip a tick
-                    Err(e) => error!("Could not aquire write lock on cache: {}", e),
-                }
-            }
+            write_validator_cache.refresh_cache().await.unwrap()
         }
     });
 
@@ -481,7 +472,7 @@ async fn main() -> Result<()> {
     rocket::build()
         .attach(cors)
         .mount("/v1", routes![get_mixnodes, get_gateways])
-        .manage(mixnode_cache)
+        .manage(validator_cache)
         .ignite()
         .await?
         .launch()

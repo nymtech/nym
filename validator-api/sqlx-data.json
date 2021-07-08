@@ -1,5 +1,29 @@
 {
   "db": "SQLite",
+  "0aa27fa81412c38e71104033713cbc2b4e5ab587042a69e04aaec5dd46927593": {
+    "query": "\n                SELECT timestamp, up\n                    FROM gateway_ipv4_status\n                    JOIN gateway_details\n                    ON gateway_ipv4_status.gateway_details_id = gateway_details.id\n                    WHERE gateway_details.pub_key=?;\n                ",
+    "describe": {
+      "columns": [
+        {
+          "name": "timestamp",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "up",
+          "ordinal": 1,
+          "type_info": "Bool"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false,
+        false
+      ]
+    }
+  },
   "1e3572b681fc98f6f330a79bc6764ae8ef5cbd21fa93f1ae58adffc841d7046c": {
     "query": "INSERT INTO mixnode_details (owner, pub_key) VALUES (?, ?)",
     "describe": {
@@ -10,14 +34,104 @@
       "nullable": []
     }
   },
-  "9beefd9ad0694b8fc0c20e5133e071da0906c4c080b5bf552d0cdd5573ba6393": {
-    "query": "\n            INSERT INTO mixnode_ipv4_status (node_id, up, timestamp)\n                SELECT mixnode_details.id, ?, ?\n                FROM mixnode_details\n                WHERE mixnode_details.pub_key=?\n            ",
+  "34b35e616ffaf781a013ab80998793a1e0f414675352c58bb67a0f5639bca1e2": {
+    "query": "\n                SELECT timestamp, up\n                    FROM mixnode_ipv6_status\n                    JOIN mixnode_details\n                    ON mixnode_ipv6_status.mixnode_details_id = mixnode_details.id\n                    WHERE mixnode_details.pub_key=?;\n                ",
+    "describe": {
+      "columns": [
+        {
+          "name": "timestamp",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "up",
+          "ordinal": 1,
+          "type_info": "Bool"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false,
+        false
+      ]
+    }
+  },
+  "5ece70090ee2979e168a01436dab3c034f63c5b765eeaee55b42c630e394b803": {
+    "query": "\n                SELECT timestamp, up\n                    FROM mixnode_ipv4_status\n                    JOIN mixnode_details\n                    ON mixnode_ipv4_status.mixnode_details_id = mixnode_details.id\n                    WHERE mixnode_details.pub_key=?;\n                ",
+    "describe": {
+      "columns": [
+        {
+          "name": "timestamp",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "up",
+          "ordinal": 1,
+          "type_info": "Bool"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false,
+        false
+      ]
+    }
+  },
+  "65f035579b63a4f12af5e168218ebb7e61d36b1ea2ea5121919f927dfc0f834b": {
+    "query": "\n                SELECT timestamp, up\n                    FROM gateway_ipv6_status\n                    JOIN gateway_details\n                    ON gateway_ipv6_status.gateway_details_id = gateway_details.id\n                    WHERE gateway_details.pub_key=?;\n                ",
+    "describe": {
+      "columns": [
+        {
+          "name": "timestamp",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "up",
+          "ordinal": 1,
+          "type_info": "Bool"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false,
+        false
+      ]
+    }
+  },
+  "a3d59acbd9ab9d99f2f0a626902fb348303b4288c94c9e5904625ffa76749997": {
+    "query": "\n            INSERT INTO mixnode_ipv4_status (mixnode_details_id, up, timestamp)\n                SELECT mixnode_details.id, ?, ?\n                FROM mixnode_details\n                WHERE mixnode_details.pub_key=?\n            ",
     "describe": {
       "columns": [],
       "parameters": {
         "Right": 3
       },
       "nullable": []
+    }
+  },
+  "d79b6ab5e24b39775d13e2aadee2cd602dbd239d3c38457def1ca1afca07f094": {
+    "query": "\n            SELECT up\n                FROM mixnode_ipv4_status\n                JOIN mixnode_details\n                ON mixnode_ipv4_status.mixnode_details_id = mixnode_details.id\n                WHERE mixnode_details.pub_key=?;\n            ",
+    "describe": {
+      "columns": [
+        {
+          "name": "up",
+          "ordinal": 0,
+          "type_info": "Bool"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false
+      ]
     }
   }
 }

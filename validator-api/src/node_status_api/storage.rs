@@ -2,13 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node_status_api::models::{
-    GatewayStatusReport, MixnodeStatusReport, NodeStatusApiError,
+    GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory,
+    NodeStatusApiError, StatusReport, Uptime,
 };
 use rocket::fairing::{self, AdHoc};
 use rocket::{Build, Rocket};
 use sqlx::ConnectOptions;
 // use std::fmt::{self, Display, Formatter};
-use std::time::{SystemTime, UNIX_EPOCH};
+use crate::node_status_api::ONE_DAY;
+use sqlx::types::time;
+use sqlx::types::time::OffsetDateTime;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
@@ -59,21 +63,183 @@ impl NodeStatusStorage {
     }
 
     pub(crate) fn stage() -> AdHoc {
-        AdHoc::on_ignite("SQLx Stage", |rocket| async {
-            rocket
-                .attach(AdHoc::try_on_ignite(
-                    "SQLx Database",
-                    NodeStatusStorage::init,
-                ))
-                .mount("/v1/status", routes![])
-        })
+        AdHoc::try_on_ignite("SQLx Database", NodeStatusStorage::init)
+    }
+
+    pub(crate) async fn get_mixnode_ipv4_statuses_since(
+        &self,
+        identity: &str,
+        timestamp: i64,
+    ) -> Result<Vec<StatusReport>, NodeStatusApiError> {
+        let reports = match sqlx::query!(
+            r#"
+                SELECT timestamp, up
+                    FROM mixnode_ipv4_status
+                    JOIN mixnode_details
+                    ON mixnode_ipv4_status.mixnode_details_id = mixnode_details.id
+                    WHERE mixnode_details.pub_key=?;
+                "#,
+            identity
+        )
+        .fetch_all(&self.connection_pool)
+        .await
+        {
+            Ok(records) => records,
+            Err(err) => {
+                error!("The database run into problems while trying to get all ipv4 uptimes for mixnode {} since {}. Error: {}", identity, timestamp, err);
+                return Err(NodeStatusApiError::InternalDatabaseError);
+            }
+        }.into_iter().map(|row| StatusReport { timestamp: row.timestamp, up: row.up }).collect();
+
+        Ok(reports)
+    }
+
+    pub(crate) async fn get_mixnode_ipv6_statuses_since(
+        &self,
+        identity: &str,
+        timestamp: i64,
+    ) -> Result<Vec<StatusReport>, NodeStatusApiError> {
+        let reports = match sqlx::query!(
+            r#"
+                SELECT timestamp, up
+                    FROM mixnode_ipv6_status
+                    JOIN mixnode_details
+                    ON mixnode_ipv6_status.mixnode_details_id = mixnode_details.id
+                    WHERE mixnode_details.pub_key=?;
+                "#,
+            identity
+        )
+            .fetch_all(&self.connection_pool)
+            .await
+        {
+            Ok(records) => records,
+            Err(err) => {
+                error!("The database run into problems while trying to get all ipv6 uptimes for mixnode {} since {}. Error: {}", identity, timestamp, err);
+                return Err(NodeStatusApiError::InternalDatabaseError);
+            }
+        }.into_iter().map(|row| StatusReport { timestamp: row.timestamp, up: row.up }).collect();
+
+        Ok(reports)
+    }
+
+    pub(crate) async fn get_gateway_ipv4_statuses_since(
+        &self,
+        identity: &str,
+        timestamp: i64,
+    ) -> Result<Vec<StatusReport>, NodeStatusApiError> {
+        let reports = match sqlx::query!(
+            r#"
+                SELECT timestamp, up
+                    FROM gateway_ipv4_status
+                    JOIN gateway_details
+                    ON gateway_ipv4_status.gateway_details_id = gateway_details.id
+                    WHERE gateway_details.pub_key=?;
+                "#,
+            identity
+        )
+            .fetch_all(&self.connection_pool)
+            .await
+        {
+            Ok(records) => records,
+            Err(err) => {
+                error!("The database run into problems while trying to get all ipv4 uptimes for gateway {} since {}. Error: {}", identity, timestamp, err);
+                return Err(NodeStatusApiError::InternalDatabaseError);
+            }
+        }.into_iter().map(|row| StatusReport { timestamp: row.timestamp, up: row.up }).collect();
+
+        Ok(reports)
+    }
+
+    pub(crate) async fn get_gateway_ipv6_statuses_since(
+        &self,
+        identity: &str,
+        timestamp: i64,
+    ) -> Result<Vec<StatusReport>, NodeStatusApiError> {
+        let reports = match sqlx::query!(
+            r#"
+                SELECT timestamp, up
+                    FROM gateway_ipv6_status
+                    JOIN gateway_details
+                    ON gateway_ipv6_status.gateway_details_id = gateway_details.id
+                    WHERE gateway_details.pub_key=?;
+                "#,
+            identity
+        )
+            .fetch_all(&self.connection_pool)
+            .await
+        {
+            Ok(records) => records,
+            Err(err) => {
+                error!("The database run into problems while trying to get all ipv6 uptimes for gateway {} since {}. Error: {}", identity, timestamp, err);
+                return Err(NodeStatusApiError::InternalDatabaseError);
+            }
+        }.into_iter().map(|row| StatusReport { timestamp: row.timestamp, up: row.up }).collect();
+
+        Ok(reports)
+    }
+
+    pub(crate) async fn get_mixnode_statuses(&self, identity: &str) {
+        // WHERE mixnode_details.pub_key="node1" AND mixnode_ipv4_status.timestamp > 1625742013602;
+
+        // for time being just get them all
+        sqlx::query!(
+            r#"
+            SELECT up
+                FROM mixnode_ipv4_status
+                JOIN mixnode_details
+                ON mixnode_ipv4_status.mixnode_details_id = mixnode_details.id
+                WHERE mixnode_details.pub_key=?;
+            "#,
+            identity
+        )
+        .fetch_all(&self.connection_pool)
+        .await
+        .unwrap()
+        .into_iter()
+        .for_each(|r| println!("{}", r.up));
+
+        // println!("all ups: {:?}", ups);
     }
 
     pub(crate) async fn get_mixnode_report(
         &self,
         identity: &str,
     ) -> Result<MixnodeStatusReport, NodeStatusApiError> {
-        Ok(MixnodeStatusReport::example())
+        let now = OffsetDateTime::now_utc();
+        let day_ago = now - ONE_DAY;
+
+        let ipv4_statuses = self
+            .get_mixnode_ipv4_statuses_since(identity, day_ago.unix_timestamp())
+            .await?;
+
+        // if we have no statuses, the node doesn't exist (or monitor is down), but either way, we can't make a report
+        if ipv4_statuses.is_empty() {
+            return Err(NodeStatusApiError::MixnodeReportNotFound(
+                identity.to_owned(),
+            ));
+        }
+
+        let ipv6_statuses = self
+            .get_mixnode_ipv6_statuses_since(identity, day_ago.unix_timestamp())
+            .await?;
+
+        // now, technically this is not a critical error, but this should have NEVER happened in the first place
+        // so something super weird is going on
+        if ipv4_statuses.len() != ipv6_statuses.len() {
+            error!("Somehow we have different number of ipv4 and ipv6 statuses for mixnode {} in range {} - {}! (ipv4: {}, ipv6: {})",
+            identity,
+                day_ago.unix_timestamp(),
+                now.unix_timestamp(),
+                ipv4_statuses.len(),
+                ipv6_statuses.len(),
+            )
+        }
+
+        Ok(MixnodeStatusReport::construct_from_last_day_reports(
+            identity,
+            ipv4_statuses,
+            ipv6_statuses,
+        ))
     }
 
     pub(crate) async fn get_gateway_report(
@@ -83,6 +249,20 @@ impl NodeStatusStorage {
         Err(NodeStatusApiError::GatewayReportNotFound(
             identity.to_string(),
         ))
+    }
+
+    pub(crate) async fn get_mixnode_uptime_history(
+        &self,
+        identity: &str,
+    ) -> Result<MixnodeUptimeHistory, NodeStatusApiError> {
+        todo!()
+    }
+
+    pub(crate) async fn get_gateway_uptime_history(
+        &self,
+        identity: &str,
+    ) -> Result<GatewayUptimeHistory, NodeStatusApiError> {
+        todo!()
     }
 
     pub(crate) async fn get_all_mixnode_reports(
@@ -110,13 +290,7 @@ impl NodeStatusStorage {
     }
 
     pub(crate) async fn add_up_status(&self, identity: &str) {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("The time went backwards - congratulation on creating a time machine!");
-
-        // since we're working with "normal" timestamps here and not dates arbitrarily far in the future
-        // cast to i64 is fine here
-        let now_nanos = now.as_millis() as i64;
+        let timestamp = time::OffsetDateTime::now_utc().unix_timestamp();
 
         sqlx::query!(
             r#"
@@ -126,7 +300,26 @@ impl NodeStatusStorage {
                 WHERE mixnode_details.pub_key=?
             "#,
             true,
-            now_nanos,
+            timestamp,
+            identity
+        )
+        .execute(&self.connection_pool)
+        .await
+        .unwrap();
+    }
+
+    pub(crate) async fn add_down_status(&self, identity: &str) {
+        let timestamp = time::OffsetDateTime::now_utc().unix_timestamp();
+
+        sqlx::query!(
+            r#"
+            INSERT INTO mixnode_ipv4_status (mixnode_details_id, up, timestamp)
+                SELECT mixnode_details.id, ?, ?
+                FROM mixnode_details
+                WHERE mixnode_details.pub_key=?
+            "#,
+            false,
+            timestamp,
             identity
         )
         .execute(&self.connection_pool)

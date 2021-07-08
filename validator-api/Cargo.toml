@@ -31,7 +31,7 @@ rocket_cors = { git="https://github.com/lawliet89/rocket_cors", branch="master" 
 anyhow = "1"
 
 rocket_sync_db_pools = {version = "0.1.0-rc.1", default-features = false}
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "offline", "migrate", "chrono"]}
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "offline", "migrate", "chrono", "time"]}
 
 ## internal
 config = { path = "../common/config" }

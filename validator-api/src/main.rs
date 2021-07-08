@@ -255,7 +255,7 @@ async fn main() -> Result<()> {
             config.get_validators_urls(),
             config.get_mixnet_contract_address(),
         ))
-        .attach(NodeStatusStorage::stage()) // manages state, creates routes, etc
+        .attach(node_status_api::stage()) // manages state, creates routes, etc
         .ignite()
         .await?;
 
@@ -264,11 +264,11 @@ async fn main() -> Result<()> {
     let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
 
     // spawn our cacher
-    tokio::spawn(async move {
-        write_validator_cache
-            .run(config.get_caching_interval())
-            .await
-    });
+    // tokio::spawn(async move {
+    //     write_validator_cache
+    //         .run(config.get_caching_interval())
+    //         .await
+    // });
 
     // and the rocket
     tokio::spawn(rocket.launch());
@@ -276,12 +276,28 @@ async fn main() -> Result<()> {
     println!("\n\nwaiting for 5s before adding stuff...\n\n");
     tokio::time::sleep(Duration::from_secs(5)).await;
 
+    // node_status_storage.make_up_mixnode("node1").await;
+
     // node_status_storage.make_up_mixnode("node3").await;
 
-    node_status_storage.make_up_mixnode("node1").await;
-    node_status_storage.make_up_mixnode("node2").await;
-    node_status_storage.make_up_mixnode("node3").await;
+    // node_status_storage.make_up_mixnode("node1").await;
+    // node_status_storage.make_up_mixnode("node2").await;
+    // node_status_storage.make_up_mixnode("node3").await;
     node_status_storage.add_up_status("node1").await;
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    node_status_storage.add_up_status("node1").await;
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    node_status_storage.add_up_status("node1").await;
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    node_status_storage.add_up_status("node1").await;
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    node_status_storage.add_up_status("node1").await;
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    node_status_storage.add_up_status("node1").await;
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    node_status_storage.add_up_status("node1").await;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    node_status_storage.add_down_status("node1").await;
 
     println!("done");
 

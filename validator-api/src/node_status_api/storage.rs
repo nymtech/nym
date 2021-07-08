@@ -358,7 +358,7 @@ impl NodeStatusStorage {
 
         sqlx::query!(
             r#"
-            INSERT INTO mixnode_ipv4_status (node_id, up, timestamp)
+            INSERT INTO mixnode_ipv4_status (mixnode_details_id, up, timestamp)
                 SELECT mixnode_details.id, ?, ?
                 FROM mixnode_details
                 WHERE mixnode_details.pub_key=?

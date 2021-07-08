@@ -3,12 +3,6 @@
 
 #[macro_use]
 extern crate rocket;
-// #[macro_use]
-// extern crate rocket_sync_db_pools;
-// #[macro_use]
-// extern crate diesel_migrations;
-// #[macro_use]
-// extern crate diesel;
 
 use crate::config::Config;
 use crate::network_monitor::new_monitor_runnables;
@@ -24,7 +18,6 @@ use rocket::http::Method;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
-// use rocket_sync_db_pools::diesel::RunQueryDsl;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -296,27 +289,13 @@ async fn main() -> Result<()> {
     let rocket = rocket::build()
         .attach(cors)
         .mount("/v1", routes![get_mixnodes, get_gateways])
-        // .mount(
-        //     "/v1/status",
-        //     routes![
-        //         mixnode_report,
-        //         gateway_report,
-        //         mixnodes_full_report,
-        //         gateways_full_report
-        //     ],
-        // )
         .manage(mixnode_cache)
-        // .manage(node_status_storage)
-        // .attach(node_status_api::storage::stage_diesel())
-        .attach(NodeStatusStorage::stage())
+        .attach(NodeStatusStorage::stage()) // manages state, creates routes, etc
         .ignite()
         .await?;
 
     let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
 
-    // let conn1 = DieselDb::get_one(&rocket).await.unwrap();
-    // let conn2 = DieselDb::get_one(&rocket).await.unwrap();
-    //
     tokio::spawn(rocket.launch());
 
     println!("\n\nwaiting for 5s before adding stuff...\n\n");
@@ -330,103 +309,6 @@ async fn main() -> Result<()> {
     node_status_storage.add_up_status("node1").await;
 
     println!("done");
-
-    //
-    // println!("\n\nwaiting for 5s before adding stuff...\n\n");
-    // tokio::time::sleep(Duration::from_secs(5)).await;
-    //
-    // let new_post = DieselPost {
-    //     id: Some(667),
-    //     title: "the best post".to_string(),
-    //     text: "with the bestest freaking title".to_string(),
-    //     published: false,
-    // };
-    // let mut new_post2 = new_post.clone();
-    // new_post2.id = Some(1111);
-    //
-    // println!("\n\nabout to try stuff...\n\n");
-    // conn1
-    //     .run(move |conn| {
-    //         diesel::insert_into(posts::table)
-    //             .values(new_post)
-    //             .execute(conn)
-    //     })
-    //     .await
-    //     .unwrap();
-    //
-    // conn2
-    //     .run(move |conn| {
-    //         diesel::insert_into(posts::table)
-    //             .values(new_post2)
-    //             .execute(conn)
-    //     })
-    //     .await
-    //     .unwrap();
-    //
-    // println!("\n\nstuff should now exist!\n\n");
-
-    // let pool = rocket.state::<SqlxDb>().unwrap().clone();
-    //
-    // tokio::spawn(rocket.launch());
-    //
-    // println!("\n\nwaiting for 5s before adding stuff...\n\n");
-    // tokio::time::sleep(Duration::from_secs(5)).await;
-    //
-    // let new_post = SqlxPost {
-    //     id: Some(666),
-    //     title: "the best post".to_string(),
-    //     text: "with the bestest freaking title".to_string(),
-    // };
-    //
-    // println!("\n\nabout to try stuff...\n\n");
-    //
-    // sqlx::query!(
-    //     "INSERT INTO posts (id, title, text) VALUES (?, ?, ?)",
-    //     new_post.id,
-    //     new_post.title,
-    //     new_post.text
-    // )
-    // .execute(&pool.0)
-    // .await
-    // .unwrap();
-    //
-    // println!("\n\nstuff should now exist!\n\n");
-
-    //
-    // println!("launching");
-    // let foo = ignition.launch().await.unwrap();
-    // println!("launched");
-    //
-    // let conn = pool.pool.try_acquire().unwrap();
-
-    // let conn = node_status_api::storage::NodeStatusStorage::get_one(&ignition)
-    //     .await
-    //     .unwrap();
-
-    // tokio::spawn(ignition.launch());
-    // ignition.launch().await?;
-
-    // println!("\n\nwaiting for 5s before adding stuff...\n\n");
-    // tokio::time::sleep(Duration::from_secs(5)).await;
-    //
-    // let new_post = Post {
-    //     id: Some(666),
-    //     title: "the best post".to_string(),
-    //     text: "with the bestest freaking title".to_string(),
-    //     published: false,
-    // };
-    // let new_post2 = new_post.clone();
-    //
-    // println!("\n\nabout to try stuff...\n\n");
-    // conn.run(move |conn| {
-    //     diesel::insert_into(posts::table)
-    //         .values(new_post)
-    //         .execute(conn)
-    // })
-    // .await
-    // .unwrap();
-    //
-    // println!("\n\nstuff should now exist!\n\n");
 
     wait_for_interrupt().await;
 

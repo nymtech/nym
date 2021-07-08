@@ -30,12 +30,8 @@ tokio = { version="1.4", features=["rt-multi-thread", "macros", "signal", "time"
 rocket_cors = { git="https://github.com/lawliet89/rocket_cors", branch="master" }
 anyhow = "1"
 
-# TODO: choose one
 rocket_sync_db_pools = {version = "0.1.0-rc.1", default-features = false}
-#diesel = { version = "1.4", features = ["sqlite", "r2d2"] }
-#diesel_migrations = "1.4" # requires sudo apt install libsqlite3-dev on linux, not sure about windows or macos
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "offline", "migrate", "chrono"]}
-
 
 ## internal
 config = { path = "../common/config" }

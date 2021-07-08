@@ -18,8 +18,6 @@ use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::{SummaryProducer, TestReport};
 use crate::network_monitor::test_packet::NodeType;
 use crate::network_monitor::tested_network::TestedNetwork;
-use crate::node_status_api;
-use crate::node_status_api::models::{BatchGatewayStatus, BatchMixStatus};
 use log::{debug, info};
 use tokio::time::{sleep, Duration, Instant};
 
@@ -33,13 +31,15 @@ const PACKET_DELIVERY_TIMEOUT: Duration = Duration::from_secs(20);
 const MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(15 * 60);
 const GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
 
+pub(crate) type TodoType = ();
+
 pub(super) struct Monitor {
     nonce: u64,
     packet_preparer: PacketPreparer,
     packet_sender: PacketSender,
     received_processor: ReceivedProcessor,
     summary_producer: SummaryProducer,
-    node_status_api_client: node_status_api::Client,
+    node_status_api_client: TodoType,
     tested_network: TestedNetwork,
 }
 
@@ -49,7 +49,7 @@ impl Monitor {
         packet_sender: PacketSender,
         received_processor: ReceivedProcessor,
         summary_producer: SummaryProducer,
-        node_status_api_client: node_status_api::Client,
+        node_status_api_client: TodoType,
         tested_network: TestedNetwork,
     ) -> Self {
         Monitor {
@@ -65,32 +65,9 @@ impl Monitor {
 
     // while it might have been cleaner to put this into a separate `Notifier` structure,
     // I don't see much point considering it's only a single, small, method
-    async fn notify_node_status_api(
-        &self,
-        mix_status: BatchMixStatus,
-        gateway_status: BatchGatewayStatus,
-    ) {
-        if let Err(err) = self
-            .node_status_api_client
-            .post_batch_mix_status(mix_status)
-            .await
-        {
-            warn!(
-                "Failed to send batch mix status to node status api - {:?}",
-                err
-            )
-        }
-
-        if let Err(err) = self
-            .node_status_api_client
-            .post_batch_gateway_status(gateway_status)
-            .await
-        {
-            warn!(
-                "Failed to send batch mix status to node status api - {:?}",
-                err
-            )
-        }
+    async fn notify_node_status_api(&self, mix_status: TodoType, gateway_status: TodoType) {
+        // this will chagne completely and instead will talk to the database
+        todo!()
     }
 
     // checking it this way with a TestReport is rather suboptimal but given the fact we're only

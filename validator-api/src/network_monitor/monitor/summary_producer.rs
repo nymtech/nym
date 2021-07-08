@@ -13,10 +13,8 @@
 // limitations under the License.
 
 use crate::network_monitor::monitor::preparer::{InvalidNode, TestedNode};
+use crate::network_monitor::monitor::TodoType;
 use crate::network_monitor::test_packet::{NodeType, TestPacket};
-use crate::node_status_api::models::{
-    BatchGatewayStatus, BatchMixStatus, GatewayStatus, MixStatus,
-};
 use crate::PENALISE_OUTDATED;
 use std::collections::HashMap;
 
@@ -27,40 +25,42 @@ struct NodeResult {
 }
 
 impl NodeResult {
-    fn into_mix_status(self, pub_key: String, owner: String) -> Vec<MixStatus> {
-        let v4_status = MixStatus {
-            owner: owner.clone(),
-            pub_key: pub_key.clone(),
-            ip_version: "4".to_string(),
-            up: self.ip_v4_compatible,
-        };
-
-        let v6_status = MixStatus {
-            owner,
-            pub_key,
-            ip_version: "6".to_string(),
-            up: self.ip_v6_compatible,
-        };
-
-        vec![v4_status, v6_status]
+    fn into_mix_status(self, pub_key: String, owner: String) -> Vec<TodoType> {
+        // let v4_status = MixStatus {
+        //     owner: owner.clone(),
+        //     pub_key: pub_key.clone(),
+        //     ip_version: "4".to_string(),
+        //     up: self.ip_v4_compatible,
+        // };
+        //
+        // let v6_status = MixStatus {
+        //     owner,
+        //     pub_key,
+        //     ip_version: "6".to_string(),
+        //     up: self.ip_v6_compatible,
+        // };
+        //
+        // vec![v4_status, v6_status]
+        todo!()
     }
 
-    fn into_gateway_status(self, pub_key: String, owner: String) -> Vec<GatewayStatus> {
-        let v4_status = GatewayStatus {
-            owner: owner.clone(),
-            pub_key: pub_key.clone(),
-            ip_version: "4".to_string(),
-            up: self.ip_v4_compatible,
-        };
-
-        let v6_status = GatewayStatus {
-            owner,
-            pub_key,
-            ip_version: "6".to_string(),
-            up: self.ip_v6_compatible,
-        };
-
-        vec![v4_status, v6_status]
+    fn into_gateway_status(self, pub_key: String, owner: String) -> Vec<TodoType> {
+        // let v4_status = GatewayStatus {
+        //     owner: owner.clone(),
+        //     pub_key: pub_key.clone(),
+        //     ip_version: "4".to_string(),
+        //     up: self.ip_v4_compatible,
+        // };
+        //
+        // let v6_status = GatewayStatus {
+        //     owner,
+        //     pub_key,
+        //     ip_version: "6".to_string(),
+        //     up: self.ip_v6_compatible,
+        // };
+        //
+        // vec![v4_status, v6_status]
+        todo!()
     }
 }
 
@@ -183,8 +183,8 @@ impl TestReport {
 }
 
 pub(crate) struct TestSummary {
-    pub(crate) batch_mix_status: BatchMixStatus,
-    pub(crate) batch_gateway_status: BatchGatewayStatus,
+    pub(crate) batch_mix_status: TodoType,
+    pub(crate) batch_gateway_status: TodoType,
     pub(crate) test_report: TestReport,
 }
 
@@ -267,32 +267,34 @@ impl SummaryProducer {
             .into_iter()
             .partition(|(node, _)| node.node_type == NodeType::Mixnode);
 
-        let mix_statuses = mixes
-            .into_iter()
-            .flat_map(|(node, result)| {
-                result
-                    .into_mix_status(node.identity, node.owner)
-                    .into_iter()
-            })
-            .collect();
+        // let mix_statuses = mixes
+        //     .into_iter()
+        //     .flat_map(|(node, result)| {
+        //         result
+        //             .into_mix_status(node.identity, node.owner)
+        //             .into_iter()
+        //     })
+        //     .collect();
+        //
+        // let gateway_statuses = gateways
+        //     .into_iter()
+        //     .flat_map(|(node, result)| {
+        //         result
+        //             .into_gateway_status(node.identity, node.owner)
+        //             .into_iter()
+        //     })
+        //     .collect();
 
-        let gateway_statuses = gateways
-            .into_iter()
-            .flat_map(|(node, result)| {
-                result
-                    .into_gateway_status(node.identity, node.owner)
-                    .into_iter()
-            })
-            .collect();
+        // TestSummary {
+        //     batch_mix_status: BatchMixStatus {
+        //         status: mix_statuses,
+        //     },
+        //     batch_gateway_status: BatchGatewayStatus {
+        //         status: gateway_statuses,
+        //     },
+        //     test_report: report,
+        // }
 
-        TestSummary {
-            batch_mix_status: BatchMixStatus {
-                status: mix_statuses,
-            },
-            batch_gateway_status: BatchGatewayStatus {
-                status: gateway_statuses,
-            },
-            test_report: report,
-        }
+        todo!()
     }
 }

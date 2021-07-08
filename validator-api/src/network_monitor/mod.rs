@@ -11,7 +11,7 @@ use crate::network_monitor::monitor::receiver::{
 };
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
-use crate::network_monitor::monitor::Monitor;
+use crate::network_monitor::monitor::{Monitor, TodoType};
 use crate::network_monitor::tested_network::TestedNetwork;
 use crate::node_status_api;
 use crypto::asymmetric::{encryption, identity};
@@ -218,9 +218,8 @@ pub(crate) fn check_if_up_to_date(v4_topology: &NymTopology, v6_topology: &NymTo
     }
 }
 
-fn new_node_status_api_client<S: Into<String>>(base_url: S) -> node_status_api::Client {
-    let config = node_status_api::Config::new(base_url);
-    node_status_api::Client::new(config)
+fn new_node_status_api_client<S: Into<String>>(base_url: S) -> TodoType {
+    todo!()
 }
 
 fn new_validator_client(

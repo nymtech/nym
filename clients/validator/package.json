@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/nym-validator-client",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "A TypeScript client for interacting with smart contracts in Nym validators",
   "repository": "https://github.com/nymtech/nym",
   "main": "./dist/index.js",
@@ -35,11 +35,11 @@
     "typescript": "^4.1.3"
   },
   "dependencies": {
-    "@cosmjs/cosmwasm": "^0.24.1",
-    "@cosmjs/cosmwasm-stargate": "^0.24.1",
-    "@cosmjs/crypto": "^0.24.1",
-    "@cosmjs/launchpad": "^0.24.1",
-    "@cosmjs/math": "^0.24.1",
-    "@cosmjs/proto-signing": "^0.24.1"
+    "@cosmjs/cosmwasm": "^0.25.5",
+    "@cosmjs/cosmwasm-stargate": "^0.25.5",
+    "@cosmjs/crypto": "^0.25.5",
+    "@cosmjs/launchpad": "^0.25.5",
+    "@cosmjs/math": "^0.25.5",
+    "@cosmjs/proto-signing": "^0.25.5"
   }
 }

@@ -5,6 +5,7 @@
 extern crate rocket;
 
 use crate::config::Config;
+use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::network_monitor::new_monitor_runnables;
 use crate::network_monitor::tested_network::good_topology::parse_topology_file;
 use crate::node_status_api::storage::NodeStatusStorage;
@@ -276,6 +277,38 @@ async fn main() -> Result<()> {
     println!("\n\nwaiting for 5s before adding stuff...\n\n");
     tokio::time::sleep(Duration::from_secs(5)).await;
 
+    let dummy_results = vec![
+        NodeResult {
+            pub_key: "mix1".to_string(),
+            owner: "owner1".to_string(),
+            working_ipv4: true,
+            working_ipv6: true,
+        },
+        NodeResult {
+            pub_key: "mix2".to_string(),
+            owner: "owner2".to_string(),
+            working_ipv4: true,
+            working_ipv6: true,
+        },
+        NodeResult {
+            pub_key: "mix1".to_string(),
+            owner: "owner1".to_string(),
+            working_ipv4: true,
+            working_ipv6: false,
+        },
+        NodeResult {
+            pub_key: "mix4".to_string(),
+            owner: "owner4".to_string(),
+            working_ipv4: true,
+            working_ipv6: true,
+        },
+    ];
+
+    node_status_storage
+        .submit_new_statuses(dummy_results, Vec::new())
+        .await
+        .unwrap();
+
     // node_status_storage.make_up_mixnode("node1").await;
 
     // node_status_storage.make_up_mixnode("node3").await;
@@ -283,21 +316,21 @@ async fn main() -> Result<()> {
     // node_status_storage.make_up_mixnode("node1").await;
     // node_status_storage.make_up_mixnode("node2").await;
     // node_status_storage.make_up_mixnode("node3").await;
-    node_status_storage.add_up_status("node1").await;
-    tokio::time::sleep(Duration::from_millis(10)).await;
-    node_status_storage.add_up_status("node1").await;
-    tokio::time::sleep(Duration::from_millis(10)).await;
-    node_status_storage.add_up_status("node1").await;
-    tokio::time::sleep(Duration::from_millis(10)).await;
-    node_status_storage.add_up_status("node1").await;
-    tokio::time::sleep(Duration::from_millis(10)).await;
-    node_status_storage.add_up_status("node1").await;
-    tokio::time::sleep(Duration::from_millis(10)).await;
-    node_status_storage.add_up_status("node1").await;
-    tokio::time::sleep(Duration::from_millis(10)).await;
-    node_status_storage.add_up_status("node1").await;
-    tokio::time::sleep(Duration::from_secs(2)).await;
-    node_status_storage.add_down_status("node1").await;
+    // node_status_storage.add_up_status("node1").await;
+    // tokio::time::sleep(Duration::from_millis(10)).await;
+    // node_status_storage.add_up_status("node1").await;
+    // tokio::time::sleep(Duration::from_millis(10)).await;
+    // node_status_storage.add_up_status("node1").await;
+    // tokio::time::sleep(Duration::from_millis(10)).await;
+    // node_status_storage.add_up_status("node1").await;
+    // tokio::time::sleep(Duration::from_millis(10)).await;
+    // node_status_storage.add_up_status("node1").await;
+    // tokio::time::sleep(Duration::from_millis(10)).await;
+    // node_status_storage.add_up_status("node1").await;
+    // tokio::time::sleep(Duration::from_millis(10)).await;
+    // node_status_storage.add_up_status("node1").await;
+    // tokio::time::sleep(Duration::from_secs(2)).await;
+    // node_status_storage.add_down_status("node1").await;
 
     println!("done");
 

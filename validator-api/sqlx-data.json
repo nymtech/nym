@@ -34,6 +34,34 @@
       "nullable": []
     }
   },
+  "26a6cec333e3187d1bee9a583529b4126cb12d711771c5276e9598ccaa0a144d": {
+    "query": "\n                    INSERT INTO mixnode_ipv4_status (mixnode_details_id, up, timestamp) VALUES (?, ?, ?);\n                ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
+    }
+  },
+  "2d87cc44c28330492c7cf90589e5d8113ccff07d6f67c485226bbe59246db522": {
+    "query": "\n                    INSERT OR IGNORE INTO gateway_details(pub_key, owner) VALUES (?, ?);\n                    SELECT id FROM gateway_details WHERE pub_key = ?;\n                ",
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        }
+      ],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": [
+        true
+      ]
+    }
+  },
   "34b35e616ffaf781a013ab80998793a1e0f414675352c58bb67a0f5639bca1e2": {
     "query": "\n                SELECT timestamp, up\n                    FROM mixnode_ipv6_status\n                    JOIN mixnode_details\n                    ON mixnode_ipv6_status.mixnode_details_id = mixnode_details.id\n                    WHERE mixnode_details.pub_key=?;\n                ",
     "describe": {
@@ -56,6 +84,16 @@
         false,
         false
       ]
+    }
+  },
+  "573944d1f6d79d139da359e6499e1cad07f1d9017f00cfa03d9918b8c5955fb2": {
+    "query": "\n                    INSERT INTO gateway_ipv6_status (gateway_details_id, up, timestamp) VALUES (?, ?, ?);\n                ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
     }
   },
   "5ece70090ee2979e168a01436dab3c034f63c5b765eeaee55b42c630e394b803": {
@@ -106,6 +144,16 @@
       ]
     }
   },
+  "95ba8a44df5f91da83655a994e56c7ff79d7c2e4f5c01e0402c2f868e7cb54cd": {
+    "query": "\n                    INSERT INTO gateway_ipv4_status (gateway_details_id, up, timestamp) VALUES (?, ?, ?);\n                ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
+    }
+  },
   "a3d59acbd9ab9d99f2f0a626902fb348303b4288c94c9e5904625ffa76749997": {
     "query": "\n            INSERT INTO mixnode_ipv4_status (mixnode_details_id, up, timestamp)\n                SELECT mixnode_details.id, ?, ?\n                FROM mixnode_details\n                WHERE mixnode_details.pub_key=?\n            ",
     "describe": {
@@ -114,6 +162,34 @@
         "Right": 3
       },
       "nullable": []
+    }
+  },
+  "bed01502a7770069c0ad5f6bc13cab7f08ea219d71f4ab3e594cde5809e6f4be": {
+    "query": "\n                    INSERT INTO mixnode_ipv6_status (mixnode_details_id, up, timestamp) VALUES (?, ?, ?);\n                ",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": []
+    }
+  },
+  "d4b9a3e22a1230635523aec12a0b5a980e99949232369ebd748c70fed3f4532e": {
+    "query": "\n                    INSERT OR IGNORE INTO mixnode_details(pub_key, owner) VALUES (?, ?);\n                    SELECT id FROM mixnode_details WHERE pub_key = ?;\n                ",
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        }
+      ],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": [
+        true
+      ]
     }
   },
   "d79b6ab5e24b39775d13e2aadee2cd602dbd239d3c38457def1ca1afca07f094": {

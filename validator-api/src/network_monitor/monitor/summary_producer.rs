@@ -18,13 +18,20 @@ use crate::network_monitor::test_packet::{NodeType, TestPacket};
 use crate::PENALISE_OUTDATED;
 use std::collections::HashMap;
 
+pub(crate) struct NodeResult {
+    pub(crate) pub_key: String,
+    pub(crate) owner: String,
+    pub(crate) working_ipv4: bool,
+    pub(crate) working_ipv6: bool,
+}
+
 #[derive(Default)]
-struct NodeResult {
+struct NodeResultOld {
     ip_v4_compatible: bool,
     ip_v6_compatible: bool,
 }
 
-impl NodeResult {
+impl NodeResultOld {
     fn into_mix_status(self, pub_key: String, owner: String) -> Vec<TodoType> {
         // let v4_status = MixStatus {
         //     owner: owner.clone(),
@@ -156,7 +163,7 @@ impl TestReport {
         }
     }
 
-    fn parse_summary(&mut self, summary: &HashMap<TestedNode, NodeResult>) {
+    fn parse_summary(&mut self, summary: &HashMap<TestedNode, NodeResultOld>) {
         for (node, result) in summary.iter() {
             let owned_node = node.clone();
             if node.is_gateway() {
@@ -216,7 +223,7 @@ impl SummaryProducer {
         let received_packets_count = received_packets.len();
 
         // contains map of all (seemingly valid) nodes and whether they speak ipv4/ipv6
-        let mut summary: HashMap<TestedNode, NodeResult> = HashMap::new();
+        let mut summary: HashMap<TestedNode, NodeResultOld> = HashMap::new();
 
         // update based on data we actually got
         for received_status in received_packets.into_iter() {

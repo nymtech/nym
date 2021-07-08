@@ -9,6 +9,7 @@ use rocket::fairing::{self, AdHoc};
 use rocket::{Build, Rocket};
 use sqlx::ConnectOptions;
 // use std::fmt::{self, Display, Formatter};
+use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::node_status_api::ONE_DAY;
 use sqlx::types::time;
 use sqlx::types::time::OffsetDateTime;
@@ -277,6 +278,117 @@ impl NodeStatusStorage {
         todo!()
     }
 
+    // provisional API for network monitor
+    pub(crate) async fn submit_new_statuses(
+        &self,
+        mixnode_results: Vec<NodeResult>,
+        gateway_results: Vec<NodeResult>,
+    ) -> Result<(), sqlx::Error> {
+        // TODO: lower that to debug before creating PR
+        info!("Submitting new node results to the database. There are {} mixnode results and {} gateway results", mixnode_results.len(), gateway_results.len());
+
+        let now = OffsetDateTime::now_utc().unix_timestamp();
+
+        // insert it all in a transaction to make sure all nodes are updated at the same time
+        // (plus it's a nice guard against new nodes)
+        let mut tx = self.connection_pool.begin().await?;
+        for mixnode_result in mixnode_results {
+            // if mixnode info doesn't exist, insert it and get its id
+
+            // TODO: the potential "problem" (if you can call it that way) is that if entry DID exist
+            // then the id field will be incremented for the next node we create thus we will
+            // have gaps in our ids. ask @DH if that's fine (I don't see why not because nodes
+            // are still correctly ordered and you can get their total number with a simple query
+            // and we'd have to run the system until the heat death of the universe to run out of id numbers)
+            let mixnode_id = sqlx::query!(
+                r#"
+                    INSERT OR IGNORE INTO mixnode_details(pub_key, owner) VALUES (?, ?);
+                    SELECT id FROM mixnode_details WHERE pub_key = ?;
+                "#,
+                mixnode_result.pub_key,
+                mixnode_result.owner,
+                mixnode_result.pub_key,
+            )
+            .fetch_one(&mut tx)
+            .await?
+            .id;
+
+            // insert ipv4 status
+            sqlx::query!(
+                r#"
+                    INSERT INTO mixnode_ipv4_status (mixnode_details_id, up, timestamp) VALUES (?, ?, ?);
+                "#,
+                mixnode_id,
+                mixnode_result.working_ipv4,
+                now
+            )
+            .execute(&mut tx)
+            .await?;
+
+            // insert ipv6 status
+            sqlx::query!(
+                r#"
+                    INSERT INTO mixnode_ipv6_status (mixnode_details_id, up, timestamp) VALUES (?, ?, ?);
+                "#,
+                mixnode_id,
+                mixnode_result.working_ipv6,
+                now
+            )
+            .execute(&mut tx)
+            .await?;
+        }
+
+        // repeat the procedure for gateways
+        for gateway_result in gateway_results {
+            // if gateway info doesn't exist, insert it and get its id
+
+            // TODO: the potential "problem" (if you can call it that way) is that if entry DID exist
+            // then the id field will be incremented for the next node we create thus we will
+            // have gaps in our ids. ask @DH if that's fine (I don't see why not because nodes
+            // are still correctly ordered and you can get their total number with a simple query
+            // and we'd have to run the system until the heat death of the universe to run out of id numbers)
+            let gateway_id = sqlx::query!(
+                r#"
+                    INSERT OR IGNORE INTO gateway_details(pub_key, owner) VALUES (?, ?);
+                    SELECT id FROM gateway_details WHERE pub_key = ?;
+                "#,
+                gateway_result.pub_key,
+                gateway_result.owner,
+                gateway_result.pub_key,
+            )
+            .fetch_one(&mut tx)
+            .await?
+            .id;
+
+            // insert ipv4 status
+            sqlx::query!(
+                r#"
+                    INSERT INTO gateway_ipv4_status (gateway_details_id, up, timestamp) VALUES (?, ?, ?);
+                "#,
+                gateway_id,
+                gateway_result.working_ipv4,
+                now
+            )
+            .execute(&mut tx)
+            .await?;
+
+            // insert ipv6 status
+            sqlx::query!(
+                r#"
+                    INSERT INTO gateway_ipv6_status (gateway_details_id, up, timestamp) VALUES (?, ?, ?);
+                "#,
+                gateway_id,
+                gateway_result.working_ipv6,
+                now
+            )
+            .execute(&mut tx)
+            .await?;
+        }
+
+        // finally commit the transaction
+        tx.commit().await
+    }
+
     pub(crate) async fn make_up_mixnode(&self, identity: &str) {
         let owner = format!("foomper-{}", identity);
         sqlx::query!(
@@ -290,7 +402,7 @@ impl NodeStatusStorage {
     }
 
     pub(crate) async fn add_up_status(&self, identity: &str) {
-        let timestamp = time::OffsetDateTime::now_utc().unix_timestamp();
+        let timestamp = OffsetDateTime::now_utc().unix_timestamp();
 
         sqlx::query!(
             r#"

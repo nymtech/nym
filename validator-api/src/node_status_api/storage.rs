@@ -291,6 +291,8 @@ impl NodeStatusStorage {
             return Err(rocket);
         }
 
+        info!("Database migration finished!");
+
         let storage = NodeStatusStorage { connection_pool };
 
         Ok(rocket.manage(storage))

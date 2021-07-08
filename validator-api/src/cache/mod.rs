@@ -58,7 +58,7 @@ impl<T: Clone> Cache<T> {
 }
 
 impl ValidatorCache {
-    async fn init(validators_rest_uris: Vec<String>, mixnet_contract: String) -> Self {
+    fn init(validators_rest_uris: Vec<String>, mixnet_contract: String) -> Self {
         ValidatorCache {
             inner: Arc::new(ValidatorCacheInner::init(
                 validators_rest_uris,

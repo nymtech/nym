@@ -17,8 +17,9 @@ use mixnet_contract::{GatewayBond, MixNodeBond};
 use rocket::fairing::AdHoc;
 use serde::Serialize;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
+use tokio::time;
 use validator_client::Client;
 
 pub(crate) mod routes;
@@ -92,6 +93,16 @@ impl ValidatorCache {
 
     pub async fn gateways(&self) -> Cache<Vec<GatewayBond>> {
         self.inner.gateways.read().await.clone()
+    }
+
+    pub async fn run(&self, caching_interval: Duration) {
+        let mut interval = time::interval(caching_interval);
+        loop {
+            interval.tick().await;
+            if let Err(err) = self.refresh_cache().await {
+                error!("Failed to refresh validator cache - {}", err);
+            }
+        }
     }
 }
 

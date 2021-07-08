@@ -16,7 +16,7 @@ use log::info;
 use mixnet_contract::MixNodeBond;
 use rocket::http::Method;
 use rocket::{Rocket, State};
-use rocket_cors::{AllowedHeaders, AllowedOrigins};
+use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use std::time::Duration;
 use tokio::time;
 
@@ -175,6 +175,25 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     config
 }
 
+fn setup_cors() -> Result<Cors> {
+    let allowed_origins = AllowedOrigins::all();
+
+    // You can also deserialize this
+    let cors = rocket_cors::CorsOptions {
+        allowed_origins,
+        allowed_methods: vec![Method::Post, Method::Get]
+            .into_iter()
+            .map(From::from)
+            .collect(),
+        allowed_headers: AllowedHeaders::all(),
+        allow_credentials: true,
+        ..Default::default()
+    }
+    .to_cors()?;
+
+    Ok(cors)
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     setup_logging();
@@ -229,23 +248,9 @@ async fn main() -> Result<()> {
         info!("Network monitoring is disabled.")
     }
 
-    let allowed_origins = AllowedOrigins::all();
-
-    // You can also deserialize this
-    let cors = rocket_cors::CorsOptions {
-        allowed_origins,
-        allowed_methods: vec![Method::Post, Method::Get]
-            .into_iter()
-            .map(From::from)
-            .collect(),
-        allowed_headers: AllowedHeaders::all(),
-        allow_credentials: true,
-        ..Default::default()
-    }
-    .to_cors()?;
-
+    // let's build our rocket!
     let rocket = rocket::build()
-        .attach(cors)
+        .attach(setup_cors()?)
         .attach(ValidatorCache::stage(
             config.get_validators_urls(),
             config.get_mixnet_contract_address(),
@@ -258,14 +263,14 @@ async fn main() -> Result<()> {
     let write_validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
     let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
 
+    // spawn our cacher
     tokio::spawn(async move {
-        let mut interval = time::interval(config.get_caching_interval());
-        loop {
-            interval.tick().await;
-            write_validator_cache.refresh_cache().await.unwrap()
-        }
+        write_validator_cache
+            .run(config.get_caching_interval())
+            .await
     });
 
+    // and the rocket
     tokio::spawn(rocket.launch());
 
     println!("\n\nwaiting for 5s before adding stuff...\n\n");

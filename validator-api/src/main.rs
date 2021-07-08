@@ -14,9 +14,10 @@ use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};
 use log::info;
 use mixnet_contract::{GatewayBond, MixNodeBond};
+use rocket::fairing::AdHoc;
 use rocket::http::Method;
 use rocket::serde::json::Json;
-use rocket::State;
+use rocket::{Build, Rocket, State};
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use std::sync::Arc;
 use std::time::Duration;
@@ -244,30 +245,22 @@ async fn main() -> Result<()> {
         info!("Network monitoring is disabled.")
     }
 
-    let mixnode_cache = Arc::new(RwLock::new(ValidatorCache::init(
-        vec!["validators_rest_uris".to_string()],
-        "mixnet_contract".to_string(),
-    )));
+    async fn init_validator_cache(rocket: Rocket<Build>) -> Rocket<Build> {
+        let validator_cache = Arc::new(RwLock::new(ValidatorCache::init(
+            vec!["validators_rest_uris".to_string()],
+            "mixnet_contract".to_string(),
+        )));
 
-    let write_mixnode_cache = Arc::clone(&mixnode_cache);
+        rocket.manage(validator_cache)
+    }
 
-    // tokio::spawn(async move {
-    //     let mut interval = time::interval(config.get_caching_interval());
-    //     loop {
-    //         // TODO: we might end up in a situation where we never update cache because there might
-    //         // always be some reader. This should rather use tokio::time::timeout
-    //         interval.tick().await;
-    //         {
-    //             match write_mixnode_cache.try_write() {
-    //                 Ok(mut w) => w.cache().await.unwrap(),
-    //                 // If we don't get the write lock skip a tick
-    //                 Err(e) => error!("Could not aquire write lock on cache: {}", e),
-    //             }
-    //         }
-    //     }
-    // });
-
-    // let node_status_storage = NodeStatusStorage::new();
+    fn stage_validator_cache() -> AdHoc {
+        AdHoc::on_ignite("Validator Cache Stage", |rocket| async {
+            rocket
+                .attach(AdHoc::on_ignite("Init Cache", init_validator_cache))
+                .mount("/v1", routes![get_mixnodes, get_gateways])
+        })
+    }
 
     let allowed_origins = AllowedOrigins::all();
 
@@ -284,15 +277,33 @@ async fn main() -> Result<()> {
     }
     .to_cors()?;
 
-    use crate::node_status_api::routes::*;
-
     let rocket = rocket::build()
         .attach(cors)
-        .mount("/v1", routes![get_mixnodes, get_gateways])
-        .manage(mixnode_cache)
+        .attach(stage_validator_cache())
         .attach(NodeStatusStorage::stage()) // manages state, creates routes, etc
         .ignite()
         .await?;
+
+    let write_mixnode_cache = rocket
+        .state::<Arc<RwLock<ValidatorCache>>>()
+        .unwrap()
+        .clone();
+
+    // tokio::spawn(async move {
+    //     let mut interval = time::interval(config.get_caching_interval());
+    //     loop {
+    //         // TODO: we might end up in a situation where we never update cache because there might
+    //         // always be some reader. This should rather use tokio::time::timeout
+    //         interval.tick().await;
+    //         {
+    //             match write_mixnode_cache.try_write() {
+    //                 Ok(mut w) => w.cache().await.unwrap(),
+    //                 // If we don't get the write lock skip a tick
+    //                 Err(e) => error!("Could not aquire write lock on cache: {}", e),
+    //             }
+    //         }
+    //     }
+    // });
 
     let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
 

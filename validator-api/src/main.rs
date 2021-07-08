@@ -10,20 +10,17 @@ use crate::network_monitor::tested_network::good_topology::parse_topology_file;
 use crate::node_status_api::storage::NodeStatusStorage;
 use ::config::NymConfig;
 use anyhow::Result;
-use cache::{Cache, ValidatorCache};
+use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};
 use log::info;
-use mixnet_contract::{GatewayBond, MixNodeBond};
-use rocket::fairing::AdHoc;
+use mixnet_contract::MixNodeBond;
 use rocket::http::Method;
-use rocket::serde::json::Json;
-use rocket::{Build, Rocket, State};
+use rocket::{Rocket, State};
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
 
-mod cache;
+pub(crate) mod cache;
 pub(crate) mod config;
 mod network_monitor;
 mod node_status_api;
@@ -178,16 +175,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     config
 }
 
-#[get("/mixnodes")]
-async fn get_mixnodes(cache: &State<Arc<ValidatorCache>>) -> Json<Cache<Vec<MixNodeBond>>> {
-    Json(cache.mixnodes().await)
-}
-
-#[get("/gateways")]
-async fn get_gateways(cache: &State<Arc<ValidatorCache>>) -> Json<Cache<Vec<GatewayBond>>> {
-    Json(cache.gateways().await)
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
     setup_logging();
@@ -242,37 +229,6 @@ async fn main() -> Result<()> {
         info!("Network monitoring is disabled.")
     }
 
-    async fn init_validator_cache(rocket: Rocket<Build>) -> Rocket<Build> {
-        let validator_cache = Arc::new(RwLock::new(ValidatorCache::init(
-            vec!["validators_rest_uris".to_string()],
-            "mixnet_contract".to_string(),
-        )));
-
-        rocket.manage(validator_cache)
-    }
-
-    fn stage_validator_cache() -> AdHoc {
-        AdHoc::on_ignite("Validator Cache Stage", |rocket| async {
-            rocket
-                .attach(AdHoc::on_ignite("Init Cache", init_validator_cache))
-                .mount("/v1", routes![get_mixnodes, get_gateways])
-        })
-    }
-    let validator_cache = Arc::new(ValidatorCache::init(
-        config.get_validators_urls(),
-        config.get_mixnet_contract_address(),
-    ));
-
-    let write_validator_cache = Arc::clone(&validator_cache);
-
-    tokio::spawn(async move {
-        let mut interval = time::interval(config.get_caching_interval());
-        loop {
-            interval.tick().await;
-            write_validator_cache.refresh_cache().await.unwrap()
-        }
-    });
-
     let allowed_origins = AllowedOrigins::all();
 
     // You can also deserialize this
@@ -290,33 +246,25 @@ async fn main() -> Result<()> {
 
     let rocket = rocket::build()
         .attach(cors)
-        .attach(stage_validator_cache())
+        .attach(ValidatorCache::stage(
+            config.get_validators_urls(),
+            config.get_mixnet_contract_address(),
+        ))
         .attach(NodeStatusStorage::stage()) // manages state, creates routes, etc
         .ignite()
         .await?;
 
-    let write_mixnode_cache = rocket
-        .state::<Arc<RwLock<ValidatorCache>>>()
-        .unwrap()
-        .clone();
-
-    // tokio::spawn(async move {
-    //     let mut interval = time::interval(config.get_caching_interval());
-    //     loop {
-    //         // TODO: we might end up in a situation where we never update cache because there might
-    //         // always be some reader. This should rather use tokio::time::timeout
-    //         interval.tick().await;
-    //         {
-    //             match write_mixnode_cache.try_write() {
-    //                 Ok(mut w) => w.cache().await.unwrap(),
-    //                 // If we don't get the write lock skip a tick
-    //                 Err(e) => error!("Could not aquire write lock on cache: {}", e),
-    //             }
-    //         }
-    //     }
-    // });
-
+    // get instances of managed states
+    let write_validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
     let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
+
+    tokio::spawn(async move {
+        let mut interval = time::interval(config.get_caching_interval());
+        loop {
+            interval.tick().await;
+            write_validator_cache.refresh_cache().await.unwrap()
+        }
+    });
 
     tokio::spawn(rocket.launch());
 

@@ -20,8 +20,6 @@ export type MixNode = {
     mix_port: number,
     verloc_port: number,
     http_api_port: number,
-    layer: number,
-    location: string,
     sphinx_key: string, // TODO: camelCase this later once everything else works
     identity_key: string,
     version: string,

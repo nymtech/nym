@@ -137,7 +137,7 @@ pub fn execute(matches: &ArgMatches) {
 
     println!("Starting gateway {}...", id);
 
-    let mut config = match Config::load_from_file(id) {
+    let mut config = match Config::load_from_file(Some(id)) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);

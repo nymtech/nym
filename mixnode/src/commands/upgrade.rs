@@ -278,7 +278,7 @@ fn undetermined_version_upgrade(
     // };
     let to_version = package_version;
     let id = config.get_id();
-    let config_path = Config::default_config_directory(&id);
+    let config_path = Config::default_config_directory(Some(&id));
 
     #[derive(Deserialize)]
     struct OldNodeDescription {
@@ -406,7 +406,7 @@ pub fn execute(matches: &ArgMatches) {
 
     let id = matches.value_of(ID_ARG_NAME).unwrap();
 
-    let mut existing_config = Config::load_from_file(id).unwrap_or_else(|err| {
+    let mut existing_config = Config::load_from_file(Some(id)).unwrap_or_else(|err| {
         eprintln!("failed to load existing config file! - {:?}", err);
         process::exit(1)
     });

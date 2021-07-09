@@ -112,7 +112,7 @@ async fn gateway_details(
     let validator_client_config = validator_client::Config::new(validator_servers, mixnet_contract);
     let validator_client = validator_client::Client::new(validator_client_config);
 
-    let gateways = validator_client.get_gateways().await.unwrap();
+    let gateways = validator_client.get_cached_gateways().await.unwrap();
     let valid_gateways = gateways
         .into_iter()
         .filter_map(|gateway| gateway.try_into().ok())
@@ -179,7 +179,7 @@ pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap(); // required for now
     let provider_address = matches.value_of("provider").unwrap();
 
-    let already_init = if Config::default_config_file_path(id).exists() {
+    let already_init = if Config::default_config_file_path(Some(id)).exists() {
         println!("Socks5 client \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
         true
     } else {

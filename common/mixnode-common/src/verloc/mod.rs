@@ -266,7 +266,7 @@ impl VerlocMeasurer {
         loop {
             info!(target: "verloc", "Starting verloc measurements");
             // TODO: should we also measure gateways?
-            let all_mixes = match self.validator_client.get_mix_nodes().await {
+            let all_mixes = match self.validator_client.get_cached_mix_nodes().await {
                 Ok(nodes) => nodes,
                 Err(err) => {
                     error!(

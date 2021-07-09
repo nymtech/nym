@@ -1,3 +1,5 @@
+use crate::validator_api;
+
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -7,6 +9,11 @@ pub enum ValidatorClientError {
     ReqwestClientError {
         #[from]
         source: reqwest::Error,
+    },
+    #[error("There was an issue with the validator-api request - {source}")]
+    ValidatorAPIError {
+        #[from]
+        source: validator_api::error::ValidatorAPIClientError,
     },
     #[error("An IO error has occured: {source}")]
     IoError {

@@ -139,7 +139,7 @@ impl Gateway {
         );
         let validator_client = validator_client::Client::new(validator_client_config);
 
-        let existing_gateways = match validator_client.get_gateways().await {
+        let existing_gateways = match validator_client.get_cached_gateways().await {
             Ok(gateways) => gateways,
             Err(err) => {
                 error!("failed to grab initial network gateways - {}\n Please try to startup again in few minutes", err);

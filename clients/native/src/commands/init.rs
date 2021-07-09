@@ -111,7 +111,7 @@ async fn gateway_details(
     let validator_client_config = validator_client::Config::new(validator_servers, mixnet_contract);
     let validator_client = validator_client::Client::new(validator_client_config);
 
-    let gateways = validator_client.get_gateways().await.unwrap();
+    let gateways = validator_client.get_cached_gateways().await.unwrap();
     let valid_gateways = gateways
         .into_iter()
         .filter_map(|gateway| gateway.try_into().ok())

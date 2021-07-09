@@ -35,6 +35,7 @@
     "typescript": "^4.1.3"
   },
   "dependencies": {
+    "axios": "^0.19.2",
     "@cosmjs/cosmwasm": "^0.25.5",
     "@cosmjs/cosmwasm-stargate": "^0.25.5",
     "@cosmjs/crypto": "^0.25.5",

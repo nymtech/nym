@@ -27,6 +27,10 @@ import { nymGasLimits, nymGasPrice } from "./stargate-helper";
 import { BroadcastTxSuccess, isBroadcastTxFailure } from "@cosmjs/stargate";
 import { makeBankMsgSend } from "./utils";
 
+export const VALIDATOR_API_PORT = "8080";
+export const VALIDATOR_API_GATEWAYS = "v1/gateways";
+export const VALIDATOR_API_MIXNODES = "v1/mixnodes";
+
 export { coins, coin };
 export { Coin };
 export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBalance, nativeToPrintable, MappedCoin, CoinMap }
@@ -233,6 +237,18 @@ export default class ValidatorClient {
     }
 
     /**
+     * Get or refresh the list of mixnodes in the network from validator-api
+     *
+     * @returns an array containing all known `MixNodeBond`s.
+     *
+     * TODO: We will want to put this puppy on a timer, but for the moment we can
+     * just get things strung together and refresh it manually.
+     */
+    refreshValidatorAPIMixNodes(): Promise<MixNodeBond[]> {
+        return this.mixNodesCache.refreshValidatorAPIMixNodes(this.urls).catch((err) => this.handleRequestFailure(err));
+    }
+
+    /**
      * Get mixnodes from the local client cache.
      *
      * @returns an array containing all `MixNodeBond`s in the client's local cache.
@@ -376,6 +392,17 @@ export default class ValidatorClient {
      */
     refreshGateways(): Promise<GatewayBond[]> {
         return this.gatewayCache.refreshGateways(this.contractAddress).catch((err) => this.handleRequestFailure(err));
+    }
+
+    /**
+     * Get or refresh the list of gateways in the network from validator-api
+     *
+     * @returns an array containing all known `GatewayBond`s.
+     *
+     * TODO: Similarly to mixnode bonds, this should probably be put on a timer somewhere.
+     */
+    refreshValidatorAPIGateways(): Promise<GatewayBond[]> {
+        return this.gatewayCache.refreshValidatorAPIGateways(this.urls).catch((err) => this.handleRequestFailure(err));
     }
 
     /**

@@ -183,7 +183,7 @@ impl TopologyRefresher {
         // only refresh mixnodes on timer and refresh gateways only when
         // we have to send to a new, unknown, gateway
 
-        let mixnodes = match self.validator_client.get_mix_nodes().await {
+        let mixnodes = match self.validator_client.get_cached_mix_nodes().await {
             Err(err) => {
                 error!("failed to get network mixnodes - {}", err);
                 return None;
@@ -191,7 +191,7 @@ impl TopologyRefresher {
             Ok(mixes) => mixes,
         };
 
-        let gateways = match self.validator_client.get_gateways().await {
+        let gateways = match self.validator_client.get_cached_gateways().await {
             Err(err) => {
                 error!("failed to get network gateways - {}", err);
                 return None;

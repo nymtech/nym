@@ -29,7 +29,7 @@ where
     D::OutputSize: ArrayLength<u8>,
 {
     let mut hmac =
-        Hmac::<D>::new_varkey(key).expect("HMAC should be able to take key of any size!");
+        Hmac::<D>::new_from_slice(key).expect("HMAC should be able to take key of any size!");
     hmac.update(data);
     hmac.finalize()
 }
@@ -42,7 +42,7 @@ where
     D::OutputSize: ArrayLength<u8>,
 {
     let mut hmac =
-        Hmac::<D>::new_varkey(key).expect("HMAC should be able to take key of any size!");
+        Hmac::<D>::new_from_slice(key).expect("HMAC should be able to take key of any size!");
     hmac.update(data);
     // note, under the hood ct_eq is called
     hmac.verify(tag).is_ok()

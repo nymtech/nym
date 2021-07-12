@@ -1,17 +1,15 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node_status_api::utils::{NodeStatus, NodeUptimes};
 use crate::node_status_api::{FIFTEEN_MINUTES, ONE_HOUR};
 use rocket::http::{ContentType, Status};
 use rocket::response::{self, Responder, Response};
 use rocket::Request;
 use serde::{Deserialize, Serialize};
-use sqlx::types::time::OffsetDateTime;
 use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
 use std::io::Cursor;
-
-// something like enum uptime (Uptime, NoUptime) etc
 
 // todo: put into some error enum
 #[derive(Debug)]
@@ -71,7 +69,6 @@ pub struct MixnodeStatusReport {
     most_recent_ipv4: bool,
     most_recent_ipv6: bool,
 
-    // those fields really depend on how we go about implementing calculation of those values
     last_hour_ipv4: Uptime,
     last_hour_ipv6: Uptime,
 
@@ -82,73 +79,21 @@ pub struct MixnodeStatusReport {
 impl MixnodeStatusReport {
     pub(crate) fn construct_from_last_day_reports(
         identity: &str,
-        last_day_ipv4: Vec<StatusReport>,
-        last_day_ipv6: Vec<StatusReport>,
+        last_day_ipv4: Vec<NodeStatus>,
+        last_day_ipv6: Vec<NodeStatus>,
     ) -> Self {
-        let now = OffsetDateTime::now_utc();
-        let hour_ago = (now - ONE_HOUR).unix_timestamp();
-        let fifteen_minutes_ago = (now - FIFTEEN_MINUTES).unix_timestamp();
+        let node_uptimes =
+            NodeUptimes::calculate_from_last_day_reports(last_day_ipv4, last_day_ipv6);
 
-        let ipv4_day_total = last_day_ipv4.len();
-        let ipv6_day_total = last_day_ipv6.len();
-
-        let ipv4_day_up = last_day_ipv4.iter().filter(|report| report.up).count();
-        let ipv6_day_up = last_day_ipv6.iter().filter(|report| report.up).count();
-
-        let ipv4_hour_total = last_day_ipv4
-            .iter()
-            .filter(|report| report.timestamp >= hour_ago)
-            .count();
-        let ipv6_hour_total = last_day_ipv6
-            .iter()
-            .filter(|report| report.timestamp >= hour_ago)
-            .count();
-
-        let ipv4_hour_up = last_day_ipv4
-            .iter()
-            .filter(|report| report.up && report.timestamp >= hour_ago)
-            .count();
-        let ipv6_hour_up = last_day_ipv6
-            .iter()
-            .filter(|report| report.up && report.timestamp >= hour_ago)
-            .count();
-
-        // most recent status MUST BE within last 15min
-        let most_recent_ipv4 = last_day_ipv4
-            .iter()
-            .max_by_key(|report| report.timestamp) // find the most recent
-            .map(|status| status.timestamp >= fifteen_minutes_ago && status.up) // make sure its within last 15min
-            .unwrap_or_default();
-        let most_recent_ipv6 = last_day_ipv6
-            .iter()
-            .max_by_key(|report| report.timestamp) // find the most recent
-            .map(|status| status.timestamp >= fifteen_minutes_ago && status.up) // make sure its within last 15min
-            .unwrap_or_default();
-
-        // the unwraps in Uptime::from_ratio are fine because it's impossible for us to have more "up" results than all results in total
-        // because both of those values originate from the same vector
         MixnodeStatusReport {
             identity: identity.to_owned(),
             owner: "TODO: grab that data somehow... somewhere...".to_string(),
-            most_recent_ipv4,
-            most_recent_ipv6,
-            last_hour_ipv4: Uptime::from_ratio(ipv4_hour_up, ipv4_hour_total).unwrap(),
-            last_hour_ipv6: Uptime::from_ratio(ipv6_hour_up, ipv6_hour_total).unwrap(),
-            last_day_ipv4: Uptime::from_ratio(ipv4_day_up, ipv4_day_total).unwrap(),
-            last_day_ipv6: Uptime::from_ratio(ipv6_day_up, ipv6_day_total).unwrap(),
-        }
-    }
-
-    pub fn example() -> Self {
-        MixnodeStatusReport {
-            identity: "aaaa".to_string(),
-            owner: "bbbb".to_string(),
-            most_recent_ipv4: false,
-            most_recent_ipv6: false,
-            last_hour_ipv4: Uptime(42),
-            last_hour_ipv6: Uptime(0),
-            last_day_ipv4: Uptime(12),
-            last_day_ipv6: Uptime(12),
+            most_recent_ipv4: node_uptimes.most_recent_ipv4,
+            most_recent_ipv6: node_uptimes.most_recent_ipv6,
+            last_hour_ipv4: node_uptimes.last_hour_ipv4,
+            last_hour_ipv6: node_uptimes.last_hour_ipv6,
+            last_day_ipv4: node_uptimes.last_day_ipv4,
+            last_day_ipv6: node_uptimes.last_day_ipv6,
         }
     }
 }
@@ -168,10 +113,26 @@ pub struct GatewayStatusReport {
     last_day_ipv6: Uptime,
 }
 
-// Internally used struct to catch results from the database to calculate uptimes for given mixnode/gateway
-pub(crate) struct StatusReport {
-    pub(crate) timestamp: i64,
-    pub(crate) up: bool,
+impl GatewayStatusReport {
+    pub(crate) fn construct_from_last_day_reports(
+        identity: &str,
+        last_day_ipv4: Vec<NodeStatus>,
+        last_day_ipv6: Vec<NodeStatus>,
+    ) -> Self {
+        let node_uptimes =
+            NodeUptimes::calculate_from_last_day_reports(last_day_ipv4, last_day_ipv6);
+
+        GatewayStatusReport {
+            identity: identity.to_owned(),
+            owner: "TODO: grab that data somehow... somewhere...".to_string(),
+            most_recent_ipv4: node_uptimes.most_recent_ipv4,
+            most_recent_ipv6: node_uptimes.most_recent_ipv6,
+            last_hour_ipv4: node_uptimes.last_hour_ipv4,
+            last_hour_ipv6: node_uptimes.last_hour_ipv6,
+            last_day_ipv4: node_uptimes.last_day_ipv4,
+            last_day_ipv6: node_uptimes.last_day_ipv6,
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

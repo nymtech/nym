@@ -16,7 +16,7 @@ pub(crate) async fn mixnode_report(
     pubkey: &str,
 ) -> Result<Json<MixnodeStatusReport>, ErrorResponse> {
     storage
-        .get_mixnode_report(pubkey)
+        .construct_mixnode_report(pubkey)
         .await
         .map(Json)
         .map_err(|err| ErrorResponse::new(err, Status::NotFound))
@@ -28,7 +28,7 @@ pub(crate) async fn gateway_report(
     pubkey: &str,
 ) -> Result<Json<GatewayStatusReport>, ErrorResponse> {
     storage
-        .get_gateway_report(pubkey)
+        .construct_gateway_report(pubkey)
         .await
         .map(Json)
         .map_err(|err| ErrorResponse::new(err, Status::NotFound))

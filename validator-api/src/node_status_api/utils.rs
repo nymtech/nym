@@ -15,6 +15,7 @@ pub(crate) struct NodeStatus {
 pub(crate) struct ActiveNodeDayStatuses {
     pub(crate) pub_key: String,
     pub(crate) owner: String,
+    pub(crate) node_id: i64,
 
     pub(crate) ipv4_statuses: Vec<NodeStatus>,
     pub(crate) ipv6_statuses: Vec<NodeStatus>,

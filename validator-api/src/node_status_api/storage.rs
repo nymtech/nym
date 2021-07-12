@@ -415,20 +415,26 @@ impl NodeStatusStorageInner {
         tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
         timestamp: UnixTimestamp,
     ) -> Result<Vec<(String, String, i64)>, sqlx::Error> {
+        // find mixnode details of all nodes that have had at least 1 ipv4 status since the provided
+        // timestamp
+        // TODO: I dont know if theres a potential issue of if we have a lot of inactive nodes that
+        // haven't mixed in ages, they might increase the query times?
         let pub_keys_owners = sqlx::query!(
             r#"
-                SELECT pub_key, owner, id
+                SELECT DISTINCT pub_key, owner, id
                     FROM mixnode_details
                     JOIN mixnode_ipv4_status
                     ON mixnode_details.id = mixnode_ipv4_status.mixnode_details_id
-                    WHERE mixnode_ipv4_status.timestamp > ?
+                    WHERE EXISTS (
+                        SELECT 1 FROM mixnode_ipv4_status WHERE timestamp > ?
+                    )
             "#,
             timestamp
         )
         .fetch_all(tx)
         .await?
         .into_iter()
-        .map(|row| (row.pub_key, row.owner, row.id))
+        .filter_map(|row| row.id.map(|id| (row.pub_key, row.owner, id)))
         .collect();
 
         Ok(pub_keys_owners)
@@ -444,18 +450,20 @@ impl NodeStatusStorageInner {
     ) -> Result<Vec<(String, String, i64)>, sqlx::Error> {
         let pub_keys_owners = sqlx::query!(
             r#"
-                SELECT pub_key, owner, id
+                SELECT DISTINCT pub_key, owner, id
                     FROM gateway_details
                     JOIN gateway_ipv4_status
                     ON gateway_details.id = gateway_ipv4_status.gateway_details_id
-                    WHERE gateway_ipv4_status.timestamp > ?
+                    WHERE EXISTS (
+                        SELECT 1 FROM gateway_ipv4_status WHERE timestamp > ?
+                    )
             "#,
             timestamp
         )
         .fetch_all(tx)
         .await?
         .into_iter()
-        .map(|row| (row.pub_key, row.owner, row.id))
+        .filter_map(|row| row.id.map(|id| (row.pub_key, row.owner, id)))
         .collect();
 
         Ok(pub_keys_owners)

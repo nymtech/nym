@@ -15,9 +15,11 @@ const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
 ];
 const DEFAULT_MIXNET_CONTRACT: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
 
-const DEFAULT_NODE_STATUS_API: &str = "http://localhost:8081";
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
 const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;
+const DEFAULT_PACKET_DELIVERY_TIMEOUT: Duration = Duration::from_secs(20);
+const DEFAULT_MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(15 * 60);
+const DEFAULT_GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_millis(2_500);
 
@@ -104,10 +106,14 @@ pub struct NetworkMonitor {
     /// Location of .json file containing IPv6 'good' network topology
     good_v6_topology_file: PathBuf,
 
-    // TODO: another field that will be replaced very soon when node status api is moved
-    // to this process
-    /// Address of the node status api to submit results to. Most likely it's a local address
-    node_status_api_url: String,
+    /// Specifies the interval at which the network monitor sends the test packets.
+    #[serde(with = "humantime_serde")]
+    run_interval: Duration,
+
+    /// Specifies interval at which we should be sending ping packets to all active gateways
+    /// in order to keep the websocket connections alive.
+    #[serde(with = "humantime_serde")]
+    gateway_ping_interval: Duration,
 
     /// Specifies maximum rate (in packets per second) of test packets being sent to gateway
     gateway_sending_rate: usize,
@@ -123,6 +129,11 @@ pub struct NetworkMonitor {
     /// Maximum allowed time for the gateway connection to get established.
     #[serde(with = "humantime_serde")]
     gateway_connection_timeout: Duration,
+
+    /// Specifies the duration the monitor is going to wait after sending all measurement
+    /// packets before declaring nodes unreachable.
+    #[serde(with = "humantime_serde")]
+    packet_delivery_timeout: Duration,
 }
 
 impl NetworkMonitor {
@@ -142,11 +153,13 @@ impl Default for NetworkMonitor {
             print_detailed_report: false,
             good_v4_topology_file: Self::default_good_v4_topology_file(),
             good_v6_topology_file: Self::default_good_v6_topology_file(),
-            node_status_api_url: DEFAULT_NODE_STATUS_API.to_string(),
+            run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
+            gateway_ping_interval: DEFAULT_GATEWAY_PING_INTERVAL,
             gateway_sending_rate: DEFAULT_GATEWAY_SENDING_RATE,
             max_concurrent_gateway_clients: DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS,
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             gateway_connection_timeout: DEFAULT_GATEWAY_CONNECTION_TIMEOUT,
+            packet_delivery_timeout: DEFAULT_PACKET_DELIVERY_TIMEOUT,
         }
     }
 }
@@ -213,8 +226,18 @@ impl Config {
         self
     }
 
-    pub fn with_custom_node_status_api<S: Into<String>>(mut self, node_status_api: S) -> Self {
-        self.network_monitor.node_status_api_url = node_status_api.into();
+    pub fn with_network_monitor_run_interval(mut self, run_interval: Duration) -> Self {
+        self.network_monitor.run_interval = run_interval;
+        self
+    }
+
+    pub fn with_gateway_ping_interval(mut self, gateway_ping_interval: Duration) -> Self {
+        self.network_monitor.gateway_ping_interval = gateway_ping_interval;
+        self
+    }
+
+    pub fn with_packet_delivery_timeout(mut self, packet_delivery_timeout: Duration) -> Self {
+        self.network_monitor.packet_delivery_timeout = packet_delivery_timeout;
         self
     }
 
@@ -252,8 +275,16 @@ impl Config {
         self.base.mixnet_contract_address.clone()
     }
 
-    pub fn get_node_status_api_url(&self) -> String {
-        self.network_monitor.node_status_api_url.clone()
+    pub fn get_network_monitor_run_interval(&self) -> Duration {
+        self.network_monitor.run_interval
+    }
+
+    pub fn get_gateway_ping_interval(&self) -> Duration {
+        self.network_monitor.gateway_ping_interval
+    }
+
+    pub fn get_packet_delivery_timeout(&self) -> Duration {
+        self.network_monitor.packet_delivery_timeout
     }
 
     pub fn get_gateway_sending_rate(&self) -> usize {

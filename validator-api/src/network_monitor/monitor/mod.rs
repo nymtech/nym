@@ -15,10 +15,12 @@
 use crate::network_monitor::monitor::preparer::{PacketPreparer, TestedNode};
 use crate::network_monitor::monitor::processor::ReceivedProcessor;
 use crate::network_monitor::monitor::sender::PacketSender;
-use crate::network_monitor::monitor::summary_producer::{SummaryProducer, TestReport};
+use crate::network_monitor::monitor::summary_producer::{NodeResult, SummaryProducer, TestReport};
 use crate::network_monitor::test_packet::NodeType;
 use crate::network_monitor::tested_network::TestedNetwork;
+use crate::node_status_api::storage::NodeStatusStorage;
 use log::{debug, info};
+use std::process;
 use tokio::time::{sleep, Duration, Instant};
 
 pub(crate) mod preparer;
@@ -27,20 +29,17 @@ pub(crate) mod receiver;
 pub(crate) mod sender;
 pub(crate) mod summary_producer;
 
-const PACKET_DELIVERY_TIMEOUT: Duration = Duration::from_secs(20);
-const MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(15 * 60);
-const GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
-
-pub(crate) type TodoType = ();
-
 pub(super) struct Monitor {
     nonce: u64,
     packet_preparer: PacketPreparer,
     packet_sender: PacketSender,
     received_processor: ReceivedProcessor,
     summary_producer: SummaryProducer,
-    node_status_api_client: TodoType,
+    node_status_storage: NodeStatusStorage,
     tested_network: TestedNetwork,
+    run_interval: Duration,
+    gateway_ping_interval: Duration,
+    packet_delivery_timeout: Duration,
 }
 
 impl Monitor {
@@ -49,8 +48,11 @@ impl Monitor {
         packet_sender: PacketSender,
         received_processor: ReceivedProcessor,
         summary_producer: SummaryProducer,
-        node_status_api_client: TodoType,
+        node_status_storage: NodeStatusStorage,
         tested_network: TestedNetwork,
+        run_interval: Duration,
+        gateway_ping_interval: Duration,
+        packet_delivery_timeout: Duration,
     ) -> Self {
         Monitor {
             nonce: 1,
@@ -58,16 +60,37 @@ impl Monitor {
             packet_sender,
             received_processor,
             summary_producer,
-            node_status_api_client,
+            node_status_storage,
             tested_network,
+            run_interval,
+            gateway_ping_interval,
+            packet_delivery_timeout,
         }
     }
 
     // while it might have been cleaner to put this into a separate `Notifier` structure,
     // I don't see much point considering it's only a single, small, method
-    async fn notify_node_status_api(&self, mix_status: TodoType, gateway_status: TodoType) {
-        // this will chagne completely and instead will talk to the database
-        todo!()
+    async fn submit_new_node_statuses(
+        &self,
+        mixnode_results: Vec<NodeResult>,
+        gateway_results: Vec<NodeResult>,
+    ) {
+        if let Err(err) = self
+            .node_status_storage
+            .submit_new_statuses(mixnode_results, gateway_results)
+            .await
+        {
+            // this can only fail if there's an issue with the database - we can't really recover
+            error!(
+                "Failed to submit new monitoring results to the database - {}",
+                err
+            );
+
+            // TODO: slightly more graceful shutdown here
+            process::exit(1);
+        }
+
+        info!("SUBMITTED RESULTS TO THE DATABASE!!! YAAY")
     }
 
     // checking it this way with a TestReport is rather suboptimal but given the fact we're only
@@ -147,11 +170,11 @@ impl Monitor {
         info!(
             target: "Monitor",
             "Sending is over, waiting for {:?} before checking what we received",
-            PACKET_DELIVERY_TIMEOUT
+            self.packet_delivery_timeout
         );
 
         // give the packets some time to traverse the network
-        sleep(PACKET_DELIVERY_TIMEOUT).await;
+        sleep(self.packet_delivery_timeout).await;
 
         let received = self.received_processor.return_received().await;
 
@@ -163,9 +186,9 @@ impl Monitor {
 
         // our "good" nodes MUST be working correctly otherwise we cannot trust the results
         if self.check_good_nodes_status(&test_summary.test_report) {
-            self.notify_node_status_api(
-                test_summary.batch_mix_status,
-                test_summary.batch_gateway_status,
+            self.submit_new_node_statuses(
+                test_summary.mixnode_results,
+                test_summary.gateway_results,
             )
             .await;
         } else {
@@ -184,19 +207,19 @@ impl Monitor {
         let test_delay = sleep(Duration::from_secs(0));
         tokio::pin!(test_delay);
 
-        let ping_delay = sleep(GATEWAY_PING_INTERVAL);
+        let ping_delay = sleep(self.gateway_ping_interval);
         tokio::pin!(ping_delay);
 
         loop {
             tokio::select! {
                 _ = &mut test_delay => {
                     self.test_run().await;
-                    info!(target: "Monitor", "Next test run will happen in {:?}", MONITOR_RUN_INTERVAL);
+                    info!(target: "Monitor", "Next test run will happen in {:?}", self.run_interval);
 
                     let now = Instant::now();
-                    test_delay.as_mut().reset(now + MONITOR_RUN_INTERVAL);
+                    test_delay.as_mut().reset(now + self.run_interval);
                     // since we just sent packets through gateways, there's no need to ping them
-                    ping_delay.as_mut().reset(now + GATEWAY_PING_INTERVAL);
+                    ping_delay.as_mut().reset(now + self.gateway_ping_interval);
 
                 }
                 _ = &mut ping_delay => {
@@ -204,7 +227,7 @@ impl Monitor {
                     self.ping_all_gateways().await;
 
                     let now = Instant::now();
-                    ping_delay.as_mut().reset(now + GATEWAY_PING_INTERVAL);
+                    ping_delay.as_mut().reset(now + self.gateway_ping_interval);
                 }
             }
         }

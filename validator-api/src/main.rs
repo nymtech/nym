@@ -30,7 +30,6 @@ const MONITORING_ENABLED: &str = "enable-monitor";
 const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
 const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
 const VALIDATORS_ARG: &str = "validators";
-const NODE_STATUS_API_ARG: &str = "node-status-api";
 const DETAILED_REPORT_ARG: &str = "detailed-report";
 const GATEWAY_SENDING_RATE_ARG: &str = "gateway-rate";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
@@ -68,12 +67,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                  .long(MIXNET_CONTRACT_ARG)
                  .help("Address of the validator contract managing the network")
                  .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(NODE_STATUS_API_ARG)
-                .help("Address of the node status api to submit results to. Most likely it's a local address")
-                .long(NODE_STATUS_API_ARG)
-                .takes_value(true)
         )
         .arg(
             Arg::with_name(DETAILED_REPORT_ARG)
@@ -147,10 +140,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_custom_validators(parse_validators(raw_validators));
     }
 
-    if let Some(node_status_api_uri) = matches.value_of(NODE_STATUS_API_ARG) {
-        config = config.with_custom_node_status_api(node_status_api_uri)
-    }
-
     if let Some(mixnet_contract) = matches.value_of(MIXNET_CONTRACT_ARG) {
         config = config.with_custom_mixnet_contract(mixnet_contract)
     }
@@ -201,6 +190,7 @@ async fn main() -> Result<()> {
 
     println!("Starting validator api...");
 
+    // try to load config from the file, if it doesn't exist, use default values
     let config = match Config::load_from_file(None) {
         Ok(cfg) => cfg,
         Err(_) => {
@@ -215,39 +205,10 @@ async fn main() -> Result<()> {
         }
     };
 
+    config.save_to_file(None).unwrap();
+
     let matches = parse_args();
     let config = override_config(config, &matches);
-
-    if config.get_network_monitor_enabled() {
-        info!("Network monitor starting...");
-
-        let v4_topology = parse_topology_file(config.get_v4_good_topology_file());
-        let v6_topology = parse_topology_file(config.get_v6_good_topology_file());
-        network_monitor::check_if_up_to_date(&v4_topology, &v6_topology);
-
-        info!("* validator servers: {:?}", config.get_validators_urls());
-        info!(
-            "* node status api server: {}",
-            config.get_node_status_api_url()
-        );
-        info!(
-            "* mixnet contract: {}",
-            config.get_mixnet_contract_address()
-        );
-        info!(
-            "* detailed report printing: {}",
-            config.get_detailed_report()
-        );
-        info!(
-            "* gateway sending rate: {} packets/s",
-            config.get_gateway_sending_rate()
-        );
-
-        let network_monitor_runnables = new_monitor_runnables(&config, v4_topology, v6_topology);
-        // network_monitor_runnables.spawn_tasks();
-    } else {
-        info!("Network monitoring is disabled.")
-    }
 
     // let's build our rocket!
     let rocket = rocket::build()
@@ -264,6 +225,21 @@ async fn main() -> Result<()> {
     let write_validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
     let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
 
+    // see if we should start up network monitor
+    if config.get_network_monitor_enabled() {
+        info!("Network monitor starting...");
+
+        let v4_topology = parse_topology_file(config.get_v4_good_topology_file());
+        let v6_topology = parse_topology_file(config.get_v6_good_topology_file());
+        network_monitor::check_if_up_to_date(&v4_topology, &v6_topology);
+
+        let network_monitor_runnables =
+            new_monitor_runnables(&config, v4_topology, v6_topology, node_status_storage);
+        network_monitor_runnables.spawn_tasks();
+    } else {
+        info!("Network monitoring is disabled.")
+    }
+
     // spawn our cacher
     // tokio::spawn(async move {
     //     write_validator_cache
@@ -271,41 +247,46 @@ async fn main() -> Result<()> {
     //         .await
     // });
 
-    // and the rocket
+    // and launch the rocket
     tokio::spawn(rocket.launch());
 
-    println!("\n\nwaiting for 5s before adding stuff...\n\n");
-    tokio::time::sleep(Duration::from_secs(5)).await;
-
-    let dummy_results = vec![
-        NodeResult {
-            pub_key: "mix1".to_string(),
-            owner: "owner1".to_string(),
-            working_ipv4: true,
-            working_ipv6: true,
-        },
-        NodeResult {
-            pub_key: "mix2".to_string(),
-            owner: "owner2".to_string(),
-            working_ipv4: true,
-            working_ipv6: true,
-        },
-        NodeResult {
-            pub_key: "mix1".to_string(),
-            owner: "owner1".to_string(),
-            working_ipv4: true,
-            working_ipv6: false,
-        },
-        NodeResult {
-            pub_key: "mix4".to_string(),
-            owner: "owner4".to_string(),
-            working_ipv4: true,
-            working_ipv6: true,
-        },
-    ];
-
+    // println!("\n\nwaiting for 5s before adding stuff...\n\n");
+    // tokio::time::sleep(Duration::from_secs(5)).await;
+    //
+    // let dummy_results = vec![
+    //     NodeResult {
+    //         pub_key: "mix1".to_string(),
+    //         owner: "owner1".to_string(),
+    //         working_ipv4: true,
+    //         working_ipv6: true,
+    //     },
+    //     NodeResult {
+    //         pub_key: "mix2".to_string(),
+    //         owner: "owner2".to_string(),
+    //         working_ipv4: true,
+    //         working_ipv6: true,
+    //     },
+    //     NodeResult {
+    //         pub_key: "mix1".to_string(),
+    //         owner: "owner1".to_string(),
+    //         working_ipv4: true,
+    //         working_ipv6: false,
+    //     },
+    //     NodeResult {
+    //         pub_key: "mix4".to_string(),
+    //         owner: "owner4".to_string(),
+    //         working_ipv4: true,
+    //         working_ipv6: true,
+    //     },
+    // ];
+    //
     // node_status_storage
     //     .submit_new_statuses(dummy_results, Vec::new())
+    //     .await
+    //     .unwrap();
+
+    // node_status_storage
+    //     .update_historical_uptimes()
     //     .await
     //     .unwrap();
 

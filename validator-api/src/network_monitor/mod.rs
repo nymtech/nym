@@ -11,9 +11,9 @@ use crate::network_monitor::monitor::receiver::{
 };
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
-use crate::network_monitor::monitor::{Monitor, TodoType};
+use crate::network_monitor::monitor::Monitor;
 use crate::network_monitor::tested_network::TestedNetwork;
-use crate::node_status_api;
+use crate::node_status_api::storage::NodeStatusStorage;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use nymsphinx::addressing::clients::Recipient;
@@ -44,6 +44,7 @@ pub(crate) fn new_monitor_runnables(
     config: &Config,
     v4_topology: NymTopology,
     v6_topology: NymTopology,
+    node_status_storage: NodeStatusStorage,
 ) -> NetworkMonitorRunnables {
     // TODO: in the future I guess this should somehow change to distribute the load
     let tested_mix_gateway = v4_topology.gateways()[0].clone();
@@ -72,7 +73,6 @@ pub(crate) fn new_monitor_runnables(
         config.get_validators_urls(),
         &config.get_mixnet_contract_address(),
     );
-    let node_status_api_client = new_node_status_api_client(config.get_node_status_api_url());
 
     let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
     let (received_processor_sender_channel, received_processor_receiver_channel) =
@@ -108,8 +108,11 @@ pub(crate) fn new_monitor_runnables(
         packet_sender,
         received_processor,
         summary_producer,
-        node_status_api_client,
+        node_status_storage,
         tested_network,
+        config.get_network_monitor_run_interval(),
+        config.get_gateway_ping_interval(),
+        config.get_packet_delivery_timeout(),
     );
 
     NetworkMonitorRunnables {
@@ -216,10 +219,6 @@ pub(crate) fn check_if_up_to_date(v4_topology: &NymTopology, v6_topology: &NymTo
             )
         }
     }
-}
-
-fn new_node_status_api_client<S: Into<String>>(base_url: S) -> TodoType {
-    todo!()
 }
 
 fn new_validator_client(

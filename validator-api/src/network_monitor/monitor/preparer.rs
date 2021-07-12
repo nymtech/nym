@@ -203,6 +203,8 @@ impl PacketPreparer {
             Ok(gateways) => gateways,
         };
 
+        // panic!("finished getting nodes");
+
         info!(target: "Monitor", "Obtained network topology");
 
         Ok((mixnodes, gateways))

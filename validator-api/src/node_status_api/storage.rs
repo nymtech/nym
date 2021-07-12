@@ -10,7 +10,7 @@ use rocket::{Build, Rocket};
 use sqlx::ConnectOptions;
 // use std::fmt::{self, Display, Formatter};
 use crate::network_monitor::monitor::summary_producer::NodeResult;
-use crate::node_status_api::utils::NodeStatus;
+use crate::node_status_api::utils::{ActiveNodeDayStatuses, NodeStatus};
 use crate::node_status_api::ONE_DAY;
 use sqlx::types::time::OffsetDateTime;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -151,7 +151,8 @@ impl NodeStatusStorage {
         }
 
         Ok(MixnodeStatusReport::construct_from_last_day_reports(
-            identity,
+            identity.to_owned(),
+            "foomp".to_owned(),
             ipv4_statuses,
             ipv6_statuses,
         ))
@@ -181,7 +182,8 @@ impl NodeStatusStorage {
         }
 
         Ok(GatewayStatusReport::construct_from_last_day_reports(
-            identity,
+            identity.to_owned(),
+            "foomp".to_owned(),
             ipv4_statuses,
             ipv6_statuses,
         ))
@@ -201,20 +203,55 @@ impl NodeStatusStorage {
         todo!()
     }
 
+    // NOTE: this method will go away once we move payments into the validator-api
+    // it just helps us to get rid of having to query for reports of each node individually
     pub(crate) async fn get_all_mixnode_reports(
         &self,
     ) -> Result<Vec<MixnodeStatusReport>, NodeStatusApiError> {
-        todo!()
+        let reports = self
+            .inner
+            .get_all_active_mixnodes_statuses()
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
+            .into_iter()
+            .map(|statuses| {
+                MixnodeStatusReport::construct_from_last_day_reports(
+                    statuses.pub_key,
+                    statuses.owner,
+                    statuses.ipv4_statuses,
+                    statuses.ipv6_statuses,
+                )
+            })
+            .collect();
+
+        Ok(reports)
     }
 
+    // NOTE: this method will go away once we move payments into the validator-api
+    // it just helps us to get rid of having to query for reports of each node individually
     pub(crate) async fn get_all_gateway_reports(
         &self,
     ) -> Result<Vec<GatewayStatusReport>, NodeStatusApiError> {
-        todo!()
+        let reports = self
+            .inner
+            .get_all_active_gateways_statuses()
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
+            .into_iter()
+            .map(|statuses| {
+                GatewayStatusReport::construct_from_last_day_reports(
+                    statuses.pub_key,
+                    statuses.owner,
+                    statuses.ipv4_statuses,
+                    statuses.ipv6_statuses,
+                )
+            })
+            .collect();
+
+        Ok(reports)
     }
 
-    // NETWORK MONITOR API
-
+    // Used by network monitor
     pub(crate) async fn submit_new_statuses(
         &self,
         mixnode_results: Vec<NodeResult>,
@@ -226,6 +263,7 @@ impl NodeStatusStorage {
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)
     }
 
+    // Called on timer/reward script
     pub(crate) async fn update_historical_uptimes(&self) -> Result<(), sqlx::Error> {
         let today_iso_8601 = OffsetDateTime::now_utc().date().to_string();
 
@@ -234,6 +272,7 @@ impl NodeStatusStorage {
         Ok(())
     }
 
+    // Called on timer/reward script
     pub(crate) async fn purge_old_statuses(&self) -> Result<(), NodeStatusApiError> {
         self.inner
             .purge_old_statuses()
@@ -257,9 +296,10 @@ impl NodeStatusStorageInner {
                     FROM mixnode_ipv4_status
                     JOIN mixnode_details
                     ON mixnode_ipv4_status.mixnode_details_id = mixnode_details.id
-                    WHERE mixnode_details.pub_key=?;
-                "#,
-            identity
+                    WHERE mixnode_details.pub_key=? AND mixnode_ipv4_status.timestamp > ?;
+            "#,
+            identity,
+            timestamp,
         )
             .fetch_all(&self.connection_pool)
             .await
@@ -287,9 +327,10 @@ impl NodeStatusStorageInner {
                     FROM mixnode_ipv6_status
                     JOIN mixnode_details
                     ON mixnode_ipv6_status.mixnode_details_id = mixnode_details.id
-                    WHERE mixnode_details.pub_key=?;
-                "#,
-            identity
+                    WHERE mixnode_details.pub_key=? AND mixnode_ipv6_status.timestamp > ?;
+            "#,
+            identity,
+            timestamp
         )
             .fetch_all(&self.connection_pool)
             .await
@@ -317,9 +358,10 @@ impl NodeStatusStorageInner {
                     FROM gateway_ipv4_status
                     JOIN gateway_details
                     ON gateway_ipv4_status.gateway_details_id = gateway_details.id
-                    WHERE gateway_details.pub_key=?;
-                "#,
-            identity
+                    WHERE gateway_details.pub_key=? AND gateway_ipv4_status.timestamp > ?;
+            "#,
+            identity,
+            timestamp,
         )
             .fetch_all(&self.connection_pool)
             .await
@@ -347,9 +389,10 @@ impl NodeStatusStorageInner {
                     FROM gateway_ipv6_status
                     JOIN gateway_details
                     ON gateway_ipv6_status.gateway_details_id = gateway_details.id
-                    WHERE gateway_details.pub_key=?;
-                "#,
-            identity
+                    WHERE gateway_details.pub_key=? AND gateway_ipv6_status.timestamp > ?;
+            "#,
+            identity,
+            timestamp
         )
             .fetch_all(&self.connection_pool)
             .await
@@ -362,6 +405,236 @@ impl NodeStatusStorageInner {
         }.into_iter().map(|row| NodeStatus { timestamp: row.timestamp, up: row.up }).collect();
 
         Ok(reports)
+    }
+
+    // NOTE: this method will go away once we move payments into the validator-api
+    // it just helps us to get rid of having to query for reports of each node individually
+    /// Returns public key, owner and id of all mixnodes that have had any ipv4 statuses submitted
+    /// since provided timestamp.
+    async fn get_all_active_mixnodes(
+        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        timestamp: UnixTimestamp,
+    ) -> Result<Vec<(String, String, i64)>, sqlx::Error> {
+        let pub_keys_owners = sqlx::query!(
+            r#"
+                SELECT pub_key, owner, id
+                    FROM mixnode_details
+                    JOIN mixnode_ipv4_status
+                    ON mixnode_details.id = mixnode_ipv4_status.mixnode_details_id
+                    WHERE mixnode_ipv4_status.timestamp > ?
+            "#,
+            timestamp
+        )
+        .fetch_all(tx)
+        .await?
+        .into_iter()
+        .map(|row| (row.pub_key, row.owner, row.id))
+        .collect();
+
+        Ok(pub_keys_owners)
+    }
+
+    // NOTE: this method will go away once we move payments into the validator-api
+    // it just helps us to get rid of having to query for reports of each node individually
+    /// Returns public key, owner and id of all gateways that have had any ipv4 statuses submitted
+    /// since provided timestamp.
+    async fn get_all_active_gateways(
+        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        timestamp: UnixTimestamp,
+    ) -> Result<Vec<(String, String, i64)>, sqlx::Error> {
+        let pub_keys_owners = sqlx::query!(
+            r#"
+                SELECT pub_key, owner, id
+                    FROM gateway_details
+                    JOIN gateway_ipv4_status
+                    ON gateway_details.id = gateway_ipv4_status.gateway_details_id
+                    WHERE gateway_ipv4_status.timestamp > ?
+            "#,
+            timestamp
+        )
+        .fetch_all(tx)
+        .await?
+        .into_iter()
+        .map(|row| (row.pub_key, row.owner, row.id))
+        .collect();
+
+        Ok(pub_keys_owners)
+    }
+
+    /// Gets all ipv4 statuses for mixnode with particular id that were inserted
+    /// into the database after the specified unix timestamp.
+    async fn get_mixnode_ipv4_statuses_since_by_id(
+        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        id: i64,
+        timestamp: UnixTimestamp,
+    ) -> Result<Vec<NodeStatus>, sqlx::Error> {
+        let reports = sqlx::query!(
+            r#"
+                SELECT timestamp, up
+                    FROM mixnode_ipv4_status
+                    WHERE mixnode_details_id=? AND timestamp > ?;
+            "#,
+            id,
+            timestamp
+        )
+        .fetch_all(tx)
+        .await?
+        .into_iter()
+        .map(|row| NodeStatus {
+            timestamp: row.timestamp,
+            up: row.up,
+        })
+        .collect();
+
+        Ok(reports)
+    }
+
+    /// Gets all ipv6 statuses for mixnode with particular id that were inserted
+    /// into the database after the specified unix timestamp.
+    async fn get_mixnode_ipv6_statuses_since_by_id(
+        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        id: i64,
+        timestamp: UnixTimestamp,
+    ) -> Result<Vec<NodeStatus>, sqlx::Error> {
+        let reports = sqlx::query!(
+            r#"
+                SELECT timestamp, up
+                    FROM mixnode_ipv6_status
+                    WHERE mixnode_details_id=? AND timestamp > ?;
+            "#,
+            id,
+            timestamp
+        )
+        .fetch_all(tx)
+        .await?
+        .into_iter()
+        .map(|row| NodeStatus {
+            timestamp: row.timestamp,
+            up: row.up,
+        })
+        .collect();
+
+        Ok(reports)
+    }
+
+    /// Gets all ipv4 statuses for gateway with particular id that were inserted
+    /// into the database after the specified unix timestamp.
+    async fn get_gateway_ipv4_statuses_since_by_id(
+        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        id: i64,
+        timestamp: UnixTimestamp,
+    ) -> Result<Vec<NodeStatus>, sqlx::Error> {
+        let reports = sqlx::query!(
+            r#"
+                SELECT timestamp, up
+                    FROM gateway_ipv4_status
+                    WHERE gateway_details_id=? AND timestamp > ?;
+            "#,
+            id,
+            timestamp
+        )
+        .fetch_all(tx)
+        .await?
+        .into_iter()
+        .map(|row| NodeStatus {
+            timestamp: row.timestamp,
+            up: row.up,
+        })
+        .collect();
+
+        Ok(reports)
+    }
+
+    /// Gets all ipv6 statuses for gateway with particular id that were inserted
+    /// into the database after the specified unix timestamp.
+    async fn get_gateway_ipv6_statuses_since_by_id(
+        tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        id: i64,
+        timestamp: UnixTimestamp,
+    ) -> Result<Vec<NodeStatus>, sqlx::Error> {
+        let reports = sqlx::query!(
+            r#"
+                SELECT timestamp, up
+                    FROM gateway_ipv6_status
+                    WHERE gateway_details_id=? AND timestamp > ?;
+            "#,
+            id,
+            timestamp
+        )
+        .fetch_all(tx)
+        .await?
+        .into_iter()
+        .map(|row| NodeStatus {
+            timestamp: row.timestamp,
+            up: row.up,
+        })
+        .collect();
+
+        Ok(reports)
+    }
+
+    // NOTE: this method will go away once we move payments into the validator-api
+    // it just helps us to get rid of having to query for reports of each node individually
+    async fn get_all_active_mixnodes_statuses(
+        &self,
+    ) -> Result<Vec<ActiveNodeDayStatuses>, sqlx::Error> {
+        let now = OffsetDateTime::now_utc();
+        let day_ago = (now - ONE_DAY).unix_timestamp();
+
+        let mut tx = self.connection_pool.begin().await?;
+        let active_nodes = Self::get_all_active_mixnodes(&mut tx, day_ago).await?;
+
+        let mut active_day_statuses = Vec::with_capacity(active_nodes.len());
+        for (pub_key, owner, id) in active_nodes.into_iter() {
+            let ipv4_statuses =
+                Self::get_mixnode_ipv4_statuses_since_by_id(&mut tx, id, day_ago).await?;
+            let ipv6_statuses =
+                Self::get_mixnode_ipv6_statuses_since_by_id(&mut tx, id, day_ago).await?;
+
+            let statuses = ActiveNodeDayStatuses {
+                pub_key,
+                owner,
+                ipv4_statuses,
+                ipv6_statuses,
+            };
+
+            active_day_statuses.push(statuses);
+        }
+
+        tx.commit().await?;
+        Ok(active_day_statuses)
+    }
+
+    // NOTE: this method will go away once we move payments into the validator-api
+    // it just helps us to get rid of having to query for reports of each node individually
+    async fn get_all_active_gateways_statuses(
+        &self,
+    ) -> Result<Vec<ActiveNodeDayStatuses>, sqlx::Error> {
+        let now = OffsetDateTime::now_utc();
+        let day_ago = (now - ONE_DAY).unix_timestamp();
+
+        let mut tx = self.connection_pool.begin().await?;
+        let active_nodes = Self::get_all_active_gateways(&mut tx, day_ago).await?;
+
+        let mut active_day_statuses = Vec::with_capacity(active_nodes.len());
+        for (pub_key, owner, id) in active_nodes.into_iter() {
+            let ipv4_statuses =
+                Self::get_gateway_ipv4_statuses_since_by_id(&mut tx, id, day_ago).await?;
+            let ipv6_statuses =
+                Self::get_gateway_ipv6_statuses_since_by_id(&mut tx, id, day_ago).await?;
+
+            let statuses = ActiveNodeDayStatuses {
+                pub_key,
+                owner,
+                ipv4_statuses,
+                ipv6_statuses,
+            };
+
+            active_day_statuses.push(statuses);
+        }
+
+        tx.commit().await?;
+        Ok(active_day_statuses)
     }
 
     /// Tries to submit [`NodeResult`] from the network monitor to the database.
@@ -469,6 +742,11 @@ impl NodeStatusStorageInner {
 
         // finally commit the transaction
         tx.commit().await
+    }
+
+    async fn insert_new_historical_uptimes(&self) -> Result<(), sqlx::Error> {
+        // this needs to be done for each node that has some uptimes in last 24h
+        todo!()
     }
 
     /// Removes all statuses from the databaase that are older than 48h.

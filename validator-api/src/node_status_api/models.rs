@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node_status_api::utils::{NodeStatus, NodeUptimes};
-use crate::node_status_api::{FIFTEEN_MINUTES, ONE_HOUR};
 use rocket::http::{ContentType, Status};
 use rocket::response::{self, Responder, Response};
 use rocket::Request;
@@ -78,7 +77,8 @@ pub struct MixnodeStatusReport {
 
 impl MixnodeStatusReport {
     pub(crate) fn construct_from_last_day_reports(
-        identity: &str,
+        identity: String,
+        owner: String,
         last_day_ipv4: Vec<NodeStatus>,
         last_day_ipv6: Vec<NodeStatus>,
     ) -> Self {
@@ -86,8 +86,8 @@ impl MixnodeStatusReport {
             NodeUptimes::calculate_from_last_day_reports(last_day_ipv4, last_day_ipv6);
 
         MixnodeStatusReport {
-            identity: identity.to_owned(),
-            owner: "TODO: grab that data somehow... somewhere...".to_string(),
+            identity,
+            owner,
             most_recent_ipv4: node_uptimes.most_recent_ipv4,
             most_recent_ipv6: node_uptimes.most_recent_ipv6,
             last_hour_ipv4: node_uptimes.last_hour_ipv4,
@@ -115,7 +115,8 @@ pub struct GatewayStatusReport {
 
 impl GatewayStatusReport {
     pub(crate) fn construct_from_last_day_reports(
-        identity: &str,
+        identity: String,
+        owner: String,
         last_day_ipv4: Vec<NodeStatus>,
         last_day_ipv6: Vec<NodeStatus>,
     ) -> Self {
@@ -123,8 +124,8 @@ impl GatewayStatusReport {
             NodeUptimes::calculate_from_last_day_reports(last_day_ipv4, last_day_ipv6);
 
         GatewayStatusReport {
-            identity: identity.to_owned(),
-            owner: "TODO: grab that data somehow... somewhere...".to_string(),
+            identity,
+            owner,
             most_recent_ipv4: node_uptimes.most_recent_ipv4,
             most_recent_ipv6: node_uptimes.most_recent_ipv6,
             last_hour_ipv4: node_uptimes.last_hour_ipv4,

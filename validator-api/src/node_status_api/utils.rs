@@ -11,6 +11,15 @@ pub(crate) struct NodeStatus {
     pub(crate) up: bool,
 }
 
+// A temporary helper struct used to produce reports for active nodes.
+pub(crate) struct ActiveNodeDayStatuses {
+    pub(crate) pub_key: String,
+    pub(crate) owner: String,
+
+    pub(crate) ipv4_statuses: Vec<NodeStatus>,
+    pub(crate) ipv6_statuses: Vec<NodeStatus>,
+}
+
 // A helper intermediate struct to remove duplicate code for construction of mixnode and gateway reports
 pub(crate) struct NodeUptimes {
     pub(crate) most_recent_ipv4: bool,

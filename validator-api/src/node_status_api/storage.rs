@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node_status_api::models::{
-    GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory,
-    NodeStatusApiError,
+    GatewayStatusReport, GatewayUptimeHistory, HistoricalUptime, MixnodeStatusReport,
+    MixnodeUptimeHistory, NodeStatusApiError, Uptime,
 };
 use rocket::fairing::{self, AdHoc};
 use rocket::{Build, Rocket};
@@ -13,6 +13,7 @@ use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::node_status_api::utils::{ActiveNodeDayStatuses, NodeStatus};
 use crate::node_status_api::ONE_DAY;
 use sqlx::types::time::OffsetDateTime;
+use std::convert::TryFrom;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // A type alias to be more explicit about type of timestamp used.
@@ -193,14 +194,46 @@ impl NodeStatusStorage {
         &self,
         identity: &str,
     ) -> Result<MixnodeUptimeHistory, NodeStatusApiError> {
-        todo!()
+        let history = self
+            .inner
+            .get_mixnode_historical_uptimes(identity)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
+
+        if history.is_empty() {
+            return Err(NodeStatusApiError::MixnodeUptimeHistoryNotFound(
+                identity.to_owned(),
+            ));
+        }
+
+        Ok(MixnodeUptimeHistory::new(
+            identity.to_owned(),
+            "foomp".to_owned(),
+            history,
+        ))
     }
 
     pub(crate) async fn get_gateway_uptime_history(
         &self,
         identity: &str,
     ) -> Result<GatewayUptimeHistory, NodeStatusApiError> {
-        todo!()
+        let history = self
+            .inner
+            .get_gateway_historical_uptimes(identity)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?;
+
+        if history.is_empty() {
+            return Err(NodeStatusApiError::GatewayUptimeHistoryNotFound(
+                identity.to_owned(),
+            ));
+        }
+
+        Ok(GatewayUptimeHistory::new(
+            identity.to_owned(),
+            "foomp".to_owned(),
+            history,
+        ))
     }
 
     // NOTE: this method will go away once we move payments into the validator-api
@@ -290,7 +323,7 @@ impl NodeStatusStorageInner {
         identity: &str,
         timestamp: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        let reports = match sqlx::query!(
+        let reports = sqlx::query!(
             r#"
                 SELECT timestamp, up
                     FROM mixnode_ipv4_status
@@ -301,15 +334,14 @@ impl NodeStatusStorageInner {
             identity,
             timestamp,
         )
-            .fetch_all(&self.connection_pool)
-            .await
-        {
-            Ok(records) => records,
-            Err(err) => {
-                error!("The database run into problems while trying to get all ipv4 uptimes for mixnode {} since {}. Error: {}", identity, timestamp, err);
-                return Err(err);
-            }
-        }.into_iter().map(|row| NodeStatus { timestamp: row.timestamp, up: row.up }).collect();
+        .fetch_all(&self.connection_pool)
+        .await?
+        .into_iter()
+        .map(|row| NodeStatus {
+            timestamp: row.timestamp,
+            up: row.up,
+        })
+        .collect();
 
         Ok(reports)
     }
@@ -321,7 +353,7 @@ impl NodeStatusStorageInner {
         identity: &str,
         timestamp: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        let reports = match sqlx::query!(
+        let reports = sqlx::query!(
             r#"
                 SELECT timestamp, up
                     FROM mixnode_ipv6_status
@@ -332,15 +364,14 @@ impl NodeStatusStorageInner {
             identity,
             timestamp
         )
-            .fetch_all(&self.connection_pool)
-            .await
-        {
-            Ok(records) => records,
-            Err(err) => {
-                error!("The database run into problems while trying to get all ipv6 uptimes for mixnode {} since {}. Error: {}", identity, timestamp, err);
-                return Err(err);
-            }
-        }.into_iter().map(|row| NodeStatus { timestamp: row.timestamp, up: row.up }).collect();
+        .fetch_all(&self.connection_pool)
+        .await?
+        .into_iter()
+        .map(|row| NodeStatus {
+            timestamp: row.timestamp,
+            up: row.up,
+        })
+        .collect();
 
         Ok(reports)
     }
@@ -352,7 +383,7 @@ impl NodeStatusStorageInner {
         identity: &str,
         timestamp: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        let reports = match sqlx::query!(
+        let reports = sqlx::query!(
             r#"
                 SELECT timestamp, up
                     FROM gateway_ipv4_status
@@ -363,15 +394,14 @@ impl NodeStatusStorageInner {
             identity,
             timestamp,
         )
-            .fetch_all(&self.connection_pool)
-            .await
-        {
-            Ok(records) => records,
-            Err(err) => {
-                error!("The database run into problems while trying to get all ipv4 uptimes for gateway {} since {}. Error: {}", identity, timestamp, err);
-                return Err(err);
-            }
-        }.into_iter().map(|row| NodeStatus { timestamp: row.timestamp, up: row.up }).collect();
+        .fetch_all(&self.connection_pool)
+        .await?
+        .into_iter()
+        .map(|row| NodeStatus {
+            timestamp: row.timestamp,
+            up: row.up,
+        })
+        .collect();
 
         Ok(reports)
     }
@@ -383,7 +413,7 @@ impl NodeStatusStorageInner {
         identity: &str,
         timestamp: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        let reports = match sqlx::query!(
+        let reports = sqlx::query!(
             r#"
                 SELECT timestamp, up
                     FROM gateway_ipv6_status
@@ -394,17 +424,92 @@ impl NodeStatusStorageInner {
             identity,
             timestamp
         )
-            .fetch_all(&self.connection_pool)
-            .await
-        {
-            Ok(records) => records,
-            Err(err) => {
-                error!("The database run into problems while trying to get all ipv6 uptimes for gateway {} since {}. Error: {}", identity, timestamp, err);
-                return Err(err);
-            }
-        }.into_iter().map(|row| NodeStatus { timestamp: row.timestamp, up: row.up }).collect();
+        .fetch_all(&self.connection_pool)
+        .await?
+        .into_iter()
+        .map(|row| NodeStatus {
+            timestamp: row.timestamp,
+            up: row.up,
+        })
+        .collect();
 
         Ok(reports)
+    }
+
+    /// Gets the historical daily uptime associated with the particular mixnode
+    async fn get_mixnode_historical_uptimes(
+        &self,
+        identity: &str,
+    ) -> Result<Vec<HistoricalUptime>, sqlx::Error> {
+        let uptimes = sqlx::query!(
+            r#"
+                SELECT date, ipv4_uptime, ipv6_uptime
+                    FROM mixnode_historical_uptime
+                    JOIN mixnode_details
+                    ON mixnode_historical_uptime.mixnode_details_id = mixnode_details.id
+                    WHERE mixnode_details.pub_key = ?
+                    ORDER BY date ASC
+            "#,
+            identity
+        )
+        .fetch_all(&self.connection_pool)
+        .await?
+        .into_iter()
+        .filter_map(|row| {
+            Uptime::try_from(row.ipv4_uptime)
+                .ok()
+                .map(|ipv4_uptime| {
+                    Uptime::try_from(row.ipv6_uptime)
+                        .ok()
+                        .map(|ipv6_uptime| HistoricalUptime {
+                            date: row.date,
+                            ipv4_uptime,
+                            ipv6_uptime,
+                        })
+                })
+                .flatten()
+        })
+        .collect();
+
+        Ok(uptimes)
+    }
+
+    /// Gets the historical daily uptime associated with the particular gateway
+    async fn get_gateway_historical_uptimes(
+        &self,
+        identity: &str,
+    ) -> Result<Vec<HistoricalUptime>, sqlx::Error> {
+        let uptimes = sqlx::query!(
+            r#"
+                SELECT date, ipv4_uptime, ipv6_uptime
+                    FROM gateway_historical_uptime
+                    JOIN gateway_details
+                    ON gateway_historical_uptime.gateway_details_id = gateway_details.id
+                    WHERE gateway_details.pub_key = ?
+                    ORDER BY date ASC
+            "#,
+            identity
+        )
+        .fetch_all(&self.connection_pool)
+        .await?
+        .into_iter()
+        .filter_map(|row| {
+            Uptime::try_from(row.ipv4_uptime)
+                .ok()
+                .map(|ipv4_uptime| {
+                    Uptime::try_from(row.ipv6_uptime)
+                        .ok()
+                        .map(|ipv6_uptime| HistoricalUptime {
+                            date: row.date,
+                            ipv4_uptime,
+                            ipv6_uptime,
+                        })
+                })
+                .flatten()
+        })
+        .collect();
+
+        Ok(uptimes)
     }
 
     // NOTE: this method will go away once we move payments into the validator-api
@@ -757,7 +862,7 @@ impl NodeStatusStorageInner {
         todo!()
     }
 
-    /// Removes all statuses from the databaase that are older than 48h.
+    /// Removes all statuses from the database that are older than 48h.
     async fn purge_old_statuses(&self) -> Result<(), sqlx::Error> {
         let now = OffsetDateTime::now_utc();
         let two_days_ago = (now - 2 * ONE_DAY).unix_timestamp();

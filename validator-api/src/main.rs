@@ -304,10 +304,10 @@ async fn main() -> Result<()> {
         },
     ];
 
-    node_status_storage
-        .submit_new_statuses(dummy_results, Vec::new())
-        .await
-        .unwrap();
+    // node_status_storage
+    //     .submit_new_statuses(dummy_results, Vec::new())
+    //     .await
+    //     .unwrap();
 
     // node_status_storage.make_up_mixnode("node1").await;
 

@@ -20,8 +20,8 @@ create TABLE mixnode_historical_uptime
     date               VARCHAR NOT NULL,
 
     -- 24h uptimes for that day
-    ipv4_uptime        INTEGER,
-    ipv6_uptime        INTEGER,
+    ipv4_uptime        INTEGER NOT NULL,
+    ipv6_uptime        INTEGER NOT NULL,
 
     FOREIGN KEY (mixnode_details_id) REFERENCES mixnode_details (id)
 );
@@ -52,8 +52,8 @@ create TABLE gateway_historical_uptime
     date                VARCHAR NOT NULL,
 
     -- 24h uptimes for that day
-    ipv4_uptime         INTEGER,
-    ipv6_uptime         INTEGER,
+    ipv4_uptime         INTEGER NOT NULL,
+    ipv6_uptime         INTEGER NOT NULL,
 
     FOREIGN KEY (gateway_details_id) REFERENCES gateway_details (id)
 );

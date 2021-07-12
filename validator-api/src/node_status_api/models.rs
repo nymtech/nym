@@ -60,6 +60,18 @@ impl TryFrom<u8> for Uptime {
     }
 }
 
+impl TryFrom<i64> for Uptime {
+    type Error = InvalidUptime;
+
+    fn try_from(value: i64) -> Result<Self, Self::Error> {
+        if !(0..=100).contains(&value) {
+            Err(InvalidUptime)
+        } else {
+            Ok(Uptime(value as u8))
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct MixnodeStatusReport {
     identity: String,
@@ -138,27 +150,48 @@ impl GatewayStatusReport {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct MixnodeUptimeHistory {
-    identity: String,
-    owner: String,
+    pub(crate) identity: String,
+    pub(crate) owner: String,
 
-    history: Vec<HistoricalUptime>,
+    pub(crate) history: Vec<HistoricalUptime>,
+}
+
+impl MixnodeUptimeHistory {
+    pub(crate) fn new(identity: String, owner: String, history: Vec<HistoricalUptime>) -> Self {
+        MixnodeUptimeHistory {
+            identity,
+            owner,
+            history,
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct GatewayUptimeHistory {
-    identity: String,
-    owner: String,
+    pub(crate) identity: String,
+    pub(crate) owner: String,
 
-    history: Vec<HistoricalUptime>,
+    pub(crate) history: Vec<HistoricalUptime>,
+}
+
+impl GatewayUptimeHistory {
+    pub(crate) fn new(identity: String, owner: String, history: Vec<HistoricalUptime>) -> Self {
+        GatewayUptimeHistory {
+            identity,
+            owner,
+            history,
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-struct HistoricalUptime {
+pub struct HistoricalUptime {
     // ISO 8601 date string
     // I think this is more than enough, we don't need the uber precision of timezone offsets, etc
-    date: String,
+    pub(crate) date: String,
 
-    uptime: Uptime,
+    pub(crate) ipv4_uptime: Uptime,
+    pub(crate) ipv6_uptime: Uptime,
 }
 
 pub(crate) struct ErrorResponse {
@@ -187,6 +220,8 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for ErrorResponse {
 pub enum NodeStatusApiError {
     MixnodeReportNotFound(String),
     GatewayReportNotFound(String),
+    MixnodeUptimeHistoryNotFound(String),
+    GatewayUptimeHistoryNotFound(String),
 
     // I don't think we want to expose errors to the user about what really happened
     InternalDatabaseError,
@@ -203,6 +238,16 @@ impl Display for NodeStatusApiError {
             NodeStatusApiError::GatewayReportNotFound(identity) => write!(
                 f,
                 "Could not find status report associated with gateway {}",
+                identity
+            ),
+            NodeStatusApiError::MixnodeUptimeHistoryNotFound(identity) => write!(
+                f,
+                "Could not find uptime history associated with mixnode {}",
+                identity
+            ),
+            NodeStatusApiError::GatewayUptimeHistoryNotFound(identity) => write!(
+                f,
+                "Could not find uptime history associated with gateway {}",
                 identity
             ),
             NodeStatusApiError::InternalDatabaseError => {

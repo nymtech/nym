@@ -234,9 +234,11 @@ impl NodeStatusStorage {
         Ok(())
     }
 
-    pub(crate) fn purge_old_reports(&self) {
-        let now = OffsetDateTime::now_utc();
-        let two_days_ago = now - 2 * ONE_DAY;
+    pub(crate) async fn purge_old_statuses(&self) -> Result<(), NodeStatusApiError> {
+        self.inner
+            .purge_old_statuses()
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)
     }
 }
 
@@ -467,5 +469,41 @@ impl NodeStatusStorageInner {
 
         // finally commit the transaction
         tx.commit().await
+    }
+
+    /// Removes all statuses from the databaase that are older than 48h.
+    async fn purge_old_statuses(&self) -> Result<(), sqlx::Error> {
+        let now = OffsetDateTime::now_utc();
+        let two_days_ago = (now - 2 * ONE_DAY).unix_timestamp();
+
+        sqlx::query!(
+            "DELETE FROM mixnode_ipv4_status WHERE timestamp < ?",
+            two_days_ago
+        )
+        .execute(&self.connection_pool)
+        .await?;
+
+        sqlx::query!(
+            "DELETE FROM mixnode_ipv6_status WHERE timestamp < ?",
+            two_days_ago
+        )
+        .execute(&self.connection_pool)
+        .await?;
+
+        sqlx::query!(
+            "DELETE FROM gateway_ipv4_status WHERE timestamp < ?",
+            two_days_ago
+        )
+        .execute(&self.connection_pool)
+        .await?;
+
+        sqlx::query!(
+            "DELETE FROM gateway_ipv6_status WHERE timestamp < ?",
+            two_days_ago
+        )
+        .execute(&self.connection_pool)
+        .await?;
+
+        Ok(())
     }
 }

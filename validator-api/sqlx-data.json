@@ -248,6 +248,42 @@
       "nullable": []
     }
   },
+  "97e108e08c4a8aa2c0e2a32f93ae7c65193a26be2d06f8f97ab8fdc0f7004fa4": {
+    "query": "SELECT owner FROM gateway_details WHERE pub_key = ?",
+    "describe": {
+      "columns": [
+        {
+          "name": "owner",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "9cd914e2f1e8058c6935a50f2a02c0e04c4ee5a1c4a400f08d9d0eb47f5665d8": {
+    "query": "SELECT owner FROM mixnode_details WHERE pub_key = ?",
+    "describe": {
+      "columns": [
+        {
+          "name": "owner",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
   "aa9708202a664aa8b85e8881deb9f0137efd91f88eba18a7fa05ee1ad7e8e621": {
     "query": "\n                SELECT date, ipv4_uptime, ipv6_uptime\n                    FROM mixnode_historical_uptime\n                    JOIN mixnode_details\n                    ON mixnode_historical_uptime.mixnode_details_id = mixnode_details.id\n                    WHERE mixnode_details.pub_key = ?\n                    ORDER BY date ASC\n            ",
     "describe": {

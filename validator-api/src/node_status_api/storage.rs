@@ -1,27 +1,26 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::node_status_api::models::{
     GatewayStatusReport, GatewayUptimeHistory, HistoricalUptime, MixnodeStatusReport,
     MixnodeUptimeHistory, NodeStatusApiError, Uptime,
 };
-use rocket::fairing::{self, AdHoc};
-use rocket::{Build, Rocket};
-use sqlx::ConnectOptions;
-// use std::fmt::{self, Display, Formatter};
-use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::node_status_api::utils::{ActiveNodeDayStatuses, NodeStatus};
 use crate::node_status_api::ONE_DAY;
+use rocket::fairing::{self, AdHoc};
+use rocket::{Build, Rocket};
 use sqlx::types::time::OffsetDateTime;
+use sqlx::ConnectOptions;
 use std::convert::TryFrom;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 // A type alias to be more explicit about type of timestamp used.
 type UnixTimestamp = i64;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
-// the reason 'inner' was introduced was so that there would be an explicit split to
-// place where pure SQL is used (i.e. `Inner` should be the only place containing any sort
+//
+// note2: the reason 'inner' was introduced was so that there would be an explicit split to
+// where pure SQL is used (i.e. `Inner` should be the only place containing any sort
 // of SQL while `NodeStatusStorage` should provide a slightly higher level API)
 #[derive(Clone)]
 pub(crate) struct NodeStatusStorage {
@@ -151,9 +150,16 @@ impl NodeStatusStorage {
             )
         }
 
+        let mixnode_owner = self
+            .inner
+            .get_mixnode_owner(identity)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
+            .expect("The node doesn't have an owner even though we have status information on it!");
+
         Ok(MixnodeStatusReport::construct_from_last_day_reports(
             identity.to_owned(),
-            "foomp".to_owned(),
+            mixnode_owner,
             ipv4_statuses,
             ipv6_statuses,
         ))
@@ -182,9 +188,18 @@ impl NodeStatusStorage {
             )
         }
 
+        let gateway_owner = self
+            .inner
+            .get_gateway_owner(identity)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
+            .expect(
+                "The gateway doesn't have an owner even though we have status information on it!",
+            );
+
         Ok(GatewayStatusReport::construct_from_last_day_reports(
             identity.to_owned(),
-            "foomp".to_owned(),
+            gateway_owner,
             ipv4_statuses,
             ipv6_statuses,
         ))
@@ -206,9 +221,16 @@ impl NodeStatusStorage {
             ));
         }
 
+        let mixnode_owner = self
+            .inner
+            .get_mixnode_owner(identity)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
+            .expect("The node doesn't have an owner even though we have uptime history for it!");
+
         Ok(MixnodeUptimeHistory::new(
             identity.to_owned(),
-            "foomp".to_owned(),
+            mixnode_owner,
             history,
         ))
     }
@@ -229,9 +251,16 @@ impl NodeStatusStorage {
             ));
         }
 
+        let gateway_owner = self
+            .inner
+            .get_gateway_owner(identity)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)?
+            .expect("The gateway doesn't have an owner even though we have uptime history for it!");
+
         Ok(GatewayUptimeHistory::new(
             identity.to_owned(),
-            "foomp".to_owned(),
+            gateway_owner,
             history,
         ))
     }
@@ -392,6 +421,32 @@ impl NodeStatusStorage {
 
 // all SQL goes here
 impl NodeStatusStorageInner {
+    /// Tries to obtain owner value of given mixnode given its identity
+    async fn get_mixnode_owner(&self, identity: &str) -> Result<Option<String>, sqlx::Error> {
+        let owner = sqlx::query!(
+            "SELECT owner FROM mixnode_details WHERE pub_key = ?",
+            identity
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?
+        .map(|row| row.owner);
+
+        Ok(owner)
+    }
+
+    /// Tries to obtain owner value of given gateway given its identity
+    async fn get_gateway_owner(&self, identity: &str) -> Result<Option<String>, sqlx::Error> {
+        let owner = sqlx::query!(
+            "SELECT owner FROM gateway_details WHERE pub_key = ?",
+            identity
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?
+        .map(|row| row.owner);
+
+        Ok(owner)
+    }
+
     /// Gets all ipv4 statuses for mixnode with particular identity that were inserted
     /// into the database after the specified unix timestamp.
     async fn get_mixnode_ipv4_statuses_since(
@@ -764,6 +819,8 @@ impl NodeStatusStorageInner {
 
     // NOTE: this method will go away once we move payments into the validator-api
     // it just helps us to get rid of having to query for reports of each node individually
+    // TODO: should that live on the 'Inner' struct or should it rather exist on the actual storage struct
+    // since technically it doesn't touch any SQL directly
     async fn get_all_active_mixnodes_statuses(
         &self,
     ) -> Result<Vec<ActiveNodeDayStatuses>, sqlx::Error> {
@@ -797,6 +854,8 @@ impl NodeStatusStorageInner {
 
     // NOTE: this method will go away once we move payments into the validator-api
     // it just helps us to get rid of having to query for reports of each node individually
+    // TODO: should that live on the 'Inner' struct or should it rather exist on the actual storage struct
+    // since technically it doesn't touch any SQL directly
     async fn get_all_active_gateways_statuses(
         &self,
     ) -> Result<Vec<ActiveNodeDayStatuses>, sqlx::Error> {
@@ -935,6 +994,7 @@ impl NodeStatusStorageInner {
         tx.commit().await
     }
 
+    /// Creates new entry for mixnode historical uptime
     async fn insert_mixnode_historical_uptime(
         &self,
         node_id: i64,
@@ -942,7 +1002,8 @@ impl NodeStatusStorageInner {
         ipv4_uptime: u8,
         ipv6_uptime: u8,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!("INSERT INTO mixnode_historical_uptime(mixnode_details_id, date, ipv4_uptime, ipv6_uptime) VALUES (?, ?, ?, ?)",
+        sqlx::query!(
+            "INSERT INTO mixnode_historical_uptime(mixnode_details_id, date, ipv4_uptime, ipv6_uptime) VALUES (?, ?, ?, ?)",
             node_id,
                 date,
                 ipv4_uptime,
@@ -951,6 +1012,7 @@ impl NodeStatusStorageInner {
         Ok(())
     }
 
+    /// Creates new entry for gatewy historical uptime
     async fn insert_gateway_historical_uptime(
         &self,
         node_id: i64,
@@ -958,7 +1020,8 @@ impl NodeStatusStorageInner {
         ipv4_uptime: u8,
         ipv6_uptime: u8,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!("INSERT INTO gateway_historical_uptime(gateway_details_id, date, ipv4_uptime, ipv6_uptime) VALUES (?, ?, ?, ?)",
+        sqlx::query!(
+            "INSERT INTO gateway_historical_uptime(gateway_details_id, date, ipv4_uptime, ipv6_uptime) VALUES (?, ?, ?, ?)",
             node_id,
                 date,
                 ipv4_uptime,

@@ -1,0 +1,25 @@
+version: '3.7'
+services:
+        genesis_validator:
+                build: validator
+                volumes:
+                        - genesis_volume:/genesis_volume
+                command: ["genesis"]
+        secondary_validator:
+                build: validator
+                volumes:
+                        - genesis_volume:/genesis_volume
+                depends_on:
+                        - "genesis_validator"
+                command: ["secondary"]
+        contract_uploader:
+                build: web_wallet
+                volumes:
+                        - genesis_volume:/genesis_volume
+                depends_on:
+                        - "genesis_validator"
+                        - "secondary_validator"
+
+volumes:
+        genesis_volume:
+

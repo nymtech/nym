@@ -1,0 +1,10 @@
+FROM golang:buster as go_builder
+RUN apt update && apt install -y git build-essential
+COPY setup.sh .
+RUN ./setup.sh
+
+FROM ubuntu:20.04
+COPY --from=go_builder /go/wasmd/build/nymd /root/nymd
+COPY --from=go_builder /go/wasmd/build/libwasmvm.so /root/libwasmvm.so
+COPY init_and_start.sh .
+ENTRYPOINT ["./init_and_start.sh"]

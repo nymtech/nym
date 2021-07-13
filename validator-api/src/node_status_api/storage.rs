@@ -319,7 +319,7 @@ impl NodeStatusStorage {
     }
 
     // Called on timer/reward script
-    pub(crate) async fn update_historical_uptimes(&self) -> Result<(), NodeStatusApiError> {
+    async fn update_historical_uptimes(&self) -> Result<(), NodeStatusApiError> {
         let today_iso_8601 = OffsetDateTime::now_utc().date().to_string();
 
         // get statuses for all active mixnodes...
@@ -404,11 +404,17 @@ impl NodeStatusStorage {
     }
 
     // Called on timer/reward script
-    pub(crate) async fn purge_old_statuses(&self) -> Result<(), NodeStatusApiError> {
+    async fn purge_old_statuses(&self) -> Result<(), NodeStatusApiError> {
         self.inner
             .purge_old_statuses()
             .await
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+    }
+
+    pub(crate) async fn daily_chores(&self) -> Result<(), NodeStatusApiError> {
+        info!("Updating historical daily uptimes of all nodes and purging old status reports...");
+        self.update_historical_uptimes().await?;
+        self.purge_old_statuses().await
     }
 }
 

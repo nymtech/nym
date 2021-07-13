@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node_status_api::local_guard::LocalRequest;
 use crate::node_status_api::models::{
     ErrorResponse, GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport,
     MixnodeUptimeHistory,
@@ -9,6 +10,18 @@ use crate::node_status_api::storage::NodeStatusStorage;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
+
+#[get("/daily-chores")]
+pub(crate) async fn rewarding_chores(
+    _local_request: LocalRequest,
+    storage: &State<NodeStatusStorage>,
+) -> Result<&'static str, ErrorResponse> {
+    storage
+        .daily_chores()
+        .await
+        .map_err(|err| ErrorResponse::new(err, Status::InternalServerError))?;
+    Ok("Updated historical uptimes and purged old reports.")
+}
 
 #[get("/mixnode/<pubkey>/report")]
 pub(crate) async fn mixnode_report(

@@ -33,9 +33,7 @@ const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
 const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
 const VALIDATORS_ARG: &str = "validators";
 const DETAILED_REPORT_ARG: &str = "detailed-report";
-const GATEWAY_SENDING_RATE_ARG: &str = "gateway-rate";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
-const CACHE_INTERVAL_ARG: &str = "cache-interval";
 const WRITE_CONFIG_ARG: &str = "save-config";
 
 pub(crate) const PENALISE_OUTDATED: bool = false;
@@ -76,15 +74,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("specifies whether a detailed report should be printed after each run")
                 .long(DETAILED_REPORT_ARG)
         )
-        .arg(Arg::with_name(GATEWAY_SENDING_RATE_ARG)
-            .help("specifies maximum rate (in packets per second) of test packets being sent to gateway")
-            .takes_value(true)
-            .long(GATEWAY_SENDING_RATE_ARG)
-        )
-        .arg(Arg::with_name(CACHE_INTERVAL_ARG)
-            .help("Specified rate, in seconds, at which cache will be refreshed, global for all cache")
-            .takes_value(true)
-            .long(CACHE_INTERVAL_ARG))
         .arg(
             Arg::with_name(WRITE_CONFIG_ARG)
                 .help("specifies whether a config file based on provided arguments should be saved to a file")
@@ -153,20 +142,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
 
     if matches.is_present(DETAILED_REPORT_ARG) {
         config = config.detailed_network_monitor_report(true)
-    }
-
-    if let Some(sending_rate) = matches
-        .value_of(GATEWAY_SENDING_RATE_ARG)
-        .map(|v| v.parse().unwrap())
-    {
-        config = config.with_gateway_sending_rate(sending_rate)
-    }
-
-    if let Some(caching_interval_secs) = matches
-        .value_of(CACHE_INTERVAL_ARG)
-        .map(|v| v.parse().unwrap())
-    {
-        config = config.with_caching_interval(Duration::from_secs(caching_interval_secs))
     }
 
     if matches.is_present(WRITE_CONFIG_ARG) {

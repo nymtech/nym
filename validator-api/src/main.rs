@@ -19,6 +19,7 @@ use mixnet_contract::MixNodeBond;
 use rocket::http::Method;
 use rocket::{Rocket, State};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
+use std::process;
 use std::time::Duration;
 use tokio::time;
 
@@ -35,6 +36,7 @@ const DETAILED_REPORT_ARG: &str = "detailed-report";
 const GATEWAY_SENDING_RATE_ARG: &str = "gateway-rate";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
 const CACHE_INTERVAL_ARG: &str = "cache-interval";
+const WRITE_CONFIG_ARG: &str = "save-config";
 
 pub(crate) const PENALISE_OUTDATED: bool = false;
 
@@ -78,12 +80,16 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             .help("specifies maximum rate (in packets per second) of test packets being sent to gateway")
             .takes_value(true)
             .long(GATEWAY_SENDING_RATE_ARG)
-            .short("r")
         )
         .arg(Arg::with_name(CACHE_INTERVAL_ARG)
-        .help("Specified rate, in seconds, at which cache will be refreshed, global for all cache")
-        .takes_value(true)
-        .long(CACHE_INTERVAL_ARG))
+            .help("Specified rate, in seconds, at which cache will be refreshed, global for all cache")
+            .takes_value(true)
+            .long(CACHE_INTERVAL_ARG))
+        .arg(
+            Arg::with_name(WRITE_CONFIG_ARG)
+                .help("specifies whether a config file based on provided arguments should be saved to a file")
+                .long(WRITE_CONFIG_ARG)
+        )
         .get_matches()
 }
 
@@ -163,6 +169,14 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_caching_interval(Duration::from_secs(caching_interval_secs))
     }
 
+    if matches.is_present(WRITE_CONFIG_ARG) {
+        info!("Saving the configuration to a file");
+        if let Err(err) = config.save_to_file(None) {
+            error!("Failed to write config to a file - {}", err);
+            process::exit(1)
+        }
+    }
+
     config
 }
 
@@ -196,7 +210,7 @@ async fn main() -> Result<()> {
         Ok(cfg) => cfg,
         Err(_) => {
             warn!(
-                "Configuration file could not be found in {}. Using the default values.",
+                "Configuration file could not be found at {}. Using the default values.",
                 Config::default_config_file_path(None)
                     .into_os_string()
                     .into_string()
@@ -206,11 +220,9 @@ async fn main() -> Result<()> {
         }
     };
 
-    config.save_to_file(None).unwrap();
+    let matches = parse_args();
+    let config = override_config(config, &matches);
 
-    // let matches = parse_args();
-    // let config = override_config(config, &matches);
-    //
     // let validator_client = validator_client::Client::new(validator_client::Config::new(
     //     config.get_validators_urls(),
     //     "punk10pyejy66429refv3g35g2t7am0was7yalwrzen",
@@ -221,7 +233,6 @@ async fn main() -> Result<()> {
     // println!("{:?}", mixes);
     // println!("{:?}", gateways);
     //
-    // std::process::exit(1);
 
     // let's build our rocket!
     let rocket = rocket::build()
@@ -272,71 +283,6 @@ async fn main() -> Result<()> {
 
     // and launch the rocket
     tokio::spawn(rocket.launch());
-
-    // println!("\n\nwaiting for 5s before adding stuff...\n\n");
-    // tokio::time::sleep(Duration::from_secs(5)).await;
-    //
-    // let dummy_results = vec![
-    //     NodeResult {
-    //         pub_key: "mix1".to_string(),
-    //         owner: "owner1".to_string(),
-    //         working_ipv4: true,
-    //         working_ipv6: true,
-    //     },
-    //     NodeResult {
-    //         pub_key: "mix2".to_string(),
-    //         owner: "owner2".to_string(),
-    //         working_ipv4: true,
-    //         working_ipv6: true,
-    //     },
-    //     NodeResult {
-    //         pub_key: "mix1".to_string(),
-    //         owner: "owner1".to_string(),
-    //         working_ipv4: true,
-    //         working_ipv6: false,
-    //     },
-    //     NodeResult {
-    //         pub_key: "mix4".to_string(),
-    //         owner: "owner4".to_string(),
-    //         working_ipv4: true,
-    //         working_ipv6: true,
-    //     },
-    // ];
-    //
-    // node_status_storage
-    //     .submit_new_statuses(dummy_results, Vec::new())
-    //     .await
-    //     .unwrap();
-
-    // node_status_storage
-    //     .update_historical_uptimes()
-    //     .await
-    //     .unwrap();
-
-    // node_status_storage.make_up_mixnode("node1").await;
-
-    // node_status_storage.make_up_mixnode("node3").await;
-
-    // node_status_storage.make_up_mixnode("node1").await;
-    // node_status_storage.make_up_mixnode("node2").await;
-    // node_status_storage.make_up_mixnode("node3").await;
-    // node_status_storage.add_up_status("node1").await;
-    // tokio::time::sleep(Duration::from_millis(10)).await;
-    // node_status_storage.add_up_status("node1").await;
-    // tokio::time::sleep(Duration::from_millis(10)).await;
-    // node_status_storage.add_up_status("node1").await;
-    // tokio::time::sleep(Duration::from_millis(10)).await;
-    // node_status_storage.add_up_status("node1").await;
-    // tokio::time::sleep(Duration::from_millis(10)).await;
-    // node_status_storage.add_up_status("node1").await;
-    // tokio::time::sleep(Duration::from_millis(10)).await;
-    // node_status_storage.add_up_status("node1").await;
-    // tokio::time::sleep(Duration::from_millis(10)).await;
-    // node_status_storage.add_up_status("node1").await;
-    // tokio::time::sleep(Duration::from_secs(2)).await;
-    // node_status_storage.add_down_status("node1").await;
-
-    println!("done");
 
     wait_for_interrupt().await;
 

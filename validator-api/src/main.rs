@@ -6,7 +6,6 @@ extern crate rocket;
 
 use crate::cache::ValidatorCacheRefresher;
 use crate::config::Config;
-use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::network_monitor::new_monitor_runnables;
 use crate::network_monitor::tested_network::good_topology::parse_topology_file;
 use crate::node_status_api::storage::NodeStatusStorage;
@@ -15,13 +14,9 @@ use anyhow::Result;
 use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};
 use log::info;
-use mixnet_contract::MixNodeBond;
 use rocket::http::Method;
-use rocket::{Rocket, State};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use std::process;
-use std::time::Duration;
-use tokio::time;
 
 pub(crate) mod cache;
 pub(crate) mod config;

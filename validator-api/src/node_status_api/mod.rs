@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use rocket::fairing::AdHoc;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Duration;
 
 pub(crate) mod local_guard;

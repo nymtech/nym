@@ -10,6 +10,10 @@ authors = [
 ]
 edition = "2018"
 
+# if there's ANY panic in ANY thread, abort the whole thing
+[profile.release]
+panic = "abort"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

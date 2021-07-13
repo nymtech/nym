@@ -16,7 +16,6 @@ use anyhow::Result;
 use mixnet_contract::{GatewayBond, MixNodeBond};
 use rocket::fairing::AdHoc;
 use serde::Serialize;
-use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -68,10 +67,6 @@ impl<T: Clone> Cache<T> {
 
     pub fn into_inner(self) -> T {
         self.value
-    }
-
-    pub fn get(&self) -> &T {
-        &self.value
     }
 }
 

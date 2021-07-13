@@ -196,6 +196,8 @@ impl Monitor {
     }
 
     pub(crate) async fn run(&mut self) {
+        self.received_processor.start_receiving();
+
         // wait for validator cache to be ready
         self.packet_preparer
             .wait_for_validator_cache_initial_values()

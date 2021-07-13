@@ -107,7 +107,7 @@ impl ReceivedProcessorInner {
 }
 
 pub(crate) struct ReceivedProcessor {
-    permit_changer: mpsc::Sender<LockPermit>,
+    permit_changer: Option<mpsc::Sender<LockPermit>>,
     inner: Arc<Mutex<ReceivedProcessorInner>>,
 }
 
@@ -125,34 +125,32 @@ impl ReceivedProcessor {
                 received_packets: Vec::new(),
             }));
 
-        // TODO: perhaps it should be using 0 size instead?
-        let (permit_sender, permit_receiver) = mpsc::channel(1);
-
-        Self::start_receiving(Arc::clone(&inner), permit_receiver);
-
         ReceivedProcessor {
-            permit_changer: permit_sender,
+            permit_changer: None,
             inner,
         }
     }
 
-    fn start_receiving(
-        inner: Arc<Mutex<ReceivedProcessorInner>>,
-        mut permit_change: mpsc::Receiver<LockPermit>,
-    ) {
+    pub(crate) fn start_receiving(&mut self) {
+        let inner = Arc::clone(&self.inner);
+
+        // TODO: perhaps it should be using 0 size instead?
+        let (permit_sender, mut permit_receiver) = mpsc::channel(1);
+        self.permit_changer = Some(permit_sender);
+
         tokio::spawn(async move {
             loop {
-                let permit = wait_for_permit(&mut permit_change, &*inner).await;
-                receive_or_release_permit(&mut permit_change, permit).await;
+                let permit = wait_for_permit(&mut permit_receiver, &*inner).await;
+                receive_or_release_permit(&mut permit_receiver, permit).await;
             }
 
             async fn receive_or_release_permit(
-                permit_change: &mut mpsc::Receiver<LockPermit>,
+                permit_receiver: &mut mpsc::Receiver<LockPermit>,
                 mut inner: MutexGuard<'_, ReceivedProcessorInner>,
             ) {
                 loop {
                     tokio::select! {
-                        permit_change = permit_change.next() => match permit_change.unwrap() {
+                        permit_receiver = permit_receiver.next() => match permit_receiver.unwrap() {
                             LockPermit::Release => return,
                             LockPermit::Free => error!("somehow we got notification that the lock is free to take while we already hold it!"),
                         },
@@ -171,11 +169,11 @@ impl ReceivedProcessor {
             // the compiler can't figure out appropriate lifetime bounds
             #[allow(clippy::needless_lifetimes)]
             async fn wait_for_permit<'a>(
-                permit_change: &mut mpsc::Receiver<LockPermit>,
+                permit_receiver: &mut mpsc::Receiver<LockPermit>,
                 inner: &'a Mutex<ReceivedProcessorInner>,
             ) -> MutexGuard<'a, ReceivedProcessorInner> {
                 loop {
-                    match permit_change.next().await.unwrap() {
+                    match permit_receiver.next().await.unwrap() {
                         // we should only ever get this on the very first run
                         LockPermit::Release => debug!(
                             "somehow got request to drop our lock permit while we do not hold it!"
@@ -190,6 +188,8 @@ impl ReceivedProcessor {
     pub(super) async fn set_new_expected(&mut self, nonce: u64) {
         // ask for the lock back
         self.permit_changer
+            .as_mut()
+            .expect("ReceivedProcessor hasn't started receiving!")
             .send(LockPermit::Release)
             .await
             .expect("processing task has died!");
@@ -200,6 +200,8 @@ impl ReceivedProcessor {
         // give the permit back
         drop(inner);
         self.permit_changer
+            .as_mut()
+            .expect("ReceivedProcessor hasn't started receiving!")
             .send(LockPermit::Free)
             .await
             .expect("processing task has died!");
@@ -208,6 +210,8 @@ impl ReceivedProcessor {
     pub(super) async fn return_received(&mut self) -> Vec<TestPacket> {
         // ask for the lock back
         self.permit_changer
+            .as_mut()
+            .expect("ReceivedProcessor hasn't started receiving!")
             .send(LockPermit::Release)
             .await
             .expect("processing task has died!");
@@ -218,6 +222,8 @@ impl ReceivedProcessor {
         // give the permit back
         drop(inner);
         self.permit_changer
+            .as_mut()
+            .expect("ReceivedProcessor hasn't started receiving!")
             .send(LockPermit::Free)
             .await
             .expect("processing task has died!");

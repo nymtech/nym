@@ -10,10 +10,10 @@ use std::time::Duration;
 mod template;
 
 const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
-    "http://testnet-finney-validator.nymtech.net:1317",
-    "http://testnet-finney-validator2.nymtech.net:1317",
+    "http://testnet-milhon-validator1.nymtech.net:1317",
+    "http://testnet-milhon-validator2.nymtech.net:1317",
 ];
-const DEFAULT_MIXNET_CONTRACT: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
+const DEFAULT_MIXNET_CONTRACT: &str = "punk18vd8fpwxzck93qlwghaj6arh4p7c5n89m7r3lj";
 
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
 const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;
@@ -232,36 +232,6 @@ impl Config {
 
     pub fn with_custom_mixnet_contract<S: Into<String>>(mut self, mixnet_contract: S) -> Self {
         self.base.mixnet_contract_address = mixnet_contract.into();
-        self
-    }
-
-    pub fn with_network_monitor_run_interval(mut self, run_interval: Duration) -> Self {
-        self.network_monitor.run_interval = run_interval;
-        self
-    }
-
-    pub fn with_gateway_ping_interval(mut self, gateway_ping_interval: Duration) -> Self {
-        self.network_monitor.gateway_ping_interval = gateway_ping_interval;
-        self
-    }
-
-    pub fn with_packet_delivery_timeout(mut self, packet_delivery_timeout: Duration) -> Self {
-        self.network_monitor.packet_delivery_timeout = packet_delivery_timeout;
-        self
-    }
-
-    pub fn with_gateway_sending_rate(mut self, rate: usize) -> Self {
-        self.network_monitor.gateway_sending_rate = rate;
-        self
-    }
-
-    pub fn with_caching_interval(mut self, interval: Duration) -> Self {
-        self.topology_cacher.caching_interval = interval;
-        self
-    }
-
-    pub fn with_node_status_api_database_path<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.node_status_api.database_path = path.as_ref().to_path_buf();
         self
     }
 

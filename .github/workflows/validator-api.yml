@@ -24,20 +24,20 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path --manifest-path validator-api/Cargo.toml
+          args: --manifest-path validator-api/Cargo.toml
 
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path --manifest-path validator-api/Cargo.toml
+          args: --manifest-path validator-api/Cargo.toml
 
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path --manifest-path validator-api/Cargo.toml  -- --check
+          args: --manifest-path validator-api/Cargo.toml  -- --check
 
       - uses: actions-rs/cargo@v1
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: --manifest-path --manifest-path validator-api/Cargo.toml -- -D warnings
+          args: --manifest-path validator-api/Cargo.toml -- -D warnings

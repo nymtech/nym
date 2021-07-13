@@ -104,15 +104,13 @@ pub(crate) fn new_monitor_runnables(
     );
 
     let monitor = monitor::Monitor::new(
+        config,
         packet_preparer,
         packet_sender,
         received_processor,
         summary_producer,
         node_status_storage,
         tested_network,
-        config.get_network_monitor_run_interval(),
-        config.get_gateway_ping_interval(),
-        config.get_packet_delivery_timeout(),
     );
 
     NetworkMonitorRunnables {

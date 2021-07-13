@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::config::Config;
 use crate::network_monitor::monitor::preparer::{PacketPreparer, TestedNode};
 use crate::network_monitor::monitor::processor::ReceivedProcessor;
 use crate::network_monitor::monitor::sender::PacketSender;
@@ -44,15 +45,13 @@ pub(super) struct Monitor {
 
 impl Monitor {
     pub(super) fn new(
+        config: &Config,
         packet_preparer: PacketPreparer,
         packet_sender: PacketSender,
         received_processor: ReceivedProcessor,
         summary_producer: SummaryProducer,
         node_status_storage: NodeStatusStorage,
         tested_network: TestedNetwork,
-        run_interval: Duration,
-        gateway_ping_interval: Duration,
-        packet_delivery_timeout: Duration,
     ) -> Self {
         Monitor {
             nonce: 1,
@@ -62,9 +61,9 @@ impl Monitor {
             summary_producer,
             node_status_storage,
             tested_network,
-            run_interval,
-            gateway_ping_interval,
-            packet_delivery_timeout,
+            run_interval: config.get_network_monitor_run_interval(),
+            gateway_ping_interval: config.get_gateway_ping_interval(),
+            packet_delivery_timeout: config.get_packet_delivery_timeout(),
         }
     }
 
@@ -89,8 +88,6 @@ impl Monitor {
             // TODO: slightly more graceful shutdown here
             process::exit(1);
         }
-
-        info!("SUBMITTED RESULTS TO THE DATABASE!!! YAAY")
     }
 
     // checking it this way with a TestReport is rather suboptimal but given the fact we're only

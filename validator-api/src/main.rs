@@ -5,6 +5,11 @@
 extern crate rocket;
 
 use crate::cache::ValidatorCacheRefresher;
+use coconut::{blind_sign, InternalSignRequest};
+use coconut_rs::{Attribute, Base58, BlindSignRequest, PublicKey};
+use getset::CopyGetters;
+use serde::{Deserialize, Serialize};
+
 use crate::config::Config;
 use crate::network_monitor::new_monitor_runnables;
 use crate::network_monitor::tested_network::good_topology::parse_topology_file;
@@ -22,6 +27,7 @@ use validator_client::validator_api::VALIDATOR_API_PORT;
 pub(crate) mod cache;
 pub(crate) mod config;
 mod network_monitor;
+mod coconut;
 mod node_status_api;
 pub(crate) mod storage;
 
@@ -32,6 +38,7 @@ const VALIDATORS_ARG: &str = "validators";
 const DETAILED_REPORT_ARG: &str = "detailed-report";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
 const WRITE_CONFIG_ARG: &str = "save-config";
+const SECRET_KEY_ARG: &str = "secret-key";
 
 pub(crate) const PENALISE_OUTDATED: bool = false;
 
@@ -76,6 +83,10 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("specifies whether a config file based on provided arguments should be saved to a file")
                 .long(WRITE_CONFIG_ARG)
         )
+        .arg(Arg::with_name(SECRET_KEY_ARG)
+            .help("Path to the secret key file")
+            .takes_value(true)
+            .long(SECRET_KEY_ARG))
         .get_matches()
 }
 
@@ -108,6 +119,45 @@ fn setup_logging() {
         .filter_module("tungstenite", log::LevelFilter::Warn)
         .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
         .init();
+}
+
+//  All strings are base58 encoded representations of structs
+#[derive(Deserialize, CopyGetters)]
+struct BlindSignRequestBody {
+    blind_sign_request: String,
+    public_key: String,
+    public_attributes: Vec<String>,
+    #[getset(get_copy)]
+    total_params: u32,
+}
+
+#[derive(Serialize)]
+struct BlindedSignatureResponse {
+    blinded_signature: String,
+}
+
+#[post("/blind_sign", data = "<blind_sign_request_body>")]
+//  Until we have serialization and deserialization traits we'll be using a crutch
+async fn post_blind_sign(
+    blind_sign_request_body: Json<BlindSignRequestBody>,
+    config: &State<Config>,
+) -> Json<BlindedSignatureResponse> {
+    let blind_sign_request =
+        BlindSignRequest::from_bs58(&blind_sign_request_body.blind_sign_request);
+    let public_key = PublicKey::from_bs58(&blind_sign_request_body.blind_sign_request);
+    let public_attributes: Vec<Attribute> = blind_sign_request_body
+        .public_attributes
+        .iter()
+        .map(|x| Attribute::from_bs58(x))
+        .collect();
+    let internal_request = InternalSignRequest::new(
+        blind_sign_request_body.total_params(),
+        public_attributes,
+        public_key,
+        blind_sign_request,
+    );
+    let blinded_signature = blind_sign(internal_request, config).to_bs58();
+    Json(BlindedSignatureResponse { blinded_signature })
 }
 
 fn override_config(mut config: Config, matches: &ArgMatches) -> Config {

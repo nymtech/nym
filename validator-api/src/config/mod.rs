@@ -3,8 +3,10 @@
 
 use crate::config::template::config_template;
 use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
+use coconut_rs::KeyPair;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -72,6 +74,8 @@ pub struct Base {
 
     /// Address of the validator contract managing the network
     mixnet_contract_address: String,
+    // Avoid breaking derives for now
+    keypair_bytes: Vec<u8>,
 }
 
 impl Default for Base {
@@ -82,6 +86,7 @@ impl Default for Base {
                 .map(|&endpoint| endpoint.to_string())
                 .collect(),
             mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
+            keypair_bytes: vec![],
         }
     }
 }
@@ -202,6 +207,10 @@ impl Config {
         Config::default()
     }
 
+    pub fn keypair(&self) -> KeyPair {
+        KeyPair::try_from(self.base.keypair_bytes.as_slice()).unwrap()
+    }
+
     pub fn enabled_network_monitor(mut self, enabled: bool) -> Self {
         self.network_monitor.enabled = enabled;
         self
@@ -229,6 +238,11 @@ impl Config {
 
     pub fn with_custom_mixnet_contract<S: Into<String>>(mut self, mixnet_contract: S) -> Self {
         self.base.mixnet_contract_address = mixnet_contract.into();
+        self
+    }
+
+    pub fn with_keypair(mut self, path: &str) -> Self {
+        self.base.keypair_bytes = hex::decode(std::fs::read_to_string(path).unwrap()).unwrap();
         self
     }
 

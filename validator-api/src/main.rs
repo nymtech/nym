@@ -143,12 +143,12 @@ async fn post_blind_sign(
     config: &State<Config>,
 ) -> Json<BlindedSignatureResponse> {
     let blind_sign_request =
-        BlindSignRequest::from_bs58(&blind_sign_request_body.blind_sign_request);
-    let public_key = PublicKey::from_bs58(&blind_sign_request_body.blind_sign_request);
+        BlindSignRequest::try_from_bs58(&blind_sign_request_body.blind_sign_request).unwrap();
+    let public_key = PublicKey::try_from_bs58(&blind_sign_request_body.blind_sign_request).unwrap();
     let public_attributes: Vec<Attribute> = blind_sign_request_body
         .public_attributes
         .iter()
-        .map(|x| Attribute::from_bs58(x))
+        .map(|x| Attribute::try_from_bs58(x).unwrap())
         .collect();
     let internal_request = InternalSignRequest::new(
         blind_sign_request_body.total_params(),

@@ -196,6 +196,11 @@ impl Monitor {
     }
 
     pub(crate) async fn run(&mut self) {
+        // wait for validator cache to be ready
+        self.packet_preparer
+            .wait_for_validator_cache_initial_values()
+            .await;
+
         // start from 0 to run test immediately on startup
         let test_delay = sleep(Duration::from_secs(0));
         tokio::pin!(test_delay);

@@ -17,6 +17,7 @@ use mixnet_contract::{GatewayBond, MixNodeBond};
 use rocket::fairing::AdHoc;
 use serde::Serialize;
 use std::ops::Deref;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
@@ -44,6 +45,7 @@ impl ValidatorCache {
 }
 
 struct ValidatorCacheInner {
+    initialised: AtomicBool,
     mixnodes: RwLock<Cache<Vec<MixNodeBond>>>,
     gateways: RwLock<Cache<Vec<GatewayBond>>>,
 }
@@ -68,9 +70,8 @@ impl<T: Clone> Cache<T> {
         self.value
     }
 
-    #[allow(dead_code)]
-    pub fn get(&self) -> T {
-        self.value.clone()
+    pub fn get(&self) -> &T {
+        &self.value
     }
 }
 
@@ -86,18 +87,24 @@ impl ValidatorCacheRefresher {
 
         ValidatorCacheRefresher {
             validator_client,
-            caching_interval,
             cache,
+            caching_interval,
         }
     }
 
     async fn refresh_cache(&self) -> Result<()> {
-        let (mixnodes, gateways) = tokio::join!(
+        let (mixnodes, gateways) = tokio::try_join!(
             self.validator_client.get_mix_nodes(),
             self.validator_client.get_gateways()
+        )?;
+
+        info!(
+            "Updating validator cache. There are {} mixnodes and {} gateways",
+            mixnodes.len(),
+            gateways.len()
         );
 
-        self.cache.update_cache(mixnodes?, gateways?).await;
+        self.cache.update_cache(mixnodes, gateways).await;
 
         Ok(())
     }
@@ -108,6 +115,11 @@ impl ValidatorCacheRefresher {
             interval.tick().await;
             if let Err(err) = self.refresh_cache().await {
                 error!("Failed to refresh validator cache - {}", err);
+            } else {
+                // relaxed memory ordering is fine here. worst case scenario network monitor
+                // will just have to wait for an additional backoff to see the change.
+                // And so this will not really incur any performance penalties by setting it every loop iteration
+                self.cache.inner.initialised.store(true, Ordering::Relaxed)
             }
         }
     }
@@ -140,11 +152,16 @@ impl ValidatorCache {
     pub async fn gateways(&self) -> Cache<Vec<GatewayBond>> {
         self.inner.gateways.read().await.clone()
     }
+
+    pub fn initialised(&self) -> bool {
+        self.inner.initialised.load(Ordering::Relaxed)
+    }
 }
 
 impl ValidatorCacheInner {
     fn new() -> Self {
         ValidatorCacheInner {
+            initialised: AtomicBool::new(false),
             mixnodes: RwLock::new(Cache::default()),
             gateways: RwLock::new(Cache::default()),
         }

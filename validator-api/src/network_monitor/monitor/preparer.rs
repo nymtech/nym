@@ -24,12 +24,8 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::forwarding::packet::MixPacket;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
+use std::time::Duration;
 use topology::{gateway, mix};
-
-// #[derive(Debug)]
-// pub(super) enum PacketPreparerError {
-//     ValidatorClientError(ValidatorClientError),
-// }
 
 // declared type aliases for easier code reasoning
 type Version = String;
@@ -179,6 +175,18 @@ impl PacketPreparer {
             test_mixnode_sender,
             self_public_identity,
             self_public_encryption,
+        }
+    }
+
+    pub(crate) async fn wait_for_validator_cache_initial_values(&self) {
+        let initialisation_backoff = Duration::from_secs(10);
+        loop {
+            if self.validator_cache.initialised() {
+                break;
+            } else {
+                debug!("Validator cache hasn't been initialised yet - waiting for {:?} before trying again", initialisation_backoff);
+                tokio::time::sleep(initialisation_backoff).await;
+            }
         }
     }
 

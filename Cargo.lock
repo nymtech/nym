@@ -195,19 +195,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98fcd36dda4e17b7d7abc64cb549bf0201f4ab71e00700c798ca7e62ed3761fa"
 dependencies = [
  "funty",
- "radium 0.3.0",
- "wyz",
-]
-
-[[package]]
-name = "bitvec"
-version = "0.20.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7774144344a4faa177370406a7ff5f1da24303817368584c6206c8303eb07848"
-dependencies = [
- "funty",
- "radium 0.6.2",
- "tap",
+ "radium",
  "wyz",
 ]
 
@@ -286,12 +274,12 @@ checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "bls12_381"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c56609cc42c628848e7b18e0baf42a4ef626b8c50442dc08b8094bd21d8ad32"
+checksum = "54757888b09a69be70b5ec303e382a74227392086ba808cb01eeca29233a2397"
 dependencies = [
- "ff 0.9.0",
- "group 0.9.0",
+ "ff 0.10.0",
+ "group 0.10.0",
  "pairing",
  "rand_core 0.6.3",
  "subtle 2.4.1",
@@ -412,13 +400,14 @@ dependencies = [
 [[package]]
 name = "coconut-rs"
 version = "0.3.0"
+source = "git+https://github.com/nymtech/coconut.git?branch=base58-trait#714f7021d77cc5a58c211674dfaefd85ac4fb396"
 dependencies = [
  "bls12_381",
  "bs58 0.4.0",
  "digest 0.9.0",
- "ff 0.9.0",
+ "ff 0.10.0",
  "getrandom 0.2.3",
- "group 0.9.0",
+ "group 0.10.0",
  "itertools",
  "rand 0.8.4",
  "sha2 0.9.5",
@@ -862,7 +851,7 @@ version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2db227e61a43a34915680bdda462ec0e212095518020a88a1f91acd16092c39"
 dependencies = [
- "bitvec 0.18.5",
+ "bitvec",
  "digest 0.9.0",
  "ff 0.8.0",
  "funty",
@@ -908,18 +897,17 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "01646e077d4ebda82b73f1bca002ea1e91561a77df2431a9e79729bcc31950ef"
 dependencies = [
- "bitvec 0.18.5",
+ "bitvec",
  "rand_core 0.5.1",
  "subtle 2.4.1",
 ]
 
 [[package]]
 name = "ff"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72a4d941a5b7c2a75222e2d44fcdf634a67133d9db31e177ae5ff6ecda852bfe"
+checksum = "63eec06c61e487eecf0f7e6e6372e596a81922c28d33e645d6983ca6493a1af0"
 dependencies = [
- "bitvec 0.20.4",
  "rand_core 0.6.3",
  "subtle 2.4.1",
 ]
@@ -1213,12 +1201,12 @@ dependencies = [
 
 [[package]]
 name = "group"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61b3c1e8b4f1ca07e6605ea1be903a5f6956aec5c8a67fd44d56076631675ed8"
+checksum = "1c363a5301b8f153d80747126a04b3c82073b9fe3130571a9d170cacdeaf7912"
 dependencies = [
  "byteorder",
- "ff 0.9.0",
+ "ff 0.10.0",
  "rand_core 0.6.3",
  "subtle 2.4.1",
 ]
@@ -2152,12 +2140,11 @@ dependencies = [
 
 [[package]]
 name = "pairing"
-version = "0.19.0"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9be899ebf10363f018353dba1baabb7e83145f3683c7b83b73b93b563e3167cc"
+checksum = "7de9d09263c9966e8196fe0380c9dbbc7ea114b5cf371ba29004bc1f9c6db7f3"
 dependencies = [
- "ff 0.9.0",
- "group 0.9.0",
+ "group 0.10.0",
 ]
 
 [[package]]
@@ -2447,12 +2434,6 @@ name = "radium"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "def50a86306165861203e7f84ecffbbdfdea79f0e51039b33de1e952358c47ac"
-
-[[package]]
-name = "radium"
-version = "0.6.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "643f8f41a8ebc4c5dc4515c82bb8abd397b527fc20fd681b7c011c2aee5d44fb"
 
 [[package]]
 name = "rand"
@@ -3281,12 +3262,6 @@ dependencies = [
  "syn",
  "unicode-xid",
 ]
-
-[[package]]
-name = "tap"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "tempfile"

@@ -37,7 +37,7 @@ anyhow = "1"
 getset = "0.1.1"
 hex = "0.4.3"
 
-coconut-rs = { path = "/Users/drazen/nym/coconut/coconut-rs" }
+coconut-rs = { git = "https://github.com/nymtech/coconut.git", branch = "base58-trait" }
 
 ## internal
 config = { path = "../common/config" }

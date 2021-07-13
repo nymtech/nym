@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::cache::ValidatorCache;
 use crate::network_monitor::chunker::Chunker;
 use crate::network_monitor::monitor::sender::GatewayPackets;
 use crate::network_monitor::test_packet::{NodeType, TestPacket};
@@ -24,12 +25,11 @@ use nymsphinx::forwarding::packet::MixPacket;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use topology::{gateway, mix};
-use validator_client::ValidatorClientError;
 
-#[derive(Debug)]
-pub(super) enum PacketPreparerError {
-    ValidatorClientError(ValidatorClientError),
-}
+// #[derive(Debug)]
+// pub(super) enum PacketPreparerError {
+//     ValidatorClientError(ValidatorClientError),
+// }
 
 // declared type aliases for easier code reasoning
 type Version = String;
@@ -153,7 +153,7 @@ pub(crate) struct PreparedPackets {
 
 pub(crate) struct PacketPreparer {
     chunker: Chunker,
-    validator_client: validator_client::Client,
+    validator_cache: ValidatorCache,
     tested_network: TestedNetwork,
 
     // currently all test MIXNODE packets are sent via the same gateway
@@ -166,7 +166,7 @@ pub(crate) struct PacketPreparer {
 
 impl PacketPreparer {
     pub(crate) fn new(
-        validator_client: validator_client::Client,
+        validator_cache: ValidatorCache,
         tested_network: TestedNetwork,
         test_mixnode_sender: Recipient,
         self_public_identity: identity::PublicKey,
@@ -174,7 +174,7 @@ impl PacketPreparer {
     ) -> Self {
         PacketPreparer {
             chunker: Chunker::new(test_mixnode_sender),
-            validator_client,
+            validator_cache,
             tested_network,
             test_mixnode_sender,
             self_public_identity,
@@ -182,32 +182,15 @@ impl PacketPreparer {
         }
     }
 
-    async fn get_network_nodes(
-        &mut self,
-    ) -> Result<(Vec<MixNodeBond>, Vec<GatewayBond>), PacketPreparerError> {
+    async fn get_network_nodes(&mut self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {
         info!(target: "Monitor", "Obtaining network topology...");
 
-        let mixnodes = match self.validator_client.get_mix_nodes().await {
-            Err(err) => {
-                error!("failed to get network mixnodes - {}", err);
-                return Err(PacketPreparerError::ValidatorClientError(err));
-            }
-            Ok(mixes) => mixes,
-        };
-
-        let gateways = match self.validator_client.get_gateways().await {
-            Err(err) => {
-                error!("failed to get network gateways - {}", err);
-                return Err(PacketPreparerError::ValidatorClientError(err));
-            }
-            Ok(gateways) => gateways,
-        };
-
-        // panic!("finished getting nodes");
+        let mixnodes = self.validator_cache.mixnodes().await.into_inner();
+        let gateways = self.validator_cache.gateways().await.into_inner();
 
         info!(target: "Monitor", "Obtained network topology");
 
-        Ok((mixnodes, gateways))
+        (mixnodes, gateways)
     }
 
     fn check_version_compatibility(&self, mix_version: &str) -> bool {
@@ -437,11 +420,8 @@ impl PacketPreparer {
         packets
     }
 
-    pub(super) async fn prepare_test_packets(
-        &mut self,
-        nonce: u64,
-    ) -> Result<PreparedPackets, PacketPreparerError> {
-        let (mixnode_bonds, gateway_bonds) = self.get_network_nodes().await?;
+    pub(super) async fn prepare_test_packets(&mut self, nonce: u64) -> PreparedPackets {
+        let (mixnode_bonds, gateway_bonds) = self.get_network_nodes().await;
 
         let mut invalid_nodes = Vec::new();
         let mixes = self.prepare_mixnodes(nonce, &mixnode_bonds);
@@ -483,10 +463,10 @@ impl PacketPreparer {
             gateway_packets.push(main_gateway_packets);
         }
 
-        Ok(PreparedPackets {
+        PreparedPackets {
             packets: gateway_packets,
             tested_nodes,
             invalid_nodes,
-        })
+        }
     }
 }

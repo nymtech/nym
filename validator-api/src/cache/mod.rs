@@ -16,6 +16,7 @@ use anyhow::Result;
 use mixnet_contract::{GatewayBond, MixNodeBond};
 use rocket::fairing::AdHoc;
 use serde::Serialize;
+use std::ops::Deref;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
@@ -24,15 +25,27 @@ use validator_client::Client;
 
 pub(crate) mod routes;
 
+pub struct ValidatorCacheRefresher {
+    validator_client: Client,
+    cache: ValidatorCache,
+    caching_interval: Duration,
+}
+
 #[derive(Clone)]
 pub struct ValidatorCache {
     inner: Arc<ValidatorCacheInner>,
 }
 
+impl ValidatorCache {
+    // it's identical to normal 'clone', but I guess it's slightly more explicit in code
+    pub fn clone_data_pointer(&self) -> Self {
+        self.clone()
+    }
+}
+
 struct ValidatorCacheInner {
     mixnodes: RwLock<Cache<Vec<MixNodeBond>>>,
     gateways: RwLock<Cache<Vec<GatewayBond>>>,
-    validator_client: Client,
 }
 
 #[derive(Default, Serialize, Clone)]
@@ -51,52 +64,46 @@ impl<T: Clone> Cache<T> {
             .as_secs()
     }
 
+    pub fn into_inner(self) -> T {
+        self.value
+    }
+
     #[allow(dead_code)]
     pub fn get(&self) -> T {
         self.value.clone()
     }
 }
 
-impl ValidatorCache {
-    fn init(validators_rest_uris: Vec<String>, mixnet_contract: String) -> Self {
-        ValidatorCache {
-            inner: Arc::new(ValidatorCacheInner::init(
-                validators_rest_uris,
-                mixnet_contract,
-            )),
+impl ValidatorCacheRefresher {
+    pub(crate) fn new(
+        validators_rest_uris: Vec<String>,
+        mixnet_contract: String,
+        caching_interval: Duration,
+        cache: ValidatorCache,
+    ) -> Self {
+        let config = validator_client::Config::new(validators_rest_uris, mixnet_contract);
+        let validator_client = validator_client::Client::new(config);
+
+        ValidatorCacheRefresher {
+            validator_client,
+            caching_interval,
+            cache,
         }
     }
 
-    pub fn stage(validators_rest_uris: Vec<String>, mixnet_contract: String) -> AdHoc {
-        AdHoc::on_ignite("Validator Cache Stage", |rocket| async {
-            rocket
-                .manage(Self::init(validators_rest_uris, mixnet_contract))
-                .mount("/v1", routes![routes::get_mixnodes, routes::get_gateways])
-        })
-    }
-
-    pub async fn refresh_cache(&self) -> Result<()> {
+    async fn refresh_cache(&self) -> Result<()> {
         let (mixnodes, gateways) = tokio::join!(
-            self.inner.validator_client.get_mix_nodes(),
-            self.inner.validator_client.get_gateways()
+            self.validator_client.get_mix_nodes(),
+            self.validator_client.get_gateways()
         );
 
-        self.inner.mixnodes.write().await.set(mixnodes?);
-        self.inner.gateways.write().await.set(gateways?);
+        self.cache.update_cache(mixnodes?, gateways?).await;
 
         Ok(())
     }
 
-    pub async fn mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
-        self.inner.mixnodes.read().await.clone()
-    }
-
-    pub async fn gateways(&self) -> Cache<Vec<GatewayBond>> {
-        self.inner.gateways.read().await.clone()
-    }
-
-    pub async fn run(&self, caching_interval: Duration) {
-        let mut interval = time::interval(caching_interval);
+    pub(crate) async fn run(&self) {
+        let mut interval = time::interval(self.caching_interval);
         loop {
             interval.tick().await;
             if let Err(err) = self.refresh_cache().await {
@@ -106,15 +113,40 @@ impl ValidatorCache {
     }
 }
 
-impl ValidatorCacheInner {
-    fn init(validators_rest_uris: Vec<String>, mixnet_contract: String) -> Self {
-        let config = validator_client::Config::new(validators_rest_uris, mixnet_contract);
-        let validator_client = validator_client::Client::new(config);
+impl ValidatorCache {
+    fn new() -> Self {
+        ValidatorCache {
+            inner: Arc::new(ValidatorCacheInner::new()),
+        }
+    }
 
+    pub fn stage() -> AdHoc {
+        AdHoc::on_ignite("Validator Cache Stage", |rocket| async {
+            rocket
+                .manage(Self::new())
+                .mount("/v1", routes![routes::get_mixnodes, routes::get_gateways])
+        })
+    }
+
+    async fn update_cache(&self, mixnodes: Vec<MixNodeBond>, gateways: Vec<GatewayBond>) {
+        self.inner.mixnodes.write().await.set(mixnodes);
+        self.inner.gateways.write().await.set(gateways);
+    }
+
+    pub async fn mixnodes(&self) -> Cache<Vec<MixNodeBond>> {
+        self.inner.mixnodes.read().await.clone()
+    }
+
+    pub async fn gateways(&self) -> Cache<Vec<GatewayBond>> {
+        self.inner.gateways.read().await.clone()
+    }
+}
+
+impl ValidatorCacheInner {
+    fn new() -> Self {
         ValidatorCacheInner {
             mixnodes: RwLock::new(Cache::default()),
             gateways: RwLock::new(Cache::default()),
-            validator_client,
         }
     }
 }

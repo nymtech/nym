@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::cache::ValidatorCache;
 use crate::config::Config;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::{
@@ -45,6 +46,7 @@ pub(crate) fn new_monitor_runnables(
     v4_topology: NymTopology,
     v6_topology: NymTopology,
     node_status_storage: NodeStatusStorage,
+    validator_cache: ValidatorCache,
 ) -> NetworkMonitorRunnables {
     // TODO: in the future I guess this should somehow change to distribute the load
     let tested_mix_gateway = v4_topology.gateways()[0].clone();
@@ -69,17 +71,12 @@ pub(crate) fn new_monitor_runnables(
         tested_mix_gateway.identity_key,
     );
 
-    let validator_client = new_validator_client(
-        config.get_validators_urls(),
-        &config.get_mixnet_contract_address(),
-    );
-
     let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
     let (received_processor_sender_channel, received_processor_receiver_channel) =
         mpsc::unbounded();
 
     let packet_preparer = new_packet_preparer(
-        validator_client,
+        validator_cache,
         tested_network.clone(),
         test_mixnode_sender,
         *identity_keypair.public_key(),
@@ -122,14 +119,14 @@ pub(crate) fn new_monitor_runnables(
 }
 
 fn new_packet_preparer(
-    validator_client: validator_client::Client,
+    validator_cache: ValidatorCache,
     tested_network: TestedNetwork,
     test_mixnode_sender: Recipient,
     self_public_identity: identity::PublicKey,
     self_public_encryption: encryption::PublicKey,
 ) -> PacketPreparer {
     PacketPreparer::new(
-        validator_client,
+        validator_cache,
         tested_network,
         test_mixnode_sender,
         self_public_identity,
@@ -219,12 +216,4 @@ pub(crate) fn check_if_up_to_date(v4_topology: &NymTopology, v6_topology: &NymTo
             )
         }
     }
-}
-
-fn new_validator_client(
-    validator_rest_uris: Vec<String>,
-    mixnet_contract: &str,
-) -> validator_client::Client {
-    let config = validator_client::Config::new(validator_rest_uris, mixnet_contract);
-    validator_client::Client::new(config)
 }

@@ -217,7 +217,9 @@ async fn main() -> Result<()> {
             config.get_validators_urls(),
             config.get_mixnet_contract_address(),
         ))
-        .attach(node_status_api::stage()) // manages state, creates routes, etc
+        .attach(node_status_api::stage(
+            config.get_node_status_api_database_path(),
+        )) // manages state, creates routes, etc
         .ignite()
         .await?;
 

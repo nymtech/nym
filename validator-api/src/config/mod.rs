@@ -167,12 +167,21 @@ impl Default for NetworkMonitor {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct NodeStatusAPI {
-    // does not yet exist
+    /// Path to the database file containing uptime statuses for all mixnodes and gateways.
+    database_path: PathBuf,
+}
+
+impl NodeStatusAPI {
+    fn default_database_path() -> PathBuf {
+        Config::default_data_directory(None).join("db.sqlite")
+    }
 }
 
 impl Default for NodeStatusAPI {
     fn default() -> Self {
-        NodeStatusAPI {}
+        NodeStatusAPI {
+            database_path: Self::default_database_path(),
+        }
     }
 }
 
@@ -251,6 +260,11 @@ impl Config {
         self
     }
 
+    pub fn with_node_status_api_database_path<P: AsRef<Path>>(mut self, path: P) -> Self {
+        self.node_status_api.database_path = path.as_ref().to_path_buf();
+        self
+    }
+
     pub fn get_network_monitor_enabled(&self) -> bool {
         self.network_monitor.enabled
     }
@@ -305,5 +319,9 @@ impl Config {
 
     pub fn get_caching_interval(&self) -> Duration {
         self.topology_cacher.caching_interval
+    }
+
+    pub fn get_node_status_api_database_path(&self) -> PathBuf {
+        self.node_status_api.database_path.clone()
     }
 }

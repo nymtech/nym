@@ -59,5 +59,10 @@ gateway_connection_timeout = '{{ network_monitor.gateway_connection_timeout }}'
 # packets before declaring nodes unreachable.
 packet_delivery_timeout = '{{ network_monitor.packet_delivery_timeout }}'
     
+[node_status_api]
+
+# Path to the database file containing uptime statuses for all mixnodes and gateways.
+database_path = '{{ node_status_api.database_path }}'
+
 "#
 }

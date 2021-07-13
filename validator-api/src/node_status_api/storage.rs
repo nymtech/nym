@@ -13,6 +13,7 @@ use rocket::{Build, Rocket};
 use sqlx::types::time::OffsetDateTime;
 use sqlx::ConnectOptions;
 use std::convert::TryFrom;
+use std::path::PathBuf;
 
 // A type alias to be more explicit about type of timestamp used.
 type UnixTimestamp = i64;
@@ -33,21 +34,11 @@ struct NodeStatusStorageInner {
 }
 
 impl NodeStatusStorage {
-    async fn init(rocket: Rocket<Build>) -> fairing::Result {
-        use rocket_sync_db_pools::Config;
-
-        let config = match Config::from("node-status-api-db", &rocket) {
-            Ok(config) => config,
-            Err(e) => {
-                error!("Failed to read SQLx config: {}", e);
-                return Err(rocket);
-            }
-        };
-
-        // TODO: if needed we can inject more stuff here based on our validator-api global config
+    async fn init(rocket: Rocket<Build>, database_path: PathBuf) -> fairing::Result {
+        // TODO: we can inject here more stuff based on our validator-api global config
         // struct. Maybe different pool size or timeout intervals?
         let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
-            .filename(&config.url)
+            .filename(&database_path)
             .create_if_missing(true);
 
         // TODO: do we want auto_vacuum ?
@@ -76,8 +67,10 @@ impl NodeStatusStorage {
         Ok(rocket.manage(storage))
     }
 
-    pub(crate) fn stage() -> AdHoc {
-        AdHoc::try_on_ignite("SQLx Database", NodeStatusStorage::init)
+    pub(crate) fn stage(database_path: PathBuf) -> AdHoc {
+        AdHoc::try_on_ignite("SQLx Database", |rocket| {
+            NodeStatusStorage::init(rocket, database_path)
+        })
     }
 
     /// Gets all statuses for particular mixnode (ipv4 and ipv6) that were inserted in last 24h.

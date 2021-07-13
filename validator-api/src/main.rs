@@ -4,10 +4,14 @@
 #[macro_use]
 extern crate rocket;
 
+use coconut::{blind_sign, InternalSignRequest};
+use coconut_rs::{Attribute, Base58, BlindSignRequest, PublicKey};
+use getset::CopyGetters;
 use rocket::http::Method;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
+use serde::{Deserialize, Serialize};
 
 use crate::config::Config;
 use crate::monitor::preparer::PacketPreparer;
@@ -37,6 +41,7 @@ use topology::NymTopology;
 
 mod cache;
 mod chunker;
+mod coconut;
 mod config;
 pub(crate) mod gateways_reader;
 mod monitor;
@@ -53,6 +58,7 @@ const DETAILED_REPORT_ARG: &str = "detailed-report";
 const GATEWAY_SENDING_RATE_ARG: &str = "gateway-rate";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
 const CACHE_INTERVAL_ARG: &str = "cache-interval";
+const SECRET_KEY_ARG: &str = "secret-key";
 
 pub(crate) const PENALISE_OUTDATED: bool = false;
 
@@ -105,11 +111,14 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             .takes_value(true)
             .long(GATEWAY_SENDING_RATE_ARG)
             .short("r")
-        )
-        .arg(Arg::with_name(CACHE_INTERVAL_ARG)
-        .help("Specified rate, in seconds, at which cache will be refreshed, global for all cache")
-        .takes_value(true)
-        .long(CACHE_INTERVAL_ARG))
+        ).arg(Arg::with_name(CACHE_INTERVAL_ARG)
+            .help("Specified rate, in seconds, at which cache will be refreshed, global for all cache")
+            .takes_value(true)
+            .long(CACHE_INTERVAL_ARG))
+        .arg(Arg::with_name(SECRET_KEY_ARG)
+            .help("Path to the secret key file")
+            .takes_value(true)
+            .long(SECRET_KEY_ARG))
         .get_matches()
 }
 
@@ -265,6 +274,45 @@ async fn get_mixnodes(cache: &State<Arc<ValidatorCache>>) -> Json<Cache<Vec<MixN
 #[get("/gateways")]
 async fn get_gateways(cache: &State<Arc<ValidatorCache>>) -> Json<Cache<Vec<GatewayBond>>> {
     Json(cache.gateways().await)
+}
+
+//  All strings are base58 encoded representations of structs
+#[derive(Deserialize, CopyGetters)]
+struct BlindSignRequestBody {
+    blind_sign_request: String,
+    public_key: String,
+    public_attributes: Vec<String>,
+    #[getset(get_copy)]
+    total_params: u32,
+}
+
+#[derive(Serialize)]
+struct BlindedSignatureResponse {
+    blinded_signature: String,
+}
+
+#[post("/blind_sign", data = "<blind_sign_request_body>")]
+//  Until we have serialization and deserialization traits we'll be using a crutch
+async fn post_blind_sign(
+    blind_sign_request_body: Json<BlindSignRequestBody>,
+    config: &State<Config>,
+) -> Json<BlindedSignatureResponse> {
+    let blind_sign_request =
+        BlindSignRequest::from_bs58(&blind_sign_request_body.blind_sign_request);
+    let public_key = PublicKey::from_bs58(&blind_sign_request_body.blind_sign_request);
+    let public_attributes: Vec<Attribute> = blind_sign_request_body
+        .public_attributes
+        .iter()
+        .map(|x| Attribute::from_bs58(x))
+        .collect();
+    let internal_request = InternalSignRequest::new(
+        blind_sign_request_body.total_params(),
+        public_attributes,
+        public_key,
+        blind_sign_request,
+    );
+    let blinded_signature = blind_sign(internal_request, config).to_bs58();
+    Json(BlindedSignatureResponse { blinded_signature })
 }
 
 fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
@@ -446,8 +494,10 @@ async fn main() -> Result<()> {
 
     let write_validator_cache = Arc::clone(&validator_cache);
 
+    let caching_interval = config.get_caching_interval();
+
     tokio::spawn(async move {
-        let mut interval = time::interval(config.get_caching_interval());
+        let mut interval = time::interval(caching_interval);
         loop {
             interval.tick().await;
             write_validator_cache.refresh_cache().await.unwrap()
@@ -471,8 +521,9 @@ async fn main() -> Result<()> {
 
     rocket::build()
         .attach(cors)
-        .mount("/v1", routes![get_mixnodes, get_gateways])
+        .mount("/v1", routes![get_mixnodes, get_gateways, post_blind_sign])
         .manage(validator_cache)
+        .manage(config)
         .ignite()
         .await?
         .launch()

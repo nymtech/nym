@@ -6,7 +6,7 @@ import * as fs from 'fs';
 async function newClient(): Promise<ValidatorClient> {
     let contract = "fakeContractAddress"; // we don't have one yet
     let mnemonic = "";
-    let admin = ValidatorClient.connect(contract, mnemonic, "http://docker_genesis_validator_1:26657", "uhal");
+    let admin = ValidatorClient.connect(contract, mnemonic, "http://genesis_validator:26657", "uhal");
     return admin;
 }
 
@@ -18,7 +18,7 @@ async function main() {
     let balance = await admin.getBalance(admin.address);
     console.log(`balance of admin account is: ${balance.amount}${balance.denom}`);
 
-    let wasm = fs.readFileSync("/mixnet_contracts.wasm");
+    let wasm = fs.readFileSync("/nym/contracts/mixnet/target/wasm32-unknown-unknown/release/mixnet_contracts.wasm");
     console.log("wasm loaded");
 
     // dave can upload (note: nobody else can)

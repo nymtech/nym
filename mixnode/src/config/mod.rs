@@ -20,10 +20,10 @@ const DEFAULT_VERLOC_LISTENING_PORT: u16 = 1790;
 const DEFAULT_HTTP_API_LISTENING_PORT: u16 = 8000;
 
 pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
-    "http://testnet-finney-validator.nymtech.net:1317",
-    "http://testnet-finney-validator2.nymtech.net:1317",
+    "http://testnet-milhon-validator1.nymtech.net:1317",
+    "http://testnet-milhon-validator2.nymtech.net:1317",
 ];
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk18vd8fpwxzck93qlwghaj6arh4p7c5n89m7r3lj";
 
 // 'RTT MEASUREMENT'
 const DEFAULT_PACKETS_PER_NODE: usize = 100;

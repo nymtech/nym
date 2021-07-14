@@ -24,11 +24,10 @@ pub const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'CLIENT'
 pub const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
-    "http://testnet-finney-validator.nymtech.net:1317",
-    "http://testnet-finney-validator2.nymtech.net:1317",
-    "http://mixnet.club:1317",
+    "http://testnet-milhon-validator1.nymtech.net:1317",
+    "http://testnet-milhon-validator2.nymtech.net:1317",
 ];
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk18vd8fpwxzck93qlwghaj6arh4p7c5n89m7r3lj";
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;

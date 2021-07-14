@@ -21,23 +21,52 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      # main repo
       - uses: actions-rs/cargo@v1
         with:
           command: build
           args: --all
 
+      # validator API
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path validator-api/Cargo.toml
+
+      # main repo
       - uses: actions-rs/cargo@v1
         with:
           command: test
           args: --all
 
+      # validator API
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path validator-api/Cargo.toml
+
+      # main repo
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check
 
+      # validator API
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path validator-api/Cargo.toml  -- --check
+
+      # main repo
       - uses: actions-rs/cargo@v1
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: -- -D warnings 
+          args: -- -D warnings
+
+      # validator API
+      - uses: actions-rs/cargo@v1
+        if: ${{ matrix.rust != 'nightly' }}
+        with:
+          command: clippy
+          args: --manifest-path validator-api/Cargo.toml -- -D warnings

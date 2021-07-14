@@ -18,10 +18,10 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
 pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
-    "http://testnet-finney-validator.nymtech.net:1317",
-    "http://testnet-finney-validator2.nymtech.net:1317",
+    "http://testnet-milhon-validator.nymtech.net:1317",
+    "http://testnet-milhon-validator2.nymtech.net:1317",
 ];
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk18vd8fpwxzck93qlwghaj6arh4p7c5n89m7r3lj";
 
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
@@ -172,7 +172,7 @@ impl Config {
                 listening_address_string
             )
         }
-        self
+        selfconfig
     }
 
     pub fn with_announce_address<S: Into<String>>(mut self, announce_address: S) -> Self {

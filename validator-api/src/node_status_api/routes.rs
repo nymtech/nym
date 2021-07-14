@@ -16,11 +16,15 @@ pub(crate) async fn rewarding_chores(
     _local_request: LocalRequest,
     storage: &State<NodeStatusStorage>,
 ) -> Result<&'static str, ErrorResponse> {
-    storage
+    if storage
         .daily_chores()
         .await
-        .map_err(|err| ErrorResponse::new(err, Status::InternalServerError))?;
-    Ok("Updated historical uptimes and purged old reports.")
+        .map_err(|err| ErrorResponse::new(err, Status::InternalServerError))?
+    {
+        Ok("Updated historical uptimes and purged old reports.")
+    } else {
+        Ok("The historical uptimes were already updated at some point today - nothing was done now.")
+    }
 }
 
 #[get("/mixnode/<pubkey>/report")]

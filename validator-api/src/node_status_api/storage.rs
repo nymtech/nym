@@ -403,6 +403,16 @@ impl NodeStatusStorage {
         Ok(())
     }
 
+    async fn check_if_historical_uptimes_exist_for_date(
+        &self,
+        date_iso_8601: &str,
+    ) -> Result<bool, NodeStatusApiError> {
+        self.inner
+            .check_for_historical_uptime_existence(date_iso_8601)
+            .await
+            .map_err(|_| NodeStatusApiError::InternalDatabaseError)
+    }
+
     // Called on timer/reward script
     async fn purge_old_statuses(&self) -> Result<(), NodeStatusApiError> {
         self.inner
@@ -411,10 +421,23 @@ impl NodeStatusStorage {
             .map_err(|_| NodeStatusApiError::InternalDatabaseError)
     }
 
-    pub(crate) async fn daily_chores(&self) -> Result<(), NodeStatusApiError> {
-        info!("Updating historical daily uptimes of all nodes and purging old status reports...");
-        self.update_historical_uptimes().await?;
-        self.purge_old_statuses().await
+    pub(crate) async fn daily_chores(&self) -> Result<bool, NodeStatusApiError> {
+        let today_iso_8601 = OffsetDateTime::now_utc().date().to_string();
+
+        // if we have already performed the update for today's date, don't do anything
+        if self
+            .check_if_historical_uptimes_exist_for_date(&today_iso_8601)
+            .await?
+        {
+            Ok(false)
+        } else {
+            info!(
+                "Updating historical daily uptimes of all nodes and purging old status reports..."
+            );
+            self.update_historical_uptimes(&today_iso_8601).await?;
+            self.purge_old_statuses().await?;
+            Ok(true)
+        }
     }
 }
 
@@ -939,6 +962,20 @@ impl NodeStatusStorageInner {
 
         // finally commit the transaction
         tx.commit().await
+    }
+
+    /// Checks whether there are already any historical uptimes with this particular date.
+    async fn check_for_historical_uptime_existence(
+        &self,
+        today_iso_8601: &str,
+    ) -> Result<bool, sqlx::Error> {
+        sqlx::query!(
+            "SELECT EXISTS (SELECT 1 FROM mixnode_historical_uptime WHERE date = ?) AS 'exists'",
+            today_iso_8601
+        )
+        .fetch_one(&self.connection_pool)
+        .await
+        .map(|result| result.exists == 1)
     }
 
     /// Creates new entry for mixnode historical uptime

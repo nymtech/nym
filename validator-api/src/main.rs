@@ -5,7 +5,6 @@
 extern crate rocket;
 
 use crate::cache::ValidatorCacheRefresher;
-use coconut::{blind_sign, InternalSignRequest};
 use coconut_rs::{Attribute, Base58, BlindSignRequest, PublicKey};
 use getset::CopyGetters;
 use serde::{Deserialize, Serialize};
@@ -119,45 +118,6 @@ fn setup_logging() {
         .filter_module("tungstenite", log::LevelFilter::Warn)
         .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
         .init();
-}
-
-//  All strings are base58 encoded representations of structs
-#[derive(Deserialize, CopyGetters)]
-struct BlindSignRequestBody {
-    blind_sign_request: String,
-    public_key: String,
-    public_attributes: Vec<String>,
-    #[getset(get_copy)]
-    total_params: u32,
-}
-
-#[derive(Serialize)]
-struct BlindedSignatureResponse {
-    blinded_signature: String,
-}
-
-#[post("/blind_sign", data = "<blind_sign_request_body>")]
-//  Until we have serialization and deserialization traits we'll be using a crutch
-async fn post_blind_sign(
-    blind_sign_request_body: Json<BlindSignRequestBody>,
-    config: &State<Config>,
-) -> Json<BlindedSignatureResponse> {
-    let blind_sign_request =
-        BlindSignRequest::try_from_bs58(&blind_sign_request_body.blind_sign_request).unwrap();
-    let public_key = PublicKey::try_from_bs58(&blind_sign_request_body.blind_sign_request).unwrap();
-    let public_attributes: Vec<Attribute> = blind_sign_request_body
-        .public_attributes
-        .iter()
-        .map(|x| Attribute::try_from_bs58(x).unwrap())
-        .collect();
-    let internal_request = InternalSignRequest::new(
-        blind_sign_request_body.total_params(),
-        public_attributes,
-        public_key,
-        blind_sign_request,
-    );
-    let blinded_signature = blind_sign(internal_request, config).to_bs58();
-    Json(BlindedSignatureResponse { blinded_signature })
 }
 
 fn override_config(mut config: Config, matches: &ArgMatches) -> Config {

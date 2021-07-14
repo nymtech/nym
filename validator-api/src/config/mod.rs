@@ -10,10 +10,10 @@ use std::time::Duration;
 mod template;
 
 const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
-    "http://testnet-finney-validator.nymtech.net:1317",
-    "http://testnet-finney-validator2.nymtech.net:1317",
+    "http://testnet-milhon-validator1.nymtech.net:1317",
+    "http://testnet-milhon-validator2.nymtech.net:1317",
 ];
-const DEFAULT_MIXNET_CONTRACT: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
+const DEFAULT_MIXNET_CONTRACT: &str = "punk18vd8fpwxzck93qlwghaj6arh4p7c5n89m7r3lj";
 
 const DEFAULT_NODE_STATUS_API: &str = "http://localhost:8081";
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;

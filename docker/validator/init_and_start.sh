@@ -1,7 +1,7 @@
 #!/bin/sh
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root
-BECH32_PREFIX=hal
+BECH32_PREFIX=punk
 PASSPHRASE=passphrase
 
 cd /root

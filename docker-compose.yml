@@ -25,12 +25,22 @@ services:
                 image: contract_uploader:typescript
                 volumes:
                         - "genesis_volume:/genesis_volume"
+                        - "contract_volume:/contract_volume"
                         - ".:/nym"
                 depends_on:
                         - "genesis_validator"
                         - "secondary_validator"
                         - "mixnet_contract"
+        wallet:
+                build: nym-wallet-web
+                image: wallet:latest
+                ports:
+                        - "3000:3000"
+                volumes:
+                        - "contract_volume:/contract_volume:ro"
+                depends_on:
+                        - "contract_uploader"
 
 volumes:
         genesis_volume:
-
+        contract_volume:

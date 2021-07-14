@@ -6,7 +6,7 @@ use crate::node_status_api::models::{
     GatewayStatusReport, GatewayUptimeHistory, HistoricalUptime, MixnodeStatusReport,
     MixnodeUptimeHistory, NodeStatusApiError, Uptime,
 };
-use crate::node_status_api::utils::{ActiveNodeDayStatuses, NodeStatus};
+use crate::node_status_api::utils::{ActiveNode, ActiveNodeDayStatuses, NodeStatus};
 use crate::node_status_api::ONE_DAY;
 use rocket::fairing::{self, AdHoc};
 use rocket::{Build, Rocket};
@@ -319,9 +319,10 @@ impl NodeStatusStorage {
     }
 
     // Called on timer/reward script
-    async fn update_historical_uptimes(&self) -> Result<(), NodeStatusApiError> {
-        let today_iso_8601 = OffsetDateTime::now_utc().date().to_string();
-
+    async fn update_historical_uptimes(
+        &self,
+        today_iso_8601: &str,
+    ) -> Result<(), NodeStatusApiError> {
         // get statuses for all active mixnodes...
         let active_mixnodes_statuses = self
             .inner
@@ -353,7 +354,7 @@ impl NodeStatusStorage {
             self.inner
                 .insert_mixnode_historical_uptime(
                     statuses.node_id,
-                    &today_iso_8601,
+                    today_iso_8601,
                     ipv4_uptime,
                     ipv6_uptime,
                 )
@@ -392,7 +393,7 @@ impl NodeStatusStorage {
             self.inner
                 .insert_gateway_historical_uptime(
                     statuses.node_id,
-                    &today_iso_8601,
+                    today_iso_8601,
                     ipv4_uptime,
                     ipv6_uptime,
                 )
@@ -648,12 +649,13 @@ impl NodeStatusStorageInner {
     async fn get_all_active_mixnodes(
         &self,
         timestamp: UnixTimestamp,
-    ) -> Result<Vec<(String, String, i64)>, sqlx::Error> {
+    ) -> Result<Vec<ActiveNode>, sqlx::Error> {
         // find mixnode details of all nodes that have had at least 1 ipv4 status since the provided
         // timestamp
         // TODO: I dont know if theres a potential issue of if we have a lot of inactive nodes that
         // haven't mixed in ages, they might increase the query times?
-        let pub_keys_owners = sqlx::query!(
+        sqlx::query_as!(
+            ActiveNode,
             r#"
                 SELECT DISTINCT pub_key, owner, id
                     FROM mixnode_details
@@ -666,12 +668,7 @@ impl NodeStatusStorageInner {
             timestamp
         )
         .fetch_all(&self.connection_pool)
-        .await?
-        .into_iter()
-        .filter_map(|row| row.id.map(|id| (row.pub_key, row.owner, id)))
-        .collect();
-
-        Ok(pub_keys_owners)
+        .await
     }
 
     // NOTE: this method will go away once we move payments into the validator-api
@@ -681,8 +678,9 @@ impl NodeStatusStorageInner {
     async fn get_all_active_gateways(
         &self,
         timestamp: UnixTimestamp,
-    ) -> Result<Vec<(String, String, i64)>, sqlx::Error> {
-        let pub_keys_owners = sqlx::query!(
+    ) -> Result<Vec<ActiveNode>, sqlx::Error> {
+        sqlx::query_as!(
+            ActiveNode,
             r#"
                 SELECT DISTINCT pub_key, owner, id
                     FROM gateway_details
@@ -695,12 +693,7 @@ impl NodeStatusStorageInner {
             timestamp
         )
         .fetch_all(&self.connection_pool)
-        .await?
-        .into_iter()
-        .filter_map(|row| row.id.map(|id| (row.pub_key, row.owner, id)))
-        .collect();
-
-        Ok(pub_keys_owners)
+        .await
     }
 
     /// Gets all ipv4 statuses for mixnode with particular id that were inserted
@@ -800,18 +793,18 @@ impl NodeStatusStorageInner {
         let active_nodes = self.get_all_active_mixnodes(day_ago).await?;
 
         let mut active_day_statuses = Vec::with_capacity(active_nodes.len());
-        for (pub_key, owner, id) in active_nodes.into_iter() {
+        for active_node in active_nodes.into_iter() {
             let ipv4_statuses = self
-                .get_mixnode_ipv4_statuses_since_by_id(id, day_ago)
+                .get_mixnode_ipv4_statuses_since_by_id(active_node.id, day_ago)
                 .await?;
             let ipv6_statuses = self
-                .get_mixnode_ipv6_statuses_since_by_id(id, day_ago)
+                .get_mixnode_ipv6_statuses_since_by_id(active_node.id, day_ago)
                 .await?;
 
             let statuses = ActiveNodeDayStatuses {
-                pub_key,
-                owner,
-                node_id: id,
+                pub_key: active_node.pub_key,
+                owner: active_node.owner,
+                node_id: active_node.id,
                 ipv4_statuses,
                 ipv6_statuses,
             };
@@ -835,18 +828,18 @@ impl NodeStatusStorageInner {
         let active_nodes = self.get_all_active_gateways(day_ago).await?;
 
         let mut active_day_statuses = Vec::with_capacity(active_nodes.len());
-        for (pub_key, owner, id) in active_nodes.into_iter() {
+        for active_node in active_nodes.into_iter() {
             let ipv4_statuses = self
-                .get_gateway_ipv4_statuses_since_by_id(id, day_ago)
+                .get_gateway_ipv4_statuses_since_by_id(active_node.id, day_ago)
                 .await?;
             let ipv6_statuses = self
-                .get_gateway_ipv6_statuses_since_by_id(id, day_ago)
+                .get_gateway_ipv6_statuses_since_by_id(active_node.id, day_ago)
                 .await?;
 
             let statuses = ActiveNodeDayStatuses {
-                pub_key,
-                owner,
-                node_id: id,
+                pub_key: active_node.pub_key,
+                owner: active_node.owner,
+                node_id: active_node.id,
                 ipv4_statuses,
                 ipv6_statuses,
             };

@@ -11,6 +11,13 @@ pub(crate) struct NodeStatus {
     pub(crate) up: bool,
 }
 
+// Internally used struct to catch results from the database to find active mixnodes/gateways
+pub(crate) struct ActiveNode {
+    pub(crate) id: i64,
+    pub(crate) pub_key: String,
+    pub(crate) owner: String,
+}
+
 // A temporary helper struct used to produce reports for active nodes.
 pub(crate) struct ActiveNodeDayStatuses {
     pub(crate) pub_key: String,

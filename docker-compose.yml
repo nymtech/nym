@@ -1,0 +1,36 @@
+version: '3.7'
+services:
+        genesis_validator:
+                build: docker/validator
+                image: validator:latest
+                container_name: genesis_validator
+                volumes:
+                        - "genesis_volume:/genesis_volume"
+                command: ["genesis"]
+        secondary_validator:
+                build: docker/validator
+                image: validator:latest
+                volumes:
+                        - "genesis_volume:/genesis_volume"
+                depends_on:
+                        - "genesis_validator"
+                command: ["secondary"]
+        mixnet_contract:
+                build: contracts/mixnet
+                image: contract:latest
+                volumes:
+                        - ".:/nym"
+        contract_uploader:
+                build: clients/validator
+                image: contract_uploader:typescript
+                volumes:
+                        - "genesis_volume:/genesis_volume"
+                        - ".:/nym"
+                depends_on:
+                        - "genesis_validator"
+                        - "secondary_validator"
+                        - "mixnet_contract"
+
+volumes:
+        genesis_volume:
+

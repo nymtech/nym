@@ -453,7 +453,8 @@ impl NodeStatusStorageInner {
         identity: &str,
         timestamp: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        let reports = sqlx::query!(
+        sqlx::query_as!(
+            NodeStatus,
             r#"
                 SELECT timestamp, up
                     FROM mixnode_ipv4_status
@@ -465,15 +466,7 @@ impl NodeStatusStorageInner {
             timestamp,
         )
         .fetch_all(&self.connection_pool)
-        .await?
-        .into_iter()
-        .map(|row| NodeStatus {
-            timestamp: row.timestamp,
-            up: row.up,
-        })
-        .collect();
-
-        Ok(reports)
+        .await
     }
 
     /// Gets all ipv6 statuses for mixnode with particular identity that were inserted
@@ -483,7 +476,8 @@ impl NodeStatusStorageInner {
         identity: &str,
         timestamp: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        let reports = sqlx::query!(
+        sqlx::query_as!(
+            NodeStatus,
             r#"
                 SELECT timestamp, up
                     FROM mixnode_ipv6_status
@@ -495,15 +489,7 @@ impl NodeStatusStorageInner {
             timestamp
         )
         .fetch_all(&self.connection_pool)
-        .await?
-        .into_iter()
-        .map(|row| NodeStatus {
-            timestamp: row.timestamp,
-            up: row.up,
-        })
-        .collect();
-
-        Ok(reports)
+        .await
     }
 
     /// Gets all ipv4 statuses for gateway with particular identity that were inserted
@@ -513,7 +499,8 @@ impl NodeStatusStorageInner {
         identity: &str,
         timestamp: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        let reports = sqlx::query!(
+        sqlx::query_as!(
+            NodeStatus,
             r#"
                 SELECT timestamp, up
                     FROM gateway_ipv4_status
@@ -525,15 +512,7 @@ impl NodeStatusStorageInner {
             timestamp,
         )
         .fetch_all(&self.connection_pool)
-        .await?
-        .into_iter()
-        .map(|row| NodeStatus {
-            timestamp: row.timestamp,
-            up: row.up,
-        })
-        .collect();
-
-        Ok(reports)
+        .await
     }
 
     /// Gets all ipv6 statuses for gateway with particular identity that were inserted
@@ -543,7 +522,8 @@ impl NodeStatusStorageInner {
         identity: &str,
         timestamp: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        let reports = sqlx::query!(
+        sqlx::query_as!(
+            NodeStatus,
             r#"
                 SELECT timestamp, up
                     FROM gateway_ipv6_status
@@ -555,15 +535,7 @@ impl NodeStatusStorageInner {
             timestamp
         )
         .fetch_all(&self.connection_pool)
-        .await?
-        .into_iter()
-        .map(|row| NodeStatus {
-            timestamp: row.timestamp,
-            up: row.up,
-        })
-        .collect();
-
-        Ok(reports)
+        .await
     }
 
     /// Gets the historical daily uptime associated with the particular mixnode
@@ -585,6 +557,8 @@ impl NodeStatusStorageInner {
         .fetch_all(&self.connection_pool)
         .await?
         .into_iter()
+        // filter out nodes with valid uptime (in theory all should be 100% valid since we insert them ourselves, but
+        // better safe than sorry and not use an unwrap)
         .filter_map(|row| {
             Uptime::try_from(row.ipv4_uptime)
                 .ok()
@@ -623,6 +597,8 @@ impl NodeStatusStorageInner {
         .fetch_all(&self.connection_pool)
         .await?
         .into_iter()
+        // filter out nodes with valid uptime (in theory all should be 100% valid since we insert them ourselves, but
+        // better safe than sorry and not use an unwrap)
         .filter_map(|row| {
             Uptime::try_from(row.ipv4_uptime)
                 .ok()
@@ -711,7 +687,8 @@ impl NodeStatusStorageInner {
         id: i64,
         timestamp: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        let reports = sqlx::query!(
+        sqlx::query_as!(
+            NodeStatus,
             r#"
                 SELECT timestamp, up
                     FROM mixnode_ipv4_status
@@ -721,15 +698,7 @@ impl NodeStatusStorageInner {
             timestamp
         )
         .fetch_all(&self.connection_pool)
-        .await?
-        .into_iter()
-        .map(|row| NodeStatus {
-            timestamp: row.timestamp,
-            up: row.up,
-        })
-        .collect();
-
-        Ok(reports)
+        .await
     }
 
     /// Gets all ipv6 statuses for mixnode with particular id that were inserted
@@ -739,7 +708,8 @@ impl NodeStatusStorageInner {
         id: i64,
         timestamp: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        let reports = sqlx::query!(
+        sqlx::query_as!(
+            NodeStatus,
             r#"
                 SELECT timestamp, up
                     FROM mixnode_ipv6_status
@@ -749,15 +719,7 @@ impl NodeStatusStorageInner {
             timestamp
         )
         .fetch_all(&self.connection_pool)
-        .await?
-        .into_iter()
-        .map(|row| NodeStatus {
-            timestamp: row.timestamp,
-            up: row.up,
-        })
-        .collect();
-
-        Ok(reports)
+        .await
     }
 
     /// Gets all ipv4 statuses for gateway with particular id that were inserted
@@ -767,7 +729,8 @@ impl NodeStatusStorageInner {
         id: i64,
         timestamp: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        let reports = sqlx::query!(
+        sqlx::query_as!(
+            NodeStatus,
             r#"
                 SELECT timestamp, up
                     FROM gateway_ipv4_status
@@ -777,15 +740,7 @@ impl NodeStatusStorageInner {
             timestamp
         )
         .fetch_all(&self.connection_pool)
-        .await?
-        .into_iter()
-        .map(|row| NodeStatus {
-            timestamp: row.timestamp,
-            up: row.up,
-        })
-        .collect();
-
-        Ok(reports)
+        .await
     }
 
     /// Gets all ipv6 statuses for gateway with particular id that were inserted
@@ -795,7 +750,8 @@ impl NodeStatusStorageInner {
         id: i64,
         timestamp: UnixTimestamp,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
-        let reports = sqlx::query!(
+        sqlx::query_as!(
+            NodeStatus,
             r#"
                 SELECT timestamp, up
                     FROM gateway_ipv6_status
@@ -805,15 +761,7 @@ impl NodeStatusStorageInner {
             timestamp
         )
         .fetch_all(&self.connection_pool)
-        .await?
-        .into_iter()
-        .map(|row| NodeStatus {
-            timestamp: row.timestamp,
-            up: row.up,
-        })
-        .collect();
-
-        Ok(reports)
+        .await
     }
 
     // NOTE: this method will go away once we move payments into the validator-api

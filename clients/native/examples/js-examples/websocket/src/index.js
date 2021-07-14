@@ -27,7 +27,7 @@ async function main() {
     }
 }
 
-// Handle any messages that come back down the websocket. 
+// Handle any messages that come back down the websocket.
 function handleResponse(resp) {
     // hacky workaround for receiving pushed 'text' messages,
     // basically we can either receive proper server responses, i.e. 'error', 'send', 'selfAddress'
@@ -41,7 +41,8 @@ function handleResponse(resp) {
             ourAddress = response.address;
             display("Our address is:  " + ourAddress + ", we will now send messages to ourself.");
         } else if (response.type == "received") {
-            handleReceivedTextMessage(response)
+            // handleReceivedTextMessage(response)
+            printReceivedMessage(response);
         }
     } catch (_) {
         displayJsonResponseWithoutReply(resp.data)
@@ -61,7 +62,18 @@ function handleReceivedTextMessage(message) {
     }
 }
 
-// Send a message to the mixnet. 
+
+function printReceivedMessage(response) {
+    console.log("received a message!")
+
+    if (replySurb != null) {
+        displayJsonResponseWithReply(text, replySurb)
+    } else {
+        displayFullResponse(response)
+    }
+}
+
+// Send a message to the mixnet.
 function sendMessageToMixnet() {
     const sendText = document.getElementById("sendtext").value;
     const surbCheckbox = document.querySelector('#with-surb');
@@ -89,11 +101,11 @@ function sendReplyMessageToMixnet(messageContent, replySurb) {
     connection.send(JSON.stringify(message));
 }
 
-// Send a message to the mixnet client, asking what our own address is. 
-// In this simplistic demo, we'll just use our own address to send ourselves messages. 
+// Send a message to the mixnet client, asking what our own address is.
+// In this simplistic demo, we'll just use our own address to send ourselves messages.
 //
 // In a real application, you might want to ensure that somebody else got your
-// address so that they could send messages to you. 
+// address so that they could send messages to you.
 function sendSelfAddressRequest() {
     var selfAddress = {
         type: "selfAddress"
@@ -128,6 +140,18 @@ function displayJsonResponseWithoutReply(message) {
     document.getElementById("output").appendChild(receivedDiv)
 }
 
+function displayFullResponse(response) {
+    let receivedDiv = document.createElement("div")
+    let paragraph = document.createElement("p")
+    paragraph.setAttribute('style', 'color: green')
+    let paragraphContent = document.createTextNode("received >>> " + JSON.stringify(response) + "(NO REPLY AVAILABLE)")
+    paragraph.appendChild(paragraphContent)
+
+    receivedDiv.appendChild(paragraph)
+    document.getElementById("output").appendChild(receivedDiv)
+}
+
+
 function displayJsonResponseWithReply(message, replySurb) {
     let replyBox = document.createElement("input")
     replyBox.setAttribute('type', 'text');
@@ -155,7 +179,7 @@ function displayJsonResponseWithReply(message, replySurb) {
     document.getElementById("output").appendChild(receivedDiv)
 }
 
-// Connect to a websocket. 
+// Connect to a websocket.
 function connectWebsocket(url) {
     return new Promise(function (resolve, reject) {
         var server = new WebSocket(url);

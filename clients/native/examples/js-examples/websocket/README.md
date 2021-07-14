@@ -5,6 +5,6 @@
 ### Running it
 
 ```
-npm install 
-npm start # starts a webserver on port 8888
+npm install
+npm start # starts a webserver on port 8080
 ```

@@ -13,7 +13,7 @@ const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
     "http://testnet-milhon-validator1.nymtech.net:1317",
     "http://testnet-milhon-validator2.nymtech.net:1317",
 ];
-const DEFAULT_MIXNET_CONTRACT: &str = "punk18vd8fpwxzck93qlwghaj6arh4p7c5n89m7r3lj";
+const DEFAULT_MIXNET_CONTRACT: &str = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen";
 
 const DEFAULT_NODE_STATUS_API: &str = "http://localhost:8081";
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;

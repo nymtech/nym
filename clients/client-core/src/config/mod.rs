@@ -27,7 +27,7 @@ pub const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
     "http://testnet-milhon-validator1.nymtech.net:1317",
     "http://testnet-milhon-validator2.nymtech.net:1317",
 ];
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk18vd8fpwxzck93qlwghaj6arh4p7c5n89m7r3lj";
+pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen";
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;

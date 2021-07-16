@@ -196,27 +196,28 @@ async fn main() -> Result<()> {
     // let's build our rocket!
     let rocket = rocket::build()
         .attach(setup_cors()?)
-        .attach(ValidatorCache::stage())
-        .attach(node_status_api::stage(
-            config.get_node_status_api_database_path(),
-        )) // manages state, creates routes, etc
-        .ignite()
-        .await?;
+        .attach(ValidatorCache::stage());
 
-    // get instances of managed states
-    let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
-    let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
+    // see if we should start up network monitor and ignite our rocket
+    let rocket = if config.get_network_monitor_enabled() {
+        // don't start our node-status api if we're not running the monitor - we can't get
+        // report data otherwise
+        let rocket = rocket
+            .attach(node_status_api::stage(
+                config.get_node_status_api_database_path(),
+            ))
+            .ignite()
+            .await?;
 
-    // see if we should start up network monitor
-    if config.get_network_monitor_enabled() {
         info!("Network monitor starting...");
+
+        // get instances of managed states
+        let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
+        let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
         let v4_topology = parse_topology_file(config.get_v4_good_topology_file());
         let v6_topology = parse_topology_file(config.get_v6_good_topology_file());
         network_monitor::check_if_up_to_date(&v4_topology, &v6_topology);
-
-        // get a copy of validator cache to use in network monitor
-        let validator_cache = validator_cache.clone_data_pointer();
 
         let network_monitor_runnables = new_monitor_runnables(
             &config,
@@ -226,9 +227,14 @@ async fn main() -> Result<()> {
             validator_cache,
         );
         network_monitor_runnables.spawn_tasks();
+
+        rocket
     } else {
-        info!("Network monitoring is disabled.")
-    }
+        info!("Network monitoring is disabled.");
+        rocket.ignite().await?
+    };
+
+    let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
     let validator_cache_refresher = ValidatorCacheRefresher::new(
         config.get_validators_urls(),

@@ -36,13 +36,6 @@ pub struct ValidatorCache {
     inner: Arc<ValidatorCacheInner>,
 }
 
-impl ValidatorCache {
-    // it's identical to normal 'clone', but I guess it's slightly more explicit in code
-    pub fn clone_data_pointer(&self) -> Self {
-        self.clone()
-    }
-}
-
 struct ValidatorCacheInner {
     initialised: AtomicBool,
     mixnodes: RwLock<Cache<Vec<MixNodeBond>>>,

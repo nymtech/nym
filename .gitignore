@@ -28,3 +28,4 @@ v6-topology.json
 /clients/validator/examples/nym-driver-example/current-contract.txt
 validator-api/v4.json
 validator-api/v6.json
+**/node_modules

@@ -1,5 +1,12 @@
 #!/bin/sh
 
+cd /nym/clients/validator
+yarn install
+yarn build
+
+cd /nym/docker/typescript_client/upload_contract
+npm install
+
 # Wait until the mnemonic is created
 while ! [ -s /genesis_volume/genesis_mnemonic ]; do
 	sleep 1

@@ -23,7 +23,7 @@ services:
                 volumes:
                         - ".:/nym"
         contract_uploader:
-                build: clients/validator
+                build: docker/typescript_client
                 image: contract_uploader:typescript
                 volumes:
                         - "genesis_volume:/genesis_volume:ro"
@@ -39,7 +39,7 @@ services:
                 ports:
                         - "3000:3000"
                 volumes:
-                        - "contract_volume:/contract_volume:ro"
+                        - "contract_volume:/contract_volume"
                         - "./wallet-web:/wallet-web:ro"
                 depends_on:
                         - "contract_uploader"

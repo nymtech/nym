@@ -32,7 +32,7 @@ async function main() {
     let instantiateResult = await admin.instantiate(admin.address, codeId, initMsg, "mixnet contract", options);
     let contractAddress = instantiateResult.contractAddress;
     console.log(`mixnet contract ${contractAddress} instantiated successfully`)
-    fs.writeFileSync("/contract_volume/contract_address", contractAddress);
+    fs.writeFileSync("/contract_volume/contract_address", contractAddress, { flag: 'w' });
 }
 
 

@@ -13,7 +13,7 @@ if [ "$1" = "genesis" ]; then
 	sed -i 's/cors_allowed_origins = \[\]/cors_allowed_origins = \["*"\]/' /root/.nymd/config/config.toml
 	sed -i 's/create_empty_blocks = true/create_empty_blocks = false/' /root/.nymd/config/config.toml
 	sed -i 's/laddr = "tcp:\/\/127.0.0.1:26657"/laddr = "tcp:\/\/0.0.0.0:26657"/' /root/.nymd/config/config.toml
-	yes "${PASSPHRASE}" | ./nymd keys add node_admin 2> /genesis_volume/genesis_mnemonic > /dev/null
+	yes "${PASSPHRASE}" | ./nymd keys add node_admin 2>&1 >/dev/null | tail -n 1 > /genesis_volume/genesis_mnemonic
 	ADDRESS=$(yes "${PASSPHRASE}" | ./nymd keys show node_admin -a)
 	yes "${PASSPHRASE}" | ./nymd add-genesis-account "${ADDRESS}" 1000000000000000u${BECH32_PREFIX},1000000000000000stake
 	yes "${PASSPHRASE}" | ./nymd gentx node_admin 1000000000stake --chain-id nymnet 2> /dev/null

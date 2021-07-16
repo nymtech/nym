@@ -47,6 +47,12 @@ pub enum ValidatorClientError {
 
     #[error("There was an issue when attempting to serialize data")]
     SerializationError(String),
+
+    #[error("There was an issue when attempting to encode our protobuf data - {0}")]
+    ProtobufEncodingError(prost::EncodeError),
+
+    #[error("There was an issue when attempting to decode our protobuf data - {0}")]
+    ProtobufDecodingError(prost::DecodeError),
 }
 
 impl From<bip32::Error> for ValidatorClientError {
@@ -64,6 +70,18 @@ impl From<bip39::Error> for ValidatorClientError {
 impl From<rpc::Error> for ValidatorClientError {
     fn from(err: rpc::Error) -> Self {
         ValidatorClientError::TendermintError(err)
+    }
+}
+
+impl From<prost::EncodeError> for ValidatorClientError {
+    fn from(err: prost::EncodeError) -> Self {
+        ValidatorClientError::ProtobufEncodingError(err)
+    }
+}
+
+impl From<prost::DecodeError> for ValidatorClientError {
+    fn from(err: prost::DecodeError) -> Self {
+        ValidatorClientError::ProtobufDecodingError(err)
     }
 }
 

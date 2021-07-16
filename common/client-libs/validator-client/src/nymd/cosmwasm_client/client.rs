@@ -3,7 +3,9 @@
 
 use crate::ValidatorClientError;
 use async_trait::async_trait;
-use cosmos_sdk::proto::cosmos::bank::v1beta1::{QueryAllBalancesRequest, QueryAllBalancesResponse};
+use cosmos_sdk::proto::cosmos::bank::v1beta1::{
+    QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest, QueryBalanceResponse,
+};
 use cosmos_sdk::rpc::endpoint::block::Response as BlockResponse;
 use cosmos_sdk::rpc::endpoint::broadcast;
 use cosmos_sdk::rpc::endpoint::tx::Response as TxResponse;
@@ -13,11 +15,11 @@ use cosmos_sdk::rpc::{
     Client, Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest,
 };
 use cosmos_sdk::tendermint::abci::Transaction;
-use cosmos_sdk::tendermint::{block, chain};
+use cosmos_sdk::tendermint::{abci, block, chain};
 use cosmos_sdk::tx::SequenceNumber;
 use cosmos_sdk::{rpc, AccountId, Coin, Denom};
 use prost::Message;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 
 // #[async_trait]
 pub struct CosmWasmClient {
@@ -32,6 +34,23 @@ impl CosmWasmClient {
         let tm_client = HttpClient::new(endpoint)?;
 
         Ok(CosmWasmClient { tm_client })
+    }
+
+    async fn make_abci_query<Req, Res>(
+        &self,
+        path: Option<abci::Path>,
+        req: Req,
+    ) -> Result<Res, ValidatorClientError>
+    where
+        Req: Message,
+        Res: Message + Default,
+    {
+        let mut buf = Vec::with_capacity(req.encoded_len());
+        req.encode(&mut buf)?;
+
+        let res = self.tm_client.abci_query(path, buf, None, false).await?;
+
+        Ok(Res::decode(res.value.as_ref())?)
     }
 
     pub async fn get_chain_id(&self) -> Result<chain::Id, ValidatorClientError> {
@@ -75,48 +94,46 @@ impl CosmWasmClient {
         &self,
         address: &AccountId,
         search_denom: Denom,
-    ) -> Result<Coin, ValidatorClientError> {
-        // here also be abci_query land
-        todo!()
+    ) -> Result<Option<Coin>, ValidatorClientError> {
+        let path = Some("/cosmos.bank.v1beta1.Query/Balance".parse().unwrap());
+
+        let req = QueryBalanceRequest {
+            address: address.to_string(),
+            denom: search_denom.to_string(),
+        };
+
+        let res = self
+            .make_abci_query::<_, QueryBalanceResponse>(path, req)
+            .await?;
+
+        res.balance
+            .map(TryFrom::try_from)
+            .transpose()
+            .map_err(|_| ValidatorClientError::SerializationError("Coin".to_owned()))
     }
 
-    fn some_generic_abci_query_thing<Req, Res>(
-        &self,
-        req: Req,
-    ) -> Result<Res, ValidatorClientError> {
-        todo!()
-    }
-
+    // TODO: if this is to be made into more generic library, it will need to be able to handle
+    // pagination
     pub async fn get_all_balances(
         &self,
         address: &AccountId,
     ) -> Result<Vec<Coin>, ValidatorClientError> {
-        // here also be abci_query land
+        let path = Some("/cosmos.bank.v1beta1.Query/AllBalances".parse().unwrap());
 
         let req = QueryAllBalancesRequest {
             address: address.to_string(),
             pagination: None,
         };
 
-        let mut buf = Vec::with_capacity(req.encoded_len());
-        req.encode(&mut buf)
-            .expect("failed to encode our protobuf request!");
-
-        // "/cosmos.auth.v1beta1.Query/Params"
-        // let path = Some("/cosmos/auth/v1beta1/accounts".parse().unwrap());
-        let path = Some("/cosmos.bank.v1beta1.Query/AllBalances".parse().unwrap());
         let res = self
-            .tm_client
-            .abci_query(path, buf, None, false)
-            .await
-            .unwrap();
+            .make_abci_query::<_, QueryAllBalancesResponse>(path, req)
+            .await?;
 
-        let res_parsed: QueryAllBalancesResponse =
-            prost::Message::decode(res.value.as_ref()).unwrap();
-
-        println!("{:?}", res_parsed);
-
-        todo!()
+        res.balances
+            .into_iter()
+            .map(TryFrom::try_from)
+            .collect::<Result<_, _>>()
+            .map_err(|_| ValidatorClientError::SerializationError("Coins".to_owned()))
     }
 
     // TODO: or should it instead take concrete Hash type directly?

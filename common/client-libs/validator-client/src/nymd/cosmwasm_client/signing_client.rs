@@ -263,7 +263,12 @@ mod tests {
 
         let client = SigningCosmWasmClient::connect_with_signer(validator, wallet).unwrap();
 
-        let balance = client.base_client.get_all_balances(&address).await.unwrap();
+        // let balance = client.base_client.get_all_balances(&address).await.unwrap();
+        let balance = client
+            .base_client
+            .get_balance(&address, "uhal".parse().unwrap())
+            .await
+            .unwrap();
 
         println!("{:?}", balance);
     }

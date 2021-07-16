@@ -185,7 +185,7 @@ impl MixNode {
         );
         let validator_client = validator_client::Client::new(validator_client_config);
 
-        let existing_nodes = match validator_client.get_mix_nodes().await {
+        let existing_nodes = match validator_client.get_cached_mix_nodes().await {
             Ok(nodes) => nodes,
             Err(err) => {
                 error!("failed to grab initial network mixnodes - {}\n Please try to startup again in few minutes", err);

@@ -10,7 +10,7 @@ use std::time::Duration;
 mod template;
 
 const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &["http://localhost:1317"];
-const DEFAULT_MIXNET_CONTRACT: &str = "punk18vd8fpwxzck93qlwghaj6arh4p7c5n89m7r3lj";
+const DEFAULT_MIXNET_CONTRACT: &str = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen";
 
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
 const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;

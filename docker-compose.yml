@@ -18,7 +18,7 @@ services:
                         - "genesis_validator"
                 command: ["secondary"]
         mixnet_contract:
-                build: contracts/mixnet
+                build: docker/mixnet_contract
                 image: contract:latest
                 volumes:
                         - ".:/nym"

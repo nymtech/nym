@@ -11,4 +11,4 @@ RUN yarn build
 WORKDIR /upload_contract
 RUN npm install
 
-ENTRYPOINT ["./init_and_start.sh"]
+ENTRYPOINT ["./entrypoint.sh"]

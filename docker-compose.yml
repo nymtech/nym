@@ -34,12 +34,13 @@ services:
                         - "secondary_validator"
                         - "mixnet_contract"
         wallet:
-                build: wallet-web
+                build: docker/wallet-web
                 image: wallet:latest
                 ports:
                         - "3000:3000"
                 volumes:
                         - "contract_volume:/contract_volume:ro"
+                        - "./wallet-web:/wallet-web:ro"
                 depends_on:
                         - "contract_uploader"
 

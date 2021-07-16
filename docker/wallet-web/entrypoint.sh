@@ -1,5 +1,13 @@
 #!/bin/sh
 
+cd /wallet-web
+
+yarn install
+
+mkdir /wallet-copy
+cp -r /wallet-web/* /wallet-copy
+cd /wallet-copy
+
 # Wait for the contract to be uploaded
 while ! [ -s /contract_volume/contract_address ]; do
 	sleep 1
@@ -10,4 +18,5 @@ sed -i 's/export const BONDING_CONTRACT_ADDRESS: string = "punk10pyejy66429refv3
 sed -i 's/export const VALIDATOR_URLS: string\[\] = \[/export const VALIDATOR_URLS: string\[\] = \[ "localhost:26657",/' pages/_app.tsx 
 sed -i 's/"https:\/\/testnet-milhon-validator1.nymtech.net",//' pages/_app.tsx
 sed -i 's/"https:\/\/testnet-milhon-validator2.nymtech.net",//' pages/_app.tsx
+
 yarn dev

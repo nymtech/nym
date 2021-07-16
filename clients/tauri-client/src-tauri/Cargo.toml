@@ -1,0 +1,29 @@
+[package]
+name = "app"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["you"]
+license = ""
+repository = ""
+default-run = "app"
+edition = "2018"
+build = "src/build.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "1.0.0-beta.2" }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "1.0.0-beta.4", features = [] }
+attohttpc = { version = "0.17.0", features = ["json"] }
+
+coconut-rs = { git = "https://github.com/nymtech/coconut.git", branch = "develop" }
+
+coconut-validator-interface = { path = "../../../common/coconut-validator-interface" }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

@@ -5,10 +5,6 @@
 extern crate rocket;
 
 use crate::cache::ValidatorCacheRefresher;
-use coconut_rs::{Attribute, Base58, BlindSignRequest, PublicKey};
-use getset::CopyGetters;
-use serde::{Deserialize, Serialize};
-
 use crate::config::Config;
 use crate::network_monitor::new_monitor_runnables;
 use crate::network_monitor::tested_network::good_topology::parse_topology_file;
@@ -37,7 +33,7 @@ const VALIDATORS_ARG: &str = "validators";
 const DETAILED_REPORT_ARG: &str = "detailed-report";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
 const WRITE_CONFIG_ARG: &str = "save-config";
-const SECRET_KEY_ARG: &str = "secret-key";
+const KEYPAIR_ARG: &str = "keypair";
 
 pub(crate) const PENALISE_OUTDATED: bool = false;
 
@@ -53,7 +49,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             Arg::with_name(V4_TOPOLOGY_ARG)
                 .help("location of .json file containing IPv4 'good' network topology")
                 .long(V4_TOPOLOGY_ARG)
-                .takes_value(true)
         )
         .arg(
             Arg::with_name(V6_TOPOLOGY_ARG)
@@ -82,10 +77,10 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("specifies whether a config file based on provided arguments should be saved to a file")
                 .long(WRITE_CONFIG_ARG)
         )
-        .arg(Arg::with_name(SECRET_KEY_ARG)
+        .arg(Arg::with_name(KEYPAIR_ARG)
             .help("Path to the secret key file")
             .takes_value(true)
-            .long(SECRET_KEY_ARG))
+            .long(KEYPAIR_ARG))
         .get_matches()
 }
 
@@ -149,6 +144,9 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
 
     if matches.is_present(DETAILED_REPORT_ARG) {
         config = config.detailed_network_monitor_report(true)
+    }
+    if let Some(keypair_path) = matches.value_of(KEYPAIR_ARG) {
+        config = config.with_keypair(keypair_path)
     }
 
     if matches.is_present(WRITE_CONFIG_ARG) {

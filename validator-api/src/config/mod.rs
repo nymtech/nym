@@ -3,10 +3,9 @@
 
 use crate::config::template::config_template;
 use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
-use coconut_rs::KeyPair;
+use coconut_rs::{Base58, KeyPair};
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -75,7 +74,7 @@ pub struct Base {
     /// Address of the validator contract managing the network
     mixnet_contract_address: String,
     // Avoid breaking derives for now
-    keypair_bytes: Vec<u8>,
+    keypair_bs58: String,
 }
 
 impl Default for Base {
@@ -86,7 +85,7 @@ impl Default for Base {
                 .map(|&endpoint| endpoint.to_string())
                 .collect(),
             mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
-            keypair_bytes: vec![],
+            keypair_bs58: String::default(),
         }
     }
 }
@@ -202,13 +201,21 @@ impl Default for TopologyCacher {
     }
 }
 
+fn strip_trailing_newline(input: &str) -> String {
+    input
+        .strip_suffix("\r\n")
+        .or_else(|| input.strip_suffix("\n"))
+        .unwrap_or(input)
+        .to_string()
+}
+
 impl Config {
     pub fn new() -> Self {
         Config::default()
     }
 
     pub fn keypair(&self) -> KeyPair {
-        KeyPair::try_from(self.base.keypair_bytes.as_slice()).unwrap()
+        KeyPair::try_from_bs58(self.base.keypair_bs58.clone()).unwrap()
     }
 
     pub fn enabled_network_monitor(mut self, enabled: bool) -> Self {
@@ -242,7 +249,8 @@ impl Config {
     }
 
     pub fn with_keypair(mut self, path: &str) -> Self {
-        self.base.keypair_bytes = hex::decode(std::fs::read_to_string(path).unwrap()).unwrap();
+        let keypair_bs58 = std::fs::read_to_string(path).unwrap();
+        self.base.keypair_bs58 = strip_trailing_newline(&keypair_bs58);
         self
     }
 

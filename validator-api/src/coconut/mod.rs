@@ -1,11 +1,11 @@
 use crate::Config;
 use coconut_rs::{
-    elgamal::PublicKey, Attribute, Base58, BlindSignRequest, BlindedSignature, Parameters,
+    elgamal::PublicKey, Attribute, BlindSignRequest, BlindedSignature, Parameters,
 };
+use coconut_validator_interface::{BlindSignRequestBody, BlindedSignatureResponse};
 use getset::{CopyGetters, Getters};
 use rocket::serde::json::Json;
 use rocket::State;
-use serde::{Deserialize, Serialize};
 
 #[derive(Getters, CopyGetters, Debug)]
 pub struct InternalSignRequest {
@@ -48,41 +48,27 @@ pub fn blind_sign(request: InternalSignRequest, config: &Config) -> BlindedSigna
     .unwrap()
 }
 
-//  All strings are base58 encoded representations of structs
-#[derive(Deserialize, CopyGetters)]
-struct BlindSignRequestBody {
-    blind_sign_request: String,
-    public_key: String,
-    public_attributes: Vec<String>,
-    #[getset(get_copy)]
-    total_params: u32,
-}
-
-#[derive(Serialize)]
-struct BlindedSignatureResponse {
-    blinded_signature: String,
-}
-
 #[post("/blind_sign", data = "<blind_sign_request_body>")]
 //  Until we have serialization and deserialization traits we'll be using a crutch
-async fn post_blind_sign(
+pub async fn post_blind_sign(
     blind_sign_request_body: Json<BlindSignRequestBody>,
     config: &State<Config>,
 ) -> Json<BlindedSignatureResponse> {
-    let blind_sign_request =
-        BlindSignRequest::try_from_bs58(&blind_sign_request_body.blind_sign_request).unwrap();
-    let public_key = PublicKey::try_from_bs58(&blind_sign_request_body.public_key).unwrap();
-    let public_attributes: Vec<Attribute> = blind_sign_request_body
-        .public_attributes
-        .iter()
-        .map(|x| Attribute::try_from_bs58(x).unwrap())
-        .collect();
+    debug!("{:?}", blind_sign_request_body);
     let internal_request = InternalSignRequest::new(
         blind_sign_request_body.total_params(),
-        public_attributes,
-        public_key,
-        blind_sign_request,
+        blind_sign_request_body.public_attributes(),
+        blind_sign_request_body.public_key(),
+        blind_sign_request_body.blind_sign_request(),
     );
-    let blinded_signature = blind_sign(internal_request, config).to_bs58();
-    Json(BlindedSignatureResponse { blinded_signature })
+    let blinded_signature = blind_sign(internal_request, config);
+    Json(BlindedSignatureResponse::new(blinded_signature))
 }
+
+// #[post("/verify_credential", data="<verify_credential_request_body>")]
+// pub async fn post_verify_credential(
+//     verify_credential_request_body: Json<VerifyCredentialRequestBody>,
+//     condif: &State<Config>
+// ) {
+
+// }

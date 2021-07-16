@@ -3,6 +3,8 @@ services:
         genesis_validator:
                 build: docker/validator
                 image: validator:latest
+                ports:
+                        - "26657:26657"
                 container_name: genesis_validator
                 volumes:
                         - "genesis_volume:/genesis_volume"

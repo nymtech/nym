@@ -193,17 +193,6 @@ async fn main() -> Result<()> {
     let matches = parse_args();
     let config = override_config(config, &matches);
 
-    // let validator_client = validator_client::Client::new(validator_client::Config::new(
-    //     config.get_validators_urls(),
-    //     "punk10pyejy66429refv3g35g2t7am0was7yalwrzen",
-    // ));
-    // let mixes = validator_client.get_mix_nodes().await.unwrap();
-    // let gateways = validator_client.get_gateways().await.unwrap();
-    //
-    // println!("{:?}", mixes);
-    // println!("{:?}", gateways);
-    //
-
     // let's build our rocket!
     let rocket = rocket::build()
         .attach(setup_cors()?)

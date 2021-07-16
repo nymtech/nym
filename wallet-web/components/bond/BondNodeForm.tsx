@@ -7,8 +7,8 @@ import semver from "semver"
 import { NodeType } from "../../common/node";
 import { theme } from "../../lib/theme";
 import { basicRawCoinValueValidation, makeBasicStyle, validateRawPort } from "../../common/helpers";
-import { Coin, printableCoin } from "@nymproject/nym-validator-client";
-import { DENOM } from "../../pages/_app";
+import { Coin, printableCoin, nativeToPrintable } from "@nymproject/nym-validator-client";
+import { DENOM, UDENOM } from "../../pages/_app";
 import { printableBalanceToNative } from "@nymproject/nym-validator-client/dist/currency";
 import { BondingInformation } from "./NodeBond";
 
@@ -211,6 +211,8 @@ export default function BondNodeForm(props: BondNodeFormProps) {
         minimumBond = props.minimumGatewayBond
     }
 
+    // currently amount is showing the wrong thing because its denom is PUNK but its being passed in as uPUNK value. 
+
     // if this whole interface wasn't to be completely redone in a month time, I would have definitely redone the form
     // but I guess it's fine for time being
     return (
@@ -221,9 +223,9 @@ export default function BondNodeForm(props: BondNodeFormProps) {
                         required
                         id="amount"
                         name="amount"
-                        label={`Amount to bond (minimum ${printableCoin(minimumBond)})`}
+                        label={`Amount to bond (minimum ${nativeToPrintable(minimumBond.amount)})`}
                         error={!validity.validAmount}
-                        {...(!validity.validAmount ? {helperText: `Enter a valid bond amount (minimum ${printableCoin(minimumBond)})`} : {})}
+                        {...(!validity.validAmount ? {helperText: `Enter a valid bond amount (minimum ${nativeToPrintable(minimumBond.amount)})`} : {})}
                         fullWidth
                         InputProps={{
                             endAdornment:

@@ -6,13 +6,15 @@ use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use crate::ValidatorClientError;
 use async_trait::async_trait;
 use cosmos_sdk::bank::MsgSend;
+use cosmos_sdk::proto::cosmwasm::wasm::v1beta1::MsgExecuteContract;
 use cosmos_sdk::rpc::endpoint::broadcast;
 use cosmos_sdk::rpc::{
     Client, Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest,
 };
 use cosmos_sdk::tendermint::{block, chain};
 use cosmos_sdk::tx::{AccountNumber, Fee, Msg, MsgType, SequenceNumber, SignDoc, SignerInfo};
-use cosmos_sdk::{rpc, tx, AccountId, Coin};
+use cosmos_sdk::{cosmwasm, rpc, tx, AccountId, Coin};
+use serde::Serialize;
 use std::convert::TryInto;
 use std::pin::Pin;
 
@@ -55,21 +57,59 @@ impl SigningCosmWasmClient {
         &self,
         sender_address: &AccountId,
         wasm_code: Vec<u8>,
+        fee: Fee,
         meta: Option<UploadMeta>,
         memo: impl Into<String>,
     ) -> Result<UploadResult, ValidatorClientError> {
-        todo!()
+        let upload_msg = cosmwasm::MsgStoreCode {
+            sender: sender_address.clone(),
+            wasm_byte_code: wasm_code,
+            source: todo!(),
+            builder: todo!(),
+            instantiate_permission: todo!(),
+        }
+        .to_msg()
+        .map_err(|_| ValidatorClientError::SerializationError("MsgStoreCode".to_owned()))?;
+
+        let tx_res = self
+            .sign_and_broadcast_commit(sender_address, vec![upload_msg], fee, memo)
+            .await?;
+
+        todo!("produce change upload result here")
     }
 
-    pub async fn instantiate<T>(
+    pub async fn instantiate<M>(
         &self,
         sender_address: &AccountId,
         code_id: u64,
-        msg: T,
+        msg: &M,
         label: String,
+        fee: Fee,
         options: Option<InstantiateOptions>,
-    ) -> Result<InstantiateResult, ValidatorClientError> {
-        todo!()
+        memo: impl Into<String>,
+    ) -> Result<InstantiateResult, ValidatorClientError>
+    where
+        M: ?Sized + Serialize,
+    {
+        let init_msg = cosmwasm::MsgInstantiateContract {
+            sender: sender_address.clone(),
+            admin: todo!(),
+            code_id,
+            label: todo!(),
+            init_msg: serde_json::to_vec(msg)?,
+            funds: todo!(),
+        }
+        .to_msg()
+        .map_err(|_| {
+            ValidatorClientError::SerializationError("MsgInstantiateContract".to_owned())
+        })?;
+
+        // TODO: cosmjs doesn't have a memo here
+        let tx_res = self
+            .sign_and_broadcast_commit(sender_address, vec![init_msg], fee, memo)
+            .await?;
+
+        todo!("produce init result here")
     }
 
     pub async fn update_admin(
@@ -77,39 +117,99 @@ impl SigningCosmWasmClient {
         sender_address: &AccountId,
         contract_address: &AccountId,
         new_admin: &AccountId,
+        fee: Fee,
         memo: impl Into<String>,
     ) -> Result<ChangeAdminResult, ValidatorClientError> {
-        todo!()
+        let change_admin_msg = cosmwasm::MsgUpdateAdmin {
+            sender: sender_address.clone(),
+            new_admin: new_admin.clone(),
+            contract: contract_address.clone(),
+        }
+        .to_msg()
+        .map_err(|_| ValidatorClientError::SerializationError("MsgUpdateAdmin".to_owned()))?;
+
+        let tx_res = self
+            .sign_and_broadcast_commit(sender_address, vec![change_admin_msg], fee, memo)
+            .await?;
+
+        todo!("produce change admin result here")
     }
+
     pub async fn clear_admin(
         &self,
         sender_address: &AccountId,
         contract_address: &AccountId,
+        fee: Fee,
         memo: impl Into<String>,
     ) -> Result<ChangeAdminResult, ValidatorClientError> {
-        todo!()
+        let change_admin_msg = cosmwasm::MsgClearAdmin {
+            sender: sender_address.clone(),
+            contract: contract_address.clone(),
+        }
+        .to_msg()
+        .map_err(|_| ValidatorClientError::SerializationError("MsgClearAdmin".to_owned()))?;
+
+        let tx_res = self
+            .sign_and_broadcast_commit(sender_address, vec![change_admin_msg], fee, memo)
+            .await?;
+
+        todo!("produce change admin result here")
     }
 
-    pub async fn migrate<T>(
+    pub async fn migrate<M>(
         &self,
         sender_address: &AccountId,
         contract_address: &AccountId,
         code_id: u64,
-        migrate_msg: T,
+        fee: Fee,
+        msg: &M,
         memo: impl Into<String>,
-    ) -> Result<MigrateResult, ValidatorClientError> {
-        todo!()
+    ) -> Result<MigrateResult, ValidatorClientError>
+    where
+        M: ?Sized + Serialize,
+    {
+        let migrate_msg = cosmwasm::MsgMigrateContract {
+            sender: sender_address.clone(),
+            contract: contract_address.clone(),
+            code_id,
+            migrate_msg: serde_json::to_vec(msg)?,
+        }
+        .to_msg()
+        .map_err(|_| ValidatorClientError::SerializationError("MsgMigrateContract".to_owned()))?;
+
+        let tx_res = self
+            .sign_and_broadcast_commit(sender_address, vec![migrate_msg], fee, memo)
+            .await?;
+
+        todo!("produce migrate result here")
     }
 
-    pub async fn execute<T>(
+    pub async fn execute<M>(
         &self,
         sender_address: &AccountId,
         contract_address: &AccountId,
-        msg: T,
+        msg: &M,
+        fee: Fee,
         memo: impl Into<String>,
         funds: Option<Vec<Coin>>,
-    ) -> Result<ExecuteResult, ValidatorClientError> {
-        todo!()
+    ) -> Result<ExecuteResult, ValidatorClientError>
+    where
+        M: ?Sized + Serialize,
+    {
+        let execute_msg = cosmwasm::MsgExecuteContract {
+            sender: sender_address.clone(),
+            contract: contract_address.clone(),
+            msg: serde_json::to_vec(msg)?,
+            funds: funds.unwrap_or_default(),
+        }
+        .to_msg()
+        .map_err(|_| ValidatorClientError::SerializationError("MsgExecuteContract".to_owned()))?;
+
+        let tx_res = self
+            .sign_and_broadcast_commit(sender_address, vec![execute_msg], fee, memo)
+            .await?;
+
+        todo!("produce execute result here")
     }
 
     pub async fn send_tokens(
@@ -136,6 +236,7 @@ impl SigningCosmWasmClient {
         delegator_address: &AccountId,
         validator_address: &AccountId,
         amount: Coin,
+        fee: Fee,
         memo: impl Into<String>,
     ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
         todo!()
@@ -145,6 +246,7 @@ impl SigningCosmWasmClient {
         delegator_address: &AccountId,
         validator_address: &AccountId,
         amount: Coin,
+        fee: Fee,
         memo: impl Into<String>,
     ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
         todo!()
@@ -153,6 +255,7 @@ impl SigningCosmWasmClient {
     pub async fn withdraw_rewards(
         delegator_address: &AccountId,
         validator_address: &AccountId,
+        fee: Fee,
         memo: impl Into<String>,
     ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
         todo!()
@@ -265,6 +368,8 @@ impl SigningCosmWasmClient {
 
         self.sign_direct(signer_address, messages, fee, memo, signer_data)
     }
+
+    // TODO: here be the ugliness of re-exposing methods from base_client
 }
 
 // #[async_trait]
@@ -334,15 +439,22 @@ impl SigningCosmWasmClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::QueryRequest;
+    use mixnet_contract::PagedMixnodeResponse;
 
     #[tokio::test]
     async fn foo() {
         // let mut client = SigningCosmWasmClient::connect_with_signer()
-        let validator = "http://127.0.0.1:26657";
-        let mnemonic = "bitter east decide match spare blue shadow trouble share dice surface cave hospital poem whip message army behind elephant mom horse leg purity below";
-        let contract = "hal10pyejy66429refv3g35g2t7am0was7yam2dd72"
+        // let validator = "http://127.0.0.1:26657";
+        // let contract = "hal10pyejy66429refv3g35g2t7am0was7yam2dd72"
+        //     .parse::<AccountId>()
+        //     .unwrap();
+
+        let validator = "https://testnet-milhon-validator1.nymtech.net";
+        let contract = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen"
             .parse::<AccountId>()
             .unwrap();
+        let mnemonic = "bitter east decide match spare blue shadow trouble share dice surface cave hospital poem whip message army behind elephant mom horse leg purity below";
 
         let wallet = DirectSecp256k1HdWallet::builder()
             .with_prefix("hal")
@@ -353,9 +465,22 @@ mod tests {
 
         let client = SigningCosmWasmClient::connect_with_signer(validator, wallet).unwrap();
 
-        // let balance = client.base_client.get_all_balances(&address).await.unwrap();
-        let res = client.base_client.get_account(&address).await.unwrap();
+        // // let balance = client.base_client.get_all_balances(&address).await.unwrap();
+        // let res = client.base_client.get_account(&address).await.unwrap();
+        //
+        // println!("{:?}", res);
 
-        println!("{:?}", res);
+        let aaa = QueryRequest::GetMixNodes {
+            limit: None,
+            start_after: None,
+        };
+
+        let mixes = client
+            .base_client
+            .query_contract_smart::<_, PagedMixnodeResponse>(&contract, &aaa)
+            .await
+            .unwrap();
+
+        println!("mixes: {:?}", mixes);
     }
 }

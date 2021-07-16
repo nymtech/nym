@@ -1,6 +1,6 @@
 use crate::validator_api;
 
-use cosmos_sdk::{bip32, AccountId};
+use cosmos_sdk::{bip32, rpc, AccountId};
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -38,6 +38,15 @@ pub enum ValidatorClientError {
 
     #[error("Failed to sign raw transaction")]
     SigningFailure,
+
+    #[error("{0} is not a valid tx hash")]
+    InvalidTxHash(String),
+
+    #[error("There was an issue with a tendermint RPC request - {0}")]
+    TendermintError(rpc::Error),
+
+    #[error("There was an issue when attempting to serialize data")]
+    SerializationError(String),
 }
 
 impl From<bip32::Error> for ValidatorClientError {
@@ -49,6 +58,12 @@ impl From<bip32::Error> for ValidatorClientError {
 impl From<bip39::Error> for ValidatorClientError {
     fn from(err: bip39::Error) -> Self {
         ValidatorClientError::Bip39Error(err)
+    }
+}
+
+impl From<rpc::Error> for ValidatorClientError {
+    fn from(err: rpc::Error) -> Self {
+        ValidatorClientError::TendermintError(err)
     }
 }
 

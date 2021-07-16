@@ -3947,6 +3947,7 @@ dependencies = [
  "mio",
  "num_cpus",
  "once_cell",
+ "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
  "tokio-macros",
@@ -4266,17 +4267,20 @@ checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 name = "validator-client"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "base64",
  "bip39",
  "cosmos_sdk",
  "getrandom 0.2.3",
  "log",
  "mixnet-contract",
+ "prost",
  "rand 0.8.4",
  "reqwest",
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
  "url",
  "wasm-timer",
 ]

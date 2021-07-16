@@ -9,7 +9,7 @@ use cosmos_sdk::tx::SignDoc;
 use cosmos_sdk::{tx, AccountId};
 
 pub const DEFAULT_COSMOS_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";
-pub const DEFAULT_PREFIX: &str = "punk";
+pub const DEFAULT_BECH32_ADDRESS_PREFIX: &str = "punk";
 
 pub struct DirectSecp256k1HdWallet {
     secret: bip39::Mnemonic,
@@ -21,11 +21,11 @@ type Secp256k1Keypair = (SigningKey, PublicKey);
 
 // this type feels weird. when implemented proper this should be re-thought
 pub struct AccountData {
-    address: AccountId,
+    pub(crate) address: AccountId,
 
     // note: since PublicKey is an enum, it already serves the purpose of the
     // export type Algo = "secp256k1" | "ed25519" | "sr25519" type from the cosmjs
-    public_key: PublicKey,
+    pub(crate) public_key: PublicKey,
 
     // I don't entirely understand why cosmjs split this off and put it in a separate `AccountDataWithPrivkey`
     // type.
@@ -34,6 +34,9 @@ pub struct AccountData {
 
 // I've tried following cosmjs but some things were changed, for example we do not derive keys on every
 // transaction we want to sign, we generate them once at construction.
+
+// I hate re-deriving secret keys on every sign request, but with current implementation of secp256k1 from cosmos-rs
+// our wallet wouldn't be 'Send' which is a huge limitation.
 
 impl DirectSecp256k1HdWallet {
     pub fn builder() -> DirectSecp256k1HdWalletBuilder {
@@ -52,6 +55,10 @@ impl DirectSecp256k1HdWallet {
 
     pub fn mnemonic(&self) -> String {
         self.secret.to_string()
+    }
+
+    pub fn get_accounts(&self) -> &[AccountData] {
+        &self.accounts
     }
 
     pub fn sign_direct(
@@ -89,7 +96,7 @@ impl Default for DirectSecp256k1HdWalletBuilder {
         DirectSecp256k1HdWalletBuilder {
             bip39_password: String::new(),
             hd_paths: vec![DEFAULT_COSMOS_DERIVATION_PATH.parse().unwrap()],
-            prefix: DEFAULT_PREFIX.to_string(),
+            prefix: DEFAULT_BECH32_ADDRESS_PREFIX.to_string(),
         }
     }
 }
@@ -165,5 +172,25 @@ impl DirectSecp256k1HdWalletBuilder {
             secret: mnemonic,
             seed,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generating_account_addresses() {
+        // test vectors produced from our js wallet
+        let mnemonic_address = vec![
+            ("crush minute paddle tobacco message debate cabin peace bar jacket execute twenty winner view sure mask popular couch penalty fragile demise fresh pizza stove", "punk1jw6mp7d5xqc7w6xm79lha27glmd0vdt32a3fj2"),
+            ("acquire rebel spot skin gun such erupt pull swear must define ill chief turtle today flower chunk truth battle claw rigid detail gym feel", "punk1h5hgn94nsq4kh99rjj794hr5h5q6yfm22mcqqn"),
+            ("step income throw wheat mobile ship wave drink pool sudden upset jaguar bar globe rifle spice frost bless glimpse size regular carry aspect ball", "punk17n9flp6jflljg6fp05dsy07wcprf2uuujse962")
+        ];
+
+        for (mnemonic, address) in mnemonic_address.into_iter() {
+            let wallet = DirectSecp256k1HdWallet::from_mnemonic(mnemonic.parse().unwrap()).unwrap();
+            assert_eq!(wallet.accounts[0].address, address.parse().unwrap())
+        }
     }
 }

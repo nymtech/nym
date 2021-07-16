@@ -48,11 +48,20 @@ pub enum ValidatorClientError {
     #[error("There was an issue when attempting to serialize data")]
     SerializationError(String),
 
+    #[error("There was an issue when attempting to deserialize data")]
+    DeserializationError(String),
+
     #[error("There was an issue when attempting to encode our protobuf data - {0}")]
     ProtobufEncodingError(prost::EncodeError),
 
     #[error("There was an issue when attempting to decode our protobuf data - {0}")]
     ProtobufDecodingError(prost::DecodeError),
+
+    #[error("Account {0} does not exist on the chain")]
+    NonExistentAccountError(AccountId),
+
+    #[error("There was an issue with the serialization/deserialization - {0}")]
+    SerdeJsonError(serde_json::Error),
 }
 
 impl From<bip32::Error> for ValidatorClientError {
@@ -82,6 +91,12 @@ impl From<prost::EncodeError> for ValidatorClientError {
 impl From<prost::DecodeError> for ValidatorClientError {
     fn from(err: prost::DecodeError) -> Self {
         ValidatorClientError::ProtobufDecodingError(err)
+    }
+}
+
+impl From<serde_json::Error> for ValidatorClientError {
+    fn from(err: serde_json::Error) -> Self {
+        ValidatorClientError::SerdeJsonError(err)
     }
 }
 

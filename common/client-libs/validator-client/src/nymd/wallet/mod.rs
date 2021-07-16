@@ -63,14 +63,16 @@ impl DirectSecp256k1HdWallet {
 
     pub fn sign_direct(
         &self,
-        signer_address: AccountId,
+        signer_address: &AccountId,
         sign_doc: SignDoc,
     ) -> Result<tx::Raw, ValidatorClientError> {
         let account = self
             .accounts
             .iter()
-            .find(|account| account.address == signer_address)
-            .ok_or(ValidatorClientError::SigningAccountNotFound(signer_address))?;
+            .find(|account| &account.address == signer_address)
+            .ok_or(ValidatorClientError::SigningAccountNotFound(
+                signer_address.clone(),
+            ))?;
 
         // ideally I'd prefer to have the entire error put into the ValidatorClientError::SigningFailure
         // but I'm super hesitant to trying to downcast the eyre::Report to cosmos_sdk::error::Error

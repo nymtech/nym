@@ -3,6 +3,7 @@
 
 mod client;
 mod signing_client;
+pub mod types;
 
 // pub enum CosmWasmClient {
 //     SigningClient(SigningCosmWasmClient),

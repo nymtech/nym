@@ -5,12 +5,13 @@ use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use crate::ValidatorClientError;
 use async_trait::async_trait;
+use cosmos_sdk::bank::MsgSend;
 use cosmos_sdk::rpc::endpoint::broadcast;
 use cosmos_sdk::rpc::{
     Client, Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest,
 };
 use cosmos_sdk::tendermint::{block, chain};
-use cosmos_sdk::tx::{AccountNumber, Fee, Msg, SequenceNumber, SignDoc, SignerInfo};
+use cosmos_sdk::tx::{AccountNumber, Fee, Msg, MsgType, SequenceNumber, SignDoc, SignerInfo};
 use cosmos_sdk::{rpc, tx, AccountId, Coin};
 use std::convert::TryInto;
 use std::pin::Pin;
@@ -27,6 +28,15 @@ pub struct SigningCosmWasmClient {
     signer: DirectSecp256k1HdWallet,
 }
 
+// TODO: implement those
+type UploadMeta = ();
+type UploadResult = ();
+type InstantiateOptions = ();
+type InstantiateResult = ();
+type ChangeAdminResult = ();
+type MigrateResult = ();
+type ExecuteResult = ();
+
 impl SigningCosmWasmClient {
     pub fn connect_with_signer<U>(
         endpoint: U,
@@ -41,67 +51,151 @@ impl SigningCosmWasmClient {
         })
     }
 
-    //
+    pub async fn upload(
+        &self,
+        sender_address: &AccountId,
+        wasm_code: Vec<u8>,
+        meta: Option<UploadMeta>,
+        memo: impl Into<String>,
+    ) -> Result<UploadResult, ValidatorClientError> {
+        todo!()
+    }
 
-    // pub async fn upload(sender_address: AccountId, wasmCode: Uint8Array, meta?: UploadMeta, memo?: string) -> Result<UploadResult, ValidatorClientError> {
-    //     todo!()
-    // }
-    // pub async fn instantiate(sender_address: AccountId, codeId: number, msg: Record<string, unknown>, label: string, options?: InstantiateOptions) -> Result<InstantiateResult, ValidatorClientError> {
-    //     todo!()
-    // }
-    // pub async fn update_admin(sender_address: AccountId, contract_address: AccountId, newAdmin: string, memo?: string) -> Result<ChangeAdminResult, ValidatorClientError> {
-    //     todo!()
-    // }
-    // pub async fn clear_admin(sender_address: AccountId, contract_address: AccountId, memo?: string) -> Result<ChangeAdminResult, ValidatorClientError> {
-    //     todo!()
-    // }
-    // pub async fn migrate(sender_address: AccountId, contract_address: AccountId, codeId: number, migrateMsg: Record<string, unknown>, memo?: string) -> Result<MigrateResult, ValidatorClientError> {
-    //     todo!()
-    // }
-    // pub async fn execute(sender_address: AccountId, contract_address: AccountId, msg: Record<string, unknown>, memo?: string, funds?: readonly Coin[]) -> Result<ExecuteResult, ValidatorClientError> {
-    //     todo!()
-    // }
-    // pub async fn send_tokens(sender_address: AccountId, recipient_address: AccountId, amount: readonly Coin[], memo?: string) -> Result<BroadcastTxResponse, ValidatorClientError> {
-    //     todo!()
-    // }
-    // pub async fn delegate_tokens(delegator_address: AccountId, validator_address: AccountId, amount: Coin, memo?: string) -> Result<BroadcastTxResponse, ValidatorClientError> {
-    //     todo!()
-    // }
-    // pub async fn undelegate_tokens(delegator_address: AccountId, validator_address: AccountId, amount: Coin, memo?: string) -> Result<BroadcastTxResponse, ValidatorClientError> {
-    //     todo!()
-    // }
-    // pub async fn withdraw_rewards(delegator_address: AccountId, validator_address: AccountId, memo?: string) -> Result<BroadcastTxResponse, ValidatorClientError> {
-    //     todo!()
-    // }
+    pub async fn instantiate<T>(
+        &self,
+        sender_address: &AccountId,
+        code_id: u64,
+        msg: T,
+        label: String,
+        options: Option<InstantiateOptions>,
+    ) -> Result<InstantiateResult, ValidatorClientError> {
+        todo!()
+    }
+
+    pub async fn update_admin(
+        &self,
+        sender_address: &AccountId,
+        contract_address: &AccountId,
+        new_admin: &AccountId,
+        memo: impl Into<String>,
+    ) -> Result<ChangeAdminResult, ValidatorClientError> {
+        todo!()
+    }
+    pub async fn clear_admin(
+        &self,
+        sender_address: &AccountId,
+        contract_address: &AccountId,
+        memo: impl Into<String>,
+    ) -> Result<ChangeAdminResult, ValidatorClientError> {
+        todo!()
+    }
+
+    pub async fn migrate<T>(
+        &self,
+        sender_address: &AccountId,
+        contract_address: &AccountId,
+        code_id: u64,
+        migrate_msg: T,
+        memo: impl Into<String>,
+    ) -> Result<MigrateResult, ValidatorClientError> {
+        todo!()
+    }
+
+    pub async fn execute<T>(
+        &self,
+        sender_address: &AccountId,
+        contract_address: &AccountId,
+        msg: T,
+        memo: impl Into<String>,
+        funds: Option<Vec<Coin>>,
+    ) -> Result<ExecuteResult, ValidatorClientError> {
+        todo!()
+    }
+
+    pub async fn send_tokens(
+        &self,
+        sender_address: &AccountId,
+        recipient_address: &AccountId,
+        amount: Vec<Coin>,
+        fee: Fee,
+        memo: impl Into<String>,
+    ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
+        let send_msg = MsgSend {
+            from_address: sender_address.clone(),
+            to_address: recipient_address.clone(),
+            amount,
+        }
+        .to_msg()
+        .map_err(|_| ValidatorClientError::SerializationError("MsgSend".to_owned()))?;
+
+        self.sign_and_broadcast_commit(sender_address, vec![send_msg], fee, memo)
+            .await
+    }
+
+    pub async fn delegate_tokens(
+        delegator_address: &AccountId,
+        validator_address: &AccountId,
+        amount: Coin,
+        memo: impl Into<String>,
+    ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
+        todo!()
+    }
+
+    pub async fn undelegate_tokens(
+        delegator_address: &AccountId,
+        validator_address: &AccountId,
+        amount: Coin,
+        memo: impl Into<String>,
+    ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
+        todo!()
+    }
+
+    pub async fn withdraw_rewards(
+        delegator_address: &AccountId,
+        validator_address: &AccountId,
+        memo: impl Into<String>,
+    ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
+        todo!()
+    }
 
     // Creates a transaction with the given messages, fee and memo. Then signs and broadcasts the transaction.
 
     /// Broadcast a transaction, returning immediately.
     pub async fn sign_and_broadcast_async(
         &self,
-        signer_address: AccountId,
+        signer_address: &AccountId,
         messages: Vec<Msg>,
         fee: Fee,
         memo: impl Into<String>,
-    ) -> Result<broadcast::tx_sync::Response, ValidatorClientError> {
-        todo!()
+    ) -> Result<broadcast::tx_async::Response, ValidatorClientError> {
+        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_bytes = tx_raw
+            .to_bytes()
+            .map_err(|_| ValidatorClientError::SerializationError("Tx".to_owned()))?;
+
+        self.base_client.broadcast_tx_async(tx_bytes.into()).await
     }
 
     /// Broadcast a transaction, returning the response from `CheckTx`.
     pub async fn sign_and_broadcast_sync(
         &self,
-        signer_address: AccountId,
+        signer_address: &AccountId,
         messages: Vec<Msg>,
         fee: Fee,
         memo: impl Into<String>,
-    ) -> Result<broadcast::tx_async::Response, ValidatorClientError> {
-        todo!()
+    ) -> Result<broadcast::tx_sync::Response, ValidatorClientError> {
+        let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
+        let tx_bytes = tx_raw
+            .to_bytes()
+            .map_err(|_| ValidatorClientError::SerializationError("Tx".to_owned()))?;
+
+        self.base_client.broadcast_tx_sync(tx_bytes.into()).await
     }
 
     /// Broadcast a transaction, returning the response from `DeliverTx`.
     pub async fn sign_and_broadcast_commit(
         &self,
-        signer_address: AccountId,
+        signer_address: &AccountId,
         messages: Vec<Msg>,
         fee: Fee,
         memo: impl Into<String>,
@@ -116,7 +210,7 @@ impl SigningCosmWasmClient {
 
     fn sign_direct(
         &self,
-        signer_address: AccountId,
+        signer_address: &AccountId,
         messages: Vec<Msg>,
         fee: Fee,
         memo: impl Into<String>,
@@ -125,7 +219,7 @@ impl SigningCosmWasmClient {
         let signer_accounts = self.signer.get_accounts();
         let account_from_signer = signer_accounts
             .iter()
-            .find(|account| account.address == signer_address)
+            .find(|account| &account.address == signer_address)
             .ok_or_else(|| ValidatorClientError::SigningAccountNotFound(signer_address.clone()))?;
 
         // TODO: WTF HOW IS TIMEOUT_HEIGHT SUPPOSED TO GET DETERMINED?
@@ -153,18 +247,14 @@ impl SigningCosmWasmClient {
 
     pub async fn sign(
         &self,
-        signer_address: AccountId,
+        signer_address: &AccountId,
         messages: Vec<Msg>,
         fee: Fee,
         memo: impl Into<String>,
     ) -> Result<tx::Raw, ValidatorClientError> {
-        // here be difficult part of getting account number and sequence...
-        let account_number = 9471;
-        let sequence = 2; // TODO: update it...
-
-        let account_number = 0;
-        let sequence = 18;
-
+        // TODO: Rather than grabbing current account_number and sequence
+        // on every sign request -> just keep them cached on the struct and increment as required
+        let (account_number, sequence) = self.base_client.get_sequence(signer_address).await?;
         let chain_id = self.base_client.get_chain_id().await?;
 
         let signer_data = SignerData {
@@ -192,16 +282,16 @@ impl SigningCosmWasmClient {
 //     // static offline(signer: OfflineSigner, options?: SigningCosmWasmClientOptions): Promise<SigningCosmWasmClient>;
 //     // protected constructor(tmClient: Tendermint34Client | undefined, signer: OfflineSigner, options: SigningCosmWasmClientOptions);
 //     // /** Uploads code and returns a receipt, including the code ID */
-//     // upload(sender_address: string, wasmCode: Uint8Array, meta?: UploadMeta, memo?: string): Promise<UploadResult>;
-//     // instantiate(senderAddress: string, codeId: number, msg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult>;
-//     // update_admin(senderAddress: string, contract_address: string, newAdmin: string, memo?: string): Promise<ChangeAdminResult>;
-//     // clear_admin(senderAddress: string, contract_address: string, memo?: string): Promise<ChangeAdminResult>;
-//     // migrate(senderAddress: string, contractAddress: string, codeId: number, migrateMsg: Record<string, unknown>, memo?: string): Promise<MigrateResult>;
-//     // execute(senderAddress: string, contractAddress: string, msg: Record<string, unknown>, memo?: string, funds?: readonly Coin[]): Promise<ExecuteResult>;
-//     // send_tokens(senderAddress: string, recipient_address: string, amount: readonly Coin[], memo?: string): Promise<BroadcastTxResponse>;
-//     // delegate_tokens(delegator_address: string, validatorAddress: string, amount: Coin, memo?: string): Promise<BroadcastTxResponse>;
-//     // undelegate_tokens(delegator_address: string, validatorAddress: string, amount: Coin, memo?: string): Promise<BroadcastTxResponse>;
-//     // withdraw_rewards(delegator_address: string, validatorAddress: string, memo?: string): Promise<BroadcastTxResponse>;
+//     // upload(sender_address: string, wasmCode: Uint8Array, meta?: UploadMeta, memo: impl Into<String>): Promise<UploadResult>;
+//     // instantiate(senderAddress: string, code_id: number, msg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult>;
+//     // update_admin(senderAddress: string, contract_address: string, newAdmin: string, memo: impl Into<String>): Promise<ChangeAdminResult>;
+//     // clear_admin(senderAddress: string, contract_address: string, memo: impl Into<String>): Promise<ChangeAdminResult>;
+//     // migrate(senderAddress: string, contractAddress: string, code_id: number, migrateMsg: Record<string, unknown>, memo: impl Into<String>): Promise<MigrateResult>;
+//     // execute(senderAddress: string, contractAddress: string, msg: Record<string, unknown>, memo: impl Into<String>, funds?: readonly Coin[]): Promise<ExecuteResult>;
+//     // send_tokens(senderAddress: string, recipient_address: string, amount: readonly Coin[], memo: impl Into<String>): Promise<broadcast::tx_commit::Response>;
+//     // delegate_tokens(delegator_address: string, validatorAddress: string, amount: Coin, memo: impl Into<String>): Promise<broadcast::tx_commit::Response>;
+//     // undelegate_tokens(delegator_address: string, validatorAddress: string, amount: Coin, memo: impl Into<String>): Promise<broadcast::tx_commit::Response>;
+//     // withdraw_rewards(delegator_address: string, validatorAddress: string, memo: impl Into<String>): Promise<broadcast::tx_commit::Response>;
 //     // /**
 //     //  * Creates a transaction with the given messages, fee and memo. Then signs and broadcasts the transaction.
 //     //  *
@@ -210,7 +300,7 @@ impl SigningCosmWasmClient {
 //     //  * @param fee
 //     //  * @param memo
 //     //  */
-//     // sign_and_broadcast(signer_address: string, messages: readonly EncodeObject[], fee: StdFee, memo?: string): Promise<BroadcastTxResponse>;
+//     // sign_and_broadcast(signer_address: string, messages: readonly EncodeObject[], fee: StdFee, memo: impl Into<String>): Promise<broadcast::tx_commit::Response>;
 //     // sign(signer_address: string, messages: readonly EncodeObject[], fee: StdFee, memo: string, explicitSignerData?: SignerData): Promise<TxRaw>;
 // }
 
@@ -264,12 +354,8 @@ mod tests {
         let client = SigningCosmWasmClient::connect_with_signer(validator, wallet).unwrap();
 
         // let balance = client.base_client.get_all_balances(&address).await.unwrap();
-        let balance = client
-            .base_client
-            .get_balance(&address, "uhal".parse().unwrap())
-            .await
-            .unwrap();
+        let res = client.base_client.get_account(&address).await.unwrap();
 
-        println!("{:?}", balance);
+        println!("{:?}", res);
     }
 }

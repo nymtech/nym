@@ -13,7 +13,7 @@ services:
                 build: docker/validator
                 image: validator:latest
                 volumes:
-                        - "genesis_volume:/genesis_volume"
+                        - "genesis_volume:/genesis_volume:ro"
                 depends_on:
                         - "genesis_validator"
                 command: ["secondary"]
@@ -26,7 +26,7 @@ services:
                 build: clients/validator
                 image: contract_uploader:typescript
                 volumes:
-                        - "genesis_volume:/genesis_volume"
+                        - "genesis_volume:/genesis_volume:ro"
                         - "contract_volume:/contract_volume"
                         - ".:/nym"
                 depends_on:

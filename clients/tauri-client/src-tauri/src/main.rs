@@ -3,9 +3,7 @@
   windows_subsystem = "windows"
 )]
 
-use coconut_rs::{
-  aggregate_signature_shares, Base58, Parameters, Signature, SignatureShare,
-};
+use coconut_rs::{aggregate_signature_shares, Base58, Parameters, Signature, SignatureShare};
 use coconut_validator_interface::{BlindSignRequestBody, BlindedSignatureResponse};
 
 const NUM_ATTRIBUTES: u32 = 3;

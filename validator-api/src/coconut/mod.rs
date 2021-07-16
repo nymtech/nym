@@ -1,7 +1,5 @@
 use crate::Config;
-use coconut_rs::{
-    elgamal::PublicKey, Attribute, BlindSignRequest, BlindedSignature, Parameters,
-};
+use coconut_rs::{elgamal::PublicKey, Attribute, BlindSignRequest, BlindedSignature, Parameters};
 use coconut_validator_interface::{BlindSignRequestBody, BlindedSignatureResponse};
 use getset::{CopyGetters, Getters};
 use rocket::serde::json::Json;

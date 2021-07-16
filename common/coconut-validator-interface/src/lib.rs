@@ -1,6 +1,6 @@
+pub use coconut_rs::*;
 use coconut_rs::{Attribute, Base58, BlindSignRequest, BlindedSignature, PublicKey};
 use serde::{Deserialize, Serialize};
-pub use coconut_rs::*;
 
 //  All strings are base58 encoded representations of structs
 #[derive(Serialize, Deserialize, Debug)]

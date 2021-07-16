@@ -34,7 +34,7 @@ services:
                         - "secondary_validator"
                         - "mixnet_contract"
         wallet:
-                build: nym-wallet-web
+                build: wallet-web
                 image: wallet:latest
                 ports:
                         - "3000:3000"

@@ -49,7 +49,7 @@ fn get_credential(validator_urls: Vec<String>) -> String {
 
     if resp.is_success() {
       let blinded_signature_response: BlindedSignatureResponse = resp.json().unwrap();
-      let blinded_signature = blinded_signature_response.blinded_signature();
+      let blinded_signature = blinded_signature_response.blinded_signature;
       let unblinded_signature = blinded_signature.unblind(&elgamal_keypair.private_key());
       let signature_share = SignatureShare::new(unblinded_signature, (idx + 1) as u64);
       signature_shares.push(signature_share);

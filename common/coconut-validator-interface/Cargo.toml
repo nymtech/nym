@@ -7,5 +7,6 @@ description = "Crutch library until there is proper SerDe support for coconut st
 
 [dependencies]
 serde = {version = "1.0", features = ["derive"]}
+getset = "0.1.1"
 
-coconut-rs = { git = "https://github.com/nymtech/coconut.git", branch = "develop" }
+coconut-rs = { git = "https://github.com/nymtech/coconut.git", branch = "serde" }

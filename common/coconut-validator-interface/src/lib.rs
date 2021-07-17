@@ -1,12 +1,13 @@
 pub use coconut_rs::*;
 use coconut_rs::{Attribute, Base58, BlindSignRequest, BlindedSignature, PublicKey};
+use getset::Getters;
 use serde::{Deserialize, Serialize};
 
 //  All strings are base58 encoded representations of structs
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Getters)]
 pub struct BlindSignRequestBody {
-    blind_sign_request: String,
-    public_key: String,
+    blind_sign_request: BlindSignRequest,
+    public_key: PublicKey,
     public_attributes: Vec<String>,
     total_params: u32,
 }
@@ -19,22 +20,14 @@ impl BlindSignRequestBody {
         total_params: u32,
     ) -> BlindSignRequestBody {
         BlindSignRequestBody {
-            blind_sign_request: blind_sign_request.to_bs58(),
-            public_key: public_key.to_bs58(),
+            blind_sign_request: blind_sign_request.clone(),
+            public_key: public_key.clone(),
             public_attributes: public_attributes
                 .iter()
                 .map(|attr| attr.to_bs58())
                 .collect(),
             total_params,
         }
-    }
-
-    pub fn blind_sign_request(&self) -> BlindSignRequest {
-        BlindSignRequest::try_from_bs58(&self.blind_sign_request).unwrap()
-    }
-
-    pub fn public_key(&self) -> PublicKey {
-        PublicKey::try_from_bs58(&self.public_key).unwrap()
     }
 
     pub fn public_attributes(&self) -> Vec<Attribute> {
@@ -47,21 +40,23 @@ impl BlindSignRequestBody {
     pub fn total_params(&self) -> u32 {
         self.total_params
     }
+
+    pub fn blind_sign_request(&self) -> BlindSignRequest {
+        self.blind_sign_request.clone()
+    }
+
+    pub fn public_key(&self) -> PublicKey {
+        self.public_key.clone()
+    }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct BlindedSignatureResponse {
-    blinded_signature: String,
+    pub blinded_signature: BlindedSignature,
 }
 
 impl BlindedSignatureResponse {
     pub fn new(blinded_signature: BlindedSignature) -> BlindedSignatureResponse {
-        BlindedSignatureResponse {
-            blinded_signature: blinded_signature.to_bs58(),
-        }
-    }
-
-    pub fn blinded_signature(&self) -> BlindedSignature {
-        BlindedSignature::try_from_bs58(&self.blinded_signature).unwrap()
+        BlindedSignatureResponse { blinded_signature }
     }
 }

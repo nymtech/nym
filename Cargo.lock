@@ -564,7 +564,7 @@ checksum = "ea221b5284a47e40033bf9b66f35f984ec0ea2931eb03505246cd27a963f981b"
 [[package]]
 name = "cosmos-sdk-proto"
 version = "0.5.0"
-source = "git+https://github.com/jstuczyn/cosmos-rust?branch=jstuczyn/cosmwasm-module#6dee9334c400da43de91e0976348be8494f5dded"
+source = "git+https://github.com/cosmos/cosmos-rust/#4299b75a5a9b68e4f9a1693bb689874561d544db"
 dependencies = [
  "prost",
  "prost-types",
@@ -574,7 +574,7 @@ dependencies = [
 [[package]]
 name = "cosmos_sdk"
 version = "0.2.0"
-source = "git+https://github.com/jstuczyn/cosmos-rust?branch=jstuczyn/cosmwasm-module#6dee9334c400da43de91e0976348be8494f5dded"
+source = "git+https://github.com/cosmos/cosmos-rust/#4299b75a5a9b68e4f9a1693bb689874561d544db"
 dependencies = [
  "bip32",
  "cosmos-sdk-proto",

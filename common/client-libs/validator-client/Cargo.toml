@@ -10,8 +10,7 @@ edition = "2018"
 async-trait = "0.1.50"
 base64 = "0.13"
 bip39 = { version = "1", features = ["rand"] }
-# work on my fork until https://github.com/cosmos/cosmos-rust/pull/96 is merged
-cosmos_sdk = { git = "https://github.com/jstuczyn/cosmos-rust", branch="jstuczyn/cosmwasm-module", features = ["rpc", "bip32", "cosmwasm"] }
+cosmos_sdk = { git = "https://github.com/cosmos/cosmos-rust/", commit="4299b75a5a9b68e4f9a1693bb689874561d544db", features = ["rpc", "bip32", "cosmwasm"] }
 mixnet-contract = { path="../../../common/mixnet-contract" }
 serde = { version="1", features=["derive"] }
 serde_json = "1"

@@ -17,4 +17,5 @@ while ! nc -z genesis_validator 26657; do
 	sleep 1
 done
 
+chmod 777 /contract_volume
 npx ts-node upload-wasm.ts

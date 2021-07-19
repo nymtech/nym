@@ -53,7 +53,7 @@
       {
         "title": "Nym Client",
         "width": 800,
-        "height": 400,
+        "height": 1000,
         "resizable": true,
         "fullscreen": false
       }

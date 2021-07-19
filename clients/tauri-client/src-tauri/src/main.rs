@@ -3,21 +3,64 @@
   windows_subsystem = "windows"
 )]
 
-use coconut_rs::{aggregate_signature_shares, Base58, Parameters, Signature, SignatureShare};
+use coconut_rs::{aggregate_signature_shares, Parameters, Signature, SignatureShare};
 use coconut_validator_interface::{BlindSignRequestBody, BlindedSignatureResponse};
+use std::sync::Arc;
+use std::sync::RwLock;
 
 const NUM_ATTRIBUTES: u32 = 3;
 
-#[tauri::command]
-fn randomise_credential(signature: String) -> String {
-  let signature = Signature::try_from_bs58(signature).unwrap();
-  let params = Parameters::new(NUM_ATTRIBUTES).unwrap();
-  let new = signature.randomise(&params);
-  new.to_bs58()
+#[derive(Default)]
+struct State {
+  signatures: Vec<Signature>,
 }
 
 #[tauri::command]
-fn get_credential(validator_urls: Vec<String>) -> String {
+fn randomise_credential(idx: usize, state: tauri::State<Arc<RwLock<State>>>) -> Vec<Signature> {
+  match state.write() {
+    Ok(mut state) => {
+      let signature = state.signatures.remove(idx);
+      let params = Parameters::new(NUM_ATTRIBUTES).unwrap();
+      let new = signature.randomise(&params);
+      state.signatures.insert(idx, new);
+    }
+    Err(e) => panic!("{}", e),
+  }
+
+  match state.read() {
+    Ok(state) => state.signatures.clone(),
+    Err(e) => panic!("{}", e),
+  }
+}
+
+#[tauri::command]
+fn delete_credential(idx: usize, state: tauri::State<Arc<RwLock<State>>>) -> Vec<Signature> {
+  match state.write() {
+    Ok(mut state) => {
+      let _ = state.signatures.remove(idx);
+    }
+    Err(e) => panic!("{}", e),
+  }
+
+  match state.read() {
+    Ok(state) => state.signatures.clone(),
+    Err(e) => panic!("{}", e),
+  }
+}
+
+#[tauri::command]
+fn list_credentials(state: tauri::State<Arc<RwLock<State>>>) -> Vec<Signature> {
+  match state.read() {
+    Ok(state) => state.signatures.clone(),
+    Err(e) => panic!("{}", e),
+  }
+}
+
+#[tauri::command]
+fn get_credential(
+  validator_urls: Vec<String>,
+  state: tauri::State<Arc<RwLock<State>>>,
+) -> Vec<Signature> {
   let params = Parameters::new(NUM_ATTRIBUTES).unwrap();
   let public_attributes = params.n_random_scalars(2);
   let private_attributes = params.n_random_scalars(1);
@@ -57,14 +100,24 @@ fn get_credential(validator_urls: Vec<String>) -> String {
   }
 
   let signature = aggregate_signature_shares(&signature_shares).unwrap();
-  signature.to_bs58()
+  match state.write() {
+    Ok(mut state) => state.signatures.push(signature),
+    Err(e) => panic!("{}", e),
+  }
+  match state.read() {
+    Ok(state) => state.signatures.clone(),
+    Err(e) => panic!("{}", e),
+  }
 }
 
 fn main() {
   tauri::Builder::default()
+    .manage(Arc::new(RwLock::new(State::default())))
     .invoke_handler(tauri::generate_handler![
       get_credential,
-      randomise_credential
+      randomise_credential,
+      delete_credential,
+      list_credentials
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

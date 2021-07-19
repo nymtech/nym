@@ -1,55 +1,32 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::monitor::preparer::{InvalidNode, TestedNode};
-use crate::node_status_api::models::{
-    BatchGatewayStatus, BatchMixStatus, GatewayStatus, MixStatus,
-};
-use crate::test_packet::{NodeType, TestPacket};
+use crate::network_monitor::monitor::preparer::{InvalidNode, TestedNode};
+use crate::network_monitor::test_packet::{NodeType, TestPacket};
 use crate::PENALISE_OUTDATED;
 use std::collections::HashMap;
 
+pub(crate) struct NodeResult {
+    pub(crate) pub_key: String,
+    pub(crate) owner: String,
+    pub(crate) working_ipv4: bool,
+    pub(crate) working_ipv6: bool,
+}
+
 #[derive(Default)]
-struct NodeResult {
+struct NodeStatus {
     ip_v4_compatible: bool,
     ip_v6_compatible: bool,
 }
 
-impl NodeResult {
-    fn into_mix_status(self, pub_key: String, owner: String) -> Vec<MixStatus> {
-        let v4_status = MixStatus {
-            owner: owner.clone(),
-            pub_key: pub_key.clone(),
-            ip_version: "4".to_string(),
-            up: self.ip_v4_compatible,
-        };
-
-        let v6_status = MixStatus {
-            owner,
+impl NodeStatus {
+    fn into_node_status(self, pub_key: String, owner: String) -> NodeResult {
+        NodeResult {
             pub_key,
-            ip_version: "6".to_string(),
-            up: self.ip_v6_compatible,
-        };
-
-        vec![v4_status, v6_status]
-    }
-
-    fn into_gateway_status(self, pub_key: String, owner: String) -> Vec<GatewayStatus> {
-        let v4_status = GatewayStatus {
-            owner: owner.clone(),
-            pub_key: pub_key.clone(),
-            ip_version: "4".to_string(),
-            up: self.ip_v4_compatible,
-        };
-
-        let v6_status = GatewayStatus {
             owner,
-            pub_key,
-            ip_version: "6".to_string(),
-            up: self.ip_v6_compatible,
-        };
-
-        vec![v4_status, v6_status]
+            working_ipv4: self.ip_v4_compatible,
+            working_ipv6: self.ip_v6_compatible,
+        }
     }
 }
 
@@ -60,14 +37,20 @@ pub(crate) struct TestReport {
     pub(crate) malformed: Vec<InvalidNode>,
 
     // below are only populated if we're going to be printing the report
-    pub(crate) only_ipv4_compatible_mixes: Vec<TestedNode>, // can't speak v6, but can speak v4
-    pub(crate) only_ipv6_compatible_mixes: Vec<TestedNode>, // can't speak v4, but can speak v6
-    pub(crate) completely_unroutable_mixes: Vec<TestedNode>, // can't speak either v4 or v6
+    pub(crate) only_ipv4_compatible_mixes: Vec<TestedNode>,
+    // can't speak v6, but can speak v4
+    pub(crate) only_ipv6_compatible_mixes: Vec<TestedNode>,
+    // can't speak v4, but can speak v6
+    pub(crate) completely_unroutable_mixes: Vec<TestedNode>,
+    // can't speak either v4 or v6
     pub(crate) fully_working_mixes: Vec<TestedNode>,
 
-    pub(crate) only_ipv4_compatible_gateways: Vec<TestedNode>, // can't speak v6, but can speak v4
-    pub(crate) only_ipv6_compatible_gateways: Vec<TestedNode>, // can't speak v4, but can speak v6
-    pub(crate) completely_unroutable_gateways: Vec<TestedNode>, // can't speak either v4 or v6
+    pub(crate) only_ipv4_compatible_gateways: Vec<TestedNode>,
+    // can't speak v6, but can speak v4
+    pub(crate) only_ipv6_compatible_gateways: Vec<TestedNode>,
+    // can't speak v4, but can speak v6
+    pub(crate) completely_unroutable_gateways: Vec<TestedNode>,
+    // can't speak either v4 or v6
     pub(crate) fully_working_gateways: Vec<TestedNode>,
 }
 
@@ -145,7 +128,7 @@ impl TestReport {
         }
     }
 
-    fn parse_summary(&mut self, summary: &HashMap<TestedNode, NodeResult>) {
+    fn parse_summary(&mut self, summary: &HashMap<TestedNode, NodeStatus>) {
         for (node, result) in summary.iter() {
             let owned_node = node.clone();
             if node.is_gateway() {
@@ -172,8 +155,8 @@ impl TestReport {
 }
 
 pub(crate) struct TestSummary {
-    pub(crate) batch_mix_status: BatchMixStatus,
-    pub(crate) batch_gateway_status: BatchGatewayStatus,
+    pub(crate) mixnode_results: Vec<NodeResult>,
+    pub(crate) gateway_results: Vec<NodeResult>,
     pub(crate) test_report: TestReport,
 }
 
@@ -205,7 +188,7 @@ impl SummaryProducer {
         let received_packets_count = received_packets.len();
 
         // contains map of all (seemingly valid) nodes and whether they speak ipv4/ipv6
-        let mut summary: HashMap<TestedNode, NodeResult> = HashMap::new();
+        let mut summary: HashMap<TestedNode, NodeStatus> = HashMap::new();
 
         // update based on data we actually got
         for received_status in received_packets.into_iter() {
@@ -256,31 +239,19 @@ impl SummaryProducer {
             .into_iter()
             .partition(|(node, _)| node.node_type == NodeType::Mixnode);
 
-        let mix_statuses = mixes
+        let mixnode_results = mixes
             .into_iter()
-            .flat_map(|(node, result)| {
-                result
-                    .into_mix_status(node.identity, node.owner)
-                    .into_iter()
-            })
+            .map(|(node, result)| result.into_node_status(node.identity, node.owner))
             .collect();
 
-        let gateway_statuses = gateways
+        let gateway_results = gateways
             .into_iter()
-            .flat_map(|(node, result)| {
-                result
-                    .into_gateway_status(node.identity, node.owner)
-                    .into_iter()
-            })
+            .map(|(node, result)| result.into_node_status(node.identity, node.owner))
             .collect();
 
         TestSummary {
-            batch_mix_status: BatchMixStatus {
-                status: mix_statuses,
-            },
-            batch_gateway_status: BatchGatewayStatus {
-                status: gateway_statuses,
-            },
+            mixnode_results,
+            gateway_results,
             test_report: report,
         }
     }

@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::gateways_reader::{GatewayChannel, GatewayMessages, GatewaysReader};
-use crate::monitor::processor::ReceivedProcessorSender;
+use crate::network_monitor::gateways_reader::{GatewayChannel, GatewayMessages, GatewaysReader};
+use crate::network_monitor::monitor::processor::ReceivedProcessorSender;
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use futures::StreamExt;

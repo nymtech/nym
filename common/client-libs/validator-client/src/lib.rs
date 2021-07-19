@@ -110,6 +110,7 @@ impl Client {
         let mut validator_urls = self.available_validators_rest_urls().clone();
 
         // This will never exit
+        // JS: Shouldn't it have some sort of maximum attempts counter to return an error at some point?
         loop {
             validator_urls.as_mut_slice().shuffle(&mut thread_rng());
             for url in validator_urls.iter() {

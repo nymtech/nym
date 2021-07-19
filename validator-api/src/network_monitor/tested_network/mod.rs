@@ -1,7 +1,7 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::test_packet::IpVersion;
+use crate::network_monitor::test_packet::IpVersion;
 use topology::{gateway, mix, NymTopology};
 
 pub(crate) mod good_topology;

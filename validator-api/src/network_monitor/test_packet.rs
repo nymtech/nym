@@ -1,7 +1,7 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::monitor::preparer::TestedNode;
+use crate::network_monitor::monitor::preparer::TestedNode;
 use crypto::asymmetric::identity;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{self, Display, Formatter};

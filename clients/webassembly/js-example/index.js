@@ -25,13 +25,13 @@ async function main() {
     set_panic_hook();
 
     // validator we will use to get topology from
-    // If you run into CORS errors make sure to set `enable-unsafe-cors` as true
+    // If you run into CORS errors make sure to set `enable-unsafe-cors` as true in `app.toml`
     // and add `'Access-Control-Allow-Origin'` to the accepted headers
     // in your validator's `config.toml`,
-    const validator = "http://mixnet.club:1317"; //  1317 = standard API port.
+    const validator = "http://testnet-milhon-validator1.nymtech.net:1317"; //  1317 = standard API port.
 
     // mixnet contract address
-    const mixnet_contract = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94"
+    const mixnet_contract = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen"
 
     client = new NymClient(validator,mixnet_contract);
 

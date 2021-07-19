@@ -51,7 +51,29 @@ services:
                 depends_on:
                         - "genesis_validator"
 
+        mongo:
+                image: mongo:latest
+                command:
+                        - --storageEngine=wiredTiger
+                volumes:
+                        - mongo_data:/data/db
+
+        block_explorer:
+                build:
+                        context: https://github.com/forbole/big-dipper.git#v0.41.x-7
+                image: block_explorer:v0.41.x-7
+                ports:
+                        - "3080:3000"
+                depends_on:
+                        - "mongo"
+                environment:
+                        ROOT_URL: ${APP_ROOT_URL:-http://localhost}
+                        MONGO_URL: mongodb://mongo:27017/meteor
+                        PORT: 3000
+                        METEOR_SETTINGS: ${METEOR_SETTINGS}
+
 
 volumes:
         genesis_volume:
         contract_volume:
+        mongo_data:

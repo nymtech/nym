@@ -23,7 +23,12 @@ if [ "$1" = "genesis" ]; then
 	./nymd start
 elif [ "$1" = "secondary" ]; then
 	./nymd init nymnet --chain-id nym-secondary 2> /dev/null
-	sleep 10
+
+	# Wait until the genesis node writes the genesis.json to the shared volume
+	while ! [ -s /genesis_volume/genesis.json ]; do
+		sleep 1
+	done
+
 	cp /genesis_volume/genesis.json /root/.nymd/config/genesis.json
 	GENESIS_PEER=$(cat /root/.nymd/config/genesis.json | grep '"memo"' | cut -d'"' -f 4)
 	sed -i 's/persistent_peers = ""/persistent_peers = "'"${GENESIS_PEER}"'"/' /root/.nymd/config/config.toml

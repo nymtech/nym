@@ -1879,6 +1879,7 @@ dependencies = [
  "cosmwasm-std",
  "schemars",
  "serde",
+ "serde_repr",
 ]
 
 [[package]]
@@ -2170,7 +2171,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-api"
-version = "0.10.1"
+version = "0.11.0-rc1"
 dependencies = [
  "anyhow",
  "clap",

@@ -41,7 +41,7 @@ function handleResponse(resp) {
             ourAddress = response.address;
             display("Our address is:  " + ourAddress + ", we will now send messages to ourself.");
         } else if (response.type == "received") {
-            // handleReceivedTextMessage(response)
+            handleReceivedTextMessage(response)
             printReceivedMessage(response);
         }
     } catch (_) {

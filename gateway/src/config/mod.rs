@@ -18,8 +18,7 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
 pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
-    "http://testnet-milhon-validator1.nymtech.net:1317",
-    "http://testnet-milhon-validator2.nymtech.net:1317",
+    "http://testnet-milhon-validator1.nymtech.net:1317"
 ];
 pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen";
 

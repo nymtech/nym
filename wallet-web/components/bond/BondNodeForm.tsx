@@ -7,8 +7,8 @@ import semver from "semver"
 import { NodeType } from "../../common/node";
 import { theme } from "../../lib/theme";
 import { basicRawCoinValueValidation, makeBasicStyle, validateRawPort } from "../../common/helpers";
-import { Coin, printableCoin, nativeToPrintable } from "@nymproject/nym-validator-client";
-import { DENOM, UDENOM } from "../../pages/_app";
+import { Coin, nativeToPrintable } from "@nymproject/nym-validator-client";
+import { DENOM } from "../../pages/_app";
 import { printableBalanceToNative } from "@nymproject/nym-validator-client/dist/currency";
 import { BondingInformation } from "./NodeBond";
 

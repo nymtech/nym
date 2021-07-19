@@ -43,6 +43,14 @@ services:
                         - "./wallet-web:/wallet-web:ro"
                 depends_on:
                         - "contract_uploader"
+        mnemonic_echo:
+                build: docker/mnemonic_echo
+                image: mnemonic_echo:latest
+                volumes:
+                        - "genesis_volume:/genesis_volume:ro"
+                depends_on:
+                        - "genesis_validator"
+
 
 volumes:
         genesis_volume:

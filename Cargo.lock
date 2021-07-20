@@ -349,7 +349,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "0.11.0-rc1"
+version = "0.11.0"
 dependencies = [
  "config",
  "crypto",
@@ -1703,7 +1703,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
-version = "0.11.0-rc1"
+version = "0.11.0"
 dependencies = [
  "console_error_panic_hook",
  "crypto",
@@ -1786,7 +1786,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "0.11.0-rc1"
+version = "0.11.0"
 dependencies = [
  "clap",
  "dirs",

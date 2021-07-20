@@ -7,7 +7,7 @@ import semver from "semver"
 import { NodeType } from "../../common/node";
 import { theme } from "../../lib/theme";
 import { basicRawCoinValueValidation, makeBasicStyle, validateRawPort } from "../../common/helpers";
-import { Coin, printableCoin } from "@nymproject/nym-validator-client";
+import { Coin, nativeToPrintable } from "@nymproject/nym-validator-client";
 import { DENOM } from "../../pages/_app";
 import { printableBalanceToNative } from "@nymproject/nym-validator-client/dist/currency";
 import { BondingInformation } from "./NodeBond";
@@ -221,9 +221,9 @@ export default function BondNodeForm(props: BondNodeFormProps) {
                         required
                         id="amount"
                         name="amount"
-                        label={`Amount to bond (minimum ${printableCoin(minimumBond)})`}
+                        label={`Amount to bond (minimum ${nativeToPrintable(minimumBond.amount)} ${minimumBond.denom})`}
                         error={!validity.validAmount}
-                        {...(!validity.validAmount ? {helperText: `Enter a valid bond amount (minimum ${printableCoin(minimumBond)})`} : {})}
+                        {...(!validity.validAmount ? {helperText: `Enter a valid bond amount (minimum ${nativeToPrintable(minimumBond.amount)})`} : {})}
                         fullWidth
                         InputProps={{
                             endAdornment:

@@ -72,6 +72,17 @@ services:
                         PORT: 3000
                         METEOR_SETTINGS: ${METEOR_SETTINGS}
 
+        network_explorer:
+                build:
+                        context: docker/network_explorer
+                        args:
+                                PERSONAL_TOKEN: ${PERSONAL_TOKEN}
+                image: network_explorer:latest
+                ports:
+                        - "3040:3000"
+                depends_on:
+                        - "genesis_validator"
+                        - "block_explorer"
 
 volumes:
         genesis_volume:

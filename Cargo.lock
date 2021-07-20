@@ -1673,7 +1673,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "0.11.0-rc1"
+version = "0.11.0"
 dependencies = [
  "clap",
  "client-core",

@@ -32,16 +32,20 @@ version = "0.14"
 
 # wasm-only dependencies
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]
+optional = true
 version = "0.2"
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
+optional = true
 version = "0.4"
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
+optional = true
 path = "../../wasm-utils"
 
 # only import it in wasm. Prefer proper tokio timer in non-wasm
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-timer]
+optional = true
 version = "0.2"
 
 # this is due to tungstenite using `rand` 0.8 and associated changes in `getrandom` crate
@@ -50,9 +54,14 @@ version = "0.2"
 # containing javascript (such as a web browser or node.js).
 # refer to https://docs.rs/getrandom/0.2.2/getrandom/#webassembly-support for more information
 [target."cfg(target_arch = \"wasm32\")".dependencies.getrandom]
+optional = true
 version = "0.2"
-features = ["js"]
 
 [dev-dependencies]
 # for tests
 #url = "2.1"
+
+[features]
+# the reason for introducing additional features is to let cargo know we don't want anything to do with "getrandom/js"
+# by default as it messes up with cyclic dependencies for ahash that's indirectly used by sqlx in validator-api
+wasm = ["getrandom/js", "wasm-timer", "wasm-utils", "wasm-bindgen-futures", "wasm-bindgen"]

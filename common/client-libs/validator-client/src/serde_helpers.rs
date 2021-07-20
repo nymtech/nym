@@ -5,7 +5,7 @@ use core::str::FromStr;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 
-pub(super) fn de_paged_query_response_from_str<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+pub(super) fn de_smart_query_response_from_str<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
     D: Deserializer<'de>,
     T: DeserializeOwned,

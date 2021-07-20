@@ -22,10 +22,10 @@ pub const INITIAL_GATEWAY_BOND_REWARD_RATE: u64 = 110;
 
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
 
-const NETWORK_MONITOR_ADDRESS: &str = "hal1v9qauwdq5terag6uvfsdytcs2d0sdmfdq6e83g";
+const NETWORK_MONITOR_ADDRESS: &str = "punk1v9qauwdq5terag6uvfsdytcs2d0sdmfdy7hgk3";
 
 /// Constant specifying denomination of the coin used for bonding
-pub const DENOM: &str = "uhal";
+pub const DENOM: &str = "upunk";
 
 fn default_initial_state(owner: Addr) -> State {
     let mixnode_bond_reward_rate = Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE);

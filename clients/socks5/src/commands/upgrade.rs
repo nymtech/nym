@@ -253,8 +253,8 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
 
         config = match config_version.major {
             0 => match config_version.minor {
-                9 => minor_010_upgrade(config, matches, &config_version, &package_version),
-                10 => patch_010_upgrade(config, matches, &config_version, &package_version),
+                9 => minor_010_upgrade(config, matches, &config_version, &Version::new(0, 10, 0)),
+                10 => patch_010_upgrade(config, matches, &config_version, &Version::new(0, 10, 1)),
                 _ => unsupported_upgrade(config_version, package_version),
             },
             _ => unsupported_upgrade(config_version, package_version),

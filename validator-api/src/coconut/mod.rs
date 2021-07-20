@@ -1,6 +1,8 @@
 use crate::Config;
 use coconut_rs::{elgamal::PublicKey, Attribute, BlindSignRequest, BlindedSignature, Parameters};
-use coconut_validator_interface::{BlindSignRequestBody, BlindedSignatureResponse};
+use coconut_validator_interface::{
+    BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse,
+};
 use getset::{CopyGetters, Getters};
 use rocket::serde::json::Json;
 use rocket::State;
@@ -61,6 +63,13 @@ pub async fn post_blind_sign(
     );
     let blinded_signature = blind_sign(internal_request, config);
     Json(BlindedSignatureResponse::new(blinded_signature))
+}
+
+#[get("/verification_key")]
+pub async fn get_verification_key(config: &State<Config>) -> Json<VerificationKeyResponse> {
+    Json(VerificationKeyResponse::new(
+        config.keypair().verification_key(),
+    ))
 }
 
 // #[post("/verify_credential", data="<verify_credential_request_body>")]

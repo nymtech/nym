@@ -23,6 +23,14 @@
     // console.log(signature);
   }
 
+  async function verifyCredential(idx) {
+    const response = await invoke("verify_credential", {
+      idx: idx,
+      validatorUrls: validator_urls,
+    });
+    alert(response);
+  }
+
   async function deleteCredential(idx) {
     const response = await invoke("delete_credential", {
       idx: idx,
@@ -83,6 +91,12 @@
               signatureQR(idx);
             }}>QR</button
           >
+          <button
+            class="btn btn-primary"
+            on:click={() => {
+              verifyCredential(idx);
+            }}>Verify</button
+          >
         </div></td
       >
     </tr>
@@ -95,7 +109,7 @@
   style={qrVisible ? "display: block" : "display: none"}
 >
   <div class="modal-dialog modal-sm">
-    <div class="modal-content" >
+    <div class="modal-content">
       <div class="modal-body">
         <canvas id="qr" />
         <button

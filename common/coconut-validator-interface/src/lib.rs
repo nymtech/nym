@@ -3,6 +3,43 @@ use coconut_rs::{Attribute, Base58, BlindSignRequest, BlindedSignature, PublicKe
 use getset::Getters;
 use serde::{Deserialize, Serialize};
 
+pub struct VerifyCredentialBody {
+    n_params: u32,
+    theta: Theta,
+    public_attributes: Vec<String>,
+}
+
+impl VerifyCredentialBody {
+    pub fn new(
+        n_params: u32,
+        theta: &Theta,
+        public_attributes: &[Attribute],
+    ) -> VerifyCredentialBody {
+        VerifyCredentialBody {
+            n_params,
+            theta: theta.clone(),
+            public_attributes: public_attributes
+                .iter()
+                .map(|attr| attr.to_bs58())
+                .collect(),
+        }
+    }
+
+    pub fn public_attributes(&self) -> Vec<Attribute> {
+        self.public_attributes
+            .iter()
+            .map(|x| Attribute::try_from_bs58(x).unwrap())
+            .collect()
+    }
+
+    pub fn n_params(&self) -> u32 {
+        self.n_params
+    }
+
+    pub fn theta(&self) -> Theta {
+        self.theta.clone()
+    }
+}
 //  All strings are base58 encoded representations of structs
 #[derive(Serialize, Deserialize, Debug, Getters)]
 pub struct BlindSignRequestBody {
@@ -58,5 +95,16 @@ pub struct BlindedSignatureResponse {
 impl BlindedSignatureResponse {
     pub fn new(blinded_signature: BlindedSignature) -> BlindedSignatureResponse {
         BlindedSignatureResponse { blinded_signature }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct VerificationKeyResponse {
+    pub key: VerificationKey,
+}
+
+impl VerificationKeyResponse {
+    pub fn new(key: VerificationKey) -> VerificationKeyResponse {
+        VerificationKeyResponse { key }
     }
 }

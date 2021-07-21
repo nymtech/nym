@@ -57,7 +57,7 @@ pub fn execute(matches: &ArgMatches) {
 
     let signature = bs58::encode(signature_bytes).into_string();
 
-    let channel_name = "@nympunkbot".bright_cyan();
+    let channel_name = "https://t.me/nympunkbot".bright_cyan();
 
     // the text should consists of two parts, telegram handle and punk address - we can perform some very basic validation here already
     let split = text.split(' ').collect::<Vec<_>>();

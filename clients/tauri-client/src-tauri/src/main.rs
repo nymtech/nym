@@ -3,10 +3,9 @@
   windows_subsystem = "windows"
 )]
 
-use coconut_rs::{aggregate_signature_shares, Attribute, Parameters, Signature, SignatureShare};
-use coconut_rs::{aggregate_verification_keys, VerificationKey};
-use coconut_validator_interface::{
-  BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse,
+use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse};
+use coconut_rs::{
+  aggregate_signature_shares, Attribute, Parameters, Signature, SignatureShare, Theta,
 };
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -91,55 +90,34 @@ fn list_credentials(state: tauri::State<Arc<RwLock<State>>>) -> Result<Vec<Signa
   }
 }
 
-fn get_verification_key(url: &str) -> Result<VerificationKey, String> {
-  match attohttpc::get(format!("{}/v1/verification_key", url)).send() {
-    Ok(resp) => {
-      let verification_key_response: VerificationKeyResponse = resp.json().unwrap();
-      Ok(verification_key_response.key)
-    }
-    Err(_e) => Err(TauriClientError::ValidatorAPI(url.to_string()).to_string()),
-  }
-}
-
-#[tauri::command]
-fn verify_credential(
+fn prove_credential(
   idx: usize,
   validator_urls: Vec<String>,
   state: tauri::State<Arc<RwLock<State>>>,
-) -> Result<String, String> {
-  let mut verification_keys = Vec::new();
-  let mut indices = Vec::new();
-
-  for (idx, url) in validator_urls.iter().enumerate() {
-    verification_keys.push(get_verification_key(url)?);
-    indices.push((idx + 1) as u64);
-  }
-
-  let verification_key = aggregate_verification_keys(&verification_keys, Some(&indices)).unwrap();
-
-  match state.read() {
+) -> Result<Theta, String> {
+  let verification_key = coconut_interface::get_aggregated_verification_key(validator_urls)?;
+  let theta = match state.read() {
     Ok(state) => {
       if let Some(signature) = state.signatures.get(idx) {
-        let theta = coconut_rs::prove_credential(
+        match coconut_rs::prove_credential(
           &state.params,
           &verification_key,
           signature,
           &state.private_attributes,
-        )
-        .unwrap();
-        assert!(coconut_rs::verify_credential(
-          &state.params,
-          &verification_key,
-          &theta,
-          &state.public_attributes
-        ));
+        ) {
+          Ok(theta) => theta,
+          Err(e) => return Err(format!("{}", e)),
+        }
+      } else {
+        return Err("Got invalid Signature idx".to_string());
       }
     }
     Err(_e) => return Err(TauriClientError::State("read").to_string()),
-  }
-
-  Ok("Success!".to_string())
+  };
+  Ok(theta)
 }
+
+fn gateway_handshake(gateway_url: &str) {}
 
 #[tauri::command]
 fn get_credential(

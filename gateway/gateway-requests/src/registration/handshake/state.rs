@@ -1,6 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::authentication::encrypted_address;
 use crate::registration::handshake::error::HandshakeError;
 use crate::registration::handshake::shared_key::{SharedKeySize, SharedKeys};
 use crate::registration::handshake::WsItem;
@@ -15,9 +16,47 @@ use futures::{Sink, SinkExt, Stream, StreamExt};
 use log::*;
 use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
 use rand::{CryptoRng, RngCore};
+use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 use tungstenite::Message as WsMessage;
 
+#[derive(Serialize, Deserialize)]
+struct InitMessage {
+    local_id_pubkey: Vec<u8>,
+    ephemeral_key: Vec<u8>,
+}
+
+impl InitMessage {
+    fn new(local_id_pubkey: &identity::PublicKey, ephemeral_key: &encryption::PublicKey) -> Self {
+        InitMessage {
+            local_id_pubkey: local_id_pubkey.to_bytes().to_vec(),
+            ephemeral_key: ephemeral_key.to_bytes().to_vec(),
+        }
+    }
+
+    fn local_id_pubkey(&self) -> identity::PublicKey {
+        identity::PublicKey::from_bytes(&self.local_id_pubkey).unwrap()
+    }
+
+    fn ephemeral_key(&self) -> encryption::PublicKey {
+        encryption::PublicKey::from_bytes(&self.ephemeral_key).unwrap()
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        bincode::serialize(self).unwrap()
+    }
+}
+
+impl TryFrom<&[u8]> for InitMessage {
+    type Error = String;
+
+    fn try_from(value: &[u8]) -> Result<InitMessage, Self::Error> {
+        match bincode::deserialize(value) {
+            Ok(init_message) => Ok(init_message),
+            Err(e) => Err(format!("{}", e)),
+        }
+    }
+}
 /// Handshake state.
 pub(crate) struct State<'a, S> {
     /// The underlying WebSocket stream.
@@ -63,40 +102,21 @@ impl<'a, S> State<'a, S> {
     // Eventually the ID_PUBKEY prefix will get removed and recipient will know
     // initializer's identity from another source.
     pub(crate) fn init_message(&self) -> Vec<u8> {
-        self.identity
-            .public_key()
-            .to_bytes()
-            .iter()
-            .cloned()
-            .chain(
-                self.ephemeral_keypair
-                    .public_key()
-                    .to_bytes()
-                    .iter()
-                    .cloned(),
-            )
-            .collect()
+        InitMessage::new(
+            self.identity.public_key(),
+            self.ephemeral_keypair.public_key(),
+        )
+        .to_bytes()
     }
 
     // this will need to be adjusted when REMOTE_ID_PUBKEY is removed
     pub(crate) fn parse_init_message(
-        mut init_message: Vec<u8>,
+        init_message: Vec<u8>,
     ) -> Result<(identity::PublicKey, encryption::PublicKey), HandshakeError> {
-        if init_message.len() != identity::PUBLIC_KEY_LENGTH + encryption::PUBLIC_KEY_SIZE {
-            return Err(HandshakeError::MalformedRequest);
+        match InitMessage::try_from(init_message.as_slice()) {
+            Ok(init_message) => Ok((init_message.local_id_pubkey(), init_message.ephemeral_key())),
+            Err(e) => Err(HandshakeError::MalformedRequest),
         }
-
-        let remote_ephemeral_key_bytes = init_message.split_off(identity::PUBLIC_KEY_LENGTH);
-        // this can only fail if the provided bytes have len different from encryption::PUBLIC_KEY_SIZE
-        // which is impossible
-        let remote_ephemeral_key =
-            encryption::PublicKey::from_bytes(&remote_ephemeral_key_bytes).unwrap();
-
-        // this could actually fail if the curve point fails to get decompressed
-        let remote_identity = identity::PublicKey::from_bytes(&init_message)
-            .map_err(|_| HandshakeError::MalformedRequest)?;
-
-        Ok((remote_identity, remote_ephemeral_key))
     }
 
     pub(crate) fn derive_shared_key(&mut self, remote_ephemeral_key: &encryption::PublicKey) {

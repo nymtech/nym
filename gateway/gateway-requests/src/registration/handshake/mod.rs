@@ -28,11 +28,12 @@ pub async fn client_handshake<'a, S>(
     ws_stream: &'a mut S,
     identity: &'a identity::KeyPair,
     gateway_pubkey: identity::PublicKey,
+    coconut_credential: coconut_interface::Credential,
 ) -> Result<SharedKeys, HandshakeError>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
 {
-    ClientHandshake::new(rng, ws_stream, identity, gateway_pubkey).await
+    ClientHandshake::new(rng, ws_stream, identity, gateway_pubkey, coconut_credential).await
 }
 
 pub async fn gateway_handshake<'a, S>(

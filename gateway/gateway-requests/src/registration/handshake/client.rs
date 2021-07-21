@@ -24,6 +24,7 @@ impl<'a> ClientHandshake<'a> {
         ws_stream: &'a mut S,
         identity: &'a crypto::asymmetric::identity::KeyPair,
         gateway_pubkey: identity::PublicKey,
+        coconut_credential: coconut_interface::Credential,
     ) -> Self
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,

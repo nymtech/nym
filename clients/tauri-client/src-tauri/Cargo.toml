@@ -23,7 +23,8 @@ thiserror = "1.0"
 
 coconut-rs = { git = "https://github.com/nymtech/coconut.git", branch = "serde" }
 
-coconut-validator-interface = { path = "../../../common/coconut-validator-interface" }
+coconut-interface = { path = "../../../common/coconut-interface" }
+gateway-client = {path = "../../../common/client-libs/gateway-client"}
 
 [features]
 default = ["custom-protocol"]

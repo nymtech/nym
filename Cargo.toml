@@ -20,7 +20,7 @@ members = [
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
-    "common/coconut-validator-interface",
+    "common/coconut-interface",
     "common/config",
     "common/crypto",
     "common/mixnet-contract",

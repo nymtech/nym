@@ -156,7 +156,8 @@ export default function BondNodeForm(props: BondNodeFormProps) {
 
     const validateVersion = (version: string): boolean => {
         // check if its a valid semver
-        return semver.valid(version)
+        return semver.valid(version) && semver.minor(version) >= 11
+
     }
 
     const validateLocation = (location: string): boolean => {
@@ -288,7 +289,7 @@ export default function BondNodeForm(props: BondNodeFormProps) {
                         name="version"
                         label="Version"
                         fullWidth
-                        {...(!validity.validVersion ? {helperText: "Enter a valid version, like 0.10.0"} : {})}
+                        {...(!validity.validVersion ? {helperText: "Enter a valid version (min. 0.11.0), like 0.11.0"} : {})}
                     />
                 </Grid>
 

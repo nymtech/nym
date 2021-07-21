@@ -1,6 +1,6 @@
 {
   "name": "nym-wallet-web",
-  "version": "0.1.0",
+  "version": "0.11.0",
   "private": true,
   "description": "Bond, unbond, and delegate stake on Nym mixnodes, transfer Nym coins, and run Nym privacy clients.",
   "author": "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",

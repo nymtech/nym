@@ -343,7 +343,7 @@ fn undetermined_version_upgrade(
         .with_mix_port(custom_mix_port);
 
     if let Some(new_description) = new_description {
-        NodeDescription::save_to_file(&new_description, description_file_path).map_err(|err| {
+        NodeDescription::save_to_file(&new_description, config_path).map_err(|err| {
             (
                 to_version.clone(),
                 format!("failed to overwrite description file! - {:?}", err),

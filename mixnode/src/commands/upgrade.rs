@@ -263,6 +263,43 @@ fn patch_0_10_1_upgrade(
     Ok(upgraded_config)
 }
 
+fn minor_0_11_upgrade(
+    config: Config,
+    _matches: &ArgMatches,
+    config_version: &Version,
+    package_version: &Version,
+) -> Result<Config, UpgradeError> {
+    let to_version = package_version;
+
+    print_start_upgrade(&config_version, &to_version);
+
+    println!(
+        "Setting validator REST endpoint to {:?}",
+        default_validator_rest_endpoints()
+    );
+
+    println!(
+        "Setting mixnet contract address to {}",
+        DEFAULT_MIXNET_CONTRACT_ADDRESS
+    );
+
+    let upgraded_config = config
+        .with_custom_version(to_version.to_string().as_ref())
+        .with_custom_validators(default_validator_rest_endpoints())
+        .with_custom_mixnet_contract(DEFAULT_MIXNET_CONTRACT_ADDRESS);
+
+    upgraded_config.save_to_file(None).map_err(|err| {
+        (
+            to_version.clone(),
+            format!("failed to overwrite config file! - {:?}", err),
+        )
+    })?;
+
+    print_successful_upgrade(config_version, to_version);
+
+    Ok(upgraded_config)
+}
+
 // TODO: to be renamed once the release version is decided (so presumably either 0.10.2 or 0.11.0)
 fn undetermined_version_upgrade(
     config: Config,
@@ -381,6 +418,12 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
                         matches,
                         &config_version,
                         &Version::new(0, 10, 1),
+                    ),
+                    1 => minor_0_11_upgrade(
+                        config,
+                        matches,
+                        &config_version,
+                        &Version::new(0, 11, 0),
                     ),
                     _ => undetermined_version_upgrade(
                         config,

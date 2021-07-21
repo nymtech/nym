@@ -238,6 +238,41 @@ fn patch_010_upgrade(
     upgraded_config
 }
 
+fn minor_011_upgrade(
+    config: Config,
+    _matches: &ArgMatches,
+    config_version: &Version,
+    package_version: &Version,
+) -> Config {
+    let to_version = package_version;
+
+    print_start_upgrade(&config_version, &to_version);
+
+    println!(
+        "Setting validator REST endpoint to {:?}",
+        default_validator_rest_endpoints()
+    );
+
+    println!(
+        "Setting mixnet contract address to {}",
+        DEFAULT_MIXNET_CONTRACT_ADDRESS
+    );
+
+    let upgraded_config = config
+        .with_custom_version(to_version.to_string().as_ref())
+        .with_custom_validators(default_validator_rest_endpoints())
+        .with_custom_mixnet_contract(DEFAULT_MIXNET_CONTRACT_ADDRESS);
+
+    upgraded_config.save_to_file(None).unwrap_or_else(|err| {
+        eprintln!("failed to overwrite config file! - {:?}", err);
+        fail_upgrade(&config_version, &to_version)
+    });
+
+    print_successful_upgrade(config_version, to_version);
+
+    upgraded_config
+}
+
 // TODO: to be renamed once the release version is decided (so presumably either 0.10.2 or 0.11.0)
 fn undetermined_version_upgrade(
     config: Config,
@@ -300,9 +335,14 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
 
         config = match config_version.major {
             0 => match config_version.minor {
-                9 => minor_010_upgrade(config, matches, &config_version, &package_version),
+                9 => minor_010_upgrade(config, matches, &config_version, &Version::new(0, 10, 0)),
                 10 => match config_version.patch {
-                    0 => patch_010_upgrade(config, matches, &config_version, &package_version),
+                    0 => {
+                        patch_010_upgrade(config, matches, &config_version, &Version::new(0, 10, 1))
+                    }
+                    1 => {
+                        minor_011_upgrade(config, matches, &config_version, &Version::new(0, 11, 0))
+                    }
                     _ => undetermined_version_upgrade(
                         config,
                         matches,

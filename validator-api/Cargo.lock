@@ -1627,7 +1627,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-api"
-version = "0.11.0-rc1"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "clap",

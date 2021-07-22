@@ -50,7 +50,7 @@ export default function CheckBalance() {
   const router = useRouter();
 
   const { client } = useContext(ValidatorClientContext);
-  const { getBalance, isBalanceLoading, balanceCheckError, accountBalance } =
+  const { getBalance, isBalanceLoading, balanceCheckError, printedBalance } =
     useGetBalance();
 
   useEffect(() => {
@@ -64,7 +64,7 @@ export default function CheckBalance() {
     updateBalance();
   }, [client]);
 
-  const balanceMessage = `Current account balance is ${accountBalance}`;
+  const balanceMessage = `Current account balance is ${printedBalance}`;
 
   return (
     <React.Fragment>

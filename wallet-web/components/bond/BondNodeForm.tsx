@@ -1,4 +1,7 @@
-import React from "react";
+import React, { useEffect, useState, ChangeEvent } from "react";
+import { printableBalanceToNative } from "@nymproject/nym-validator-client/dist/currency";
+import { Coin, nativeToPrintable } from "@nymproject/nym-validator-client";
+import { Alert } from "@material-ui/lab";
 import Grid from "@material-ui/core/Grid";
 import TextField from "@material-ui/core/TextField";
 import {
@@ -16,11 +19,9 @@ import {
   makeBasicStyle,
   validateRawPort,
 } from "../../common/helpers";
-import { Coin, nativeToPrintable } from "@nymproject/nym-validator-client";
 import { DENOM } from "../../pages/_app";
-import { printableBalanceToNative } from "@nymproject/nym-validator-client/dist/currency";
 import { BondingInformation } from "./NodeBond";
-import { Alert } from "@material-ui/lab";
+import { useGetBalance } from "../../hooks/useGetBalance";
 
 const DEFAULT_MIX_PORT = 1789;
 const DEFAULT_VERLOC_PORT = 1790;
@@ -71,6 +72,12 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
   });
 
   const [advancedShown, setAdvancedShown] = React.useState(false);
+  const [allocationWarning, setAllocationWarning] = useState(false);
+  const { getBalance, accountBalance } = useGetBalance();
+
+  useEffect(() => {
+    getBalance();
+  }, [getBalance]);
 
   const handleCheckboxToggle = () => {
     setAdvancedShown((prevSet) => !prevSet);
@@ -294,14 +301,26 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
                 <InputAdornment position="end">{DENOM}</InputAdornment>
               ),
             }}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+              if (
+                typeof parseInt(e.target.value) === "number" &&
+                parseInt(accountBalance.amount) - parseInt(e.target.value) < 1
+              ) {
+                setAllocationWarning(true);
+              } else {
+                setAllocationWarning(false);
+              }
+            }}
           />
         </Grid>
-        <Grid item>
-          <Alert severity="info">
-            You're about to allocate all of your tokens. You may want to keep
-            some in order to unbond this mixnode at a later time.
-          </Alert>
-        </Grid>
+        {allocationWarning && (
+          <Grid item>
+            <Alert severity="info">
+              You're about to allocate all of your tokens. You may want to keep
+              some in order to unbond this mixnode at a later time.
+            </Alert>
+          </Grid>
+        )}
         <Grid item xs={12}>
           <TextField
             error={!validity.validIdentityKey}

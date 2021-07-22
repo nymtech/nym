@@ -293,13 +293,12 @@ fn minor_0_11_upgrade(
         .collect();
     // If the description file already exists, upgrade it
     let new_description = if description_file_path.is_file() {
-        let description_content =
-            fs::read_to_string(description_file_path.clone()).map_err(|err| {
-                (
-                    to_version.clone(),
-                    format!("failed to read description file! - {:?}", err),
-                )
-            })?;
+        let description_content = fs::read_to_string(description_file_path).map_err(|err| {
+            (
+                to_version.clone(),
+                format!("failed to read description file! - {:?}", err),
+            )
+        })?;
         let old_description: OldNodeDescription =
             toml::from_str(&description_content).map_err(|err| {
                 (

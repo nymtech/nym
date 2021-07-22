@@ -1,11 +1,10 @@
 import { createStyles, makeStyles, Theme } from "@material-ui/core/styles";
 import ValidatorClient, {
-    nativeCoinToDisplay,
     nymGasLimits,
     nymGasPrice,
     printableCoin
 } from "@nymproject/nym-validator-client";
-import { ADDRESS_LENGTH, DENOM, KEY_LENGTH, UDENOM } from "../pages/_app";
+import { ADDRESS_LENGTH, DENOM, KEY_LENGTH } from "../pages/_app";
 import { buildFeeTable } from "@cosmjs/launchpad";
 import bs58 from "bs58";
 
@@ -138,11 +137,11 @@ export const basicRawCoinValueValidation = (rawAmount: string): boolean => {
 }
 
 export const getDisplayExecGasFee = (): string => {
-    const table = buildFeeTable(nymGasPrice(UDENOM), nymGasLimits, nymGasLimits)
+    const table = buildFeeTable(nymGasPrice(DENOM), nymGasLimits, nymGasLimits)
     return printableCoin(table.exec.amount[0])
 }
 
 export const getDisplaySendGasFee = (): string => {
-    const table = buildFeeTable(nymGasPrice(UDENOM), nymGasLimits, nymGasLimits)
+    const table = buildFeeTable(nymGasPrice(DENOM), nymGasLimits, nymGasLimits)
     return printableCoin(table.send.amount[0])
 }

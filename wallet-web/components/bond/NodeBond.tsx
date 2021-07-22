@@ -150,7 +150,7 @@ const BondNode = () => {
         <React.Fragment>
             <main className={classes.layout}>
                 <Paper className={classes.paper}>
-                    <ExecFeeNotice name={"bonding"}/>
+                    <ExecFeeNotice name="bonding"/>
                     <Typography component="h1" variant="h4" align="center" className={classes.wrapper}>
                         Bond a {nodeType}
                     </Typography>

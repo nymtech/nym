@@ -20,6 +20,7 @@ import { Coin, nativeToPrintable } from "@nymproject/nym-validator-client";
 import { DENOM } from "../../pages/_app";
 import { printableBalanceToNative } from "@nymproject/nym-validator-client/dist/currency";
 import { BondingInformation } from "./NodeBond";
+import { Alert } from "@material-ui/lab";
 
 const DEFAULT_MIX_PORT = 1789;
 const DEFAULT_VERLOC_PORT = 1790;
@@ -295,7 +296,12 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
             }}
           />
         </Grid>
-
+        <Grid item>
+          <Alert severity="info">
+            You're about to allocate all of your tokens. You may want to keep
+            some in order to unbond this mixnode at a later time.
+          </Alert>
+        </Grid>
         <Grid item xs={12}>
           <TextField
             error={!validity.validIdentityKey}

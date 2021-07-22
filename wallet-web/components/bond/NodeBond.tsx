@@ -62,7 +62,6 @@ const BondNode = () => {
 
     const bondNode = async (bondingInformation: BondingInformation) => {
         setBondingStarted(true)
-        // event.preventDefault();
         console.log(`BOND button pressed`);
 
         console.log(bondingInformation)

@@ -7,10 +7,12 @@ import { DENOM } from '../../pages/_app'
 import { theme } from '../../lib/theme'
 import {
   basicRawCoinValueValidation,
+  checkAllocationSize,
   makeBasicStyle,
   validateIdentityKey,
 } from '../../common/helpers'
 import { useGetBalance } from '../../hooks/useGetBalance'
+import { printableBalanceToNative } from '@nymproject/nym-validator-client/dist/currency'
 
 type DelegateFormProps = {
   onSubmit: (event: any) => void
@@ -21,33 +23,34 @@ export default function DelegateForm(props: DelegateFormProps) {
 
   const [validAmount, setValidAmount] = useState(true)
   const [validIdentity, setValidIdentity] = useState(true)
-  const [allocationWarning, setAllocationWarning] = useState(false)
+  const [allocationWarning, setAllocationWarning] = useState<string>()
   const { getBalance, accountBalance } = useGetBalance()
 
   useEffect(() => {
     getBalance()
   }, [getBalance])
 
-  // const [checkboxSet, setCheckboxSet] = React.useState(false)
-
-  // const handleCheckboxToggle = () => {
-  //     setCheckboxSet((prevSet) => !prevSet);
-  // }
-
   const handleAmountChange = (event: any) => {
     // don't ask me about that. javascript works in mysterious ways
     // and this is apparently a good way of checking if string
     // is purely made of numeric characters
-    let parsed = +event.target.value
+    const parsed = +event.target.value
+    const balance = +accountBalance.amount
+
     if (isNaN(parsed)) {
       setValidAmount(false)
     } else {
-      if (parsed > 0 && parseInt(accountBalance.amount) - parsed < 1) {
-        setAllocationWarning(true)
+      const allocationCheck = checkAllocationSize(
+        +printableBalanceToNative(event.target.value),
+        balance
+      )
+      if (allocationCheck.error) {
+        setAllocationWarning(allocationCheck.message)
+        setValidAmount(false)
       } else {
-        setAllocationWarning(false)
+        setAllocationWarning(allocationCheck.message)
+        setValidAmount(true)
       }
-      setValidAmount(true)
     }
   }
 
@@ -111,9 +114,8 @@ export default function DelegateForm(props: DelegateFormProps) {
         </Grid>
         {allocationWarning && (
           <Grid item>
-            <Alert severity='info'>
-              You're about to allocate all of your tokens. You may want to keep
-              some in order to unbond this mixnode at a later time.
+            <Alert severity={!validAmount ? 'error' : 'info'}>
+              {allocationWarning}
             </Alert>
           </Grid>
         )}
@@ -137,6 +139,7 @@ export default function DelegateForm(props: DelegateFormProps) {
           color='primary'
           type='submit'
           className={classes.button}
+          disabled={!validAmount}
         >
           Delegate stake
         </Button>

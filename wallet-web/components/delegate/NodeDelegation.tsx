@@ -21,8 +21,7 @@ const DelegateToNode = () => {
   const router = useRouter()
   const { client } = useContext(ValidatorClientContext)
 
-  const [delegationStarted, setDelegationStarted] = React.useState(false)
-  const [delegationFinished, setDelegationFinished] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState(false)
   const [delegationError, setDelegationError] = React.useState(null)
 
   const [nodeType, setNodeType] = React.useState(NodeType.Mixnode)
@@ -52,7 +51,7 @@ const DelegateToNode = () => {
 
     setNodeIdentity(nodeIdentity)
     setStakeValue(printableCoin(delegationValue))
-    setDelegationStarted(true)
+    setIsLoading(true)
 
     if (nodeType == NodeType.Mixnode) {
       client
@@ -61,7 +60,7 @@ const DelegateToNode = () => {
           console.log('delegated to mixnode!', value)
         })
         .catch(setDelegationError)
-        .finally(() => setDelegationFinished(true))
+        .finally(() => setIsLoading(false))
     } else {
       client
         .delegateToGateway(nodeIdentity, delegationValue)
@@ -69,7 +68,7 @@ const DelegateToNode = () => {
           console.log('delegated to gateway!', value)
         })
         .catch(setDelegationError)
-        .finally(() => setDelegationFinished(true))
+        .finally(() => setIsLoading(false))
     }
   }
 
@@ -80,7 +79,7 @@ const DelegateToNode = () => {
     }
 
     // we haven't clicked delegate button yet
-    if (!delegationStarted) {
+    if (!isLoading) {
       return (
         <>
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
@@ -92,7 +91,7 @@ const DelegateToNode = () => {
     // We started delegation
     return (
       <Confirmation
-        finished={delegationFinished}
+        isLoading={isLoading}
         error={delegationError}
         progressMessage={`Delegating stake on ${nodeType} ${nodeIdentity} is in progress...`}
         successMessage={`Successfully delegated ${stakeValue} stake on ${nodeType} ${nodeIdentity}`}

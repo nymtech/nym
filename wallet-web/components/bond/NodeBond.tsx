@@ -27,8 +27,7 @@ const BondNode = () => {
   const router = useRouter()
   const { client } = useContext(ValidatorClientContext)
 
-  const [bondingStarted, setBondingStarted] = React.useState(false)
-  const [bondingFinished, setBondingFinished] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState(false)
   const [bondingError, setBondingError] = React.useState(null)
 
   const [checkedOwnership, setCheckedOwnership] = React.useState(false)
@@ -61,7 +60,7 @@ const BondNode = () => {
   }, [client])
 
   const bondNode = async (bondingInformation: BondingInformation) => {
-    setBondingStarted(true)
+    setIsLoading(true)
     console.log(`BOND button pressed`)
 
     console.log(bondingInformation)
@@ -80,7 +79,7 @@ const BondNode = () => {
           console.log('bonded mixnode!', value)
         })
         .catch(setBondingError)
-        .finally(() => setBondingFinished(true))
+        .finally(() => setIsLoading(false))
     } else {
       let gateway = bondingInformation.nodeDetails as Gateway
       client
@@ -89,7 +88,7 @@ const BondNode = () => {
           console.log('bonded gateway!', value)
         })
         .catch(setBondingError)
-        .finally(() => setBondingFinished(true))
+        .finally(() => setIsLoading(false))
     }
   }
 
@@ -135,7 +134,7 @@ const BondNode = () => {
     }
 
     // we haven't clicked bond button yet
-    if (!bondingStarted) {
+    if (!isLoading) {
       return (
         <>
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
@@ -152,7 +151,7 @@ const BondNode = () => {
     // We started bonding
     return (
       <Confirmation
-        isLoading={bondingFinished}
+        isLoading={isLoading}
         error={bondingError}
         progressMessage={`${nodeType} bonding is in progress...`}
         successMessage={`${nodeType} bonding was successful!`}

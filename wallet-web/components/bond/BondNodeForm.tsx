@@ -16,6 +16,7 @@ import { NodeType } from '../../common/node'
 import { theme } from '../../lib/theme'
 import {
   basicRawCoinValueValidation,
+  checkAllocationSize,
   makeBasicStyle,
   validateRawPort,
 } from '../../common/helpers'
@@ -72,7 +73,8 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
   })
 
   const [advancedShown, setAdvancedShown] = React.useState(false)
-  const [allocationWarning, setAllocationWarning] = useState(false)
+  const [allocationWarning, setAllocationWarning] = useState<string>()
+  const [isValidAmount, setIsValidAmount] = useState(true)
   const { getBalance, accountBalance } = useGetBalance()
 
   useEffect(() => {
@@ -81,6 +83,27 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
 
   const handleCheckboxToggle = () => {
     setAdvancedShown((prevSet) => !prevSet)
+  }
+
+  const handleAmountChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const parsed = +e.target.value
+    const balance = +accountBalance.amount
+
+    if (isNaN(parsed)) {
+      setIsValidAmount(false)
+    } else {
+      const allocationCheck = checkAllocationSize(
+        +printableBalanceToNative(e.target.value),
+        balance
+      )
+      if (allocationCheck.error) {
+        setAllocationWarning(allocationCheck.message)
+        setIsValidAmount(false)
+      } else {
+        setAllocationWarning(allocationCheck.message)
+        setIsValidAmount(true)
+      }
+    }
   }
 
   const validateForm = ({
@@ -287,37 +310,27 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
             label={`Amount to bond (minimum ${nativeToPrintable(
               minimumBond.amount
             )} ${minimumBond.denom})`}
-            error={!validity.validAmount}
-            {...(!validity.validAmount
-              ? {
-                  helperText: `Enter a valid bond amount (minimum ${nativeToPrintable(
+            error={!validateAmount}
+            helperText={
+              !validateAmount
+                ? `Enter a valid bond amount (minimum ${nativeToPrintable(
                     minimumBond.amount
-                  )})`,
-                }
-              : {})}
+                  )})`
+                : ''
+            }
             fullWidth
             InputProps={{
               endAdornment: (
                 <InputAdornment position='end'>{DENOM}</InputAdornment>
               ),
             }}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => {
-              if (
-                typeof parseInt(e.target.value) === 'number' &&
-                parseInt(accountBalance.amount) - parseInt(e.target.value) < 1
-              ) {
-                setAllocationWarning(true)
-              } else {
-                setAllocationWarning(false)
-              }
-            }}
+            onChange={handleAmountChange}
           />
         </Grid>
         {allocationWarning && (
           <Grid item>
-            <Alert severity='info'>
-              You're about to allocate all of your tokens. You may want to keep
-              some in order to unbond this mixnode at a later time.
+            <Alert severity={!isValidAmount ? 'error' : 'info'}>
+              {allocationWarning}
             </Alert>
           </Grid>
         )}
@@ -471,6 +484,7 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
           color='primary'
           type='submit'
           className={classes.button}
+          disabled={!isValidAmount}
         >
           Bond
         </Button>

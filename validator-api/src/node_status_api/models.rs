@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node_status_api::utils::{NodeStatus, NodeUptimes};
+use crate::node_status_api::utils::NodeUptimes;
 use rocket::http::{ContentType, Status};
 use rocket::response::{self, Responder, Response};
 use rocket::Request;
@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
 use std::io::Cursor;
+use crate::storage::models::NodeStatus;
 
 // todo: put into some error enum
 #[derive(Debug)]

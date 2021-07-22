@@ -1,15 +1,15 @@
 CREATE TABLE mixnode_details
 (
     id      INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    owner   VARCHAR NOT NULL UNIQUE,
-    pub_key VARCHAR NOT NULL UNIQUE
+    owner   VARCHAR NOT NULL,
+    identity VARCHAR NOT NULL UNIQUE
 );
 
 CREATE TABLE gateway_details
 (
     id      INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    owner   VARCHAR NOT NULL UNIQUE,
-    pub_key VARCHAR NOT NULL UNIQUE
+    owner   VARCHAR NOT NULL,
+    identity VARCHAR NOT NULL UNIQUE
 );
 
 create TABLE mixnode_historical_uptime
@@ -87,5 +87,5 @@ INDEX `gateway_ipv4_status_index` ON `gateway_ipv4_status` (`gateway_details_id`
 CREATE
 INDEX `gateway_ipv6_status_index` ON `gateway_ipv6_status` (`gateway_details_id`, `timestamp` desc);
 
-CREATE INDEX `mixnode_identity_index` ON `mixnode_details` (`id`, `pub_key`);
-CREATE INDEX `gateway_identity_index` ON `gateway_details` (`id`, `pub_key`);
+CREATE INDEX `mixnode_identity_index` ON `mixnode_details` (`id`, `identity`);
+CREATE INDEX `gateway_identity_index` ON `gateway_details` (`id`, `identity`);

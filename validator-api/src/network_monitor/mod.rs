@@ -14,7 +14,7 @@ use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
 use crate::network_monitor::tested_network::TestedNetwork;
-use crate::node_status_api::storage::NodeStatusStorage;
+use crate::storage::NodeStatusStorage;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use nymsphinx::addressing::clients::Recipient;

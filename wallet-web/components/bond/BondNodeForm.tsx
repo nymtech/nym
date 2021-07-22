@@ -1,56 +1,56 @@
-import React, { useEffect, useState, ChangeEvent } from "react";
-import { printableBalanceToNative } from "@nymproject/nym-validator-client/dist/currency";
-import { Coin, nativeToPrintable } from "@nymproject/nym-validator-client";
-import { Alert } from "@material-ui/lab";
-import Grid from "@material-ui/core/Grid";
-import TextField from "@material-ui/core/TextField";
+import React, { useEffect, useState, ChangeEvent } from 'react'
+import { printableBalanceToNative } from '@nymproject/nym-validator-client/dist/currency'
+import { Coin, nativeToPrintable } from '@nymproject/nym-validator-client'
+import { Alert } from '@material-ui/lab'
+import Grid from '@material-ui/core/Grid'
+import TextField from '@material-ui/core/TextField'
 import {
   Button,
   Checkbox,
   FormControlLabel,
   InputAdornment,
-} from "@material-ui/core";
-import bs58 from "bs58";
-import semver from "semver";
-import { NodeType } from "../../common/node";
-import { theme } from "../../lib/theme";
+} from '@material-ui/core'
+import bs58 from 'bs58'
+import semver from 'semver'
+import { NodeType } from '../../common/node'
+import { theme } from '../../lib/theme'
 import {
   basicRawCoinValueValidation,
   makeBasicStyle,
   validateRawPort,
-} from "../../common/helpers";
-import { DENOM } from "../../pages/_app";
-import { BondingInformation } from "./NodeBond";
-import { useGetBalance } from "../../hooks/useGetBalance";
+} from '../../common/helpers'
+import { DENOM } from '../../pages/_app'
+import { BondingInformation } from './NodeBond'
+import { useGetBalance } from '../../hooks/useGetBalance'
 
-const DEFAULT_MIX_PORT = 1789;
-const DEFAULT_VERLOC_PORT = 1790;
-const DEFAULT_HTTP_API_PORT = 8000;
-const DEFAULT_CLIENTS_PORT = 9000;
+const DEFAULT_MIX_PORT = 1789
+const DEFAULT_VERLOC_PORT = 1790
+const DEFAULT_HTTP_API_PORT = 8000
+const DEFAULT_CLIENTS_PORT = 9000
 
 type TBondNodeFormProps = {
-  type: NodeType;
-  minimumMixnodeBond: Coin;
-  minimumGatewayBond: Coin;
-  onSubmit: (event: any) => void;
-};
+  type: NodeType
+  minimumMixnodeBond: Coin
+  minimumGatewayBond: Coin
+  onSubmit: (event: any) => void
+}
 
 type TFormInput = {
-  amount: string;
-  host: string;
-  http_api_port: string;
-  mixPort: string;
-  verlocPort: string;
-  sphinxKey: string;
-  identityKey: string;
-  version: string;
-  location?: string;
-  clientsPort?: string;
-  httpApiPort?: string;
-};
+  amount: string
+  host: string
+  http_api_port: string
+  mixPort: string
+  verlocPort: string
+  sphinxKey: string
+  identityKey: string
+  version: string
+  location?: string
+  clientsPort?: string
+  httpApiPort?: string
+}
 
 export default function BondNodeForm(props: TBondNodeFormProps) {
-  const classes = makeBasicStyle(theme);
+  const classes = makeBasicStyle(theme)
 
   const [validity, setValidity] = React.useState({
     validAmount: true,
@@ -69,19 +69,19 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
 
     // gateway-specific:
     validClientsPort: true,
-  });
+  })
 
-  const [advancedShown, setAdvancedShown] = React.useState(false);
-  const [allocationWarning, setAllocationWarning] = useState(false);
-  const { getBalance, accountBalance } = useGetBalance();
+  const [advancedShown, setAdvancedShown] = React.useState(false)
+  const [allocationWarning, setAllocationWarning] = useState(false)
+  const { getBalance, accountBalance } = useGetBalance()
 
   useEffect(() => {
-    getBalance();
-  }, [getBalance]);
+    getBalance()
+  }, [getBalance])
 
   const handleCheckboxToggle = () => {
-    setAdvancedShown((prevSet) => !prevSet);
-  };
+    setAdvancedShown((prevSet) => !prevSet)
+  }
 
   const validateForm = ({
     amount,
@@ -95,14 +95,14 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
     httpApiPort,
     clientsPort,
   }: TFormInput): boolean => {
-    let validAmount = validateAmount(amount);
-    let validSphinxKey = validateKey(sphinxKey);
-    let validIdentityKey = validateKey(identityKey);
-    let validHost = validateHost(host);
-    let validVersion = validateVersion(version);
+    let validAmount = validateAmount(amount)
+    let validSphinxKey = validateKey(sphinxKey)
+    let validIdentityKey = validateKey(identityKey)
+    let validHost = validateHost(host)
+    let validVersion = validateVersion(version)
 
     let validLocation =
-      props.type == NodeType.Gateway ? validateLocation(location) : true;
+      props.type == NodeType.Gateway ? validateLocation(location) : true
 
     let newValidity = {
       validAmount: validAmount,
@@ -111,16 +111,16 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
       validHost: validHost,
       validVersion: validVersion,
       validLocation: validLocation,
-    };
+    }
 
     if (advancedShown) {
-      let validMixPort = validateRawPort(mixPort);
+      let validMixPort = validateRawPort(mixPort)
       let validVerlocPort =
-        props.type == NodeType.Mixnode ? validateRawPort(verlocPort) : true;
+        props.type == NodeType.Mixnode ? validateRawPort(verlocPort) : true
       let validHttpApiPort =
-        props.type == NodeType.Mixnode ? validateRawPort(httpApiPort) : true;
+        props.type == NodeType.Mixnode ? validateRawPort(httpApiPort) : true
       let validClientsPort =
-        props.type == NodeType.Gateway ? validateRawPort(clientsPort) : true;
+        props.type == NodeType.Gateway ? validateRawPort(clientsPort) : true
 
       newValidity = {
         ...newValidity,
@@ -130,46 +130,46 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
           validHttpApiPort: validHttpApiPort,
           validClientsPort: validClientsPort,
         },
-      };
+      }
     }
 
     setValidity((previousState) => {
-      return { ...previousState, ...newValidity };
-    });
+      return { ...previousState, ...newValidity }
+    })
 
     // just AND everything together
-    const reducer = (acc, current) => acc && current;
+    const reducer = (acc, current) => acc && current
     return Object.entries(newValidity)
       .map((entry) => entry[1])
-      .reduce(reducer, true);
-  };
+      .reduce(reducer, true)
+  }
 
   const validateAmount = (rawValue: string): boolean => {
     // tests basic coin value requirements, like no more than 6 decimal places, value lower than total supply, etc
     if (!basicRawCoinValueValidation(rawValue)) {
-      return false;
+      return false
     }
 
     // this conversion seems really iffy but I'm not sure how to better approach it
-    let nativeValueString = printableBalanceToNative(rawValue);
-    let nativeValue = parseInt(nativeValueString);
+    let nativeValueString = printableBalanceToNative(rawValue)
+    let nativeValue = parseInt(nativeValueString)
     if (props.type == NodeType.Mixnode) {
-      return nativeValue >= parseInt(props.minimumMixnodeBond.amount);
+      return nativeValue >= parseInt(props.minimumMixnodeBond.amount)
     } else {
-      return nativeValue >= parseInt(props.minimumGatewayBond.amount);
+      return nativeValue >= parseInt(props.minimumGatewayBond.amount)
     }
-  };
+  }
 
   const validateKey = (key: string): boolean => {
     // it must be a valid base58 key
     try {
-      const bytes = bs58.decode(key);
+      const bytes = bs58.decode(key)
       // of length 32
-      return bytes.length === 32;
+      return bytes.length === 32
     } catch {
-      return false;
+      return false
     }
-  };
+  }
 
   const validateHost = (host: string): boolean => {
     // I don't think that proper checks are in scope of the change here
@@ -183,33 +183,33 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
     // ipv6 can have multiple possible representations, but it needs to contain at least two colons
     // a hostname (in this case) needs to have a top level domain present
 
-    const dot_occurrences = host.split(".").length - 1;
-    const colon_occurrences = host.split(":").length - 1;
+    const dot_occurrences = host.split('.').length - 1
+    const colon_occurrences = host.split(':').length - 1
 
     if (dot_occurrences == 3) {
       // possible ipv4
       // make sure it has no ports attached!
-      return colon_occurrences == 0;
+      return colon_occurrences == 0
     } else if (colon_occurrences >= 2) {
       // possible ipv6
-      return true;
+      return true
     } else if (dot_occurrences >= 1) {
       // possible hostname
       // make sure it has no ports attached!
-      return colon_occurrences == 0;
+      return colon_occurrences == 0
     }
-    return false;
-  };
+    return false
+  }
 
   const validateVersion = (version: string): boolean => {
     // check if its a valid semver
-    return semver.valid(version) && semver.minor(version) >= 11;
-  };
+    return semver.valid(version) && semver.minor(version) >= 11
+  }
 
   const validateLocation = (location: string): boolean => {
     // right now only perform the stupid check of whether the user copy-pasted the tooltip... (with or without brackets)
-    return !location.trim().includes("physical location of your node");
-  };
+    return !location.trim().includes('physical location of your node')
+  }
 
   const constructMixnodeBondingInfo = ({
     amount,
@@ -234,8 +234,8 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
         identity_key: identityKey,
         version,
       },
-    };
-  };
+    }
+  }
 
   const constructGatewayBondingInfo = (
     data: TFormInput
@@ -253,25 +253,25 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
         version: data.version,
         location: data.location,
       },
-    };
-  };
+    }
+  }
 
   const submitForm = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const target = event.target as unknown as TFormInput;
+    event.preventDefault()
+    const target = event.target as unknown as TFormInput
 
     if (validateForm(target)) {
       if (props.type == NodeType.Mixnode) {
-        return props.onSubmit(constructMixnodeBondingInfo(target));
+        return props.onSubmit(constructMixnodeBondingInfo(target))
       } else {
-        return props.onSubmit(constructGatewayBondingInfo(target));
+        return props.onSubmit(constructGatewayBondingInfo(target))
       }
     }
-  };
+  }
 
-  let minimumBond = props.minimumMixnodeBond;
+  let minimumBond = props.minimumMixnodeBond
   if (props.type == NodeType.Gateway) {
-    minimumBond = props.minimumGatewayBond;
+    minimumBond = props.minimumGatewayBond
   }
 
   // if this whole interface wasn't to be completely redone in a month time, I would have definitely redone the form
@@ -282,8 +282,8 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
         <Grid item xs={12} sm={8}>
           <TextField
             required
-            id="amount"
-            name="amount"
+            id='amount'
+            name='amount'
             label={`Amount to bond (minimum ${nativeToPrintable(
               minimumBond.amount
             )} ${minimumBond.denom})`}
@@ -298,24 +298,24 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
             fullWidth
             InputProps={{
               endAdornment: (
-                <InputAdornment position="end">{DENOM}</InputAdornment>
+                <InputAdornment position='end'>{DENOM}</InputAdornment>
               ),
             }}
             onChange={(e: ChangeEvent<HTMLInputElement>) => {
               if (
-                typeof parseInt(e.target.value) === "number" &&
+                typeof parseInt(e.target.value) === 'number' &&
                 parseInt(accountBalance.amount) - parseInt(e.target.value) < 1
               ) {
-                setAllocationWarning(true);
+                setAllocationWarning(true)
               } else {
-                setAllocationWarning(false);
+                setAllocationWarning(false)
               }
             }}
           />
         </Grid>
         {allocationWarning && (
           <Grid item>
-            <Alert severity="info">
+            <Alert severity='info'>
               You're about to allocate all of your tokens. You may want to keep
               some in order to unbond this mixnode at a later time.
             </Alert>
@@ -325,9 +325,9 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
           <TextField
             error={!validity.validIdentityKey}
             required
-            id="identity"
-            name="identity"
-            label="Identity key"
+            id='identity'
+            name='identity'
+            label='Identity key'
             fullWidth
           />
         </Grid>
@@ -335,12 +335,12 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
           <TextField
             error={!validity.validSphinxKey}
             required
-            id="sphinxKey"
-            name="sphinxKey"
-            label="Sphinx key"
+            id='sphinxKey'
+            name='sphinxKey'
+            label='Sphinx key'
             fullWidth
             {...(!validity.validSphinxKey
-              ? { helperText: "Enter a valid sphinx key" }
+              ? { helperText: 'Enter a valid sphinx key' }
               : {})}
           />
         </Grid>
@@ -348,12 +348,12 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
           <TextField
             error={!validity.validHost}
             required
-            id="host"
-            name="host"
-            label="Host"
+            id='host'
+            name='host'
+            label='Host'
             fullWidth
             {...(!validity.validHost
-              ? { helperText: "Enter a valid IP or a hostname (without port)" }
+              ? { helperText: 'Enter a valid IP or a hostname (without port)' }
               : {})}
           />
         </Grid>
@@ -364,12 +364,12 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
             <TextField
               error={!validity.validLocation}
               required
-              id="location"
-              name="location"
-              label="Location"
+              id='location'
+              name='location'
+              label='Location'
               fullWidth
               {...(!validity.validLocation
-                ? { helperText: "Enter a valid location of your node" }
+                ? { helperText: 'Enter a valid location of your node' }
                 : {})}
             />
           )}
@@ -379,14 +379,14 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
           <TextField
             error={!validity.validVersion}
             required
-            id="version"
-            name="version"
-            label="Version"
+            id='version'
+            name='version'
+            label='Version'
             fullWidth
             {...(!validity.validVersion
               ? {
                   helperText:
-                    "Enter a valid version (min. 0.11.0), like 0.11.0",
+                    'Enter a valid version (min. 0.11.0), like 0.11.0',
                 }
               : {})}
           />
@@ -400,37 +400,37 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
                 onChange={handleCheckboxToggle}
               />
             }
-            label="Show advanced options"
+            label='Show advanced options'
           />
         </Grid>
 
         {advancedShown && (
-          <React.Fragment>
+          <>
             <Grid item xs={12} sm={4}>
               <TextField
                 error={!validity.validMixPort}
-                variant="outlined"
-                id="mixPort"
-                name="mixPort"
-                label="Mix Port"
+                variant='outlined'
+                id='mixPort'
+                name='mixPort'
+                label='Mix Port'
                 fullWidth
                 defaultValue={DEFAULT_MIX_PORT}
                 {...(!validity.validMixPort
-                  ? { helperText: "Enter a valid version, like 0.10.0" }
+                  ? { helperText: 'Enter a valid version, like 0.10.0' }
                   : {})}
               />
             </Grid>
 
             {/*yes, I also hate so many layers of indentation here*/}
             {props.type === NodeType.Mixnode ? (
-              <React.Fragment>
+              <>
                 <Grid item xs={12} sm={4}>
                   <TextField
                     error={!validity.validVerlocPort}
-                    variant="outlined"
-                    id="verlocPort"
-                    name="verlocPort"
-                    label="Verloc Port"
+                    variant='outlined'
+                    id='verlocPort'
+                    name='verlocPort'
+                    label='Verloc Port'
                     fullWidth
                     defaultValue={DEFAULT_VERLOC_PORT}
                   />
@@ -439,42 +439,42 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
                 <Grid item xs={12} sm={4}>
                   <TextField
                     error={!validity.validHttpApiPort}
-                    variant="outlined"
-                    id="httpApiPort"
-                    name="httpApiPort"
-                    label="HTTP API Port"
+                    variant='outlined'
+                    id='httpApiPort'
+                    name='httpApiPort'
+                    label='HTTP API Port'
                     fullWidth
                     defaultValue={DEFAULT_HTTP_API_PORT}
                   />
                 </Grid>
-              </React.Fragment>
+              </>
             ) : (
               <Grid item xs={12} sm={4}>
                 <TextField
                   error={!validity.validClientsPort}
-                  variant="outlined"
-                  id="clientsPort"
-                  name="clientsPort"
-                  label="client WS API Port"
+                  variant='outlined'
+                  id='clientsPort'
+                  name='clientsPort'
+                  label='client WS API Port'
                   fullWidth
                   defaultValue={DEFAULT_CLIENTS_PORT}
                 />
               </Grid>
             )}
-          </React.Fragment>
+          </>
         )}
       </Grid>
 
       <div className={classes.buttons}>
         <Button
-          variant="contained"
-          color="primary"
-          type="submit"
+          variant='contained'
+          color='primary'
+          type='submit'
           className={classes.button}
         >
           Bond
         </Button>
       </div>
     </form>
-  );
+  )
 }

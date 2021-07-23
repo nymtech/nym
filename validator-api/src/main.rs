@@ -17,6 +17,7 @@ use log::info;
 use rocket::http::Method;
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use std::process;
+use validator_client::validator_api::VALIDATOR_API_PORT;
 
 pub(crate) mod cache;
 pub(crate) mod config;
@@ -195,7 +196,9 @@ async fn main() -> Result<()> {
     let config = override_config(config, &matches);
 
     // let's build our rocket!
-    let rocket = rocket::build()
+    let mut rocket_config = rocket::config::Config::default();
+    rocket_config.port = VALIDATOR_API_PORT;
+    let rocket = rocket::custom(rocket_config)
         .attach(setup_cors()?)
         .attach(ValidatorCache::stage());
 

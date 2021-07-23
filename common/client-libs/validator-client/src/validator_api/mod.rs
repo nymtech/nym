@@ -5,10 +5,10 @@ use crate::validator_api::error::ValidatorAPIClientError;
 use serde::Deserialize;
 use url::Url;
 
-// TODO: This should be linked to the validator-api as well
-pub(crate) const VALIDATOR_API_PORT: u16 = 8080;
-pub(crate) const VALIDATOR_API_MIXNODES: &str = "v1/mixnodes";
-pub(crate) const VALIDATOR_API_GATEWAYS: &str = "v1/gateways";
+pub const VALIDATOR_API_PORT: u16 = 8080;
+pub const VALIDATOR_API_CACHE_VERSION: &str = "/v1";
+pub(crate) const VALIDATOR_API_MIXNODES: &str = "/mixnodes";
+pub(crate) const VALIDATOR_API_GATEWAYS: &str = "/gateways";
 
 pub struct Client {
     reqwest_client: reqwest::Client,
@@ -32,7 +32,7 @@ impl Client {
         validator_api_url
             .set_port(Some(VALIDATOR_API_PORT))
             .unwrap();
-        let query_url = format!("{}/{}", validator_api_url.as_str(), query);
+        let query_url = format!("{}{}", validator_api_url.as_str(), query);
         Ok(self
             .reqwest_client
             .get(query_url)

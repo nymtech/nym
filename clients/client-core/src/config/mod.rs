@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DEFAULT_VALIDATOR_REST_ENDPOINTS};
+use config::defaults::*;
 use config::{deserialize_duration, deserialize_validators, NymConfig};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;

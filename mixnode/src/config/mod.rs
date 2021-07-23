@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DEFAULT_VALIDATOR_REST_ENDPOINTS};
+use config::defaults::*;
 use config::{deserialize_duration, deserialize_validators, NymConfig};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::net::{IpAddr, SocketAddr};
@@ -14,11 +14,6 @@ pub mod persistence;
 mod template;
 
 pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
-
-// 'MIXNODE'
-const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
-const DEFAULT_VERLOC_LISTENING_PORT: u16 = 1790;
-const DEFAULT_HTTP_API_LISTENING_PORT: u16 = 8000;
 
 // 'RTT MEASUREMENT'
 const DEFAULT_PACKETS_PER_NODE: usize = 100;

@@ -14,6 +14,12 @@ pub struct Client {
     reqwest_client: reqwest::Client,
 }
 
+impl Default for Client {
+    fn default() -> Self {
+        Client::new()
+    }
+}
+
 impl Client {
     pub fn new() -> Self {
         let reqwest_client = reqwest::Client::new();

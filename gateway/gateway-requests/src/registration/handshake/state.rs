@@ -1,11 +1,11 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::authentication::encrypted_address;
 use crate::registration::handshake::error::HandshakeError;
 use crate::registration::handshake::shared_key::{SharedKeySize, SharedKeys};
 use crate::registration::handshake::WsItem;
 use crate::types;
+use coconut_interface::Credential;
 use crypto::{
     asymmetric::{encryption, identity},
     generic_array::typenum::Unsigned,
@@ -21,25 +21,35 @@ use std::convert::{TryFrom, TryInto};
 use tungstenite::Message as WsMessage;
 
 #[derive(Serialize, Deserialize)]
-struct InitMessage {
+pub struct InitMessage {
     local_id_pubkey: Vec<u8>,
     ephemeral_key: Vec<u8>,
+    credential: Option<Credential>,
 }
 
 impl InitMessage {
-    fn new(local_id_pubkey: &identity::PublicKey, ephemeral_key: &encryption::PublicKey) -> Self {
+    fn new(
+        local_id_pubkey: &identity::PublicKey,
+        ephemeral_key: &encryption::PublicKey,
+        credential: Credential,
+    ) -> Self {
         InitMessage {
             local_id_pubkey: local_id_pubkey.to_bytes().to_vec(),
             ephemeral_key: ephemeral_key.to_bytes().to_vec(),
+            credential: Some(credential),
         }
     }
 
-    fn local_id_pubkey(&self) -> identity::PublicKey {
+    pub fn local_id_pubkey(&self) -> identity::PublicKey {
         identity::PublicKey::from_bytes(&self.local_id_pubkey).unwrap()
     }
 
-    fn ephemeral_key(&self) -> encryption::PublicKey {
+    pub fn ephemeral_key(&self) -> encryption::PublicKey {
         encryption::PublicKey::from_bytes(&self.ephemeral_key).unwrap()
+    }
+
+    pub fn credential(&self) -> Credential {
+        self.credential.clone().unwrap()
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -75,6 +85,7 @@ pub(crate) struct State<'a, S> {
     /// The known or received public identity key of the remote.
     /// Ideally it would always be known before the handshake was initiated.
     remote_pubkey: Option<identity::PublicKey>,
+    coconut_credential: Option<Credential>,
 }
 
 impl<'a, S> State<'a, S> {
@@ -83,6 +94,7 @@ impl<'a, S> State<'a, S> {
         ws_stream: &'a mut S,
         identity: &'a identity::KeyPair,
         remote_pubkey: Option<identity::PublicKey>,
+        credential: Option<Credential>,
     ) -> Self {
         let ephemeral_keypair = encryption::KeyPair::new(rng);
         State {
@@ -91,6 +103,7 @@ impl<'a, S> State<'a, S> {
             identity,
             remote_pubkey,
             derived_shared_keys: None,
+            coconut_credential: credential,
         }
     }
 
@@ -105,17 +118,16 @@ impl<'a, S> State<'a, S> {
         InitMessage::new(
             self.identity.public_key(),
             self.ephemeral_keypair.public_key(),
+            self.coconut_credential.clone().unwrap(),
         )
         .to_bytes()
     }
 
     // this will need to be adjusted when REMOTE_ID_PUBKEY is removed
-    pub(crate) fn parse_init_message(
-        init_message: Vec<u8>,
-    ) -> Result<(identity::PublicKey, encryption::PublicKey), HandshakeError> {
+    pub(crate) fn parse_init_message(init_message: Vec<u8>) -> Result<InitMessage, HandshakeError> {
         match InitMessage::try_from(init_message.as_slice()) {
-            Ok(init_message) => Ok((init_message.local_id_pubkey(), init_message.ephemeral_key())),
-            Err(e) => Err(HandshakeError::MalformedRequest),
+            Ok(init_message) => Ok(init_message),
+            Err(_e) => Err(HandshakeError::MalformedRequest),
         }
     }
 

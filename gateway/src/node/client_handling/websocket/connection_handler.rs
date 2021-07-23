@@ -55,8 +55,8 @@ pub(crate) struct Handle<R, S> {
     clients_handler_sender: ClientsHandlerRequestSender,
     outbound_mix_sender: MixForwardingSender,
     socket_connection: SocketStream<S>,
-
     local_identity: Arc<identity::KeyPair>,
+    validator_urls: Vec<String>,
 }
 
 impl<R, S> Handle<R, S>
@@ -71,6 +71,7 @@ where
         clients_handler_sender: ClientsHandlerRequestSender,
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
+        validator_urls: Vec<String>,
     ) -> Self {
         Handle {
             rng,
@@ -80,6 +81,7 @@ where
             outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
             local_identity,
+            validator_urls,
         }
     }
 
@@ -115,6 +117,7 @@ where
                     ws_stream,
                     self.local_identity.as_ref(),
                     init_msg,
+                    self.validator_urls.clone(),
                 )
                 .await
             }

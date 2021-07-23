@@ -3,7 +3,7 @@ use coconut_rs::{Attribute, Base58, BlindSignRequest, BlindedSignature, PublicKe
 use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Getters, CopyGetters)]
+#[derive(Serialize, Deserialize, Getters, CopyGetters, Clone)]
 pub struct Credential {
     #[getset(get = "pub")]
     n_params: u32,
@@ -27,7 +27,7 @@ impl Credential {
                 .iter()
                 .map(|attr| attr.to_bs58())
                 .collect(),
-            signature: signature.clone(),
+            signature: *signature,
         }
     }
 
@@ -159,7 +159,7 @@ pub fn get_aggregated_verification_key(
     let mut indices = Vec::new();
 
     for (idx, url) in validator_urls.iter().enumerate() {
-        verification_keys.push(get_verification_key(url)?);
+        verification_keys.push(get_verification_key(url.as_ref())?);
         indices.push((idx + 1) as u64);
     }
 

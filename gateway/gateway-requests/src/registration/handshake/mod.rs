@@ -41,11 +41,19 @@ pub async fn gateway_handshake<'a, S>(
     ws_stream: &'a mut S,
     identity: &'a identity::KeyPair,
     received_init_payload: Vec<u8>,
+    validator_urls: Vec<String>,
 ) -> Result<SharedKeys, HandshakeError>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
 {
-    GatewayHandshake::new(rng, ws_stream, identity, received_init_payload).await
+    GatewayHandshake::new(
+        rng,
+        ws_stream,
+        identity,
+        received_init_payload,
+        validator_urls,
+    )
+    .await
 }
 
 /*

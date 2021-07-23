@@ -29,7 +29,13 @@ impl<'a> ClientHandshake<'a> {
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
     {
-        let mut state = State::new(rng, ws_stream, identity, Some(gateway_pubkey));
+        let mut state = State::new(
+            rng,
+            ws_stream,
+            identity,
+            Some(gateway_pubkey),
+            Some(coconut_credential),
+        );
 
         ClientHandshake {
             handshake_future: Box::pin(async move {

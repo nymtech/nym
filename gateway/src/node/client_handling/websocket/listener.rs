@@ -15,13 +15,19 @@ use tokio::task::JoinHandle;
 pub(crate) struct Listener {
     address: SocketAddr,
     local_identity: Arc<identity::KeyPair>,
+    validator_urls: Vec<String>,
 }
 
 impl Listener {
-    pub(crate) fn new(address: SocketAddr, local_identity: Arc<identity::KeyPair>) -> Self {
+    pub(crate) fn new(
+        address: SocketAddr,
+        local_identity: Arc<identity::KeyPair>,
+        validator_urls: Vec<String>,
+    ) -> Self {
         Listener {
             address,
             local_identity,
+            validator_urls,
         }
     }
 
@@ -51,6 +57,7 @@ impl Listener {
                         clients_handler_sender.clone(),
                         outbound_mix_sender.clone(),
                         Arc::clone(&self.local_identity),
+                        self.validator_urls.clone(),
                     );
                     tokio::spawn(async move { handle.start_handling().await });
                 }

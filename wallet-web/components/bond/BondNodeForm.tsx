@@ -211,8 +211,8 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
     // ipv6 can have multiple possible representations, but it needs to contain at least two colons
     // a hostname (in this case) needs to have a top level domain present
 
-    const dot_occurrences = host.split('.').length - 1
-    const colon_occurrences = host.split(':').length - 1
+    const dot_occurrences = host.trim().split('.').length - 1
+    const colon_occurrences = host.trim().split(':').length - 1
 
     if (dot_occurrences == 3) {
       // possible ipv4

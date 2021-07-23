@@ -1,7 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node_status_api::utils::{NodeStatus, NodeUptimes};
+use crate::node_status_api::utils::NodeUptimes;
+use crate::storage::models::NodeStatus;
 use rocket::http::{ContentType, Status};
 use rocket::response::{self, Responder, Response};
 use rocket::Request;

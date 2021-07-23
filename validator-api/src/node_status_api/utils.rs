@@ -3,24 +3,12 @@
 
 use crate::node_status_api::models::Uptime;
 use crate::node_status_api::{FIFTEEN_MINUTES, ONE_HOUR};
+use crate::storage::models::NodeStatus;
 use sqlx::types::time::OffsetDateTime;
-
-// Internally used struct to catch results from the database to calculate uptimes for given mixnode/gateway
-pub(crate) struct NodeStatus {
-    pub(crate) timestamp: i64,
-    pub(crate) up: bool,
-}
-
-// Internally used struct to catch results from the database to find active mixnodes/gateways
-pub(crate) struct ActiveNode {
-    pub(crate) id: i64,
-    pub(crate) pub_key: String,
-    pub(crate) owner: String,
-}
 
 // A temporary helper struct used to produce reports for active nodes.
 pub(crate) struct ActiveNodeDayStatuses {
-    pub(crate) pub_key: String,
+    pub(crate) identity: String,
     pub(crate) owner: String,
     pub(crate) node_id: i64,
 

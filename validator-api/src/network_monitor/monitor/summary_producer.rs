@@ -6,8 +6,9 @@ use crate::network_monitor::test_packet::{NodeType, TestPacket};
 use crate::PENALISE_OUTDATED;
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub(crate) struct NodeResult {
-    pub(crate) pub_key: String,
+    pub(crate) identity: String,
     pub(crate) owner: String,
     pub(crate) working_ipv4: bool,
     pub(crate) working_ipv6: bool,
@@ -20,9 +21,9 @@ struct NodeStatus {
 }
 
 impl NodeStatus {
-    fn into_node_status(self, pub_key: String, owner: String) -> NodeResult {
+    fn into_node_status(self, identity: String, owner: String) -> NodeResult {
         NodeResult {
-            pub_key,
+            identity,
             owner,
             working_ipv4: self.ip_v4_compatible,
             working_ipv6: self.ip_v6_compatible,

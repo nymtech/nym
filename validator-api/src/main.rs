@@ -8,7 +8,7 @@ use crate::cache::ValidatorCacheRefresher;
 use crate::config::Config;
 use crate::network_monitor::new_monitor_runnables;
 use crate::network_monitor::tested_network::good_topology::parse_topology_file;
-use crate::node_status_api::storage::NodeStatusStorage;
+use crate::storage::NodeStatusStorage;
 use ::config::NymConfig;
 use anyhow::Result;
 use cache::ValidatorCache;
@@ -22,6 +22,7 @@ pub(crate) mod cache;
 pub(crate) mod config;
 mod network_monitor;
 mod node_status_api;
+pub(crate) mod storage;
 
 const MONITORING_ENABLED: &str = "enable-monitor";
 const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";

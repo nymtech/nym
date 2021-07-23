@@ -6,7 +6,7 @@ use crate::node_status_api::models::{
     ErrorResponse, GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport,
     MixnodeUptimeHistory,
 };
-use crate::node_status_api::storage::NodeStatusStorage;
+use crate::storage::NodeStatusStorage;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;

@@ -1,17 +1,7 @@
 {
   "db": "SQLite",
-  "01de0a1f0b7c432dfdcad2cc2dedd2c1fa2c9618a0166207a1920e3b25d2b7e7": {
-    "query": "DELETE FROM mixnode_ipv4_status WHERE timestamp < ?",
-    "describe": {
-      "columns": [],
-      "parameters": {
-        "Right": 1
-      },
-      "nullable": []
-    }
-  },
-  "1915fb818696abb354f1bc7915399be69fb7b97204f7fb81baba4f4be1777fce": {
-    "query": "\n                SELECT date, ipv4_uptime, ipv6_uptime\n                    FROM gateway_historical_uptime\n                    JOIN gateway_details\n                    ON gateway_historical_uptime.gateway_details_id = gateway_details.id\n                    WHERE gateway_details.pub_key = ?\n                    ORDER BY date ASC\n            ",
+  "000bae8722e573327cbd660fc3df5c96d0b6d0f56a872e486557bbbe7e423638": {
+    "query": "\n                SELECT date, ipv4_uptime, ipv6_uptime\n                    FROM gateway_historical_uptime\n                    JOIN gateway_details\n                    ON gateway_historical_uptime.gateway_details_id = gateway_details.id\n                    WHERE gateway_details.identity = ?\n                    ORDER BY date ASC\n            ",
     "describe": {
       "columns": [
         {
@@ -40,6 +30,16 @@
       ]
     }
   },
+  "01de0a1f0b7c432dfdcad2cc2dedd2c1fa2c9618a0166207a1920e3b25d2b7e7": {
+    "query": "DELETE FROM mixnode_ipv4_status WHERE timestamp < ?",
+    "describe": {
+      "columns": [],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": []
+    }
+  },
   "20b7eee88b4bfb196d0dbbbef19d789d9ffd0790349b7ae6bea6b536123be3b3": {
     "query": "INSERT INTO mixnode_historical_uptime(mixnode_details_id, date, ipv4_uptime, ipv6_uptime) VALUES (?, ?, ?, ?)",
     "describe": {
@@ -48,6 +48,24 @@
         "Right": 4
       },
       "nullable": []
+    }
+  },
+  "21671ecfb386373f57a260385b6ca5ae0eead07b371805a5b1d37ae0092625f9": {
+    "query": "SELECT owner FROM mixnode_details WHERE identity = ?",
+    "describe": {
+      "columns": [
+        {
+          "name": "owner",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false
+      ]
     }
   },
   "26a6cec333e3187d1bee9a583529b4126cb12d711771c5276e9598ccaa0a144d": {
@@ -70,18 +88,18 @@
       "nullable": []
     }
   },
-  "2d87cc44c28330492c7cf90589e5d8113ccff07d6f67c485226bbe59246db522": {
-    "query": "\n                    INSERT OR IGNORE INTO gateway_details(pub_key, owner) VALUES (?, ?);\n                    SELECT id FROM gateway_details WHERE pub_key = ?;\n                ",
+  "32bb50f08facfb033a0eeb61b74ce546bd36263f364fe0dfebcd0c9ac8818af6": {
+    "query": "SELECT owner FROM gateway_details WHERE identity = ?",
     "describe": {
       "columns": [
         {
-          "name": "id",
+          "name": "owner",
           "ordinal": 0,
-          "type_info": "Int64"
+          "type_info": "Text"
         }
       ],
       "parameters": {
-        "Right": 3
+        "Right": 1
       },
       "nullable": [
         false
@@ -136,6 +154,36 @@
       ]
     }
   },
+  "49b59f0fcede59a095a47be3acb9035f441d6d533443ae73f85c553b346be356": {
+    "query": "\n                SELECT DISTINCT identity, owner, id\n                    FROM mixnode_details\n                    JOIN mixnode_ipv4_status\n                    ON mixnode_details.id = mixnode_ipv4_status.mixnode_details_id\n                    WHERE EXISTS (\n                        SELECT 1 FROM mixnode_ipv4_status WHERE timestamp > ?\n                    )\n            ",
+    "describe": {
+      "columns": [
+        {
+          "name": "identity",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "owner",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "id",
+          "ordinal": 2,
+          "type_info": "Int64"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false,
+        false,
+        false
+      ]
+    }
+  },
   "4c32c31247672549621c5b817625228f1a777919ae711d0d29a192494183e9d3": {
     "query": "DELETE FROM gateway_ipv6_status WHERE timestamp < ?",
     "describe": {
@@ -156,30 +204,6 @@
       "nullable": []
     }
   },
-  "6b421289099f59d2f61287e87152621039d47b311dd2474887dcc91c0ca7db7e": {
-    "query": "\n                SELECT timestamp, up\n                    FROM mixnode_ipv4_status\n                    JOIN mixnode_details\n                    ON mixnode_ipv4_status.mixnode_details_id = mixnode_details.id\n                    WHERE mixnode_details.pub_key=? AND mixnode_ipv4_status.timestamp > ?;\n            ",
-    "describe": {
-      "columns": [
-        {
-          "name": "timestamp",
-          "ordinal": 0,
-          "type_info": "Int64"
-        },
-        {
-          "name": "up",
-          "ordinal": 1,
-          "type_info": "Bool"
-        }
-      ],
-      "parameters": {
-        "Right": 2
-      },
-      "nullable": [
-        false,
-        false
-      ]
-    }
-  },
   "76c9645a1d79ce4294bff73e0fb60d211490bd810687f8e7d9963d05e7970cee": {
     "query": "DELETE FROM gateway_ipv4_status WHERE timestamp < ?",
     "describe": {
@@ -190,8 +214,56 @@
       "nullable": []
     }
   },
-  "9212a4484ce59c30e9ef7d9e6796eb837e00e618db6f21b711cbf17661011054": {
-    "query": "\n                SELECT timestamp, up\n                    FROM mixnode_ipv6_status\n                    JOIN mixnode_details\n                    ON mixnode_ipv6_status.mixnode_details_id = mixnode_details.id\n                    WHERE mixnode_details.pub_key=? AND mixnode_ipv6_status.timestamp > ?;\n            ",
+  "786cf93daf23b03a5e6ffcf15f03013375be1f94a43aa8b614c9240d7dee6da4": {
+    "query": "\n                    INSERT OR IGNORE INTO gateway_details(identity, owner) VALUES (?, ?);\n                    SELECT id FROM gateway_details WHERE identity = ?;\n                ",
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        }
+      ],
+      "parameters": {
+        "Right": 3
+      },
+      "nullable": [
+        false
+      ]
+    }
+  },
+  "7b37a1a850def3f82ab64c4825af256ef79a6e8a7edad122d4770be8bc84e32a": {
+    "query": "\n                SELECT DISTINCT identity, owner, id\n                    FROM gateway_details\n                    JOIN gateway_ipv4_status\n                    ON gateway_details.id = gateway_ipv4_status.gateway_details_id\n                    WHERE EXISTS (\n                        SELECT 1 FROM gateway_ipv4_status WHERE timestamp > ?\n                    )\n            ",
+    "describe": {
+      "columns": [
+        {
+          "name": "identity",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "owner",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "id",
+          "ordinal": 2,
+          "type_info": "Int64"
+        }
+      ],
+      "parameters": {
+        "Right": 1
+      },
+      "nullable": [
+        false,
+        false,
+        false
+      ]
+    }
+  },
+  "8395b08fa17d904217b19c5d03ab4d66dd0a0f648487d81ae09b1f926111d614": {
+    "query": "\n                SELECT timestamp, up\n                    FROM mixnode_ipv4_status\n                    JOIN mixnode_details\n                    ON mixnode_ipv4_status.mixnode_details_id = mixnode_details.id\n                    WHERE mixnode_details.identity=? AND mixnode_ipv4_status.timestamp > ?;\n            ",
     "describe": {
       "columns": [
         {
@@ -248,44 +320,8 @@
       "nullable": []
     }
   },
-  "97e108e08c4a8aa2c0e2a32f93ae7c65193a26be2d06f8f97ab8fdc0f7004fa4": {
-    "query": "SELECT owner FROM gateway_details WHERE pub_key = ?",
-    "describe": {
-      "columns": [
-        {
-          "name": "owner",
-          "ordinal": 0,
-          "type_info": "Text"
-        }
-      ],
-      "parameters": {
-        "Right": 1
-      },
-      "nullable": [
-        false
-      ]
-    }
-  },
-  "9cd914e2f1e8058c6935a50f2a02c0e04c4ee5a1c4a400f08d9d0eb47f5665d8": {
-    "query": "SELECT owner FROM mixnode_details WHERE pub_key = ?",
-    "describe": {
-      "columns": [
-        {
-          "name": "owner",
-          "ordinal": 0,
-          "type_info": "Text"
-        }
-      ],
-      "parameters": {
-        "Right": 1
-      },
-      "nullable": [
-        false
-      ]
-    }
-  },
-  "aa9708202a664aa8b85e8881deb9f0137efd91f88eba18a7fa05ee1ad7e8e621": {
-    "query": "\n                SELECT date, ipv4_uptime, ipv6_uptime\n                    FROM mixnode_historical_uptime\n                    JOIN mixnode_details\n                    ON mixnode_historical_uptime.mixnode_details_id = mixnode_details.id\n                    WHERE mixnode_details.pub_key = ?\n                    ORDER BY date ASC\n            ",
+  "96bf94cf7b81a527718b74bd456587f00f12827c72792eff9346e0b1683feede": {
+    "query": "\n                SELECT date, ipv4_uptime, ipv6_uptime\n                    FROM mixnode_historical_uptime\n                    JOIN mixnode_details\n                    ON mixnode_historical_uptime.mixnode_details_id = mixnode_details.id\n                    WHERE mixnode_details.identity = ?\n                    ORDER BY date ASC\n            ",
     "describe": {
       "columns": [
         {
@@ -314,38 +350,26 @@
       ]
     }
   },
-  "b34e1f8595764d2706e80b317c7aed9ee9a11b23028aa44ff56ce840349e0ff9": {
-    "query": "\n                SELECT DISTINCT pub_key, owner, id\n                    FROM gateway_details\n                    JOIN gateway_ipv4_status\n                    ON gateway_details.id = gateway_ipv4_status.gateway_details_id\n                    WHERE EXISTS (\n                        SELECT 1 FROM gateway_ipv4_status WHERE timestamp > ?\n                    )\n            ",
+  "ba7d4f4134902f6ccec1973c9acfc5052539d35911ba238607ce8ca6111f219d": {
+    "query": "\n                    INSERT OR IGNORE INTO mixnode_details(identity, owner) VALUES (?, ?);\n                    SELECT id FROM mixnode_details WHERE identity = ?;\n                ",
     "describe": {
       "columns": [
         {
-          "name": "pub_key",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "owner",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
           "name": "id",
-          "ordinal": 2,
+          "ordinal": 0,
           "type_info": "Int64"
         }
       ],
       "parameters": {
-        "Right": 1
+        "Right": 3
       },
       "nullable": [
-        false,
-        false,
         false
       ]
     }
   },
-  "b8e05a65bf3a6f0d4173e0c27cb5491e4f5d1615407c9b46651fcc2dd5970feb": {
-    "query": "\n                SELECT timestamp, up\n                    FROM gateway_ipv4_status\n                    JOIN gateway_details\n                    ON gateway_ipv4_status.gateway_details_id = gateway_details.id\n                    WHERE gateway_details.pub_key=? AND gateway_ipv4_status.timestamp > ?;\n            ",
+  "bcd2069178c3f006a640983a1bc8d8d0293d163044f30b859b8878a96787333b": {
+    "query": "\n                SELECT timestamp, up\n                    FROM gateway_ipv4_status\n                    JOIN gateway_details\n                    ON gateway_ipv4_status.gateway_details_id = gateway_details.id\n                    WHERE gateway_details.identity=? AND gateway_ipv4_status.timestamp > ?;\n            ",
     "describe": {
       "columns": [
         {
@@ -378,56 +402,32 @@
       "nullable": []
     }
   },
-  "d378bade0e786e3efdda4a02a5f403da9a23c20f4eecb86fceb18930cf2cceec": {
-    "query": "\n                SELECT DISTINCT pub_key, owner, id\n                    FROM mixnode_details\n                    JOIN mixnode_ipv4_status\n                    ON mixnode_details.id = mixnode_ipv4_status.mixnode_details_id\n                    WHERE EXISTS (\n                        SELECT 1 FROM mixnode_ipv4_status WHERE timestamp > ?\n                    )\n            ",
+  "bfc4a0aec14ac76da012f011afb8ff637666b67d8585f2cbb681520a93f3b472": {
+    "query": "\n                SELECT timestamp, up\n                    FROM mixnode_ipv6_status\n                    JOIN mixnode_details\n                    ON mixnode_ipv6_status.mixnode_details_id = mixnode_details.id\n                    WHERE mixnode_details.identity=? AND mixnode_ipv6_status.timestamp > ?;\n            ",
     "describe": {
       "columns": [
         {
-          "name": "pub_key",
+          "name": "timestamp",
           "ordinal": 0,
-          "type_info": "Text"
+          "type_info": "Int64"
         },
         {
-          "name": "owner",
+          "name": "up",
           "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "id",
-          "ordinal": 2,
-          "type_info": "Int64"
+          "type_info": "Bool"
         }
       ],
       "parameters": {
-        "Right": 1
+        "Right": 2
       },
       "nullable": [
-        false,
         false,
         false
       ]
     }
   },
-  "d4b9a3e22a1230635523aec12a0b5a980e99949232369ebd748c70fed3f4532e": {
-    "query": "\n                    INSERT OR IGNORE INTO mixnode_details(pub_key, owner) VALUES (?, ?);\n                    SELECT id FROM mixnode_details WHERE pub_key = ?;\n                ",
-    "describe": {
-      "columns": [
-        {
-          "name": "id",
-          "ordinal": 0,
-          "type_info": "Int64"
-        }
-      ],
-      "parameters": {
-        "Right": 3
-      },
-      "nullable": [
-        false
-      ]
-    }
-  },
-  "d85a0985f6e0d818217f6733a1df0c9b83821ecf0e824b0a606c3723ad87362a": {
-    "query": "\n                SELECT timestamp, up\n                    FROM gateway_ipv6_status\n                    JOIN gateway_details\n                    ON gateway_ipv6_status.gateway_details_id = gateway_details.id\n                    WHERE gateway_details.pub_key=? AND gateway_ipv6_status.timestamp > ?;\n            ",
+  "d10fd4560017ab9229567ab3419e4fe6912f61aa4c17ffd87e3f724ec8518023": {
+    "query": "\n                SELECT timestamp, up\n                    FROM gateway_ipv6_status\n                    JOIN gateway_details\n                    ON gateway_ipv6_status.gateway_details_id = gateway_details.id\n                    WHERE gateway_details.identity=? AND gateway_ipv6_status.timestamp > ?;\n            ",
     "describe": {
       "columns": [
         {

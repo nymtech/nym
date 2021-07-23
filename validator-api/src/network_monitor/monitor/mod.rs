@@ -8,7 +8,7 @@ use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::{NodeResult, SummaryProducer, TestReport};
 use crate::network_monitor::test_packet::NodeType;
 use crate::network_monitor::tested_network::TestedNetwork;
-use crate::node_status_api::storage::NodeStatusStorage;
+use crate::storage::NodeStatusStorage;
 use log::{debug, info};
 use std::process;
 use tokio::time::{sleep, Duration, Instant};

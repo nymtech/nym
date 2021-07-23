@@ -6,10 +6,10 @@ use std::process;
 
 use clap::{App, Arg, ArgMatches};
 
+use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use config::NymConfig;
 use version_checker::{parse_version, Version};
 
-use crate::config::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use crate::config::{default_validator_rest_endpoints, Config, MISSING_VALUE};
 
 fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> ! {

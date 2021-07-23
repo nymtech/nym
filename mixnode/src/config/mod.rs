@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
+use config::defaults::{DEFAULT_MIXNET_CONTRACT_ADDRESS, DEFAULT_VALIDATOR_REST_ENDPOINTS};
 use config::{deserialize_duration, deserialize_validators, NymConfig};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::net::{IpAddr, SocketAddr};
@@ -18,12 +19,6 @@ pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 const DEFAULT_VERLOC_LISTENING_PORT: u16 = 1790;
 const DEFAULT_HTTP_API_LISTENING_PORT: u16 = 8000;
-
-pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
-    "http://testnet-milhon-validator1.nymtech.net:1317",
-    "http://testnet-milhon-validator2.nymtech.net:1317",
-];
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen";
 
 // 'RTT MEASUREMENT'
 const DEFAULT_PACKETS_PER_NODE: usize = 100;

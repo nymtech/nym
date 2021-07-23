@@ -142,6 +142,7 @@ export const basicRawCoinValueValidation = (rawAmount: string): boolean => {
 
 export const getDisplayExecGasFee = (): string => {
   const table = buildFeeTable(nymGasPrice(DENOM), nymGasLimits, nymGasLimits)
+  console.log(table)
   return printableCoin(table.exec.amount[0])
 }
 

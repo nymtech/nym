@@ -1,7 +1,6 @@
 import { useCallback, useContext, useState } from 'react'
 import { Coin, printableCoin } from '@nymproject/nym-validator-client'
 import { ValidatorClientContext } from '../contexts/ValidatorClient'
-import { basicRawCoinValueValidation } from '../common/helpers'
 
 export const useGetBalance = () => {
   const { client } = useContext(ValidatorClientContext)
@@ -12,7 +11,6 @@ export const useGetBalance = () => {
   const getBalance = useCallback(async () => {
     if (client) {
       setIsLoading(true)
-      console.log(`using the context client, our address is ${client.address}`)
 
       try {
         const value = await client.getBalance(client.address)

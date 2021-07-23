@@ -34,6 +34,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
 mixnet-contract = { path = "../../common/mixnet-contract" }
+config = { path = "../../common/config"}
 cosmwasm-std = { version = "0.14.1", features = ["iterator"] }
 cosmwasm-storage = { version = "0.14.1", features = ["iterator"] }
 schemars = "0.8"

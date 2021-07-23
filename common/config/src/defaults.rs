@@ -7,6 +7,7 @@ pub const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
 ];
 pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen";
 pub const BECH32_PREFIX: &str = "punk";
+pub const DENOM: &str = "upunk";
 
 pub const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 

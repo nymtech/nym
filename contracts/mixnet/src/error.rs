@@ -1,4 +1,4 @@
-use crate::contract::DENOM;
+use config::defaults::DENOM;
 use cosmwasm_std::{Addr, StdError};
 use mixnet_contract::IdentityKey;
 use thiserror::Error;

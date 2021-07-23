@@ -2,6 +2,7 @@ use crate::commands::*;
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
 use clap::{App, Arg, ArgMatches};
 use colored::*;
+use config::defaults::BECH32_PREFIX;
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use log::error;
@@ -59,10 +60,10 @@ pub fn execute(matches: &ArgMatches) {
 
     let channel_name = "https://t.me/nympunkbot".bright_cyan();
 
-    // the text should consists of two parts, telegram handle and punk address - we can perform some very basic validation here already
+    // the text should consists of two parts, telegram handle and wallet address - we can perform some very basic validation here already
     let split = text.split(' ').collect::<Vec<_>>();
     if split.len() != 2 {
-        let error_message = r#"You haven't provided correct sign arguments. You need to provide --text "@your_telegram_handle your_punk_wallet_address" with the quotes and space in between"#.red();
+        let error_message = format!(r#"You haven't provided correct sign arguments. You need to provide --text "@your_telegram_handle your_{}_wallet_address" with the quotes and space in between"#, BECH32_PREFIX).red();
         println!("{}", error_message);
         process::exit(1);
     }
@@ -73,8 +74,9 @@ pub fn execute(matches: &ArgMatches) {
         process::exit(1);
     }
 
-    if !split[1].starts_with("punk") {
-        let error_message = "Your wallet address must start with a 'punk'".red();
+    if !split[1].starts_with(BECH32_PREFIX) {
+        let error_message =
+            format!("Your wallet address must start with a '{}'", BECH32_PREFIX).red();
         println!("{}", error_message);
         process::exit(1);
     }

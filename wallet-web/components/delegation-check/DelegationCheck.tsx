@@ -21,7 +21,7 @@ const DelegationCheck = () => {
   const [checkError, setCheckError] = React.useState(null)
 
   const [nodeType, setNodeType] = React.useState(NodeType.Mixnode)
-  const [stakeValue, setStakeValue] = React.useState('0')
+  const [stakeValue, setStakeValue] = React.useState<string>()
   const [nodeIdentity, setNodeIdentity] = React.useState('')
 
   useEffect(() => {
@@ -75,13 +75,14 @@ const DelegationCheck = () => {
   }
 
   const getDelegationCheckContent = () => {
+    console.log(isLoading)
     // we're not signed in
     if (client === null) {
       return <NoClientError />
     }
 
     // we haven't clicked delegate button yet
-    if (!isLoading) {
+    if (!isLoading && !stakeValue) {
       return (
         <>
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />

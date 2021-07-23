@@ -92,16 +92,20 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
     if (isNaN(parsed)) {
       setIsValidAmount(false)
     } else {
-      const allocationCheck = checkAllocationSize(
-        +printableBalanceToNative(e.target.value),
-        balance
-      )
-      if (allocationCheck.error) {
-        setAllocationWarning(allocationCheck.message)
+      try {
+        const allocationCheck = checkAllocationSize(
+          +printableBalanceToNative(e.target.value),
+          balance
+        )
+        if (allocationCheck.error) {
+          setAllocationWarning(allocationCheck.message)
+          setIsValidAmount(false)
+        } else {
+          setAllocationWarning(allocationCheck.message)
+          setIsValidAmount(true)
+        }
+      } catch {
         setIsValidAmount(false)
-      } else {
-        setAllocationWarning(allocationCheck.message)
-        setIsValidAmount(true)
       }
     }
   }

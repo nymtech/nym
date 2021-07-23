@@ -21,7 +21,7 @@ type DelegateFormProps = {
 export default function DelegateForm(props: DelegateFormProps) {
   const classes = makeBasicStyle(theme)
 
-  const [validAmount, setValidAmount] = useState(true)
+  const [isValidAmount, setIsValidAmount] = useState(true)
   const [validIdentity, setValidIdentity] = useState(true)
   const [allocationWarning, setAllocationWarning] = useState<string>()
   const { getBalance, accountBalance } = useGetBalance()
@@ -38,18 +38,22 @@ export default function DelegateForm(props: DelegateFormProps) {
     const balance = +accountBalance.amount
 
     if (isNaN(parsed)) {
-      setValidAmount(false)
+      setIsValidAmount(false)
     } else {
-      const allocationCheck = checkAllocationSize(
-        +printableBalanceToNative(event.target.value),
-        balance
-      )
-      if (allocationCheck.error) {
-        setAllocationWarning(allocationCheck.message)
-        setValidAmount(false)
-      } else {
-        setAllocationWarning(allocationCheck.message)
-        setValidAmount(true)
+      try {
+        const allocationCheck = checkAllocationSize(
+          +printableBalanceToNative(event.target.value),
+          balance
+        )
+        if (allocationCheck.error) {
+          setAllocationWarning(allocationCheck.message)
+          setIsValidAmount(false)
+        } else {
+          setAllocationWarning(allocationCheck.message)
+          setIsValidAmount(true)
+        }
+      } catch {
+        setIsValidAmount(false)
       }
     }
   }
@@ -59,7 +63,7 @@ export default function DelegateForm(props: DelegateFormProps) {
     let validAmount = validateAmount(event.target.amount.value)
 
     setValidIdentity(validIdentity)
-    setValidAmount(validAmount)
+    setIsValidAmount(validAmount)
 
     return validIdentity && validAmount
   }
@@ -101,8 +105,8 @@ export default function DelegateForm(props: DelegateFormProps) {
             id='amount'
             name='amount'
             label='Amount to delegate'
-            error={!validAmount}
-            helperText={validAmount ? '' : 'Please enter a valid amount'}
+            error={!isValidAmount}
+            helperText={isValidAmount ? '' : 'Please enter a valid amount'}
             onChange={handleAmountChange}
             fullWidth
             InputProps={{
@@ -114,7 +118,7 @@ export default function DelegateForm(props: DelegateFormProps) {
         </Grid>
         {allocationWarning && (
           <Grid item>
-            <Alert severity={!validAmount ? 'error' : 'info'}>
+            <Alert severity={!isValidAmount ? 'error' : 'info'}>
               {allocationWarning}
             </Alert>
           </Grid>
@@ -139,7 +143,7 @@ export default function DelegateForm(props: DelegateFormProps) {
           color='primary'
           type='submit'
           className={classes.button}
-          disabled={!validAmount}
+          disabled={!isValidAmount}
         >
           Delegate stake
         </Button>

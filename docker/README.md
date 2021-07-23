@@ -5,16 +5,27 @@ Currently you can build and run locally in a Docker containers the following com
 * One genesis validator
 * Any number of secondary validators
 * A contract uploader, that uploads the contract built from the local sources
-* The web wallet application, accesible on port 3000
+* The web wallet application, accessible on port 3000
+* The block explorer application, accessible on port 3080
+* The network explorer application, accessible on port 3040, for registered users
 
 ### Running
 
 The following commands need to be run from the root of the Nym git project.
 
-To start the dockerized environment, run the following command each time the local source code has changed:
+To build the entire dockerized environment, run the following command:
 
 ```
-docker-compose up --build -d --scale=secondary_validator=3
+PERSONAL_TOKEN=[network explorer token] docker-compose build
+```
+
+or build each service separately, as changes are made to their relevant source code.
+**Note** network-explorer build time is currently very high, so building it more than once is not advisable. 
+
+To start the dockerized environment, run the following command:
+
+```
+METEOR_SETTINGS=$(cat docker/block_explorer/settings.json) docker-compose up -d --scale=secondary_validator=3
 ```
 
 **Note**: The `secondary_validator=3` can take any other number as value, depending on the desired setup.

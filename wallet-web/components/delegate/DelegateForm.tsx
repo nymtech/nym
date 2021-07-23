@@ -43,7 +43,8 @@ export default function DelegateForm(props: DelegateFormProps) {
       try {
         const allocationCheck = checkAllocationSize(
           +printableBalanceToNative(event.target.value),
-          balance
+          balance,
+          'delegate'
         )
         if (allocationCheck.error) {
           setAllocationWarning(allocationCheck.message)

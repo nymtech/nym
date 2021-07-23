@@ -4,7 +4,7 @@ import ValidatorClient, {
   nymGasPrice,
   printableCoin,
 } from '@nymproject/nym-validator-client'
-import { ADDRESS_LENGTH, DENOM, KEY_LENGTH } from '../pages/_app'
+import { ADDRESS_LENGTH, DENOM, KEY_LENGTH, UDENOM } from '../pages/_app'
 import { buildFeeTable } from '@cosmjs/launchpad'
 import bs58 from 'bs58'
 
@@ -142,7 +142,6 @@ export const basicRawCoinValueValidation = (rawAmount: string): boolean => {
 
 export const getDisplayExecGasFee = (): string => {
   const table = buildFeeTable(nymGasPrice(DENOM), nymGasLimits, nymGasLimits)
-  console.log(table)
   return printableCoin(table.exec.amount[0])
 }
 
@@ -154,20 +153,30 @@ export const getDisplaySendGasFee = (): string => {
 // Check amount to bond or delegate is valid
 export const checkAllocationSize = (
   allocationValue: number,
-  walletValue: number
+  walletValue: number,
+  transactionType: 'bond' | 'delegate'
 ) => {
-  if (allocationValue > walletValue) {
+  const remaining = walletValue - allocationValue
+  const table = buildFeeTable(nymGasPrice(DENOM), nymGasLimits, nymGasLimits)
+  const threshold =
+    transactionType === 'bond'
+      ? +table.exec.amount[0].amount * 2
+      : +table.exec.amount[0].amount
+
+  if (remaining < 0) {
     return {
       error: true,
       message: 'The allocation size is greater than the value of your wallet',
     }
   }
 
-  if (walletValue > 1 && walletValue - allocationValue < 1) {
+  if (walletValue > 0 && remaining < threshold) {
     return {
       error: false,
-      message:
-        "You're about to allocate all of your tokens. You may want to keep some in order to unbond this mixnode at a later time.",
+      message: `You'll only have ${printableCoin({
+        amount: remaining.toString(),
+        denom: UDENOM,
+      })} after this transaction. You may want to keep some in order to un${transactionType} this mixnode at a later time.`,
     }
   }
 

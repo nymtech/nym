@@ -95,7 +95,8 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
       try {
         const allocationCheck = checkAllocationSize(
           +printableBalanceToNative(e.target.value),
-          balance
+          balance,
+          'bond'
         )
         if (allocationCheck.error) {
           setAllocationWarning(allocationCheck.message)

@@ -1,11 +1,16 @@
 version: '3.7'
+x-bech32-prefix: &BECH32_PREFIX
+        punk
+x-wasmd-version: &WASMD_VERSION
+        v0.17.0
+
 services:
         genesis_validator:
                 build:
                         context: docker/validator
                         args:
-                                BECH32_PREFIX: punk
-                                WASMD_VERSION: v0.17.0
+                                BECH32_PREFIX: *BECH32_PREFIX
+                                WASMD_VERSION: *WASMD_VERSION
                 image: validator:latest
                 ports:
                         - "26657:26657"
@@ -13,12 +18,22 @@ services:
                 container_name: genesis_validator
                 volumes:
                         - "genesis_volume:/genesis_volume"
+                environment:
+                        BECH32_PREFIX: *BECH32_PREFIX
+                        WASMD_VERSION: *WASMD_VERSION
                 command: ["genesis"]
         secondary_validator:
-                build: docker/validator
+                build:
+                        context: docker/validator
+                        args:
+                                BECH32_PREFIX: *BECH32_PREFIX
+                                WASMD_VERSION: *WASMD_VERSION
                 image: validator:latest
                 volumes:
                         - "genesis_volume:/genesis_volume:ro"
+                environment:
+                        BECH32_PREFIX: *BECH32_PREFIX
+                        WASMD_VERSION: *WASMD_VERSION
                 depends_on:
                         - "genesis_validator"
                 command: ["secondary"]
@@ -38,6 +53,9 @@ services:
                         - "genesis_validator"
                         - "secondary_validator"
                         - "mixnet_contract"
+                environment:
+                        BECH32_PREFIX: *BECH32_PREFIX
+                        WASMD_VERSION: *WASMD_VERSION
         wallet:
                 build: docker/wallet-web
                 image: wallet:latest

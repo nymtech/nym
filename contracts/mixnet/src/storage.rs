@@ -305,10 +305,10 @@ pub(crate) fn read_gateway_bond(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contract::DENOM;
     use crate::support::tests::helpers::{
         gateway_bond_fixture, gateway_fixture, mix_node_fixture, mixnode_bond_fixture,
     };
+    use config::defaults::DENOM;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::{coin, Addr, Uint128};
     use mixnet_contract::{Gateway, MixNode};

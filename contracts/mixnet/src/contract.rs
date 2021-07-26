@@ -172,6 +172,7 @@ pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, 
 pub mod tests {
     use super::*;
     use crate::support::tests::helpers::*;
+    use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
     use mixnet_contract::PagedMixnodeResponse;

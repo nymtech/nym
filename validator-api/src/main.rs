@@ -196,8 +196,10 @@ async fn main() -> Result<()> {
     let config = override_config(config, &matches);
 
     // let's build our rocket!
-    let mut rocket_config = rocket::config::Config::default();
-    rocket_config.port = VALIDATOR_API_PORT;
+    let rocket_config = rocket::config::Config {
+        port: VALIDATOR_API_PORT,
+        ..Default::default()
+    };
     let rocket = rocket::custom(rocket_config)
         .attach(setup_cors()?)
         .attach(ValidatorCache::stage());

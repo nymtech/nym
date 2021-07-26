@@ -1,7 +1,11 @@
 version: '3.7'
 services:
         genesis_validator:
-                build: docker/validator
+                build:
+                        context: docker/validator
+                        args:
+                                BECH32_PREFIX: punk
+                                WASMD_VERSION: v0.17.0
                 image: validator:latest
                 ports:
                         - "26657:26657"

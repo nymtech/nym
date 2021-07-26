@@ -1,4 +1,6 @@
 FROM golang:buster as go_builder
+ARG BECH32_PREFIX
+ARG WASMD_VERSION
 RUN apt update && apt install -y git build-essential
 COPY setup.sh .
 RUN ./setup.sh

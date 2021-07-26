@@ -1,8 +1,5 @@
 #!/bin/sh
 
-WASMD_VERSION=v0.17.0
-BECH32_PREFIX=punk
-
 git clone https://github.com/CosmWasm/wasmd.git
 cd wasmd
 git checkout "${WASMD_VERSION}"

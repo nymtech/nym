@@ -6,7 +6,7 @@ import * as fs from 'fs';
 async function newClient(): Promise<ValidatorClient> {
     let contract = "fakeContractAddress"; // we don't have one yet
     let mnemonic = fs.readFileSync("/genesis_volume/genesis_mnemonic", "utf8").slice(0, -1);
-    let admin = ValidatorClient.connect(contract, mnemonic, "http://genesis_validator:26657", "punk");
+    let admin = ValidatorClient.connect(contract, mnemonic, "http://genesis_validator:26657", process.env["BECH32_PREFIX"]);
     return admin;
 }
 
@@ -28,7 +28,7 @@ async function main() {
     const { codeId } = uploadResult;
     console.log("code id is", codeId)
     const initMsg = {};
-    const options = { memo: "v0.1.0", transferAmount: [{ denom: "upunk", amount: "1000000" }], admin: admin.address }
+    const options = { memo: "v0.1.0", transferAmount: [{ denom: "u" + process.env["BECH32_PREFIX"], amount: "1000000" }], admin: admin.address }
     let instantiateResult = await admin.instantiate(admin.address, codeId, initMsg, "mixnet contract", options);
     let contractAddress = instantiateResult.contractAddress;
     console.log(`mixnet contract ${contractAddress} instantiated successfully`)

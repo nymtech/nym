@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use tokio::time;
+use validator_client::validator_api::VALIDATOR_API_CACHE_VERSION;
 use validator_client::Client;
 
 pub(crate) mod routes;
@@ -111,9 +112,10 @@ impl ValidatorCache {
 
     pub fn stage() -> AdHoc {
         AdHoc::on_ignite("Validator Cache Stage", |rocket| async {
-            rocket
-                .manage(Self::new())
-                .mount("/v1", routes![routes::get_mixnodes, routes::get_gateways])
+            rocket.manage(Self::new()).mount(
+                VALIDATOR_API_CACHE_VERSION,
+                routes![routes::get_mixnodes, routes::get_gateways],
+            )
         })
     }
 

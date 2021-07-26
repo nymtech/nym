@@ -3,6 +3,7 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{State, StateParams};
 use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries, transactions};
+use config::defaults::NETWORK_MONITOR_ADDRESS;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Uint128,
@@ -21,11 +22,6 @@ pub const INITIAL_MIXNODE_BOND_REWARD_RATE: u64 = 110;
 pub const INITIAL_GATEWAY_BOND_REWARD_RATE: u64 = 110;
 
 pub const INITIAL_MIXNODE_ACTIVE_SET_SIZE: u32 = 100;
-
-const NETWORK_MONITOR_ADDRESS: &str = "punk1v9qauwdq5terag6uvfsdytcs2d0sdmfdy7hgk3";
-
-/// Constant specifying denomination of the coin used for bonding
-pub const DENOM: &str = "upunk";
 
 fn default_initial_state(owner: Addr) -> State {
     let mixnode_bond_reward_rate = Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE);
@@ -176,6 +172,7 @@ pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, 
 pub mod tests {
     use super::*;
     use crate::support::tests::helpers::*;
+    use config::defaults::DENOM;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, from_binary};
     use mixnet_contract::PagedMixnodeResponse;

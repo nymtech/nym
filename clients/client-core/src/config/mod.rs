@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use config::defaults::*;
 use config::{deserialize_duration, deserialize_validators, NymConfig};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
@@ -10,13 +11,6 @@ use std::time::Duration;
 pub mod persistence;
 
 pub const MISSING_VALUE: &str = "MISSING VALUE";
-
-// 'CLIENT'
-pub const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
-    "http://testnet-milhon-validator1.nymtech.net:1317",
-    "http://testnet-milhon-validator2.nymtech.net:1317",
-];
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen";
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;

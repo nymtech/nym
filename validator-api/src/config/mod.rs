@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
+use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -10,7 +11,6 @@ use std::time::Duration;
 mod template;
 
 const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &["http://localhost:1317"];
-const DEFAULT_MIXNET_CONTRACT: &str = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen";
 
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
 const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;
@@ -81,7 +81,7 @@ impl Default for Base {
                 .iter()
                 .map(|&endpoint| endpoint.to_string())
                 .collect(),
-            mixnet_contract_address: DEFAULT_MIXNET_CONTRACT.to_string(),
+            mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
         }
     }
 }

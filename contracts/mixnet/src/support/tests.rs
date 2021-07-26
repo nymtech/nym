@@ -2,11 +2,11 @@
 pub mod helpers {
     use super::*;
     use crate::contract::query;
-    use crate::contract::DENOM;
     use crate::contract::{instantiate, INITIAL_MIXNODE_BOND};
     use crate::msg::InstantiateMsg;
     use crate::msg::QueryMsg;
     use crate::transactions::{try_add_gateway, try_add_mixnode};
+    use config::defaults::DENOM;
     use cosmwasm_std::coin;
     use cosmwasm_std::from_binary;
     use cosmwasm_std::testing::mock_dependencies;

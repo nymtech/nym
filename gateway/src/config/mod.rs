@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
+use config::defaults::*;
 use config::{deserialize_duration, deserialize_validators, NymConfig};
 use log::error;
 use serde::{Deserialize, Serialize};
@@ -13,15 +14,6 @@ pub mod persistence;
 mod template;
 
 pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
-
-// 'GATEWAY'
-const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
-const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
-pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
-    "http://testnet-milhon-validator1.nymtech.net:1317",
-    "http://testnet-milhon-validator2.nymtech.net:1317",
-];
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen";
 
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds

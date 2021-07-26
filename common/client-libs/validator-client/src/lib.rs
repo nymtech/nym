@@ -17,7 +17,7 @@ use url::Url;
 mod error;
 mod models;
 pub(crate) mod serde_helpers;
-mod validator_api;
+pub mod validator_api;
 
 // Implement caching with a global hashmap that has two fields, queryresponse and as_at, there is a side process
 pub struct Config {
@@ -208,7 +208,11 @@ impl Client {
     }
 
     pub async fn get_cached_mix_nodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
-        let query_content = validator_api::VALIDATOR_API_MIXNODES.to_string();
+        let query_content = format!(
+            "{}{}",
+            validator_api::VALIDATOR_API_CACHE_VERSION.to_string(),
+            validator_api::VALIDATOR_API_MIXNODES.to_string()
+        );
         self.query_validators(query_content, true).await
     }
 
@@ -246,7 +250,11 @@ impl Client {
     }
 
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
-        let query_content = validator_api::VALIDATOR_API_GATEWAYS.to_string();
+        let query_content = format!(
+            "{}{}",
+            validator_api::VALIDATOR_API_CACHE_VERSION.to_string(),
+            validator_api::VALIDATOR_API_GATEWAYS.to_string()
+        );
         self.query_validators(query_content, true).await
     }
 

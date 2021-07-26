@@ -3,7 +3,8 @@
 
 use crate::client::config::{Config, MISSING_VALUE};
 use clap::{App, Arg, ArgMatches};
-use client_core::config::{default_validator_rest_endpoints, DEFAULT_MIXNET_CONTRACT_ADDRESS};
+use client_core::config::default_validator_rest_endpoints;
+use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use config::NymConfig;
 use std::fmt::Display;
 use std::process;

@@ -7,6 +7,7 @@ use serde::Serialize;
 use std::path::PathBuf;
 use std::{fs, io};
 
+pub mod defaults;
 pub mod helpers;
 
 pub use helpers::{deserialize_duration, deserialize_validators};

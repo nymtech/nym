@@ -3,11 +3,11 @@
 
 use crate::commands::*;
 use crate::config::{
-    default_validator_rest_endpoints, missing_string_value, Config,
-    DEFAULT_MIXNET_CONTRACT_ADDRESS, MISSING_VALUE,
+    default_validator_rest_endpoints, missing_string_value, Config, MISSING_VALUE,
 };
 use crate::node::node_description::{NodeDescription, DESCRIPTION_FILE};
 use clap::{App, Arg, ArgMatches};
+use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use serde::Deserialize;

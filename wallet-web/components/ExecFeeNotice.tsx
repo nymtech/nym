@@ -1,15 +1,12 @@
 import {Alert} from '@material-ui/lab';
 import { getDisplayExecGasFee } from "../common/helpers";
 
-type ExecFeeNoticeProps = {
-    name: string
-}
 
-const ExecFeeNotice = (props: ExecFeeNoticeProps) => {
+const ExecFeeNotice = ({name}: {name: string}) => {
     return (
         <Alert severity="info">
             The gas fee for
-            <strong> {props.name} </strong>
+            <strong> {name} </strong>
             {`is ${getDisplayExecGasFee()}`}
         </Alert>
     )

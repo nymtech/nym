@@ -1,15 +1,14 @@
-import React from 'react';
+import React from "react";
 import ValidatorClient from "@nymproject/nym-validator-client";
 
 type ClientContext = {
-    client: ValidatorClient,
-    setClient: (client: ValidatorClient) => void
-}
+  client: ValidatorClient;
+  setClient: (client: ValidatorClient) => void;
+};
 
 const defaultValue: ClientContext = {
-    client: null,
-    setClient: () => { },
-}
+  client: null,
+  setClient: () => {},
+};
 
 export const ValidatorClientContext = React.createContext(defaultValue);
-

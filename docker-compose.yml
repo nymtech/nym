@@ -55,7 +55,6 @@ services:
                         - "mixnet_contract"
                 environment:
                         BECH32_PREFIX: *BECH32_PREFIX
-                        WASMD_VERSION: *WASMD_VERSION
         wallet:
                 build: docker/wallet-web
                 image: wallet:latest

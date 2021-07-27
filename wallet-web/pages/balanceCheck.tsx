@@ -1,5 +1,5 @@
 import React, { useContext, useEffect } from 'react'
-import Button from '@material-ui/core/Button'
+import { Grid, Button } from '@material-ui/core'
 import RefreshIcon from '@material-ui/icons/Refresh'
 import { useRouter } from 'next/router'
 import { ValidatorClientContext } from '../contexts/ValidatorClient'
@@ -37,25 +37,31 @@ export default function CheckBalance() {
           {client === null ? (
             <NoClientError />
           ) : (
-            <>
-              <Confirmation
-                isLoading={isBalanceLoading}
-                error={balanceCheckError}
-                progressMessage="Checking balance..."
-                successMessage={balanceMessage}
-                failureMessage="Failed to check the account balance!"
-              />
-              <Button
-                variant="contained"
-                color="primary"
-                type="submit"
-                onClick={getBalance}
-                disabled={isBalanceLoading}
-                startIcon={<RefreshIcon />}
-              >
-                Refresh
-              </Button>
-            </>
+            <Grid container direction="column" spacing={2}>
+              <Grid item>
+                <Confirmation
+                  isLoading={isBalanceLoading}
+                  error={balanceCheckError}
+                  progressMessage="Checking balance..."
+                  successMessage={balanceMessage}
+                  failureMessage="Failed to check the account balance!"
+                />
+              </Grid>
+              <Grid item>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    type="submit"
+                    onClick={getBalance}
+                    disabled={isBalanceLoading}
+                    startIcon={<RefreshIcon />}
+                  >
+                    Refresh
+                  </Button>
+                </div>
+              </Grid>
+            </Grid>
           )}
         </NymCard>
       </Layout>

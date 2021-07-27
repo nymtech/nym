@@ -1,11 +1,15 @@
 import React, { useContext } from 'react'
 import { printableBalanceToNative } from '@nymproject/nym-validator-client/dist/currency'
 import { coin, Coin, printableCoin } from '@nymproject/nym-validator-client'
-import Stepper from '@material-ui/core/Stepper'
-import Step from '@material-ui/core/Step'
-import StepLabel from '@material-ui/core/StepLabel'
-import Button from '@material-ui/core/Button'
-import Typography from '@material-ui/core/Typography'
+import {
+  Paper,
+  Stepper,
+  Step,
+  StepLabel,
+  Button,
+  Typography,
+} from '@material-ui/core'
+import { theme } from '../lib/theme'
 import { Layout, NymCard } from '../components'
 import { Review } from '../components/send-funds/Review'
 import SendNymForm from '../components/send-funds/SendNymForm'
@@ -149,8 +153,8 @@ export default function SendFunds() {
 
   const getStepperContent = () => {
     return (
-      <>
-        <Stepper activeStep={activeStep}>
+      <Paper style={{ padding: theme.spacing(3) }}>
+        <Stepper activeStep={activeStep} style={{ paddingLeft: 0 }}>
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
@@ -177,7 +181,13 @@ export default function SendFunds() {
             <>
               <form onSubmit={handleNext}>
                 {getStepContent(activeStep)}
-                <div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    padding: theme.spacing(1, 0),
+                  }}
+                >
                   {activeStep !== 0 && (
                     <Button onClick={handleBack}>Back</Button>
                   )}
@@ -198,7 +208,7 @@ export default function SendFunds() {
             </>
           )}
         </>
-      </>
+      </Paper>
     )
   }
 

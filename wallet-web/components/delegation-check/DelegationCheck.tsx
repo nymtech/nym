@@ -1,7 +1,6 @@
 import React, { useContext, useEffect } from 'react'
-import { printableCoin } from '@nymproject/nym-validator-client'
 import { Paper } from '@material-ui/core'
-import Typography from '@material-ui/core/Typography'
+import { printableCoin } from '@nymproject/nym-validator-client'
 import { useRouter } from 'next/router'
 import { ValidatorClientContext } from '../../contexts/ValidatorClient'
 import { NodeType } from '../../common/node'
@@ -84,13 +83,13 @@ const DelegationCheck = () => {
     // we haven't clicked delegate button yet
     if (!isLoading && !stakeValue) {
       return (
-        <>
+        <Paper style={{ padding: theme.spacing(3) }}>
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
           <NodeIdentityForm
             onSubmit={checkDelegation}
             buttonText="Check stake value"
           />
-        </>
+        </Paper>
       )
     }
 

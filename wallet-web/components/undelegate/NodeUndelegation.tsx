@@ -1,6 +1,5 @@
 import React, { useContext, useEffect } from 'react'
-import { Paper } from '@material-ui/core'
-import Typography from '@material-ui/core/Typography'
+import { Grid, Paper } from '@material-ui/core'
 import { useRouter } from 'next/router'
 import { ValidatorClientContext } from '../../contexts/ValidatorClient'
 import { NodeType } from '../../common/node'
@@ -67,13 +66,13 @@ const UndelegateFromNode = () => {
     // we haven't clicked undelegate button yet
     if (!isLoading) {
       return (
-        <React.Fragment>
+        <Paper style={{ padding: theme.spacing(3) }}>
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
           <NodeIdentityForm
             onSubmit={undelegateFromNode}
             buttonText={'Remove delegation'}
           />
-        </React.Fragment>
+        </Paper>
       )
     }
 
@@ -90,10 +89,12 @@ const UndelegateFromNode = () => {
   }
 
   return (
-    <>
-      <ExecFeeNotice name={'undelegating stake'} />
-      {getUndelegationContent()}
-    </>
+    <Grid container spacing={2} direction="column">
+      <Grid item>
+        <ExecFeeNotice name={'undelegating stake'} />
+      </Grid>
+      <Grid item>{getUndelegationContent()}</Grid>
+    </Grid>
   )
 }
 

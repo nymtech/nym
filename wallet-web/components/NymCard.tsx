@@ -17,6 +17,7 @@ export const NymCard = ({
         title={title}
         subheader={subheader}
         titleTypographyProps={{ variant: 'h5' }}
+        subheaderTypographyProps={{ variant: 'subtitle1' }}
         style={{
           padding: theme.spacing(2.5),
           borderBottom: `1px solid ${theme.palette.grey[200]}`,

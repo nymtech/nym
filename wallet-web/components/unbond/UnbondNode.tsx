@@ -1,6 +1,6 @@
 import React, { useContext, useEffect } from 'react'
-import Typography from '@material-ui/core/Typography'
-import { Grid, LinearProgress, Paper } from '@material-ui/core'
+import { Grid, LinearProgress, Typography } from '@material-ui/core'
+import { Alert } from '@material-ui/lab'
 import { useRouter } from 'next/router'
 import { NodeType } from '../../common/node'
 import { ValidatorClientContext } from '../../contexts/ValidatorClient'
@@ -95,9 +95,9 @@ const UnbondNode = () => {
       return (
         <Grid container spacing={3}>
           <Grid item xs={12}>
-            <Typography gutterBottom>
+            <Alert severity="info">
               You do not currently have a mixnode or a gateway bonded.
-            </Typography>
+            </Alert>
           </Grid>
         </Grid>
       )
@@ -126,10 +126,12 @@ const UnbondNode = () => {
   }
 
   return (
-    <>
-      <ExecFeeNotice name={'unbonding'} />
-      {getUnbondContent()}
-    </>
+    <Grid container spacing={2} direction="column">
+      <Grid item>
+        <ExecFeeNotice name={'unbonding'} />
+      </Grid>
+      <Grid item> {getUnbondContent()}</Grid>
+    </Grid>
   )
 }
 

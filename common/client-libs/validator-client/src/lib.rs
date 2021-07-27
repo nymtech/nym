@@ -18,7 +18,7 @@ mod error;
 mod models;
 pub(crate) mod nymd;
 pub(crate) mod serde_helpers;
-mod validator_api;
+pub mod validator_api;
 
 // Implement caching with a global hashmap that has two fields, queryresponse and as_at, there is a side process
 pub struct Config {
@@ -111,6 +111,7 @@ impl Client {
         let mut validator_urls = self.available_validators_rest_urls().clone();
 
         // This will never exit
+        // JS: Shouldn't it have some sort of maximum attempts counter to return an error at some point?
         loop {
             validator_urls.as_mut_slice().shuffle(&mut thread_rng());
             for url in validator_urls.iter() {
@@ -208,7 +209,11 @@ impl Client {
     }
 
     pub async fn get_cached_mix_nodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
-        let query_content = validator_api::VALIDATOR_API_MIXNODES.to_string();
+        let query_content = format!(
+            "{}{}",
+            validator_api::VALIDATOR_API_CACHE_VERSION.to_string(),
+            validator_api::VALIDATOR_API_MIXNODES.to_string()
+        );
         self.query_validators(query_content, true).await
     }
 
@@ -246,7 +251,11 @@ impl Client {
     }
 
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
-        let query_content = validator_api::VALIDATOR_API_GATEWAYS.to_string();
+        let query_content = format!(
+            "{}{}",
+            validator_api::VALIDATOR_API_CACHE_VERSION.to_string(),
+            validator_api::VALIDATOR_API_GATEWAYS.to_string()
+        );
         self.query_validators(query_content, true).await
     }
 

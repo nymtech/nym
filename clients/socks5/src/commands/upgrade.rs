@@ -1,20 +1,10 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::{Config, MISSING_VALUE};
 use clap::{App, Arg, ArgMatches};
-use client_core::config::{default_validator_rest_endpoints, DEFAULT_MIXNET_CONTRACT_ADDRESS};
+use client_core::config::default_validator_rest_endpoints;
+use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use config::NymConfig;
 use std::fmt::Display;
 use std::process;
@@ -253,6 +243,50 @@ fn patch_010_upgrade(
     config
 }
 
+fn minor_011_upgrade(
+    mut config: Config,
+    _matches: &ArgMatches,
+    config_version: &Version,
+    package_version: &Version,
+) -> Config {
+    let to_version = package_version;
+
+    print_start_upgrade(&config_version, &to_version);
+
+    println!(
+        "Setting mixnet contract address to {}",
+        DEFAULT_MIXNET_CONTRACT_ADDRESS
+    );
+
+    config
+        .get_base_mut()
+        .set_mixnet_contract(DEFAULT_MIXNET_CONTRACT_ADDRESS);
+
+    // The default validator endpoint changed
+    println!(
+        "Setting validator REST endpoint to {:?}",
+        default_validator_rest_endpoints()
+    );
+
+    config
+        .get_base_mut()
+        .set_custom_validators(default_validator_rest_endpoints());
+
+    config
+        .get_base_mut()
+        .set_custom_version(to_version.to_string().as_ref());
+
+    config.save_to_file(None).unwrap_or_else(|err| {
+        eprintln!("failed to overwrite config file! - {:?}", err);
+        print_failed_upgrade(&config_version, &to_version);
+        process::exit(1);
+    });
+
+    print_successful_upgrade(config_version, to_version);
+
+    config
+}
+
 fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version) {
     loop {
         let config_version = parse_config_version(&config);
@@ -264,8 +298,15 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
 
         config = match config_version.major {
             0 => match config_version.minor {
-                9 => minor_010_upgrade(config, matches, &config_version, &package_version),
-                10 => patch_010_upgrade(config, matches, &config_version, &package_version),
+                9 => minor_010_upgrade(config, matches, &config_version, &Version::new(0, 10, 0)),
+                10 => match config_version.patch {
+                    0 => {
+                        patch_010_upgrade(config, matches, &config_version, &Version::new(0, 10, 1))
+                    }
+                    _ => {
+                        minor_011_upgrade(config, matches, &config_version, &Version::new(0, 11, 0))
+                    }
+                },
                 _ => unsupported_upgrade(config_version, package_version),
             },
             _ => unsupported_upgrade(config_version, package_version),

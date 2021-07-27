@@ -36,8 +36,12 @@ good_v4_topology_file = '{{ network_monitor.good_v4_topology_file }}'
 # Location of .json file containing IPv6 'good' network topology
 good_v6_topology_file = '{{ network_monitor.good_v6_topology_file }}'
 
-# Address of the node status api to submit results to. Most likely it's a local address
-node_status_api_url = '{{ network_monitor.node_status_api_url }}'
+# Specifies the interval at which the network monitor sends the test packets.
+run_interval = '{{ network_monitor.run_interval }}'
+
+# Specifies interval at which we should be sending ping packets to all active gateways
+# in order to keep the websocket connections alive.
+gateway_ping_interval = '{{ network_monitor.gateway_ping_interval }}'
 
 # Specifies maximum rate (in packets per second) of test packets being sent to gateway
 gateway_sending_rate = {{ network_monitor.gateway_sending_rate }}
@@ -51,6 +55,14 @@ gateway_response_timeout = '{{ network_monitor.gateway_response_timeout }}'
 # Maximum allowed time for the gateway connection to get established.
 gateway_connection_timeout = '{{ network_monitor.gateway_connection_timeout }}'
 
+# Specifies the duration the monitor is going to wait after sending all measurement
+# packets before declaring nodes unreachable.
+packet_delivery_timeout = '{{ network_monitor.packet_delivery_timeout }}'
+    
+[node_status_api]
+
+# Path to the database file containing uptime statuses for all mixnodes and gateways.
+database_path = '{{ node_status_api.database_path }}'
 
 "#
 }

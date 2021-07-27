@@ -2,9 +2,11 @@ use crate::commands::*;
 use crate::config::{persistence::pathfinder::MixNodePathfinder, Config};
 use clap::{App, Arg, ArgMatches};
 use colored::*;
+use config::defaults::BECH32_PREFIX;
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use log::error;
+use std::process;
 
 const SIGN_TEXT_ARG_NAME: &str = "text";
 
@@ -55,9 +57,29 @@ pub fn execute(matches: &ArgMatches) {
         .to_bytes();
 
     let signature = bs58::encode(signature_bytes).into_string();
-    let identity = identity_keypair.public_key().to_base58_string();
 
-    let channel_name = "@nymchan_help_chat".bright_cyan();
+    let channel_name = "https://t.me/nympunkbot".bright_cyan();
+
+    // the text should consists of two parts, telegram handle and wallet address - we can perform some very basic validation here already
+    let split = text.split(' ').collect::<Vec<_>>();
+    if split.len() != 2 {
+        let error_message = format!(r#"You haven't provided correct sign arguments. You need to provide --text "@your_telegram_handle your_{}_wallet_address" with the quotes and space in between"#, BECH32_PREFIX).red();
+        println!("{}", error_message);
+        process::exit(1);
+    }
+
+    if !split[0].starts_with('@') {
+        let error_message = "Your telegram handle should start with a '@'!".red();
+        println!("{}", error_message);
+        process::exit(1);
+    }
+
+    if !split[1].starts_with(BECH32_PREFIX) {
+        let error_message =
+            format!("Your wallet address must start with a '{}'", BECH32_PREFIX).red();
+        println!("{}", error_message);
+        process::exit(1);
+    }
 
     println!(
         "Signing the text {:?} using your mixnode's Ed25519 identity key...",
@@ -71,6 +93,6 @@ pub fn execute(matches: &ArgMatches) {
     println!("* go to the '{}' channel", channel_name);
     println!("* copy the following line of text, and paste it into the channel");
     println!();
-    println!("/claim {} {}", identity, signature);
+    println!("/transfer {} {}", split[1], signature);
     println!();
 }

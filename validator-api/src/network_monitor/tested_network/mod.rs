@@ -1,7 +1,7 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::test_packet::IpVersion;
+use crate::network_monitor::test_packet::IpVersion;
 use topology::{gateway, mix, NymTopology};
 
 pub(crate) mod good_topology;
@@ -16,7 +16,7 @@ pub(crate) struct TestedNetwork {
 impl TestedNetwork {
     pub(crate) fn new_good(good_v4_topology: NymTopology, good_v6_topology: NymTopology) -> Self {
         TestedNetwork {
-            system_version: "0.10.0".to_string(),
+            system_version: env!("CARGO_PKG_VERSION").to_owned(),
             good_v4_topology,
             good_v6_topology,
         }

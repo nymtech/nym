@@ -6,10 +6,10 @@ use std::process;
 
 use clap::{App, Arg, ArgMatches};
 
+use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use config::NymConfig;
 use version_checker::{parse_version, Version};
 
-use crate::config::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use crate::config::{default_validator_rest_endpoints, Config, MISSING_VALUE};
 
 fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> ! {
@@ -55,12 +55,12 @@ pub fn command_args<'a, 'b>() -> App<'a, 'b> {
         )
         .arg(Arg::with_name("listening-address")
             .long("listening-address")
-            .help("REQUIRED FOR 0.Y.Z UPGRADE. Specifies the listening address of this gateway")
+            .help("REQUIRED FOR 0.11.0 UPGRADE. Specifies the listening address of this gateway")
             .takes_value(true)
         )
         .arg(Arg::with_name("announce-address")
             .long("announce-address")
-            .help("OPTIONAL FOR 0.Y.Z UPGRADE. Specifies the announce address of this gateway. If not provided, it will be set to the same value as listening address")
+            .help("OPTIONAL FOR 0.11.0 UPGRADE. Specifies the announce address of this gateway. If not provided, it will be set to the same value as listening address")
             .takes_value(true)
         )
 }
@@ -238,20 +238,17 @@ fn patch_010_upgrade(
     upgraded_config
 }
 
-// TODO: to be renamed once the release version is decided (so presumably either 0.10.2 or 0.11.0)
-fn undetermined_version_upgrade(
+fn minor_011_upgrade(
     config: Config,
     matches: &ArgMatches,
     config_version: &Version,
     package_version: &Version,
 ) -> Config {
-    // If we decide this version should be tagged with 0.11.0, then the following code will be used instead:
-    // let to_version = if package_version.major == 0 && package_version.minor == 11 {
-    //     package_version.clone()
-    // } else {
-    //     Version::new(0, 11, 0)
-    // };
-    let to_version = package_version;
+    let to_version = if package_version.major == 0 && package_version.minor == 11 {
+        package_version.clone()
+    } else {
+        Version::new(0, 11, 0)
+    };
 
     print_start_upgrade(&config_version, &to_version);
 
@@ -274,10 +271,22 @@ fn undetermined_version_upgrade(
         listening_address.to_string()
     };
 
+    println!(
+        "Setting validator REST endpoint to {:?}",
+        default_validator_rest_endpoints()
+    );
+
+    println!(
+        "Setting mixnet contract address to {}",
+        DEFAULT_MIXNET_CONTRACT_ADDRESS
+    );
+
     let upgraded_config = config
         .with_custom_version(to_version.to_string().as_ref())
         .with_listening_address(listening_address)
-        .with_announce_address(announce_address);
+        .with_announce_address(announce_address)
+        .with_custom_validators(default_validator_rest_endpoints())
+        .with_custom_mixnet_contract(DEFAULT_MIXNET_CONTRACT_ADDRESS);
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
@@ -300,15 +309,14 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
 
         config = match config_version.major {
             0 => match config_version.minor {
-                9 => minor_010_upgrade(config, matches, &config_version, &package_version),
+                9 => minor_010_upgrade(config, matches, &config_version, &Version::new(0, 10, 0)),
                 10 => match config_version.patch {
-                    0 => patch_010_upgrade(config, matches, &config_version, &package_version),
-                    _ => undetermined_version_upgrade(
-                        config,
-                        matches,
-                        &config_version,
-                        &package_version,
-                    ),
+                    0 => {
+                        patch_010_upgrade(config, matches, &config_version, &Version::new(0, 10, 1))
+                    }
+                    _ => {
+                        minor_011_upgrade(config, matches, &config_version, &Version::new(0, 11, 0))
+                    }
                 },
                 _ => unsupported_upgrade(config_version, package_version),
             },

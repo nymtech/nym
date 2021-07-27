@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::{CodedError, SmartQueryError};
-use crate::serde_helpers::{de_i64_from_str, de_paged_query_response_from_str};
+use crate::serde_helpers::{de_i64_from_str, de_smart_query_response_from_str};
 use mixnet_contract::IdentityKey;
 use serde::{Deserialize, Serialize};
 
@@ -29,7 +29,7 @@ pub(super) struct SmartQueryResult<T>
 where
     for<'a> T: Deserialize<'a>,
 {
-    #[serde(deserialize_with = "de_paged_query_response_from_str")]
+    #[serde(deserialize_with = "de_smart_query_response_from_str")]
     pub(super) smart: T,
 }
 

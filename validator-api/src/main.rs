@@ -4,55 +4,34 @@
 #[macro_use]
 extern crate rocket;
 
-use rocket::http::Method;
-use rocket::serde::json::Json;
-use rocket::State;
-use rocket_cors::{AllowedHeaders, AllowedOrigins};
-
+use crate::cache::ValidatorCacheRefresher;
 use crate::config::Config;
-use crate::monitor::preparer::PacketPreparer;
-use crate::monitor::processor::{
-    ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,
-};
-use crate::monitor::receiver::{
-    GatewayClientUpdateReceiver, GatewayClientUpdateSender, PacketReceiver,
-};
-use crate::monitor::sender::PacketSender;
-use crate::monitor::summary_producer::SummaryProducer;
-use crate::tested_network::good_topology::parse_topology_file;
-use crate::tested_network::TestedNetwork;
+use crate::network_monitor::new_monitor_runnables;
+use crate::network_monitor::tested_network::good_topology::parse_topology_file;
+use crate::storage::NodeStatusStorage;
 use ::config::NymConfig;
 use anyhow::Result;
-use cache::{Cache, ValidatorCache};
+use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};
-use crypto::asymmetric::{encryption, identity};
-use futures::channel::mpsc;
 use log::info;
-use mixnet_contract::{GatewayBond, MixNodeBond};
-use nymsphinx::addressing::clients::Recipient;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::time;
-use topology::NymTopology;
+use rocket::http::Method;
+use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
+use std::process;
+use validator_client::validator_api::VALIDATOR_API_PORT;
 
-mod cache;
-mod chunker;
-mod config;
-pub(crate) mod gateways_reader;
-mod monitor;
+pub(crate) mod cache;
+pub(crate) mod config;
+mod network_monitor;
 mod node_status_api;
-mod test_packet;
-mod tested_network;
+pub(crate) mod storage;
 
 const MONITORING_ENABLED: &str = "enable-monitor";
 const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
 const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
 const VALIDATORS_ARG: &str = "validators";
-const NODE_STATUS_API_ARG: &str = "node-status-api";
 const DETAILED_REPORT_ARG: &str = "detailed-report";
-const GATEWAY_SENDING_RATE_ARG: &str = "gateway-rate";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
-const CACHE_INTERVAL_ARG: &str = "cache-interval";
+const WRITE_CONFIG_ARG: &str = "save-config";
 
 pub(crate) const PENALISE_OUTDATED: bool = false;
 
@@ -69,14 +48,12 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("location of .json file containing IPv4 'good' network topology")
                 .long(V4_TOPOLOGY_ARG)
                 .takes_value(true)
-                .required(true),
         )
         .arg(
             Arg::with_name(V6_TOPOLOGY_ARG)
                 .help("location of .json file containing IPv6 'good' network topology")
                 .long(V6_TOPOLOGY_ARG)
                 .takes_value(true)
-                .required(true),
         )
         .arg(
             Arg::with_name(VALIDATORS_ARG)
@@ -90,26 +67,15 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                  .takes_value(true),
         )
         .arg(
-            Arg::with_name(NODE_STATUS_API_ARG)
-                .help("Address of the node status api to submit results to. Most likely it's a local address")
-                .long(NODE_STATUS_API_ARG)
-                .takes_value(true)
-        )
-        .arg(
             Arg::with_name(DETAILED_REPORT_ARG)
                 .help("specifies whether a detailed report should be printed after each run")
                 .long(DETAILED_REPORT_ARG)
         )
-        .arg(Arg::with_name(GATEWAY_SENDING_RATE_ARG)
-            .help("specifies maximum rate (in packets per second) of test packets being sent to gateway")
-            .takes_value(true)
-            .long(GATEWAY_SENDING_RATE_ARG)
-            .short("r")
+        .arg(
+            Arg::with_name(WRITE_CONFIG_ARG)
+                .help("specifies whether a config file based on provided arguments should be saved to a file")
+                .long(WRITE_CONFIG_ARG)
         )
-        .arg(Arg::with_name(CACHE_INTERVAL_ARG)
-        .help("Specified rate, in seconds, at which cache will be refreshed, global for all cache")
-        .takes_value(true)
-        .long(CACHE_INTERVAL_ARG))
         .get_matches()
 }
 
@@ -121,76 +87,6 @@ async fn wait_for_interrupt() {
         );
     }
     println!("Received SIGINT - the network monitor will terminate now");
-}
-
-fn new_packet_preparer(
-    validator_client: validator_client::Client,
-    tested_network: TestedNetwork,
-    test_mixnode_sender: Recipient,
-    self_public_identity: identity::PublicKey,
-    self_public_encryption: encryption::PublicKey,
-) -> PacketPreparer {
-    PacketPreparer::new(
-        validator_client,
-        tested_network,
-        test_mixnode_sender,
-        self_public_identity,
-        self_public_encryption,
-    )
-}
-
-fn new_packet_sender(
-    config: &Config,
-    gateways_status_updater: GatewayClientUpdateSender,
-    local_identity: Arc<identity::KeyPair>,
-    max_sending_rate: usize,
-) -> PacketSender {
-    PacketSender::new(
-        gateways_status_updater,
-        local_identity,
-        config.get_gateway_response_timeout(),
-        config.get_gateway_connection_timeout(),
-        config.get_max_concurrent_gateway_clients(),
-        max_sending_rate,
-    )
-}
-
-fn new_received_processor(
-    packets_receiver: ReceivedProcessorReceiver,
-    client_encryption_keypair: Arc<encryption::KeyPair>,
-) -> ReceivedProcessor {
-    ReceivedProcessor::new(packets_receiver, client_encryption_keypair)
-}
-
-fn new_summary_producer(detailed_report: bool) -> SummaryProducer {
-    // right now always print the basic report. If we feel like we need to change it, it can
-    // be easily adjusted by adding some flag or something
-    let summary_producer = SummaryProducer::default().with_report();
-    if detailed_report {
-        summary_producer.with_detailed_report()
-    } else {
-        summary_producer
-    }
-}
-
-fn new_packet_receiver(
-    gateways_status_updater: GatewayClientUpdateReceiver,
-    processor_packets_sender: ReceivedProcessorSender,
-) -> PacketReceiver {
-    PacketReceiver::new(gateways_status_updater, processor_packets_sender)
-}
-
-fn new_validator_client(
-    validator_rest_uris: Vec<String>,
-    mixnet_contract: &str,
-) -> validator_client::Client {
-    let config = validator_client::Config::new(validator_rest_uris, mixnet_contract);
-    validator_client::Client::new(config)
-}
-
-fn new_node_status_api_client<S: Into<String>>(base_url: S) -> node_status_api::Client {
-    let config = node_status_api::Config::new(base_url);
-    node_status_api::Client::new(config)
 }
 
 fn setup_logging() {
@@ -212,59 +108,6 @@ fn setup_logging() {
         .filter_module("tungstenite", log::LevelFilter::Warn)
         .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
         .init();
-}
-
-fn check_if_up_to_date(v4_topology: &NymTopology, v6_topology: &NymTopology) {
-    let monitor_version = env!("CARGO_PKG_VERSION");
-    for (_, layer_mixes) in v4_topology.mixes().iter() {
-        for mix in layer_mixes.iter() {
-            if !version_checker::is_minor_version_compatible(monitor_version, &*mix.version) {
-                panic!(
-                    "Our good topology is not compatible with monitor! Mix runs {}, we have {}",
-                    mix.version, monitor_version
-                )
-            }
-        }
-    }
-
-    for gateway in v4_topology.gateways().iter() {
-        if !version_checker::is_minor_version_compatible(monitor_version, &*gateway.version) {
-            panic!(
-                "Our good topology is not compatible with monitor! Gateway runs {}, we have {}",
-                gateway.version, monitor_version
-            )
-        }
-    }
-
-    for (_, layer_mixes) in v6_topology.mixes().iter() {
-        for mix in layer_mixes.iter() {
-            if !version_checker::is_minor_version_compatible(monitor_version, &*mix.version) {
-                panic!(
-                    "Our good topology is not compatible with monitor! Mix runs {}, we have {}",
-                    mix.version, monitor_version
-                )
-            }
-        }
-    }
-
-    for gateway in v6_topology.gateways().iter() {
-        if !version_checker::is_minor_version_compatible(monitor_version, &*gateway.version) {
-            panic!(
-                "Our good topology is not compatible with monitor! Gateway runs {}, we have {}",
-                gateway.version, monitor_version
-            )
-        }
-    }
-}
-
-#[get("/mixnodes")]
-async fn get_mixnodes(cache: &State<Arc<ValidatorCache>>) -> Json<Cache<Vec<MixNodeBond>>> {
-    Json(cache.mixnodes().await)
-}
-
-#[get("/gateways")]
-async fn get_gateways(cache: &State<Arc<ValidatorCache>>) -> Json<Cache<Vec<GatewayBond>>> {
-    Json(cache.gateways().await)
 }
 
 fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
@@ -290,10 +133,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_custom_validators(parse_validators(raw_validators));
     }
 
-    if let Some(node_status_api_uri) = matches.value_of(NODE_STATUS_API_ARG) {
-        config = config.with_custom_node_status_api(node_status_api_uri)
-    }
-
     if let Some(mixnet_contract) = matches.value_of(MIXNET_CONTRACT_ARG) {
         config = config.with_custom_mixnet_contract(mixnet_contract)
     }
@@ -302,158 +141,18 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.detailed_network_monitor_report(true)
     }
 
-    if let Some(sending_rate) = matches
-        .value_of(GATEWAY_SENDING_RATE_ARG)
-        .map(|v| v.parse().unwrap())
-    {
-        config = config.with_gateway_sending_rate(sending_rate)
-    }
-
-    if let Some(caching_interval_secs) = matches
-        .value_of(CACHE_INTERVAL_ARG)
-        .map(|v| v.parse().unwrap())
-    {
-        config = config.with_caching_interval(Duration::from_secs(caching_interval_secs))
+    if matches.is_present(WRITE_CONFIG_ARG) {
+        info!("Saving the configuration to a file");
+        if let Err(err) = config.save_to_file(None) {
+            error!("Failed to write config to a file - {}", err);
+            process::exit(1)
+        }
     }
 
     config
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    setup_logging();
-
-    println!("Starting validator api...");
-
-    let config = match Config::load_from_file(None) {
-        Ok(cfg) => cfg,
-        Err(_) => {
-            warn!(
-                "Configuration file could not be found in {}. Using the default values.",
-                Config::default_config_file_path(None)
-                    .into_os_string()
-                    .into_string()
-                    .unwrap()
-            );
-            Config::new()
-        }
-    };
-
-    let matches = parse_args();
-    let config = override_config(config, &matches);
-
-    if config.get_network_monitor_enabled() {
-        info!("Network monitor starting...");
-
-        let v4_topology = parse_topology_file(config.get_v4_good_topology_file());
-        let v6_topology = parse_topology_file(config.get_v6_good_topology_file());
-        check_if_up_to_date(&v4_topology, &v6_topology);
-
-        info!("* validator servers: {:?}", config.get_validators_urls());
-        info!(
-            "* node status api server: {}",
-            config.get_node_status_api_url()
-        );
-        info!(
-            "* mixnet contract: {}",
-            config.get_mixnet_contract_address()
-        );
-        info!(
-            "* detailed report printing: {}",
-            config.get_detailed_report()
-        );
-        info!(
-            "* gateway sending rate: {} packets/s",
-            config.get_gateway_sending_rate()
-        );
-
-        // TODO: in the future I guess this should somehow change to distribute the load
-        let tested_mix_gateway = v4_topology.gateways()[0].clone();
-        info!(
-            "* gateway for testing mixnodes: {}",
-            tested_mix_gateway.identity_key.to_base58_string()
-        );
-
-        // TODO: those keys change constant throughout the whole execution of the monitor.
-        // and on top of that, they are used with ALL the gateways -> presumably this should change
-        // in the future
-        let mut rng = rand::rngs::OsRng;
-
-        let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
-        let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
-
-        let test_mixnode_sender = Recipient::new(
-            *identity_keypair.public_key(),
-            *encryption_keypair.public_key(),
-            tested_mix_gateway.identity_key,
-        );
-
-        let tested_network = TestedNetwork::new_good(v4_topology, v6_topology);
-        let validator_client = new_validator_client(
-            config.get_validators_urls(),
-            &config.get_mixnet_contract_address(),
-        );
-        let node_status_api_client = new_node_status_api_client(config.get_node_status_api_url());
-
-        let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
-        let (received_processor_sender_channel, received_processor_receiver_channel) =
-            mpsc::unbounded();
-
-        let packet_preparer = new_packet_preparer(
-            validator_client,
-            tested_network.clone(),
-            test_mixnode_sender,
-            *identity_keypair.public_key(),
-            *encryption_keypair.public_key(),
-        );
-
-        let packet_sender = new_packet_sender(
-            &config,
-            gateway_status_update_sender,
-            Arc::clone(&identity_keypair),
-            config.get_gateway_sending_rate(),
-        );
-        let received_processor = new_received_processor(
-            received_processor_receiver_channel,
-            Arc::clone(&encryption_keypair),
-        );
-        let summary_producer = new_summary_producer(config.get_detailed_report());
-        let mut packet_receiver = new_packet_receiver(
-            gateway_status_update_receiver,
-            received_processor_sender_channel,
-        );
-
-        let mut monitor = monitor::Monitor::new(
-            packet_preparer,
-            packet_sender,
-            received_processor,
-            summary_producer,
-            node_status_api_client,
-            tested_network,
-        );
-
-        tokio::spawn(async move { packet_receiver.run().await });
-
-        tokio::spawn(async move { monitor.run().await });
-    } else {
-        info!("Network monitoring is disabled.")
-    }
-
-    let validator_cache = Arc::new(ValidatorCache::init(
-        config.get_validators_urls(),
-        config.get_mixnet_contract_address(),
-    ));
-
-    let write_validator_cache = Arc::clone(&validator_cache);
-
-    tokio::spawn(async move {
-        let mut interval = time::interval(config.get_caching_interval());
-        loop {
-            interval.tick().await;
-            write_validator_cache.refresh_cache().await.unwrap()
-        }
-    });
-
+fn setup_cors() -> Result<Cors> {
     let allowed_origins = AllowedOrigins::all();
 
     // You can also deserialize this
@@ -469,14 +168,92 @@ async fn main() -> Result<()> {
     }
     .to_cors()?;
 
-    rocket::build()
-        .attach(cors)
-        .mount("/v1", routes![get_mixnodes, get_gateways])
-        .manage(validator_cache)
-        .ignite()
-        .await?
-        .launch()
-        .await?;
+    Ok(cors)
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    setup_logging();
+
+    println!("Starting validator api...");
+
+    // try to load config from the file, if it doesn't exist, use default values
+    let config = match Config::load_from_file(None) {
+        Ok(cfg) => cfg,
+        Err(_) => {
+            warn!(
+                "Configuration file could not be found at {}. Using the default values.",
+                Config::default_config_file_path(None)
+                    .into_os_string()
+                    .into_string()
+                    .unwrap()
+            );
+            Config::new()
+        }
+    };
+
+    let matches = parse_args();
+    let config = override_config(config, &matches);
+
+    // let's build our rocket!
+    let rocket_config = rocket::config::Config {
+        port: VALIDATOR_API_PORT,
+        ..Default::default()
+    };
+    let rocket = rocket::custom(rocket_config)
+        .attach(setup_cors()?)
+        .attach(ValidatorCache::stage());
+
+    // see if we should start up network monitor and ignite our rocket
+    let rocket = if config.get_network_monitor_enabled() {
+        // don't start our node-status api if we're not running the monitor - we can't get
+        // report data otherwise
+        let rocket = rocket
+            .attach(node_status_api::stage(
+                config.get_node_status_api_database_path(),
+            ))
+            .ignite()
+            .await?;
+
+        info!("Network monitor starting...");
+
+        // get instances of managed states
+        let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
+        let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
+
+        let v4_topology = parse_topology_file(config.get_v4_good_topology_file());
+        let v6_topology = parse_topology_file(config.get_v6_good_topology_file());
+        network_monitor::check_if_up_to_date(&v4_topology, &v6_topology);
+
+        let network_monitor_runnables = new_monitor_runnables(
+            &config,
+            v4_topology,
+            v6_topology,
+            node_status_storage,
+            validator_cache,
+        );
+        network_monitor_runnables.spawn_tasks();
+
+        rocket
+    } else {
+        info!("Network monitoring is disabled.");
+        rocket.ignite().await?
+    };
+
+    let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
+
+    let validator_cache_refresher = ValidatorCacheRefresher::new(
+        config.get_validators_urls(),
+        config.get_mixnet_contract_address(),
+        config.get_caching_interval(),
+        validator_cache,
+    );
+
+    // spawn our cacher
+    tokio::spawn(async move { validator_cache_refresher.run().await });
+
+    // and launch the rocket
+    tokio::spawn(rocket.launch());
 
     wait_for_interrupt().await;
 

@@ -1,10 +1,10 @@
-use crate::contract::DENOM;
 use crate::error::ContractError;
 use crate::state::StateParams;
 use crate::storage::{
     gateway_delegations_read, gateways_owners_read, gateways_read, mix_delegations_read,
     mixnodes_owners_read, mixnodes_read, read_layer_distribution, read_state_params,
 };
+use config::defaults::DENOM;
 use cosmwasm_std::Deps;
 use cosmwasm_std::Order;
 use cosmwasm_std::StdResult;

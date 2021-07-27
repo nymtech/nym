@@ -1,4 +1,4 @@
-import { Coin } from "@cosmjs/launchpad/";
+import { Coin } from "@cosmjs/stargate";
 
 export enum Layer {
     Gateway,

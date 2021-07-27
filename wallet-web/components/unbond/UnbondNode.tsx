@@ -127,20 +127,8 @@ const UnbondNode = () => {
 
   return (
     <>
-      <main className={classes.layout}>
-        <Paper className={classes.paper}>
-          <ExecFeeNotice name={'unbonding'} />
-          <Typography
-            component='h1'
-            variant='h4'
-            align='center'
-            className={classes.wrapper}
-          >
-            Unbond a {headerText}
-          </Typography>
-          {getUnbondContent()}
-        </Paper>
-      </main>
+      <ExecFeeNotice name={'unbonding'} />
+      {getUnbondContent()}
     </>
   )
 }

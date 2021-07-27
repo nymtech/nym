@@ -102,20 +102,8 @@ const DelegateToNode = () => {
 
   return (
     <>
-      <main className={classes.layout}>
-        <Paper className={classes.paper}>
-          <ExecFeeNotice name={'delegating stake'} />
-          <Typography
-            component='h1'
-            variant='h4'
-            align='center'
-            className={classes.wrapper}
-          >
-            Delegate to {nodeType}
-          </Typography>
-          {getDelegationContent()}
-        </Paper>
-      </main>
+      <ExecFeeNotice name={'delegating stake'} />
+      {getDelegationContent()}
     </>
   )
 }

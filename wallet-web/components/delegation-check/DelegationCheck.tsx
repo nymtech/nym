@@ -88,7 +88,7 @@ const DelegationCheck = () => {
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
           <NodeIdentityForm
             onSubmit={checkDelegation}
-            buttonText='Check stake value'
+            buttonText="Check stake value"
           />
         </>
       )
@@ -107,23 +107,7 @@ const DelegationCheck = () => {
     )
   }
 
-  return (
-    <>
-      <main className={classes.layout}>
-        <Paper className={classes.paper}>
-          <Typography
-            component='h1'
-            variant='h4'
-            align='center'
-            className={classes.wrapper}
-          >
-            Check your stake on a {nodeType}
-          </Typography>
-          {getDelegationCheckContent()}
-        </Paper>
-      </main>
-    </>
-  )
+  return <>{getDelegationCheckContent()}</>
 }
 
 export default DelegationCheck

@@ -1,57 +1,19 @@
 import React, { useContext } from 'react'
-import { makeStyles } from '@material-ui/core/styles'
-import Paper from '@material-ui/core/Paper'
+import { printableBalanceToNative } from '@nymproject/nym-validator-client/dist/currency'
+import { coin, Coin, printableCoin } from '@nymproject/nym-validator-client'
 import Stepper from '@material-ui/core/Stepper'
 import Step from '@material-ui/core/Step'
 import StepLabel from '@material-ui/core/StepLabel'
 import Button from '@material-ui/core/Button'
 import Typography from '@material-ui/core/Typography'
+import { Layout, NymCard } from '../components'
 import { Review } from '../components/send-funds/Review'
 import SendNymForm from '../components/send-funds/SendNymForm'
-import { coin, Coin, printableCoin } from '@nymproject/nym-validator-client'
 import Confirmation from '../components/Confirmation'
 import MainNav from '../components/MainNav'
 import { ValidatorClientContext } from '../contexts/ValidatorClient'
 import NoClientError from '../components/NoClientError'
 import { UDENOM } from './_app'
-import { printableBalanceToNative } from '@nymproject/nym-validator-client/dist/currency'
-
-const useStyles = makeStyles((theme) => ({
-  appBar: {
-    position: 'relative',
-  },
-  layout: {
-    width: 'auto',
-    marginLeft: theme.spacing(2),
-    marginRight: theme.spacing(2),
-    [theme.breakpoints.up(600 + theme.spacing(2) * 2)]: {
-      width: 600,
-      marginLeft: 'auto',
-      marginRight: 'auto',
-    },
-  },
-  paper: {
-    marginTop: theme.spacing(3),
-    marginBottom: theme.spacing(3),
-    padding: theme.spacing(2),
-    [theme.breakpoints.up(600 + theme.spacing(3) * 2)]: {
-      marginTop: theme.spacing(6),
-      marginBottom: theme.spacing(6),
-      padding: theme.spacing(3),
-    },
-  },
-  stepper: {
-    padding: theme.spacing(3, 0, 5),
-  },
-  buttons: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-  },
-  button: {
-    marginTop: theme.spacing(3),
-    marginLeft: theme.spacing(1),
-  },
-}))
 
 const steps = ['Enter addresses', 'Review & send', 'Await confirmation']
 
@@ -80,9 +42,9 @@ export default function SendFunds() {
         return (
           <Confirmation
             isLoading={isLoading}
-            progressMessage='Funds transfer is in progress...'
+            progressMessage="Funds transfer is in progress..."
             successMessage={successMessage}
-            failureMessage='Failed to complete the transfer'
+            failureMessage="Failed to complete the transfer"
             error={sendingError}
           />
         )
@@ -90,8 +52,6 @@ export default function SendFunds() {
         throw new Error('Unknown step')
     }
   }
-
-  const classes = useStyles()
   const { client } = useContext(ValidatorClientContext)
 
   console.log('client in send', client)
@@ -190,7 +150,7 @@ export default function SendFunds() {
   const getStepperContent = () => {
     return (
       <>
-        <Stepper activeStep={activeStep} className={classes.stepper}>
+        <Stepper activeStep={activeStep}>
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
@@ -200,16 +160,16 @@ export default function SendFunds() {
         <>
           {activeStep === steps.length ? (
             <>
-              <Typography variant='h5' gutterBottom>
+              <Typography variant="h5" gutterBottom>
                 Payment complete.
               </Typography>
-              <Typography variant='subtitle1'>
+              <Typography variant="subtitle1">
                 You (<b>{transaction.sender}</b>)
               </Typography>
-              <Typography variant='subtitle1'>
+              <Typography variant="subtitle1">
                 have sent <b>{printableCoin(transaction.coin)}</b>
               </Typography>
-              <Typography variant='subtitle1'>
+              <Typography variant="subtitle1">
                 to <b>{transaction.recipient}</b>.
               </Typography>
             </>
@@ -217,18 +177,15 @@ export default function SendFunds() {
             <>
               <form onSubmit={handleNext}>
                 {getStepContent(activeStep)}
-                <div className={classes.buttons}>
+                <div>
                   {activeStep !== 0 && (
-                    <Button onClick={handleBack} className={classes.button}>
-                      Back
-                    </Button>
+                    <Button onClick={handleBack}>Back</Button>
                   )}
                   <Button
-                    variant='contained'
-                    color='primary'
-                    type='submit'
+                    variant="contained"
+                    color="primary"
+                    type="submit"
                     disabled={checkButtonDisabled()}
-                    className={classes.button}
                   >
                     {activeStep === 1
                       ? 'Send'
@@ -248,15 +205,11 @@ export default function SendFunds() {
   return (
     <>
       <MainNav />
-      <main className={classes.layout}>
-        <Paper className={classes.paper}>
-          <Typography component='h1' variant='h4' align='center'>
-            Send Nym
-          </Typography>
-
+      <Layout>
+        <NymCard title="Send Nym">
           {client === null ? <NoClientError /> : getStepperContent()}
-        </Paper>
-      </main>
+        </NymCard>
+      </Layout>
     </>
   )
 }

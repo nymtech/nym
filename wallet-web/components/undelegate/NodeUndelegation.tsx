@@ -91,20 +91,8 @@ const UndelegateFromNode = () => {
 
   return (
     <>
-      <main className={classes.layout}>
-        <Paper className={classes.paper}>
-          <ExecFeeNotice name={'undelegating stake'} />
-          <Typography
-            component="h1"
-            variant="h4"
-            align="center"
-            className={classes.wrapper}
-          >
-            Undelegate stake from {nodeType}
-          </Typography>
-          {getUndelegationContent()}
-        </Paper>
-      </main>
+      <ExecFeeNotice name={'undelegating stake'} />
+      {getUndelegationContent()}
     </>
   )
 }

@@ -8,7 +8,7 @@ const Bond = () => {
     <>
       <MainNav />
       <Layout>
-        <NymCard title="Bond a Mixnode" subheader="Bond a mixnode or gateway">
+        <NymCard title="Bond" subheader="Bond a mixnode or gateway">
           <BondNode />
         </NymCard>
       </Layout>

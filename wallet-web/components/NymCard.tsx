@@ -12,7 +12,7 @@ export const NymCard = ({
 }) => {
   const theme = useTheme()
   return (
-    <Card>
+    <Card variant="outlined">
       <CardHeader
         title={title}
         subheader={subheader}

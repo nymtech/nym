@@ -1,5 +1,5 @@
 import React from 'react'
-import { Grid, Theme, useTheme, useMediaQuery } from '@material-ui/core'
+import { Grid, Theme, useTheme } from '@material-ui/core'
 
 export const Layout = ({ children }: { children: React.ReactElement }) => {
   const theme: Theme = useTheme()

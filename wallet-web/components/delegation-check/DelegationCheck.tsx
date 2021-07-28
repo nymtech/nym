@@ -75,7 +75,6 @@ const DelegationCheck = () => {
   }
 
   const getDelegationCheckContent = () => {
-    console.log(isLoading)
     // we're not signed in
     if (client === null) {
       return <NoClientError />
@@ -88,7 +87,7 @@ const DelegationCheck = () => {
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
           <NodeIdentityForm
             onSubmit={checkDelegation}
-            buttonText='Check stake value'
+            buttonText="Check stake value"
           />
         </>
       )
@@ -112,9 +111,9 @@ const DelegationCheck = () => {
       <main className={classes.layout}>
         <Paper className={classes.paper}>
           <Typography
-            component='h1'
-            variant='h4'
-            align='center'
+            component="h1"
+            variant="h4"
+            align="center"
             className={classes.wrapper}
           >
             Check your stake on a {nodeType}

@@ -16,7 +16,7 @@ const UnbondNode = () => {
   const router = useRouter()
   const { client } = useContext(ValidatorClientContext)
 
-  const [isLoading, setIsLoading] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState<boolean>()
   const [unbondingError, setUnbondingError] = React.useState(null)
 
   const [checkedOwnership, setCheckedOwnership] = React.useState(false)
@@ -104,7 +104,7 @@ const UnbondNode = () => {
     }
 
     // we haven't clicked unbond button yet
-    if (!isLoading) {
+    if (isLoading === undefined) {
       return <UnbondNotice onClick={unbondNode} />
     }
 
@@ -131,9 +131,9 @@ const UnbondNode = () => {
         <Paper className={classes.paper}>
           <ExecFeeNotice name={'unbonding'} />
           <Typography
-            component='h1'
-            variant='h4'
-            align='center'
+            component="h1"
+            variant="h4"
+            align="center"
             className={classes.wrapper}
           >
             Unbond a {headerText}

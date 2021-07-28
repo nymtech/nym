@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
 import { Paper } from '@material-ui/core'
 import Typography from '@material-ui/core/Typography'
 import { useRouter } from 'next/router'
@@ -17,7 +17,7 @@ const UndelegateFromNode = () => {
   const router = useRouter()
   const { client } = useContext(ValidatorClientContext)
 
-  const [isLoading, setIsLoading] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState<boolean>()
   const [undelegationError, setUndelegationError] = React.useState(null)
 
   const [nodeType, setNodeType] = React.useState(NodeType.Mixnode)
@@ -65,15 +65,15 @@ const UndelegateFromNode = () => {
     }
 
     // we haven't clicked undelegate button yet
-    if (!undelegationStarted) {
+    if (isLoading === undefined) {
       return (
-        <React.Fragment>
+        <>
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
           <NodeIdentityForm
             onSubmit={undelegateFromNode}
             buttonText={'Remove delegation'}
           />
-        </React.Fragment>
+        </>
       )
     }
 
@@ -95,9 +95,9 @@ const UndelegateFromNode = () => {
         <Paper className={classes.paper}>
           <ExecFeeNotice name={'undelegating stake'} />
           <Typography
-            component='h1'
-            variant='h4'
-            align='center'
+            component="h1"
+            variant="h4"
+            align="center"
             className={classes.wrapper}
           >
             Undelegate stake from {nodeType}

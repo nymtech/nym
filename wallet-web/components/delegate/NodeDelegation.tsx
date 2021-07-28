@@ -21,7 +21,7 @@ const DelegateToNode = () => {
   const router = useRouter()
   const { client } = useContext(ValidatorClientContext)
 
-  const [isLoading, setIsLoading] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState<boolean>()
   const [delegationError, setDelegationError] = React.useState(null)
 
   const [nodeType, setNodeType] = React.useState(NodeType.Mixnode)
@@ -79,7 +79,7 @@ const DelegateToNode = () => {
     }
 
     // we haven't clicked delegate button yet
-    if (!isLoading) {
+    if (isLoading === undefined) {
       return (
         <>
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
@@ -106,9 +106,9 @@ const DelegateToNode = () => {
         <Paper className={classes.paper}>
           <ExecFeeNotice name={'delegating stake'} />
           <Typography
-            component='h1'
-            variant='h4'
-            align='center'
+            component="h1"
+            variant="h4"
+            align="center"
             className={classes.wrapper}
           >
             Delegate to {nodeType}

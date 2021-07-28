@@ -195,7 +195,7 @@ pub fn get_aggregated_verification_key(
 
 pub fn get_aggregated_signature(
     validator_urls: Vec<String>,
-    state: State,
+    state: &State,
 ) -> Result<Signature, String> {
     let elgamal_keypair = coconut_rs::elgamal_keygen(&state.params);
     let blind_sign_request = coconut_rs::prepare_blind_sign(
@@ -230,4 +230,23 @@ pub fn get_aggregated_signature(
         }
     }
     Ok(aggregate_signature_shares(&signature_shares).unwrap())
+}
+
+pub fn prove_credential(
+    idx: usize,
+    validator_urls: Vec<String>,
+    state: &State,
+) -> Result<Theta, String> {
+    let verification_key = coconut_interface::get_aggregated_verification_key(validator_urls)?;
+    let signature = state
+        .signatures
+        .get(idx)
+        .map_err(|e| "Got invalid signature idx")?;
+    coconut_rs::prove_credential(
+        &state.params,
+        &verification_key,
+        signature,
+        &state.private_attributes,
+    )
+    .map_err(|e| format!("{:?}", e))
 }

@@ -3,9 +3,7 @@
   windows_subsystem = "windows"
 )]
 
-use coconut_interface::{
-  get_aggregated_signature, BlindSignRequestBody, BlindedSignatureResponse, State,
-};
+use coconut_interface::{self, BlindSignRequestBody, BlindedSignatureResponse, State};
 use coconut_rs::{
   aggregate_signature_shares, Attribute, Parameters, Signature, SignatureShare, Theta,
 };
@@ -73,26 +71,10 @@ fn prove_credential(
   validator_urls: Vec<String>,
   state: tauri::State<Arc<RwLock<State>>>,
 ) -> Result<Theta, String> {
-  let verification_key = coconut_interface::get_aggregated_verification_key(validator_urls)?;
-  let theta = match state.read() {
-    Ok(state) => {
-      if let Some(signature) = state.signatures.get(idx) {
-        match coconut_rs::prove_credential(
-          &state.params,
-          &verification_key,
-          signature,
-          &state.private_attributes,
-        ) {
-          Ok(theta) => theta,
-          Err(e) => return Err(format!("{}", e)),
-        }
-      } else {
-        return Err("Got invalid Signature idx".to_string());
-      }
-    }
-    Err(_e) => return Err(TauriClientError::State("read").to_string()),
-  };
-  Ok(theta)
+  match state.read() {
+    Ok(state) => coconut_interface::prove_credential(idx, validator_urls, &*state),
+    Err(_) => TauriClientError::State("read"),
+  }
 }
 
 fn gateway_handshake(gateway_url: &str) {}
@@ -103,7 +85,7 @@ fn get_credential(
   state: tauri::State<Arc<RwLock<State>>>,
 ) -> Result<Vec<Signature>, String> {
   let signature = match state.read() {
-    Ok(state) => get_aggregated_signature(validator_urls, *state)?,
+    Ok(state) => coconut_interface::get_aggregated_signature(validator_urls, &*state)?,
     Err(_e) => return Err(TauriClientError::State("read").to_string()),
   };
   match state.write() {

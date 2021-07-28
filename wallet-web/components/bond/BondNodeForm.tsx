@@ -9,6 +9,7 @@ import {
   InputAdornment,
   Grid,
   TextField,
+  useMediaQuery,
 } from '@material-ui/core'
 import bs58 from 'bs58'
 import semver from 'semver'
@@ -80,6 +81,8 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
   useEffect(() => {
     getBalance()
   }, [getBalance])
+
+  const matches = useMediaQuery('(min-width:768px)')
 
   const handleCheckboxToggle = () => {
     setAdvancedShown((prevSet) => !prevSet)
@@ -312,9 +315,11 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
             required
             id="amount"
             name="amount"
-            label={`Amount to bond (minimum ${nativeToPrintable(
-              minimumBond.amount
-            )} ${minimumBond.denom})`}
+            label={`Amount to bond ${
+              matches
+                ? '(minimum ' + nativeToPrintable(minimumBond.amount) + ')'
+                : ''
+            }`}
             error={!validateAmount}
             helperText={
               !validateAmount

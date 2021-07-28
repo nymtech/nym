@@ -136,7 +136,7 @@ const BondNode = () => {
     // we haven't clicked bond button yet
     if (!isLoading) {
       return (
-        <Paper style={{ padding: theme.spacing(3) }}>
+        <>
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
           <BondNodeForm
             onSubmit={bondNode}
@@ -144,7 +144,7 @@ const BondNode = () => {
             minimumGatewayBond={minimumGatewayBond}
             minimumMixnodeBond={minimumMixnodeBond}
           />
-        </Paper>
+        </>
       )
     }
 
@@ -165,7 +165,9 @@ const BondNode = () => {
       <Grid item>
         <ExecFeeNotice name="bonding" />
       </Grid>
-      <Grid item>{getBondContent()}</Grid>
+      <Grid item>
+        <Paper style={{ padding: theme.spacing(3) }}>{getBondContent()}</Paper>
+      </Grid>
     </Grid>
   )
 }

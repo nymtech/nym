@@ -1,5 +1,5 @@
 import React, { useContext, useEffect } from 'react'
-import { Grid, LinearProgress, Typography } from '@material-ui/core'
+import { Grid, LinearProgress, Paper, Typography } from '@material-ui/core'
 import { Alert } from '@material-ui/lab'
 import { useRouter } from 'next/router'
 import { NodeType } from '../../common/node'
@@ -130,7 +130,11 @@ const UnbondNode = () => {
       <Grid item>
         <ExecFeeNotice name={'unbonding'} />
       </Grid>
-      <Grid item> {getUnbondContent()}</Grid>
+      <Grid item>
+        <Paper style={{ padding: theme.spacing(3) }}>
+          {getUnbondContent()}
+        </Paper>
+      </Grid>
     </Grid>
   )
 }

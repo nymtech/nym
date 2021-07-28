@@ -66,13 +66,13 @@ const UndelegateFromNode = () => {
     // we haven't clicked undelegate button yet
     if (!isLoading) {
       return (
-        <Paper style={{ padding: theme.spacing(3) }}>
+        <>
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
           <NodeIdentityForm
             onSubmit={undelegateFromNode}
             buttonText={'Remove delegation'}
           />
-        </Paper>
+        </>
       )
     }
 
@@ -93,7 +93,11 @@ const UndelegateFromNode = () => {
       <Grid item>
         <ExecFeeNotice name={'undelegating stake'} />
       </Grid>
-      <Grid item>{getUndelegationContent()}</Grid>
+      <Grid item>
+        <Paper style={{ padding: theme.spacing(3) }}>
+          {getUndelegationContent()}
+        </Paper>
+      </Grid>
     </Grid>
   )
 }

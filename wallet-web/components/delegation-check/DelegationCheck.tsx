@@ -83,13 +83,13 @@ const DelegationCheck = () => {
     // we haven't clicked delegate button yet
     if (!isLoading && !stakeValue) {
       return (
-        <Paper style={{ padding: theme.spacing(3) }}>
+        <>
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
           <NodeIdentityForm
             onSubmit={checkDelegation}
             buttonText="Check stake value"
           />
-        </Paper>
+        </>
       )
     }
 
@@ -106,7 +106,11 @@ const DelegationCheck = () => {
     )
   }
 
-  return <>{getDelegationCheckContent()}</>
+  return (
+    <Paper style={{ padding: theme.spacing(3) }}>
+      {getDelegationCheckContent()}
+    </Paper>
+  )
 }
 
 export default DelegationCheck

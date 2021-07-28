@@ -18,12 +18,20 @@ import AccountBalanceWalletIcon from '@material-ui/icons/AccountBalanceWallet'
 import { ValidatorClientContext } from '../contexts/ValidatorClient'
 import { ADMIN_ADDRESS } from '../pages/_app'
 import MenuIcon from '@material-ui/icons/Menu'
-import MonetizationOnIcon from '@material-ui/icons/MonetizationOn'
-import AttachMoneyIcon from '@material-ui/icons/AttachMoney'
-import MoneyOffIcon from '@material-ui/icons/MoneyOff'
-import HowToVoteIcon from '@material-ui/icons/HowToVote'
-import CancelIcon from '@material-ui/icons/Cancel'
-import PageviewIcon from '@material-ui/icons/Pageview'
+import {
+  MonetizationOn,
+  AttachMoney,
+  MoneyOff,
+  HowToVote,
+  Cancel,
+  Pageview,
+  ArrowRightAlt,
+  ArrowLeft,
+  ArrowRightSharp,
+  ArrowForward,
+  ArrowBack,
+} from '@material-ui/icons'
+
 import { makeBasicStyle } from '../common/helpers'
 import { theme } from '../lib/theme'
 
@@ -88,7 +96,7 @@ export default function MainNav() {
 
                 <ListItem button>
                   <ListItemIcon>
-                    <MonetizationOnIcon />
+                    <ArrowForward />
                   </ListItemIcon>
                   <Link href="/send">
                     <ListItemText primary="Send coins" />
@@ -97,7 +105,7 @@ export default function MainNav() {
 
                 <ListItem button>
                   <ListItemIcon>
-                    <MonetizationOnIcon />
+                    <ArrowBack />
                   </ListItemIcon>
                   <Link href="/receive">
                     <ListItemText primary="Receive coins" />
@@ -112,7 +120,7 @@ export default function MainNav() {
 
                 <ListItem button>
                   <ListItemIcon>
-                    <AttachMoneyIcon />
+                    <AttachMoney />
                   </ListItemIcon>
                   <Link href="/bond">
                     <ListItemText primary="Bond node" />
@@ -121,7 +129,7 @@ export default function MainNav() {
 
                 <ListItem button>
                   <ListItemIcon>
-                    <MoneyOffIcon />
+                    <MoneyOff />
                   </ListItemIcon>
                   <Link href="/unbond">
                     <ListItemText primary="Unbond node" />
@@ -130,7 +138,7 @@ export default function MainNav() {
 
                 <ListItem button>
                   <ListItemIcon>
-                    <HowToVoteIcon />
+                    <HowToVote />
                   </ListItemIcon>
                   <Link href="/delegateStake">
                     <ListItemText primary="Delegate stake" />
@@ -139,7 +147,7 @@ export default function MainNav() {
 
                 <ListItem button>
                   <ListItemIcon>
-                    <CancelIcon />
+                    <Cancel />
                   </ListItemIcon>
                   <Link href="/undelegateStake">
                     <ListItemText primary="Undelegate stake" />
@@ -148,7 +156,7 @@ export default function MainNav() {
 
                 <ListItem button>
                   <ListItemIcon>
-                    <PageviewIcon />
+                    <Pageview />
                   </ListItemIcon>
                   <Link href="/checkDelegation">
                     <ListItemText primary="Check current delegation" />

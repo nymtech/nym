@@ -80,10 +80,10 @@ const DelegateToNode = () => {
     // we haven't clicked delegate button yet
     if (!isLoading) {
       return (
-        <Paper style={{ padding: theme.spacing(3) }}>
+        <>
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
           <DelegateForm onSubmit={delegateToNode} />
-        </Paper>
+        </>
       )
     }
 
@@ -104,7 +104,11 @@ const DelegateToNode = () => {
       <Grid item>
         <ExecFeeNotice name={'delegating stake'} />
       </Grid>
-      <Grid item> {getDelegationContent()}</Grid>
+      <Grid item>
+        <Paper style={{ padding: theme.spacing(3) }}>
+          {getDelegationContent()}
+        </Paper>
+      </Grid>
     </Grid>
   )
 }

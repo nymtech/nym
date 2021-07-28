@@ -80,9 +80,9 @@ export default function SendFunds() {
         return (
           <Confirmation
             isLoading={isLoading}
-            progressMessage='Funds transfer is in progress...'
+            progressMessage="Funds transfer is in progress..."
             successMessage={successMessage}
-            failureMessage='Failed to complete the transfer'
+            failureMessage="Failed to complete the transfer"
             error={sendingError}
           />
         )
@@ -200,16 +200,16 @@ export default function SendFunds() {
         <>
           {activeStep === steps.length ? (
             <>
-              <Typography variant='h5' gutterBottom>
+              <Typography variant="h5" gutterBottom>
                 Payment complete.
               </Typography>
-              <Typography variant='subtitle1'>
+              <Typography variant="subtitle1">
                 You (<b>{transaction.sender}</b>)
               </Typography>
-              <Typography variant='subtitle1'>
+              <Typography variant="subtitle1">
                 have sent <b>{printableCoin(transaction.coin)}</b>
               </Typography>
-              <Typography variant='subtitle1'>
+              <Typography variant="subtitle1">
                 to <b>{transaction.recipient}</b>.
               </Typography>
             </>
@@ -224,9 +224,9 @@ export default function SendFunds() {
                     </Button>
                   )}
                   <Button
-                    variant='contained'
-                    color='primary'
-                    type='submit'
+                    variant="contained"
+                    color="primary"
+                    type="submit"
                     disabled={checkButtonDisabled()}
                     className={classes.button}
                   >
@@ -250,10 +250,9 @@ export default function SendFunds() {
       <MainNav />
       <main className={classes.layout}>
         <Paper className={classes.paper}>
-          <Typography component='h1' variant='h4' align='center'>
+          <Typography component="h1" variant="h4" align="center">
             Send Nym
           </Typography>
-
           {client === null ? <NoClientError /> : getStepperContent()}
         </Paper>
       </main>

@@ -27,7 +27,7 @@ const BondNode = () => {
   const router = useRouter()
   const { client } = useContext(ValidatorClientContext)
 
-  const [isLoading, setIsLoading] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState<boolean>()
   const [bondingError, setBondingError] = React.useState(null)
 
   const [checkedOwnership, setCheckedOwnership] = React.useState(false)
@@ -111,7 +111,7 @@ const BondNode = () => {
             <Typography gutterBottom>
               You have already have a bonded mixnode. If you wish to bond a
               different one, you need to first{' '}
-              <Link href='/unbond'>unbond the existing one</Link>.
+              <Link href="/unbond">unbond the existing one</Link>.
             </Typography>
           </Grid>
         </Grid>
@@ -126,7 +126,7 @@ const BondNode = () => {
             <Typography gutterBottom>
               You have already have a bonded gateway. If you wish to bond a
               different one, you need to first{' '}
-              <Link href='/unbond'>unbond the existing one</Link>.
+              <Link href="/unbond">unbond the existing one</Link>.
             </Typography>
           </Grid>
         </Grid>
@@ -134,7 +134,7 @@ const BondNode = () => {
     }
 
     // we haven't clicked bond button yet
-    if (!isLoading) {
+    if (isLoading === undefined) {
       return (
         <>
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
@@ -164,11 +164,11 @@ const BondNode = () => {
     <>
       <main className={classes.layout}>
         <Paper className={classes.paper}>
-          <ExecFeeNotice name='bonding' />
+          <ExecFeeNotice name="bonding" />
           <Typography
-            component='h1'
-            variant='h4'
-            align='center'
+            component="h1"
+            variant="h4"
+            align="center"
             className={classes.wrapper}
           >
             Bond a {nodeType}

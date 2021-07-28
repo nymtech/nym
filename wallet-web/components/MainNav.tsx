@@ -179,11 +179,7 @@ export default function MainNav() {
             Nym
           </Typography>
           <div style={{ marginLeft: 'auto' }}>
-            <Button
-              variant="outlined"
-              onClick={() => setClient(null)}
-              endIcon={<ExitToApp />}
-            >
+            <Button variant="outlined" onClick={() => setClient(null)}>
               Log out
             </Button>
           </div>

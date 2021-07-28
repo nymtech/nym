@@ -74,7 +74,6 @@ const DelegationCheck = () => {
   }
 
   const getDelegationCheckContent = () => {
-    console.log(isLoading)
     // we're not signed in
     if (client === null) {
       return <NoClientError />

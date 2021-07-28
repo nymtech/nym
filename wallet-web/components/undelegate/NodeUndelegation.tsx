@@ -16,7 +16,7 @@ const UndelegateFromNode = () => {
   const router = useRouter()
   const { client } = useContext(ValidatorClientContext)
 
-  const [isLoading, setIsLoading] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState<boolean>()
   const [undelegationError, setUndelegationError] = React.useState(null)
 
   const [nodeType, setNodeType] = React.useState(NodeType.Mixnode)
@@ -64,7 +64,7 @@ const UndelegateFromNode = () => {
     }
 
     // we haven't clicked undelegate button yet
-    if (!isLoading) {
+    if (isLoading === undefined) {
       return (
         <>
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />

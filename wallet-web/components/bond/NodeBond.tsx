@@ -27,7 +27,7 @@ const BondNode = () => {
   const router = useRouter()
   const { client } = useContext(ValidatorClientContext)
 
-  const [isLoading, setIsLoading] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState<boolean>()
   const [bondingError, setBondingError] = React.useState(null)
 
   const [checkedOwnership, setCheckedOwnership] = React.useState(false)
@@ -134,7 +134,7 @@ const BondNode = () => {
     }
 
     // we haven't clicked bond button yet
-    if (!isLoading) {
+    if (isLoading === undefined) {
       return (
         <>
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />

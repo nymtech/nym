@@ -1,5 +1,6 @@
 import {
   AppBar,
+  Button,
   Divider,
   Drawer,
   IconButton,
@@ -17,19 +18,15 @@ import VpnKeyIcon from '@material-ui/icons/VpnKey'
 import AccountBalanceWalletIcon from '@material-ui/icons/AccountBalanceWallet'
 import { ValidatorClientContext } from '../contexts/ValidatorClient'
 import { ADMIN_ADDRESS } from '../pages/_app'
-import MenuIcon from '@material-ui/icons/Menu'
 import {
-  MonetizationOn,
+  Menu,
   AttachMoney,
   MoneyOff,
   HowToVote,
   Cancel,
-  Pageview,
-  ArrowRightAlt,
-  ArrowLeft,
-  ArrowRightSharp,
   ArrowForward,
   ArrowBack,
+  ExitToApp,
 } from '@material-ui/icons'
 
 import { makeBasicStyle } from '../common/helpers'
@@ -38,7 +35,7 @@ import { theme } from '../lib/theme'
 export default function MainNav() {
   const classes = makeBasicStyle(theme)
 
-  const { client } = useContext(ValidatorClientContext)
+  const { client, setClient } = useContext(ValidatorClientContext)
 
   let adminPageDisplayed = false
 
@@ -67,7 +64,7 @@ export default function MainNav() {
             aria-label="menu"
             onClick={toggleDrawer}
           >
-            <MenuIcon />
+            <Menu />
           </IconButton>
 
           <Drawer anchor={'left'} open={open} onClose={closeDrawer}>
@@ -154,13 +151,11 @@ export default function MainNav() {
                   </Link>
                 </ListItem>
 
-                <ListItem button>
+                <ListItem button onClick={() => setClient(null)}>
                   <ListItemIcon>
-                    <Pageview />
+                    <ExitToApp />
                   </ListItemIcon>
-                  <Link href="/checkDelegation">
-                    <ListItemText primary="Check current delegation" />
-                  </Link>
+                  <ListItemText primary="Log out" />
                 </ListItem>
 
                 {adminPageDisplayed && (
@@ -184,6 +179,11 @@ export default function MainNav() {
           <Typography variant="h6" color="inherit" noWrap>
             Nym
           </Typography>
+          <div style={{ marginLeft: 'auto' }}>
+            <Button variant="outlined" onClick={() => setClient(null)}>
+              Log out
+            </Button>
+          </div>
         </Toolbar>
       </AppBar>
     </>

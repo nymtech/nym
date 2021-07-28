@@ -11,7 +11,7 @@ export const Layout = ({ children }: { children: React.ReactElement }) => {
       }}
     >
       <Grid container justify="center">
-        <Grid item xs={12} md={8} xl={4}>
+        <Grid item xs={12} md={8} xl={6}>
           {children}
         </Grid>
       </Grid>

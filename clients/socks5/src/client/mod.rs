@@ -185,6 +185,7 @@ impl NymClient {
             mixnet_message_sender,
             ack_sender,
             self.config.get_base().get_gateway_response_timeout(),
+            coconut_credential
         );
 
         self.runtime.block_on(async {

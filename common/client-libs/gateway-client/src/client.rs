@@ -30,6 +30,8 @@ use wasm_timer;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 
+use coconut_interface::Credential;
+
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
@@ -51,6 +53,7 @@ pub struct GatewayClient {
     reconnection_attempts: usize,
     /// Delay between each subsequent reconnection attempt.
     reconnection_backoff: Duration,
+    coconut_credential: Credential,
 }
 
 impl GatewayClient {
@@ -63,6 +66,7 @@ impl GatewayClient {
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
+        coconut_credential: Credential,
     ) -> Self {
         GatewayClient {
             authenticated: false,
@@ -76,6 +80,7 @@ impl GatewayClient {
             should_reconnect_on_failure: true,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
+            coconut_credential
         }
     }
 
@@ -97,6 +102,7 @@ impl GatewayClient {
         gateway_identity: identity::PublicKey,
         local_identity: Arc<identity::KeyPair>,
         response_timeout_duration: Duration,
+        coconut_credential: Credential
     ) -> Self {
         use futures::channel::mpsc;
 
@@ -118,6 +124,7 @@ impl GatewayClient {
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
+            coconut_credential
         }
     }
 
@@ -369,6 +376,7 @@ impl GatewayClient {
                 ws_stream,
                 self.local_identity.as_ref(),
                 self.gateway_identity,
+                self.coconut_credential.clone(),
             )
             .await
             .map_err(GatewayClientError::RegistrationFailure),

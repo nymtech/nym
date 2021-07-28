@@ -54,10 +54,10 @@ pub async fn post_blind_sign(
 ) -> Json<BlindedSignatureResponse> {
     debug!("{:?}", blind_sign_request_body);
     let internal_request = InternalSignRequest::new(
-        blind_sign_request_body.total_params(),
+        *blind_sign_request_body.total_params(),
         blind_sign_request_body.public_attributes(),
-        blind_sign_request_body.public_key(),
-        blind_sign_request_body.blind_sign_request(),
+        blind_sign_request_body.public_key().clone(),
+        blind_sign_request_body.blind_sign_request().clone(),
     );
     let blinded_signature = blind_sign(internal_request, config);
     Json(BlindedSignatureResponse::new(blinded_signature))

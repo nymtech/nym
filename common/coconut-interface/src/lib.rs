@@ -192,3 +192,42 @@ pub fn get_aggregated_verification_key(
         Err(e) => Err(format!("{}", e)),
     }
 }
+
+pub fn get_aggregated_signature(
+    validator_urls: Vec<String>,
+    state: State,
+) -> Result<Signature, String> {
+    let elgamal_keypair = coconut_rs::elgamal_keygen(&state.params);
+    let blind_sign_request = coconut_rs::prepare_blind_sign(
+        &state.params,
+        &elgamal_keypair.public_key(),
+        &state.private_attributes,
+        &state.public_attributes,
+    )
+    .unwrap();
+    let blind_sign_request_body = BlindSignRequestBody::new(
+        &blind_sign_request,
+        elgamal_keypair.public_key(),
+        &state.public_attributes,
+        state.n_attributes,
+    );
+
+    let mut signature_shares = vec![];
+
+    for (idx, url) in validator_urls.iter().enumerate() {
+        let resp = attohttpc::post(format!("{}/v1/blind_sign", url))
+            .json(&blind_sign_request_body)
+            .unwrap()
+            .send()
+            .unwrap();
+
+        if resp.is_success() {
+            let blinded_signature_response: BlindedSignatureResponse = resp.json().unwrap();
+            let blinded_signature = blinded_signature_response.blinded_signature;
+            let unblinded_signature = blinded_signature.unblind(&elgamal_keypair.private_key());
+            let signature_share = SignatureShare::new(unblinded_signature, (idx + 1) as u64);
+            signature_shares.push(signature_share);
+        }
+    }
+    Ok(aggregate_signature_shares(&signature_shares).unwrap())
+}

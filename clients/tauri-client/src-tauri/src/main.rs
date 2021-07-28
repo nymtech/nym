@@ -3,7 +3,9 @@
   windows_subsystem = "windows"
 )]
 
-use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, State};
+use coconut_interface::{
+  get_aggregated_signature, BlindSignRequestBody, BlindedSignatureResponse, State,
+};
 use coconut_rs::{
   aggregate_signature_shares, Attribute, Parameters, Signature, SignatureShare, Theta,
 };
@@ -100,46 +102,10 @@ fn get_credential(
   validator_urls: Vec<String>,
   state: tauri::State<Arc<RwLock<State>>>,
 ) -> Result<Vec<Signature>, String> {
-  let signature_shares = match state.read() {
-    Ok(state) => {
-      let elgamal_keypair = coconut_rs::elgamal_keygen(&state.params);
-      let blind_sign_request = coconut_rs::prepare_blind_sign(
-        &state.params,
-        &elgamal_keypair.public_key(),
-        &state.private_attributes,
-        &state.public_attributes,
-      )
-      .unwrap();
-      let blind_sign_request_body = BlindSignRequestBody::new(
-        &blind_sign_request,
-        elgamal_keypair.public_key(),
-        &state.public_attributes,
-        state.n_attributes,
-      );
-
-      let mut signature_shares = vec![];
-
-      for (idx, url) in validator_urls.iter().enumerate() {
-        let resp = attohttpc::post(format!("{}/v1/blind_sign", url))
-          .json(&blind_sign_request_body)
-          .unwrap()
-          .send()
-          .unwrap();
-
-        if resp.is_success() {
-          let blinded_signature_response: BlindedSignatureResponse = resp.json().unwrap();
-          let blinded_signature = blinded_signature_response.blinded_signature;
-          let unblinded_signature = blinded_signature.unblind(&elgamal_keypair.private_key());
-          let signature_share = SignatureShare::new(unblinded_signature, (idx + 1) as u64);
-          signature_shares.push(signature_share);
-        }
-      }
-      signature_shares
-    }
+  let signature = match state.read() {
+    Ok(state) => get_aggregated_signature(validator_urls, *state)?,
     Err(_e) => return Err(TauriClientError::State("read").to_string()),
   };
-
-  let signature = aggregate_signature_shares(&signature_shares).unwrap();
   match state.write() {
     Ok(mut state) => state.signatures.push(signature),
     Err(_e) => return Err(TauriClientError::State("write").to_string()),

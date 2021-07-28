@@ -142,6 +142,30 @@ impl VerificationKeyResponse {
     }
 }
 
+pub struct State {
+    pub signatures: Vec<Signature>,
+    pub n_attributes: u32,
+    pub params: Parameters,
+    pub public_attributes: Vec<Attribute>,
+    pub private_attributes: Vec<Attribute>,
+}
+
+impl State {
+    pub fn init() -> State {
+        let n_attributes: u32 = 3;
+        let params = Parameters::new(n_attributes).unwrap();
+        let public_attributes = params.n_random_scalars(2);
+        let private_attributes = params.n_random_scalars(1);
+        State {
+            signatures: Vec::new(),
+            n_attributes,
+            params,
+            public_attributes,
+            private_attributes,
+        }
+    }
+}
+
 fn get_verification_key(url: &str) -> Result<VerificationKey, String> {
     match attohttpc::get(format!("{}/v1/verification_key", url)).send() {
         Ok(resp) => {

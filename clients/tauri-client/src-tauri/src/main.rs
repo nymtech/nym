@@ -3,7 +3,7 @@
   windows_subsystem = "windows"
 )]
 
-use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse};
+use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, State};
 use coconut_rs::{
   aggregate_signature_shares, Attribute, Parameters, Signature, SignatureShare, Theta,
 };
@@ -18,30 +18,6 @@ enum TauriClientError {
   State(&'static str),
   #[error("Error getting data from validator API at {0}, line {}", line!())]
   ValidatorAPI(String),
-}
-
-struct State {
-  signatures: Vec<Signature>,
-  n_attributes: u32,
-  params: Parameters,
-  public_attributes: Vec<Attribute>,
-  private_attributes: Vec<Attribute>,
-}
-
-impl State {
-  fn init() -> State {
-    let n_attributes: u32 = 3;
-    let params = Parameters::new(n_attributes).unwrap();
-    let public_attributes = params.n_random_scalars(2);
-    let private_attributes = params.n_random_scalars(1);
-    State {
-      signatures: Vec::new(),
-      n_attributes,
-      params,
-      public_attributes,
-      private_attributes,
-    }
-  }
 }
 
 #[tauri::command]

@@ -2,13 +2,14 @@ import React, { useEffect, useState, ChangeEvent } from 'react'
 import { printableBalanceToNative } from '@nymproject/nym-validator-client/dist/currency'
 import { Coin, nativeToPrintable } from '@nymproject/nym-validator-client'
 import { Alert } from '@material-ui/lab'
-import Grid from '@material-ui/core/Grid'
-import TextField from '@material-ui/core/TextField'
 import {
   Button,
   Checkbox,
   FormControlLabel,
   InputAdornment,
+  Grid,
+  TextField,
+  useMediaQuery,
 } from '@material-ui/core'
 import bs58 from 'bs58'
 import semver from 'semver'
@@ -80,6 +81,8 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
   useEffect(() => {
     getBalance()
   }, [getBalance])
+
+  const matches = useMediaQuery('(min-width:768px)')
 
   const handleCheckboxToggle = () => {
     setAdvancedShown((prevSet) => !prevSet)
@@ -310,11 +313,13 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
         <Grid item xs={12} sm={8}>
           <TextField
             required
-            id='amount'
-            name='amount'
-            label={`Amount to bond (minimum ${nativeToPrintable(
-              minimumBond.amount
-            )} ${minimumBond.denom})`}
+            id="amount"
+            name="amount"
+            label={`Amount to bond ${
+              matches
+                ? '(minimum ' + nativeToPrintable(minimumBond.amount) + ')'
+                : ''
+            }`}
             error={!validateAmount}
             helperText={
               !validateAmount
@@ -326,7 +331,7 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
             fullWidth
             InputProps={{
               endAdornment: (
-                <InputAdornment position='end'>{DENOM}</InputAdornment>
+                <InputAdornment position="end">{DENOM}</InputAdornment>
               ),
             }}
             onChange={handleAmountChange}
@@ -343,9 +348,9 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
           <TextField
             error={!validity.validIdentityKey}
             required
-            id='identity'
-            name='identity'
-            label='Identity key'
+            id="identity"
+            name="identity"
+            label="Identity key"
             fullWidth
           />
         </Grid>
@@ -353,9 +358,9 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
           <TextField
             error={!validity.validSphinxKey}
             required
-            id='sphinxKey'
-            name='sphinxKey'
-            label='Sphinx key'
+            id="sphinxKey"
+            name="sphinxKey"
+            label="Sphinx key"
             fullWidth
             {...(!validity.validSphinxKey
               ? { helperText: 'Enter a valid sphinx key' }
@@ -366,9 +371,9 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
           <TextField
             error={!validity.validHost}
             required
-            id='host'
-            name='host'
-            label='Host'
+            id="host"
+            name="host"
+            label="Host"
             fullWidth
             {...(!validity.validHost
               ? { helperText: 'Enter a valid IP or a hostname (without port)' }
@@ -382,9 +387,9 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
             <TextField
               error={!validity.validLocation}
               required
-              id='location'
-              name='location'
-              label='Location'
+              id="location"
+              name="location"
+              label="Location"
               fullWidth
               {...(!validity.validLocation
                 ? { helperText: 'Enter a valid location of your node' }
@@ -397,9 +402,9 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
           <TextField
             error={!validity.validVersion}
             required
-            id='version'
-            name='version'
-            label='Version'
+            id="version"
+            name="version"
+            label="Version"
             fullWidth
             {...(!validity.validVersion
               ? {
@@ -418,7 +423,7 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
                 onChange={handleCheckboxToggle}
               />
             }
-            label='Show advanced options'
+            label="Show advanced options"
           />
         </Grid>
 
@@ -427,10 +432,10 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
             <Grid item xs={12} sm={4}>
               <TextField
                 error={!validity.validMixPort}
-                variant='outlined'
-                id='mixPort'
-                name='mixPort'
-                label='Mix Port'
+                variant="outlined"
+                id="mixPort"
+                name="mixPort"
+                label="Mix Port"
                 fullWidth
                 defaultValue={DEFAULT_MIX_PORT}
                 {...(!validity.validMixPort
@@ -445,10 +450,10 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
                 <Grid item xs={12} sm={4}>
                   <TextField
                     error={!validity.validVerlocPort}
-                    variant='outlined'
-                    id='verlocPort'
-                    name='verlocPort'
-                    label='Verloc Port'
+                    variant="outlined"
+                    id="verlocPort"
+                    name="verlocPort"
+                    label="Verloc Port"
                     fullWidth
                     defaultValue={DEFAULT_VERLOC_PORT}
                   />
@@ -457,10 +462,10 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
                 <Grid item xs={12} sm={4}>
                   <TextField
                     error={!validity.validHttpApiPort}
-                    variant='outlined'
-                    id='httpApiPort'
-                    name='httpApiPort'
-                    label='HTTP API Port'
+                    variant="outlined"
+                    id="httpApiPort"
+                    name="httpApiPort"
+                    label="HTTP API Port"
                     fullWidth
                     defaultValue={DEFAULT_HTTP_API_PORT}
                   />
@@ -470,10 +475,10 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
               <Grid item xs={12} sm={4}>
                 <TextField
                   error={!validity.validClientsPort}
-                  variant='outlined'
-                  id='clientsPort'
-                  name='clientsPort'
-                  label='client WS API Port'
+                  variant="outlined"
+                  id="clientsPort"
+                  name="clientsPort"
+                  label="client WS API Port"
                   fullWidth
                   defaultValue={DEFAULT_CLIENTS_PORT}
                 />
@@ -485,9 +490,9 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
 
       <div className={classes.buttons}>
         <Button
-          variant='contained'
-          color='primary'
-          type='submit'
+          variant="contained"
+          color="primary"
+          type="submit"
           className={classes.button}
           disabled={!isValidAmount}
         >

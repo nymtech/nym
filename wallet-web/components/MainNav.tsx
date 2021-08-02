@@ -15,19 +15,20 @@ import {
 import React, { useContext } from 'react'
 import Link from 'next/link'
 import VpnKeyIcon from '@material-ui/icons/VpnKey'
-import {
-  ExitToApp,
-  AccountBalanceWallet,
-  MonetizationOn,
-  AttachMoney,
-  MoneyOff,
-  Menu,
-  HowToVote,
-  Cancel,
-  Pageview,
-} from '@material-ui/icons'
+import AccountBalanceWalletIcon from '@material-ui/icons/AccountBalanceWallet'
 import { ValidatorClientContext } from '../contexts/ValidatorClient'
 import { ADMIN_ADDRESS } from '../pages/_app'
+import {
+  Menu,
+  AttachMoney,
+  MoneyOff,
+  HowToVote,
+  Cancel,
+  ArrowForward,
+  ArrowBack,
+  ExitToApp,
+} from '@material-ui/icons'
+
 import { makeBasicStyle } from '../common/helpers'
 import { theme } from '../lib/theme'
 
@@ -53,7 +54,7 @@ export default function MainNav() {
   }
 
   return (
-    <React.Fragment>
+    <>
       <AppBar position="absolute" color="default" className={classes.appBar}>
         <Toolbar>
           <IconButton
@@ -83,7 +84,7 @@ export default function MainNav() {
 
                 <ListItem button>
                   <ListItemIcon>
-                    <AccountBalanceWallet />
+                    <AccountBalanceWalletIcon />
                   </ListItemIcon>
                   <Link href="/balanceCheck">
                     <ListItemText primary="Check Balance" />
@@ -92,10 +93,19 @@ export default function MainNav() {
 
                 <ListItem button>
                   <ListItemIcon>
-                    <MonetizationOn />
+                    <ArrowForward />
                   </ListItemIcon>
                   <Link href="/send">
                     <ListItemText primary="Send coins" />
+                  </Link>
+                </ListItem>
+
+                <ListItem button>
+                  <ListItemIcon>
+                    <ArrowBack />
+                  </ListItemIcon>
+                  <Link href="/receive">
+                    <ListItemText primary="Receive coins" />
                   </Link>
                 </ListItem>
 
@@ -134,15 +144,6 @@ export default function MainNav() {
 
                 <ListItem button>
                   <ListItemIcon>
-                    <Pageview />
-                  </ListItemIcon>
-                  <Link href="/checkDelegation">
-                    <ListItemText primary="Check current delegation" />
-                  </Link>
-                </ListItem>
-
-                <ListItem button>
-                  <ListItemIcon>
                     <Cancel />
                   </ListItemIcon>
                   <Link href="/undelegateStake">
@@ -158,7 +159,7 @@ export default function MainNav() {
                 </ListItem>
 
                 {adminPageDisplayed && (
-                  <React.Fragment>
+                  <>
                     <Divider />
                     <ListItem button>
                       <ListItemIcon>
@@ -169,7 +170,7 @@ export default function MainNav() {
                         <ListItemText primary="Admin" />
                       </Link>
                     </ListItem>
-                  </React.Fragment>
+                  </>
                 )}
               </List>
             </div>
@@ -185,6 +186,6 @@ export default function MainNav() {
           </div>
         </Toolbar>
       </AppBar>
-    </React.Fragment>
+    </>
   )
 }

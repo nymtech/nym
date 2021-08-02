@@ -2,6 +2,8 @@ import React, { useContext, useEffect } from 'react'
 import Typography from '@material-ui/core/Typography'
 import { Grid, LinearProgress, Paper } from '@material-ui/core'
 import { Gateway, MixNode } from '@nymproject/nym-validator-client/dist/types'
+import { coin } from '@nymproject/nym-validator-client'
+import { printableBalanceToNative } from '@nymproject/nym-validator-client/dist/currency'
 import Confirmation from '../Confirmation'
 import { ValidatorClientContext } from '../../contexts/ValidatorClient'
 import NoClientError from '../NoClientError'
@@ -13,8 +15,6 @@ import { theme } from '../../lib/theme'
 import { checkNodesOwnership, makeBasicStyle } from '../../common/helpers'
 import NodeTypeChooser from '../NodeTypeChooser'
 import ExecFeeNotice from '../ExecFeeNotice'
-import { printableBalanceToNative } from '@nymproject/nym-validator-client/dist/currency'
-import { coin } from '@nymproject/nym-validator-client'
 import { UDENOM } from '../../pages/_app'
 
 export type BondingInformation = {
@@ -161,22 +161,14 @@ const BondNode = () => {
   }
 
   return (
-    <>
-      <main className={classes.layout}>
-        <Paper className={classes.paper}>
-          <ExecFeeNotice name="bonding" />
-          <Typography
-            component="h1"
-            variant="h4"
-            align="center"
-            className={classes.wrapper}
-          >
-            Bond a {nodeType}
-          </Typography>
-          {getBondContent()}
-        </Paper>
-      </main>
-    </>
+    <Grid container spacing={2} direction="column">
+      <Grid item>
+        <ExecFeeNotice name="bonding" />
+      </Grid>
+      <Grid item>
+        <Paper style={{ padding: theme.spacing(3) }}>{getBondContent()}</Paper>
+      </Grid>
+    </Grid>
   )
 }
 

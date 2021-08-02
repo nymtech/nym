@@ -1,15 +1,14 @@
 import React, { useContext, useEffect } from 'react'
-import { Paper } from '@material-ui/core'
-import Typography from '@material-ui/core/Typography'
+import { Grid, Paper } from '@material-ui/core'
+import { coin, printableCoin } from '@nymproject/nym-validator-client'
 import { useRouter } from 'next/router'
+import { printableBalanceToNative } from '@nymproject/nym-validator-client/dist/currency'
 import { ValidatorClientContext } from '../../contexts/ValidatorClient'
 import { NodeType } from '../../common/node'
 import NoClientError from '../NoClientError'
 import Confirmation from '../Confirmation'
 import DelegateForm from './DelegateForm'
-import { printableBalanceToNative } from '@nymproject/nym-validator-client/dist/currency'
 import { Coin } from '@cosmjs/launchpad'
-import { coin, printableCoin } from '@nymproject/nym-validator-client'
 import { UDENOM } from '../../pages/_app'
 import { theme } from '../../lib/theme'
 import { makeBasicStyle } from '../../common/helpers'
@@ -101,22 +100,16 @@ const DelegateToNode = () => {
   }
 
   return (
-    <>
-      <main className={classes.layout}>
-        <Paper className={classes.paper}>
-          <ExecFeeNotice name={'delegating stake'} />
-          <Typography
-            component="h1"
-            variant="h4"
-            align="center"
-            className={classes.wrapper}
-          >
-            Delegate to {nodeType}
-          </Typography>
+    <Grid container spacing={2} direction="column">
+      <Grid item>
+        <ExecFeeNotice name={'delegating stake'} />
+      </Grid>
+      <Grid item>
+        <Paper style={{ padding: theme.spacing(3) }}>
           {getDelegationContent()}
         </Paper>
-      </main>
-    </>
+      </Grid>
+    </Grid>
   )
 }
 

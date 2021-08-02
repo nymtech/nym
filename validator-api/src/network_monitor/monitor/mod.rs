@@ -104,7 +104,7 @@ impl Monitor {
                 node_type: NodeType::Gateway,
             };
             if !report.fully_working_gateways.contains(node) {
-                warn!("Mixnode {} has not passed the ipv6 check", node.identity);
+                warn!("Gateway {} has not passed the ipv4 check", node.identity);
                 good_nodes_status = false;
             }
         }
@@ -117,7 +117,7 @@ impl Monitor {
                     node_type: NodeType::Mixnode,
                 };
                 if !report.fully_working_mixes.contains(node) {
-                    warn!("Gateway {} has not passed the ipv4 check", node.identity);
+                    warn!("Mixnode {} has not passed the ipv6 check", node.identity);
                     good_nodes_status = false;
                 }
             }

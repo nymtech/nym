@@ -128,6 +128,8 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
     }
   }
 
+  // if arguments are undefined we provided a default value for
+  // verlocPort, mixPort, httpApiPort and clientsPort
   const validateForm = ({
     amount,
     sphinxKey,
@@ -140,18 +142,6 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
     httpApiPort = DEFAULT_HTTP_API_PORT.toString(),
     clientsPort = DEFAULT_CLIENTS_PORT.toString(),
   }: TFormData): boolean => {
-    console.log({
-      amount,
-      sphinxKey,
-      identityKey,
-      host,
-      version,
-      verlocPort,
-      location,
-      mixPort,
-      httpApiPort,
-      clientsPort,
-    })
     let newValidity = {
       validAmount: validateAmount(amount),
       validSphinxKey: validateKey(sphinxKey),

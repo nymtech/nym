@@ -59,10 +59,8 @@ impl Gateway {
     ) {
         info!("Starting mix socket listener...");
 
-        let packet_processor = mixnet_handling::PacketProcessor::new(
-            self.encryption_keys.private_key(),
-            self.config.get_cache_entry_ttl(),
-        );
+        let packet_processor =
+            mixnet_handling::PacketProcessor::new(self.encryption_keys.private_key());
 
         let connection_handler = ConnectionHandler::new(
             packet_processor,

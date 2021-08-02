@@ -30,7 +30,6 @@ const DEFAULT_NODE_STATS_UPDATING_DELAY: Duration = Duration::from_millis(30_000
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
-const DEFAULT_CACHE_ENTRY_TTL: Duration = Duration::from_millis(30_000);
 const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 128;
 
 // helper function to get default validators as a Vec<String>
@@ -286,10 +285,6 @@ impl Config {
         self.debug.maximum_connection_buffer_size
     }
 
-    pub fn get_cache_entry_ttl(&self) -> Duration {
-        self.debug.cache_entry_ttl
-    }
-
     pub fn get_version(&self) -> &str {
         &self.mixnode.version
     }
@@ -526,13 +521,6 @@ pub struct Debug {
 
     /// Maximum number of packets that can be stored waiting to get sent to a particular connection.
     maximum_connection_buffer_size: usize,
-
-    /// Duration for which a cached vpn processing result is going to get stored for.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
-    cache_entry_ttl: Duration,
 }
 
 impl Default for Debug {
@@ -544,7 +532,6 @@ impl Default for Debug {
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
-            cache_entry_ttl: DEFAULT_CACHE_ENTRY_TTL,
         }
     }
 }

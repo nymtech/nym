@@ -58,6 +58,8 @@ pub struct Header {
     ///
     /// TODO: ask @AP whether this can be sent like this - could it introduce some anonymity issues?
     /// (note: this will be behind some encryption, either something implemented by us or some SSL action)
+    // Note: currently packet_mode is deprecated but is still left as a concept behind to not break
+    // compatibility with existing network
     pub(crate) packet_mode: PacketMode,
 }
 

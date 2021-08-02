@@ -32,7 +32,6 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::anonymous_replies::ReplySurb;
-use nymsphinx::params::PacketMode;
 use nymsphinx::receiver::ReconstructedMessage;
 use tokio::runtime::Runtime;
 
@@ -119,12 +118,6 @@ impl NymClient {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
     ) {
-        let packet_mode = if self.config.get_base().get_vpn_mode() {
-            PacketMode::Vpn
-        } else {
-            PacketMode::Mix
-        };
-
         let controller_config = real_messages_control::Config::new(
             self.key_manager.ack_key(),
             self.config.get_base().get_ack_wait_multiplier(),
@@ -133,8 +126,6 @@ impl NymClient {
             self.config.get_base().get_message_sending_average_delay(),
             self.config.get_base().get_average_packet_delay(),
             self.as_mix_recipient(),
-            packet_mode,
-            self.config.get_base().get_vpn_key_reuse_limit(),
         );
 
         info!("Starting real traffic stream...");
@@ -151,7 +142,7 @@ impl NymClient {
             topology_accessor,
             reply_key_storage,
         )
-        .start(self.runtime.handle(), self.config.get_base().get_vpn_mode());
+        .start(self.runtime.handle());
     }
 
     // buffer controlling all messages fetched from provider
@@ -376,9 +367,7 @@ impl NymClient {
             sphinx_message_sender.clone(),
         );
 
-        if !self.config.get_base().get_vpn_mode() {
-            self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
-        }
+        self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
 
         match self.config.get_socket_type() {
             SocketType::WebSocket => {

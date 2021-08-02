@@ -9,7 +9,7 @@ use crate::network_monitor::monitor::summary_producer::{NodeResult, SummaryProdu
 use crate::network_monitor::test_packet::NodeType;
 use crate::network_monitor::tested_network::TestedNetwork;
 use crate::storage::NodeStatusStorage;
-use log::{debug, info};
+use log::{debug, error, info, warn};
 use std::process;
 use tokio::time::{sleep, Duration, Instant};
 
@@ -82,6 +82,7 @@ impl Monitor {
     // checking it this way with a TestReport is rather suboptimal but given the fact we're only
     // doing this fewer than 10 times, it's not that problematic
     fn check_good_nodes_status(&self, report: &TestReport) -> bool {
+        let mut good_nodes_status = true;
         for v4_mixes in self.tested_network.v4_topology().mixes().values() {
             for v4_mix in v4_mixes {
                 let node = &TestedNode {
@@ -90,7 +91,8 @@ impl Monitor {
                     node_type: NodeType::Mixnode,
                 };
                 if !report.fully_working_mixes.contains(node) {
-                    return false;
+                    warn!("Mixnode {} has not passed the ipv4 check", node.identity);
+                    good_nodes_status = false;
                 }
             }
         }
@@ -102,7 +104,8 @@ impl Monitor {
                 node_type: NodeType::Gateway,
             };
             if !report.fully_working_gateways.contains(node) {
-                return false;
+                warn!("Mixnode {} has not passed the ipv6 check", node.identity);
+                good_nodes_status = false;
             }
         }
 
@@ -114,7 +117,8 @@ impl Monitor {
                     node_type: NodeType::Mixnode,
                 };
                 if !report.fully_working_mixes.contains(node) {
-                    return false;
+                    warn!("Gateway {} has not passed the ipv4 check", node.identity);
+                    good_nodes_status = false;
                 }
             }
         }
@@ -126,11 +130,12 @@ impl Monitor {
                 node_type: NodeType::Gateway,
             };
             if !report.fully_working_gateways.contains(node) {
-                return false;
+                warn!("Gateway {} has not passed the ipv6 check", node.identity);
+                good_nodes_status = false;
             }
         }
 
-        true
+        good_nodes_status
     }
 
     async fn test_run(&mut self) {

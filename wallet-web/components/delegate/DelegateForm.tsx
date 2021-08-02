@@ -83,13 +83,13 @@ export default function DelegateForm(props: DelegateFormProps) {
 
   return (
     <form onSubmit={submitForm}>
-      <Grid container spacing={3}>
+      <Grid container spacing={3} direction="column">
         <Grid item xs={12}>
           <TextField
             required
-            id='identity'
-            name='identity'
-            label='Node identity'
+            id="identity"
+            name="identity"
+            label="Node identity"
             error={!validIdentity}
             helperText={
               validIdentity
@@ -100,25 +100,25 @@ export default function DelegateForm(props: DelegateFormProps) {
           />
         </Grid>
 
-        <Grid item xs={12} sm={6}>
+        <Grid item xs={12} lg={6}>
           <TextField
             required
-            id='amount'
-            name='amount'
-            label='Amount to delegate'
+            id="amount"
+            name="amount"
+            label="Amount to delegate"
             error={!isValidAmount}
             helperText={isValidAmount ? '' : 'Please enter a valid amount'}
             onChange={handleAmountChange}
             fullWidth
             InputProps={{
               endAdornment: (
-                <InputAdornment position='end'>{DENOM}</InputAdornment>
+                <InputAdornment position="end">{DENOM}</InputAdornment>
               ),
             }}
           />
         </Grid>
         {allocationWarning && (
-          <Grid item>
+          <Grid item xs={12} lg={6}>
             <Alert severity={!isValidAmount ? 'error' : 'info'}>
               {allocationWarning}
             </Alert>
@@ -140,9 +140,9 @@ export default function DelegateForm(props: DelegateFormProps) {
       </Grid>
       <div className={classes.buttons}>
         <Button
-          variant='contained'
-          color='primary'
-          type='submit'
+          variant="contained"
+          color="primary"
+          type="submit"
           className={classes.button}
           disabled={!isValidAmount}
         >

@@ -1,6 +1,5 @@
-import React, { useContext, useEffect, useState } from 'react'
-import { Paper } from '@material-ui/core'
-import Typography from '@material-ui/core/Typography'
+import React, { useContext, useEffect } from 'react'
+import { Grid, Paper } from '@material-ui/core'
 import { useRouter } from 'next/router'
 import { ValidatorClientContext } from '../../contexts/ValidatorClient'
 import { NodeType } from '../../common/node'
@@ -90,22 +89,16 @@ const UndelegateFromNode = () => {
   }
 
   return (
-    <>
-      <main className={classes.layout}>
-        <Paper className={classes.paper}>
-          <ExecFeeNotice name={'undelegating stake'} />
-          <Typography
-            component="h1"
-            variant="h4"
-            align="center"
-            className={classes.wrapper}
-          >
-            Undelegate stake from {nodeType}
-          </Typography>
+    <Grid container spacing={2} direction="column">
+      <Grid item>
+        <ExecFeeNotice name={'undelegating stake'} />
+      </Grid>
+      <Grid item>
+        <Paper style={{ padding: theme.spacing(3) }}>
           {getUndelegationContent()}
         </Paper>
-      </main>
-    </>
+      </Grid>
+    </Grid>
   )
 }
 

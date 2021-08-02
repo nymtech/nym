@@ -36,15 +36,29 @@ type TBondNodeFormProps = {
   onSubmit: (event: any) => void
 }
 
+type TFormStringValue = { value: string }
+
 type TFormInput = {
+  amount: TFormStringValue
+  identityKey: TFormStringValue
+  sphinxKey: TFormStringValue
+  host: TFormStringValue
+  version: TFormStringValue
+  mixPort?: TFormStringValue
+  verlocPort?: TFormStringValue
+  location?: TFormStringValue
+  clientsPort?: TFormStringValue
+  httpApiPort?: TFormStringValue
+}
+
+type TFormData = {
   amount: string
+  identityKey: string
+  sphinxKey: string
   host: string
-  http_api_port: string
+  version: string
   mixPort: string
   verlocPort: string
-  sphinxKey: string
-  identityKey: string
-  version: string
   location?: string
   clientsPort?: string
   httpApiPort?: string
@@ -122,23 +136,22 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
     mixPort,
     httpApiPort,
     clientsPort,
-  }: TFormInput): boolean => {
+  }: TFormData): boolean => {
     let validAmount = validateAmount(amount)
     let validSphinxKey = validateKey(sphinxKey)
     let validIdentityKey = validateKey(identityKey)
     let validHost = validateHost(host)
     let validVersion = validateVersion(version)
-
     let validLocation =
       props.type == NodeType.Gateway ? validateLocation(location) : true
 
     let newValidity = {
-      validAmount: validAmount,
-      validSphinxKey: validSphinxKey,
-      validIdentityKey: validIdentityKey,
-      validHost: validHost,
-      validVersion: validVersion,
-      validLocation: validLocation,
+      validAmount,
+      validSphinxKey,
+      validIdentityKey,
+      validHost,
+      validVersion,
+      validLocation,
     }
 
     if (advancedShown) {
@@ -153,13 +166,15 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
       newValidity = {
         ...newValidity,
         ...{
-          validMixPort: validMixPort,
-          validVerlocPort: validVerlocPort,
-          validHttpApiPort: validHttpApiPort,
-          validClientsPort: validClientsPort,
+          validMixPort,
+          validVerlocPort,
+          validHttpApiPort,
+          validClientsPort,
         },
       }
     }
+
+    console.log(newValidity)
 
     setValidity((previousState) => {
       return { ...previousState, ...newValidity }
@@ -248,16 +263,16 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
     sphinxKey,
     identityKey,
     version,
-  }: TFormInput): BondingInformation => {
+  }: TFormData): BondingInformation => {
     return {
       amount,
       nodeDetails: {
         host,
-        http_api_port: advancedShown
+        http_api_port: httpApiPort
           ? parseInt(httpApiPort)
           : DEFAULT_HTTP_API_PORT,
-        mix_port: advancedShown ? parseInt(mixPort) : DEFAULT_MIX_PORT,
-        verloc_port: advancedShown ? parseInt(verlocPort) : DEFAULT_VERLOC_PORT,
+        mix_port: mixPort ? parseInt(mixPort) : DEFAULT_MIX_PORT,
+        verloc_port: verlocPort ? parseInt(verlocPort) : DEFAULT_VERLOC_PORT,
         sphinx_key: sphinxKey,
         identity_key: identityKey,
         version,
@@ -265,34 +280,58 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
     }
   }
 
-  const constructGatewayBondingInfo = (
-    data: TFormInput
-  ): BondingInformation => {
+  const constructGatewayBondingInfo = ({
+    amount,
+    host,
+    mixPort,
+    clientsPort,
+    sphinxKey,
+    identityKey,
+    version,
+    location,
+  }: TFormData): BondingInformation => {
     return {
-      amount: data.amount,
+      amount,
       nodeDetails: {
-        host: data.host,
-        mix_port: advancedShown ? parseInt(data.mixPort) : DEFAULT_MIX_PORT,
-        clients_port: advancedShown
-          ? parseInt(data.clientsPort)
+        host,
+        mix_port: mixPort ? parseInt(mixPort) : DEFAULT_MIX_PORT,
+        clients_port: clientsPort
+          ? parseInt(clientsPort)
           : DEFAULT_CLIENTS_PORT,
-        sphinx_key: data.sphinxKey,
-        identity_key: data.identityKey,
-        version: data.version,
-        location: data.location,
+        sphinx_key: sphinxKey,
+        identity_key: identityKey,
+        version,
+        location,
       },
     }
   }
 
   const submitForm = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const target = event.target as unknown as TFormInput
 
-    if (validateForm(target)) {
+    const target = event.target as typeof event.target & TFormInput
+
+    const dataToValidate: TFormData = {
+      amount: target.amount.value,
+      identityKey: target.identityKey.value,
+      sphinxKey: target.sphinxKey.value,
+      host: target.host.value,
+      version: target.version.value,
+      mixPort: target.mixPort?.value,
+      verlocPort: target.verlocPort?.value,
+      location: target.location?.value,
+      clientsPort: target.clientsPort?.value,
+      httpApiPort: target.httpApiPort?.value,
+    }
+
+    if (validateForm(dataToValidate)) {
+      let dataToSubmit
       if (props.type == NodeType.Mixnode) {
-        return props.onSubmit(constructMixnodeBondingInfo(target))
+        dataToSubmit = constructMixnodeBondingInfo(dataToValidate)
+        return props.onSubmit(dataToSubmit)
       } else {
-        return props.onSubmit(constructGatewayBondingInfo(target))
+        dataToSubmit = constructGatewayBondingInfo(dataToValidate)
+        return props.onSubmit(dataToSubmit)
       }
     }
   }
@@ -343,8 +382,8 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
           <TextField
             error={!validity.validIdentityKey}
             required
-            id='identity'
-            name='identity'
+            id='identityKey'
+            name='identityKey'
             label='Identity key'
             fullWidth
           />

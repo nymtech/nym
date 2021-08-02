@@ -174,8 +174,6 @@ export default function BondNodeForm(props: TBondNodeFormProps) {
       }
     }
 
-    console.log(newValidity)
-
     setValidity((previousState) => {
       return { ...previousState, ...newValidity }
     })

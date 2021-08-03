@@ -22,6 +22,7 @@ use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use coconut_interface::{get_aggregated_signature, prove_credential, Credential, State};
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use gateway_client::{
@@ -189,6 +190,10 @@ impl NymClient {
         let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
             .expect("provided gateway id is invalid!");
 
+        let coconut_credential =
+            Credential::init(self.config.get_base().get_validator_rest_endpoints())
+                .expect("Could not initialize coconut credential");
+
         let mut gateway_client = GatewayClient::new(
             gateway_address,
             self.key_manager.identity_keypair(),
@@ -197,6 +202,7 @@ impl NymClient {
             mixnet_message_sender,
             ack_sender,
             self.config.get_base().get_gateway_response_timeout(),
+            coconut_credential,
         );
 
         self.runtime.block_on(async {

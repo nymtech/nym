@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
+use coconut_interface::{Base58, KeyPair};
 use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
-use coconut_rs::{Base58, KeyPair};
 use config::NymConfig;
 use const_format::formatcp;
 use serde::{Deserialize, Serialize};

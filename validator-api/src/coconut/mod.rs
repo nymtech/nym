@@ -1,6 +1,8 @@
 use crate::Config;
-use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
-use coconut_rs::{elgamal::PublicKey, Attribute, BlindSignRequest, BlindedSignature, Parameters};
+use coconut_interface::{
+    elgamal::PublicKey, Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature,
+    BlindedSignatureResponse, Parameters, VerificationKeyResponse,
+};
 use getset::{CopyGetters, Getters};
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
@@ -47,7 +49,7 @@ impl InternalSignRequest {
 
 pub fn blind_sign(request: InternalSignRequest, config: &Config) -> BlindedSignature {
     let params = Parameters::new(request.total_params()).unwrap();
-    coconut_rs::blind_sign(
+    coconut_interface::blind_sign(
         &params,
         &config.keypair().secret_key(),
         request.public_key(),

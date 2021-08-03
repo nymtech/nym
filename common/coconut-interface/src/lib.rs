@@ -1,5 +1,4 @@
 pub use coconut_rs::*;
-use coconut_rs::{Attribute, Base58, BlindSignRequest, BlindedSignature, PublicKey};
 use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
 
@@ -29,6 +28,22 @@ impl Credential {
                 .collect(),
             signature: *signature,
         }
+    }
+
+    pub fn init(validator_urls: Vec<String>) -> Result<Self, String> {
+        let mut state = State::init();
+        let signature = get_aggregated_signature(validator_urls.clone(), &state)
+            .map_err(|e| format!("Could not aggregate signature from validators: {}", e))?;
+
+        state.signatures.push(signature);
+        let theta = prove_credential(0, validator_urls, &state)
+            .map_err(|e| format!("Could not prove credential: {}", e))?;
+        Ok(Credential::new(
+            state.n_attributes,
+            &theta,
+            &*state.public_attributes,
+            &signature,
+        ))
     }
 
     pub fn public_attributes(&self) -> Vec<Attribute> {
@@ -237,11 +252,11 @@ pub fn prove_credential(
     validator_urls: Vec<String>,
     state: &State,
 ) -> Result<Theta, String> {
-    let verification_key = coconut_interface::get_aggregated_verification_key(validator_urls)?;
+    let verification_key = get_aggregated_verification_key(validator_urls)?;
     let signature = state
         .signatures
         .get(idx)
-        .map_err(|e| "Got invalid signature idx")?;
+        .ok_or("Got invalid signature idx")?;
     coconut_rs::prove_credential(
         &state.params,
         &verification_key,

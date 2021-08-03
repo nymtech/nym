@@ -8,6 +8,7 @@ pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
+use coconut_interface::{get_aggregated_signature, prove_credential, Credential, State};
 use crypto::asymmetric::identity;
 use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
@@ -29,8 +30,6 @@ use tokio_tungstenite::connect_async;
 use wasm_timer;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
-
-use coconut_interface::Credential;
 
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
@@ -80,7 +79,7 @@ impl GatewayClient {
             should_reconnect_on_failure: true,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
-            coconut_credential
+            coconut_credential,
         }
     }
 
@@ -101,8 +100,8 @@ impl GatewayClient {
         gateway_address: String,
         gateway_identity: identity::PublicKey,
         local_identity: Arc<identity::KeyPair>,
+        coconut_credential: Credential,
         response_timeout_duration: Duration,
-        coconut_credential: Credential
     ) -> Self {
         use futures::channel::mpsc;
 
@@ -124,7 +123,7 @@ impl GatewayClient {
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
-            coconut_credential
+            coconut_credential,
         }
     }
 

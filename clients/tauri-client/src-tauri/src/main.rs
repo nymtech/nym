@@ -3,9 +3,7 @@
   windows_subsystem = "windows"
 )]
 
-use coconut_interface::{
-  self, BlindSignRequestBody, BlindedSignatureResponse, Signature, State, Theta,
-};
+use coconut_interface::{self, Signature, State, Theta};
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -15,8 +13,6 @@ use thiserror::Error;
 enum TauriClientError {
   #[error("Could not get {0} State, line {}!", line!())]
   State(&'static str),
-  #[error("Error getting data from validator API at {0}, line {}", line!())]
-  ValidatorAPI(String),
 }
 
 #[tauri::command]
@@ -65,6 +61,7 @@ fn list_credentials(state: tauri::State<Arc<RwLock<State>>>) -> Result<Vec<Signa
   }
 }
 
+#[tauri::command]
 fn prove_credential(
   idx: usize,
   validator_urls: Vec<String>,
@@ -75,8 +72,6 @@ fn prove_credential(
     Err(_) => Err(TauriClientError::State("read").to_string()),
   }
 }
-
-fn gateway_handshake(gateway_url: &str) {}
 
 #[tauri::command]
 fn get_credential(
@@ -105,7 +100,7 @@ fn main() {
       randomise_credential,
       delete_credential,
       list_credentials,
-      //prove_credential
+      prove_credential
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

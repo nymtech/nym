@@ -8,7 +8,7 @@ pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
-use coconut_interface::{get_aggregated_signature, prove_credential, Credential, State};
+use coconut_interface::Credential;
 use crypto::asymmetric::identity;
 use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
@@ -57,6 +57,7 @@ pub struct GatewayClient {
 
 impl GatewayClient {
     // TODO: put it all in a Config struct
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         gateway_address: String,
         local_identity: Arc<identity::KeyPair>,

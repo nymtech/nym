@@ -22,7 +22,7 @@ use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use coconut_interface::{get_aggregated_signature, prove_credential, Credential, State};
+use coconut_interface::Credential;
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use gateway_client::{

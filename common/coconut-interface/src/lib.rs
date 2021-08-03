@@ -215,7 +215,7 @@ pub fn get_aggregated_signature(
     let elgamal_keypair = coconut_rs::elgamal_keygen(&state.params);
     let blind_sign_request = coconut_rs::prepare_blind_sign(
         &state.params,
-        &elgamal_keypair.public_key(),
+        elgamal_keypair.public_key(),
         &state.private_attributes,
         &state.public_attributes,
     )
@@ -239,7 +239,7 @@ pub fn get_aggregated_signature(
         if resp.is_success() {
             let blinded_signature_response: BlindedSignatureResponse = resp.json().unwrap();
             let blinded_signature = blinded_signature_response.blinded_signature;
-            let unblinded_signature = blinded_signature.unblind(&elgamal_keypair.private_key());
+            let unblinded_signature = blinded_signature.unblind(elgamal_keypair.private_key());
             let signature_share = SignatureShare::new(unblinded_signature, (idx + 1) as u64);
             signature_shares.push(signature_share);
         }

@@ -46,7 +46,7 @@ members = [
     "gateway/gateway-requests",
     "mixnode",
     "service-providers/network-requester",
-    "validator-api",
+#    "validator-api",
 ]
 
 default-members = [

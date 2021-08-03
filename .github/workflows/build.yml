@@ -21,23 +21,54 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      # Exclude validator API on Windows
       - uses: actions-rs/cargo@v1
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          command: build
+          args: --all --exclude nym-validator-api
+
+      - uses: actions-rs/cargo@v1
+        if: ${{ matrix.os != 'windows-latest' }}
         with:
           command: build
           args: --all
 
+      # Exclude validator API on Windows
       - uses: actions-rs/cargo@v1
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          command: test
+          args: --all --exclude nym-validator-api
+
+      - uses: actions-rs/cargo@v1
+        if: ${{ matrix.os != 'windows-latest' }}
         with:
           command: test
           args: --all
 
+      # Exclude validator API on Windows
       - uses: actions-rs/cargo@v1
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          command: fmt
+          args: --all --exclude nym-validator-api -- --check
+
+      - uses: actions-rs/cargo@v1
+        if: ${{ matrix.os != 'windows-latest' }}
         with:
           command: fmt
           args: --all -- --check
 
+      # Exclude validator API on Windows
       - uses: actions-rs/cargo@v1
-        if: ${{ matrix.rust != 'nightly' }}
+        if: ${{ matrix.rust != 'nightly' && matrix.os == 'windows-latest' }}
+        with:
+          command: clippy
+          args: --all --exclude nym-validator-api -- -D warnings
+
+      - uses: actions-rs/cargo@v1
+        if: ${{ matrix.rust != 'nightly' && matrix.os != 'windows-latest' }}
         with:
           command: clippy
           args: -- -D warnings

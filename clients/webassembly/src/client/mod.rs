@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use coconut_interface::Credential;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::GatewayClient;
@@ -108,6 +109,9 @@ impl NymClient {
         let (mixnet_messages_sender, mixnet_messages_receiver) = mpsc::unbounded();
         let (ack_sender, ack_receiver) = mpsc::unbounded();
 
+        let coconut_credential = Credential::init(vec![self.validator_server.clone()])
+            .expect("Could not initialize coconut credential");
+
         let mut gateway_client = GatewayClient::new(
             gateway.clients_address(),
             Arc::clone(&client.identity),
@@ -116,6 +120,7 @@ impl NymClient {
             mixnet_messages_sender,
             ack_sender,
             DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
+            coconut_credential,
         );
 
         gateway_client

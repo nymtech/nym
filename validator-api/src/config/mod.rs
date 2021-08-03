@@ -5,13 +5,20 @@ use crate::config::template::config_template;
 use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use coconut_rs::{Base58, KeyPair};
 use config::NymConfig;
+use const_format::formatcp;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 mod template;
 
-const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &["http://localhost:1317"];
+pub const DEFAULT_VALIDATOR_HOST: &str = "localhost";
+const DEFAULT_VALIDATOR_PORT: &str = "1317";
+const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[formatcp!(
+    "http://{}:{}",
+    DEFAULT_VALIDATOR_HOST,
+    DEFAULT_VALIDATOR_PORT,
+)];
 
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
 const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;

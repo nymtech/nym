@@ -47,15 +47,7 @@ jobs:
           command: test
           args: --all
 
-      # Exclude validator API on Windows
       - uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' }}
-        with:
-          command: fmt
-          args: --all --exclude nym-validator-api -- --check
-
-      - uses: actions-rs/cargo@v1
-        if: ${{ matrix.os != 'windows-latest' }}
         with:
           command: fmt
           args: --all -- --check

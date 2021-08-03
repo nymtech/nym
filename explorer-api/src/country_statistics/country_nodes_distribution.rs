@@ -26,10 +26,6 @@ impl ConcurrentCountryNodesDistribution {
     //     self.inner.write().await.insert(key, value)
     // }
 
-    pub(crate) async fn increment(&mut self, key: String) {
-        *(self.inner.write().await.entry(key)).or_insert(0) += 1;
-    }
-
     // pub(crate) async fn get(&self, key: &str) -> Option<u32> {
     //     self.inner.read().await.get(key).cloned()
     // }

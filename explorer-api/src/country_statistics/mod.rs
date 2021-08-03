@@ -39,7 +39,7 @@ impl CountryStatistics {
 
     /// Retrieves the current list of mixnodes from the validators and calculates how many nodes are in each country
     async fn calculate_nodes_per_country(&mut self) {
-        let mut mixnode_bonds = retrieve_mixnodes().await;
+        let mixnode_bonds = retrieve_mixnodes().await;
 
         let mut distribution = CountryNodesDistribution::new();
 

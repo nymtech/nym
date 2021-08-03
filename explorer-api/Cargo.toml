@@ -1,0 +1,23 @@
+[package]
+name = "explorer-api"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+isocountry = "0.3.2"
+reqwest = "0.11.4"
+rocket = {version = "0.5.0-rc.1", features=["json"] }
+serde = "1.0.126"
+serde_json = "1.0.66"
+tokio = {version = "1.9.0", features = ["full"] }
+chrono = { version = "0.4.19", features = ["serde"] }
+schemars = { version = "0.8", features = ["preserve_order"] }
+okapi = { version = "0.6.0-alpha-1", features = ["derive_json_schema"] }
+rocket_okapi = "0.7.0-alpha-1"
+log = "0.4.0"
+pretty_env_logger = "0.4.0"
+
+mixnet-contract = { path = "../../nym/common/mixnet-contract" }
+validator-client = { path = "../../nym/common/client-libs/validator-client" }

@@ -1,7 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nymd::cosmwasm_client::types::ContractCodeId;
+use crate::nymd::cosmwasm_client::types::{
+    Code, CodeDetails, Contract, ContractCodeHistoryEntry, ContractCodeId, SequenceResponse,
+};
 use crate::ValidatorClientError;
 use async_trait::async_trait;
 use cosmos_sdk::proto::cosmos::auth::v1beta1::{
@@ -24,17 +26,13 @@ use cosmos_sdk::tendermint::{abci, block, chain};
 use cosmos_sdk::tx::{AccountNumber, SequenceNumber};
 use cosmos_sdk::{rpc, AccountId, Coin, Denom};
 use prost::Message;
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
-use std::str::FromStr;
 
 // #[async_trait]
 pub struct CosmWasmClient {
     tm_client: HttpClient,
 }
-
-type TodoType = ();
 
 impl CosmWasmClient {
     pub fn connect<U>(endpoint: U) -> Result<Self, ValidatorClientError>
@@ -97,12 +95,15 @@ impl CosmWasmClient {
     pub async fn get_sequence(
         &self,
         address: &AccountId,
-    ) -> Result<(AccountNumber, SequenceNumber), ValidatorClientError> {
+    ) -> Result<SequenceResponse, ValidatorClientError> {
         let base_account = self
             .get_account(address)
             .await?
             .ok_or_else(|| ValidatorClientError::NonExistentAccountError(address.clone()))?;
-        Ok((base_account.account_number, base_account.sequence))
+        Ok(SequenceResponse {
+            account_number: base_account.account_number,
+            sequence: base_account.sequence,
+        })
     }
 
     pub async fn get_block(
@@ -216,22 +217,30 @@ impl CosmWasmClient {
         Ok(self.tm_client.broadcast_tx_commit(tx).await?)
     }
 
-    pub async fn get_codes(&self) -> Result<TodoType, ValidatorClientError> {
+    pub async fn get_codes(&self) -> Result<Vec<Code>, ValidatorClientError> {
         let path = Some("/cosmwasm.wasm.v1beta1.Query/Codes".parse().unwrap());
 
+        // TODO: again, some pagination action here
         let req = QueryCodesRequest { pagination: None };
 
         let res = self
             .make_abci_query::<_, QueryCodesResponse>(path, req)
             .await?;
 
-        todo!("some CodeInfoResponse parsing action here")
+        if res.pagination.is_some() {
+            todo!("We have unhandled pagination")
+        }
+
+        res.code_infos
+            .into_iter()
+            .map(TryFrom::try_from)
+            .collect::<Result<_, _>>()
     }
 
     pub async fn get_code_details(
         &self,
         code_id: ContractCodeId,
-    ) -> Result<TodoType, ValidatorClientError> {
+    ) -> Result<CodeDetails, ValidatorClientError> {
         let path = Some("/cosmwasm.wasm.v1beta1.Query/Code".parse().unwrap());
 
         let req = QueryCodeRequest { code_id };
@@ -240,7 +249,11 @@ impl CosmWasmClient {
             .make_abci_query::<_, QueryCodeResponse>(path, req)
             .await?;
 
-        todo!("some CodeInfoResponse parsing action here")
+        if let Some(code_info) = res.code_info {
+            Ok(CodeDetails::new(code_info.try_into()?, res.data))
+        } else {
+            Err(ValidatorClientError::NoCodeInformation(code_id))
+        }
     }
     pub async fn get_contracts(
         &self,
@@ -257,7 +270,7 @@ impl CosmWasmClient {
             pagination: None,
         };
 
-        // TODO: pagination...
+        // TODO: pagination... (hehe, even cosmjs has pagination handling as TODO here)
         let res = self
             .make_abci_query::<_, QueryContractsByCodeResponse>(path, req)
             .await?;
@@ -274,10 +287,9 @@ impl CosmWasmClient {
     pub async fn get_contract(
         &self,
         address: &AccountId,
-    ) -> Result<TodoType, ValidatorClientError> {
+    ) -> Result<Contract, ValidatorClientError> {
         let path = Some("/cosmwasm.wasm.v1beta1.Query/ContractInfo".parse().unwrap());
 
-        // TODO: pagination....
         let req = QueryContractInfoRequest {
             address: address.to_string(),
         };
@@ -286,13 +298,21 @@ impl CosmWasmClient {
             .make_abci_query::<_, QueryContractInfoResponse>(path, req)
             .await?;
 
-        todo!("some ContractInfo parsing action here")
+        let response_address = res.address;
+        if let Some(contract_info) = res.contract_info {
+            let address = response_address
+                .parse()
+                .map_err(|_| ValidatorClientError::MalformedAccountAddress(response_address))?;
+            Ok(Contract::new(address, contract_info.try_into()?))
+        } else {
+            Err(ValidatorClientError::NoContractInformation(address.clone()))
+        }
     }
 
     pub async fn get_contract_code_history(
         &self,
         address: &AccountId,
-    ) -> Result<TodoType, ValidatorClientError> {
+    ) -> Result<Vec<ContractCodeHistoryEntry>, ValidatorClientError> {
         let path = Some(
             "/cosmwasm.wasm.v1beta1.Query/ContractHistory"
                 .parse()
@@ -309,7 +329,14 @@ impl CosmWasmClient {
             .make_abci_query::<_, QueryContractHistoryResponse>(path, req)
             .await?;
 
-        todo!("some ContractCodeHistoryEntry parsing action here")
+        if res.pagination.is_some() {
+            todo!("We have unhandled pagination")
+        }
+
+        res.entries
+            .into_iter()
+            .map(TryFrom::try_from)
+            .collect::<Result<_, _>>()
     }
 
     pub async fn query_contract_raw(

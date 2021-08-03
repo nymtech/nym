@@ -1,5 +1,6 @@
 use crate::validator_api;
 
+use crate::nymd::cosmwasm_client::types::ContractCodeId;
 use cosmos_sdk::{bip32, rpc, AccountId};
 use serde::Deserialize;
 use thiserror::Error;
@@ -62,6 +63,21 @@ pub enum ValidatorClientError {
 
     #[error("There was an issue with the serialization/deserialization - {0}")]
     SerdeJsonError(serde_json::Error),
+
+    #[error("Account {0} is not a valid account address")]
+    MalformedAccountAddress(String),
+
+    #[error("Queried contract (code_id: {0}) did not have any code information attached")]
+    NoCodeInformation(ContractCodeId),
+
+    #[error("Queried contract (address: {0}) did not have any contract information attached")]
+    NoContractInformation(AccountId),
+
+    #[error("Contract contains invalid operations in its history")]
+    InvalidContractHistoryOperation,
+
+    #[error("Block has an invalid height (either negative or larger than i64::MAX")]
+    InvalidHeight,
 }
 
 impl From<bip32::Error> for ValidatorClientError {

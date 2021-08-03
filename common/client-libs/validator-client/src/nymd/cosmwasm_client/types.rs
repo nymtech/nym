@@ -3,4 +3,213 @@
 
 // TODO: There's a significant argument to pull those out of the package and make a PR on https://github.com/cosmos/cosmos-rust/
 
+use crate::ValidatorClientError;
+use cosmos_sdk::proto::cosmwasm::wasm::v1beta1::{
+    CodeInfo, CodeInfoResponse, ContractCodeHistoryEntry as ProtoContractCodeHistoryEntry,
+    ContractCodeHistoryOperationType, ContractInfo as ProtoContractInfo, QueryCodeResponse,
+    QueryContractInfoResponse,
+};
+use cosmos_sdk::tendermint::block;
+use cosmos_sdk::tx::{AccountNumber, SequenceNumber};
+use cosmos_sdk::AccountId;
+use std::convert::TryFrom;
+
 pub type ContractCodeId = u64;
+
+#[derive(Debug)]
+pub struct SequenceResponse {
+    pub account_number: AccountNumber,
+    pub sequence: SequenceNumber,
+}
+
+#[derive(Debug)]
+pub struct Code {
+    pub code_id: ContractCodeId,
+
+    /// Bech32 account address
+    pub creator: AccountId,
+
+    /// sha256 hash of the code stored
+    pub data_hash: Vec<u8>,
+
+    /// An URL to a .tar.gz archive of the source code of the contract,
+    /// which can be used to reproducibly build the Wasm bytecode.
+    ///
+    /// @see https://github.com/CosmWasm/cosmwasm-verify
+    pub source: Option<String>,
+
+    /// A docker image (including version) to reproducibly build the Wasm bytecode from the source code.
+    ///
+    /// @example ```cosmwasm/rust-optimizer:0.8.0```
+    /// @see https://github.com/CosmWasm/cosmwasm-verify
+    pub builder: Option<String>,
+}
+
+impl TryFrom<CodeInfoResponse> for Code {
+    type Error = ValidatorClientError;
+
+    fn try_from(value: CodeInfoResponse) -> Result<Self, Self::Error> {
+        let CodeInfoResponse {
+            code_id,
+            creator,
+            data_hash,
+            source,
+            builder,
+        } = value;
+
+        let creator = creator
+            .parse()
+            .map_err(|_| ValidatorClientError::MalformedAccountAddress(creator))?;
+
+        let source = if source.is_empty() {
+            None
+        } else {
+            Some(source)
+        };
+        let builder = if builder.is_empty() {
+            None
+        } else {
+            Some(builder)
+        };
+
+        Ok(Code {
+            code_id,
+            creator,
+            data_hash,
+            source,
+            builder,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct CodeDetails {
+    pub code_info: Code,
+
+    /// The original wasm bytes
+    pub data: Vec<u8>,
+}
+
+impl CodeDetails {
+    pub fn new(code_info: Code, data: Vec<u8>) -> Self {
+        CodeDetails { code_info, data }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct ContractInfo {
+    code_id: ContractCodeId,
+    creator: AccountId,
+    admin: Option<AccountId>,
+    label: String,
+}
+
+impl TryFrom<ProtoContractInfo> for ContractInfo {
+    type Error = ValidatorClientError;
+
+    fn try_from(value: ProtoContractInfo) -> Result<Self, Self::Error> {
+        let ProtoContractInfo {
+            code_id,
+            creator,
+            admin,
+            label,
+            ..
+        } = value;
+
+        let admin = if admin.is_empty() {
+            None
+        } else {
+            Some(
+                admin
+                    .parse()
+                    .map_err(|_| ValidatorClientError::MalformedAccountAddress(admin))?,
+            )
+        };
+
+        Ok(ContractInfo {
+            code_id,
+            creator: creator
+                .parse()
+                .map_err(|_| ValidatorClientError::MalformedAccountAddress(creator))?,
+            admin,
+            label,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct Contract {
+    pub address: AccountId,
+
+    pub code_id: ContractCodeId,
+
+    /// Bech32 account address
+    pub creator: AccountId,
+
+    /// Bech32-encoded admin address
+    pub admin: Option<AccountId>,
+
+    pub label: String,
+}
+
+impl Contract {
+    pub(crate) fn new(address: AccountId, contract_info: ContractInfo) -> Self {
+        Contract {
+            address,
+            code_id: contract_info.code_id,
+            creator: contract_info.creator,
+            admin: contract_info.admin,
+            label: contract_info.label,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ContractCodeHistoryEntryOperation {
+    Init,
+    Genesis,
+    Migrate,
+}
+
+#[derive(Debug)]
+pub struct ContractCodeHistoryEntry {
+    /// The source of this history entry
+    pub operation: ContractCodeHistoryEntryOperation,
+    pub code_id: ContractCodeId,
+    pub msg_json: String,
+}
+
+impl TryFrom<ProtoContractCodeHistoryEntry> for ContractCodeHistoryEntry {
+    type Error = ValidatorClientError;
+
+    fn try_from(value: ProtoContractCodeHistoryEntry) -> Result<Self, Self::Error> {
+        let operation = match ContractCodeHistoryOperationType::from_i32(value.operation)
+            .ok_or(ValidatorClientError::InvalidContractHistoryOperation)?
+        {
+            ContractCodeHistoryOperationType::Unspecified => {
+                return Err(ValidatorClientError::InvalidContractHistoryOperation)
+            }
+            ContractCodeHistoryOperationType::Init => ContractCodeHistoryEntryOperation::Init,
+            ContractCodeHistoryOperationType::Genesis => ContractCodeHistoryEntryOperation::Genesis,
+            ContractCodeHistoryOperationType::Migrate => ContractCodeHistoryEntryOperation::Migrate,
+        };
+
+        Ok(ContractCodeHistoryEntry {
+            operation,
+            code_id: value.code_id,
+            msg_json: String::from_utf8(value.msg).map_err(|_| {
+                ValidatorClientError::DeserializationError("Contract history msg".to_owned())
+            })?,
+        })
+    }
+}
+
+// TODO: implement those
+pub type UploadMeta = ();
+pub type UploadResult = ();
+pub type InstantiateOptions = ();
+pub type InstantiateResult = ();
+pub type ChangeAdminResult = ();
+pub type MigrateResult = ();
+
+pub type ExecuteResult = ();

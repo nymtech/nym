@@ -2,8 +2,10 @@ use crate::Config;
 use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use coconut_rs::{elgamal::PublicKey, Attribute, BlindSignRequest, BlindedSignature, Parameters};
 use getset::{CopyGetters, Getters};
+use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
 use rocket::State;
+use validator_client::validator_api::VALIDATOR_API_CACHE_VERSION;
 
 #[derive(Getters, CopyGetters, Debug)]
 pub struct InternalSignRequest {
@@ -31,6 +33,15 @@ impl InternalSignRequest {
             public_key,
             blind_sign_request,
         }
+    }
+
+    pub fn stage(config: Config) -> AdHoc {
+        AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
+            rocket.manage(config).mount(
+                VALIDATOR_API_CACHE_VERSION,
+                routes![post_blind_sign, get_verification_key],
+            )
+        })
     }
 }
 

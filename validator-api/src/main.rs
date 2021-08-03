@@ -13,6 +13,7 @@ use ::config::NymConfig;
 use anyhow::Result;
 use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};
+use coconut::InternalSignRequest;
 use log::info;
 use rocket::http::Method;
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
@@ -20,9 +21,9 @@ use std::process;
 use validator_client::validator_api::VALIDATOR_API_PORT;
 
 pub(crate) mod cache;
+mod coconut;
 pub(crate) mod config;
 mod network_monitor;
-mod coconut;
 mod node_status_api;
 pub(crate) mod storage;
 
@@ -210,7 +211,8 @@ async fn main() -> Result<()> {
     };
     let rocket = rocket::custom(rocket_config)
         .attach(setup_cors()?)
-        .attach(ValidatorCache::stage());
+        .attach(ValidatorCache::stage())
+        .attach(InternalSignRequest::stage(config.clone()));
 
     // see if we should start up network monitor and ignite our rocket
     let rocket = if config.get_network_monitor_enabled() {

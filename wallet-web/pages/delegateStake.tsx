@@ -1,14 +1,19 @@
-import React from "react";
-import MainNav from "../components/MainNav";
-import NodeDelegation from "../components/delegate/NodeDelegation";
+import React from 'react'
+import MainNav from '../components/MainNav'
+import NodeDelegation from '../components/delegate/NodeDelegation'
+import { Layout, NymCard } from '../components'
 
 const DelegateStake = () => {
-    return (
-        <React.Fragment>
-            <MainNav />
-            <NodeDelegation />
-        </React.Fragment>
-    );
+  return (
+    <>
+      <MainNav />
+      <Layout>
+        <NymCard title="Delegate" subheader="Delegate to Mixnode or Gateway">
+          <NodeDelegation />
+        </NymCard>
+      </Layout>
+    </>
+  )
 }
 
 export default DelegateStake

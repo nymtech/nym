@@ -1,7 +1,6 @@
 import React, { useContext, useEffect } from 'react'
-import { printableCoin } from '@nymproject/nym-validator-client'
 import { Paper } from '@material-ui/core'
-import Typography from '@material-ui/core/Typography'
+import { printableCoin } from '@nymproject/nym-validator-client'
 import { useRouter } from 'next/router'
 import { ValidatorClientContext } from '../../contexts/ValidatorClient'
 import { NodeType } from '../../common/node'
@@ -75,7 +74,6 @@ const DelegationCheck = () => {
   }
 
   const getDelegationCheckContent = () => {
-    console.log(isLoading)
     // we're not signed in
     if (client === null) {
       return <NoClientError />
@@ -88,7 +86,7 @@ const DelegationCheck = () => {
           <NodeTypeChooser nodeType={nodeType} setNodeType={setNodeType} />
           <NodeIdentityForm
             onSubmit={checkDelegation}
-            buttonText='Check stake value'
+            buttonText="Check stake value"
           />
         </>
       )
@@ -108,21 +106,9 @@ const DelegationCheck = () => {
   }
 
   return (
-    <>
-      <main className={classes.layout}>
-        <Paper className={classes.paper}>
-          <Typography
-            component='h1'
-            variant='h4'
-            align='center'
-            className={classes.wrapper}
-          >
-            Check your stake on a {nodeType}
-          </Typography>
-          {getDelegationCheckContent()}
-        </Paper>
-      </main>
-    </>
+    <Paper style={{ padding: theme.spacing(3) }}>
+      {getDelegationCheckContent()}
+    </Paper>
   )
 }
 

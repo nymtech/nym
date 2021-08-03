@@ -3,9 +3,8 @@
   windows_subsystem = "windows"
 )]
 
-use coconut_interface::{self, BlindSignRequestBody, BlindedSignatureResponse, State};
-use coconut_rs::{
-  aggregate_signature_shares, Attribute, Parameters, Signature, SignatureShare, Theta,
+use coconut_interface::{
+  self, BlindSignRequestBody, BlindedSignatureResponse, Signature, State, Theta,
 };
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -73,7 +72,7 @@ fn prove_credential(
 ) -> Result<Theta, String> {
   match state.read() {
     Ok(state) => coconut_interface::prove_credential(idx, validator_urls, &*state),
-    Err(_) => TauriClientError::State("read"),
+    Err(_) => Err(TauriClientError::State("read").to_string()),
   }
 }
 
@@ -106,7 +105,7 @@ fn main() {
       randomise_credential,
       delete_credential,
       list_credentials,
-      verify_credential
+      //prove_credential
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

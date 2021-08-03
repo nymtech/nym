@@ -21,8 +21,6 @@ tauri = { version = "1.0.0-beta.4", features = [] }
 attohttpc = { version = "0.17.0", features = ["json"] }
 thiserror = "1.0"
 
-coconut-rs = { git = "https://github.com/nymtech/coconut.git", branch = "0.4.0" }
-
 coconut-interface = { path = "../../../common/coconut-interface" }
 gateway-client = {path = "../../../common/client-libs/gateway-client"}
 

@@ -42,7 +42,7 @@ members = [
     "gateway",
     "gateway/gateway-requests",
     "mixnode",
-#    "validator-api",
+    "validator-api",
     "service-providers/network-requester",
 ]
 
@@ -53,7 +53,7 @@ default-members = [
     "gateway",
     "service-providers/network-requester",
     "mixnode",
-#    "validator-api",
+    "validator-api",
 ]
 
-exclude = ["explorer", "contracts", "validator-api"]
+exclude = ["explorer", "contracts"]

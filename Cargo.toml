@@ -39,6 +39,7 @@ members = [
     "common/socks5/proxy-helpers",
     "common/topology",
     "common/wasm-utils",
+    "explorer-api",
     "gateway",
     "gateway/gateway-requests",
     "mixnode",

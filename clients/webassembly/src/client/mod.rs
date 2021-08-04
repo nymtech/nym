@@ -110,6 +110,7 @@ impl NymClient {
         let (ack_sender, ack_receiver) = mpsc::unbounded();
 
         let coconut_credential = Credential::init(vec![self.validator_server.clone()])
+            .await
             .expect("Could not initialize coconut credential");
 
         let mut gateway_client = GatewayClient::new(

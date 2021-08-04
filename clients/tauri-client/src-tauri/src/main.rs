@@ -3,7 +3,7 @@
   windows_subsystem = "windows"
 )]
 
-use coconut_interface::{self, Signature, State, Theta};
+use coconut_interface::{self, Signature, State, Theta, ValidatorAPIClient};
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -62,13 +62,21 @@ fn list_credentials(state: tauri::State<Arc<RwLock<State>>>) -> Result<Vec<Signa
 }
 
 #[tauri::command]
-fn prove_credential(
+async fn prove_credential(
   idx: usize,
   validator_urls: Vec<String>,
   state: tauri::State<Arc<RwLock<State>>>,
 ) -> Result<Theta, String> {
   match state.read() {
-    Ok(state) => coconut_interface::prove_credential(idx, validator_urls, &*state),
+    Ok(state) => {
+      coconut_interface::prove_credential(
+        idx,
+        validator_urls,
+        &*state,
+        &ValidatorAPIClient::default(),
+      )
+      .await
+    }
     Err(_) => Err(TauriClientError::State("read").to_string()),
   }
 }
@@ -79,7 +87,11 @@ fn get_credential(
   state: tauri::State<Arc<RwLock<State>>>,
 ) -> Result<Vec<Signature>, String> {
   let signature = match state.read() {
-    Ok(state) => coconut_interface::get_aggregated_signature(validator_urls, &*state)?,
+    Ok(state) => coconut_interface::get_aggregated_signature(
+      validator_urls,
+      &*state,
+      &ValidatorAPIClient::default(),
+    )?,
     Err(_e) => return Err(TauriClientError::State("read").to_string()),
   };
   match state.write() {

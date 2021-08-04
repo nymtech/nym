@@ -60,7 +60,7 @@ impl<'a> GatewayHandshake<'a> {
 
                 check_processing_error(
                     {
-                        if !credential.verify(validator_urls) {
+                        if !credential.verify(validator_urls).await {
                             Err(HandshakeError::InvalidCoconutCredential)
                         } else {
                             Ok(())

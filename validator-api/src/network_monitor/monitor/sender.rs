@@ -102,7 +102,7 @@ impl PacketSender {
         }
     }
 
-    fn new_gateway_client(
+    async fn new_gateway_client(
         address: String,
         identity: identity::PublicKey,
         fresh_gateway_client_data: &FreshGatewayClientData,
@@ -118,6 +118,7 @@ impl PacketSender {
             "http://{}:{}",
             DEFAULT_VALIDATOR_HOST, VALIDATOR_API_PORT
         )])
+        .await
         .expect("Could not initialize coconut credential");
 
         // currently we do not care about acks at all, but we must keep the channel alive
@@ -217,7 +218,8 @@ impl PacketSender {
                 packets.clients_address,
                 packets.pub_key,
                 &fresh_gateway_client_data,
-            );
+            )
+            .await;
 
             // Put this in timeout in case the gateway has incorrectly set their ulimit and our connection
             // gets stuck in their TCP queue and just hangs on our end but does not terminate

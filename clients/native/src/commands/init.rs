@@ -78,8 +78,9 @@ async fn register_with_gateway(
     validator_urls: Vec<String>,
 ) -> SharedKeys {
     let timeout = Duration::from_millis(1500);
-    let coconut_credential =
-        Credential::init(validator_urls).expect("Could not initialize coconut credential");
+    let coconut_credential = Credential::init(validator_urls)
+        .await
+        .expect("Could not initialize coconut credential");
     let mut gateway_client = GatewayClient::new_init(
         gateway.clients_address(),
         gateway.identity_key,

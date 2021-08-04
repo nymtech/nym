@@ -1,6 +1,9 @@
 pub use coconut_rs::*;
 use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
+use url::Url;
+pub use validator_client::validator_api::Client as ValidatorAPIClient;
+use validator_client::validator_api::VALIDATOR_API_CACHE_VERSION;
 
 #[derive(Serialize, Deserialize, Getters, CopyGetters, Clone)]
 pub struct Credential {
@@ -30,13 +33,15 @@ impl Credential {
         }
     }
 
-    pub fn init(validator_urls: Vec<String>) -> Result<Self, String> {
+    pub async fn init(validator_urls: Vec<String>) -> Result<Self, String> {
         let mut state = State::init();
-        let signature = get_aggregated_signature(validator_urls.clone(), &state)
+        let client = ValidatorAPIClient::new();
+        let signature = get_aggregated_signature(validator_urls.clone(), &state, &client)
             .map_err(|e| format!("Could not aggregate signature from validators: {}", e))?;
 
         state.signatures.push(signature);
-        let theta = prove_credential(0, validator_urls, &state)
+        let theta = prove_credential(0, validator_urls, &state, &client)
+            .await
             .map_err(|e| format!("Could not prove credential: {}", e))?;
         Ok(Credential::new(
             state.n_attributes,
@@ -53,8 +58,11 @@ impl Credential {
             .collect()
     }
 
-    pub fn verify(&self, validator_urls: Vec<String>) -> bool {
-        let verification_key = get_aggregated_verification_key(validator_urls).unwrap();
+    pub async fn verify(&self, validator_urls: Vec<String>) -> bool {
+        let verification_key =
+            get_aggregated_verification_key(validator_urls, &ValidatorAPIClient::default())
+                .await
+                .unwrap();
         let params = Parameters::new(self.n_params).unwrap();
         coconut_rs::verify_credential(
             &params,
@@ -181,24 +189,31 @@ impl State {
     }
 }
 
-fn get_verification_key(url: &str) -> Result<VerificationKey, String> {
-    match attohttpc::get(format!("{}/v1/verification_key", url)).send() {
-        Ok(resp) => {
-            let verification_key_response: VerificationKeyResponse = resp.json().unwrap();
-            Ok(verification_key_response.key)
-        }
-        Err(e) => Err(format!("{}", e)),
-    }
+async fn get_verification_key(
+    url: &str,
+    client: &ValidatorAPIClient,
+) -> Result<VerificationKey, String> {
+    let parsed_url =
+        Url::parse(url).map_err(|e| format!("Could not parse validator url: {:?}", e))?;
+    let verification_key_response: VerificationKeyResponse = client
+        .query_validator_api(
+            format!("{}/verification_key", VALIDATOR_API_CACHE_VERSION),
+            &parsed_url,
+        )
+        .await
+        .map_err(|e| format!("Verification key could not be obtained: {:?}", e))?;
+    Ok(verification_key_response.key)
 }
 
-pub fn get_aggregated_verification_key(
+pub async fn get_aggregated_verification_key(
     validator_urls: Vec<String>,
+    client: &ValidatorAPIClient,
 ) -> Result<VerificationKey, String> {
     let mut verification_keys = Vec::new();
     let mut indices = Vec::new();
 
     for (idx, url) in validator_urls.iter().enumerate() {
-        verification_keys.push(get_verification_key(url.as_ref())?);
+        verification_keys.push(get_verification_key(url.as_ref(), client).await?);
         indices.push((idx + 1) as u64);
     }
 
@@ -211,6 +226,7 @@ pub fn get_aggregated_verification_key(
 pub fn get_aggregated_signature(
     validator_urls: Vec<String>,
     state: &State,
+    _client: &ValidatorAPIClient,
 ) -> Result<Signature, String> {
     let elgamal_keypair = coconut_rs::elgamal_keygen(&state.params);
     let blind_sign_request = coconut_rs::prepare_blind_sign(
@@ -247,12 +263,13 @@ pub fn get_aggregated_signature(
     Ok(aggregate_signature_shares(&signature_shares).unwrap())
 }
 
-pub fn prove_credential(
+pub async fn prove_credential(
     idx: usize,
     validator_urls: Vec<String>,
     state: &State,
+    client: &ValidatorAPIClient,
 ) -> Result<Theta, String> {
-    let verification_key = get_aggregated_verification_key(validator_urls)?;
+    let verification_key = get_aggregated_verification_key(validator_urls, client).await?;
     let signature = state
         .signatures
         .get(idx)

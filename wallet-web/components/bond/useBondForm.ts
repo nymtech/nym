@@ -178,7 +178,7 @@ export const useBondForm = ({
     port: 'mixPort' | 'verlocPort' | 'clientsPort' | 'httpApiPort',
     value: string
   ) => {
-    const isValid = validateRawPort(value)
+    const isValid = validateRawPort(parseInt(value))
     setFormData((data) => ({
       ...data,
       [port]: { value, isValid },

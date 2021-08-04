@@ -82,16 +82,19 @@ async fn prove_credential(
 }
 
 #[tauri::command]
-fn get_credential(
+async fn get_credential(
   validator_urls: Vec<String>,
   state: tauri::State<Arc<RwLock<State>>>,
 ) -> Result<Vec<Signature>, String> {
   let signature = match state.read() {
-    Ok(state) => coconut_interface::get_aggregated_signature(
-      validator_urls,
-      &*state,
-      &ValidatorAPIClient::default(),
-    )?,
+    Ok(state) => {
+      coconut_interface::get_aggregated_signature(
+        validator_urls,
+        &*state,
+        &ValidatorAPIClient::default(),
+      )
+      .await?
+    }
     Err(_e) => return Err(TauriClientError::State("read").to_string()),
   };
   match state.write() {

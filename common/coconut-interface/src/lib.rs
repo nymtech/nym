@@ -3,7 +3,9 @@ use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
 use url::Url;
 pub use validator_client::validator_api::Client as ValidatorAPIClient;
-use validator_client::validator_api::VALIDATOR_API_CACHE_VERSION;
+use validator_client::validator_api::{
+    error::ValidatorAPIClientError, VALIDATOR_API_CACHE_VERSION,
+};
 
 #[derive(Serialize, Deserialize, Getters, CopyGetters, Clone)]
 pub struct Credential {
@@ -37,6 +39,7 @@ impl Credential {
         let mut state = State::init();
         let client = ValidatorAPIClient::new();
         let signature = get_aggregated_signature(validator_urls.clone(), &state, &client)
+            .await
             .map_err(|e| format!("Could not aggregate signature from validators: {}", e))?;
 
         state.signatures.push(signature);
@@ -223,10 +226,10 @@ pub async fn get_aggregated_verification_key(
     }
 }
 
-pub fn get_aggregated_signature(
+pub async fn get_aggregated_signature(
     validator_urls: Vec<String>,
     state: &State,
-    _client: &ValidatorAPIClient,
+    client: &ValidatorAPIClient,
 ) -> Result<Signature, String> {
     let elgamal_keypair = coconut_rs::elgamal_keygen(&state.params);
     let blind_sign_request = coconut_rs::prepare_blind_sign(
@@ -246,14 +249,16 @@ pub fn get_aggregated_signature(
     let mut signature_shares = vec![];
 
     for (idx, url) in validator_urls.iter().enumerate() {
-        let resp = attohttpc::post(format!("{}/v1/blind_sign", url))
-            .json(&blind_sign_request_body)
-            .unwrap()
-            .send()
-            .unwrap();
-
-        if resp.is_success() {
-            let blinded_signature_response: BlindedSignatureResponse = resp.json().unwrap();
+        let parsed_url =
+            Url::parse(url).map_err(|e| format!("Could not parse validator url: {:?}", e))?;
+        let response: Result<BlindedSignatureResponse, ValidatorAPIClientError> = client
+            .post_validator_api(
+                format!("{}/blind_sign", VALIDATOR_API_CACHE_VERSION),
+                &blind_sign_request_body,
+                &parsed_url,
+            )
+            .await;
+        if let Ok(blinded_signature_response) = response {
             let blinded_signature = blinded_signature_response.blinded_signature;
             let unblinded_signature = blinded_signature.unblind(elgamal_keypair.private_key());
             let signature_share = SignatureShare::new(unblinded_signature, (idx + 1) as u64);

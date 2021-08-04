@@ -30,9 +30,7 @@ export const validateKey = (key: string): boolean => {
   }
 }
 
-export const isValidHostname = (value) => {
-  if (typeof value !== 'string') return false
-
+export const isValidHostname = (value: string) => {
   const validHostnameChars = /^[a-zA-Z0-9-.]{1,253}\.?$/g
   if (!validHostnameChars.test(value)) {
     return false

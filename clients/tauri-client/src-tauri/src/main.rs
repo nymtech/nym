@@ -5,7 +5,7 @@
 
 use coconut_interface::{self, Signature, State, Theta, ValidatorAPIClient};
 use std::sync::Arc;
-use std::sync::RwLock;
+use tokio::sync::RwLock;
 
 use thiserror::Error;
 
@@ -16,94 +16,77 @@ enum TauriClientError {
 }
 
 #[tauri::command]
-fn randomise_credential(
+async fn randomise_credential(
   idx: usize,
-  state: tauri::State<Arc<RwLock<State>>>,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Vec<Signature>, String> {
-  match state.write() {
-    Ok(mut state) => {
-      let signature = state.signatures.remove(idx);
-      let new = signature.randomise(&state.params);
-      state.signatures.insert(idx, new);
-    }
-    Err(_e) => return Err(TauriClientError::State("write").to_string()),
+  {
+    let mut state = state.write().await;
+    let signature = state.signatures.remove(idx);
+    let new = signature.randomise(&state.params);
+    state.signatures.insert(idx, new);
   }
-
-  match state.read() {
-    Ok(state) => Ok(state.signatures.clone()),
-    Err(_e) => Err(TauriClientError::State("read").to_string()),
+  {
+    let state = state.read().await;
+    return Ok(state.signatures.clone());
   }
 }
 
 #[tauri::command]
-fn delete_credential(
+async fn delete_credential(
   idx: usize,
-  state: tauri::State<Arc<RwLock<State>>>,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Vec<Signature>, String> {
-  match state.write() {
-    Ok(mut state) => {
-      let _ = state.signatures.remove(idx);
-    }
-    Err(_e) => return Err(TauriClientError::State("write").to_string()),
+  {
+    let mut state = state.write().await;
+    let _ = state.signatures.remove(idx);
   }
-
-  match state.read() {
-    Ok(state) => Ok(state.signatures.clone()),
-    Err(_e) => Err(TauriClientError::State("read").to_string()),
+  {
+    let state = state.read().await;
+    Ok(state.signatures.clone())
   }
 }
 
 #[tauri::command]
-fn list_credentials(state: tauri::State<Arc<RwLock<State>>>) -> Result<Vec<Signature>, String> {
-  match state.read() {
-    Ok(state) => Ok(state.signatures.clone()),
-    Err(_e) => Err(TauriClientError::State("read").to_string()),
-  }
+async fn list_credentials(
+  state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<Vec<Signature>, String> {
+  let state = state.read().await;
+  Ok(state.signatures.clone())
 }
 
 #[tauri::command]
 async fn prove_credential(
   idx: usize,
   validator_urls: Vec<String>,
-  state: tauri::State<Arc<RwLock<State>>>,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Theta, String> {
-  match state.read() {
-    Ok(state) => {
-      coconut_interface::prove_credential(
-        idx,
-        validator_urls,
-        &*state,
-        &ValidatorAPIClient::default(),
-      )
-      .await
-    }
-    Err(_) => Err(TauriClientError::State("read").to_string()),
-  }
+  let state = state.read().await;
+  coconut_interface::prove_credential(idx, validator_urls, &*state, &ValidatorAPIClient::default())
+    .await
 }
 
 #[tauri::command]
 async fn get_credential(
   validator_urls: Vec<String>,
-  state: tauri::State<Arc<RwLock<State>>>,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Vec<Signature>, String> {
-  let signature = match state.read() {
-    Ok(state) => {
-      coconut_interface::get_aggregated_signature(
-        validator_urls,
-        &*state,
-        &ValidatorAPIClient::default(),
-      )
-      .await?
-    }
-    Err(_e) => return Err(TauriClientError::State("read").to_string()),
+  let signature = {
+    let state = state.read().await;
+    coconut_interface::get_aggregated_signature(
+      validator_urls,
+      &*state,
+      &ValidatorAPIClient::default(),
+    )
+    .await?
   };
-  match state.write() {
-    Ok(mut state) => state.signatures.push(signature),
-    Err(_e) => return Err(TauriClientError::State("write").to_string()),
+  {
+    let mut state = state.write().await;
+    state.signatures.push(signature);
   }
-  match state.read() {
-    Ok(state) => Ok(state.signatures.clone()),
-    Err(_e) => Err(TauriClientError::State("read").to_string()),
+  {
+    let state = state.read().await;
+    Ok(state.signatures.clone())
   }
 }
 

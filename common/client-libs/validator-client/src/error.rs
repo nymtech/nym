@@ -1,7 +1,9 @@
 use crate::validator_api;
 
 use crate::nymd::cosmwasm_client::types::ContractCodeId;
-use cosmos_sdk::{bip32, rpc, AccountId};
+use cosmos_sdk::tendermint::abci::Code;
+use cosmos_sdk::tendermint::block;
+use cosmos_sdk::{bip32, rpc, tx, AccountId};
 use serde::Deserialize;
 use std::io;
 use thiserror::Error;
@@ -86,8 +88,25 @@ pub enum ValidatorClientError {
     #[error("Logs returned from the validator were malformed")]
     MalformedLogString,
 
-    #[error("Received code id is not a valid number")]
-    CodeIdIsNotANumber,
+    #[error(
+        "Error when broadcasting tx {hash} at height {height}. Error occurred during CheckTx phase. Code: {code}; Raw log: {raw_log}"
+    )]
+    BroadcastTxErrorCheckTx {
+        hash: tx::Hash,
+        height: block::Height,
+        code: u32,
+        raw_log: String,
+    },
+
+    #[error(
+        "Error when broadcasting tx {hash} at height {height}. Error occurred during DeliverTx phase. Code: {code}; Raw log: {raw_log}"
+    )]
+    BroadcastTxErrorDeliverTx {
+        hash: tx::Hash,
+        height: block::Height,
+        code: u32,
+        raw_log: String,
+    },
 }
 
 impl From<bip32::Error> for ValidatorClientError {

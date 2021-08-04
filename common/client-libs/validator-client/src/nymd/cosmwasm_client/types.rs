@@ -6,19 +6,18 @@
 use crate::nymd::cosmwasm_client::logs::Log;
 use crate::ValidatorClientError;
 use cosmos_sdk::proto::cosmwasm::wasm::v1beta1::{
-    CodeInfo, CodeInfoResponse, ContractCodeHistoryEntry as ProtoContractCodeHistoryEntry,
-    ContractCodeHistoryOperationType, ContractInfo as ProtoContractInfo, QueryCodeResponse,
-    QueryContractInfoResponse,
+    CodeInfoResponse, ContractCodeHistoryEntry as ProtoContractCodeHistoryEntry,
+    ContractCodeHistoryOperationType, ContractInfo as ProtoContractInfo,
 };
-use cosmos_sdk::tendermint::{abci, block};
 use cosmos_sdk::tx::{AccountNumber, SequenceNumber};
-use cosmos_sdk::{tx, AccountId};
-use itertools::Itertools;
-use serde::Deserialize;
+use cosmos_sdk::{tx, AccountId, Coin};
+use serde::Serialize;
 use std::convert::TryFrom;
-use std::str::FromStr;
 
 pub type ContractCodeId = u64;
+
+#[derive(Serialize)]
+pub struct EmptyMsg {}
 
 #[derive(Debug)]
 pub struct SequenceResponse {
@@ -251,16 +250,51 @@ pub struct UploadResult {
 }
 
 #[derive(Debug)]
-pub struct InstantiateOptions {}
+pub struct InstantiateOptions {
+    /// The funds that are transferred from the sender to the newly created contract.
+    /// The funds are transferred as part of the message execution after the contract address is
+    /// created and before the instantiation message is executed by the contract.
+    ///
+    /// Only native tokens are supported.
+    pub funds: Vec<Coin>,
+
+    /// A bech32 encoded address of an admin account.
+    /// Caution: an admin has the privilege to upgrade a contract.
+    /// If this is not desired, do not set this value.
+    pub admin: Option<AccountId>,
+}
 
 #[derive(Debug)]
-pub struct InstantiateResult {}
+pub struct InstantiateResult {
+    /// The address of the newly instantiated contract
+    pub contract_address: AccountId,
+
+    pub logs: Vec<Log>,
+
+    /// Transaction hash (might be used as transaction ID)
+    pub transaction_hash: tx::Hash,
+}
 
 #[derive(Debug)]
-pub struct ChangeAdminResult {}
+pub struct ChangeAdminResult {
+    pub logs: Vec<Log>,
+
+    /// Transaction hash (might be used as transaction ID)
+    pub transaction_hash: tx::Hash,
+}
 
 #[derive(Debug)]
-pub struct MigrateResult {}
+pub struct MigrateResult {
+    pub logs: Vec<Log>,
+
+    /// Transaction hash (might be used as transaction ID)
+    pub transaction_hash: tx::Hash,
+}
 
 #[derive(Debug)]
-pub struct ExecuteResult {}
+pub struct ExecuteResult {
+    pub logs: Vec<Log>,
+
+    /// Transaction hash (might be used as transaction ID)
+    pub transaction_hash: tx::Hash,
+}

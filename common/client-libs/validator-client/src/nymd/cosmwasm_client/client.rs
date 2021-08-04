@@ -5,7 +5,6 @@ use crate::nymd::cosmwasm_client::types::{
     Code, CodeDetails, Contract, ContractCodeHistoryEntry, ContractCodeId, SequenceResponse,
 };
 use crate::ValidatorClientError;
-use async_trait::async_trait;
 use cosmos_sdk::proto::cosmos::auth::v1beta1::{
     BaseAccount, QueryAccountRequest, QueryAccountResponse,
 };
@@ -18,13 +17,10 @@ use cosmos_sdk::rpc::endpoint::broadcast;
 use cosmos_sdk::rpc::endpoint::tx::Response as TxResponse;
 use cosmos_sdk::rpc::endpoint::tx_search::Response as TxSearchResponse;
 use cosmos_sdk::rpc::query::Query;
-use cosmos_sdk::rpc::{
-    Client, Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest,
-};
+use cosmos_sdk::rpc::{Client, Error as TendermintRpcError, HttpClient, HttpClientUrl};
 use cosmos_sdk::tendermint::abci::Transaction;
 use cosmos_sdk::tendermint::{abci, block, chain};
-use cosmos_sdk::tx::{AccountNumber, SequenceNumber};
-use cosmos_sdk::{rpc, AccountId, Coin, Denom};
+use cosmos_sdk::{AccountId, Coin, Denom};
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};

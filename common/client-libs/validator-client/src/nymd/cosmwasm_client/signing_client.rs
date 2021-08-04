@@ -6,10 +6,13 @@ use crate::nymd::cosmwasm_client::types::*;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use crate::ValidatorClientError;
 // use async_trait::async_trait;
+use crate::nymd::cosmwasm_client::helpers::CheckResponse;
 use crate::nymd::cosmwasm_client::logs::{self, parse_raw_logs};
 use cosmos_sdk::bank::MsgSend;
+use cosmos_sdk::distribution::MsgWithdrawDelegatorReward;
 use cosmos_sdk::rpc::endpoint::broadcast;
 use cosmos_sdk::rpc::{Error as TendermintRpcError, HttpClientUrl};
+use cosmos_sdk::staking::{MsgDelegate, MsgUndelegate};
 use cosmos_sdk::tendermint::chain;
 use cosmos_sdk::tx::{AccountNumber, Fee, Msg, MsgType, SequenceNumber, SignDoc, SignerInfo};
 use cosmos_sdk::{cosmwasm, tx, AccountId, Coin};
@@ -19,7 +22,6 @@ use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
 use std::convert::TryInto;
-use std::io;
 use std::io::Write;
 
 // TODO: move it elsewhere
@@ -64,8 +66,8 @@ impl SigningCosmWasmClient {
         sender_address: &AccountId,
         wasm_code: Vec<u8>,
         fee: Fee,
-        mut meta: Option<UploadMeta>,
         memo: impl Into<String>,
+        mut meta: Option<UploadMeta>,
     ) -> Result<UploadResult, ValidatorClientError> {
         let compressed = self.compress_wasm_code(&wasm_code)?;
         let compressed_size = compressed.len();
@@ -91,15 +93,20 @@ impl SigningCosmWasmClient {
 
         let tx_res = self
             .sign_and_broadcast_commit(sender_address, vec![upload_msg], fee, memo)
-            .await?;
+            .await?
+            .check_response()?;
 
         let logs = parse_raw_logs(tx_res.deliver_tx.log)?;
 
         // TODO: should those strings be extracted into some constants?
+        // the reason I think unwrap here is fine is that if the transaction succeeded and those
+        // fields do not exist or code_id is not a number, there's no way we can recover, we're probably connected
+        // to wrong validator or something
         let code_id = logs::find_attribute(&logs, "message", "code_id")
-            .map(|attr| attr.value.parse())
-            .ok_or(ValidatorClientError::CodeIdIsNotANumber)?
-            .map_err(|_| ValidatorClientError::CodeIdIsNotANumber)?;
+            .unwrap()
+            .value
+            .parse()
+            .unwrap();
 
         Ok(UploadResult {
             original_size: wasm_code.len(),
@@ -112,38 +119,64 @@ impl SigningCosmWasmClient {
         })
     }
 
+    // honestly, I don't see a nice way of removing any arguments
+    // perhaps memo could be moved to options like what cosmjs is doing
+    // put personally I'd prefer to leave it there for consistency with
+    // signatures of other methods
+    #[allow(clippy::too_many_arguments)]
     pub async fn instantiate<M>(
         &self,
         sender_address: &AccountId,
-        code_id: u64,
+        code_id: ContractCodeId,
         msg: &M,
         label: String,
         fee: Fee,
-        options: Option<InstantiateOptions>,
         memo: impl Into<String>,
+        mut options: Option<InstantiateOptions>,
     ) -> Result<InstantiateResult, ValidatorClientError>
     where
         M: ?Sized + Serialize,
     {
         let init_msg = cosmwasm::MsgInstantiateContract {
             sender: sender_address.clone(),
-            admin: todo!(),
+            admin: options
+                .as_mut()
+                .map(|options| options.admin.take())
+                .flatten(),
             code_id,
-            label: todo!(),
+            // now this is a weird one. the protobuf files say this field is optional,
+            // but if you omit it, the initialisation will fail CheckTx
+            label: Some(label),
             init_msg: serde_json::to_vec(msg)?,
-            funds: todo!(),
+            funds: options.map(|options| options.funds).unwrap_or_default(),
         }
         .to_msg()
         .map_err(|_| {
             ValidatorClientError::SerializationError("MsgInstantiateContract".to_owned())
         })?;
 
-        // TODO: cosmjs doesn't have a memo here
         let tx_res = self
             .sign_and_broadcast_commit(sender_address, vec![init_msg], fee, memo)
-            .await?;
+            .await?
+            .check_response()?;
 
-        todo!("produce init result here")
+        let logs = parse_raw_logs(tx_res.deliver_tx.log)?;
+
+        // TODO: should those strings be extracted into some constants?
+        // the reason I think unwrap here is fine is that if the transaction succeeded and those
+        // fields do not exist or address is malformed, there's no way we can recover, we're probably connected
+        // to wrong validator or something
+        let contract_address = logs::find_attribute(&logs, "message", "contract_address")
+            .unwrap()
+            .value
+            .parse()
+            .unwrap();
+
+        Ok(InstantiateResult {
+            contract_address,
+            logs,
+            transaction_hash: tx_res.hash,
+        })
     }
 
     pub async fn update_admin(
@@ -164,9 +197,13 @@ impl SigningCosmWasmClient {
 
         let tx_res = self
             .sign_and_broadcast_commit(sender_address, vec![change_admin_msg], fee, memo)
-            .await?;
+            .await?
+            .check_response()?;
 
-        todo!("produce change admin result here")
+        Ok(ChangeAdminResult {
+            logs: parse_raw_logs(tx_res.deliver_tx.log)?,
+            transaction_hash: tx_res.hash,
+        })
     }
 
     pub async fn clear_admin(
@@ -185,9 +222,13 @@ impl SigningCosmWasmClient {
 
         let tx_res = self
             .sign_and_broadcast_commit(sender_address, vec![change_admin_msg], fee, memo)
-            .await?;
+            .await?
+            .check_response()?;
 
-        todo!("produce change admin result here")
+        Ok(ChangeAdminResult {
+            logs: parse_raw_logs(tx_res.deliver_tx.log)?,
+            transaction_hash: tx_res.hash,
+        })
     }
 
     pub async fn migrate<M>(
@@ -213,9 +254,13 @@ impl SigningCosmWasmClient {
 
         let tx_res = self
             .sign_and_broadcast_commit(sender_address, vec![migrate_msg], fee, memo)
-            .await?;
+            .await?
+            .check_response()?;
 
-        todo!("produce migrate result here")
+        Ok(MigrateResult {
+            logs: parse_raw_logs(tx_res.deliver_tx.log)?,
+            transaction_hash: tx_res.hash,
+        })
     }
 
     pub async fn execute<M>(
@@ -241,9 +286,13 @@ impl SigningCosmWasmClient {
 
         let tx_res = self
             .sign_and_broadcast_commit(sender_address, vec![execute_msg], fee, memo)
-            .await?;
+            .await?
+            .check_response()?;
 
-        todo!("produce execute result here")
+        Ok(ExecuteResult {
+            logs: parse_raw_logs(tx_res.deliver_tx.log)?,
+            transaction_hash: tx_res.hash,
+        })
     }
 
     pub async fn send_tokens(
@@ -267,32 +316,63 @@ impl SigningCosmWasmClient {
     }
 
     pub async fn delegate_tokens(
+        &self,
         delegator_address: &AccountId,
         validator_address: &AccountId,
         amount: Coin,
         fee: Fee,
         memo: impl Into<String>,
     ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
-        todo!()
+        let delegate_msg = MsgDelegate {
+            delegator_address: delegator_address.to_owned(),
+            validator_address: validator_address.to_owned(),
+            amount: Some(amount),
+        }
+        .to_msg()
+        .map_err(|_| ValidatorClientError::SerializationError("MsgDelegate".to_owned()))?;
+
+        self.sign_and_broadcast_commit(delegator_address, vec![delegate_msg], fee, memo)
+            .await
     }
 
     pub async fn undelegate_tokens(
+        &self,
         delegator_address: &AccountId,
         validator_address: &AccountId,
         amount: Coin,
         fee: Fee,
         memo: impl Into<String>,
     ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
-        todo!()
+        let undelegate_msg = MsgUndelegate {
+            delegator_address: delegator_address.to_owned(),
+            validator_address: validator_address.to_owned(),
+            amount: Some(amount),
+        }
+        .to_msg()
+        .map_err(|_| ValidatorClientError::SerializationError("MsgUndelegate".to_owned()))?;
+
+        self.sign_and_broadcast_commit(delegator_address, vec![undelegate_msg], fee, memo)
+            .await
     }
 
     pub async fn withdraw_rewards(
+        &self,
         delegator_address: &AccountId,
         validator_address: &AccountId,
         fee: Fee,
         memo: impl Into<String>,
     ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
-        todo!()
+        let withdraw_msg = MsgWithdrawDelegatorReward {
+            delegator_address: delegator_address.to_owned(),
+            validator_address: validator_address.to_owned(),
+        }
+        .to_msg()
+        .map_err(|_| {
+            ValidatorClientError::SerializationError("MsgWithdrawDelegatorReward".to_owned())
+        })?;
+
+        self.sign_and_broadcast_commit(delegator_address, vec![withdraw_msg], fee, memo)
+            .await
     }
 
     // Creates a transaction with the given messages, fee and memo. Then signs and broadcasts the transaction.

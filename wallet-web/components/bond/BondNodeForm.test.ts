@@ -20,12 +20,14 @@ test('correctly validates ipv6 hostnames', () => {
   expect(isValidHostname('2001:0db8:0000:85a3:0000:0000:ac1f:8001')).toBe(true)
   expect(isValidHostname('0000:0000:0000:0000:0000:0000:0000:0000')).toBe(true)
   expect(isValidHostname('ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff')).toBe(true)
+  expect(isValidHostname('nymtech.net')).toBe(true)
 
   expect(isValidHostname('2001:0000:1234: 0000:0000:C1C0:ABCD:0876')).toBe(
     false
   )
   expect(isValidHostname('::1111:2222:3333:4444:5555:6666::')).toBe(false)
   expect(isValidHostname('3ffe:b00::1::a')).toBe(false)
+  expect(isValidHostname('nymtech.?')).toBe(false)
 })
 
 test('correctly validates an amount', () => {

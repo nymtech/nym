@@ -47,7 +47,7 @@ export const validateLocation = (location: string): boolean => {
   return !location.trim().includes('physical location of your node')
 }
 
-export const formatDataForSubmission = <T>(
+export const formatDataForSubmission = (
   {
     amount,
     host,

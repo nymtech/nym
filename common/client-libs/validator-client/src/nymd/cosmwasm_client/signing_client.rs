@@ -2,34 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd::cosmwasm_client::client::CosmWasmClient;
+use crate::nymd::cosmwasm_client::helpers::{compress_wasm_code, CheckResponse};
+use crate::nymd::cosmwasm_client::logs::{self, parse_raw_logs};
 use crate::nymd::cosmwasm_client::types::*;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use crate::ValidatorClientError;
-// use async_trait::async_trait;
-use crate::nymd::cosmwasm_client::helpers::CheckResponse;
-use crate::nymd::cosmwasm_client::logs::{self, parse_raw_logs};
 use cosmos_sdk::bank::MsgSend;
 use cosmos_sdk::distribution::MsgWithdrawDelegatorReward;
+use cosmos_sdk::proto::cosmos::auth::v1beta1::BaseAccount;
+use cosmos_sdk::rpc::endpoint::block::Response as BlockResponse;
 use cosmos_sdk::rpc::endpoint::broadcast;
+use cosmos_sdk::rpc::endpoint::tx::Response as TxResponse;
+use cosmos_sdk::rpc::endpoint::tx_search::Response as TxSearchResponse;
+use cosmos_sdk::rpc::query::Query;
 use cosmos_sdk::rpc::{Error as TendermintRpcError, HttpClientUrl};
 use cosmos_sdk::staking::{MsgDelegate, MsgUndelegate};
-use cosmos_sdk::tendermint::chain;
-use cosmos_sdk::tx::{AccountNumber, Fee, Msg, MsgType, SequenceNumber, SignDoc, SignerInfo};
-use cosmos_sdk::{cosmwasm, tx, AccountId, Coin};
-use flate2::write::GzEncoder;
-use flate2::Compression;
-use serde::Serialize;
+use cosmos_sdk::tendermint::abci::Transaction;
+use cosmos_sdk::tendermint::{block, chain};
+use cosmos_sdk::tx::{Fee, Msg, MsgType, SignDoc, SignerInfo};
+use cosmos_sdk::{cosmwasm, tx, AccountId, Coin, Denom};
+use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use sha2::Sha256;
 use std::convert::TryInto;
-use std::io::Write;
-
-// TODO: move it elsewhere
-struct SignerData {
-    account_number: AccountNumber,
-    sequence: SequenceNumber,
-    chain_id: chain::Id,
-}
 
 pub struct SigningCosmWasmClient {
     base_client: CosmWasmClient,
@@ -50,17 +45,6 @@ impl SigningCosmWasmClient {
         })
     }
 
-    fn compress_wasm_code(&self, code: &[u8]) -> Result<Vec<u8>, ValidatorClientError> {
-        // using compression level 9, same as cosmjs, that optimises for size
-        let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
-        encoder
-            .write_all(code)
-            .map_err(ValidatorClientError::WasmCompressionError)?;
-        encoder
-            .finish()
-            .map_err(ValidatorClientError::WasmCompressionError)
-    }
-
     pub async fn upload(
         &self,
         sender_address: &AccountId,
@@ -69,7 +53,7 @@ impl SigningCosmWasmClient {
         memo: impl Into<String>,
         mut meta: Option<UploadMeta>,
     ) -> Result<UploadResult, ValidatorClientError> {
-        let compressed = self.compress_wasm_code(&wasm_code)?;
+        let compressed = compress_wasm_code(&wasm_code)?;
         let compressed_size = compressed.len();
         let compressed_checksum = Sha256::digest(&compressed).to_vec();
 
@@ -484,71 +468,142 @@ impl SigningCosmWasmClient {
     }
 
     // TODO: here be the ugliness of re-exposing methods from base_client
+    // Once async traits are more mature, maybe it will be possible to achieve it with them.
+    // Or maybe not because the wallet is not Send because keys are not Sync (i.e. they are just dyn EcdsaSigner)
+    // The push for GAT stabilisation (https://blog.rust-lang.org/2021/08/03/GATs-stabilization-push.html)
+    // is a very good sign.
+    pub async fn get_chain_id(&self) -> Result<chain::Id, ValidatorClientError> {
+        self.base_client.get_chain_id().await
+    }
+
+    pub async fn get_height(&self) -> Result<block::Height, ValidatorClientError> {
+        self.base_client.get_height().await
+    }
+
+    pub async fn get_account(
+        &self,
+        address: &AccountId,
+    ) -> Result<Option<BaseAccount>, ValidatorClientError> {
+        self.base_client.get_account(address).await
+    }
+
+    pub async fn get_sequence(
+        &self,
+        address: &AccountId,
+    ) -> Result<SequenceResponse, ValidatorClientError> {
+        self.base_client.get_sequence(address).await
+    }
+
+    pub async fn get_block(
+        &self,
+        height: Option<u32>,
+    ) -> Result<BlockResponse, ValidatorClientError> {
+        self.base_client.get_block(height).await
+    }
+
+    pub async fn get_balance(
+        &self,
+        address: &AccountId,
+        search_denom: Denom,
+    ) -> Result<Option<Coin>, ValidatorClientError> {
+        self.base_client.get_balance(address, search_denom).await
+    }
+
+    pub async fn get_all_balances(
+        &self,
+        address: &AccountId,
+    ) -> Result<Vec<Coin>, ValidatorClientError> {
+        self.base_client.get_all_balances(address).await
+    }
+
+    pub async fn get_tx(&self, id: &str) -> Result<TxResponse, ValidatorClientError> {
+        self.base_client.get_tx(id).await
+    }
+
+    pub async fn search_tx(&self, query: Query) -> Result<TxSearchResponse, ValidatorClientError> {
+        self.base_client.search_tx(query).await
+    }
+
+    /// Broadcast a transaction, returning immediately.
+    pub async fn broadcast_tx_async(
+        &self,
+        tx: Transaction,
+    ) -> Result<broadcast::tx_async::Response, ValidatorClientError> {
+        self.base_client.broadcast_tx_async(tx).await
+    }
+
+    /// Broadcast a transaction, returning the response from `CheckTx`.
+    pub async fn broadcast_tx_sync(
+        &self,
+        tx: Transaction,
+    ) -> Result<broadcast::tx_sync::Response, ValidatorClientError> {
+        self.base_client.broadcast_tx_sync(tx).await
+    }
+
+    /// Broadcast a transaction, returning the response from `DeliverTx`.
+    pub async fn broadcast_tx_commit(
+        &self,
+        tx: Transaction,
+    ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
+        self.base_client.broadcast_tx_commit(tx).await
+    }
+
+    pub async fn get_codes(&self) -> Result<Vec<Code>, ValidatorClientError> {
+        self.base_client.get_codes().await
+    }
+
+    pub async fn get_code_details(
+        &self,
+        code_id: ContractCodeId,
+    ) -> Result<CodeDetails, ValidatorClientError> {
+        self.base_client.get_code_details(code_id).await
+    }
+
+    pub async fn get_contracts(
+        &self,
+        code_id: ContractCodeId,
+    ) -> Result<Vec<AccountId>, ValidatorClientError> {
+        self.base_client.get_contracts(code_id).await
+    }
+
+    pub async fn get_contract(
+        &self,
+        address: &AccountId,
+    ) -> Result<Contract, ValidatorClientError> {
+        self.base_client.get_contract(address).await
+    }
+
+    pub async fn get_contract_code_history(
+        &self,
+        address: &AccountId,
+    ) -> Result<Vec<ContractCodeHistoryEntry>, ValidatorClientError> {
+        self.base_client.get_contract_code_history(address).await
+    }
+
+    pub async fn query_contract_raw(
+        &self,
+        address: &AccountId,
+        query_data: Vec<u8>,
+    ) -> Result<Vec<u8>, ValidatorClientError> {
+        self.base_client
+            .query_contract_raw(address, query_data)
+            .await
+    }
+
+    pub async fn query_contract_smart<M, T>(
+        &self,
+        address: &AccountId,
+        query_msg: &M,
+    ) -> Result<T, ValidatorClientError>
+    where
+        M: ?Sized + Serialize,
+        for<'a> T: Deserialize<'a>,
+    {
+        self.base_client
+            .query_contract_smart(address, query_msg)
+            .await
+    }
 }
-
-// #[async_trait]
-// pub trait SigningCosmWasmClient: QueryCosmWasmClient {
-//     async fn foo(&self);
-//     // /**
-//     //  * Creates a client in offline mode.
-//     //  *
-//     //  * This should only be used in niche cases where you know exactly what you're doing,
-//     //  * e.g. when building an offline signing application.
-//     //  *
-//     //  * When you try to use online functionality with such a signer, an
-//     //  * exception will be raised.
-//     //  */
-//     // static offline(signer: OfflineSigner, options?: SigningCosmWasmClientOptions): Promise<SigningCosmWasmClient>;
-//     // protected constructor(tmClient: Tendermint34Client | undefined, signer: OfflineSigner, options: SigningCosmWasmClientOptions);
-//     // /** Uploads code and returns a receipt, including the code ID */
-//     // upload(sender_address: string, wasmCode: Uint8Array, meta?: UploadMeta, memo: impl Into<String>): Promise<UploadResult>;
-//     // instantiate(senderAddress: string, code_id: number, msg: Record<string, unknown>, label: string, options?: InstantiateOptions): Promise<InstantiateResult>;
-//     // update_admin(senderAddress: string, contract_address: string, newAdmin: string, memo: impl Into<String>): Promise<ChangeAdminResult>;
-//     // clear_admin(senderAddress: string, contract_address: string, memo: impl Into<String>): Promise<ChangeAdminResult>;
-//     // migrate(senderAddress: string, contractAddress: string, code_id: number, migrateMsg: Record<string, unknown>, memo: impl Into<String>): Promise<MigrateResult>;
-//     // execute(senderAddress: string, contractAddress: string, msg: Record<string, unknown>, memo: impl Into<String>, funds?: readonly Coin[]): Promise<ExecuteResult>;
-//     // send_tokens(senderAddress: string, recipient_address: string, amount: readonly Coin[], memo: impl Into<String>): Promise<broadcast::tx_commit::Response>;
-//     // delegate_tokens(delegator_address: string, validatorAddress: string, amount: Coin, memo: impl Into<String>): Promise<broadcast::tx_commit::Response>;
-//     // undelegate_tokens(delegator_address: string, validatorAddress: string, amount: Coin, memo: impl Into<String>): Promise<broadcast::tx_commit::Response>;
-//     // withdraw_rewards(delegator_address: string, validatorAddress: string, memo: impl Into<String>): Promise<broadcast::tx_commit::Response>;
-//     // /**
-//     //  * Creates a transaction with the given messages, fee and memo. Then signs and broadcasts the transaction.
-//     //  *
-//     //  * @param signer_address The address that will sign transactions using this instance. The signer must be able to sign with this address.
-//     //  * @param messages
-//     //  * @param fee
-//     //  * @param memo
-//     //  */
-//     // sign_and_broadcast(signer_address: string, messages: readonly EncodeObject[], fee: StdFee, memo: impl Into<String>): Promise<broadcast::tx_commit::Response>;
-//     // sign(signer_address: string, messages: readonly EncodeObject[], fee: StdFee, memo: string, explicitSignerData?: SignerData): Promise<TxRaw>;
-// }
-
-// impl Client {
-//     async fn foo(&self) {
-//         let bar = self.http_client.status().await.unwrap();
-//         println!("{}", bar.sync_info.latest_block_height.value())
-//     }
-// }
-
-// #[async_trait]
-// impl SigningCosmWasmClient for Client {
-//     async fn foo(&self) {
-//
-//     }
-// }
-//
-// #[async_trait]
-// impl QueryCosmWasmClient for Client {}
-//
-// #[async_trait]
-// impl rpc::Client for Client {
-//     async fn perform<R>(&self, request: R) -> rpc::Result<R::Response>
-//     where
-//         R: SimpleRequest,
-//     {
-//         self.http_client.perform(request).await
-//     }
-// }
 
 #[cfg(test)]
 mod tests {

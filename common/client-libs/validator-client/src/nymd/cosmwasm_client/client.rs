@@ -25,7 +25,6 @@ use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 
-// #[async_trait]
 pub struct CosmWasmClient {
     tm_client: HttpClient,
 }
@@ -388,16 +387,3 @@ impl CosmWasmClient {
         Ok(serde_json::from_slice(&res.data)?)
     }
 }
-
-// #[async_trait]
-// impl QueryCosmWasmClient for Client {}
-//
-// #[async_trait]
-// impl rpc::Client for Client {
-//     async fn perform<R>(&self, request: R) -> rpc::Result<R::Response>
-//     where
-//         R: SimpleRequest,
-//     {
-//         self.http_client.perform(request).await
-//     }
-// }

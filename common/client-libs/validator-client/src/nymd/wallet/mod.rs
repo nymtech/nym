@@ -13,7 +13,6 @@ pub const DEFAULT_BECH32_ADDRESS_PREFIX: &str = "punk";
 
 pub struct DirectSecp256k1HdWallet {
     secret: bip39::Mnemonic,
-    seed: [u8; 64],
     accounts: Vec<AccountData>,
 }
 
@@ -70,9 +69,7 @@ impl DirectSecp256k1HdWallet {
             .accounts
             .iter()
             .find(|account| &account.address == signer_address)
-            .ok_or(ValidatorClientError::SigningAccountNotFound(
-                signer_address.clone(),
-            ))?;
+            .ok_or_else(|| ValidatorClientError::SigningAccountNotFound(signer_address.clone()))?;
 
         // ideally I'd prefer to have the entire error put into the ValidatorClientError::SigningFailure
         // but I'm super hesitant to trying to downcast the eyre::Report to cosmos_sdk::error::Error
@@ -172,7 +169,6 @@ impl DirectSecp256k1HdWalletBuilder {
         Ok(DirectSecp256k1HdWallet {
             accounts,
             secret: mnemonic,
-            seed,
         })
     }
 }

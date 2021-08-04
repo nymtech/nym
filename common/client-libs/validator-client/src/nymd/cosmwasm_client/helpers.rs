@@ -3,6 +3,9 @@
 
 use crate::ValidatorClientError;
 use cosmos_sdk::rpc::endpoint::broadcast;
+use flate2::write::GzEncoder;
+use flate2::Compression;
+use std::io::Write;
 
 pub(crate) trait CheckResponse: Sized {
     fn check_response(self) -> Result<Self, ValidatorClientError>;
@@ -32,9 +35,13 @@ impl CheckResponse for broadcast::tx_commit::Response {
     }
 }
 
-// fn check_broadcast_result(
-//     &self,
-//     response: broadcast::tx_commit::Response,
-// ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
-//     Ok(response)
-// }
+pub(crate) fn compress_wasm_code(code: &[u8]) -> Result<Vec<u8>, ValidatorClientError> {
+    // using compression level 9, same as cosmjs, that optimises for size
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
+    encoder
+        .write_all(code)
+        .map_err(ValidatorClientError::WasmCompressionError)?;
+    encoder
+        .finish()
+        .map_err(ValidatorClientError::WasmCompressionError)
+}

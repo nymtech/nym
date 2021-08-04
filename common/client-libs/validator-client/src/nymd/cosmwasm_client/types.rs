@@ -9,6 +9,7 @@ use cosmos_sdk::proto::cosmwasm::wasm::v1beta1::{
     CodeInfoResponse, ContractCodeHistoryEntry as ProtoContractCodeHistoryEntry,
     ContractCodeHistoryOperationType, ContractInfo as ProtoContractInfo,
 };
+use cosmos_sdk::tendermint::chain;
 use cosmos_sdk::tx::{AccountNumber, SequenceNumber};
 use cosmos_sdk::{tx, AccountId, Coin};
 use serde::Serialize;
@@ -18,6 +19,14 @@ pub type ContractCodeId = u64;
 
 #[derive(Serialize)]
 pub struct EmptyMsg {}
+
+/// Signing information for a single signer that is not included in the transaction.
+#[derive(Debug)]
+pub struct SignerData {
+    pub account_number: AccountNumber,
+    pub sequence: SequenceNumber,
+    pub chain_id: chain::Id,
+}
 
 #[derive(Debug)]
 pub struct SequenceResponse {

@@ -16,7 +16,7 @@ use url::Url;
 
 mod error;
 mod models;
-pub(crate) mod nymd;
+pub mod nymd;
 pub(crate) mod serde_helpers;
 pub mod validator_api;
 

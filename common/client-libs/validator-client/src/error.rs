@@ -1,7 +1,6 @@
 use crate::validator_api;
 
 use crate::nymd::cosmwasm_client::types::ContractCodeId;
-use cosmos_sdk::tendermint::abci::Code;
 use cosmos_sdk::tendermint::block;
 use cosmos_sdk::{bip32, rpc, tx, AccountId};
 use serde::Deserialize;

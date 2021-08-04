@@ -1,44 +1,33 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-mod client;
+use crate::nymd::cosmwasm_client::client::CosmWasmClient;
+use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
+use crate::nymd::wallet::DirectSecp256k1HdWallet;
+use crate::ValidatorClientError;
+use cosmos_sdk::rpc::{Error as TendermintRpcError, HttpClientUrl};
+use std::convert::TryInto;
+
+pub mod client;
 mod helpers;
-mod logs;
-mod signing_client;
+pub mod logs;
+pub mod signing_client;
 pub mod types;
 
-// pub enum CosmWasmClient {
-//     SigningClient(SigningCosmWasmClient),
-//     QueryClient(QueryCosmWasmClient),
-// }
-//
-// impl CosmWasmClient {
-//     pub fn connect_with_signer() -> Self {
-//         todo!()
-//     }
-//
-//     pub fn connect() -> Self {
-//         todo!()
-//     }
-// }
+pub fn connect<U>(endpoint: U) -> Result<CosmWasmClient, ValidatorClientError>
+where
+    U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
+{
+    CosmWasmClient::connect(endpoint)
+}
 
-// I initially had a super neat trait-based implementation that got rid of so much duplicate code
-// but unfortunately async traits are not mature enough to handle the case of wallet being !Send
-
-// pub struct CosmWasmClient<T> {
-//     inner_client: T,
-// }
-//
-// impl<T> CosmWasmClient<T> {
-//     pub fn connect_with_signer() -> CosmWasmClient<signing_client::Client> {
-//         todo!()
-//     }
-//
-//     pub fn connect() -> CosmWasmClient<client::Client> {
-//         todo!()
-//     }
-// }
-//
-// impl<T: SigningCosmWasmClient> CosmWasmClient<T> {}
-//
-// impl<T: QueryCosmWasmClient> CosmWasmClient<T> {}
+// maybe the wallet could be made into a generic, but for now, let's just have this one implementation
+pub fn connect_with_signer<U>(
+    endpoint: U,
+    signer: DirectSecp256k1HdWallet,
+) -> Result<SigningCosmWasmClient, ValidatorClientError>
+where
+    U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
+{
+    SigningCosmWasmClient::connect_with_signer(endpoint, signer)
+}

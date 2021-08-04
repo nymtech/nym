@@ -7,7 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1.50"
 base64 = "0.13"
 bip39 = { version = "1", features = ["rand"] }
 #cosmos_sdk = { git = "https://github.com/cosmos/cosmos-rust/", commit="4299b75a5a9b68e4f9a1693bb689874561d544db", features = ["rpc", "bip32", "cosmwasm"] }

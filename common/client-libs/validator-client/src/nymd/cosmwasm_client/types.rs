@@ -3,16 +3,20 @@
 
 // TODO: There's a significant argument to pull those out of the package and make a PR on https://github.com/cosmos/cosmos-rust/
 
+use crate::nymd::cosmwasm_client::logs::Log;
 use crate::ValidatorClientError;
 use cosmos_sdk::proto::cosmwasm::wasm::v1beta1::{
     CodeInfo, CodeInfoResponse, ContractCodeHistoryEntry as ProtoContractCodeHistoryEntry,
     ContractCodeHistoryOperationType, ContractInfo as ProtoContractInfo, QueryCodeResponse,
     QueryContractInfoResponse,
 };
-use cosmos_sdk::tendermint::block;
+use cosmos_sdk::tendermint::{abci, block};
 use cosmos_sdk::tx::{AccountNumber, SequenceNumber};
-use cosmos_sdk::AccountId;
+use cosmos_sdk::{tx, AccountId};
+use itertools::Itertools;
+use serde::Deserialize;
 use std::convert::TryFrom;
+use std::str::FromStr;
 
 pub type ContractCodeId = u64;
 
@@ -204,12 +208,59 @@ impl TryFrom<ProtoContractCodeHistoryEntry> for ContractCodeHistoryEntry {
     }
 }
 
-// TODO: implement those
-pub type UploadMeta = ();
-pub type UploadResult = ();
-pub type InstantiateOptions = ();
-pub type InstantiateResult = ();
-pub type ChangeAdminResult = ();
-pub type MigrateResult = ();
+// ##############################################################################
+// types specific to the signing client (perhaps they should go to separate file)
+// ##############################################################################
 
-pub type ExecuteResult = ();
+#[derive(Debug)]
+pub struct UploadMeta {
+    /// An URL to a .tar.gz archive of the source code of the contract,
+    /// which can be used to reproducibly build the Wasm bytecode.
+    ///
+    /// @see https://github.com/CosmWasm/cosmwasm-verify
+    pub source: Option<String>,
+
+    /// A docker image (including version) to reproducibly build the Wasm bytecode from the source code.
+    ///
+    /// @example ```cosmwasm/rust-optimizer:0.8.0```
+    /// @see https://github.com/CosmWasm/cosmwasm-verify
+    pub builder: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct UploadResult {
+    /// Size of the original wasm code in bytes
+    pub original_size: usize,
+
+    /// A hex encoded sha256 checksum of the original wasm code (that is stored on chain)
+    pub original_checksum: Vec<u8>,
+
+    /// Size of the compressed wasm code in bytes
+    pub compressed_size: usize,
+
+    /// A sha256 checksum of the compressed wasm code (that is stored in the transaction)
+    pub compressed_checksum: Vec<u8>,
+
+    /// The ID of the code assigned by the chain
+    pub code_id: ContractCodeId,
+
+    pub logs: Vec<Log>,
+
+    /// Transaction hash (might be used as transaction ID)
+    pub transaction_hash: tx::Hash,
+}
+
+#[derive(Debug)]
+pub struct InstantiateOptions {}
+
+#[derive(Debug)]
+pub struct InstantiateResult {}
+
+#[derive(Debug)]
+pub struct ChangeAdminResult {}
+
+#[derive(Debug)]
+pub struct MigrateResult {}
+
+#[derive(Debug)]
+pub struct ExecuteResult {}

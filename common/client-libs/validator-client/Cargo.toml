@@ -21,6 +21,10 @@ log = "0.4"
 url = "2"
 wasm-timer = "0.2"
 prost = { version = "0.7", default-features = false }
+flate2 = "1.0.20"
+sha2 = "0.9.5"
+cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch="0.14.1-updatedk256" }
+itertools = "0.10"
 
 [dev-dependencies]
 tokio = {version = "1.5", features = ["full"]}

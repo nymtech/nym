@@ -3,6 +3,7 @@ use crate::validator_api;
 use crate::nymd::cosmwasm_client::types::ContractCodeId;
 use cosmos_sdk::{bip32, rpc, AccountId};
 use serde::Deserialize;
+use std::io;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -78,6 +79,15 @@ pub enum ValidatorClientError {
 
     #[error("Block has an invalid height (either negative or larger than i64::MAX")]
     InvalidHeight,
+
+    #[error("Failed to compress provided wasm code - {0}")]
+    WasmCompressionError(io::Error),
+
+    #[error("Logs returned from the validator were malformed")]
+    MalformedLogString,
+
+    #[error("Received code id is not a valid number")]
+    CodeIdIsNotANumber,
 }
 
 impl From<bip32::Error> for ValidatorClientError {

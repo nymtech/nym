@@ -2,21 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd::cosmwasm_client::client::CosmWasmClient;
+use crate::nymd::cosmwasm_client::types::*;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use crate::ValidatorClientError;
-use async_trait::async_trait;
+// use async_trait::async_trait;
+use crate::nymd::cosmwasm_client::logs::{self, parse_raw_logs};
 use cosmos_sdk::bank::MsgSend;
-use cosmos_sdk::proto::cosmwasm::wasm::v1beta1::MsgExecuteContract;
 use cosmos_sdk::rpc::endpoint::broadcast;
-use cosmos_sdk::rpc::{
-    Client, Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest,
-};
-use cosmos_sdk::tendermint::{block, chain};
+use cosmos_sdk::rpc::{Error as TendermintRpcError, HttpClientUrl};
+use cosmos_sdk::tendermint::chain;
 use cosmos_sdk::tx::{AccountNumber, Fee, Msg, MsgType, SequenceNumber, SignDoc, SignerInfo};
-use cosmos_sdk::{cosmwasm, rpc, tx, AccountId, Coin};
+use cosmos_sdk::{cosmwasm, tx, AccountId, Coin};
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use serde::Serialize;
+use sha2::Digest;
+use sha2::Sha256;
 use std::convert::TryInto;
-use std::pin::Pin;
+use std::io;
+use std::io::Write;
 
 // TODO: move it elsewhere
 struct SignerData {
@@ -29,15 +33,6 @@ pub struct SigningCosmWasmClient {
     base_client: CosmWasmClient,
     signer: DirectSecp256k1HdWallet,
 }
-
-// TODO: implement those
-type UploadMeta = ();
-type UploadResult = ();
-type InstantiateOptions = ();
-type InstantiateResult = ();
-type ChangeAdminResult = ();
-type MigrateResult = ();
-type ExecuteResult = ();
 
 impl SigningCosmWasmClient {
     pub fn connect_with_signer<U>(
@@ -53,20 +48,43 @@ impl SigningCosmWasmClient {
         })
     }
 
+    fn compress_wasm_code(&self, code: &[u8]) -> Result<Vec<u8>, ValidatorClientError> {
+        // using compression level 9, same as cosmjs, that optimises for size
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
+        encoder
+            .write_all(code)
+            .map_err(ValidatorClientError::WasmCompressionError)?;
+        encoder
+            .finish()
+            .map_err(ValidatorClientError::WasmCompressionError)
+    }
+
     pub async fn upload(
         &self,
         sender_address: &AccountId,
         wasm_code: Vec<u8>,
         fee: Fee,
-        meta: Option<UploadMeta>,
+        mut meta: Option<UploadMeta>,
         memo: impl Into<String>,
     ) -> Result<UploadResult, ValidatorClientError> {
+        let compressed = self.compress_wasm_code(&wasm_code)?;
+        let compressed_size = compressed.len();
+        let compressed_checksum = Sha256::digest(&compressed).to_vec();
+
+        // TODO: what about instantiate_permission?
+        // cosmjs is just ignoring that field...
         let upload_msg = cosmwasm::MsgStoreCode {
             sender: sender_address.clone(),
-            wasm_byte_code: wasm_code,
-            source: todo!(),
-            builder: todo!(),
-            instantiate_permission: todo!(),
+            wasm_byte_code: compressed,
+            source: meta
+                .as_mut()
+                .map(|meta| meta.source.take())
+                .unwrap_or_default(),
+            builder: meta
+                .as_mut()
+                .map(|meta| meta.builder.take())
+                .unwrap_or_default(),
+            instantiate_permission: Default::default(),
         }
         .to_msg()
         .map_err(|_| ValidatorClientError::SerializationError("MsgStoreCode".to_owned()))?;
@@ -75,7 +93,23 @@ impl SigningCosmWasmClient {
             .sign_and_broadcast_commit(sender_address, vec![upload_msg], fee, memo)
             .await?;
 
-        todo!("produce change upload result here")
+        let logs = parse_raw_logs(tx_res.deliver_tx.log)?;
+
+        // TODO: should those strings be extracted into some constants?
+        let code_id = logs::find_attribute(&logs, "message", "code_id")
+            .map(|attr| attr.value.parse())
+            .ok_or(ValidatorClientError::CodeIdIsNotANumber)?
+            .map_err(|_| ValidatorClientError::CodeIdIsNotANumber)?;
+
+        Ok(UploadResult {
+            original_size: wasm_code.len(),
+            original_checksum: Sha256::digest(&wasm_code).to_vec(),
+            compressed_size,
+            compressed_checksum,
+            code_id,
+            logs,
+            transaction_hash: tx_res.hash,
+        })
     }
 
     pub async fn instantiate<M>(
@@ -357,12 +391,12 @@ impl SigningCosmWasmClient {
     ) -> Result<tx::Raw, ValidatorClientError> {
         // TODO: Rather than grabbing current account_number and sequence
         // on every sign request -> just keep them cached on the struct and increment as required
-        let (account_number, sequence) = self.base_client.get_sequence(signer_address).await?;
+        let sequence_response = self.base_client.get_sequence(signer_address).await?;
         let chain_id = self.base_client.get_chain_id().await?;
 
         let signer_data = SignerData {
-            account_number,
-            sequence,
+            account_number: sequence_response.account_number,
+            sequence: sequence_response.sequence,
             chain_id,
         };
 

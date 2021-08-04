@@ -15,7 +15,7 @@ export const validateAmount = (rawValue: string, minimum: string): boolean => {
   // this conversion seems really iffy but I'm not sure how to better approach it
   let nativeValueString = printableBalanceToNative(rawValue)
   let nativeValue = parseInt(nativeValueString)
-  console.log(nativeValue, minimum)
+
   return nativeValue >= parseInt(minimum)
 }
 

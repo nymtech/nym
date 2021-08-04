@@ -33,12 +33,12 @@ impl ExplorerApiStateContext {
     pub(crate) fn new() -> Self {
         ExplorerApiStateContext {
             inner: ExplorerApiStateContext::read_from_file(),
-            state_file: std::env::var("API_STATE_FILE").unwrap_or(STATE_FILE.to_string()),
+            state_file: std::env::var("API_STATE_FILE").unwrap_or_else(|_| STATE_FILE.to_string()),
         }
     }
 
     pub(crate) fn read_from_file() -> ExplorerApiState {
-        let json_file = get_state_file_path().to_string();
+        let json_file = get_state_file_path();
         let json_file_path = Path::new(&json_file);
         info!("Loading state from file {:?}...", json_file);
         match File::open(json_file_path) {
@@ -78,7 +78,5 @@ impl ExplorerApiStateContext {
 }
 
 fn get_state_file_path() -> String {
-    std::env::var("API_STATE_FILE")
-        .unwrap_or(STATE_FILE.to_string())
-        .to_string()
+    std::env::var("API_STATE_FILE").unwrap_or_else(|_| STATE_FILE.to_string())
 }

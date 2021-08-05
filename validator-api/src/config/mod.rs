@@ -208,14 +208,6 @@ impl Default for TopologyCacher {
     }
 }
 
-fn strip_trailing_newline(input: &str) -> String {
-    input
-        .strip_suffix("\r\n")
-        .or_else(|| input.strip_suffix('\n'))
-        .unwrap_or(input)
-        .to_string()
-}
-
 impl Config {
     pub fn new() -> Self {
         Config::default()
@@ -257,7 +249,7 @@ impl Config {
 
     pub fn with_keypair(mut self, path: &str) -> Self {
         let keypair_bs58 = std::fs::read_to_string(path).unwrap();
-        self.base.keypair_bs58 = strip_trailing_newline(&keypair_bs58);
+        self.base.keypair_bs58 = keypair_bs58.trim().to_string();
         self
     }
 

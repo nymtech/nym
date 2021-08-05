@@ -22,8 +22,7 @@ wasm-timer = "0.2"
 # at some point it might be possible to make it wasm-compatible
 # perhaps after https://github.com/cosmos/cosmos-rust/pull/97 is resolved (and tendermint-rs is updated)
 bip39 = { version = "1", features = ["rand"], optional = true }
-#cosmos_sdk = { git = "https://github.com/cosmos/cosmos-rust/", commit="4299b75a5a9b68e4f9a1693bb689874561d544db", features = ["rpc", "bip32", "cosmwasm"] }
-cosmos_sdk = { git = "https://github.com/jstuczyn/cosmos-rust/", branch = "jstuczyn/bugfix/optional-cosmwasm-admin", features = ["rpc", "bip32", "cosmwasm"], optional = true }
+cosmos_sdk = { git = "https://github.com/cosmos/cosmos-rust/", commit="ba012bd820240d3df2d9a0ab1deabe4ecd9a2f30", features = ["rpc", "bip32", "cosmwasm"], optional = true }
 prost = { version = "0.7", default-features = false, optional = true }
 flate2 = { version = "1.0.20", optional = true }
 sha2 = { version = "0.9.5", optional = true }

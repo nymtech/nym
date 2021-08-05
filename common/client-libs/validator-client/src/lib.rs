@@ -16,6 +16,7 @@ use url::Url;
 
 mod error;
 mod models;
+#[cfg(feature = "nymd-client")]
 pub mod nymd;
 pub(crate) mod serde_helpers;
 pub mod validator_api;

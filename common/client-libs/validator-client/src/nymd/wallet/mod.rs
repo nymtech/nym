@@ -9,6 +9,8 @@ use cosmos_sdk::tx::SignDoc;
 use cosmos_sdk::{tx, AccountId};
 
 pub const DEFAULT_COSMOS_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";
+// TODO: probably if this is to be made into a generic-cosmos library, the default
+// prefix should be "cosmos"
 pub const DEFAULT_BECH32_ADDRESS_PREFIX: &str = "punk";
 
 pub struct DirectSecp256k1HdWallet {

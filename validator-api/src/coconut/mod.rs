@@ -1,4 +1,3 @@
-use crate::Config;
 use coconut_interface::{
     elgamal::PublicKey, Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature,
     BlindedSignatureResponse, KeyPair, Parameters, VerificationKeyResponse,
@@ -37,9 +36,9 @@ impl InternalSignRequest {
         }
     }
 
-    pub fn stage(config: Config) -> AdHoc {
+    pub fn stage(key_pair: KeyPair) -> AdHoc {
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
-            rocket.manage(config).mount(
+            rocket.manage(key_pair).mount(
                 VALIDATOR_API_CACHE_VERSION,
                 routes![post_blind_sign, get_verification_key],
             )
@@ -63,7 +62,7 @@ pub fn blind_sign(request: InternalSignRequest, key_pair: &KeyPair) -> BlindedSi
 //  Until we have serialization and deserialization traits we'll be using a crutch
 pub async fn post_blind_sign(
     blind_sign_request_body: Json<BlindSignRequestBody>,
-    config: &State<Config>,
+    key_pair: &State<KeyPair>,
 ) -> Json<BlindedSignatureResponse> {
     debug!("{:?}", blind_sign_request_body);
     let internal_request = InternalSignRequest::new(
@@ -72,13 +71,11 @@ pub async fn post_blind_sign(
         blind_sign_request_body.public_key().clone(),
         blind_sign_request_body.blind_sign_request().clone(),
     );
-    let blinded_signature = blind_sign(internal_request, &config.keypair());
+    let blinded_signature = blind_sign(internal_request, key_pair);
     Json(BlindedSignatureResponse::new(blinded_signature))
 }
 
 #[get("/verification_key")]
-pub async fn get_verification_key(config: &State<Config>) -> Json<VerificationKeyResponse> {
-    Json(VerificationKeyResponse::new(
-        config.keypair().verification_key(),
-    ))
+pub async fn get_verification_key(key_pair: &State<KeyPair>) -> Json<VerificationKeyResponse> {
+    Json(VerificationKeyResponse::new(key_pair.verification_key()))
 }

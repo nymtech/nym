@@ -212,7 +212,7 @@ async fn main() -> Result<()> {
     let rocket = rocket::custom(rocket_config)
         .attach(setup_cors()?)
         .attach(ValidatorCache::stage())
-        .attach(InternalSignRequest::stage(config.clone()));
+        .attach(InternalSignRequest::stage(config.keypair()));
 
     // see if we should start up network monitor and ignite our rocket
     let rocket = if config.get_network_monitor_enabled() {

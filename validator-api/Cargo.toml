@@ -11,10 +11,6 @@ authors = [
 ]
 edition = "2018"
 
-# if there's ANY panic in ANY thread, abort the whole thing
-[profile.release]
-panic = "abort"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -36,7 +32,7 @@ rocket_cors = { git="https://github.com/lawliet89/rocket_cors", rev="dfd3662c49e
 anyhow = "1"
 
 rocket_sync_db_pools = {version = "0.1.0-rc.1", default-features = false}
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "offline", "migrate", "time"]}
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"]}
 
 ## internal
 config = { path = "../common/config" }
@@ -50,3 +46,7 @@ validator-client = { path="../common/client-libs/validator-client" }
 version-checker = { path="../common/version-checker" }
 
 [dev-dependencies]
+
+[build-dependencies]
+tokio = { version="1.4", features=["rt-multi-thread", "macros"] }
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]}

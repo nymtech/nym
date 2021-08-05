@@ -36,7 +36,6 @@ tokio = { version = "1.4", features = [
 rocket_cors = { git="https://github.com/lawliet89/rocket_cors", rev="dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
 anyhow = "1"
 getset = "0.1.1"
-hex = "0.4.3"
 const_format = "0.2.15"
 
 rocket_sync_db_pools = {version = "0.1.0-rc.1", default-features = false}

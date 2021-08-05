@@ -173,7 +173,7 @@ pub trait CosmWasmClient: rpc::Client {
         let per_page = 100;
 
         let mut results = Vec::new();
-        let mut page = 0;
+        let mut page = 1;
 
         loop {
             let mut res = self

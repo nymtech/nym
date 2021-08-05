@@ -7,6 +7,7 @@ use crate::nymd::cosmwasm_client::types::{
     SequenceResponse,
 };
 use crate::ValidatorClientError;
+use async_trait::async_trait;
 use cosmos_sdk::proto::cosmos::auth::v1beta1::{
     BaseAccount, QueryAccountRequest, QueryAccountResponse,
 };
@@ -18,7 +19,7 @@ use cosmos_sdk::rpc::endpoint::block::Response as BlockResponse;
 use cosmos_sdk::rpc::endpoint::broadcast;
 use cosmos_sdk::rpc::endpoint::tx::Response as TxResponse;
 use cosmos_sdk::rpc::query::Query;
-use cosmos_sdk::rpc::{Client, Error as TendermintRpcError, HttpClient, HttpClientUrl, Order};
+use cosmos_sdk::rpc::{self, HttpClient, Order};
 use cosmos_sdk::tendermint::abci::Transaction;
 use cosmos_sdk::tendermint::{abci, block, chain};
 use cosmos_sdk::{tx, AccountId, Coin, Denom};
@@ -26,20 +27,11 @@ use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 
-pub struct CosmWasmClient {
-    tm_client: HttpClient,
-}
+#[async_trait]
+impl CosmWasmClient for HttpClient {}
 
-impl CosmWasmClient {
-    pub fn connect<U>(endpoint: U) -> Result<Self, ValidatorClientError>
-    where
-        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
-    {
-        let tm_client = HttpClient::new(endpoint)?;
-
-        Ok(CosmWasmClient { tm_client })
-    }
-
+#[async_trait]
+pub trait CosmWasmClient: rpc::Client {
     // helper method to remove duplicate code involved in making abci requests with protobuf messages
     // TODO: perhaps it should have an additional argument to determine whether the response should
     // require proof?
@@ -55,21 +47,21 @@ impl CosmWasmClient {
         let mut buf = Vec::with_capacity(req.encoded_len());
         req.encode(&mut buf)?;
 
-        let res = self.tm_client.abci_query(path, buf, None, false).await?;
+        let res = self.abci_query(path, buf, None, false).await?;
 
         Ok(Res::decode(res.value.as_ref())?)
     }
 
-    pub async fn get_chain_id(&self) -> Result<chain::Id, ValidatorClientError> {
-        Ok(self.tm_client.status().await?.node_info.network)
+    async fn get_chain_id(&self) -> Result<chain::Id, ValidatorClientError> {
+        Ok(self.status().await?.node_info.network)
     }
 
-    pub async fn get_height(&self) -> Result<block::Height, ValidatorClientError> {
-        Ok(self.tm_client.status().await?.sync_info.latest_block_height)
+    async fn get_height(&self) -> Result<block::Height, ValidatorClientError> {
+        Ok(self.status().await?.sync_info.latest_block_height)
     }
 
     // TODO: the return type should probably be changed to a non-proto, type-safe Account alternative
-    pub async fn get_account(
+    async fn get_account(
         &self,
         address: &AccountId,
     ) -> Result<Option<Account>, ValidatorClientError> {
@@ -93,7 +85,7 @@ impl CosmWasmClient {
             .transpose()
     }
 
-    pub async fn get_sequence(
+    async fn get_sequence(
         &self,
         address: &AccountId,
     ) -> Result<SequenceResponse, ValidatorClientError> {
@@ -107,21 +99,14 @@ impl CosmWasmClient {
         })
     }
 
-    pub async fn get_block(
-        &self,
-        height: Option<u32>,
-    ) -> Result<BlockResponse, ValidatorClientError> {
+    async fn get_block(&self, height: Option<u32>) -> Result<BlockResponse, ValidatorClientError> {
         match height {
-            Some(height) => self.tm_client.block(height).await.map_err(|err| err.into()),
-            None => self
-                .tm_client
-                .latest_block()
-                .await
-                .map_err(|err| err.into()),
+            Some(height) => self.block(height).await.map_err(|err| err.into()),
+            None => self.latest_block().await.map_err(|err| err.into()),
         }
     }
 
-    pub async fn get_balance(
+    async fn get_balance(
         &self,
         address: &AccountId,
         search_denom: Denom,
@@ -143,7 +128,7 @@ impl CosmWasmClient {
             .map_err(|_| ValidatorClientError::SerializationError("Coin".to_owned()))
     }
 
-    pub async fn get_all_balances(
+    async fn get_all_balances(
         &self,
         address: &AccountId,
     ) -> Result<Vec<Coin>, ValidatorClientError> {
@@ -177,11 +162,11 @@ impl CosmWasmClient {
             .map_err(|_| ValidatorClientError::SerializationError("Coins".to_owned()))
     }
 
-    pub async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, ValidatorClientError> {
-        Ok(self.tm_client.tx(id, false).await?)
+    async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, ValidatorClientError> {
+        Ok(self.tx(id, false).await?)
     }
 
-    pub async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, ValidatorClientError> {
+    async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, ValidatorClientError> {
         // according to https://docs.tendermint.com/master/rpc/#/Info/tx_search
         // the maximum entries per page is 100 and the default is 30
         // so let's attempt to use the maximum
@@ -192,7 +177,6 @@ impl CosmWasmClient {
 
         loop {
             let mut res = self
-                .tm_client
                 .tx_search(query.clone(), false, page, 100, Order::Ascending)
                 .await?;
 
@@ -214,30 +198,30 @@ impl CosmWasmClient {
     }
 
     /// Broadcast a transaction, returning immediately.
-    pub async fn broadcast_tx_async(
+    async fn broadcast_tx_async(
         &self,
         tx: Transaction,
     ) -> Result<broadcast::tx_async::Response, ValidatorClientError> {
-        Ok(self.tm_client.broadcast_tx_async(tx).await?)
+        Ok(rpc::Client::broadcast_tx_async(self, tx).await?)
     }
 
     /// Broadcast a transaction, returning the response from `CheckTx`.
-    pub async fn broadcast_tx_sync(
+    async fn broadcast_tx_sync(
         &self,
         tx: Transaction,
     ) -> Result<broadcast::tx_sync::Response, ValidatorClientError> {
-        Ok(self.tm_client.broadcast_tx_sync(tx).await?)
+        Ok(rpc::Client::broadcast_tx_sync(self, tx).await?)
     }
 
     /// Broadcast a transaction, returning the response from `DeliverTx`.
-    pub async fn broadcast_tx_commit(
+    async fn broadcast_tx_commit(
         &self,
         tx: Transaction,
     ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
-        Ok(self.tm_client.broadcast_tx_commit(tx).await?)
+        Ok(rpc::Client::broadcast_tx_commit(self, tx).await?)
     }
 
-    pub async fn get_codes(&self) -> Result<Vec<Code>, ValidatorClientError> {
+    async fn get_codes(&self) -> Result<Vec<Code>, ValidatorClientError> {
         let path = Some("/cosmwasm.wasm.v1beta1.Query/Codes".parse().unwrap());
 
         let mut raw_codes = Vec::new();
@@ -264,7 +248,7 @@ impl CosmWasmClient {
             .collect::<Result<_, _>>()
     }
 
-    pub async fn get_code_details(
+    async fn get_code_details(
         &self,
         code_id: ContractCodeId,
     ) -> Result<CodeDetails, ValidatorClientError> {
@@ -282,7 +266,7 @@ impl CosmWasmClient {
             Err(ValidatorClientError::NoCodeInformation(code_id))
         }
     }
-    pub async fn get_contracts(
+    async fn get_contracts(
         &self,
         code_id: ContractCodeId,
     ) -> Result<Vec<AccountId>, ValidatorClientError> {
@@ -322,10 +306,7 @@ impl CosmWasmClient {
             })
     }
 
-    pub async fn get_contract(
-        &self,
-        address: &AccountId,
-    ) -> Result<Contract, ValidatorClientError> {
+    async fn get_contract(&self, address: &AccountId) -> Result<Contract, ValidatorClientError> {
         let path = Some("/cosmwasm.wasm.v1beta1.Query/ContractInfo".parse().unwrap());
 
         let req = QueryContractInfoRequest {
@@ -347,7 +328,7 @@ impl CosmWasmClient {
         }
     }
 
-    pub async fn get_contract_code_history(
+    async fn get_contract_code_history(
         &self,
         address: &AccountId,
     ) -> Result<Vec<ContractCodeHistoryEntry>, ValidatorClientError> {
@@ -384,7 +365,7 @@ impl CosmWasmClient {
             .collect::<Result<_, _>>()
     }
 
-    pub async fn query_contract_raw(
+    async fn query_contract_raw(
         &self,
         address: &AccountId,
         query_data: Vec<u8>,
@@ -407,13 +388,13 @@ impl CosmWasmClient {
         Ok(res.data)
     }
 
-    pub async fn query_contract_smart<M, T>(
+    async fn query_contract_smart<M, T>(
         &self,
         address: &AccountId,
         query_msg: &M,
     ) -> Result<T, ValidatorClientError>
     where
-        M: ?Sized + Serialize,
+        M: ?Sized + Serialize + Sync,
         for<'a> T: Deserialize<'a>,
     {
         let path = Some(

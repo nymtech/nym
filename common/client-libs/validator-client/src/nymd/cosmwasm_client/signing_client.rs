@@ -7,48 +7,29 @@ use crate::nymd::cosmwasm_client::logs::{self, parse_raw_logs};
 use crate::nymd::cosmwasm_client::types::*;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use crate::ValidatorClientError;
+use async_trait::async_trait;
 use cosmos_sdk::bank::MsgSend;
 use cosmos_sdk::distribution::MsgWithdrawDelegatorReward;
-use cosmos_sdk::rpc::endpoint::block::Response as BlockResponse;
 use cosmos_sdk::rpc::endpoint::broadcast;
-use cosmos_sdk::rpc::endpoint::tx::Response as TxResponse;
-use cosmos_sdk::rpc::query::Query;
-use cosmos_sdk::rpc::{Error as TendermintRpcError, HttpClientUrl};
+use cosmos_sdk::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
 use cosmos_sdk::staking::{MsgDelegate, MsgUndelegate};
-use cosmos_sdk::tendermint::abci::Transaction;
-use cosmos_sdk::tendermint::{block, chain};
 use cosmos_sdk::tx::{Fee, Msg, MsgType, SignDoc, SignerInfo};
-use cosmos_sdk::{cosmwasm, tx, AccountId, Coin, Denom};
-use serde::{Deserialize, Serialize};
+use cosmos_sdk::{cosmwasm, rpc, tx, AccountId, Coin};
+use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
 use std::convert::TryInto;
 
-pub struct SigningCosmWasmClient {
-    base_client: CosmWasmClient,
-    signer: DirectSecp256k1HdWallet,
-}
+#[async_trait]
+pub trait SigningCosmWasmClient: CosmWasmClient {
+    fn signer(&self) -> &DirectSecp256k1HdWallet;
 
-impl SigningCosmWasmClient {
-    pub fn connect_with_signer<U>(
-        endpoint: U,
-        signer: DirectSecp256k1HdWallet,
-    ) -> Result<Self, ValidatorClientError>
-    where
-        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
-    {
-        Ok(SigningCosmWasmClient {
-            base_client: CosmWasmClient::connect(endpoint)?,
-            signer,
-        })
-    }
-
-    pub async fn upload(
+    async fn upload(
         &self,
         sender_address: &AccountId,
         wasm_code: Vec<u8>,
         fee: Fee,
-        memo: impl Into<String>,
+        memo: impl Into<String> + Send + 'static,
         mut meta: Option<UploadMeta>,
     ) -> Result<UploadResult, ValidatorClientError> {
         let compressed = compress_wasm_code(&wasm_code)?;
@@ -106,18 +87,18 @@ impl SigningCosmWasmClient {
     // put personally I'd prefer to leave it there for consistency with
     // signatures of other methods
     #[allow(clippy::too_many_arguments)]
-    pub async fn instantiate<M>(
+    async fn instantiate<M>(
         &self,
         sender_address: &AccountId,
         code_id: ContractCodeId,
         msg: &M,
         label: String,
         fee: Fee,
-        memo: impl Into<String>,
+        memo: impl Into<String> + Send + 'static,
         mut options: Option<InstantiateOptions>,
     ) -> Result<InstantiateResult, ValidatorClientError>
     where
-        M: ?Sized + Serialize,
+        M: ?Sized + Serialize + Sync,
     {
         let init_msg = cosmwasm::MsgInstantiateContract {
             sender: sender_address.clone(),
@@ -161,13 +142,13 @@ impl SigningCosmWasmClient {
         })
     }
 
-    pub async fn update_admin(
+    async fn update_admin(
         &self,
         sender_address: &AccountId,
         contract_address: &AccountId,
         new_admin: &AccountId,
         fee: Fee,
-        memo: impl Into<String>,
+        memo: impl Into<String> + Send + 'static,
     ) -> Result<ChangeAdminResult, ValidatorClientError> {
         let change_admin_msg = cosmwasm::MsgUpdateAdmin {
             sender: sender_address.clone(),
@@ -188,12 +169,12 @@ impl SigningCosmWasmClient {
         })
     }
 
-    pub async fn clear_admin(
+    async fn clear_admin(
         &self,
         sender_address: &AccountId,
         contract_address: &AccountId,
         fee: Fee,
-        memo: impl Into<String>,
+        memo: impl Into<String> + Send + 'static,
     ) -> Result<ChangeAdminResult, ValidatorClientError> {
         let change_admin_msg = cosmwasm::MsgClearAdmin {
             sender: sender_address.clone(),
@@ -213,17 +194,17 @@ impl SigningCosmWasmClient {
         })
     }
 
-    pub async fn migrate<M>(
+    async fn migrate<M>(
         &self,
         sender_address: &AccountId,
         contract_address: &AccountId,
         code_id: u64,
         fee: Fee,
         msg: &M,
-        memo: impl Into<String>,
+        memo: impl Into<String> + Send + 'static,
     ) -> Result<MigrateResult, ValidatorClientError>
     where
-        M: ?Sized + Serialize,
+        M: ?Sized + Serialize + Sync,
     {
         let migrate_msg = cosmwasm::MsgMigrateContract {
             sender: sender_address.clone(),
@@ -245,17 +226,17 @@ impl SigningCosmWasmClient {
         })
     }
 
-    pub async fn execute<M>(
+    async fn execute<M>(
         &self,
         sender_address: &AccountId,
         contract_address: &AccountId,
         msg: &M,
         fee: Fee,
-        memo: impl Into<String>,
+        memo: impl Into<String> + Send + 'static,
         funds: Option<Vec<Coin>>,
     ) -> Result<ExecuteResult, ValidatorClientError>
     where
-        M: ?Sized + Serialize,
+        M: ?Sized + Serialize + Sync,
     {
         let execute_msg = cosmwasm::MsgExecuteContract {
             sender: sender_address.clone(),
@@ -277,13 +258,13 @@ impl SigningCosmWasmClient {
         })
     }
 
-    pub async fn send_tokens(
+    async fn send_tokens(
         &self,
         sender_address: &AccountId,
         recipient_address: &AccountId,
         amount: Vec<Coin>,
         fee: Fee,
-        memo: impl Into<String>,
+        memo: impl Into<String> + Send + 'static,
     ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
         let send_msg = MsgSend {
             from_address: sender_address.clone(),
@@ -297,13 +278,13 @@ impl SigningCosmWasmClient {
             .await
     }
 
-    pub async fn delegate_tokens(
+    async fn delegate_tokens(
         &self,
         delegator_address: &AccountId,
         validator_address: &AccountId,
         amount: Coin,
         fee: Fee,
-        memo: impl Into<String>,
+        memo: impl Into<String> + Send + 'static,
     ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
         let delegate_msg = MsgDelegate {
             delegator_address: delegator_address.to_owned(),
@@ -317,13 +298,13 @@ impl SigningCosmWasmClient {
             .await
     }
 
-    pub async fn undelegate_tokens(
+    async fn undelegate_tokens(
         &self,
         delegator_address: &AccountId,
         validator_address: &AccountId,
         amount: Coin,
         fee: Fee,
-        memo: impl Into<String>,
+        memo: impl Into<String> + Send + 'static,
     ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
         let undelegate_msg = MsgUndelegate {
             delegator_address: delegator_address.to_owned(),
@@ -337,12 +318,12 @@ impl SigningCosmWasmClient {
             .await
     }
 
-    pub async fn withdraw_rewards(
+    async fn withdraw_rewards(
         &self,
         delegator_address: &AccountId,
         validator_address: &AccountId,
         fee: Fee,
-        memo: impl Into<String>,
+        memo: impl Into<String> + Send + 'static,
     ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
         let withdraw_msg = MsgWithdrawDelegatorReward {
             delegator_address: delegator_address.to_owned(),
@@ -358,51 +339,51 @@ impl SigningCosmWasmClient {
     }
 
     /// Broadcast a transaction, returning immediately.
-    pub async fn sign_and_broadcast_async(
+    async fn sign_and_broadcast_async(
         &self,
         signer_address: &AccountId,
         messages: Vec<Msg>,
         fee: Fee,
-        memo: impl Into<String>,
+        memo: impl Into<String> + Send + 'static,
     ) -> Result<broadcast::tx_async::Response, ValidatorClientError> {
         let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
         let tx_bytes = tx_raw
             .to_bytes()
             .map_err(|_| ValidatorClientError::SerializationError("Tx".to_owned()))?;
 
-        self.base_client.broadcast_tx_async(tx_bytes.into()).await
+        CosmWasmClient::broadcast_tx_async(self, tx_bytes.into()).await
     }
 
     /// Broadcast a transaction, returning the response from `CheckTx`.
-    pub async fn sign_and_broadcast_sync(
+    async fn sign_and_broadcast_sync(
         &self,
         signer_address: &AccountId,
         messages: Vec<Msg>,
         fee: Fee,
-        memo: impl Into<String>,
+        memo: impl Into<String> + Send + 'static,
     ) -> Result<broadcast::tx_sync::Response, ValidatorClientError> {
         let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
         let tx_bytes = tx_raw
             .to_bytes()
             .map_err(|_| ValidatorClientError::SerializationError("Tx".to_owned()))?;
 
-        self.base_client.broadcast_tx_sync(tx_bytes.into()).await
+        CosmWasmClient::broadcast_tx_sync(self, tx_bytes.into()).await
     }
 
     /// Broadcast a transaction, returning the response from `DeliverTx`.
-    pub async fn sign_and_broadcast_commit(
+    async fn sign_and_broadcast_commit(
         &self,
         signer_address: &AccountId,
         messages: Vec<Msg>,
         fee: Fee,
-        memo: impl Into<String>,
+        memo: impl Into<String> + Send + 'static,
     ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
         let tx_raw = self.sign(signer_address, messages, fee, memo).await?;
         let tx_bytes = tx_raw
             .to_bytes()
             .map_err(|_| ValidatorClientError::SerializationError("Tx".to_owned()))?;
 
-        self.base_client.broadcast_tx_commit(tx_bytes.into()).await
+        CosmWasmClient::broadcast_tx_commit(self, tx_bytes.into()).await
     }
 
     fn sign_direct(
@@ -410,10 +391,10 @@ impl SigningCosmWasmClient {
         signer_address: &AccountId,
         messages: Vec<Msg>,
         fee: Fee,
-        memo: impl Into<String>,
+        memo: impl Into<String> + Send + 'static,
         signer_data: SignerData,
     ) -> Result<tx::Raw, ValidatorClientError> {
-        let signer_accounts = self.signer.try_derive_accounts()?;
+        let signer_accounts = self.signer().try_derive_accounts()?;
         let account_from_signer = signer_accounts
             .iter()
             .find(|account| &account.address == signer_address)
@@ -439,21 +420,21 @@ impl SigningCosmWasmClient {
         )
         .map_err(|_| ValidatorClientError::SigningFailure)?;
 
-        self.signer
+        self.signer()
             .sign_direct_with_account(&account_from_signer, sign_doc)
     }
 
-    pub async fn sign(
+    async fn sign(
         &self,
         signer_address: &AccountId,
         messages: Vec<Msg>,
         fee: Fee,
-        memo: impl Into<String>,
+        memo: impl Into<String> + Send + 'static,
     ) -> Result<tx::Raw, ValidatorClientError> {
         // TODO: Future optimisation: rather than grabbing current account_number and sequence
         // on every sign request -> just keep them cached on the struct and increment as required
-        let sequence_response = self.base_client.get_sequence(signer_address).await?;
-        let chain_id = self.base_client.get_chain_id().await?;
+        let sequence_response = self.get_sequence(signer_address).await?;
+        let chain_id = self.get_chain_id().await?;
 
         let signer_data = SignerData {
             account_number: sequence_response.account_number,
@@ -463,141 +444,42 @@ impl SigningCosmWasmClient {
 
         self.sign_direct(signer_address, messages, fee, memo, signer_data)
     }
+}
 
-    // TODO: here be the ugliness of re-exposing methods from base_client
-    // Once async traits are more mature, maybe it will be possible to achieve it with them.
-    // Or maybe not because the wallet is not Send because keys are not Sync (i.e. they are just dyn EcdsaSigner)
-    // The push for GAT stabilisation (https://blog.rust-lang.org/2021/08/03/GATs-stabilization-push.html)
-    // is a very good sign.
-    pub async fn get_chain_id(&self) -> Result<chain::Id, ValidatorClientError> {
-        self.base_client.get_chain_id().await
-    }
+pub struct Client {
+    rpc_client: HttpClient,
+    signer: DirectSecp256k1HdWallet,
+}
 
-    pub async fn get_height(&self) -> Result<block::Height, ValidatorClientError> {
-        self.base_client.get_height().await
-    }
-
-    pub async fn get_account(
-        &self,
-        address: &AccountId,
-    ) -> Result<Option<Account>, ValidatorClientError> {
-        self.base_client.get_account(address).await
-    }
-
-    pub async fn get_sequence(
-        &self,
-        address: &AccountId,
-    ) -> Result<SequenceResponse, ValidatorClientError> {
-        self.base_client.get_sequence(address).await
-    }
-
-    pub async fn get_block(
-        &self,
-        height: Option<u32>,
-    ) -> Result<BlockResponse, ValidatorClientError> {
-        self.base_client.get_block(height).await
-    }
-
-    pub async fn get_balance(
-        &self,
-        address: &AccountId,
-        search_denom: Denom,
-    ) -> Result<Option<Coin>, ValidatorClientError> {
-        self.base_client.get_balance(address, search_denom).await
-    }
-
-    pub async fn get_all_balances(
-        &self,
-        address: &AccountId,
-    ) -> Result<Vec<Coin>, ValidatorClientError> {
-        self.base_client.get_all_balances(address).await
-    }
-
-    pub async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, ValidatorClientError> {
-        self.base_client.get_tx(id).await
-    }
-
-    pub async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, ValidatorClientError> {
-        self.base_client.search_tx(query).await
-    }
-
-    /// Broadcast a transaction, returning immediately.
-    pub async fn broadcast_tx_async(
-        &self,
-        tx: Transaction,
-    ) -> Result<broadcast::tx_async::Response, ValidatorClientError> {
-        self.base_client.broadcast_tx_async(tx).await
-    }
-
-    /// Broadcast a transaction, returning the response from `CheckTx`.
-    pub async fn broadcast_tx_sync(
-        &self,
-        tx: Transaction,
-    ) -> Result<broadcast::tx_sync::Response, ValidatorClientError> {
-        self.base_client.broadcast_tx_sync(tx).await
-    }
-
-    /// Broadcast a transaction, returning the response from `DeliverTx`.
-    pub async fn broadcast_tx_commit(
-        &self,
-        tx: Transaction,
-    ) -> Result<broadcast::tx_commit::Response, ValidatorClientError> {
-        self.base_client.broadcast_tx_commit(tx).await
-    }
-
-    pub async fn get_codes(&self) -> Result<Vec<Code>, ValidatorClientError> {
-        self.base_client.get_codes().await
-    }
-
-    pub async fn get_code_details(
-        &self,
-        code_id: ContractCodeId,
-    ) -> Result<CodeDetails, ValidatorClientError> {
-        self.base_client.get_code_details(code_id).await
-    }
-
-    pub async fn get_contracts(
-        &self,
-        code_id: ContractCodeId,
-    ) -> Result<Vec<AccountId>, ValidatorClientError> {
-        self.base_client.get_contracts(code_id).await
-    }
-
-    pub async fn get_contract(
-        &self,
-        address: &AccountId,
-    ) -> Result<Contract, ValidatorClientError> {
-        self.base_client.get_contract(address).await
-    }
-
-    pub async fn get_contract_code_history(
-        &self,
-        address: &AccountId,
-    ) -> Result<Vec<ContractCodeHistoryEntry>, ValidatorClientError> {
-        self.base_client.get_contract_code_history(address).await
-    }
-
-    pub async fn query_contract_raw(
-        &self,
-        address: &AccountId,
-        query_data: Vec<u8>,
-    ) -> Result<Vec<u8>, ValidatorClientError> {
-        self.base_client
-            .query_contract_raw(address, query_data)
-            .await
-    }
-
-    pub async fn query_contract_smart<M, T>(
-        &self,
-        address: &AccountId,
-        query_msg: &M,
-    ) -> Result<T, ValidatorClientError>
+impl Client {
+    pub fn connect_with_signer<U>(
+        endpoint: U,
+        signer: DirectSecp256k1HdWallet,
+    ) -> Result<Self, ValidatorClientError>
     where
-        M: ?Sized + Serialize,
-        for<'a> T: Deserialize<'a>,
+        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
-        self.base_client
-            .query_contract_smart(address, query_msg)
-            .await
+        let rpc_client = HttpClient::new(endpoint)?;
+        Ok(Client { rpc_client, signer })
+    }
+}
+
+#[async_trait]
+impl rpc::Client for Client {
+    async fn perform<R>(&self, request: R) -> rpc::Result<R::Response>
+    where
+        R: SimpleRequest,
+    {
+        self.rpc_client.perform(request).await
+    }
+}
+
+#[async_trait]
+impl CosmWasmClient for Client {}
+
+#[async_trait]
+impl SigningCosmWasmClient for Client {
+    fn signer(&self) -> &DirectSecp256k1HdWallet {
+        &self.signer
     }
 }

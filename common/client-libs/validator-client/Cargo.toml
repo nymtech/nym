@@ -21,6 +21,7 @@ wasm-timer = "0.2"
 # required for nymd-client
 # at some point it might be possible to make it wasm-compatible
 # perhaps after https://github.com/cosmos/cosmos-rust/pull/97 is resolved (and tendermint-rs is updated)
+async-trait = { version = "0.1.51", optional = true }
 bip39 = { version = "1", features = ["rand"], optional = true }
 cosmos_sdk = { git = "https://github.com/cosmos/cosmos-rust/", commit="ba012bd820240d3df2d9a0ab1deabe4ecd9a2f30", features = ["rpc", "bip32", "cosmwasm"], optional = true }
 prost = { version = "0.7", default-features = false, optional = true }
@@ -41,4 +42,4 @@ default = ["nymd-client"]
 # the reason for introducing additional features is to let cargo know we don't want anything to do with "getrandom/js"
 # by default as it messes up with cyclic dependencies for ahash that's indirectly used by sqlx in validator-api
 wasm = ["getrandom/js"]
-nymd-client = ["bip39", "cosmos_sdk", "prost", "flate2", "sha2", "itertools", "cosmwasm-std"]
+nymd-client = ["async-trait", "bip39", "cosmos_sdk", "prost", "flate2", "sha2", "itertools", "cosmwasm-std"]

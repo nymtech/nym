@@ -1,6 +1,6 @@
 <script>
-  import { invoke } from "@tauri-apps/api/tauri";
-  import { onMount } from "svelte";
+  import {invoke} from "@tauri-apps/api/tauri";
+  import {onMount} from "svelte";
   import QRious from "qrious";
 
   const validator_urls = ["http://localhost:8080"];
@@ -8,19 +8,15 @@
   let qrVisible = false;
 
   async function getCredential() {
-    const response = await invoke("get_credential", {
+    signatures = await invoke("get_credential", {
       validatorUrls: validator_urls,
     });
-    signatures = response;
-    // console.log(signature);
   }
 
   async function randomiseCredential(idx) {
-    const response = await invoke("randomise_credential", {
+    signatures = await invoke("randomise_credential", {
       idx: idx,
     });
-    signatures = response;
-    // console.log(signature);
   }
 
   async function verifyCredential(idx) {
@@ -32,23 +28,19 @@
   }
 
   async function deleteCredential(idx) {
-    const response = await invoke("delete_credential", {
+    signatures = await invoke("delete_credential", {
       idx: idx,
     });
-    signatures = response;
-    // console.log(signature);
   }
 
   async function listCredentials() {
-    const response = await invoke("list_credentials");
-    signatures = response;
-    // console.log(signature);
+    signatures = await invoke("list_credentials");
   }
 
   function signatureQR(idx) {
     qrVisible = true;
     const signature = signatures[idx];
-    const qr = new QRious({
+    new QRious({
       element: document.getElementById("qr"),
       value: signature,
       foreground: "white",
@@ -111,7 +103,7 @@
   <div class="modal-dialog modal-sm">
     <div class="modal-content">
       <div class="modal-body">
-        <canvas id="qr" />
+        <canvas id="qr"></canvas>
         <button
           type="button"
           class="close"

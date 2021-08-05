@@ -22,14 +22,6 @@ pub type ContractCodeId = u64;
 #[derive(Serialize)]
 pub struct EmptyMsg {}
 
-/// Signing information for a single signer that is not included in the transaction.
-#[derive(Debug)]
-pub struct SignerData {
-    pub account_number: AccountNumber,
-    pub sequence: SequenceNumber,
-    pub chain_id: chain::Id,
-}
-
 #[derive(Debug)]
 pub struct SequenceResponse {
     pub account_number: AccountNumber,
@@ -254,6 +246,14 @@ impl TryFrom<ProtoContractCodeHistoryEntry> for ContractCodeHistoryEntry {
 // ##############################################################################
 // types specific to the signing client (perhaps they should go to separate file)
 // ##############################################################################
+
+/// Signing information for a single signer that is not included in the transaction.
+#[derive(Debug)]
+pub struct SignerData {
+    pub account_number: AccountNumber,
+    pub sequence: SequenceNumber,
+    pub chain_id: chain::Id,
+}
 
 #[derive(Debug)]
 pub struct UploadMeta {

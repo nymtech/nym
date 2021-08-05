@@ -51,11 +51,6 @@ pub fn parse_raw_logs(raw: abci::Log) -> Result<Vec<Log>, ValidatorClientError> 
     parse_raw_str_logs(raw.as_ref())
 }
 
-#[derive(Debug, Deserialize)]
-struct Foo {
-    foo: String,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

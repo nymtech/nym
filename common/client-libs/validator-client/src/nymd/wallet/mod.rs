@@ -18,7 +18,6 @@ pub struct DirectSecp256k1HdWallet {
 
 type Secp256k1Keypair = (SigningKey, PublicKey);
 
-// this type feels weird. when implemented proper this should be re-thought
 pub struct AccountData {
     pub(crate) address: AccountId,
 
@@ -28,14 +27,13 @@ pub struct AccountData {
 
     // I don't entirely understand why cosmjs split this off and put it in a separate `AccountDataWithPrivkey`
     // type.
+    // Note from future-self:
+    // While this is not the reason they've done it, it might be potentially useful to introduce this in Rust,
+    // as SigningKey is !Send here.
+    // if we split it (and derived private key on every. single. sign request), we might possibly
+    // be able to put it in a trait.
     private_key: SigningKey,
 }
-
-// I've tried following cosmjs but some things were changed, for example we do not derive keys on every
-// transaction we want to sign, we generate them once at construction.
-
-// I hate re-deriving secret keys on every sign request, but with current implementation of secp256k1 from cosmos-rs
-// our wallet wouldn't be 'Send' which is a huge limitation.
 
 impl DirectSecp256k1HdWallet {
     pub fn builder() -> DirectSecp256k1HdWalletBuilder {

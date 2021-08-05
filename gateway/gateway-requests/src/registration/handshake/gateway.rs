@@ -49,7 +49,7 @@ impl<'a> GatewayHandshake<'a> {
                     }
                 }
 
-                // init: <- pub_key || g^x
+                // init: <- pub_key || g^x || credential
                 let init_message = check_processing_error(
                     State::<S>::parse_init_message(received_init_payload),
                     &mut state,

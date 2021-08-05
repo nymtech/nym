@@ -7,14 +7,6 @@ use coconut_interface::{self, Signature, State, Theta, ValidatorAPIClient};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-enum TauriClientError {
-  #[error("Could not get {0} State, line {}!", line!())]
-  State(&'static str),
-}
-
 #[tauri::command]
 async fn randomise_credential(
   idx: usize,
@@ -28,7 +20,7 @@ async fn randomise_credential(
   }
   {
     let state = state.read().await;
-    return Ok(state.signatures.clone());
+    Ok(state.signatures.clone())
   }
 }
 

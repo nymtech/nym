@@ -88,8 +88,8 @@ impl NymClient {
 
     fn self_recipient(&self) -> Recipient {
         Recipient::new(
-            self.identity.public_key().clone(),
-            self.encryption_keys.public_key().clone(),
+            *self.identity.public_key(),
+            *self.encryption_keys.public_key(),
             self.gateway_client
                 .as_ref()
                 .expect("gateway connection was not established!")

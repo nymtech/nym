@@ -146,7 +146,10 @@ impl GatewayClient {
     #[cfg(target_arch = "wasm32")]
     async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
-            SocketState::Available(mut socket) => Ok(socket.close(None).await),
+            SocketState::Available(mut socket) => {
+                socket.close(None).await;
+                Ok(())
+            }
             SocketState::PartiallyDelegated(_) => {
                 unreachable!("this branch should have never been reached!")
             }

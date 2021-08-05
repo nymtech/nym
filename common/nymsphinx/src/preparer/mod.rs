@@ -303,7 +303,7 @@ where
 
             SphinxPacketBuilder::new()
                 .with_payload_size(self.packet_size.payload_size())
-                .with_initial_secret(&initial_secret)
+                .with_initial_secret(initial_secret)
                 .build_packet(packet_payload, &route, &destination, &delays)
                 .unwrap()
         } else {
@@ -342,7 +342,7 @@ where
                 fragment_id.to_bytes(),
                 self.average_ack_delay,
                 topology,
-                Some(&initial_secret),
+                Some(initial_secret),
             )
         } else {
             SurbAck::construct(

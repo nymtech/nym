@@ -110,7 +110,7 @@ impl ClientsHandler {
             Err(e) => {
                 error!(
                     "failed to retrieve client messages. {:?} inbox might be corrupted now - {:?}",
-                    client_address.to_base58_string(),
+                    client_address.as_base58_string(),
                     e
                 );
                 return;
@@ -129,7 +129,7 @@ impl ClientsHandler {
             if let Err(e) = self.clients_inbox_storage.delete_files(paths).await {
                 error!(
                     "Failed to remove client ({:?}) files - {:?}",
-                    client_address.to_base58_string(),
+                    client_address.as_base58_string(),
                     e
                 );
             } else {
@@ -149,7 +149,7 @@ impl ClientsHandler {
     ) {
         debug!(
             "Processing register new client request: {:?}",
-            address.to_base58_string()
+            address.as_base58_string()
         );
 
         if self.open_connections.get(&address).is_some() {
@@ -168,7 +168,7 @@ impl ClientsHandler {
         {
             info!(
                 "Client {:?} was already registered before!",
-                address.to_base58_string()
+                address.as_base58_string()
             )
         } else if let Err(e) = self.clients_inbox_storage.create_storage_dir(address).await {
             error!("We failed to create inbox directory for the client -{:?}\nReverting stored shared key...", e);
@@ -199,7 +199,7 @@ impl ClientsHandler {
     ) {
         debug!(
             "Processing authenticate client request: {:?}",
-            address.to_base58_string()
+            address.as_base58_string()
         );
 
         if self.open_connections.get(&address).is_some() {
@@ -239,7 +239,7 @@ impl ClientsHandler {
     fn handle_disconnect(&mut self, address: DestinationAddressBytes) {
         debug!(
             "Processing disconnect client request: {:?}",
-            address.to_base58_string()
+            address.as_base58_string()
         );
         self.open_connections.remove(&address);
     }
@@ -251,7 +251,7 @@ impl ClientsHandler {
     ) {
         debug!(
             "Processing is online request for: {:?}",
-            address.to_base58_string()
+            address.as_base58_string()
         );
 
         let response_value = self.open_connections.get(&address).cloned();

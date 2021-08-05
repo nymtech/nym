@@ -37,7 +37,7 @@ impl ClientLedger {
                 "key: {:?}",
                 ledger
                     .read_destination_address_bytes(key.unwrap())
-                    .to_base58_string()
+                    .as_base58_string()
             );
         });
 
@@ -81,7 +81,7 @@ impl ClientLedger {
         encrypted_address: &EncryptedAddressBytes,
         iv: &AuthenticationIV,
     ) -> Result<bool, ClientLedgerError> {
-        match self.db.get(&client_address.to_bytes()) {
+        match self.db.get(client_address.as_bytes_ref()) {
             Err(e) => Err(ClientLedgerError::Read(e)),
             Ok(existing_key) => match existing_key {
                 Some(existing_key_ivec) => {
@@ -97,7 +97,7 @@ impl ClientLedger {
         &self,
         client_address: &DestinationAddressBytes,
     ) -> Result<Option<SharedKeys>, ClientLedgerError> {
-        match self.db.get(&client_address.to_bytes()) {
+        match self.db.get(client_address.as_bytes_ref()) {
             Err(e) => Err(ClientLedgerError::Read(e)),
             Ok(existing_key) => Ok(existing_key.map(|key_ivec| self.read_shared_key(key_ivec))),
         }
@@ -110,7 +110,7 @@ impl ClientLedger {
     ) -> Result<Option<SharedKeys>, ClientLedgerError> {
         let insertion_result = match self
             .db
-            .insert(&client_address.to_bytes(), shared_key.to_bytes())
+            .insert(client_address.as_bytes_ref(), shared_key.to_bytes())
         {
             Err(e) => Err(ClientLedgerError::Write(e)),
             Ok(existing_key) => {
@@ -127,7 +127,7 @@ impl ClientLedger {
         &mut self,
         client_address: &DestinationAddressBytes,
     ) -> Result<Option<SharedKeys>, ClientLedgerError> {
-        let removal_result = match self.db.remove(&client_address.to_bytes()) {
+        let removal_result = match self.db.remove(client_address.as_bytes_ref()) {
             Err(e) => Err(ClientLedgerError::Write(e)),
             Ok(existing_key) => {
                 Ok(existing_key.map(|existing_key| self.read_shared_key(existing_key)))

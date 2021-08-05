@@ -5,7 +5,6 @@ use reqwest::Error as ReqwestError;
 use models::GeoLocation;
 
 use crate::country_statistics::country_nodes_distribution::CountryNodesDistribution;
-use crate::mix_nodes::retrieve_mixnodes;
 use crate::state::ExplorerApiStateContext;
 
 pub mod country_nodes_distribution;
@@ -38,7 +37,15 @@ impl CountryStatistics {
 
     /// Retrieves the current list of mixnodes from the validators and calculates how many nodes are in each country
     async fn calculate_nodes_per_country(&mut self) {
-        let mixnode_bonds = retrieve_mixnodes().await;
+        // force the mixnode cache to invalidate
+        let mixnode_bonds = self
+            .state
+            .inner
+            .mix_nodes
+            .clone()
+            .refresh_and_get()
+            .await
+            .value;
 
         let mut distribution = CountryNodesDistribution::new();
 

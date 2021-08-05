@@ -6,6 +6,8 @@ use self::error::HandshakeError;
 #[cfg(not(target_arch = "wasm32"))]
 use self::gateway::GatewayHandshake;
 pub use self::shared_key::{SharedKeySize, SharedKeys};
+#[cfg(not(target_arch = "wasm32"))]
+use coconut_interface::VerificationKey;
 use crypto::asymmetric::identity;
 use futures::{Sink, Stream};
 use rand::{CryptoRng, RngCore};
@@ -44,7 +46,7 @@ pub async fn gateway_handshake<'a, S>(
     ws_stream: &'a mut S,
     identity: &'a identity::KeyPair,
     received_init_payload: Vec<u8>,
-    validator_urls: Vec<String>,
+    verification_key: &VerificationKey,
 ) -> Result<SharedKeys, HandshakeError>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
@@ -54,7 +56,7 @@ where
         ws_stream,
         identity,
         received_init_payload,
-        validator_urls,
+        verification_key,
     )
     .await
 }

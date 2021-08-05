@@ -61,15 +61,11 @@ impl Credential {
             .collect()
     }
 
-    pub async fn verify(&self, validator_urls: Vec<String>) -> bool {
-        let verification_key =
-            get_aggregated_verification_key(validator_urls, &ValidatorAPIClient::default())
-                .await
-                .unwrap();
+    pub async fn verify(&self, verification_key: &VerificationKey) -> bool {
         let params = Parameters::new(self.n_params).unwrap();
         coconut_rs::verify_credential(
             &params,
-            &verification_key,
+            verification_key,
             &self.theta,
             &self.public_attributes(),
         )

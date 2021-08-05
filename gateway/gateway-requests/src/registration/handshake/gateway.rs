@@ -4,6 +4,7 @@
 use crate::registration::handshake::shared_key::SharedKeys;
 use crate::registration::handshake::state::State;
 use crate::registration::handshake::{error::HandshakeError, WsItem};
+use coconut_interface::VerificationKey;
 use crypto::asymmetric::encryption;
 use futures::future::BoxFuture;
 use futures::task::{Context, Poll};
@@ -22,7 +23,7 @@ impl<'a> GatewayHandshake<'a> {
         ws_stream: &'a mut S,
         identity: &'a crypto::asymmetric::identity::KeyPair,
         received_init_payload: Vec<u8>,
-        validator_urls: Vec<String>,
+        verification_key: &'a VerificationKey,
     ) -> Self
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
@@ -60,7 +61,7 @@ impl<'a> GatewayHandshake<'a> {
 
                 check_processing_error(
                     {
-                        if !credential.verify(validator_urls).await {
+                        if !credential.verify(verification_key).await {
                             Err(HandshakeError::InvalidCoconutCredential)
                         } else {
                             Ok(())

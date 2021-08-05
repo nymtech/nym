@@ -12,7 +12,6 @@ use cosmos_sdk::distribution::MsgWithdrawDelegatorReward;
 use cosmos_sdk::rpc::endpoint::block::Response as BlockResponse;
 use cosmos_sdk::rpc::endpoint::broadcast;
 use cosmos_sdk::rpc::endpoint::tx::Response as TxResponse;
-use cosmos_sdk::rpc::endpoint::tx_search::Response as TxSearchResponse;
 use cosmos_sdk::rpc::query::Query;
 use cosmos_sdk::rpc::{Error as TendermintRpcError, HttpClientUrl};
 use cosmos_sdk::staking::{MsgDelegate, MsgUndelegate};
@@ -517,7 +516,7 @@ impl SigningCosmWasmClient {
         self.base_client.get_tx(id).await
     }
 
-    pub async fn search_tx(&self, query: Query) -> Result<TxSearchResponse, ValidatorClientError> {
+    pub async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, ValidatorClientError> {
         self.base_client.search_tx(query).await
     }
 
@@ -599,54 +598,5 @@ impl SigningCosmWasmClient {
         self.base_client
             .query_contract_smart(address, query_msg)
             .await
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::models::QueryRequest;
-    use mixnet_contract::PagedMixnodeResponse;
-
-    #[tokio::test]
-    async fn foo() {
-        // let mut client = SigningCosmWasmClient::connect_with_signer()
-        // let validator = "http://127.0.0.1:26657";
-        // let contract = "hal10pyejy66429refv3g35g2t7am0was7yam2dd72"
-        //     .parse::<AccountId>()
-        //     .unwrap();
-
-        let validator = "https://testnet-milhon-validator1.nymtech.net";
-        let contract = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen"
-            .parse::<AccountId>()
-            .unwrap();
-        let mnemonic = "bitter east decide match spare blue shadow trouble share dice surface cave hospital poem whip message army behind elephant mom horse leg purity below";
-
-        let wallet = DirectSecp256k1HdWallet::builder()
-            .with_prefix("hal")
-            .build(mnemonic.parse().unwrap())
-            .unwrap();
-
-        let address = wallet.get_accounts()[0].address.clone();
-
-        let client = SigningCosmWasmClient::connect_with_signer(validator, wallet).unwrap();
-
-        // // let balance = client.base_client.get_all_balances(&address).await.unwrap();
-        // let res = client.base_client.get_account(&address).await.unwrap();
-        //
-        // println!("{:?}", res);
-
-        let aaa = QueryRequest::GetMixNodes {
-            limit: None,
-            start_after: None,
-        };
-
-        let mixes = client
-            .base_client
-            .query_contract_smart::<_, PagedMixnodeResponse>(&contract, &aaa)
-            .await
-            .unwrap();
-
-        println!("mixes: {:?}", mixes);
     }
 }

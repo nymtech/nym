@@ -17,9 +17,8 @@ use cosmos_sdk::proto::cosmwasm::wasm::v1beta1::*;
 use cosmos_sdk::rpc::endpoint::block::Response as BlockResponse;
 use cosmos_sdk::rpc::endpoint::broadcast;
 use cosmos_sdk::rpc::endpoint::tx::Response as TxResponse;
-use cosmos_sdk::rpc::endpoint::tx_search::Response as TxSearchResponse;
 use cosmos_sdk::rpc::query::Query;
-use cosmos_sdk::rpc::{Client, Error as TendermintRpcError, HttpClient, HttpClientUrl};
+use cosmos_sdk::rpc::{Client, Error as TendermintRpcError, HttpClient, HttpClientUrl, Order};
 use cosmos_sdk::tendermint::abci::Transaction;
 use cosmos_sdk::tendermint::{abci, block, chain};
 use cosmos_sdk::{tx, AccountId, Coin, Denom};
@@ -182,23 +181,36 @@ impl CosmWasmClient {
         Ok(self.tm_client.tx(id, false).await?)
     }
 
-    pub async fn search_tx(&self, query: Query) -> Result<TxSearchResponse, ValidatorClientError> {
-        todo!("need to construct pagination here")
-        // self.http_client.tx_search(query, false, )
-        /*
-        /// `/tx_search`: search for transactions with their results.
-        async fn tx_search(
-            &self,
-            query: Query,
-            prove: bool,
-            page: u32,
-            per_page: u8,
-            order: Order,
-        ) -> Result<tx_search::Response> {
-            self.perform(tx_search::Request::new(query, prove, page, per_page, order))
-                .await
+    pub async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, ValidatorClientError> {
+        // according to https://docs.tendermint.com/master/rpc/#/Info/tx_search
+        // the maximum entries per page is 100 and the default is 30
+        // so let's attempt to use the maximum
+        let per_page = 100;
+
+        let mut results = Vec::new();
+        let mut page = 0;
+
+        loop {
+            let mut res = self
+                .tm_client
+                .tx_search(query.clone(), false, page, 100, Order::Ascending)
+                .await?;
+
+            results.append(&mut res.txs);
+            // sanity check for if tendermint's maximum per_page was modified -
+            // we don't want to accidentally be stuck in an infinite loop
+            if res.total_count == 0 || res.txs.is_empty() {
+                break;
+            }
+
+            if res.total_count >= per_page {
+                page += 1
+            } else {
+                break;
+            }
         }
-         */
+
+        Ok(results)
     }
 
     /// Broadcast a transaction, returning immediately.

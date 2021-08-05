@@ -9,7 +9,6 @@ use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use crate::ValidatorClientError;
 use cosmos_sdk::bank::MsgSend;
 use cosmos_sdk::distribution::MsgWithdrawDelegatorReward;
-use cosmos_sdk::proto::cosmos::auth::v1beta1::BaseAccount;
 use cosmos_sdk::rpc::endpoint::block::Response as BlockResponse;
 use cosmos_sdk::rpc::endpoint::broadcast;
 use cosmos_sdk::rpc::endpoint::tx::Response as TxResponse;
@@ -359,8 +358,6 @@ impl SigningCosmWasmClient {
             .await
     }
 
-    // Creates a transaction with the given messages, fee and memo. Then signs and broadcasts the transaction.
-
     /// Broadcast a transaction, returning immediately.
     pub async fn sign_and_broadcast_async(
         &self,
@@ -453,7 +450,7 @@ impl SigningCosmWasmClient {
         fee: Fee,
         memo: impl Into<String>,
     ) -> Result<tx::Raw, ValidatorClientError> {
-        // TODO: Rather than grabbing current account_number and sequence
+        // TODO: Future optimisation: rather than grabbing current account_number and sequence
         // on every sign request -> just keep them cached on the struct and increment as required
         let sequence_response = self.base_client.get_sequence(signer_address).await?;
         let chain_id = self.base_client.get_chain_id().await?;
@@ -483,7 +480,7 @@ impl SigningCosmWasmClient {
     pub async fn get_account(
         &self,
         address: &AccountId,
-    ) -> Result<Option<BaseAccount>, ValidatorClientError> {
+    ) -> Result<Option<Account>, ValidatorClientError> {
         self.base_client.get_account(address).await
     }
 

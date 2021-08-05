@@ -5,6 +5,8 @@
 
 use crate::nymd::cosmwasm_client::logs::Log;
 use crate::ValidatorClientError;
+use cosmos_sdk::crypto::PublicKey;
+use cosmos_sdk::proto::cosmos::auth::v1beta1::BaseAccount;
 use cosmos_sdk::proto::cosmwasm::wasm::v1beta1::{
     CodeInfoResponse, ContractCodeHistoryEntry as ProtoContractCodeHistoryEntry,
     ContractCodeHistoryOperationType, ContractInfo as ProtoContractInfo,
@@ -32,6 +34,39 @@ pub struct SignerData {
 pub struct SequenceResponse {
     pub account_number: AccountNumber,
     pub sequence: SequenceNumber,
+}
+
+#[derive(Debug)]
+pub struct Account {
+    /// Bech32 account address
+    pub address: AccountId,
+    pub pubkey: Option<PublicKey>,
+    pub account_number: AccountNumber,
+    pub sequence: SequenceNumber,
+}
+
+impl TryFrom<BaseAccount> for Account {
+    type Error = ValidatorClientError;
+
+    fn try_from(value: BaseAccount) -> Result<Self, Self::Error> {
+        let address: AccountId = value
+            .address
+            .parse()
+            .map_err(|_| ValidatorClientError::MalformedAccountAddress(value.address))?;
+
+        let pubkey = value
+            .pub_key
+            .map(|pub_key| PublicKey::try_from(pub_key))
+            .transpose()
+            .map_err(|_| ValidatorClientError::InvalidPublicKey(address.clone()))?;
+
+        Ok(Account {
+            address,
+            pubkey,
+            account_number: value.account_number,
+            sequence: value.sequence,
+        })
+    }
 }
 
 #[derive(Debug)]

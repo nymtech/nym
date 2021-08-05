@@ -89,6 +89,10 @@ pub enum ValidatorClientError {
     MalformedAccountAddress(String),
 
     #[cfg(feature = "nymd-client")]
+    #[error("Account {0} has an invalid associated public key")]
+    InvalidPublicKey(AccountId),
+
+    #[cfg(feature = "nymd-client")]
     #[error("Queried contract (code_id: {0}) did not have any code information attached")]
     NoCodeInformation(ContractCodeId),
 

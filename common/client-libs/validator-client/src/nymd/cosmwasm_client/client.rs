@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd::cosmwasm_client::types::{
-    Code, CodeDetails, Contract, ContractCodeHistoryEntry, ContractCodeId, SequenceResponse,
+    Account, Code, CodeDetails, Contract, ContractCodeHistoryEntry, ContractCodeId,
+    SequenceResponse,
 };
 use crate::ValidatorClientError;
 use cosmos_sdk::proto::cosmos::auth::v1beta1::{
@@ -39,6 +40,9 @@ impl CosmWasmClient {
         Ok(CosmWasmClient { tm_client })
     }
 
+    // helper method to remove duplicate code involved in making abci requests with protobuf messages
+    // TODO: perhaps it should have an additional argument to determine whether the response should
+    // require proof?
     async fn make_abci_query<Req, Res>(
         &self,
         path: Option<abci::Path>,
@@ -68,7 +72,7 @@ impl CosmWasmClient {
     pub async fn get_account(
         &self,
         address: &AccountId,
-    ) -> Result<Option<BaseAccount>, ValidatorClientError> {
+    ) -> Result<Option<Account>, ValidatorClientError> {
         let path = Some("/cosmos.auth.v1beta1.Query/Account".parse().unwrap());
 
         let req = QueryAccountRequest {
@@ -84,7 +88,9 @@ impl CosmWasmClient {
             .map(|account| BaseAccount::decode(account.value.as_ref()))
             .transpose()?;
 
-        Ok(base_account)
+        base_account
+            .map(|base_account| base_account.try_into())
+            .transpose()
     }
 
     pub async fn get_sequence(

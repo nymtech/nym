@@ -44,11 +44,11 @@ impl TryFrom<BaseAccount> for Account {
         let address: AccountId = value
             .address
             .parse()
-            .map_err(|_| ValidatorClientError::MalformedAccountAddress(value.address))?;
+            .map_err(|_| ValidatorClientError::MalformedAccountAddress(value.address.clone()))?;
 
         let pubkey = value
             .pub_key
-            .map(|pub_key| PublicKey::try_from(pub_key))
+            .map(PublicKey::try_from)
             .transpose()
             .map_err(|_| ValidatorClientError::InvalidPublicKey(address.clone()))?;
 

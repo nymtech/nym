@@ -26,6 +26,7 @@ test('correctly validates ipv6', () => {
   )
   expect(isValidHostname('::1111:2222:3333:4444:5555:6666::')).toBe(false)
   expect(isValidHostname('3ffe:b00::1::a')).toBe(false)
+  expect(isValidHostname('?.?.?')).toBe(false)
 })
 
 test('correctly validates hostnames', () => {

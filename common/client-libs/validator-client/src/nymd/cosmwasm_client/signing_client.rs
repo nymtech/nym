@@ -413,7 +413,7 @@ impl SigningCosmWasmClient {
         memo: impl Into<String>,
         signer_data: SignerData,
     ) -> Result<tx::Raw, ValidatorClientError> {
-        let signer_accounts = self.signer.get_accounts();
+        let signer_accounts = self.signer.try_derive_accounts()?;
         let account_from_signer = signer_accounts
             .iter()
             .find(|account| &account.address == signer_address)
@@ -439,7 +439,8 @@ impl SigningCosmWasmClient {
         )
         .map_err(|_| ValidatorClientError::SigningFailure)?;
 
-        self.signer.sign_direct(signer_address, sign_doc)
+        self.signer
+            .sign_direct_with_account(&account_from_signer, sign_doc)
     }
 
     pub async fn sign(

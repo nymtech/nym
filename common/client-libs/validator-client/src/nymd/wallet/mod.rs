@@ -13,28 +13,35 @@ pub const DEFAULT_COSMOS_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";
 // prefix should be "cosmos"
 pub const DEFAULT_BECH32_ADDRESS_PREFIX: &str = "punk";
 
-pub struct DirectSecp256k1HdWallet {
-    secret: bip39::Mnemonic,
-    accounts: Vec<AccountData>,
+/// Derivation information required to derive a keypair and an address from a mnemonic.
+struct Secp256k1Derivation {
+    hd_path: DerivationPath,
+    prefix: String,
 }
-
-type Secp256k1Keypair = (SigningKey, PublicKey);
 
 pub struct AccountData {
     pub(crate) address: AccountId,
 
-    // note: since PublicKey is an enum, it already serves the purpose of the
-    // export type Algo = "secp256k1" | "ed25519" | "sr25519" type from the cosmjs
     pub(crate) public_key: PublicKey,
 
-    // I don't entirely understand why cosmjs split this off and put it in a separate `AccountDataWithPrivkey`
-    // type.
-    // Note from future-self:
-    // While this is not the reason they've done it, it might be potentially useful to introduce this in Rust,
-    // as SigningKey is !Send here.
-    // if we split it (and derived private key on every. single. sign request), we might possibly
-    // be able to put it in a trait.
-    private_key: SigningKey,
+    pub(crate) private_key: SigningKey,
+}
+
+type Secp256k1Keypair = (SigningKey, PublicKey);
+
+pub struct DirectSecp256k1HdWallet {
+    /// Base secret
+    secret: bip39::Mnemonic,
+
+    /// BIP39 seed
+    seed: [u8; 64],
+
+    // An unfortunate result of immature rust async story is that async traits (only available in the separate package)
+    // can't yet figure out everything and if we stored our derived account data on the struct,
+    // that would include the secret key which is a dyn EcdsaSigner and hence not Sync making the wallet
+    // not Sync and if used on the signing client in an async trait, it wouldn't be Send
+    /// Derivation instructions
+    accounts: Vec<Secp256k1Derivation>,
 }
 
 impl DirectSecp256k1HdWallet {
@@ -52,12 +59,53 @@ impl DirectSecp256k1HdWallet {
         Self::from_mnemonic(mneomonic)
     }
 
+    fn derive_keypair(
+        &self,
+        hd_path: &DerivationPath,
+    ) -> Result<Secp256k1Keypair, ValidatorClientError> {
+        let extended_private_key = XPrv::derive_from_path(&self.seed, hd_path)?;
+
+        let private_key: SigningKey = extended_private_key.into();
+        let public_key = private_key.public_key();
+
+        Ok((private_key, public_key))
+    }
+
+    pub fn try_derive_accounts(&self) -> Result<Vec<AccountData>, ValidatorClientError> {
+        let mut accounts = Vec::with_capacity(self.accounts.len());
+        for derivation_info in &self.accounts {
+            let keypair = self.derive_keypair(&derivation_info.hd_path)?;
+
+            // it seems this can only fail if the provided account prefix is invalid
+            let address = keypair
+                .1
+                .account_id(&derivation_info.prefix)
+                .map_err(|_| ValidatorClientError::AccountDerivationError)?;
+
+            accounts.push(AccountData {
+                address,
+                public_key: keypair.1,
+                private_key: keypair.0,
+            })
+        }
+
+        Ok(accounts)
+    }
+
     pub fn mnemonic(&self) -> String {
         self.secret.to_string()
     }
 
-    pub fn get_accounts(&self) -> &[AccountData] {
-        &self.accounts
+    pub fn sign_direct_with_account(
+        &self,
+        signer: &AccountData,
+        sign_doc: SignDoc,
+    ) -> Result<tx::Raw, ValidatorClientError> {
+        // ideally I'd prefer to have the entire error put into the ValidatorClientError::SigningFailure
+        // but I'm super hesitant to trying to downcast the eyre::Report to cosmos_sdk::error::Error
+        sign_doc
+            .sign(&signer.private_key)
+            .map_err(|_| ValidatorClientError::SigningFailure)
     }
 
     pub fn sign_direct(
@@ -65,17 +113,14 @@ impl DirectSecp256k1HdWallet {
         signer_address: &AccountId,
         sign_doc: SignDoc,
     ) -> Result<tx::Raw, ValidatorClientError> {
-        let account = self
-            .accounts
+        // I hate deriving accounts at every sign here so much : (
+        let accounts = self.try_derive_accounts()?;
+        let account = accounts
             .iter()
             .find(|account| &account.address == signer_address)
             .ok_or_else(|| ValidatorClientError::SigningAccountNotFound(signer_address.clone()))?;
 
-        // ideally I'd prefer to have the entire error put into the ValidatorClientError::SigningFailure
-        // but I'm super hesitant to trying to downcast the eyre::Report to cosmos_sdk::error::Error
-        sign_doc
-            .sign(&account.private_key)
-            .map_err(|_| ValidatorClientError::SigningFailure)
+        self.sign_direct_with_account(account, sign_doc)
     }
 }
 
@@ -125,49 +170,24 @@ impl DirectSecp256k1HdWalletBuilder {
         self
     }
 
-    fn derive_keypair(
-        seed: &[u8],
-        hd_path: &DerivationPath,
-    ) -> Result<Secp256k1Keypair, ValidatorClientError> {
-        let extended_private_key = XPrv::derive_from_path(seed, hd_path)?;
-
-        let private_key: SigningKey = extended_private_key.into();
-        let public_key = private_key.public_key();
-
-        Ok((private_key, public_key))
-    }
-
-    fn derive_accounts(&self, seed: &[u8]) -> Result<Vec<AccountData>, ValidatorClientError> {
-        let mut accounts = Vec::with_capacity(self.hd_paths.len());
-
-        for hd_path in self.hd_paths.iter() {
-            let keypair = Self::derive_keypair(seed, hd_path)?;
-
-            // it seems this can only fail if the provided account prefix is invalid
-            let address = keypair
-                .1
-                .account_id(&self.prefix)
-                .map_err(|_| ValidatorClientError::AccountDerivationError)?;
-
-            accounts.push(AccountData {
-                address,
-                public_key: keypair.1,
-                private_key: keypair.0,
-            })
-        }
-
-        Ok(accounts)
-    }
-
     pub fn build(
         self,
         mnemonic: bip39::Mnemonic,
     ) -> Result<DirectSecp256k1HdWallet, ValidatorClientError> {
         let seed = mnemonic.to_seed(&self.bip39_password);
-        let accounts = self.derive_accounts(&seed)?;
+        let prefix = self.prefix;
+        let accounts = self
+            .hd_paths
+            .into_iter()
+            .map(|hd_path| Secp256k1Derivation {
+                hd_path,
+                prefix: prefix.clone(),
+            })
+            .collect();
 
         Ok(DirectSecp256k1HdWallet {
             accounts,
+            seed,
             secret: mnemonic,
         })
     }
@@ -188,7 +208,10 @@ mod tests {
 
         for (mnemonic, address) in mnemonic_address.into_iter() {
             let wallet = DirectSecp256k1HdWallet::from_mnemonic(mnemonic.parse().unwrap()).unwrap();
-            assert_eq!(wallet.accounts[0].address, address.parse().unwrap())
+            assert_eq!(
+                wallet.try_derive_accounts().unwrap()[0].address,
+                address.parse().unwrap()
+            )
         }
     }
 }

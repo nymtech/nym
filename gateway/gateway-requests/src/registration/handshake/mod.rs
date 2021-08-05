@@ -3,6 +3,7 @@
 
 use self::client::ClientHandshake;
 use self::error::HandshakeError;
+#[cfg(not(target_arch = "wasm32"))]
 use self::gateway::GatewayHandshake;
 pub use self::shared_key::{SharedKeySize, SharedKeys};
 use crypto::asymmetric::identity;
@@ -14,6 +15,7 @@ pub(crate) type WsItem = Result<WsMessage, WsError>;
 
 mod client;
 pub mod error;
+#[cfg(not(target_arch = "wasm32"))]
 mod gateway;
 pub mod shared_key;
 mod state;
@@ -36,6 +38,7 @@ where
     ClientHandshake::new(rng, ws_stream, identity, gateway_pubkey, coconut_credential).await
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn gateway_handshake<'a, S>(
     rng: &mut (impl RngCore + CryptoRng),
     ws_stream: &'a mut S,

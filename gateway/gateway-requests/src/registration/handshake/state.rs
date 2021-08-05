@@ -40,14 +40,17 @@ impl InitMessage {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn local_id_pubkey(&self) -> identity::PublicKey {
         identity::PublicKey::from_bytes(&self.local_id_pubkey).unwrap()
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn ephemeral_key(&self) -> encryption::PublicKey {
         encryption::PublicKey::from_bytes(&self.ephemeral_key).unwrap()
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn credential(&self) -> Credential {
         self.credential.clone().unwrap()
     }
@@ -107,6 +110,7 @@ impl<'a, S> State<'a, S> {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn local_ephemeral_key(&self) -> &encryption::PublicKey {
         self.ephemeral_keypair.public_key()
     }
@@ -124,6 +128,7 @@ impl<'a, S> State<'a, S> {
     }
 
     // this will need to be adjusted when REMOTE_ID_PUBKEY is removed
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn parse_init_message(init_message: Vec<u8>) -> Result<InitMessage, HandshakeError> {
         match InitMessage::try_from(init_message.as_slice()) {
             Ok(init_message) => Ok(init_message),
@@ -225,6 +230,7 @@ impl<'a, S> State<'a, S> {
             .map_err(|_| HandshakeError::InvalidSignature)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn update_remote_identity(&mut self, remote_pubkey: identity::PublicKey) {
         self.remote_pubkey = Some(remote_pubkey)
     }

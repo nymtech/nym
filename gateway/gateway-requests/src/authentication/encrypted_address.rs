@@ -27,7 +27,7 @@ impl EncryptedAddressBytes {
         let ciphertext = stream_cipher::encrypt::<GatewayEncryptionAlgorithm>(
             key.encryption_key(),
             iv.inner(),
-            address.as_bytes(),
+            address.as_bytes_ref(),
         );
 
         let mut enc_address = [0u8; ENCRYPTED_ADDRESS_SIZE];

@@ -121,7 +121,7 @@ impl ClientControlRequest {
         iv: AuthenticationIV,
     ) -> Self {
         ClientControlRequest::Authenticate {
-            address: address.to_base58_string(),
+            address: address.as_base58_string(),
             enc_address: enc_address.to_base58_string(),
             iv: iv.to_base58_string(),
         }

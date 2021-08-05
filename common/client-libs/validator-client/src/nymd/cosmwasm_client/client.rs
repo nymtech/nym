@@ -22,7 +22,7 @@ use cosmos_sdk::rpc::query::Query;
 use cosmos_sdk::rpc::{Client, Error as TendermintRpcError, HttpClient, HttpClientUrl};
 use cosmos_sdk::tendermint::abci::Transaction;
 use cosmos_sdk::tendermint::{abci, block, chain};
-use cosmos_sdk::{AccountId, Coin, Denom};
+use cosmos_sdk::{tx, AccountId, Coin, Denom};
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
@@ -178,12 +178,8 @@ impl CosmWasmClient {
             .map_err(|_| ValidatorClientError::SerializationError("Coins".to_owned()))
     }
 
-    // TODO: or should it instead take concrete Hash type directly?
-    pub async fn get_tx(&self, id: &str) -> Result<TxResponse, ValidatorClientError> {
-        let tx_hash = id
-            .parse()
-            .map_err(|_| ValidatorClientError::InvalidTxHash(id.to_owned()))?;
-        Ok(self.tm_client.tx(tx_hash, false).await?)
+    pub async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, ValidatorClientError> {
+        Ok(self.tm_client.tx(id, false).await?)
     }
 
     pub async fn search_tx(&self, query: Query) -> Result<TxSearchResponse, ValidatorClientError> {

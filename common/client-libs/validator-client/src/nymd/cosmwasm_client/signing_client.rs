@@ -513,7 +513,7 @@ impl SigningCosmWasmClient {
         self.base_client.get_all_balances(address).await
     }
 
-    pub async fn get_tx(&self, id: &str) -> Result<TxResponse, ValidatorClientError> {
+    pub async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, ValidatorClientError> {
         self.base_client.get_tx(id).await
     }
 

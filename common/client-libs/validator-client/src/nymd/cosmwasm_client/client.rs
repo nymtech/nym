@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nymd::cosmwasm_client::helpers::create_pagination;
 use crate::nymd::cosmwasm_client::types::{
     Account, Code, CodeDetails, Contract, ContractCodeHistoryEntry, ContractCodeId,
     SequenceResponse,
@@ -143,24 +144,34 @@ impl CosmWasmClient {
             .map_err(|_| ValidatorClientError::SerializationError("Coin".to_owned()))
     }
 
-    // TODO: if this is to be made into more generic library, it will need to be able to handle
-    // pagination
     pub async fn get_all_balances(
         &self,
         address: &AccountId,
     ) -> Result<Vec<Coin>, ValidatorClientError> {
         let path = Some("/cosmos.bank.v1beta1.Query/AllBalances".parse().unwrap());
 
-        let req = QueryAllBalancesRequest {
-            address: address.to_string(),
-            pagination: None,
-        };
+        let mut raw_balances = Vec::new();
+        let mut pagination = None;
 
-        let res = self
-            .make_abci_query::<_, QueryAllBalancesResponse>(path, req)
-            .await?;
+        loop {
+            let req = QueryAllBalancesRequest {
+                address: address.to_string(),
+                pagination,
+            };
 
-        res.balances
+            let mut res = self
+                .make_abci_query::<_, QueryAllBalancesResponse>(path.clone(), req)
+                .await?;
+
+            raw_balances.append(&mut res.balances);
+            if let Some(pagination_info) = res.pagination {
+                pagination = Some(create_pagination(pagination_info.next_key))
+            } else {
+                break;
+            }
+        }
+
+        raw_balances
             .into_iter()
             .map(TryFrom::try_from)
             .collect::<Result<_, _>>()
@@ -221,18 +232,25 @@ impl CosmWasmClient {
     pub async fn get_codes(&self) -> Result<Vec<Code>, ValidatorClientError> {
         let path = Some("/cosmwasm.wasm.v1beta1.Query/Codes".parse().unwrap());
 
-        // TODO: again, some pagination action here
-        let req = QueryCodesRequest { pagination: None };
+        let mut raw_codes = Vec::new();
+        let mut pagination = None;
 
-        let res = self
-            .make_abci_query::<_, QueryCodesResponse>(path, req)
-            .await?;
+        loop {
+            let req = QueryCodesRequest { pagination };
 
-        if res.pagination.is_some() {
-            todo!("We have unhandled pagination")
+            let mut res = self
+                .make_abci_query::<_, QueryCodesResponse>(path.clone(), req)
+                .await?;
+
+            raw_codes.append(&mut res.code_infos);
+            if let Some(pagination_info) = res.pagination {
+                pagination = Some(create_pagination(pagination_info.next_key))
+            } else {
+                break;
+            }
         }
 
-        res.code_infos
+        raw_codes
             .into_iter()
             .map(TryFrom::try_from)
             .collect::<Result<_, _>>()
@@ -266,17 +284,28 @@ impl CosmWasmClient {
                 .unwrap(),
         );
 
-        let req = QueryContractsByCodeRequest {
-            code_id,
-            pagination: None,
-        };
+        let mut raw_contracts = Vec::new();
+        let mut pagination = None;
 
-        // TODO: pagination... (hehe, even cosmjs has pagination handling as TODO here)
-        let res = self
-            .make_abci_query::<_, QueryContractsByCodeResponse>(path, req)
-            .await?;
+        loop {
+            let req = QueryContractsByCodeRequest {
+                code_id,
+                pagination,
+            };
 
-        res.contracts
+            let mut res = self
+                .make_abci_query::<_, QueryContractsByCodeResponse>(path.clone(), req)
+                .await?;
+
+            raw_contracts.append(&mut res.contracts);
+            if let Some(pagination_info) = res.pagination {
+                pagination = Some(create_pagination(pagination_info.next_key))
+            } else {
+                break;
+            }
+        }
+
+        raw_contracts
             .iter()
             .map(|raw| raw.parse())
             .collect::<Result<_, _>>()
@@ -320,21 +349,28 @@ impl CosmWasmClient {
                 .unwrap(),
         );
 
-        // TODO: pagination....
-        let req = QueryContractHistoryRequest {
-            address: address.to_string(),
-            pagination: None,
-        };
+        let mut raw_entries = Vec::new();
+        let mut pagination = None;
 
-        let res = self
-            .make_abci_query::<_, QueryContractHistoryResponse>(path, req)
-            .await?;
+        loop {
+            let req = QueryContractHistoryRequest {
+                address: address.to_string(),
+                pagination,
+            };
 
-        if res.pagination.is_some() {
-            todo!("We have unhandled pagination")
+            let mut res = self
+                .make_abci_query::<_, QueryContractHistoryResponse>(path.clone(), req)
+                .await?;
+
+            raw_entries.append(&mut res.entries);
+            if let Some(pagination_info) = res.pagination {
+                pagination = Some(create_pagination(pagination_info.next_key))
+            } else {
+                break;
+            }
         }
 
-        res.entries
+        raw_entries
             .into_iter()
             .map(TryFrom::try_from)
             .collect::<Result<_, _>>()

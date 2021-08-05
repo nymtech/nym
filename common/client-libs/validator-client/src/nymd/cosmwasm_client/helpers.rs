@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ValidatorClientError;
+use cosmos_sdk::proto::cosmos::base::query::v1beta1::PageRequest;
 use cosmos_sdk::rpc::endpoint::broadcast;
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -44,4 +45,13 @@ pub(crate) fn compress_wasm_code(code: &[u8]) -> Result<Vec<u8>, ValidatorClient
     encoder
         .finish()
         .map_err(ValidatorClientError::WasmCompressionError)
+}
+
+pub(crate) fn create_pagination(key: Vec<u8>) -> PageRequest {
+    PageRequest {
+        key,
+        offset: 0,
+        limit: 0,
+        count_total: false,
+    }
 }

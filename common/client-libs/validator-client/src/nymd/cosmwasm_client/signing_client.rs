@@ -421,7 +421,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         .map_err(|_| ValidatorClientError::SigningFailure)?;
 
         self.signer()
-            .sign_direct_with_account(&account_from_signer, sign_doc)
+            .sign_direct_with_account(account_from_signer, sign_doc)
     }
 
     async fn sign(

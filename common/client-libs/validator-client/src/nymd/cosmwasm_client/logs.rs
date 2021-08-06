@@ -21,7 +21,7 @@ pub struct Log {
 }
 
 /// Searches in logs for the first event of the given event type and in that event
-/// for the first first attribute with the given attribute key.
+/// for the first attribute with the given attribute key.
 pub(crate) fn find_attribute<'a>(
     logs: &'a [Log],
     event_type: &str,

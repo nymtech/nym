@@ -32,14 +32,11 @@ cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch="0.14.1-up
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.getrandom]
 version = "0.2"
-optional = true
+features = ["js"]
 
 [dev-dependencies]
 tokio = {version = "1.5", features = ["full"]}
 
 [features]
 default = ["nymd-client"]
-# the reason for introducing additional features is to let cargo know we don't want anything to do with "getrandom/js"
-# by default as it messes up with cyclic dependencies for ahash that's indirectly used by sqlx in validator-api
-wasm = ["getrandom/js"]
 nymd-client = ["async-trait", "bip39", "cosmos_sdk", "prost", "flate2", "sha2", "itertools", "cosmwasm-std"]

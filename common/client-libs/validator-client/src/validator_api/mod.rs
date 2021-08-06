@@ -9,6 +9,8 @@ pub const VALIDATOR_API_PORT: u16 = 8080;
 pub const VALIDATOR_API_CACHE_VERSION: &str = "/v1";
 pub(crate) const VALIDATOR_API_MIXNODES: &str = "/mixnodes";
 pub(crate) const VALIDATOR_API_GATEWAYS: &str = "/gateways";
+pub const VALIDATOR_API_VERIFICATION_KEY: &str = "/verification_key";
+pub const VALIDATOR_API_BLIND_SIGN: &str = "/blind_sign";
 
 pub struct Client {
     reqwest_client: reqwest::Client,

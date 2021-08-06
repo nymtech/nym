@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 pub use validator_client::validator_api::Client as ValidatorAPIClient;
 use validator_client::validator_api::{
-    error::ValidatorAPIClientError, VALIDATOR_API_CACHE_VERSION,
+    error::ValidatorAPIClientError, VALIDATOR_API_BLIND_SIGN, VALIDATOR_API_CACHE_VERSION,
+    VALIDATOR_API_VERIFICATION_KEY,
 };
 
 #[derive(Serialize, Deserialize, Getters, CopyGetters, Clone)]
@@ -197,7 +198,10 @@ async fn get_verification_key(
         Url::parse(url).map_err(|e| format!("Could not parse validator url: {:?}", e))?;
     let verification_key_response: VerificationKeyResponse = client
         .query_validator_api(
-            format!("{}/verification_key", VALIDATOR_API_CACHE_VERSION),
+            format!(
+                "{}{}",
+                VALIDATOR_API_CACHE_VERSION, VALIDATOR_API_VERIFICATION_KEY
+            ),
             &parsed_url,
         )
         .await
@@ -250,7 +254,10 @@ pub async fn get_aggregated_signature(
             Url::parse(url).map_err(|e| format!("Could not parse validator url: {:?}", e))?;
         let response: Result<BlindedSignatureResponse, ValidatorAPIClientError> = client
             .post_validator_api(
-                format!("{}/blind_sign", VALIDATOR_API_CACHE_VERSION),
+                format!(
+                    "{}{}",
+                    VALIDATOR_API_CACHE_VERSION, VALIDATOR_API_BLIND_SIGN
+                ),
                 &blind_sign_request_body,
                 &parsed_url,
             )

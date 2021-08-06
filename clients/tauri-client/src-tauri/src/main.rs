@@ -56,15 +56,9 @@ async fn verify_credential(
   state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<bool, String> {
   let state = state.read().await;
-  let theta = coconut_interface::prove_credential(
-    idx,
-    validator_urls.clone(),
-    &*state,
-    &ValidatorAPIClient::default(),
-  )
-  .await?;
   let verification_key =
     get_aggregated_verification_key(validator_urls, &ValidatorAPIClient::default()).await?;
+  let theta = coconut_interface::prove_credential(idx, &verification_key, &*state).await?;
 
   let credential = Credential::new(
     state.n_attributes,

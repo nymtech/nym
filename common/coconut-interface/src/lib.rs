@@ -43,7 +43,8 @@ impl Credential {
             .map_err(|e| format!("Could not aggregate signature from validators: {}", e))?;
 
         state.signatures.push(signature);
-        let theta = prove_credential(0, validator_urls, &state, &client)
+        let verification_key = get_aggregated_verification_key(validator_urls, &client).await?;
+        let theta = prove_credential(0, &verification_key, &state)
             .await
             .map_err(|e| format!("Could not prove credential: {}", e))?;
         Ok(Credential::new(
@@ -266,18 +267,16 @@ pub async fn get_aggregated_signature(
 
 pub async fn prove_credential(
     idx: usize,
-    validator_urls: Vec<String>,
+    verification_key: &VerificationKey,
     state: &State,
-    client: &ValidatorAPIClient,
 ) -> Result<Theta, String> {
-    let verification_key = get_aggregated_verification_key(validator_urls, client).await?;
     let signature = state
         .signatures
         .get(idx)
         .ok_or("Got invalid signature idx")?;
     coconut_rs::prove_credential(
         &state.params,
-        &verification_key,
+        verification_key,
         signature,
         &state.private_attributes,
     )

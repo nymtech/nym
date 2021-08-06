@@ -10,7 +10,7 @@ use validator_client::validator_api::VALIDATOR_API_CACHE_VERSION;
 
 #[derive(Getters, CopyGetters, Debug)]
 pub struct InternalSignRequest {
-    // Total number of paraeters to generate for
+    // Total number of parameters to generate for
     #[getset(get_copy)]
     total_params: u32,
     #[getset(get)]

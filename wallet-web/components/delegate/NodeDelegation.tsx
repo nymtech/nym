@@ -24,7 +24,7 @@ const DelegateToNode = () => {
   const [delegationError, setDelegationError] = React.useState(null)
 
   const [nodeType, setNodeType] = React.useState(NodeType.Mixnode)
-  const [stakeValue, setStakeValue] = React.useState('0 HAL')
+  const [stakeValue, setStakeValue] = React.useState('0 PUNK')
   const [nodeIdentity, setNodeIdentity] = React.useState('')
 
   useEffect(() => {

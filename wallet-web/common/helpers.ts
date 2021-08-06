@@ -111,10 +111,7 @@ export const validateIdentityKey = (key: string): boolean => {
 }
 
 export const validateRawPort = (rawPort: number): boolean =>
-  typeof rawPort === 'number' &&
-  !isNaN(rawPort) &&
-  rawPort >= 1 &&
-  rawPort <= 65535
+  !isNaN(rawPort) && rawPort >= 1 && rawPort <= 65535
 // first of all it must be an integer
 // and it must be a non-zero 16 bit unsigned integer
 

@@ -3,7 +3,9 @@
   windows_subsystem = "windows"
 )]
 
-use coconut_interface::{self, Signature, State, Theta, ValidatorAPIClient};
+use coconut_interface::{
+  self, get_aggregated_verification_key, Credential, Signature, State, ValidatorAPIClient,
+};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -48,14 +50,33 @@ async fn list_credentials(
 }
 
 #[tauri::command]
-async fn prove_credential(
+async fn verify_credential(
   idx: usize,
   validator_urls: Vec<String>,
   state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<Theta, String> {
+) -> Result<bool, String> {
   let state = state.read().await;
-  coconut_interface::prove_credential(idx, validator_urls, &*state, &ValidatorAPIClient::default())
-    .await
+  let theta = coconut_interface::prove_credential(
+    idx,
+    validator_urls.clone(),
+    &*state,
+    &ValidatorAPIClient::default(),
+  )
+  .await?;
+  let verification_key =
+    get_aggregated_verification_key(validator_urls, &ValidatorAPIClient::default()).await?;
+
+  let credential = Credential::new(
+    state.n_attributes,
+    &theta,
+    &state.public_attributes,
+    state
+      .signatures
+      .get(idx)
+      .ok_or("Got invalid signature idx")?,
+  );
+
+  Ok(credential.verify(&verification_key).await)
 }
 
 #[tauri::command]
@@ -90,7 +111,7 @@ fn main() {
       randomise_credential,
       delete_credential,
       list_credentials,
-      prove_credential
+      verify_credential
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

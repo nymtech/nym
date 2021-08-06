@@ -9,7 +9,7 @@ use rocket::State;
 use validator_client::validator_api::VALIDATOR_API_CACHE_VERSION;
 
 #[derive(Getters, CopyGetters, Debug)]
-pub struct InternalSignRequest {
+pub(crate) struct InternalSignRequest {
     // Total number of parameters to generate for
     #[getset(get_copy)]
     total_params: u32,
@@ -46,7 +46,7 @@ impl InternalSignRequest {
     }
 }
 
-pub fn blind_sign(request: InternalSignRequest, key_pair: &KeyPair) -> BlindedSignature {
+fn blind_sign(request: InternalSignRequest, key_pair: &KeyPair) -> BlindedSignature {
     let params = Parameters::new(request.total_params()).unwrap();
     coconut_interface::blind_sign(
         &params,

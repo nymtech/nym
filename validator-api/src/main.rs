@@ -147,7 +147,11 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.detailed_network_monitor_report(true)
     }
     if let Some(keypair_path) = matches.value_of(KEYPAIR_ARG) {
-        config = config.with_keypair(keypair_path)
+        let keypair_bs58 = std::fs::read_to_string(keypair_path)
+            .unwrap()
+            .trim()
+            .to_string();
+        config = config.with_keypair(keypair_bs58)
     }
 
     if matches.is_present(WRITE_CONFIG_ARG) {

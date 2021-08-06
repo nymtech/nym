@@ -247,9 +247,8 @@ impl Config {
         self
     }
 
-    pub fn with_keypair(mut self, path: &str) -> Self {
-        let keypair_bs58 = std::fs::read_to_string(path).unwrap();
-        self.base.keypair_bs58 = keypair_bs58.trim().to_string();
+    pub fn with_keypair(mut self, keypair_bs58: String) -> Self {
+        self.base.keypair_bs58 = keypair_bs58;
         self
     }
 

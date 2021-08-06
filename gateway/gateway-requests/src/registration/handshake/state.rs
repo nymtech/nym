@@ -130,10 +130,7 @@ impl<'a, S> State<'a, S> {
     // this will need to be adjusted when REMOTE_ID_PUBKEY is removed
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn parse_init_message(init_message: Vec<u8>) -> Result<InitMessage, HandshakeError> {
-        match InitMessage::try_from(init_message.as_slice()) {
-            Ok(init_message) => Ok(init_message),
-            Err(_e) => Err(HandshakeError::MalformedRequest),
-        }
+        InitMessage::try_from(init_message.as_slice()).map_err(|_| HandshakeError::MalformedRequest)
     }
 
     pub(crate) fn derive_shared_key(&mut self, remote_ephemeral_key: &encryption::PublicKey) {

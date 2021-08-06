@@ -30,7 +30,7 @@ const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_millis(2_500
 
 const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(60);
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(default)]
@@ -71,7 +71,7 @@ impl NymConfig for Config {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Base {
     // TODO: this will probably be changed very soon to point only to a single endpoint,
@@ -97,7 +97,7 @@ impl Default for Base {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct NetworkMonitor {
     /// Specifies whether network monitoring service is enabled in this process.
@@ -172,7 +172,7 @@ impl Default for NetworkMonitor {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct NodeStatusAPI {
     /// Path to the database file containing uptime statuses for all mixnodes and gateways.
@@ -193,7 +193,7 @@ impl Default for NodeStatusAPI {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct TopologyCacher {
     #[serde(with = "humantime_serde")]

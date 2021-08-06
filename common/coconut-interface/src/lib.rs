@@ -221,10 +221,7 @@ pub async fn get_aggregated_verification_key(
         indices.push((idx + 1) as u64);
     }
 
-    match aggregate_verification_keys(&verification_keys, Some(&indices)) {
-        Ok(key) => Ok(key),
-        Err(e) => Err(format!("{}", e)),
-    }
+    aggregate_verification_keys(&verification_keys, Some(&indices)).map_err(|e| format!("{:?}", e))
 }
 
 pub async fn get_aggregated_signature(

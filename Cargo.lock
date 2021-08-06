@@ -4656,6 +4656,7 @@ dependencies = [
  "async-trait",
  "base64",
  "bip39",
+ "config",
  "cosmos_sdk",
  "cosmwasm-std",
  "flate2",

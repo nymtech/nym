@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ValidatorClientError;
+use config::defaults;
 use cosmos_sdk::bip32::{DerivationPath, XPrv};
 use cosmos_sdk::crypto::secp256k1::SigningKey;
 use cosmos_sdk::crypto::PublicKey;
 use cosmos_sdk::tx::SignDoc;
 use cosmos_sdk::{tx, AccountId};
-
-pub const DEFAULT_COSMOS_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";
-// TODO: probably if this is to be made into a generic-cosmos library, the default
-// prefix should be "cosmos"
-pub const DEFAULT_BECH32_ADDRESS_PREFIX: &str = "punk";
 
 /// Derivation information required to derive a keypair and an address from a mnemonic.
 struct Secp256k1Derivation {
@@ -128,10 +124,10 @@ pub struct DirectSecp256k1HdWalletBuilder {
     /// The password to use when deriving a BIP39 seed from a mnemonic.
     bip39_password: String,
 
-    /// The BIP-32/SLIP-10 derivation paths. Defaults to the Cosmos Hub/ATOM path `m/44'/118'/0'/0/0`
+    /// The BIP-32/SLIP-10 derivation paths
     hd_paths: Vec<DerivationPath>,
 
-    /// The bech32 address prefix (human readable part). Defaults to "punk".
+    /// The bech32 address prefix (human readable part)
     prefix: String,
 }
 
@@ -139,8 +135,8 @@ impl Default for DirectSecp256k1HdWalletBuilder {
     fn default() -> Self {
         DirectSecp256k1HdWalletBuilder {
             bip39_password: String::new(),
-            hd_paths: vec![DEFAULT_COSMOS_DERIVATION_PATH.parse().unwrap()],
-            prefix: DEFAULT_BECH32_ADDRESS_PREFIX.to_string(),
+            hd_paths: vec![defaults::COSMOS_DERIVATION_PATH.parse().unwrap()],
+            prefix: defaults::BECH32_PREFIX.to_string(),
         }
     }
 }

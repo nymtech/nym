@@ -47,7 +47,7 @@ impl Operation {
         // - gas limit
         // - fees
         let gas_limit = gas_limit.unwrap_or_else(|| self.default_gas_limit());
-        let fee = calculate_fee(&gas_price, gas_limit);
+        let fee = calculate_fee(gas_price, gas_limit);
         Fee::from_amount_and_gas(fee, gas_limit)
     }
 }

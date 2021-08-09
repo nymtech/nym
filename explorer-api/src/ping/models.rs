@@ -22,7 +22,7 @@ impl ThreadsafePingCache {
         }
     }
 
-    pub(crate) async fn get(self, identity_key: IdentityKey) -> Option<PingResponse> {
+    pub(crate) async fn get(&self, identity_key: IdentityKey) -> Option<PingResponse> {
         self.inner
             .read()
             .await
@@ -39,7 +39,7 @@ impl ThreadsafePingCache {
             })
     }
 
-    pub(crate) async fn set(self, identity_key: IdentityKey, item: PingResponse) {
+    pub(crate) async fn set(&self, identity_key: IdentityKey, item: PingResponse) {
         self.inner.write().await.insert(
             identity_key,
             PingCacheItem {

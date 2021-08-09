@@ -695,6 +695,7 @@ dependencies = [
  "coconut-rs",
  "getset",
  "serde",
+ "thiserror",
  "url",
  "validator-client",
 ]

@@ -1,3 +1,6 @@
+pub mod error;
+
+use crate::error::CoconutInterfaceError;
 pub use coconut_rs::*;
 use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
@@ -36,18 +39,14 @@ impl Credential {
         }
     }
 
-    pub async fn init(validator_urls: Vec<String>) -> Result<Self, String> {
+    pub async fn init(validator_urls: Vec<String>) -> Result<Self, CoconutInterfaceError> {
         let mut state = State::init();
         let client = ValidatorAPIClient::new();
-        let signature = get_aggregated_signature(validator_urls.clone(), &state, &client)
-            .await
-            .map_err(|e| format!("Could not aggregate signature from validators: {}", e))?;
+        let signature = get_aggregated_signature(validator_urls.clone(), &state, &client).await?;
 
         state.signatures.push(signature);
         let verification_key = get_aggregated_verification_key(validator_urls, &client).await?;
-        let theta = prove_credential(0, &verification_key, &state)
-            .await
-            .map_err(|e| format!("Could not prove credential: {}", e))?;
+        let theta = prove_credential(0, &verification_key, &state).await?;
         Ok(Credential::new(
             state.n_attributes,
             &theta,
@@ -193,9 +192,8 @@ impl State {
 async fn get_verification_key(
     url: &str,
     client: &ValidatorAPIClient,
-) -> Result<VerificationKey, String> {
-    let parsed_url =
-        Url::parse(url).map_err(|e| format!("Could not parse validator url: {:?}", e))?;
+) -> Result<VerificationKey, CoconutInterfaceError> {
+    let parsed_url = Url::parse(url).map_err(CoconutInterfaceError::from)?;
     let verification_key_response: VerificationKeyResponse = client
         .query_validator_api(
             format!(
@@ -205,14 +203,14 @@ async fn get_verification_key(
             &parsed_url,
         )
         .await
-        .map_err(|e| format!("Verification key could not be obtained: {:?}", e))?;
+        .map_err(CoconutInterfaceError::from)?;
     Ok(verification_key_response.key)
 }
 
 pub async fn get_aggregated_verification_key(
     validator_urls: Vec<String>,
     client: &ValidatorAPIClient,
-) -> Result<VerificationKey, String> {
+) -> Result<VerificationKey, CoconutInterfaceError> {
     let mut verification_keys = Vec::new();
     let mut indices = Vec::new();
 
@@ -221,14 +219,15 @@ pub async fn get_aggregated_verification_key(
         indices.push((idx + 1) as u64);
     }
 
-    aggregate_verification_keys(&verification_keys, Some(&indices)).map_err(|e| format!("{:?}", e))
+    aggregate_verification_keys(&verification_keys, Some(&indices))
+        .map_err(CoconutInterfaceError::AggregateVerificationKeyError)
 }
 
 pub async fn get_aggregated_signature(
     validator_urls: Vec<String>,
     state: &State,
     client: &ValidatorAPIClient,
-) -> Result<Signature, String> {
+) -> Result<Signature, CoconutInterfaceError> {
     let elgamal_keypair = coconut_rs::elgamal_keygen(&state.params);
     let blind_sign_request = coconut_rs::prepare_blind_sign(
         &state.params,
@@ -247,8 +246,7 @@ pub async fn get_aggregated_signature(
     let mut signature_shares = vec![];
 
     for (idx, url) in validator_urls.iter().enumerate() {
-        let parsed_url =
-            Url::parse(url).map_err(|e| format!("Could not parse validator url: {:?}", e))?;
+        let parsed_url = Url::parse(url).map_err(CoconutInterfaceError::from)?;
         let response: Result<BlindedSignatureResponse, ValidatorAPIClientError> = client
             .post_validator_api(
                 format!(
@@ -273,16 +271,16 @@ pub async fn prove_credential(
     idx: usize,
     verification_key: &VerificationKey,
     state: &State,
-) -> Result<Theta, String> {
+) -> Result<Theta, CoconutInterfaceError> {
     let signature = state
         .signatures
         .get(idx)
-        .ok_or("Got invalid signature idx")?;
+        .ok_or(CoconutInterfaceError::InvalidSignatureIdx(idx))?;
     coconut_rs::prove_credential(
         &state.params,
         verification_key,
         signature,
         &state.private_attributes,
     )
-    .map_err(|e| format!("{:?}", e))
+    .map_err(CoconutInterfaceError::ProveCredentialError)
 }

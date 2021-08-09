@@ -57,8 +57,12 @@ async fn verify_credential(
 ) -> Result<bool, String> {
   let state = state.read().await;
   let verification_key =
-    get_aggregated_verification_key(validator_urls, &ValidatorAPIClient::default()).await?;
-  let theta = coconut_interface::prove_credential(idx, &verification_key, &*state).await?;
+    get_aggregated_verification_key(validator_urls, &ValidatorAPIClient::default())
+      .await
+      .map_err(|e| format!("{:?}", e))?;
+  let theta = coconut_interface::prove_credential(idx, &verification_key, &*state)
+    .await
+    .map_err(|e| format!("{:?}", e))?;
 
   let credential = Credential::new(
     state.n_attributes,
@@ -85,7 +89,8 @@ async fn get_credential(
       &*state,
       &ValidatorAPIClient::default(),
     )
-    .await?
+    .await
+    .map_err(|e| format!("{:?}", e))?
   };
   {
     let mut state = state.write().await;

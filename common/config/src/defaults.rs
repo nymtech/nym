@@ -11,6 +11,9 @@ pub const NETWORK_MONITOR_ADDRESS: &str = "punk1v9qauwdq5terag6uvfsdytcs2d0sdmfd
 pub const COSMOS_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";
 pub const BECH32_PREFIX: &str = "punk";
 pub const DENOM: &str = "upunk";
+// as set by validators in their configs
+// (note that the 'amount' postfix is relevant here as the full gas price also includes denom)
+pub const GAS_PRICE_AMOUNT: f64 = 0.025;
 
 pub const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
 

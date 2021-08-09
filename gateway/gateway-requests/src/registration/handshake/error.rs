@@ -27,4 +27,9 @@ pub enum HandshakeError {
     HandshakeFailure,
     #[error("could not verify Coconut Credential")]
     InvalidCoconutCredential,
+    #[error("could not deserialize from slice: {source}")]
+    DeserializationError {
+        #[from]
+        source: bincode::Error,
+    },
 }

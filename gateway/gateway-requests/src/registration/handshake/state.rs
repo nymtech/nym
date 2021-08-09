@@ -61,13 +61,10 @@ impl InitMessage {
 }
 
 impl TryFrom<&[u8]> for InitMessage {
-    type Error = String;
+    type Error = HandshakeError;
 
     fn try_from(value: &[u8]) -> Result<InitMessage, Self::Error> {
-        match bincode::deserialize(value) {
-            Ok(init_message) => Ok(init_message),
-            Err(e) => Err(format!("{}", e)),
-        }
+        bincode::deserialize(value).map_err(|e| e.into())
     }
 }
 /// Handshake state.

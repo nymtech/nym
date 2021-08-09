@@ -1,12 +1,16 @@
 pub mod error;
 
+use digest::Digest;
+use getset::{CopyGetters, Getters};
+use serde::{Deserialize, Serialize};
+use sha2::digest::generic_array::typenum::Unsigned;
+use sha2::Sha256;
+use url::Url;
+pub use validator_client::validator_api::Client as ValidatorAPIClient;
+
 use crate::error::CoconutInterfaceError;
 pub use coconut_rs::*;
 use crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
-use getset::{CopyGetters, Getters};
-use serde::{Deserialize, Serialize};
-use url::Url;
-pub use validator_client::validator_api::Client as ValidatorAPIClient;
 use validator_client::validator_api::{
     error::ValidatorAPIClientError, VALIDATOR_API_BLIND_SIGN, VALIDATOR_API_CACHE_VERSION,
     VALIDATOR_API_VERIFICATION_KEY,
@@ -179,12 +183,12 @@ pub struct State {
 
 impl State {
     pub fn init(public_key: Option<crypto::asymmetric::identity::PublicKey>) -> State {
-        let attr = public_key.unwrap_or_else(|| {
+        let n_attributes: u32 = 2;
+        let attribute = public_key.unwrap_or_else(|| {
             crypto::asymmetric::identity::PublicKey::from_bytes(&[0; PUBLIC_KEY_LENGTH]).unwrap()
         });
-        let n_attributes: u32 = 1;
         let params = Parameters::new(n_attributes).unwrap();
-        let public_attributes = params.n_random_scalars(2);
+        let public_attributes = vec![hash_to_scalar(attribute.to_bytes())];
         let private_attributes = params.n_random_scalars(1);
         State {
             signatures: Vec::new(),
@@ -290,4 +294,22 @@ pub async fn prove_credential(
         &state.private_attributes,
     )
     .map_err(CoconutInterfaceError::ProveCredentialError)
+}
+
+fn hash_to_scalar<M>(msg: M) -> Attribute
+where
+    M: AsRef<[u8]>,
+{
+    let mut h = Sha256::new();
+    h.update(msg);
+    let digest = h.finalize();
+
+    let mut bytes = [0u8; 64];
+    let pad_size = 64usize
+        .checked_sub(<Sha256 as Digest>::OutputSize::to_usize())
+        .unwrap_or_default();
+
+    bytes[pad_size..].copy_from_slice(&digest);
+
+    Attribute::from_bytes_wide(&bytes)
 }

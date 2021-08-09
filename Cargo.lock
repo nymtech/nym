@@ -694,8 +694,10 @@ version = "0.1.0"
 dependencies = [
  "coconut-rs",
  "crypto",
+ "digest 0.9.0",
  "getset",
  "serde",
+ "sha2",
  "thiserror",
  "url",
  "validator-client",

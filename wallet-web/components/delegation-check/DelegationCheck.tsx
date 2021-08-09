@@ -39,7 +39,7 @@ const DelegationCheck = () => {
         'Could not find any delegation information associated with'
       )
     ) {
-      setStakeValue('0 HAL')
+      setStakeValue('0 PUNK')
     } else {
       setCheckError(err)
     }

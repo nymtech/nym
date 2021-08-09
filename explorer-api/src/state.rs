@@ -21,6 +21,19 @@ pub struct ExplorerApiState {
     pub(crate) ping_cache: ThreadsafePingCache,
 }
 
+impl ExplorerApiState {
+    pub(crate) async fn get_mix_node(&self, pubkey: &str) -> Option<MixNodeBond> {
+        self.mix_nodes
+            .clone()
+            .get()
+            .await
+            .value
+            .iter()
+            .find(|node| node.mix_node.identity_key == pubkey)
+            .cloned()
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExplorerApiStateOnDisk {
     pub(crate) country_node_distribution: CountryNodesDistribution,

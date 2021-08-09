@@ -5,9 +5,6 @@ use std::time::Duration;
 use rocket::serde::json::Json;
 use rocket::{Route, State};
 
-use mixnet_contract::MixNodeBond;
-
-use crate::mix_nodes::MixNodesResult;
 use crate::ping::models::PingResponse;
 use crate::state::ExplorerApiStateContext;
 
@@ -32,11 +29,8 @@ pub(crate) async fn index(
         }
         None => {
             trace!("No cache value for {}", pubkey);
-            let mix_nodes = state.inner.mix_nodes.clone().get().await;
 
-            trace!("Getting mix node {}", pubkey);
-
-            match get_mix_node(pubkey, mix_nodes) {
+            match state.inner.get_mix_node(pubkey).await {
                 Some(bond) => {
                     let mut ports: HashMap<u16, bool> = HashMap::new();
 
@@ -76,14 +70,6 @@ pub(crate) async fn index(
             }
         }
     }
-}
-
-fn get_mix_node(pubkey: &str, mix_nodes: MixNodesResult) -> Option<MixNodeBond> {
-    mix_nodes
-        .value
-        .iter()
-        .find(|node| node.mix_node.identity_key == pubkey)
-        .cloned()
 }
 
 async fn do_port_check(host: &str, port: &u16) -> bool {

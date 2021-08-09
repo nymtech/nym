@@ -3,7 +3,7 @@ use crate::state::ExplorerApiStateContext;
 use rocket::serde::json::Json;
 use rocket::{Route, State};
 
-pub fn make_default_routes() -> Vec<Route> {
+pub fn country_statistics_make_default_routes() -> Vec<Route> {
     routes_with_openapi![index]
 }
 

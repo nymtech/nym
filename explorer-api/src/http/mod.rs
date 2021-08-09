@@ -1,6 +1,6 @@
 mod swagger;
 
-use crate::country_statistics::http::make_default_routes;
+use crate::country_statistics::http::country_statistics_make_default_routes;
 use crate::http::swagger::get_docs;
 use crate::ping::http::ping_make_default_routes;
 use crate::state::ExplorerApiStateContext;
@@ -15,7 +15,7 @@ pub(crate) fn start(state: ExplorerApiStateContext) {
 
         rocket::build()
             .configure(config)
-            .mount("/countries", make_default_routes())
+            .mount("/countries", country_statistics_make_default_routes())
             .mount("/ping", ping_make_default_routes())
             .mount("/swagger", make_swagger_ui(&get_docs()))
             // .register("/", catchers![not_found])

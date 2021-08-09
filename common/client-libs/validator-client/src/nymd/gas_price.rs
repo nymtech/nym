@@ -22,7 +22,6 @@ impl FromStr for GasPrice {
     type Err = ValidatorClientError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // s.split()
         let possible_amount = s
             .chars()
             .take_while(|c| c.is_ascii_digit() || c == &'.')

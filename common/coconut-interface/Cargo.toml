@@ -12,4 +12,5 @@ thiserror = "1.0"
 url = "2"
 
 coconut-rs = { git = "https://github.com/nymtech/coconut.git", branch = "0.4.0" }
+crypto = { path = "../crypto" }
 validator-client = { path = "../client-libs/validator-client" }

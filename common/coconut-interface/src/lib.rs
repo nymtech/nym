@@ -2,6 +2,7 @@ pub mod error;
 
 use crate::error::CoconutInterfaceError;
 pub use coconut_rs::*;
+use crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
 use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -39,8 +40,11 @@ impl Credential {
         }
     }
 
-    pub async fn init(validator_urls: Vec<String>) -> Result<Self, CoconutInterfaceError> {
-        let mut state = State::init();
+    pub async fn init(
+        validator_urls: Vec<String>,
+        public_key: crypto::asymmetric::identity::PublicKey,
+    ) -> Result<Self, CoconutInterfaceError> {
+        let mut state = State::init(Some(public_key));
         let client = ValidatorAPIClient::new();
         let signature = get_aggregated_signature(validator_urls.clone(), &state, &client).await?;
 
@@ -111,7 +115,7 @@ pub struct BlindSignRequestBody {
     #[getset(get = "pub")]
     blind_sign_request: BlindSignRequest,
     #[getset(get = "pub")]
-    public_key: PublicKey,
+    public_key: coconut_rs::PublicKey,
     public_attributes: Vec<String>,
     #[getset(get = "pub")]
     total_params: u32,
@@ -120,7 +124,7 @@ pub struct BlindSignRequestBody {
 impl BlindSignRequestBody {
     pub fn new(
         blind_sign_request: &BlindSignRequest,
-        public_key: &PublicKey,
+        public_key: &coconut_rs::PublicKey,
         public_attributes: &[Attribute],
         total_params: u32,
     ) -> BlindSignRequestBody {
@@ -174,8 +178,11 @@ pub struct State {
 }
 
 impl State {
-    pub fn init() -> State {
-        let n_attributes: u32 = 3;
+    pub fn init(public_key: Option<crypto::asymmetric::identity::PublicKey>) -> State {
+        let attr = public_key.unwrap_or_else(|| {
+            crypto::asymmetric::identity::PublicKey::from_bytes(&[0; PUBLIC_KEY_LENGTH]).unwrap()
+        });
+        let n_attributes: u32 = 1;
         let params = Parameters::new(n_attributes).unwrap();
         let public_attributes = params.n_random_scalars(2);
         let private_attributes = params.n_random_scalars(1);

@@ -114,10 +114,13 @@ impl PacketSender {
         // use old shared keys
         let (message_sender, message_receiver) = mpsc::unbounded();
 
-        let coconut_credential = Credential::init(vec![format!(
-            "http://{}:{}",
-            DEFAULT_VALIDATOR_HOST, VALIDATOR_API_PORT
-        )])
+        let coconut_credential = Credential::init(
+            vec![format!(
+                "http://{}:{}",
+                DEFAULT_VALIDATOR_HOST, VALIDATOR_API_PORT
+            )],
+            identity,
+        )
         .await
         .expect("Could not initialize coconut credential");
 

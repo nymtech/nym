@@ -104,7 +104,7 @@ async fn get_credential(
 
 fn main() {
   tauri::Builder::default()
-    .manage(Arc::new(RwLock::new(State::init())))
+    .manage(Arc::new(RwLock::new(State::init(None))))
     .invoke_handler(tauri::generate_handler![
       get_credential,
       randomise_credential,

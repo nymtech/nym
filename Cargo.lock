@@ -693,6 +693,7 @@ name = "coconut-interface"
 version = "0.1.0"
 dependencies = [
  "coconut-rs",
+ "crypto",
  "getset",
  "serde",
  "thiserror",

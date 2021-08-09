@@ -51,3 +51,38 @@ impl Operation {
         Fee::from_amount_and_gas(fee, gas_limit)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn calculating_fee() {
+        let expected = Coin {
+            denom: "upunk".parse().unwrap(),
+            amount: 1000u64.into(),
+        };
+        let gas_price = "1upunk".parse().unwrap();
+        let gas_limit = 1000u64.into();
+
+        assert_eq!(expected, calculate_fee(&gas_price, gas_limit));
+
+        let expected = Coin {
+            denom: "upunk".parse().unwrap(),
+            amount: 50u64.into(),
+        };
+        let gas_price = "0.05upunk".parse().unwrap();
+        let gas_limit = 1000u64.into();
+
+        assert_eq!(expected, calculate_fee(&gas_price, gas_limit));
+
+        let expected = Coin {
+            denom: "upunk".parse().unwrap(),
+            amount: 100000u64.into(),
+        };
+        let gas_price = "100upunk".parse().unwrap();
+        let gas_limit = 1000u64.into();
+
+        assert_eq!(expected, calculate_fee(&gas_price, gas_limit))
+    }
+}

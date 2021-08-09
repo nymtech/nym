@@ -10,13 +10,13 @@ use crate::nymd::fee_helpers::Operation;
 pub use crate::nymd::gas_price::GasPrice;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
 use crate::ValidatorClientError;
-use config::defaults;
 use cosmos_sdk::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl};
-use cosmos_sdk::tx::Fee;
+use cosmos_sdk::tx::Gas;
 use cosmos_sdk::Coin as CosmosCoin;
 use cosmos_sdk::{AccountId, Denom};
 use cosmwasm_std::Coin;
 use mixnet_contract::LayerDistribution;
+use std::collections::HashMap;
 use std::convert::TryInto;
 
 pub mod cosmwasm_client;
@@ -29,6 +29,7 @@ pub struct NymdClient<C> {
     contract_address: AccountId,
     client_address: Option<Vec<AccountId>>,
     gas_price: GasPrice,
+    custom_gas_limits: HashMap<Operation, Gas>,
 }
 
 impl NymdClient<HttpClient> {
@@ -44,6 +45,7 @@ impl NymdClient<HttpClient> {
             contract_address,
             client_address: None,
             gas_price: Default::default(),
+            custom_gas_limits: Default::default(),
         })
     }
 }
@@ -69,6 +71,7 @@ impl NymdClient<signing_client::Client> {
             contract_address,
             client_address: Some(client_address),
             gas_price: Default::default(),
+            custom_gas_limits: Default::default(),
         })
     }
 
@@ -92,6 +95,7 @@ impl NymdClient<signing_client::Client> {
             contract_address,
             client_address: Some(client_address),
             gas_price: Default::default(),
+            custom_gas_limits: Default::default(),
         })
     }
 }
@@ -101,8 +105,8 @@ impl<C> NymdClient<C> {
         self.gas_price = gas_price
     }
 
-    pub fn set_custom_fees(&mut self) {
-        // todo
+    pub fn set_custom_gas_limit(&mut self, operation: Operation, limit: Gas) {
+        self.custom_gas_limits.insert(operation, limit);
     }
 
     pub fn address(&self) -> &AccountId
@@ -114,7 +118,7 @@ impl<C> NymdClient<C> {
     }
 
     // now the question is as follows: will denom always be in the format of `u{prefix}`?
-    fn denom(&self) -> Denom {
+    pub fn denom(&self) -> Denom {
         format!("u{}", self.contract_address.prefix())
             .parse()
             .unwrap()
@@ -131,7 +135,10 @@ impl<C> NymdClient<C> {
     where
         C: SigningCosmWasmClient + Sync,
     {
-        let fee = Operation::BondMixnode.determine_fee(&self.gas_price);
+        let fee = Operation::BondMixnode.determine_fee(
+            &self.gas_price,
+            self.custom_gas_limits.get(&Operation::BondMixnode).cloned(),
+        );
 
         let req = ExecuteMsg::BondMixnode { mix_node: mixnode };
         self.client

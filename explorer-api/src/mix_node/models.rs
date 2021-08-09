@@ -62,7 +62,7 @@ impl ThreadsafeMixNodeCache {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub(crate) struct NodeDescription {
     pub(crate) name: String,
     pub(crate) description: String,
@@ -70,20 +70,24 @@ pub(crate) struct NodeDescription {
     pub(crate) location: String,
 }
 
-type PacketsMap = HashMap<String, u64>;
-
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Deserialize, JsonSchema)]
 pub(crate) struct NodeStats {
-    #[serde(serialize_with = "humantime_serde::serialize")]
+    #[serde(
+        serialize_with = "humantime_serde::serialize",
+        deserialize_with = "humantime_serde::deserialize"
+    )]
     update_time: SystemTime,
 
-    #[serde(serialize_with = "humantime_serde::serialize")]
+    #[serde(
+        serialize_with = "humantime_serde::serialize",
+        deserialize_with = "humantime_serde::deserialize"
+    )]
     previous_update_time: SystemTime,
 
     packets_received_since_startup: u64,
-    packets_sent_since_startup: PacketsMap,
-    packets_explicitly_dropped_since_startup: PacketsMap,
+    packets_sent_since_startup: u64,
+    packets_explicitly_dropped_since_startup: u64,
     packets_received_since_last_update: u64,
-    packets_sent_since_last_update: PacketsMap,
-    packets_explicitly_dropped_since_last_update: PacketsMap,
+    packets_sent_since_last_update: u64,
+    packets_explicitly_dropped_since_last_update: u64,
 }

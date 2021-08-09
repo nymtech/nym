@@ -1,3 +1,3 @@
 mod cache;
-mod http;
-mod models;
+pub(crate) mod http;
+pub(crate) mod models;

@@ -8,8 +8,10 @@ use serde::{Deserialize, Serialize};
 use crate::country_statistics::country_nodes_distribution::{
     ConcurrentCountryNodesDistribution, CountryNodesDistribution,
 };
+use crate::mix_node::models::ThreadsafeMixNodeCache;
 use crate::mix_nodes::ThreadsafeMixNodesResult;
 use crate::ping::models::ThreadsafePingCache;
+use mixnet_contract::MixNodeBond;
 
 // TODO: change to an environment variable with a default value
 const STATE_FILE: &str = "explorer-api-state.json";
@@ -18,6 +20,7 @@ const STATE_FILE: &str = "explorer-api-state.json";
 pub struct ExplorerApiState {
     pub(crate) country_node_distribution: ConcurrentCountryNodesDistribution,
     pub(crate) mix_nodes: ThreadsafeMixNodesResult,
+    pub(crate) mix_node_cache: ThreadsafeMixNodeCache,
     pub(crate) ping_cache: ThreadsafePingCache,
 }
 
@@ -68,6 +71,7 @@ impl ExplorerApiStateContext {
                         state.country_node_distribution,
                     ),
                     mix_nodes: ThreadsafeMixNodesResult::new(),
+                    mix_node_cache: ThreadsafeMixNodeCache::new(),
                     ping_cache: ThreadsafePingCache::new(),
                 }
             }
@@ -79,6 +83,7 @@ impl ExplorerApiStateContext {
                 ExplorerApiState {
                     country_node_distribution: ConcurrentCountryNodesDistribution::new(),
                     mix_nodes: ThreadsafeMixNodesResult::new(),
+                    mix_node_cache: ThreadsafeMixNodeCache::new(),
                     ping_cache: ThreadsafePingCache::new(),
                 }
             }

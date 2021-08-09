@@ -1,74 +1,124 @@
-// use rocket::serde::json::Json;
-// use rocket::{Route, State};
-//
-// use crate::mix_node::models::NodeDescription;
-// use crate::state::ExplorerApiStateContext;
+use reqwest::Error as ReqwestError;
 
-/*pub fn mix_node_make_default_routes() -> Vec<Route> {
-    routes_with_openapi![get]
+use rocket::serde::json::Json;
+use rocket::{Route, State};
+
+use crate::mix_node::models::{NodeDescription, NodeStats};
+use crate::state::ExplorerApiStateContext;
+
+pub fn mix_node_make_default_routes() -> Vec<Route> {
+    routes_with_openapi![get_description, get_stats]
 }
 
-#[openapi(tag = "ping")]
+#[openapi(tag = "mix_node")]
 #[get("/<pubkey>/description")]
 pub(crate) async fn get_description(
     pubkey: &str,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<NodeDescription>> {
-}
-
-async fn get_mix_node(pubkey: &str) {
-    match state.inner.ping_cache.clone().get(pubkey.to_string()).await {
+    match state
+        .inner
+        .mix_node_cache
+        .clone()
+        .get_description(pubkey.to_string())
+        .await
+    {
         Some(cache_value) => {
             trace!("Returning cached value for {}", pubkey);
-            Some(Json(PingResponse {
-                ports: cache_value.ports,
-            }))
+            Some(Json(cache_value))
         }
         None => {
-            trace!("No cache value for {}", pubkey);
-            let mix_nodes = state.inner.mix_nodes.clone().get().await;
-
-            trace!("Getting mix node {}", pubkey);
-
-            match get_mix_node(pubkey, mix_nodes) {
+            trace!("No valid cache value for {}", pubkey);
+            match state.inner.get_mix_node(pubkey).await {
                 Some(bond) => {
-                    let mut ports: HashMap<u16, bool> = HashMap::new();
-
-                    let ports_to_test = vec![
-                        bond.mix_node.http_api_port,
-                        bond.mix_node.mix_port,
-                        bond.mix_node.verloc_port,
-                    ];
-
-                    trace!(
-                        "Testing mix node {} on ports {:?}...",
-                        pubkey,
-                        ports_to_test
-                    );
-
-                    for port in ports_to_test {
-                        ports.insert(port, do_port_check(&bond.mix_node.host, &port).await);
+                    match get_mix_node_description(
+                        &bond.mix_node.host,
+                        &bond.mix_node.http_api_port,
+                    )
+                    .await
+                    {
+                        Ok(response) => {
+                            // cache the response and return as the HTTP response
+                            state
+                                .inner
+                                .mix_node_cache
+                                .set_description(pubkey.to_string(), response.clone())
+                                .await;
+                            Some(Json(response))
+                        }
+                        Err(e) => {
+                            error!(
+                                "Unable to get description for {} on {}:{} -> {}",
+                                pubkey, bond.mix_node.host, bond.mix_node.http_api_port, e
+                            );
+                            Option::None
+                        }
                     }
-
-                    trace!("Tested mix node {}: {:?}", pubkey, ports);
-
-                    let response = PingResponse { ports };
-
-                    // cache for 1 min
-                    trace!("Caching value for {}", pubkey);
-                    state
-                        .inner
-                        .ping_cache
-                        .clone()
-                        .set(pubkey.to_string(), response.clone())
-                        .await;
-
-                    // return response
-                    Some(Json(response))
                 }
                 None => Option::None,
             }
         }
     }
 }
-*/
+
+#[openapi(tag = "mix_node")]
+#[get("/<pubkey>/stats")]
+pub(crate) async fn get_stats(
+    pubkey: &str,
+    state: &State<ExplorerApiStateContext>,
+) -> Option<Json<NodeStats>> {
+    match state
+        .inner
+        .mix_node_cache
+        .clone()
+        .get_node_stats(pubkey.to_string())
+        .await
+    {
+        Some(cache_value) => {
+            trace!("Returning cached value for {}", pubkey);
+            Some(Json(cache_value))
+        }
+        None => {
+            trace!("No valid cache value for {}", pubkey);
+            match state.inner.get_mix_node(pubkey).await {
+                Some(bond) => {
+                    match get_mix_node_stats(&bond.mix_node.host, &bond.mix_node.http_api_port)
+                        .await
+                    {
+                        Ok(response) => {
+                            // cache the response and return as the HTTP response
+                            state
+                                .inner
+                                .mix_node_cache
+                                .set_node_stats(pubkey.to_string(), response.clone())
+                                .await;
+                            Some(Json(response))
+                        }
+                        Err(e) => {
+                            error!(
+                                "Unable to get description for {} on {}:{} -> {}",
+                                pubkey, bond.mix_node.host, bond.mix_node.http_api_port, e
+                            );
+                            Option::None
+                        }
+                    }
+                }
+                None => Option::None,
+            }
+        }
+    }
+}
+
+async fn get_mix_node_description(host: &str, port: &u16) -> Result<NodeDescription, ReqwestError> {
+    reqwest::get(format!("http://{}:{}/description", host, port))
+        .await?
+        .json::<NodeDescription>()
+        .await
+}
+
+async fn get_mix_node_stats(host: &str, port: &u16) -> Result<NodeStats, ReqwestError> {
+    reqwest::get(format!("http://{}:{}/stats", host, port))
+        .await?
+        .json::<NodeStats>()
+        .await
+}

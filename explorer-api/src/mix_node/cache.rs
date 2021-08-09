@@ -2,14 +2,13 @@ use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 
 use mixnet_contract::IdentityKey;
-use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub(crate) struct Cache<T> {
+pub(crate) struct Cache<T: Clone> {
     inner: HashMap<IdentityKey, CacheItem<T>>,
 }
 
-impl<T> Cache<T> {
+impl<T: Clone> Cache<T> {
     pub(crate) fn new() -> Self {
         Cache {
             inner: HashMap::new(),
@@ -20,13 +19,10 @@ impl<T> Cache<T> {
     where
         T: Clone,
     {
-        self.inner.get(&identity_key).and_then(|cache_item| {
-            if cache_item.valid_until > SystemTime::now() {
-                Some(cache_item.clone().value)
-            } else {
-                None
-            }
-        })
+        self.inner
+            .get(&identity_key)
+            .filter(|cache_item| cache_item.valid_until > SystemTime::now())
+            .map(|cache_item| cache_item.value.clone())
     }
 
     pub(crate) fn set(&mut self, identity_key: IdentityKey, value: T) {

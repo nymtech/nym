@@ -29,7 +29,7 @@ impl<T: Clone> Cache<T> {
         self.inner.insert(
             identity_key,
             CacheItem {
-                valid_until: SystemTime::now() + Duration::from_secs(5),
+                valid_until: SystemTime::now() + Duration::from_secs(60 * 30),
                 value,
             },
         );

@@ -1,14 +1,18 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
 use crate::queries;
-use crate::state::StateParams;
 use crate::storage::*;
 use config::defaults::DENOM;
 use cosmwasm_std::{
     attr, coins, BankMsg, Coin, Decimal, DepsMut, MessageInfo, Order, Response, StdResult, Uint128,
 };
 use cosmwasm_storage::ReadonlyBucket;
-use mixnet_contract::{Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond};
+use mixnet_contract::{
+    Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, StateParams,
+};
 
 const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 

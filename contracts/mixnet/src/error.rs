@@ -1,3 +1,6 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use config::defaults::DENOM;
 use cosmwasm_std::{Addr, StdError};
 use mixnet_contract::IdentityKey;

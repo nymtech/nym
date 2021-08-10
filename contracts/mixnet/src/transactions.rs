@@ -685,8 +685,6 @@ pub mod tests {
         INITIAL_GATEWAY_BOND_REWARD_RATE, INITIAL_MIXNODE_BOND, INITIAL_MIXNODE_BOND_REWARD_RATE,
     };
     use crate::helpers::calculate_epoch_reward_rate;
-    use crate::msg::{ExecuteMsg, QueryMsg};
-    use crate::state::StateParams;
     use crate::storage::{
         gateway_delegations, gateway_delegations_read, layer_distribution_read,
         mix_delegations_read, read_gateway_bond, read_gateway_epoch_reward_rate, read_mixnode_bond,
@@ -698,7 +696,9 @@ pub mod tests {
     };
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, from_binary, Addr, Uint128};
-    use mixnet_contract::{LayerDistribution, PagedGatewayResponse, PagedMixnodeResponse};
+    use mixnet_contract::{
+        ExecuteMsg, LayerDistribution, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
+    };
 
     #[test]
     fn validating_mixnode_bond() {

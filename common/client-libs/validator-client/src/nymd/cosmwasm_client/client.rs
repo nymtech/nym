@@ -22,7 +22,7 @@ use cosmos_sdk::rpc::query::Query;
 use cosmos_sdk::rpc::{self, HttpClient, Order};
 use cosmos_sdk::tendermint::abci::Transaction;
 use cosmos_sdk::tendermint::{abci, block, chain};
-use cosmos_sdk::{tx, AccountId, Coin, Denom};
+use cosmos_sdk::{AccountId, Coin, Denom};
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
@@ -162,9 +162,12 @@ pub trait CosmWasmClient: rpc::Client {
             .map_err(|_| ValidatorClientError::SerializationError("Coins".to_owned()))
     }
 
-    async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, ValidatorClientError> {
-        Ok(self.tx(id, false).await?)
-    }
+    // disabled until https://github.com/tendermint/tendermint/issues/6802
+    // and consequently https://github.com/informalsystems/tendermint-rs/issues/942 is resolved
+    //
+    // async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, ValidatorClientError> {
+    //     Ok(self.tx(id, false).await?)
+    // }
 
     async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, ValidatorClientError> {
         // according to https://docs.tendermint.com/master/rpc/#/Info/tx_search

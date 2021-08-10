@@ -22,8 +22,8 @@ use tungstenite::Message as WsMessage;
 
 #[derive(Serialize, Deserialize)]
 pub struct InitMessage {
-    local_id_pubkey: Vec<u8>,
-    ephemeral_key: Vec<u8>,
+    local_id_pubkey: [u8; identity::PUBLIC_KEY_LENGTH],
+    ephemeral_key: [u8; identity::PUBLIC_KEY_LENGTH],
     credential: Option<Credential>,
 }
 
@@ -34,8 +34,8 @@ impl InitMessage {
         credential: Credential,
     ) -> Self {
         InitMessage {
-            local_id_pubkey: local_id_pubkey.to_bytes().to_vec(),
-            ephemeral_key: ephemeral_key.to_bytes().to_vec(),
+            local_id_pubkey: local_id_pubkey.to_bytes(),
+            ephemeral_key: ephemeral_key.to_bytes(),
             credential: Some(credential),
         }
     }

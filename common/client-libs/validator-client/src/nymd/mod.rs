@@ -27,7 +27,6 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::convert::TryInto;
 
-mod coin;
 pub mod cosmwasm_client;
 pub(crate) mod fee_helpers;
 pub mod gas_price;

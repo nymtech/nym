@@ -15,6 +15,16 @@ pub enum Operation {
     Send,
 
     BondMixnode,
+    UnbondMixnode,
+    DelegateToMixnode,
+    UndelegateFromMixnode,
+
+    BondGateway,
+    UnbondGateway,
+    DelegateToGateway,
+    UndelegateFromGateway,
+
+    UpdateStateParams,
 }
 
 pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {
@@ -28,6 +38,7 @@ pub(crate) fn calculate_fee(gas_price: &GasPrice, gas_limit: Gas) -> Coin {
 }
 
 impl Operation {
+    // TODO: some value tweaking
     pub(crate) fn default_gas_limit(&self) -> Gas {
         match self {
             Operation::Upload => 2_500_000u64.into(),
@@ -37,6 +48,16 @@ impl Operation {
             Operation::Send => 80_000u64.into(),
 
             Operation::BondMixnode => 175_000u64.into(),
+            Operation::UnbondMixnode => 175_000u64.into(),
+            Operation::DelegateToMixnode => 175_000u64.into(),
+            Operation::UndelegateFromMixnode => 175_000u64.into(),
+
+            Operation::BondGateway => 175_000u64.into(),
+            Operation::UnbondGateway => 175_000u64.into(),
+            Operation::DelegateToGateway => 175_000u64.into(),
+            Operation::UndelegateFromGateway => 175_000u64.into(),
+
+            Operation::UpdateStateParams => 175_000u64.into(),
         }
     }
 

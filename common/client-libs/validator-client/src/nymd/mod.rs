@@ -620,7 +620,6 @@ impl<C> NymdClient<C> {
     }
 }
 
-// this should go to helpers
 fn cosmwasm_coin_to_cosmos_coin(coin: Coin) -> CosmosCoin {
     CosmosCoin {
         denom: coin.denom.parse().unwrap(),
@@ -628,52 +627,3 @@ fn cosmwasm_coin_to_cosmos_coin(coin: Coin) -> CosmosCoin {
         amount: (coin.amount.u128() as u64).into(),
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use cosmwasm_std::coin;
-//
-//     #[tokio::test]
-//     async fn test_bond() {
-//         let validator = "http://127.0.0.1:26657";
-//         let contract = "punk1uft3mmgha04vr23lx08fydpjym2003xuy9cnga"
-//             .parse::<AccountId>()
-//             .unwrap();
-// (this is just mnemonic for validator running on my local machine, so feel free to 'steal' it)
-//         let mnemonic = "claim border flee add vehicle crack romance assault fold wide flag year cousin false junk analyst parent eagle act visual tongue weasel basket impulse";
-//
-//         let client =
-//             NymdClient::connect_with_mnemonic(validator, contract, mnemonic.parse().unwrap())
-//                 .unwrap();
-//
-//         let mix = MixNode {
-//             host: "1.1.1.1".to_string(),
-//             mix_port: 1789,
-//             verloc_port: 1790,
-//             http_api_port: 8080,
-//             sphinx_key: "sphinxkey".to_string(),
-//             identity_key: "identitykey".to_string(),
-//             version: "0.11.0".to_string(),
-//         };
-//
-//         let result = client
-//             .bond_mixnode(mix, coin(100_000000, client.denom().as_ref()))
-//             .await
-//             .unwrap();
-//         println!("{:#?}", result)
-//     }
-//
-//     #[tokio::test]
-//     async fn test_get_layers() {
-//         let validator = "https://testnet-milhon-validator1.nymtech.net";
-//         let contract = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen"
-//             .parse::<AccountId>()
-//             .unwrap();
-//
-//         let client = NymdClient::connect(validator, contract).unwrap();
-//         let layers = client.get_layer_distribution().await.unwrap();
-//
-//         println!("layers: {:#?}", layers);
-//     }
-// }

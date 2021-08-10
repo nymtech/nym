@@ -8,10 +8,10 @@ use crate::nymd::cosmwasm_client::types::{
     ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions, InstantiateResult,
     MigrateResult, UploadMeta, UploadResult,
 };
+use crate::nymd::error::NymdError;
 use crate::nymd::fee_helpers::Operation;
 pub use crate::nymd::gas_price::GasPrice;
 use crate::nymd::wallet::DirectSecp256k1HdWallet;
-use crate::ValidatorClientError;
 use cosmos_sdk::rpc::endpoint::broadcast;
 use cosmos_sdk::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl};
 use cosmos_sdk::tx::{Fee, Gas};
@@ -28,6 +28,7 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 
 pub mod cosmwasm_client;
+pub mod error;
 pub(crate) mod fee_helpers;
 pub mod gas_price;
 pub mod wallet;
@@ -44,7 +45,7 @@ impl NymdClient<HttpClient> {
     pub fn connect<U>(
         endpoint: U,
         contract_address: AccountId,
-    ) -> Result<NymdClient<HttpClient>, ValidatorClientError>
+    ) -> Result<NymdClient<HttpClient>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
@@ -64,7 +65,7 @@ impl NymdClient<signing_client::Client> {
         endpoint: U,
         contract_address: AccountId,
         signer: DirectSecp256k1HdWallet,
-    ) -> Result<NymdClient<signing_client::Client>, ValidatorClientError>
+    ) -> Result<NymdClient<signing_client::Client>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
@@ -87,7 +88,7 @@ impl NymdClient<signing_client::Client> {
         endpoint: U,
         contract_address: AccountId,
         mnemonic: bip39::Mnemonic,
-    ) -> Result<NymdClient<signing_client::Client>, ValidatorClientError>
+    ) -> Result<NymdClient<signing_client::Client>, NymdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
@@ -137,17 +138,14 @@ impl<C> NymdClient<C> {
         operation.determine_fee(&self.gas_price, gas_limit)
     }
 
-    pub async fn get_balance(
-        &self,
-        address: &AccountId,
-    ) -> Result<Option<CosmosCoin>, ValidatorClientError>
+    pub async fn get_balance(&self, address: &AccountId) -> Result<Option<CosmosCoin>, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
         self.client.get_balance(address, self.denom()).await
     }
 
-    pub async fn get_state_params(&self) -> Result<StateParams, ValidatorClientError>
+    pub async fn get_state_params(&self) -> Result<StateParams, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -157,7 +155,7 @@ impl<C> NymdClient<C> {
             .await
     }
 
-    pub async fn get_layer_distribution(&self) -> Result<LayerDistribution, ValidatorClientError>
+    pub async fn get_layer_distribution(&self) -> Result<LayerDistribution, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -168,7 +166,7 @@ impl<C> NymdClient<C> {
     }
 
     /// Checks whether there is a bonded mixnode associated with the provided client's address
-    pub async fn owns_mixnode(&self, address: &AccountId) -> Result<bool, ValidatorClientError>
+    pub async fn owns_mixnode(&self, address: &AccountId) -> Result<bool, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -183,7 +181,7 @@ impl<C> NymdClient<C> {
     }
 
     /// Checks whether there is a bonded gateway associated with the provided client's address
-    pub async fn owns_gateway(&self, address: &AccountId) -> Result<bool, ValidatorClientError>
+    pub async fn owns_gateway(&self, address: &AccountId) -> Result<bool, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -200,7 +198,7 @@ impl<C> NymdClient<C> {
     pub async fn get_mixnodes_paged(
         &self,
         start_after: Option<IdentityKey>,
-    ) -> Result<PagedMixnodeResponse, ValidatorClientError>
+    ) -> Result<PagedMixnodeResponse, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -216,7 +214,7 @@ impl<C> NymdClient<C> {
     pub async fn get_gateways_paged(
         &self,
         start_after: Option<IdentityKey>,
-    ) -> Result<PagedGatewayResponse, ValidatorClientError>
+    ) -> Result<PagedGatewayResponse, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -234,7 +232,7 @@ impl<C> NymdClient<C> {
         &self,
         mix_identity: IdentityKey,
         start_after: Option<AccountId>,
-    ) -> Result<PagedMixDelegationsResponse, ValidatorClientError>
+    ) -> Result<PagedMixDelegationsResponse, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -253,7 +251,7 @@ impl<C> NymdClient<C> {
         &self,
         mix_identity: IdentityKey,
         delegator: &AccountId,
-    ) -> Result<Delegation, ValidatorClientError>
+    ) -> Result<Delegation, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -271,7 +269,7 @@ impl<C> NymdClient<C> {
         &self,
         gateway_identity: IdentityKey,
         start_after: Option<AccountId>,
-    ) -> Result<PagedGatewayDelegationsResponse, ValidatorClientError>
+    ) -> Result<PagedGatewayDelegationsResponse, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -290,7 +288,7 @@ impl<C> NymdClient<C> {
         &self,
         gateway_identity: IdentityKey,
         delegator: &AccountId,
-    ) -> Result<Delegation, ValidatorClientError>
+    ) -> Result<Delegation, NymdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -309,7 +307,7 @@ impl<C> NymdClient<C> {
         recipient: &AccountId,
         amount: Vec<CosmosCoin>,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<broadcast::tx_commit::Response, ValidatorClientError>
+    ) -> Result<broadcast::tx_commit::Response, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -326,7 +324,7 @@ impl<C> NymdClient<C> {
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
         funds: Vec<CosmosCoin>,
-    ) -> Result<ExecuteResult, ValidatorClientError>
+    ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,
@@ -341,7 +339,7 @@ impl<C> NymdClient<C> {
         wasm_code: Vec<u8>,
         memo: impl Into<String> + Send + 'static,
         meta: Option<UploadMeta>,
-    ) -> Result<UploadResult, ValidatorClientError>
+    ) -> Result<UploadResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -358,7 +356,7 @@ impl<C> NymdClient<C> {
         label: String,
         memo: impl Into<String> + Send + 'static,
         options: Option<InstantiateOptions>,
-    ) -> Result<InstantiateResult, ValidatorClientError>
+    ) -> Result<InstantiateResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,
@@ -374,7 +372,7 @@ impl<C> NymdClient<C> {
         contract_address: &AccountId,
         new_admin: &AccountId,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<ChangeAdminResult, ValidatorClientError>
+    ) -> Result<ChangeAdminResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -388,7 +386,7 @@ impl<C> NymdClient<C> {
         &self,
         contract_address: &AccountId,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<ChangeAdminResult, ValidatorClientError>
+    ) -> Result<ChangeAdminResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -404,7 +402,7 @@ impl<C> NymdClient<C> {
         code_id: ContractCodeId,
         msg: &M,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<MigrateResult, ValidatorClientError>
+    ) -> Result<MigrateResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,
@@ -420,7 +418,7 @@ impl<C> NymdClient<C> {
         &self,
         mixnode: MixNode,
         bond: Coin,
-    ) -> Result<ExecuteResult, ValidatorClientError>
+    ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -440,7 +438,7 @@ impl<C> NymdClient<C> {
     }
 
     /// Unbond a mixnode, removing it from the network and reclaiming staked coins
-    pub async fn unbond_mixnode(&self) -> Result<ExecuteResult, ValidatorClientError>
+    pub async fn unbond_mixnode(&self) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -464,7 +462,7 @@ impl<C> NymdClient<C> {
         &self,
         mix_identity: IdentityKey,
         amount: Coin,
-    ) -> Result<ExecuteResult, ValidatorClientError>
+    ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -487,7 +485,7 @@ impl<C> NymdClient<C> {
     pub async fn remove_mixnode_delegation(
         &self,
         mix_identity: IdentityKey,
-    ) -> Result<ExecuteResult, ValidatorClientError>
+    ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -511,7 +509,7 @@ impl<C> NymdClient<C> {
         &self,
         gateway: Gateway,
         bond: Coin,
-    ) -> Result<ExecuteResult, ValidatorClientError>
+    ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -531,7 +529,7 @@ impl<C> NymdClient<C> {
     }
 
     /// Unbond a gateway, removing it from the network and reclaiming staked coins
-    pub async fn unbond_gateway(&self) -> Result<ExecuteResult, ValidatorClientError>
+    pub async fn unbond_gateway(&self) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -555,7 +553,7 @@ impl<C> NymdClient<C> {
         &self,
         gateway_identity: IdentityKey,
         amount: Coin,
-    ) -> Result<ExecuteResult, ValidatorClientError>
+    ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -578,7 +576,7 @@ impl<C> NymdClient<C> {
     pub async fn remove_gateway_delegation(
         &self,
         gateway_identity: IdentityKey,
-    ) -> Result<ExecuteResult, ValidatorClientError>
+    ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -600,7 +598,7 @@ impl<C> NymdClient<C> {
     pub async fn update_state_params(
         &self,
         new_params: StateParams,
-    ) -> Result<ExecuteResult, ValidatorClientError>
+    ) -> Result<ExecuteResult, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
     {

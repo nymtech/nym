@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ValidatorClientError;
+use crate::nymd::error::NymdError;
 use cosmos_sdk::proto::cosmos::base::query::v1beta1::PageRequest;
 use cosmos_sdk::rpc::endpoint::broadcast;
 use flate2::write::GzEncoder;
@@ -9,13 +9,13 @@ use flate2::Compression;
 use std::io::Write;
 
 pub(crate) trait CheckResponse: Sized {
-    fn check_response(self) -> Result<Self, ValidatorClientError>;
+    fn check_response(self) -> Result<Self, NymdError>;
 }
 
 impl CheckResponse for broadcast::tx_commit::Response {
-    fn check_response(self) -> Result<Self, ValidatorClientError> {
+    fn check_response(self) -> Result<Self, NymdError> {
         if self.check_tx.code.is_err() {
-            return Err(ValidatorClientError::BroadcastTxErrorCheckTx {
+            return Err(NymdError::BroadcastTxErrorCheckTx {
                 hash: self.hash,
                 height: self.height,
                 code: self.check_tx.code.value(),
@@ -24,7 +24,7 @@ impl CheckResponse for broadcast::tx_commit::Response {
         }
 
         if self.deliver_tx.code.is_err() {
-            return Err(ValidatorClientError::BroadcastTxErrorDeliverTx {
+            return Err(NymdError::BroadcastTxErrorDeliverTx {
                 hash: self.hash,
                 height: self.height,
                 code: self.deliver_tx.code.value(),
@@ -36,15 +36,13 @@ impl CheckResponse for broadcast::tx_commit::Response {
     }
 }
 
-pub(crate) fn compress_wasm_code(code: &[u8]) -> Result<Vec<u8>, ValidatorClientError> {
+pub(crate) fn compress_wasm_code(code: &[u8]) -> Result<Vec<u8>, NymdError> {
     // using compression level 9, same as cosmjs, that optimises for size
     let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
     encoder
         .write_all(code)
-        .map_err(ValidatorClientError::WasmCompressionError)?;
-    encoder
-        .finish()
-        .map_err(ValidatorClientError::WasmCompressionError)
+        .map_err(NymdError::WasmCompressionError)?;
+    encoder.finish().map_err(NymdError::WasmCompressionError)
 }
 
 pub(crate) fn create_pagination(key: Vec<u8>) -> PageRequest {

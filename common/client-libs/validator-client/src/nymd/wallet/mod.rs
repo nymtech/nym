@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ValidatorClientError;
+use crate::nymd::error::NymdError;
 use config::defaults;
 use cosmos_sdk::bip32::{DerivationPath, XPrv};
 use cosmos_sdk::crypto::secp256k1::SigningKey;
@@ -46,19 +46,16 @@ impl DirectSecp256k1HdWallet {
     }
 
     /// Restores a wallet from the given BIP39 mnemonic using default options.
-    pub fn from_mnemonic(mnemonic: bip39::Mnemonic) -> Result<Self, ValidatorClientError> {
+    pub fn from_mnemonic(mnemonic: bip39::Mnemonic) -> Result<Self, NymdError> {
         DirectSecp256k1HdWalletBuilder::new().build(mnemonic)
     }
 
-    pub fn generate(word_count: usize) -> Result<Self, ValidatorClientError> {
+    pub fn generate(word_count: usize) -> Result<Self, NymdError> {
         let mneomonic = bip39::Mnemonic::generate(word_count)?;
         Self::from_mnemonic(mneomonic)
     }
 
-    fn derive_keypair(
-        &self,
-        hd_path: &DerivationPath,
-    ) -> Result<Secp256k1Keypair, ValidatorClientError> {
+    fn derive_keypair(&self, hd_path: &DerivationPath) -> Result<Secp256k1Keypair, NymdError> {
         let extended_private_key = XPrv::derive_from_path(&self.seed, hd_path)?;
 
         let private_key: SigningKey = extended_private_key.into();
@@ -67,7 +64,7 @@ impl DirectSecp256k1HdWallet {
         Ok((private_key, public_key))
     }
 
-    pub fn try_derive_accounts(&self) -> Result<Vec<AccountData>, ValidatorClientError> {
+    pub fn try_derive_accounts(&self) -> Result<Vec<AccountData>, NymdError> {
         let mut accounts = Vec::with_capacity(self.accounts.len());
         for derivation_info in &self.accounts {
             let keypair = self.derive_keypair(&derivation_info.hd_path)?;
@@ -76,7 +73,7 @@ impl DirectSecp256k1HdWallet {
             let address = keypair
                 .1
                 .account_id(&derivation_info.prefix)
-                .map_err(|_| ValidatorClientError::AccountDerivationError)?;
+                .map_err(|_| NymdError::AccountDerivationError)?;
 
             accounts.push(AccountData {
                 address,
@@ -96,25 +93,25 @@ impl DirectSecp256k1HdWallet {
         &self,
         signer: &AccountData,
         sign_doc: SignDoc,
-    ) -> Result<tx::Raw, ValidatorClientError> {
-        // ideally I'd prefer to have the entire error put into the ValidatorClientError::SigningFailure
+    ) -> Result<tx::Raw, NymdError> {
+        // ideally I'd prefer to have the entire error put into the NymdError::SigningFailure
         // but I'm super hesitant to trying to downcast the eyre::Report to cosmos_sdk::error::Error
         sign_doc
             .sign(&signer.private_key)
-            .map_err(|_| ValidatorClientError::SigningFailure)
+            .map_err(|_| NymdError::SigningFailure)
     }
 
     pub fn sign_direct(
         &self,
         signer_address: &AccountId,
         sign_doc: SignDoc,
-    ) -> Result<tx::Raw, ValidatorClientError> {
+    ) -> Result<tx::Raw, NymdError> {
         // I hate deriving accounts at every sign here so much : (
         let accounts = self.try_derive_accounts()?;
         let account = accounts
             .iter()
             .find(|account| &account.address == signer_address)
-            .ok_or_else(|| ValidatorClientError::SigningAccountNotFound(signer_address.clone()))?;
+            .ok_or_else(|| NymdError::SigningAccountNotFound(signer_address.clone()))?;
 
         self.sign_direct_with_account(account, sign_doc)
     }
@@ -166,10 +163,7 @@ impl DirectSecp256k1HdWalletBuilder {
         self
     }
 
-    pub fn build(
-        self,
-        mnemonic: bip39::Mnemonic,
-    ) -> Result<DirectSecp256k1HdWallet, ValidatorClientError> {
+    pub fn build(self, mnemonic: bip39::Mnemonic) -> Result<DirectSecp256k1HdWallet, NymdError> {
         let seed = mnemonic.to_seed(&self.bip39_password);
         let prefix = self.prefix;
         let accounts = self

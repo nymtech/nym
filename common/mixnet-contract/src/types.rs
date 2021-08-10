@@ -5,6 +5,7 @@ use crate::Layer;
 use cosmwasm_std::{Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug, Default, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
 pub struct LayerDistribution {
@@ -34,6 +35,30 @@ pub struct StateParams {
     pub mixnode_bond_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
     pub gateway_bond_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
     pub mixnode_active_set_size: u32,
+}
+
+impl Display for StateParams {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "Contract state parameters: [ ")?;
+        write!(f, "epoch length: {}; ", self.epoch_length)?;
+        write!(f, "minimum mixnode bond: {}; ", self.minimum_mixnode_bond)?;
+        write!(f, "minimum gateway bond: {}; ", self.minimum_gateway_bond)?;
+        write!(
+            f,
+            "mixnode reward rate: {}; ",
+            self.mixnode_bond_reward_rate
+        )?;
+        write!(
+            f,
+            "gateway reward rate: {}; ",
+            self.gateway_bond_reward_rate
+        )?;
+        write!(
+            f,
+            "mixnode active set size: {} ]",
+            self.mixnode_active_set_size
+        )
+    }
 }
 
 // type aliases for better reasoning about available data

@@ -1,8 +1,6 @@
 use isocountry::CountryCode;
 use log::{info, trace, warn};
-use mixnet_contract::MixNodeBond;
 use reqwest::Error as ReqwestError;
-use validator_client::Config;
 
 use models::GeoLocation;
 
@@ -39,7 +37,15 @@ impl CountryStatistics {
 
     /// Retrieves the current list of mixnodes from the validators and calculates how many nodes are in each country
     async fn calculate_nodes_per_country(&mut self) {
-        let mixnode_bonds = retrieve_mixnodes().await;
+        // force the mixnode cache to invalidate
+        let mixnode_bonds = self
+            .state
+            .inner
+            .mix_nodes
+            .clone()
+            .refresh_and_get()
+            .await
+            .value;
 
         let mut distribution = CountryNodesDistribution::new();
 
@@ -102,23 +108,4 @@ async fn locate(ip: &str) -> Result<GeoLocation, ReqwestError> {
     let response = reqwest::get(format!("{}{}", crate::GEO_IP_SERVICE, ip)).await?;
     let location = response.json::<GeoLocation>().await?;
     Ok(location)
-}
-
-async fn retrieve_mixnodes() -> Vec<MixNodeBond> {
-    let client = new_validator_client();
-
-    info!("About to retrieve mixnode bonds...");
-
-    let bonds: Vec<MixNodeBond> = match client.get_cached_mix_nodes().await {
-        Ok(result) => result,
-        Err(e) => panic!("Unable to retrieve mixnode bonds: {:?}", e),
-    };
-    info!("Fetched {} mixnode bonds", bonds.len());
-    bonds
-}
-
-// TODO: inject constants
-fn new_validator_client() -> validator_client::Client {
-    let config = Config::new(vec![crate::VALIDATOR_API.to_string()], crate::CONTRACT);
-    validator_client::Client::new(config)
 }

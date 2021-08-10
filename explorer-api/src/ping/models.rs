@@ -6,9 +6,9 @@ use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::RwLock;
 
-use mixnet_contract::IdentityKey;
+pub(crate) type PingCache = HashMap<String, PingCacheItem>;
 
-pub(crate) type PingCache = HashMap<IdentityKey, PingCacheItem>;
+const CACHE_TTL: Duration = Duration::from_secs(60 * 60); // 1 hour
 
 #[derive(Clone)]
 pub(crate) struct ThreadsafePingCache {
@@ -22,29 +22,23 @@ impl ThreadsafePingCache {
         }
     }
 
-    pub(crate) async fn get(&self, identity_key: IdentityKey) -> Option<PingResponse> {
+    pub(crate) async fn get(&self, identity_key: &str) -> Option<PingResponse> {
         self.inner
             .read()
             .await
-            .get(&identity_key)
-            .and_then(|cache_item| {
-                if cache_item.valid_until.gt(&SystemTime::now()) {
-                    // return if cache item is still valid
-                    Some(PingResponse {
-                        ports: cache_item.ports.clone(),
-                    })
-                } else {
-                    None
-                }
+            .get(identity_key)
+            .filter(|cache_item| cache_item.valid_until > SystemTime::now())
+            .map(|cache_item| PingResponse {
+                ports: cache_item.ports.clone(),
             })
     }
 
-    pub(crate) async fn set(&self, identity_key: IdentityKey, item: PingResponse) {
+    pub(crate) async fn set(&self, identity_key: &str, item: PingResponse) {
         self.inner.write().await.insert(
-            identity_key,
+            identity_key.to_string(),
             PingCacheItem {
-                valid_until: SystemTime::now() + Duration::from_secs(5),
-                ports: item.ports.clone(),
+                valid_until: SystemTime::now() + CACHE_TTL,
+                ports: item.ports,
             },
         );
     }

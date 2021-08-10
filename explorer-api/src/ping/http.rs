@@ -8,7 +8,7 @@ use rocket::{Route, State};
 use crate::ping::models::PingResponse;
 use crate::state::ExplorerApiStateContext;
 
-const CONNECTION_TIMEOUT_SECONDS: u64 = 10;
+const CONNECTION_TIMEOUT_SECONDS: Duration = Duration::from_secs(10);
 
 pub fn ping_make_default_routes() -> Vec<Route> {
     routes_with_openapi![index]
@@ -20,7 +20,7 @@ pub(crate) async fn index(
     pubkey: &str,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<PingResponse>> {
-    match state.inner.ping_cache.clone().get(pubkey.to_string()).await {
+    match state.inner.ping_cache.clone().get(pubkey).await {
         Some(cache_value) => {
             trace!("Returning cached value for {}", pubkey);
             Some(Json(PingResponse {
@@ -47,7 +47,7 @@ pub(crate) async fn index(
                     );
 
                     for port in ports_to_test {
-                        ports.insert(port, do_port_check(&bond.mix_node.host, &port).await);
+                        ports.insert(port, do_port_check(&bond.mix_node.host, port).await);
                     }
 
                     trace!("Tested mix node {}: {:?}", pubkey, ports);
@@ -56,30 +56,25 @@ pub(crate) async fn index(
 
                     // cache for 1 min
                     trace!("Caching value for {}", pubkey);
-                    state
-                        .inner
-                        .ping_cache
-                        .clone()
-                        .set(pubkey.to_string(), response.clone())
-                        .await;
+                    state.inner.ping_cache.set(pubkey, response.clone()).await;
 
                     // return response
                     Some(Json(response))
                 }
-                None => Option::None,
+                None => None,
             }
         }
     }
 }
 
-async fn do_port_check(host: &str, port: &u16) -> bool {
+async fn do_port_check(host: &str, port: u16) -> bool {
     let addr = format!("{}:{}", host, port)
         .to_socket_addrs()
         .unwrap()
         .next()
         .unwrap();
     match tokio::time::timeout(
-        Duration::from_secs(CONNECTION_TIMEOUT_SECONDS),
+        CONNECTION_TIMEOUT_SECONDS,
         tokio::net::TcpStream::connect(addr),
     )
     .await

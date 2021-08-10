@@ -5,8 +5,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::RwLock;
 
-use mixnet_contract::IdentityKey;
-
 use crate::mix_node::cache::Cache;
 
 pub(crate) struct MixNodeCache {
@@ -29,22 +27,15 @@ impl ThreadsafeMixNodeCache {
         }
     }
 
-    pub(crate) async fn get_description(
-        &self,
-        identity_key: IdentityKey,
-    ) -> Option<NodeDescription> {
+    pub(crate) async fn get_description(&self, identity_key: &str) -> Option<NodeDescription> {
         self.inner.read().await.descriptions.get(identity_key)
     }
 
-    pub(crate) async fn get_node_stats(&self, identity_key: IdentityKey) -> Option<NodeStats> {
+    pub(crate) async fn get_node_stats(&self, identity_key: &str) -> Option<NodeStats> {
         self.inner.read().await.node_stats.get(identity_key)
     }
 
-    pub(crate) async fn set_description(
-        &self,
-        identity_key: IdentityKey,
-        description: NodeDescription,
-    ) {
+    pub(crate) async fn set_description(&self, identity_key: &str, description: NodeDescription) {
         self.inner
             .write()
             .await
@@ -52,7 +43,7 @@ impl ThreadsafeMixNodeCache {
             .set(identity_key, description);
     }
 
-    pub(crate) async fn set_node_stats(&self, identity_key: IdentityKey, node_stats: NodeStats) {
+    pub(crate) async fn set_node_stats(&self, identity_key: &str, node_stats: NodeStats) {
         self.inner
             .write()
             .await

@@ -20,7 +20,7 @@ pub(crate) async fn get_description(
         .inner
         .mix_node_cache
         .clone()
-        .get_description(pubkey.to_string())
+        .get_description(pubkey)
         .await
     {
         Some(cache_value) => {
@@ -42,7 +42,7 @@ pub(crate) async fn get_description(
                             state
                                 .inner
                                 .mix_node_cache
-                                .set_description(pubkey.to_string(), response.clone())
+                                .set_description(pubkey, response.clone())
                                 .await;
                             Some(Json(response))
                         }
@@ -67,13 +67,7 @@ pub(crate) async fn get_stats(
     pubkey: &str,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<NodeStats>> {
-    match state
-        .inner
-        .mix_node_cache
-        .clone()
-        .get_node_stats(pubkey.to_string())
-        .await
-    {
+    match state.inner.mix_node_cache.get_node_stats(pubkey).await {
         Some(cache_value) => {
             trace!("Returning cached value for {}", pubkey);
             Some(Json(cache_value))
@@ -90,7 +84,7 @@ pub(crate) async fn get_stats(
                             state
                                 .inner
                                 .mix_node_cache
-                                .set_node_stats(pubkey.to_string(), response.clone())
+                                .set_node_stats(pubkey, response.clone())
                                 .await;
                             Some(Json(response))
                         }

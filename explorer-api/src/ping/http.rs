@@ -7,6 +7,7 @@ use rocket::{Route, State};
 
 use crate::ping::models::PingResponse;
 use crate::state::ExplorerApiStateContext;
+use mixnet_contract::MixNodeBond;
 
 const CONNECTION_TIMEOUT_SECONDS: Duration = Duration::from_secs(10);
 
@@ -32,23 +33,7 @@ pub(crate) async fn index(
 
             match state.inner.get_mix_node(pubkey).await {
                 Some(bond) => {
-                    let mut ports: HashMap<u16, bool> = HashMap::new();
-
-                    let ports_to_test = vec![
-                        bond.mix_node.http_api_port,
-                        bond.mix_node.mix_port,
-                        bond.mix_node.verloc_port,
-                    ];
-
-                    trace!(
-                        "Testing mix node {} on ports {:?}...",
-                        pubkey,
-                        ports_to_test
-                    );
-
-                    for port in ports_to_test {
-                        ports.insert(port, do_port_check(&bond.mix_node.host, port).await);
-                    }
+                    let ports = port_check(&bond).await;
 
                     trace!("Tested mix node {}: {:?}", pubkey, ports);
 
@@ -65,6 +50,28 @@ pub(crate) async fn index(
             }
         }
     }
+}
+
+async fn port_check(bond: &MixNodeBond) -> HashMap<u16, bool> {
+    let mut ports: HashMap<u16, bool> = HashMap::new();
+
+    let ports_to_test = vec![
+        bond.mix_node.http_api_port,
+        bond.mix_node.mix_port,
+        bond.mix_node.verloc_port,
+    ];
+
+    trace!(
+        "Testing mix node {} on ports {:?}...",
+        bond.mix_node.identity_key,
+        ports_to_test
+    );
+
+    for port in ports_to_test {
+        ports.insert(port, do_port_check(&bond.mix_node.host, port).await);
+    }
+
+    ports
 }
 
 async fn do_port_check(host: &str, port: u16) -> bool {

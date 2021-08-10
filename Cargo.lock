@@ -1109,6 +1109,7 @@ dependencies = [
  "pretty_env_logger",
  "reqwest",
  "rocket",
+ "rocket_cors",
  "rocket_okapi",
  "schemars",
  "serde",

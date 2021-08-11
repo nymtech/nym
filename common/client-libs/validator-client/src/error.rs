@@ -137,6 +137,10 @@ pub enum ValidatorClientError {
         code: u32,
         raw_log: String,
     },
+
+    #[cfg(feature = "nymd-client")]
+    #[error("The provided gas price is malformed")]
+    MalformedGasPrice,
 }
 
 #[cfg(feature = "nymd-client")]

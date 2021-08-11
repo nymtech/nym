@@ -1,6 +1,8 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::helpers::calculate_epoch_reward_rate;
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use crate::state::{State, StateParams};
+use crate::state::State;
 use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries, transactions};
 use config::defaults::NETWORK_MONITOR_ADDRESS;
@@ -8,6 +10,7 @@ use cosmwasm_std::{
     entry_point, to_binary, Addr, Decimal, Deps, DepsMut, Env, MessageInfo, QueryResponse,
     Response, Uint128,
 };
+use mixnet_contract::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, StateParams};
 
 pub const INITIAL_DEFAULT_EPOCH_LENGTH: u32 = 2;
 

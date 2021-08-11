@@ -33,6 +33,10 @@ pub enum ValidatorClientError {
     ValidatorError(String),
 
     #[cfg(feature = "nymd-client")]
+    #[error("No contract address is available to perform the call")]
+    NoContractAddressAvailable,
+
+    #[cfg(feature = "nymd-client")]
     #[error("There was an issue with bip32 - {0}")]
     Bip32Error(bip32::Error),
 

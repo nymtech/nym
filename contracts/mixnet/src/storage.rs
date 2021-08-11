@@ -1,12 +1,15 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::queries;
-use crate::state::{State, StateParams};
+use crate::state::State;
 use cosmwasm_std::{Decimal, Order, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
 use mixnet_contract::{
-    GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond,
+    GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond, StateParams,
 };
 
 // storage prefixes

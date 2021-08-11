@@ -505,7 +505,7 @@ export default class ValidatorClient {
     }
 
     /**
-     * Gets list of all delegations towards particular mixnode.
+     * Gets list of all delegations towards particular gateway.
      *
      * @param gatewayIdentity identity of the gateway to which the delegation was sent
      */

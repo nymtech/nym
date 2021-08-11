@@ -3,8 +3,6 @@ pub mod helpers {
     use super::*;
     use crate::contract::query;
     use crate::contract::{instantiate, INITIAL_MIXNODE_BOND};
-    use crate::msg::InstantiateMsg;
-    use crate::msg::QueryMsg;
     use crate::transactions::{try_add_gateway, try_add_mixnode};
     use config::defaults::DENOM;
     use cosmwasm_std::coin;
@@ -20,8 +18,8 @@ pub mod helpers {
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::{Empty, MemoryStorage};
     use mixnet_contract::{
-        Gateway, GatewayBond, Layer, MixNode, MixNodeBond, PagedGatewayResponse,
-        PagedMixnodeResponse,
+        Gateway, GatewayBond, InstantiateMsg, Layer, MixNode, MixNodeBond, PagedGatewayResponse,
+        PagedMixnodeResponse, QueryMsg,
     };
 
     pub fn add_mixnode(

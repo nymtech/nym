@@ -233,7 +233,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         msg: &M,
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
-        funds: Option<Vec<Coin>>,
+        funds: Vec<Coin>,
     ) -> Result<ExecuteResult, ValidatorClientError>
     where
         M: ?Sized + Serialize + Sync,
@@ -242,7 +242,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             sender: sender_address.clone(),
             contract: contract_address.clone(),
             msg: serde_json::to_vec(msg)?,
-            funds: funds.unwrap_or_default(),
+            funds,
         }
         .to_msg()
         .map_err(|_| ValidatorClientError::SerializationError("MsgExecuteContract".to_owned()))?;

@@ -52,6 +52,11 @@ mod tests {
     use super::*;
 
     #[test]
+    fn default_gas_price_is_valid() {
+        let _ = GasPrice::default();
+    }
+
+    #[test]
     fn gas_price_parsing() {
         assert_eq!(
             GasPrice {

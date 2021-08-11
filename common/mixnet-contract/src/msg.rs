@@ -1,6 +1,9 @@
-use crate::state::StateParams;
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::StateParams;
+use crate::{Gateway, IdentityKey, MixNode};
 use cosmwasm_std::Addr;
-use mixnet_contract::{Gateway, IdentityKey, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

@@ -5,12 +5,13 @@ use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
 use sha2::digest::generic_array::typenum::Unsigned;
 use sha2::Sha256;
+use std::convert::TryFrom;
 use url::Url;
-pub use validator_client::validator_api::Client as ValidatorAPIClient;
 
 use crate::error::CoconutInterfaceError;
 pub use coconut_rs::*;
 use crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
+pub use validator_client::validator_api::Client as ValidatorAPIClient;
 use validator_client::validator_api::{
     error::ValidatorAPIClientError, VALIDATOR_API_BLIND_SIGN, VALIDATOR_API_CACHE_VERSION,
     VALIDATOR_API_VERIFICATION_KEY,
@@ -182,21 +183,22 @@ pub struct State {
 }
 
 impl State {
-    pub fn init(public_key: Option<crypto::asymmetric::identity::PublicKey>) -> State {
-        let n_attributes: u32 = 2;
-        let attribute = public_key.unwrap_or_else(|| {
-            crypto::asymmetric::identity::PublicKey::from_bytes(&[0; PUBLIC_KEY_LENGTH]).unwrap()
-        });
+    pub fn init(
+        public_attributes: Vec<Attribute>,
+        private_attributes: Vec<Attribute>,
+    ) -> Result<State, CoconutInterfaceError> {
+        let n_attributes_usize = public_attributes.len() + private_attributes.len();
+        let n_attributes = u32::try_from(n_attributes_usize).map_err(|_| {
+            CoconutInterfaceError::TooManyTotalAttributes(n_attributes_usize, u32::MAX)
+        })?;
         let params = Parameters::new(n_attributes).unwrap();
-        let public_attributes = vec![hash_to_scalar(attribute.to_bytes())];
-        let private_attributes = params.n_random_scalars(1);
-        State {
+        Ok(State {
             signatures: Vec::new(),
             n_attributes,
             params,
             public_attributes,
             private_attributes,
-        }
+        })
     }
 }
 

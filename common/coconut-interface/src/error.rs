@@ -21,4 +21,6 @@ pub enum CoconutInterfaceError {
     ProveCredentialError(coconut_rs::CoconutError),
     #[error("got invalid signature index: {0}")]
     InvalidSignatureIdx(usize),
+    #[error("got too many total attributes(public + private): {0} received, {1} is the maximum")]
+    TooManyTotalAttributes(usize, u32),
 }

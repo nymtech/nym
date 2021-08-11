@@ -5,6 +5,7 @@ use reqwest::Error as ReqwestError;
 use models::GeoLocation;
 
 use crate::country_statistics::country_nodes_distribution::CountryNodesDistribution;
+use crate::mix_nodes::Location;
 use crate::state::ExplorerApiStateContext;
 
 pub mod country_nodes_distribution;
@@ -51,16 +52,31 @@ impl CountryStatistics {
 
         info!("Locating mixnodes...");
         for (i, bond) in mixnode_bonds.iter().enumerate() {
-            match locate(&bond.mix_node.host).await {
+            match locate(&bond.1.bond.mix_node.host).await {
                 Ok(location) => {
                     let country_code = map_2_letter_to_3_letter_country_code(&location);
                     *(distribution.entry(country_code)).or_insert(0) += 1;
 
+                    let three_letter_iso_country_code =
+                        map_2_letter_to_3_letter_country_code(&location);
+
                     trace!(
                         "Ip {} is located in {:#?}",
-                        bond.mix_node.host,
-                        map_2_letter_to_3_letter_country_code(&location)
+                        bond.1.bond.mix_node.host, three_letter_iso_country_code,
                     );
+
+                    self.state
+                        .inner
+                        .mix_nodes
+                        .set_location(
+                            &bond.1.bond.mix_node.identity_key,
+                            Location {
+                                country_name: location.country_name,
+                                two_letter_iso_country_code: location.country_code,
+                                three_letter_iso_country_code,
+                            },
+                        )
+                        .await;
 
                     if (i % 100) == 0 {
                         info!(

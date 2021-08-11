@@ -1,13 +1,54 @@
 use reqwest::Error as ReqwestError;
-
 use rocket::serde::json::Json;
 use rocket::{Route, State};
+use serde::Serialize;
+
+use mixnet_contract::{Addr, Coin, Layer, MixNode};
 
 use crate::mix_node::models::{NodeDescription, NodeStats};
+use crate::mix_nodes::Location;
 use crate::state::ExplorerApiStateContext;
 
 pub fn mix_node_make_default_routes() -> Vec<Route> {
-    routes_with_openapi![get_description, get_stats]
+    routes_with_openapi![get_description, get_stats, list]
+}
+
+#[derive(Clone, Debug, Serialize, JsonSchema)]
+pub(crate) struct PrettyMixNodeBondWithLocation {
+    pub location: Option<Location>,
+    pub bond_amount: Coin,
+    pub total_delegation: Coin,
+    pub owner: Addr,
+    pub layer: Layer,
+    pub mix_node: MixNode,
+}
+
+#[openapi(tag = "mix_node")]
+#[get("/")]
+pub(crate) async fn list(
+    state: &State<ExplorerApiStateContext>,
+) -> Json<Vec<PrettyMixNodeBondWithLocation>> {
+    Json(
+        state
+            .inner
+            .mix_nodes
+            .get()
+            .await
+            .value
+            .values()
+            .map(|i| {
+                let mix_node = i.bond.clone();
+                PrettyMixNodeBondWithLocation {
+                    location: i.location.clone(),
+                    bond_amount: mix_node.bond_amount,
+                    total_delegation: mix_node.total_delegation,
+                    owner: mix_node.owner,
+                    layer: mix_node.layer,
+                    mix_node: mix_node.mix_node,
+                }
+            })
+            .collect::<Vec<PrettyMixNodeBondWithLocation>>(),
+    )
 }
 
 #[openapi(tag = "mix_node")]

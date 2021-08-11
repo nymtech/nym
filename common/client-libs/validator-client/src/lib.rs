@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod client;
-mod endpoint;
 mod error;
 #[cfg(feature = "nymd-client")]
 pub mod nymd;

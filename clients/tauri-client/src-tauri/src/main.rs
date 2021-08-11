@@ -103,8 +103,12 @@ async fn get_credential(
 }
 
 fn main() {
+  let public_attributes = vec![coconut_interface::hash_to_scalar("public_key")];
+  let private_attributes = vec![coconut_interface::hash_to_scalar("private_key")];
   tauri::Builder::default()
-    .manage(Arc::new(RwLock::new(State::init(None))))
+    .manage(Arc::new(RwLock::new(
+      State::init(public_attributes, private_attributes).unwrap(),
+    )))
     .invoke_handler(tauri::generate_handler![
       get_credential,
       randomise_credential,

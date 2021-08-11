@@ -298,7 +298,7 @@ pub async fn prove_credential(
     .map_err(CoconutInterfaceError::ProveCredentialError)
 }
 
-fn hash_to_scalar<M>(msg: M) -> Attribute
+pub fn hash_to_scalar<M>(msg: M) -> Attribute
 where
     M: AsRef<[u8]>,
 {

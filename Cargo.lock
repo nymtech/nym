@@ -4660,12 +4660,10 @@ dependencies = [
  "cosmos_sdk",
  "cosmwasm-std",
  "flate2",
- "getrandom 0.2.3",
  "itertools 0.10.1",
  "log",
  "mixnet-contract",
  "prost",
- "rand 0.8.4",
  "reqwest",
  "serde",
  "serde_json",
@@ -4673,7 +4671,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
- "wasm-timer",
 ]
 
 [[package]]

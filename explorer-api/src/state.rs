@@ -13,7 +13,6 @@ use crate::country_statistics::country_nodes_distribution::{
 use crate::mix_node::models::ThreadsafeMixNodeCache;
 use crate::mix_nodes::{LocationCache, ThreadsafeMixNodesResult};
 use crate::ping::models::ThreadsafePingCache;
-use std::error::Error;
 
 // TODO: change to an environment variable with a default value
 const STATE_FILE: &str = "explorer-api-state.json";
@@ -62,8 +61,9 @@ impl ExplorerApiStateContext {
         let json_file = get_state_file_path();
         let json_file_path = Path::new(&json_file);
         info!("Loading state from file {:?}...", json_file);
-        match get_state_from_file(json_file_path) {
-            Ok(state) => {
+
+        match File::open(json_file_path).map(serde_json::from_reader::<_,ExplorerApiStateOnDisk>) {
+            Ok(Ok(state)) => {
                 info!("Loaded state from file {:?}: {:?}", json_file, state);
                 ExplorerApiState {
                     country_node_distribution: ConcurrentCountryNodesDistribution::attach(
@@ -73,12 +73,13 @@ impl ExplorerApiStateContext {
                     mix_node_cache: ThreadsafeMixNodeCache::new(),
                     ping_cache: ThreadsafePingCache::new(),
                 }
-            }
-            Err(_e) => {
+            },
+            _ => {
                 warn!(
                     "Failed to load state from file {:?}, starting with empty state!",
                     json_file
                 );
+
                 ExplorerApiState {
                     country_node_distribution: ConcurrentCountryNodesDistribution::new(),
                     mix_nodes: ThreadsafeMixNodesResult::new(),
@@ -105,10 +106,4 @@ impl ExplorerApiStateContext {
 
 fn get_state_file_path() -> String {
     std::env::var("API_STATE_FILE").unwrap_or_else(|_| STATE_FILE.to_string())
-}
-
-fn get_state_from_file(json_file_path: &Path) -> Result<ExplorerApiStateOnDisk, Box<dyn Error>> {
-    let file = File::open(json_file_path)?;
-    let state = serde_json::from_reader(file)?;
-    Ok(state)
 }

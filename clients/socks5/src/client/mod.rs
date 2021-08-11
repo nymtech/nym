@@ -181,7 +181,7 @@ impl NymClient {
         self.runtime.block_on(async {
             let coconut_credential = Credential::init(
                 self.config.get_base().get_validator_rest_endpoints(),
-                *self.key_manager.identity_keypair().public_key(),
+                self.key_manager.identity_keypair(),
             )
             .await
             .expect("Could not initialize coconut credential");

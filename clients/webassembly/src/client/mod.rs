@@ -104,14 +104,14 @@ impl NymClient {
     // Right now it's impossible to have async exported functions to take `&self` rather than self
     pub async fn initial_setup(self) -> Self {
         let validator_server = self.validator_server.clone();
-        let identity_public_key = self.identity.public_key().clone();
+        let identity = Arc::clone(&self.identity);
         let mut client = self.get_and_update_topology().await;
         let gateway = client.choose_gateway();
 
         let (mixnet_messages_sender, mixnet_messages_receiver) = mpsc::unbounded();
         let (ack_sender, ack_receiver) = mpsc::unbounded();
 
-        let coconut_credential = Credential::init(vec![validator_server], identity_public_key)
+        let coconut_credential = Credential::init(vec![validator_server], identity)
             .await
             .expect("Could not initialize coconut credential");
 

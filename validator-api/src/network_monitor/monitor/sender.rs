@@ -119,7 +119,7 @@ impl PacketSender {
                 "http://{}:{}",
                 DEFAULT_VALIDATOR_HOST, VALIDATOR_API_PORT
             )],
-            identity,
+            Arc::clone(&fresh_gateway_client_data.local_identity),
         )
         .await
         .expect("Could not initialize coconut credential");

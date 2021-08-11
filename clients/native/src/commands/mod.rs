@@ -33,10 +33,6 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
         config = config.with_socket(SocketType::None);
     }
 
-    if matches.is_present("vpn-mode") {
-        config.get_base_mut().set_vpn_mode(true);
-    }
-
     if let Some(port) = matches.value_of("port").map(|port| port.parse::<u16>()) {
         if let Err(err) = port {
             // if port was overridden, it must be parsable

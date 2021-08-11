@@ -62,18 +62,21 @@ impl ExplorerApiStateContext {
         let json_file_path = Path::new(&json_file);
         info!("Loading state from file {:?}...", json_file);
 
-        match File::open(json_file_path).map(serde_json::from_reader::<_,ExplorerApiStateOnDisk>) {
+        match File::open(json_file_path).map(serde_json::from_reader::<_, ExplorerApiStateOnDisk>) {
             Ok(Ok(state)) => {
                 info!("Loaded state from file {:?}: {:?}", json_file, state);
                 ExplorerApiState {
-                    country_node_distribution: ConcurrentCountryNodesDistribution::new_from_distribution(
-                        state.country_node_distribution,
+                    country_node_distribution:
+                        ConcurrentCountryNodesDistribution::new_from_distribution(
+                            state.country_node_distribution,
+                        ),
+                    mix_nodes: ThreadsafeMixNodesResult::new_with_location_cache(
+                        state.location_cache,
                     ),
-                    mix_nodes: ThreadsafeMixNodesResult::new_with_location_cache(state.location_cache),
                     mix_node_cache: ThreadsafeMixNodeCache::new(),
                     ping_cache: ThreadsafePingCache::new(),
                 }
-            },
+            }
             _ => {
                 warn!(
                     "Failed to load state from file {:?}, starting with empty state!",

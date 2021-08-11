@@ -2,7 +2,7 @@ use log::{info, trace, warn};
 use reqwest::Error as ReqwestError;
 
 use crate::country_statistics::country_nodes_distribution::CountryNodesDistribution;
-use crate::mix_nodes::{Location, GeoLocation};
+use crate::mix_nodes::{GeoLocation, Location};
 use crate::state::ExplorerApiStateContext;
 
 pub mod country_nodes_distribution;
@@ -35,13 +35,7 @@ impl CountryStatistics {
     /// Retrieves the current list of mixnodes from the validators and calculates how many nodes are in each country
     async fn calculate_nodes_per_country(&mut self) {
         // force the mixnode cache to invalidate
-        let mixnode_bonds = self
-            .state
-            .inner
-            .mix_nodes
-            .refresh_and_get()
-            .await
-            .value;
+        let mixnode_bonds = self.state.inner.mix_nodes.refresh_and_get().await.value;
 
         let mut distribution = CountryNodesDistribution::new();
 
@@ -51,7 +45,8 @@ impl CountryStatistics {
                 Ok(geo_location) => {
                     let location = Location::new(geo_location);
 
-                    *(distribution.entry(location.three_letter_iso_country_code.to_string())).or_insert(0) += 1;
+                    *(distribution.entry(location.three_letter_iso_country_code.to_string()))
+                        .or_insert(0) += 1;
 
                     trace!(
                         "Ip {} is located in {:#?}",
@@ -62,10 +57,7 @@ impl CountryStatistics {
                     self.state
                         .inner
                         .mix_nodes
-                        .set_location(
-                            &cache_item.bond.mix_node.identity_key,
-                            location,
-                        )
+                        .set_location(&cache_item.bond.mix_node.identity_key, location)
                         .await;
 
                     if (i % 100) == 0 {

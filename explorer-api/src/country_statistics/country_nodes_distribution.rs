@@ -16,7 +16,9 @@ impl ConcurrentCountryNodesDistribution {
         }
     }
 
-    pub(crate) fn new_from_distribution(country_node_distribution: CountryNodesDistribution) -> Self {
+    pub(crate) fn new_from_distribution(
+        country_node_distribution: CountryNodesDistribution,
+    ) -> Self {
         ConcurrentCountryNodesDistribution {
             inner: Arc::new(RwLock::new(country_node_distribution)),
         }

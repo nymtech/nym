@@ -134,15 +134,10 @@ impl ThreadsafeMixNodesResult {
             value: value
                 .into_iter()
                 .map(|bond| {
-                    let location = location_cache
-                        .get(&bond.mix_node.identity_key)
-                        .cloned(); // add the location, if we've located this mix node before
+                    let location = location_cache.get(&bond.mix_node.identity_key).cloned(); // add the location, if we've located this mix node before
                     (
                         bond.mix_node.identity_key.to_string(),
-                        MixNodeBondWithLocation {
-                            bond,
-                            location,
-                        },
+                        MixNodeBondWithLocation { bond, location },
                     )
                 })
                 .collect(),

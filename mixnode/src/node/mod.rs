@@ -101,11 +101,8 @@ impl MixNode {
     ) {
         info!("Starting socket listener...");
 
-        let packet_processor = PacketProcessor::new(
-            self.sphinx_keypair.private_key(),
-            node_stats_update_sender,
-            self.config.get_cache_entry_ttl(),
-        );
+        let packet_processor =
+            PacketProcessor::new(self.sphinx_keypair.private_key(), node_stats_update_sender);
 
         let connection_handler = ConnectionHandler::new(packet_processor, delay_forwarding_channel);
 

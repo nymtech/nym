@@ -12,6 +12,8 @@ pub enum MixProcessingError {
     InvalidHopAddress(NymNodeRoutingAddressError),
     NoSurbAckInFinalHop,
     MalformedSurbAck(SurbAckRecoveryError),
+
+    ReceivedOldTypeVpnPacket,
 }
 
 impl From<SphinxError> for MixProcessingError {
@@ -53,6 +55,9 @@ impl Display for MixProcessingError {
             }
             MixProcessingError::MalformedSurbAck(surb_ack_err) => {
                 write!(f, "Malformed SURBAck - {:?}", surb_ack_err)
+            }
+            MixProcessingError::ReceivedOldTypeVpnPacket => {
+                write!(f, "Received an old-type unsafe 'VPN' mode packet")
             }
         }
     }

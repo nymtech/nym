@@ -18,6 +18,7 @@ use tokio_util::codec::Framed;
 
 pub(crate) mod packet_processing;
 
+#[derive(Clone)]
 pub(crate) struct ConnectionHandler {
     packet_processor: PacketProcessor,
     delay_forwarding_channel: PacketDelayForwardSender,
@@ -31,13 +32,6 @@ impl ConnectionHandler {
         ConnectionHandler {
             packet_processor,
             delay_forwarding_channel,
-        }
-    }
-
-    pub(crate) fn clone_without_cache(&self) -> Self {
-        ConnectionHandler {
-            packet_processor: self.packet_processor.clone_without_cache(),
-            delay_forwarding_channel: self.delay_forwarding_channel.clone(),
         }
     }
 

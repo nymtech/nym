@@ -31,7 +31,7 @@ impl Listener {
         loop {
             match listener.accept().await {
                 Ok((socket, remote_addr)) => {
-                    let handler = connection_handler.clone_without_cache();
+                    let handler = connection_handler.clone();
                     tokio::spawn(handler.handle_connection(socket, remote_addr));
                 }
                 Err(err) => warn!("Failed to accept incoming connection - {:?}", err),

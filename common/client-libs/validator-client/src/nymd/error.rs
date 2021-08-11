@@ -9,11 +9,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum NymdError {
-    // #[error("An IO error has occured: {source}")]
-    // IoError {
-    //     #[from]
-    //     source: io::Error,
-    // },
+    #[error("No contract address is available to perform the call")]
+    NoContractAddressAvailable,
+
     #[error("There was an issue with bip32 - {0}")]
     Bip32Error(#[from] bip32::Error),
 

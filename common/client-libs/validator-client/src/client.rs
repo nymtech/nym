@@ -85,8 +85,7 @@ impl Client<SigningNymdClient> {
         let validator_api_client = validator_api::Client::new(config.api_url.clone());
         let nymd_client = NymdClient::connect_with_mnemonic(
             config.nymd_url.as_str(),
-            // TODO: after merge this will take an option
-            config.mixnet_contract_address.clone().unwrap(),
+            config.mixnet_contract_address.clone(),
             mnemonic.clone(),
         )?;
 
@@ -109,8 +108,7 @@ impl Client<SigningNymdClient> {
         let nymd_url = Url::parse(new_endpoint.into().as_ref())?;
         self.nymd = NymdClient::connect_with_mnemonic(
             nymd_url.as_str(),
-            // TODO: after merge this will take an option
-            self.mixnet_contract_address.clone().unwrap(),
+            self.mixnet_contract_address.clone(),
             self.mnemonic.clone().unwrap(),
         )?;
         Ok(())

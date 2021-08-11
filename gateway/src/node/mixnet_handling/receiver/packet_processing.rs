@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crypto::asymmetric::encryption;
-use mixnode_common::cached_packet_processor::error::MixProcessingError;
-pub use mixnode_common::cached_packet_processor::processor::MixProcessingResult;
-use mixnode_common::cached_packet_processor::processor::{
-    CachedPacketProcessor, ProcessedFinalHop,
-};
+use mixnode_common::packet_processor::error::MixProcessingError;
+pub use mixnode_common::packet_processor::processor::MixProcessingResult;
+use mixnode_common::packet_processor::processor::{ProcessedFinalHop, SphinxPacketProcessor};
 use nymsphinx::framing::packet::FramedSphinxPacket;
-use tokio::time::Duration;
 
 #[derive(Debug)]
 pub enum GatewayProcessingError {
@@ -25,20 +22,15 @@ impl From<MixProcessingError> for GatewayProcessingError {
 }
 
 // PacketProcessor contains all data required to correctly unwrap and store sphinx packets
+#[derive(Clone)]
 pub struct PacketProcessor {
-    inner_processor: CachedPacketProcessor,
+    inner_processor: SphinxPacketProcessor,
 }
 
 impl PacketProcessor {
-    pub(crate) fn new(encryption_key: &encryption::PrivateKey, cache_entry_ttl: Duration) -> Self {
+    pub(crate) fn new(encryption_key: &encryption::PrivateKey) -> Self {
         PacketProcessor {
-            inner_processor: CachedPacketProcessor::new(encryption_key.into(), cache_entry_ttl),
-        }
-    }
-
-    pub(crate) fn clone_without_key_cache(&self) -> Self {
-        PacketProcessor {
-            inner_processor: self.inner_processor.clone_without_cache(),
+            inner_processor: SphinxPacketProcessor::new(encryption_key.into()),
         }
     }
 

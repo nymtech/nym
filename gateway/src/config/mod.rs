@@ -21,7 +21,6 @@ const DEFAULT_PRESENCE_SENDING_DELAY: Duration = Duration::from_millis(10_000);
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
-const DEFAULT_CACHE_ENTRY_TTL: Duration = Duration::from_millis(30_000);
 const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 128;
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
@@ -279,10 +278,6 @@ impl Config {
         self.debug.stored_messages_filename_length
     }
 
-    pub fn get_cache_entry_ttl(&self) -> Duration {
-        self.debug.cache_entry_ttl
-    }
-
     pub fn get_version(&self) -> &str {
         &self.gateway.version
     }
@@ -466,13 +461,6 @@ pub struct Debug {
     /// if there are no real messages, dummy ones are created to always return  
     /// `message_retrieval_limit` total messages
     message_retrieval_limit: u16,
-
-    /// Duration for which a cached vpn processing result is going to get stored for.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
-    cache_entry_ttl: Duration,
 }
 
 impl Default for Debug {
@@ -485,7 +473,6 @@ impl Default for Debug {
             maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
             stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
-            cache_entry_ttl: DEFAULT_CACHE_ENTRY_TTL,
         }
     }
 }

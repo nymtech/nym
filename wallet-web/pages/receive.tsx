@@ -33,6 +33,7 @@ const Receive = () => {
                       style={{
                         display: 'flex',
                         justifyContent: 'space-between',
+                        flexWrap: 'wrap',
                       }}
                     >
                       <Typography

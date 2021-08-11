@@ -62,7 +62,8 @@ impl CountryStatistics {
 
                     trace!(
                         "Ip {} is located in {:#?}",
-                        bond.1.bond.mix_node.host, three_letter_iso_country_code,
+                        bond.1.bond.mix_node.host,
+                        three_letter_iso_country_code,
                     );
 
                     self.state
@@ -74,6 +75,8 @@ impl CountryStatistics {
                                 country_name: location.country_name,
                                 two_letter_iso_country_code: location.country_code,
                                 three_letter_iso_country_code,
+                                lat: location.latitude,
+                                lng: location.longitude,
                             },
                         )
                         .await;

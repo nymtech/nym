@@ -15,6 +15,8 @@ pub(crate) struct Location {
     pub(crate) two_letter_iso_country_code: String,
     pub(crate) three_letter_iso_country_code: String,
     pub(crate) country_name: String,
+    pub(crate) lat: f32,
+    pub(crate) lng: f32,
 }
 
 #[derive(Clone, Debug)]

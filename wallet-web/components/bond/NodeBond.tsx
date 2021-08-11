@@ -1,4 +1,5 @@
 import React, { useContext, useEffect } from 'react'
+import { useRouter } from 'next/router'
 import Typography from '@material-ui/core/Typography'
 import { Grid, LinearProgress, Paper } from '@material-ui/core'
 import { Gateway, MixNode } from '@nymproject/nym-validator-client/dist/types'
@@ -7,12 +8,11 @@ import { printableBalanceToNative } from '@nymproject/nym-validator-client/dist/
 import Confirmation from '../Confirmation'
 import { ValidatorClientContext } from '../../contexts/ValidatorClient'
 import NoClientError from '../NoClientError'
-import { useRouter } from 'next/router'
-import BondNodeForm from './BondNodeForm'
+import { BondNodeForm } from './BondNodeForm'
 import { NodeType } from '../../common/node'
 import Link from '../Link'
 import { theme } from '../../lib/theme'
-import { checkNodesOwnership, makeBasicStyle } from '../../common/helpers'
+import { checkNodesOwnership } from '../../common/helpers'
 import NodeTypeChooser from '../NodeTypeChooser'
 import ExecFeeNotice from '../ExecFeeNotice'
 import { UDENOM } from '../../pages/_app'
@@ -23,7 +23,6 @@ export type BondingInformation = {
 }
 
 const BondNode = () => {
-  const classes = makeBasicStyle(theme)
   const router = useRouter()
   const { client } = useContext(ValidatorClientContext)
 
@@ -62,14 +61,10 @@ const BondNode = () => {
   const bondNode = async (bondingInformation: BondingInformation) => {
     setIsLoading(true)
     console.log(`BOND button pressed`)
-
-    console.log(bondingInformation)
     let amountValue = parseInt(
       printableBalanceToNative(bondingInformation.amount)
     )
     let amount = coin(amountValue, UDENOM)
-
-    console.log(bondingInformation.nodeDetails)
 
     if (nodeType == NodeType.Mixnode) {
       let mixnode = bondingInformation.nodeDetails as MixNode
@@ -141,8 +136,11 @@ const BondNode = () => {
           <BondNodeForm
             onSubmit={bondNode}
             type={nodeType}
-            minimumGatewayBond={minimumGatewayBond}
-            minimumMixnodeBond={minimumMixnodeBond}
+            minimumBond={
+              nodeType === NodeType.Mixnode
+                ? minimumMixnodeBond
+                : minimumGatewayBond
+            }
           />
         </>
       )

@@ -34,7 +34,7 @@ pub mod wallet;
 
 pub struct NymdClient<C> {
     client: C,
-    contract_address: AccountId,
+    contract_address: Option<AccountId>,
     client_address: Option<Vec<AccountId>>,
     gas_price: GasPrice,
     custom_gas_limits: HashMap<Operation, Gas>,
@@ -50,7 +50,7 @@ impl NymdClient<HttpClient> {
     {
         Ok(NymdClient {
             client: HttpClient::new(endpoint)?,
-            contract_address,
+            contract_address: Some(contract_address),
             client_address: None,
             gas_price: Default::default(),
             custom_gas_limits: Default::default(),
@@ -62,7 +62,7 @@ impl NymdClient<signing_client::Client> {
     // maybe the wallet could be made into a generic, but for now, let's just have this one implementation
     pub fn connect_with_signer<U>(
         endpoint: U,
-        contract_address: AccountId,
+        contract_address: Option<AccountId>,
         signer: DirectSecp256k1HdWallet,
     ) -> Result<NymdClient<signing_client::Client>, ValidatorClientError>
     where
@@ -85,7 +85,7 @@ impl NymdClient<signing_client::Client> {
 
     pub fn connect_with_mnemonic<U>(
         endpoint: U,
-        contract_address: AccountId,
+        contract_address: Option<AccountId>,
         mnemonic: bip39::Mnemonic,
     ) -> Result<NymdClient<signing_client::Client>, ValidatorClientError>
     where
@@ -117,11 +117,17 @@ impl<C> NymdClient<C> {
         self.custom_gas_limits.insert(operation, limit);
     }
 
+    pub fn contract_address(&self) -> Result<&AccountId, ValidatorClientError> {
+        self.contract_address
+            .as_ref()
+            .ok_or(ValidatorClientError::NoContractAddressAvailable)
+    }
+
     // now the question is as follows: will denom always be in the format of `u{prefix}`?
-    pub fn denom(&self) -> Denom {
-        format!("u{}", self.contract_address.prefix())
+    pub fn denom(&self) -> Result<Denom, ValidatorClientError> {
+        Ok(format!("u{}", self.contract_address()?.prefix())
             .parse()
-            .unwrap()
+            .unwrap())
     }
 
     pub fn address(&self) -> &AccountId
@@ -144,7 +150,7 @@ impl<C> NymdClient<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        self.client.get_balance(address, self.denom()).await
+        self.client.get_balance(address, self.denom()?).await
     }
 
     pub async fn get_state_params(&self) -> Result<StateParams, ValidatorClientError>
@@ -153,7 +159,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::StateParams {};
         self.client
-            .query_contract_smart(&self.contract_address, &request)
+            .query_contract_smart(self.contract_address()?, &request)
             .await
     }
 
@@ -163,7 +169,7 @@ impl<C> NymdClient<C> {
     {
         let request = QueryMsg::LayerDistribution {};
         self.client
-            .query_contract_smart(&self.contract_address, &request)
+            .query_contract_smart(self.contract_address()?, &request)
             .await
     }
 
@@ -177,7 +183,7 @@ impl<C> NymdClient<C> {
         };
         let response: MixOwnershipResponse = self
             .client
-            .query_contract_smart(&self.contract_address, &request)
+            .query_contract_smart(self.contract_address()?, &request)
             .await?;
         Ok(response.has_node)
     }
@@ -192,7 +198,7 @@ impl<C> NymdClient<C> {
         };
         let response: GatewayOwnershipResponse = self
             .client
-            .query_contract_smart(&self.contract_address, &request)
+            .query_contract_smart(self.contract_address()?, &request)
             .await?;
         Ok(response.has_gateway)
     }
@@ -209,7 +215,7 @@ impl<C> NymdClient<C> {
             start_after,
         };
         self.client
-            .query_contract_smart(&self.contract_address, &request)
+            .query_contract_smart(self.contract_address()?, &request)
             .await
     }
 
@@ -225,7 +231,7 @@ impl<C> NymdClient<C> {
             start_after,
         };
         self.client
-            .query_contract_smart(&self.contract_address, &request)
+            .query_contract_smart(self.contract_address()?, &request)
             .await
     }
 
@@ -244,7 +250,7 @@ impl<C> NymdClient<C> {
             limit: None,
         };
         self.client
-            .query_contract_smart(&self.contract_address, &request)
+            .query_contract_smart(self.contract_address()?, &request)
             .await
     }
 
@@ -262,7 +268,7 @@ impl<C> NymdClient<C> {
             address: Addr::unchecked(delegator.as_ref()),
         };
         self.client
-            .query_contract_smart(&self.contract_address, &request)
+            .query_contract_smart(self.contract_address()?, &request)
             .await
     }
 
@@ -281,7 +287,7 @@ impl<C> NymdClient<C> {
             limit: None,
         };
         self.client
-            .query_contract_smart(&self.contract_address, &request)
+            .query_contract_smart(self.contract_address()?, &request)
             .await
     }
 
@@ -299,7 +305,7 @@ impl<C> NymdClient<C> {
             address: Addr::unchecked(delegator.as_ref()),
         };
         self.client
-            .query_contract_smart(&self.contract_address, &request)
+            .query_contract_smart(self.contract_address()?, &request)
             .await
     }
 
@@ -430,7 +436,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                &self.contract_address,
+                self.contract_address()?,
                 &req,
                 fee,
                 "Bonding mixnode from rust!",
@@ -450,7 +456,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                &self.contract_address,
+                self.contract_address()?,
                 &req,
                 fee,
                 "Unbonding mixnode from rust!",
@@ -474,7 +480,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                &self.contract_address,
+                self.contract_address()?,
                 &req,
                 fee,
                 "Delegating to mixnode from rust!",
@@ -497,7 +503,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                &self.contract_address,
+                self.contract_address()?,
                 &req,
                 fee,
                 "Removing mixnode delegation from rust!",
@@ -521,7 +527,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                &self.contract_address,
+                self.contract_address()?,
                 &req,
                 fee,
                 "Bonding gateway from rust!",
@@ -541,7 +547,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                &self.contract_address,
+                self.contract_address()?,
                 &req,
                 fee,
                 "Unbonding gateway from rust!",
@@ -565,7 +571,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                &self.contract_address,
+                self.contract_address()?,
                 &req,
                 fee,
                 "Delegating to gateway from rust!",
@@ -588,7 +594,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                &self.contract_address,
+                self.contract_address()?,
                 &req,
                 fee,
                 "Removing gateway delegation from rust!",
@@ -610,7 +616,7 @@ impl<C> NymdClient<C> {
         self.client
             .execute(
                 self.address(),
-                &self.contract_address,
+                self.contract_address()?,
                 &req,
                 fee,
                 "Updating contract state from rust!",

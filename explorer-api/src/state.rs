@@ -32,7 +32,7 @@ impl ExplorerApiState {
             .await
             .value
             .get(pubkey)
-            .map(|bond| bond.bond.clone())
+            .map(|cache_item| cache_item.bond.clone())
     }
 }
 
@@ -66,10 +66,10 @@ impl ExplorerApiStateContext {
             Ok(Ok(state)) => {
                 info!("Loaded state from file {:?}: {:?}", json_file, state);
                 ExplorerApiState {
-                    country_node_distribution: ConcurrentCountryNodesDistribution::attach(
+                    country_node_distribution: ConcurrentCountryNodesDistribution::new_from_distribution(
                         state.country_node_distribution,
                     ),
-                    mix_nodes: ThreadsafeMixNodesResult::attach(state.location_cache),
+                    mix_nodes: ThreadsafeMixNodesResult::new_with_location_cache(state.location_cache),
                     mix_node_cache: ThreadsafeMixNodeCache::new(),
                     ping_cache: ThreadsafePingCache::new(),
                 }

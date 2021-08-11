@@ -1,16 +1,12 @@
-use isocountry::CountryCode;
 use log::{info, trace, warn};
 use reqwest::Error as ReqwestError;
 
-use models::GeoLocation;
-
 use crate::country_statistics::country_nodes_distribution::CountryNodesDistribution;
-use crate::mix_nodes::Location;
+use crate::mix_nodes::{Location, GeoLocation};
 use crate::state::ExplorerApiStateContext;
 
 pub mod country_nodes_distribution;
 pub mod http;
-mod models;
 
 pub(crate) struct CountryStatistics {
     state: ExplorerApiStateContext,
@@ -43,7 +39,6 @@ impl CountryStatistics {
             .state
             .inner
             .mix_nodes
-            .clone()
             .refresh_and_get()
             .await
             .value;
@@ -51,33 +46,25 @@ impl CountryStatistics {
         let mut distribution = CountryNodesDistribution::new();
 
         info!("Locating mixnodes...");
-        for (i, bond) in mixnode_bonds.iter().enumerate() {
-            match locate(&bond.1.bond.mix_node.host).await {
-                Ok(location) => {
-                    let country_code = map_2_letter_to_3_letter_country_code(&location);
-                    *(distribution.entry(country_code)).or_insert(0) += 1;
+        for (i, cache_item) in mixnode_bonds.values().enumerate() {
+            match locate(&cache_item.bond.mix_node.host).await {
+                Ok(geo_location) => {
+                    let location = Location::new(geo_location);
 
-                    let three_letter_iso_country_code =
-                        map_2_letter_to_3_letter_country_code(&location);
+                    *(distribution.entry(location.three_letter_iso_country_code.to_string())).or_insert(0) += 1;
 
                     trace!(
                         "Ip {} is located in {:#?}",
-                        bond.1.bond.mix_node.host,
-                        three_letter_iso_country_code,
+                        cache_item.bond.mix_node.host,
+                        location.three_letter_iso_country_code,
                     );
 
                     self.state
                         .inner
                         .mix_nodes
                         .set_location(
-                            &bond.1.bond.mix_node.identity_key,
-                            Location {
-                                country_name: location.country_name,
-                                two_letter_iso_country_code: location.country_code,
-                                three_letter_iso_country_code,
-                                lat: location.latitude,
-                                lng: location.longitude,
-                            },
+                            &cache_item.bond.mix_node.identity_key,
+                            location,
                         )
                         .await;
 
@@ -107,19 +94,6 @@ impl CountryStatistics {
 
         // keep state on disk, so that when this process dies it can start up again and users get some data
         self.state.write_to_file().await;
-    }
-}
-
-fn map_2_letter_to_3_letter_country_code(geo: &GeoLocation) -> String {
-    match CountryCode::for_alpha2(&geo.country_code) {
-        Ok(three_letter_country_code) => three_letter_country_code.alpha3().to_string(),
-        Err(_e) => {
-            warn!(
-                "❌ Oh no! map_2_letter_to_3_letter_country_code failed for '{:#?}'",
-                geo
-            );
-            "???".to_string()
-        }
     }
 }
 

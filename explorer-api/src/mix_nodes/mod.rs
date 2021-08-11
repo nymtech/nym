@@ -1,3 +1,5 @@
+mod utils;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -5,10 +7,26 @@ use std::time::{Duration, SystemTime};
 use rocket::tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
 
+use crate::mix_nodes::utils::map_2_letter_to_3_letter_country_code;
 use mixnet_contract::MixNodeBond;
 use validator_client::Config;
 
 pub(crate) type LocationCache = HashMap<String, Location>;
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct GeoLocation {
+    pub(crate) ip: String,
+    pub(crate) country_code: String,
+    pub(crate) country_name: String,
+    pub(crate) region_code: String,
+    pub(crate) region_name: String,
+    pub(crate) city: String,
+    pub(crate) zip_code: String,
+    pub(crate) time_zone: String,
+    pub(crate) latitude: f32,
+    pub(crate) longitude: f32,
+    pub(crate) metro_code: u32,
+}
 
 #[derive(Clone, Debug, JsonSchema, Serialize, Deserialize)]
 pub(crate) struct Location {
@@ -17,6 +35,19 @@ pub(crate) struct Location {
     pub(crate) country_name: String,
     pub(crate) lat: f32,
     pub(crate) lng: f32,
+}
+
+impl Location {
+    pub(crate) fn new(geo_location: GeoLocation) -> Self {
+        let three_letter_iso_country_code = map_2_letter_to_3_letter_country_code(&geo_location);
+        Location {
+            country_name: geo_location.country_name,
+            two_letter_iso_country_code: geo_location.country_code,
+            three_letter_iso_country_code,
+            lat: geo_location.latitude,
+            lng: geo_location.longitude,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -48,7 +79,7 @@ impl ThreadsafeMixNodesResult {
         }
     }
 
-    pub(crate) fn attach(location_cache: LocationCache) -> Self {
+    pub(crate) fn new_with_location_cache(location_cache: LocationCache) -> Self {
         ThreadsafeMixNodesResult {
             inner: Arc::new(RwLock::new(MixNodesResult {
                 value: HashMap::new(),
@@ -79,7 +110,7 @@ impl ThreadsafeMixNodesResult {
 
     pub(crate) async fn get(&self) -> MixNodesResult {
         // check ttl
-        let valid_until = self.inner.clone().read().await.valid_until;
+        let valid_until = self.inner.read().await.valid_until;
 
         if valid_until < SystemTime::now() {
             // force reload
@@ -87,7 +118,7 @@ impl ThreadsafeMixNodesResult {
         }
 
         // return in-memory cache
-        self.inner.clone().read().await.clone()
+        self.inner.read().await.clone()
     }
 
     pub(crate) async fn refresh_and_get(&self) -> MixNodesResult {
@@ -99,24 +130,25 @@ impl ThreadsafeMixNodesResult {
         // get mixnodes and cache the new value
         let value = retrieve_mixnodes().await;
         let location_cache = self.inner.read().await.location_cache.clone();
-        self.inner.write().await.clone_from(&MixNodesResult {
+        *self.inner.write().await = MixNodesResult {
             value: value
-                .iter()
+                .into_iter()
                 .map(|bond| {
+                    let location = location_cache
+                        .get(&bond.mix_node.identity_key)
+                        .cloned(); // add the location, if we've located this mix node before
                     (
                         bond.mix_node.identity_key.to_string(),
                         MixNodeBondWithLocation {
-                            bond: bond.clone(),
-                            location: location_cache
-                                .get(&bond.mix_node.identity_key.to_string())
-                                .cloned(), // add the location, if we've located this mix node before
+                            bond,
+                            location,
                         },
                     )
                 })
                 .collect(),
             valid_until: SystemTime::now() + Duration::from_secs(60 * 10), // valid for 10 minutes
             location_cache,
-        });
+        };
     }
 }
 

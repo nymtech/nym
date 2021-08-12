@@ -3,14 +3,20 @@
 
 use crate::client::config::Config;
 use clap::ArgMatches;
+use url::Url;
 
 pub(crate) mod init;
 pub(crate) mod run;
 pub(crate) mod upgrade;
 
-fn parse_validators(raw: &str) -> Vec<String> {
+fn parse_validators(raw: &str) -> Vec<Url> {
     raw.split(',')
-        .map(|raw_validator| raw_validator.trim().into())
+        .map(|raw_validator| {
+            raw_validator
+                .trim()
+                .parse()
+                .expect("one of the provided validator api urls is invalid")
+        })
         .collect()
 }
 
@@ -18,11 +24,7 @@ pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Confi
     if let Some(raw_validators) = matches.value_of("validators") {
         config
             .get_base_mut()
-            .set_custom_validators(parse_validators(raw_validators));
-    }
-
-    if let Some(contract_address) = matches.value_of("mixnet-contract") {
-        config.get_base_mut().set_mixnet_contract(contract_address)
+            .set_custom_validator_apis(parse_validators(raw_validators));
     }
 
     if let Some(gateway_id) = matches.value_of("gateway") {

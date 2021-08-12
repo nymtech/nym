@@ -4,14 +4,13 @@
 use crate::client::config::template::config_template;
 use client_core::config::Config as BaseConfig;
 pub use client_core::config::MISSING_VALUE;
+use config::defaults::DEFAULT_SOCKS5_LISTENING_PORT;
 use config::NymConfig;
 use nymsphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 mod template;
-
-const DEFAULT_LISTENING_PORT: u16 = 1080;
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -103,7 +102,7 @@ pub struct Socks5 {
 impl Socks5 {
     pub fn new<S: Into<String>>(provider_mix_address: S) -> Self {
         Socks5 {
-            listening_port: DEFAULT_LISTENING_PORT,
+            listening_port: DEFAULT_SOCKS5_LISTENING_PORT,
             provider_mix_address: provider_mix_address.into(),
         }
     }
@@ -112,7 +111,7 @@ impl Socks5 {
 impl Default for Socks5 {
     fn default() -> Self {
         Socks5 {
-            listening_port: DEFAULT_LISTENING_PORT,
+            listening_port: DEFAULT_SOCKS5_LISTENING_PORT,
             provider_mix_address: "".into(),
         }
     }

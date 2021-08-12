@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use config::defaults::*;
-use config::{deserialize_duration, deserialize_validators, NymConfig};
+use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::time::Duration;
+use url::Url;
 
 pub mod persistence;
 
@@ -23,20 +24,8 @@ const DEFAULT_TOPOLOGY_REFRESH_RATE: Duration = Duration::from_secs(5 * 60); // 
 const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: Duration = Duration::from_millis(5_000);
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 
-// helper function to get default validators as a Vec<String>
-pub fn default_validator_rest_endpoints() -> Vec<String> {
-    DEFAULT_VALIDATOR_REST_ENDPOINTS
-        .iter()
-        .map(|&endpoint| endpoint.to_string())
-        .collect()
-}
-
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
-}
-
-pub fn missing_vec_string_value() -> Vec<String> {
-    vec![missing_string_value()]
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -122,12 +111,8 @@ impl<T: NymConfig> Config<T> {
         self.client.gateway_listener = gateway_listener.into();
     }
 
-    pub fn set_custom_validators(&mut self, validators: Vec<String>) {
-        self.client.validator_rest_urls = validators;
-    }
-
-    pub fn set_mixnet_contract<S: Into<String>>(&mut self, contract_address: S) {
-        self.client.mixnet_contract_address = contract_address.into();
+    pub fn set_custom_validator_apis(&mut self, validator_api_urls: Vec<Url>) {
+        self.client.validator_api_urls = validator_api_urls;
     }
 
     pub fn set_high_default_traffic_volume(&mut self) {
@@ -176,12 +161,8 @@ impl<T: NymConfig> Config<T> {
         self.client.ack_key_file.clone()
     }
 
-    pub fn get_validator_rest_endpoints(&self) -> Vec<String> {
-        self.client.validator_rest_urls.clone()
-    }
-
-    pub fn get_validator_mixnet_contract_address(&self) -> String {
-        self.client.mixnet_contract_address.clone()
+    pub fn get_validator_api_endpoints(&self) -> Vec<Url> {
+        self.client.validator_api_urls.clone()
     }
 
     pub fn get_gateway_id(&self) -> String {
@@ -253,17 +234,8 @@ pub struct Client<T> {
     /// ID specifies the human readable ID of this particular client.
     id: String,
 
-    /// URL to the validator server for obtaining network topology.
-    #[serde(
-        deserialize_with = "deserialize_validators",
-        default = "missing_vec_string_value",
-        alias = "validator_rest_url"
-    )]
-    validator_rest_urls: Vec<String>,
-
-    /// Address of the validator contract managing the network.
-    #[serde(default = "missing_string_value")]
-    mixnet_contract_address: String,
+    /// Addresses to APIs running on validator from which the client gets the view of the network.
+    validator_api_urls: Vec<Url>,
 
     /// Path to file containing private identity key.
     private_identity_key_file: PathBuf,
@@ -310,8 +282,7 @@ impl<T: NymConfig> Default for Client<T> {
         Client {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
-            validator_rest_urls: default_validator_rest_endpoints(),
-            mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
+            validator_api_urls: ValidatorDetails::default().api_urls(),
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             private_encryption_key_file: Default::default(),
@@ -374,20 +345,14 @@ pub struct Debug {
     /// sent packet is going to be delayed at any given mix node.
     /// So for a packet going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
+    #[serde(with = "humantime_serde")]
     average_packet_delay: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent acknowledgement is going to be delayed at any given mix node.
     /// So for an ack going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
+    #[serde(with = "humantime_serde")]
     average_ack_delay: Duration,
 
     /// Value multiplied with the expected round trip time of an acknowledgement packet before
@@ -398,53 +363,35 @@ pub struct Debug {
     /// Value added to the expected round trip time of an acknowledgement packet before
     /// it is assumed it was lost and retransmission of the data packet happens.
     /// In an ideal network with 0 latency, this value would have been 0.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
+    #[serde(with = "humantime_serde")]
     ack_wait_addition: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take for another loop cover traffic message to be sent.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
+    #[serde(with = "humantime_serde")]
     loop_cover_traffic_average_delay: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take another 'real traffic stream' message to be sent.
     /// If no real packets are available and cover traffic is enabled,
     /// a loop cover message is sent instead in order to preserve the rate.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
+    #[serde(with = "humantime_serde")]
     message_sending_average_delay: Duration,
 
     /// How long we're willing to wait for a response to a message sent to the gateway,
     /// before giving up on it.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
+    #[serde(with = "humantime_serde")]
     gateway_response_timeout: Duration,
 
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
+    #[serde(with = "humantime_serde")]
     topology_refresh_rate: Duration,
 
     /// During topology refresh, test packets are sent through every single possible network
     /// path. This timeout determines waiting period until it is decided that the packet
     /// did not reach its destination.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
+    #[serde(with = "humantime_serde")]
     topology_resolution_timeout: Duration,
 }
 

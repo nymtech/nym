@@ -12,11 +12,12 @@ use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
-use rand::{prelude::SliceRandom, rngs::OsRng};
+use rand::{prelude::SliceRandom, rngs::OsRng, thread_rng};
 use std::convert::TryInto;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::{filter::VersionFilterable, gateway};
+use url::Url;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
@@ -42,11 +43,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .long("validators")
                 .help("Comma separated list of rest endpoints of the validators")
                 .takes_value(true),
-        )
-        .arg(Arg::with_name("mixnet-contract")
-                 .long("mixnet-contract")
-                 .help("Address of the validator contract managing the network")
-                 .takes_value(true),
         )
         .arg(Arg::with_name("port")
             .short("p")
@@ -83,12 +79,13 @@ async fn register_with_gateway(
 }
 
 async fn gateway_details(
-    validator_servers: Vec<String>,
-    mixnet_contract: &str,
+    validator_servers: Vec<Url>,
     chosen_gateway_id: Option<&str>,
 ) -> gateway::Node {
-    let validator_client_config = validator_client::Config::new(validator_servers, mixnet_contract);
-    let validator_client = validator_client::Client::new(validator_client_config);
+    let validator_api = validator_servers
+        .choose(&mut thread_rng())
+        .expect("The list of validator apis is empty");
+    let validator_client = validator_client::Client::new_api(validator_api.clone());
 
     let gateways = validator_client.get_cached_gateways().await.unwrap();
     let valid_gateways = gateways
@@ -185,8 +182,7 @@ pub fn execute(matches: &ArgMatches) {
 
         let registration_fut = async {
             let gate_details = gateway_details(
-                config.get_base().get_validator_rest_endpoints(),
-                &config.get_base().get_validator_mixnet_contract_address(),
+                config.get_base().get_validator_api_endpoints(),
                 chosen_gateway_id,
             )
             .await;

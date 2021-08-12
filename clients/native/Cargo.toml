@@ -16,7 +16,7 @@ futures = "0.3" # bunch of futures stuff, however, now that I think about it, it
 # the AsyncRead, AsyncWrite, Stream, Sink, etc. traits could be used from tokio
 # channels should really be replaced with crossbeam due to that implementation being more efficient
 # and the single instance of abortable we have should really be refactored anyway
-url = "2.1" # I think we should just replace it with String
+url = "2.2"
 
 clap = "2.33.0" # for the command line arguments
 dirs = "3.0" # for determining default store directories in config

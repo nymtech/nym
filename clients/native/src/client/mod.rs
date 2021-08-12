@@ -204,10 +204,7 @@ impl NymClient {
     // the current global view of topology
     fn start_topology_refresher(&mut self, topology_accessor: TopologyAccessor) {
         let topology_refresher_config = TopologyRefresherConfig::new(
-            self.config.get_base().get_validator_rest_endpoints(),
-            self.config
-                .get_base()
-                .get_validator_mixnet_contract_address(),
+            self.config.get_base().get_validator_api_endpoints(),
             self.config.get_base().get_topology_refresh_rate(),
         );
         let mut topology_refresher =

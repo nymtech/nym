@@ -484,6 +484,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "topology",
+ "url",
  "validator-client",
 ]
 
@@ -2363,6 +2364,7 @@ dependencies = [
  "socks5-requests",
  "tokio",
  "topology",
+ "url",
  "validator-client",
  "version-checker",
 ]

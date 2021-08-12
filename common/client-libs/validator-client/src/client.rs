@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(feature = "nymd-client")]
-use crate::nymd::{CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient};
+use crate::nymd::{
+    error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
+};
 use crate::{validator_api, ValidatorClientError};
 use mixnet_contract::{GatewayBond, MixNodeBond};
 use url::Url;
@@ -119,10 +121,14 @@ impl Client<SigningNymdClient> {
 impl Client<QueryNymdClient> {
     pub fn new_query(config: Config) -> Result<Client<QueryNymdClient>, ValidatorClientError> {
         let validator_api_client = validator_api::Client::new(config.api_url.clone());
-        // TODO: after merge this will take an option
         let nymd_client = NymdClient::connect(
             config.nymd_url.as_str(),
-            config.mixnet_contract_address.clone().unwrap(),
+            config
+                .mixnet_contract_address
+                .clone()
+                .ok_or(ValidatorClientError::NymdError(
+                    NymdError::NoContractAddressAvailable,
+                ))?,
         )?;
 
         Ok(Client {

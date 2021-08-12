@@ -117,7 +117,7 @@ fn minor_0_12_upgrade(
         .with_custom_version(to_version.to_string().as_ref())
         .with_custom_validator_apis(ValidatorDetails::default().api_urls());
 
-    config.save_to_file(None).unwrap_or_else(|err| {
+    upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);
         print_failed_upgrade(&config_version, &to_version);
         process::exit(1);

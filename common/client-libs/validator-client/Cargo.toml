@@ -36,6 +36,4 @@ cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch="0.14.1-up
 tokio = {version = "1.5", features = ["full"]}
 
 [features]
-#default = ["nymd-client"]
-default = []
 nymd-client = ["async-trait", "bip39", "config", "cosmos_sdk", "prost", "flate2", "sha2", "itertools", "cosmwasm-std"]

@@ -273,19 +273,17 @@ impl<C> Client<C> {
     }
 }
 
-#[cfg(not(feature = "nymd-client"))]
-pub struct Client {
+pub struct ApiClient {
     pub validator_api: validator_api::Client,
     // TODO: perhaps if we really need it at some (currently I don't see any reasons for it)
     // we could re-implement the communication with the REST API on port 1317
 }
 
-#[cfg(not(feature = "nymd-client"))]
-impl Client {
-    pub fn new_api(api_url: Url) -> Self {
+impl ApiClient {
+    pub fn new(api_url: Url) -> Self {
         let validator_api_client = validator_api::Client::new(api_url);
 
-        Client {
+        ApiClient {
             validator_api: validator_api_client,
         }
     }

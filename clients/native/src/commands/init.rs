@@ -85,7 +85,7 @@ async fn gateway_details(
     let validator_api = validator_servers
         .choose(&mut thread_rng())
         .expect("The list of validator apis is empty");
-    let validator_client = validator_client::Client::new_api(validator_api.clone());
+    let validator_client = validator_client::ApiClient::new(validator_api.clone());
 
     let gateways = validator_client.get_cached_gateways().await.unwrap();
     let valid_gateways = gateways

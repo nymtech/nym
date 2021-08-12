@@ -137,7 +137,7 @@ impl Gateway {
         let validator_api = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validator apis is empty");
-        let validator_client = validator_client::Client::new_api(validator_api.clone());
+        let validator_client = validator_client::ApiClient::new(validator_api.clone());
 
         let existing_gateways = match validator_client.get_cached_gateways().await {
             Ok(gateways) => gateways,

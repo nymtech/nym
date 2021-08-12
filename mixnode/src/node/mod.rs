@@ -181,7 +181,7 @@ impl MixNode {
         let validator_api = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validator apis is empty");
-        let validator_client = validator_client::Client::new_api(validator_api.clone());
+        let validator_client = validator_client::ApiClient::new(validator_api.clone());
 
         let existing_nodes = match validator_client.get_cached_mixnodes().await {
             Ok(nodes) => nodes,

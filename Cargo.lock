@@ -515,6 +515,7 @@ dependencies = [
  "humantime-serde",
  "serde",
  "toml",
+ "url",
 ]
 
 [[package]]
@@ -2083,6 +2084,7 @@ dependencies = [
  "serde",
  "tokio",
  "tokio-util",
+ "url",
  "validator-client",
  "version-checker",
 ]
@@ -2307,6 +2309,7 @@ dependencies = [
  "tokio-util",
  "toml",
  "topology",
+ "url",
  "validator-client",
  "version-checker",
 ]
@@ -4637,6 +4640,7 @@ dependencies = [
  "idna",
  "matches",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]

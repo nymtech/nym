@@ -8,11 +8,14 @@ use crypto::asymmetric::identity;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use log::*;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
+use url::Url;
 use version_checker::parse_version;
 
 pub mod error;
@@ -64,11 +67,8 @@ pub struct Config {
     /// due to being unable to get the list of nodes.
     retry_timeout: Duration,
 
-    /// URLs to the validator servers for obtaining network topology.
-    validator_urls: Vec<String>,
-
-    /// Address of the validator contract managing the network.
-    mixnet_contract_address: String,
+    /// URLs to the validator apis for obtaining network topology.
+    validator_api_urls: Vec<Url>,
 }
 
 impl Config {
@@ -88,54 +88,65 @@ impl ConfigBuilder {
         self.0.minimum_compatible_node_version = version;
         self
     }
+
     pub fn listening_address(mut self, listening_address: SocketAddr) -> Self {
         self.0.listening_address = listening_address;
         self
     }
+
     pub fn packets_per_node(mut self, packets_per_node: usize) -> Self {
         self.0.packets_per_node = packets_per_node;
         self
     }
+
     pub fn packet_timeout(mut self, packet_timeout: Duration) -> Self {
         self.0.packet_timeout = packet_timeout;
         self
     }
+
     pub fn connection_timeout(mut self, connection_timeout: Duration) -> Self {
         self.0.connection_timeout = connection_timeout;
         self
     }
+
     pub fn delay_between_packets(mut self, delay_between_packets: Duration) -> Self {
         self.0.delay_between_packets = delay_between_packets;
         self
     }
+
     pub fn tested_nodes_batch_size(mut self, tested_nodes_batch_size: usize) -> Self {
         self.0.tested_nodes_batch_size = tested_nodes_batch_size;
         self
     }
+
     pub fn testing_interval(mut self, testing_interval: Duration) -> Self {
         self.0.testing_interval = testing_interval;
         self
     }
+
     pub fn retry_timeout(mut self, retry_timeout: Duration) -> Self {
         self.0.retry_timeout = retry_timeout;
         self
     }
-    pub fn validator_urls(mut self, validator_urls: Vec<String>) -> Self {
-        self.0.validator_urls = validator_urls;
+
+    pub fn validator_api_urls(mut self, validator_api_urls: Vec<Url>) -> Self {
+        self.0.validator_api_urls = validator_api_urls;
         self
     }
-    pub fn mixnet_contract_address<S: Into<String>>(mut self, mixnet_contract_address: S) -> Self {
-        self.0.mixnet_contract_address = mixnet_contract_address.into();
-        self
-    }
+
+    // pub fn mixnet_contract_address<S: Into<String>>(mut self, mixnet_contract_address: S) -> Self {
+    //     self.0.mixnet_contract_address = mixnet_contract_address.into();
+    //     self
+    // }
+
     pub fn build(self) -> Config {
         // panics here are fine as those are only ever constructed at the initial setup
-        if self.0.validator_urls.is_empty() {
+        if self.0.validator_api_urls.is_empty() {
             panic!("at least one validator endpoint must be provided")
         }
-        if self.0.mixnet_contract_address.is_empty() {
-            panic!("the mixnet contract address must be set")
-        }
+        // if self.0.mixnet_contract_address.is_empty() {
+        //     panic!("the mixnet contract address must be set")
+        // }
         self.0
     }
 }
@@ -152,8 +163,7 @@ impl Default for ConfigBuilder {
             tested_nodes_batch_size: DEFAULT_BATCH_SIZE,
             testing_interval: DEFAULT_TESTING_INTERVAL,
             retry_timeout: DEFAULT_RETRY_TIMEOUT,
-            validator_urls: vec![],
-            mixnet_contract_address: "".to_string(),
+            validator_api_urls: vec![],
         })
     }
 }
@@ -162,6 +172,8 @@ pub struct VerlocMeasurer {
     config: Config,
     packet_sender: Arc<PacketSender>,
     packet_listener: Arc<PacketListener>,
+
+    currently_used_api: usize,
 
     // Note: this client is only fine here as it does not maintain constant connection to the validator.
     // It only does bunch of REST queries. If we update it at some point to a more sophisticated (maybe signing) client,
@@ -172,7 +184,9 @@ pub struct VerlocMeasurer {
 }
 
 impl VerlocMeasurer {
-    pub fn new(config: Config, identity: Arc<identity::KeyPair>) -> Self {
+    pub fn new(mut config: Config, identity: Arc<identity::KeyPair>) -> Self {
+        config.validator_api_urls.shuffle(&mut thread_rng());
+
         VerlocMeasurer {
             packet_sender: Arc::new(PacketSender::new(
                 Arc::clone(&identity),
@@ -185,13 +199,25 @@ impl VerlocMeasurer {
                 config.listening_address,
                 Arc::clone(&identity),
             )),
-            validator_client: validator_client::Client::new(validator_client::Config::new(
-                config.validator_urls.clone(),
-                config.mixnet_contract_address.clone(),
-            )),
+            currently_used_api: 0,
+            validator_client: validator_client::Client::new_api(
+                config.validator_api_urls[0].clone(),
+            ),
             config,
             results: AtomicVerlocResult::new(),
         }
+    }
+
+    fn use_next_validator_api(&mut self) {
+        if self.config.validator_api_urls.len() == 1 {
+            warn!("There's only a single validator API available - it won't be possible to use a different one");
+            return;
+        }
+
+        self.currently_used_api =
+            (self.currently_used_api + 1) % self.config.validator_api_urls.len();
+        self.validator_client
+            .change_validator_api(self.config.validator_api_urls[self.currently_used_api].clone())
     }
 
     pub fn get_verloc_results_pointer(&self) -> AtomicVerlocResult {
@@ -255,13 +281,15 @@ impl VerlocMeasurer {
         loop {
             info!(target: "verloc", "Starting verloc measurements");
             // TODO: should we also measure gateways?
-            let all_mixes = match self.validator_client.get_cached_mix_nodes().await {
+
+            let all_mixes = match self.validator_client.get_cached_mixnodes().await {
                 Ok(nodes) => nodes,
                 Err(err) => {
                     error!(
-                        "failed to obtain list of mixnodes from the validator - {}",
+                        "failed to obtain list of mixnodes from the validator - {}. Going to attempt to use another validator API in the next run",
                         err
                     );
+                    self.use_next_validator_api();
                     sleep(self.config.retry_timeout).await;
                     continue;
                 }

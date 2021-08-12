@@ -3,12 +3,13 @@
 
 use crate::config::template::config_template;
 use config::defaults::*;
-use config::{deserialize_duration, deserialize_validators, NymConfig};
+use config::NymConfig;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
+use url::Url;
 
 pub mod persistence;
 mod template;
@@ -32,20 +33,8 @@ const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_milli
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 128;
 
-// helper function to get default validators as a Vec<String>
-pub fn default_validator_rest_endpoints() -> Vec<String> {
-    DEFAULT_VALIDATOR_REST_ENDPOINTS
-        .iter()
-        .map(|&endpoint| endpoint.to_string())
-        .collect()
-}
-
 pub fn missing_string_value<T: From<String>>() -> T {
     MISSING_VALUE.to_string().into()
-}
-
-pub fn missing_vec_string_value() -> Vec<String> {
-    vec![missing_string_value()]
 }
 
 fn bind_all_address() -> IpAddr {
@@ -159,13 +148,8 @@ impl Config {
         self
     }
 
-    pub fn with_custom_validators(mut self, validators: Vec<String>) -> Self {
-        self.mixnode.validator_rest_urls = validators;
-        self
-    }
-
-    pub fn with_custom_mixnet_contract<S: Into<String>>(mut self, mixnet_contract: S) -> Self {
-        self.mixnode.mixnet_contract_address = mixnet_contract.into();
+    pub fn with_custom_validator_apis(mut self, validator_api_urls: Vec<Url>) -> Self {
+        self.mixnode.validator_api_urls = validator_api_urls;
         self
     }
 
@@ -233,12 +217,8 @@ impl Config {
         self.mixnode.public_sphinx_key_file.clone()
     }
 
-    pub fn get_validator_rest_endpoints(&self) -> Vec<String> {
-        self.mixnode.validator_rest_urls.clone()
-    }
-
-    pub fn get_validator_mixnet_contract_address(&self) -> String {
-        self.mixnode.mixnet_contract_address.clone()
+    pub fn get_validator_api_endpoints(&self) -> Vec<Url> {
+        self.mixnode.validator_api_urls.clone()
     }
 
     pub fn get_node_stats_logging_delay(&self) -> Duration {
@@ -289,13 +269,10 @@ impl Config {
         &self.mixnode.version
     }
 
-    pub fn get_id(&self) -> String {
-        self.mixnode.id.clone()
-    }
-
     pub fn get_measurement_packets_per_node(&self) -> usize {
         self.verloc.packets_per_node
     }
+
     pub fn get_measurement_packet_timeout(&self) -> Duration {
         self.verloc.packet_timeout
     }
@@ -307,22 +284,17 @@ impl Config {
     pub fn get_measurement_delay_between_packets(&self) -> Duration {
         self.verloc.delay_between_packets
     }
+
     pub fn get_measurement_tested_nodes_batch_size(&self) -> usize {
         self.verloc.tested_nodes_batch_size
     }
+
     pub fn get_measurement_testing_interval(&self) -> Duration {
         self.verloc.testing_interval
     }
+
     pub fn get_measurement_retry_timeout(&self) -> Duration {
         self.verloc.retry_timeout
-    }
-
-    // upgrade-specific
-    pub(crate) fn set_default_identity_keypair_paths(&mut self) {
-        self.mixnode.private_identity_key_file =
-            self::MixNode::default_private_identity_key_file(&self.mixnode.id);
-        self.mixnode.public_identity_key_file =
-            self::MixNode::default_public_identity_key_file(&self.mixnode.id);
     }
 }
 
@@ -373,17 +345,8 @@ pub struct MixNode {
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
 
-    /// Validator server from which the node gets the view on the network.
-    #[serde(
-        deserialize_with = "deserialize_validators",
-        default = "missing_vec_string_value",
-        alias = "validator_rest_url"
-    )]
-    validator_rest_urls: Vec<String>,
-
-    /// Address of the validator contract managing the network.
-    #[serde(default = "missing_string_value")]
-    mixnet_contract_address: String,
+    /// Addresses to APIs running on validator from which the node gets the view of the network.
+    validator_api_urls: Vec<Url>,
 
     /// nym_home_directory specifies absolute path to the home nym MixNodes directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
@@ -422,8 +385,7 @@ impl Default for MixNode {
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
-            validator_rest_urls: default_validator_rest_endpoints(),
-            mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
+            validator_api_urls: ValidatorDetails::default().api_urls(),
             nym_root_directory: Config::default_root_directory(),
         }
     }
@@ -483,40 +445,25 @@ impl Default for Verloc {
 #[serde(default)]
 pub struct Debug {
     /// Delay between each subsequent node statistics being logged to the console
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
+    #[serde(with = "humantime_serde")]
     node_stats_logging_delay: Duration,
 
     /// Delay between each subsequent node statistics being updated
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
+    #[serde(with = "humantime_serde")]
     node_stats_updating_delay: Duration,
 
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
+    #[serde(with = "humantime_serde")]
     packet_forwarding_initial_backoff: Duration,
 
     /// Maximum value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
+    #[serde(with = "humantime_serde")]
     packet_forwarding_maximum_backoff: Duration,
 
     /// Timeout for establishing initial connection when trying to forward a sphinx packet.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
+    #[serde(with = "humantime_serde")]
     initial_connection_timeout: Duration,
 
     /// Maximum number of packets that can be stored waiting to get sent to a particular connection.

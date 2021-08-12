@@ -24,14 +24,11 @@ pub struct Config {
 #[cfg(feature = "nymd-client")]
 impl Config {
     pub fn new(
-        nymd_raw_url: impl Into<String>,
-        api_raw_url: impl Into<String>,
+        nymd_url: Url,
+        api_url: Url,
         mixnet_contract_address: Option<cosmos_sdk::AccountId>,
-    ) -> Result<Self, ValidatorClientError> {
-        let nymd_url = Url::parse(nymd_raw_url.into().as_ref())?;
-        let api_url = Url::parse(api_raw_url.into().as_ref())?;
-
-        Ok(Config {
+    ) -> Self {
+        Config {
             nymd_url,
             mixnet_contract_address,
             api_url,
@@ -39,7 +36,7 @@ impl Config {
             gateway_page_limit: None,
             mixnode_delegations_page_limit: None,
             gateway_delegations_page_limit: None,
-        })
+        }
     }
 
     pub fn with_mixnode_page_limit(mut self, limit: Option<u32>) -> Config {
@@ -103,13 +100,9 @@ impl Client<SigningNymdClient> {
         })
     }
 
-    pub fn change_nymd(
-        &mut self,
-        new_endpoint: impl Into<String>,
-    ) -> Result<(), ValidatorClientError> {
-        let nymd_url = Url::parse(new_endpoint.into().as_ref())?;
+    pub fn change_nymd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
         self.nymd = NymdClient::connect_with_mnemonic(
-            nymd_url.as_str(),
+            new_endpoint.as_ref(),
             self.mixnet_contract_address.clone(),
             self.mnemonic.clone().unwrap(),
         )?;
@@ -143,13 +136,9 @@ impl Client<QueryNymdClient> {
         })
     }
 
-    pub fn change_nymd(
-        &mut self,
-        new_endpoint: impl Into<String>,
-    ) -> Result<(), ValidatorClientError> {
-        let nymd_url = Url::parse(new_endpoint.into().as_ref())?;
+    pub fn change_nymd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
         self.nymd = NymdClient::connect(
-            nymd_url.as_str(),
+            new_endpoint.as_ref(),
             self.mixnet_contract_address.clone().unwrap(),
         )?;
         Ok(())
@@ -158,13 +147,8 @@ impl Client<QueryNymdClient> {
 
 #[cfg(feature = "nymd-client")]
 impl<C> Client<C> {
-    pub fn change_validator_api(
-        &mut self,
-        new_endpoint: impl Into<String>,
-    ) -> Result<(), ValidatorClientError> {
-        let api_url = Url::parse(new_endpoint.into().as_ref())?;
-        self.validator_api = validator_api::Client::new(api_url);
-        Ok(())
+    pub fn change_validator_api(&mut self, new_endpoint: Url) {
+        self.validator_api = validator_api::Client::new(new_endpoint);
     }
 
     // use case: somebody initialised client without a contract in order to upload and initialise one
@@ -298,22 +282,16 @@ pub struct Client {
 
 #[cfg(not(feature = "nymd-client"))]
 impl Client {
-    pub fn new(api_raw_url: impl Into<String>) -> Result<Self, ValidatorClientError> {
-        let api_url = Url::parse(api_raw_url.into().as_ref())?;
+    pub fn new_api(api_url: Url) -> Self {
         let validator_api_client = validator_api::Client::new(api_url);
 
-        Ok(Client {
+        Client {
             validator_api: validator_api_client,
-        })
+        }
     }
 
-    pub fn change_validator_api(
-        &mut self,
-        new_endpoint: impl Into<String>,
-    ) -> Result<(), ValidatorClientError> {
-        let api_url = Url::parse(new_endpoint.into().as_ref())?;
-        self.validator_api = validator_api::Client::new(api_url);
-        Ok(())
+    pub fn change_validator_api(&mut self, new_endpoint: Url) {
+        self.validator_api = validator_api::Client::new(new_endpoint);
     }
 
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {

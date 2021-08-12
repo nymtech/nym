@@ -17,6 +17,8 @@ use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSende
 use crypto::asymmetric::{encryption, identity};
 use log::{error, info, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
@@ -164,8 +166,7 @@ impl MixNode {
             .tested_nodes_batch_size(self.config.get_measurement_tested_nodes_batch_size())
             .testing_interval(self.config.get_measurement_testing_interval())
             .retry_timeout(self.config.get_measurement_retry_timeout())
-            .validator_urls(self.config.get_validator_rest_endpoints())
-            .mixnet_contract_address(self.config.get_validator_mixnet_contract_address())
+            .validator_api_urls(self.config.get_validator_api_endpoints())
             .build();
 
         let mut verloc_measurer = VerlocMeasurer::new(config, Arc::clone(&self.identity_keypair));
@@ -176,13 +177,13 @@ impl MixNode {
 
     // TODO: ask DH whether this function still makes sense in ^0.10
     async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
-        let validator_client_config = validator_client::Config::new(
-            self.config.get_validator_rest_endpoints(),
-            self.config.get_validator_mixnet_contract_address(),
-        );
-        let validator_client = validator_client::Client::new(validator_client_config);
+        let endpoints = self.config.get_validator_api_endpoints();
+        let validator_api = endpoints
+            .choose(&mut thread_rng())
+            .expect("The list of validator apis is empty");
+        let validator_client = validator_client::Client::new_api(validator_api.clone());
 
-        let existing_nodes = match validator_client.get_cached_mix_nodes().await {
+        let existing_nodes = match validator_client.get_cached_mixnodes().await {
             Ok(nodes) => nodes,
             Err(err) => {
                 error!("failed to grab initial network mixnodes - {}\n Please try to startup again in few minutes", err);

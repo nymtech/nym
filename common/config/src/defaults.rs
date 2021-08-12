@@ -1,6 +1,8 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use url::Url;
+
 pub struct ValidatorDetails<'a> {
     // it is assumed those values are always valid since they're being provided in our defaults file
     pub nymd_urls: &'a [&'a str],
@@ -14,6 +16,35 @@ impl<'a> ValidatorDetails<'a> {
             api_urls,
         }
     }
+
+    pub fn nymd_urls(&self) -> Vec<Url> {
+        self.nymd_urls
+            .iter()
+            .map(|url| {
+                url.parse()
+                    .expect("one of the default nymd urls is invalid")
+            })
+            .collect()
+    }
+
+    pub fn api_urls(&self) -> Vec<Url> {
+        self.nymd_urls
+            .iter()
+            .map(|url| url.parse().expect("one of the default api urls is invalid"))
+            .collect()
+    }
+}
+
+impl<'a> Default for ValidatorDetails<'a> {
+    fn default() -> Self {
+        ValidatorDetails::new(
+            &[
+                "https://testnet-milhon-validator1.nymtech.net",
+                "https://testnet-milhon-validator2.nymtech.net",
+            ],
+            &["https://testnet-milhon-validator1.nymtech.net/api"],
+        )
+    }
 }
 
 pub const DEFAULT_VALIDATORS: &[ValidatorDetails] = &[ValidatorDetails::new(
@@ -24,6 +55,7 @@ pub const DEFAULT_VALIDATORS: &[ValidatorDetails] = &[ValidatorDetails::new(
     &["https://testnet-milhon-validator1.nymtech.net/api"],
 )];
 
+#[deprecated]
 pub const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
     "http://testnet-milhon-validator1.nymtech.net:1317",
     "http://testnet-milhon-validator2.nymtech.net:1317",

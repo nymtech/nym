@@ -115,7 +115,8 @@ impl ValidatorCache {
     pub fn stage() -> AdHoc {
         AdHoc::on_ignite("Validator Cache Stage", |rocket| async {
             rocket.manage(Self::new()).mount(
-                VALIDATOR_API_VERSION,
+                // this format! is so ugly...
+                format!("/{}", VALIDATOR_API_VERSION),
                 routes![routes::get_mixnodes, routes::get_gateways],
             )
         })

@@ -16,7 +16,7 @@ use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};
 use log::info;
 use rocket::http::Method;
-use rocket::{Build, Rocket};
+use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use std::process;
 
@@ -184,7 +184,14 @@ fn setup_cors() -> Result<Cors> {
     Ok(cors)
 }
 
-async fn setup_network_monitor(config: &Config, rocket: &Rocket<Build>) -> NetworkMonitorRunnables {
+async fn setup_network_monitor(
+    config: &Config,
+    rocket: &Rocket<Ignite>,
+) -> Option<NetworkMonitorRunnables> {
+    if !config.get_network_monitor_enabled() {
+        return None;
+    }
+
     // get instances of managed states
     let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
@@ -193,16 +200,16 @@ async fn setup_network_monitor(config: &Config, rocket: &Rocket<Build>) -> Netwo
     let v6_topology = parse_topology_file(config.get_v6_good_topology_file());
     network_monitor::check_if_up_to_date(&v4_topology, &v6_topology);
 
-    new_monitor_runnables(
+    Some(new_monitor_runnables(
         &config,
         v4_topology,
         v6_topology,
         node_status_storage,
         validator_cache,
-    )
+    ))
 }
 
-async fn setup_rocket(config: &Config) -> Result<Rocket<Build>> {
+async fn setup_rocket(config: &Config) -> Result<Rocket<Ignite>> {
     // let's build our rocket!
     let rocket_config = rocket::config::Config {
         // TODO: probably the port should be configurable?
@@ -215,11 +222,14 @@ async fn setup_rocket(config: &Config) -> Result<Rocket<Build>> {
 
     // see if we should start up network monitor and if so, attach the node status api
     if config.get_network_monitor_enabled() {
-        Ok(rocket.attach(node_status_api::stage(
-            config.get_node_status_api_database_path(),
-        )))
+        Ok(rocket
+            .attach(node_status_api::stage(
+                config.get_node_status_api_database_path(),
+            ))
+            .ignite()
+            .await?)
     } else {
-        Ok(rocket)
+        Ok(rocket.ignite().await?)
     }
 }
 
@@ -249,6 +259,8 @@ async fn main() -> Result<()> {
 
     // let's build our rocket!
     let rocket = setup_rocket(&config).await?;
+    let monitor_runnables = setup_network_monitor(&config, &rocket).await;
+
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
     // if network monitor is disabled, we're not going to be sending any rewarding hence
@@ -275,9 +287,8 @@ async fn main() -> Result<()> {
         tokio::spawn(async move { validator_cache_refresher.run().await });
     }
 
-    if config.get_network_monitor_enabled() {
+    if let Some(runnables) = monitor_runnables {
         info!("Starting network monitor...");
-        let runnables = setup_network_monitor(&config, &rocket).await;
         // spawn network monitor!
         runnables.spawn_tasks();
     } else {
@@ -285,7 +296,6 @@ async fn main() -> Result<()> {
     }
 
     // and launch the rocket
-    let rocket = rocket.ignite().await.expect("failed to ignite the rocket!");
     let shutdown_handle = rocket.shutdown();
 
     tokio::spawn(rocket.launch());

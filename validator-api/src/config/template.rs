@@ -11,14 +11,13 @@ pub(crate) fn config_template() -> &'static str {
 [base]
 
 # Validator server to which the API will be getting information about the network.
-validator_rest_urls = [
-    {{#each base.validator_rest_urls }}
-        '{{this}}',
-    {{/each}}
-]
+local_validator = '{{ base.local_validator }}'
 
 # Address of the validator contract managing the network.
 mixnet_contract_address = '{{ base.mixnet_contract_address }}'
+
+# Mnemonic (currently of the network monitor) used for rewarding
+mnemonic = '{{ base.mnemonic }}'
 
 ##### network monitor config options #####
 

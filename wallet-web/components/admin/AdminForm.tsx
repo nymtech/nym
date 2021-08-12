@@ -22,7 +22,7 @@ export default function AdminForm(props: AdminFormProps) {
                         required
                         id="mix_bond"
                         name="mix_bond"
-                        label="Minimum Mixnode BondMixnode"
+                        label="Minimum Mixnode Bond"
                         defaultValue={nativeToPrintable(props.currentParams.minimum_mixnode_bond)}
                         fullWidth
                         InputProps={{
@@ -36,7 +36,7 @@ export default function AdminForm(props: AdminFormProps) {
                         required
                         id="gateway_bond"
                         name="gateway_bond"
-                        label="Minimum Gateway BondMixnode"
+                        label="Minimum Gateway Bond"
                         defaultValue={nativeToPrintable(props.currentParams.minimum_gateway_bond)}
                         fullWidth
                         InputProps={{
@@ -50,7 +50,7 @@ export default function AdminForm(props: AdminFormProps) {
                         required
                         id="mix_reward"
                         name="mix_reward"
-                        label="Mixnode BondMixnode Reward Rate"
+                        label="Mixnode Bond Reward Rate"
                         defaultValue={props.currentParams.mixnode_bond_reward_rate}
                         fullWidth
                     />
@@ -60,7 +60,7 @@ export default function AdminForm(props: AdminFormProps) {
                         required
                         id="gateway_reward"
                         name="gateway_reward"
-                        label="Gateway BondMixnode Reward Rate"
+                        label="Gateway Bond Reward Rate"
                         defaultValue={props.currentParams.gateway_bond_reward_rate}
                         fullWidth
                     />

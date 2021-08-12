@@ -23,6 +23,7 @@ members = [
     "common/crypto",
     "common/mixnet-contract",
     "common/mixnode-common",
+    "common/network-defaults",
     "common/nonexhaustive-delayqueue",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",

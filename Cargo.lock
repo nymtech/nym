@@ -514,6 +514,7 @@ version = "0.1.0"
 dependencies = [
  "handlebars",
  "humantime-serde",
+ "network-defaults",
  "serde",
  "toml",
  "url",
@@ -2130,6 +2131,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "network-defaults"
+version = "0.1.0"
+dependencies = [
+ "url",
+]
+
+[[package]]
 name = "nom"
 version = "6.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2398,6 +2406,7 @@ dependencies = [
  "sqlx",
  "tokio",
  "topology",
+ "url",
  "validator-client",
  "version-checker",
 ]
@@ -4673,6 +4682,7 @@ dependencies = [
  "itertools 0.10.1",
  "log",
  "mixnet-contract",
+ "network-defaults",
  "prost",
  "reqwest",
  "serde",

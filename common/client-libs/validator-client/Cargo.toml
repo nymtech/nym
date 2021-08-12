@@ -16,6 +16,8 @@ thiserror = "1"
 log = "0.4"
 url = "2.2"
 
+network-defaults = { path = "../../network-defaults" }
+
 # required for nymd-client
 # at some point it might be possible to make it wasm-compatible
 # perhaps after https://github.com/cosmos/cosmos-rust/pull/97 is resolved (and tendermint-rs is updated)

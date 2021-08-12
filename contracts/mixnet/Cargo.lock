@@ -62,6 +62,7 @@ version = "0.1.0"
 dependencies = [
  "handlebars",
  "humantime-serde",
+ "network-defaults",
  "serde",
  "toml",
  "url",
@@ -454,6 +455,13 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "network-defaults"
+version = "0.1.0"
+dependencies = [
+ "url",
 ]
 
 [[package]]

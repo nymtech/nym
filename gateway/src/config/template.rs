@@ -49,15 +49,12 @@ mix_port = {{ gateway.mix_port }}
 # (default: 9000)
 clients_port = {{ gateway.clients_port }}
 
-# Validator server to which the node will be getting information about the network.
-validator_rest_urls = [
-    {{#each gateway.validator_rest_urls }}
+# Addresses to APIs running on validator from which the node gets the view of the network.
+validator_api_urls = [
+    {{#each gateway.validator_api_urls }}
         '{{this}}',
     {{/each}}
 ]
-
-# Address of the validator contract managing the network.
-mixnet_contract_address = '{{ gateway.mixnet_contract_address }}'
 
 ##### advanced configuration options #####
 

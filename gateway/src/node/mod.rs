@@ -9,6 +9,8 @@ use crate::node::storage::{inboxes, ClientLedger};
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
@@ -131,11 +133,11 @@ impl Gateway {
 
     // TODO: ask DH whether this function still makes sense in ^0.10
     async fn check_if_same_ip_gateway_exists(&self) -> Option<String> {
-        let validator_client_config = validator_client::Config::new(
-            self.config.get_validator_rest_endpoints(),
-            self.config.get_validator_mixnet_contract_address(),
-        );
-        let validator_client = validator_client::Client::new(validator_client_config);
+        let endpoints = self.config.get_validator_api_endpoints();
+        let validator_api = endpoints
+            .choose(&mut thread_rng())
+            .expect("The list of validator apis is empty");
+        let validator_client = validator_client::Client::new_api(validator_api.clone());
 
         let existing_gateways = match validator_client.get_cached_gateways().await {
             Ok(gateways) => gateways,

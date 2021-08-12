@@ -13,6 +13,7 @@ use received_processor::ReceivedMessagesProcessor;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::{gateway, nym_topology_from_bonds, NymTopology};
+use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use wasm_utils::{console_log, console_warn};
@@ -25,8 +26,7 @@ const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 
 #[wasm_bindgen]
 pub struct NymClient {
-    validator_server: String,
-    mixnet_contract_address: String,
+    validator_server: Url,
 
     // TODO: technically this doesn't need to be an Arc since wasm is run on a single thread
     // however, once we eventually combine this code with the native-client's, it will make things
@@ -51,7 +51,7 @@ pub struct NymClient {
 #[wasm_bindgen]
 impl NymClient {
     #[wasm_bindgen(constructor)]
-    pub fn new(validator_server: String, mixnet_contract_address: String) -> Self {
+    pub fn new(validator_server: String) -> Self {
         let mut rng = OsRng;
         // for time being generate new keys each time...
         let identity = identity::KeyPair::new(&mut rng);
@@ -62,8 +62,9 @@ impl NymClient {
             identity: Arc::new(identity),
             encryption_keys: Arc::new(encryption_keys),
             ack_key: Arc::new(ack_key),
-            validator_server,
-            mixnet_contract_address,
+            validator_server: validator_server
+                .parse()
+                .expect("malformed validator server url provided"),
             message_preparer: None,
             // received_keys: Default::default(),
             topology: None,
@@ -236,13 +237,9 @@ impl NymClient {
     // }
 
     pub(crate) async fn get_nym_topology(&self) -> NymTopology {
-        let validator_client_config = validator_client::Config::new(
-            vec![self.validator_server.clone()],
-            &self.mixnet_contract_address,
-        );
-        let validator_client = validator_client::Client::new(validator_client_config);
+        let validator_client = validator_client::Client::new_api(self.validator_server.clone());
 
-        let mixnodes = match validator_client.get_cached_mix_nodes().await {
+        let mixnodes = match validator_client.get_cached_mixnodes().await {
             Err(err) => panic!("{}", err),
             Ok(mixes) => mixes,
         };

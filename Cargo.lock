@@ -2243,6 +2243,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "topology",
+ "url",
  "validator-client",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -2277,6 +2278,7 @@ dependencies = [
  "tokio-stream",
  "tokio-tungstenite",
  "tokio-util",
+ "url",
  "validator-client",
  "version-checker",
 ]

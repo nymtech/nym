@@ -1171,6 +1171,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "fluvio-wasm-timer"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b768c170dc045fa587a8f948c91f9bcfb87f774930477c6215addf54317f137f"
+dependencies = [
+ "futures",
+ "js-sys",
+ "parking_lot",
+ "pin-utils",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1331,6 +1346,7 @@ name = "gateway-client"
 version = "0.1.0"
 dependencies = [
  "crypto",
+ "fluvio-wasm-timer",
  "futures",
  "gateway-requests",
  "getrandom 0.2.3",
@@ -1342,7 +1358,6 @@ dependencies = [
  "tungstenite",
  "wasm-bindgen",
  "wasm-bindgen-futures",
- "wasm-timer",
  "wasm-utils",
 ]
 
@@ -1794,6 +1809,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61124eeebbd69b8190558df225adf7e4caafce0d743919e5d6b19652314ec5ec"
 dependencies = [
  "cfg-if 1.0.0",
+ "js-sys",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
@@ -4662,6 +4680,7 @@ dependencies = [
  "cosmos_sdk",
  "cosmwasm-std",
  "flate2",
+ "fluvio-wasm-timer",
  "getrandom 0.2.3",
  "itertools 0.10.1",
  "log",
@@ -4675,7 +4694,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
- "wasm-timer",
 ]
 
 [[package]]
@@ -4826,21 +4844,6 @@ checksum = "dd4543fc6cf3541ef0d98bf720104cc6bd856d7eba449fd2aa365ef4fed0e782"
 dependencies = [
  "proc-macro2",
  "quote",
-]
-
-[[package]]
-name = "wasm-timer"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be0ecb0db480561e9a7642b5d3e4187c128914e58aa84330b9493e3eb68c5e7f"
-dependencies = [
- "futures",
- "js-sys",
- "parking_lot",
- "pin-utils",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]

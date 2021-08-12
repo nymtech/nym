@@ -6,23 +6,25 @@ extern crate rocket;
 
 use crate::cache::ValidatorCacheRefresher;
 use crate::config::Config;
-use crate::network_monitor::new_monitor_runnables;
 use crate::network_monitor::tested_network::good_topology::parse_topology_file;
+use crate::network_monitor::{new_monitor_runnables, NetworkMonitorRunnables};
+use crate::nymd_client::Client;
 use crate::storage::NodeStatusStorage;
-use ::config::NymConfig;
+use ::config::{defaults::DEFAULT_VALIDATOR_API_PORT, NymConfig};
 use anyhow::Result;
 use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};
 use log::info;
 use rocket::http::Method;
+use rocket::{Build, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use std::process;
-use validator_client::validator_api::VALIDATOR_API_PORT;
 
 pub(crate) mod cache;
 pub(crate) mod config;
 mod network_monitor;
 mod node_status_api;
+pub(crate) mod nymd_client;
 pub(crate) mod storage;
 
 const MONITORING_ENABLED: &str = "enable-monitor";
@@ -31,6 +33,7 @@ const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
 const VALIDATORS_ARG: &str = "validators";
 const DETAILED_REPORT_ARG: &str = "detailed-report";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
+const MNEMONIC_ARG: &str = "mnemonic";
 const WRITE_CONFIG_ARG: &str = "save-config";
 
 pub(crate) const PENALISE_OUTDATED: bool = false;
@@ -61,9 +64,14 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .long(VALIDATORS_ARG)
                 .takes_value(true)
         )
-        .arg(Arg::with_name("mixnet-contract")
+        .arg(Arg::with_name(MIXNET_CONTRACT_ARG)
                  .long(MIXNET_CONTRACT_ARG)
                  .help("Address of the validator contract managing the network")
+                 .takes_value(true),
+        )
+        .arg(Arg::with_name(MNEMONIC_ARG)
+                 .long(MNEMONIC_ARG)
+                 .help("Mnemonic of the network monitor used for rewarding operators")
                  .takes_value(true),
         )
         .arg(
@@ -111,12 +119,6 @@ fn setup_logging() {
 }
 
 fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
-    fn parse_validators(raw: &str) -> Vec<String> {
-        raw.split(',')
-            .map(|raw_validator| raw_validator.trim().into())
-            .collect()
-    }
-
     if matches.is_present(MONITORING_ENABLED) {
         config = config.enabled_network_monitor(true)
     }
@@ -129,12 +131,23 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_v6_good_topology(v6_topology_path)
     }
 
-    if let Some(raw_validators) = matches.value_of(VALIDATORS_ARG) {
-        config = config.with_custom_validators(parse_validators(raw_validators));
+    if let Some(raw_validator) = matches.value_of(VALIDATORS_ARG) {
+        let parsed = match raw_validator.parse() {
+            Err(err) => {
+                error!("Passed validator argument is invalid - {}", err);
+                process::exit(1)
+            }
+            Ok(url) => url,
+        };
+        config = config.with_custom_validator(parsed);
     }
 
     if let Some(mixnet_contract) = matches.value_of(MIXNET_CONTRACT_ARG) {
         config = config.with_custom_mixnet_contract(mixnet_contract)
+    }
+
+    if let Some(mnemonic) = matches.value_of(MNEMONIC_ARG) {
+        config = config.with_mnemonic(mnemonic)
     }
 
     if matches.is_present(DETAILED_REPORT_ARG) {
@@ -171,6 +184,45 @@ fn setup_cors() -> Result<Cors> {
     Ok(cors)
 }
 
+async fn setup_network_monitor(config: &Config, rocket: &Rocket<Build>) -> NetworkMonitorRunnables {
+    // get instances of managed states
+    let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
+    let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
+
+    let v4_topology = parse_topology_file(config.get_v4_good_topology_file());
+    let v6_topology = parse_topology_file(config.get_v6_good_topology_file());
+    network_monitor::check_if_up_to_date(&v4_topology, &v6_topology);
+
+    new_monitor_runnables(
+        &config,
+        v4_topology,
+        v6_topology,
+        node_status_storage,
+        validator_cache,
+    )
+}
+
+async fn setup_rocket(config: &Config) -> Result<Rocket<Build>> {
+    // let's build our rocket!
+    let rocket_config = rocket::config::Config {
+        // TODO: probably the port should be configurable?
+        port: DEFAULT_VALIDATOR_API_PORT,
+        ..Default::default()
+    };
+    let rocket = rocket::custom(rocket_config)
+        .attach(setup_cors()?)
+        .attach(ValidatorCache::stage());
+
+    // see if we should start up network monitor and if so, attach the node status api
+    if config.get_network_monitor_enabled() {
+        Ok(rocket.attach(node_status_api::stage(
+            config.get_node_status_api_database_path(),
+        )))
+    } else {
+        Ok(rocket)
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     setup_logging();
@@ -196,66 +248,50 @@ async fn main() -> Result<()> {
     let config = override_config(config, &matches);
 
     // let's build our rocket!
-    let rocket_config = rocket::config::Config {
-        port: VALIDATOR_API_PORT,
-        ..Default::default()
-    };
-    let rocket = rocket::custom(rocket_config)
-        .attach(setup_cors()?)
-        .attach(ValidatorCache::stage());
-
-    // see if we should start up network monitor and ignite our rocket
-    let rocket = if config.get_network_monitor_enabled() {
-        // don't start our node-status api if we're not running the monitor - we can't get
-        // report data otherwise
-        let rocket = rocket
-            .attach(node_status_api::stage(
-                config.get_node_status_api_database_path(),
-            ))
-            .ignite()
-            .await?;
-
-        info!("Network monitor starting...");
-
-        // get instances of managed states
-        let node_status_storage = rocket.state::<NodeStatusStorage>().unwrap().clone();
-        let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
-
-        let v4_topology = parse_topology_file(config.get_v4_good_topology_file());
-        let v6_topology = parse_topology_file(config.get_v6_good_topology_file());
-        network_monitor::check_if_up_to_date(&v4_topology, &v6_topology);
-
-        let network_monitor_runnables = new_monitor_runnables(
-            &config,
-            v4_topology,
-            v6_topology,
-            node_status_storage,
-            validator_cache,
-        );
-        network_monitor_runnables.spawn_tasks();
-
-        rocket
-    } else {
-        info!("Network monitoring is disabled.");
-        rocket.ignite().await?
-    };
-
+    let rocket = setup_rocket(&config).await?;
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
-    let validator_cache_refresher = ValidatorCacheRefresher::new(
-        config.get_validators_urls(),
-        config.get_mixnet_contract_address(),
-        config.get_caching_interval(),
-        validator_cache,
-    );
+    // if network monitor is disabled, we're not going to be sending any rewarding hence
+    // we're not starting signing client
+    if config.get_network_monitor_enabled() {
+        let nymd_client = Client::new_signing(&config);
+        let validator_cache_refresher = ValidatorCacheRefresher::new(
+            nymd_client,
+            config.get_caching_interval(),
+            validator_cache,
+        );
 
-    // spawn our cacher
-    tokio::spawn(async move { validator_cache_refresher.run().await });
+        // spawn our cacher
+        tokio::spawn(async move { validator_cache_refresher.run().await });
+    } else {
+        let nymd_client = Client::new_query(&config);
+        let validator_cache_refresher = ValidatorCacheRefresher::new(
+            nymd_client,
+            config.get_caching_interval(),
+            validator_cache,
+        );
+
+        // spawn our cacher
+        tokio::spawn(async move { validator_cache_refresher.run().await });
+    }
+
+    if config.get_network_monitor_enabled() {
+        info!("Starting network monitor...");
+        let runnables = setup_network_monitor(&config, &rocket).await;
+        // spawn network monitor!
+        runnables.spawn_tasks();
+    } else {
+        info!("Network monitoring is disabled.");
+    }
 
     // and launch the rocket
+    let rocket = rocket.ignite().await.expect("failed to ignite the rocket!");
+    let shutdown_handle = rocket.shutdown();
+
     tokio::spawn(rocket.launch());
 
     wait_for_interrupt().await;
+    shutdown_handle.notify();
 
     Ok(())
 }

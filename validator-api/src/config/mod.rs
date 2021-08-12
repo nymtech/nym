@@ -7,10 +7,11 @@ use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use url::Url;
 
 mod template;
 
-const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &["http://localhost:1317"];
+const DEFAULT_LOCAL_VALIDATOR: &str = "http://localhost:26657";
 
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
 const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;
@@ -66,22 +67,23 @@ impl NymConfig for Config {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Base {
-    // TODO: this will probably be changed very soon to point only to a single endpoint,
-    // that will be a local address
-    validator_rest_urls: Vec<String>,
+    local_validator: Url,
 
     /// Address of the validator contract managing the network
     mixnet_contract_address: String,
+
+    /// Mnemonic (currently of the network monitor) used for rewarding
+    mnemonic: String,
 }
 
 impl Default for Base {
     fn default() -> Self {
         Base {
-            validator_rest_urls: DEFAULT_VALIDATOR_REST_ENDPOINTS
-                .iter()
-                .map(|&endpoint| endpoint.to_string())
-                .collect(),
+            local_validator: DEFAULT_LOCAL_VALIDATOR
+                .parse()
+                .expect("default local validator is malformed!"),
             mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
+            mnemonic: "".to_string(),
         }
     }
 }
@@ -222,13 +224,18 @@ impl Config {
         self
     }
 
-    pub fn with_custom_validators(mut self, validators: Vec<String>) -> Self {
-        self.base.validator_rest_urls = validators;
+    pub fn with_custom_validator(mut self, validator: Url) -> Self {
+        self.base.local_validator = validator;
         self
     }
 
     pub fn with_custom_mixnet_contract<S: Into<String>>(mut self, mixnet_contract: S) -> Self {
         self.base.mixnet_contract_address = mixnet_contract.into();
+        self
+    }
+
+    pub fn with_mnemonic<S: Into<String>>(mut self, mnemonic: S) -> Self {
+        self.base.mnemonic = mnemonic.into();
         self
     }
 
@@ -248,12 +255,16 @@ impl Config {
         self.network_monitor.good_v6_topology_file.clone()
     }
 
-    pub fn get_validators_urls(&self) -> Vec<String> {
-        self.base.validator_rest_urls.clone()
+    pub fn get_validator_url(&self) -> Url {
+        self.base.local_validator.clone()
     }
 
     pub fn get_mixnet_contract_address(&self) -> String {
         self.base.mixnet_contract_address.clone()
+    }
+
+    pub fn get_mnemonic(&self) -> String {
+        self.base.mnemonic.clone()
     }
 
     pub fn get_network_monitor_run_interval(&self) -> Duration {

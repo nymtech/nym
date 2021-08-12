@@ -1,7 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nymd_client::Client;
 use anyhow::Result;
+use config::defaults::VALIDATOR_API_VERSION;
 use mixnet_contract::{GatewayBond, MixNodeBond};
 use rocket::fairing::AdHoc;
 use serde::Serialize;
@@ -10,13 +12,12 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use tokio::time;
-use validator_client::validator_api::VALIDATOR_API_CACHE_VERSION;
-use validator_client::Client;
+use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod routes;
 
-pub struct ValidatorCacheRefresher {
-    validator_client: Client,
+pub struct ValidatorCacheRefresher<C> {
+    nymd_client: Client<C>,
     cache: ValidatorCache,
     caching_interval: Duration,
 }
@@ -35,7 +36,6 @@ struct ValidatorCacheInner {
 #[derive(Default, Serialize, Clone)]
 pub struct Cache<T> {
     value: T,
-    #[allow(dead_code)]
     as_at: u64,
 }
 
@@ -53,27 +53,26 @@ impl<T: Clone> Cache<T> {
     }
 }
 
-impl ValidatorCacheRefresher {
+impl<C> ValidatorCacheRefresher<C> {
     pub(crate) fn new(
-        validators_rest_uris: Vec<String>,
-        mixnet_contract: String,
+        nymd_client: Client<C>,
         caching_interval: Duration,
         cache: ValidatorCache,
     ) -> Self {
-        let config = validator_client::Config::new(validators_rest_uris, mixnet_contract);
-        let validator_client = validator_client::Client::new(config);
-
         ValidatorCacheRefresher {
-            validator_client,
+            nymd_client,
             cache,
             caching_interval,
         }
     }
 
-    async fn refresh_cache(&self) -> Result<()> {
+    async fn refresh_cache(&self) -> Result<()>
+    where
+        C: CosmWasmClient + Sync,
+    {
         let (mixnodes, gateways) = tokio::try_join!(
-            self.validator_client.get_mix_nodes(),
-            self.validator_client.get_gateways()
+            self.nymd_client.get_mixnodes(),
+            self.nymd_client.get_gateways()
         )?;
 
         info!(
@@ -87,7 +86,10 @@ impl ValidatorCacheRefresher {
         Ok(())
     }
 
-    pub(crate) async fn run(&self) {
+    pub(crate) async fn run(&self)
+    where
+        C: CosmWasmClient + Sync,
+    {
         let mut interval = time::interval(self.caching_interval);
         loop {
             interval.tick().await;
@@ -113,7 +115,7 @@ impl ValidatorCache {
     pub fn stage() -> AdHoc {
         AdHoc::on_ignite("Validator Cache Stage", |rocket| async {
             rocket.manage(Self::new()).mount(
-                VALIDATOR_API_CACHE_VERSION,
+                VALIDATOR_API_VERSION,
                 routes![routes::get_mixnodes, routes::get_gateways],
             )
         })

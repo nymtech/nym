@@ -10,8 +10,6 @@ use std::fmt::Display;
 use std::process;
 use version_checker::Version;
 
-type UpgradeError = (Version, String);
-
 #[allow(dead_code)]
 fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> ! {
     print_failed_upgrade(from_version, to_version);
@@ -39,7 +37,7 @@ fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
     );
 }
 
-fn outdated_upgrade(config_version: Version, package_version: Version) -> ! {
+fn outdated_upgrade(config_version: &Version, package_version: &Version) -> ! {
     eprintln!(
         "Cannot perform upgrade from {} to {}. Your version is too old to perform the upgrade.!",
         config_version, package_version
@@ -47,7 +45,7 @@ fn outdated_upgrade(config_version: Version, package_version: Version) -> ! {
     process::exit(1)
 }
 
-fn unsupported_upgrade(current_version: Version, config_version: Version) -> ! {
+fn unsupported_upgrade(current_version: &Version, config_version: &Version) -> ! {
     eprintln!("Cannot perform upgrade from {} to {}. Please let the developers know about this issue if you expected it to work!", config_version, current_version);
     process::exit(1)
 }
@@ -101,7 +99,7 @@ fn minor_0_12_upgrade(
     _matches: &ArgMatches,
     config_version: &Version,
     package_version: &Version,
-) -> Result<Config, UpgradeError> {
+) -> Config {
     let to_version = if package_version.major == 0 && package_version.minor == 12 {
         package_version.clone()
     } else {
@@ -119,16 +117,15 @@ fn minor_0_12_upgrade(
         .with_custom_version(to_version.to_string().as_ref())
         .with_custom_validator_apis(ValidatorDetails::default().api_urls());
 
-    upgraded_config.save_to_file(None).map_err(|err| {
-        (
-            to_version.clone(),
-            format!("failed to overwrite config file! - {:?}", err),
-        )
-    })?;
+    upgraded_config.save_to_file(None).unwrap_or_else(|err| {
+        eprintln!("failed to overwrite config file! - {:?}", err);
+        print_failed_upgrade(&config_version, &to_version);
+        process::exit(1);
+    });
 
     print_successful_upgrade(config_version, to_version);
 
-    Ok(upgraded_config)
+    upgraded_config
 }
 
 fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version) {
@@ -142,17 +139,12 @@ fn do_upgrade(mut config: Config, matches: &ArgMatches, package_version: Version
 
         config = match config_version.major {
             0 => match config_version.minor {
-                9 | 10 => outdated_upgrade(config_version, package_version),
-                11 => minor_0_12_upgrade(config, matches, &config_version, &Version::new(0, 12, 0)),
-                _ => unsupported_upgrade(config_version, package_version),
+                9 | 10 => outdated_upgrade(&config_version, &package_version),
+                11 => minor_0_12_upgrade(config, matches, &config_version, &package_version),
+                _ => unsupported_upgrade(&config_version, &package_version),
             },
-            _ => unsupported_upgrade(config_version, package_version),
+            _ => unsupported_upgrade(&config_version, &package_version),
         }
-        .unwrap_or_else(|(to_version, err)| {
-            eprintln!("{:?}", err);
-            print_failed_upgrade(&config_version, &to_version);
-            process::exit(1);
-        });
     }
 }
 

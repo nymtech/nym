@@ -201,7 +201,7 @@ async fn setup_network_monitor(
     network_monitor::check_if_up_to_date(&v4_topology, &v6_topology);
 
     Some(new_monitor_runnables(
-        &config,
+        config,
         v4_topology,
         v6_topology,
         node_status_storage,

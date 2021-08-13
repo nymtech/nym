@@ -27,6 +27,7 @@ tokio-stream = { version = "0.1", features = [ "fs" ] }
 tokio-tungstenite = "0.14"
 
 # internal
+coconut-interface = { path = "../common/coconut-interface" }
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
 gateway-requests = { path = "gateway-requests" }

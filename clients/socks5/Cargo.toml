@@ -23,6 +23,7 @@ tokio = { version = "1.4", features = ["rt-multi-thread", "net", "signal"] }
 
 # internal
 client-core = { path = "../client-core" }
+coconut-interface = { path = "../../common/coconut-interface" }
 config = { path = "../../common/config" }
 crypto = { path = "../../common/crypto" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }

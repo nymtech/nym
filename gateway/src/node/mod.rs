@@ -89,8 +89,12 @@ impl Gateway {
             self.config.get_clients_port(),
         );
 
-        websocket::Listener::new(listening_address, Arc::clone(&self.identity))
-            .start(clients_handler_sender, forwarding_channel);
+        websocket::Listener::new(
+            listening_address,
+            Arc::clone(&self.identity),
+            self.config.get_validator_rest_endpoints(),
+        )
+        .start(clients_handler_sender, forwarding_channel);
     }
 
     fn start_packet_forwarder(&self) -> MixForwardingSender {

@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use coconut_interface::Credential;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::GatewayClient;
@@ -85,8 +86,8 @@ impl NymClient {
 
     fn self_recipient(&self) -> Recipient {
         Recipient::new(
-            self.identity.public_key().clone(),
-            self.encryption_keys.public_key().clone(),
+            *self.identity.public_key(),
+            *self.encryption_keys.public_key(),
             self.gateway_client
                 .as_ref()
                 .expect("gateway connection was not established!")
@@ -100,11 +101,17 @@ impl NymClient {
 
     // Right now it's impossible to have async exported functions to take `&self` rather than self
     pub async fn initial_setup(self) -> Self {
+        let validator_server = self.validator_server.clone();
+        let identity_public_key = self.identity.public_key().clone();
         let mut client = self.get_and_update_topology().await;
         let gateway = client.choose_gateway();
 
         let (mixnet_messages_sender, mixnet_messages_receiver) = mpsc::unbounded();
         let (ack_sender, ack_receiver) = mpsc::unbounded();
+
+        let coconut_credential = Credential::init(vec![validator_server], identity_public_key)
+            .await
+            .expect("Could not initialize coconut credential");
 
         let mut gateway_client = GatewayClient::new(
             gateway.clients_address(),
@@ -114,6 +121,7 @@ impl NymClient {
             mixnet_messages_sender,
             ack_sender,
             DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
+            coconut_credential,
         );
 
         gateway_client

@@ -24,6 +24,7 @@ js-sys = "0.3"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 
 # internal
+coconut-interface = { path = "../../common/coconut-interface" }
 crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }

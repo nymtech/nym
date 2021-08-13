@@ -7,6 +7,7 @@ use crate::node::client_handling::clients_handler::{
 use crate::node::client_handling::websocket::message_receiver::{
     MixMessageReceiver, MixMessageSender,
 };
+use coconut_interface::get_aggregated_verification_key;
 use crypto::asymmetric::identity;
 use futures::{
     channel::{mpsc, oneshot},
@@ -29,6 +30,7 @@ use tokio_tungstenite::{
     tungstenite::{protocol::Message, Error as WsError},
     WebSocketStream,
 };
+use validator_client::validator_api::Client as ValidatorAPIClient;
 
 //// TODO: note for my future self to consider the following idea:
 //// split the socket connection into sink and stream
@@ -55,8 +57,8 @@ pub(crate) struct Handle<R, S> {
     clients_handler_sender: ClientsHandlerRequestSender,
     outbound_mix_sender: MixForwardingSender,
     socket_connection: SocketStream<S>,
-
     local_identity: Arc<identity::KeyPair>,
+    validator_urls: Vec<String>,
 }
 
 impl<R, S> Handle<R, S>
@@ -71,6 +73,7 @@ where
         clients_handler_sender: ClientsHandlerRequestSender,
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
+        validator_urls: Vec<String>,
     ) -> Self {
         Handle {
             rng,
@@ -80,6 +83,7 @@ where
             outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
             local_identity,
+            validator_urls,
         }
     }
 
@@ -110,11 +114,18 @@ where
         debug_assert!(self.socket_connection.is_websocket());
         match &mut self.socket_connection {
             SocketStream::UpgradedWebSocket(ws_stream) => {
+                let verification_key = get_aggregated_verification_key(
+                    self.validator_urls.clone(),
+                    &ValidatorAPIClient::default(),
+                )
+                .await
+                .unwrap();
                 gateway_handshake(
                     &mut self.rng,
                     ws_stream,
                     self.local_identity.as_ref(),
                     init_msg,
+                    &verification_key,
                 )
                 .await
             }

@@ -34,6 +34,8 @@ pub struct StateParams {
     pub minimum_gateway_bond: Uint128, // minimum amount a gateway must bond to get into the system
     pub mixnode_bond_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
     pub gateway_bond_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
+    pub mixnode_stake_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
+    pub gateway_stake_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
     pub mixnode_active_set_size: u32,
 }
 
@@ -45,13 +47,23 @@ impl Display for StateParams {
         write!(f, "minimum gateway bond: {}; ", self.minimum_gateway_bond)?;
         write!(
             f,
-            "mixnode reward rate: {}; ",
+            "mixnode bond reward rate: {}; ",
             self.mixnode_bond_reward_rate
         )?;
         write!(
             f,
-            "gateway reward rate: {}; ",
+            "gateway bond reward rate: {}; ",
             self.gateway_bond_reward_rate
+        )?;
+        write!(
+            f,
+            "mixnode stake reward rate: {}; ",
+            self.mixnode_stake_reward_rate
+        )?;
+        write!(
+            f,
+            "gateway stake reward rate: {}; ",
+            self.gateway_stake_reward_rate
         )?;
         write!(
             f,

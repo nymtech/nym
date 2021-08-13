@@ -339,12 +339,12 @@ pub(crate) fn try_update_state_params(
         return Err(ContractError::DecreasingGatewayBondReward);
     }
 
-    if params.mixnode_stake_reward_rate < Decimal::one() {
-        return Err(ContractError::DecreasingMixnodeStakeReward);
+    if params.mixnode_delegation_reward_rate < Decimal::one() {
+        return Err(ContractError::DecreasingMixnodeDelegationReward);
     }
 
-    if params.gateway_stake_reward_rate < Decimal::one() {
-        return Err(ContractError::DecreasingGatewayStakeReward);
+    if params.gateway_delegation_reward_rate < Decimal::one() {
+        return Err(ContractError::DecreasingGatewayDelegationReward);
     }
 
     // if we're updating epoch length, recalculate rewards for both mixnodes and gateways
@@ -690,8 +690,9 @@ pub mod tests {
     use super::*;
     use crate::contract::{
         execute, query, INITIAL_DEFAULT_EPOCH_LENGTH, INITIAL_GATEWAY_BOND,
-        INITIAL_GATEWAY_BOND_REWARD_RATE, INITIAL_GATEWAY_STAKE_REWARD_RATE, INITIAL_MIXNODE_BOND,
-        INITIAL_MIXNODE_BOND_REWARD_RATE, INITIAL_MIXNODE_STAKE_REWARD_RATE,
+        INITIAL_GATEWAY_BOND_REWARD_RATE, INITIAL_GATEWAY_DELEGATION_REWARD_RATE,
+        INITIAL_MIXNODE_BOND, INITIAL_MIXNODE_BOND_REWARD_RATE,
+        INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
     };
     use crate::helpers::calculate_epoch_reward_rate;
     use crate::storage::{
@@ -1552,8 +1553,12 @@ pub mod tests {
             minimum_gateway_bond: INITIAL_GATEWAY_BOND,
             mixnode_bond_reward_rate: Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE),
             gateway_bond_reward_rate: Decimal::percent(INITIAL_GATEWAY_BOND_REWARD_RATE),
-            mixnode_stake_reward_rate: Decimal::percent(INITIAL_MIXNODE_STAKE_REWARD_RATE),
-            gateway_stake_reward_rate: Decimal::percent(INITIAL_GATEWAY_STAKE_REWARD_RATE),
+            mixnode_delegation_reward_rate: Decimal::percent(
+                INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
+            ),
+            gateway_delegation_reward_rate: Decimal::percent(
+                INITIAL_GATEWAY_DELEGATION_REWARD_RATE,
+            ),
             mixnode_active_set_size: 42, // change something
         };
 

@@ -51,11 +51,11 @@ pub enum ContractError {
     #[error("The bond reward rate for gateway was set to be lower than 1")]
     DecreasingGatewayBondReward,
 
-    #[error("The stake reward rate for mixnode was set to be lower than 1")]
-    DecreasingMixnodeStakeReward,
+    #[error("The delegation reward rate for mixnode was set to be lower than 1")]
+    DecreasingMixnodeDelegationReward,
 
-    #[error("The stake reward rate for gateway was set to be lower than 1")]
-    DecreasingGatewayStakeReward,
+    #[error("The delegation reward rate for gateway was set to be lower than 1")]
+    DecreasingGatewayDelegationReward,
 
     #[error("The node had uptime larger than 100%")]
     UnexpectedUptime,

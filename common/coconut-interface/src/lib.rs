@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 use sha2::digest::generic_array::typenum::Unsigned;
 use sha2::Sha256;
 use std::convert::TryFrom;
-use std::sync::Arc;
 use url::Url;
 
 use crate::error::CoconutInterfaceError;
 pub use coconut_rs::*;
+use crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
 pub use validator_client::validator_api::Client as ValidatorAPIClient;
 use validator_client::validator_api::{
     error::ValidatorAPIClientError, VALIDATOR_API_BLIND_SIGN, VALIDATOR_API_CACHE_VERSION,
@@ -47,11 +47,9 @@ impl Credential {
 
     pub async fn init(
         validator_urls: Vec<String>,
-        key_pair: Arc<crypto::asymmetric::identity::KeyPair>,
+        public_key: crypto::asymmetric::identity::PublicKey,
     ) -> Result<Self, CoconutInterfaceError> {
-        let public_attributes = vec![hash_to_scalar(key_pair.public_key().to_bytes())];
-        let private_attributes = vec![hash_to_scalar(key_pair.private_key().to_bytes())];
-        let mut state = State::init(public_attributes, private_attributes)?;
+        let mut state = State::init(Some(public_key));
         let client = ValidatorAPIClient::new();
         let signature = get_aggregated_signature(validator_urls.clone(), &state, &client).await?;
 

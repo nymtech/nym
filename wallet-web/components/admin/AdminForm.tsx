@@ -48,8 +48,8 @@ export default function AdminForm(props: AdminFormProps) {
                 <Grid item xs={12}>
                     <TextField
                         required
-                        id="mix_reward"
-                        name="mix_reward"
+                        id="mix_bond_reward"
+                        name="mix_bond_reward"
                         label="Mixnode Bond Reward Rate"
                         defaultValue={props.currentParams.mixnode_bond_reward_rate}
                         fullWidth
@@ -58,10 +58,30 @@ export default function AdminForm(props: AdminFormProps) {
                 <Grid item xs={12}>
                     <TextField
                         required
-                        id="gateway_reward"
-                        name="gateway_reward"
+                        id="gateway_bond_reward"
+                        name="gateway_bond_reward"
                         label="Gateway Bond Reward Rate"
                         defaultValue={props.currentParams.gateway_bond_reward_rate}
+                        fullWidth
+                    />
+                </Grid>
+                <Grid item xs={12}>
+                    <TextField
+                        required
+                        id="mix_delegation_reward"
+                        name="mix_delegation_reward"
+                        label="Mixnode Delegation Reward Rate"
+                        defaultValue={props.currentParams.mixnode_delegation_reward_rate}
+                        fullWidth
+                    />
+                </Grid>
+                <Grid item xs={12}>
+                    <TextField
+                        required
+                        id="gateway_delegation_reward"
+                        name="gateway_delegation_reward"
+                        label="Gateway Delegation Reward Rate"
+                        defaultValue={props.currentParams.gateway_delegation_reward_rate}
                         fullWidth
                     />
                 </Grid>

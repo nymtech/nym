@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use coconut_interface::Credential;
+use credentials::bandwidth::prepare_for_spending;
+use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::GatewayClient;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::params::PacketMode;
 use nymsphinx::preparer::MessagePreparer;
 use rand::rngs::OsRng;
 use received_processor::ReceivedMessagesProcessor;
@@ -100,6 +101,22 @@ impl NymClient {
         self.self_recipient().to_string()
     }
 
+    async fn prepare_credential(validators: &[Url], identity_bytes: &[u8]) -> Credential {
+        let verification_key = obtain_aggregate_verification_key(validators)
+            .await
+            .expect("could not obtain aggregate verification key of validators");
+
+        let bandwidth_credential =
+            credentials::bandwidth::obtain_signature(identity_bytes, validators)
+                .await
+                .expect("could not obtain bandwidth credential");
+        // the above would presumably be loaded from a file
+
+        // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
+        prepare_for_spending(identity_bytes, &bandwidth_credential, &verification_key)
+            .expect("could not prepare out bandwidth credential for spending")
+    }
+
     // Right now it's impossible to have async exported functions to take `&self` rather than self
     pub async fn initial_setup(self) -> Self {
         let validator_server = self.validator_server.clone();
@@ -110,10 +127,9 @@ impl NymClient {
         let (mixnet_messages_sender, mixnet_messages_receiver) = mpsc::unbounded();
         let (ack_sender, ack_receiver) = mpsc::unbounded();
 
-        let coconut_credential = Credential::init(vec![validator_server], identity_public_key)
-            .await
-            .expect("Could not initialize coconut credential");
-
+        let coconut_credential =
+            Self::prepare_credential(&vec![validator_server], &identity_public_key.to_bytes())
+                .await;
         let mut gateway_client = GatewayClient::new(
             gateway.clients_address(),
             Arc::clone(&client.identity),

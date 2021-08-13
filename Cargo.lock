@@ -3229,6 +3229,7 @@ version = "0.11.0"
 dependencies = [
  "coconut-interface",
  "console_error_panic_hook",
+ "credentials",
  "crypto",
  "futures",
  "gateway-client",

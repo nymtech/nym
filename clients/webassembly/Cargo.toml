@@ -26,6 +26,7 @@ url = "2.2"
 
 # internal
 coconut-interface = { path = "../../common/coconut-interface" }
+credentials = { path = "../../common/credentials" }
 crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }

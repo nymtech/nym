@@ -12,8 +12,7 @@ mod mix_nodes;
 mod ping;
 mod state;
 
-const VALIDATOR_API: &str = "http://testnet-milhon-validator1.nymtech.net:8080";
-const CONTRACT: &str = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen";
+const VALIDATOR_API: &str = "https://testnet-milhon-validator1.nymtech.net/api";
 const GEO_IP_SERVICE: &str = "https://freegeoip.app/json/";
 
 #[tokio::main]

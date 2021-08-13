@@ -31,9 +31,5 @@ sha2 = { version = "0.9.5", optional = true }
 itertools = { version = "0.10", optional = true }
 cosmwasm-std = { git = "https://github.com/jstuczyn/cosmwasm", branch="0.14.1-updatedk256", optional = true }
 
-# TODO: REMOVE IT BEFORE CREATING PULL REQUEST
-[dev-dependencies]
-tokio = {version = "1.5", features = ["full"]}
-
 [features]
 nymd-client = ["async-trait", "bip39", "config", "cosmos_sdk", "prost", "flate2", "sha2", "itertools", "cosmwasm-std"]

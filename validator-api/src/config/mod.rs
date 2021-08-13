@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
+use coconut_interface::{Base58, KeyPair};
+use config::defaults::{ValidatorDetails, DEFAULT_MIXNET_CONTRACT_ADDRESS};
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -74,6 +75,9 @@ pub struct Base {
 
     /// Mnemonic (currently of the network monitor) used for rewarding
     mnemonic: String,
+
+    // Avoid breaking derives for now
+    keypair_bs58: String,
 }
 
 impl Default for Base {
@@ -83,7 +87,8 @@ impl Default for Base {
                 .parse()
                 .expect("default local validator is malformed!"),
             mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
-            mnemonic: "".to_string(),
+            mnemonic: String::default(),
+            keypair_bs58: String::default(),
         }
     }
 }
@@ -93,6 +98,11 @@ impl Default for Base {
 pub struct NetworkMonitor {
     /// Specifies whether network monitoring service is enabled in this process.
     enabled: bool,
+
+    /// Specifies list of all validators on the network issuing coconut credentials.
+    /// A special care must be taken to ensure they are in correct order.
+    /// The list must also contain THIS validator that is running the test
+    all_validator_apis: Vec<Url>,
 
     /// Specifies whether a detailed report should be printed after each run
     print_detailed_report: bool,
@@ -149,6 +159,7 @@ impl Default for NetworkMonitor {
     fn default() -> Self {
         NetworkMonitor {
             enabled: false,
+            all_validator_apis: ValidatorDetails::default().api_urls(),
             print_detailed_report: false,
             good_v4_topology_file: Self::default_good_v4_topology_file(),
             good_v6_topology_file: Self::default_good_v6_topology_file(),
@@ -204,6 +215,10 @@ impl Config {
         Config::default()
     }
 
+    pub fn keypair(&self) -> KeyPair {
+        KeyPair::try_from_bs58(self.base.keypair_bs58.clone()).unwrap()
+    }
+
     pub fn enabled_network_monitor(mut self, enabled: bool) -> Self {
         self.network_monitor.enabled = enabled;
         self
@@ -224,7 +239,7 @@ impl Config {
         self
     }
 
-    pub fn with_custom_validator(mut self, validator: Url) -> Self {
+    pub fn with_custom_nymd_validator(mut self, validator: Url) -> Self {
         self.base.local_validator = validator;
         self
     }
@@ -236,6 +251,16 @@ impl Config {
 
     pub fn with_mnemonic<S: Into<String>>(mut self, mnemonic: S) -> Self {
         self.base.mnemonic = mnemonic.into();
+        self
+    }
+
+    pub fn with_keypair<S: Into<String>>(mut self, keypair_bs58: S) -> Self {
+        self.base.keypair_bs58 = keypair_bs58.into();
+        self
+    }
+
+    pub fn with_custom_validator_apis(mut self, validator_api_urls: Vec<Url>) -> Self {
+        self.network_monitor.all_validator_apis = validator_api_urls;
         self
     }
 
@@ -255,7 +280,7 @@ impl Config {
         self.network_monitor.good_v6_topology_file.clone()
     }
 
-    pub fn get_validator_url(&self) -> Url {
+    pub fn get_nymd_validator_url(&self) -> Url {
         self.base.local_validator.clone()
     }
 
@@ -301,5 +326,9 @@ impl Config {
 
     pub fn get_node_status_api_database_path(&self) -> PathBuf {
         self.node_status_api.database_path.clone()
+    }
+
+    pub fn get_all_validator_api_endpoints(&self) -> Vec<Url> {
+        self.network_monitor.all_validator_apis.clone()
     }
 }

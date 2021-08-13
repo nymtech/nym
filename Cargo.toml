@@ -11,15 +11,18 @@ panic = "abort"
 [workspace]
 
 members = [
+    "clients/client-core",
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",
+    "clients/tauri-client/src-tauri",
     "clients/webassembly",
-    "clients/client-core",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
+    "common/coconut-interface",
     "common/config",
+    "common/credentials",
     "common/crypto",
     "common/mixnet-contract",
     "common/mixnode-common",
@@ -36,16 +39,16 @@ members = [
     "common/nymsphinx/params",
     "common/nymsphinx/types",
     "common/pemstore",
-    "common/socks5/requests",
     "common/socks5/proxy-helpers",
+    "common/socks5/requests",
     "common/topology",
     "common/wasm-utils",
     "explorer-api",
     "gateway",
     "gateway/gateway-requests",
     "mixnode",
-    "validator-api",
     "service-providers/network-requester",
+    "validator-api",
 ]
 
 default-members = [

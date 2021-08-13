@@ -17,6 +17,7 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
 nymsphinx = { path = "../../nymsphinx" }
+coconut-interface = { path = "../../coconut-interface" }
 
 [dependencies.tungstenite]
 version = "0.13"

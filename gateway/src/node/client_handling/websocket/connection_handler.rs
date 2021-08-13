@@ -7,6 +7,7 @@ use crate::node::client_handling::clients_handler::{
 use crate::node::client_handling::websocket::message_receiver::{
     MixMessageReceiver, MixMessageSender,
 };
+use coconut_interface::VerificationKey;
 use crypto::asymmetric::identity;
 use futures::{
     channel::{mpsc, oneshot},
@@ -55,8 +56,9 @@ pub(crate) struct Handle<R, S> {
     clients_handler_sender: ClientsHandlerRequestSender,
     outbound_mix_sender: MixForwardingSender,
     socket_connection: SocketStream<S>,
-
     local_identity: Arc<identity::KeyPair>,
+
+    aggregated_verification_key: VerificationKey,
 }
 
 impl<R, S> Handle<R, S>
@@ -71,6 +73,7 @@ where
         clients_handler_sender: ClientsHandlerRequestSender,
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
+        aggregated_verification_key: VerificationKey,
     ) -> Self {
         Handle {
             rng,
@@ -80,6 +83,7 @@ where
             outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
             local_identity,
+            aggregated_verification_key,
         }
     }
 
@@ -115,6 +119,7 @@ where
                     ws_stream,
                     self.local_identity.as_ref(),
                     init_msg,
+                    &self.aggregated_verification_key,
                 )
                 .await
             }

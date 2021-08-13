@@ -18,7 +18,7 @@ impl Client<QueryNymdClient> {
         let api_url = format!("http://localhost:{}", DEFAULT_VALIDATOR_API_PORT)
             .parse()
             .unwrap();
-        let nymd_url = config.get_validator_url();
+        let nymd_url = config.get_nymd_validator_url();
 
         let mixnet_contract = config
             .get_mixnet_contract_address()
@@ -39,7 +39,7 @@ impl Client<SigningNymdClient> {
         let api_url = format!("http://localhost:{}", DEFAULT_VALIDATOR_API_PORT)
             .parse()
             .unwrap();
-        let nymd_url = config.get_validator_url();
+        let nymd_url = config.get_nymd_validator_url();
 
         let mixnet_contract = config
             .get_mixnet_contract_address()

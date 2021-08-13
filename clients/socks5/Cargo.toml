@@ -24,6 +24,8 @@ url = "2.2"
 
 # internal
 client-core = { path = "../client-core" }
+coconut-interface = { path = "../../common/coconut-interface" }
+credentials = { path = "../../common/credentials" }
 config = { path = "../../common/config" }
 crypto = { path = "../../common/crypto" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }

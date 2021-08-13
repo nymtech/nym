@@ -1,0 +1,12 @@
+[package]
+name = "coconut-interface"
+version = "0.1.0"
+edition = "2018"
+description = "Crutch library until there is proper SerDe support for coconut structs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+sha2 = "0.9.3"
+getset = "0.1.1"
+
+coconut-rs = { git = "https://github.com/nymtech/coconut.git", branch = "0.4.0" }

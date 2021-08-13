@@ -6,3 +6,6 @@ use network_defaults::VALIDATOR_API_VERSION;
 pub const API_VERSION: &str = VALIDATOR_API_VERSION;
 pub const MIXNODES: &str = "mixnodes";
 pub const GATEWAYS: &str = "gateways";
+
+pub const COCONUT_BLIND_SIGN: &str = "blind_sign";
+pub const COCONUT_VERIFICATION_KEY: &str = "verification_key";

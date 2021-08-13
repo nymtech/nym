@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
+use coconut_interface::Credential;
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
@@ -62,6 +63,15 @@ struct FreshGatewayClientData {
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     gateway_response_timeout: Duration,
+
+    // I guess in the future this struct will require aggregated verification key and....
+    // ... something for obtaining actual credential
+
+    // TODO:
+    // SECURITY:
+    // since currently we have no double spending protection, just to get things running
+    // we're re-using the same credential for all gateways all the time. THIS IS VERY BAD!!
+    bandwidth_credential: Credential,
 }
 
 pub(crate) struct PacketSender {
@@ -71,6 +81,8 @@ pub(crate) struct PacketSender {
     // behaviour is unlikely.
     active_gateway_clients: HashMap<[u8; PUBLIC_KEY_LENGTH], GatewayClient>,
 
+    // I guess that will be required later on if credentials are got per gateway
+    // aggregated_verification_key: Arc<VerificationKey>,
     fresh_gateway_client_data: Arc<FreshGatewayClientData>,
     gateway_connection_timeout: Duration,
     max_concurrent_clients: usize,
@@ -81,6 +93,7 @@ impl PacketSender {
     pub(crate) fn new(
         gateways_status_updater: GatewayClientUpdateSender,
         local_identity: Arc<identity::KeyPair>,
+        bandwidth_credential: Credential,
         gateway_response_timeout: Duration,
         gateway_connection_timeout: Duration,
         max_concurrent_clients: usize,
@@ -92,6 +105,7 @@ impl PacketSender {
                 gateways_status_updater,
                 local_identity,
                 gateway_response_timeout,
+                bandwidth_credential,
             }),
             gateway_connection_timeout,
             max_concurrent_clients,
@@ -99,7 +113,7 @@ impl PacketSender {
         }
     }
 
-    fn new_gateway_client(
+    async fn new_gateway_client(
         address: String,
         identity: identity::PublicKey,
         fresh_gateway_client_data: &FreshGatewayClientData,
@@ -110,6 +124,7 @@ impl PacketSender {
         // TODO: future optimization: if we're remaking client for a gateway to which we used to be connected in the past,
         // use old shared keys
         let (message_sender, message_receiver) = mpsc::unbounded();
+
         // currently we do not care about acks at all, but we must keep the channel alive
         // so that the gateway client would not crash
         let (ack_sender, ack_receiver) = mpsc::unbounded();
@@ -122,6 +137,7 @@ impl PacketSender {
                 message_sender,
                 ack_sender,
                 fresh_gateway_client_data.gateway_response_timeout,
+                fresh_gateway_client_data.bandwidth_credential.clone(),
             ),
             (message_receiver, ack_receiver),
         )
@@ -206,7 +222,8 @@ impl PacketSender {
                 packets.clients_address,
                 packets.pub_key,
                 &fresh_gateway_client_data,
-            );
+            )
+            .await;
 
             // Put this in timeout in case the gateway has incorrectly set their ulimit and our connection
             // gets stuck in their TCP queue and just hangs on our end but does not terminate

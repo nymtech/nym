@@ -3,6 +3,7 @@
 
 use crate::node::client_handling::clients_handler::ClientsHandlerRequestSender;
 use crate::node::client_handling::websocket::connection_handler::Handle;
+use coconut_interface::VerificationKey;
 use crypto::asymmetric::identity;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
@@ -15,13 +16,19 @@ use tokio::task::JoinHandle;
 pub(crate) struct Listener {
     address: SocketAddr,
     local_identity: Arc<identity::KeyPair>,
+    aggregated_verification_key: VerificationKey,
 }
 
 impl Listener {
-    pub(crate) fn new(address: SocketAddr, local_identity: Arc<identity::KeyPair>) -> Self {
+    pub(crate) fn new(
+        address: SocketAddr,
+        local_identity: Arc<identity::KeyPair>,
+        aggregated_verification_key: VerificationKey,
+    ) -> Self {
         Listener {
             address,
             local_identity,
+            aggregated_verification_key,
         }
     }
 
@@ -51,6 +58,7 @@ impl Listener {
                         clients_handler_sender.clone(),
                         outbound_mix_sender.clone(),
                         Arc::clone(&self.local_identity),
+                        self.aggregated_verification_key.clone(),
                     );
                     tokio::spawn(async move { handle.start_handling().await });
                 }

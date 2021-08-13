@@ -25,6 +25,7 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 url = "2.2"
 
 # internal
+coconut-interface = { path = "../../common/coconut-interface" }
 crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }

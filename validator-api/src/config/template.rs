@@ -26,6 +26,15 @@ mnemonic = '{{ base.mnemonic }}'
 # Specifies whether network monitoring service is enabled in this process.
 enabled = {{ network_monitor.enabled }}
 
+# Specifies list of all validators on the network issuing coconut credentials.
+# A special care must be taken to ensure they are in correct order.
+# The list must also contain THIS validator that is running the test
+all_validator_apis = [
+    {{#each network_monitor.all_validator_apis }}
+        '{{this}}',
+    {{/each}}
+]
+
 # Specifies whether a detailed report should be printed after each run
 print_detailed_report = {{ network_monitor.print_detailed_report }}
 

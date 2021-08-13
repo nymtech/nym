@@ -16,6 +16,7 @@ thiserror = "1"
 log = "0.4"
 url = { version = "2.2", features = ["serde"] }
 
+coconut-interface = { path = "../../coconut-interface" }
 network-defaults = { path = "../../network-defaults" }
 
 # required for nymd-client

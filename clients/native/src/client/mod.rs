@@ -22,6 +22,9 @@ use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use coconut_interface::Credential;
+use credentials::bandwidth::prepare_for_spending;
+use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use gateway_client::{
@@ -163,6 +166,30 @@ impl NymClient {
         .start(self.runtime.handle())
     }
 
+    async fn prepare_credential(&self) -> Credential {
+        let verification_key = obtain_aggregate_verification_key(
+            &self.config.get_base().get_validator_api_endpoints(),
+        )
+        .await
+        .expect("could not obtain aggregate verification key of validators");
+
+        let bandwidth_credential = credentials::bandwidth::obtain_signature(
+            &self.key_manager.identity_keypair().public_key().to_bytes(),
+            &self.config.get_base().get_validator_api_endpoints(),
+        )
+        .await
+        .expect("could not obtain bandwidth credential");
+        // the above would presumably be loaded from a file
+
+        // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
+        prepare_for_spending(
+            &self.key_manager.identity_keypair().public_key().to_bytes(),
+            &bandwidth_credential,
+            &verification_key,
+        )
+        .expect("could not prepare out bandwidth credential for spending")
+    }
+
     fn start_gateway_client(
         &mut self,
         mixnet_message_sender: MixnetMessageSender,
@@ -180,24 +207,27 @@ impl NymClient {
         let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
             .expect("provided gateway id is invalid!");
 
-        let mut gateway_client = GatewayClient::new(
-            gateway_address,
-            self.key_manager.identity_keypair(),
-            gateway_identity,
-            Some(self.key_manager.gateway_shared_key()),
-            mixnet_message_sender,
-            ack_sender,
-            self.config.get_base().get_gateway_response_timeout(),
-        );
-
         self.runtime.block_on(async {
+            let coconut_credential = self.prepare_credential().await;
+
+            let mut gateway_client = GatewayClient::new(
+                gateway_address,
+                self.key_manager.identity_keypair(),
+                gateway_identity,
+                Some(self.key_manager.gateway_shared_key()),
+                mixnet_message_sender,
+                ack_sender,
+                self.config.get_base().get_gateway_response_timeout(),
+                coconut_credential,
+            );
+
             gateway_client
                 .authenticate_and_start()
                 .await
-                .expect("could not authenticate and start up the gateway connection")
-        });
+                .expect("could not authenticate and start up the gateway connection");
 
-        gateway_client
+            gateway_client
+        })
     }
 
     // future responsible for periodically polling directory server and updating

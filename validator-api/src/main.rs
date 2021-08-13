@@ -14,13 +14,16 @@ use ::config::{defaults::DEFAULT_VALIDATOR_API_PORT, NymConfig};
 use anyhow::Result;
 use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};
+use coconut::InternalSignRequest;
 use log::info;
 use rocket::http::Method;
 use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use std::process;
+use url::Url;
 
 pub(crate) mod cache;
+mod coconut;
 pub(crate) mod config;
 mod network_monitor;
 mod node_status_api;
@@ -30,13 +33,26 @@ pub(crate) mod storage;
 const MONITORING_ENABLED: &str = "enable-monitor";
 const V4_TOPOLOGY_ARG: &str = "v4-topology-filepath";
 const V6_TOPOLOGY_ARG: &str = "v6-topology-filepath";
-const VALIDATORS_ARG: &str = "validators";
+const API_VALIDATORS_ARG: &str = "api-validators";
 const DETAILED_REPORT_ARG: &str = "detailed-report";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
 const MNEMONIC_ARG: &str = "mnemonic";
 const WRITE_CONFIG_ARG: &str = "save-config";
+const KEYPAIR_ARG: &str = "keypair";
+const NYMD_VALIDATOR_ARG: &str = "nymd-validator";
 
 pub(crate) const PENALISE_OUTDATED: bool = false;
+
+fn parse_validators(raw: &str) -> Vec<Url> {
+    raw.split(',')
+        .map(|raw_validator| {
+            raw_validator
+                .trim()
+                .parse()
+                .expect("one of the provided validator api urls is invalid")
+        })
+        .collect()
+}
 
 fn parse_args<'a>() -> ArgMatches<'a> {
     App::new("Nym Network Monitor")
@@ -50,7 +66,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             Arg::with_name(V4_TOPOLOGY_ARG)
                 .help("location of .json file containing IPv4 'good' network topology")
                 .long(V4_TOPOLOGY_ARG)
-                .takes_value(true)
         )
         .arg(
             Arg::with_name(V6_TOPOLOGY_ARG)
@@ -59,9 +74,9 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name(VALIDATORS_ARG)
-                .help("REST endpoint of the validator the monitor will grab nodes to test")
-                .long(VALIDATORS_ARG)
+            Arg::with_name(NYMD_VALIDATOR_ARG)
+                .help("Endpoint to nymd part of the validator from which the monitor will grab nodes to test")
+                .long(NYMD_VALIDATOR_ARG)
                 .takes_value(true)
         )
         .arg(Arg::with_name(MIXNET_CONTRACT_ARG)
@@ -84,6 +99,10 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("specifies whether a config file based on provided arguments should be saved to a file")
                 .long(WRITE_CONFIG_ARG)
         )
+        .arg(Arg::with_name(KEYPAIR_ARG)
+            .help("Path to the secret key file")
+            .takes_value(true)
+            .long(KEYPAIR_ARG))
         .get_matches()
 }
 
@@ -131,7 +150,11 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_v6_good_topology(v6_topology_path)
     }
 
-    if let Some(raw_validator) = matches.value_of(VALIDATORS_ARG) {
+    if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {
+        config = config.with_custom_validator_apis(parse_validators(raw_validators));
+    }
+
+    if let Some(raw_validator) = matches.value_of(NYMD_VALIDATOR_ARG) {
         let parsed = match raw_validator.parse() {
             Err(err) => {
                 error!("Passed validator argument is invalid - {}", err);
@@ -139,7 +162,7 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
             }
             Ok(url) => url,
         };
-        config = config.with_custom_validator(parsed);
+        config = config.with_custom_nymd_validator(parsed);
     }
 
     if let Some(mixnet_contract) = matches.value_of(MIXNET_CONTRACT_ARG) {
@@ -152,6 +175,13 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
 
     if matches.is_present(DETAILED_REPORT_ARG) {
         config = config.detailed_network_monitor_report(true)
+    }
+    if let Some(keypair_path) = matches.value_of(KEYPAIR_ARG) {
+        let keypair_bs58 = std::fs::read_to_string(keypair_path)
+            .unwrap()
+            .trim()
+            .to_string();
+        config = config.with_keypair(keypair_bs58)
     }
 
     if matches.is_present(WRITE_CONFIG_ARG) {
@@ -200,13 +230,16 @@ async fn setup_network_monitor(
     let v6_topology = parse_topology_file(config.get_v6_good_topology_file());
     network_monitor::check_if_up_to_date(&v4_topology, &v6_topology);
 
-    Some(new_monitor_runnables(
-        config,
-        v4_topology,
-        v6_topology,
-        node_status_storage,
-        validator_cache,
-    ))
+    Some(
+        new_monitor_runnables(
+            config,
+            v4_topology,
+            v6_topology,
+            node_status_storage,
+            validator_cache,
+        )
+        .await,
+    )
 }
 
 async fn setup_rocket(config: &Config) -> Result<Rocket<Ignite>> {
@@ -218,7 +251,8 @@ async fn setup_rocket(config: &Config) -> Result<Rocket<Ignite>> {
     };
     let rocket = rocket::custom(rocket_config)
         .attach(setup_cors()?)
-        .attach(ValidatorCache::stage());
+        .attach(ValidatorCache::stage())
+        .attach(InternalSignRequest::stage(config.keypair()));
 
     // see if we should start up network monitor and if so, attach the node status api
     if config.get_network_monitor_enabled() {

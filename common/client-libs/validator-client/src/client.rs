@@ -6,6 +6,7 @@ use crate::nymd::{
     error::NymdError, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient,
 };
 use crate::{validator_api, ValidatorClientError};
+use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use mixnet_contract::{GatewayBond, MixNodeBond};
 use url::Url;
 
@@ -148,7 +149,7 @@ impl Client<QueryNymdClient> {
 #[cfg(feature = "nymd-client")]
 impl<C> Client<C> {
     pub fn change_validator_api(&mut self, new_endpoint: Url) {
-        self.validator_api = validator_api::Client::new(new_endpoint);
+        self.validator_api.change_url(new_endpoint)
     }
 
     // use case: somebody initialised client without a contract in order to upload and initialise one
@@ -271,6 +272,19 @@ impl<C> Client<C> {
 
         Ok(delegations)
     }
+
+    pub async fn blind_sign(
+        &self,
+        request_body: &BlindSignRequestBody,
+    ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
+        Ok(self.validator_api.blind_sign(request_body).await?)
+    }
+
+    pub async fn get_coconut_verification_key(
+        &self,
+    ) -> Result<VerificationKeyResponse, ValidatorClientError> {
+        Ok(self.validator_api.get_coconut_verification_key().await?)
+    }
 }
 
 pub struct ApiClient {
@@ -289,7 +303,7 @@ impl ApiClient {
     }
 
     pub fn change_validator_api(&mut self, new_endpoint: Url) {
-        self.validator_api = validator_api::Client::new(new_endpoint);
+        self.validator_api.change_url(new_endpoint);
     }
 
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError> {
@@ -298,5 +312,18 @@ impl ApiClient {
 
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         Ok(self.validator_api.get_gateways().await?)
+    }
+
+    pub async fn blind_sign(
+        &self,
+        request_body: &BlindSignRequestBody,
+    ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
+        Ok(self.validator_api.blind_sign(request_body).await?)
+    }
+
+    pub async fn get_coconut_verification_key(
+        &self,
+    ) -> Result<VerificationKeyResponse, ValidatorClientError> {
+        Ok(self.validator_api.get_coconut_verification_key().await?)
     }
 }

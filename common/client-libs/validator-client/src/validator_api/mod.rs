@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::validator_api::error::ValidatorAPIError;
+use coconut_interface::{BlindSignRequestBody, BlindedSignatureResponse, VerificationKeyResponse};
 use mixnet_contract::{GatewayBond, MixNodeBond};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use url::Url;
 
 pub mod error;
@@ -29,6 +30,34 @@ impl Client {
         self.url = new_url
     }
 
+    async fn query_validator_api<T>(&self, path: PathSegments<'_>) -> Result<T, ValidatorAPIError>
+    where
+        for<'a> T: Deserialize<'a>,
+    {
+        let url = create_api_url(&self.url, path);
+        Ok(self.reqwest_client.get(url).send().await?.json().await?)
+    }
+
+    async fn post_validator_api<B, T>(
+        &self,
+        path: PathSegments<'_>,
+        json_body: &B,
+    ) -> Result<T, ValidatorAPIError>
+    where
+        B: Serialize + ?Sized,
+        for<'a> T: Deserialize<'a>,
+    {
+        let url = create_api_url(&self.url, path);
+        Ok(self
+            .reqwest_client
+            .get(url)
+            .json(json_body)
+            .send()
+            .await?
+            .json()
+            .await?)
+    }
+
     pub async fn get_mixnodes(&self) -> Result<Vec<MixNodeBond>, ValidatorAPIError> {
         self.query_validator_api(&[routes::API_VERSION, routes::MIXNODES])
             .await
@@ -39,16 +68,22 @@ impl Client {
             .await
     }
 
-    async fn query_validator_api<T>(&self, path: PathSegments<'_>) -> Result<T, ValidatorAPIError>
-    where
-        for<'a> T: Deserialize<'a>,
-    {
-        let url = create_api_url(&self.url, path);
-        Ok(self.reqwest_client.get(url).send().await?.json().await?)
+    pub async fn blind_sign(
+        &self,
+        request_body: &BlindSignRequestBody,
+    ) -> Result<BlindedSignatureResponse, ValidatorAPIError> {
+        self.post_validator_api(
+            &[routes::API_VERSION, routes::COCONUT_BLIND_SIGN],
+            request_body,
+        )
+        .await
     }
 
-    pub async fn some_coconut_action(&self) {
-        todo!("merging this sucker will be fun")
+    pub async fn get_coconut_verification_key(
+        &self,
+    ) -> Result<VerificationKeyResponse, ValidatorAPIError> {
+        self.query_validator_api(&[routes::API_VERSION, routes::COCONUT_VERIFICATION_KEY])
+            .await
     }
 }
 

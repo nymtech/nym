@@ -10,7 +10,6 @@ use url::Url;
 
 use crate::error::CoconutInterfaceError;
 pub use coconut_rs::*;
-use crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
 pub use validator_client::validator_api::Client as ValidatorAPIClient;
 use validator_client::validator_api::{
     error::ValidatorAPIClientError, VALIDATOR_API_BLIND_SIGN, VALIDATOR_API_CACHE_VERSION,
@@ -49,7 +48,9 @@ impl Credential {
         validator_urls: Vec<String>,
         public_key: crypto::asymmetric::identity::PublicKey,
     ) -> Result<Self, CoconutInterfaceError> {
-        let mut state = State::init(Some(public_key));
+        let public_attributes = vec![hash_to_scalar(public_key.to_bytes())];
+        let private_attributes = vec![hash_to_scalar("Bandwidth: infinite (for now)")];
+        let mut state = State::init(public_attributes, private_attributes)?;
         let client = ValidatorAPIClient::new();
         let signature = get_aggregated_signature(validator_urls.clone(), &state, &client).await?;
 

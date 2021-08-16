@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crypto::generic_array::{typenum::Unsigned, GenericArray};
-use crypto::symmetric::stream_cipher::{random_iv, NewStreamCipher, IV};
+use crypto::symmetric::stream_cipher::{random_iv, NewCipher, IV};
 use nymsphinx::params::GatewayEncryptionAlgorithm;
 use rand::{CryptoRng, RngCore};
 
-type NonceSize = <GatewayEncryptionAlgorithm as NewStreamCipher>::NonceSize;
+type NonceSize = <GatewayEncryptionAlgorithm as NewCipher>::NonceSize;
 
 // I think 'IV' looks better than 'Iv', feel free to change that.
 #[allow(clippy::upper_case_acronyms)]

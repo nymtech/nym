@@ -18,7 +18,7 @@ pub enum ReplyKeyStorageError {
 /// Permanent storage for keys in all sent [`ReplySURB`]
 ///
 /// Each sent out [`ReplySURB`] has a new key associated with it that is going to be used for
-/// payload encryption. In order to decrypt whatever reply we receive, we need to know which
+/// payload encryption. In order to -decrypt whatever reply we receive, we need to know which
 /// key to use for that purpose. We do it based on received `H(t)` which has to be included
 /// with each reply.
 /// Moreover, there is no restriction when the [`ReplySURB`] might get used so we need to

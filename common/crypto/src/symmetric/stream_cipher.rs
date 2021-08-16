@@ -1,13 +1,14 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cipher::stream::{Nonce, StreamCipher, SyncStreamCipher};
+use cipher::{Nonce, StreamCipher};
 use generic_array::{typenum::Unsigned, GenericArray};
 use rand::{CryptoRng, RngCore};
 
 // re-export this for ease of use
-pub use cipher::stream::{Key, NewStreamCipher};
+pub use cipher::{CipherKey, NewCipher};
 
+// SECURITY:
 // TODO: note that this is not the most secure approach here
 // we are not using nonces properly but instead "kinda" thinking of them as IVs.
 // Nonce require, as the name suggest, being only seen once. Ever.
@@ -20,9 +21,9 @@ pub use cipher::stream::{Key, NewStreamCipher};
 #[allow(clippy::upper_case_acronyms)]
 pub type IV<C> = Nonce<C>;
 
-pub fn generate_key<C, R>(rng: &mut R) -> Key<C>
+pub fn generate_key<C, R>(rng: &mut R) -> CipherKey<C>
 where
-    C: NewStreamCipher,
+    C: NewCipher,
     R: RngCore + CryptoRng,
 {
     let mut key = GenericArray::default();
@@ -32,7 +33,7 @@ where
 
 pub fn random_iv<C, R>(rng: &mut R) -> IV<C>
 where
-    C: NewStreamCipher,
+    C: NewCipher,
     R: RngCore + CryptoRng,
 {
     let mut iv = GenericArray::default();
@@ -42,14 +43,14 @@ where
 
 pub fn zero_iv<C>() -> IV<C>
 where
-    C: NewStreamCipher,
+    C: NewCipher,
 {
     GenericArray::default()
 }
 
 pub fn iv_from_slice<C>(b: &[u8]) -> &IV<C>
 where
-    C: NewStreamCipher,
+    C: NewCipher,
 {
     if b.len() != C::NonceSize::to_usize() {
         // `from_slice` would have caused a panic about this issue anyway.
@@ -66,38 +67,42 @@ where
 // TODO: there's really no way to use more parts of the keystream if it was required at some point.
 // However, do we really expect to ever need it?
 
-pub fn encrypt<C>(key: &Key<C>, iv: &IV<C>, data: &[u8]) -> Vec<u8>
+#[inline]
+pub fn encrypt<C>(key: &CipherKey<C>, iv: &IV<C>, data: &[u8]) -> Vec<u8>
 where
-    C: SyncStreamCipher + NewStreamCipher,
+    C: StreamCipher + NewCipher,
 {
     let mut ciphertext = data.to_vec();
     encrypt_in_place::<C>(key, iv, &mut ciphertext);
     ciphertext
 }
 
-pub fn encrypt_in_place<C>(key: &Key<C>, iv: &IV<C>, data: &mut [u8])
+#[inline]
+pub fn encrypt_in_place<C>(key: &CipherKey<C>, iv: &IV<C>, data: &mut [u8])
 where
-    C: SyncStreamCipher + NewStreamCipher,
+    C: StreamCipher + NewCipher,
 {
     let mut cipher = C::new(key, iv);
-    cipher.encrypt(data)
+    cipher.apply_keystream(data)
 }
 
-pub fn decrypt<C>(key: &Key<C>, iv: &IV<C>, ciphertext: &[u8]) -> Vec<u8>
+#[inline]
+pub fn decrypt<C>(key: &CipherKey<C>, iv: &IV<C>, ciphertext: &[u8]) -> Vec<u8>
 where
-    C: SyncStreamCipher + NewStreamCipher,
+    C: StreamCipher + NewCipher,
 {
     let mut data = ciphertext.to_vec();
     decrypt_in_place::<C>(key, iv, &mut data);
     data
 }
 
-pub fn decrypt_in_place<C>(key: &Key<C>, iv: &IV<C>, data: &mut [u8])
+#[inline]
+pub fn decrypt_in_place<C>(key: &CipherKey<C>, iv: &IV<C>, data: &mut [u8])
 where
-    C: SyncStreamCipher + NewStreamCipher,
+    C: StreamCipher + NewCipher,
 {
     let mut cipher = C::new(key, iv);
-    cipher.decrypt(data)
+    cipher.apply_keystream(data)
 }
 
 #[cfg(test)]
@@ -108,7 +113,7 @@ mod tests {
     #[cfg(test)]
     mod aes_ctr128 {
         use super::*;
-        use aes_ctr::Aes128Ctr;
+        use aes::Aes128Ctr;
 
         #[test]
         fn zero_iv_is_actually_zero() {

@@ -66,7 +66,6 @@ where
         COVER_FRAG_ID.to_bytes(),
         average_ack_delay,
         topology,
-        None,
     )?)
 }
 
@@ -137,7 +136,6 @@ where
     let first_hop_address =
         NymNodeRoutingAddress::try_from(route.first().unwrap().address).unwrap();
 
-    // if client is running in vpn mode, he won't even be sending cover traffic
     Ok(MixPacket::new(first_hop_address, packet, PacketMode::Mix))
 }
 

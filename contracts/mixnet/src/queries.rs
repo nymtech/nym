@@ -1,5 +1,7 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::error::ContractError;
-use crate::state::StateParams;
 use crate::storage::{
     gateway_delegations_read, gateways_owners_read, gateways_read, mix_delegations_read,
     mixnodes_owners_read, mixnodes_read, read_layer_distribution, read_state_params,
@@ -12,7 +14,7 @@ use cosmwasm_std::{coin, Addr};
 use mixnet_contract::{
     Delegation, GatewayBond, GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNodeBond,
     MixOwnershipResponse, PagedGatewayDelegationsResponse, PagedGatewayResponse,
-    PagedMixDelegationsResponse, PagedMixnodeResponse,
+    PagedMixDelegationsResponse, PagedMixnodeResponse, StateParams,
 };
 
 const BOND_PAGE_MAX_LIMIT: u32 = 100;
@@ -544,6 +546,8 @@ mod tests {
                 minimum_gateway_bond: 456u128.into(),
                 mixnode_bond_reward_rate: "1.23".parse().unwrap(),
                 gateway_bond_reward_rate: "4.56".parse().unwrap(),
+                mixnode_delegation_reward_rate: "7.89".parse().unwrap(),
+                gateway_delegation_reward_rate: "0.12".parse().unwrap(),
                 mixnode_active_set_size: 1000,
             },
             mixnode_epoch_bond_reward: "1.23".parse().unwrap(),

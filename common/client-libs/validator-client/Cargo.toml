@@ -16,7 +16,7 @@ reqwest = { version="0.11", features=["json"] }
 thiserror = "1"
 log = "0.4"
 url = "2"
-wasm-timer = "0.2"
+fluvio-wasm-timer = "0.2.5"
 
 # required for nymd-client
 # at some point it might be possible to make it wasm-compatible
@@ -39,5 +39,5 @@ features = ["js"]
 tokio = {version = "1.5", features = ["full"]}
 
 [features]
-default = ["nymd-client"]
+#default = ["nymd-client"]
 nymd-client = ["async-trait", "bip39", "config", "cosmos_sdk", "prost", "flate2", "sha2", "itertools", "cosmwasm-std"]

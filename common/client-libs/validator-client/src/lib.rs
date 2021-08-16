@@ -141,7 +141,7 @@ impl Client {
                 error!("{}", url)
             }
             // Went with only wasm_timer so we can avoid features on the lib, and pulling in tokio
-            wasm_timer::Delay::new(Duration::from_secs(sleep_secs)).await?;
+            fluvio_wasm_timer::Delay::new(Duration::from_secs(sleep_secs)).await?;
         }
     }
 

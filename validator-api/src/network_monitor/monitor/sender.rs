@@ -1,7 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::DEFAULT_VALIDATOR_HOST;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
+use coconut_interface::Credential;
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
@@ -20,6 +22,7 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 use tokio::time::Instant;
+use validator_client::validator_api::VALIDATOR_API_PORT;
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
@@ -99,7 +102,7 @@ impl PacketSender {
         }
     }
 
-    fn new_gateway_client(
+    async fn new_gateway_client(
         address: String,
         identity: identity::PublicKey,
         fresh_gateway_client_data: &FreshGatewayClientData,
@@ -110,6 +113,17 @@ impl PacketSender {
         // TODO: future optimization: if we're remaking client for a gateway to which we used to be connected in the past,
         // use old shared keys
         let (message_sender, message_receiver) = mpsc::unbounded();
+
+        let coconut_credential = Credential::init(
+            vec![format!(
+                "http://{}:{}",
+                DEFAULT_VALIDATOR_HOST, VALIDATOR_API_PORT
+            )],
+            identity,
+        )
+        .await
+        .expect("Could not initialize coconut credential");
+
         // currently we do not care about acks at all, but we must keep the channel alive
         // so that the gateway client would not crash
         let (ack_sender, ack_receiver) = mpsc::unbounded();
@@ -122,6 +136,7 @@ impl PacketSender {
                 message_sender,
                 ack_sender,
                 fresh_gateway_client_data.gateway_response_timeout,
+                coconut_credential,
             ),
             (message_receiver, ack_receiver),
         )
@@ -206,7 +221,8 @@ impl PacketSender {
                 packets.clients_address,
                 packets.pub_key,
                 &fresh_gateway_client_data,
-            );
+            )
+            .await;
 
             // Put this in timeout in case the gateway has incorrectly set their ulimit and our connection
             // gets stuck in their TCP queue and just hangs on our end but does not terminate

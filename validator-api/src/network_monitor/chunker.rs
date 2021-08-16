@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nymsphinx::forwarding::packet::MixPacket;
-use nymsphinx::params::PacketMode;
 use nymsphinx::{
     acknowledgements::AckKey, addressing::clients::Recipient, preparer::MessagePreparer,
 };
@@ -27,8 +26,6 @@ impl Chunker {
                 tested_mix_me,
                 DEFAULT_AVERAGE_PACKET_DELAY,
                 DEFAULT_AVERAGE_ACK_DELAY,
-                PacketMode::Mix,
-                None,
             ),
         }
     }

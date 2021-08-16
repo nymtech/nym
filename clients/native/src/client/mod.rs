@@ -22,6 +22,7 @@ use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use coconut_interface::Credential;
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use gateway_client::{
@@ -32,7 +33,6 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::anonymous_replies::ReplySurb;
-use nymsphinx::params::PacketMode;
 use nymsphinx::receiver::ReconstructedMessage;
 use tokio::runtime::Runtime;
 
@@ -119,12 +119,6 @@ impl NymClient {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
     ) {
-        let packet_mode = if self.config.get_base().get_vpn_mode() {
-            PacketMode::Vpn
-        } else {
-            PacketMode::Mix
-        };
-
         let controller_config = real_messages_control::Config::new(
             self.key_manager.ack_key(),
             self.config.get_base().get_ack_wait_multiplier(),
@@ -133,8 +127,6 @@ impl NymClient {
             self.config.get_base().get_message_sending_average_delay(),
             self.config.get_base().get_average_packet_delay(),
             self.as_mix_recipient(),
-            packet_mode,
-            self.config.get_base().get_vpn_key_reuse_limit(),
         );
 
         info!("Starting real traffic stream...");
@@ -151,7 +143,7 @@ impl NymClient {
             topology_accessor,
             reply_key_storage,
         )
-        .start(self.runtime.handle(), self.config.get_base().get_vpn_mode());
+        .start(self.runtime.handle());
     }
 
     // buffer controlling all messages fetched from provider
@@ -189,24 +181,32 @@ impl NymClient {
         let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
             .expect("provided gateway id is invalid!");
 
-        let mut gateway_client = GatewayClient::new(
-            gateway_address,
-            self.key_manager.identity_keypair(),
-            gateway_identity,
-            Some(self.key_manager.gateway_shared_key()),
-            mixnet_message_sender,
-            ack_sender,
-            self.config.get_base().get_gateway_response_timeout(),
-        );
-
         self.runtime.block_on(async {
+            let coconut_credential = Credential::init(
+                self.config.get_base().get_validator_rest_endpoints(),
+                *self.key_manager.identity_keypair().public_key(),
+            )
+            .await
+            .expect("Could not initialize coconut credential");
+
+            let mut gateway_client = GatewayClient::new(
+                gateway_address,
+                self.key_manager.identity_keypair(),
+                gateway_identity,
+                Some(self.key_manager.gateway_shared_key()),
+                mixnet_message_sender,
+                ack_sender,
+                self.config.get_base().get_gateway_response_timeout(),
+                coconut_credential,
+            );
+
             gateway_client
                 .authenticate_and_start()
                 .await
-                .expect("could not authenticate and start up the gateway connection")
-        });
+                .expect("could not authenticate and start up the gateway connection");
 
-        gateway_client
+            gateway_client
+        })
     }
 
     // future responsible for periodically polling directory server and updating
@@ -376,9 +376,7 @@ impl NymClient {
             sphinx_message_sender.clone(),
         );
 
-        if !self.config.get_base().get_vpn_mode() {
-            self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
-        }
+        self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
 
         match self.config.get_socket_type() {
             SocketType::WebSocket => {

@@ -5,13 +5,14 @@ use chrono::{DateTime, Utc};
 use log::info;
 use serde::{Deserialize, Serialize};
 
+use mixnet_contract::MixNodeBond;
+
 use crate::country_statistics::country_nodes_distribution::{
     ConcurrentCountryNodesDistribution, CountryNodesDistribution,
 };
 use crate::mix_node::models::ThreadsafeMixNodeCache;
-use crate::mix_nodes::ThreadsafeMixNodesResult;
+use crate::mix_nodes::{LocationCache, ThreadsafeMixNodesResult};
 use crate::ping::models::ThreadsafePingCache;
-use mixnet_contract::MixNodeBond;
 
 // TODO: change to an environment variable with a default value
 const STATE_FILE: &str = "explorer-api-state.json";
@@ -30,15 +31,15 @@ impl ExplorerApiState {
             .get()
             .await
             .value
-            .iter()
-            .find(|node| node.mix_node.identity_key == pubkey)
-            .cloned()
+            .get(pubkey)
+            .map(|cache_item| cache_item.bond.clone())
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExplorerApiStateOnDisk {
     pub(crate) country_node_distribution: CountryNodesDistribution,
+    pub(crate) location_cache: LocationCache,
     pub(crate) as_at: DateTime<Utc>,
 }
 
@@ -60,25 +61,28 @@ impl ExplorerApiStateContext {
         let json_file = get_state_file_path();
         let json_file_path = Path::new(&json_file);
         info!("Loading state from file {:?}...", json_file);
-        match File::open(json_file_path) {
-            Ok(file) => {
-                let state: ExplorerApiStateOnDisk =
-                    serde_json::from_reader(file).expect("error while reading json");
+
+        match File::open(json_file_path).map(serde_json::from_reader::<_, ExplorerApiStateOnDisk>) {
+            Ok(Ok(state)) => {
                 info!("Loaded state from file {:?}: {:?}", json_file, state);
                 ExplorerApiState {
-                    country_node_distribution: ConcurrentCountryNodesDistribution::attach(
-                        state.country_node_distribution,
+                    country_node_distribution:
+                        ConcurrentCountryNodesDistribution::new_from_distribution(
+                            state.country_node_distribution,
+                        ),
+                    mix_nodes: ThreadsafeMixNodesResult::new_with_location_cache(
+                        state.location_cache,
                     ),
-                    mix_nodes: ThreadsafeMixNodesResult::new(),
                     mix_node_cache: ThreadsafeMixNodeCache::new(),
                     ping_cache: ThreadsafePingCache::new(),
                 }
             }
-            Err(_e) => {
+            _ => {
                 warn!(
                     "Failed to load state from file {:?}, starting with empty state!",
                     json_file
                 );
+
                 ExplorerApiState {
                     country_node_distribution: ConcurrentCountryNodesDistribution::new(),
                     mix_nodes: ThreadsafeMixNodesResult::new(),
@@ -95,6 +99,7 @@ impl ExplorerApiStateContext {
         let file = File::create(json_file_path).expect("unable to create state json file");
         let state = ExplorerApiStateOnDisk {
             country_node_distribution: self.inner.country_node_distribution.get_all().await,
+            location_cache: self.inner.mix_nodes.get_location_cache().await,
             as_at: Utc::now(),
         };
         serde_json::to_writer(file, &state).expect("error writing state to disk");

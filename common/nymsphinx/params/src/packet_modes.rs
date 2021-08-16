@@ -23,7 +23,7 @@ impl PacketMode {
         self == PacketMode::Mix
     }
 
-    pub fn is_vpn(self) -> bool {
+    pub fn is_old_vpn(self) -> bool {
         self == PacketMode::Vpn
     }
 }

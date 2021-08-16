@@ -2,15 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
+use coconut_interface::{Base58, KeyPair};
 use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
 use config::NymConfig;
+use const_format::formatcp;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 mod template;
 
-const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &["http://localhost:1317"];
+pub const DEFAULT_VALIDATOR_HOST: &str = "localhost";
+const DEFAULT_VALIDATOR_PORT: &str = "1317";
+const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[formatcp!(
+    "http://{}:{}",
+    DEFAULT_VALIDATOR_HOST,
+    DEFAULT_VALIDATOR_PORT,
+)];
 
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
 const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;
@@ -72,6 +80,8 @@ pub struct Base {
 
     /// Address of the validator contract managing the network
     mixnet_contract_address: String,
+    // Avoid breaking derives for now
+    keypair_bs58: String,
 }
 
 impl Default for Base {
@@ -82,6 +92,7 @@ impl Default for Base {
                 .map(|&endpoint| endpoint.to_string())
                 .collect(),
             mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
+            keypair_bs58: String::default(),
         }
     }
 }
@@ -202,6 +213,10 @@ impl Config {
         Config::default()
     }
 
+    pub fn keypair(&self) -> KeyPair {
+        KeyPair::try_from_bs58(self.base.keypair_bs58.clone()).unwrap()
+    }
+
     pub fn enabled_network_monitor(mut self, enabled: bool) -> Self {
         self.network_monitor.enabled = enabled;
         self
@@ -229,6 +244,11 @@ impl Config {
 
     pub fn with_custom_mixnet_contract<S: Into<String>>(mut self, mixnet_contract: S) -> Self {
         self.base.mixnet_contract_address = mixnet_contract.into();
+        self
+    }
+
+    pub fn with_keypair(mut self, keypair_bs58: String) -> Self {
+        self.base.keypair_bs58 = keypair_bs58;
         self
     }
 

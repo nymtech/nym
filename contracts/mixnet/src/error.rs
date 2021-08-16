@@ -1,3 +1,6 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use config::defaults::DENOM;
 use cosmwasm_std::{Addr, StdError};
 use mixnet_contract::IdentityKey;
@@ -47,6 +50,12 @@ pub enum ContractError {
 
     #[error("The bond reward rate for gateway was set to be lower than 1")]
     DecreasingGatewayBondReward,
+
+    #[error("The delegation reward rate for mixnode was set to be lower than 1")]
+    DecreasingMixnodeDelegationReward,
+
+    #[error("The delegation reward rate for gateway was set to be lower than 1")]
+    DecreasingGatewayDelegationReward,
 
     #[error("The node had uptime larger than 100%")]
     UnexpectedUptime,

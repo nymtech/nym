@@ -17,6 +17,7 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
 nymsphinx = { path = "../../nymsphinx" }
+coconut-interface = { path = "../../coconut-interface" }
 
 [dependencies.tungstenite]
 version = "0.13"
@@ -41,8 +42,8 @@ version = "0.4"
 path = "../../wasm-utils"
 
 # only import it in wasm. Prefer proper tokio timer in non-wasm
-[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-timer]
-version = "0.2"
+[target."cfg(target_arch = \"wasm32\")".dependencies.fluvio-wasm-timer]
+version = "0.2.5"
 
 # this is due to tungstenite using `rand` 0.8 and associated changes in `getrandom` crate
 # which now does not support wasm32-unknown-unknown target by default.

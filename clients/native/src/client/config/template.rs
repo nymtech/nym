@@ -29,11 +29,6 @@ validator_rest_urls = [
 # Address of the validator contract managing the network.
 mixnet_contract_address = '{{ client.mixnet_contract_address }}'
 
-# Special mode of the system such that all messages are sent as soon as they are received
-# and no cover traffic is generated. If set all message delays are set to 0 and overwriting
-# 'Debug' values will have no effect.
-vpn_mode = {{ client.vpn_mode }}
-
 # Path to file containing private identity key.
 private_identity_key_file = '{{ client.private_identity_key_file }}'
 

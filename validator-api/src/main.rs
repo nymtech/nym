@@ -13,6 +13,7 @@ use ::config::NymConfig;
 use anyhow::Result;
 use cache::ValidatorCache;
 use clap::{App, Arg, ArgMatches};
+use coconut::InternalSignRequest;
 use log::info;
 use rocket::http::Method;
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
@@ -20,6 +21,7 @@ use std::process;
 use validator_client::validator_api::VALIDATOR_API_PORT;
 
 pub(crate) mod cache;
+mod coconut;
 pub(crate) mod config;
 mod network_monitor;
 mod node_status_api;
@@ -32,6 +34,7 @@ const VALIDATORS_ARG: &str = "validators";
 const DETAILED_REPORT_ARG: &str = "detailed-report";
 const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
 const WRITE_CONFIG_ARG: &str = "save-config";
+const KEYPAIR_ARG: &str = "keypair";
 
 pub(crate) const PENALISE_OUTDATED: bool = false;
 
@@ -47,7 +50,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             Arg::with_name(V4_TOPOLOGY_ARG)
                 .help("location of .json file containing IPv4 'good' network topology")
                 .long(V4_TOPOLOGY_ARG)
-                .takes_value(true)
         )
         .arg(
             Arg::with_name(V6_TOPOLOGY_ARG)
@@ -76,6 +78,10 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .help("specifies whether a config file based on provided arguments should be saved to a file")
                 .long(WRITE_CONFIG_ARG)
         )
+        .arg(Arg::with_name(KEYPAIR_ARG)
+            .help("Path to the secret key file")
+            .takes_value(true)
+            .long(KEYPAIR_ARG))
         .get_matches()
 }
 
@@ -140,6 +146,13 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if matches.is_present(DETAILED_REPORT_ARG) {
         config = config.detailed_network_monitor_report(true)
     }
+    if let Some(keypair_path) = matches.value_of(KEYPAIR_ARG) {
+        let keypair_bs58 = std::fs::read_to_string(keypair_path)
+            .unwrap()
+            .trim()
+            .to_string();
+        config = config.with_keypair(keypair_bs58)
+    }
 
     if matches.is_present(WRITE_CONFIG_ARG) {
         info!("Saving the configuration to a file");
@@ -202,7 +215,8 @@ async fn main() -> Result<()> {
     };
     let rocket = rocket::custom(rocket_config)
         .attach(setup_cors()?)
-        .attach(ValidatorCache::stage());
+        .attach(ValidatorCache::stage())
+        .attach(InternalSignRequest::stage(config.keypair()));
 
     // see if we should start up network monitor and ignite our rocket
     let rocket = if config.get_network_monitor_enabled() {

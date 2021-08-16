@@ -1,6 +1,10 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+extern crate mixnet_contract;
+
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
-use mixnet_contract::MixNodeBond;
-use mixnet_contracts::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use mixnet_contract::{ExecuteMsg, InstantiateMsg, MixNodeBond, QueryMsg};
 use mixnet_contracts::state::State;
 use std::env::current_dir;
 use std::fs::create_dir_all;

@@ -249,15 +249,6 @@ where
         tokio::task::yield_now().await;
     }
 
-    async fn on_batch_received(&mut self, real_messages: Vec<RealMessage>) {
-        let mut mix_packets = Vec::with_capacity(real_messages.len());
-        for real_message in real_messages.into_iter() {
-            self.sent_notify(real_message.fragment_id);
-            mix_packets.push(real_message.mix_packet);
-        }
-        self.mix_tx.unbounded_send(mix_packets).unwrap();
-    }
-
     // Send messages at certain rate and if no real traffic is available, send cover message.
     async fn run_normal_out_queue(&mut self) {
         // we should set initial delay only when we actually start the stream
@@ -271,20 +262,8 @@ where
         }
     }
 
-    // Send real message as soon as it's available and don't inject ANY cover traffic.
-    async fn run_vpn_out_queue(&mut self) {
-        while let Some(next_messages) = self.real_receiver.next().await {
-            self.on_batch_received(next_messages).await
-        }
-    }
-
-    pub(crate) async fn run_out_queue_control(&mut self, vpn_mode: bool) {
-        if vpn_mode {
-            debug!("Starting out queue controller in vpn mode...");
-            self.run_vpn_out_queue().await
-        } else {
-            debug!("Starting out queue controller...");
-            self.run_normal_out_queue().await
-        }
+    pub(crate) async fn run_out_queue_control(&mut self) {
+        debug!("Starting out queue controller...");
+        self.run_normal_out_queue().await
     }
 }

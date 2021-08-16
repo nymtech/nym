@@ -505,7 +505,7 @@ export default class ValidatorClient {
     }
 
     /**
-     * Gets list of all delegations towards particular mixnode.
+     * Gets list of all delegations towards particular gateway.
      *
      * @param gatewayIdentity identity of the gateway to which the delegation was sent
      */
@@ -670,6 +670,8 @@ export type StateParams = {
     minimum_gateway_bond: string,
     mixnode_bond_reward_rate: string,
     gateway_bond_reward_rate: string,
+    mixnode_delegation_reward_rate: string,
+    gateway_delegation_reward_rate: string,
     mixnode_active_set_size: number,
 }
 

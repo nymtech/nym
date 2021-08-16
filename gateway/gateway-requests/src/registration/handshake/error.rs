@@ -2,40 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crypto::asymmetric::identity;
-use std::fmt::{self, Display, Formatter};
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum HandshakeError {
+    #[error(
+        "received key material of invalid length - {0}. Expected: {}",
+        identity::SIGNATURE_LENGTH
+    )]
     KeyMaterialOfInvalidSize(usize),
+    #[error("received invalid signature")]
     InvalidSignature,
+    #[error("encountered network error")]
     NetworkError,
+    #[error("encountered network error")]
     ClosedStream,
+    #[error("error on the remote: {0}")]
     RemoteError(String),
+    #[error("received response was malformed:")]
     MalformedResponse,
+    #[error("sent request was malformed")]
     MalformedRequest,
+    #[error("sent request was malformed")]
     HandshakeFailure,
+    #[error("could not verify Coconut Credential")]
+    InvalidCoconutCredential,
+    #[error("could not deserialize from slice: {source}")]
+    DeserializationError {
+        #[from]
+        source: bincode::Error,
+    },
 }
-
-impl Display for HandshakeError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            HandshakeError::KeyMaterialOfInvalidSize(received) => write!(
-                f,
-                "received key material of invalid length - {}. Expected: {}",
-                received,
-                identity::SIGNATURE_LENGTH
-            ),
-            HandshakeError::InvalidSignature => write!(f, "received invalid signature"),
-            HandshakeError::NetworkError => write!(f, "encountered network error"),
-            HandshakeError::ClosedStream => {
-                write!(f, "the stream was closed before completing handshake")
-            }
-            HandshakeError::RemoteError(err) => write!(f, "error on the remote: {}", err),
-            HandshakeError::MalformedResponse => write!(f, "received response was malformed:"),
-            HandshakeError::MalformedRequest => write!(f, "sent request was malformed"),
-            HandshakeError::HandshakeFailure => write!(f, "unknown handshake failure"),
-        }
-    }
-}
-
-impl std::error::Error for HandshakeError {}

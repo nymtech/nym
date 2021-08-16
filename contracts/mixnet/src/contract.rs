@@ -55,6 +55,14 @@ fn default_initial_state(owner: Addr) -> State {
             INITIAL_DEFAULT_EPOCH_LENGTH,
             gateway_bond_reward_rate,
         ),
+        mixnode_epoch_delegation_reward: calculate_epoch_reward_rate(
+            INITIAL_DEFAULT_EPOCH_LENGTH,
+            mixnode_delegation_reward_rate,
+        ),
+        gateway_epoch_delegation_reward: calculate_epoch_reward_rate(
+            INITIAL_DEFAULT_EPOCH_LENGTH,
+            gateway_delegation_reward_rate,
+        ),
     }
 }
 

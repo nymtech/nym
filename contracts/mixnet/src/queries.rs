@@ -552,6 +552,8 @@ mod tests {
             },
             mixnode_epoch_bond_reward: "1.23".parse().unwrap(),
             gateway_epoch_bond_reward: "4.56".parse().unwrap(),
+            mixnode_epoch_delegation_reward: "7.89".parse().unwrap(),
+            gateway_epoch_delegation_reward: "0.12".parse().unwrap(),
         };
 
         config(deps.as_mut().storage).save(&dummy_state).unwrap();

@@ -63,6 +63,22 @@ pub(crate) fn read_gateway_epoch_bond_reward_rate(storage: &dyn Storage) -> Deci
         .gateway_epoch_bond_reward
 }
 
+pub(crate) fn read_mixnode_epoch_delegation_reward_rate(storage: &dyn Storage) -> Decimal {
+    // same justification as in `read_state_params` for the unwrap
+    config_read(storage)
+        .load()
+        .unwrap()
+        .mixnode_epoch_delegation_reward
+}
+
+pub(crate) fn read_gateway_epoch_delegation_reward_rate(storage: &dyn Storage) -> Decimal {
+    // same justification as in `read_state_params` for the unwrap
+    config_read(storage)
+        .load()
+        .unwrap()
+        .gateway_epoch_delegation_reward
+}
+
 pub fn layer_distribution(storage: &mut dyn Storage) -> Singleton<LayerDistribution> {
     singleton(storage, LAYER_DISTRIBUTION_KEY)
 }
@@ -240,6 +256,17 @@ pub(crate) fn read_mixnode_bond(
     Ok(node.bond_amount.amount)
 }
 
+// currently not used outside tests
+#[cfg(test)]
+pub(crate) fn read_mixnode_delegation(
+    storage: &dyn Storage,
+    identity: &[u8],
+) -> StdResult<cosmwasm_std::Uint128> {
+    let bucket = mixnodes_read(storage);
+    let node = bucket.load(identity)?;
+    Ok(node.total_delegation.amount)
+}
+
 // Gateway-related stuff
 
 pub fn gateways(storage: &mut dyn Storage) -> Bucket<GatewayBond> {
@@ -303,6 +330,17 @@ pub(crate) fn read_gateway_bond(
     let bucket = gateways_read(storage);
     let node = bucket.load(identity)?;
     Ok(node.bond_amount.amount)
+}
+
+// currently not used outside tests
+#[cfg(test)]
+pub(crate) fn read_gateway_delegation(
+    storage: &dyn Storage,
+    identity: &[u8],
+) -> StdResult<cosmwasm_std::Uint128> {
+    let bucket = gateways_read(storage);
+    let node = bucket.load(identity)?;
+    Ok(node.total_delegation.amount)
 }
 
 #[cfg(test)]

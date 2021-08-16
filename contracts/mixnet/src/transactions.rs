@@ -409,7 +409,7 @@ pub(crate) fn try_reward_mixnode(
         }
     };
 
-    let reward_rate = read_mixnode_epoch_reward_rate(deps.storage);
+    let reward_rate = read_mixnode_epoch_bond_reward_rate(deps.storage);
     let scaled_reward_rate = scale_reward_by_uptime(reward_rate, uptime)?;
 
     let node_reward = current_bond.bond_amount.amount * scaled_reward_rate;
@@ -469,7 +469,7 @@ pub(crate) fn try_reward_gateway(
         }
     };
 
-    let reward_rate = read_gateway_epoch_reward_rate(deps.storage);
+    let reward_rate = read_gateway_epoch_bond_reward_rate(deps.storage);
     let scaled_reward_rate = scale_reward_by_uptime(reward_rate, uptime)?;
 
     let node_reward = current_bond.bond_amount.amount * scaled_reward_rate;
@@ -697,7 +697,8 @@ pub mod tests {
     use crate::helpers::calculate_epoch_reward_rate;
     use crate::storage::{
         gateway_delegations, gateway_delegations_read, layer_distribution_read,
-        mix_delegations_read, read_gateway_bond, read_gateway_epoch_reward_rate, read_mixnode_bond,
+        mix_delegations_read, read_gateway_bond, read_gateway_epoch_bond_reward_rate,
+        read_mixnode_bond,
     };
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{
@@ -1577,7 +1578,7 @@ pub mod tests {
         assert_eq!(current_state.params, new_params);
 
         // mixnode_epoch_bond_reward is recalculated if annual reward  is changed
-        let current_mix_reward_rate = read_mixnode_epoch_reward_rate(deps.as_ref().storage);
+        let current_mix_reward_rate = read_mixnode_epoch_bond_reward_rate(deps.as_ref().storage);
         let new_mixnode_bond_reward_rate = Decimal::percent(120);
 
         // sanity check to make sure we are actually updating the value (in case we changed defaults at some point)
@@ -1595,7 +1596,8 @@ pub mod tests {
         assert_eq!(expected, new_state.mixnode_epoch_bond_reward);
 
         // gateway_epoch_bond_reward is recalculated if annual reward rate is changed
-        let current_gateway_reward_rate = read_gateway_epoch_reward_rate(deps.as_ref().storage);
+        let current_gateway_reward_rate =
+            read_gateway_epoch_bond_reward_rate(deps.as_ref().storage);
         let new_gateway_bond_reward_rate = Decimal::percent(120);
 
         // sanity check to make sure we are actually updating the value (in case we changed defaults at some point)
@@ -1697,7 +1699,7 @@ pub mod tests {
             .save(node_identity.as_bytes(), &mixnode_bond)
             .unwrap();
 
-        let reward_rate = read_mixnode_epoch_reward_rate(deps.as_ref().storage);
+        let reward_rate = read_mixnode_epoch_bond_reward_rate(deps.as_ref().storage);
         let expected_reward = Uint128(initial_bond) * reward_rate;
 
         // the node's bond is correctly increased and scaled by uptime
@@ -1776,7 +1778,7 @@ pub mod tests {
             .save(node_identity.as_bytes(), &gateway_bond)
             .unwrap();
 
-        let reward_rate = read_gateway_epoch_reward_rate(deps.as_ref().storage);
+        let reward_rate = read_gateway_epoch_bond_reward_rate(deps.as_ref().storage);
         let expected_reward = Uint128(initial_bond) * reward_rate;
 
         // the node's bond is correctly increased and scaled by uptime
@@ -2323,7 +2325,7 @@ pub mod tests {
             .save(b"delegator3", &Uint128(initial_delegation3))
             .unwrap();
 
-        let reward = read_mixnode_epoch_reward_rate(deps.as_ref().storage);
+        let reward = read_mixnode_epoch_bond_reward_rate(deps.as_ref().storage);
 
         // the node's bond is correctly increased and scaled by uptime
         // if node was 100% up, it will get full epoch reward
@@ -2927,7 +2929,7 @@ pub mod tests {
             .save(b"delegator3", &Uint128(initial_delegation3))
             .unwrap();
 
-        let reward = read_gateway_epoch_reward_rate(deps.as_ref().storage);
+        let reward = read_gateway_epoch_bond_reward_rate(deps.as_ref().storage);
 
         // the node's bond is correctly increased and scaled by uptime
         // if node was 100% up, it will get full epoch reward

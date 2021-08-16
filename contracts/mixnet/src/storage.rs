@@ -47,7 +47,7 @@ pub(crate) fn read_state_params(storage: &dyn Storage) -> StateParams {
     config_read(storage).load().unwrap().params
 }
 
-pub(crate) fn read_mixnode_epoch_reward_rate(storage: &dyn Storage) -> Decimal {
+pub(crate) fn read_mixnode_epoch_bond_reward_rate(storage: &dyn Storage) -> Decimal {
     // same justification as in `read_state_params` for the unwrap
     config_read(storage)
         .load()
@@ -55,7 +55,7 @@ pub(crate) fn read_mixnode_epoch_reward_rate(storage: &dyn Storage) -> Decimal {
         .mixnode_epoch_bond_reward
 }
 
-pub(crate) fn read_gateway_epoch_reward_rate(storage: &dyn Storage) -> Decimal {
+pub(crate) fn read_gateway_epoch_bond_reward_rate(storage: &dyn Storage) -> Decimal {
     // same justification as in `read_state_params` for the unwrap
     config_read(storage)
         .load()

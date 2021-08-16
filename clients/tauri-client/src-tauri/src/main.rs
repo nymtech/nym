@@ -4,12 +4,12 @@
 )]
 
 use coconut_interface::{
-  self, get_aggregated_verification_key, Attribute, Credential, Parameters, Signature, State,
-  Theta, ValidatorAPIClient, VerificationKey,
+  self, Attribute, Credential, Parameters, Signature, Theta, VerificationKey,
 };
 use credentials::{obtain_aggregate_signature, obtain_aggregate_verification_key};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use url::Url;
 
 struct State {
   signatures: Vec<Signature>,
@@ -78,17 +78,22 @@ async fn list_credentials(
 
 async fn get_aggregated_verification_key(
   validator_urls: Vec<String>,
-  state: tauri::State<Arc<RwLock<State>>>,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<VerificationKey, String> {
   if let Some(verification_key) = &state.read().await.aggregated_verification_key {
     return Ok(verification_key.clone());
   }
 
-  let mut parsed_urls = parse_url_validators(&validator_urls)?;
+  let parsed_urls = parse_url_validators(&validator_urls)?;
   let key = obtain_aggregate_verification_key(&parsed_urls)
     .await
     .map_err(|err| format!("failed to obtain aggregate verification key - {:?}", err))?;
-  *state.write().await.aggregated_verification_key = &key.clone();
+
+  state
+    .write()
+    .await
+    .aggregated_verification_key
+    .replace(key.clone());
 
   Ok(key)
 }
@@ -96,13 +101,13 @@ async fn get_aggregated_verification_key(
 async fn prove_credential(
   idx: usize,
   validator_urls: Vec<String>,
-  state: tauri::State<Arc<RwLock<State>>>,
+  state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Theta, String> {
-  let verification_key = get_aggregated_verification_key(validator_urls, state.clone())?;
+  let verification_key = get_aggregated_verification_key(validator_urls, state.clone()).await?;
   let state = state.read().await;
 
   if let Some(signature) = state.signatures.get(idx) {
-    match coconut_rs::prove_credential(
+    match coconut_interface::prove_credential(
       &state.params,
       &verification_key,
       signature,
@@ -112,7 +117,7 @@ async fn prove_credential(
       Err(e) => Err(format!("{}", e)),
     }
   } else {
-    Err("Got invalid Signature idx".to_string());
+    Err("Got invalid Signature idx".to_string())
   }
 }
 
@@ -150,7 +155,7 @@ async fn get_credential(
   let guard = state.read().await;
   let parsed_urls = parse_url_validators(&validator_urls)?;
 
-  obtain_aggregate_signature(
+  let signature = obtain_aggregate_signature(
     &guard.params,
     &guard.public_attributes,
     &guard.private_attributes,

@@ -1,18 +1,6 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-use self::vpn_manager::VpnManager;
 use crate::chunking;
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
@@ -28,7 +16,7 @@ use nymsphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nymsphinx_forwarding::packet::MixPacket;
 use nymsphinx_params::packet_sizes::PacketSize;
 use nymsphinx_params::{
-    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketMode, ReplySurbEncryptionAlgorithm,
+    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySurbEncryptionAlgorithm,
     ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS,
 };
 use nymsphinx_types::builder::SphinxPacketBuilder;
@@ -37,8 +25,6 @@ use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::time::Duration;
 use topology::{NymTopology, NymTopologyError};
-
-mod vpn_manager;
 
 /// Represents fully packed and prepared [`Fragment`] that can be sent through the mix network.
 pub struct PreparedFragment {
@@ -88,14 +74,6 @@ pub struct MessagePreparer<R: CryptoRng + Rng> {
     /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
     /// Note that it does not include gateway hops.
     num_mix_hops: u8,
-
-    /// Mode of all mix packets created - VPN or Mix. They indicate whether packets should get delayed
-    /// and keys reused.
-    mode: PacketMode,
-
-    /// If the VPN mode is activated, this underlying secret will be used for multiple sphinx
-    /// packets created.
-    vpn_manager: Option<VpnManager>,
 }
 
 impl<R> MessagePreparer<R>
@@ -103,22 +81,11 @@ where
     R: CryptoRng + Rng,
 {
     pub fn new(
-        mut rng: R,
+        rng: R,
         sender_address: Recipient,
         average_packet_delay: Duration,
         average_ack_delay: Duration,
-        mode: PacketMode,
-        vpn_key_reuse_limit: Option<usize>,
     ) -> Self {
-        let vpn_manager = if mode.is_vpn() {
-            Some(VpnManager::new(
-                &mut rng,
-                vpn_key_reuse_limit.expect("No key reuse limit provided in vpn mode!"),
-            ))
-        } else {
-            None
-        };
-
         MessagePreparer {
             rng,
             packet_size: Default::default(),
@@ -126,8 +93,6 @@ where
             average_packet_delay,
             average_ack_delay,
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
-            mode,
-            vpn_manager,
         }
     }
 
@@ -309,20 +274,10 @@ where
 
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.
-        let sphinx_packet = if let Some(vpn_manager) = self.vpn_manager.as_mut() {
-            let initial_secret = vpn_manager.use_secret(&mut self.rng).await;
-
-            SphinxPacketBuilder::new()
-                .with_payload_size(self.packet_size.payload_size())
-                .with_initial_secret(&initial_secret)
-                .build_packet(packet_payload, &route, &destination, &delays)
-                .unwrap()
-        } else {
-            SphinxPacketBuilder::new()
-                .with_payload_size(self.packet_size.payload_size())
-                .build_packet(packet_payload, &route, &destination, &delays)
-                .unwrap()
-        };
+        let sphinx_packet = SphinxPacketBuilder::new()
+            .with_payload_size(self.packet_size.payload_size())
+            .build_packet(packet_payload, &route, &destination, &delays)
+            .unwrap();
 
         // from the previously constructed route extract the first hop
         let first_hop_address =
@@ -333,7 +288,7 @@ where
             // well as the total delay of the ack packet.
             // note that the last hop of the packet is a gateway that does not do any delays
             total_delay: delays.iter().take(delays.len() - 1).sum::<Delay>() + ack_delay,
-            mix_packet: MixPacket::new(first_hop_address, sphinx_packet, self.mode),
+            mix_packet: MixPacket::new(first_hop_address, sphinx_packet, Default::default()),
         })
     }
 
@@ -344,28 +299,14 @@ where
         topology: &NymTopology,
         ack_key: &AckKey,
     ) -> Result<SurbAck, NymTopologyError> {
-        if let Some(vpn_manager) = self.vpn_manager.as_mut() {
-            let initial_secret = vpn_manager.use_secret(&mut self.rng).await;
-            SurbAck::construct(
-                &mut self.rng,
-                &self.sender_address,
-                ack_key,
-                fragment_id.to_bytes(),
-                self.average_ack_delay,
-                topology,
-                Some(&initial_secret),
-            )
-        } else {
-            SurbAck::construct(
-                &mut self.rng,
-                &self.sender_address,
-                ack_key,
-                fragment_id.to_bytes(),
-                self.average_ack_delay,
-                topology,
-                None,
-            )
-        }
+        SurbAck::construct(
+            &mut self.rng,
+            &self.sender_address,
+            ack_key,
+            fragment_id.to_bytes(),
+            self.average_ack_delay,
+            topology,
+        )
     }
 
     /// Attaches an optional reply-surb and correct padding to the underlying message
@@ -462,7 +403,10 @@ where
             .apply_surb(&packet_payload, Some(self.packet_size))
             .unwrap();
 
-        Ok((MixPacket::new(first_hop, packet, self.mode), reply_id))
+        Ok((
+            MixPacket::new(first_hop, packet, Default::default()),
+            reply_id,
+        ))
     }
 
     #[allow(dead_code)]
@@ -478,8 +422,6 @@ where
             average_packet_delay: Default::default(),
             average_ack_delay: Default::default(),
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
-            mode: Default::default(),
-            vpn_manager: None,
         }
     }
 }

@@ -1,17 +1,7 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
+use config::defaults::*;
 use config::{deserialize_duration, deserialize_validators, NymConfig};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
@@ -21,14 +11,6 @@ use std::time::Duration;
 pub mod persistence;
 
 pub const MISSING_VALUE: &str = "MISSING VALUE";
-
-// 'CLIENT'
-pub const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
-    "http://testnet-finney-validator.nymtech.net:1317",
-    "http://testnet-finney-validator2.nymtech.net:1317",
-    "http://mixnet.club:1317",
-];
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
@@ -40,9 +22,6 @@ const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(50);
 const DEFAULT_TOPOLOGY_REFRESH_RATE: Duration = Duration::from_secs(5 * 60); // every 5min
 const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: Duration = Duration::from_millis(5_000);
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
-const DEFAULT_VPN_KEY_REUSE_LIMIT: usize = 1000;
-
-const ZERO_DELAY: Duration = Duration::from_nanos(0);
 
 // helper function to get default validators as a Vec<String>
 pub fn default_validator_rest_endpoints() -> Vec<String> {
@@ -157,14 +136,6 @@ impl<T: NymConfig> Config<T> {
         self.debug.message_sending_average_delay = Duration::from_millis(4); // 250 "real" messages / s
     }
 
-    pub fn set_vpn_mode(&mut self, vpn_mode: bool) {
-        self.client.vpn_mode = vpn_mode;
-    }
-
-    pub fn set_vpn_key_reuse_limit(&mut self, reuse_limit: usize) {
-        self.debug.vpn_key_reuse_limit = Some(reuse_limit)
-    }
-
     pub fn set_custom_version(&mut self, version: &str) {
         self.client.version = version.to_string();
     }
@@ -223,19 +194,11 @@ impl<T: NymConfig> Config<T> {
 
     // Debug getters
     pub fn get_average_packet_delay(&self) -> Duration {
-        if self.client.vpn_mode {
-            ZERO_DELAY
-        } else {
-            self.debug.average_packet_delay
-        }
+        self.debug.average_packet_delay
     }
 
     pub fn get_average_ack_delay(&self) -> Duration {
-        if self.client.vpn_mode {
-            ZERO_DELAY
-        } else {
-            self.debug.average_ack_delay
-        }
+        self.debug.average_ack_delay
     }
 
     pub fn get_ack_wait_multiplier(&self) -> f64 {
@@ -251,11 +214,7 @@ impl<T: NymConfig> Config<T> {
     }
 
     pub fn get_message_sending_average_delay(&self) -> Duration {
-        if self.client.vpn_mode {
-            ZERO_DELAY
-        } else {
-            self.debug.message_sending_average_delay
-        }
+        self.debug.message_sending_average_delay
     }
 
     pub fn get_gateway_response_timeout(&self) -> Duration {
@@ -268,21 +227,6 @@ impl<T: NymConfig> Config<T> {
 
     pub fn get_topology_resolution_timeout(&self) -> Duration {
         self.debug.topology_resolution_timeout
-    }
-
-    pub fn get_vpn_mode(&self) -> bool {
-        self.client.vpn_mode
-    }
-
-    pub fn get_vpn_key_reuse_limit(&self) -> Option<usize> {
-        match self.get_vpn_mode() {
-            false => None,
-            true => Some(
-                self.debug
-                    .vpn_key_reuse_limit
-                    .unwrap_or(DEFAULT_VPN_KEY_REUSE_LIMIT),
-            ),
-        }
     }
 
     pub fn get_version(&self) -> &str {
@@ -320,12 +264,6 @@ pub struct Client<T> {
     /// Address of the validator contract managing the network.
     #[serde(default = "missing_string_value")]
     mixnet_contract_address: String,
-
-    /// Special mode of the system such that all messages are sent as soon as they are received
-    /// and no cover traffic is generated. If set all message delays are set to 0 and overwriting
-    /// 'Debug' values will have no effect.
-    #[serde(default)]
-    vpn_mode: bool,
 
     /// Path to file containing private identity key.
     private_identity_key_file: PathBuf,
@@ -374,7 +312,6 @@ impl<T: NymConfig> Default for Client<T> {
             id: "".to_string(),
             validator_rest_urls: default_validator_rest_endpoints(),
             mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
-            vpn_mode: false,
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             private_encryption_key_file: Default::default(),
@@ -392,31 +329,31 @@ impl<T: NymConfig> Default for Client<T> {
 
 impl<T: NymConfig> Client<T> {
     fn default_private_identity_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("private_identity.pem")
+        T::default_data_directory(Some(id)).join("private_identity.pem")
     }
 
     fn default_public_identity_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("public_identity.pem")
+        T::default_data_directory(Some(id)).join("public_identity.pem")
     }
 
     fn default_private_encryption_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("private_encryption.pem")
+        T::default_data_directory(Some(id)).join("private_encryption.pem")
     }
 
     fn default_public_encryption_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("public_encryption.pem")
+        T::default_data_directory(Some(id)).join("public_encryption.pem")
     }
 
     fn default_gateway_shared_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("gateway_shared.pem")
+        T::default_data_directory(Some(id)).join("gateway_shared.pem")
     }
 
     fn default_ack_key_file(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("ack_key.pem")
+        T::default_data_directory(Some(id)).join("ack_key.pem")
     }
 
     fn default_reply_encryption_key_store_path(id: &str) -> PathBuf {
-        T::default_data_directory(id).join("reply_key_store")
+        T::default_data_directory(Some(id)).join("reply_key_store")
     }
 }
 
@@ -509,10 +446,6 @@ pub struct Debug {
         serialize_with = "humantime_serde::serialize"
     )]
     topology_resolution_timeout: Duration,
-
-    /// If the mode of the client is set to VPN it specifies number of packets created with the
-    /// same initial secret until it gets rotated.
-    vpn_key_reuse_limit: Option<usize>,
 }
 
 impl Default for Debug {
@@ -527,7 +460,6 @@ impl Default for Debug {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
-            vpn_key_reuse_limit: None,
         }
     }
 }

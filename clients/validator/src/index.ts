@@ -3,7 +3,7 @@ import { Gateway, GatewayBond, MixNode, MixNodeBond, SendRequest } from "./types
 import { Bip39, Random } from "@cosmjs/crypto";
 import { DirectSecp256k1HdWallet, EncodeObject } from "@cosmjs/proto-signing";
 import MixnodesCache from "./caches/mixnodes";
-import { buildFeeTable, coin, Coin, coins, StdFee } from "@cosmjs/launchpad";
+import { buildFeeTable, coin, Coin, coins, StdFee } from "@cosmjs/stargate";
 import {
     ExecuteResult,
     InstantiateOptions,
@@ -11,7 +11,7 @@ import {
     MigrateResult,
     UploadMeta,
     UploadResult
-} from "@cosmjs/cosmwasm";
+} from "@cosmjs/cosmwasm-stargate";
 import {
     CoinMap,
     displayAmountToNative,
@@ -27,58 +27,70 @@ import { nymGasLimits, nymGasPrice } from "./stargate-helper";
 import { BroadcastTxSuccess, isBroadcastTxFailure } from "@cosmjs/stargate";
 import { makeBankMsgSend } from "./utils";
 
+export const VALIDATOR_API_PORT = "8080";
+export const VALIDATOR_API_GATEWAYS = "v1/gateways";
+export const VALIDATOR_API_MIXNODES = "v1/mixnodes";
+
 export { coins, coin };
 export { Coin };
-export { displayAmountToNative, nativeCoinToDisplay, printableCoin, printableBalance, nativeToPrintable, MappedCoin, CoinMap }
+export {
+    displayAmountToNative,
+    nativeCoinToDisplay,
+    printableCoin,
+    printableBalance,
+    nativeToPrintable,
+    MappedCoin,
+    CoinMap
+}
 export { nymGasLimits, nymGasPrice }
 
 export default class ValidatorClient {
-    private readonly stakeDenom: string;
-
-    urls: string[];
     private readonly client: INetClient | IQueryClient
-    private mixNodesCache: MixnodesCache;
-    private gatewayCache: GatewaysCache
     private readonly contractAddress: string;
-    // for some reason typescript thinks it's better to not be explicit about a trivial type...
-    // eslint-disable-next-line @typescript-eslint/no-inferrable-types
+    private readonly denom: string;
     private failedRequests: number = 0;
+    private gatewayCache: GatewaysCache
+    private mixNodesCache: MixnodesCache;
+    private readonly prefix: string;
+    urls: string[];
 
-    private constructor(urls: string[], client: INetClient | IQueryClient, contractAddress: string, stakeDenom: string) {
+
+    private constructor(urls: string[], client: INetClient | IQueryClient, contractAddress: string, prefix: string) {
         this.urls = urls;
         this.client = client;
         this.mixNodesCache = new MixnodesCache(client, 100);
         this.gatewayCache = new GatewaysCache(client, 100);
         this.contractAddress = contractAddress;
-        this.stakeDenom = stakeDenom;
+        this.prefix = prefix;
+        this.denom = "u" + prefix;
     }
 
     // allows also entering 'string' by itself for backwards compatibility
-    static async connect(contractAddress: string, mnemonic: string, urls: string | string[], stakeDenom: string): Promise<ValidatorClient> {
-        const validatorUrls = this.dealWithValidatorUrls(urls)
-        const wallet = await ValidatorClient.buildWallet(mnemonic);
+    static async connect(contractAddress: string, mnemonic: string, urls: string | string[], prefix: string): Promise<ValidatorClient> {
+        const validatorUrls = this.ensureArray(urls)
+        const wallet = await ValidatorClient.buildWallet(mnemonic, prefix);
 
         // if we have more than a single validator, try to perform initial connection until we succeed or run out of options
         if (validatorUrls.length > 1) {
             for (let i = 0; i < validatorUrls.length; i++) {
                 console.log("Attempting initial connection to", validatorUrls[0])
-                const netClient = await NetClient.connect(wallet, validatorUrls[0], stakeDenom).catch((_) => ValidatorClient.moveArrayHeadToBack(validatorUrls))
+                const netClient = await NetClient.connect(wallet, validatorUrls[0], prefix).catch((_) => ValidatorClient.moveArrayHeadToBack(validatorUrls))
                 if (netClient !== undefined) {
-                    return new ValidatorClient(validatorUrls, netClient, contractAddress, stakeDenom);
+                    return new ValidatorClient(validatorUrls, netClient, contractAddress, prefix);
                 }
                 console.log("Initial connection to", validatorUrls[0], "failed")
             }
         } else {
-            const netClient = await NetClient.connect(wallet, validatorUrls[0], stakeDenom)
-            return new ValidatorClient(validatorUrls, netClient, contractAddress, stakeDenom);
+            const netClient = await NetClient.connect(wallet, validatorUrls[0], prefix)
+            return new ValidatorClient(validatorUrls, netClient, contractAddress, prefix);
         }
 
         throw new Error("None of the provided validators seem to be alive")
     }
 
     // allows also entering 'string' by itself for backwards compatibility
-    static async connectForQuery(contractAddress: string, urls: string | string[], stakeDenom: string): Promise<ValidatorClient> {
-        const validatorUrls = this.dealWithValidatorUrls(urls)
+    static async connectForQuery(contractAddress: string, urls: string | string[], prefix: string): Promise<ValidatorClient> {
+        const validatorUrls = this.ensureArray(urls)
 
         // if we have more than a single validator, try to perform initial connection until we succeed or run out of options
         if (validatorUrls.length > 1) {
@@ -86,19 +98,19 @@ export default class ValidatorClient {
                 console.log("Attempting initial connection to", validatorUrls[0])
                 const queryClient = await QueryClient.connect(validatorUrls[0]).catch((_) => ValidatorClient.moveArrayHeadToBack(validatorUrls))
                 if (queryClient !== undefined) {
-                    return new ValidatorClient(validatorUrls, queryClient, contractAddress, stakeDenom)
+                    return new ValidatorClient(validatorUrls, queryClient, contractAddress, prefix)
                 }
                 console.log("Initial connection to", validatorUrls[0], "failed")
             }
         } else {
             const queryClient = await QueryClient.connect(validatorUrls[0])
-            return new ValidatorClient(validatorUrls, queryClient, contractAddress, stakeDenom)
+            return new ValidatorClient(validatorUrls, queryClient, contractAddress, prefix)
         }
 
         throw new Error("None of the provided validators seem to be alive")
     }
 
-    private static dealWithValidatorUrls(urls: string | string[]): string[] {
+    private static ensureArray(urls: string | string[]): string[] {
         let validatorsUrls: string[] = []
         if (typeof urls === "string") {
             validatorsUrls = [urls]
@@ -134,7 +146,9 @@ export default class ValidatorClient {
                 ValidatorClient.moveArrayHeadToBack(this.urls)
             }
             // and change validator to the front one and rethrow the error
-            return await this.changeValidator(this.urls[0]).then(() => {throw error})
+            return await this.changeValidator(this.urls[0]).then(() => {
+                throw error
+            })
         } else {
             // rethrow the error
             throw error
@@ -157,7 +171,7 @@ export default class ValidatorClient {
 
     // It is responsibility of the caller to ensure the input array is non-empty
     private static moveArrayHeadToBack<T>(arr: T[]) {
-        const head = <T> arr.shift()
+        const head = <T>arr.shift()
         arr.push(head)
     }
 
@@ -200,18 +214,19 @@ export default class ValidatorClient {
      * @param mnemonic A mnemonic from which to generate a public/private keypair.
      * @returns the address for this client wallet
      */
-    static async mnemonicToAddress(mnemonic: string): Promise<string> {
-        const wallet = await ValidatorClient.buildWallet(mnemonic);
+    static async mnemonicToAddress(mnemonic: string, prefix: string): Promise<string> {
+        const wallet = await ValidatorClient.buildWallet(mnemonic, prefix);
         const [{address}] = await wallet.getAccounts()
         return address
     }
 
-    static async buildWallet(mnemonic: string): Promise<DirectSecp256k1HdWallet> {
-        return DirectSecp256k1HdWallet.fromMnemonic(mnemonic, undefined, "hal");
+    static async buildWallet(mnemonic: string, prefix: string): Promise<DirectSecp256k1HdWallet> {
+        const signerOptions = {prefix: prefix};
+        return DirectSecp256k1HdWallet.fromMnemonic(mnemonic, signerOptions);
     }
 
     getBalance(address: string): Promise<Coin | null> {
-        return this.client.getBalance(address, this.stakeDenom).catch((err) => this.handleRequestFailure(err));
+        return this.client.getBalance(address, this.denom).catch((err) => this.handleRequestFailure(err));
     }
 
     async getStateParams(): Promise<StateParams> {
@@ -232,6 +247,18 @@ export default class ValidatorClient {
     }
 
     /**
+     * Get or refresh the list of mixnodes in the network from validator-api
+     *
+     * @returns an array containing all known `MixNodeBond`s.
+     *
+     * TODO: We will want to put this puppy on a timer, but for the moment we can
+     * just get things strung together and refresh it manually.
+     */
+    refreshValidatorAPIMixNodes(): Promise<MixNodeBond[]> {
+        return this.mixNodesCache.refreshValidatorAPIMixNodes(this.urls).catch((err) => this.handleRequestFailure(err));
+    }
+
+    /**
      * Get mixnodes from the local client cache.
      *
      * @returns an array containing all `MixNodeBond`s in the client's local cache.
@@ -248,7 +275,7 @@ export default class ValidatorClient {
     async minimumMixnodeBond(): Promise<Coin> {
         const stateParams = await this.getStateParams()
         // we trust the contract to return a valid number
-        return coin(Number(stateParams.minimum_mixnode_bond), this.stakeDenom)
+        return coin(Number(stateParams.minimum_mixnode_bond), this.prefix)
     }
 
     /**
@@ -256,7 +283,7 @@ export default class ValidatorClient {
      */
     async bondMixnode(mixNode: MixNode, bond: Coin): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { bond_mixnode: { mix_node: mixNode } }, "adding mixnode", [bond]).catch((err) => this.handleRequestFailure(err));
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {bond_mixnode: {mix_node: mixNode}}, "adding mixnode", [bond]).catch((err) => this.handleRequestFailure(err));
             console.log(`account ${this.client.clientAddress} added mixnode with ${mixNode.host}`);
             return result;
         } else {
@@ -270,7 +297,7 @@ export default class ValidatorClient {
      */
     async unbondMixnode(): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { unbond_mixnode: {} }).catch((err) => this.handleRequestFailure(err))
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {unbond_mixnode: {}}).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} unbonded mixnode`);
             return result;
         } else {
@@ -287,7 +314,7 @@ export default class ValidatorClient {
     // requires coin type to ensure correct denomination (
     async delegateToMixnode(mixIdentity: string, amount: Coin): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { delegate_to_mixnode: { mix_identity: mixIdentity } }, `delegating to ${mixIdentity}`, [amount]).catch((err) => this.handleRequestFailure(err))
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {delegate_to_mixnode: {mix_identity: mixIdentity}}, `delegating to ${mixIdentity}`, [amount]).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} delegated ${amount} to mixnode ${mixIdentity}`);
             return result;
         } else {
@@ -302,7 +329,7 @@ export default class ValidatorClient {
      */
     async removeMixnodeDelegation(mixIdentity: string): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { undelegate_from_mixnode: { mix_identity: mixIdentity } }).catch((err) => this.handleRequestFailure(err))
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {undelegate_from_mixnode: {mix_identity: mixIdentity}}).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} removed delegation from mixnode ${mixIdentity}`);
             return result;
         } else {
@@ -319,7 +346,7 @@ export default class ValidatorClient {
     // requires coin type to ensure correct denomination (
     async delegateToGateway(gatewayIdentity: string, amount: Coin): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { delegate_to_gateway: { gateway_identity: gatewayIdentity } }, `delegating to ${gatewayIdentity}`, [amount]).catch((err) => this.handleRequestFailure(err))
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {delegate_to_gateway: {gateway_identity: gatewayIdentity}}, `delegating to ${gatewayIdentity}`, [amount]).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} delegated ${amount} to gateway ${gatewayIdentity}`);
             return result;
         } else {
@@ -334,7 +361,7 @@ export default class ValidatorClient {
      */
     async removeGatewayDelegation(gatewayIdentity: string): Promise<ExecuteResult> {
         if (this.client instanceof NetClient) {
-            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, { undelegate_from_gateway: { gateway_identity: gatewayIdentity } }).catch((err) => this.handleRequestFailure(err))
+            const result = await this.client.executeContract(this.client.clientAddress, this.contractAddress, {undelegate_from_gateway: {gateway_identity: gatewayIdentity}}).catch((err) => this.handleRequestFailure(err))
             console.log(`account ${this.client.clientAddress} removed delegation from gateway ${gatewayIdentity}`);
             return result;
         } else {
@@ -378,6 +405,17 @@ export default class ValidatorClient {
     }
 
     /**
+     * Get or refresh the list of gateways in the network from validator-api
+     *
+     * @returns an array containing all known `GatewayBond`s.
+     *
+     * TODO: Similarly to mixnode bonds, this should probably be put on a timer somewhere.
+     */
+    refreshValidatorAPIGateways(): Promise<GatewayBond[]> {
+        return this.gatewayCache.refreshValidatorAPIGateways(this.urls).catch((err) => this.handleRequestFailure(err));
+    }
+
+    /**
      * Get gateways from the local client cache.
      *
      * @returns an array containing all `GatewayBond`s in the client's local cache.
@@ -394,7 +432,7 @@ export default class ValidatorClient {
     async minimumGatewayBond(): Promise<Coin> {
         const stateParams = await this.getStateParams()
         // we trust the contract to return a valid number
-        return coin(Number(stateParams.minimum_gateway_bond), this.stakeDenom)
+        return coin(Number(stateParams.minimum_gateway_bond), this.prefix)
     }
 
     /**
@@ -443,7 +481,7 @@ export default class ValidatorClient {
         let delegations: Delegation[] = [];
         let response: PagedMixDelegationsResponse
         let next: string | undefined = undefined;
-        for (;;) {
+        for (; ;) {
             response = await this.client.getMixDelegations(this.contractAddress, mixIdentity, limit, next)
             delegations = delegations.concat(response.delegations)
             next = response.start_next_after
@@ -467,7 +505,7 @@ export default class ValidatorClient {
     }
 
     /**
-     * Gets list of all delegations towards particular mixnode.
+     * Gets list of all delegations towards particular gateway.
      *
      * @param gatewayIdentity identity of the gateway to which the delegation was sent
      */
@@ -478,7 +516,7 @@ export default class ValidatorClient {
         let delegations: Delegation[] = [];
         let response: PagedGatewayDelegationsResponse
         let next: string | undefined = undefined;
-        for (;;) {
+        for (; ;) {
             response = await this.client.getGatewayDelegations(this.contractAddress, gatewayIdentity, limit, next)
             delegations = delegations.concat(response.delegations)
             next = response.start_next_after
@@ -521,7 +559,7 @@ export default class ValidatorClient {
 
     /**
      * Send funds multiple times from one address to another in a single block.
-    */
+     */
     async sendMultiple(senderAddress: string, data: SendRequest[], memo?: string): Promise<BroadcastTxSuccess> {
         if (this.client instanceof NetClient) {
             if (data.length === 1) {
@@ -531,7 +569,8 @@ export default class ValidatorClient {
             const encoded = data.map(req => makeBankMsgSend(req.senderAddress, req.recipientAddress, req.transferAmount));
 
             // the function to calculate fee for a single entry is not exposed...
-            const table = buildFeeTable(nymGasPrice(this.stakeDenom), {sendMultiple: nymGasLimits.send * data.length}, {sendMultiple: nymGasLimits.send * data.length})
+            console.log(`this.denom is ${this.denom}`);
+            const table = buildFeeTable(nymGasPrice(this.prefix), {sendMultiple: nymGasLimits.send * data.length}, {sendMultiple: nymGasLimits.send * data.length})
             const fee = table.sendMultiple
             const result = await this.client.signAndBroadcast(senderAddress, encoded, fee, memo)
             if (isBroadcastTxFailure(result)) {
@@ -631,6 +670,8 @@ export type StateParams = {
     minimum_gateway_bond: string,
     mixnode_bond_reward_rate: string,
     gateway_bond_reward_rate: string,
+    mixnode_delegation_reward_rate: string,
+    gateway_delegation_reward_rate: string,
     mixnode_active_set_size: number,
 }
 

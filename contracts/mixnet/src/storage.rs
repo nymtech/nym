@@ -1,12 +1,15 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::queries;
-use crate::state::{State, StateParams};
+use crate::state::State;
 use cosmwasm_std::{Decimal, Order, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
 };
 use mixnet_contract::{
-    GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond,
+    GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond, StateParams,
 };
 
 // storage prefixes
@@ -305,10 +308,10 @@ pub(crate) fn read_gateway_bond(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contract::DENOM;
     use crate::support::tests::helpers::{
         gateway_bond_fixture, gateway_fixture, mix_node_fixture, mixnode_bond_fixture,
     };
+    use config::defaults::DENOM;
     use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::{coin, Addr, Uint128};
     use mixnet_contract::{Gateway, MixNode};

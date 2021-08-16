@@ -26,7 +26,7 @@ pub fn execute(matches: &ArgMatches) {
         .expect("Please provide the id of your mixnode");
 
     // ensure that the mixnode has in fact been initialized
-    match Config::load_from_file(id) {
+    match Config::load_from_file(Some(id)) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);
@@ -70,5 +70,9 @@ pub fn execute(matches: &ArgMatches) {
     };
 
     // save the struct
-    NodeDescription::save_to_file(&node_description, Config::default_config_directory(id)).unwrap()
+    NodeDescription::save_to_file(
+        &node_description,
+        Config::default_config_directory(Some(id)),
+    )
+    .unwrap()
 }

@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 // INPUT: InputMessage from user
 // INPUT2: Acks from mix
@@ -30,7 +19,6 @@ use gateway_client::AcknowledgementReceiver;
 use log::*;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::params::PacketMode;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
@@ -62,20 +50,9 @@ pub struct Config {
 
     /// Average delay an acknowledgement packet is going to get delayed at a single mixnode.
     average_ack_delay_duration: Duration,
-
-    /// Mode of all mix packets created - VPN or Mix. They indicate whether packets should get delayed
-    /// and keys reused.
-    packet_mode: PacketMode,
-
-    /// If the mode of the client is set to VPN it specifies number of packets created with the
-    /// same initial secret until it gets rotated.
-    vpn_key_reuse_limit: Option<usize>,
 }
 
 impl Config {
-    // at this point I'm not entirely sure how to deal with this warning without
-    // some considerable refactoring
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         ack_key: Arc<AckKey>,
         ack_wait_multiplier: f64,
@@ -84,8 +61,6 @@ impl Config {
         average_message_sending_delay: Duration,
         average_packet_delay_duration: Duration,
         self_recipient: Recipient,
-        packet_mode: PacketMode,
-        vpn_key_reuse_limit: Option<usize>,
     ) -> Self {
         Config {
             ack_key,
@@ -95,8 +70,6 @@ impl Config {
             average_message_sending_delay,
             average_packet_delay_duration,
             average_ack_delay_duration,
-            packet_mode,
-            vpn_key_reuse_limit,
         }
     }
 }
@@ -137,8 +110,6 @@ impl RealMessagesController<OsRng> {
             config.ack_wait_multiplier,
             config.average_ack_delay_duration,
             config.average_packet_delay_duration,
-            config.packet_mode,
-            config.vpn_key_reuse_limit,
         );
 
         let ack_control = AcknowledgementController::new(
@@ -174,7 +145,7 @@ impl RealMessagesController<OsRng> {
         }
     }
 
-    pub(super) async fn run(&mut self, vpn_mode: bool) {
+    pub(super) async fn run(&mut self) {
         let mut out_queue_control = self.out_queue_control.take().unwrap();
         let mut ack_control = self.ack_control.take().unwrap();
 
@@ -182,7 +153,7 @@ impl RealMessagesController<OsRng> {
         // the task to ever finish. This will of course change once we introduce
         // graceful shutdowns.
         let out_queue_control_fut = tokio::spawn(async move {
-            out_queue_control.run_out_queue_control(vpn_mode).await;
+            out_queue_control.run_out_queue_control().await;
             error!("The out queue controller has finished execution!");
             out_queue_control
         });
@@ -201,9 +172,9 @@ impl RealMessagesController<OsRng> {
 
     // &Handle is only passed for consistency sake with other client modules, but I think
     // when we get to refactoring, we should apply gateway approach and make it implicit
-    pub fn start(mut self, handle: &Handle, vpn_mode: bool) -> JoinHandle<Self> {
+    pub fn start(mut self, handle: &Handle) -> JoinHandle<Self> {
         handle.spawn(async move {
-            self.run(vpn_mode).await;
+            self.run().await;
             self
         })
     }

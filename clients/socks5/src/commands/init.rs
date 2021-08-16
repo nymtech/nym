@@ -1,22 +1,12 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::Config;
 use crate::commands::override_config;
 use clap::{App, Arg, ArgMatches};
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use coconut_interface::Credential;
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
@@ -65,17 +55,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
             .help("Port for the socket to listen on in all subsequent runs")
             .takes_value(true)
         )
-        .arg(Arg::with_name("vpn-mode")
-            .long("vpn-mode")
-            .help("Set the vpn mode of the client")
-            .long_help(
-                r#" 
-                    Special mode of the system such that all messages are sent as soon as they are received
-                    and no cover traffic is generated. If set all message delays are set to 0 and overwriting
-                    'Debug' values will have no effect.
-                "#
-            )
-        )
         .arg(Arg::with_name("fastmode")
             .long("fastmode")
             .hidden(true) // this will prevent this flag from being displayed in `--help`
@@ -86,12 +65,17 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
 async fn register_with_gateway(
     gateway: &gateway::Node,
     our_identity: Arc<identity::KeyPair>,
+    validator_urls: Vec<String>,
 ) -> SharedKeys {
     let timeout = Duration::from_millis(1500);
+    let coconut_credential = Credential::init(validator_urls, *our_identity.public_key())
+        .await
+        .expect("Could not initialize coconut credential");
     let mut gateway_client = GatewayClient::new_init(
         gateway.clients_address(),
         gateway.identity_key,
         our_identity.clone(),
+        coconut_credential,
         timeout,
     );
     gateway_client
@@ -112,7 +96,7 @@ async fn gateway_details(
     let validator_client_config = validator_client::Config::new(validator_servers, mixnet_contract);
     let validator_client = validator_client::Client::new(validator_client_config);
 
-    let gateways = validator_client.get_gateways().await.unwrap();
+    let gateways = validator_client.get_cached_gateways().await.unwrap();
     let valid_gateways = gateways
         .into_iter()
         .filter_map(|gateway| gateway.try_into().ok())
@@ -179,7 +163,7 @@ pub fn execute(matches: &ArgMatches) {
     let id = matches.value_of("id").unwrap(); // required for now
     let provider_address = matches.value_of("provider").unwrap();
 
-    let already_init = if Config::default_config_file_path(id).exists() {
+    let already_init = if Config::default_config_file_path(Some(id)).exists() {
         println!("Socks5 client \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
         true
     } else {
@@ -215,8 +199,13 @@ pub fn execute(matches: &ArgMatches) {
             config
                 .get_base_mut()
                 .with_gateway_id(gate_details.identity_key.to_base58_string());
-            let shared_keys =
-                register_with_gateway(&gate_details, key_manager.identity_keypair()).await;
+            let validator_urls = config.get_base().get_validator_rest_endpoints();
+            let shared_keys = register_with_gateway(
+                &gate_details,
+                key_manager.identity_keypair(),
+                validator_urls,
+            )
+            .await;
             (shared_keys, gate_details.clients_address())
         };
 

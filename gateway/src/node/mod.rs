@@ -59,10 +59,8 @@ impl Gateway {
     ) {
         info!("Starting mix socket listener...");
 
-        let packet_processor = mixnet_handling::PacketProcessor::new(
-            self.encryption_keys.private_key(),
-            self.config.get_cache_entry_ttl(),
-        );
+        let packet_processor =
+            mixnet_handling::PacketProcessor::new(self.encryption_keys.private_key());
 
         let connection_handler = ConnectionHandler::new(
             packet_processor,
@@ -91,8 +89,12 @@ impl Gateway {
             self.config.get_clients_port(),
         );
 
-        websocket::Listener::new(listening_address, Arc::clone(&self.identity))
-            .start(clients_handler_sender, forwarding_channel);
+        websocket::Listener::new(
+            listening_address,
+            Arc::clone(&self.identity),
+            self.config.get_validator_rest_endpoints(),
+        )
+        .start(clients_handler_sender, forwarding_channel);
     }
 
     fn start_packet_forwarder(&self) -> MixForwardingSender {
@@ -139,7 +141,7 @@ impl Gateway {
         );
         let validator_client = validator_client::Client::new(validator_client_config);
 
-        let existing_gateways = match validator_client.get_gateways().await {
+        let existing_gateways = match validator_client.get_cached_gateways().await {
             Ok(gateways) => gateways,
             Err(err) => {
                 error!("failed to grab initial network gateways - {}\n Please try to startup again in few minutes", err);

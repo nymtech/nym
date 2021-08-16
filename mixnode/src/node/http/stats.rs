@@ -1,6 +1,6 @@
 use crate::node::node_statistics::{NodeStats, NodeStatsSimple, NodeStatsWrapper};
+use rocket::serde::json::Json;
 use rocket::State;
-use rocket_contrib::json::Json;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -13,7 +13,7 @@ pub(crate) enum NodeStatsResponse {
 /// Returns a running stats of the node.
 #[get("/stats?<debug>")]
 pub(crate) async fn stats(
-    stats: State<'_, NodeStatsWrapper>,
+    stats: &State<NodeStatsWrapper>,
     debug: Option<bool>,
 ) -> Json<NodeStatsResponse> {
     let snapshot_data = stats.clone_data().await;

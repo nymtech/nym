@@ -2,10 +2,10 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use crate::{IdentityKey, SphinxKey};
-
 use cosmwasm_std::{coin, Addr, Coin};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::fmt::Display;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
@@ -20,12 +20,13 @@ pub struct MixNode {
     pub version: String,
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Copy, Clone, Debug, Serialize_repr, PartialEq, Deserialize_repr, JsonSchema)]
+#[repr(u8)]
 pub enum Layer {
-    Gateway,
-    One,
-    Two,
-    Three,
+    Gateway = 0,
+    One = 1,
+    Two = 2,
+    Three = 3,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]

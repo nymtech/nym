@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::cleanup_socket_message;
 use crate::error::GatewayClientError;
@@ -19,6 +8,7 @@ pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
+use coconut_interface::Credential;
 use crypto::asymmetric::identity;
 use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
@@ -37,7 +27,7 @@ use tungstenite::protocol::Message;
 use tokio_tungstenite::connect_async;
 
 #[cfg(target_arch = "wasm32")]
-use wasm_timer;
+use fluvio_wasm_timer as wasm_timer;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 
@@ -62,10 +52,12 @@ pub struct GatewayClient {
     reconnection_attempts: usize,
     /// Delay between each subsequent reconnection attempt.
     reconnection_backoff: Duration,
+    coconut_credential: Credential,
 }
 
 impl GatewayClient {
     // TODO: put it all in a Config struct
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         gateway_address: String,
         local_identity: Arc<identity::KeyPair>,
@@ -74,6 +66,7 @@ impl GatewayClient {
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
+        coconut_credential: Credential,
     ) -> Self {
         GatewayClient {
             authenticated: false,
@@ -87,6 +80,7 @@ impl GatewayClient {
             should_reconnect_on_failure: true,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
+            coconut_credential,
         }
     }
 
@@ -107,6 +101,7 @@ impl GatewayClient {
         gateway_address: String,
         gateway_identity: identity::PublicKey,
         local_identity: Arc<identity::KeyPair>,
+        coconut_credential: Credential,
         response_timeout_duration: Duration,
     ) -> Self {
         use futures::channel::mpsc;
@@ -129,6 +124,7 @@ impl GatewayClient {
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
+            coconut_credential,
         }
     }
 
@@ -150,7 +146,10 @@ impl GatewayClient {
     #[cfg(target_arch = "wasm32")]
     async fn _close_connection(&mut self) -> Result<(), GatewayClientError> {
         match std::mem::replace(&mut self.connection, SocketState::NotConnected) {
-            SocketState::Available(mut socket) => Ok(socket.close(None).await),
+            SocketState::Available(mut socket) => {
+                socket.close(None).await;
+                Ok(())
+            }
             SocketState::PartiallyDelegated(_) => {
                 unreachable!("this branch should have never been reached!")
             }
@@ -380,6 +379,7 @@ impl GatewayClient {
                 ws_stream,
                 self.local_identity.as_ref(),
                 self.gateway_identity,
+                self.coconut_credential.clone(),
             )
             .await
             .map_err(GatewayClientError::RegistrationFailure),

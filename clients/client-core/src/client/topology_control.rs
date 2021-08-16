@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
@@ -183,7 +172,7 @@ impl TopologyRefresher {
         // only refresh mixnodes on timer and refresh gateways only when
         // we have to send to a new, unknown, gateway
 
-        let mixnodes = match self.validator_client.get_mix_nodes().await {
+        let mixnodes = match self.validator_client.get_cached_mix_nodes().await {
             Err(err) => {
                 error!("failed to get network mixnodes - {}", err);
                 return None;
@@ -191,7 +180,7 @@ impl TopologyRefresher {
             Ok(mixes) => mixes,
         };
 
-        let gateways = match self.validator_client.get_gateways().await {
+        let gateways = match self.validator_client.get_cached_gateways().await {
             Err(err) => {
                 error!("failed to get network gateways - {}", err);
                 return None;

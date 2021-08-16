@@ -101,11 +101,8 @@ impl MixNode {
     ) {
         info!("Starting socket listener...");
 
-        let packet_processor = PacketProcessor::new(
-            self.sphinx_keypair.private_key(),
-            node_stats_update_sender,
-            self.config.get_cache_entry_ttl(),
-        );
+        let packet_processor =
+            PacketProcessor::new(self.sphinx_keypair.private_key(), node_stats_update_sender);
 
         let connection_handler = ConnectionHandler::new(packet_processor, delay_forwarding_channel);
 
@@ -185,7 +182,7 @@ impl MixNode {
         );
         let validator_client = validator_client::Client::new(validator_client_config);
 
-        let existing_nodes = match validator_client.get_mix_nodes().await {
+        let existing_nodes = match validator_client.get_cached_mix_nodes().await {
             Ok(nodes) => nodes,
             Err(err) => {
                 error!("failed to grab initial network mixnodes - {}\n Please try to startup again in few minutes", err);

@@ -1,14 +1,18 @@
-use crate::contract::DENOM;
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::error::ContractError;
 use crate::helpers::{calculate_epoch_reward_rate, scale_reward_by_uptime};
 use crate::queries;
-use crate::state::StateParams;
 use crate::storage::*;
+use config::defaults::DENOM;
 use cosmwasm_std::{
     attr, coins, BankMsg, Coin, Decimal, DepsMut, MessageInfo, Order, Response, StdResult, Uint128,
 };
 use cosmwasm_storage::ReadonlyBucket;
-use mixnet_contract::{Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond};
+use mixnet_contract::{
+    Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, StateParams,
+};
 
 const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 
@@ -333,6 +337,14 @@ pub(crate) fn try_update_state_params(
 
     if params.gateway_bond_reward_rate < Decimal::one() {
         return Err(ContractError::DecreasingGatewayBondReward);
+    }
+
+    if params.mixnode_delegation_reward_rate < Decimal::one() {
+        return Err(ContractError::DecreasingMixnodeDelegationReward);
+    }
+
+    if params.gateway_delegation_reward_rate < Decimal::one() {
+        return Err(ContractError::DecreasingGatewayDelegationReward);
     }
 
     // if we're updating epoch length, recalculate rewards for both mixnodes and gateways
@@ -678,11 +690,11 @@ pub mod tests {
     use super::*;
     use crate::contract::{
         execute, query, INITIAL_DEFAULT_EPOCH_LENGTH, INITIAL_GATEWAY_BOND,
-        INITIAL_GATEWAY_BOND_REWARD_RATE, INITIAL_MIXNODE_BOND, INITIAL_MIXNODE_BOND_REWARD_RATE,
+        INITIAL_GATEWAY_BOND_REWARD_RATE, INITIAL_GATEWAY_DELEGATION_REWARD_RATE,
+        INITIAL_MIXNODE_BOND, INITIAL_MIXNODE_BOND_REWARD_RATE,
+        INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
     };
     use crate::helpers::calculate_epoch_reward_rate;
-    use crate::msg::{ExecuteMsg, QueryMsg};
-    use crate::state::StateParams;
     use crate::storage::{
         gateway_delegations, gateway_delegations_read, layer_distribution_read,
         mix_delegations_read, read_gateway_bond, read_gateway_epoch_reward_rate, read_mixnode_bond,
@@ -694,7 +706,9 @@ pub mod tests {
     };
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, from_binary, Addr, Uint128};
-    use mixnet_contract::{LayerDistribution, PagedGatewayResponse, PagedMixnodeResponse};
+    use mixnet_contract::{
+        ExecuteMsg, LayerDistribution, PagedGatewayResponse, PagedMixnodeResponse, QueryMsg,
+    };
 
     #[test]
     fn validating_mixnode_bond() {
@@ -1539,6 +1553,12 @@ pub mod tests {
             minimum_gateway_bond: INITIAL_GATEWAY_BOND,
             mixnode_bond_reward_rate: Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE),
             gateway_bond_reward_rate: Decimal::percent(INITIAL_GATEWAY_BOND_REWARD_RATE),
+            mixnode_delegation_reward_rate: Decimal::percent(
+                INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
+            ),
+            gateway_delegation_reward_rate: Decimal::percent(
+                INITIAL_GATEWAY_DELEGATION_REWARD_RATE,
+            ),
             mixnode_active_set_size: 42, // change something
         };
 

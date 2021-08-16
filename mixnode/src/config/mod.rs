@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
+use config::defaults::*;
 use config::{deserialize_duration, deserialize_validators, NymConfig};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::net::{IpAddr, SocketAddr};
@@ -13,17 +14,6 @@ pub mod persistence;
 mod template;
 
 pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
-
-// 'MIXNODE'
-const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
-const DEFAULT_VERLOC_LISTENING_PORT: u16 = 1790;
-const DEFAULT_HTTP_API_LISTENING_PORT: u16 = 8000;
-
-pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
-    "http://testnet-finney-validator.nymtech.net:1317",
-    "http://testnet-finney-validator2.nymtech.net:1317",
-];
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
 
 // 'RTT MEASUREMENT'
 const DEFAULT_PACKETS_PER_NODE: usize = 100;
@@ -40,7 +30,6 @@ const DEFAULT_NODE_STATS_UPDATING_DELAY: Duration = Duration::from_millis(30_000
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
-const DEFAULT_CACHE_ENTRY_TTL: Duration = Duration::from_millis(30_000);
 const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 128;
 
 // helper function to get default validators as a Vec<String>
@@ -296,10 +285,6 @@ impl Config {
         self.debug.maximum_connection_buffer_size
     }
 
-    pub fn get_cache_entry_ttl(&self) -> Duration {
-        self.debug.cache_entry_ttl
-    }
-
     pub fn get_version(&self) -> &str {
         &self.mixnode.version
     }
@@ -407,19 +392,19 @@ pub struct MixNode {
 
 impl MixNode {
     fn default_private_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(id).join("private_identity.pem")
+        Config::default_data_directory(Some(id)).join("private_identity.pem")
     }
 
     fn default_public_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(id).join("public_identity.pem")
+        Config::default_data_directory(Some(id)).join("public_identity.pem")
     }
 
     fn default_private_sphinx_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(id).join("private_sphinx.pem")
+        Config::default_data_directory(Some(id)).join("private_sphinx.pem")
     }
 
     fn default_public_sphinx_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(id).join("public_sphinx.pem")
+        Config::default_data_directory(Some(id)).join("public_sphinx.pem")
     }
 }
 
@@ -536,13 +521,6 @@ pub struct Debug {
 
     /// Maximum number of packets that can be stored waiting to get sent to a particular connection.
     maximum_connection_buffer_size: usize,
-
-    /// Duration for which a cached vpn processing result is going to get stored for.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
-    cache_entry_ttl: Duration,
 }
 
 impl Default for Debug {
@@ -554,7 +532,6 @@ impl Default for Debug {
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
-            cache_entry_ttl: DEFAULT_CACHE_ENTRY_TTL,
         }
     }
 }

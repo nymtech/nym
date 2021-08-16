@@ -1,16 +1,5 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
 use self::{
     acknowledgement_listener::AcknowledgementListener, action_controller::ActionController,
@@ -24,7 +13,6 @@ use crate::client::{inbound_messages::InputMessageReceiver, topology_control::To
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
-use nymsphinx::params::PacketMode;
 use nymsphinx::{
     acknowledgements::AckKey,
     addressing::clients::Recipient,
@@ -131,14 +119,6 @@ pub(super) struct Config {
 
     /// Average delay a data packet is going to get delayed at a single mixnode.
     average_packet_delay: Duration,
-
-    /// Mode of all mix packets created - VPN or Mix. They indicate whether packets should get delayed
-    /// and keys reused.
-    packet_mode: PacketMode,
-
-    /// If the mode of the client is set to VPN it specifies number of packets created with the
-    /// same initial secret until it gets rotated.
-    vpn_key_reuse_limit: Option<usize>,
 }
 
 impl Config {
@@ -147,16 +127,12 @@ impl Config {
         ack_wait_multiplier: f64,
         average_ack_delay: Duration,
         average_packet_delay: Duration,
-        packet_mode: PacketMode,
-        vpn_key_reuse_limit: Option<usize>,
     ) -> Self {
         Config {
             ack_wait_addition,
             ack_wait_multiplier,
             average_ack_delay,
             average_packet_delay,
-            packet_mode,
-            vpn_key_reuse_limit,
         }
     }
 }
@@ -197,8 +173,6 @@ where
             ack_recipient,
             config.average_packet_delay,
             config.average_ack_delay,
-            config.packet_mode,
-            config.vpn_key_reuse_limit,
         );
 
         // will listen for any acks coming from the network

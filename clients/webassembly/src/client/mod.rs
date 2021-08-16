@@ -1,17 +1,7 @@
-// Copyright 2020 Nym Technologies SA
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
+use coconut_interface::Credential;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::GatewayClient;
@@ -33,8 +23,6 @@ pub(crate) mod received_processor;
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
-const DEFAULT_PACKET_MODE: PacketMode = PacketMode::Vpn;
-const DEFAULT_VPN_KEY_REUSE_LIMIT: usize = 1000;
 
 #[wasm_bindgen]
 pub struct NymClient {
@@ -98,8 +86,8 @@ impl NymClient {
 
     fn self_recipient(&self) -> Recipient {
         Recipient::new(
-            self.identity.public_key().clone(),
-            self.encryption_keys.public_key().clone(),
+            *self.identity.public_key(),
+            *self.encryption_keys.public_key(),
             self.gateway_client
                 .as_ref()
                 .expect("gateway connection was not established!")
@@ -113,11 +101,17 @@ impl NymClient {
 
     // Right now it's impossible to have async exported functions to take `&self` rather than self
     pub async fn initial_setup(self) -> Self {
+        let validator_server = self.validator_server.clone();
+        let identity_public_key = self.identity.public_key().clone();
         let mut client = self.get_and_update_topology().await;
         let gateway = client.choose_gateway();
 
         let (mixnet_messages_sender, mixnet_messages_receiver) = mpsc::unbounded();
         let (ack_sender, ack_receiver) = mpsc::unbounded();
+
+        let coconut_credential = Credential::init(vec![validator_server], identity_public_key)
+            .await
+            .expect("Could not initialize coconut credential");
 
         let mut gateway_client = GatewayClient::new(
             gateway.clients_address(),
@@ -127,6 +121,7 @@ impl NymClient {
             mixnet_messages_sender,
             ack_sender,
             DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
+            coconut_credential,
         );
 
         gateway_client
@@ -150,8 +145,6 @@ impl NymClient {
             client.self_recipient(),
             DEFAULT_AVERAGE_PACKET_DELAY,
             DEFAULT_AVERAGE_ACK_DELAY,
-            DEFAULT_PACKET_MODE,
-            Some(DEFAULT_VPN_KEY_REUSE_LIMIT),
         );
 
         let received_processor = ReceivedMessagesProcessor::new(
@@ -257,12 +250,12 @@ impl NymClient {
         );
         let validator_client = validator_client::Client::new(validator_client_config);
 
-        let mixnodes = match validator_client.get_mix_nodes().await {
+        let mixnodes = match validator_client.get_cached_mix_nodes().await {
             Err(err) => panic!("{}", err),
             Ok(mixes) => mixes,
         };
 
-        let gateways = match validator_client.get_gateways().await {
+        let gateways = match validator_client.get_cached_gateways().await {
             Err(err) => panic!("{}", err),
             Ok(gateways) => gateways,
         };

@@ -12,7 +12,7 @@ use futures::channel::oneshot;
 use futures::StreamExt;
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
-use mixnode_common::cached_packet_processor::processor::ProcessedFinalHop;
+use mixnode_common::packet_processor::processor::ProcessedFinalHop;
 use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::framing::codec::SphinxCodec;
 use nymsphinx::framing::packet::FramedSphinxPacket;
@@ -64,7 +64,7 @@ impl ConnectionHandler {
         }
 
         ConnectionHandler {
-            packet_processor: self.packet_processor.clone_without_key_cache(),
+            packet_processor: self.packet_processor.clone(),
             available_socket_senders_cache: senders_cache,
             client_store: self.client_store.clone(),
             clients_handler_sender: self.clients_handler_sender.clone(),

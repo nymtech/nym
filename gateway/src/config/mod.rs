@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
+use config::defaults::*;
 use config::{deserialize_duration, deserialize_validators, NymConfig};
 use log::error;
 use serde::{Deserialize, Serialize};
@@ -14,22 +15,12 @@ mod template;
 
 pub(crate) const MISSING_VALUE: &str = "MISSING VALUE";
 
-// 'GATEWAY'
-const DEFAULT_MIX_LISTENING_PORT: u16 = 1789;
-const DEFAULT_CLIENT_LISTENING_PORT: u16 = 9000;
-pub(crate) const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[
-    "http://testnet-finney-validator.nymtech.net:1317",
-    "http://testnet-finney-validator2.nymtech.net:1317",
-];
-pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "hal1k0jntykt7e4g3y88ltc60czgjuqdy4c9c6gv94";
-
 // 'DEBUG'
 // where applicable, the below are defined in milliseconds
 const DEFAULT_PRESENCE_SENDING_DELAY: Duration = Duration::from_millis(10_000);
 const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
 const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
-const DEFAULT_CACHE_ENTRY_TTL: Duration = Duration::from_millis(30_000);
 const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 128;
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
@@ -287,10 +278,6 @@ impl Config {
         self.debug.stored_messages_filename_length
     }
 
-    pub fn get_cache_entry_ttl(&self) -> Duration {
-        self.debug.cache_entry_ttl
-    }
-
     pub fn get_version(&self) -> &str {
         &self.gateway.version
     }
@@ -356,19 +343,19 @@ pub struct Gateway {
 
 impl Gateway {
     fn default_private_sphinx_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(id).join("private_sphinx.pem")
+        Config::default_data_directory(Some(id)).join("private_sphinx.pem")
     }
 
     fn default_public_sphinx_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(id).join("public_sphinx.pem")
+        Config::default_data_directory(Some(id)).join("public_sphinx.pem")
     }
 
     fn default_private_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(id).join("private_identity.pem")
+        Config::default_data_directory(Some(id)).join("private_identity.pem")
     }
 
     fn default_public_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(id).join("public_identity.pem")
+        Config::default_data_directory(Some(id)).join("public_identity.pem")
     }
 }
 
@@ -404,11 +391,11 @@ pub struct ClientsEndpoint {
 
 impl ClientsEndpoint {
     fn default_inboxes_directory(id: &str) -> PathBuf {
-        Config::default_data_directory(id).join("inboxes")
+        Config::default_data_directory(Some(id)).join("inboxes")
     }
 
     fn default_ledger_path(id: &str) -> PathBuf {
-        Config::default_data_directory(id).join("client_ledger.sled")
+        Config::default_data_directory(Some(id)).join("client_ledger.sled")
     }
 }
 
@@ -474,13 +461,6 @@ pub struct Debug {
     /// if there are no real messages, dummy ones are created to always return  
     /// `message_retrieval_limit` total messages
     message_retrieval_limit: u16,
-
-    /// Duration for which a cached vpn processing result is going to get stored for.
-    #[serde(
-        deserialize_with = "deserialize_duration",
-        serialize_with = "humantime_serde::serialize"
-    )]
-    cache_entry_ttl: Duration,
 }
 
 impl Default for Debug {
@@ -493,7 +473,6 @@ impl Default for Debug {
             maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
             stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
-            cache_entry_ttl: DEFAULT_CACHE_ENTRY_TTL,
         }
     }
 }

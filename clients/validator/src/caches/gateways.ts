@@ -1,7 +1,8 @@
 import { GatewayBond } from "../types";
 import {INetClient} from "../net-client"
 import {IQueryClient} from "../query-client";
-import {PagedGatewayResponse} from "../index";
+import {PagedGatewayResponse, VALIDATOR_API_GATEWAYS, VALIDATOR_API_PORT} from "../index";
+import axios from "axios";
 
 
 /**
@@ -40,5 +41,19 @@ export default class GatewaysCache {
 
         this.gateways = newGateways
         return newGateways;
+    }
+
+    /// Makes requests to assemble a full list of gateways from validator-api
+    async refreshValidatorAPIGateways(urls: string[]): Promise<GatewayBond[]> {
+        for (const url of urls) {
+            const validator_api_url = new URL(url);
+            validator_api_url.port = VALIDATOR_API_PORT;
+            validator_api_url.pathname += VALIDATOR_API_GATEWAYS;
+            const response = await axios.get(validator_api_url.toString());
+            if (response.status == 200) {
+                return response.data;
+            }
+        }
+        throw new Error("None of the provided validators seem to be alive")
     }
 }

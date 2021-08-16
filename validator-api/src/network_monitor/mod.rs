@@ -91,7 +91,7 @@ pub(crate) async fn new_monitor_runnables(
     );
 
     let bandwidth_credential =
-        TEMPORARY_obtain_bandwidth_credential(&config, identity_keypair.public_key()).await;
+        TEMPORARY_obtain_bandwidth_credential(config, identity_keypair.public_key()).await;
 
     let packet_sender = new_packet_sender(
         config,

@@ -103,7 +103,7 @@ pub fn prepare_credential_for_spending(
     signature: &Signature,
     verification_key: &VerificationKey,
 ) -> Result<Credential, Error> {
-    let theta = prove_credential(params, verification_key, signature, &private_attributes)?;
+    let theta = prove_credential(params, verification_key, signature, private_attributes)?;
 
     Ok(Credential::new(
         (public_attributes.len() + private_attributes.len()) as u32,

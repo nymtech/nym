@@ -5,6 +5,7 @@ use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::authentication::iv::AuthenticationIV;
 use crate::registration::handshake::SharedKeys;
 use crate::GatewayMacSize;
+use coconut_interface::Credential;
 use crypto::generic_array::typenum::Unsigned;
 use crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use crypto::symmetric::stream_cipher;
@@ -100,7 +101,7 @@ impl From<MixPacketFormattingError> for GatewayRequestsError {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ClientControlRequest {
     // TODO: should this also contain a MAC considering that at this point we already
@@ -111,7 +112,12 @@ pub enum ClientControlRequest {
         iv: String,
     },
     #[serde(alias = "handshakePayload")]
-    RegisterHandshakeInitRequest { data: Vec<u8> },
+    RegisterHandshakeInitRequest {
+        data: Vec<u8>,
+    },
+    BandwidthCredential {
+        credential: Box<Credential>,
+    },
 }
 
 impl ClientControlRequest {
@@ -124,6 +130,12 @@ impl ClientControlRequest {
             address: address.as_base58_string(),
             enc_address: enc_address.to_base58_string(),
             iv: iv.to_base58_string(),
+        }
+    }
+
+    pub fn new_bandwidth_credential(credential: Credential) -> Self {
+        ClientControlRequest::BandwidthCredential {
+            credential: Box::new(credential),
         }
     }
 }
@@ -158,6 +170,7 @@ impl TryInto<String> for ClientControlRequest {
 pub enum ServerResponse {
     Authenticate { status: bool },
     Register { status: bool },
+    Bandwidth { status: bool },
     Send { status: bool },
     Error { message: String },
 }
@@ -175,8 +188,7 @@ impl ServerResponse {
 
     pub fn implies_successful_authentication(&self) -> bool {
         match self {
-            ServerResponse::Authenticate { status, .. } => *status,
-            ServerResponse::Register { status, .. } => *status,
+            ServerResponse::Bandwidth { status } => *status,
             _ => false,
         }
     }

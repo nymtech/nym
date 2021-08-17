@@ -366,6 +366,8 @@ where
     async fn handle_initial_authentication_request(
         &mut self,
         mix_sender: MixMessageSender,
+        mix_receiver: MixMessageReceiver,
+        final_receiver: &mut Option<MixMessageReceiver>,
         raw_request: String,
     ) -> ServerResponse
     where
@@ -378,11 +380,23 @@ where
                     enc_address,
                     iv,
                 } => {
+                    *final_receiver = Some(mix_receiver);
                     self.handle_authenticate(address, enc_address, iv, mix_sender)
                         .await
                 }
                 ClientControlRequest::RegisterHandshakeInitRequest { data } => {
+                    *final_receiver = Some(mix_receiver);
                     self.handle_register(data, mix_sender).await
+                }
+                ClientControlRequest::BandwidthCredential { credential } => {
+                    let verification_key = get_aggregated_verification_key(
+                        self.validator_urls.clone(),
+                        &ValidatorAPIClient::default(),
+                    )
+                    .await
+                    .unwrap();
+                    let status = credential.verify(&verification_key).await;
+                    ServerResponse::Bandwidth { status }
                 }
             }
         } else {
@@ -400,6 +414,7 @@ where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {
         trace!("Started waiting for authenticate/register request...");
+        let mut final_receiver = None;
 
         while let Some(msg) = self.next_websocket_request().await {
             let msg = match msg {
@@ -420,8 +435,13 @@ where
             let response = match msg {
                 Message::Close(_) => break,
                 Message::Text(text_msg) => {
-                    self.handle_initial_authentication_request(mix_sender, text_msg)
-                        .await
+                    self.handle_initial_authentication_request(
+                        mix_sender,
+                        mix_receiver,
+                        &mut final_receiver,
+                        text_msg,
+                    )
+                    .await
                 }
                 Message::Binary(_) => {
                     // perhaps logging level should be reduced here, let's leave it for now and see what happens
@@ -446,7 +466,7 @@ where
             // it means we successfully managed to perform authentication and announce our
             // presence to ClientsHandler
             if is_done {
-                return Some(mix_receiver);
+                return final_receiver;
             }
         }
         None

@@ -116,7 +116,7 @@ pub enum ClientControlRequest {
         data: Vec<u8>,
     },
     BandwidthCredential {
-        credential: Box<Credential>,
+        enc_credential: Vec<u8>,
     },
 }
 
@@ -133,10 +133,19 @@ impl ClientControlRequest {
         }
     }
 
-    pub fn new_bandwidth_credential(credential: Credential) -> Self {
+    pub fn new_enc_bandwidth_credential(credential: Credential, shared_key: &SharedKeys) -> Self {
         ClientControlRequest::BandwidthCredential {
-            credential: Box::new(credential),
+            enc_credential: shared_key
+                .encrypt_and_tag(&bincode::serialize(&credential).unwrap(), None),
         }
+    }
+
+    pub fn try_from_enc_bandwidth_credential(
+        enc_credential: Vec<u8>,
+        shared_key: &SharedKeys,
+    ) -> Result<Credential, GatewayRequestsError> {
+        let credential = shared_key.decrypt_tagged(enc_credential)?;
+        bincode::deserialize(&credential).map_err(|_| GatewayRequestsError::MalformedEncryption)
     }
 }
 
@@ -222,35 +231,10 @@ pub enum BinaryRequest {
 // would work there.
 impl BinaryRequest {
     pub fn try_from_encrypted_tagged_bytes(
-        mut raw_req: Vec<u8>,
+        raw_req: Vec<u8>,
         shared_keys: &SharedKeys,
     ) -> Result<Self, GatewayRequestsError> {
-        let mac_size = GatewayMacSize::to_usize();
-        if raw_req.len() < mac_size {
-            return Err(GatewayRequestsError::TooShortRequest);
-        }
-
-        let mac_tag = &raw_req[..mac_size];
-        let message_bytes = &raw_req[mac_size..];
-
-        if !recompute_keyed_hmac_and_verify_tag::<GatewayIntegrityHmacAlgorithm>(
-            shared_keys.mac_key(),
-            message_bytes,
-            mac_tag,
-        ) {
-            return Err(GatewayRequestsError::InvalidMac);
-        }
-
-        // couldn't have made the first borrow mutable as you can't have an immutable borrow
-        // together with a mutable one
-        let mut message_bytes_mut = &mut raw_req[mac_size..];
-
-        let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
-        stream_cipher::decrypt_in_place::<GatewayEncryptionAlgorithm>(
-            shared_keys.encryption_key(),
-            &zero_iv,
-            &mut message_bytes_mut,
-        );
+        let message_bytes_mut = &shared_keys.decrypt_tagged(raw_req)?;
 
         // right now there's only a single option possible which significantly simplifies the logic
         // if we decided to allow for more 'binary' messages, the API wouldn't need to change.

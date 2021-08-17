@@ -388,14 +388,19 @@ where
                     *final_receiver = Some(mix_receiver);
                     self.handle_register(data, mix_sender).await
                 }
-                ClientControlRequest::BandwidthCredential { credential } => {
-                    let verification_key = get_aggregated_verification_key(
-                        self.validator_urls.clone(),
-                        &ValidatorAPIClient::default(),
-                    )
-                    .await
-                    .unwrap();
-                    let status = credential.verify(&verification_key).await;
+                ClientControlRequest::BandwidthCredential { enc_credential } => {
+                    let credential = match ClientControlRequest::try_from_enc_bandwidth_credential(
+                        enc_credential,
+                        self.shared_key.as_ref().unwrap(),
+                    ) {
+                        Ok(c) => c,
+                        Err(e) => {
+                            return ServerResponse::Error {
+                                message: e.to_string(),
+                            }
+                        }
+                    };
+                    let status = credential.verify(&self.aggregated_verification_key).await;
                     ServerResponse::Bandwidth { status }
                 }
             }

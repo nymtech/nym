@@ -447,9 +447,12 @@ impl GatewayClient {
         }
         // Authenticate with the bandwidth credential as well
         if self.authenticated {
-            let msg =
-                ClientControlRequest::new_bandwidth_credential(self.coconut_credential.clone())
-                    .into();
+            // Shared key should be set here, or else we wouldn't be authenticated
+            let msg = ClientControlRequest::new_enc_bandwidth_credential(
+                self.coconut_credential.clone(),
+                self.shared_key.as_ref().unwrap(),
+            )
+            .into();
             self.authenticated = match self.send_websocket_message(msg).await? {
                 ServerResponse::Bandwidth { status } => Ok(status),
                 ServerResponse::Register { status: _ } => Err(GatewayClientError::NotAuthenticated),

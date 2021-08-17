@@ -362,7 +362,7 @@ impl GatewayClient {
         }
     }
 
-    pub async fn register(&mut self) -> Result<SharedKeys, GatewayClientError> {
+    async fn register(&mut self) -> Result<(), GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
@@ -385,15 +385,21 @@ impl GatewayClient {
             .map_err(GatewayClientError::RegistrationFailure),
             _ => unreachable!(),
         }?;
-
-        self.authenticated = true;
-        Ok(shared_key)
+        self.authenticated = match self.read_control_response().await? {
+            ServerResponse::Register { status } => Ok(status),
+            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
+            _ => unreachable!(),
+        }?;
+        if self.authenticated {
+            self.shared_key = Some(Arc::new(shared_key));
+        }
+        Ok(())
     }
 
-    pub async fn authenticate(
+    async fn authenticate(
         &mut self,
         shared_key: Option<SharedKeys>,
-    ) -> Result<bool, GatewayClientError> {
+    ) -> Result<(), GatewayClientError> {
         if shared_key.is_none() && self.shared_key.is_none() {
             return Err(GatewayClientError::NoSharedKeyAvailable);
         }
@@ -420,15 +426,14 @@ impl GatewayClient {
         let msg =
             ClientControlRequest::new_authenticate(self_address, encrypted_address, iv).into();
 
-        let authenticated = match self.send_websocket_message(msg).await? {
+        match self.send_websocket_message(msg).await? {
             ServerResponse::Authenticate { status } => {
                 self.authenticated = status;
-                Ok(status)
+                Ok(())
             }
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             _ => unreachable!(),
-        }?;
-        Ok(authenticated)
+        }
     }
 
     /// Helper method to either call register or authenticate based on self.shared_key value
@@ -438,8 +443,7 @@ impl GatewayClient {
         if self.shared_key.is_some() {
             self.authenticate(None).await?;
         } else {
-            let shared_key = self.register().await?;
-            self.shared_key = Some(Arc::new(shared_key));
+            self.register().await?;
         }
         if self.authenticated {
             // if we are authenticated it means we MUST have an associated shared_key

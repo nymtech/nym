@@ -50,7 +50,7 @@ impl Client {
         let url = create_api_url(&self.url, path);
         Ok(self
             .reqwest_client
-            .get(url)
+            .post(url)
             .json(json_body)
             .send()
             .await?

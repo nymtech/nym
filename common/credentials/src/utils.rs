@@ -22,11 +22,15 @@ use url::Url;
 /// # Examples
 ///
 /// ```no_run
-/// use url::Url;
+/// use url::{Url, ParseError};
 /// use credentials::obtain_aggregate_verification_key;
 ///
-/// let validators = vec!["https://testnet-milhon-validator1.nymtech.net/api".parse()?, "https://testnet-milhon-validator2.nymtech.net/api".parse()?];
-/// let aggregated_key = obtain_aggregate_verification_key(&validators).await?;
+/// async fn example() -> Result<(), ParseError> {
+///     let validators = vec!["https://testnet-milhon-validator1.nymtech.net/api".parse()?, "https://testnet-milhon-validator2.nymtech.net/api".parse()?];
+///     let aggregated_key = obtain_aggregate_verification_key(&validators).await;
+///     // deal with the obtained Result
+///     Ok(())
+/// }
 /// ```
 pub async fn obtain_aggregate_verification_key(
     validators: &[Url],

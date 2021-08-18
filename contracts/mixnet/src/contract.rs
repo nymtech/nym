@@ -3,7 +3,7 @@
 
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::state::State;
-use crate::storage::{config, layer_distribution};
+use crate::storage::{config, config_read, layer_distribution};
 use crate::{error::ContractError, queries, transactions};
 use config::defaults::NETWORK_MONITOR_ADDRESS;
 use cosmwasm_std::{
@@ -54,6 +54,14 @@ fn default_initial_state(owner: Addr) -> State {
         gateway_epoch_bond_reward: calculate_epoch_reward_rate(
             INITIAL_DEFAULT_EPOCH_LENGTH,
             gateway_bond_reward_rate,
+        ),
+        mixnode_epoch_delegation_reward: calculate_epoch_reward_rate(
+            INITIAL_DEFAULT_EPOCH_LENGTH,
+            mixnode_delegation_reward_rate,
+        ),
+        gateway_epoch_delegation_reward: calculate_epoch_reward_rate(
+            INITIAL_DEFAULT_EPOCH_LENGTH,
+            gateway_delegation_reward_rate,
         ),
     }
 }
@@ -173,7 +181,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    let state = config_read(deps.storage).load().unwrap();
+    config(deps.storage).save(&state)?;
     Ok(Default::default())
 }
 

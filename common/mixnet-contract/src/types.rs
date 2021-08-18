@@ -26,6 +26,10 @@ impl LayerDistribution {
     }
 }
 
+pub fn default_delegation_reward() -> Decimal {
+    Decimal::percent(110)
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct StateParams {
     pub epoch_length: u32, // length of an epoch, expressed in hours
@@ -34,7 +38,9 @@ pub struct StateParams {
     pub minimum_gateway_bond: Uint128, // minimum amount a gateway must bond to get into the system
     pub mixnode_bond_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
     pub gateway_bond_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
+    #[serde(default = "default_delegation_reward")]
     pub mixnode_delegation_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
+    #[serde(default = "default_delegation_reward")]
     pub gateway_delegation_reward_rate: Decimal, // annual reward rate, expressed as a decimal like 1.25
     pub mixnode_active_set_size: u32,
 }

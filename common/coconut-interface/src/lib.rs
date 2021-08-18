@@ -56,22 +56,13 @@ impl Credential {
     }
 }
 
-#[derive(Getters, CopyGetters)]
+#[derive(Serialize, Deserialize, Debug, Getters, CopyGetters)]
 pub struct VerifyCredentialBody {
     #[getset(get = "pub")]
     n_params: u32,
     #[getset(get = "pub")]
     theta: Theta,
     public_attributes: Vec<String>,
-    // TODO: CHECK THIS!!
-    // TODO: CHECK THIS!!
-    // TODO: CHECK THIS!!
-    // TODO: CHECK THIS!!
-    // TODO: CHECK THIS!!
-    // TODO: CHECK THIS!!
-    // TODO: CHECK THIS!!
-    // TODO: CHECK THIS!!
-    // public_attributes: Vec<Attribute>,
 }
 
 impl VerifyCredentialBody {
@@ -105,15 +96,6 @@ pub struct BlindSignRequestBody {
     #[getset(get = "pub")]
     public_key: coconut_rs::PublicKey,
     public_attributes: Vec<String>,
-    // TODO: CHECK THIS!!
-    // TODO: CHECK THIS!!
-    // TODO: CHECK THIS!!
-    // TODO: CHECK THIS!!
-    // TODO: CHECK THIS!!
-    // TODO: CHECK THIS!!
-    // TODO: CHECK THIS!!
-    // TODO: CHECK THIS!!
-    // public_attributes: Vec<Attribute>,
     #[getset(get = "pub")]
     total_params: u32,
 }

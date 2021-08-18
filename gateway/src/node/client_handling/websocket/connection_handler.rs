@@ -119,7 +119,6 @@ where
                     ws_stream,
                     self.local_identity.as_ref(),
                     init_msg,
-                    &self.aggregated_verification_key,
                 )
                 .await
             }

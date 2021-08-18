@@ -379,7 +379,6 @@ impl GatewayClient {
                 ws_stream,
                 self.local_identity.as_ref(),
                 self.gateway_identity,
-                self.coconut_credential.clone(),
             )
             .await
             .map_err(GatewayClientError::RegistrationFailure),

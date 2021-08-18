@@ -6,8 +6,6 @@ use self::error::HandshakeError;
 #[cfg(not(target_arch = "wasm32"))]
 use self::gateway::GatewayHandshake;
 pub use self::shared_key::{SharedKeySize, SharedKeys};
-#[cfg(not(target_arch = "wasm32"))]
-use coconut_interface::VerificationKey;
 use crypto::asymmetric::identity;
 use futures::{Sink, Stream};
 use rand::{CryptoRng, RngCore};
@@ -32,12 +30,11 @@ pub async fn client_handshake<'a, S>(
     ws_stream: &'a mut S,
     identity: &'a identity::KeyPair,
     gateway_pubkey: identity::PublicKey,
-    coconut_credential: coconut_interface::Credential,
 ) -> Result<SharedKeys, HandshakeError>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
 {
-    ClientHandshake::new(rng, ws_stream, identity, gateway_pubkey, coconut_credential).await
+    ClientHandshake::new(rng, ws_stream, identity, gateway_pubkey).await
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -46,19 +43,11 @@ pub async fn gateway_handshake<'a, S>(
     ws_stream: &'a mut S,
     identity: &'a identity::KeyPair,
     received_init_payload: Vec<u8>,
-    verification_key: &VerificationKey,
 ) -> Result<SharedKeys, HandshakeError>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
 {
-    GatewayHandshake::new(
-        rng,
-        ws_stream,
-        identity,
-        received_init_payload,
-        verification_key,
-    )
-    .await
+    GatewayHandshake::new(rng, ws_stream, identity, received_init_payload).await
 }
 
 /*

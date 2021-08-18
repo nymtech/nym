@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::mix_nodes::utils::map_2_letter_to_3_letter_country_code;
 use mixnet_contract::MixNodeBond;
-use network_defaults::{default_api_endpoints, DEFAULT_VALIDATORS};
+use network_defaults::default_api_endpoints;
 
 pub(crate) type LocationCache = HashMap<String, Location>;
 

@@ -22,9 +22,11 @@ wasm-bindgen = { version = "0.2", features = ["serde-serialize"]  }
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+url = "2.2"
 
 # internal
 coconut-interface = { path = "../../common/coconut-interface" }
+credentials = { path = "../../common/credentials" }
 crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }

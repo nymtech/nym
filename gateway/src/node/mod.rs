@@ -6,9 +6,13 @@ use crate::node::client_handling::clients_handler::{ClientsHandler, ClientsHandl
 use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::storage::{inboxes, ClientLedger};
+use coconut_interface::VerificationKey;
+use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
@@ -81,6 +85,7 @@ impl Gateway {
         &self,
         forwarding_channel: MixForwardingSender,
         clients_handler_sender: ClientsHandlerRequestSender,
+        verification_key: VerificationKey,
     ) {
         info!("Starting client [web]socket listener...");
 
@@ -92,7 +97,7 @@ impl Gateway {
         websocket::Listener::new(
             listening_address,
             Arc::clone(&self.identity),
-            self.config.get_validator_rest_endpoints(),
+            verification_key,
         )
         .start(clients_handler_sender, forwarding_channel);
     }
@@ -135,11 +140,11 @@ impl Gateway {
 
     // TODO: ask DH whether this function still makes sense in ^0.10
     async fn check_if_same_ip_gateway_exists(&self) -> Option<String> {
-        let validator_client_config = validator_client::Config::new(
-            self.config.get_validator_rest_endpoints(),
-            self.config.get_validator_mixnet_contract_address(),
-        );
-        let validator_client = validator_client::Client::new(validator_client_config);
+        let endpoints = self.config.get_validator_api_endpoints();
+        let validator_api = endpoints
+            .choose(&mut thread_rng())
+            .expect("The list of validator apis is empty");
+        let validator_client = validator_client::ApiClient::new(validator_api.clone());
 
         let existing_gateways = match validator_client.get_cached_gateways().await {
             Ok(gateways) => gateways,
@@ -178,11 +183,13 @@ impl Gateway {
                 }
             }
 
+            let validators_verification_key = obtain_aggregate_verification_key(&self.config.get_validator_api_endpoints()).await.expect("failed to contact validators to obtain their verification keys");
+
             let mix_forwarding_channel = self.start_packet_forwarder();
             let clients_handler_sender = self.start_clients_handler();
 
             self.start_mix_socket_listener(clients_handler_sender.clone(), mix_forwarding_channel.clone());
-            self.start_client_websocket_listener(mix_forwarding_channel, clients_handler_sender);
+            self.start_client_websocket_listener(mix_forwarding_channel, clients_handler_sender, validators_verification_key);
 
             info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

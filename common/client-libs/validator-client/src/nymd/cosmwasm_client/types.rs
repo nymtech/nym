@@ -4,7 +4,7 @@
 // TODO: There's a significant argument to pull those out of the package and make a PR on https://github.com/cosmos/cosmos-rust/
 
 use crate::nymd::cosmwasm_client::logs::Log;
-use crate::ValidatorClientError;
+use crate::nymd::error::NymdError;
 use cosmos_sdk::crypto::PublicKey;
 use cosmos_sdk::proto::cosmos::auth::v1beta1::BaseAccount;
 use cosmos_sdk::proto::cosmwasm::wasm::v1beta1::{
@@ -38,19 +38,19 @@ pub struct Account {
 }
 
 impl TryFrom<BaseAccount> for Account {
-    type Error = ValidatorClientError;
+    type Error = NymdError;
 
     fn try_from(value: BaseAccount) -> Result<Self, Self::Error> {
         let address: AccountId = value
             .address
             .parse()
-            .map_err(|_| ValidatorClientError::MalformedAccountAddress(value.address.clone()))?;
+            .map_err(|_| NymdError::MalformedAccountAddress(value.address.clone()))?;
 
         let pubkey = value
             .pub_key
             .map(PublicKey::try_from)
             .transpose()
-            .map_err(|_| ValidatorClientError::InvalidPublicKey(address.clone()))?;
+            .map_err(|_| NymdError::InvalidPublicKey(address.clone()))?;
 
         Ok(Account {
             address,
@@ -85,7 +85,7 @@ pub struct Code {
 }
 
 impl TryFrom<CodeInfoResponse> for Code {
-    type Error = ValidatorClientError;
+    type Error = NymdError;
 
     fn try_from(value: CodeInfoResponse) -> Result<Self, Self::Error> {
         let CodeInfoResponse {
@@ -98,7 +98,7 @@ impl TryFrom<CodeInfoResponse> for Code {
 
         let creator = creator
             .parse()
-            .map_err(|_| ValidatorClientError::MalformedAccountAddress(creator))?;
+            .map_err(|_| NymdError::MalformedAccountAddress(creator))?;
 
         let source = if source.is_empty() {
             None
@@ -144,7 +144,7 @@ pub(crate) struct ContractInfo {
 }
 
 impl TryFrom<ProtoContractInfo> for ContractInfo {
-    type Error = ValidatorClientError;
+    type Error = NymdError;
 
     fn try_from(value: ProtoContractInfo) -> Result<Self, Self::Error> {
         let ProtoContractInfo {
@@ -161,7 +161,7 @@ impl TryFrom<ProtoContractInfo> for ContractInfo {
             Some(
                 admin
                     .parse()
-                    .map_err(|_| ValidatorClientError::MalformedAccountAddress(admin))?,
+                    .map_err(|_| NymdError::MalformedAccountAddress(admin))?,
             )
         };
 
@@ -169,7 +169,7 @@ impl TryFrom<ProtoContractInfo> for ContractInfo {
             code_id,
             creator: creator
                 .parse()
-                .map_err(|_| ValidatorClientError::MalformedAccountAddress(creator))?,
+                .map_err(|_| NymdError::MalformedAccountAddress(creator))?,
             admin,
             label,
         })
@@ -219,14 +219,14 @@ pub struct ContractCodeHistoryEntry {
 }
 
 impl TryFrom<ProtoContractCodeHistoryEntry> for ContractCodeHistoryEntry {
-    type Error = ValidatorClientError;
+    type Error = NymdError;
 
     fn try_from(value: ProtoContractCodeHistoryEntry) -> Result<Self, Self::Error> {
         let operation = match ContractCodeHistoryOperationType::from_i32(value.operation)
-            .ok_or(ValidatorClientError::InvalidContractHistoryOperation)?
+            .ok_or(NymdError::InvalidContractHistoryOperation)?
         {
             ContractCodeHistoryOperationType::Unspecified => {
-                return Err(ValidatorClientError::InvalidContractHistoryOperation)
+                return Err(NymdError::InvalidContractHistoryOperation)
             }
             ContractCodeHistoryOperationType::Init => ContractCodeHistoryEntryOperation::Init,
             ContractCodeHistoryOperationType::Genesis => ContractCodeHistoryEntryOperation::Genesis,
@@ -236,9 +236,8 @@ impl TryFrom<ProtoContractCodeHistoryEntry> for ContractCodeHistoryEntry {
         Ok(ContractCodeHistoryEntry {
             operation,
             code_id: value.code_id,
-            msg_json: String::from_utf8(value.msg).map_err(|_| {
-                ValidatorClientError::DeserializationError("Contract history msg".to_owned())
-            })?,
+            msg_json: String::from_utf8(value.msg)
+                .map_err(|_| NymdError::DeserializationError("Contract history msg".to_owned()))?,
         })
     }
 }

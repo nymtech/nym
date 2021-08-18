@@ -3,22 +3,16 @@
 
 use crate::config::template::config_template;
 use coconut_interface::{Base58, KeyPair};
-use config::defaults::DEFAULT_MIXNET_CONTRACT_ADDRESS;
+use config::defaults::{default_api_endpoints, DEFAULT_MIXNET_CONTRACT_ADDRESS};
 use config::NymConfig;
-use const_format::formatcp;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use url::Url;
 
 mod template;
 
-pub const DEFAULT_VALIDATOR_HOST: &str = "localhost";
-const DEFAULT_VALIDATOR_PORT: &str = "1317";
-const DEFAULT_VALIDATOR_REST_ENDPOINTS: &[&str] = &[formatcp!(
-    "http://{}:{}",
-    DEFAULT_VALIDATOR_HOST,
-    DEFAULT_VALIDATOR_PORT,
-)];
+const DEFAULT_LOCAL_VALIDATOR: &str = "http://localhost:26657";
 
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 500;
 const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;
@@ -74,12 +68,14 @@ impl NymConfig for Config {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Base {
-    // TODO: this will probably be changed very soon to point only to a single endpoint,
-    // that will be a local address
-    validator_rest_urls: Vec<String>,
+    local_validator: Url,
 
     /// Address of the validator contract managing the network
     mixnet_contract_address: String,
+
+    /// Mnemonic (currently of the network monitor) used for rewarding
+    mnemonic: String,
+
     // Avoid breaking derives for now
     keypair_bs58: String,
 }
@@ -87,11 +83,11 @@ pub struct Base {
 impl Default for Base {
     fn default() -> Self {
         Base {
-            validator_rest_urls: DEFAULT_VALIDATOR_REST_ENDPOINTS
-                .iter()
-                .map(|&endpoint| endpoint.to_string())
-                .collect(),
+            local_validator: DEFAULT_LOCAL_VALIDATOR
+                .parse()
+                .expect("default local validator is malformed!"),
             mixnet_contract_address: DEFAULT_MIXNET_CONTRACT_ADDRESS.to_string(),
+            mnemonic: String::default(),
             keypair_bs58: String::default(),
         }
     }
@@ -102,6 +98,11 @@ impl Default for Base {
 pub struct NetworkMonitor {
     /// Specifies whether network monitoring service is enabled in this process.
     enabled: bool,
+
+    /// Specifies list of all validators on the network issuing coconut credentials.
+    /// A special care must be taken to ensure they are in correct order.
+    /// The list must also contain THIS validator that is running the test
+    all_validator_apis: Vec<Url>,
 
     /// Specifies whether a detailed report should be printed after each run
     print_detailed_report: bool,
@@ -158,6 +159,7 @@ impl Default for NetworkMonitor {
     fn default() -> Self {
         NetworkMonitor {
             enabled: false,
+            all_validator_apis: default_api_endpoints(),
             print_detailed_report: false,
             good_v4_topology_file: Self::default_good_v4_topology_file(),
             good_v6_topology_file: Self::default_good_v6_topology_file(),
@@ -237,8 +239,8 @@ impl Config {
         self
     }
 
-    pub fn with_custom_validators(mut self, validators: Vec<String>) -> Self {
-        self.base.validator_rest_urls = validators;
+    pub fn with_custom_nymd_validator(mut self, validator: Url) -> Self {
+        self.base.local_validator = validator;
         self
     }
 
@@ -247,8 +249,18 @@ impl Config {
         self
     }
 
-    pub fn with_keypair(mut self, keypair_bs58: String) -> Self {
-        self.base.keypair_bs58 = keypair_bs58;
+    pub fn with_mnemonic<S: Into<String>>(mut self, mnemonic: S) -> Self {
+        self.base.mnemonic = mnemonic.into();
+        self
+    }
+
+    pub fn with_keypair<S: Into<String>>(mut self, keypair_bs58: S) -> Self {
+        self.base.keypair_bs58 = keypair_bs58.into();
+        self
+    }
+
+    pub fn with_custom_validator_apis(mut self, validator_api_urls: Vec<Url>) -> Self {
+        self.network_monitor.all_validator_apis = validator_api_urls;
         self
     }
 
@@ -268,12 +280,16 @@ impl Config {
         self.network_monitor.good_v6_topology_file.clone()
     }
 
-    pub fn get_validators_urls(&self) -> Vec<String> {
-        self.base.validator_rest_urls.clone()
+    pub fn get_nymd_validator_url(&self) -> Url {
+        self.base.local_validator.clone()
     }
 
     pub fn get_mixnet_contract_address(&self) -> String {
         self.base.mixnet_contract_address.clone()
+    }
+
+    pub fn get_mnemonic(&self) -> String {
+        self.base.mnemonic.clone()
     }
 
     pub fn get_network_monitor_run_interval(&self) -> Duration {
@@ -310,5 +326,9 @@ impl Config {
 
     pub fn get_node_status_api_database_path(&self) -> PathBuf {
         self.node_status_api.database_path.clone()
+    }
+
+    pub fn get_all_validator_api_endpoints(&self) -> Vec<Url> {
+        self.network_monitor.all_validator_apis.clone()
     }
 }

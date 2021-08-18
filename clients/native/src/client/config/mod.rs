@@ -4,13 +4,12 @@
 use crate::client::config::template::config_template;
 use client_core::config::Config as BaseConfig;
 pub use client_core::config::MISSING_VALUE;
+use config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 mod template;
-
-const DEFAULT_LISTENING_PORT: u16 = 1977;
 
 #[derive(Debug, Deserialize, PartialEq, Serialize, Clone, Copy)]
 #[serde(deny_unknown_fields)]
@@ -117,7 +116,7 @@ impl Default for Socket {
     fn default() -> Self {
         Socket {
             socket_type: SocketType::WebSocket,
-            listening_port: DEFAULT_LISTENING_PORT,
+            listening_port: DEFAULT_WEBSOCKET_LISTENING_PORT,
         }
     }
 }

@@ -53,15 +53,12 @@ verloc_port = {{ mixnode.verloc_port }}
 # (default: 8000)
 http_api_port = {{ mixnode.http_api_port }}
 
-# Validator server to which the node will be getting information about the network.
-validator_rest_urls = [
-    {{#each mixnode.validator_rest_urls }}
+# Addresses to APIs running on validator from which the node gets the view of the network.
+validator_api_urls = [
+    {{#each mixnode.validator_api_urls }}
         '{{this}}',
     {{/each}}
 ]
-
-# Address of the validator contract managing the network.
-mixnet_contract_address = '{{ mixnode.mixnet_contract_address }}'
 
 ##### advanced configuration options #####
 

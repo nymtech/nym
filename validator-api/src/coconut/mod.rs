@@ -1,12 +1,15 @@
+// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use coconut_interface::{
     elgamal::PublicKey, Attribute, BlindSignRequest, BlindSignRequestBody, BlindedSignature,
     BlindedSignatureResponse, KeyPair, Parameters, VerificationKeyResponse,
 };
+use config::defaults::VALIDATOR_API_VERSION;
 use getset::{CopyGetters, Getters};
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
 use rocket::State;
-use validator_client::validator_api::VALIDATOR_API_CACHE_VERSION;
 
 #[derive(Getters, CopyGetters, Debug)]
 pub(crate) struct InternalSignRequest {
@@ -39,7 +42,8 @@ impl InternalSignRequest {
     pub fn stage(key_pair: KeyPair) -> AdHoc {
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
             rocket.manage(key_pair).mount(
-                VALIDATOR_API_CACHE_VERSION,
+                // this format! is so ugly...
+                format!("/{}", VALIDATOR_API_VERSION),
                 routes![post_blind_sign, get_verification_key],
             )
         })

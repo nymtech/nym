@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::DEFAULT_VALIDATOR_HOST;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
 use coconut_interface::Credential;
 use crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
@@ -22,7 +21,6 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 use tokio::time::Instant;
-use validator_client::validator_api::VALIDATOR_API_PORT;
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
@@ -65,6 +63,15 @@ struct FreshGatewayClientData {
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     gateway_response_timeout: Duration,
+
+    // I guess in the future this struct will require aggregated verification key and....
+    // ... something for obtaining actual credential
+
+    // TODO:
+    // SECURITY:
+    // since currently we have no double spending protection, just to get things running
+    // we're re-using the same credential for all gateways all the time. THIS IS VERY BAD!!
+    bandwidth_credential: Credential,
 }
 
 pub(crate) struct PacketSender {
@@ -84,6 +91,7 @@ impl PacketSender {
     pub(crate) fn new(
         gateways_status_updater: GatewayClientUpdateSender,
         local_identity: Arc<identity::KeyPair>,
+        bandwidth_credential: Credential,
         gateway_response_timeout: Duration,
         gateway_connection_timeout: Duration,
         max_concurrent_clients: usize,
@@ -95,6 +103,7 @@ impl PacketSender {
                 gateways_status_updater,
                 local_identity,
                 gateway_response_timeout,
+                bandwidth_credential,
             }),
             gateway_connection_timeout,
             max_concurrent_clients,
@@ -114,16 +123,6 @@ impl PacketSender {
         // use old shared keys
         let (message_sender, message_receiver) = mpsc::unbounded();
 
-        let coconut_credential = Credential::init(
-            vec![format!(
-                "http://{}:{}",
-                DEFAULT_VALIDATOR_HOST, VALIDATOR_API_PORT
-            )],
-            identity,
-        )
-        .await
-        .expect("Could not initialize coconut credential");
-
         // currently we do not care about acks at all, but we must keep the channel alive
         // so that the gateway client would not crash
         let (ack_sender, ack_receiver) = mpsc::unbounded();
@@ -136,7 +135,7 @@ impl PacketSender {
                 message_sender,
                 ack_sender,
                 fresh_gateway_client_data.gateway_response_timeout,
-                coconut_credential,
+                fresh_gateway_client_data.bandwidth_credential.clone(),
             ),
             (message_receiver, ack_receiver),
         )

@@ -24,11 +24,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .help("Comma separated list rest rest endpoints of the validators")
                 .takes_value(true),
         )
-        .arg(Arg::with_name("mixnet-contract")
-                 .long("mixnet-contract")
-                 .help("Address of the validator contract managing the network")
-                 .takes_value(true),
-        )
         .arg(Arg::with_name("gateway")
             .long("gateway")
             .help("Id of the gateway we want to connect to. If overridden, it is user's responsibility to ensure prior registration happened")

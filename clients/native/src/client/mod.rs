@@ -23,6 +23,8 @@ use client_core::client::topology_control::{
 };
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use coconut_interface::Credential;
+use credentials::bandwidth::prepare_for_spending;
+use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use gateway_client::{
@@ -164,6 +166,30 @@ impl NymClient {
         .start(self.runtime.handle())
     }
 
+    async fn prepare_credential(&self) -> Credential {
+        let verification_key = obtain_aggregate_verification_key(
+            &self.config.get_base().get_validator_api_endpoints(),
+        )
+        .await
+        .expect("could not obtain aggregate verification key of validators");
+
+        let bandwidth_credential = credentials::bandwidth::obtain_signature(
+            &self.key_manager.identity_keypair().public_key().to_bytes(),
+            &self.config.get_base().get_validator_api_endpoints(),
+        )
+        .await
+        .expect("could not obtain bandwidth credential");
+        // the above would presumably be loaded from a file
+
+        // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
+        prepare_for_spending(
+            &self.key_manager.identity_keypair().public_key().to_bytes(),
+            &bandwidth_credential,
+            &verification_key,
+        )
+        .expect("could not prepare out bandwidth credential for spending")
+    }
+
     fn start_gateway_client(
         &mut self,
         mixnet_message_sender: MixnetMessageSender,
@@ -182,12 +208,7 @@ impl NymClient {
             .expect("provided gateway id is invalid!");
 
         self.runtime.block_on(async {
-            let coconut_credential = Credential::init(
-                self.config.get_base().get_validator_rest_endpoints(),
-                *self.key_manager.identity_keypair().public_key(),
-            )
-            .await
-            .expect("Could not initialize coconut credential");
+            let coconut_credential = self.prepare_credential().await;
 
             let mut gateway_client = GatewayClient::new(
                 gateway_address,
@@ -213,10 +234,7 @@ impl NymClient {
     // the current global view of topology
     fn start_topology_refresher(&mut self, topology_accessor: TopologyAccessor) {
         let topology_refresher_config = TopologyRefresherConfig::new(
-            self.config.get_base().get_validator_rest_endpoints(),
-            self.config
-                .get_base()
-                .get_validator_mixnet_contract_address(),
+            self.config.get_base().get_validator_api_endpoints(),
             self.config.get_base().get_topology_refresh_rate(),
         );
         let mut topology_refresher =

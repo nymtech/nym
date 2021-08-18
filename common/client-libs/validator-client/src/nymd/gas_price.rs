@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ValidatorClientError;
+use crate::nymd::error::NymdError;
 use config::defaults;
 use cosmos_sdk::Denom;
 use cosmwasm_std::Decimal;
@@ -19,7 +19,7 @@ pub struct GasPrice {
 }
 
 impl FromStr for GasPrice {
-    type Err = ValidatorClientError;
+    type Err = NymdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let possible_amount = s
@@ -29,11 +29,11 @@ impl FromStr for GasPrice {
         let amount_len = possible_amount.len();
         let amount = possible_amount
             .parse()
-            .map_err(|_| ValidatorClientError::MalformedGasPrice)?;
+            .map_err(|_| NymdError::MalformedGasPrice)?;
         let possible_denom = s.chars().skip(amount_len).collect::<String>();
         let denom = possible_denom
             .parse()
-            .map_err(|_| ValidatorClientError::MalformedGasPrice)?;
+            .map_err(|_| NymdError::MalformedGasPrice)?;
 
         Ok(GasPrice { amount, denom })
     }

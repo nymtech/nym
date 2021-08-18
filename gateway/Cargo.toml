@@ -25,9 +25,11 @@ tokio = { version = "1.4", features = [ "rt-multi-thread", "net", "signal", "fs"
 tokio-util = { version = "0.6", features = [ "codec" ] }
 tokio-stream = { version = "0.1", features = [ "fs" ] }
 tokio-tungstenite = "0.14"
+url = { version = "2.2", features = [ "serde" ] }
 
 # internal
 coconut-interface = { path = "../common/coconut-interface" }
+credentials = { path = "../common/credentials" }
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
 gateway-requests = { path = "gateway-requests" }

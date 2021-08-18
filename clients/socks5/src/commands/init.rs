@@ -8,16 +8,19 @@ use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use coconut_interface::Credential;
 use config::NymConfig;
+use credentials::bandwidth::prepare_for_spending;
+use credentials::obtain_aggregate_verification_key;
 use crypto::asymmetric::{encryption, identity};
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
-use rand::{prelude::SliceRandom, rngs::OsRng};
+use rand::{prelude::SliceRandom, rngs::OsRng, thread_rng};
 use std::convert::TryInto;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::{filter::VersionFilterable, gateway};
+use url::Url;
 
 pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
     App::new("init")
@@ -44,11 +47,6 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
                 .help("Comma separated list of rest endpoints of the validators")
                 .takes_value(true),
         )
-        .arg(Arg::with_name("mixnet-contract")
-                 .long("mixnet-contract")
-                 .help("Address of the validator contract managing the network")
-                 .takes_value(true),
-        )
         .arg(Arg::with_name("port")
             .short("p")
             .long("port")
@@ -62,15 +60,29 @@ pub fn command_args<'a, 'b>() -> clap::App<'a, 'b> {
         )
 }
 
+// this behaviour should definitely be changed, we shouldn't
+// need to get bandwidth credential for registration
+async fn prepare_temporary_credential(validators: &[Url], raw_identity: &[u8]) -> Credential {
+    let verification_key = obtain_aggregate_verification_key(validators)
+        .await
+        .expect("could not obtain aggregate verification key of validators");
+
+    let bandwidth_credential = credentials::bandwidth::obtain_signature(raw_identity, validators)
+        .await
+        .expect("could not obtain bandwidth credential");
+
+    prepare_for_spending(raw_identity, &bandwidth_credential, &verification_key)
+        .expect("could not prepare out bandwidth credential for spending")
+}
+
 async fn register_with_gateway(
     gateway: &gateway::Node,
     our_identity: Arc<identity::KeyPair>,
-    validator_urls: Vec<String>,
+    validator_urls: Vec<Url>,
 ) -> SharedKeys {
     let timeout = Duration::from_millis(1500);
-    let coconut_credential = Credential::init(validator_urls, *our_identity.public_key())
-        .await
-        .expect("Could not initialize coconut credential");
+    let coconut_credential =
+        prepare_temporary_credential(&validator_urls, &our_identity.public_key().to_bytes()).await;
     let mut gateway_client = GatewayClient::new_init(
         gateway.clients_address(),
         gateway.identity_key,
@@ -89,12 +101,13 @@ async fn register_with_gateway(
 }
 
 async fn gateway_details(
-    validator_servers: Vec<String>,
-    mixnet_contract: &str,
+    validator_servers: Vec<Url>,
     chosen_gateway_id: Option<&str>,
 ) -> gateway::Node {
-    let validator_client_config = validator_client::Config::new(validator_servers, mixnet_contract);
-    let validator_client = validator_client::Client::new(validator_client_config);
+    let validator_api = validator_servers
+        .choose(&mut thread_rng())
+        .expect("The list of validator apis is empty");
+    let validator_client = validator_client::ApiClient::new(validator_api.clone());
 
     let gateways = validator_client.get_cached_gateways().await.unwrap();
     let valid_gateways = gateways
@@ -191,15 +204,14 @@ pub fn execute(matches: &ArgMatches) {
 
         let registration_fut = async {
             let gate_details = gateway_details(
-                config.get_base().get_validator_rest_endpoints(),
-                &config.get_base().get_validator_mixnet_contract_address(),
+                config.get_base().get_validator_api_endpoints(),
                 chosen_gateway_id,
             )
             .await;
             config
                 .get_base_mut()
                 .with_gateway_id(gate_details.identity_key.to_base58_string());
-            let validator_urls = config.get_base().get_validator_rest_endpoints();
+            let validator_urls = config.get_base().get_validator_api_endpoints();
             let shared_keys = register_with_gateway(
                 &gate_details,
                 key_manager.identity_keypair(),

@@ -134,19 +134,11 @@ impl ConfigBuilder {
         self
     }
 
-    // pub fn mixnet_contract_address<S: Into<String>>(mut self, mixnet_contract_address: S) -> Self {
-    //     self.0.mixnet_contract_address = mixnet_contract_address.into();
-    //     self
-    // }
-
     pub fn build(self) -> Config {
         // panics here are fine as those are only ever constructed at the initial setup
         if self.0.validator_api_urls.is_empty() {
             panic!("at least one validator endpoint must be provided")
         }
-        // if self.0.mixnet_contract_address.is_empty() {
-        //     panic!("the mixnet contract address must be set")
-        // }
         self.0
     }
 }

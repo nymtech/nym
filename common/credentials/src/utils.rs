@@ -9,9 +9,25 @@ use coconut_interface::{
 };
 use url::Url;
 
-// Note: list of validators must be correctly ordered by the polynomial coordinates used
-// during key generation and it is responsibility of the caller to ensure that correct
-// number of them is provided
+/// Contacts all provided validators and then aggregate their verification keys.
+///
+/// # Arguments
+///
+/// * `validators`: list of validators to obtain verification keys from.
+///
+/// Note: list of validators must be correctly ordered by the polynomial coordinates used
+/// during key generation and it is responsibility of the caller to ensure that correct
+/// number of them is provided
+///
+/// # Examples
+///
+/// ```rust
+/// use url::Url;
+/// use credentials::obtain_aggregate_verification_key;
+///
+/// let validators = vec!["https://testnet-milhon-validator1.nymtech.net/api".parse()?, "https://testnet-milhon-validator2.nymtech.net/api".parse()?];
+/// let aggregated_key = obtain_aggregate_verification_key(&validators).await?;
+/// ```
 pub async fn obtain_aggregate_verification_key(
     validators: &[Url],
 ) -> Result<VerificationKey, Error> {

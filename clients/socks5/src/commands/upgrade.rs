@@ -17,7 +17,7 @@ fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> !
 
 fn print_start_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
     println!(
-        "\n==================\nTrying to upgrade gateway from {} to {} ...",
+        "\n==================\nTrying to client gateway from {} to {} ...",
         from, to
     );
 }

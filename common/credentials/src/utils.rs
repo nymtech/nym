@@ -21,7 +21,7 @@ use url::Url;
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```no_run
 /// use url::Url;
 /// use credentials::obtain_aggregate_verification_key;
 ///

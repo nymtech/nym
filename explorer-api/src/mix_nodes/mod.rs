@@ -8,8 +8,8 @@ use rocket::tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
 
 use crate::mix_nodes::utils::map_2_letter_to_3_letter_country_code;
-use crate::VALIDATOR_API;
 use mixnet_contract::MixNodeBond;
+use network_defaults::{default_api_endpoints, DEFAULT_VALIDATORS};
 
 pub(crate) type LocationCache = HashMap<String, Location>;
 
@@ -165,5 +165,5 @@ pub(crate) async fn retrieve_mixnodes() -> Vec<MixNodeBond> {
 
 // TODO: inject constants
 fn new_validator_client() -> validator_client::ApiClient {
-    validator_client::ApiClient::new(VALIDATOR_API.parse().unwrap())
+    validator_client::ApiClient::new(default_api_endpoints()[0].clone())
 }

@@ -282,7 +282,7 @@ impl<T: NymConfig> Default for Client<T> {
         Client {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
-            validator_api_urls: ValidatorDetails::default().api_urls(),
+            validator_api_urls: default_api_endpoints(),
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             private_encryption_key_file: Default::default(),

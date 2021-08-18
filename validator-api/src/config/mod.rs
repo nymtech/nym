@@ -3,7 +3,7 @@
 
 use crate::config::template::config_template;
 use coconut_interface::{Base58, KeyPair};
-use config::defaults::{ValidatorDetails, DEFAULT_MIXNET_CONTRACT_ADDRESS};
+use config::defaults::{default_api_endpoints, DEFAULT_MIXNET_CONTRACT_ADDRESS};
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -159,7 +159,7 @@ impl Default for NetworkMonitor {
     fn default() -> Self {
         NetworkMonitor {
             enabled: false,
-            all_validator_apis: ValidatorDetails::default().api_urls(),
+            all_validator_apis: default_api_endpoints(),
             print_detailed_report: false,
             good_v4_topology_file: Self::default_good_v4_topology_file(),
             good_v6_topology_file: Self::default_good_v6_topology_file(),

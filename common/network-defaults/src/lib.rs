@@ -5,55 +5,50 @@ use url::Url;
 
 pub struct ValidatorDetails<'a> {
     // it is assumed those values are always valid since they're being provided in our defaults file
-    pub nymd_urls: &'a [&'a str],
-    pub api_urls: &'a [&'a str],
+    pub nymd_url: &'a str,
+    // Right now api_url is optional as we are not running the api reliably on all validators
+    // however, later on it should be a mandatory field
+    pub api_url: Option<&'a str>,
 }
 
 impl<'a> ValidatorDetails<'a> {
-    pub const fn new(nymd_urls: &'a [&'a str], api_urls: &'a [&'a str]) -> Self {
-        ValidatorDetails {
-            nymd_urls,
-            api_urls,
-        }
+    pub const fn new(nymd_url: &'a str, api_url: Option<&'a str>) -> Self {
+        ValidatorDetails { nymd_url, api_url }
     }
 
-    pub fn nymd_urls(&self) -> Vec<Url> {
-        self.nymd_urls
-            .iter()
-            .map(|url| {
-                url.parse()
-                    .expect("one of the default nymd urls is invalid")
-            })
-            .collect()
+    pub fn nymd_url(&self) -> Url {
+        self.nymd_url
+            .parse()
+            .expect("the provided nymd url is invalid!")
     }
 
-    pub fn api_urls(&self) -> Vec<Url> {
-        self.nymd_urls
-            .iter()
-            .map(|url| url.parse().expect("one of the default api urls is invalid"))
-            .collect()
+    pub fn api_url(&self) -> Option<Url> {
+        self.api_url
+            .map(|url| url.parse().expect("the provided api url is invalid!"))
     }
 }
 
-impl<'a> Default for ValidatorDetails<'a> {
-    fn default() -> Self {
-        ValidatorDetails::new(
-            &[
-                "https://testnet-milhon-validator1.nymtech.net",
-                "https://testnet-milhon-validator2.nymtech.net",
-            ],
-            &["https://testnet-milhon-validator1.nymtech.net/api"],
-        )
-    }
-}
-
-pub const DEFAULT_VALIDATORS: &[ValidatorDetails] = &[ValidatorDetails::new(
-    &[
+pub const DEFAULT_VALIDATORS: &[ValidatorDetails] = &[
+    ValidatorDetails::new(
         "https://testnet-milhon-validator1.nymtech.net",
-        "https://testnet-milhon-validator2.nymtech.net",
-    ],
-    &["https://testnet-milhon-validator1.nymtech.net/api"],
-)];
+        Some("https://testnet-milhon-validator1.nymtech.net/api"),
+    ),
+    ValidatorDetails::new("https://testnet-milhon-validator2.nymtech.net", None),
+];
+
+pub fn default_nymd_endpoints() -> Vec<Url> {
+    DEFAULT_VALIDATORS
+        .iter()
+        .map(|validator| validator.nymd_url())
+        .collect()
+}
+
+pub fn default_api_endpoints() -> Vec<Url> {
+    DEFAULT_VALIDATORS
+        .iter()
+        .filter_map(|validator| validator.api_url())
+        .collect()
+}
 
 pub const DEFAULT_MIXNET_CONTRACT_ADDRESS: &str = "punk10pyejy66429refv3g35g2t7am0was7yalwrzen";
 pub const NETWORK_MONITOR_ADDRESS: &str = "punk1v9qauwdq5terag6uvfsdytcs2d0sdmfdy7hgk3";

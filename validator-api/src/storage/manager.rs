@@ -463,6 +463,43 @@ impl StorageManager {
         Ok(())
     }
 
+    /// Creates a database entry for a finished network monitor test run.
+    ///
+    /// # Arguments
+    ///
+    /// * `timestamp`: unix timestamp at which the monitor test run has occurred
+    pub(crate) async fn insert_monitor_run(
+        &self,
+        timestamp: UnixTimestamp,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!("INSERT INTO monitor_run(timestamp) VALUES (?)", timestamp)
+            .execute(&self.connection_pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Obtains number of network monitor test runs that have occurred within the specified interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    /// * `until`: unix timestamp indicating the upper bound interval of the selection.
+    pub(crate) async fn get_monitor_runs_count(
+        &self,
+        since: UnixTimestamp,
+        until: UnixTimestamp,
+    ) -> Result<i32, sqlx::Error> {
+        let count = sqlx::query!(
+            "SELECT COUNT(*) as count FROM monitor_run WHERE timestamp > ? AND timestamp < ?",
+            since,
+            until,
+        )
+        .fetch_one(&self.connection_pool)
+        .await?
+        .count;
+        Ok(count)
+    }
+
     pub(crate) async fn purge_old_mixnode_ipv4_statuses(
         &self,
         timestamp: UnixTimestamp,

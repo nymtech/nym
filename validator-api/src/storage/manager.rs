@@ -4,10 +4,8 @@
 use crate::network_monitor::monitor::summary_producer::NodeResult;
 use crate::node_status_api::models::{HistoricalUptime, Uptime};
 use crate::node_status_api::utils::ActiveNodeDayStatuses;
-use crate::node_status_api::ONE_DAY;
 use crate::storage::models::{ActiveNode, NodeStatus};
 use crate::storage::UnixTimestamp;
-use sqlx::types::time::OffsetDateTime;
 use std::convert::TryFrom;
 
 #[derive(Clone)]
@@ -616,19 +614,17 @@ impl StorageManager {
     // since technically it doesn't touch any SQL directly
     pub(crate) async fn get_all_active_mixnodes_statuses(
         &self,
+        since: UnixTimestamp,
     ) -> Result<Vec<ActiveNodeDayStatuses>, sqlx::Error> {
-        let now = OffsetDateTime::now_utc();
-        let day_ago = (now - ONE_DAY).unix_timestamp();
-
-        let active_nodes = self.get_all_active_mixnodes(day_ago).await?;
+        let active_nodes = self.get_all_active_mixnodes(since).await?;
 
         let mut active_day_statuses = Vec::with_capacity(active_nodes.len());
         for active_node in active_nodes.into_iter() {
             let ipv4_statuses = self
-                .get_mixnode_ipv4_statuses_since_by_id(active_node.id, day_ago)
+                .get_mixnode_ipv4_statuses_since_by_id(active_node.id, since)
                 .await?;
             let ipv6_statuses = self
-                .get_mixnode_ipv6_statuses_since_by_id(active_node.id, day_ago)
+                .get_mixnode_ipv6_statuses_since_by_id(active_node.id, since)
                 .await?;
 
             let statuses = ActiveNodeDayStatuses {
@@ -651,19 +647,17 @@ impl StorageManager {
     // since technically it doesn't touch any SQL directly
     pub(crate) async fn get_all_active_gateways_statuses(
         &self,
+        since: UnixTimestamp,
     ) -> Result<Vec<ActiveNodeDayStatuses>, sqlx::Error> {
-        let now = OffsetDateTime::now_utc();
-        let day_ago = (now - ONE_DAY).unix_timestamp();
-
-        let active_nodes = self.get_all_active_gateways(day_ago).await?;
+        let active_nodes = self.get_all_active_gateways(since).await?;
 
         let mut active_day_statuses = Vec::with_capacity(active_nodes.len());
         for active_node in active_nodes.into_iter() {
             let ipv4_statuses = self
-                .get_gateway_ipv4_statuses_since_by_id(active_node.id, day_ago)
+                .get_gateway_ipv4_statuses_since_by_id(active_node.id, since)
                 .await?;
             let ipv6_statuses = self
-                .get_gateway_ipv6_statuses_since_by_id(active_node.id, day_ago)
+                .get_gateway_ipv6_statuses_since_by_id(active_node.id, since)
                 .await?;
 
             let statuses = ActiveNodeDayStatuses {

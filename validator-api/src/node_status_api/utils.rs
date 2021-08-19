@@ -4,7 +4,9 @@
 use crate::node_status_api::models::Uptime;
 use crate::node_status_api::{FIFTEEN_MINUTES, ONE_HOUR};
 use crate::storage::models::NodeStatus;
+use log::warn;
 use sqlx::types::time::OffsetDateTime;
+use std::cmp::max;
 
 // A temporary helper struct used to produce reports for active nodes.
 pub(crate) struct ActiveNodeDayStatuses {
@@ -30,33 +32,23 @@ pub(crate) struct NodeUptimes {
 
 impl NodeUptimes {
     pub(crate) fn calculate_from_last_day_reports(
+        report_time: OffsetDateTime,
         last_day_ipv4: Vec<NodeStatus>,
         last_day_ipv6: Vec<NodeStatus>,
+        last_hour_test_runs: usize,
+        last_day_test_runs: usize,
     ) -> Self {
-        let now = OffsetDateTime::now_utc();
-        let hour_ago = (now - ONE_HOUR).unix_timestamp();
-        let fifteen_minutes_ago = (now - FIFTEEN_MINUTES).unix_timestamp();
+        let hour_ago = (report_time - ONE_HOUR).unix_timestamp();
+        let fifteen_minutes_ago = (report_time - FIFTEEN_MINUTES).unix_timestamp();
 
-        let ipv4_day_total = last_day_ipv4.len();
-        let ipv6_day_total = last_day_ipv6.len();
+        let mut ipv4_day_up = last_day_ipv4.iter().filter(|report| report.up).count();
+        let mut ipv6_day_up = last_day_ipv6.iter().filter(|report| report.up).count();
 
-        let ipv4_day_up = last_day_ipv4.iter().filter(|report| report.up).count();
-        let ipv6_day_up = last_day_ipv6.iter().filter(|report| report.up).count();
-
-        let ipv4_hour_total = last_day_ipv4
-            .iter()
-            .filter(|report| report.timestamp >= hour_ago)
-            .count();
-        let ipv6_hour_total = last_day_ipv6
-            .iter()
-            .filter(|report| report.timestamp >= hour_ago)
-            .count();
-
-        let ipv4_hour_up = last_day_ipv4
+        let mut ipv4_hour_up = last_day_ipv4
             .iter()
             .filter(|report| report.up && report.timestamp >= hour_ago)
             .count();
-        let ipv6_hour_up = last_day_ipv6
+        let mut ipv6_hour_up = last_day_ipv6
             .iter()
             .filter(|report| report.up && report.timestamp >= hour_ago)
             .count();
@@ -73,15 +65,42 @@ impl NodeUptimes {
             .map(|status| status.timestamp >= fifteen_minutes_ago && status.up) // make sure its within last 15min
             .unwrap_or_default();
 
-        // the unwraps in Uptime::from_ratio are fine because it's impossible for us to have more "up" results than all results in total
-        // because both of those values originate from the same vector
+        // If somehow we have more "up" reports than the actual test runs it means something weird is going on
+        // (or we just started running this code on old data, so if it appears for first 24h, it's fine and actually expected
+        // as we would not have any run information from the past)
+        // Either way, bound the the number of "up" reports by number of test runs and log warnings
+        // if that happens
+        if ipv4_hour_up > last_hour_test_runs || ipv6_hour_up > last_hour_test_runs {
+            warn!(
+                "We have more 'up' reports than the actual number of test runs in last hour! ({} ipv4 'ups', {} ipv6 'ups' for {} test runs)",
+                ipv4_hour_up,
+                ipv6_hour_up,
+                last_hour_test_runs,
+            );
+            ipv4_hour_up = max(ipv4_hour_up, last_hour_test_runs);
+            ipv6_hour_up = max(ipv6_hour_up, last_hour_test_runs);
+        }
+
+        if ipv4_day_up > last_day_test_runs || ipv6_day_up > last_day_test_runs {
+            warn!(
+                "We have more 'up' reports than the actual number of test runs in last day! ({} ipv4 'ups', {} ipv6 'ups' for {} test runs)",
+                ipv4_day_up,
+                ipv6_day_up,
+                last_day_test_runs,
+            );
+            ipv4_day_up = max(ipv4_day_up, last_day_test_runs);
+            ipv6_day_up = max(ipv6_day_up, last_day_test_runs);
+        }
+
+        // the unwraps in Uptime::from_ratio are fine because it's impossible for us to have more "up" results
+        // than total test runs as we just bounded them
         NodeUptimes {
             most_recent_ipv4,
             most_recent_ipv6,
-            last_hour_ipv4: Uptime::from_ratio(ipv4_hour_up, ipv4_hour_total).unwrap(),
-            last_hour_ipv6: Uptime::from_ratio(ipv6_hour_up, ipv6_hour_total).unwrap(),
-            last_day_ipv4: Uptime::from_ratio(ipv4_day_up, ipv4_day_total).unwrap(),
-            last_day_ipv6: Uptime::from_ratio(ipv6_day_up, ipv6_day_total).unwrap(),
+            last_hour_ipv4: Uptime::from_ratio(ipv4_hour_up, last_hour_test_runs).unwrap(),
+            last_hour_ipv6: Uptime::from_ratio(ipv6_hour_up, last_hour_test_runs).unwrap(),
+            last_day_ipv4: Uptime::from_ratio(ipv4_day_up, last_day_test_runs).unwrap(),
+            last_day_ipv6: Uptime::from_ratio(ipv6_day_up, last_day_test_runs).unwrap(),
         }
     }
 }

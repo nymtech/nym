@@ -387,7 +387,7 @@ impl GatewayClient {
         self.authenticated = match self.read_control_response().await? {
             ServerResponse::Register { status } => Ok(status),
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
-            _ => unreachable!(),
+            _ => Err(GatewayClientError::NotAuthenticated),
         }?;
         if self.authenticated {
             self.shared_key = Some(Arc::new(shared_key));
@@ -431,7 +431,7 @@ impl GatewayClient {
                 Ok(())
             }
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
-            _ => unreachable!(),
+            _ => Err(GatewayClientError::NotAuthenticated),
         }
     }
 
@@ -454,13 +454,12 @@ impl GatewayClient {
             .into();
             self.authenticated = match self.send_websocket_message(msg).await? {
                 ServerResponse::Bandwidth { status } => Ok(status),
-                ServerResponse::Register { status: _ } => Err(GatewayClientError::NotAuthenticated),
                 ServerResponse::Error { message } => {
                     self.authenticated = false;
                     self.shared_key = None;
                     Err(GatewayClientError::GatewayError(message))
                 }
-                _ => unreachable!(),
+                _ => Err(GatewayClientError::NotAuthenticated),
             }?;
         }
         if self.authenticated {

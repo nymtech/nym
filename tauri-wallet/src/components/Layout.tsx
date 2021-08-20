@@ -8,6 +8,11 @@ export const Layout = ({ children }: { children: React.ReactElement }) => {
     <div
       style={{
         padding: theme.spacing(5),
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
       <Grid container justifyContent="center">

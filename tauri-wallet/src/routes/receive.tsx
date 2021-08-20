@@ -1,7 +1,9 @@
 import React from 'react'
 import { Card, CardContent, Grid, Typography } from '@material-ui/core'
+import { Alert } from '@material-ui/lab'
 import { CopyToClipboard, Layout, NymCard, Page } from '../components'
 import { useMediaQuery } from '@material-ui/core'
+import { theme } from '../theme'
 
 export const Receive = () => {
   const matches = useMediaQuery('(min-width:769px)')
@@ -13,18 +15,19 @@ export const Receive = () => {
           <NymCard title="Receive Nym">
             <Grid container direction="column" spacing={1}>
               <Grid item>
-                <Typography variant="subtitle1" noWrap={false}>
+                <Alert severity="info">
                   You can receive tokens by providing this address to the sender
-                </Typography>
+                </Alert>
               </Grid>
               <Grid item>
-                <Card>
+                <Card style={{ margin: theme.spacing(3, 0) }}>
                   <CardContent>
                     <div
                       style={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         flexWrap: 'wrap',
+                        padding: theme.spacing(1),
                       }}
                     >
                       <Typography

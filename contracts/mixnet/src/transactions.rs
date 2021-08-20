@@ -572,6 +572,8 @@ pub(crate) fn try_delegate_to_mixnode(
         None => delegation_bucket.save(sender_bytes, &info.funds[0].amount)?,
     }
 
+    mix_reverse_delegations(deps.storage, &info.sender).save(mix_identity.as_bytes(), &())?;
+
     Ok(Response::default())
 }
 
@@ -584,8 +586,9 @@ pub(crate) fn try_remove_delegation_from_mixnode(
     let sender_bytes = info.sender.as_bytes();
     match delegation_bucket.may_load(sender_bytes)? {
         Some(delegation) => {
-            // remove delegation from the bucket
+            // remove delegation from the buckets
             delegation_bucket.remove(sender_bytes);
+            mix_reverse_delegations(deps.storage, &info.sender).remove(mix_identity.as_bytes());
 
             // send delegated funds back to the delegation owner
             let messages = vec![BankMsg::Send {
@@ -656,6 +659,9 @@ pub(crate) fn try_delegate_to_gateway(
         None => delegation_bucket.save(sender_bytes, &info.funds[0].amount)?,
     }
 
+    gateway_reverse_delegations(deps.storage, &info.sender)
+        .save(gateway_identity.as_bytes(), &())?;
+
     Ok(Response::default())
 }
 
@@ -668,8 +674,10 @@ pub(crate) fn try_remove_delegation_from_gateway(
     let sender_bytes = info.sender.as_bytes();
     match delegation_bucket.may_load(sender_bytes)? {
         Some(delegation) => {
-            // remove delegation from the bucket
+            // remove delegation from the buckets
             delegation_bucket.remove(sender_bytes);
+            gateway_reverse_delegations(deps.storage, &info.sender)
+                .remove(gateway_identity.as_bytes());
 
             // send delegated funds back to the delegation owner
             let messages = vec![BankMsg::Send {

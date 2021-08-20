@@ -3,8 +3,9 @@
 
 use crate::error::ContractError;
 use crate::storage::{
-    gateway_delegations_read, gateways_owners_read, gateways_read, mix_delegations_read,
-    mixnodes_owners_read, mixnodes_read, read_layer_distribution, read_state_params,
+    gateway_delegations_read, gateway_reverse_delegations_read, gateways_owners_read,
+    gateways_read, mix_delegations_read, mix_reverse_delegations_read, mixnodes_owners_read,
+    mixnodes_read, read_layer_distribution, read_state_params,
 };
 use config::defaults::DENOM;
 use cosmwasm_std::Deps;
@@ -14,7 +15,8 @@ use cosmwasm_std::{coin, Addr};
 use mixnet_contract::{
     Delegation, GatewayBond, GatewayOwnershipResponse, IdentityKey, LayerDistribution, MixNodeBond,
     MixOwnershipResponse, PagedGatewayDelegationsResponse, PagedGatewayResponse,
-    PagedMixDelegationsResponse, PagedMixnodeResponse, StateParams,
+    PagedGatewayReverseDelegationsResponse, PagedMixDelegationsResponse,
+    PagedMixReverseDelegationsResponse, PagedMixnodeResponse, StateParams,
 };
 
 const BOND_PAGE_MAX_LIMIT: u32 = 100;
@@ -139,6 +141,32 @@ pub(crate) fn query_mixnode_delegations_paged(
     ))
 }
 
+pub(crate) fn query_mixnode_reverse_delegations_paged(
+    deps: Deps,
+    delegation_owner: Addr,
+    start_after: Option<IdentityKey>,
+    limit: Option<u32>,
+) -> StdResult<PagedMixReverseDelegationsResponse> {
+    let limit = limit
+        .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
+        .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
+    let start = calculate_start_value(start_after);
+
+    let delegations = mix_reverse_delegations_read(deps.storage, &delegation_owner)
+        .range(start.as_deref(), None, Order::Ascending)
+        .take(limit)
+        .map(|res| res.map(|entry| String::from_utf8(entry.0).unwrap()))
+        .collect::<StdResult<Vec<IdentityKey>>>()?;
+
+    let start_next_after = delegations.last().map(|v| v.clone());
+
+    Ok(PagedMixReverseDelegationsResponse::new(
+        delegation_owner,
+        delegations,
+        start_next_after,
+    ))
+}
+
 // queries for delegation value of given address for particular node
 pub(crate) fn query_mixnode_delegation(
     deps: Deps,
@@ -185,6 +213,32 @@ pub(crate) fn query_gateway_delegations_paged(
 
     Ok(PagedGatewayDelegationsResponse::new(
         gateway_identity,
+        delegations,
+        start_next_after,
+    ))
+}
+
+pub(crate) fn query_gateway_reverse_delegations_paged(
+    deps: Deps,
+    delegation_owner: Addr,
+    start_after: Option<IdentityKey>,
+    limit: Option<u32>,
+) -> StdResult<PagedGatewayReverseDelegationsResponse> {
+    let limit = limit
+        .unwrap_or(DELEGATION_PAGE_DEFAULT_LIMIT)
+        .min(DELEGATION_PAGE_MAX_LIMIT) as usize;
+    let start = calculate_start_value(start_after);
+
+    let delegations = gateway_reverse_delegations_read(deps.storage, &delegation_owner)
+        .range(start.as_deref(), None, Order::Ascending)
+        .take(limit)
+        .map(|res| res.map(|entry| String::from_utf8(entry.0).unwrap()))
+        .collect::<StdResult<Vec<IdentityKey>>>()?;
+
+    let start_next_after = delegations.last().map(|v| v.clone());
+
+    Ok(PagedGatewayReverseDelegationsResponse::new(
+        delegation_owner,
         delegations,
         start_next_after,
     ))

@@ -149,6 +149,16 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
             start_after,
             limit,
         )?),
+        QueryMsg::GetMixReverseDelegations {
+            delegation_owner,
+            start_after,
+            limit,
+        } => to_binary(&queries::query_mixnode_reverse_delegations_paged(
+            deps,
+            delegation_owner,
+            start_after,
+            limit,
+        )?),
         QueryMsg::GetMixDelegation {
             mix_identity,
             address,
@@ -164,6 +174,16 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
         } => to_binary(&queries::query_gateway_delegations_paged(
             deps,
             gateway_identity,
+            start_after,
+            limit,
+        )?),
+        QueryMsg::GetGatewayReverseDelegations {
+            delegation_owner,
+            start_after,
+            limit,
+        } => to_binary(&queries::query_gateway_reverse_delegations_paged(
+            deps,
+            delegation_owner,
             start_after,
             limit,
         )?),

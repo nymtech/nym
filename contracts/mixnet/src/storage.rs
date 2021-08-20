@@ -9,7 +9,8 @@ use cosmwasm_storage::{
     Singleton,
 };
 use mixnet_contract::{
-    GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond, StateParams,
+    Addr, GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond,
+    StateParams,
 };
 
 // storage prefixes
@@ -29,6 +30,8 @@ const PREFIX_GATEWAYS_OWNERS: &[u8] = b"go";
 
 const PREFIX_MIX_DELEGATION: &[u8] = b"md";
 const PREFIX_GATEWAY_DELEGATION: &[u8] = b"gd";
+const PREFIX_MIX_REVERSE_DELEGATION: &[u8] = b"dm";
+const PREFIX_GATEWAY_REVERSE_DELEGATION: &[u8] = b"dg";
 
 // Contract-level stuff
 
@@ -301,6 +304,17 @@ pub fn mix_delegations_read<'a>(
     ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
 }
 
+pub fn mix_reverse_delegations<'a>(storage: &'a mut dyn Storage, owner: &Addr) -> Bucket<'a, ()> {
+    Bucket::multilevel(storage, &[PREFIX_MIX_REVERSE_DELEGATION, owner.as_bytes()])
+}
+
+pub fn mix_reverse_delegations_read<'a>(
+    storage: &'a dyn Storage,
+    owner: &Addr,
+) -> ReadonlyBucket<'a, ()> {
+    ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_REVERSE_DELEGATION, owner.as_bytes()])
+}
+
 pub fn gateway_delegations<'a>(
     storage: &'a mut dyn Storage,
     gateway_identity: IdentityKeyRef,
@@ -318,6 +332,26 @@ pub fn gateway_delegations_read<'a>(
     ReadonlyBucket::multilevel(
         storage,
         &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],
+    )
+}
+
+pub fn gateway_reverse_delegations<'a>(
+    storage: &'a mut dyn Storage,
+    owner: &Addr,
+) -> Bucket<'a, ()> {
+    Bucket::multilevel(
+        storage,
+        &[PREFIX_GATEWAY_REVERSE_DELEGATION, owner.as_bytes()],
+    )
+}
+
+pub fn gateway_reverse_delegations_read<'a>(
+    storage: &'a dyn Storage,
+    owner: &Addr,
+) -> ReadonlyBucket<'a, ()> {
+    ReadonlyBucket::multilevel(
+        storage,
+        &[PREFIX_GATEWAY_REVERSE_DELEGATION, owner.as_bytes()],
     )
 }
 

@@ -49,6 +49,7 @@ members = [
     "mixnode",
     "service-providers/network-requester",
     "validator-api",
+    "tauri-wallet/src-tauri",
 ]
 
 default-members = [

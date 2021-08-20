@@ -3,6 +3,7 @@ import { Switch, Route } from 'react-router-dom'
 import { BrowserRouter as Router } from 'react-router-dom'
 import { NotFound } from './404'
 import { Balance } from './balance'
+import { Bond } from './bond/bond'
 import { Receive } from './receive'
 import { Send } from './send'
 import { SignIn } from './sign-in'
@@ -15,6 +16,9 @@ export const Routes = () => (
       </Route>
       <Route path="/balance">
         <Balance />
+      </Route>
+      <Route path="/bond">
+        <Bond />
       </Route>
       <Route path="/signin">
         <SignIn />

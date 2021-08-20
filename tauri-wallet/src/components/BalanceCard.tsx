@@ -25,13 +25,6 @@ const useStyles = makeStyles(({ spacing }) => ({
     minWidth: 300,
     position: 'relative',
   },
-  media: {
-    marginLeft: spacing(-7),
-    position: 'fixed',
-  },
-  content: {
-    marginLeft: theme.spacing(4),
-  },
 }))
 
 export const BalanceCard = React.memo(function BlogCard() {
@@ -39,11 +32,7 @@ export const BalanceCard = React.memo(function BlogCard() {
   const { client } = useContext(ClientContext)
   return (
     <Card className={styles.root}>
-      <CardHeader
-        avatar={<img src={logo} style={{ width: 75 }} />}
-        className={styles.media}
-      />
-      <CardContent className={styles.content}>
+      <CardContent>
         <BalanceCardField
           primaryText="Balance"
           subText={client.balance}

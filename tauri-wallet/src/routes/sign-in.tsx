@@ -76,6 +76,7 @@ export const SignIn = () => {
                   type="submit"
                   disabled={loading}
                   size="large"
+                  disableElevation
                 >
                   Sign In
                 </Button>

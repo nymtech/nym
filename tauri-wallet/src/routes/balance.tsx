@@ -33,6 +33,7 @@ export const Balance = () => {
                     type="submit"
                     onClick={() => {}}
                     disabled={false}
+                    disableElevation
                     startIcon={<Refresh />}
                   >
                     Refresh

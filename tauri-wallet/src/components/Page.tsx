@@ -1,6 +1,9 @@
 import React from 'react'
 import { BalanceCard } from './BalanceCard'
 import { Nav } from './Nav'
+import Logo from '../images/logo.png'
+import { theme } from '../theme'
+import { Divider } from '@material-ui/core'
 
 export const Page = ({ children }: { children: React.ReactElement }) => {
   return (
@@ -24,7 +27,23 @@ export const Page = ({ children }: { children: React.ReactElement }) => {
           borderBottomRightRadius: 10,
         }}
       >
-        <BalanceCard />
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginTop: theme.spacing(6),
+          }}
+        >
+          <img src={Logo} style={{ width: 75 }} />
+        </div>
+        <Divider
+          light
+          variant="middle"
+          style={{
+            background: theme.palette.grey[100],
+            marginTop: theme.spacing(6),
+          }}
+        />
         <Nav />
         <div />
       </div>

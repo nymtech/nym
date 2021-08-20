@@ -4,10 +4,12 @@ import { Card, CardContent, CardHeader, useTheme } from '@material-ui/core'
 export const NymCard = ({
   title,
   subheader,
+  noPadding,
   children,
 }: {
   title: string
   subheader?: string
+  noPadding?: boolean
   children: React.ReactElement
 }) => {
   const theme = useTheme()
@@ -26,7 +28,7 @@ export const NymCard = ({
       <CardContent
         style={{
           background: theme.palette.grey[50],
-          padding: theme.spacing(2, 5),
+          padding: noPadding ? 0 : theme.spacing(2, 5),
         }}
       >
         {children}

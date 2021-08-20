@@ -1,4 +1,5 @@
 import React from 'react'
+import { BalanceCard } from './BalanceCard'
 import { Nav } from './Nav'
 
 export const Page = ({ children }: { children: React.ReactElement }) => {
@@ -18,14 +19,14 @@ export const Page = ({ children }: { children: React.ReactElement }) => {
         style={{
           gridArea: '1 / 1 / 2 / 2',
           background: '#121726',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+
           borderTopRightRadius: 10,
           borderBottomRightRadius: 10,
         }}
       >
+        <BalanceCard />
         <Nav />
+        <div />
       </div>
       <div
         style={{

@@ -19,6 +19,7 @@ import {
 } from '@material-ui/icons'
 import { makeStyles } from '@material-ui/styles'
 import clsx from 'clsx'
+import { theme } from '../theme'
 
 const routesSchema = [
   {
@@ -78,28 +79,37 @@ export const Nav = () => {
   const location = useLocation()
 
   return (
-    <List>
-      {routesSchema.map((r, i) => (
-        <ListItem button component={Link} to={r.route} key={i}>
-          <ListItemIcon
-            className={clsx([
-              classes.navItem,
-              location.pathname === r.route ? classes.selected : undefined,
-            ])}
-          >
-            {r.Icon}
-          </ListItemIcon>
-          <ListItemText
-            primary={r.label}
-            primaryTypographyProps={{
-              className: clsx([
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: theme.spacing(10),
+      }}
+    >
+      <List>
+        {routesSchema.map((r, i) => (
+          <ListItem button component={Link} to={r.route} key={i}>
+            <ListItemIcon
+              className={clsx([
                 classes.navItem,
                 location.pathname === r.route ? classes.selected : undefined,
-              ]),
-            }}
-          />
-        </ListItem>
-      ))}
-    </List>
+              ])}
+            >
+              {r.Icon}
+            </ListItemIcon>
+            <ListItemText
+              primary={r.label}
+              primaryTypographyProps={{
+                className: clsx([
+                  classes.navItem,
+                  location.pathname === r.route ? classes.selected : undefined,
+                ]),
+              }}
+            />
+          </ListItem>
+        ))}
+      </List>
+    </div>
   )
 }

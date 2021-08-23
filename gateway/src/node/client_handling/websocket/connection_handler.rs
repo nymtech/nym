@@ -341,6 +341,22 @@ where
         }
     }
 
+    async fn handle_bandwidth(&self, enc_credential: Vec<u8>) -> ServerResponse {
+        let credential = match ClientControlRequest::try_from_enc_bandwidth_credential(
+            enc_credential,
+            self.shared_key.as_ref().unwrap(),
+        ) {
+            Ok(c) => c,
+            Err(e) => {
+                return ServerResponse::Error {
+                    message: e.to_string(),
+                }
+            }
+        };
+        let status = credential.verify(&self.aggregated_verification_key).await;
+        ServerResponse::Bandwidth { status }
+    }
+
     // currently there are no valid control messages you can send after authentication
     async fn handle_text(&mut self, _: String) -> Message {
         trace!("Handling text message (presumably control message)");
@@ -388,19 +404,7 @@ where
                     self.handle_register(data, mix_sender).await
                 }
                 ClientControlRequest::BandwidthCredential { enc_credential } => {
-                    let credential = match ClientControlRequest::try_from_enc_bandwidth_credential(
-                        enc_credential,
-                        self.shared_key.as_ref().unwrap(),
-                    ) {
-                        Ok(c) => c,
-                        Err(e) => {
-                            return ServerResponse::Error {
-                                message: e.to_string(),
-                            }
-                        }
-                    };
-                    let status = credential.verify(&self.aggregated_verification_key).await;
-                    ServerResponse::Bandwidth { status }
+                    self.handle_bandwidth(enc_credential).await
                 }
             }
         } else {

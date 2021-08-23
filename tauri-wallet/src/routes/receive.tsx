@@ -20,7 +20,10 @@ export const Receive = () => {
                 </Alert>
               </Grid>
               <Grid item>
-                <Card style={{ margin: theme.spacing(3, 0) }}>
+                <Card
+                  style={{ margin: theme.spacing(3, 0) }}
+                  variant="outlined"
+                >
                   <CardContent>
                     <div
                       style={{

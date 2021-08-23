@@ -19,7 +19,6 @@ type TBondNodeFormProps = {
 
 export const BondNodeForm = () => {
   const [advancedShown, setAdvancedShown] = React.useState(false)
-  const [type, setType] = useState(EnumNodeType.Mixnode)
   const [nodeType, setNodeType] = useState(EnumNodeType.Mixnode)
 
   const theme: Theme = useTheme()
@@ -54,7 +53,7 @@ export const BondNodeForm = () => {
               fullWidth
             />
           </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={9}>
             <TextField
               variant="outlined"
               required
@@ -82,8 +81,8 @@ export const BondNodeForm = () => {
           </Grid>
 
           {/* if it's a gateway - get location */}
-          <Grid item xs={12} sm={6}>
-            {type === EnumNodeType.Gateway && (
+          <Grid item xs={6}>
+            {nodeType === EnumNodeType.Gateway && (
               <TextField
                 variant="outlined"
                 required
@@ -133,7 +132,7 @@ export const BondNodeForm = () => {
                   fullWidth
                 />
               </Grid>
-              {type === EnumNodeType.Mixnode ? (
+              {nodeType === EnumNodeType.Mixnode ? (
                 <>
                   <Grid item xs={12} sm={4}>
                     <TextField

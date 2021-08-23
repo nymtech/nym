@@ -21,27 +21,22 @@ export const Receive = () => {
               </Grid>
               <Grid item>
                 <Card
-                  style={{ margin: theme.spacing(3, 0) }}
+                  style={{
+                    margin: theme.spacing(1, 0),
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    padding: theme.spacing(3),
+                  }}
                   variant="outlined"
                 >
-                  <CardContent>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        padding: theme.spacing(1),
-                      }}
-                    >
-                      <Typography
-                        variant={matches ? 'h5' : 'subtitle1'}
-                        style={{ wordBreak: 'break-word' }}
-                      >
-                        {address}
-                      </Typography>
-                      <CopyToClipboard text={address} />
-                    </div>
-                  </CardContent>
+                  <Typography
+                    variant={matches ? 'h5' : 'subtitle1'}
+                    style={{ wordBreak: 'break-word' }}
+                  >
+                    {address}
+                  </Typography>
+                  <CopyToClipboard text={address} />
                 </Card>
               </Grid>
             </Grid>

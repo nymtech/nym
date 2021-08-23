@@ -103,7 +103,11 @@ impl SharedKeys {
             .collect()
     }
 
-    pub fn decrypt_tagged(&self, enc_data: &[u8]) -> Result<Vec<u8>, GatewayRequestsError> {
+    pub fn decrypt_tagged(
+        &self,
+        enc_data: &[u8],
+        iv: Option<&IV<GatewayEncryptionAlgorithm>>,
+    ) -> Result<Vec<u8>, GatewayRequestsError> {
         let mac_size = GatewayMacSize::to_usize();
         if enc_data.len() < mac_size {
             return Err(GatewayRequestsError::TooShortRequest);
@@ -125,9 +129,10 @@ impl SharedKeys {
         let mut message_bytes_mut = &mut enc_data.to_vec()[mac_size..];
 
         let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
+        let iv = iv.unwrap_or(&zero_iv);
         stream_cipher::decrypt_in_place::<GatewayEncryptionAlgorithm>(
             self.encryption_key(),
-            &zero_iv,
+            iv,
             &mut message_bytes_mut,
         );
         Ok(message_bytes_mut.to_vec())

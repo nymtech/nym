@@ -347,13 +347,21 @@ where
         }
     }
 
-    async fn handle_bandwidth(&mut self, enc_credential: Vec<u8>) -> ServerResponse {
+    async fn handle_bandwidth(&mut self, enc_credential: Vec<u8>, iv: String) -> ServerResponse {
         if self.shared_key.is_none() {
             return ServerResponse::new_error("No shared key has been exchanged with the gateway");
         }
+        let iv = match AuthenticationIV::try_from_base58_string(iv) {
+            Ok(iv) => iv,
+            Err(e) => {
+                trace!("failed to parse received IV {:?}", e);
+                return ServerResponse::new_error("malformed iv");
+            }
+        };
         let credential = match ClientControlRequest::try_from_enc_bandwidth_credential(
             enc_credential,
             self.shared_key.as_ref().unwrap(),
+            iv,
         ) {
             Ok(c) => c,
             Err(e) => {
@@ -370,8 +378,8 @@ where
     async fn handle_text(&mut self, raw_request: String) -> Message {
         if let Ok(request) = ClientControlRequest::try_from(raw_request) {
             match request {
-                ClientControlRequest::BandwidthCredential { enc_credential } => {
-                    self.handle_bandwidth(enc_credential).await.into()
+                ClientControlRequest::BandwidthCredential { enc_credential, iv } => {
+                    self.handle_bandwidth(enc_credential, iv).await.into()
                 }
                 _ => ServerResponse::new_error("invalid request").into(),
             }

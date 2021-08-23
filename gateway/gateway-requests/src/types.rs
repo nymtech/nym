@@ -117,6 +117,7 @@ pub enum ClientControlRequest {
     },
     BandwidthCredential {
         enc_credential: Vec<u8>,
+        iv: String,
     },
 }
 
@@ -133,18 +134,26 @@ impl ClientControlRequest {
         }
     }
 
-    pub fn new_enc_bandwidth_credential(credential: Credential, shared_key: &SharedKeys) -> Self {
+    pub fn new_enc_bandwidth_credential(
+        credential: Credential,
+        shared_key: &SharedKeys,
+        iv: AuthenticationIV,
+    ) -> Self {
+        let enc_credential =
+            shared_key.encrypt_and_tag(&bincode::serialize(&credential).unwrap(), Some(iv.inner()));
+
         ClientControlRequest::BandwidthCredential {
-            enc_credential: shared_key
-                .encrypt_and_tag(&bincode::serialize(&credential).unwrap(), None),
+            enc_credential,
+            iv: iv.to_base58_string(),
         }
     }
 
     pub fn try_from_enc_bandwidth_credential(
         enc_credential: Vec<u8>,
         shared_key: &SharedKeys,
+        iv: AuthenticationIV,
     ) -> Result<Credential, GatewayRequestsError> {
-        let credential = shared_key.decrypt_tagged(&enc_credential)?;
+        let credential = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
         bincode::deserialize(&credential).map_err(|_| GatewayRequestsError::MalformedEncryption)
     }
 }
@@ -235,7 +244,7 @@ impl BinaryRequest {
         raw_req: Vec<u8>,
         shared_keys: &SharedKeys,
     ) -> Result<Self, GatewayRequestsError> {
-        let message_bytes_mut = &shared_keys.decrypt_tagged(&raw_req)?;
+        let message_bytes_mut = &shared_keys.decrypt_tagged(&raw_req, None)?;
 
         // right now there's only a single option possible which significantly simplifies the logic
         // if we decided to allow for more 'binary' messages, the API wouldn't need to change.

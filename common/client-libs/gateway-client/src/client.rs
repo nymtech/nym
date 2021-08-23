@@ -464,9 +464,13 @@ impl GatewayClient {
             return Err(GatewayClientError::NoSharedKeyAvailable);
         }
 
+        let mut rng = OsRng;
+        let iv = AuthenticationIV::new_random(&mut rng);
+
         let msg = ClientControlRequest::new_enc_bandwidth_credential(
             self.coconut_credential.clone(),
             self.shared_key.as_ref().unwrap(),
+            iv,
         )
         .into();
         self.has_bandwidth = match self.send_websocket_message(msg).await? {

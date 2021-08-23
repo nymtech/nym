@@ -25,7 +25,7 @@ export const BondNodeForm = () => {
 
   return (
     <form>
-      <div style={{ padding: theme.spacing(3) }}>
+      <div style={{ padding: theme.spacing(3, 5) }}>
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <NodeTypeSelector

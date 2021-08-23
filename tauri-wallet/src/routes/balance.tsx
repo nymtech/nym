@@ -6,6 +6,7 @@ import { NoClientError } from '../components/NoClientError'
 import { Confirmation } from '../components/Confirmation'
 import { ClientContext } from '../context/main'
 import { Alert } from '@material-ui/lab'
+import { theme } from '../theme'
 
 export const Balance = () => {
   const { client } = useContext(ClientContext)
@@ -25,6 +26,7 @@ export const Balance = () => {
                   SuccessMessage={
                     <Alert
                       severity="success"
+                      style={{ padding: theme.spacing(2, 4) }}
                       action={
                         <div
                           style={{
@@ -47,7 +49,7 @@ export const Balance = () => {
                         </div>
                       }
                     >
-                      {'The current balance is ' + client.balance}
+                      {'The current wallet balance is ' + client.balance}
                     </Alert>
                   }
                   failureMessage="Failed to check the account balance!"

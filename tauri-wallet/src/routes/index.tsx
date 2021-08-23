@@ -8,6 +8,8 @@ import { Delegate } from './delegate'
 import { Receive } from './receive'
 import { Send } from './send'
 import { SignIn } from './sign-in'
+import { Unbond } from './unbond'
+import { Undelegate } from './undelegate'
 
 export const Routes = () => (
   <Router>
@@ -28,13 +30,13 @@ export const Routes = () => (
         <Bond />
       </Route>
       <Route path="/unbond">
-        <Bond />
+        <Unbond />
       </Route>
       <Route path="/delegate">
         <Delegate />
       </Route>
       <Route path="/undelegate">
-        <Delegate />
+        <Undelegate />
       </Route>
       <Route path="/signin">
         <SignIn />

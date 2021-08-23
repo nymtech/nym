@@ -349,9 +349,7 @@ where
 
     async fn handle_bandwidth(&mut self, enc_credential: Vec<u8>) -> ServerResponse {
         if self.shared_key.is_none() {
-            return ServerResponse::Error {
-                message: "No shared key has been exchanged with the gateway".to_string(),
-            };
+            return ServerResponse::new_error("No shared key has been exchanged with the gateway");
         }
         let credential = match ClientControlRequest::try_from_enc_bandwidth_credential(
             enc_credential,
@@ -359,9 +357,7 @@ where
         ) {
             Ok(c) => c,
             Err(e) => {
-                return ServerResponse::Error {
-                    message: e.to_string(),
-                }
+                return ServerResponse::new_error(e.to_string());
             }
         };
         let status = credential.verify(&self.aggregated_verification_key);

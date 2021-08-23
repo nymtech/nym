@@ -144,7 +144,7 @@ impl ClientControlRequest {
         enc_credential: Vec<u8>,
         shared_key: &SharedKeys,
     ) -> Result<Credential, GatewayRequestsError> {
-        let credential = shared_key.decrypt_tagged(enc_credential)?;
+        let credential = shared_key.decrypt_tagged(&enc_credential)?;
         bincode::deserialize(&credential).map_err(|_| GatewayRequestsError::MalformedEncryption)
     }
 }
@@ -234,7 +234,7 @@ impl BinaryRequest {
         raw_req: Vec<u8>,
         shared_keys: &SharedKeys,
     ) -> Result<Self, GatewayRequestsError> {
-        let message_bytes_mut = &shared_keys.decrypt_tagged(raw_req)?;
+        let message_bytes_mut = &shared_keys.decrypt_tagged(&raw_req)?;
 
         // right now there's only a single option possible which significantly simplifies the logic
         // if we decided to allow for more 'binary' messages, the API wouldn't need to change.

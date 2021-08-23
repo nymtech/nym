@@ -103,7 +103,7 @@ impl SharedKeys {
             .collect()
     }
 
-    pub fn decrypt_tagged(&self, mut enc_data: Vec<u8>) -> Result<Vec<u8>, GatewayRequestsError> {
+    pub fn decrypt_tagged(&self, enc_data: &[u8]) -> Result<Vec<u8>, GatewayRequestsError> {
         let mac_size = GatewayMacSize::to_usize();
         if enc_data.len() < mac_size {
             return Err(GatewayRequestsError::TooShortRequest);
@@ -122,7 +122,7 @@ impl SharedKeys {
 
         // couldn't have made the first borrow mutable as you can't have an immutable borrow
         // together with a mutable one
-        let mut message_bytes_mut = &mut enc_data[mac_size..];
+        let mut message_bytes_mut = &mut enc_data.to_vec()[mac_size..];
 
         let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
         stream_cipher::decrypt_in_place::<GatewayEncryptionAlgorithm>(

@@ -8,15 +8,15 @@ export const theme = createTheme({
   },
   overrides: {
     MuiButton: {
+      root: {
+        borderRadius: 50,
+        padding: '12px 24px',
+      },
       containedPrimary: {
         color: 'white',
-        borderRadius: 50,
       },
-      contained: {
-        padding: '12px 24px',
-      },
-      containedSizeLarge: {
-        padding: '12px 24px',
+      text: {
+        padding: 'default',
       },
     },
     MuiOutlinedInput: {

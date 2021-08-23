@@ -7,15 +7,20 @@ import { SendReviewField } from './SendReview'
 export const SendConfirmation = ({
   amount,
   recipient,
+  onFinish,
 }: {
   amount: string
   recipient: string
+  onFinish: () => void
 }) => {
   const theme: Theme = useTheme()
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    setTimeout(() => setIsLoading(false), 3000)
+    setTimeout(() => {
+      setIsLoading(false)
+      onFinish()
+    }, 3000)
   }, [])
 
   return (

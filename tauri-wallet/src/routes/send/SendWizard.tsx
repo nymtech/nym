@@ -32,8 +32,8 @@ export const SendWizard = () => {
         activeStep={activeStep}
         style={{ background: theme.palette.grey[50] }}
       >
-        {steps.map((s) => (
-          <Step>
+        {steps.map((s, i) => (
+          <Step key={i}>
             <StepLabel>{s}</StepLabel>
           </Step>
         ))}
@@ -56,7 +56,11 @@ export const SendWizard = () => {
         ) : activeStep === 1 ? (
           <SendReview recipientAddress={toAddress} amount={sendAmount} />
         ) : (
-          <SendConfirmation amount={sendAmount} recipient={toAddress} />
+          <SendConfirmation
+            amount={sendAmount}
+            recipient={toAddress}
+            onFinish={() => setActiveStep((s) => s + 1)}
+          />
         )}
       </div>
       <div

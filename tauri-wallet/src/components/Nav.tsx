@@ -58,7 +58,7 @@ const routesSchema = [
     Icon: <Cancel />,
   },
   {
-    label: 'Logout',
+    label: 'Log out',
     route: '/signin',
     Icon: <ExitToApp />,
   },

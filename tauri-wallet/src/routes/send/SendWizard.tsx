@@ -27,7 +27,7 @@ export const SendWizard = () => {
   }
 
   return (
-    <div style={{ padding: theme.spacing(3, 0) }}>
+    <div style={{ paddingTop: theme.spacing(3) }}>
       <Stepper
         activeStep={activeStep}
         style={{

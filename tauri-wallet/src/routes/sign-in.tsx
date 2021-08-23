@@ -51,7 +51,7 @@ export const SignIn = () => {
       >
         <div style={{ width: 400 }}>
           <Typography variant="h4">Sign in</Typography>
-          <form noValidate onSubmit={() => history.push('/send')}>
+          <form noValidate onSubmit={() => history.push('/balance')}>
             <Grid container direction="column" spacing={1}>
               <Grid item>
                 <TextField

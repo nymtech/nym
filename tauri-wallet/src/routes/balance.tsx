@@ -21,7 +21,7 @@ export const Balance = () => {
                   isLoading={false}
                   error={null}
                   progressMessage="Checking balance..."
-                  successMessage={''}
+                  successMessage={'The current balance is ' + client.balance}
                   failureMessage="Failed to check the account balance!"
                 />
               </Grid>

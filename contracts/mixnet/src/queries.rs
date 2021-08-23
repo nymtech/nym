@@ -158,7 +158,7 @@ pub(crate) fn query_mixnode_reverse_delegations_paged(
         .map(|res| res.map(|entry| String::from_utf8(entry.0).unwrap()))
         .collect::<StdResult<Vec<IdentityKey>>>()?;
 
-    let start_next_after = delegations.last().map(|v| v.clone());
+    let start_next_after = delegations.last().cloned();
 
     Ok(PagedMixReverseDelegationsResponse::new(
         delegation_owner,
@@ -235,7 +235,7 @@ pub(crate) fn query_gateway_reverse_delegations_paged(
         .map(|res| res.map(|entry| String::from_utf8(entry.0).unwrap()))
         .collect::<StdResult<Vec<IdentityKey>>>()?;
 
-    let start_next_after = delegations.last().map(|v| v.clone());
+    let start_next_after = delegations.last().cloned();
 
     Ok(PagedGatewayReverseDelegationsResponse::new(
         delegation_owner,

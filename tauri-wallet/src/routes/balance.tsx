@@ -5,6 +5,7 @@ import { Layout, NymCard, Page } from '../components'
 import { NoClientError } from '../components/NoClientError'
 import { Confirmation } from '../components/Confirmation'
 import { ClientContext } from '../context/main'
+import { Alert } from '@material-ui/lab'
 
 export const Balance = () => {
   const { client } = useContext(ClientContext)
@@ -21,24 +22,36 @@ export const Balance = () => {
                   isLoading={false}
                   error={null}
                   progressMessage="Checking balance..."
-                  successMessage={'The current balance is ' + client.balance}
+                  SuccessMessage={
+                    <Alert
+                      severity="success"
+                      action={
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                          }}
+                        >
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="primary"
+                            type="submit"
+                            onClick={() => {}}
+                            disabled={false}
+                            disableElevation
+                            startIcon={<Refresh />}
+                          >
+                            Refresh
+                          </Button>
+                        </div>
+                      }
+                    >
+                      {'The current balance is ' + client.balance}
+                    </Alert>
+                  }
                   failureMessage="Failed to check the account balance!"
                 />
-              </Grid>
-              <Grid item>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    type="submit"
-                    onClick={() => {}}
-                    disabled={false}
-                    disableElevation
-                    startIcon={<Refresh />}
-                  >
-                    Refresh
-                  </Button>
-                </div>
               </Grid>
             </Grid>
           )}

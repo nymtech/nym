@@ -7,15 +7,15 @@ import { Alert, AlertTitle } from '@material-ui/lab'
 type ConfirmationProps = {
   isLoading: boolean
   progressMessage: string
-  successMessage: string
+  SuccessMessage: React.ReactNode
   failureMessage: string
-  error: Error
+  error: Error | null
 }
 
 export const Confirmation = ({
   isLoading,
   progressMessage,
-  successMessage,
+  SuccessMessage,
   failureMessage,
   error,
 }: ConfirmationProps) => {
@@ -31,7 +31,7 @@ export const Confirmation = ({
   ) : (
     <>
       {error === null ? (
-        <Alert severity="success">{successMessage}</Alert>
+        SuccessMessage
       ) : (
         <Alert severity="error">
           <AlertTitle>{error.name}</AlertTitle>

@@ -47,7 +47,11 @@ export const SendConfirmation = ({
             }}
           >
             <CheckCircleOutline
-              style={{ fontSize: 50, color: theme.palette.success.main }}
+              style={{
+                fontSize: 50,
+                color: theme.palette.success.main,
+                marginBottom: theme.spacing(1),
+              }}
             />
             <Typography>Transaction complete</Typography>
           </div>
@@ -69,11 +73,11 @@ export const SendConfirmation = ({
             <div style={{ display: 'flex' }}>
               <div style={{ width: '33%' }}>
                 <Typography style={{ color: theme.palette.grey[600] }}>
-                  mount
+                  Amount
                 </Typography>
               </div>
               <div>
-                <Typography>{amount}</Typography>
+                <Typography>{amount + ' punks'}</Typography>
               </div>
             </div>
           </Card>

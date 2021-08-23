@@ -4,6 +4,7 @@ import { useTheme } from '@material-ui/styles'
 import { SendForm } from './SendForm'
 import { SendReview } from './SendReview'
 import { SendConfirmation } from './SendConfirmation'
+import { SendError } from './SendError'
 
 export const SendWizard = () => {
   const [activeStep, setActiveStep] = useState(0)
@@ -13,18 +14,17 @@ export const SendWizard = () => {
   const steps = ['Enter address', 'Review and send', 'Await confirmation']
   const theme: Theme = useTheme()
 
-  const handleNextStep = () => {
-    if (activeStep === 2) {
-      setActiveStep(0)
-      setSendAmount('')
-      setToAddress('')
-    } else {
-      setActiveStep((s) => (s + 1 < steps.length ? s + 1 : s))
-    }
-  }
+  const handleNextStep = () =>
+    setActiveStep((s) => (s + 1 < steps.length ? s + 1 : s))
 
   const handlePreviousStep = () =>
     setActiveStep((s) => (s - 1 >= 0 ? s - 1 : s))
+
+  const handleFinish = () => {
+    setActiveStep(0)
+    setSendAmount('')
+    setToAddress('')
+  }
 
   return (
     <div>
@@ -41,7 +41,6 @@ export const SendWizard = () => {
       <div
         style={{
           minHeight: 300,
-
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
@@ -55,6 +54,8 @@ export const SendWizard = () => {
           />
         ) : activeStep === 1 ? (
           <SendReview recipientAddress={toAddress} amount={sendAmount} />
+        ) : sendAmount === 'fail' ? (
+          <SendError onFinish={() => setActiveStep((s) => s + 1)} />
         ) : (
           <SendConfirmation
             amount={sendAmount}
@@ -83,12 +84,12 @@ export const SendWizard = () => {
           variant={activeStep > 0 ? 'contained' : 'text'}
           color={activeStep > 0 ? 'primary' : 'default'}
           disableElevation
-          onClick={handleNextStep}
+          onClick={activeStep === 3 ? handleFinish : handleNextStep}
           disabled={!(toAddress.length > 0 && sendAmount.length > 0)}
         >
           {activeStep === 1
             ? 'Send'
-            : activeStep === steps.length - 1
+            : activeStep === steps.length
             ? 'Finish'
             : 'Next'}
         </Button>

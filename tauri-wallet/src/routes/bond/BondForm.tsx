@@ -7,10 +7,10 @@ import {
   InputAdornment,
   TextField,
   Theme,
-  useMediaQuery,
 } from '@material-ui/core'
 import { EnumNodeType } from '../../types/global'
 import { useTheme } from '@material-ui/styles'
+import { NodeTypeSelector } from '../../components/NodeTypeSelector'
 
 type TBondNodeFormProps = {
   // minimumBond: Coin
@@ -20,14 +20,20 @@ type TBondNodeFormProps = {
 export const BondNodeForm = () => {
   const [advancedShown, setAdvancedShown] = React.useState(false)
   const [type, setType] = useState(EnumNodeType.Mixnode)
+  const [nodeType, setNodeType] = useState(EnumNodeType.Mixnode)
 
   const theme: Theme = useTheme()
-  const matches = useMediaQuery('(min-width:768px)')
 
   return (
     <form>
       <div style={{ padding: theme.spacing(3) }}>
         <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <NodeTypeSelector
+              nodeType={nodeType}
+              setNodeType={(nodeType) => setNodeType(nodeType)}
+            />
+          </Grid>
           <Grid item xs={12}>
             <TextField
               variant="outlined"

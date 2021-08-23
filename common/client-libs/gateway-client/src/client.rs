@@ -36,6 +36,8 @@ const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
 pub struct GatewayClient {
     authenticated: bool,
+    // TODO: This should be replaced by an actual bandwidth value, with 0 meaning no bandwidth
+    has_bandwidth: bool,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
     local_identity: Arc<identity::KeyPair>,
@@ -70,6 +72,7 @@ impl GatewayClient {
     ) -> Self {
         GatewayClient {
             authenticated: false,
+            has_bandwidth: false,
             gateway_address,
             gateway_identity,
             local_identity,
@@ -114,6 +117,7 @@ impl GatewayClient {
 
         GatewayClient {
             authenticated: false,
+            has_bandwidth: false,
             gateway_address,
             gateway_identity,
             local_identity,
@@ -387,7 +391,7 @@ impl GatewayClient {
         self.authenticated = match self.read_control_response().await? {
             ServerResponse::Register { status } => Ok(status),
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
-            _ => Err(GatewayClientError::NotAuthenticated),
+            _ => Err(GatewayClientError::UnexpectedResponse),
         }?;
         if self.authenticated {
             self.shared_key = Some(Arc::new(shared_key));
@@ -431,7 +435,7 @@ impl GatewayClient {
                 Ok(())
             }
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
-            _ => Err(GatewayClientError::NotAuthenticated),
+            _ => Err(GatewayClientError::UnexpectedResponse),
         }
     }
 
@@ -444,24 +448,6 @@ impl GatewayClient {
         } else {
             self.register().await?;
         }
-        // Authenticate with the bandwidth credential as well
-        if self.authenticated {
-            // Shared key should be set here, or else we wouldn't be authenticated
-            let msg = ClientControlRequest::new_enc_bandwidth_credential(
-                self.coconut_credential.clone(),
-                self.shared_key.as_ref().unwrap(),
-            )
-            .into();
-            self.authenticated = match self.send_websocket_message(msg).await? {
-                ServerResponse::Bandwidth { status } => Ok(status),
-                ServerResponse::Error { message } => {
-                    self.authenticated = false;
-                    self.shared_key = None;
-                    Err(GatewayClientError::GatewayError(message))
-                }
-                _ => Err(GatewayClientError::NotAuthenticated),
-            }?;
-        }
         if self.authenticated {
             // if we are authenticated it means we MUST have an associated shared_key
             Ok(Arc::clone(self.shared_key.as_ref().unwrap()))
@@ -470,12 +456,36 @@ impl GatewayClient {
         }
     }
 
+    pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError> {
+        if !self.authenticated {
+            return Err(GatewayClientError::NotAuthenticated);
+        }
+        if self.shared_key.is_none() {
+            return Err(GatewayClientError::NoSharedKeyAvailable);
+        }
+
+        let msg = ClientControlRequest::new_enc_bandwidth_credential(
+            self.coconut_credential.clone(),
+            self.shared_key.as_ref().unwrap(),
+        )
+        .into();
+        self.has_bandwidth = match self.send_websocket_message(msg).await? {
+            ServerResponse::Bandwidth { status } => Ok(status),
+            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
+            _ => Err(GatewayClientError::UnexpectedResponse),
+        }?;
+        Ok(())
+    }
+
     pub async fn batch_send_mix_packets(
         &mut self,
         packets: Vec<MixPacket>,
     ) -> Result<(), GatewayClientError> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
+        }
+        if !self.has_bandwidth {
+            return Err(GatewayClientError::NotEnoughBandwidth);
         }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
@@ -535,6 +545,9 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
+        if !self.has_bandwidth {
+            return Err(GatewayClientError::NotEnoughBandwidth);
+        }
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
@@ -580,6 +593,9 @@ impl GatewayClient {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
+        if !self.has_bandwidth {
+            return Err(GatewayClientError::NotEnoughBandwidth);
+        }
         if self.connection.is_partially_delegated() {
             return Ok(());
         }
@@ -612,6 +628,7 @@ impl GatewayClient {
             self.establish_connection().await?;
         }
         let shared_key = self.perform_initial_authentication().await?;
+        self.claim_bandwidth().await?;
 
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;

@@ -53,6 +53,8 @@ pub(crate) struct Handle<R, S> {
     rng: R,
     remote_address: Option<DestinationAddressBytes>,
     shared_key: Option<SharedKeys>,
+    // TODO: This should be replaced by an actual bandwidth value, with 0 meaning no bandwidth
+    has_bandwidth: bool,
     clients_handler_sender: ClientsHandlerRequestSender,
     outbound_mix_sender: MixForwardingSender,
     socket_connection: SocketStream<S>,
@@ -79,6 +81,7 @@ where
             rng,
             remote_address: None,
             shared_key: None,
+            has_bandwidth: false,
             clients_handler_sender,
             outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
@@ -191,6 +194,9 @@ where
     }
 
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
+        if !self.has_bandwidth {
+            return ServerResponse::new_error("Not enough bandwidth").into();
+        }
         trace!("Handling binary message (presumably sphinx packet)");
 
         // this function decrypts the request and checks the MAC
@@ -341,7 +347,7 @@ where
         }
     }
 
-    async fn handle_bandwidth(&self, enc_credential: Vec<u8>) -> ServerResponse {
+    async fn handle_bandwidth(&mut self, enc_credential: Vec<u8>) -> ServerResponse {
         if self.shared_key.is_none() {
             return ServerResponse::Error {
                 message: "No shared key has been exchanged with the gateway".to_string(),
@@ -359,15 +365,23 @@ where
             }
         };
         let status = credential.verify(&self.aggregated_verification_key);
+        self.has_bandwidth = status;
         ServerResponse::Bandwidth { status }
     }
 
-    // currently there are no valid control messages you can send after authentication
-    async fn handle_text(&mut self, _: String) -> Message {
-        trace!("Handling text message (presumably control message)");
-
-        error!("Currently there are no text messages besides 'Authenticate' and 'Register' and they were already dealt with!");
-        ServerResponse::new_error("invalid request").into()
+    // currently the bandwidth credential request is the only one we can receive after
+    // authentication
+    async fn handle_text(&mut self, raw_request: String) -> Message {
+        if let Ok(request) = ClientControlRequest::try_from(raw_request) {
+            match request {
+                ClientControlRequest::BandwidthCredential { enc_credential } => {
+                    self.handle_bandwidth(enc_credential).await.into()
+                }
+                _ => ServerResponse::new_error("invalid request").into(),
+            }
+        } else {
+            ServerResponse::new_error("malformed request").into()
+        }
     }
 
     async fn handle_request(&mut self, raw_request: Message) -> Option<Message> {
@@ -386,8 +400,6 @@ where
     async fn handle_initial_authentication_request(
         &mut self,
         mix_sender: MixMessageSender,
-        mix_receiver: MixMessageReceiver,
-        final_receiver: &mut Option<MixMessageReceiver>,
         raw_request: String,
     ) -> ServerResponse
     where
@@ -400,17 +412,13 @@ where
                     enc_address,
                     iv,
                 } => {
-                    *final_receiver = Some(mix_receiver);
                     self.handle_authenticate(address, enc_address, iv, mix_sender)
                         .await
                 }
                 ClientControlRequest::RegisterHandshakeInitRequest { data } => {
-                    *final_receiver = Some(mix_receiver);
                     self.handle_register(data, mix_sender).await
                 }
-                ClientControlRequest::BandwidthCredential { enc_credential } => {
-                    self.handle_bandwidth(enc_credential).await
-                }
+                _ => ServerResponse::new_error("invalid request"),
             }
         } else {
             // TODO: is this a malformed request or rather a network error and
@@ -427,7 +435,6 @@ where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {
         trace!("Started waiting for authenticate/register request...");
-        let mut final_receiver = None;
 
         while let Some(msg) = self.next_websocket_request().await {
             let msg = match msg {
@@ -448,13 +455,8 @@ where
             let response = match msg {
                 Message::Close(_) => break,
                 Message::Text(text_msg) => {
-                    self.handle_initial_authentication_request(
-                        mix_sender,
-                        mix_receiver,
-                        &mut final_receiver,
-                        text_msg,
-                    )
-                    .await
+                    self.handle_initial_authentication_request(mix_sender, text_msg)
+                        .await
                 }
                 Message::Binary(_) => {
                     // perhaps logging level should be reduced here, let's leave it for now and see what happens
@@ -479,7 +481,7 @@ where
             // it means we successfully managed to perform authentication and announce our
             // presence to ClientsHandler
             if is_done {
-                return final_receiver;
+                return Some(mix_receiver);
             }
         }
         None

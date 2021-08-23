@@ -197,7 +197,8 @@ impl ServerResponse {
 
     pub fn implies_successful_authentication(&self) -> bool {
         match self {
-            ServerResponse::Bandwidth { status } => *status,
+            ServerResponse::Authenticate { status, .. } => *status,
+            ServerResponse::Register { status, .. } => *status,
             _ => false,
         }
     }

@@ -45,7 +45,7 @@ impl Credential {
             .collect()
     }
 
-    pub async fn verify(&self, verification_key: &VerificationKey) -> bool {
+    pub fn verify(&self, verification_key: &VerificationKey) -> bool {
         let params = Parameters::new(self.n_params).unwrap();
         coconut_rs::verify_credential(
             &params,

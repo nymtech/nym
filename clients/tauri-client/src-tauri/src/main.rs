@@ -144,7 +144,7 @@ async fn verify_credential(
       .ok_or("Got invalid signature idx")?,
   );
 
-  Ok(credential.verify(&verification_key).await)
+  Ok(credential.verify(&verification_key))
 }
 
 #[tauri::command]

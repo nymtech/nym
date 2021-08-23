@@ -358,7 +358,7 @@ where
                 }
             }
         };
-        let status = credential.verify(&self.aggregated_verification_key).await;
+        let status = credential.verify(&self.aggregated_verification_key);
         ServerResponse::Bandwidth { status }
     }
 

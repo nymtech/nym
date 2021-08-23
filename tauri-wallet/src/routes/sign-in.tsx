@@ -65,7 +65,6 @@ export const SignIn = () => {
                   name="mnemonic"
                   autoComplete="mnemonic"
                   autoFocus
-                  style={{ background: 'white' }}
                 />
               </Grid>
               <Grid item>

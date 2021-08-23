@@ -6,7 +6,7 @@ export const Send = () => {
   return (
     <Page>
       <Layout>
-        <NymCard title="Send tokens">
+        <NymCard title="Send tokens" noPadding>
           <SendWizard />
         </NymCard>
       </Layout>

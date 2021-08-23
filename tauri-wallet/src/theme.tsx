@@ -5,6 +5,9 @@ export const theme = createTheme({
     primary: {
       main: '#F4731B',
     },
+    secondary: {
+      main: '#009FA8',
+    },
   },
   overrides: {
     MuiButton: {

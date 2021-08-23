@@ -27,10 +27,14 @@ export const SendWizard = () => {
   }
 
   return (
-    <div>
+    <div style={{ padding: theme.spacing(3, 0) }}>
       <Stepper
         activeStep={activeStep}
-        style={{ background: theme.palette.grey[50] }}
+        style={{
+          background: theme.palette.grey[50],
+          paddingBottom: 0,
+          paddingTop: 0,
+        }}
       >
         {steps.map((s, i) => (
           <Step key={i}>
@@ -44,6 +48,7 @@ export const SendWizard = () => {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
+          padding: theme.spacing(0, 3),
         }}
       >
         {activeStep === 0 ? (
@@ -69,6 +74,9 @@ export const SendWizard = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'flex-end',
+          borderTop: `1px solid ${theme.palette.grey[200]}`,
+          background: theme.palette.grey[100],
+          padding: theme.spacing(2),
         }}
       >
         {activeStep === 1 && (

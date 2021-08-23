@@ -26,30 +26,23 @@ export const Balance = () => {
                   SuccessMessage={
                     <Alert
                       severity="success"
-                      style={{ padding: theme.spacing(2, 4) }}
+                      style={{ padding: theme.spacing(2, 3) }}
                       action={
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'flex-end',
-                          }}
+                        <Button
+                          variant="contained"
+                          size="small"
+                          color="primary"
+                          type="submit"
+                          onClick={() => {}}
+                          disabled={false}
+                          disableElevation
+                          startIcon={<Refresh />}
                         >
-                          <Button
-                            size="small"
-                            variant="contained"
-                            color="primary"
-                            type="submit"
-                            onClick={() => {}}
-                            disabled={false}
-                            disableElevation
-                            startIcon={<Refresh />}
-                          >
-                            Refresh
-                          </Button>
-                        </div>
+                          Refresh
+                        </Button>
                       }
                     >
-                      {'The current wallet balance is ' + client.balance}
+                      {'The current balance is ' + client.balance}
                     </Alert>
                   }
                   failureMessage="Failed to check the account balance!"

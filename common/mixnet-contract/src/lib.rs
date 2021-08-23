@@ -13,5 +13,3 @@ pub use gateway::{Gateway, GatewayBond, GatewayOwnershipResponse, PagedGatewayRe
 pub use mixnode::{Layer, MixNode, MixNodeBond, MixOwnershipResponse, PagedMixnodeResponse};
 pub use msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 pub use types::{IdentityKey, IdentityKeyRef, LayerDistribution, SphinxKey, StateParams};
-
-pub use types::default_delegation_reward;

@@ -37,7 +37,6 @@ export const SendForm = ({
           label="Recipient address"
           fullWidth
           autoFocus
-          helperText="Required"
           value={formData.toAddress}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
             updateRecipAddress(e.target.value)
@@ -55,7 +54,6 @@ export const SendForm = ({
           InputProps={{
             endAdornment: <InputAdornment position="end">punks</InputAdornment>,
           }}
-          helperText="Required"
           value={formData.sendAmount}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
             updateAmount(e.target.value)

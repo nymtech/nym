@@ -11,28 +11,34 @@ export const SendReview = ({
   amount: string
 }) => {
   const { client } = useContext(ClientContext)
+  const theme: Theme = useTheme()
   return (
-    <Grid container spacing={2}>
-      <Grid item xs={12}>
-        <SendReviewField title="From" subtitle={client.address} />
+    <Card
+      variant="outlined"
+      style={{ width: '100%', padding: theme.spacing(2) }}
+    >
+      <Grid container spacing={2}>
+        <Grid item xs={12}>
+          <SendReviewField title="From" subtitle={client.address} />
+        </Grid>
+        <Grid item xs={12}>
+          <Divider light />
+        </Grid>
+        <Grid item xs={12}>
+          <SendReviewField title="To" subtitle={recipientAddress} />
+        </Grid>
+        <Grid item xs={12}>
+          <Divider light />
+        </Grid>
+        <Grid item xs={12}>
+          <SendReviewField title="Amount" subtitle={amount} />
+        </Grid>
       </Grid>
-      <Grid item xs={12}>
-        <Divider light />
-      </Grid>
-      <Grid item xs={12}>
-        <SendReviewField title="To" subtitle={recipientAddress} />
-      </Grid>
-      <Grid item xs={12}>
-        <Divider light />
-      </Grid>
-      <Grid item xs={12}>
-        <SendReviewField title="Amount" subtitle={amount} />
-      </Grid>
-    </Grid>
+    </Card>
   )
 }
 
-const SendReviewField = ({
+export const SendReviewField = ({
   title,
   subtitle,
 }: {
@@ -41,11 +47,11 @@ const SendReviewField = ({
 }) => {
   const theme: Theme = useTheme()
   return (
-    <div style={{ marginBottom: theme.spacing(2) }}>
-      <Typography>{title}</Typography>
-      <Typography variant="h6" style={{ wordBreak: 'break-all' }}>
-        {subtitle}
+    <>
+      <Typography style={{ color: theme.palette.grey[600] }}>
+        {title}
       </Typography>
-    </div>
+      <Typography style={{ wordBreak: 'break-all' }}>{subtitle}</Typography>
+    </>
   )
 }

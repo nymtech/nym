@@ -22,9 +22,7 @@ export const Page = ({ children }: { children: React.ReactElement }) => {
         style={{
           gridArea: '1 / 1 / 2 / 2',
           background: '#121726',
-
-          borderTopRightRadius: 10,
-          borderBottomRightRadius: 10,
+          overflow: 'auto',
         }}
       >
         <div

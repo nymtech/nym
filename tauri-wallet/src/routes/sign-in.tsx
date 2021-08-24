@@ -7,12 +7,20 @@ import {
   Grid,
   Link,
   Theme,
+  Card,
 } from '@material-ui/core'
 import { useTheme } from '@material-ui/styles'
 import logo from '../images/logo.png'
 import { useHistory } from 'react-router-dom'
+import { invoke } from '@tauri-apps/api'
 
 export const SignIn = () => {
+  const handleSignIn = (e: React.FormEvent<any>) => {
+    e.preventDefault()
+
+    history.push('/bond')
+  }
+
   const [loading, setLoading] = useState(false)
   const theme: Theme = useTheme()
   const history = useHistory()
@@ -35,8 +43,6 @@ export const SignIn = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          borderTopRightRadius: 10,
-          borderBottomRightRadius: 10,
         }}
       >
         <img src={logo} style={{ width: 100 }} />
@@ -47,11 +53,18 @@ export const SignIn = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          background: theme.palette.grey[100],
         }}
       >
-        <div style={{ width: 400 }}>
+        <Card
+          style={{
+            width: 600,
+            padding: theme.spacing(6, 10),
+            borderRadius: theme.shape.borderRadius,
+          }}
+        >
           <Typography variant="h4">Sign in</Typography>
-          <form noValidate onSubmit={() => history.push('/balance')}>
+          <form noValidate onSubmit={handleSignIn}>
             <Grid container direction="column" spacing={1}>
               <Grid item>
                 <TextField
@@ -74,7 +87,6 @@ export const SignIn = () => {
                   color="primary"
                   type="submit"
                   disabled={loading}
-                  size="large"
                   disableElevation
                 >
                   Sign In
@@ -88,7 +100,7 @@ export const SignIn = () => {
               </Grid>
             </Grid>
           </form>
-        </div>
+        </Card>
       </div>
     </div>
   )

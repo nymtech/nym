@@ -841,6 +841,248 @@ mod tests {
     }
 
     #[cfg(test)]
+    mod querying_for_mixnode_reverse_delegations_paged {
+        use super::*;
+        use crate::storage::mix_reverse_delegations;
+
+        fn query_mixnode_reverse_delegation(
+            deps: Deps,
+            mix_identity: IdentityKey,
+            address: Addr,
+        ) -> Result<(), ContractError> {
+            mix_reverse_delegations_read(deps.storage, &address)
+                .may_load(mix_identity.as_bytes())?
+                .ok_or(ContractError::NoMixnodeDelegationFound {
+                    identity: mix_identity,
+                    address,
+                })
+        }
+
+        fn store_n_reverse_delegations(n: u32, storage: &mut dyn Storage, delegation_owner: &Addr) {
+            for i in 0..n {
+                let node_identity = format!("node{}", i);
+                mix_reverse_delegations(storage, delegation_owner)
+                    .save(node_identity.as_bytes(), &())
+                    .unwrap();
+            }
+        }
+
+        #[test]
+        fn retrieval_obeys_limits() {
+            let mut deps = helpers::init_contract();
+            let limit = 2;
+            let delegation_owner = Addr::unchecked("foo");
+            store_n_reverse_delegations(100, &mut deps.storage, &delegation_owner);
+
+            let page1 = query_mixnode_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner,
+                None,
+                Option::from(limit),
+            )
+            .unwrap();
+            assert_eq!(limit, page1.delegated_nodes.len() as u32);
+        }
+
+        #[test]
+        fn retrieval_has_default_limit() {
+            let mut deps = helpers::init_contract();
+            let delegation_owner = Addr::unchecked("foo");
+            store_n_reverse_delegations(
+                DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+                &mut deps.storage,
+                &delegation_owner,
+            );
+
+            // query without explicitly setting a limit
+            let page1 = query_mixnode_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner,
+                None,
+                None,
+            )
+            .unwrap();
+            assert_eq!(
+                DELEGATION_PAGE_DEFAULT_LIMIT,
+                page1.delegated_nodes.len() as u32
+            );
+        }
+
+        #[test]
+        fn retrieval_has_max_limit() {
+            let mut deps = helpers::init_contract();
+            let delegation_owner = Addr::unchecked("foo");
+            store_n_reverse_delegations(
+                DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+                &mut deps.storage,
+                &delegation_owner,
+            );
+
+            // query with a crazy high limit in an attempt to use too many resources
+            let crazy_limit = 1000 * DELEGATION_PAGE_DEFAULT_LIMIT;
+            let page1 = query_mixnode_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner,
+                None,
+                Option::from(crazy_limit),
+            )
+            .unwrap();
+
+            // we default to a decent sized upper bound instead
+            let expected_limit = DELEGATION_PAGE_MAX_LIMIT;
+            assert_eq!(expected_limit, page1.delegated_nodes.len() as u32);
+        }
+
+        #[test]
+        fn pagination_works() {
+            let mut deps = helpers::init_contract();
+            let delegation_owner = Addr::unchecked("bar");
+
+            mix_reverse_delegations(&mut deps.storage, &delegation_owner)
+                .save("1".as_bytes(), &())
+                .unwrap();
+
+            let per_page = 2;
+            let page1 = query_mixnode_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner.clone(),
+                None,
+                Option::from(per_page),
+            )
+            .unwrap();
+
+            // page should have 1 result on it
+            assert_eq!(1, page1.delegated_nodes.len());
+
+            // save another
+            mix_reverse_delegations(&mut deps.storage, &delegation_owner)
+                .save("2".as_bytes(), &())
+                .unwrap();
+
+            // page1 should have 2 results on it
+            let page1 = query_mixnode_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner.clone(),
+                None,
+                Option::from(per_page),
+            )
+            .unwrap();
+            assert_eq!(2, page1.delegated_nodes.len());
+
+            mix_reverse_delegations(&mut deps.storage, &delegation_owner)
+                .save("3".as_bytes(), &())
+                .unwrap();
+
+            // page1 still has 2 results
+            let page1 = query_mixnode_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner.clone(),
+                None,
+                Option::from(per_page),
+            )
+            .unwrap();
+            assert_eq!(2, page1.delegated_nodes.len());
+
+            // retrieving the next page should start after the last key on this page
+            let start_after: IdentityKey = String::from("2");
+            let page2 = query_mixnode_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner.clone(),
+                Option::from(start_after),
+                Option::from(per_page),
+            )
+            .unwrap();
+
+            assert_eq!(1, page2.delegated_nodes.len());
+
+            // save another one
+            mix_reverse_delegations(&mut deps.storage, &delegation_owner)
+                .save("4".as_bytes(), &())
+                .unwrap();
+
+            let start_after = String::from("2");
+            let page2 = query_mixnode_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner,
+                Option::from(start_after),
+                Option::from(per_page),
+            )
+            .unwrap();
+
+            // now we have 2 pages, with 2 results on the second page
+            assert_eq!(2, page2.delegated_nodes.len());
+        }
+
+        #[test]
+        fn mix_reverse_deletion_query_returns_current_delegation_value() {
+            let mut deps = helpers::init_contract();
+            let node_identity: IdentityKey = "foo".into();
+            let delegation_owner = Addr::unchecked("bar");
+
+            mix_reverse_delegations(&mut deps.storage, &delegation_owner)
+                .save(node_identity.as_bytes(), &())
+                .unwrap();
+
+            assert_eq!(
+                Ok(()),
+                query_mixnode_reverse_delegation(deps.as_ref(), node_identity, delegation_owner)
+            )
+        }
+
+        #[test]
+        fn mix_reverse_deletion_query_returns_error_if_delegation_doesnt_exist() {
+            let mut deps = helpers::init_contract();
+
+            let node_identity1: IdentityKey = "foo1".into();
+            let node_identity2: IdentityKey = "foo2".into();
+            let delegation_owner1 = Addr::unchecked("bar");
+            let delegation_owner2 = Addr::unchecked("bar2");
+
+            assert_eq!(
+                Err(ContractError::NoMixnodeDelegationFound {
+                    identity: node_identity1.clone(),
+                    address: delegation_owner1.clone(),
+                }),
+                query_mixnode_reverse_delegation(
+                    deps.as_ref(),
+                    node_identity1.clone(),
+                    delegation_owner1.clone()
+                )
+            );
+
+            // add delegation for a different node
+            mix_reverse_delegations(&mut deps.storage, &delegation_owner1)
+                .save(node_identity2.as_bytes(), &())
+                .unwrap();
+
+            assert_eq!(
+                Err(ContractError::NoMixnodeDelegationFound {
+                    identity: node_identity1.clone(),
+                    address: delegation_owner1.clone(),
+                }),
+                query_mixnode_reverse_delegation(
+                    deps.as_ref(),
+                    node_identity1.clone(),
+                    delegation_owner1.clone()
+                )
+            );
+
+            // add delegation from a different owner
+            mix_reverse_delegations(&mut deps.storage, &delegation_owner2)
+                .save(node_identity1.as_bytes(), &())
+                .unwrap();
+
+            assert_eq!(
+                Err(ContractError::NoMixnodeDelegationFound {
+                    identity: node_identity1.clone(),
+                    address: delegation_owner1.clone()
+                }),
+                query_mixnode_reverse_delegation(deps.as_ref(), node_identity1, delegation_owner1)
+            )
+        }
+    }
+
+    #[cfg(test)]
     mod querying_for_gateway_delegations_paged {
         use super::*;
         use crate::storage::gateway_delegations;
@@ -1063,5 +1305,247 @@ mod tests {
             }),
             query_gateway_delegation(deps.as_ref(), node_identity1, delegation_owner1)
         )
+    }
+
+    #[cfg(test)]
+    mod querying_for_gateway_reverse_delegations_paged {
+        use super::*;
+        use crate::storage::gateway_reverse_delegations;
+
+        fn query_gateway_reverse_delegation(
+            deps: Deps,
+            mix_identity: IdentityKey,
+            address: Addr,
+        ) -> Result<(), ContractError> {
+            gateway_reverse_delegations_read(deps.storage, &address)
+                .may_load(mix_identity.as_bytes())?
+                .ok_or(ContractError::NoGatewayDelegationFound {
+                    identity: mix_identity,
+                    address,
+                })
+        }
+
+        fn store_n_reverse_delegations(n: u32, storage: &mut dyn Storage, delegation_owner: &Addr) {
+            for i in 0..n {
+                let node_identity = format!("node{}", i);
+                gateway_reverse_delegations(storage, delegation_owner)
+                    .save(node_identity.as_bytes(), &())
+                    .unwrap();
+            }
+        }
+
+        #[test]
+        fn retrieval_obeys_limits() {
+            let mut deps = helpers::init_contract();
+            let limit = 2;
+            let delegation_owner = Addr::unchecked("foo");
+            store_n_reverse_delegations(100, &mut deps.storage, &delegation_owner);
+
+            let page1 = query_gateway_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner,
+                None,
+                Option::from(limit),
+            )
+            .unwrap();
+            assert_eq!(limit, page1.delegated_nodes.len() as u32);
+        }
+
+        #[test]
+        fn retrieval_has_default_limit() {
+            let mut deps = helpers::init_contract();
+            let delegation_owner = Addr::unchecked("foo");
+            store_n_reverse_delegations(
+                DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+                &mut deps.storage,
+                &delegation_owner,
+            );
+
+            // query without explicitly setting a limit
+            let page1 = query_gateway_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner,
+                None,
+                None,
+            )
+            .unwrap();
+            assert_eq!(
+                DELEGATION_PAGE_DEFAULT_LIMIT,
+                page1.delegated_nodes.len() as u32
+            );
+        }
+
+        #[test]
+        fn retrieval_has_max_limit() {
+            let mut deps = helpers::init_contract();
+            let delegation_owner = Addr::unchecked("foo");
+            store_n_reverse_delegations(
+                DELEGATION_PAGE_DEFAULT_LIMIT * 10,
+                &mut deps.storage,
+                &delegation_owner,
+            );
+
+            // query with a crazy high limit in an attempt to use too many resources
+            let crazy_limit = 1000 * DELEGATION_PAGE_DEFAULT_LIMIT;
+            let page1 = query_gateway_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner,
+                None,
+                Option::from(crazy_limit),
+            )
+            .unwrap();
+
+            // we default to a decent sized upper bound instead
+            let expected_limit = DELEGATION_PAGE_MAX_LIMIT;
+            assert_eq!(expected_limit, page1.delegated_nodes.len() as u32);
+        }
+
+        #[test]
+        fn pagination_works() {
+            let mut deps = helpers::init_contract();
+            let delegation_owner = Addr::unchecked("bar");
+
+            gateway_reverse_delegations(&mut deps.storage, &delegation_owner)
+                .save("1".as_bytes(), &())
+                .unwrap();
+
+            let per_page = 2;
+            let page1 = query_gateway_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner.clone(),
+                None,
+                Option::from(per_page),
+            )
+            .unwrap();
+
+            // page should have 1 result on it
+            assert_eq!(1, page1.delegated_nodes.len());
+
+            // save another
+            gateway_reverse_delegations(&mut deps.storage, &delegation_owner)
+                .save("2".as_bytes(), &())
+                .unwrap();
+
+            // page1 should have 2 results on it
+            let page1 = query_gateway_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner.clone(),
+                None,
+                Option::from(per_page),
+            )
+            .unwrap();
+            assert_eq!(2, page1.delegated_nodes.len());
+
+            gateway_reverse_delegations(&mut deps.storage, &delegation_owner)
+                .save("3".as_bytes(), &())
+                .unwrap();
+
+            // page1 still has 2 results
+            let page1 = query_gateway_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner.clone(),
+                None,
+                Option::from(per_page),
+            )
+            .unwrap();
+            assert_eq!(2, page1.delegated_nodes.len());
+
+            // retrieving the next page should start after the last key on this page
+            let start_after: IdentityKey = String::from("2");
+            let page2 = query_gateway_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner.clone(),
+                Option::from(start_after),
+                Option::from(per_page),
+            )
+            .unwrap();
+
+            assert_eq!(1, page2.delegated_nodes.len());
+
+            // save another one
+            gateway_reverse_delegations(&mut deps.storage, &delegation_owner)
+                .save("4".as_bytes(), &())
+                .unwrap();
+
+            let start_after = String::from("2");
+            let page2 = query_gateway_reverse_delegations_paged(
+                deps.as_ref(),
+                delegation_owner,
+                Option::from(start_after),
+                Option::from(per_page),
+            )
+            .unwrap();
+
+            // now we have 2 pages, with 2 results on the second page
+            assert_eq!(2, page2.delegated_nodes.len());
+        }
+
+        #[test]
+        fn gateway_reverse_deletion_query_returns_current_delegation_value() {
+            let mut deps = helpers::init_contract();
+            let node_identity: IdentityKey = "foo".into();
+            let delegation_owner = Addr::unchecked("bar");
+
+            gateway_reverse_delegations(&mut deps.storage, &delegation_owner)
+                .save(node_identity.as_bytes(), &())
+                .unwrap();
+
+            assert_eq!(
+                Ok(()),
+                query_gateway_reverse_delegation(deps.as_ref(), node_identity, delegation_owner)
+            )
+        }
+
+        #[test]
+        fn gateway_reverse_deletion_query_returns_error_if_delegation_doesnt_exist() {
+            let mut deps = helpers::init_contract();
+
+            let node_identity1: IdentityKey = "foo1".into();
+            let node_identity2: IdentityKey = "foo2".into();
+            let delegation_owner1 = Addr::unchecked("bar");
+            let delegation_owner2 = Addr::unchecked("bar2");
+
+            assert_eq!(
+                Err(ContractError::NoGatewayDelegationFound {
+                    identity: node_identity1.clone(),
+                    address: delegation_owner1.clone(),
+                }),
+                query_gateway_reverse_delegation(
+                    deps.as_ref(),
+                    node_identity1.clone(),
+                    delegation_owner1.clone()
+                )
+            );
+
+            // add delegation for a different node
+            gateway_reverse_delegations(&mut deps.storage, &delegation_owner1)
+                .save(node_identity2.as_bytes(), &())
+                .unwrap();
+
+            assert_eq!(
+                Err(ContractError::NoGatewayDelegationFound {
+                    identity: node_identity1.clone(),
+                    address: delegation_owner1.clone(),
+                }),
+                query_gateway_reverse_delegation(
+                    deps.as_ref(),
+                    node_identity1.clone(),
+                    delegation_owner1.clone()
+                )
+            );
+
+            // add delegation from a different owner
+            gateway_reverse_delegations(&mut deps.storage, &delegation_owner2)
+                .save(node_identity1.as_bytes(), &())
+                .unwrap();
+
+            assert_eq!(
+                Err(ContractError::NoGatewayDelegationFound {
+                    identity: node_identity1.clone(),
+                    address: delegation_owner1.clone()
+                }),
+                query_gateway_reverse_delegation(deps.as_ref(), node_identity1, delegation_owner1)
+            )
+        }
     }
 }

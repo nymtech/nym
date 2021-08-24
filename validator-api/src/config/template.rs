@@ -16,9 +16,6 @@ local_validator = '{{ base.local_validator }}'
 # Address of the validator contract managing the network.
 mixnet_contract_address = '{{ base.mixnet_contract_address }}'
 
-# Mnemonic (currently of the network monitor) used for rewarding
-mnemonic = '{{ base.mnemonic }}'
-
 ##### network monitor config options #####
 
 [network_monitor]
@@ -71,6 +68,23 @@ packet_delivery_timeout = '{{ network_monitor.packet_delivery_timeout }}'
 
 # Path to the database file containing uptime statuses for all mixnodes and gateways.
 database_path = '{{ node_status_api.database_path }}'
+
+##### rewarding config options #####
+
+[rewarding]
+
+# Specifies whether rewarding service is enabled in this process.
+enabled = {{ rewarding.enabled }}
+
+# Mnemonic (currently of the network monitor) used for rewarding
+mnemonic = '{{ rewarding.mnemonic }}'
+
+# Datetime of the first rewarding epoch of the current length used for referencing
+# starting time of any subsequent epoch.
+first_rewarding_epoch = '{{ rewarding.first_rewarding_epoch }}'
+
+# Current length of the epoch. If modified `first_rewarding_epoch` should also get changed.
+epoch_length = '{{ rewarding.epoch_length }}'
 
 "#
 }

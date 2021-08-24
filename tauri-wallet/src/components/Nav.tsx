@@ -84,7 +84,6 @@ export const Nav = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: theme.spacing(6),
       }}
     >
       <List>

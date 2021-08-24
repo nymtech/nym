@@ -1,5 +1,5 @@
 import React from 'react'
-import { BalanceCard } from './BalanceCard'
+import { AddressCard, BalanceCard } from './BalanceCard'
 import { Nav } from './Nav'
 import Logo from '../images/logo.png'
 import { theme } from '../theme'
@@ -44,7 +44,14 @@ export const Page = ({ children }: { children: React.ReactElement }) => {
             marginTop: theme.spacing(6),
           }}
         />
-        <Nav />
+        <div style={{ marginTop: theme.spacing(10) }}>
+          <BalanceCard />
+          <AddressCard />
+        </div>
+
+        <div style={{ marginTop: theme.spacing(7) }}>
+          <Nav />
+        </div>
         <div />
       </div>
       <div

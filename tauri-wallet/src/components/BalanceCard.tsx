@@ -1,5 +1,10 @@
 import React, { useContext } from 'react'
-import { CardContent, IconButton, useTheme } from '@material-ui/core'
+import {
+  CardContent,
+  IconButton,
+  Typography,
+  useTheme,
+} from '@material-ui/core'
 import { ClientContext } from '../context/main'
 import { FileCopy, Refresh } from '@material-ui/icons'
 import { NymCard } from './NymCard'
@@ -12,6 +17,7 @@ export const BalanceCard = () => {
     <div style={{ margin: theme.spacing(3) }}>
       <NymCard
         title="Balance"
+        subheader="Current wallet balance"
         noPadding
         Action={
           <IconButton>
@@ -19,7 +25,9 @@ export const BalanceCard = () => {
           </IconButton>
         }
       >
-        <CardContent>{client.balance}</CardContent>
+        <CardContent>
+          <Typography>{client.balance}</Typography>
+        </CardContent>
       </NymCard>
     </div>
   )
@@ -32,6 +40,7 @@ export const AddressCard = () => {
     <div style={{ margin: theme.spacing(3) }}>
       <NymCard
         title="Address"
+        subheader="Wallet payments address"
         noPadding
         Action={
           <IconButton>

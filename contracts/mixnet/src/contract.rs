@@ -3,7 +3,7 @@
 
 use crate::helpers::calculate_epoch_reward_rate;
 use crate::state::State;
-use crate::storage::{config, config_read, layer_distribution};
+use crate::storage::{config, layer_distribution};
 use crate::{error::ContractError, queries, transactions};
 use config::defaults::NETWORK_MONITOR_ADDRESS;
 use cosmwasm_std::{
@@ -181,9 +181,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    let state = config_read(deps.storage).load().unwrap();
-    config(deps.storage).save(&state)?;
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Default::default())
 }
 

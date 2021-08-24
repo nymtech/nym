@@ -3,6 +3,9 @@
   windows_subsystem = "windows"
 )]
 
+mod nymd_client;
+mod config;
+
 fn main() {
   tauri::Builder::default()
     .run(tauri::generate_context!())

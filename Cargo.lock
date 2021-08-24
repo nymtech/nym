@@ -8,10 +8,16 @@ version = 3
 name = "Nym-Wallet"
 version = "0.1.0"
 dependencies = [
+ "config",
+ "dirs 3.0.2",
+ "mixnet-contract",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
+ "tokio",
+ "url",
+ "validator-client",
 ]
 
 [[package]]
@@ -3292,6 +3298,7 @@ checksum = "c44922cb3dbb1c70b5e5f443d63b64363a898564d739ba5198e3a9138442868d"
 name = "network-defaults"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "url",
 ]
 
@@ -6410,9 +6417,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.9.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b7b349f11a7047e6d1276853e612d152f5e8a352c61917887cc2169e2366b4c"
+checksum = "01cf844b23c6131f624accf65ce0e4e9956a8bb329400ea5bcc26ae3a5c20b0b"
 dependencies = [
  "autocfg 1.0.1",
  "bytes",

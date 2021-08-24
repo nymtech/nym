@@ -32,6 +32,7 @@
     "@types/react-router-dom": "^5.1.8",
     "babel-loader": "^8.2.2",
     "css-loader": "^6.2.0",
+    "favicons-webpack-plugin": "^5.0.2",
     "file-loader": "^6.2.0",
     "html-webpack-plugin": "^5.3.2",
     "style-loader": "^3.2.1",

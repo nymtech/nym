@@ -27,8 +27,10 @@ export const theme = createTheme({
         borderRadius: 50,
         background: '#fff',
       },
-      notchedOutline: {
-        margin: -2,
+    },
+    MuiStepIcon: {
+      text: {
+        fill: '#fff',
       },
     },
   },

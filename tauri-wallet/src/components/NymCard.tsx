@@ -4,11 +4,13 @@ import { Card, CardContent, CardHeader, useTheme } from '@material-ui/core'
 export const NymCard = ({
   title,
   subheader,
+  Action,
   noPadding,
   children,
 }: {
   title: string
   subheader?: string
+  Action?: React.ReactNode
   noPadding?: boolean
   children: React.ReactElement
 }) => {
@@ -20,6 +22,7 @@ export const NymCard = ({
         subheader={subheader}
         titleTypographyProps={{ variant: 'h5' }}
         subheaderTypographyProps={{ variant: 'subtitle1' }}
+        action={Action}
         style={{
           padding: theme.spacing(2.5),
           borderBottom: `1px solid ${theme.palette.grey[200]}`,

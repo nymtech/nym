@@ -25,7 +25,7 @@ network-defaults = { path = "../../network-defaults" }
 async-trait = { version = "0.1.51", optional = true }
 bip39 = { version = "1", features = ["rand"], optional = true }
 config = { path = "../../config", optional = true}
-cosmos_sdk = { git = "https://github.com/cosmos/cosmos-rust/", commit="ba012bd820240d3df2d9a0ab1deabe4ecd9a2f30", features = ["rpc", "bip32", "cosmwasm"], optional = true }
+cosmos_sdk = { version = "0.3", features = ["rpc", "bip32", "cosmwasm"], optional = true }
 prost = { version = "0.7", default-features = false, optional = true }
 flate2 = { version = "1.0.20", optional = true }
 sha2 = { version = "0.9.5", optional = true }

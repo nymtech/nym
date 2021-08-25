@@ -4,7 +4,7 @@
 use crate::commands::*;
 use crate::config::{missing_string_value, Config};
 use clap::{App, Arg, ArgMatches};
-use config::defaults::ValidatorDetails;
+use config::defaults::default_api_endpoints;
 use config::NymConfig;
 use std::fmt::Display;
 use std::process;
@@ -110,12 +110,12 @@ fn minor_0_12_upgrade(
 
     println!(
         "Setting validator API endpoints to {:?}",
-        ValidatorDetails::default().api_urls
+        default_api_endpoints()
     );
 
     let upgraded_config = config
         .with_custom_version(to_version.to_string().as_ref())
-        .with_custom_validator_apis(ValidatorDetails::default().api_urls());
+        .with_custom_validator_apis(default_api_endpoints());
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {:?}", err);

@@ -385,7 +385,7 @@ impl Default for MixNode {
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
-            validator_api_urls: ValidatorDetails::default().api_urls(),
+            validator_api_urls: default_api_endpoints(),
             nym_root_directory: Config::default_root_directory(),
         }
     }

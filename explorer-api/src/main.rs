@@ -12,7 +12,6 @@ mod mix_nodes;
 mod ping;
 mod state;
 
-const VALIDATOR_API: &str = "https://testnet-milhon-validator1.nymtech.net/api";
 const GEO_IP_SERVICE: &str = "https://freegeoip.app/json/";
 
 #[tokio::main]

@@ -339,12 +339,24 @@ pub(crate) fn try_update_state_params(
         return Err(ContractError::DecreasingGatewayBondReward);
     }
 
+    if params.mixnode_delegation_reward_rate < Decimal::one() {
+        return Err(ContractError::DecreasingMixnodeDelegationReward);
+    }
+
+    if params.gateway_delegation_reward_rate < Decimal::one() {
+        return Err(ContractError::DecreasingGatewayDelegationReward);
+    }
+
     // if we're updating epoch length, recalculate rewards for both mixnodes and gateways
     if state.params.epoch_length != params.epoch_length {
         state.mixnode_epoch_bond_reward =
             calculate_epoch_reward_rate(params.epoch_length, params.mixnode_bond_reward_rate);
         state.gateway_epoch_bond_reward =
             calculate_epoch_reward_rate(params.epoch_length, params.gateway_bond_reward_rate);
+        state.mixnode_epoch_delegation_reward =
+            calculate_epoch_reward_rate(params.epoch_length, params.mixnode_delegation_reward_rate);
+        state.gateway_epoch_delegation_reward =
+            calculate_epoch_reward_rate(params.epoch_length, params.gateway_delegation_reward_rate);
     } else {
         // if mixnode or gateway rewards changed, recalculate respective values
         if state.params.mixnode_bond_reward_rate != params.mixnode_bond_reward_rate {
@@ -354,6 +366,18 @@ pub(crate) fn try_update_state_params(
         if state.params.gateway_bond_reward_rate != params.gateway_bond_reward_rate {
             state.gateway_epoch_bond_reward =
                 calculate_epoch_reward_rate(params.epoch_length, params.gateway_bond_reward_rate);
+        }
+        if state.params.mixnode_delegation_reward_rate != params.mixnode_delegation_reward_rate {
+            state.mixnode_epoch_delegation_reward = calculate_epoch_reward_rate(
+                params.epoch_length,
+                params.mixnode_delegation_reward_rate,
+            );
+        }
+        if state.params.gateway_delegation_reward_rate != params.gateway_delegation_reward_rate {
+            state.gateway_epoch_delegation_reward = calculate_epoch_reward_rate(
+                params.epoch_length,
+                params.gateway_delegation_reward_rate,
+            );
         }
     }
 
@@ -401,12 +425,14 @@ pub(crate) fn try_reward_mixnode(
         }
     };
 
-    let reward_rate = read_mixnode_epoch_reward_rate(deps.storage);
-    let scaled_reward_rate = scale_reward_by_uptime(reward_rate, uptime)?;
+    let bond_reward_rate = read_mixnode_epoch_bond_reward_rate(deps.storage);
+    let delegation_reward_rate = read_mixnode_epoch_delegation_reward_rate(deps.storage);
+    let bond_scaled_reward_rate = scale_reward_by_uptime(bond_reward_rate, uptime)?;
+    let delegation_scaled_reward_rate = scale_reward_by_uptime(delegation_reward_rate, uptime)?;
 
-    let node_reward = current_bond.bond_amount.amount * scaled_reward_rate;
+    let node_reward = current_bond.bond_amount.amount * bond_scaled_reward_rate;
     let total_delegation_reward =
-        increase_mix_delegated_stakes(deps.storage, &mix_identity, scaled_reward_rate)?;
+        increase_mix_delegated_stakes(deps.storage, &mix_identity, delegation_scaled_reward_rate)?;
 
     // update current bond with the reward given to the node and the delegators
     current_bond.bond_amount.amount += node_reward;
@@ -461,12 +487,17 @@ pub(crate) fn try_reward_gateway(
         }
     };
 
-    let reward_rate = read_gateway_epoch_reward_rate(deps.storage);
-    let scaled_reward_rate = scale_reward_by_uptime(reward_rate, uptime)?;
+    let bond_reward_rate = read_gateway_epoch_bond_reward_rate(deps.storage);
+    let delegation_reward_rate = read_gateway_epoch_delegation_reward_rate(deps.storage);
+    let scaled_bond_reward_rate = scale_reward_by_uptime(bond_reward_rate, uptime)?;
+    let scaled_delegation_reward_rate = scale_reward_by_uptime(delegation_reward_rate, uptime)?;
 
-    let node_reward = current_bond.bond_amount.amount * scaled_reward_rate;
-    let total_delegation_reward =
-        increase_gateway_delegated_stakes(deps.storage, &gateway_identity, scaled_reward_rate)?;
+    let node_reward = current_bond.bond_amount.amount * scaled_bond_reward_rate;
+    let total_delegation_reward = increase_gateway_delegated_stakes(
+        deps.storage,
+        &gateway_identity,
+        scaled_delegation_reward_rate,
+    )?;
 
     // update current bond with the reward given to the node and the delegators
     current_bond.bond_amount.amount += node_reward;
@@ -682,12 +713,15 @@ pub mod tests {
     use super::*;
     use crate::contract::{
         execute, query, INITIAL_DEFAULT_EPOCH_LENGTH, INITIAL_GATEWAY_BOND,
-        INITIAL_GATEWAY_BOND_REWARD_RATE, INITIAL_MIXNODE_BOND, INITIAL_MIXNODE_BOND_REWARD_RATE,
+        INITIAL_GATEWAY_BOND_REWARD_RATE, INITIAL_GATEWAY_DELEGATION_REWARD_RATE,
+        INITIAL_MIXNODE_BOND, INITIAL_MIXNODE_BOND_REWARD_RATE,
+        INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
     };
     use crate::helpers::calculate_epoch_reward_rate;
     use crate::storage::{
         gateway_delegations, gateway_delegations_read, layer_distribution_read,
-        mix_delegations_read, read_gateway_bond, read_gateway_epoch_reward_rate, read_mixnode_bond,
+        mix_delegations_read, read_gateway_bond, read_gateway_epoch_bond_reward_rate,
+        read_mixnode_bond,
     };
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{
@@ -1543,6 +1577,12 @@ pub mod tests {
             minimum_gateway_bond: INITIAL_GATEWAY_BOND,
             mixnode_bond_reward_rate: Decimal::percent(INITIAL_MIXNODE_BOND_REWARD_RATE),
             gateway_bond_reward_rate: Decimal::percent(INITIAL_GATEWAY_BOND_REWARD_RATE),
+            mixnode_delegation_reward_rate: Decimal::percent(
+                INITIAL_MIXNODE_DELEGATION_REWARD_RATE,
+            ),
+            gateway_delegation_reward_rate: Decimal::percent(
+                INITIAL_GATEWAY_DELEGATION_REWARD_RATE,
+            ),
             mixnode_active_set_size: 42, // change something
         };
 
@@ -1560,44 +1600,81 @@ pub mod tests {
         let current_state = config_read(deps.as_ref().storage).load().unwrap();
         assert_eq!(current_state.params, new_params);
 
-        // mixnode_epoch_bond_reward is recalculated if annual reward  is changed
-        let current_mix_reward_rate = read_mixnode_epoch_reward_rate(deps.as_ref().storage);
+        // mixnode_epoch_rewards are recalculated if annual reward  is changed
+        let current_mix_bond_reward_rate =
+            read_mixnode_epoch_bond_reward_rate(deps.as_ref().storage);
+        let current_mix_delegation_reward_rate =
+            read_mixnode_epoch_delegation_reward_rate(deps.as_ref().storage);
         let new_mixnode_bond_reward_rate = Decimal::percent(120);
+        let new_mixnode_delegation_reward_rate = Decimal::percent(120);
 
-        // sanity check to make sure we are actually updating the value (in case we changed defaults at some point)
-        assert_ne!(new_mixnode_bond_reward_rate, current_mix_reward_rate);
+        // sanity check to make sure we are actually updating the values (in case we changed defaults at some point)
+        assert_ne!(new_mixnode_bond_reward_rate, current_mix_bond_reward_rate);
+        assert_ne!(
+            new_mixnode_delegation_reward_rate,
+            current_mix_delegation_reward_rate
+        );
 
         let mut new_params = current_state.params.clone();
         new_params.mixnode_bond_reward_rate = new_mixnode_bond_reward_rate;
+        new_params.mixnode_delegation_reward_rate = new_mixnode_delegation_reward_rate;
 
         let info = mock_info("creator", &[]);
         try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
 
         let new_state = config_read(deps.as_ref().storage).load().unwrap();
-        let expected =
+        let expected_bond =
             calculate_epoch_reward_rate(new_params.epoch_length, new_mixnode_bond_reward_rate);
-        assert_eq!(expected, new_state.mixnode_epoch_bond_reward);
+        let expected_delegation = calculate_epoch_reward_rate(
+            new_params.epoch_length,
+            new_mixnode_delegation_reward_rate,
+        );
+        assert_eq!(expected_bond, new_state.mixnode_epoch_bond_reward);
+        assert_eq!(
+            expected_delegation,
+            new_state.mixnode_epoch_delegation_reward
+        );
 
-        // gateway_epoch_bond_reward is recalculated if annual reward rate is changed
-        let current_gateway_reward_rate = read_gateway_epoch_reward_rate(deps.as_ref().storage);
+        // gateway_epoch_rewards are recalculated if annual reward rate is changed
+        let current_gateway_bond_reward_rate =
+            read_gateway_epoch_bond_reward_rate(deps.as_ref().storage);
+        let current_gateway_delegation_reward_rate =
+            read_gateway_epoch_delegation_reward_rate(deps.as_ref().storage);
         let new_gateway_bond_reward_rate = Decimal::percent(120);
+        let new_gateway_delegation_reward_rate = Decimal::percent(120);
 
-        // sanity check to make sure we are actually updating the value (in case we changed defaults at some point)
-        assert_ne!(new_gateway_bond_reward_rate, current_gateway_reward_rate);
+        // sanity check to make sure we are actually updating the values (in case we changed defaults at some point)
+        assert_ne!(
+            new_gateway_bond_reward_rate,
+            current_gateway_bond_reward_rate
+        );
+        assert_ne!(
+            new_gateway_delegation_reward_rate,
+            current_gateway_delegation_reward_rate
+        );
 
         let mut new_params = current_state.params.clone();
         new_params.gateway_bond_reward_rate = new_gateway_bond_reward_rate;
+        new_params.gateway_delegation_reward_rate = new_gateway_delegation_reward_rate;
 
         let info = mock_info("creator", &[]);
         try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
 
         let new_state = config_read(deps.as_ref().storage).load().unwrap();
-        let expected =
+        let expected_bond =
             calculate_epoch_reward_rate(new_params.epoch_length, new_gateway_bond_reward_rate);
-        assert_eq!(expected, new_state.gateway_epoch_bond_reward);
+        let expected_delegation = calculate_epoch_reward_rate(
+            new_params.epoch_length,
+            new_gateway_delegation_reward_rate,
+        );
+        assert_eq!(expected_bond, new_state.gateway_epoch_bond_reward);
+        assert_eq!(
+            expected_delegation,
+            new_state.gateway_epoch_delegation_reward
+        );
 
         // if annual reward rate is changed for both mixnodes and gateways in a single update operation,
-        // both mixnode_epoch_bond_reward and gateway_epoch_bond_reward are recalculated
+        // both mixnode_epoch_rewards and gateway_epoch_rewards are recalculated
         let current_state = config_read(deps.as_ref().storage).load().unwrap();
         let new_mixnode_bond_reward_rate = Decimal::percent(130);
         let new_gateway_bond_reward_rate = Decimal::percent(130);
@@ -1612,21 +1689,39 @@ pub mod tests {
 
         let mut new_params = current_state.params.clone();
         new_params.mixnode_bond_reward_rate = new_mixnode_bond_reward_rate;
+        new_params.mixnode_delegation_reward_rate = new_mixnode_delegation_reward_rate;
         new_params.gateway_bond_reward_rate = new_gateway_bond_reward_rate;
+        new_params.gateway_delegation_reward_rate = new_gateway_delegation_reward_rate;
 
         let info = mock_info("creator", &[]);
         try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
 
         let new_state = config_read(deps.as_ref().storage).load().unwrap();
-        let expected_mixnode =
+        let expected_mixnode_bond =
             calculate_epoch_reward_rate(new_params.epoch_length, new_mixnode_bond_reward_rate);
-        assert_eq!(expected_mixnode, new_state.mixnode_epoch_bond_reward);
+        let expected_mixnode_delegation = calculate_epoch_reward_rate(
+            new_params.epoch_length,
+            new_mixnode_delegation_reward_rate,
+        );
+        assert_eq!(expected_mixnode_bond, new_state.mixnode_epoch_bond_reward);
+        assert_eq!(
+            expected_mixnode_delegation,
+            new_state.mixnode_epoch_delegation_reward
+        );
 
-        let expected_gateway =
+        let expected_gateway_bond =
             calculate_epoch_reward_rate(new_params.epoch_length, new_gateway_bond_reward_rate);
-        assert_eq!(expected_gateway, new_state.gateway_epoch_bond_reward);
+        let expected_gateway_delegation = calculate_epoch_reward_rate(
+            new_params.epoch_length,
+            new_gateway_delegation_reward_rate,
+        );
+        assert_eq!(expected_gateway_bond, new_state.gateway_epoch_bond_reward);
+        assert_eq!(
+            expected_gateway_delegation,
+            new_state.gateway_epoch_delegation_reward
+        );
 
-        // both mixnode_epoch_bond_reward and gateway_epoch_bond_reward are updated on epoch length change
+        // both mixnode_epoch_rewards and gateway_epoch_rewards are updated on epoch length change
         let new_epoch_length = 42;
         // sanity check to make sure we are actually updating the value (in case we changed defaults at some point)
         assert_ne!(new_epoch_length, current_state.params.epoch_length);
@@ -1637,13 +1732,29 @@ pub mod tests {
         try_update_state_params(deps.as_mut(), info, new_params.clone()).unwrap();
 
         let new_state = config_read(deps.as_ref().storage).load().unwrap();
-        let expected_mixnode =
+        let expected_mixnode_bond =
             calculate_epoch_reward_rate(new_epoch_length, new_params.mixnode_bond_reward_rate);
-        assert_eq!(expected_mixnode, new_state.mixnode_epoch_bond_reward);
+        let expected_mixnode_delegation = calculate_epoch_reward_rate(
+            new_epoch_length,
+            new_params.mixnode_delegation_reward_rate,
+        );
+        assert_eq!(expected_mixnode_bond, new_state.mixnode_epoch_bond_reward);
+        assert_eq!(
+            expected_mixnode_delegation,
+            new_state.mixnode_epoch_delegation_reward
+        );
 
-        let expected_gateway =
+        let expected_gateway_bond =
             calculate_epoch_reward_rate(new_epoch_length, new_params.gateway_bond_reward_rate);
-        assert_eq!(expected_gateway, new_state.gateway_epoch_bond_reward);
+        let expected_gateway_delegation = calculate_epoch_reward_rate(
+            new_epoch_length,
+            new_params.gateway_delegation_reward_rate,
+        );
+        assert_eq!(expected_gateway_bond, new_state.gateway_epoch_bond_reward);
+        assert_eq!(
+            expected_gateway_delegation,
+            new_state.gateway_epoch_delegation_reward
+        );
     }
 
     #[test]
@@ -1666,9 +1777,10 @@ pub mod tests {
         assert_eq!(vec![attr("result", "bond not found")], res.attributes);
 
         let initial_bond = 100_000000;
+        let initial_delegation = 200_000000;
         let mixnode_bond = MixNodeBond {
             bond_amount: coin(initial_bond, DENOM),
-            total_delegation: coin(0, DENOM),
+            total_delegation: coin(initial_delegation, DENOM),
             owner: node_owner.clone(),
             layer: Layer::One,
             mix_node: MixNode {
@@ -1681,12 +1793,20 @@ pub mod tests {
             .save(node_identity.as_bytes(), &mixnode_bond)
             .unwrap();
 
-        let reward_rate = read_mixnode_epoch_reward_rate(deps.as_ref().storage);
-        let expected_reward = Uint128(initial_bond) * reward_rate;
+        mix_delegations(&mut deps.storage, &node_identity)
+            .save(b"delegator", &Uint128(initial_delegation))
+            .unwrap();
 
-        // the node's bond is correctly increased and scaled by uptime
+        let bond_reward_rate = read_mixnode_epoch_bond_reward_rate(deps.as_ref().storage);
+        let delegation_reward_rate =
+            read_mixnode_epoch_delegation_reward_rate(deps.as_ref().storage);
+        let expected_bond_reward = Uint128(initial_bond) * bond_reward_rate;
+        let expected_delegation_reward = Uint128(initial_delegation) * delegation_reward_rate;
+
+        // the node's bond and delegations are correctly increased and scaled by uptime
         // if node was 100% up, it will get full epoch reward
-        let expected_bond = expected_reward + Uint128(initial_bond);
+        let expected_bond = expected_bond_reward + Uint128(initial_bond);
+        let expected_delegation = expected_delegation_reward + Uint128(initial_delegation);
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
         let res = try_reward_mixnode(deps.as_mut(), info, node_identity.clone(), 100).unwrap();
@@ -1695,19 +1815,26 @@ pub mod tests {
             expected_bond,
             read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
         );
+        assert_eq!(
+            expected_delegation,
+            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
 
         assert_eq!(
             vec![
-                attr("bond increase", expected_reward),
-                attr("total delegation increase", Uint128(0)),
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
             ],
             res.attributes
         );
 
         // if node was 20% up, it will get 1/5th of epoch reward
-        let scaled_reward = scale_reward_by_uptime(reward_rate, 20).unwrap();
-        let expected_reward = expected_bond * scaled_reward;
-        let expected_bond = expected_reward + expected_bond;
+        let scaled_bond_reward = scale_reward_by_uptime(bond_reward_rate, 20).unwrap();
+        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward_rate, 20).unwrap();
+        let expected_bond_reward = expected_bond * scaled_bond_reward;
+        let expected_delegation_reward = expected_delegation * scaled_delegation_reward;
+        let expected_bond = expected_bond_reward + expected_bond;
+        let expected_delegation = expected_delegation_reward + expected_delegation;
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
         let res = try_reward_mixnode(deps.as_mut(), info, node_identity.clone(), 20).unwrap();
@@ -1716,11 +1843,15 @@ pub mod tests {
             expected_bond,
             read_mixnode_bond(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
         );
+        assert_eq!(
+            expected_delegation,
+            read_mixnode_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
 
         assert_eq!(
             vec![
-                attr("bond increase", expected_reward),
-                attr("total delegation increase", Uint128(0)),
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
             ],
             res.attributes
         );
@@ -1746,9 +1877,10 @@ pub mod tests {
         assert_eq!(vec![attr("result", "bond not found")], res.attributes);
 
         let initial_bond = 100_000000;
+        let initial_delegation = 200_000000;
         let gateway_bond = GatewayBond {
             bond_amount: coin(initial_bond, DENOM),
-            total_delegation: coin(0, DENOM),
+            total_delegation: coin(initial_delegation, DENOM),
             owner: node_owner.clone(),
             gateway: Gateway {
                 identity_key: node_identity.clone(),
@@ -1760,12 +1892,20 @@ pub mod tests {
             .save(node_identity.as_bytes(), &gateway_bond)
             .unwrap();
 
-        let reward_rate = read_gateway_epoch_reward_rate(deps.as_ref().storage);
-        let expected_reward = Uint128(initial_bond) * reward_rate;
+        gateway_delegations(&mut deps.storage, &node_identity)
+            .save(b"delegator", &Uint128(initial_delegation))
+            .unwrap();
 
-        // the node's bond is correctly increased and scaled by uptime
+        let bond_reward_rate = read_gateway_epoch_bond_reward_rate(deps.as_ref().storage);
+        let delegation_reward_rate =
+            read_gateway_epoch_delegation_reward_rate(deps.as_ref().storage);
+        let expected_bond_reward = Uint128(initial_bond) * bond_reward_rate;
+        let expected_delegation_reward = Uint128(initial_delegation) * delegation_reward_rate;
+
+        // the node's bond and delegations are correctly increased and scaled by uptime
         // if node was 100% up, it will get full epoch reward
-        let expected_bond = expected_reward + Uint128(initial_bond);
+        let expected_bond = expected_bond_reward + Uint128(initial_bond);
+        let expected_delegation = expected_delegation_reward + Uint128(initial_delegation);
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
         let res = try_reward_gateway(deps.as_mut(), info, node_identity.clone(), 100).unwrap();
@@ -1776,17 +1916,25 @@ pub mod tests {
         );
 
         assert_eq!(
+            expected_delegation,
+            read_gateway_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
             vec![
-                attr("bond increase", expected_reward),
-                attr("total delegation increase", Uint128(0)),
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
             ],
             res.attributes
         );
 
         // if node was 20% up, it will get 1/5th of epoch reward
-        let scaled_reward = scale_reward_by_uptime(reward_rate, 20).unwrap();
-        let expected_reward = expected_bond * scaled_reward;
-        let expected_bond = expected_reward + expected_bond;
+        let scaled_bond_reward = scale_reward_by_uptime(bond_reward_rate, 20).unwrap();
+        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward_rate, 20).unwrap();
+        let expected_bond_reward = expected_bond * scaled_bond_reward;
+        let expected_delegation_reward = expected_delegation * scaled_delegation_reward;
+        let expected_bond = expected_bond_reward + expected_bond;
+        let expected_delegation = expected_delegation_reward + expected_delegation;
 
         let info = mock_info(network_monitor_address.as_ref(), &[]);
         let res = try_reward_gateway(deps.as_mut(), info, node_identity.clone(), 20).unwrap();
@@ -1797,9 +1945,14 @@ pub mod tests {
         );
 
         assert_eq!(
+            expected_delegation,
+            read_gateway_delegation(deps.as_ref().storage, node_identity.as_bytes()).unwrap()
+        );
+
+        assert_eq!(
             vec![
-                attr("bond increase", expected_reward),
-                attr("total delegation increase", Uint128(0)),
+                attr("bond increase", expected_bond_reward),
+                attr("total delegation increase", expected_delegation_reward),
             ],
             res.attributes
         );
@@ -2284,7 +2437,7 @@ pub mod tests {
     }
 
     #[test]
-    fn delegators_share_the_same_reward_rate_as_mix_nodes() {
+    fn delegators_on_mix_node_reward_rate() {
         let mut deps = helpers::init_contract();
         let current_state = config(deps.as_mut().storage).load().unwrap();
         let network_monitor_address = current_state.network_monitor_address;
@@ -2307,14 +2460,15 @@ pub mod tests {
             .save(b"delegator3", &Uint128(initial_delegation3))
             .unwrap();
 
-        let reward = read_mixnode_epoch_reward_rate(deps.as_ref().storage);
+        let bond_reward = read_mixnode_epoch_bond_reward_rate(deps.as_ref().storage);
+        let delegation_reward = read_mixnode_epoch_delegation_reward_rate(deps.as_ref().storage);
 
-        // the node's bond is correctly increased and scaled by uptime
+        // the node's bond and delegations are correctly increased and scaled by uptime
         // if node was 100% up, it will get full epoch reward
-        let expected_mix_reward = Uint128(initial_mix_bond) * reward;
-        let expected_delegation1_reward = Uint128(initial_delegation1) * reward;
-        let expected_delegation2_reward = Uint128(initial_delegation2) * reward;
-        let expected_delegation3_reward = Uint128(initial_delegation3) * reward;
+        let expected_mix_reward = Uint128(initial_mix_bond) * bond_reward;
+        let expected_delegation1_reward = Uint128(initial_delegation1) * delegation_reward;
+        let expected_delegation2_reward = Uint128(initial_delegation2) * delegation_reward;
+        let expected_delegation3_reward = Uint128(initial_delegation3) * delegation_reward;
 
         let expected_bond = expected_mix_reward + Uint128(initial_mix_bond);
         let expected_delegation1 = expected_delegation1_reward + Uint128(initial_delegation1);
@@ -2364,12 +2518,13 @@ pub mod tests {
         );
 
         // if node was 20% up, it will get 1/5th of epoch reward
-        let scaled_reward = scale_reward_by_uptime(reward, 20).unwrap();
+        let scaled_bond_reward = scale_reward_by_uptime(bond_reward, 20).unwrap();
+        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward, 20).unwrap();
 
-        let expected_mix_reward = expected_bond * scaled_reward;
-        let expected_delegation1_reward = expected_delegation1 * scaled_reward;
-        let expected_delegation2_reward = expected_delegation2 * scaled_reward;
-        let expected_delegation3_reward = expected_delegation3 * scaled_reward;
+        let expected_mix_reward = expected_bond * scaled_bond_reward;
+        let expected_delegation1_reward = expected_delegation1 * scaled_delegation_reward;
+        let expected_delegation2_reward = expected_delegation2 * scaled_delegation_reward;
+        let expected_delegation3_reward = expected_delegation3 * scaled_delegation_reward;
 
         let expected_bond = expected_mix_reward + expected_bond;
         let expected_delegation1 = expected_delegation1_reward + expected_delegation1;
@@ -2888,7 +3043,7 @@ pub mod tests {
     }
 
     #[test]
-    fn delegators_share_the_same_reward_rate_as_gateways() {
+    fn delegators_on_gateway_reward_rate() {
         let mut deps = helpers::init_contract();
         let current_state = config(deps.as_mut().storage).load().unwrap();
         let network_monitor_address = current_state.network_monitor_address;
@@ -2911,14 +3066,15 @@ pub mod tests {
             .save(b"delegator3", &Uint128(initial_delegation3))
             .unwrap();
 
-        let reward = read_gateway_epoch_reward_rate(deps.as_ref().storage);
+        let bond_reward = read_gateway_epoch_bond_reward_rate(deps.as_ref().storage);
+        let delegation_reward = read_gateway_epoch_delegation_reward_rate(deps.as_ref().storage);
 
-        // the node's bond is correctly increased and scaled by uptime
+        // the node's bond and delegations are correctly increased and scaled by uptime
         // if node was 100% up, it will get full epoch reward
-        let expected_gateway_reward = Uint128(initial_gateway_bond) * reward;
-        let expected_delegation1_reward = Uint128(initial_delegation1) * reward;
-        let expected_delegation2_reward = Uint128(initial_delegation2) * reward;
-        let expected_delegation3_reward = Uint128(initial_delegation3) * reward;
+        let expected_gateway_reward = Uint128(initial_gateway_bond) * bond_reward;
+        let expected_delegation1_reward = Uint128(initial_delegation1) * delegation_reward;
+        let expected_delegation2_reward = Uint128(initial_delegation2) * delegation_reward;
+        let expected_delegation3_reward = Uint128(initial_delegation3) * delegation_reward;
 
         let expected_bond = expected_gateway_reward + Uint128(initial_gateway_bond);
         let expected_delegation1 = expected_delegation1_reward + Uint128(initial_delegation1);
@@ -2968,12 +3124,13 @@ pub mod tests {
         );
 
         // if node was 20% up, it will get 1/5th of epoch reward
-        let scaled_reward = scale_reward_by_uptime(reward, 20).unwrap();
+        let scaled_bond_reward = scale_reward_by_uptime(bond_reward, 20).unwrap();
+        let scaled_delegation_reward = scale_reward_by_uptime(delegation_reward, 20).unwrap();
 
-        let expected_gateway_reward = expected_bond * scaled_reward;
-        let expected_delegation1_reward = expected_delegation1 * scaled_reward;
-        let expected_delegation2_reward = expected_delegation2 * scaled_reward;
-        let expected_delegation3_reward = expected_delegation3 * scaled_reward;
+        let expected_gateway_reward = expected_bond * scaled_bond_reward;
+        let expected_delegation1_reward = expected_delegation1 * scaled_delegation_reward;
+        let expected_delegation2_reward = expected_delegation2 * scaled_delegation_reward;
+        let expected_delegation3_reward = expected_delegation3 * scaled_delegation_reward;
 
         let expected_bond = expected_gateway_reward + expected_bond;
         let expected_delegation1 = expected_delegation1_reward + expected_delegation1;

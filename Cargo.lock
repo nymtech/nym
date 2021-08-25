@@ -905,8 +905,9 @@ dependencies = [
 
 [[package]]
 name = "cosmos-sdk-proto"
-version = "0.6.0"
-source = "git+https://github.com/cosmos/cosmos-rust/#ba012bd820240d3df2d9a0ab1deabe4ecd9a2f30"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4cf3fbbaea789be39b1ef4c6ff9a55df0d682cfddaa765dcbbbd04f2c50c06a"
 dependencies = [
  "prost",
  "prost-types",
@@ -915,8 +916,9 @@ dependencies = [
 
 [[package]]
 name = "cosmos_sdk"
-version = "0.2.0"
-source = "git+https://github.com/cosmos/cosmos-rust/#ba012bd820240d3df2d9a0ab1deabe4ecd9a2f30"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f83053e036e868c89f7a89da4abf72665c6961c3e43dda5f9f3bd51554d1c180"
 dependencies = [
  "bip32",
  "cosmos-sdk-proto",
@@ -1586,6 +1588,7 @@ dependencies = [
  "isocountry",
  "log",
  "mixnet-contract",
+ "network-defaults",
  "okapi",
  "pretty_env_logger",
  "reqwest",
@@ -2758,9 +2761,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.97"
+version = "0.2.99"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12b8adadd720df158f4d70dfe7ccc6adb0472d7c55ca83445f6a5ab3e36f8fb6"
+checksum = "a7f823d141fe0a24df1e23b4af4e3c7ba9e5966ec514ea068c93024aa7deb765"
 
 [[package]]
 name = "libm"
@@ -3072,6 +3075,7 @@ checksum = "c44922cb3dbb1c70b5e5f443d63b64363a898564d739ba5198e3a9138442868d"
 name = "network-defaults"
 version = "0.1.0"
 dependencies = [
+ "time 0.3.1",
  "url",
 ]
 
@@ -3397,6 +3401,8 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "thiserror",
+ "time 0.3.1",
  "tokio",
  "topology",
  "url",
@@ -5315,7 +5321,6 @@ dependencies = [
  "sqlx-rt",
  "stringprep",
  "thiserror",
- "time 0.2.27",
  "tokio-stream",
  "url",
  "webpki",
@@ -5942,9 +5947,21 @@ dependencies = [
  "libc",
  "standback",
  "stdweb",
- "time-macros",
+ "time-macros 0.1.1",
  "version_check",
  "winapi",
+]
+
+[[package]]
+name = "time"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a776787d9c5d455bec3db044586ccdd8a9c74d5da5dc319fb80f3db08808fe6"
+dependencies = [
+ "itoa",
+ "libc",
+ "serde",
+ "time-macros 0.2.1",
 ]
 
 [[package]]
@@ -5956,6 +5973,12 @@ dependencies = [
  "proc-macro-hack",
  "time-macros-impl",
 ]
+
+[[package]]
+name = "time-macros"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04a153416002296880a3b51329a0e3df31c779c53ec827993e865ce427982843"
 
 [[package]]
 name = "time-macros-impl"

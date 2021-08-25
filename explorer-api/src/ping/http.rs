@@ -25,6 +25,7 @@ pub(crate) async fn index(
         Some(cache_value) => {
             trace!("Returning cached value for {}", pubkey);
             Some(Json(PingResponse {
+                pending: cache_value.pending,
                 ports: cache_value.ports,
             }))
         }
@@ -33,11 +34,16 @@ pub(crate) async fn index(
 
             match state.inner.get_mix_node(pubkey).await {
                 Some(bond) => {
-                    let ports = port_check(&bond).await;
+                    // set status to pending, so that any HTTP requests are pending
+                    state.inner.ping_cache.set_pending(pubkey).await;
 
+                    // do the check
+                    let ports = Some(port_check(&bond).await);
                     trace!("Tested mix node {}: {:?}", pubkey, ports);
-
-                    let response = PingResponse { ports };
+                    let response = PingResponse {
+                        ports,
+                        pending: false,
+                    };
 
                     // cache for 1 min
                     trace!("Caching value for {}", pubkey);

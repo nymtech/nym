@@ -20,7 +20,7 @@ version = '{{ client.version }}'
 id = '{{ client.id }}'
 
 # Addresses to APIs running on validator from which the client gets the view of the network.
-validator_rest_urls = [
+validator_api_urls = [
     {{#each client.validator_api_urls }}
         '{{this}}',
     {{/each}}

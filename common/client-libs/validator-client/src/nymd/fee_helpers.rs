@@ -61,15 +61,19 @@ impl Operation {
         }
     }
 
-    pub(crate) fn determine_fee(&self, gas_price: &GasPrice, gas_limit: Option<Gas>) -> Fee {
+    pub(crate) fn determine_custom_fee(gas_price: &GasPrice, gas_limit: Gas) -> Fee {
         // we need to know 2 of the following 3 parameters (the third one is being implicit) in order to construct Fee:
         // (source: https://docs.cosmos.network/v0.42/basics/gas-fees.html)
         // - gas price
         // - gas limit
         // - fees
-        let gas_limit = gas_limit.unwrap_or_else(|| self.default_gas_limit());
         let fee = calculate_fee(gas_price, gas_limit);
         Fee::from_amount_and_gas(fee, gas_limit)
+    }
+
+    pub(crate) fn determine_fee(&self, gas_price: &GasPrice, gas_limit: Option<Gas>) -> Fee {
+        let gas_limit = gas_limit.unwrap_or_else(|| self.default_gas_limit());
+        Self::determine_custom_fee(gas_price, gas_limit)
     }
 }
 

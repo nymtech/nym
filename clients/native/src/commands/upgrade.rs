@@ -3,7 +3,7 @@
 
 use crate::client::config::{Config, MISSING_VALUE};
 use clap::{App, Arg, ArgMatches};
-use config::defaults::ValidatorDetails;
+use config::defaults::default_api_endpoints;
 use config::NymConfig;
 use std::fmt::Display;
 use std::process;
@@ -109,12 +109,12 @@ fn minor_0_12_upgrade(
 
     println!(
         "Setting validator API endpoints to {:?}",
-        ValidatorDetails::default().api_urls()
+        default_api_endpoints()
     );
 
     config
         .get_base_mut()
-        .set_custom_validator_apis(ValidatorDetails::default().api_urls());
+        .set_custom_validator_apis(default_api_endpoints());
 
     config
         .get_base_mut()

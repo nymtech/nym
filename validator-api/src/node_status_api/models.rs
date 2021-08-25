@@ -10,13 +10,14 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
 use std::io::Cursor;
+use time::OffsetDateTime;
 
 // todo: put into some error enum
 #[derive(Debug)]
 pub struct InvalidUptime;
 
 // value in range 0-100
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub struct Uptime(u8);
 
 impl Uptime {
@@ -75,28 +76,36 @@ impl TryFrom<i64> for Uptime {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct MixnodeStatusReport {
-    identity: String,
-    owner: String,
+    pub(crate) identity: String,
+    pub(crate) owner: String,
 
-    most_recent_ipv4: bool,
-    most_recent_ipv6: bool,
+    pub(crate) most_recent_ipv4: bool,
+    pub(crate) most_recent_ipv6: bool,
 
-    last_hour_ipv4: Uptime,
-    last_hour_ipv6: Uptime,
+    pub(crate) last_hour_ipv4: Uptime,
+    pub(crate) last_hour_ipv6: Uptime,
 
-    last_day_ipv4: Uptime,
-    last_day_ipv6: Uptime,
+    pub(crate) last_day_ipv4: Uptime,
+    pub(crate) last_day_ipv6: Uptime,
 }
 
 impl MixnodeStatusReport {
     pub(crate) fn construct_from_last_day_reports(
+        report_time: OffsetDateTime,
         identity: String,
         owner: String,
         last_day_ipv4: Vec<NodeStatus>,
         last_day_ipv6: Vec<NodeStatus>,
+        last_hour_test_runs: usize,
+        last_day_test_runs: usize,
     ) -> Self {
-        let node_uptimes =
-            NodeUptimes::calculate_from_last_day_reports(last_day_ipv4, last_day_ipv6);
+        let node_uptimes = NodeUptimes::calculate_from_last_day_reports(
+            report_time,
+            last_day_ipv4,
+            last_day_ipv6,
+            last_hour_test_runs,
+            last_day_test_runs,
+        );
 
         MixnodeStatusReport {
             identity,
@@ -113,28 +122,36 @@ impl MixnodeStatusReport {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct GatewayStatusReport {
-    identity: String,
-    owner: String,
+    pub(crate) identity: String,
+    pub(crate) owner: String,
 
-    most_recent_ipv4: bool,
-    most_recent_ipv6: bool,
+    pub(crate) most_recent_ipv4: bool,
+    pub(crate) most_recent_ipv6: bool,
 
-    last_hour_ipv4: Uptime,
-    last_hour_ipv6: Uptime,
+    pub(crate) last_hour_ipv4: Uptime,
+    pub(crate) last_hour_ipv6: Uptime,
 
-    last_day_ipv4: Uptime,
-    last_day_ipv6: Uptime,
+    pub(crate) last_day_ipv4: Uptime,
+    pub(crate) last_day_ipv6: Uptime,
 }
 
 impl GatewayStatusReport {
     pub(crate) fn construct_from_last_day_reports(
+        report_time: OffsetDateTime,
         identity: String,
         owner: String,
         last_day_ipv4: Vec<NodeStatus>,
         last_day_ipv6: Vec<NodeStatus>,
+        last_hour_test_runs: usize,
+        last_day_test_runs: usize,
     ) -> Self {
-        let node_uptimes =
-            NodeUptimes::calculate_from_last_day_reports(last_day_ipv4, last_day_ipv6);
+        let node_uptimes = NodeUptimes::calculate_from_last_day_reports(
+            report_time,
+            last_day_ipv4,
+            last_day_ipv6,
+            last_hour_test_runs,
+            last_day_test_runs,
+        );
 
         GatewayStatusReport {
             identity,

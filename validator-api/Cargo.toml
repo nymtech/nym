@@ -53,5 +53,5 @@ credentials = { path = "../common/credentials" }
 
 
 [build-dependencies]
-tokio = { version="1.4", features=["rt-multi-thread", "macros"] }
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]}
+tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }
+sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }

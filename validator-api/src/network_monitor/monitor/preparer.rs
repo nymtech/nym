@@ -13,7 +13,6 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::forwarding::packet::MixPacket;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
-use std::time::Duration;
 use topology::{gateway, mix};
 
 // declared type aliases for easier code reasoning
@@ -168,15 +167,7 @@ impl PacketPreparer {
     }
 
     pub(crate) async fn wait_for_validator_cache_initial_values(&self) {
-        let initialisation_backoff = Duration::from_secs(10);
-        loop {
-            if self.validator_cache.initialised() {
-                break;
-            } else {
-                debug!("Validator cache hasn't been initialised yet - waiting for {:?} before trying again", initialisation_backoff);
-                tokio::time::sleep(initialisation_backoff).await;
-            }
-        }
+        self.validator_cache.wait_for_initial_values().await;
     }
 
     async fn get_network_nodes(&mut self) -> (Vec<MixNodeBond>, Vec<GatewayBond>) {

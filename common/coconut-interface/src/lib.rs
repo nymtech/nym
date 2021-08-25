@@ -56,7 +56,7 @@ impl Credential {
     }
 }
 
-#[derive(Getters, CopyGetters)]
+#[derive(Serialize, Deserialize, Debug, Getters, CopyGetters)]
 pub struct VerifyCredentialBody {
     #[getset(get = "pub")]
     n_params: u32,

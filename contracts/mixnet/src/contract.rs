@@ -94,7 +94,7 @@ pub fn instantiate(
 #[entry_point]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
@@ -113,13 +113,13 @@ pub fn execute(
             transactions::try_reward_gateway(deps, info, identity, uptime)
         }
         ExecuteMsg::DelegateToMixnode { mix_identity } => {
-            transactions::try_delegate_to_mixnode(deps, info, mix_identity)
+            transactions::try_delegate_to_mixnode(deps, env, info, mix_identity)
         }
         ExecuteMsg::UndelegateFromMixnode { mix_identity } => {
             transactions::try_remove_delegation_from_mixnode(deps, info, mix_identity)
         }
         ExecuteMsg::DelegateToGateway { gateway_identity } => {
-            transactions::try_delegate_to_gateway(deps, info, gateway_identity)
+            transactions::try_delegate_to_gateway(deps, env, info, gateway_identity)
         }
         ExecuteMsg::UndelegateFromGateway { gateway_identity } => {
             transactions::try_remove_delegation_from_gateway(deps, info, gateway_identity)

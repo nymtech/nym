@@ -10,7 +10,7 @@ use cosmwasm_storage::{
 };
 use mixnet_contract::{
     Addr, GatewayBond, IdentityKey, IdentityKeyRef, Layer, LayerDistribution, MixNodeBond,
-    StateParams,
+    RawDelegationData, StateParams,
 };
 
 // storage prefixes
@@ -193,11 +193,11 @@ pub(crate) fn increase_mix_delegated_stakes(
         );
 
         // and for each of them increase the stake proportionally to the reward
-        for (delegator_address, amount) in delegations_chunk.into_iter() {
-            let reward = amount * scaled_reward_rate;
-            let new_amount = amount + reward;
+        for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
+            let reward = delegation.amount * scaled_reward_rate;
+            delegation.amount += reward;
             total_rewarded += reward;
-            mix_delegations(storage, mix_identity).save(&delegator_address, &new_amount)?;
+            mix_delegations(storage, mix_identity).save(&delegator_address, &delegation)?;
         }
     }
 
@@ -237,11 +237,11 @@ pub(crate) fn increase_gateway_delegated_stakes(
         );
 
         // and for each of them increase the stake proportionally to the reward
-        for (delegator_address, amount) in delegations_chunk.into_iter() {
-            let reward = amount * scaled_reward_rate;
-            let new_amount = amount + reward;
+        for (delegator_address, mut delegation) in delegations_chunk.into_iter() {
+            let reward = delegation.amount * scaled_reward_rate;
+            delegation.amount += reward;
             total_rewarded += reward;
-            gateway_delegations(storage, gateway_identity).save(&delegator_address, &new_amount)?;
+            gateway_delegations(storage, gateway_identity).save(&delegator_address, &delegation)?;
         }
     }
 
@@ -293,14 +293,14 @@ pub fn gateways_owners_read(storage: &dyn Storage) -> ReadonlyBucket<IdentityKey
 pub fn mix_delegations<'a>(
     storage: &'a mut dyn Storage,
     mix_identity: IdentityKeyRef,
-) -> Bucket<'a, Uint128> {
+) -> Bucket<'a, RawDelegationData> {
     Bucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
 }
 
 pub fn mix_delegations_read<'a>(
     storage: &'a dyn Storage,
     mix_identity: IdentityKeyRef,
-) -> ReadonlyBucket<'a, Uint128> {
+) -> ReadonlyBucket<'a, RawDelegationData> {
     ReadonlyBucket::multilevel(storage, &[PREFIX_MIX_DELEGATION, mix_identity.as_bytes()])
 }
 
@@ -318,7 +318,7 @@ pub fn reverse_mix_delegations_read<'a>(
 pub fn gateway_delegations<'a>(
     storage: &'a mut dyn Storage,
     gateway_identity: IdentityKeyRef,
-) -> Bucket<'a, Uint128> {
+) -> Bucket<'a, RawDelegationData> {
     Bucket::multilevel(
         storage,
         &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],
@@ -328,7 +328,7 @@ pub fn gateway_delegations<'a>(
 pub fn gateway_delegations_read<'a>(
     storage: &'a dyn Storage,
     gateway_identity: IdentityKeyRef,
-) -> ReadonlyBucket<'a, Uint128> {
+) -> ReadonlyBucket<'a, RawDelegationData> {
     ReadonlyBucket::multilevel(
         storage,
         &[PREFIX_GATEWAY_DELEGATION, gateway_identity.as_bytes()],

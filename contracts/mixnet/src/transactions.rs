@@ -7,11 +7,12 @@ use crate::queries;
 use crate::storage::*;
 use config::defaults::DENOM;
 use cosmwasm_std::{
-    attr, coins, BankMsg, Coin, Decimal, DepsMut, MessageInfo, Order, Response, StdResult, Uint128,
+    attr, coins, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Order, Response, StdResult,
+    Uint128,
 };
 use cosmwasm_storage::ReadonlyBucket;
 use mixnet_contract::{
-    Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, StateParams,
+    Gateway, GatewayBond, IdentityKey, Layer, MixNode, MixNodeBond, RawDelegationData, StateParams,
 };
 
 const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
@@ -23,7 +24,7 @@ const OLD_DELEGATIONS_CHUNK_SIZE: usize = 500;
 // 3. The node unbonds
 // 4. Some of the addresses that delegated in the past have not removed the delegation yet
 // 5. The node rebonds with the same identity
-fn find_old_delegations(delegations_bucket: ReadonlyBucket<Uint128>) -> StdResult<Coin> {
+fn find_old_delegations(delegations_bucket: ReadonlyBucket<RawDelegationData>) -> StdResult<Coin> {
     // I think it's incredibly unlikely to ever read more than that
     // but in case we do, we should guard ourselves against possible
     // out of memory errors (wasm contracts can only allocate at most 2MB
@@ -45,7 +46,7 @@ fn find_old_delegations(delegations_bucket: ReadonlyBucket<Uint128>) -> StdResul
                 continue;
             }
 
-            let value = delegation?.1;
+            let value = delegation?.1.amount;
             total_delegation.amount += value;
         }
 
@@ -540,6 +541,7 @@ fn validate_delegation_stake(delegation: &[Coin]) -> Result<(), ContractError> {
 
 pub(crate) fn try_delegate_to_mixnode(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     mix_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
@@ -565,12 +567,13 @@ pub(crate) fn try_delegate_to_mixnode(
     let sender_bytes = info.sender.as_bytes();
 
     // write the delegation
-    match delegation_bucket.may_load(sender_bytes)? {
-        Some(existing_delegation) => {
-            delegation_bucket.save(sender_bytes, &(existing_delegation + info.funds[0].amount))?
-        }
-        None => delegation_bucket.save(sender_bytes, &info.funds[0].amount)?,
-    }
+    let new_amount = match delegation_bucket.may_load(sender_bytes)? {
+        Some(existing_delegation) => existing_delegation.amount + info.funds[0].amount,
+        None => info.funds[0].amount,
+    };
+    // the block height is reset, if it existed
+    let new_delegation = RawDelegationData::new(new_amount, env.block.height);
+    delegation_bucket.save(sender_bytes, &new_delegation)?;
 
     reverse_mix_delegations(deps.storage, &info.sender).save(mix_identity.as_bytes(), &())?;
 
@@ -593,7 +596,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
             // send delegated funds back to the delegation owner
             let messages = vec![BankMsg::Send {
                 to_address: info.sender.to_string(),
-                amount: coins(delegation.u128(), DENOM),
+                amount: coins(delegation.amount.u128(), DENOM),
             }
             .into()];
 
@@ -606,7 +609,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
                 existing_bond.total_delegation.amount = existing_bond
                     .total_delegation
                     .amount
-                    .checked_sub(delegation)
+                    .checked_sub(delegation.amount)
                     .unwrap();
                 mixnodes_bucket.save(mix_identity.as_bytes(), &existing_bond)?;
             }
@@ -627,6 +630,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 
 pub(crate) fn try_delegate_to_gateway(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     gateway_identity: IdentityKey,
 ) -> Result<Response, ContractError> {
@@ -652,12 +656,13 @@ pub(crate) fn try_delegate_to_gateway(
     let sender_bytes = info.sender.as_bytes();
 
     // write the delegation
-    match delegation_bucket.may_load(sender_bytes)? {
-        Some(existing_delegation) => {
-            delegation_bucket.save(sender_bytes, &(existing_delegation + info.funds[0].amount))?
-        }
-        None => delegation_bucket.save(sender_bytes, &info.funds[0].amount)?,
-    }
+    let new_amount = match delegation_bucket.may_load(sender_bytes)? {
+        Some(existing_delegation) => existing_delegation.amount + info.funds[0].amount,
+        None => info.funds[0].amount,
+    };
+    // the block height is reset, if it existed
+    let new_delegation = RawDelegationData::new(new_amount, env.block.height);
+    delegation_bucket.save(sender_bytes, &new_delegation)?;
 
     reverse_gateway_delegations(deps.storage, &info.sender)
         .save(gateway_identity.as_bytes(), &())?;
@@ -682,7 +687,7 @@ pub(crate) fn try_remove_delegation_from_gateway(
             // send delegated funds back to the delegation owner
             let messages = vec![BankMsg::Send {
                 to_address: info.sender.to_string(),
-                amount: coins(delegation.u128(), DENOM),
+                amount: coins(delegation.amount.u128(), DENOM),
             }
             .into()];
 
@@ -697,7 +702,7 @@ pub(crate) fn try_remove_delegation_from_gateway(
                 existing_bond.total_delegation.amount = existing_bond
                     .total_delegation
                     .amount
-                    .checked_sub(delegation)
+                    .checked_sub(delegation.amount)
                     .unwrap();
                 gateways_bucket.save(gateway_identity.as_bytes(), &existing_bond)?;
             }

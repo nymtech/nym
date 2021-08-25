@@ -128,7 +128,7 @@ pub(crate) fn query_mixnode_delegations_paged(
                     Addr::unchecked(String::from_utf8(entry.0).expect(
                         "Non-UTF8 address used as key in bucket. The storage is corrupted!",
                     )),
-                    coin(entry.1.u128(), DENOM),
+                    coin(entry.1.amount.u128(), DENOM),
                 )
             })
         })
@@ -183,7 +183,7 @@ pub(crate) fn query_mixnode_delegation(
     match mix_delegations_read(deps.storage, &mix_identity).may_load(address.as_bytes())? {
         Some(delegation_value) => Ok(Delegation::new(
             address,
-            coin(delegation_value.u128(), DENOM),
+            coin(delegation_value.amount.u128(), DENOM),
         )),
         None => Err(ContractError::NoMixnodeDelegationFound {
             identity: mix_identity,
@@ -212,7 +212,7 @@ pub(crate) fn query_gateway_delegations_paged(
                     Addr::unchecked(String::from_utf8(entry.0).expect(
                         "Non-UTF8 address used as key in bucket. The storage is corrupted!",
                     )),
-                    coin(entry.1.u128(), DENOM),
+                    coin(entry.1.amount.u128(), DENOM),
                 )
             })
         })
@@ -267,7 +267,7 @@ pub(crate) fn query_gateway_delegation(
     match gateway_delegations_read(deps.storage, &gateway_identity).may_load(address.as_bytes())? {
         Some(delegation_value) => Ok(Delegation::new(
             address,
-            coin(delegation_value.u128(), DENOM),
+            coin(delegation_value.amount.u128(), DENOM),
         )),
         None => Err(ContractError::NoGatewayDelegationFound {
             identity: gateway_identity,

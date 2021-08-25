@@ -205,100 +205,102 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<QueryResponse, Cont
     Ok(query_res?)
 }
 
-fn get_all_mixnodes_identities(deps: &DepsMut) -> Result<Vec<IdentityKey>, ContractError> {
-    let mut mixnode_bonds = Vec::new();
-    let mut start_after = None;
-    loop {
-        let mut paged_response = queries::query_mixnodes_paged(deps.as_ref(), start_after, None)?;
-        mixnode_bonds.append(&mut paged_response.nodes);
-
-        if let Some(start_after_res) = paged_response.start_next_after {
-            start_after = Some(start_after_res)
-        } else {
-            break;
-        }
-    }
-    let mixnodes = mixnode_bonds
-        .into_iter()
-        .map(|bond| bond.mix_node.identity_key)
-        .collect();
-
-    Ok(mixnodes)
-}
-
-fn get_all_gateways_identities(deps: &DepsMut) -> Result<Vec<IdentityKey>, ContractError> {
-    let mut gateway_bonds = Vec::new();
-    let mut start_after = None;
-    loop {
-        let mut paged_response = queries::query_gateways_paged(deps.as_ref(), start_after, None)?;
-        gateway_bonds.append(&mut paged_response.nodes);
-
-        if let Some(start_after_res) = paged_response.start_next_after {
-            start_after = Some(start_after_res)
-        } else {
-            break;
-        }
-    }
-    let gateways = gateway_bonds
-        .into_iter()
-        .map(|bond| bond.gateway.identity_key)
-        .collect();
-
-    Ok(gateways)
-}
-
-fn get_all_mixnode_delegations(
-    deps: &DepsMut,
-    mix_identity: IdentityKeyRef,
-) -> Result<Vec<Delegation>, ContractError> {
-    let mut delegations = Vec::new();
-    let mut start_after = None;
-    loop {
-        let mut paged_response = queries::query_mixnode_delegations_paged(
-            deps.as_ref(),
-            mix_identity.into(),
-            start_after,
-            None,
-        )?;
-        delegations.append(&mut paged_response.delegations);
-
-        if let Some(start_after_res) = paged_response.start_next_after {
-            start_after = Some(start_after_res)
-        } else {
-            break;
-        }
-    }
-
-    Ok(delegations)
-}
-
-fn get_all_gateway_delegations(
-    deps: &DepsMut,
-    gateway_identity: IdentityKeyRef,
-) -> Result<Vec<Delegation>, ContractError> {
-    let mut delegations = Vec::new();
-    let mut start_after = None;
-    loop {
-        let mut paged_response = queries::query_gateway_delegations_paged(
-            deps.as_ref(),
-            gateway_identity.into(),
-            start_after,
-            None,
-        )?;
-        delegations.append(&mut paged_response.delegations);
-
-        if let Some(start_after_res) = paged_response.start_next_after {
-            start_after = Some(start_after_res)
-        } else {
-            break;
-        }
-    }
-
-    Ok(delegations)
-}
-
 #[entry_point]
 pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    fn get_all_mixnodes_identities(deps: &DepsMut) -> Result<Vec<IdentityKey>, ContractError> {
+        let mut mixnode_bonds = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response =
+                queries::query_mixnodes_paged(deps.as_ref(), start_after, None)?;
+            mixnode_bonds.append(&mut paged_response.nodes);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+        let mixnodes = mixnode_bonds
+            .into_iter()
+            .map(|bond| bond.mix_node.identity_key)
+            .collect();
+
+        Ok(mixnodes)
+    }
+
+    fn get_all_gateways_identities(deps: &DepsMut) -> Result<Vec<IdentityKey>, ContractError> {
+        let mut gateway_bonds = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response =
+                queries::query_gateways_paged(deps.as_ref(), start_after, None)?;
+            gateway_bonds.append(&mut paged_response.nodes);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+        let gateways = gateway_bonds
+            .into_iter()
+            .map(|bond| bond.gateway.identity_key)
+            .collect();
+
+        Ok(gateways)
+    }
+
+    fn get_all_mixnode_delegations(
+        deps: &DepsMut,
+        mix_identity: IdentityKeyRef,
+    ) -> Result<Vec<Delegation>, ContractError> {
+        let mut delegations = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = queries::query_mixnode_delegations_paged(
+                deps.as_ref(),
+                mix_identity.into(),
+                start_after,
+                None,
+            )?;
+            delegations.append(&mut paged_response.delegations);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(delegations)
+    }
+
+    fn get_all_gateway_delegations(
+        deps: &DepsMut,
+        gateway_identity: IdentityKeyRef,
+    ) -> Result<Vec<Delegation>, ContractError> {
+        let mut delegations = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = queries::query_gateway_delegations_paged(
+                deps.as_ref(),
+                gateway_identity.into(),
+                start_after,
+                None,
+            )?;
+            delegations.append(&mut paged_response.delegations);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(delegations)
+    }
+
     let mixnodes_identities = get_all_mixnodes_identities(&deps)?;
     for mix_identity in mixnodes_identities {
         let delegations = get_all_mixnode_delegations(&deps, &mix_identity)?;

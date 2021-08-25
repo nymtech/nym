@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import {
   TextField,
-  LinearProgress,
+  CircularProgress,
   Button,
   Typography,
   Grid,
@@ -9,21 +9,38 @@ import {
   Theme,
   Card,
 } from '@material-ui/core'
+import { Alert } from '@material-ui/lab'
 import { useTheme } from '@material-ui/styles'
 import logo from '../images/logo.png'
 import { useHistory } from 'react-router-dom'
 import { invoke } from '@tauri-apps/api'
 
 export const SignIn = () => {
-  const handleSignIn = (e: React.FormEvent<any>) => {
-    e.preventDefault()
+  const [mnemonic, setMnemonic] = useState<string>('')
+  const [inputError, setInputError] = useState<string | undefined>()
+  const [isLoading, setIsLoading] = useState(false)
 
-    history.push('/bond')
-  }
-
-  const [loading, setLoading] = useState(false)
   const theme: Theme = useTheme()
   const history = useHistory()
+
+  const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+
+    setIsLoading(true)
+    setInputError(undefined)
+
+    invoke('connect_with_mnemonic', { mnemonic })
+      .then((res) => {
+        setIsLoading(false)
+        console.log(res)
+        history.push('/bond')
+      })
+      .catch((e) => {
+        setIsLoading(false)
+        setInputError(e)
+      })
+  }
+
   return (
     <div
       style={{
@@ -68,6 +85,10 @@ export const SignIn = () => {
             <Grid container direction="column" spacing={1}>
               <Grid item>
                 <TextField
+                  value={mnemonic}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setMnemonic(e.target.value)
+                  }
                   size="medium"
                   variant="outlined"
                   margin="normal"
@@ -78,6 +99,7 @@ export const SignIn = () => {
                   name="mnemonic"
                   autoComplete="mnemonic"
                   autoFocus
+                  disabled={isLoading}
                 />
               </Grid>
               <Grid item>
@@ -86,12 +108,18 @@ export const SignIn = () => {
                   variant="contained"
                   color="primary"
                   type="submit"
-                  disabled={loading}
+                  disabled={isLoading}
+                  endIcon={isLoading && <CircularProgress size={20} />}
                   disableElevation
                 >
-                  Sign In
+                  {!isLoading ? 'Sign In' : 'Signing in'}
                 </Button>
               </Grid>
+              {inputError && (
+                <Grid item>
+                  <Alert severity="error">{inputError}</Alert>
+                </Grid>
+              )}
               <Grid item style={{ marginTop: theme.spacing(1) }}>
                 <Typography variant="body2" component="span">
                   Don't have an account?

@@ -609,6 +609,71 @@ mod tests {
     }
 
     #[cfg(test)]
+    mod mix_reverse_delegations {
+        use super::*;
+        use crate::support::tests::helpers;
+
+        #[test]
+        fn mix_reverse_delegation_exists() {
+            let mut deps = helpers::init_contract();
+            let node_identity: IdentityKey = "foo".into();
+            let delegation_owner = Addr::unchecked("bar");
+
+            mix_reverse_delegations(&mut deps.storage, &delegation_owner)
+                .save(node_identity.as_bytes(), &())
+                .unwrap();
+
+            assert!(
+                mix_reverse_delegations_read(deps.as_ref().storage, &delegation_owner)
+                    .may_load(node_identity.as_bytes())
+                    .unwrap()
+                    .is_some(),
+            );
+        }
+
+        #[test]
+        fn mix_reverse_delegation_returns_none_if_delegation_doesnt_exist() {
+            let mut deps = helpers::init_contract();
+
+            let node_identity1: IdentityKey = "foo1".into();
+            let node_identity2: IdentityKey = "foo2".into();
+            let delegation_owner1 = Addr::unchecked("bar");
+            let delegation_owner2 = Addr::unchecked("bar2");
+
+            assert!(
+                mix_reverse_delegations_read(deps.as_ref().storage, &delegation_owner1)
+                    .may_load(node_identity1.as_bytes())
+                    .unwrap()
+                    .is_none()
+            );
+
+            // add delegation for a different node
+            mix_reverse_delegations(&mut deps.storage, &delegation_owner1)
+                .save(node_identity2.as_bytes(), &())
+                .unwrap();
+
+            assert!(
+                mix_reverse_delegations_read(deps.as_ref().storage, &delegation_owner1)
+                    .may_load(node_identity1.as_bytes())
+                    .unwrap()
+                    .is_none()
+            );
+
+            // add delegation from a different owner
+            mix_reverse_delegations(&mut deps.storage, &delegation_owner2)
+                .save(node_identity1.as_bytes(), &())
+                .unwrap();
+
+            assert!(
+                mix_reverse_delegations_read(deps.as_ref().storage, &delegation_owner1)
+                    .may_load(node_identity1.as_bytes())
+                    .unwrap()
+                    .is_none()
+            );
+        }
+    }
+
+    #[cfg(test)]
     mod increasing_gateway_delegated_stakes {
         use super::*;
         use crate::queries::query_gateway_delegations_paged;
@@ -742,6 +807,71 @@ mod tests {
                         .unwrap()
                 )
             }
+        }
+    }
+
+    #[cfg(test)]
+    mod gateway_reverse_delegations {
+        use super::*;
+        use crate::support::tests::helpers;
+
+        #[test]
+        fn gateway_reverse_delegation_exists() {
+            let mut deps = helpers::init_contract();
+            let node_identity: IdentityKey = "foo".into();
+            let delegation_owner = Addr::unchecked("bar");
+
+            mix_reverse_delegations(&mut deps.storage, &delegation_owner)
+                .save(node_identity.as_bytes(), &())
+                .unwrap();
+
+            assert!(
+                mix_reverse_delegations_read(deps.as_ref().storage, &delegation_owner)
+                    .may_load(node_identity.as_bytes())
+                    .unwrap()
+                    .is_some(),
+            );
+        }
+
+        #[test]
+        fn gateway_reverse_delegation_returns_none_if_delegation_doesnt_exist() {
+            let mut deps = helpers::init_contract();
+
+            let node_identity1: IdentityKey = "foo1".into();
+            let node_identity2: IdentityKey = "foo2".into();
+            let delegation_owner1 = Addr::unchecked("bar");
+            let delegation_owner2 = Addr::unchecked("bar2");
+
+            assert!(
+                gateway_reverse_delegations_read(deps.as_ref().storage, &delegation_owner1)
+                    .may_load(node_identity1.as_bytes())
+                    .unwrap()
+                    .is_none()
+            );
+
+            // add delegation for a different node
+            gateway_reverse_delegations(&mut deps.storage, &delegation_owner1)
+                .save(node_identity2.as_bytes(), &())
+                .unwrap();
+
+            assert!(
+                gateway_reverse_delegations_read(deps.as_ref().storage, &delegation_owner1)
+                    .may_load(node_identity1.as_bytes())
+                    .unwrap()
+                    .is_none()
+            );
+
+            // add delegation from a different owner
+            gateway_reverse_delegations(&mut deps.storage, &delegation_owner2)
+                .save(node_identity1.as_bytes(), &())
+                .unwrap();
+
+            assert!(
+                gateway_reverse_delegations_read(deps.as_ref().storage, &delegation_owner1)
+                    .may_load(node_identity1.as_bytes())
+                    .unwrap()
+                    .is_none()
+            );
         }
     }
 }

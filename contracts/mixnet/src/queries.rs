@@ -859,19 +859,6 @@ mod tests {
         use super::*;
         use crate::storage::mix_reverse_delegations;
 
-        fn query_mixnode_reverse_delegation(
-            deps: Deps,
-            mix_identity: IdentityKey,
-            address: Addr,
-        ) -> Result<(), ContractError> {
-            mix_reverse_delegations_read(deps.storage, &address)
-                .may_load(mix_identity.as_bytes())?
-                .ok_or(ContractError::NoMixnodeDelegationFound {
-                    identity: mix_identity,
-                    address,
-                })
-        }
-
         fn store_n_reverse_delegations(n: u32, storage: &mut dyn Storage, delegation_owner: &Addr) {
             for i in 0..n {
                 let node_identity = format!("node{}", i);
@@ -1025,74 +1012,6 @@ mod tests {
 
             // now we have 2 pages, with 2 results on the second page
             assert_eq!(2, page2.delegated_nodes.len());
-        }
-
-        #[test]
-        fn mix_reverse_deletion_query_returns_current_delegation_value() {
-            let mut deps = helpers::init_contract();
-            let node_identity: IdentityKey = "foo".into();
-            let delegation_owner = Addr::unchecked("bar");
-
-            mix_reverse_delegations(&mut deps.storage, &delegation_owner)
-                .save(node_identity.as_bytes(), &())
-                .unwrap();
-
-            assert_eq!(
-                Ok(()),
-                query_mixnode_reverse_delegation(deps.as_ref(), node_identity, delegation_owner)
-            )
-        }
-
-        #[test]
-        fn mix_reverse_deletion_query_returns_error_if_delegation_doesnt_exist() {
-            let mut deps = helpers::init_contract();
-
-            let node_identity1: IdentityKey = "foo1".into();
-            let node_identity2: IdentityKey = "foo2".into();
-            let delegation_owner1 = Addr::unchecked("bar");
-            let delegation_owner2 = Addr::unchecked("bar2");
-
-            assert_eq!(
-                Err(ContractError::NoMixnodeDelegationFound {
-                    identity: node_identity1.clone(),
-                    address: delegation_owner1.clone(),
-                }),
-                query_mixnode_reverse_delegation(
-                    deps.as_ref(),
-                    node_identity1.clone(),
-                    delegation_owner1.clone()
-                )
-            );
-
-            // add delegation for a different node
-            mix_reverse_delegations(&mut deps.storage, &delegation_owner1)
-                .save(node_identity2.as_bytes(), &())
-                .unwrap();
-
-            assert_eq!(
-                Err(ContractError::NoMixnodeDelegationFound {
-                    identity: node_identity1.clone(),
-                    address: delegation_owner1.clone(),
-                }),
-                query_mixnode_reverse_delegation(
-                    deps.as_ref(),
-                    node_identity1.clone(),
-                    delegation_owner1.clone()
-                )
-            );
-
-            // add delegation from a different owner
-            mix_reverse_delegations(&mut deps.storage, &delegation_owner2)
-                .save(node_identity1.as_bytes(), &())
-                .unwrap();
-
-            assert_eq!(
-                Err(ContractError::NoMixnodeDelegationFound {
-                    identity: node_identity1.clone(),
-                    address: delegation_owner1.clone()
-                }),
-                query_mixnode_reverse_delegation(deps.as_ref(), node_identity1, delegation_owner1)
-            )
         }
     }
 
@@ -1326,19 +1245,6 @@ mod tests {
         use super::*;
         use crate::storage::gateway_reverse_delegations;
 
-        fn query_gateway_reverse_delegation(
-            deps: Deps,
-            mix_identity: IdentityKey,
-            address: Addr,
-        ) -> Result<(), ContractError> {
-            gateway_reverse_delegations_read(deps.storage, &address)
-                .may_load(mix_identity.as_bytes())?
-                .ok_or(ContractError::NoGatewayDelegationFound {
-                    identity: mix_identity,
-                    address,
-                })
-        }
-
         fn store_n_reverse_delegations(n: u32, storage: &mut dyn Storage, delegation_owner: &Addr) {
             for i in 0..n {
                 let node_identity = format!("node{}", i);
@@ -1492,74 +1398,6 @@ mod tests {
 
             // now we have 2 pages, with 2 results on the second page
             assert_eq!(2, page2.delegated_nodes.len());
-        }
-
-        #[test]
-        fn gateway_reverse_deletion_query_returns_current_delegation_value() {
-            let mut deps = helpers::init_contract();
-            let node_identity: IdentityKey = "foo".into();
-            let delegation_owner = Addr::unchecked("bar");
-
-            gateway_reverse_delegations(&mut deps.storage, &delegation_owner)
-                .save(node_identity.as_bytes(), &())
-                .unwrap();
-
-            assert_eq!(
-                Ok(()),
-                query_gateway_reverse_delegation(deps.as_ref(), node_identity, delegation_owner)
-            )
-        }
-
-        #[test]
-        fn gateway_reverse_deletion_query_returns_error_if_delegation_doesnt_exist() {
-            let mut deps = helpers::init_contract();
-
-            let node_identity1: IdentityKey = "foo1".into();
-            let node_identity2: IdentityKey = "foo2".into();
-            let delegation_owner1 = Addr::unchecked("bar");
-            let delegation_owner2 = Addr::unchecked("bar2");
-
-            assert_eq!(
-                Err(ContractError::NoGatewayDelegationFound {
-                    identity: node_identity1.clone(),
-                    address: delegation_owner1.clone(),
-                }),
-                query_gateway_reverse_delegation(
-                    deps.as_ref(),
-                    node_identity1.clone(),
-                    delegation_owner1.clone()
-                )
-            );
-
-            // add delegation for a different node
-            gateway_reverse_delegations(&mut deps.storage, &delegation_owner1)
-                .save(node_identity2.as_bytes(), &())
-                .unwrap();
-
-            assert_eq!(
-                Err(ContractError::NoGatewayDelegationFound {
-                    identity: node_identity1.clone(),
-                    address: delegation_owner1.clone(),
-                }),
-                query_gateway_reverse_delegation(
-                    deps.as_ref(),
-                    node_identity1.clone(),
-                    delegation_owner1.clone()
-                )
-            );
-
-            // add delegation from a different owner
-            gateway_reverse_delegations(&mut deps.storage, &delegation_owner2)
-                .save(node_identity1.as_bytes(), &())
-                .unwrap();
-
-            assert_eq!(
-                Err(ContractError::NoGatewayDelegationFound {
-                    identity: node_identity1.clone(),
-                    address: delegation_owner1.clone()
-                }),
-                query_gateway_reverse_delegation(deps.as_ref(), node_identity1, delegation_owner1)
-            )
         }
     }
 }

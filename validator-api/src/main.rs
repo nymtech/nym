@@ -182,7 +182,7 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_v4_good_topology(v4_topology_path)
     }
 
-    if let Some(v6_topology_path) = matches.value_of(V4_TOPOLOGY_ARG) {
+    if let Some(v6_topology_path) = matches.value_of(V6_TOPOLOGY_ARG) {
         config = config.with_v6_good_topology(v6_topology_path)
     }
 

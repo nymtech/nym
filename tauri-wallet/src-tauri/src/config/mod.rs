@@ -7,11 +7,14 @@ use config::defaults::{
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use url::Url;
+use std::str::FromStr;
+use tendermint_rpc::Url;
 
 mod template;
 
 use template::config_template;
+
+use crate::error::BackendError;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -71,20 +74,23 @@ impl NymConfig for Config {
 }
 
 impl Config {
-  pub fn get_nymd_validator_url(&self) -> Url {
+  pub fn get_nymd_validator_url(&self) -> Result<Url, BackendError> {
     // TODO make this a random choice
     if let Some(validator_details) = self.base.validators.first() {
-        validator_details.nymd_url()
+      match tendermint_rpc::Url::from_str(&validator_details.nymd_url().to_string()) {
+        Ok(url) => Ok(url),
+        Err(e) => Err(e.into()),
+      }
     } else {
-        panic!("No validators found in config")
+      panic!("No validators found in config")
     }
   }
 
-  pub fn get_mixnet_contract_address(&self) -> String {
-    self.base.mixnet_contract_address.clone()
-  }
+  //   pub fn get_mixnet_contract_address(&self) -> String {
+  //     self.base.mixnet_contract_address.clone()
+  //   }
 
-  pub fn get_mnemonic(&self) -> String {
-    self.base.mnemonic.clone()
-  }
+  //   pub fn get_mnemonic(&self) -> String {
+  //     self.base.mnemonic.clone()
+  //   }
 }

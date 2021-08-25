@@ -36,6 +36,7 @@ pub(crate) mod fee_helpers;
 pub mod gas_price;
 pub mod wallet;
 
+#[derive(Debug)]
 pub struct NymdClient<C> {
     client: C,
     contract_address: Option<AccountId>,

@@ -6,7 +6,7 @@ use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use mixnet_contract::{GatewayBond, MixNodeBond};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use validator_client::nymd::{CosmWasmClient, QueryNymdClient, SigningNymdClient};
+use validator_client::nymd::{CosmWasmClient, QueryNymdClient, SigningNymdClient, NymdClient};
 use validator_client::ValidatorClientError;
 
 #[derive(Clone)]

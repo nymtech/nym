@@ -10,6 +10,7 @@ use cosmos_sdk::tx::SignDoc;
 use cosmos_sdk::{tx, AccountId};
 
 /// Derivation information required to derive a keypair and an address from a mnemonic.
+#[derive(Debug)]
 struct Secp256k1Derivation {
     hd_path: DerivationPath,
     prefix: String,
@@ -25,6 +26,7 @@ pub struct AccountData {
 
 type Secp256k1Keypair = (SigningKey, PublicKey);
 
+#[derive(Debug)]
 pub struct DirectSecp256k1HdWallet {
     /// Base secret
     secret: bip39::Mnemonic,

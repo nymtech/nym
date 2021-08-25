@@ -442,6 +442,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
     }
 }
 
+#[derive(Debug)]
 pub struct Client {
     rpc_client: HttpClient,
     signer: DirectSecp256k1HdWallet,
